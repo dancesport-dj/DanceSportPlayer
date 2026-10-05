@@ -1,0 +1,123 @@
+name: build-player
+
+# The player flavor as a download: the Windows folder (with ffmpeg.exe next to
+# the .exe) and the macOS .dmg. Both go through the same scripts as a local
+# build (build_exe.bat, build_app.sh), so CI and a desk build cannot drift
+# apart. Started by hand, the results are the run's artifacts; started by a
+# version tag, they are published as that tag's GitHub release as well.
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      # build_exe.bat builds from .venv, like on the desk.
+      - name: Build venv
+        run: |
+          python -m venv .venv
+          .venv\Scripts\python.exe -m pip install --upgrade pip
+          .venv\Scripts\python.exe -m pip install -r requirements-player.txt pyinstaller==6.22.0
+
+      # Not in the repository (see BUILD.md): the essentials build, put where
+      # build_exe.bat looks for it, which copies it next to the .exe. Pinned to
+      # the version the desk builds with; gyan.dev itself keeps only the
+      # latest, its GitHub mirror keeps every release.
+      - name: Fetch ffmpeg
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://github.com/GyanD/codexffmpeg/releases/download/9.0.2/ffmpeg-9.0.2-essentials_build.zip -OutFile ffmpeg.zip
+          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg-unpacked
+          $exe = Get-ChildItem ffmpeg-unpacked -Recurse -Filter ffmpeg.exe | Select-Object -First 1
+          Copy-Item $exe.FullName ffmpeg.exe
+          .\ffmpeg.exe -hide_banner -version | Select-Object -First 1
+
+      - name: Build
+        env:
+          # Without it the build simply offers no error reports.
+          DANCEPLAYLIST_ERROR_DSN: ${{ secrets.DANCEPLAYLIST_ERROR_DSN }}
+          # The tag overrides planner.version.VERSION, so the app says what
+          # the release is named. A run started by hand has none.
+          DANCEPLAYLIST_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
+        run: .\build_exe.bat player
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: DanceSport-Player-windows
+          path: dist/DanceSport-Player/
+          if-no-files-found: error
+
+  macos:
+    # Apple silicon. No universal2: llvmlite/numba/soundfile have no universal
+    # wheels (BUILD.md), and the player build follows the same rule.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Build venv
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -r requirements-player.txt pyinstaller==6.22.0 pillow
+
+      # Builds, signs ad hoc and wraps the .app in a .dmg. ffmpeg is not
+      # bundled on macOS (brew install ffmpeg on the machine that runs it).
+      - name: Build
+        env:
+          DANCEPLAYLIST_ERROR_DSN: ${{ secrets.DANCEPLAYLIST_ERROR_DSN }}
+          DANCEPLAYLIST_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
+        run: ./build_app.sh player dmg
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: DanceSport-Player-macos
+          path: dist/DanceSport-Player.dmg
+          if-no-files-found: error
+
+  release:
+    # Only for a v* tag; a run started by hand stops at the artifacts.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+
+      # The Windows folder goes in one zip that unpacks to a DanceSport-Player
+      # folder.
+      # The release text is the tagged commit's message body: a public commit
+      # is one release (tools/publish_sync), minus its Source trailer, which
+      # names a private commit.
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        # Names and title say the version without the tag's v, like the app.
+        run: |
+          VERSION="${TAG#v}"
+          mv artifacts/DanceSport-Player-windows artifacts/DanceSport-Player
+          (cd artifacts && zip -qr "../DanceSport-Player-$VERSION-windows.zip" DanceSport-Player)
+          mv artifacts/DanceSport-Player-macos/DanceSport-Player.dmg "DanceSport-Player-$VERSION-macos.dmg"
+          git log -1 --format=%b "$TAG" | sed '/^Source: /d' > notes.md
+          gh release create "$TAG" \
+            "DanceSport-Player-$VERSION-windows.zip" "DanceSport-Player-$VERSION-macos.dmg" \
+            --title "DanceSport Player $VERSION" --notes-file notes.md

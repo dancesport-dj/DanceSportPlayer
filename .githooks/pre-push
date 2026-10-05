@@ -1,0 +1,30 @@
+#!/bin/sh
+# Pre-push: ruff and the WHOLE suite, whatever the commits' scope. The
+# pre-commit hook only runs the part of the suite a commit's own area can break
+# (tools/commit_scope.py); this is where a scoped commit that broke another area
+# gets caught, before it leaves the machine.
+#
+# Enabled together with pre-commit by `git config core.hooksPath .githooks`.
+# Skip with `git push --no-verify` only when you really mean to.
+
+if [ -x ".venv/Scripts/python.exe" ]; then
+    PY=".venv/Scripts/python.exe"
+elif command -v py >/dev/null 2>&1; then
+    PY="py"
+else
+    PY="python"
+fi
+
+if "$PY" -m ruff --version >/dev/null 2>&1; then
+    echo "🧹 ruff…"
+    "$PY" -m ruff check . || exit 1
+else
+    echo "🧹 ruff not installed — skipping lint (pip install ruff)"
+fi
+
+echo "🧪 whole suite… (~4.5 min)"
+QT_QPA_PLATFORM=offscreen "$PY" -m unittest discover -p "test_*.py" -q || {
+    echo "🛑 Suite is red — push refused."
+    echo "   Fix it, or push with --no-verify if you know what you are doing."
+    exit 1
+}

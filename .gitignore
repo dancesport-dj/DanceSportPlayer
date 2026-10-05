@@ -1,0 +1,72 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Local dev scratch scripts (one-off analysis / comparisons)
+_*.py
+_*.wav
+# …but a package marker is not a scratch script
+!__init__.py
+
+# Test coverage data (coverage.py)
+.coverage
+
+# Crash dumps (faulthandler + uncaught-exception log) and the breadcrumb log
+# whose tail says what the app was doing when it died
+crash.log
+session.log
+session.prev.log
+
+# Runtime caches / databases (regenerated from the music library)
+audio_features*.db
+audio_features*.db-shm
+audio_features*.db-wal
+*.json.bak
+scan_cache.json
+global_scan_cache.json
+
+# Per-machine state (use planner_config.example.json as template)
+planner_config.json
+gui_settings.json
+autosave_playlist.json
+autosave_playlist.*.json
+themes.json
+cartwall.json
+tournaments.json
+presenter_timetable.json
+
+# Secrets (use openrouter_config.example.json as template)
+openrouter_config.json
+# ELEVENLABS_API_KEY for speech/generate_announcements.py
+.env
+
+# Pronunciation variants to audition; never played or shipped
+speech/varianten/
+
+# Generated playlists, and the dated wishlists 💾 Save writes next to them
+playlists/
+wishlists/
+
+# Third-party ffmpeg build (see BUILD.md — download it, don't commit it)
+ffmpeg-*-essentials_build/
+ffmpeg.exe
+
+# PyInstaller build output
+build/
+build_pyi/
+dist/
+pyi_build.log
+build_flavor.txt
+
+# The planner's own description: kept on this machine only, the public
+# README describes the player
+README-planner.md
+
+# The planner's manual: kept on this machine only, the public manual in
+# docs/manual describes the player
+docs/manual-planner/
+
+# The wedding theme's marks carry a couple's names: on this machine only, the
+# presenter shows no mark without them
+assets/hochzeit/

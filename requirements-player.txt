@@ -1,0 +1,31 @@
+# ── Player-only install ──────────────────────────────────────────────────────
+# What the venue build needs and nothing else: the GUI, playback, tag reading,
+# and numpy for the Paso Doble highlight detector.
+#   pip install -r requirements-player.txt   (~0.1 GB)
+#
+# Deliberately absent: librosa and its numba/llvmlite/scipy/soundfile stack.
+# That is the timbre-similarity and BPM-analysis half of the app, which a player
+# build hides outright — it is also ~215 MB of the packaged result. Everything
+# the venue actually uses runs through ffmpeg instead: loudness (ebur128),
+# silence detection, and the PCM decode behind the PD highlights
+# (gui_workers.decode_pcm_mono).
+#
+# Build with:  build_player.bat        (Windows)
+#              ./build_app.sh player   (macOS)
+# For the planning half, use requirements.txt instead.
+
+# PINNED — see requirements.txt for the long version: 6.11.1's Windows Media
+# Foundation plugin cuts a track a second in and only plays it on the second
+# try. A player build is exactly where that would hurt most.
+PySide6==6.11.2
+numpy==2.5.3
+mutagen==1.48.1
+# Opt-in error reports (shared.error_reports); without it they stay off.
+sentry-sdk==2.71.0
+
+# MP3 decoding needs ffmpeg (not a pip package) — loudness, silence detection
+# and the PD highlight decode all shell out to it.
+# Put it on PATH, or drop the extracted build next to the app in an `ffmpeg*` folder
+# (e.g. ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe).
+# Windows:  winget install Gyan.FFmpeg
+# or download from https://www.gyan.dev/ffmpeg/builds/

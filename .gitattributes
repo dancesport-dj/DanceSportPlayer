@@ -1,0 +1,8 @@
+# Git hooks and shell scripts must be checked out with LF even on Windows —
+# /bin/sh reads a CRLF shebang as "/bin/sh\r" and fails with "bad interpreter".
+.githooks/* text eol=lf
+*.sh text eol=lf
+
+# cmd.exe seeks by byte offset when it jumps to a label, so a LF-only .bat with
+# goto in it runs off by one and swallows the first character of a line.
+*.bat text eol=crlf

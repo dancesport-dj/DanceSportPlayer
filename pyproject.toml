@@ -1,0 +1,16 @@
+[tool.ruff]
+# 3.14 is the floor, not just the interpreter it happens to be developed on:
+# the code relies on PEP 649 lazy annotations, so forward references are written
+# unquoted and would raise NameError at def time on anything older.
+target-version = "py314"
+line-length = 120
+extend-exclude = ["_build_shims", "build", "build_pyi", "dist"]
+
+[tool.ruff.lint]
+# Deliberately light: pyflakes only (real errors — undefined names,
+# unused imports/variables). Style rules are intentionally left off.
+select = ["F"]
+
+[tool.ruff.lint.per-file-ignores]
+# The facade re-exports planner symbols on purpose.
+"dancesport_planner.py" = ["F401"]

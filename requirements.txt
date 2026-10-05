@@ -1,0 +1,38 @@
+# ── Core install (lite) ──────────────────────────────────────────────────────
+# Everything the app needs: GUI, library scan, playlist generation, librosa
+# audio analysis (timbre/BPM/similarity), playback, Check Music, health check.
+#   pip install -r requirements.txt        (~0.6 GB)
+#
+# The OPTIONAL AI extras (Demucs vocal separation, OpenL3)
+# live in requirements-full.txt — the app runs fine without them; their buttons
+# simply show an install hint until the packages are present:
+#   pip install -r requirements-full.txt   (adds torch & friends, several GB)
+#
+# Every direct dependency is pinned to the version the suite last passed on, so
+# a build made months later bundles what was tested. Move a pin on purpose, run
+# the whole suite, then commit it.
+
+# PySide6 in particular is not to be moved without testing playback on Windows first.
+# 6.11.1's Windows Media Foundation plugin cuts a track about a second in, resets
+# it, and plays it properly only on the second try — every cartwall pad, every
+# playlist button, the player itself. 6.10.2 does not, on the same Python and the
+# same code: the app ran on WMF for months and the fault arrived with the plugin,
+# not with anything here. The ffmpeg backend is unaffected either way and is what
+# this app now selects by default (see dancesport_gui.py), so 6.11.x is usable —
+# but WMF stays reachable in ⚙ Settings, and on 6.11.1 it is a trap. 6.11.2 is
+# pinned now with the suite green; whether its WMF plugin still cuts the first
+# play has to be heard with ⚙ Settings → 🔊 Audio backend set to Windows, and if
+# it does, 6.10.2 is the version to go back to. The wheels are cp39-abi3, so this
+# pin costs nothing on any Python version.
+PySide6==6.11.2
+librosa==1.0.0
+numpy==2.5.3
+mutagen==1.48.1
+# Opt-in error reports (shared.error_reports); without it they stay off.
+sentry-sdk==2.71.0
+
+# MP3 decoding for audio analysis requires ffmpeg (not a pip package).
+# Put it on PATH, or drop the extracted build next to the app in an `ffmpeg*` folder
+# (e.g. ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe) — the health check auto-finds it.
+# Windows:  winget install Gyan.FFmpeg
+# or download from https://www.gyan.dev/ffmpeg/builds/

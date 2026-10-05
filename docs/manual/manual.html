@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DanceSport Player — User Manual</title>
+<style>
+:root { --fg:#1d232b; --muted:#5b6673; --bg:#fbfaf7; --line:#dcdfe3;
+        --accent:#2f62c9; --code:#eef0f3; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg:#e4e7eb; --muted:#9aa4b1; --bg:#16191d; --line:#343a42;
+          --accent:#7aa5f5; --code:#23282e; } }
+body { margin:0; background:var(--bg); color:var(--fg);
+       font:16px/1.6 "Segoe UI", system-ui, -apple-system, sans-serif; }
+main { max-width:960px; margin:0 auto; padding:24px 20px 80px; }
+section { border-top:1px solid var(--line); padding-top:12px; margin-top:48px; }
+section:first-child { border-top:none; margin-top:0; }
+h1 { font-size:1.9em; line-height:1.25; }
+h2 { font-size:1.4em; margin-top:1.8em; }
+h3 { font-size:1.15em; margin-top:1.5em; }
+a { color:var(--accent); }
+code { background:var(--code); padding:1px 5px; border-radius:4px; font-size:.92em; }
+pre { background:var(--code); padding:12px 14px; border-radius:6px; overflow-x:auto; }
+pre code { padding:0; background:none; }
+.table { overflow-x:auto; margin:1em 0; }
+table { border-collapse:collapse; }
+th, td { border:1px solid var(--line); padding:6px 10px; text-align:left;
+         vertical-align:top; }
+th { background:var(--code); }
+figure { margin:1.2em 0; }
+figure img, p img { max-width:100%; height:auto; border:1px solid var(--line);
+                    border-radius:4px; }
+figcaption { color:var(--muted); font-size:.9em; margin-top:4px; }
+.top { position:fixed; right:16px; bottom:16px; background:var(--accent);
+       color:#fff; text-decoration:none; padding:6px 12px; border-radius:18px;
+       font-size:.9em; }
+.toc { position:fixed; top:0; left:0; bottom:0; width:290px; overflow-y:auto;
+       box-sizing:border-box; padding:18px 10px 40px 14px; font-size:14px;
+       line-height:1.4; border-right:1px solid var(--line); background:var(--code); }
+.toc .title { font-weight:600; margin:0 0 10px 6px; }
+.toc ul { list-style:none; margin:0; padding:0; }
+.toc ul ul { padding-left:14px; }
+.toc a { display:block; padding:3px 6px; border-radius:4px; color:var(--fg);
+         text-decoration:none; }
+.toc a:hover { background:var(--line); }
+.toc a.active { background:var(--accent); color:#fff; }
+.toc summary { cursor:pointer; list-style:none; }
+.toc summary::-webkit-details-marker { display:none; }
+.toc summary a { font-weight:600; }
+.toc details { margin-bottom:2px; }
+.toc details:not([open]) > summary a::after { content:" ▸"; color:var(--muted); }
+body.has-toc main { margin-left:max(290px, calc(50vw - 480px + 145px)); }
+@media (max-width: 900px) {
+  .toc { position:static; width:auto; max-height:45vh; border-right:none;
+         border-bottom:1px solid var(--line); }
+  body.has-toc main { margin-left:auto; } }
+</style>
+</head>
+<body class="has-toc">
+<nav class="toc"><p class="title">User Manual</p><ul><li><details><summary><a href="#index">Overview</a></summary><ul><li><a href="#index__chapters">Chapters</a></li><li><a href="#index__conventions">Conventions</a></li><li><a href="#index__terms">Terms</a></li></ul></details></li><li><details><summary><a href="#01-getting-started">1 · Getting started</a></summary><ul><li><a href="#01-getting-started__the-first-start">The first start</a></li><li><a href="#01-getting-started__point-the-app-at-your-music">Point the app at your music</a></li><li><a href="#01-getting-started__the-first-scan-and-the-analysis">The first scan and the analysis</a><ul><li><a href="#01-getting-started__analyse-at-home-play-at-the-venue">Analyse at home, play at the venue</a></li></ul></li><li><a href="#01-getting-started__a-tour-of-the-main-window">A tour of the main window</a></li><li><a href="#01-getting-started__the-player-build">The player build</a></li></ul></details></li><li><details><summary><a href="#02-library-and-tournaments">2 · Library and Tournaments</a></summary><ul><li><a href="#02-library-and-tournaments__-library">📚 Library</a></li><li><a href="#02-library-and-tournaments__-tournaments">🏆 Tournaments</a><ul><li><a href="#02-library-and-tournaments__filling-the-tree">Filling the tree</a></li><li><a href="#02-library-and-tournaments__slots-view">Slots view</a></li><li><a href="#02-library-and-tournaments__tracks-view">Tracks view</a></li></ul></li></ul></details></li><li><details><summary><a href="#03-playlists">3 · Playlists</a></summary><ul><li><a href="#03-playlists__the-decks">The decks</a></li><li><a href="#03-playlists__-the-party-panel">🤸 The Party panel</a></li><li><a href="#03-playlists__-wishlists">⭐ Wishlists</a></li><li><a href="#03-playlists__loading-and-saving">Loading and saving</a></li><li><a href="#03-playlists__playlists-from-another-pc">Playlists from another PC</a></li></ul></details></li><li><details><summary><a href="#04-playing">4 · Playing the evening</a></summary><ul><li><a href="#04-playing__starting-a-title">Starting a title</a></li><li><a href="#04-playing__the-player-card">The player card</a></li><li><a href="#04-playing__the-playing-panel">The Playing panel</a><ul><li><a href="#04-playing__play-length-and-fade">Play length and fade</a></li><li><a href="#04-playing__-paso-doble">🐂 Paso Doble</a></li><li><a href="#04-playing__advance-and-pause">Advance and pause</a></li><li><a href="#04-playing__-announce-next-dance">🔈 Announce next dance</a></li><li><a href="#04-playing__sound-and-display">Sound and display</a></li><li><a href="#04-playing__play-sets">Play sets</a></li><li><a href="#04-playing__-presenter">🖥 Presenter</a></li></ul></li><li><a href="#04-playing__-the-cartwall">🎛 The cartwall</a></li></ul></details></li><li><details><summary><a href="#05-tags">5 · Tags: stars, classes and the MP3 editor</a></summary><ul><li><a href="#05-tags__opening-the-editor">Opening the editor</a></li><li><a href="#05-tags__the-tags-tab">The Tags tab</a><ul><li><a href="#05-tags__in-the-mp3-file">In the MP3 file</a></li><li><a href="#05-tags__in-the-app">In the app</a></li><li><a href="#05-tags__writing-the-apps-tags-into-the-mp3">Writing the app's tags into the MP3</a></li></ul></li><li><a href="#05-tags__the-extended-tags-tab">The Extended tags tab</a></li><li><a href="#05-tags__the--column">The ★ column</a></li><li><a href="#05-tags__the-custom-field">The Custom field</a></li></ul></details></li><li><details><summary><a href="#06-settings">6 · Settings</a></summary><ul><li><a href="#06-settings__paths-and-search">Paths and search</a></li><li><a href="#06-settings__look">Look</a></li><li><a href="#06-settings__analysis">Analysis</a></li><li><a href="#06-settings__play-sets">Play sets</a></li></ul></details></li><li><details><summary><a href="#07-shortcuts">7 · Keyboard and mouse</a></summary><ul><li><a href="#07-shortcuts__keyboard">Keyboard</a></li><li><a href="#07-shortcuts__mouse">Mouse</a></li><li><a href="#07-shortcuts__cartwall">Cartwall</a></li></ul></details></li></ul></nav>
+<main>
+<section id="index">
+<h1>DanceSport Player — User Manual</h1>
+<p>This manual walks through the player the way it is used at a tournament or a dance evening: set it up once, load the playlists, then run the music on the floor.</p>
+<p>The whole manual is also a single web page, <a href="manual.html">manual.html</a>. After changing a chapter, rebuild it with <code>py -m tools.build_manual_html</code>.</p>
+<figure><img src="img/main-playing.png" alt="The main window while playing"><figcaption>The main window while playing</figcaption></figure>
+<h2 id="index__chapters">Chapters</h2>
+<ol><li><a href="#01-getting-started">Getting started</a>: the player, its folders, the analysis, and a tour of the main window.</li><li><a href="#02-library-and-tournaments">Library and Tournaments</a>: browsing and filtering the music library, and the tree of your tournament playlists.</li><li><a href="#03-playlists">Playlists</a>: the decks as running orders, the Party panel, wishlists, loading and saving <code>.m3u</code> playlists, and playlists written on another PC.</li><li><a href="#04-playing">Playing the evening</a>: the player card, the Playing panel, play sets, announcements, the Paso Doble stop, the cartwall and the presenter screen.</li><li><a href="#05-tags">Tags</a>: the 🏷 tag editor, ★ ratings, the Custom field, and writing tags into the MP3.</li><li><a href="#06-settings">Settings</a>: paths, look, analysis and play sets.</li><li><a href="#07-shortcuts">Keyboard and mouse</a>: every shortcut in one list.</li></ol>
+<p>Installation and the configuration files are described in the project <a href="../../README.md#installation">README</a>.</p>
+<h2 id="index__conventions">Conventions</h2>
+<ul><li><strong>Buttons and menu entries</strong> are written as they appear in the app, icon included where it helps to find them: <strong>🎛 Cartwall</strong>, <strong>📚 Library</strong>.</li><li><strong>Right-click ▸ 💾 Save as M3U…</strong> means: right-click, then pick that entry from the context menu.</li><li>Nearly every control has a tooltip. When this manual is short on a detail, hover over the control.</li><li><strong>F1</strong> in the app opens the cheat sheet of all shortcuts. It is the same list as <a href="#07-shortcuts">chapter 7</a>.</li><li>The app is in English or German (⚙ Settings ▸ 🎨 Look). The screenshots show the English interface. On it the dance and round names are English too: <em>Slow Waltz</em>, <em>Round 1</em>, <em>Final</em>. Tick <strong>Keep the German dance and round names</strong> below the language to keep <em>Langsamer Walzer</em>, <em>Vorrunde</em>, <em>Finale</em>; the presenter screen and the recorded announcements are then German as well. Playlists and exports keep the German words either way.</li></ul>
+<h2 id="index__terms">Terms</h2>
+<div class="table"><table><thead><tr><th>Term</th><th>Meaning</th></tr></thead><tbody><tr><td><strong>Deck</strong></td><td>One playlist on the screen, labelled A, B, C and so on. It holds the running order of one competition or one part of the evening.</td></tr><tr><td><strong>Party panel</strong></td><td>A long playlist for a social evening, between the decks and the wishlists.</td></tr><tr><td><strong>Wishlist</strong></td><td>A flat list of titles you park for later: requests, a new album. It sits under the decks.</td></tr><tr><td><strong>Round</strong></td><td><em>Vorrunde</em>, <em>Zwischenrunde</em>, <em>Semifinale</em>, <em>Finale</em>. A competition playlist is grouped into its rounds.</td></tr><tr><td><strong>Heat</strong></td><td>One group of couples dancing at the same time. Every heat of a round gets its own title per dance.</td></tr><tr><td><strong>Takt / BPM</strong></td><td>Tempo in <strong>bars</strong> per minute, as the TSO defines it (Samba 50–52, Slow Waltz 28–30). <code>[T51]</code> in a deck means 51 bars per minute.</td></tr><tr><td><strong>TSO range</strong></td><td>The tempo the tournament rules allow for a dance.</td></tr></tbody></table></div>
+</section>
+<section id="01-getting-started">
+<h1>1 · Getting started</h1>
+<p><a href="#index">Manual index</a></p>
+<p>The person running the music at a tournament does not plan anything. They load a finished playlist and play it: timed, with the Paso Doble cut, the spoken dance announcements, the presenter screen and the cartwall. The <strong>DanceSport Player</strong> is the app for exactly that job.</p>
+<p>You get it in two ways:</p>
+<ul><li>the <strong>player build</strong>, <code>DanceSport-Player</code>, a program of its own for the venue PC;</li><li>the full app set to the <strong>app mode</strong> <em>Player only</em>, under ⚙ Settings ▸ 📁 Paths &amp; search ▸ <strong>App mode</strong>.</li></ul>
+<p>Both look and work the same. The window is titled <strong>DanceSport Player</strong> and opens on the ▶ Playing side.</p>
+<h2 id="01-getting-started__the-first-start">The first start</h2>
+<p>On the first start the app opens on a layout for the venue:</p>
+<ul><li>no playlist decks and no wishlists;</li><li>an empty <strong>Party</strong> list, ready for an <code>.m3u</code> to be dropped on it;</li><li>the 📚 library open;</li><li>the 🎛 cartwall closed;</li><li>the <strong>🎉 Party set</strong> on: full length, auto-advance, no pause, equalized volume. See <a href="#04-playing__play-sets">Play sets</a>.</li></ul>
+<p>This happens only once. From the second start on, the app opens as you left it.</p>
+<h2 id="01-getting-started__point-the-app-at-your-music">Point the app at your music</h2>
+<p>Open ⚙ <strong>Settings</strong>. The button is at the bottom of the Playing panel. The first tab holds the folders:</p>
+<figure><img src="img/settings-paths.png" alt="Settings, Paths &amp; search tab"><figcaption>Settings, Paths &amp; search tab</figcaption></figure>
+<div class="table"><table><thead><tr><th>Field</th><th>What it is for</th></tr></thead><tbody><tr><td><strong>Favorites library</strong></td><td>Your tournament music folder. It is scanned on every start and fills the 📚 library.</td></tr><tr><td><strong>Save-as folder</strong></td><td>Where <strong>Save as M3U…</strong> starts.</td></tr><tr><td><strong>Tournament playlists</strong></td><td>Your existing tournament <code>.m3u</code> files. The <strong>Pop</strong> column counts in how many of them a title appears.</td></tr><tr><td><strong>Referenzpfad</strong></td><td>The folder the music lives in on <em>this</em> PC. A playlist written on another PC is moved onto it when you load it, see <a href="#03-playlists__playlists-from-another-pc">chapter 3</a>.</td></tr><tr><td><strong>Search folders</strong></td><td>More places to look for a track when a playlist was written on another PC. One folder per line.</td></tr></tbody></table></div>
+<p>The rest of this tab is covered in <a href="#06-settings">Settings</a>.</p>
+<h2 id="01-getting-started__the-first-scan-and-the-analysis">The first scan and the analysis</h2>
+<p>On start the app scans the Favorites library and shows a loading dialog. Titles and tags are cached, so only the first scan of a large library takes long.</p>
+<p>Three features need a short analysis once per track:</p>
+<ul><li><strong>🔊 Equalize volume</strong> needs the loudness,</li><li>the <strong>🐂 Paso Doble stop</strong> needs the highlights,</li><li>skipping silence at the start and end needs the silences.</li></ul>
+<p>Start it with <strong>🧱 Build ALL caches…</strong> in ⚙ Settings ▸ ⚗ Analysis. The analysis only <em>reads</em> your files and can be cancelled. Whatever is already cached is reused.</p>
+<h3 id="01-getting-started__analyse-at-home-play-at-the-venue">Analyse at home, play at the venue</h3>
+<p>The analysis takes time you may not have on the day. Run it at home, then copy <code>audio_features.db</code> next to <code>DanceSport-Player.exe</code> on the venue PC. The player reads the stored values and needs no analysis at the venue.</p>
+<h2 id="01-getting-started__a-tour-of-the-main-window">A tour of the main window</h2>
+<figure><img src="img/main-playing.png" alt="The main window while playing"><figcaption>The main window while playing</figcaption></figure>
+<p><strong>Left: the side panel.</strong> The player card on top, the Playing panel under it. Both are described in <a href="#04-playing">chapter 4</a>.</p>
+<p><strong>Top: the toolbar.</strong> On narrow screens the buttons shrink to their icons. Hover over one for its full name.</p>
+<div class="table"><table><thead><tr><th>Button</th><th>Does</th></tr></thead><tbody><tr><td>⊟ Collapse all</td><td>Collapses every round and dance header. Click again to open them.</td></tr><tr><td>▴ Fold decks</td><td>Folds every deck and wishlist to a header tab.</td></tr><tr><td>💾 Save all</td><td>Writes every non-empty deck to its own <code>.m3u</code>.</td></tr><tr><td>📌 Save state</td><td>Saves the whole session now. This also happens by itself on every edit and on close.</td></tr><tr><td>🧹 Clear all</td><td>Empties every deck. Wishlists are kept.</td></tr><tr><td>⧉ <em>n</em> playlists</td><td>Cycles through the number of decks on screen. A right click goes backwards.</td></tr><tr><td>🗜 Compact</td><td>Cycles the header view: full → compact → no groups → numbered.</td></tr><tr><td>⭐ <em>n</em> wishlists</td><td>Cycles the wishlist area: off → 1 → 2 → 3 → 4 → 2×2.</td></tr><tr><td>🤸 Party ▾</td><td>Shows or hides the Party panel.</td></tr><tr><td>📚 Library</td><td>Shows or hides the library and tournaments pane.</td></tr><tr><td>🎛 Cartwall</td><td>Shows or hides the sample-pad wall.</td></tr><tr><td>❔</td><td>The shortcut cheat sheet (<strong>F1</strong>).</td></tr></tbody></table></div>
+<p><strong>Middle: the decks.</strong> Each deck is one playlist, see <a href="#03-playlists">chapter 3</a>.</p>
+<p><strong>Below the decks: the Party panel and the wishlists</strong>, and under them the <strong>📚 Library / 🏆 Tournaments</strong> pane, see <a href="#02-library-and-tournaments">chapter 2</a>.</p>
+<p><strong>Bottom:</strong></p>
+<ul><li>the undo and redo buttons, with the number of steps they can go back;</li><li>the title that is cued on the player;</li><li>the status bar.</li></ul>
+<p>Everything you see is saved as you work: decks, wishlists, the window layout and the fold state. The next start brings it back exactly as it was.</p>
+<h2 id="01-getting-started__the-player-build">The player build</h2>
+<p>The player build is about 220 MB. It is built with <code>build_player.bat</code>; see <code>BUILD.md</code> in the project. It keeps everything a tournament runs on: playback and the ±16 % tempo fader, equalized volume, the Paso Doble highlight detection, the silence detection, the cartwall, the library and the announcements.</p>
+<p>Run from the full app in player mode, the app also offers <strong>🖨 Print</strong>, a PDF of the running order, and up to eight decks.</p>
+<p>Next: <a href="#02-library-and-tournaments">Library and Tournaments</a></p>
+</section>
+<section id="02-library-and-tournaments">
+<h1>2 · Library and Tournaments</h1>
+<p><a href="#index">Manual index</a> · previous: <a href="#01-getting-started">Getting started</a></p>
+<p>The pane under the wishlists has two tabs. Show or hide it with <strong>📚 Library</strong> in the toolbar. Drag the splitter above it to give it more room.</p>
+<h2 id="02-library-and-tournaments__-library">📚 Library</h2>
+<p>The whole Favorites library as one sortable table. Filter it, then drag titles into a deck, the Party panel or a wishlist.</p>
+<figure><img src="img/library.png" alt="The library browser"><figcaption>The library browser</figcaption></figure>
+<div class="table"><table><thead><tr><th>Filter</th><th>Shows</th></tr></thead><tbody><tr><td>🔍 text field</td><td>Titles whose title, artist or comment tag contains the text. Tags are markers like <code>vocal_f</code>, <code>classic</code>, <code>eintanzen</code>.</td></tr><tr><td>All dances</td><td>One dance, or all Standard or all Latin dances.</td></tr><tr><td>All classes</td><td>Titles suited to that start class. Titles without a class tag always show.</td></tr><tr><td>Vocal + instr.</td><td>Only 🎤 vocal or only 🎻 instrumental titles.</td></tr><tr><td>All categories</td><td>🏆 <strong>Tournament only</strong> hides anthems, background music, wrong-tempo files, duplicates and seasonal folders. You can also pick one of those categories, which is handy for a party.</td></tr><tr><td>Plays: all</td><td>✦ <strong>Never played</strong>, ★ <strong>Rarely</strong>, ★ <strong>Proven</strong>, or 📅 <strong>Not since 1 y</strong> (played, but not in any playlist of the last year).</td></tr><tr><td>Added: all</td><td>Files created in the last 30 or 90 days, or the last 12 or 18 months. Combine it with ✦ Never played to find what you copied in but never used.</td></tr><tr><td>🆕 Unplanned</td><td>Only titles that are in none of the open decks.</td></tr></tbody></table></div>
+<ul><li><strong>▶</strong> in a row plays the title on the player. <strong>Space</strong> does the same for the selected row.</li><li><strong>Double-click</strong> a row to open the file in your external audio player.</li><li><strong>Right-click</strong> a row for <strong>📋 Copy file path</strong>, <strong>📂 Show in Explorer</strong>, <strong>🎧 Open in external player</strong>, <strong>🏷 Re-read MP3 tags</strong> and <strong>🏷 Edit tags…</strong>. With several rows selected, the tag editor edits them all. See <a href="#05-tags">chapter 5</a>.</li><li><strong>Right-click the column header</strong> to choose the columns, or to switch to short dance names (LW, SB). The <strong>★</strong> rating and <strong>Custom</strong> columns are hidden at first and can be shown here. <strong>Map Custom to an MP3 tag…</strong> fills Custom from a tag of your choice.</li></ul>
+<h2 id="02-library-and-tournaments__-tournaments">🏆 Tournaments</h2>
+<p>Your archive of tournament playlists, sorted the way you think about them: a season, a weekend, a venue, a competition. The folders are only labels. The 🎵 entries point at <code>.m3u</code> files wherever those are on disk.</p>
+<figure><img src="img/tournaments.png" alt="The Tournaments tab, slots view"><figcaption>The Tournaments tab, slots view</figcaption></figure>
+<h3 id="02-library-and-tournaments__filling-the-tree">Filling the tree</h3>
+<ul><li>Drop <code>.m3u</code> files or a whole folder from Explorer onto the tree.</li><li><strong>📁</strong> creates a folder: a day, a venue, a competition.</li><li><strong>＋</strong> adds playlist files to the selected folder. Right-click the tree ▸ <strong>📂 Add a folder of playlists…</strong> files a whole folder from disk as a branch, with every <code>.m3u</code> under it, the same way a folder dropped from Explorer is filed.</li><li><strong>✎</strong> (or <strong>F2</strong>) renames the selected entry. <strong>🗑</strong> (or <strong>Del</strong>) removes it from the tree. The file on disk is not touched. In the slots view these act on the picked slot; click the folder row to act on the folder.</li><li><strong>Ctrl + A</strong> marks everything: every slot of the folder, or every entry of the tree in the tracks view. <strong>Del</strong> and <strong>🗑</strong> then remove all marked entries after one question.</li><li><strong>⊟</strong> collapses every folder, which helps with a long season.</li><li>From a deck: right-click ▸ <strong>🏆 Save and add to Tournaments…</strong> saves the playlist and files it here. It goes into the selected folder, next to the selected playlist, or at the root. The new entry is picked and shown right away.</li></ul>
+<h3 id="02-library-and-tournaments__slots-view">Slots view</h3>
+<p>Pick a folder on the left and its playlists appear on the right as slots. Each slot shows:</p>
+<ul><li>the playlist name,</li><li>the number of titles (♪),</li><li>the dances,</li><li>the rounds it contains (VR = Vorrunde, ZR = Zwischenrunde, ER = Endrunde).</li></ul>
+<ul><li><strong>Drag a slot onto a deck</strong> to load that playlist there. Dragging one of several marked slots carries them all; they go into the free decks, one each. A plain click narrows the marking to one slot.</li><li><strong>Double-click a slot</strong> to load it onto the focused deck.</li><li><strong>Right-click a slot</strong> for ▶ Load onto the focused deck, 🎵 Show its tracks, ✎ Rename and 🗑 Remove from tree.</li></ul>
+<h3 id="02-library-and-tournaments__tracks-view">Tracks view</h3>
+<p><strong>▤</strong> switches to the tracks view. The tree now lists the playlists themselves, and the right side shows the titles of the picked playlist in playing order, with their round and dance. Rounds are written short, the way the slots write them (VR, 1ZR, ER). Hover over one for the full name.</p>
+<figure><img src="img/tournaments-tracks.png" alt="The Tournaments tab, tracks view"><figcaption>The Tournaments tab, tracks view</figcaption></figure>
+<ul><li><strong>▶</strong> or <strong>Space</strong> plays a title. A double-click opens it in your external player.</li><li>Drag titles onto a deck, the Party panel or a wishlist.</li><li>The bar underneath shows the songs and total play time. Titles that the library doesn't know are counted, but add no time.</li></ul>
+<p><strong>▦</strong> switches back to the slots.</p>
+<p>Next: <a href="#03-playlists">Playlists</a></p>
+</section>
+<section id="03-playlists">
+<h1>3 · Playlists</h1>
+<p><a href="#index">Manual index</a> · previous: <a href="#02-library-and-tournaments">Library and Tournaments</a></p>
+<p>The player holds its music in three kinds of lists:</p>
+<ul><li>the <strong>decks</strong>, one per competition or per part of the evening;</li><li>the <strong>Party panel</strong>, for a long social evening;</li><li>the <strong>wishlists</strong>, for titles you want to keep at hand.</li></ul>
+<h2 id="03-playlists__the-decks">The decks</h2>
+<p><strong>⧉ <em>n</em> playlists</strong> in the toolbar sets how many decks are on screen. Each deck is a <strong>running order</strong>: the titles play from top to bottom.</p>
+<ul><li>A competition playlist is still shown in its rounds and dances. Click a round or dance header to collapse it.</li><li>Any row can be dragged anywhere, also into another deck.</li><li>A title dropped onto a deck, from the library, a wishlist or Explorer, is <strong>added</strong> where it was dropped. It never replaces the title that was there.</li><li><strong>Del</strong> takes the selected titles out of the running order, after asking.</li><li><strong>Ctrl + Z / Ctrl + Y</strong> undo and redo every change. The ↶ / ↷ buttons at the bottom show how many steps are available.</li><li>Double-click the deck title to rename it. <strong>▾</strong> in the header folds the deck to a tab.</li></ul>
+<p>The columns:</p>
+<ul><li><strong>Dance / Heat</strong>: which dance and heat the row is.</li><li><strong>▶</strong>: plays or stops exactly this title.</li><li><strong>BPM</strong>: the tempo in bars per minute, as written in the file (<code>[T51]</code>). <code>[?BPM]</code> means the file carries no tempo.</li><li><strong>⏱</strong>: the length. It is <strong>orange</strong> when the title is shorter than the play length, or when 5 s or more of silence at an edge will be skipped.</li><li><strong>Pop</strong>: <code>★58</code> means the title is in 58 of your tournament playlists. <strong>✦ new</strong> means it is in none.</li><li><strong>Class</strong>: the class tags from the MP3 comment, for example <code>[B,A,S]</code>.</li></ul>
+<p>Two more columns are hidden at first. Right-click the column header to show them: <strong>★</strong> rates a title with a click, and <strong>Custom</strong> holds a free text per title. Both are described in <a href="#05-tags">chapter 5</a>.</p>
+<p>Row colours:</p>
+<ul><li>an <strong>orange</strong> row with ❗ is marked, for example as a title to swap later (<strong>Ctrl + M</strong>);</li><li>a <strong>red title</strong> with ❗ points at a file that is gone.</li></ul>
+<p>The bar under the deck shows the <strong>Σ</strong> song count and total time. Click ▸ for the count per dance. The <strong>✋ Manual / ⏭ Auto</strong> switch sets whether the deck plays on by itself, see <a href="#04-playing__starting-a-title">chapter 4</a>.</p>
+<p>Right-click a title for <strong>🏷 Re-read MP3 tags</strong>, <strong>🏷 Edit tags…</strong> (see <a href="#05-tags">chapter 5</a>), <strong>📋 Copy file path</strong>, <strong>📂 Show in Explorer</strong> and the save and import entries below.</p>
+<h2 id="03-playlists__-the-party-panel">🤸 The Party panel</h2>
+<p>The Party panel holds one long list for a social evening. It sits between the decks and the wishlists. <strong>🤸 Party ▾</strong> in the toolbar shows or hides it, and <strong>▾</strong> in its header folds it.</p>
+<figure><img src="img/party-panel.png" alt="A party list in the panel"><figcaption>A party list in the panel</figcaption></figure>
+<ul><li>Drop an <code>.m3u</code> onto the panel to load it. The panel is named after the file. A competition running order dropped here is split into the rounds it is played in, such as <em>Vorrunde</em> and <em>Finale</em>.</li><li>A list built in rounds is grouped by them, for example <em>Standardrunde</em>, <em>Lateinrunde</em> and <em>Socialrunde</em>.</li><li><strong>⇅ Swap these two titles</strong> (right-click, or <strong>Alt + S</strong>) swaps two selected titles of the same dance, so every round keeps its dances.</li></ul>
+<p>Playing from the panel switches to the <strong>🎉 Party set</strong> by itself: full length, auto-advance, no pause, see <a href="#04-playing__play-sets">chapter 4</a>.</p>
+<h2 id="03-playlists__-wishlists">⭐ Wishlists</h2>
+<p>A wishlist is a flat list of titles you want to keep at hand: requests from the floor, a new album you want to try.</p>
+<ul><li>Drag titles in from a deck, the library or Explorer. Drag them out onto a deck.</li><li><strong>⭐ n wishlists</strong> in the toolbar shows up to four wishlists, or a 2×2 grid.</li><li>Double-click the title to rename it. Drag one wishlist header onto another to swap them.</li><li>The bar underneath counts the titles and how many are new (never played).</li></ul>
+<p>Wishlists are kept by <strong>🧹 Clear all</strong>.</p>
+<h2 id="03-playlists__loading-and-saving">Loading and saving</h2>
+<div class="table"><table><thead><tr><th>To</th><th>Do</th></tr></thead><tbody><tr><td>Load an <code>.m3u</code> into a deck or wishlist</td><td>Right-click ▸ <strong>📂 Import M3U…</strong>, or drop the <code>.m3u</code> onto it. Several <code>.m3u</code> dropped at once go into the free decks, one each.</td></tr><tr><td>Load a playlist from your tournament archive</td><td>Drag its slot from 🏆 Tournaments onto a deck, see <a href="#02-library-and-tournaments__-tournaments">chapter 2</a>.</td></tr><tr><td>Save the focused deck or wishlist</td><td><strong>Ctrl + S</strong>, or right-click a title or the header ▸ <strong>💾 Save as M3U…</strong></td></tr><tr><td>Save it and file it in the Tournaments tree</td><td>Right-click ▸ <strong>🏆 Save and add to Tournaments…</strong></td></tr><tr><td>Save every deck at once</td><td><strong>💾 Save all</strong> in the toolbar. Each file is named after its deck title.</td></tr></tbody></table></div>
+<p>On import, a deck recognises rounds, dances and heats by itself, including a final with extra backup titles. A wishlist appends the tracks as a flat list.</p>
+<h2 id="03-playlists__playlists-from-another-pc">Playlists from another PC</h2>
+<p>A playlist file stores the full path of every track. When it was written on another PC, or the music moved to another drive, those paths are wrong. The player repairs them as it loads the playlist, with two settings in <a href="#01-getting-started__point-the-app-at-your-music">⚙ Settings ▸ 📁 Paths &amp; search</a>:</p>
+<ul><li><strong>Referenzpfad</strong>: the folder the music lives in on <em>this</em> PC;</li><li><strong>Search folders</strong>: more places to look, one per line.</li></ul>
+<p>The app tries the Referenzpfad first, then the search folders in order. It cuts the old path from the front until the rest points at a real file under one of them. For example, <code>D:\Musik\tanzcds\lateincd\Samba.mp3</code> becomes <code>F:\my music\tanzcds\lateincd\Samba.mp3</code>. A path is only ever changed to a file that really exists.</p>
+<p>When a path had to change, a window says how many tracks were re-rooted and how many could not be found; <strong>Show Details</strong> lists every old and new path. A title that could not be found shows in red with ❗. Add the folder it is in under Search folders, then import the playlist again.</p>
+<p>Next: <a href="#04-playing">Playing the evening</a></p>
+</section>
+<section id="04-playing">
+<h1>4 · Playing the evening</h1>
+<p><a href="#index">Manual index</a> · previous: <a href="#03-playlists">Playlists</a></p>
+<p>The side panel holds the player card and, under it, the Playing panel. You play straight from the decks, the Party panel and the wishlists.</p>
+<figure><img src="img/main-playing.png" alt="The main window while playing"><figcaption>The main window while playing</figcaption></figure>
+<h2 id="04-playing__starting-a-title">Starting a title</h2>
+<ul><li><strong>▶</strong> in a row plays exactly that title. <strong>■</strong> stops it.</li><li><strong>Space</strong> pauses and resumes the player, wherever the focus is, except in a text field.</li><li><strong>Double-click</strong> a row either starts it at once, or only <em>cues</em> it: it is loaded and shown, silent, and ⏯ starts it. The switch for this is <strong>▶️ Double-click starts the title</strong> in the Playing panel, see below.</li><li><strong>Ctrl + Shift + ← / →</strong> jumps to the previous or next title, and <strong>Ctrl + ← / →</strong> seeks 30 s.</li></ul>
+<p>Every deck has its own <strong>✋ Manual / ⏭ Auto</strong> switch in its bottom bar:</p>
+<ul><li><strong>⏭ Auto</strong>: a finished title is followed by the next row, so a whole round runs hands-free.</li><li><strong>✋ Manual</strong>: you start every title yourself. The spoken announcement is off as well.</li></ul>
+<p>Each list remembers its own answer. The party list can run by itself while the competition deck next to it is started by hand.</p>
+<h2 id="04-playing__the-player-card">The player card</h2>
+<p>The card at the top of the side panel shows the running title, its dance and the time left.</p>
+<div class="table"><table><thead><tr><th>Control</th><th>Does</th></tr></thead><tbody><tr><td>orange **\</td><td>◀**</td><td>Jumps back to 0:00 of this title.</td></tr><tr><td><strong>⏮ / ⏭</strong></td><td>Previous / next title.</td></tr><tr><td><strong>◀◀ / ▶▶</strong></td><td>Back / forward 10 s.</td></tr><tr><td><strong>⏯</strong></td><td>Pause / resume.</td></tr><tr><td><strong>🔁</strong></td><td>Repeats <em>this</em> title endlessly, for when the floor is still full or a speech runs long. It works with ⏭ Auto off, too.</td></tr><tr><td>fade button (muted speaker)</td><td>Fades the title out now, over the fade time, then ends it.</td></tr><tr><td><strong>☕</strong></td><td>Ends the title and goes straight to the pause music.</td></tr><tr><td>extend button</td><td>Adds another pause length when the heat change takes longer.</td></tr><tr><td>red <strong>⊗</strong></td><td>Panic: fades the music out and <em>holds</em> it. Nothing ends and nothing advances. <strong>⏯</strong> resumes at exactly that spot.</td></tr><tr><td><strong>🔊</strong></td><td>Ducks to 20 % and back to full. The pause music comes down too.</td></tr><tr><td>volume slider</td><td>Master volume.</td></tr></tbody></table></div>
+<p>The tempo row under it:</p>
+<ul><li><strong>Tempo fader</strong>: −16 % to +16 % without changing the pitch (time stretch), for example to pull a title onto the tempo the tournament needs. <strong>− / +</strong> step it, hold them to glide. <strong>0</strong> or a double-click on the fader resets it.</li><li><strong>TSO</strong>: while on, every title is pitched to the average tempo of its dance in this round, kept inside the TSO range. A Rumba at 23 becomes T24, a Paso Doble at 57 becomes T58.</li><li><strong>📌</strong>: pins the tempo, so the fader stays where you left it when the next title starts.</li><li><strong>♪</strong>: tap along to the beat to measure the live tempo by hand. This is for display only and changes nothing.</li></ul>
+<h2 id="04-playing__the-playing-panel">The Playing panel</h2>
+<figure><img src="img/playing-panel.png" alt="The Playing panel"><figcaption>The Playing panel</figcaption></figure>
+<h3 id="04-playing__play-length-and-fade">Play length and fade</h3>
+<ul><li>The big number is the <strong>play length</strong>: every title stops after this time. <strong>− / +</strong> change it in steps. Past the last step the title plays to its end (<strong>full</strong>). Double-click the number to type an exact length, for example <code>1:37</code>.</li><li><strong>Fade-out</strong>: the volume ramps to 0 over the last seconds.</li></ul>
+<p>Once the analysis has measured it, silence at the start and end of a title is skipped.</p>
+<h3 id="04-playing__-paso-doble">🐂 Paso Doble</h3>
+<p><strong>🐂 Stop Paso Doble after highlight</strong>: a Paso Doble is not faded out. It stops at a highlight, the musical break the couples dance to.</p>
+<ul><li><strong>Stop after highlight</strong> picks which one, usually the 2nd.</li><li>The highlights are detected by the analysis. When one is missing or wrong, click <strong>🎯 Mark highlight now</strong> exactly on the highlight while the title plays. <strong>✖</strong> forgets the learned marks of this title.</li><li><strong>✏️ Edit highlights</strong> pauses the music and suspends the stop, so you can scrub through the whole title and set its marks.</li><li><strong>Start after</strong> holds a Paso Doble back before the music starts, so the couples can take their position.</li></ul>
+<p>With the switch off, a Paso Doble is an ordinary title.</p>
+<h3 id="04-playing__advance-and-pause">Advance and pause</h3>
+<ul><li><strong>⏭ Auto-advance to next song</strong>: the same switch as ⏭ Auto on the deck you last clicked.</li><li><strong>🔁 Start again at the end</strong>: after the last title, the list starts over. Needs auto-advance.</li><li><strong>Pause between songs</strong>: time for the couples to change or catch their breath. Off, the next title follows at once.</li><li><strong>Pause music</strong>: 📂 picks one or more titles, or an <code>.m3u</code>, that play during the pause. ✕ removes it. <strong>Pause music volume</strong> sets how loud it plays.</li></ul>
+<h3 id="04-playing__-announce-next-dance">🔈 Announce next dance</h3>
+<p>The app says the next dance out loud: "Nächster Tanz: Langsamer Walzer".</p>
+<ul><li>With a pause, the call comes shortly before the pause ends.</li><li>Without a pause, the dance is named as the title starts: <strong>over the first bars</strong> (the music is ducked under the voice) or <strong>before the music starts</strong> (the music follows the call).</li><li><strong>Voice</strong>: Female, Male, or Mixed, which alternates the two. A dance that was never recorded is not announced.</li><li>The call is in German on a German screen, and on an English one with <strong>Keep the German dance and round names</strong> ticked. Otherwise it is English ("Next dance: Slow Waltz"); a clip missing from the English recordings is played from the German ones.</li><li>With the advanced voice controls on (⚙ Settings ▸ 📁 Paths &amp; search), <strong>…with takt</strong> adds the tempo ("…, 29 Takt") and <strong>…with heat</strong> the heat number. <strong>🔈 Test</strong> speaks a sample.</li></ul>
+<h3 id="04-playing__sound-and-display">Sound and display</h3>
+<ul><li><strong>🔊 Equalize volume (R128)</strong>: levels the loudness between titles. It needs the loudness analysis.</li><li><strong>🖼 Show artwork</strong>: a cover next to the title on the player. It uses the playlist's own image (<code>#EXTIMG</code>), a cover file in the folder, or the art in the MP3.</li><li><strong>▶️ Double-click starts the title</strong>: on, a double-click plays at once. Off, it only cues the title and ⏯ starts it. That is what a heat wants.</li><li><strong>↩ Remember where a title stopped</strong>: a title you left starts again at that spot. The row shows <strong>↩ mm:ss</strong>. The marks are forgotten when the app closes.</li></ul>
+<h3 id="04-playing__play-sets">Play sets</h3>
+<p>Two buttons switch the whole panel over in one go:</p>
+<ul><li><strong>🏆 Tournament set</strong>: 1:40 play length with a 3 s fade-out, no pause, no auto-advance, no announcement, equalized volume. It is lit gold while the panel is on those values.</li><li><strong>🎉 Party set</strong>: every title at full length with a 3 s fade-out, auto-advance, no pause, no announcement and equalized volume. It is applied by itself when you play from the 🤸 Party panel, and switched back when a tournament deck takes over.</li></ul>
+<p>What each set contains is yours to change, in <a href="#06-settings__play-sets">⚙ Settings ▸ 🎛 Play sets</a>.</p>
+<h3 id="04-playing__-presenter">🖥 Presenter</h3>
+<p><strong>🖥 Presenter</strong> opens a second, full-screen window for a beamer or a monitor turned towards the floor. It shows the running title with its dance and the next three titles.</p>
+<figure><img src="img/presenter.png" alt="The presenter screen"><figcaption>The presenter screen</figcaption></figure>
+<ul><li>The box next to it picks the screen.</li><li><strong>🎨 Theme</strong>: <em>Default</em> is the black hall display. <em>Light</em> is cream paper with warm brown type, for a lit room.</li><li><strong>🕒</strong> holds a running order for the evening, such as dinner or the opening dance. It is a second page on the presenter. <strong>T</strong> there switches pages.</li><li><strong>Esc</strong> closes the presenter. A double-click on it leaves full screen.</li></ul>
+<p><strong>☀ Keep the screen awake</strong> stops the screensaver and the display timeout while music plays or the presenter is open.</p>
+<h2 id="04-playing__-the-cartwall">🎛 The cartwall</h2>
+<p><strong>🎛 Cartwall</strong> in the toolbar shows a wall of sample pads: fanfares, a drum roll, the national anthem, a jingle for the award ceremony.</p>
+<figure><img src="img/main-cartwall.png" alt="The cartwall docked to the right of the decks"><figcaption>The cartwall docked to the right of the decks</figcaption></figure>
+<ul><li><strong>Click a pad</strong> to fire it over the running music. Click it again to fade it out.</li><li><strong>Ctrl + 1 … 9</strong> fire the first nine pads of the page on screen.</li><li><strong>⏹ Stop all</strong> or <strong>Esc</strong> fades every pad out.</li><li><strong>✏</strong> unlocks the wall for building. Drop audio files on a pad to fill it. A multi-select fills the free pads after it. Drag one pad onto another to swap them. Lock the wall again before the tournament, so nothing moves by accident.</li><li><strong>Right-click a pad</strong> for its 🎨 colour, or <strong>Settings…</strong> for its label, volume, own shortcut key, 🔁 endless repeat, and whether it ducks the music.</li><li>The page arrows switch pages. Double-click the page name to rename it. The size box sets the grid, for example 2 × 7. A smaller grid never loses a pad.</li><li><strong>🗂</strong> exports or imports the wall, or packs all pads onto one page.</li><li>Drag the wall to the left or right of the window, below the decks, or out as its own window. <strong>📌</strong> snaps a floating wall back.</li></ul>
+<p>Next: <a href="#05-tags">Tags</a></p>
+</section>
+<section id="05-tags">
+<h1>5 · Tags: stars, classes and the MP3 editor</h1>
+<p><a href="#index">Manual index</a> · previous: <a href="#04-playing">Playing the evening</a></p>
+<p>Most of what the app knows about a title comes from its MP3 tags: the class tags and markers in the comment, the title and artist. The <strong>🏷 tag editor</strong> changes them without a second program. It also edits the MP3's own fields the way Mp3tag does.</p>
+<p>A tag lives in one of two places:</p>
+<ul><li><strong>In the app</strong>: stars, classes, instrumental, markers and the Custom field. A change is stored in the app's database, not in the file. It wins over the file's own tag and shows on every copy of the same file, in every deck and in the library.</li><li><strong>In the MP3 file</strong>: title, artist, album and the other ID3 fields. A change is written into the file itself.</li></ul>
+<h2 id="05-tags__opening-the-editor">Opening the editor</h2>
+<p>Right-click a title in a deck, a wishlist or the 📚 library ▸ <strong>🏷 Edit tags…</strong>. If several titles are selected and you click inside the selection, the entry reads <strong>🏷 Edit tags of n tracks…</strong> and edits them all at once.</p>
+<h2 id="05-tags__the-tags-tab">The Tags tab</h2>
+<h3 id="05-tags__in-the-mp3-file">In the MP3 file</h3>
+<p>A form like Mp3tag's: <strong>Title, Artist, Album, Year, Track, Genre, Comment, Album artist, Composer, Disc number</strong> and <strong>Replay Gain</strong>, plus the front cover (shown, not editable). A changed field is written into every selected MP3 on <strong>Save</strong>. The box is only active for MP3 files on disk.</p>
+<p>With several titles, a field they differ in reads <strong>&lt; keep &gt;</strong> and stays as it is in each file until you change it. <strong>&lt; blank &gt;</strong>, or an emptied field, deletes the field from the files.</p>
+<h3 id="05-tags__in-the-app">In the app</h3>
+<ul><li><strong>Stars</strong>: no stars, or one to five ★.</li><li><strong>Classes</strong>: the start classes D to S the title suits. None ticked means it suits every class.</li><li><strong>Instrumental (no vocals)</strong>.</li><li><strong>Markers</strong>: free markers such as <code>classic</code> or <code>vocal_f</code>, separated by commas. The library's most-used markers sit below the line as buttons. Click one to add it, click it again to take it out. A lit button is set.</li><li><strong>Custom</strong>: a free text per title, see <a href="#05-tags__the-custom-field">The Custom field</a>.</li></ul>
+<p>With several titles, a field they differ in starts on <em>keep</em>: a half-ticked class box, the stars on <em>keep (differs per track)</em>, an empty marker line. Only what you change reaches them. Ticking <strong>B</strong> on three titles adds B to the classes each one already has. A marker line typed for several titles replaces their markers.</p>
+<p><strong>↺ Back to the file's tags</strong> forgets every change made in the app for these titles and reads the MP3 again.</p>
+<h3 id="05-tags__writing-the-apps-tags-into-the-mp3">Writing the app's tags into the MP3</h3>
+<p>When you save changed stars, classes, instrumental or markers of MP3 files, the app asks <strong>Also write … into the MP3?</strong> The default is <strong>No</strong>: the change then stays in the app only. On <strong>Yes</strong>:</p>
+<ul><li>the stars go into the Windows rating of the file, which Explorer and Windows Media Player show;</li><li>the classes, <em>instr</em> and the markers go into the plain comment. Text the comment already holds stays there.</li></ul>
+<p>After that the file holds the tags, and the app keeps no separate change.</p>
+<h2 id="05-tags__the-extended-tags-tab">The Extended tags tab</h2>
+<p>Only for a single MP3. It lists every ID3 frame of the file, including the ones the form doesn't show: UltraMixer's custom text frames, MediaMonkey's comments, the Windows rating.</p>
+<ul><li>Edit a value in the table, <strong>🗑</strong> deletes a frame, <strong>➕</strong> adds one. Pictures and other binary frames can only be removed.</li><li>The frames the form shows are read-only here and follow the form as you type.</li><li>A frame's description can't be changed, but you can copy it: double-click it, or right-click any cell ▸ <strong>📋 Copy</strong>.</li><li>Right-click a row ▸ <strong>🏷 Fill Custom from this tag</strong> maps the Custom field to that frame, see below.</li></ul>
+<p>Everything is written into the file on <strong>Save</strong>. The file keeps its tag version, so an ID3v2.3 tag stays v2.3.</p>
+<p>A title that is playing or paused in the player is not written. Stop it first. A title that is only cued is written and loaded again.</p>
+<h2 id="05-tags__the--column">The ★ column</h2>
+<p>Decks, wishlists and the library have a <strong>★</strong> column. It is hidden at first: right-click the column header to show it.</p>
+<ul><li>Click the third star to rate the title 3. Click the star the rating ends on to clear it.</li><li>A click on the stars is stored in the app at once and asks nothing.</li><li>A double-click on the stars neither plays the title nor opens the file.</li></ul>
+<p>Ratings already in the file are read on the scan: the Windows rating of Explorer and Windows Media Player, and a Songs-DB comment such as <code>ab C</code> (class C and up), which becomes the classes C, B, A and S.</p>
+<h2 id="05-tags__the-custom-field">The Custom field</h2>
+<p>One free text per title, typed in the 🏷 editor. It has its own <strong>Custom</strong> column in the decks and the library, hidden at first like the ★ column.</p>
+<p>The field can also show an MP3 tag of your choice, for example the date UltraMixer last played a title. Right-click a column header ▸ <strong>Map Custom to an MP3 tag…</strong>:</p>
+<ul><li><strong>Frame</strong>: <em>In the app only</em> (the default), or the kind of tag, such as a custom text (TXXX) or a comment.</li><li><strong>Description</strong>: which custom text or comment, for example <code>ultramixer_last_played</code>. The list offers the descriptions that a sample of 80 MP3s of your library really holds, the most common first. A grey line says how many of them hold the chosen one, with an example value.</li></ul>
+<p>After <strong>OK</strong> the app reads that tag of every library title in the background and fills the column. A value typed in the 🏷 editor still wins over the tag. While Custom is mapped, the <strong>Also write … into the MP3?</strong> question offers it too. Without a mapping, Custom never touches the file.</p>
+<p>The quicker way: open the 🏷 editor on a title that has the tag, go to <strong>Extended tags</strong> and right-click the row ▸ <strong>🏷 Fill Custom from this tag</strong>.</p>
+<p>Next: <a href="#06-settings">Settings</a></p>
+</section>
+<section id="06-settings">
+<h1>6 · Settings</h1>
+<p><a href="#index">Manual index</a> · previous: <a href="#05-tags">Tags</a></p>
+<p>Open <strong>⚙ Settings</strong> from the bottom of the Playing panel. The changes apply when you click <strong>OK</strong>. Theme, accent colour, language and the audio backend are read at start: for those the app asks for a restart.</p>
+<h2 id="06-settings__paths-and-search">Paths and search</h2>
+<p>The <strong>📁 Paths &amp; search</strong> tab.</p>
+<figure><img src="img/settings-paths.png" alt="Settings, Paths &amp; search tab"><figcaption>Settings, Paths &amp; search tab</figcaption></figure>
+<p>The folders on top are described in <a href="#01-getting-started__point-the-app-at-your-music">chapter 1</a>. Under them:</p>
+<div class="table"><table><thead><tr><th>Setting</th><th>Does</th></tr></thead><tbody><tr><td><strong>▶ Player position</strong></td><td>Where the player card stands: <em>beside the playlists</em>, at the head of the Playing panel, or <em>above the playlists</em>, as one wide strip over the decks.</td></tr><tr><td><strong>🎙 Advanced voice controls</strong></td><td>Shows <em>…with takt</em>, <em>…with heat</em> and <em>🔈 Test</em> under <em>Announce next dance</em>. Hidden, they keep their values.</td></tr><tr><td><strong>🔊 Audio backend</strong></td><td>The engine every title is played through. On Windows: <em>FFmpeg</em> (the default) or <em>Windows Media Foundation</em>. Only change it when a title won't play or a tempo change leaves a gap. Takes effect after a restart.</td></tr><tr><td><strong>🔇 Release the sound card between titles</strong></td><td>An onboard sound card puts a hiss on the PA while an app holds it open. This hands the device back after a few seconds of silence. The price is a soft click when the next title starts, so switch it on only if you hear the hiss.</td></tr><tr><td><strong>🔕 Mute system sounds while the evening runs</strong></td><td>No error ding or notification chime over the speakers. The system sounds come back when you close the app.</td></tr></tbody></table></div>
+<h2 id="06-settings__look">Look</h2>
+<p>The <strong>🎨 Look</strong> tab.</p>
+<figure><img src="img/settings-look.png" alt="Settings, Look tab"><figcaption>Settings, Look tab</figcaption></figure>
+<ul><li><strong>🎨 Theme</strong>: <em>Light</em>, the default, or <em>Dark</em> for a dim hall. Warnings stay red in both.</li><li><strong>🎚 Accent colour</strong>: the blue of the buttons, sliders and the player panel. <strong>↺ Default blue</strong> resets it. Colours that mean something, such as red warnings, keep their hue.</li><li><strong>🌐 Language</strong>: English or German.</li></ul>
+<p>All three take effect after a restart.</p>
+<h2 id="06-settings__analysis">Analysis</h2>
+<p>The <strong>⚗ Analysis</strong> tab collects every analysis. It only <em>reads</em> your files. Everything is cached, so a second run only does what is new.</p>
+<figure><img src="img/settings-analysis.png" alt="Settings, Analysis tab"><figcaption>Settings, Analysis tab</figcaption></figure>
+<p>The player needs three of them:</p>
+<ul><li><strong>📊 Analyze loudness (R128)</strong>: for <em>Equalize volume</em>.</li><li><strong>🐂 Analyze PD highlights</strong>: for the Paso Doble stop.</li><li><strong>🔇 Probe silences</strong>: for skipping silence at the start and end.</li></ul>
+<p><strong>📤 Export / 📥 Import manual PD marks</strong> carries the highlights you marked by hand to another PC. Run from the full app, the tab lists more analyses; the player build shows only these.</p>
+<p><strong>🧱 Build ALL caches…</strong> runs every analysis in turn, for a library you choose. It can be cancelled.</p>
+<p><strong>🧹 Clean up database…</strong> removes cached rows for files that no longer exist and compacts the database. It refuses to run when the music drive looks unmounted, so the analysis can't be wiped by accident.</p>
+<h2 id="06-settings__play-sets">Play sets</h2>
+<p>The <strong>🎛 Play sets</strong> tab sets what the <strong>🏆 Tournament set</strong> and <strong>🎉 Party set</strong> buttons of the Playing panel apply (see <a href="#04-playing__play-sets">chapter 4</a>).</p>
+<figure><img src="img/settings-play-sets.png" alt="Settings, Play sets tab"><figcaption>Settings, Play sets tab</figcaption></figure>
+<p>For each set:</p>
+<ul><li><strong>Play length</strong>: pick one, type <code>m:ss</code> or seconds, or choose <em>full</em>.</li><li><strong>Fade-out</strong>, in half-second steps.</li><li><strong>⏭ Auto-advance</strong>, <strong>⏸ No pause between songs</strong>, <strong>🔈 Announce next dance</strong>, <strong>🔊 Equalize volume</strong>, <strong>▶️ Double-click starts the title</strong> and <strong>🎚 TSO pitch to the heat tempo</strong>.</li></ul>
+<p>The tournament set always switches the 🐂 Paso Doble stop off: the detection is not reliable enough to cut a competition Paso Doble. The party set leaves it as it is.</p>
+<p><strong>🎚 TSO pitch target</strong> sets, per dance, the tempo the TSO button pitches a heat to:</p>
+<ul><li><strong>Middle of the round</strong>: puts the whole round on one tempo, where most of its titles already are. No title moves more than one bar per minute.</li><li><strong>Lower / Middle / Upper</strong>: a fixed tempo within the TSO range. This is worth setting for the slow dances, where one bar per minute is a much bigger pitch change.</li></ul>
+<p>Next: <a href="#07-shortcuts">Keyboard and mouse</a></p>
+</section>
+<section id="07-shortcuts">
+<h1>7 · Keyboard and mouse</h1>
+<p><a href="#index">Manual index</a> · previous: <a href="#06-settings">Settings</a></p>
+<p><strong>F1</strong> in the app shows the shortcuts as a cheat sheet.</p>
+<h2 id="07-shortcuts__keyboard">Keyboard</h2>
+<div class="table"><table><thead><tr><th>Keys</th><th>Does</th></tr></thead><tbody><tr><td><strong>Space</strong></td><td>Pause and resume the player, wherever the focus is, except in a text field.</td></tr><tr><td><strong>Ctrl + ← / →</strong></td><td>Seek 30 s back / forward while playing.</td></tr><tr><td><strong>Ctrl + Shift + ← / →</strong></td><td>Previous / next title, the same as ⏮ / ⏭ on the player. ⏭ also ends a running pause.</td></tr><tr><td><strong>Ctrl + S</strong></td><td>Save the focused playlist or wishlist as M3U.</td></tr><tr><td><strong>Ctrl + Shift + S</strong></td><td>Save the whole session: decks, wishlists, layout.</td></tr><tr><td><strong>Ctrl + Z / Ctrl + Y</strong></td><td>Undo / redo. <strong>Ctrl + Shift + Z</strong> also redoes.</td></tr><tr><td><strong>Ctrl + X</strong> or <strong>Ctrl + W</strong></td><td>Close the active dialog.</td></tr><tr><td><strong>Del</strong></td><td>Remove the selected titles from a deck or wishlist, after asking.</td></tr><tr><td><strong>Del</strong> with nothing selected</td><td>Clear that whole playlist or wishlist, after asking. The same when every title is selected.</td></tr><tr><td><strong>Ctrl + Shift + Del</strong></td><td>Clear the focused playlist or wishlist, after asking, wherever the cursor is.</td></tr><tr><td><strong>Ctrl + M</strong></td><td>Mark or unmark the selected titles (❗ orange), for example as titles to swap later. <strong>Ctrl + 1</strong> does the same while the cartwall is hidden.</td></tr><tr><td><strong>Alt + S</strong></td><td>Swap the two selected titles of the same dance in the Party panel.</td></tr><tr><td><strong>F2</strong> in the 🏆 Tournaments tree</td><td>Rename the entry. <strong>Del</strong> removes it from the tree.</td></tr><tr><td><strong>Ctrl + A</strong> in 🏆 Tournaments</td><td>Mark every slot of the folder, or every entry of the tree. <strong>Del</strong> and a drag then take them all.</td></tr><tr><td><strong>Ctrl + F</strong></td><td>Find a title in the focused list. Repeat to step to the next match.</td></tr><tr><td><strong>T</strong> on the 🖥 presenter</td><td>Switch between the titles and the timetable page.</td></tr><tr><td><strong>Esc</strong> on the 🖥 presenter</td><td>Close the presenter screen.</td></tr><tr><td><strong>F1</strong></td><td>The cheat sheet.</td></tr></tbody></table></div>
+<h2 id="07-shortcuts__mouse">Mouse</h2>
+<div class="table"><table><thead><tr><th>Action</th><th>Does</th></tr></thead><tbody><tr><td>Click a round or dance header</td><td>Collapse or expand that section.</td></tr><tr><td>Double-click a deck title</td><td>Rename the playlist or wishlist.</td></tr><tr><td>▾ / ▸ arrow in a deck header</td><td>Fold the deck to a header tab. Click the tab to reopen it.</td></tr><tr><td>Drag a row</td><td>Move a title within the list, to another deck or a wishlist, or drop it into Explorer or a DJ program.</td></tr><tr><td>Right-click ▸ 🔍 Find a title</td><td>Jump to a title by name. Repeat to step to the next match.</td></tr><tr><td>Drop a file from outside</td><td>Add it to the deck or wishlist where it was dropped. An <code>.m3u</code> dropped on a deck is imported.</td></tr><tr><td>▶ / ■ in a row</td><td>Play / stop exactly that title.</td></tr><tr><td>Double-click a deck row</td><td>Play it, or only cue it, depending on <em>▶️ Double-click starts the title</em>.</td></tr><tr><td>▶ in a 📚 library row</td><td>Play the title.</td></tr><tr><td>Double-click a 📚 library row</td><td>Open the title in your external player.</td></tr><tr><td>Click a star in the <strong>★</strong> column</td><td>Rate the title. Click the star the rating ends on to clear it.</td></tr><tr><td>Double-click the 🖥 presenter</td><td>Leave full screen.</td></tr></tbody></table></div>
+<h2 id="07-shortcuts__cartwall">Cartwall</h2>
+<div class="table"><table><thead><tr><th>Action</th><th>Does</th></tr></thead><tbody><tr><td>Drop files on a pad (✏ edit on)</td><td>Assign that sample. A multi-select fills the free pads after it. An empty pad can also be clicked to browse.</td></tr><tr><td>Click a pad</td><td>Fire it over the running music. Click again to fade it out.</td></tr><tr><td><strong>Ctrl + 1 … Ctrl + 9</strong></td><td>Fire the first nine pads of the page on screen. This works from anywhere while the wall is shown.</td></tr><tr><td>Right-click a pad</td><td>🎨 colour, or Settings… for label, volume, its own key, 🔁 endless repeat and whether it ducks the music.</td></tr><tr><td>Drag a pad onto another</td><td>Swap the two pads.</td></tr><tr><td><strong>Esc</strong></td><td>Stop every pad, the same as ⏹ Stop all.</td></tr></tbody></table></div>
+<p>Back to the <a href="#index">manual index</a>.</p>
+</section>
+</main>
+<a class="top" href="#index">↑ Index</a>
+<script>
+const links = [...document.querySelectorAll('.toc a')];
+const targets = links.map(a => document.getElementById(a.hash.slice(1)));
+function spy() {
+  let best = 0;
+  targets.forEach((t, i) => { if (t && t.getBoundingClientRect().top < 90) best = i; });
+  links.forEach((a, i) => a.classList.toggle('active', i === best));
+  const box = links[best].closest('details');
+  document.querySelectorAll('.toc details').forEach(d => { d.open = d === box; });
+  const nav = document.querySelector('.toc');
+  const a = links[best].getBoundingClientRect(), n = nav.getBoundingClientRect();
+  if (a.top < n.top || a.bottom > n.bottom) nav.scrollTop += a.top - n.top - n.height / 3;
+}
+addEventListener('scroll', spy, {passive: true});
+spy();
+</script>
+</body>
+</html>

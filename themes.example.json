@@ -1,0 +1,13 @@
+{
+  "_comment": "Copy this file to themes.json to enable. custom_themes appear in the GUI Theme dropdown; track_themes force-include specific songs (match by filename stem, lower-case, without .mp3).",
+
+  "custom_themes": {
+    "Schlager": { "label": "Schlager", "mood": "slow", "min_pop": 1 },
+    "Latin Night": { "label": "Latin Night", "dances": ["CC", "SA", "RB", "JI"] }
+  },
+
+  "track_themes": {
+    "rb24 besame mucho": ["Hochzeit", "Galaball"],
+    "lw29 can you feel the love tonight": ["Hochzeit"]
+  }
+}

@@ -1,0 +1,40 @@
+#!/bin/sh
+# Pre-commit: ruff, then the tests this commit's scope can break. Enable once
+# per clone with:
+#
+#     git config core.hooksPath .githooks
+#
+# Skip a single commit with `git commit --no-verify` when you really mean to.
+#
+# The whole suite (~3400 tests, ~4.5 min) is too slow to carry every commit, and
+# a gate that slow ends up bypassed with --no-verify until nobody runs it at
+# all. So tools/commit_scope.py reads the staged files and decides: a commit
+# inside one area (planner / gui / player / app) runs that area's package; one
+# that spans several areas or is a bigger refactoring runs everything. The rules
+# are in that file. Force the whole suite with `FULL_SUITE=1 git commit ...`.
+#
+# The pre-push hook always runs the whole suite.
+#
+# Qt runs offscreen: the GUI tests build real windows and must not throw them on
+# the screen of whoever is committing.
+
+if [ -x ".venv/Scripts/python.exe" ]; then
+    PY=".venv/Scripts/python.exe"
+elif command -v py >/dev/null 2>&1; then
+    PY="py"
+else
+    PY="python"
+fi
+
+if "$PY" -m ruff --version >/dev/null 2>&1; then
+    echo "🧹 ruff…"
+    "$PY" -m ruff check . || exit 1
+else
+    echo "🧹 ruff not installed — skipping lint (pip install ruff)"
+fi
+
+QT_QPA_PLATFORM=offscreen "$PY" -m tools.commit_scope || {
+    echo "🛑 Suite is red — commit refused."
+    echo "   Fix it, or commit with --no-verify if you know what you are doing."
+    exit 1
+}

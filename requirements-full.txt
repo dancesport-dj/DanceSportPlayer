@@ -1,0 +1,31 @@
+# ── Full install: core + the optional AI features ────────────────────────────
+# Each block is independent — install only what you want; every feature shows
+# a pip hint in the GUI when its packages are missing.
+-r requirements.txt
+
+# truststore: makes model downloads use the OS (Windows) certificate store, so they
+# work behind a corporate / antivirus TLS proxy that re-signs HTTPS with a private CA
+# (otherwise huggingface.co / dl.fbaipublicfiles.com fail with CERTIFICATE_VERIFY_FAILED).
+truststore==0.10.4
+
+# Demucs – measured vocal/instrumental detection ("🎙️ Analyze vocals"):
+# separates the vocal stem from each track (~7 s/track, cached in the DB).
+# Downloads the htdemucs weights (~80 MB) on first use.
+torch==2.14.0
+demucs==4.1.0
+
+# ── OpenL3 – perceptual "sounds-alike" similarity (alternative to the librosa
+# vector). NOT auto-installed: on Python 3.12+ openl3 0.4.2 won't install with a
+# plain `pip install` because:
+#   (a) its setup.py does `import imp` (removed in 3.12), and
+#   (b) its setup.py downloads model weights with stdlib urllib, which fails behind
+#       a TLS-intercepting proxy (CERTIFICATE_VERIFY_FAILED).
+# The repo ships `_build_shims/` (an `imp` shim + a `sitecustomize.py` that relaxes the
+# stdlib HTTPS context) to work around both. Install with build isolation OFF so the
+# shims are on the build's path (run from the project dir, venv active). The HTTPS
+# relaxing only happens when asked for by name, never from the path alone:
+#   PYTHONPATH=_build_shims DANCEPLAYLIST_INSECURE_BUILD_TLS=1  pip install openl3 tensorflow --no-build-isolation
+# This also pins tensorflow 2.20 / keras 3.13 (openl3+kapre need the older versions);
+# Demucs is unaffected (it uses torch, not tensorflow).
+# (c) tensorflow has no Python 3.14 wheels at all — the project runs on 3.14, so
+#     OpenL3 needs a separate 3.13 venv until TF catches up. Nothing else does.

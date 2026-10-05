@@ -1,0 +1,43 @@
+name: tests
+
+# The app is Windows-only (WMF media backend, ffmpeg.exe, packaged with
+# PyInstaller), so CI runs on Windows too — same platform the tests are written
+# against. The GUI smoke test drives Qt through its offscreen platform plugin.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      live_tests:
+        description: "Also send one real event to GlitchTip"
+        type: boolean
+        default: false
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt ruff==0.16.8
+
+      - name: Lint
+        run: python -m ruff check .
+
+      - name: Test
+        env:
+          QT_QPA_PLATFORM: offscreen
+          DANCEPLAYLIST_ERROR_DSN: ${{ secrets.DANCEPLAYLIST_ERROR_DSN }}
+          # The live GlitchTip test sends one event, so it runs only when a
+          # manual run ticks live_tests (and the secret is there).
+          DANCEPLAYLIST_LIVE_TESTS: ${{ inputs.live_tests && '1' || '' }}
+        run: python -m unittest discover -p "test_*.py" -v

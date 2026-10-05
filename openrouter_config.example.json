@@ -1,0 +1,5 @@
+{
+  "_comment": "Copy this file to openrouter_config.json and paste your free key. Get one at https://openrouter.ai/keys . The app also writes this file automatically when you click 'Get Suggestions'. Alternatively set the OPENROUTER_API_KEY environment variable instead of storing the key here. 'model' must be a free model id (ends with ':free') - use the 'Load free models' button in the AI dialog to see the current list.",
+  "api_key": "sk-or-v1-REPLACE_WITH_YOUR_FREE_KEY",
+  "model": "meta-llama/llama-3.3-70b-instruct:free"
+}
