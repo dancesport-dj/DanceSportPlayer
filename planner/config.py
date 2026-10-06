@@ -31,6 +31,26 @@ def _app_dir() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
+def restore_system_library_path(environ=os.environ, *, frozen=None,
+                                platform=sys.platform) -> None:
+    """Give the programs we start the system's libraries back (Linux build).
+
+    PyInstaller's bootloader points LD_LIBRARY_PATH at the bundled libraries
+    and keeps the old value as LD_LIBRARY_PATH_ORIG, but only when there was
+    one. Children inherit it, so gsettings or a system ffmpeg would load the
+    bundle's older glib or Qt's trimmed FFmpeg and fail. The app itself is not
+    affected: the loader read the variable once, when the process started."""
+    if frozen is None:
+        frozen = getattr(sys, "frozen", False)
+    if not frozen or not platform.startswith("linux"):
+        return
+    orig = environ.get("LD_LIBRARY_PATH_ORIG")
+    if orig is None:
+        environ.pop("LD_LIBRARY_PATH", None)
+    else:
+        environ["LD_LIBRARY_PATH"] = orig
+
+
 def _is_writable(folder: Path) -> bool:
     """Can we really create a file in here? Probe it — don't ask `os.access`.
 

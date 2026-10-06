@@ -69,10 +69,51 @@ fi
 # for the library analysis, the loudness scan and the silence detection.
 command -v ffmpeg >/dev/null 2>&1 || echo "NOTE: no ffmpeg on PATH — brew install ffmpeg"
 
+# The .dmg window with a background that says where to drag the app and how to
+# allow its first start (tools/dmg_background.py), the icons placed on it by
+# create-dmg through Finder. Called inside an `if`, where set -e is off, so
+# every step returns on its own failure.
+pretty_dmg() {
+    BGDIR="build/dmg-background"
+    layout=$("$PY" -m tools.dmg_background "$BGDIR") || return 1
+    eval "$layout"
+    tiffutil -cathidpicheck "$BGDIR/background.png" "$BGDIR/background@2x.png" \
+             -out "$BGDIR/background.tiff" || return 1
+    # The window size counts the title bar, the background does not.
+    set -- --volname "$APP_NAME" --background "$BGDIR/background.tiff" \
+           --window-size "$DMG_W" "$((DMG_H + 28))" --icon-size "$DMG_ICON" \
+           --icon "$APP_NAME.app" "$APP_X" "$APP_Y" --hide-extension "$APP_NAME.app" \
+           --icon Applications "$APPLICATIONS_X" "$APPLICATIONS_Y"
+    if [ -f "$STAGE/README.txt" ]; then
+        set -- "$@" --icon README.txt "$README_X" "$README_Y"
+    fi
+    create-dmg "$@" "dist/$APP_NAME.dmg" "$STAGE"
+}
+
 if [ "$2" = "dmg" ] || [ "$1" = "dmg" ]; then
+    # The .app next to a link to /Applications: the opened .dmg shows both,
+    # and installing is dragging the one onto the other. ditto keeps the
+    # bundle's signature and symlinks intact.
+    STAGE="build/dmg-$APP_NAME"
+    rm -rf "$STAGE"
+    mkdir -p "$STAGE"
+    ditto "$APP" "$STAGE/$APP_NAME.app"
+    ln -s /Applications "$STAGE/Applications"
+    # And how to get past Gatekeeper on the first start, right in that window.
+    # The guide names the player, so the other flavors go without it.
+    if [ "$DANCESPORT_BUILD" = "player" ]; then
+        cp docs/install/macos.md "$STAGE/README.txt"
+    fi
     rm -f "dist/$APP_NAME.dmg"
-    hdiutil create -volname "$APP_NAME" -srcfolder "$APP" \
-                   -ov -format UDZO "dist/$APP_NAME.dmg"
+    if command -v create-dmg >/dev/null 2>&1 && pretty_dmg; then
+        :
+    else
+        # Still installable by dragging, only without the drawn hint.
+        echo "NOTE: plain .dmg, no hint drawn in its window (brew install create-dmg)"
+        rm -f "dist/$APP_NAME.dmg" dist/rw.*.dmg
+        hdiutil create -volname "$APP_NAME" -srcfolder "$STAGE" \
+                       -ov -format UDZO "dist/$APP_NAME.dmg"
+    fi
 fi
 
 echo "Built $APP"

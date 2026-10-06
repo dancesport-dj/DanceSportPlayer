@@ -48,6 +48,13 @@ and optionally wraps it in a .dmg. It is built for the architecture of the Mac
 that builds it — no `universal2`, because llvmlite/numba/soundfile have no
 universal wheels.
 
+The .dmg window holds the app, a link to Applications and, for the player, the
+macOS install guide as `README.txt`. With `create-dmg` installed
+(`brew install create-dmg`), the icons sit on a background drawn by
+`tools/dmg_background.py`: an arrow onto Applications and the way past
+Gatekeeper on the first start (Privacy & Security, Open Anyway). Without it, or
+if it fails, the script makes the same .dmg without the background.
+
 For a crisp Dock icon, make an `icon.icns` once:
 `sips -s format icns icon.png --out icon.icns`. Without it PyInstaller converts
 `icon.png` when Pillow is installed.
@@ -55,6 +62,9 @@ For a crisp Dock icon, make an `icon.icns` once:
 ☀ *Keep the screen awake* runs `caffeinate -d -i -w <pid>` on macOS — part of
 the system, nothing to install, and the helper dies with the app instead of
 pinning the screen on after a crash. Windows uses `SetThreadExecutionState`.
+Linux asks the desktop through D-Bus (`org.freedesktop.ScreenSaver.Inhibit`,
+answered by GNOME, KDE, Xfce, Cinnamon and MATE) on a connection of its own;
+closing it, or the app dying, releases the hold.
 
 Untested, and it is where trouble would show first: the media backend. Qt picks
 AVFoundation on macOS, while every timing decision in the player — the 250 ms
@@ -71,16 +81,19 @@ build_player.bat            rem or: build_exe.bat player
 ./build_app.sh player       # macOS
 ```
 
-GitHub builds both as well: `.github/workflows/build-player.yml`, started by
-hand (*Run workflow*) or by pushing a `v*` tag. It runs the same two scripts,
-fetches ffmpeg 9.0.2 for the Windows folder and passes the
-`DANCEPLAYLIST_ERROR_DSN` secret. The Windows folder and the macOS `.dmg` are
-the run's artifacts. A `v*` tag also publishes them as that tag's GitHub
-release (`DanceSport-Player-1.2.0-windows.zip` and `…-macos.dmg` for the tag
-`v1.2.0`, so the names carry no v either), with the
-tagged commit's message as the release text.
+GitHub builds both as well, plus a Linux build: `.github/workflows/build-player.yml`,
+started by hand (*Run workflow*) or by pushing a `v*` tag. It runs the same two
+scripts, fetches ffmpeg 9.0.2 for the Windows folder and passes the
+`DANCEPLAYLIST_ERROR_DSN` secret. Linux has no script: the job runs the spec
+with `DANCESPORT_BUILD=player` on `ubuntu-22.04` (the oldest glibc on offer, so
+the build runs on more distributions), starts the result once offscreen and
+packs the folder as a tar.gz. ffmpeg is not bundled there. The Windows folder,
+the macOS `.dmg` and the Linux tar.gz are the run's artifacts. A `v*` tag also
+publishes them as that tag's GitHub release (`DanceSport-Player-1.2.0-windows.zip`,
+`…-macos.dmg` and `…-linux.tar.gz` for the tag `v1.2.0`, so the names carry no
+v either), with the tagged commit's message as the release text.
 
-The version number is `VERSION` in `planner/version.py` (`1.0.0`), and a build
+The version number is `VERSION` in `planner/version.py` (`1.0.1`), and a build
 without a tag gets it. A `v*` tag overrides it, so name the tag
 `vMAJOR.MINOR.PATCH` (`v1.2.0`); the app in the release then says `1.2.0`, the
 tag without its v. Keep `VERSION` in step after a release, so desk builds carry

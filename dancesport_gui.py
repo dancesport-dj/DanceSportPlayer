@@ -62,6 +62,8 @@ if sys.platform == "win32":
     os.environ["QT_MEDIA_BACKEND"] = "ffmpeg"   # alt. windows (WMF)
 
 import planner.config
+# Before anything can start a child process (ffmpeg, gsettings, xdg-open).
+planner.config.restore_system_library_path()
 from planner.version import app_version
 from planner.db import AudioCache
 from planner.library import MusicLibrary

@@ -133,11 +133,12 @@ class BuildWiringTest(unittest.TestCase):
         self.assertIn("version=exe_version_info", spec)
         self.assertIn('"CFBundleShortVersionString": VERSION_NUMBERS', spec)
 
-    def test_both_release_builds_get_the_tag(self):
+    def test_every_release_build_gets_the_tag(self):
+        # Windows, macOS and Linux.
         flow = (ROOT / ".github" / "workflows" / "build-player.yml").read_text(
             encoding="utf-8")
         self.assertEqual(flow.count(f"{version.VERSION_ENV}: ${{{{ startsWith("
-                                    "github.ref, 'refs/tags/v') && github.ref_name"), 2)
+                                    "github.ref, 'refs/tags/v') && github.ref_name"), 3)
 
     def test_the_release_downloads_carry_no_v(self):
         # Marcel: the download names lose the tag's v too, like the app.
@@ -147,7 +148,24 @@ class BuildWiringTest(unittest.TestCase):
         self.assertNotIn("DanceSport-Player-$TAG-", flow)
         self.assertIn('"DanceSport-Player-$VERSION-windows.zip"', flow)
         self.assertIn('"DanceSport-Player-$VERSION-macos.dmg"', flow)
+        self.assertIn('"DanceSport-Player-$VERSION-linux.tar.gz"', flow)
         self.assertIn('--title "DanceSport Player $VERSION"', flow)
+
+    def test_every_download_says_how_to_install_it(self):
+        # Marcel: "i miss a readme or info for the user which tells him how to
+        # install or open it". Each download carries its platform's guide, and
+        # the release text links all three.
+        flow = (ROOT / ".github" / "workflows" / "build-player.yml").read_text(
+            encoding="utf-8")
+        script = (ROOT / "build_app.sh").read_text(encoding="utf-8")
+        self.assertIn("cp docs/install/windows.md artifacts/DanceSport-Player/README.txt",
+                      flow)
+        self.assertIn("cp docs/install/linux.md dist/DanceSport-Player/README.txt", flow)
+        self.assertIn('cp docs/install/macos.md "$STAGE/README.txt"', script)
+        for name in ("windows", "macos", "linux"):
+            with self.subTest(platform=name):
+                self.assertTrue((ROOT / "docs" / "install" / f"{name}.md").exists())
+                self.assertIn(f"docs/install/{name}.md)", flow)
 
 
 if __name__ == "__main__":

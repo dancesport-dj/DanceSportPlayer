@@ -32,6 +32,12 @@ Ready-to-run builds are the artifacts of the
   `DanceSport-Player.exe`. ffmpeg is bundled.
 - **DanceSport-Player-macos**: the `.dmg` of the `.app`, signed ad hoc.
   ffmpeg is not bundled there: `brew install ffmpeg`.
+- **DanceSport-Player-linux**: a tar.gz of the folder, built on Ubuntu 22.04 and
+  untested on a desktop. ffmpeg is not bundled: `sudo apt install ffmpeg`.
+
+How to install and open each one, including the first start past SmartScreen
+and Gatekeeper: [Windows](docs/install/windows.md), [macOS](docs/install/macos.md),
+[Linux](docs/install/linux.md). Every download carries its guide as `README.txt`.
 
 ## Running from source
 

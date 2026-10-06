@@ -128,6 +128,64 @@ class BuildNamesTest(unittest.TestCase):
                 self.assertNotIn("DancePlaylist", self._read(file))
 
 
+class DmgTest(unittest.TestCase):
+    """Marcel: "the .app has no drag to programm folder to install it". The
+    .dmg is the bare .app unless the script puts a link to /Applications next
+    to it, which is what Finder shows as the place to drag the app to."""
+
+    def setUp(self):
+        root = Path(config.__file__).resolve().parent.parent
+        self.script = (root / "build_app.sh").read_text(encoding="utf-8")
+
+    def test_the_dmg_holds_a_link_to_the_applications_folder(self):
+        self.assertIn('ln -s /Applications "$STAGE/Applications"', self.script)
+
+    def test_the_dmg_is_made_from_the_folder_with_the_link(self):
+        self.assertIn('-srcfolder "$STAGE"', self.script)
+        self.assertNotIn('-srcfolder "$APP"', self.script)
+
+    def test_the_window_shows_the_hint_with_the_icons_on_it(self):
+        # Marcel: "können wir einen kurzen hinweis auf das freigeben bei mac
+        # auch direkt im dmg fenster anzeigen?"
+        self.assertIn('"$PY" -m tools.dmg_background', self.script)
+        self.assertIn('create-dmg "$@" "dist/$APP_NAME.dmg" "$STAGE"', self.script)
+        for icon in ('"$APP_NAME.app" "$APP_X" "$APP_Y"',
+                     'Applications "$APPLICATIONS_X" "$APPLICATIONS_Y"',
+                     'README.txt "$README_X" "$README_Y"'):
+            with self.subTest(icon=icon):
+                self.assertIn(f"--icon {icon}", self.script)
+
+
+class DmgBackgroundTest(unittest.TestCase):
+    """The drawn half of the .dmg window (tools/dmg_background.py)."""
+
+    def test_it_draws_the_window_size_and_twice_that_for_retina(self):
+        from tools import dmg_background as bg
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch("sys.stdout"):
+                bg.main([tmp])
+            from PIL import Image
+            with Image.open(Path(tmp) / "background.png") as one:
+                self.assertEqual(one.size, bg.LAYOUT["window"])
+            with Image.open(Path(tmp) / "background@2x.png") as two:
+                self.assertEqual(two.size, tuple(2 * n for n in bg.LAYOUT["window"]))
+
+    def test_it_names_where_macos_lets_the_app_open(self):
+        from tools import dmg_background as bg
+        hint = " ".join(text for text, _ in bg.HINT)
+        self.assertIn("Datenschutz & Sicherheit", hint)
+        self.assertIn("Trotzdem öffnen", hint)
+        self.assertIn("Privacy & Security", hint)
+
+    def test_every_variable_the_script_reads_is_printed(self):
+        from tools import dmg_background as bg
+        script = (Path(config.__file__).resolve().parent.parent
+                  / "build_app.sh").read_text(encoding="utf-8")
+        for name in bg.shell_vars():
+            with self.subTest(name=name):
+                self.assertRegex(script, rf"\b{name}\b")
+
+
 class DataDirTest(unittest.TestCase):
     """Everything the app writes goes next to it — unless it cannot."""
 

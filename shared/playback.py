@@ -108,6 +108,50 @@ def _awake_macos(on: bool) -> bool:
     return True
 
 
+# The private session-bus connection that holds the Linux inhibit, by name.
+_INHIBIT_BUS = "dancesport-wake-lock"
+_INHIBITED = False
+
+
+def _awake_linux(on: bool) -> bool:
+    """Linux: org.freedesktop.ScreenSaver.Inhibit, the call GNOME, KDE, Xfce,
+    Cinnamon and MATE answer, on X11 and Wayland alike. (systemd-inhibit's
+    idle lock is no substitute: GNOME blanks the screen regardless.)
+
+    The inhibit belongs to the bus connection that asked for it, and the
+    desktop drops it when that connection goes away. So it is asked on a
+    private connection, and closing that connection is the release: no cookie
+    to hand back (UnInhibit wants a uint32 PySide has no way to name), and if
+    the app dies the hold dies with it, like caffeinate's -w on macOS."""
+    global _INHIBITED
+    from PySide6.QtDBus import QDBusConnection, QDBusInterface, QDBusMessage
+    if not on:
+        if _INHIBITED:
+            QDBusConnection.disconnectFromBus(_INHIBIT_BUS)
+            _INHIBITED = False
+        return True
+    if _INHIBITED:
+        return True
+    bus = QDBusConnection.connectToBus(QDBusConnection.BusType.SessionBus,
+                                       _INHIBIT_BUS)
+    if not bus.isConnected():
+        log.warning("☀️ No session bus, the screen cannot be kept awake")
+        QDBusConnection.disconnectFromBus(_INHIBIT_BUS)
+        return False
+    screensaver = QDBusInterface("org.freedesktop.ScreenSaver",
+                                 "/org/freedesktop/ScreenSaver",
+                                 "org.freedesktop.ScreenSaver", bus)
+    reply = screensaver.call("Inhibit", "DanceSport Player",
+                             "Music is playing or the presenter screen is up")
+    if reply.type() == QDBusMessage.MessageType.ErrorMessage:
+        log.warning("☀️ The desktop refused the wake lock\n"
+                    "error: %s", reply.errorMessage())
+        QDBusConnection.disconnectFromBus(_INHIBIT_BUS)
+        return False
+    _INHIBITED = True
+    return True
+
+
 def keep_display_awake(on: bool) -> bool:
     """Hold the screensaver and the display timeout off while the desk works —
     or hand the machine back to its normal idle timers.
@@ -117,9 +161,9 @@ def keep_display_awake(on: bool) -> bool:
     desk therefore blanks the screen and starts the screensaver, over the
     presenter beamer as well — which is the one screen the hall is looking at.
 
-    No-op on Linux (a desktop there wants systemd-inhibit, and no build of this
-    app targets one). Returns True when the state was really applied."""
-    fn = {"win32": _awake_windows, "darwin": _awake_macos}.get(sys.platform)
+    Returns True when the state was really applied."""
+    fn = {"win32": _awake_windows, "darwin": _awake_macos,
+          "linux": _awake_linux}.get(sys.platform)
     if fn is None:
         return False
     try:

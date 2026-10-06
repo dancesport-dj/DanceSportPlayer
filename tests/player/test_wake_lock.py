@@ -6,7 +6,8 @@ out of the speakers — so a tournament that nobody touches for an hour blanks
 the screen and starts the screensaver, on the presenter beamer as well. The
 desk holds the timeout off while music plays or the presenter screen stands,
 and hands it back the moment neither does — on Windows through
-SetThreadExecutionState, on macOS through a caffeinate that dies with the app.
+SetThreadExecutionState, on macOS through a caffeinate that dies with the app,
+on Linux through the desktop's screensaver service on D-Bus.
 
 Run:  py -m unittest tests.player.test_wake_lock -v
 """
@@ -168,6 +169,122 @@ class MacWakeLockTest(unittest.TestCase):
     def test_releasing_without_a_helper_is_no_error(self):
         self.assertTrue(playback._awake_macos(False))
         self.assertEqual(self.started, [])
+
+
+class _Bus:
+    """Stand-in for PySide6.QtDBus, recording what the wake lock asks of it."""
+
+    def __init__(self, test):
+        self.test = test
+
+        class Connection:
+            class BusType:
+                SessionBus = "session"
+
+            @staticmethod
+            def connectToBus(kind, name):
+                test.opened.append((kind, name))
+                return self
+
+            @staticmethod
+            def disconnectFromBus(name):
+                test.closed.append(name)
+
+        class Message:
+            class MessageType:
+                ErrorMessage = "error"
+                ReplyMessage = "reply"
+
+        class Reply:
+            def __init__(self, kind):
+                self.kind = kind
+
+            def type(self):
+                return self.kind
+
+            def errorMessage(self):
+                return "no such service"
+
+        class Interface:
+            def __init__(self, service, path, interface, bus):
+                test.interfaces.append((service, path, interface))
+
+            def call(self, method, *args):
+                test.calls.append((method, args))
+                return Reply(test.reply)
+
+        self.QDBusConnection = Connection
+        self.QDBusMessage = Message
+        self.QDBusInterface = Interface
+
+    def isConnected(self):
+        return self.test.connected
+
+
+class LinuxWakeLockTest(unittest.TestCase):
+    """Marcel: "setz das linux screen wachhalten feature um". Linux asks the
+    desktop's screensaver service, which GNOME, KDE, Xfce and Cinnamon answer
+    on X11 and Wayland alike."""
+
+    def setUp(self):
+        import sys
+        self.opened, self.closed, self.interfaces, self.calls = [], [], [], []
+        self.connected = True
+        self.reply = "reply"
+        bus = _Bus(self)
+        real = sys.modules.get("PySide6.QtDBus")
+        sys.modules["PySide6.QtDBus"] = bus
+        self.addCleanup(sys.modules.__setitem__, "PySide6.QtDBus", real)
+        self.addCleanup(setattr, playback, "_INHIBITED", False)
+        playback._INHIBITED = False
+
+    def test_it_asks_the_screensaver_service_to_hold_off(self):
+        self.assertTrue(playback._awake_linux(True))
+        self.assertEqual(self.interfaces, [("org.freedesktop.ScreenSaver",
+                                            "/org/freedesktop/ScreenSaver",
+                                            "org.freedesktop.ScreenSaver")])
+        method, args = self.calls[0]
+        self.assertEqual(method, "Inhibit")
+        self.assertEqual(len(args), 2)          # application name, reason
+
+    def test_the_hold_is_its_own_connection_and_closing_it_releases(self):
+        """The desktop drops an inhibit whose connection goes away: closing it
+        is the release, and a crash of the app releases it as well."""
+        playback._awake_linux(True)
+        self.assertEqual(len(self.opened), 1)
+        name = self.opened[0][1]
+        playback._awake_linux(False)
+        self.assertEqual(self.closed, [name])
+
+    def test_a_second_arm_asks_only_once(self):
+        playback._awake_linux(True)
+        playback._awake_linux(True)
+        self.assertEqual(len(self.calls), 1)
+
+    def test_releasing_without_a_hold_is_no_error(self):
+        self.assertTrue(playback._awake_linux(False))
+        self.assertEqual(self.closed, [])
+
+    def test_a_desktop_without_the_service_refuses_and_holds_nothing(self):
+        self.reply = "error"
+        self.assertFalse(playback._awake_linux(True))
+        self.assertEqual(len(self.closed), 1)
+        self.reply = "reply"
+        self.assertTrue(playback._awake_linux(True))   # tried again next time
+
+    def test_no_session_bus_is_a_refusal(self):
+        self.connected = False
+        self.assertFalse(playback._awake_linux(True))
+        self.assertEqual(self.calls, [])
+
+    def test_linux_is_dispatched_to_it(self):
+        import sys
+        from unittest import mock
+        with mock.patch.object(sys, "platform", "linux"), \
+                mock.patch.object(playback, "_awake_linux",
+                                  return_value=True) as fn:
+            self.assertTrue(playback.keep_display_awake(True))
+        fn.assert_called_once_with(True)
 
 
 

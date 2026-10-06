@@ -216,6 +216,10 @@ excludes = [
     # onset, util.localmax). joblib is NOT in here — librosa.beat needs it.
     "sklearn",
 ]
+if not sys.platform.startswith("linux"):
+    # Only the Linux wake lock speaks D-Bus (shared.playback._awake_linux);
+    # its import is inside a function, which PyInstaller follows anyway.
+    excludes += ["PySide6.QtDBus"]
 if PLAYER:
     # The player build runs prepared playlists and never analyses anything, so
     # the entire librosa stack goes — 215 MB of the 483 MB lite build, and by

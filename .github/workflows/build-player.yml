@@ -1,9 +1,10 @@
 name: build-player
 
 # The player flavor as a download: the Windows folder (with ffmpeg.exe next to
-# the .exe) and the macOS .dmg. Both go through the same scripts as a local
-# build (build_exe.bat, build_app.sh), so CI and a desk build cannot drift
-# apart. Started by hand, the results are the run's artifacts; started by a
+# the .exe), the macOS .dmg and a Linux tar.gz. The first two go through the
+# same scripts as a local build (build_exe.bat, build_app.sh), so CI and a desk
+# build cannot drift apart; Linux calls the spec directly, as nobody builds it
+# on a desk. Started by hand, the results are the run's artifacts; started by a
 # version tag, they are published as that tag's GitHub release as well.
 on:
   workflow_dispatch:
@@ -74,6 +75,10 @@ jobs:
           .venv/bin/python -m pip install --upgrade pip
           .venv/bin/python -m pip install -r requirements-player.txt pyinstaller==6.22.0 pillow
 
+      # Lays out the .dmg window over the drawn hint (build_app.sh).
+      - name: create-dmg
+        run: brew install create-dmg
+
       # Builds, signs ad hoc and wraps the .app in a .dmg. ffmpeg is not
       # bundled on macOS (brew install ffmpeg on the machine that runs it).
       - name: Build
@@ -88,10 +93,69 @@ jobs:
           path: dist/DanceSport-Player.dmg
           if-no-files-found: error
 
+  linux:
+    # The oldest runner on offer: the build runs on every distribution whose
+    # glibc is at least as new as the one it was built against.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      # The X11 libraries Qt's xcb platform plugin links against, and
+      # PulseAudio for its audio output. On the runner, PyInstaller finds and
+      # bundles them; a desktop has most of them anyway.
+      - name: System libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
+            libxcb-keysyms1 libxcb-render-util0 libxcb-xkb1 libxkbcommon-x11-0 \
+            libegl1 libpulse0
+
+      - name: Build venv
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -r requirements-player.txt pyinstaller==6.22.0
+
+      # No script of its own: the spec builds the same one-folder app as on
+      # Windows. ffmpeg is not bundled (the package manager has it).
+      - name: Build
+        env:
+          DANCESPORT_BUILD: player
+          DANCEPLAYLIST_ERROR_DSN: ${{ secrets.DANCEPLAYLIST_ERROR_DSN }}
+          DANCEPLAYLIST_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
+        run: .venv/bin/python -m PyInstaller dancesport.spec --noconfirm
+
+      # Nobody runs this build on a desk before the release, so it at least
+      # has to start: still running after 20 s means it got to its window.
+      - name: Start once
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          status=0
+          timeout 20 dist/DanceSport-Player/DanceSport-Player || status=$?
+          [ "$status" -eq 124 ] || { echo "exited with $status"; exit 1; }
+
+      # A tar keeps the executable bit, which an artifact zip would drop.
+      - name: Pack
+        run: |
+          cp docs/install/linux.md dist/DanceSport-Player/README.txt
+          tar -czf DanceSport-Player-linux.tar.gz -C dist DanceSport-Player
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: DanceSport-Player-linux
+          path: DanceSport-Player-linux.tar.gz
+          if-no-files-found: error
+
   release:
     # Only for a v* tag; a run started by hand stops at the artifacts.
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [windows, macos]
+    needs: [windows, macos, linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -103,7 +167,7 @@ jobs:
           path: artifacts
 
       # The Windows folder goes in one zip that unpacks to a DanceSport-Player
-      # folder.
+      # folder, as the Linux tar.gz does.
       # The release text is the tagged commit's message body: a public commit
       # is one release (tools/publish_sync), minus its Source trailer, which
       # names a private commit.
@@ -115,9 +179,22 @@ jobs:
         run: |
           VERSION="${TAG#v}"
           mv artifacts/DanceSport-Player-windows artifacts/DanceSport-Player
+          cp docs/install/windows.md artifacts/DanceSport-Player/README.txt
           (cd artifacts && zip -qr "../DanceSport-Player-$VERSION-windows.zip" DanceSport-Player)
           mv artifacts/DanceSport-Player-macos/DanceSport-Player.dmg "DanceSport-Player-$VERSION-macos.dmg"
+          mv artifacts/DanceSport-Player-linux/DanceSport-Player-linux.tar.gz "DanceSport-Player-$VERSION-linux.tar.gz"
           git log -1 --format=%b "$TAG" | sed '/^Source: /d' > notes.md
+          # Each download carries its own README.txt; the page links all three.
+          GUIDES="https://github.com/$GITHUB_REPOSITORY/blob/$TAG"
+          {
+            echo
+            echo "## Install / Installieren"
+            echo
+            echo "- [Windows]($GUIDES/docs/install/windows.md)"
+            echo "- [macOS]($GUIDES/docs/install/macos.md)"
+            echo "- [Linux]($GUIDES/docs/install/linux.md)"
+          } >> notes.md
           gh release create "$TAG" \
             "DanceSport-Player-$VERSION-windows.zip" "DanceSport-Player-$VERSION-macos.dmg" \
+            "DanceSport-Player-$VERSION-linux.tar.gz" \
             --title "DanceSport Player $VERSION" --notes-file notes.md
