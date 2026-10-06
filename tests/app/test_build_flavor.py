@@ -159,6 +159,15 @@ class DmgTest(unittest.TestCase):
 class DmgBackgroundTest(unittest.TestCase):
     """The drawn half of the .dmg window (tools/dmg_background.py)."""
 
+    def test_the_tests_workflow_has_pillow_to_draw_it(self):
+        """Pillow is a build tool, not in requirements.txt: without it here
+        the GitHub tests run died on `No module named 'PIL'`."""
+        workflow = (Path(config.__file__).resolve().parent.parent / ".github"
+                    / "workflows" / "tests.yml").read_text(encoding="utf-8")
+        install = next(line for line in workflow.splitlines()
+                       if "pip install -r requirements.txt" in line)
+        self.assertIn("pillow", install.split())
+
     def test_it_draws_the_window_size_and_twice_that_for_retina(self):
         from tools import dmg_background as bg
         with tempfile.TemporaryDirectory() as tmp:
