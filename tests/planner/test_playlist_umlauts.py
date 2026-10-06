@@ -19,7 +19,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from dancesport_planner import MusicEntry, MusicLibrary
-from planner import library as planner_library
+from planner import config as planner_config
 from planner.competition import parse_competition_schedule
 from planner.m3u import import_playlist_m3u, read_m3u_tracks
 from planner.playlist_text import PlaylistEncodingError
@@ -31,11 +31,11 @@ _UNDECODABLE = b"\x81\x8d not text \x8f\x90\r\n"   # neither UTF-8 nor cp1252
 class _Base(unittest.TestCase):
 
     def setUp(self):
-        self._orig_dir = planner_library.PLAYLIST_DIR
+        self._orig_dir = planner_config.PLAYLIST_DIR
         self.dir = Path(tempfile.mkdtemp(prefix="dp_umlaut_"))
-        planner_library.PLAYLIST_DIR = self.dir
+        planner_config.set_playlist_dir(self.dir)
         self.addCleanup(shutil.rmtree, self.dir, True)
-        self.addCleanup(setattr, planner_library, "PLAYLIST_DIR", self._orig_dir)
+        self.addCleanup(planner_config.set_playlist_dir, self._orig_dir)
         self.entry = MusicEntry(path=Path(_TRACK), title="Küss mich",
                                 dance="TG", bpm=32)
 

@@ -19,7 +19,7 @@ import unittest
 from pathlib import Path
 
 from dancesport_planner import MusicEntry, MusicLibrary
-from planner import library as planner_library
+from planner import config as planner_config
 from planner.competition import parse_competition_schedule
 
 _TRACK = r"C:\music\standardcd\Tango One (TG 32).mp3"
@@ -28,11 +28,11 @@ _TRACK = r"C:\music\standardcd\Tango One (TG 32).mp3"
 class ReadOnlyLookupTest(unittest.TestCase):
 
     def setUp(self):
-        orig = planner_library.PLAYLIST_DIR
+        orig = planner_config.PLAYLIST_DIR
         self.dir = Path(tempfile.mkdtemp(prefix="dp_past_ro_"))
-        planner_library.PLAYLIST_DIR = self.dir
+        planner_config.set_playlist_dir(self.dir)
         self.addCleanup(shutil.rmtree, self.dir, True)
-        self.addCleanup(setattr, planner_library, "PLAYLIST_DIR", orig)
+        self.addCleanup(planner_config.set_playlist_dir, orig)
         (self.dir / "Turnier Hgr B STD.m3u").write_text(
             "#EXTM3U\n" + _TRACK + "\n", encoding="utf-8")
         self.entry = MusicEntry(path=Path(_TRACK), title="Tango One",

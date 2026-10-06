@@ -25,7 +25,7 @@ from pathlib import Path
 
 from dancesport_planner import MusicEntry, MusicLibrary
 from planner import event_plan
-from planner import library as planner_library
+from planner import config as planner_config
 from planner.competition import parse_competition_schedule
 
 _STD = ("LW", "TG", "WW", "SF", "QS")
@@ -38,9 +38,9 @@ class EventFixture:
     def setUp(self):
         self.root = Path(tempfile.mkdtemp(prefix="dp_variants_"))
         self.addCleanup(shutil.rmtree, self.root, True)
-        orig = planner_library.PLAYLIST_DIR
-        planner_library.PLAYLIST_DIR = self.root
-        self.addCleanup(setattr, planner_library, "PLAYLIST_DIR", orig)
+        orig = planner_config.PLAYLIST_DIR
+        planner_config.set_playlist_dir(self.root)
+        self.addCleanup(planner_config.set_playlist_dir, orig)
         self.lib = MusicLibrary()
         self.sounds_like = {}      # new title → (entry, anchor, similarity)
 

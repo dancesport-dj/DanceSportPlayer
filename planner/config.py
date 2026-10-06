@@ -256,7 +256,8 @@ def set_playlist_dir(path) -> None:
     using the old binding."""
     global PLAYLIST_DIR
     PLAYLIST_DIR = Path(path).expanduser()
-    for mod_name in ("planner.library", "planner.competition", "dancesport_planner"):
+    for mod_name in ("planner.library", "planner.competition", "planner.event_plan",
+                     "dancesport_planner"):
         mod = sys.modules.get(mod_name)
         if mod is not None and hasattr(mod, "PLAYLIST_DIR"):
             mod.PLAYLIST_DIR = PLAYLIST_DIR

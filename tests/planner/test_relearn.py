@@ -14,7 +14,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from planner import library as planner_library
+from planner import config as planner_config
 from dancesport_planner import MusicEntry, MusicLibrary
 
 
@@ -22,13 +22,19 @@ class PlaylistDirTestBase(unittest.TestCase):
     """Shared temp PLAYLIST_DIR redirect + a one-track library."""
 
     def setUp(self):
-        self._orig_dir = planner_library.PLAYLIST_DIR
+        self._orig_dir = planner_config.PLAYLIST_DIR
         self._dir = Path(tempfile.mkdtemp(prefix="dp_relearn_"))
-        planner_library.PLAYLIST_DIR = self._dir
+        self._point_at(self._dir)
 
     def tearDown(self):
-        planner_library.PLAYLIST_DIR = self._orig_dir
+        self._point_at(self._orig_dir)
         shutil.rmtree(self._dir, ignore_errors=True)
+
+    @staticmethod
+    def _point_at(folder: Path) -> None:
+        # Every module that holds the name, as the ⚙ setting does: a temp
+        # dir seen only by planner.library is judged by its full path elsewhere.
+        planner_config.set_playlist_dir(folder)
 
     @staticmethod
     def _lib_with_entry() -> MusicLibrary:
@@ -37,6 +43,22 @@ class PlaylistDirTestBase(unittest.TestCase):
             path=Path(r"C:\music\standardcd\Tanguera (TG 32).mp3"),
             title="Tanguera", dance="TG", bpm=32))
         return lib
+
+
+class OldLookingTempDirTest(PlaylistDirTestBase):
+    def test_a_temp_dir_named_like_an_old_folder_still_counts(self):
+        """mkdtemp's random suffix can read as an "old" marker ('dp_relearn_x_alt',
+        'dp_relearn_12alte9q'). The GitHub suite once lost every playlist that
+        way: only planner.library was pointed at the temp dir, so
+        `_is_superseded_playlist` (planner.competition) judged its full path."""
+        old = Path(tempfile.mkdtemp(prefix="dp_relearn_", suffix="_alt"))
+        self.addCleanup(shutil.rmtree, old, True)
+        self._point_at(old)
+        (old / "Turnier 2026 Hgr B TG.m3u").write_text(
+            r"D:\export\Tanguera (TG 32).mp3", encoding="utf-8")
+        lib = self._lib_with_entry()
+        lib.relearn_playlists()
+        self.assertEqual(lib.entries[0].popularity, 1)
 
 
 class RelearnPlaylistsTest(PlaylistDirTestBase):

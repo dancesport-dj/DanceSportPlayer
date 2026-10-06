@@ -26,7 +26,7 @@ from tests.qt_test_support import (  # noqa: E402
 
 import gui.table_actions as table_actions  # noqa: E402
 from gui.playlist_table import PlaylistTable  # noqa: E402
-from planner import library as planner_library  # noqa: E402
+from planner import config as planner_config  # noqa: E402
 from planner.library import MusicLibrary  # noqa: E402
 from planner.models import MusicEntry, RoundConfig  # noqa: E402
 from planner.suggester import PlaylistSuggester  # noqa: E402
@@ -58,11 +58,11 @@ class PlannedBeforeTest(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def setUp(self):
-        orig = planner_library.PLAYLIST_DIR
+        orig = planner_config.PLAYLIST_DIR
         self.dir = Path(tempfile.mkdtemp(prefix="dp_planned_lists_"))
-        planner_library.PLAYLIST_DIR = self.dir
+        planner_config.set_playlist_dir(self.dir)
         self.addCleanup(shutil.rmtree, self.dir, True)
-        self.addCleanup(setattr, planner_library, "PLAYLIST_DIR", orig)
+        self.addCleanup(planner_config.set_playlist_dir, orig)
         (self.dir / "Turnier Hgr S STD.m3u").write_text(
             "#EXTM3U\n" + _TRACK + "\n", encoding="utf-8")
 
@@ -113,11 +113,11 @@ class GenerateLabelsTest(unittest.TestCase):
         cls.gui = stub_window_startup(cls)
 
     def setUp(self):
-        orig = planner_library.PLAYLIST_DIR
+        orig = planner_config.PLAYLIST_DIR
         self.dir = Path(tempfile.mkdtemp(prefix="dp_planned_gen_"))
-        planner_library.PLAYLIST_DIR = self.dir
+        planner_config.set_playlist_dir(self.dir)
         self.addCleanup(shutil.rmtree, self.dir, True)
-        self.addCleanup(setattr, planner_library, "PLAYLIST_DIR", orig)
+        self.addCleanup(planner_config.set_playlist_dir, orig)
         (self.dir / "Turnier Hgr B STD.m3u").write_text(
             "#EXTM3U\n" + _TRACK + "\n", encoding="utf-8")
 

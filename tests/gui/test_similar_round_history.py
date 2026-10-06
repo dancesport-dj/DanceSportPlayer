@@ -25,7 +25,7 @@ from tests.qt_test_support import reap_widget  # noqa: E402
 import gui.table_actions as table_actions  # noqa: E402
 from gui.playlist_table import PlaylistTable  # noqa: E402
 from gui.similar_dialog import SimilarTracksDialog  # noqa: E402
-from planner import library as planner_library  # noqa: E402
+from planner import config as planner_config  # noqa: E402
 from planner.library import MusicLibrary  # noqa: E402
 from planner.models import MusicEntry, RoundConfig  # noqa: E402
 from planner.parsing import _song_title_key  # noqa: E402
@@ -133,11 +133,11 @@ class DeckTest(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def setUp(self):
-        orig = planner_library.PLAYLIST_DIR
+        orig = planner_config.PLAYLIST_DIR
         self.dir = Path(tempfile.mkdtemp(prefix="dp_simround_lists_"))
-        planner_library.PLAYLIST_DIR = self.dir
+        planner_config.set_playlist_dir(self.dir)
         self.addCleanup(shutil.rmtree, self.dir, True)
-        self.addCleanup(setattr, planner_library, "PLAYLIST_DIR", orig)
+        self.addCleanup(planner_config.set_playlist_dir, orig)
         self.played = _tango(1, "Played In A Final")
         (self.dir / "Turnier Hgr S STD.m3u").write_text(
             "#EXTM3U\n" + str(self.played.path) + "\n", encoding="utf-8")
