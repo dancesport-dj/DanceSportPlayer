@@ -124,7 +124,7 @@ that tag's GitHub release (`DanceSport-Player-1.2.0-windows.zip`, `…-macos.dmg
 `…-linux-x86_64.tar.gz` and `…-linux-arm64.tar.gz` for the tag `v1.2.0`, so the
 names carry no v either), with the tagged commit's message as the release text.
 
-The version number is `VERSION` in `planner/version.py` (`1.1.0`), and a build
+The version number is `VERSION` in `planner/version.py` (`1.1.1`), and a build
 without a tag gets it. A `v*` tag overrides it, so name the tag
 `vMAJOR.MINOR.PATCH` (`v1.2.0`); the app in the release then says `1.2.0`, the
 tag without its v. Keep `VERSION` in step after a release, so desk builds carry
@@ -169,6 +169,39 @@ them itself, since all three of those scans are ffmpeg-only.
 The build venv needs less as well: `requirements-player.txt` (PySide6, numpy,
 mutagen) instead of `requirements.txt`. `build_exe.bat` knows this and does not
 demand librosa for this flavor.
+
+## The manual (PDF)
+
+The user manual lives in `docs/manual` (English) and `docs/manual/de`
+(German) as Markdown. Both are printed to `manual.pdf` in their own folder,
+with a cover naming the version, a contents page with page numbers and every
+chapter on a new page:
+
+```powershell
+.venv\Scripts\python.exe -m tools.build_manual_pdf    # both languages, also rebuilds manual.html
+.venv\Scripts\python.exe -m tools.build_manual_html   # only the web pages
+```
+
+The printing needs Chrome, Chromium or Edge (headless), or the browser named in
+`DANCEPLAYLIST_CHROME`. The PDFs are not in git. Every build script runs the tool
+first. A PDF newer than every chapter, screenshot and the tool itself is kept
+as it is, and a failed print keeps the last good one; without any PDF the
+build goes on, only without a manual. `dancesport.spec` bundles both PDFs for
+❔ → 📖 Manual, which opens the one in the app's language (English as the
+fallback). The player's downloads also carry them beside `README.txt` as
+`Manual.pdf` and `Handbuch.pdf`.
+
+In CI a `manual` job prints both once on `ubuntu-latest`, with the release tag
+on the cover, and hands them to the build jobs as the `manual-pdf` artifact.
+Their build scripts find the PDFs up to date and only copy them. Each build
+job fails if a PDF is missing from its build.
+
+## The licence texts
+
+`dancesport.spec` bundles `LICENSE`, `ICONS-LICENSE.txt`,
+`THIRD_PARTY_LICENSES.md` and `speech/LICENSE-AUDIO.md` into `licenses/` in
+every build, so the macOS `.app` carries them too. The Windows and Linux player
+downloads also show them in a `Licenses` folder beside the manual.
 
 ## Data files live NEXT TO the .exe
 

@@ -67,6 +67,12 @@ README-planner.md
 # docs/manual describes the player
 docs/manual-planner/
 
+# The manual as a PDF, English and German: built for each download
+# (tools/build_manual_pdf), with its print page and half-done print beside it
+docs/manual/**/manual.pdf
+docs/manual/**/manual.print.html
+docs/manual/**/manual.new.pdf
+
 # The wedding theme's marks carry a couple's names: on this machine only, the
 # presenter shows no mark without them
 assets/hochzeit/

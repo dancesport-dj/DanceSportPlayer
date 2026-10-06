@@ -29,7 +29,31 @@ if /I not "%DANCESPORT_BUILD%"=="player" set DEPS=PySide6, librosa, numpy, mutag
 "%PY%" -c "import %DEPS%" || goto :no_deps
 "%PY%" -c "import PyInstaller" || goto :no_pyinstaller
 
+rem The manual as a PDF, which the spec bundles (tools\build_manual_pdf, printed
+rem by Edge or Chrome). Without one the build goes on, only without a manual.
+"%PY%" -m tools.build_manual_pdf || echo NOTE: no manual PDF printed - see above.
+
 "%PY%" -m PyInstaller "%~dp0dancesport.spec" --noconfirm || goto :failed
+
+rem The player's download carries the manual beside the .exe, next to its README:
+rem Manual.pdf in English, Handbuch.pdf in German.
+if /I "%DANCESPORT_BUILD%"=="player" if exist "%~dp0docs\manual\manual.pdf" (
+  copy /y "%~dp0docs\manual\manual.pdf" "%~dp0dist\%APP_NAME%\Manual.pdf" >nul
+  echo Copied Manual.pdf next to the app.
+)
+if /I "%DANCESPORT_BUILD%"=="player" if exist "%~dp0docs\manual\de\manual.pdf" (
+  copy /y "%~dp0docs\manual\de\manual.pdf" "%~dp0dist\%APP_NAME%\Handbuch.pdf" >nul
+  echo Copied Handbuch.pdf next to the app.
+)
+rem And the licence texts in a folder of their own; the bundle has them too.
+if /I "%DANCESPORT_BUILD%"=="player" (
+  if not exist "%~dp0dist\%APP_NAME%\Licenses" mkdir "%~dp0dist\%APP_NAME%\Licenses"
+  copy /y "%~dp0LICENSE" "%~dp0dist\%APP_NAME%\Licenses\" >nul
+  copy /y "%~dp0ICONS-LICENSE.txt" "%~dp0dist\%APP_NAME%\Licenses\" >nul
+  copy /y "%~dp0THIRD_PARTY_LICENSES.md" "%~dp0dist\%APP_NAME%\Licenses\" >nul
+  copy /y "%~dp0speech\LICENSE-AUDIO.md" "%~dp0dist\%APP_NAME%\Licenses\" >nul
+  echo Copied the licence texts into Licenses.
+)
 
 rem ffmpeg is looked up next to the .exe first (shared.audio_probes.find_ffmpeg), and
 rem PyInstaller wipes dist\%APP_NAME% on every build - so put it back each time.

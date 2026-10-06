@@ -1,7 +1,18 @@
 Icon artwork used by this app
 =============================
 
-Most of the set is Bootstrap Icons (MIT) — full text below.
+None of the artwork below is under the app's own MIT licence (LICENSE); each
+keeps the terms named here.
+
+The app icon (icon.png, icon.ico), the dancers with the note, is the icon
+"Swing" by Icons8:
+https://icons8.com/icons/set/swing
+Used under the Icons8 free licence, which asks for a link to Icons8:
+https://icons8.com — terms: https://icons8.com/license
+Here it is drawn black on a white rounded tile.
+
+The icons in the app's toolbars and panels are mostly Bootstrap Icons (MIT),
+full text below.
 
 The "bull" icon (Paso Doble) is derived from Twemoji's ox, U+1F402:
 Copyright 2020 Twitter, Inc and other contributors

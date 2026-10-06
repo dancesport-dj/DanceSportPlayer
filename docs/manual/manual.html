@@ -54,6 +54,23 @@ body.has-toc main { margin-left:max(290px, calc(50vw - 480px + 145px)); }
   .toc { position:static; width:auto; max-height:45vh; border-right:none;
          border-bottom:1px solid var(--line); }
   body.has-toc main { margin-left:auto; } }
+@media print {
+  :root { --fg:#1d232b; --muted:#5b6673; --bg:#fff; --line:#dcdfe3;
+          --accent:#2f62c9; --code:#eef0f3; }
+  @page { margin:16mm 14mm; @bottom-center { content:counter(page); font:9pt "Segoe UI", system-ui, sans-serif; } }
+  body { font-size:11pt; }
+  .top { display:none; }
+  .toc { position:static; width:auto; border:none; background:none; font-size:12pt;
+         break-after:page; }
+  .toc details > ul, .toc details:not([open]) > summary a::after { display:none; }
+  .toc a.active { background:none; color:var(--fg); }
+  body.has-toc main { margin:0; max-width:none; padding:0; }
+  section { break-before:page; border-top:none; margin-top:0; }
+  h1, h2, h3, p:has(+ figure), p:has(+ .table), p:has(+ ul) { break-after:avoid; }
+  figure, pre, tr { break-inside:avoid; }
+  /* A screenshot taller than this would leave the page before it half
+     empty, or not fit a page at all and be cut off. */
+  figure img { max-height:150mm; width:auto; } }
 </style>
 </head>
 <body class="has-toc">

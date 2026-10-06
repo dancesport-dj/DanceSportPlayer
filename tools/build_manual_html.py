@@ -14,8 +14,9 @@ nested lists, tables, fenced code, images, links, **bold**, *italic* and
 
 Run:  .venv\\Scripts\\python.exe -m tools.build_manual_html [manual_dir]
 
-Without a folder it builds the player's manual in docs/manual. The planner's
-manual, kept on this machine only, is built with docs/manual-planner.
+Without a folder it builds the player's manual in docs/manual and its German
+translation in docs/manual/de. The planner's manual, kept on this machine
+only, is built with docs/manual-planner.
 """
 import html
 import logging
@@ -23,9 +24,20 @@ import re
 import sys
 from pathlib import Path
 
-MANUAL_DIR = Path(__file__).resolve().parent.parent / "docs" / "manual"
+ROOT = Path(__file__).resolve().parent.parent
+MANUAL_DIR = ROOT / "docs" / "manual"
 OUT_FILE = MANUAL_DIR / "manual.html"
+MANUALS = (MANUAL_DIR, MANUAL_DIR / "de")
 INDEX_ID = "index"
+
+# The builder's own words. A manual in a folder named "de" is German, every
+# other one English.
+WORDS = {
+    "en": {"manual": "User Manual", "overview": "Overview", "contents": "Contents",
+           "top": "↑ Index", "version": "Version"},
+    "de": {"manual": "Benutzerhandbuch", "overview": "Übersicht", "contents": "Inhalt",
+           "top": "↑ Übersicht", "version": "Version"},
+}
 
 log = logging.getLogger("dancesport.tools.manual")
 
@@ -34,6 +46,10 @@ _FENCE_RE = re.compile(r"^( *)```")
 _HEADING_RE = re.compile(r"^(#{1,6}) +(.*)$")
 _TABLE_SEP_RE = re.compile(r"^\|? *:?-+:? *(\| *:?-+:? *)*\|? *$")
 _IMAGE_LINE_RE = re.compile(r"^!\[([^\]]*)\]\(([^)]+)\)$")
+
+
+def language(manualDir: Path) -> str:
+    return "de" if manualDir.name == "de" else "en"
 
 
 def chapterFiles(manualDir: Path = MANUAL_DIR) -> list[Path]:
@@ -280,6 +296,43 @@ body.has-toc main { margin-left:max(290px, calc(50vw - 480px + 145px)); }
   .toc { position:static; width:auto; max-height:45vh; border-right:none;
          border-bottom:1px solid var(--line); }
   body.has-toc main { margin-left:auto; } }
+@media print {
+  :root { --fg:#1d232b; --muted:#5b6673; --bg:#fff; --line:#dcdfe3;
+          --accent:#2f62c9; --code:#eef0f3; }
+  @page { margin:16mm 14mm; @bottom-center { content:counter(page); font:9pt "Segoe UI", system-ui, sans-serif; } }
+  body { font-size:11pt; }
+  .top { display:none; }
+  .toc { position:static; width:auto; border:none; background:none; font-size:12pt;
+         break-after:page; }
+  .toc details > ul, .toc details:not([open]) > summary a::after { display:none; }
+  .toc a.active { background:none; color:var(--fg); }
+  body.has-toc main { margin:0; max-width:none; padding:0; }
+  section { break-before:page; border-top:none; margin-top:0; }
+  h1, h2, h3, p:has(+ figure), p:has(+ .table), p:has(+ ul) { break-after:avoid; }
+  figure, pre, tr { break-inside:avoid; }
+  /* A screenshot taller than this would leave the page before it half
+     empty, or not fit a page at all and be cut off. */
+  figure img { max-height:150mm; width:auto; } }
+"""
+
+# The printed manual only (buildPrintHtml): its cover and contents page.
+_PRINT_CSS = """
+main { max-width:none; margin:0; padding:0; }
+@page { size:A4; }
+@page :first { @bottom-center { content:none; } }
+.cover { height:240mm; display:flex; flex-direction:column; justify-content:center;
+         align-items:center; text-align:center; break-after:page; }
+.cover .logo { width:40mm; height:auto; margin-bottom:12mm; }
+.cover .product { font-size:34pt; font-weight:700; line-height:1.15; margin:0; }
+.cover .kind { font-size:18pt; color:var(--muted); margin:4mm 0 0; }
+.cover .version { font-size:12pt; color:var(--muted); margin:18mm 0 0; }
+.contents { break-after:page; line-height:1.4; }
+.contents ul { list-style:none; margin:0; padding:0; }
+.contents a { display:flex; align-items:baseline; color:var(--fg); text-decoration:none; }
+.contents .dots { flex:1; min-width:6mm; margin:0 2mm; border-bottom:1px dotted var(--muted); }
+.contents .pg { min-width:7mm; text-align:right; }
+.contents .l1 { font-weight:600; margin-top:3mm; break-after:avoid; }
+.contents .l2 { padding-left:7mm; font-size:10pt; margin-top:.5mm; }
 """
 
 _SCRIPT = """
@@ -300,16 +353,16 @@ spy();
 """
 
 
-def tocHtml(headings: list[tuple]) -> str:
+def tocHtml(headings: list[tuple], words: dict = WORDS["en"]) -> str:
     """The sidebar: one fold per chapter with its ## and ### headings inside.
     The script unfolds the chapter being read and lights the heading on screen."""
     chapters = []
     for level, hid, label in headings:
         if level == 1:
-            chapters.append((hid, "Overview" if hid == INDEX_ID else label, []))
+            chapters.append((hid, words["overview"] if hid == INDEX_ID else label, []))
         elif level <= 3 and chapters:
             chapters[-1][2].append((level, hid, label))
-    parts = ['<nav class="toc"><p class="title">User Manual</p><ul>']
+    parts = [f'<nav class="toc"><p class="title">{words["manual"]}</p><ul>']
     for sid, label, subs in chapters:
         parts.append(f'<li><details><summary><a href="#{sid}">{label}</a></summary><ul>')
         inSub = False
@@ -328,34 +381,111 @@ def tocHtml(headings: list[tuple]) -> str:
     return "".join(parts)
 
 
-def buildHtml(manualDir: Path = MANUAL_DIR) -> tuple[str, list[str]]:
-    """The page, and every internal link whose anchor does not exist."""
+def renderManual(manualDir: Path) -> tuple[list[tuple], list[tuple[str, str]], str]:
+    """Every heading, every chapter as (section id, body HTML), and the index's
+    heading as plain text."""
     headings = []
     sections = []
     for md in chapterFiles(manualDir):
         lines = md.read_text(encoding="utf-8").splitlines()
-        body = renderBlocks(lines, md.name, headings)
-        sid = sectionId(md.name)
-        sections.append(f'<section id="{sid}">\n{body}\n</section>')
-    ids = {hid for _, hid, _ in headings}
-    content = "\n".join(sections)
-    broken = sorted({h for h in re.findall(r'href="#([^"]+)"', content) if h not in ids})
+        sections.append((sectionId(md.name), renderBlocks(lines, md.name, headings)))
     first = (manualDir / "README.md").read_text(encoding="utf-8").splitlines()[0]
-    title = html.escape(first.lstrip("#").strip())
-    page = (f'<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
+    return headings, sections, first.lstrip("#").strip()
+
+
+def buildHtml(manualDir: Path = MANUAL_DIR) -> tuple[str, list[str]]:
+    """The page, and every internal link whose anchor does not exist."""
+    headings, sections, heading = renderManual(manualDir)
+    ids = {hid for _, hid, _ in headings}
+    content = "\n".join(f'<section id="{sid}">\n{body}\n</section>' for sid, body in sections)
+    broken = sorted({h for h in re.findall(r'href="#([^"]+)"', content) if h not in ids})
+    title = html.escape(heading)
+    lang = language(manualDir)
+    page = (f'<!DOCTYPE html>\n<html lang="{lang}">\n<head>\n<meta charset="utf-8">\n'
             f'<meta name="viewport" content="width=device-width, initial-scale=1">\n'
             f"<title>{title}</title>\n<style>{_CSS}</style>\n</head>\n<body class=\"has-toc\">\n"
-            f"{tocHtml(headings)}\n<main>\n{content}\n</main>\n"
-            f'<a class="top" href="#index">↑ Index</a>\n'
+            f"{tocHtml(headings, WORDS[lang])}\n<main>\n{content}\n</main>\n"
+            f'<a class="top" href="#index">{WORDS[lang]["top"]}</a>\n'
             f"<script>{_SCRIPT}</script>\n</body>\n</html>\n")
     return page, broken
+
+
+def isNavLine(para: str) -> bool:
+    """A paragraph that only steps between chapters ("Manual index · previous:
+    …", "Next: …"): every link goes to a chapter's top and at most three words
+    stand outside them. A sentence that merely points at a chapter has more."""
+    links = re.findall(r'<a href="#([^"]*)">', para)
+    if not links or any("__" in h or not (h == INDEX_ID or h[:1].isdigit()) for h in links):
+        return False
+    outside = re.sub(r"<[^>]+>", "", re.sub(r"<a [^>]*>.*?</a>", "", para, flags=re.S))
+    return len(re.findall(r"\w+", outside)) <= 3
+
+
+def printBody(sid: str, body: str, words: dict = WORDS["en"]) -> str:
+    """A chapter as it is printed: without the lines that step between the
+    web page's chapters, and without the note that points at that web page."""
+    body = re.sub(r'<p>(?:(?!</p>).)*href="manual\.html"(?:(?!</p>).)*</p>\n?', "",
+                  body, flags=re.S)
+    body = re.sub(r"(</h1>\n)(<p>.*?</p>)\n",
+                  lambda m: m.group(1) if isNavLine(m.group(2)) else m.group(0),
+                  body, count=1, flags=re.S)
+    last = re.search(r"\n(<p>(?:(?!<p>).)*</p>)$", body, flags=re.S)
+    if last and isNavLine(last.group(1)):
+        body = body[:last.start()]
+    if sid == INDEX_ID:
+        body = re.sub(r"<h1>.*?</h1>", f"<h1>{words['overview']}</h1>", body, count=1)
+    return body
+
+
+def contentsHtml(headings: list[tuple], pages: dict[str, int],
+                 words: dict = WORDS["en"]) -> str:
+    """The contents page: the chapters and their ## sections, each with a
+    dotted leader to its page."""
+    rows = []
+    for level, hid, label in headings:
+        if level > 2:
+            continue
+        if hid == INDEX_ID:
+            label = words["overview"]
+        rows.append(f'<li class="l{level}"><a href="#{hid}"><span class="label">{label}</span>'
+                    f'<span class="dots"></span><span class="pg">{pages.get(hid, "")}</span></a></li>')
+    return (f'<nav class="contents"><h1>{words["contents"]}</h1>'
+            f'<ul>{"".join(rows)}</ul></nav>')
+
+
+def buildPrintHtml(manualDir: Path, version: str, pages: dict[str, int] | None = None) -> str:
+    """The page the PDF is printed from: a cover with the app's name, the
+    manual's and the version, a contents page, then the chapters, each on a
+    new page. `pages` maps an anchor to its page in an earlier print of this
+    same page; without it the contents leaves the numbers blank, which takes
+    the same room, so the pages stay where they are."""
+    headings, sections, heading = renderManual(manualDir)
+    lang = language(manualDir)
+    words = WORDS[lang]
+    product, _, kind = heading.partition(" — ")
+    logo = ROOT / "icon.png"
+    cover = ['<div class="cover">']
+    if logo.is_file():
+        cover.append(f'<img class="logo" src="{logo.as_uri()}" alt="">')
+    cover.append(f'<p class="product">{html.escape(product)}</p>')
+    if kind:
+        cover.append(f'<p class="kind">{html.escape(kind)}</p>')
+    cover.append(f'<p class="version">{words["version"]} {html.escape(version)}</p></div>')
+    content = "\n".join(f'<section id="{sid}">\n{printBody(sid, body, words)}\n</section>'
+                        for sid, body in sections)
+    return (f'<!DOCTYPE html>\n<html lang="{lang}">\n<head>\n<meta charset="utf-8">\n'
+            f"<title>{html.escape(heading)}</title>\n<style>{_CSS}{_PRINT_CSS}</style>\n"
+            f"</head>\n<body>\n{''.join(cover)}\n{contentsHtml(headings, pages or {}, words)}\n"
+            f"<main>\n{content}\n</main>\n</body>\n</html>\n")
 
 
 def main(argv=None) -> int:
     sys.stderr.reconfigure(encoding="utf-8")
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     args = sys.argv[1:] if argv is None else argv
-    manualDir = Path(args[0]).resolve() if args else MANUAL_DIR
+    if not args:
+        return max([main([str(d)]) for d in MANUALS])
+    manualDir = Path(args[0]).resolve()
     outFile = manualDir / OUT_FILE.name
     page, broken = buildHtml(manualDir)
     missing = [src for src in re.findall(r'<img src="([^"]+)"', page)

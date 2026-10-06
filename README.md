@@ -9,7 +9,7 @@ a dancesport tournament or a dance party from the music desk.
   fade-out, and a countdown to the end of the music.
 - Loudness levelling (EBU R128 through ffmpeg) and an optional pitch to the
   official TSO tempo of each dance.
-- Spoken dance announcements before or over the music.
+- Spoken dance announcements before or over the music, in AI-generated voices.
 - Cartwall with pads for jingles and fanfares.
 - Paso Doble highlight stops and pause music.
 - Presenter window for a second screen: the current dance and the running order,
@@ -109,6 +109,39 @@ Enable the git hooks once per clone with `git config core.hooksPath .githooks`.
 | `planner/` | library scan, parsing, database, `.m3u`. No Qt |
 | `speech/` | the spoken dance announcements |
 
+## Privacy
+
+The player keeps everything on your computer: the music, the playlists, the
+settings and its database. It has no account, no telemetry and no update check.
+It goes online for one thing only:
+
+**Error reports, only if you allow them.** On the first start the app asks
+whether it may send error reports; "Don't send" is the default, and
+⚙ Settings → 📁 Paths & search changes the answer at any time. When the app
+then hits an unexpected error, it sends a report to the developer's
+[GlitchTip](https://glitchtip.com) project (app.glitchtip.com): the error and
+where in the program it happened, the log lines before it (they can name the
+title that was playing), the operating system, the build and the app version.
+Not your music, not your playlists, not your computer's name, and your user
+folder is cut out of every path. Like any server, GlitchTip sees the IP address
+a report comes from.
+
+**Who is responsible.** marcelkb, the developer of this app. Questions about
+your data, or a request to delete the reports from your computer: open an
+issue at <https://github.com/dancesport-dj/DanceSportPlayer/issues>.
+
+Run from source with the planning side (`requirements.txt`), two more things
+can go online: the optional AI suggestions send your request and the titles it
+is about to the AI service whose key you enter (OpenRouter by default), and the
+sound-search and vocal tools download their models on first use (CLAP from
+huggingface.co, Demucs from its publisher).
+
+## Built with AI
+
+The app was developed with the help of AI coding tools (Claude by Anthropic).
+The spoken dance announcements are AI-generated voices (ElevenLabs), with
+their own license: [speech/LICENSE-AUDIO.md](speech/LICENSE-AUDIO.md).
+
 ## License
 
 [MIT](LICENSE) © marcelkb
@@ -117,8 +150,10 @@ The libraries the app is built on, and the ffmpeg bundled with the Windows
 build, keep their own licenses; see
 [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
 
-The icons are Bootstrap Icons (MIT) and one Twemoji-derived icon (CC-BY 4.0);
-see [ICONS-LICENSE.txt](ICONS-LICENSE.txt).
+The app icon is the *Swing* icon by [Icons8](https://icons8.com). The icons
+inside the app are Bootstrap Icons (MIT) and one Twemoji-derived icon
+(CC-BY 4.0). None of them is under the MIT license; see
+[ICONS-LICENSE.txt](ICONS-LICENSE.txt).
 
 The dance announcement recordings were generated with
 [elevenlabs.io](https://elevenlabs.io) and are **not** under the MIT license:

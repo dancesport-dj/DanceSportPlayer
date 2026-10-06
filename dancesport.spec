@@ -96,6 +96,23 @@ datas += [("icon.ico", "."), ("icon.png", ".")]
 # rendered by tools/theme_previews.py).
 datas += [(os.path.join(SPECPATH, "assets", "themes", "*.png"),
            os.path.join("assets", "themes"))]
+# The manual as a PDF, English and German, for the app to open from its ❔
+# menu. Built by tools/build_manual_pdf and not in git; a build without one
+# has no manual in that language.
+for _dest in (os.path.join("docs", "manual"), os.path.join("docs", "manual", "de")):
+    _manual = os.path.join(SPECPATH, _dest, "manual.pdf")
+    if os.path.isfile(_manual):
+        datas += [(_manual, _dest)]
+        print(f"Manual: {_dest}/manual.pdf bundled")
+    else:
+        print(f"NOTE: no {_dest}/manual.pdf, the build has no manual there "
+              "(py -m tools.build_manual_pdf)")
+# The licence texts: the app's own MIT licence, the icons' (Icons8, Bootstrap,
+# Twemoji), every bundled library's and the ElevenLabs voices'. MIT, CC-BY and
+# the voices' terms want the notice in every copy, the .app included.
+for _licence in ("LICENSE", "ICONS-LICENSE.txt", "THIRD_PARTY_LICENSES.md",
+                 "speech/LICENSE-AUDIO.md"):
+    datas += [(os.path.join(SPECPATH, _licence), "licenses")]
 # A presenter theme's mark, resolved by player/presenter_theme.py relative to
 # the repo root — so it has to land in the bundle under the same folder name.
 # The wedding marks are a couple's names and stay out of git: a clone has none,

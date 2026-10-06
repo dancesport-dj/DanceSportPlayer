@@ -97,6 +97,24 @@ class QuestionTest(unittest.TestCase):
         self.assertIn("Not sent", text)
         self.assertIn("⚙ Settings", text)
 
+    def test_it_names_where_the_reports_go(self):
+        # Marcel: "nenne GlitchTip". The README says the same.
+        text = self.question().informativeText()
+        self.assertIn("GlitchTip", text)
+        self.assertIn("app.glitchtip.com", text)
+        self.assertIn("IP address", text)
+
+    def test_it_names_who_is_responsible_and_how_to_reach_the_developer(self):
+        # GDPR Art. 13: an informed consent names the controller and a contact.
+        # Marcel: GitHub Issues, no e-mail address. The README says the same.
+        issues = "github.com/dancesport-dj/DanceSportPlayer/issues"
+        self.assertIn("Responsible: marcelkb", self.question().informativeText())
+        self.assertIn(issues, self.question().informativeText())
+        from pathlib import Path
+        readme = (Path(__file__).resolve().parents[2] / "README.md").read_text(
+            encoding="utf-8")
+        self.assertIn(f"https://{issues}", readme)
+
     def test_every_text_of_it_is_in_german_too(self):
         from planner.lang_de import CATALOG
         box = self.question()

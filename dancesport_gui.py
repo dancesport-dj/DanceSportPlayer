@@ -105,7 +105,7 @@ from planner import i18n, terms
 from gui.deck import Deck, DeckContext, DeckField
 from gui.undo_timeline import UndoTimeline
 from gui.shortcuts import show_shortcuts
-from gui.about import show_about
+from gui.about import manual_pdf, open_manual, show_about
 from gui.common import (
     BusyDialog,
     DEFAULT_HIDDEN_COLUMNS,
@@ -963,7 +963,7 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         help_btn = QPushButton("❔")
         help_btn.setFixedSize(24, 24)
         help_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        help_btn.setToolTip("Shortcuts (F1) and about this app")
+        help_btn.setToolTip("Shortcuts (F1), manual and about this app")
         help_btn.clicked.connect(self._show_help_menu)
         self._help_btn = help_btn
         coll_bar.addWidget(help_btn)
@@ -1816,11 +1816,14 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
     def _help_menu(self) -> QMenu:
         menu = QMenu(self)
         menu.addAction("⌨  Keyboard shortcuts  (F1)", self._show_shortcuts)
+        pdf = manual_pdf()
+        if pdf:
+            menu.addAction("📖  Manual", lambda: open_manual(pdf))
         menu.addAction("ℹ  About…", self._show_about)
         return menu
 
     def _show_help_menu(self):
-        """❔: the shortcuts (F1 opens them directly) and ℹ About."""
+        """❔: the shortcuts (F1 opens them directly), 📖 the manual and ℹ About."""
         btn = self._help_btn
         self._help_menu().exec(btn.mapToGlobal(btn.rect().bottomLeft()))
 

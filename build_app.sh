@@ -53,6 +53,10 @@ if missing:
              f"   fix: .venv/bin/pip install -r {reqs} pyinstaller pillow")
 EOF
 
+# The manual as a PDF, which the spec bundles (tools/build_manual_pdf, printed
+# by Chrome, Chromium or Edge). Without one the build goes on, only without a manual.
+"$PY" -m tools.build_manual_pdf || echo "NOTE: no manual PDF printed, see above"
+
 "$PY" -m PyInstaller dancesport.spec --noconfirm
 
 APP="dist/$APP_NAME.app"
@@ -87,6 +91,12 @@ pretty_dmg() {
     if [ -f "$STAGE/README.txt" ]; then
         set -- "$@" --icon README.txt "$README_X" "$README_Y"
     fi
+    if [ -f "$STAGE/Manual.pdf" ]; then
+        set -- "$@" --icon Manual.pdf "$MANUAL_X" "$MANUAL_Y"
+    fi
+    if [ -f "$STAGE/Handbuch.pdf" ]; then
+        set -- "$@" --icon Handbuch.pdf "$HANDBUCH_X" "$HANDBUCH_Y"
+    fi
     create-dmg "$@" "dist/$APP_NAME.dmg" "$STAGE"
 }
 
@@ -103,6 +113,8 @@ if [ "$2" = "dmg" ] || [ "$1" = "dmg" ]; then
     # The guide names the player, so the other flavors go without it.
     if [ "$DANCESPORT_BUILD" = "player" ]; then
         cp docs/install/macos.md "$STAGE/README.txt"
+        if [ -f docs/manual/manual.pdf ]; then cp docs/manual/manual.pdf "$STAGE/Manual.pdf"; fi
+        if [ -f docs/manual/de/manual.pdf ]; then cp docs/manual/de/manual.pdf "$STAGE/Handbuch.pdf"; fi
     fi
     rm -f "dist/$APP_NAME.dmg"
     if command -v create-dmg >/dev/null 2>&1 && pretty_dmg; then

@@ -54,6 +54,10 @@ if missing:
              f"   fix: .venv/bin/pip install -r {reqs} pyinstaller")
 EOF
 
+# The manual as a PDF, which the spec bundles (tools/build_manual_pdf, printed
+# by Chrome, Chromium or Edge). Without one the build goes on, only without a manual.
+"$PY" -m tools.build_manual_pdf || echo "NOTE: no manual PDF printed, see above"
+
 "$PY" -m PyInstaller dancesport.spec --noconfirm
 
 # ffmpeg is not bundled (the repo carries the Windows build only). It is needed
@@ -66,6 +70,14 @@ if [ "$2" = "tar" ] || [ "$1" = "tar" ]; then
     # The guide names the player, so the other flavors go without it.
     if [ "$DANCESPORT_BUILD" = "player" ]; then
         cp docs/install/linux.md "dist/$APP_NAME/README.txt"
+        if [ -f docs/manual/manual.pdf ]; then cp docs/manual/manual.pdf "dist/$APP_NAME/Manual.pdf"; fi
+        if [ -f docs/manual/de/manual.pdf ]; then cp docs/manual/de/manual.pdf "dist/$APP_NAME/Handbuch.pdf"; fi
+        # And the licence texts in a folder of their own; the bundle has them too.
+        mkdir -p "dist/$APP_NAME/Licenses"
+        cp LICENSE "dist/$APP_NAME/Licenses/"
+        cp ICONS-LICENSE.txt "dist/$APP_NAME/Licenses/"
+        cp THIRD_PARTY_LICENSES.md "dist/$APP_NAME/Licenses/"
+        cp speech/LICENSE-AUDIO.md "dist/$APP_NAME/Licenses/"
     fi
     # The name says which machines it runs on: a build runs only on its own
     # architecture, and box64 on an ARM machine does not get it to start.

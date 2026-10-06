@@ -53,4 +53,6 @@ and the full test suite. None of it is in the player build.
 
 The icons and the dance announcement recordings have their own terms; see
 [ICONS-LICENSE.txt](ICONS-LICENSE.txt) and
-[speech/LICENSE-AUDIO.md](speech/LICENSE-AUDIO.md).
+[speech/LICENSE-AUDIO.md](speech/LICENSE-AUDIO.md). The app icon is the
+*Swing* icon by [Icons8](https://icons8.com), the toolbar and panel icons are
+Bootstrap Icons (MIT) and one Twemoji-derived icon (CC-BY 4.0).

@@ -17,7 +17,9 @@ LAYOUT = {
     "window": (660, 480),
     "app": (170, 140),
     "applications": (490, 140),
-    "readme": (330, 395),
+    "readme": (170, 395),
+    "manual": (330, 395),
+    "handbuch": (490, 395),
     "icon_size": 96,
 }
 
@@ -68,7 +70,8 @@ def draw(scale):
     d.polygon([(x1, y), (x1 - 18 * scale, y - 11 * scale),
                (x1 - 18 * scale, y + 11 * scale)], fill=SOFT)
 
-    # The Gatekeeper hint, in a box between the icons' labels and the README.
+    # The Gatekeeper hint, in a box between the icons' labels and the README
+    # and manuals.
     top, bottom = 250, 340
     d.rounded_rectangle([40 * scale, top * scale, (w - 40) * scale, bottom * scale],
                         radius=10 * scale, fill=(255, 255, 255),
@@ -83,7 +86,7 @@ def shell_vars():
     """LAYOUT as the shell variables build_app.sh reads."""
     out = {"DMG_W": LAYOUT["window"][0], "DMG_H": LAYOUT["window"][1],
            "DMG_ICON": LAYOUT["icon_size"]}
-    for key in ("app", "applications", "readme"):
+    for key in ("app", "applications", "readme", "manual", "handbuch"):
         out[f"{key.upper()}_X"], out[f"{key.upper()}_Y"] = LAYOUT[key]
     return out
 

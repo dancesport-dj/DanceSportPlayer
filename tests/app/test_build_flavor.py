@@ -212,6 +212,104 @@ class LinuxPackTest(unittest.TestCase):
                         self.job.index("timeout 20"))
 
 
+class ManualPackTest(unittest.TestCase):
+    """The manual as a PDF, English and German: in the bundle for the ❔ menu,
+    and beside README.txt in every player download. CI prints both once and
+    hands them to the build jobs, which only copy them."""
+
+    ROOT = Path(config.__file__).resolve().parent.parent
+
+    def _read(self, name):
+        return (self.ROOT / name).read_text(encoding="utf-8")
+
+    def setUp(self):
+        flow = self._read(".github/workflows/build-player.yml")
+        self.flow = flow
+        self.manualJob = flow[flow.index("\n  manual:"):flow.index("\n  windows:")]
+
+    def test_the_bundle_carries_both_languages(self):
+        spec = self._read("dancesport.spec")
+        self.assertIn('os.path.join("docs", "manual", "de")', spec)
+        self.assertIn('os.path.join("docs", "manual")', spec)
+
+    def test_every_download_carries_both_pdfs(self):
+        bat = self._read("build_exe.bat")
+        self.assertIn(r'"%~dp0docs\manual\manual.pdf" "%~dp0dist\%APP_NAME%\Manual.pdf"', bat)
+        self.assertIn(r'"%~dp0docs\manual\de\manual.pdf" "%~dp0dist\%APP_NAME%\Handbuch.pdf"', bat)
+        linux = self._read("build_linux.sh")
+        self.assertIn('cp docs/manual/manual.pdf "dist/$APP_NAME/Manual.pdf"', linux)
+        self.assertIn('cp docs/manual/de/manual.pdf "dist/$APP_NAME/Handbuch.pdf"', linux)
+        mac = self._read("build_app.sh")
+        self.assertIn('cp docs/manual/manual.pdf "$STAGE/Manual.pdf"', mac)
+        self.assertIn('cp docs/manual/de/manual.pdf "$STAGE/Handbuch.pdf"', mac)
+        for icon in ('Manual.pdf "$MANUAL_X" "$MANUAL_Y"',
+                     'Handbuch.pdf "$HANDBUCH_X" "$HANDBUCH_Y"'):
+            with self.subTest(icon=icon):
+                self.assertIn(f"--icon {icon}", mac)
+
+    def test_the_dmg_icons_below_the_hint_do_not_overlap(self):
+        from tools import dmg_background as bg
+        row = sorted(bg.LAYOUT[k][0] for k in ("readme", "manual", "handbuch"))
+        self.assertEqual(len({bg.LAYOUT[k][1] for k in ("readme", "manual", "handbuch")}), 1)
+        for a, b in zip(row, row[1:]):
+            self.assertGreaterEqual(b - a, bg.LAYOUT["icon_size"] + 40)
+        self.assertGreaterEqual(row[0] - bg.LAYOUT["icon_size"] / 2, 0)
+        self.assertLessEqual(row[-1] + bg.LAYOUT["icon_size"] / 2, bg.LAYOUT["window"][0])
+
+    def test_ci_prints_both_once_with_the_release_version(self):
+        self.assertIn("python3 -m tools.build_manual_pdf", self.manualJob)
+        self.assertIn("DANCEPLAYLIST_VERSION:", self.manualJob)
+        self.assertIn("docs/manual/manual.pdf", self.manualJob)
+        self.assertIn("docs/manual/de/manual.pdf", self.manualJob)
+        # No Python setup of its own: the runner's python3 runs the tool.
+        self.assertNotIn("setup-python", self.manualJob)
+
+    def test_every_build_job_gets_the_printed_pdfs(self):
+        for job in ("windows", "macos", "linux"):
+            body = self.flow[self.flow.index(f"\n  {job}:"):]
+            body = body[:body.index("upload-artifact")]
+            with self.subTest(job=job):
+                self.assertIn("needs: manual", body)
+                self.assertIn("name: manual-pdf", body)
+                self.assertIn("Handbuch.pdf", body)
+
+
+class LicensePackTest(unittest.TestCase):
+    """Marcel: "lege es mit rein". MIT, CC-BY and the ElevenLabs terms want
+    their notice in every copy: the bundle carries the licence files in
+    licenses/ (inside the .app on macOS), and the Windows and Linux player
+    downloads show them in a Licenses folder beside the manual."""
+
+    ROOT = Path(config.__file__).resolve().parent.parent
+    FILES = ("LICENSE", "ICONS-LICENSE.txt", "THIRD_PARTY_LICENSES.md",
+             "speech/LICENSE-AUDIO.md")
+
+    def _read(self, name):
+        return (self.ROOT / name).read_text(encoding="utf-8")
+
+    def test_the_files_exist(self):
+        for name in self.FILES:
+            with self.subTest(name=name):
+                self.assertTrue((self.ROOT / name).is_file())
+
+    def test_the_bundle_carries_them(self):
+        spec = self._read("dancesport.spec")
+        for name in self.FILES:
+            with self.subTest(name=name):
+                self.assertIn(f'"{name}"', spec)
+        self.assertIn('datas += [(os.path.join(SPECPATH, _licence), "licenses")', spec)
+
+    def test_the_windows_and_linux_downloads_show_them(self):
+        bat = self._read("build_exe.bat")
+        linux = self._read("build_linux.sh")
+        for name in self.FILES:
+            with self.subTest(name=name):
+                source = name.replace("/", "\\")
+                self.assertIn(rf'copy /y "%~dp0{source}" "%~dp0dist\%APP_NAME%\Licenses\"',
+                              bat)
+                self.assertIn(f'cp {name} "dist/$APP_NAME/Licenses/"', linux)
+
+
 class DmgBackgroundTest(unittest.TestCase):
     """The drawn half of the .dmg window (tools/dmg_background.py)."""
 

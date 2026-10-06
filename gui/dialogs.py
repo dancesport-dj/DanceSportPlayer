@@ -613,8 +613,12 @@ class ErrorReportsQuestion(QMessageBox):
         self.setIcon(QMessageBox.Icon.Question)
         self.setText("Send error reports to the developer?")
         self.setInformativeText(
-            "When the app hits an error, it can send the technical details,\n"
-            "so the error gets fixed.\n\n"
+            "When the app hits an error, it can send the technical details\n"
+            "to the developer's GlitchTip project (app.glitchtip.com),\n"
+            "so the error gets fixed. GlitchTip also sees the IP address\n"
+            "a report comes from.\n\n"
+            "Responsible: marcelkb, the developer. Questions about your data\n"
+            "or deleting reports: github.com/dancesport-dj/DanceSportPlayer/issues\n\n"
             "Sent: the error and where in the program it happened, the last\n"
             "log lines before it (they can name the title that was playing),\n"
             "the operating system and the app version.\n\n"
@@ -1130,6 +1134,8 @@ class SettingsDialog(QDialog):
             self._error_reports_chk.setChecked(
                 bool(settings.get("error_reports", False)))
             self._error_reports_chk.setToolTip(
+                "Goes to the developer's GlitchTip project (app.glitchtip.com),\n"
+                "which also sees the IP address a report comes from.\n\n"
                 "Sent: the error and where in the program it happened, the last\n"
                 "log lines before it (they can name the title that was playing),\n"
                 "the operating system and the app version.\n\n"

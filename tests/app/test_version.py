@@ -134,11 +134,11 @@ class BuildWiringTest(unittest.TestCase):
         self.assertIn('"CFBundleShortVersionString": VERSION_NUMBERS', spec)
 
     def test_every_release_build_gets_the_tag(self):
-        # Windows, macOS and Linux.
+        # Windows, macOS and Linux, and the manual whose cover names it.
         flow = (ROOT / ".github" / "workflows" / "build-player.yml").read_text(
             encoding="utf-8")
         self.assertEqual(flow.count(f"{version.VERSION_ENV}: ${{{{ startsWith("
-                                    "github.ref, 'refs/tags/v') && github.ref_name"), 3)
+                                    "github.ref, 'refs/tags/v') && github.ref_name"), 4)
 
     def test_the_release_downloads_carry_no_v(self):
         # Marcel: the download names lose the tag's v too, like the app.

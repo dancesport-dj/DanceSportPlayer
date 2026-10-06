@@ -641,12 +641,20 @@ CATALOG = {
     "Settings — library paths, global search & analysis":
         "Einstellungen — Bibliothekspfade, globale Suche & Analyse",
     "⌨  Keyboard shortcuts  (F1)": "⌨  Tastenkürzel  (F1)",
-    "Shortcuts (F1) and about this app": "Tastenkürzel (F1) und Über diese App",
+    "Shortcuts (F1), manual and about this app":
+        "Tastenkürzel (F1), Handbuch und Über diese App",
+    "📖  Manual": "📖  Handbuch",
     "ℹ  About…": "ℹ  Über…",
     "About": "Über",
     "Project": "Projekt",
     "Author": "Autor",
     "License": "Lizenz",
+    "App icon": "App-Icon",
+    "Icons": "Symbole",
+    "Voices": "Stimmen",
+    "AI-generated, non-commercial use": "KI-generiert, nur nicht-kommerzielle Nutzung",
+    "Libraries": "Bibliotheken",
+    "all licences": "alle Lizenzen",
     "Which library should this index cover?":
         "Welche Bibliothek soll dieser Index abdecken?",
     "What should go into the venue bundle?":
@@ -1757,12 +1765,16 @@ CATALOG = {
     "technical details to the developer":
         "🐞  Fehlerberichte senden — wenn in der App ein Fehler auftritt, "
         "gehen seine technischen Details an den Entwickler",
+    "Goes to the developer's GlitchTip project (app.glitchtip.com),\n"
+    "which also sees the IP address a report comes from.\n\n"
     "Sent: the error and where in the program it happened, the last\n"
     "log lines before it (they can name the title that was playing),\n"
     "the operating system and the app version.\n\n"
     "Not sent: your music, your playlists, your computer's name.\n"
     "Your user folder is cut out of every path.\n\n"
     "Off by default. Applies as soon as you save.":
+        "Geht an das GlitchTip-Projekt des Entwicklers (app.glitchtip.com),\n"
+        "das dabei auch die IP-Adresse sieht, von der ein Bericht kommt.\n\n"
         "Gesendet: der Fehler und wo im Programm er passiert ist, die letzten\n"
         "Logzeilen davor (sie können den laufenden Titel nennen),\n"
         "das Betriebssystem und die App-Version.\n\n"
@@ -1772,8 +1784,12 @@ CATALOG = {
     "Error reports": "Fehlerberichte",
     "Send error reports to the developer?":
         "Fehlerberichte an den Entwickler senden?",
-    "When the app hits an error, it can send the technical details,\n"
-    "so the error gets fixed.\n\n"
+    "When the app hits an error, it can send the technical details\n"
+    "to the developer's GlitchTip project (app.glitchtip.com),\n"
+    "so the error gets fixed. GlitchTip also sees the IP address\n"
+    "a report comes from.\n\n"
+    "Responsible: marcelkb, the developer. Questions about your data\n"
+    "or deleting reports: github.com/dancesport-dj/DanceSportPlayer/issues\n\n"
     "Sent: the error and where in the program it happened, the last\n"
     "log lines before it (they can name the title that was playing),\n"
     "the operating system and the app version.\n\n"
@@ -1781,7 +1797,11 @@ CATALOG = {
     "Your user folder is cut out of every path.\n\n"
     "You can change this at any time under ⚙ Settings → 📁 Paths & search.":
         "Wenn in der App ein Fehler auftritt, kann sie die technischen Details\n"
-        "senden, damit der Fehler behoben wird.\n\n"
+        "an das GlitchTip-Projekt des Entwicklers (app.glitchtip.com) senden,\n"
+        "damit der Fehler behoben wird. GlitchTip sieht dabei auch die\n"
+        "IP-Adresse, von der ein Bericht kommt.\n\n"
+        "Verantwortlich: marcelkb, der Entwickler. Fragen zu deinen Daten\n"
+        "oder Löschen von Berichten: github.com/dancesport-dj/DanceSportPlayer/issues\n\n"
         "Gesendet: der Fehler und wo im Programm er passiert ist, die letzten\n"
         "Logzeilen davor (sie können den laufenden Titel nennen),\n"
         "das Betriebssystem und die App-Version.\n\n"
