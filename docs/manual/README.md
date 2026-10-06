@@ -23,7 +23,8 @@ changing a chapter, rebuild it with `py -m tools.build_manual_html`.
    presenter screen.
 5. [Tags](05-tags.md): the 🏷 tag editor, ★ ratings, the Custom field, and
    writing tags into the MP3.
-6. [Settings](06-settings.md): paths, look, analysis and play sets.
+6. [Settings](06-settings.md): paths, the look (themes, looks of your own,
+   accent colour, language), analysis and play sets.
 7. [Keyboard and mouse](07-shortcuts.md): every shortcut in one list.
 
 Installation and the configuration files are described in the project

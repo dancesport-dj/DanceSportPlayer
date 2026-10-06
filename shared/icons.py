@@ -71,12 +71,19 @@ def pixmap(name: str, px: int = _DEFAULT_PX, color: str = INK) -> QPixmap:
     amount of rebinding INK would ever reach. In light mode with the default
     accent it is the identity, and the cache key stays the colour as asked for
     — the theme is fixed for as long as the app runs."""
+    return raw_pixmap(name, px, theme.shade(color, "ink"))
+
+
+@lru_cache(maxsize=512)
+def raw_pixmap(name: str, px: int, fill: str) -> QPixmap:
+    """`pixmap` without the theme's shading: `fill` is painted exactly. For a
+    🎨 look, whose colours are final already (shared/look_icons.py)."""
     try:
         view_box, body = SVG[name]
     except KeyError:
         raise KeyError(f"no icon named {name!r} — see shared.icons.names()") from None
     doc = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{view_box}" '
-           f'fill="{theme.shade(color, "ink")}">{body}</svg>')
+           f'fill="{fill}">{body}</svg>')
     pm = QPixmap(px, px)
     pm.fill(Qt.GlobalColor.transparent)
     p = QPainter(pm)
@@ -177,11 +184,21 @@ def counted_emoji(ch: str, count, px: int = _DEFAULT_PX,
     p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
     # Badged: the glyph is inset, so the disc has an empty corner to sit in.
     span = big * (0.86 if count is not None else 1.0)
-    font = p.font()
-    font.setPixelSize(round(span * 0.9))
-    p.setFont(font)
-    p.setPen(QColor(theme.shade(INK, "ink")))
-    p.drawText(QRectF(0, 0, span, span), int(Qt.AlignmentFlag.AlignCenter), ch)
+    from shared import look_icons
+    drawn = look_icons.split(ch) if theme.active_look() is not None else None
+    if drawn is not None:
+        # A 🎨 look wears its icon set here too, not the emoji.
+        _, name, tone, _ = drawn
+        inset = span * 0.1
+        p.drawPixmap(QRectF(inset, inset, span - 2 * inset, span - 2 * inset),
+                     raw_pixmap(name, big, look_icons.color(tone)),
+                     QRectF(0, 0, big, big))
+    else:
+        font = p.font()
+        font.setPixelSize(round(span * 0.9))
+        p.setFont(font)
+        p.setPen(QColor(theme.shade(INK, "ink")))
+        p.drawText(QRectF(0, 0, span, span), int(Qt.AlignmentFlag.AlignCenter), ch)
     if count is not None:
         _stamp_count(p, big, count, badge)
     p.end()

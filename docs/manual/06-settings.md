@@ -29,9 +29,31 @@ The **🎨 Look** tab.
 
 ![Settings, Look tab](img/settings-look.png)
 
-- **🎨 Theme**: *Light*, the default, or *Dark* for a dim hall. Warnings stay
-  red in both.
-- **🎚 Accent colour**: the blue of the buttons, sliders and the player panel.
+- **🎨 Theme**: a list of every look, each with a picture of the main window
+  in it beside the list.
+  - **Standard**: the classic *Light*, the default, and *Dark* for a dim hall.
+    They keep the emoji on the buttons and take the accent colour below.
+  - **Platform looks**: Windows 11, macOS and Linux GNOME, each light and
+    dark. Every look can be picked on every system.
+  - **Desk looks**: *Console*, *Carbon*, *Neon* and *Studio*, dark like a
+    mixing desk.
+  - **Modern looks**: *Graphite*, *Midnight*, *Aurora*, *Paper* and two
+    high-contrast looks, picked for readability first.
+
+  A look restyles the buttons, fields, tabs and menus, brings its own font and
+  accent colour, and swaps the button emoji for drawn icons. Warnings stay red
+  in every theme.
+  - **Own looks**: looks you make yourself, kept on this computer.
+    **＋ New look…** copies the selected look (*Light* and *Dark* start from
+    *Paper* and *Graphite*) and opens the editor: every colour, the corners, the
+    button, tab and focus style and the font, with a live preview beside them.
+    Text that reads too faintly against its ground is listed as a warning.
+    **✎ Edit…** and **🗑 Delete** change or remove an own look, **Export…**
+    saves one as a `.json` file and **Import…** adds one someone passed on.
+    These buttons save at once. Changing the look the app runs in offers a
+    restart when you close the settings with OK.
+- **🎚 Accent colour**: the blue of the buttons, sliders and the player panel,
+  for *Light* and *Dark*.
   **↺ Default blue** resets it. Colours that mean something, such as red
   warnings, keep their hue.
 - **🌐 Language**: English or German.

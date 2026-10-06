@@ -205,7 +205,7 @@ class ConfigPanel(QWidget):
         self.rounds_edit = QLineEdit("6-3-2-1")
         row_hl.addWidget(self.rounds_edit)
         parse_btn = QPushButton("Parse")
-        parse_btn.setFixedWidth(55)
+        parse_btn.setMinimumWidth(55)
         parse_btn.clicked.connect(self._parse_rounds)
         row_hl.addWidget(parse_btn)
         rlyt.addWidget(row_w)

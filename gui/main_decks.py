@@ -551,7 +551,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         self.deck(table).name = name
         hdr = self.deck(table).header
         if hdr is not None:
-            active = hdr.styleSheet() == self._DECK_HDR_ACTIVE
+            active = self.deck(table).active
             hdr.setText(self._deck_header_text(table, active))
         # The title is part of the saved session. Generate/Import set it AFTER the
         # content autosave already ran, so persist it here too (skipped mid-restore).
@@ -918,7 +918,9 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
                         act.setEnabled(not is_folded)
                         mode_acts[act] = mode
                 fold_btn = self.deck(table).fold_btn
-                fold_arrow = fold_btn.text() if fold_btn is not None else "▾"
+                # Under a 🎨 look the arrow is the button's icon, not its text.
+                fold_arrow = ((fold_btn.property("lookGlyph") or fold_btn.text())
+                              if fold_btn is not None else "▾")
                 fold = menu.addAction(
                     f"{fold_arrow}  " + i18n.t("Unfold this playlist" if is_folded
                                                else "Fold to a tab"))
@@ -1078,7 +1080,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         for d in self._deck_of.values():
             if d.header is None:
                 continue
-            active = (d.table is table)
+            active = d.active = (d.table is table)
             d.header.setStyleSheet(self._DECK_HDR_ACTIVE if active else self._DECK_HDR_IDLE)
             d.header.setText(self._deck_header_text(d.table, active))
         # Generation target only ever a full deck; Save/Import follow the focused

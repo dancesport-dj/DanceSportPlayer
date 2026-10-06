@@ -66,6 +66,9 @@ class _Dialog:
     def values(self):
         return {**self._given, "error_reports": True}
 
+    def running_look_touched(self):
+        return False
+
 
 class SaveAppliesTest(unittest.TestCase):
 

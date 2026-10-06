@@ -260,14 +260,93 @@ CATALOG = {
         "🪟  Windows Media Foundation — die des Betriebssystems",
     "🔊  Automatic — whatever this system uses (default)":
         "🔊  Automatisch — was dieses System benutzt (Standard)",
-    "☀  Light — the app's own daylight look (default)":
-        "☀  Hell — das eigene Tageslicht-Aussehen der App (Standard)",
+    "☀  Light (default)": "☀  Hell (Standard)",
     "White decks, dark text: the look every colour in the app was picked "
     "for.":
         "Weiße Decks, dunkler Text: das Aussehen, für das jede "
         "Farbe der App ausgesucht wurde.",
-    "🌙  Dark — black mode for a dim hall":
-        "🌙  Dunkel — Schwarzmodus für eine dunkle Halle",
+    "🌙  Dark": "🌙  Dunkel",
+    # ── 🎨 The looks (shared/looks.py): sections, captions, blurbs ──
+    "Platform looks": "Plattform-Looks",
+    "Desk looks": "Pult-Looks",
+    "Modern looks": "Modern Looks",
+    "No preview picture for this theme.":
+        "Kein Vorschaubild für dieses Erscheinungsbild.",
+    "A look brings its own accent colour — this one is for Light and Dark.":
+        "Ein Look bringt seine eigene Akzentfarbe mit — diese hier gilt für "
+        "Hell und Dunkel.",
+    "Windows 11 · Light": "Windows 11 · Hell",
+    "Fluent: 4 px corners, Segoe UI Variable, the Windows blue and an "
+    "accent line under the active field.":
+        "Fluent: 4-px-Ecken, Segoe UI Variable, das Windows-Blau und eine "
+        "Akzentlinie unter dem aktiven Feld.",
+    "Windows 11 · Dark": "Windows 11 · Dunkel",
+    "Fluent in dark: the Windows 11 dark greys with the light blue accent.":
+        "Fluent in dunkel: die dunklen Grautöne von Windows 11 mit dem "
+        "hellblauen Akzent.",
+    "macOS · Light": "macOS · Hell",
+    "Aqua as of Sonoma: 6 px corners, a solid blue selection with white "
+    "text and an accent ring around the active field.":
+        "Aqua wie in Sonoma: 6-px-Ecken, eine kräftig blaue Auswahl mit weißer "
+        "Schrift und ein Akzentring um das aktive Feld.",
+    "macOS · Dark": "macOS · Dunkel",
+    "Aqua in dark mode: charcoal panes, grey keys, the bright system blue.":
+        "Aqua im Dunkelmodus: anthrazitfarbene Flächen, graue Tasten, das "
+        "helle Systemblau.",
+    "Linux GNOME · Light": "Linux GNOME · Hell",
+    "Adwaita: 6 px corners, flat grey buttons without a frame, the GNOME blue.":
+        "Adwaita: 6-px-Ecken, flache graue Knöpfe ohne Rahmen, das GNOME-Blau.",
+    "Linux GNOME · Dark": "Linux GNOME · Dunkel",
+    "Adwaita dark: soft charcoal, flat buttons, the GNOME blue.":
+        "Adwaita dunkel: weiches Anthrazit, flache Knöpfe, das GNOME-Blau.",
+    "Console": "Konsole",
+    "Graphite, keys lit from above like a mixing desk, a pressed key "
+    "glows blue. Lettering in Bahnschrift.":
+        "Graphit, Tasten mit Licht von oben wie am Mischpult, eine gedrückte "
+        "Taste leuchtet blau. Schrift Bahnschrift.",
+    "Jet black with metal gradients and orange as the light: harder and "
+    "higher in contrast, like a hardware controller in a dark hall.":
+        "Tiefschwarz mit Metall-Verläufen und Orange als Leuchtfarbe: härter "
+        "und kontrastreicher, wie ein Hardware-Controller im dunklen Saal.",
+    "Flat night blue with cyan as the light: whatever is on gets a "
+    "glowing rim instead of a fill. Rounder corners.":
+        "Flaches Nachtblau mit Cyan als Leuchtfarbe: Was eingeschaltet ist, "
+        "bekommt einen leuchtenden Rand statt einer Füllung. Rundere Ecken.",
+    "The bright desk: brushed aluminium, keys lit from above, orange as "
+    "the accent. For daylight and bright halls.":
+        "Das helle Pult: gebürstetes Aluminium, Tasten mit Licht von oben, "
+        "Orange als Akzent. Für Tageslicht und helle Hallen.",
+    "Graphite": "Graphit",
+    "Calm neutral dark: near-white text on graphite, soft filled buttons "
+    "with round corners, a clear blue. Easy on the eyes for a long evening.":
+        "Ruhiges, neutrales Dunkel: fast weiße Schrift auf Graphit, weich "
+        "gefüllte Knöpfe mit runden Ecken, ein klares Blau. Schont die Augen "
+        "an einem langen Abend.",
+    "Midnight": "Mitternacht",
+    "Deep navy with a teal accent and pill-shaped buttons: modern and "
+    "quiet, the text stays crisp against the dark blue.":
+        "Tiefes Marineblau mit Petrol als Akzent und pillenförmigen Knöpfen: "
+        "modern und ruhig, die Schrift bleibt scharf vor dem dunklen Blau.",
+    "Dark with a violet accent: soft filled buttons, warm dark greys, "
+    "light lavender for links and focus.":
+        "Dunkel mit violettem Akzent: weich gefüllte Knöpfe, warme dunkle "
+        "Grautöne, helles Lavendel für Links und Fokus.",
+    "Paper": "Papier",
+    "Clean and bright: white panes, nearly black text, soft grey buttons "
+    "with round corners and a strong blue. Crisp in daylight.":
+        "Klar und hell: weiße Flächen, fast schwarze Schrift, weiche graue "
+        "Knöpfe mit runden Ecken und ein kräftiges Blau. Scharf bei Tageslicht.",
+    "High contrast · Dark": "Hoher Kontrast · Dunkel",
+    "Black and white with a yellow accent, 2 px frames and a yellow "
+    "selection: readable from across the hall and in bright stage light.":
+        "Schwarz und Weiß mit gelbem Akzent, 2-px-Rahmen und gelber Auswahl: "
+        "lesbar quer durch die Halle und im hellen Bühnenlicht.",
+    "High contrast · Light": "Hoher Kontrast · Hell",
+    "Black on white with a deep blue accent and 2 px frames: the most "
+    "readable light look, also on a weak projector or laptop screen.":
+        "Schwarz auf Weiß mit tiefblauem Akzent und 2-px-Rahmen: der am "
+        "besten lesbare helle Look, auch auf einem schwachen Beamer oder "
+        "Laptop-Bildschirm.",
     "The same colours put through a lightness flip, so a warning stays "
     "red and the ▶ player panel — dark already — is left as it is.":
         "Dieselben Farben durch eine Helligkeitsumkehr geschickt, damit "
@@ -411,6 +490,147 @@ CATALOG = {
     "An .m3u playlist file": "Eine .m3u-Playlist-Datei",
     "Focused playlist (current deck)": "Aktive Playlist (aktuelles Deck)",
     "Number of titles in this wishlist": "Anzahl Titel in dieser Wunschliste",
+
+    # ── 🎨 Looks of your own: ⚙ Settings › Look and the editor (gui/look_editor.py) ──
+    "Own looks": "Eigene Looks",
+    "none yet — ＋ New look…": "noch keine — ＋ Neuer Look…",
+    "＋  New look…": "＋  Neuer Look…",
+    "A look of your own, starting as a copy of the selected one.":
+        "Ein eigener Look, zunächst eine Kopie des ausgewählten.",
+    "✎  Edit…": "✎  Bearbeiten…",
+    "🗑  Delete": "🗑  Löschen",
+    "Import…": "Importieren…",
+    "Add a look someone exported.":
+        "Einen Look hinzufügen, den jemand exportiert hat.",
+    "Export…": "Exportieren…",
+    "Save the selected look of your own as a file, to pass it on.":
+        "Den ausgewählten eigenen Look als Datei speichern, um ihn "
+        "weiterzugeben.",
+    "A look of your own, kept on this computer. ✎ Edit changes it, Export "
+    "passes it on.":
+        "Ein eigener Look, auf diesem Computer gespeichert. ✎ Bearbeiten "
+        "ändert ihn, Exportieren gibt ihn weiter.",
+    "%s (own)": "%s (eigen)",
+    "Look not saved": "Look nicht gespeichert",
+    "The looks file could not be written. The log names the reason.":
+        "Die Look-Datei ließ sich nicht schreiben. Das Protokoll nennt den "
+        "Grund.",
+    "Delete look": "Look löschen",
+    "Delete the look “%s”? This cannot be undone; an exported file "
+    "of it stays.":
+        "Den Look „%s“ löschen? Das lässt sich nicht rückgängig "
+        "machen; eine exportierte Datei davon bleibt erhalten.",
+    "Import a look": "Einen Look importieren",
+    "Look not imported": "Look nicht importiert",
+    "This file holds no look the app can use:\n%s":
+        "Diese Datei enthält keinen Look, den die App verwenden kann:\n%s",
+    "Export the look": "Den Look exportieren",
+    "Look not exported": "Look nicht exportiert",
+    "The file could not be written:\n%s":
+        "Die Datei ließ sich nicht schreiben:\n%s",
+    "🎨  Edit look": "🎨  Look bearbeiten",
+    "Family: %s. The details it shares with the built-in looks of that "
+    "group stay: faders, checkboxes, headers.":
+        "Familie: %s. Was er mit den eingebauten Looks dieser Gruppe teilt, "
+        "bleibt: Fader, Kontrollkästchen, Kopfzeilen.",
+    "Grounds": "Flächen",
+    "Window": "Fenster",
+    "The ground of the main window and the dialogs.":
+        "Der Grund des Hauptfensters und der Dialoge.",
+    "Lists and fields": "Listen und Felder",
+    "Tables, lists and text fields.": "Tabellen, Listen und Textfelder.",
+    "Every other row": "Jede zweite Zeile",
+    "The second row colour of a table.": "Die zweite Zeilenfarbe einer Tabelle.",
+    "Headers": "Kopfzeilen",
+    "Table headers and the menu bar.": "Tabellenköpfe und die Menüleiste.",
+    "The ground of a tooltip.": "Der Grund eines Tooltips.",
+    "Buttons": "Schaltflächen",
+    "Button face": "Schaltfläche",
+    "A button at rest.": "Eine Schaltfläche in Ruhe.",
+    "Under the mouse": "Unter der Maus",
+    "A button the mouse is over.": "Eine Schaltfläche unter dem Mauszeiger.",
+    "Pressed": "Gedrückt",
+    "A button held down.": "Eine gedrückt gehaltene Schaltfläche.",
+    "Light from above": "Licht von oben",
+    "Set, a button fades from this colour down to its face, like a key on a "
+    "mixing desk. Off, the face is flat.":
+        "Gesetzt, verläuft eine Schaltfläche von dieser Farbe nach unten in "
+        "ihre Fläche, wie eine Taste an einem Mischpult. Aus, ist die Fläche "
+        "eben.",
+    "Header light from above": "Kopfzeilen-Licht von oben",
+    "The same fade for the table headers and the deck title strips.":
+        "Derselbe Verlauf für die Tabellenköpfe und die Titelleisten der Decks.",
+    "Lines": "Linien",
+    "Hairlines": "Haarlinien",
+    "Frames, the table grid and separators.":
+        "Rahmen, das Tabellengitter und Trennlinien.",
+    "Outlines": "Umrisse",
+    "A control's frame and the scrollbar handle.":
+        "Der Rahmen eines Bedienelements und der Griff der Bildlaufleiste.",
+    "All ordinary text.": "Aller gewöhnliche Text.",
+    "Dim text": "Blasser Text",
+    "Disabled text, placeholders and side notes.":
+        "Deaktivierter Text, Platzhalter und Randnotizen.",
+    "Accent": "Akzent",
+    "The default button and a switched-on toggle.":
+        "Die Standardschaltfläche und ein eingeschalteter Schalter.",
+    "Text on the accent": "Text auf dem Akzent",
+    "The caption on an accent fill.": "Die Beschriftung auf einer Akzentfläche.",
+    "Accent as text": "Akzent als Text",
+    "Links, focus rings and the round bands' lettering.":
+        "Links, Fokusringe und die Schrift der Rundenbänder.",
+    "Selection": "Auswahl",
+    "Selected row": "Ausgewählte Zeile",
+    "The band of the selected row.": "Das Band der ausgewählten Zeile.",
+    "Text on the selection": "Text auf der Auswahl",
+    "The text in that band.": "Der Text in diesem Band.",
+    "Fade": "Verlauf",
+    "off": "aus",
+    "Shape and lettering": "Form und Schrift",
+    "Corners:": "Ecken:",
+    "Buttons:": "Schaltflächen:",
+    "Tabs:": "Reiter:",
+    "Focus:": "Fokus:",
+    "Font:": "Schrift:",
+    "Outlined": "Umrandet",
+    "Flat, no frame": "Flach, ohne Rahmen",
+    "Desk key, lit from above": "Pult-Taste, von oben beleuchtet",
+    "Dark, glowing rim when on": "Dunkel, leuchtender Rand wenn an",
+    "Soft filled": "Sanft gefüllt",
+    "Pill, fully rounded": "Pille, ganz gerundet",
+    "2 px frame, high contrast": "2-px-Rahmen, hoher Kontrast",
+    "Underlined": "Unterstrichen",
+    "Segmented": "Segmentiert",
+    "Desk keys": "Pult-Tasten",
+    "Pills": "Pillen",
+    "Ring around the field": "Ring um das Feld",
+    "Line under the field": "Linie unter dem Feld",
+    "Saved looks are kept on this computer. The app takes a changed look on "
+    "its next start.":
+        "Gespeicherte Looks bleiben auf diesem Computer. Die App übernimmt "
+        "einen geänderten Look beim nächsten Start.",
+    "⚠ Hard to read:": "⚠ Schwer lesbar:",
+    "✓ Every text reads clearly against its ground.":
+        "✓ Jeder Text hebt sich deutlich von seinem Grund ab.",
+    "%s: %.1f : 1, should be at least %.1f":
+        "%s: %.1f : 1, sollte mindestens %.1f sein",
+    "Text on lists": "Text auf Listen",
+    "Text on every other row": "Text auf jeder zweiten Zeile",
+    "Text on the window": "Text auf dem Fenster",
+    "Text on buttons": "Text auf Schaltflächen",
+    "Dim text on lists": "Blasser Text auf Listen",
+    "Planning": "Planung",
+    "Playing": "Wiedergabe",
+    "Group": "Gruppe",
+    "Heat %d": "Gruppe %d",
+    "▼  PRELIMINARY ROUND  (2 heats)": "▼  VORRUNDE  (2 Gruppen)",
+    "▼  Slow Waltz": "▼  Langsamer Walzer",
+    "Button": "Schaltfläche",
+    "Switched on": "Eingeschaltet",
+    "Disabled": "Deaktiviert",
+    "Search…": "Suchen…",
+    "Ticked": "Angehakt",
+    "Dim text: a hint, a placeholder.": "Blasser Text: ein Hinweis, ein Platzhalter.",
 
     # ── Window and dialog titles ─────────────────────────────────────────────
     "Welcome to DanceSport Planner & Player": "Willkommen bei DanceSport Planner & Player",
@@ -1283,8 +1503,9 @@ CATALOG = {
     "controls on these values in one press:":
         "<b>🎛 Abspiel-Sets</b> — die zwei Knöpfe im Bereich ▶ Abspielen stellen "
         "die Bedienelemente mit einem Druck auf diese Werte:",
-    "<b>🎨 Theme</b> — the app's light or dark look:":
-        "<b>🎨 Erscheinungsbild</b> — das helle oder dunkle Aussehen der App:",
+    "<b>🎨 Theme</b> — the classic light or dark, or one of the looks:":
+        "<b>🎨 Erscheinungsbild</b> — das klassische Hell oder Dunkel oder "
+        "einer der Looks:",
     "<b>🎵 Check music</b> — thresholds used by the tournament checks (open "
     "decks and dragged-in files):":
         "<b>🎵 Musik prüfen</b> — Schwellenwerte der Turnierprüfungen (offene Decks "

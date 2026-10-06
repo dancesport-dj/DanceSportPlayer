@@ -21,12 +21,13 @@ from PySide6.QtWidgets import (
     QScrollArea, QDialog, QProgressBar, QSpinBox, QDoubleSpinBox, QTimeEdit,
     QFileDialog, QDialogButtonBox, QTabWidget, QRadioButton, QButtonGroup,
     QMessageBox, QTableWidget, QTableWidgetItem, QAbstractItemView, QFrame,
-    QPlainTextEdit, QColorDialog,
+    QPlainTextEdit, QColorDialog, QListWidget, QListWidgetItem, QSizePolicy,
+    QGraphicsOpacityEffect,
 )
 from PySide6.QtCore import (
-    Qt, Signal, QProcess, QStandardPaths, QTime, QTimer,
+    Qt, Signal, QProcess, QSize, QStandardPaths, QTime, QTimer,
 )
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QPixmap
 
 import planner.config
 from planner.db import HAS_LIBROSA
@@ -58,12 +59,13 @@ from shared.widgets import (
     _app_icon,
     _hsep,
 )
-from shared import error_reports, theme
+from shared import error_reports, looks, theme, user_looks
 from planner import i18n
 from planner.paths import parse_remap_paths
 from planner.store import JsonStore
 from planner.version import DEV
 from shared.stores import SETTINGS, player_layout_of, save_settings
+from gui.look_editor import LookEditor, LookPreview
 from gui.similar_dialog import SimilarTracksDialog  # noqa: F401
 from gui.duplicate_dialog import DuplicateResolveDialog  # noqa: F401
 from gui.ai_dialogs import (  # noqa: F401
@@ -382,14 +384,74 @@ PLAYER_LAYOUT_CHOICES = (
 # ── 🎨 Look: theme + accent ───────────────────────────────────────────────────
 # The dark theme is derived from the light colours rather than listed as a
 # second palette — shared/theme.py says how and why. Both settings are read once at
-# start-up, so changing either offers a restart.
+# start-up, so changing either offers a restart. The 🎨 looks (shared/looks.py)
+# are listed after these two, in sections of their own.
 THEME_CHOICES = (
-    ("light", "☀  Light — the app's own daylight look (default)",
+    ("light", "☀  Light (default)",
      "White decks, dark text: the look every colour in the app was picked for."),
-    ("dark", "🌙  Dark — black mode for a dim hall",
+    ("dark", "🌙  Dark",
      "The same colours put through a lightness flip, so a warning stays red "
      "and the ▶ player panel — dark already — is left as it is."),
 )
+
+
+class ThemePreview(QLabel):
+    """A theme's picture: 1:1 where it fits, scaled down where it does not —
+    never up, which would blur the very text it is there to show."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._pix = QPixmap()
+        self.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
+        self.setMinimumSize(480, 272)
+
+    def show_theme(self, key: str) -> None:
+        path = looks.preview_path(key)
+        self._pix = QPixmap(str(path)) if path.exists() else QPixmap()
+        if self._pix.isNull():
+            self.setText(i18n.t("No preview picture for this theme."))
+            return
+        # Rendered at this screen's scale, so one image pixel per screen pixel.
+        self._pix.setDevicePixelRatio(self.devicePixelRatioF())
+        self.updateGeometry()
+        self._fit()
+
+    def sizeHint(self) -> QSize:
+        if self._pix.isNull():
+            return super().sizeHint()
+        return self._pix.deviceIndependentSize().toSize()
+
+    # Scaled down to the width, the picture is shorter too — so is the label,
+    # or the blurb below it would hang under an empty band.
+    def hasHeightForWidth(self) -> bool:
+        return not self._pix.isNull()
+
+    def heightForWidth(self, width: int) -> int:
+        if self._pix.isNull():
+            return super().heightForWidth(width)
+        size = self._pix.deviceIndependentSize()
+        scale = min(1.0, width / size.width())
+        return max(self.minimumHeight(), round(size.height() * scale))
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._fit()
+
+    def _fit(self) -> None:
+        if self._pix.isNull():
+            return
+        size = self._pix.deviceIndependentSize()
+        if size.width() <= self.width() and size.height() <= self.height():
+            self.setPixmap(self._pix)
+            return
+        ratio = self._pix.devicePixelRatio()
+        fitted = self._pix.scaled(
+            QSize(self.width(), self.height()) * ratio,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation)
+        fitted.setDevicePixelRatio(ratio)
+        self.setPixmap(fitted)
 
 
 def media_backend_of(settings: dict) -> str:
@@ -1102,16 +1164,58 @@ class SettingsDialog(QDialog):
         llyt.setSpacing(10)
 
         llyt.addWidget(QLabel(
-            "<b>🎨 Theme</b> — the app's light or dark look:"))
-        self._theme_combo = QComboBox()
-        for key, caption, blurb in THEME_CHOICES:
-            self._theme_combo.addItem(caption, key)
-            self._theme_combo.setItemData(
-                self._theme_combo.count() - 1, i18n.t(blurb),
-                Qt.ItemDataRole.ToolTipRole)
-        self._theme_combo.setCurrentIndex(
-            max(0, self._theme_combo.findData(theme.theme_of(settings))))
-        llyt.addWidget(self._theme_combo)
+            "<b>🎨 Theme</b> — the classic light or dark, or one of the looks:"))
+        pick_row = QHBoxLayout()
+        # One list with section headers rather than a combo: the classic pair
+        # stands apart from the looks, and every entry is visible at once.
+        # QListWidgetItem is not among the hooked setters, so each caption asks
+        # for its translation itself.
+        self._theme_list = QListWidget()
+        self._theme_list.setMinimumWidth(230)
+        self._theme_blurbs: dict[str, str] = {}
+        # Keys of looks of your own made, changed or deleted while this is
+        # open: when the running look is among them, saving offers a restart.
+        self._looks_touched: set[str] = set()
+        self._fill_theme_list()
+        list_col = QVBoxLayout()
+        list_col.addWidget(self._theme_list, stretch=1)
+        own_row = QGridLayout()
+        self._look_new = QPushButton("＋  New look…")
+        self._look_new.setToolTip(
+            "A look of your own, starting as a copy of the selected one.")
+        self._look_new.clicked.connect(self._new_look)
+        self._look_edit = QPushButton("✎  Edit…")
+        self._look_edit.clicked.connect(self._edit_look)
+        self._look_delete = QPushButton("🗑  Delete")
+        self._look_delete.clicked.connect(self._delete_look)
+        self._look_import = QPushButton("Import…")
+        self._look_import.setToolTip("Add a look someone exported.")
+        self._look_import.clicked.connect(self._import_look)
+        self._look_export = QPushButton("Export…")
+        self._look_export.setToolTip("Save the selected look of your own as a "
+                                     "file, to pass it on.")
+        self._look_export.clicked.connect(self._export_look)
+        own_row.addWidget(self._look_new, 0, 0, 1, 2)
+        own_row.addWidget(self._look_edit, 1, 0)
+        own_row.addWidget(self._look_delete, 1, 1)
+        own_row.addWidget(self._look_import, 2, 0)
+        own_row.addWidget(self._look_export, 2, 1)
+        list_col.addLayout(own_row)
+        pick_row.addLayout(list_col)
+        preview_col = QVBoxLayout()
+        self._theme_preview = ThemePreview()
+        preview_col.addWidget(self._theme_preview)
+        # A look of your own has no picture of the main window: these controls,
+        # dressed in it, stand in.
+        self._look_preview = LookPreview()
+        self._look_preview.hide()
+        preview_col.addWidget(self._look_preview)
+        self._theme_blurb = QLabel()
+        self._theme_blurb.setWordWrap(True)
+        preview_col.addWidget(self._theme_blurb)
+        preview_col.addStretch()
+        pick_row.addLayout(preview_col, stretch=1)
+        llyt.addLayout(pick_row, stretch=1)
 
         llyt.addWidget(_hsep())
 
@@ -1132,7 +1236,13 @@ class SettingsDialog(QDialog):
             lambda: self._set_accent(theme.ACCENT_DEFAULT))
         accent_row.addWidget(self._accent_reset)
         llyt.addLayout(accent_row)
+        self._accent_note = QLabel(
+            "A look brings its own accent colour — this one is for Light and Dark.")
+        self._accent_note.setStyleSheet("color:#666; font-size:11px;")
+        llyt.addWidget(self._accent_note)
         self._set_accent(self._accent)
+        self._theme_list.currentItemChanged.connect(self._on_theme_picked)
+        self._select_theme(theme.theme_of(settings))
 
         llyt.addWidget(_hsep())
 
@@ -1169,7 +1279,6 @@ class SettingsDialog(QDialog):
         look_note.setStyleSheet("color:#666; font-size:11px;")
         llyt.addWidget(look_note)
 
-        llyt.addStretch()
         tabs.addTab(look_tab, "🎨 Look")
 
         # ═══ Tab 3: Analysis — every analyze/index action, light vs heavy ═══
@@ -1699,6 +1808,161 @@ class SettingsDialog(QDialog):
             self._vocals_cb()
 
     # ── 🎨 Look ───────────────────────────────────────────────────────────────
+    _OWN_BLURB = ("A look of your own, kept on this computer. ✎ Edit changes it, "
+                  "Export passes it on.")
+    # What ＋ New copies when Light or Dark is selected: the look nearest to it.
+    _NEW_FROM_CLASSIC = {"light": "paper", "dark": "graphite"}
+
+    def _fill_theme_list(self) -> None:
+        """The sections: the classic pair, the built-in groups, your own looks.
+        Own captions are names you gave, so they are shown as they are."""
+        self._theme_list.blockSignals(True)
+        self._theme_list.clear()
+        self._theme_blurbs.clear()
+        sections = [("Standard", [(k, i18n.t(c), i18n.t(b))
+                                  for k, c, b in THEME_CHOICES])]
+        for group, label in looks.GROUPS:
+            sections.append((label, [(look.key, i18n.t(look.caption), i18n.t(look.blurb))
+                                     for look in looks.LOOKS.values()
+                                     if look.group == group]))
+        sections.append(("Own looks", [(look.key, look.caption, i18n.t(self._OWN_BLURB))
+                                       for look in user_looks.mine()]))
+        for label, entries in sections:
+            head = QListWidgetItem(i18n.t(label))
+            head.setFlags(Qt.ItemFlag.NoItemFlags)
+            font = head.font()
+            font.setBold(True)
+            head.setFont(font)
+            self._theme_list.addItem(head)
+            for key, caption, blurb in entries:
+                item = QListWidgetItem("   " + caption)
+                item.setData(Qt.ItemDataRole.UserRole, key)
+                self._theme_list.addItem(item)
+                self._theme_blurbs[key] = blurb
+        if not user_looks.mine():
+            empty = QListWidgetItem("   " + i18n.t("none yet — ＋ New look…"))
+            empty.setFlags(Qt.ItemFlag.NoItemFlags)
+            self._theme_list.addItem(empty)
+        self._theme_list.blockSignals(False)
+
+    def _selected_own(self) -> "looks.Look | None":
+        look = looks.get(self.selected_theme())
+        return look if look is not None and look.group == user_looks.GROUP else None
+
+    def running_look_touched(self) -> bool:
+        """Whether the look the app runs in was changed or deleted here — saved
+        at once, so the app has to restart to show it even with the same pick."""
+        return theme.active_theme() in self._looks_touched
+
+    def _relist(self, select: str) -> None:
+        self._fill_theme_list()
+        self._select_theme(select)
+        self._on_theme_picked()
+
+    def _new_look(self) -> None:
+        key = self.selected_theme()
+        source = looks.get(self._NEW_FROM_CLASSIC.get(key, key))
+        own = source.group == user_looks.GROUP
+        name = i18n.t("%s (own)") % (source.caption if own else i18n.t(source.caption))
+        self._edit(user_looks.copy_of(source, name))
+
+    def _edit_look(self) -> None:
+        look = self._selected_own()
+        if look is not None:
+            self._edit(look)
+
+    def _edit(self, look: looks.Look) -> None:
+        editor = LookEditor(look, self)
+        if editor.exec() != QDialog.DialogCode.Accepted:
+            return
+        look = editor.look()
+        if not user_looks.put(look):
+            QMessageBox.warning(self, "Look not saved",
+                                "The looks file could not be written. "
+                                "The log names the reason.")
+        self._looks_touched.add(look.key)
+        self._relist(look.key)
+
+    def _delete_look(self) -> None:
+        look = self._selected_own()
+        if look is None:
+            return
+        answer = QMessageBox.question(
+            self, "Delete look",
+            i18n.t("Delete the look “%s”? This cannot be undone; "
+                   "an exported file of it stays.") % look.caption)
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        user_looks.remove(look.key)
+        self._looks_touched.add(look.key)
+        self._relist("light")
+
+    def _import_look(self) -> None:
+        # QFileDialog is not one of the patched statics: its texts ask here.
+        path, _filter = QFileDialog.getOpenFileName(
+            self, i18n.t("Import a look"), "", i18n.t("Looks (*.json)"))
+        if not path:
+            return
+        try:
+            look = user_looks.import_file(Path(path))
+        except (ValueError, OSError) as exc:
+            QMessageBox.warning(self, "Look not imported",
+                                i18n.t("This file holds no look the app can use:\n%s")
+                                % exc)
+            return
+        self._relist(look.key)
+
+    def _export_look(self) -> None:
+        look = self._selected_own()
+        if look is None:
+            return
+        name = (user_looks.slug(look.caption) or "look") + ".json"
+        path, _filter = QFileDialog.getSaveFileName(
+            self, i18n.t("Export the look"), name, i18n.t("Looks (*.json)"))
+        if not path:
+            return
+        try:
+            user_looks.export(look, Path(path))
+        except OSError as exc:
+            QMessageBox.warning(self, "Look not exported",
+                                i18n.t("The file could not be written:\n%s") % exc)
+
+    def selected_theme(self) -> str:
+        item = self._theme_list.currentItem()
+        key = item.data(Qt.ItemDataRole.UserRole) if item is not None else None
+        return key or "light"
+
+    def _select_theme(self, key: str) -> None:
+        for row in range(self._theme_list.count()):
+            item = self._theme_list.item(row)
+            if item.data(Qt.ItemDataRole.UserRole) == key:
+                self._theme_list.setCurrentItem(item)
+                return
+
+    def _on_theme_picked(self, _item=None, _previous=None):
+        key = self.selected_theme()
+        mine = self._selected_own()
+        if mine is None:
+            self._theme_preview.show_theme(key)
+        else:
+            self._look_preview.set_look(mine)
+        self._theme_preview.setVisible(mine is None)
+        self._look_preview.setVisible(mine is not None)
+        for button in (self._look_edit, self._look_delete, self._look_export):
+            button.setEnabled(mine is not None)
+        self._theme_blurb.setText(self._theme_blurbs.get(key, ""))
+        # A look's accent is part of its design; the picker is for the classic pair.
+        own = looks.get(key) is None
+        self._accent_btn.setEnabled(own)
+        self._accent_reset.setEnabled(own)
+        self._accent_note.setVisible(not own)
+        # The swatch is painted in the picked colour on purpose, so it shows no
+        # disabled state of its own; fade it instead.
+        fade = None if own else QGraphicsOpacityEffect(self._accent_btn)
+        if fade is not None:
+            fade.setOpacity(0.35)
+        self._accent_btn.setGraphicsEffect(fade)
+
     def _pick_accent(self):
         # Not one of the patched statics — only QMessageBox and QInputDialog
         # are — so the picker's own title is translated here.
@@ -1742,7 +2006,7 @@ class SettingsDialog(QDialog):
             "player_layout": self._player_layout_combo.currentData(),
             "announce_advanced": self._voice_adv_chk.isChecked(),
             "media_backend": self._backend_combo.currentData(),
-            "theme": self._theme_combo.currentData(),
+            "theme": self.selected_theme(),
             "accent_color": self._accent,
             "language": self._language_combo.currentData(),
             "german_dance_terms": self._german_terms_chk.isChecked(),

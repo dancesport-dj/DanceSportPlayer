@@ -96,6 +96,7 @@ class Deck:
     count_lbl: object = None      # title-count badge (wishlists)
     badge_row: object = None      # the bar under the table: badge + ⏭/✋ switch
     folded: bool = False          # folded down to its header tab?
+    active: bool = False          # focused, so its header carries the ● dot?
     ctx: DeckContext | None = None   # generation context; None = never generated
 
     @property

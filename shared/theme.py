@@ -39,6 +39,8 @@ import re
 
 from PySide6.QtGui import QColor, QPalette
 
+from shared import looks
+
 log = logging.getLogger("dancesport.gui.theme")
 
 # The blue the app is built around, and the family of tints derived from it.
@@ -112,7 +114,15 @@ _FILL_CHROMA = 0.07
 # rounding slack, and that is all this is now.
 _GROUND_EPS = 0.005
 
-_THEMES = ("light", "dark")
+# The two classic themes, then every built-in 🎨 look (shared/looks.py). A
+# look restyles the furniture itself and is selectable on every platform. The
+# looks people make themselves (shared/user_looks.py) join at start-up, so
+# whether a key names a theme is asked of `is_theme`, not of this list.
+_THEMES = ("light", "dark") + tuple(looks.LOOKS)
+
+
+def is_theme(key: str) -> bool:
+    return key in ("light", "dark") or looks.get(key) is not None
 
 _active_theme = "light"
 _active_accent = ACCENT_DEFAULT
@@ -217,7 +227,7 @@ def _role_of(prop: str) -> str:
 def shade(color: str, role: str = "ink") -> str:
     """One light colour → its colour in the active theme."""
     out = _reaccent(color)
-    if _active_theme != "dark":
+    if not is_dark():
         return out
     return _darkify(out, role)
 
@@ -319,8 +329,10 @@ def qss(sheet: str) -> str:
     """Rewrite every colour in a stylesheet (or an inline HTML `style=`) for the
     active theme. The identity function in light mode with the default accent,
     so the untouched app keeps exactly the look it has."""
-    if not sheet or (_active_theme != "dark" and _active_accent.lower() == ACCENT_DEFAULT):
+    if not sheet or (not is_dark() and _active_accent.lower() == ACCENT_DEFAULT):
         return sheet
+    if sheet.startswith(looks.LOOK_MARK):
+        return sheet                # a look's own part, final already
 
     def fix_decl(match: re.Match) -> str:
         prop, value = match.group(1), match.group(2)
@@ -342,7 +354,7 @@ def qcolor(color: str, role: str = "ink") -> QColor:
 def theme_of(settings: dict) -> str:
     """The theme named in the settings, falling back to light."""
     want = str((settings or {}).get("theme") or "").strip().lower()
-    return want if want in _THEMES else "light"
+    return want if is_theme(want) else "light"
 
 
 def accent_of(settings: dict) -> str:
@@ -355,10 +367,16 @@ def accent_of(settings: dict) -> str:
 
 def set_active(theme: str = "light", accent: str = ACCENT_DEFAULT) -> None:
     global _active_theme, _active_accent
-    _active_theme = theme if theme in _THEMES else "light"
+    _active_theme = theme if is_theme(theme) else "light"
     _active_accent = accent if re.fullmatch(
         r"#(?:[0-9a-f]{6}|[0-9a-f]{3})", (accent or "").lower()) else ACCENT_DEFAULT
     _active_accent = _active_accent.lower()
+    look = active_look()
+    if look is not None:
+        # A look brings its own accent, so the app's inline blues land on the
+        # same hue as the restyled furniture. The picked one is for the
+        # classic themes only.
+        _active_accent = look.tokens.accent.lower()
 
 
 def apply_settings(settings: dict) -> None:
@@ -374,13 +392,27 @@ def active_accent() -> str:
 
 
 def is_dark() -> bool:
-    return _active_theme == "dark"
+    look = active_look()
+    return _active_theme == "dark" or (look is not None and look.dark)
+
+
+def active_look() -> "looks.Look | None":
+    """The 🎨 look in force, or None under the classic light / dark."""
+    return looks.get(_active_theme)
+
+
+def look_parts() -> dict[str, str]:
+    """The active look's sheets for the app's own furniture (deck title strip,
+    Planning ⇄ Playing switch); empty under the classic themes."""
+    look = active_look()
+    return looks.parts(look) if look is not None else {}
 
 
 # ── Wiring it into the app ───────────────────────────────────────────────────
 
 _hook_installed = False
 _raw_set_stylesheet = None
+_raw_app_set_stylesheet = None
 
 
 def set_stylesheet_unthemed(widget, sheet: str) -> None:
@@ -404,12 +436,13 @@ def install_stylesheet_hook() -> None:
     reason to touch — and would miss the next one somebody writes. One hook on
     QWidget (and QApplication, which is not a QWidget) themes all of them,
     including the dialogs built long after start-up."""
-    global _hook_installed, _raw_set_stylesheet
+    global _hook_installed, _raw_set_stylesheet, _raw_app_set_stylesheet
     if _hook_installed:
         return
     from PySide6.QtWidgets import QApplication, QWidget
 
     _raw_set_stylesheet = QWidget.setStyleSheet
+    _raw_app_set_stylesheet = QApplication.setStyleSheet
     for cls in (QWidget, QApplication):
         original = cls.setStyleSheet
 
@@ -531,6 +564,8 @@ def sync_shared_colors() -> None:
     is also why this has to run before the first table is painted."""
     import importlib
 
+    look = active_look()
+    own = looks.shared_colors(look) if look is not None else {}
     for module_name, attr, role in _SHARED_COLORS:
         try:
             color = importlib.import_module(module_name)
@@ -539,7 +574,7 @@ def sync_shared_colors() -> None:
         except (ImportError, AttributeError):
             log.debug("🎨 %s.%s not present, skipped", module_name, attr)
             continue
-        fixed = QColor(shade(color.name(), role))
+        fixed = QColor(own.get(attr) or shade(color.name(), role))
         color.setRgb(fixed.red(), fixed.green(), fixed.blue(), color.alpha())
 
 
@@ -563,6 +598,8 @@ def app_palette() -> QPalette:
         ("ToolTipBase", "#ffffdc", "ground"),
         ("ToolTipText", "#141414", "ink"),
     )
+    if active_look() is not None:
+        return look_palette(active_look())
     pal = QPalette()
     R = QPalette.ColorRole
     for name, color, role in roles:
@@ -586,3 +623,42 @@ def app_palette() -> QPalette:
             pal.setColor(getattr(R, name), button.darker(factor))
         pal.setColor(R.Shadow, QColor("#000000"))
     return pal
+
+
+def look_palette(look: "looks.Look") -> QPalette:
+    """The palette of a 🎨 look: straight from its tokens."""
+    tok = look.tokens
+    pal = QPalette()
+    R = QPalette.ColorRole
+    for name, color in (
+            ("Window", tok.window), ("WindowText", tok.text),
+            ("Base", tok.base), ("AlternateBase", tok.alt_base),
+            ("Text", tok.text), ("Button", tok.surface), ("ButtonText", tok.text),
+            ("Link", tok.accent_ink), ("Highlight", tok.selection),
+            ("HighlightedText", tok.on_selection), ("ToolTipBase", tok.tooltip),
+            ("ToolTipText", tok.text), ("PlaceholderText", tok.text_dim)):
+        pal.setColor(getattr(R, name), QColor(color))
+    button = QColor(tok.surface)
+    for name, factor in (("Light", 150), ("Midlight", 125)):
+        pal.setColor(getattr(R, name), button.lighter(factor))
+    for name, factor in (("Mid", 150), ("Dark", 200)):
+        pal.setColor(getattr(R, name), button.darker(factor))
+    pal.setColor(R.Shadow, QColor("#000000"))
+    for name in ("WindowText", "Text", "ButtonText"):
+        pal.setColor(QPalette.ColorGroup.Disabled, getattr(R, name),
+                     QColor(tok.text_dim))
+    return pal
+
+
+def apply_app(app) -> None:
+    """Dress the application for the active theme: palette, and for a 🎨 look
+    also its font and the stylesheet that reshapes the standard controls. The
+    stylesheet is final already, so it bypasses the hook — run through the
+    transform a second time it would be shaded twice."""
+    app.setPalette(app_palette())
+    look = active_look()
+    if look is None:
+        return
+    app.setFont(looks.font(look, app.font()))
+    (_raw_app_set_stylesheet or type(app).setStyleSheet)(app, looks.stylesheet(look))
+    log.debug("🎨 Look applied: %s", look.key)

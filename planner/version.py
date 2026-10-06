@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 # The release this code is, for a build without a tag.
-VERSION = "1.0.2"
+VERSION = "1.1.0"
 VERSION_ENV = "DANCEPLAYLIST_VERSION"
 VERSION_FILE = "build_version.txt"
 DEV = "dev"

@@ -16,8 +16,14 @@ a dancesport tournament or a dance party from the music desk.
   with themes.
 - Tournament and party play sets: one press puts every control on the values a
   heat or a party list is run with.
+- Themes: the classic light and dark theme with a free accent colour, and 16
+  looks to pick in ⚙ Settings: Windows 11, macOS and GNOME, four dark
+  mixing-desk looks, and modern ones picked for readability, two of them
+  high-contrast. A look of your own starts as a copy of one of them, in an
+  editor with a live preview and a contrast check, and travels as a .json
+  file. See [Settings › Look](docs/manual/06-settings.md#look).
 
-The user interface is in English and German, with a light and a dark theme.
+The user interface is in English and German.
 It runs on Windows, macOS and Linux. Windows is the main platform, the one the
 player is used on at events; the macOS and Linux builds are newer and less
 tested.

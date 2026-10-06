@@ -44,6 +44,9 @@ class _Dialog:
         vals["check_tempo_dev_pct"] = 7
         return vals
 
+    def running_look_touched(self):
+        return False
+
 
 class SettingsApplyMergeTest(unittest.TestCase):
 

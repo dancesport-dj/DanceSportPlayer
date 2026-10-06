@@ -38,16 +38,47 @@ class LookTabTest(unittest.TestCase):
 
     def test_defaults_to_light_and_the_app_blue(self):
         dlg = self._dlg({})
-        self.assertEqual(dlg._theme_combo.currentData(), "light")
+        self.assertEqual(dlg.selected_theme(), "light")
         self.assertEqual(dlg._accent, theme.ACCENT_DEFAULT)
         vals = dlg.values()
         self.assertEqual(vals["theme"], "light")
         self.assertEqual(vals["accent_color"], theme.ACCENT_DEFAULT)
 
-    def test_the_stored_theme_comes_back_into_the_combo(self):
+    def test_the_stored_theme_comes_back_into_the_list(self):
         dlg = self._dlg({"theme": "dark"})
-        self.assertEqual(dlg._theme_combo.currentData(), "dark")
+        self.assertEqual(dlg.selected_theme(), "dark")
         self.assertEqual(dlg.values()["theme"], "dark")
+
+    def test_a_look_round_trips(self):
+        dlg = self._dlg({"theme": "graphite"})
+        self.assertEqual(dlg.selected_theme(), "graphite")
+        self.assertEqual(dlg.values()["theme"], "graphite")
+
+    def test_the_section_headers_cannot_be_picked(self):
+        from PySide6.QtCore import Qt
+
+        dlg = self._dlg({})
+        heads = [dlg._theme_list.item(i) for i in range(dlg._theme_list.count())
+                 if dlg._theme_list.item(i).data(Qt.ItemDataRole.UserRole) is None]
+        # Five sections, and the line under "Own looks" while there is none.
+        self.assertEqual(len(heads), 6)
+        for head in heads:
+            self.assertFalse(head.flags() & Qt.ItemFlag.ItemIsSelectable)
+
+    def test_the_accent_row_is_for_the_classic_pair_only(self):
+        dlg = self._dlg({"theme": "midnight"})
+        self.assertFalse(dlg._accent_btn.isEnabled())
+        self.assertFalse(dlg._accent_reset.isEnabled())
+        self.assertFalse(dlg._accent_note.isHidden())
+        dlg._select_theme("dark")
+        self.assertTrue(dlg._accent_btn.isEnabled())
+        self.assertTrue(dlg._accent_note.isHidden())
+
+    def test_picking_a_theme_shows_its_picture_and_blurb(self):
+        dlg = self._dlg({})
+        dlg._select_theme("contrast_dark")
+        self.assertFalse(dlg._theme_preview._pix.isNull())
+        self.assertIn("yellow", dlg._theme_blurb.text())
 
     def test_the_stored_accent_comes_back_and_is_normalised(self):
         dlg = self._dlg({"accent_color": "#B8006E"})

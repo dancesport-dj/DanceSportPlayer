@@ -60,7 +60,7 @@ class FoldMixin:
         hdr = self.deck(table).header
         if hdr is None:
             return
-        active = hdr.styleSheet() == self._DECK_HDR_ACTIVE
+        active = self.deck(table).active
         hdr.setText(self._deck_header_text(table, active))
 
     def _toggle_deck_fold(self, table: PlaylistTable, folded: bool | None = None):
@@ -105,7 +105,7 @@ class FoldMixin:
         badge_row = self.deck(table).badge_row
         if badge_row is not None:
             badge_row.setVisible(not folded)
-        active = hdr.styleSheet() == self._DECK_HDR_ACTIVE
+        active = self.deck(table).active
         hdr.setText(self._deck_header_text(table, active))
         hdr.setToolTip(i18n.t("%s — folded.  Click to unfold.")
                        % self.deck(table).name

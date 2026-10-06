@@ -6,8 +6,9 @@ Run:  py -m unittest tests.gui.test_look_tab_i18n -v
 Three separate reasons the tab was half English, and each needs its own kind
 of fix:
 
-* THEME_CHOICES is the same shape as the three combos of 5d3221d — captions
-  through the hooked `addItem`, blurbs through the unpatched `setItemData`.
+* The theme list is a QListWidget, and QListWidgetItem is not among the
+  hooked setters — every caption, section header and blurb asks `i18n.t`
+  itself, the classic pair (THEME_CHOICES) and the 🎨 looks alike.
 * The accent button's caption is assembled: `setText(f"  {hex}  —  pick a
   colour…")`, so it matches no catalog key and never will. It takes the
   project's `i18n.t("… %s …") % value` shape.
@@ -35,6 +36,7 @@ from PySide6.QtWidgets import QApplication  # noqa: E402
 from gui import dialogs  # noqa: E402
 from gui.dialogs import THEME_CHOICES, SettingsDialog  # noqa: E402
 from planner import i18n  # noqa: E402
+from shared import looks  # noqa: E402
 from tests.qt_test_support import reap_widget  # noqa: E402
 
 
@@ -56,39 +58,51 @@ class _Look(unittest.TestCase):
         return dlg
 
 
-class ThemeComboI18nTest(_Look):
+class ThemeListI18nTest(_Look):
 
-    def combo(self, language):
-        return self.dlg(language)._theme_combo
+    def rows(self, language):
+        """(key or None for a section header, shown text) per list row."""
+        lst = self.dlg(language)._theme_list
+        return [(lst.item(i).data(Qt.ItemDataRole.UserRole), lst.item(i).text().strip())
+                for i in range(lst.count())]
 
     def test_the_key_behind_every_entry_stays_english(self):
         """theme.theme_of and the saved settings compare against these."""
-        combo = self.combo("de")
-        self.assertEqual([combo.itemData(i) for i in range(combo.count())],
-                         [k for k, _c, _b in THEME_CHOICES])
+        keys = [k for k, _text in self.rows("de") if k is not None]
+        self.assertEqual(keys, [k for k, _c, _b in THEME_CHOICES] + list(looks.LOOKS))
 
     def test_english_is_unchanged(self):
-        combo = self.combo("en")
-        self.assertEqual([combo.itemText(i) for i in range(combo.count())],
-                         [c for _k, c, _b in THEME_CHOICES])
-        self.assertEqual(
-            [combo.itemData(i, Qt.ItemDataRole.ToolTipRole)
-             for i in range(combo.count())],
-            [b for _k, _c, b in THEME_CHOICES])
+        shown = dict((k, text) for k, text in self.rows("en") if k is not None)
+        for key, caption, _b in THEME_CHOICES:
+            self.assertEqual(shown[key], caption.strip())
+        for look in looks.LOOKS.values():
+            self.assertEqual(shown[look.key], look.caption)
 
-    def test_german_captions(self):
-        combo = self.combo("de")
-        shown = [combo.itemText(i) for i in range(combo.count())]
-        self.assertIn("Hell", shown[0])
-        self.assertIn("Dunkel", shown[1])
+    def test_german_captions_and_sections(self):
+        rows = self.rows("de")
+        shown = dict((k, text) for k, text in rows if k is not None)
+        self.assertIn("Hell", shown["light"])
+        self.assertIn("Dunkel", shown["dark"])
+        self.assertEqual(shown["contrast_dark"], "Hoher Kontrast · Dunkel")
+        lst = self.dlg("de")._theme_list
+        heads = [lst.item(i).text() for i in range(lst.count())
+                 if lst.item(i).font().bold()]
+        self.assertEqual(heads, ["Standard", "Plattform-Looks", "Pult-Looks",
+                                 "Modern Looks", "Eigene Looks"])
 
-    def test_german_per_item_tooltips(self):
-        """setItemData again — the half the hook cannot reach."""
-        combo = self.combo("de")
-        for (key, _c, english), i in zip(THEME_CHOICES, range(combo.count())):
-            tip = combo.itemData(i, Qt.ItemDataRole.ToolTipRole)
-            self.assertTrue(tip, f"{key} has no tooltip at all")
-            self.assertNotEqual(tip, english, f"{key} kept its English tooltip")
+    def test_with_no_own_look_yet_the_section_says_how_to_make_one(self):
+        last = self.rows("de")[-1]
+        self.assertEqual(last, (None, "noch keine — ＋ Neuer Look…"))
+
+    def test_german_blurbs(self):
+        dlg = self.dlg("de")
+        for key, _c, english in THEME_CHOICES:
+            self.assertNotEqual(dlg._theme_blurbs[key], english, key)
+        for look in looks.LOOKS.values():
+            self.assertNotEqual(dlg._theme_blurbs[look.key], look.blurb, look.key)
+
+    def test_the_accent_note_speaks_german(self):
+        self.assertIn("eigene Akzentfarbe", self.dlg("de")._accent_note.text())
 
 
 class AccentPickerI18nTest(_Look):

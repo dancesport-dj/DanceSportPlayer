@@ -75,7 +75,8 @@ _SAME_IN_GERMAN = {
     "Name:", "⏭  Auto", "🔈  Test", "♪ Takt", "≈ Takt", "— Standard —",
     "🎻 Instrumental", "🎚️ librosa: %s", "🎼 Chroma: %s", "🧠 OpenL3: %s",
     "Social Modetänze (Discofox, Salsa, Bachata, WCS, …)", "Tags", "Frame",
-    "Custom:", "Version",
+    "Custom:", "Version", "Looks (*.json)", "A  ·  Playlist 1",
+    "B  ·  Playlist 2", "Standard",
 }
 _TAG = re.compile(r"<[^>]*>|&\w+;|\w*_\w*")   # tags, entities, file_name_parts
 _WORD = re.compile(r"[A-Za-z]{3,}")

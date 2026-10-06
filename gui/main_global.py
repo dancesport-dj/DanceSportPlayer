@@ -515,7 +515,10 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
                         or theme.accent_of(new) != theme.accent_of(self._settings)
                         or i18n.language_of(new) != i18n.language_of(self._settings)
                         or bool(new.get("german_dance_terms"))
-                        != bool(self._settings.get("german_dance_terms")))
+                        != bool(self._settings.get("german_dance_terms"))
+                        # The same pick, but the running look itself edited
+                        # or deleted: saved already, shown after a restart.
+                        or dlg.running_look_touched())
         self._settings = new
         save_settings(new)
         error_reports.apply(new)   # 🐞 on or off at once, no restart

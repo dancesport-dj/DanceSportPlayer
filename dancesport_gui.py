@@ -100,7 +100,7 @@ from gui.workers import (
 )
 from shared.audio_probes import LoudnessWorker, PdHighlightWorker, SilenceWorker
 from shared.icons import counted_emoji
-from shared import error_reports, theme
+from shared import error_reports, look_icons, theme, user_looks
 from planner import i18n, terms
 from gui.deck import Deck, DeckContext, DeckField
 from gui.undo_timeline import UndoTimeline
@@ -231,6 +231,11 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         super().__init__()
         self.setWindowTitle("DanceSport Planner & Player")
         self.resize(1500, 900)
+        # A 🎨 look draws the deck title strips and the mode switch its own way.
+        self._look_parts = theme.look_parts()
+        if self._look_parts:
+            self._DECK_HDR_IDLE = self._look_parts["deck_idle"]
+            self._DECK_HDR_ACTIVE = self._look_parts["deck_active"]
 
         # Undo/redo: snapshot-based timeline of full-UI env dicts (see _build_env).
         self._undo_timeline = UndoTimeline(limit=50)
@@ -582,10 +587,10 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
             # strip they stand on their own and must not squeeze their labels.
             b.setMinimumWidth(112)
             b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-            b.setStyleSheet(
+            b.setStyleSheet(self._look_parts.get("mode_btn") or (
                 "QPushButton{border:1px solid #b9d4f2; background:#f4f7fb;}"
                 "QPushButton:checked{background:#1565c0; color:white;"
-                " font-weight:bold;}")
+                " font-weight:bold;}"))
             mode_row.addWidget(b)
         self._mode_plan_btn.setChecked(True)
         self._mode_plan_btn.clicked.connect(lambda: self._set_play_mode(False))
@@ -2179,11 +2184,16 @@ def run_gui():
     # to be re-shaded before the first table paints a row. Light with the
     # default accent leaves every colour exactly as it was.
     startup_settings = load_settings()
+    # The looks of your own first, or a stored own look reads as unknown.
+    user_looks.load()
     theme.apply_settings(startup_settings)
     theme.install_stylesheet_hook()
     theme.sync_shared_colors()
     theme.install_titlebar_hook()
-    app.setPalette(theme.app_palette())
+    theme.apply_app(app)
+    # Under a 🎨 look the chrome's emoji become one icon set; the classic
+    # themes keep them. Before i18n, so it splits the translated caption.
+    look_icons.install()
 
     # 🌐 …and the language for the same reason: a label built in English is not
     # revisited later. This has to come before ensure_app_mode(), which is the

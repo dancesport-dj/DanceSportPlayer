@@ -92,6 +92,10 @@ for _pkg in collect_pkgs:
 
 # Read-only app resources that the code loads relative to its own folder.
 datas += [("icon.ico", "."), ("icon.png", ".")]
+# The pictures ⚙ Settings shows for each theme (shared/looks.py PREVIEW_DIR,
+# rendered by tools/theme_previews.py).
+datas += [(os.path.join(SPECPATH, "assets", "themes", "*.png"),
+           os.path.join("assets", "themes"))]
 # A presenter theme's mark, resolved by player/presenter_theme.py relative to
 # the repo root — so it has to land in the bundle under the same folder name.
 # The wedding marks are a couple's names and stay out of git: a clone has none,
