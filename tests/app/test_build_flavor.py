@@ -116,14 +116,16 @@ class BuildNamesTest(unittest.TestCase):
         return (root / name).read_text(encoding="utf-8")
 
     def test_spec_and_scripts_build_under_the_same_names(self):
-        for file in ("dancesport.spec", "build_exe.bat", "build_app.sh"):
+        for file in ("dancesport.spec", "build_exe.bat", "build_app.sh",
+                     "build_linux.sh"):
             text = self._read(file)
             for name in self.NAMES:
                 with self.subTest(file=file, name=name):
                     self.assertIn(name, text)
 
     def test_nothing_is_built_under_the_old_name(self):
-        for file in ("dancesport.spec", "build_exe.bat", "build_app.sh"):
+        for file in ("dancesport.spec", "build_exe.bat", "build_app.sh",
+                     "build_linux.sh"):
             with self.subTest(file=file):
                 self.assertNotIn("DancePlaylist", self._read(file))
 
@@ -154,6 +156,44 @@ class DmgTest(unittest.TestCase):
                      'README.txt "$README_X" "$README_Y"'):
             with self.subTest(icon=icon):
                 self.assertIn(f"--icon {icon}", self.script)
+
+
+class LinuxPackTest(unittest.TestCase):
+    """build_linux.sh, which CI runs as well. The build is started once in
+    CI, and a start writes its settings and logs next to the executable."""
+
+    ROOT = Path(config.__file__).resolve().parent.parent
+
+    def setUp(self):
+        self.script = (self.ROOT / "build_linux.sh").read_text(encoding="utf-8")
+        flow = (self.ROOT / ".github" / "workflows"
+                / "build-player.yml").read_text(encoding="utf-8")
+        self.job = flow[flow.index("\n  linux:"):flow.index("\n  release:")]
+
+    def test_ci_builds_through_the_script(self):
+        # Marcel: "add a linux script for building". One way to build, so CI
+        # and a desk build cannot drift apart.
+        self.assertIn("./build_linux.sh player tar", self.job)
+        self.assertNotIn("dancesport.spec", self.job)
+
+    def test_the_script_is_executable(self):
+        import subprocess
+        mode = subprocess.run(["git", "ls-files", "-s", "build_linux.sh"],
+                              cwd=self.ROOT, capture_output=True, text=True,
+                              check=True).stdout.split()[:1]
+        self.assertEqual(mode, ["100755"])
+
+    def test_the_tar_carries_the_install_guide(self):
+        self.assertIn('cp docs/install/linux.md "dist/$APP_NAME/README.txt"',
+                      self.script)
+        self.assertIn('tar -czf "dist/$APP_NAME-linux.tar.gz" -C dist "$APP_NAME"',
+                      self.script)
+
+    def test_the_tar_is_packed_before_the_test_start(self):
+        # The v1.0.1 tar.gz shipped the CI run's gui_settings.json,
+        # session.log and crash.log.
+        self.assertLess(self.job.index("./build_linux.sh"),
+                        self.job.index("timeout 20"))
 
 
 class DmgBackgroundTest(unittest.TestCase):

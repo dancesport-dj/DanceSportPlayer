@@ -21,6 +21,7 @@ Paso Doble highlights need it:
 
     sudo apt install ffmpeg        # Ubuntu, Debian, Mint
     sudo dnf install ffmpeg        # Fedora
+    sudo pacman -S ffmpeg          # Arch, Manjaro, Omarchy
 
 If the app does not start and says it *could not load the Qt platform plugin
 "xcb"*:
@@ -55,6 +56,7 @@ und die Paso-Doble-Highlights brauchen es:
 
     sudo apt install ffmpeg        # Ubuntu, Debian, Mint
     sudo dnf install ffmpeg        # Fedora
+    sudo pacman -S ffmpeg          # Arch, Manjaro, Omarchy
 
 Startet die App nicht und meldet, sie *could not load the Qt platform plugin
 "xcb"*:

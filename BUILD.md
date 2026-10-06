@@ -1,7 +1,8 @@
 # Building the app
 
 The GUI can be packaged into a standalone application with PyInstaller — a
-Windows `.exe` folder, or a macOS `.app` bundle from the same spec.
+Windows `.exe` folder, a macOS `.app` bundle or a Linux folder, all from the
+same spec.
 
 ## Build (Windows)
 
@@ -71,6 +72,33 @@ AVFoundation on macOS, while every timing decision in the player — the 250 ms
 load coalescing, the fade ramps, the `EndOfMedia` loop — was measured against
 Windows Media Foundation.
 
+## Build (Linux)
+
+**Must run on Linux**, for the same reason as macOS. `build_linux.sh` checks
+the venv, runs the spec and, asked to, packs the result. Only the player flavor
+has been built on Linux so far.
+
+```sh
+sudo apt install libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+  libxcb-render-util0 libxcb-xkb1 libxkbcommon-x11-0 libegl1 libpulse0
+python3.14 -m venv .venv
+.venv/bin/pip install -r requirements-player.txt pyinstaller
+./build_linux.sh player        # dist/DanceSport-Player
+./build_linux.sh player tar    # plus dist/DanceSport-Player-linux.tar.gz
+./build_linux.sh               # lite / full like build_app.sh, not tried yet
+```
+
+The libraries are what Qt's X11 platform plugin and its audio output link
+against; PyInstaller bundles them from the build machine. Output is
+`dist/DanceSport-Player/` with the executable `DanceSport-Player` inside. `tar`
+packs it with the install guide as `README.txt`; a tar keeps the executable
+bit, which a zip drops. Pack before starting it: a start writes its settings
+and logs next to the executable. The build runs on
+every distribution whose glibc is at least as new as the build machine's, so
+build on an old one (CI uses Ubuntu 22.04). ffmpeg is not bundled:
+`sudo apt install ffmpeg`. How users install and start it:
+[docs/install/linux.md](docs/install/linux.md).
+
 ## Player build
 
 The flavor for the venue: the same code, packaged without the analysis stack and
@@ -79,15 +107,15 @@ locked to player mode.
 ```powershell
 build_player.bat            rem or: build_exe.bat player
 ./build_app.sh player       # macOS
+./build_linux.sh player     # Linux
 ```
 
-GitHub builds both as well, plus a Linux build: `.github/workflows/build-player.yml`,
-started by hand (*Run workflow*) or by pushing a `v*` tag. It runs the same two
+GitHub builds all three as well: `.github/workflows/build-player.yml`,
+started by hand (*Run workflow*) or by pushing a `v*` tag. It runs the same three
 scripts, fetches ffmpeg 9.0.2 for the Windows folder and passes the
-`DANCEPLAYLIST_ERROR_DSN` secret. Linux has no script: the job runs the spec
-with `DANCESPORT_BUILD=player` on `ubuntu-22.04` (the oldest glibc on offer, so
-the build runs on more distributions), starts the result once offscreen and
-packs the folder as a tar.gz. ffmpeg is not bundled there. The Windows folder,
+`DANCEPLAYLIST_ERROR_DSN` secret. Linux builds on `ubuntu-22.04` (the oldest
+glibc on offer, so the build runs on more distributions), packs the tar.gz and
+then starts the result once offscreen. ffmpeg is not bundled there. The Windows folder,
 the macOS `.dmg` and the Linux tar.gz are the run's artifacts. A `v*` tag also
 publishes them as that tag's GitHub release (`DanceSport-Player-1.2.0-windows.zip`,
 `…-macos.dmg` and `…-linux.tar.gz` for the tag `v1.2.0`, so the names carry no

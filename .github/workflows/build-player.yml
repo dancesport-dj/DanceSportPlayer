@@ -1,10 +1,9 @@
 name: build-player
 
 # The player flavor as a download: the Windows folder (with ffmpeg.exe next to
-# the .exe), the macOS .dmg and a Linux tar.gz. The first two go through the
-# same scripts as a local build (build_exe.bat, build_app.sh), so CI and a desk
-# build cannot drift apart; Linux calls the spec directly, as nobody builds it
-# on a desk. Started by hand, the results are the run's artifacts; started by a
+# the .exe), the macOS .dmg and a Linux tar.gz. All three go through the same
+# scripts as a local build (build_exe.bat, build_app.sh, build_linux.sh), so CI
+# and a desk build cannot drift apart. Started by hand, the results are the run's artifacts; started by a
 # version tag, they are published as that tag's GitHub release as well.
 on:
   workflow_dispatch:
@@ -121,14 +120,15 @@ jobs:
           .venv/bin/python -m pip install --upgrade pip
           .venv/bin/python -m pip install -r requirements-player.txt pyinstaller==6.22.0
 
-      # No script of its own: the spec builds the same one-folder app as on
-      # Windows. ffmpeg is not bundled (the package manager has it).
+      # Builds and packs the tar.gz (a tar keeps the executable bit, which an
+      # artifact zip would drop), before the start below writes its settings
+      # and logs next to the executable. ffmpeg is not bundled (the package
+      # manager has it).
       - name: Build
         env:
-          DANCESPORT_BUILD: player
           DANCEPLAYLIST_ERROR_DSN: ${{ secrets.DANCEPLAYLIST_ERROR_DSN }}
           DANCEPLAYLIST_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
-        run: .venv/bin/python -m PyInstaller dancesport.spec --noconfirm
+        run: ./build_linux.sh player tar
 
       # Nobody runs this build on a desk before the release, so it at least
       # has to start: still running after 20 s means it got to its window.
@@ -140,16 +140,10 @@ jobs:
           timeout 20 dist/DanceSport-Player/DanceSport-Player || status=$?
           [ "$status" -eq 124 ] || { echo "exited with $status"; exit 1; }
 
-      # A tar keeps the executable bit, which an artifact zip would drop.
-      - name: Pack
-        run: |
-          cp docs/install/linux.md dist/DanceSport-Player/README.txt
-          tar -czf DanceSport-Player-linux.tar.gz -C dist DanceSport-Player
-
       - uses: actions/upload-artifact@v7
         with:
           name: DanceSport-Player-linux
-          path: DanceSport-Player-linux.tar.gz
+          path: dist/DanceSport-Player-linux.tar.gz
           if-no-files-found: error
 
   release:

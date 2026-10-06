@@ -158,14 +158,23 @@ class BuildWiringTest(unittest.TestCase):
         flow = (ROOT / ".github" / "workflows" / "build-player.yml").read_text(
             encoding="utf-8")
         script = (ROOT / "build_app.sh").read_text(encoding="utf-8")
+        linux = (ROOT / "build_linux.sh").read_text(encoding="utf-8")
         self.assertIn("cp docs/install/windows.md artifacts/DanceSport-Player/README.txt",
                       flow)
-        self.assertIn("cp docs/install/linux.md dist/DanceSport-Player/README.txt", flow)
+        self.assertIn('cp docs/install/linux.md "dist/$APP_NAME/README.txt"', linux)
         self.assertIn('cp docs/install/macos.md "$STAGE/README.txt"', script)
         for name in ("windows", "macos", "linux"):
             with self.subTest(platform=name):
                 self.assertTrue((ROOT / "docs" / "install" / f"{name}.md").exists())
                 self.assertIn(f"docs/install/{name}.md)", flow)
+
+    def test_the_linux_docs_name_arch_for_ffmpeg(self):
+        # Marcel asked about Arch (Omarchy): the tar.gz runs there, only the
+        # docs named apt and dnf alone.
+        guide = (ROOT / "docs" / "install" / "linux.md").read_text(encoding="utf-8")
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertEqual(guide.count("sudo pacman -S ffmpeg"), 2)  # English, German
+        self.assertIn("sudo pacman -S ffmpeg", readme)
 
 
 if __name__ == "__main__":

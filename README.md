@@ -18,22 +18,24 @@ a dancesport tournament or a dance party from the music desk.
   heat or a party list is run with.
 
 The user interface is in English and German, with a light and a dark theme.
-Windows is the main platform; a macOS `.app` can be built on a Mac.
+It runs on Windows, macOS and Linux. Windows is the main platform, the one the
+player is used on at events; the macOS and Linux builds are newer and less
+tested.
 
 ![The player](docs/manual/img/main-playing.png)
 
 ## Download
 
-Ready-to-run builds are the artifacts of the
-[build-player](../../actions/workflows/build-player.yml) workflow runs
-(downloading them needs a GitHub login):
+Ready-to-run builds are on the [Releases](../../releases/latest) page, one
+download per platform:
 
-- **DanceSport-Player-windows**: unzip the folder and start
+- **DanceSport-Player-…-windows.zip**: unzip the folder and start
   `DanceSport-Player.exe`. ffmpeg is bundled.
-- **DanceSport-Player-macos**: the `.dmg` of the `.app`, signed ad hoc.
-  ffmpeg is not bundled there: `brew install ffmpeg`.
-- **DanceSport-Player-linux**: a tar.gz of the folder, built on Ubuntu 22.04 and
-  untested on a desktop. ffmpeg is not bundled: `sudo apt install ffmpeg`.
+- **DanceSport-Player-…-macos.dmg**: drag the app onto Applications. Signed ad
+  hoc, not notarized. ffmpeg is not bundled there: `brew install ffmpeg`.
+- **DanceSport-Player-…-linux.tar.gz**: unpack the folder and start
+  `DanceSport-Player`. Built on Ubuntu 22.04. ffmpeg is not bundled:
+  `sudo apt install ffmpeg` (Arch: `sudo pacman -S ffmpeg`).
 
 How to install and open each one, including the first start past SmartScreen
 and Gatekeeper: [Windows](docs/install/windows.md), [macOS](docs/install/macos.md),
@@ -43,8 +45,10 @@ and Gatekeeper: [Windows](docs/install/windows.md), [macOS](docs/install/macos.m
 
 - **Python 3.14 or newer.** The code relies on PEP 649 lazy annotations.
 - **ffmpeg** for MP3 decoding, loudness and silence detection. Put it on `PATH`
-  (`winget install Gyan.FFmpeg` on Windows) or place the extracted build in an
-  `ffmpeg*` folder next to the app.
+  (`winget install Gyan.FFmpeg` on Windows, `brew install ffmpeg` on macOS,
+  `sudo apt install ffmpeg` on Debian/Ubuntu, `sudo pacman -S ffmpeg` on Arch)
+  or, on Windows, place the
+  extracted build in an `ffmpeg*` folder next to the app.
 
 ```powershell
 git clone <repo-url> dancesport-player
@@ -52,6 +56,14 @@ cd dancesport-player
 py -3.14 -m venv .venv
 .venv\Scripts\pip install -r requirements-player.txt
 .venv\Scripts\python.exe dancesport_gui.py
+```
+
+On macOS and Linux:
+
+```sh
+python3.14 -m venv .venv
+.venv/bin/pip install -r requirements-player.txt
+.venv/bin/python dancesport_gui.py
 ```
 
 On first start the app asks how you want to use it; pick **Player only**.
@@ -63,7 +75,12 @@ the floor.
 ## Building the app
 
 See [BUILD.md](BUILD.md): `build_player.bat` builds the player as a PyInstaller
-one-folder app on Windows, `./build_app.sh player` a `.app` bundle on macOS.
+one-folder app on Windows, `./build_app.sh player` a `.app` bundle on macOS
+and `./build_linux.sh player` a one-folder app on Linux (`./build_linux.sh
+player tar` packs it as a tar.gz as well).
+
+The [build-player](.github/workflows/build-player.yml) workflow builds all three
+and publishes them as a release for every `v*` tag.
 
 ## Development
 
