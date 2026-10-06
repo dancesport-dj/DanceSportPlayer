@@ -27,14 +27,15 @@ tested.
 ## Download
 
 Ready-to-run builds are on the [Releases](../../releases/latest) page, one
-download per platform:
+download per platform (two for Linux):
 
 - **DanceSport-Player-…-windows.zip**: unzip the folder and start
   `DanceSport-Player.exe`. ffmpeg is bundled.
 - **DanceSport-Player-…-macos.dmg**: drag the app onto Applications. Signed ad
   hoc, not notarized. ffmpeg is not bundled there: `brew install ffmpeg`.
-- **DanceSport-Player-…-linux.tar.gz**: unpack the folder and start
-  `DanceSport-Player`. Built on Ubuntu 22.04. ffmpeg is not bundled:
+- **DanceSport-Player-…-linux-x86_64.tar.gz** (Intel/AMD PCs) or
+  **…-linux-arm64.tar.gz** (ARM, e.g. Asahi Linux): unpack the folder and start
+  `DanceSport-Player`. Built on Ubuntu 22.04 and 24.04. ffmpeg is not bundled:
   `sudo apt install ffmpeg` (Arch: `sudo pacman -S ffmpeg`).
 
 How to install and open each one, including the first start past SmartScreen

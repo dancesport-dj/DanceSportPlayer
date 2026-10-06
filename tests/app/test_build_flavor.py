@@ -186,8 +186,24 @@ class LinuxPackTest(unittest.TestCase):
     def test_the_tar_carries_the_install_guide(self):
         self.assertIn('cp docs/install/linux.md "dist/$APP_NAME/README.txt"',
                       self.script)
-        self.assertIn('tar -czf "dist/$APP_NAME-linux.tar.gz" -C dist "$APP_NAME"',
+        self.assertIn('tar -czf "dist/$APP_NAME-linux-$ARCH.tar.gz" -C dist "$APP_NAME"',
                       self.script)
+
+    def test_the_tar_names_its_architecture(self):
+        # Marcel's Omarchy machine is ARM: box64 ran the x86_64 build and died
+        # on sqlite. The name says which machine a download is for, in the
+        # word the release uses (arm64, not uname's aarch64).
+        self.assertIn('ARCH=$(uname -m)', self.script)
+        self.assertIn('[ "$ARCH" = aarch64 ] && ARCH=arm64', self.script)
+
+    def test_ci_builds_x86_64_and_arm64(self):
+        # PySide6's aarch64 wheels need glibc 2.39, so ARM builds on 24.04;
+        # x86_64 stays on 22.04 for the older glibc.
+        self.assertIn("- arch: x86_64\n            runner: ubuntu-22.04", self.job)
+        self.assertIn("- arch: arm64\n            runner: ubuntu-24.04-arm", self.job)
+        self.assertIn("runs-on: ${{ matrix.runner }}", self.job)
+        self.assertIn("path: dist/DanceSport-Player-linux-${{ matrix.arch }}.tar.gz",
+                      self.job)
 
     def test_the_tar_is_packed_before_the_test_start(self):
         # The v1.0.1 tar.gz shipped the CI run's gui_settings.json,

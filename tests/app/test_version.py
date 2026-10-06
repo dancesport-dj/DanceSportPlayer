@@ -148,7 +148,8 @@ class BuildWiringTest(unittest.TestCase):
         self.assertNotIn("DanceSport-Player-$TAG-", flow)
         self.assertIn('"DanceSport-Player-$VERSION-windows.zip"', flow)
         self.assertIn('"DanceSport-Player-$VERSION-macos.dmg"', flow)
-        self.assertIn('"DanceSport-Player-$VERSION-linux.tar.gz"', flow)
+        self.assertIn('"DanceSport-Player-$VERSION-linux-x86_64.tar.gz"', flow)
+        self.assertIn('"DanceSport-Player-$VERSION-linux-arm64.tar.gz"', flow)
         self.assertIn('--title "DanceSport Player $VERSION"', flow)
 
     def test_every_download_says_how_to_install_it(self):

@@ -3,11 +3,12 @@
 #   ./build_linux.sh            -> lite (dist/DanceSport-Planner-Player)
 #   ./build_linux.sh full       -> full (dist/DanceSport-Planner-Player-Full, + Demucs)
 #   ./build_linux.sh player     -> player (dist/DanceSport-Player, no analysis stack)
-#   ./build_linux.sh player tar -> also dist/DanceSport-Player-linux.tar.gz to hand around
+#   ./build_linux.sh player tar -> also dist/DanceSport-Player-linux-x86_64.tar.gz to hand around
+#                                  (-linux-arm64.tar.gz on an ARM machine)
 #
 # Run this ON Linux: PyInstaller does not cross-build. The result runs on every
 # distribution whose glibc is at least as new as this machine's, so build on an
-# old one (CI uses Ubuntu 22.04). See BUILD.md for the system libraries Qt
+# old one (CI uses Ubuntu 22.04, and 24.04 for ARM). See BUILD.md for the system libraries Qt
 # needs on the build machine.
 set -e
 cd "$(dirname "$0")"
@@ -66,8 +67,12 @@ if [ "$2" = "tar" ] || [ "$1" = "tar" ]; then
     if [ "$DANCESPORT_BUILD" = "player" ]; then
         cp docs/install/linux.md "dist/$APP_NAME/README.txt"
     fi
-    tar -czf "dist/$APP_NAME-linux.tar.gz" -C dist "$APP_NAME"
-    echo "Packed dist/$APP_NAME-linux.tar.gz"
+    # The name says which machines it runs on: a build runs only on its own
+    # architecture, and box64 on an ARM machine does not get it to start.
+    ARCH=$(uname -m)
+    [ "$ARCH" = aarch64 ] && ARCH=arm64
+    tar -czf "dist/$APP_NAME-linux-$ARCH.tar.gz" -C dist "$APP_NAME"
+    echo "Packed dist/$APP_NAME-linux-$ARCH.tar.gz"
 fi
 
 echo "Built dist/$APP_NAME"

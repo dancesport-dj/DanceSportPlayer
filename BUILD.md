@@ -84,7 +84,7 @@ sudo apt install libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
 python3.14 -m venv .venv
 .venv/bin/pip install -r requirements-player.txt pyinstaller
 ./build_linux.sh player        # dist/DanceSport-Player
-./build_linux.sh player tar    # plus dist/DanceSport-Player-linux.tar.gz
+./build_linux.sh player tar    # plus dist/DanceSport-Player-linux-x86_64.tar.gz
 ./build_linux.sh               # lite / full like build_app.sh, not tried yet
 ```
 
@@ -92,10 +92,12 @@ The libraries are what Qt's X11 platform plugin and its audio output link
 against; PyInstaller bundles them from the build machine. Output is
 `dist/DanceSport-Player/` with the executable `DanceSport-Player` inside. `tar`
 packs it with the install guide as `README.txt`; a tar keeps the executable
-bit, which a zip drops. Pack before starting it: a start writes its settings
-and logs next to the executable. The build runs on
+bit, which a zip drops. Its name carries the machine's architecture (`x86_64`,
+or `arm64` for uname's `aarch64`): a build runs only on its own. Pack before
+starting it: a start writes its settings and logs next to the executable. The build runs on
 every distribution whose glibc is at least as new as the build machine's, so
-build on an old one (CI uses Ubuntu 22.04). ffmpeg is not bundled:
+build on an old one (CI uses Ubuntu 22.04, and 24.04 for ARM, whose PySide6
+wheels need glibc 2.39). ffmpeg is not bundled:
 `sudo apt install ffmpeg`. How users install and start it:
 [docs/install/linux.md](docs/install/linux.md).
 
@@ -113,15 +115,16 @@ build_player.bat            rem or: build_exe.bat player
 GitHub builds all three as well: `.github/workflows/build-player.yml`,
 started by hand (*Run workflow*) or by pushing a `v*` tag. It runs the same three
 scripts, fetches ffmpeg 9.0.2 for the Windows folder and passes the
-`DANCEPLAYLIST_ERROR_DSN` secret. Linux builds on `ubuntu-22.04` (the oldest
-glibc on offer, so the build runs on more distributions), packs the tar.gz and
-then starts the result once offscreen. ffmpeg is not bundled there. The Windows folder,
-the macOS `.dmg` and the Linux tar.gz are the run's artifacts. A `v*` tag also
-publishes them as that tag's GitHub release (`DanceSport-Player-1.2.0-windows.zip`,
-`…-macos.dmg` and `…-linux.tar.gz` for the tag `v1.2.0`, so the names carry no
-v either), with the tagged commit's message as the release text.
+`DANCEPLAYLIST_ERROR_DSN` secret. Linux builds twice: x86_64 on `ubuntu-22.04`
+(the oldest glibc on offer, so the build runs on more distributions) and arm64
+on `ubuntu-24.04-arm`; each packs its tar.gz and then starts the result once
+offscreen. ffmpeg is not bundled there. The Windows folder, the macOS `.dmg` and
+the two Linux tar.gz are the run's artifacts. A `v*` tag also publishes them as
+that tag's GitHub release (`DanceSport-Player-1.2.0-windows.zip`, `…-macos.dmg`,
+`…-linux-x86_64.tar.gz` and `…-linux-arm64.tar.gz` for the tag `v1.2.0`, so the
+names carry no v either), with the tagged commit's message as the release text.
 
-The version number is `VERSION` in `planner/version.py` (`1.0.1`), and a build
+The version number is `VERSION` in `planner/version.py` (`1.0.2`), and a build
 without a tag gets it. A `v*` tag overrides it, so name the tag
 `vMAJOR.MINOR.PATCH` (`v1.2.0`); the app in the release then says `1.2.0`, the
 tag without its v. Keep `VERSION` in step after a release, so desk builds carry

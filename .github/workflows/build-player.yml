@@ -1,7 +1,7 @@
 name: build-player
 
 # The player flavor as a download: the Windows folder (with ffmpeg.exe next to
-# the .exe), the macOS .dmg and a Linux tar.gz. All three go through the same
+# the .exe), the macOS .dmg and a Linux tar.gz for x86_64 and arm64. All go through the same
 # scripts as a local build (build_exe.bat, build_app.sh, build_linux.sh), so CI
 # and a desk build cannot drift apart. Started by hand, the results are the run's artifacts; started by a
 # version tag, they are published as that tag's GitHub release as well.
@@ -94,8 +94,16 @@ jobs:
 
   linux:
     # The oldest runner on offer: the build runs on every distribution whose
-    # glibc is at least as new as the one it was built against.
-    runs-on: ubuntu-22.04
+    # glibc is at least as new as the one it was built against. ARM needs
+    # 24.04: PySide6's aarch64 wheels want glibc 2.39.
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-22.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v7
 
@@ -142,8 +150,8 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: DanceSport-Player-linux
-          path: dist/DanceSport-Player-linux.tar.gz
+          name: DanceSport-Player-linux-${{ matrix.arch }}
+          path: dist/DanceSport-Player-linux-${{ matrix.arch }}.tar.gz
           if-no-files-found: error
 
   release:
@@ -176,7 +184,10 @@ jobs:
           cp docs/install/windows.md artifacts/DanceSport-Player/README.txt
           (cd artifacts && zip -qr "../DanceSport-Player-$VERSION-windows.zip" DanceSport-Player)
           mv artifacts/DanceSport-Player-macos/DanceSport-Player.dmg "DanceSport-Player-$VERSION-macos.dmg"
-          mv artifacts/DanceSport-Player-linux/DanceSport-Player-linux.tar.gz "DanceSport-Player-$VERSION-linux.tar.gz"
+          for ARCH in x86_64 arm64; do
+            mv "artifacts/DanceSport-Player-linux-$ARCH/DanceSport-Player-linux-$ARCH.tar.gz" \
+               "DanceSport-Player-$VERSION-linux-$ARCH.tar.gz"
+          done
           git log -1 --format=%b "$TAG" | sed '/^Source: /d' > notes.md
           # Each download carries its own README.txt; the page links all three.
           GUIDES="https://github.com/$GITHUB_REPOSITORY/blob/$TAG"
@@ -190,5 +201,6 @@ jobs:
           } >> notes.md
           gh release create "$TAG" \
             "DanceSport-Player-$VERSION-windows.zip" "DanceSport-Player-$VERSION-macos.dmg" \
-            "DanceSport-Player-$VERSION-linux.tar.gz" \
+            "DanceSport-Player-$VERSION-linux-x86_64.tar.gz" \
+            "DanceSport-Player-$VERSION-linux-arm64.tar.gz" \
             --title "DanceSport Player $VERSION" --notes-file notes.md

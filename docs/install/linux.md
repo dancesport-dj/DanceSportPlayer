@@ -2,15 +2,17 @@
 
 (Deutsch: siehe unten.)
 
-For 64-bit PCs (x86_64). Built on Ubuntu 22.04, so it runs on distributions at
-least that new. This build has not been tried on a Linux desktop yet; reports
-are welcome.
+Two downloads: `…-linux-x86_64.tar.gz` for 64-bit PCs (Intel, AMD), built on
+Ubuntu 22.04, and `…-linux-arm64.tar.gz` for ARM machines (e.g. Asahi Linux on
+an Apple Mac), built on Ubuntu 24.04. Each runs on distributions at least that
+new. `uname -m` says which one you need: `x86_64` or `aarch64`. These builds
+have not been tried on a Linux desktop yet; reports are welcome.
 
 ## Install
 
 1. Unpack the download, in the file manager or in a terminal:
 
-       tar -xzf DanceSport-Player-*-linux.tar.gz
+       tar -xzf DanceSport-Player-*-linux-*.tar.gz
 
 2. Start the app:
 
@@ -37,15 +39,18 @@ Xfce, Cinnamon and MATE have one.
 
 # DanceSport Player für Linux
 
-Für 64-Bit-PCs (x86_64). Gebaut unter Ubuntu 22.04, läuft also auf
-Distributionen, die mindestens so neu sind. Auf einem Linux-Desktop ist dieser
-Build noch nicht ausprobiert; Rückmeldungen sind willkommen.
+Zwei Downloads: `…-linux-x86_64.tar.gz` für 64-Bit-PCs (Intel, AMD), gebaut
+unter Ubuntu 22.04, und `…-linux-arm64.tar.gz` für ARM-Rechner (z. B. Asahi
+Linux auf einem Apple-Mac), gebaut unter Ubuntu 24.04. Beide laufen auf
+Distributionen, die mindestens so neu sind. `uname -m` sagt, welchen du
+brauchst: `x86_64` oder `aarch64`. Auf einem Linux-Desktop sind diese
+Builds noch nicht ausprobiert; Rückmeldungen sind willkommen.
 
 ## Installieren
 
 1. Den Download entpacken, im Dateimanager oder im Terminal:
 
-       tar -xzf DanceSport-Player-*-linux.tar.gz
+       tar -xzf DanceSport-Player-*-linux-*.tar.gz
 
 2. Die App starten:
 
