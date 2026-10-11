@@ -119,13 +119,6 @@ class AnnounceSecsTest(_ClipRoot):
                 _measure(self.clip(gender, name), 0, 1000)
         self.assertAlmostEqual(announce_secs("LW", now=True, root=self.root), 1.0)
 
-    def test_the_takt_hands_it_to_the_synthesiser_whose_length_is_unknown(self):
-        # No clip exists for a tempo, so the whole sentence is read by Windows
-        # and nothing here can time it. 0 = "don't know", not "instant".
-        for name in ("next_dance", "LW"):
-            _measure(self.clip("female", name), 0, 1000)
-        self.assertEqual(announce_secs("LW", takt=29, root=self.root), 0.0)
-
     def test_a_dance_never_recorded_is_not_ours_to_time_either(self):
         self.assertEqual(announce_secs("QS", root=self.root), 0.0)
 
@@ -134,12 +127,8 @@ class AnnounceSecsTest(_ClipRoot):
 
 
 class _Panel:
-    def __init__(self, takt=False, heat=True):
-        self._takt = takt
+    def __init__(self, heat=True):
         self._heat = heat
-
-    def announce_takt(self):
-        return self._takt
 
     def announce_heat(self):
         return self._heat
@@ -199,10 +188,9 @@ class AnnounceLeadTest(_ClipRoot):
             _ANNOUNCE_TAIL)
 
     def test_an_unmeasurable_announcement_falls_back_to_the_fixed_lead(self):
-        # With the takt asked for, Windows reads the whole sentence and nothing
-        # here can time it — the settled lead is all there is to go on.
-        self.win._play_panel = _Panel(takt=True)
-        self.win._between.pending = (_Deck("LW", bpm=29), 0, "x.mp3")
+        # A dance never recorded has no clip to time — the settled lead is all
+        # there is to go on.
+        self.win._between.pending = (_Deck("QS"), 0, "x.mp3")
         self.assertAlmostEqual(self.win._announce_lead(), _ANNOUNCE_LEAD)
 
     def test_nothing_queued_still_answers(self):

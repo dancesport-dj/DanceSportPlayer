@@ -12,6 +12,7 @@ words; a German screen keeps them as they are.
 """
 
 import unittest
+from unittest import mock
 
 from planner import i18n, terms
 
@@ -48,6 +49,22 @@ class HallLanguageTest(TermsTestBase):
     def test_a_german_screen_shows_the_hall_german(self):
         self.german()
         self.assertEqual(terms.hall_language(), "de")
+
+
+class PracticeNameTest(TermsTestBase):
+    """What a 🤸 practice list is called, on its deck and in its saved file."""
+
+    def test_english_calls_it_practice(self):
+        self.english()
+        self.assertEqual(terms.practice_name(), "Practice")
+
+    def test_the_german_terms_switch_keeps_eintanzen(self):
+        self.english(german_terms=True)
+        self.assertEqual(terms.practice_name(), "Eintanzen")
+
+    def test_a_german_screen_says_eintanzen(self):
+        self.german()
+        self.assertEqual(terms.practice_name(), "Eintanzen")
 
 
 class DanceNameTest(TermsTestBase):
@@ -168,6 +185,26 @@ class RoundNameTest(TermsTestBase):
         self.german()
         self.assertEqual(terms.round_name("Semifinale"), "Semifinale")
 
+
+
+class OtherLanguageTest(TermsTestBase):
+    """A Spanish, Dutch or Russian screen names the dances the way the
+    international floor does — in English — not in the German of the data."""
+
+    def test_a_non_german_screen_takes_the_english_names(self):
+        terms.apply_settings({})
+        for lang in ("es", "nl", "ru"):
+            with self.subTest(lang=lang),                     mock.patch.object(i18n, "active_language", return_value=lang):
+                self.assertTrue(terms.english())
+                self.assertEqual(terms.dance_name("LW"), "Slow Waltz")
+                self.assertEqual(terms.round_name("Vorrunde"), "Round 1")
+                self.assertEqual(terms.hall_language(), lang)
+
+    def test_the_german_terms_switch_still_keeps_the_german_words(self):
+        terms.apply_settings({"german_dance_terms": True})
+        with mock.patch.object(i18n, "active_language", return_value="es"):
+            self.assertFalse(terms.english())
+            self.assertEqual(terms.hall_language(), "de")
 
 if __name__ == "__main__":
     unittest.main()

@@ -48,8 +48,9 @@ log = logging.getLogger("dancesport.gui")
 # ten says the floor has really danced it.
 _PROVEN_MIN_PLAYS = 10
 
-# 🎛 First-run width of the cartwall dock (_restore_layout applies it).
-CART_DOCK_W = 620
+# 🎛 First-run width of the cartwall dock, as a share of the window
+# (_restore_layout applies it): a quarter leaves the decks the room.
+CART_DOCK_SHARE = 0.25
 
 
 def _sanitize_filename(name: str) -> str:

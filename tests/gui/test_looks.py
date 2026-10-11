@@ -17,11 +17,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_looks_"))
 
-from PySide6.QtWidgets import QApplication, QLabel  # noqa: E402
+from PySide6.QtWidgets import QApplication, QLabel
 
-from planner import lang_de  # noqa: E402
-from shared import looks, theme  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from planner import lang_de
+from shared import looks, theme
+from tests.qt_test_support import reap_widget
 
 
 class LookDataTest(unittest.TestCase):

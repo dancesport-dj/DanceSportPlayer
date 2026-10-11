@@ -15,15 +15,15 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_timetable_"))
 
-from PySide6.QtCore import QTime  # noqa: E402
+from PySide6.QtCore import QTime
 
-from player.presenter_theme import (  # noqa: E402
+from player.presenter_theme import (
     DEFAULT_KEY,
     THEMES,
     logo_paths,
     theme_for,
 )
-from player.timetable import (  # noqa: E402
+from player.timetable import (
     DEFAULT_ROTATE_SECS,
     DEFAULT_TITLE,
     MAX_ROTATE_SECS,
@@ -34,7 +34,7 @@ from player.timetable import (  # noqa: E402
     offset_for,
     save_timetable,
 )
-from tests.qt_test_support import reap_widget   # noqa: E402
+from tests.qt_test_support import reap_widget
 
 
 def _app():

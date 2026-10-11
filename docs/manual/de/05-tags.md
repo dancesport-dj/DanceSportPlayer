@@ -25,6 +25,8 @@ klickst du in die Markierung, heißt der Eintrag
 
 ## Der Reiter Tags
 
+![Der Tag-Editor, Reiter Tags](../img/tag-editor.png)
+
 ### In der MP3-Datei
 
 Ein Formular wie bei Mp3tag: **Titel, Interpret, Album, Jahr, Track, Genre,

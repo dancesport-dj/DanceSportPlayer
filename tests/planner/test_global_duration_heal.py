@@ -20,10 +20,10 @@ from unittest import mock
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_gdur_state_"))
 
-import planner.db as pdb  # noqa: E402
-import planner.library as plib  # noqa: E402
-from planner.db import AudioCache, GlobalScanCache  # noqa: E402
-from planner.library import MusicLibrary  # noqa: E402
+import planner.db as pdb
+import planner.library as plib
+from planner.db import AudioCache, GlobalScanCache
+from planner.library import MusicLibrary
 
 
 class GlobalDurationHealTest(unittest.TestCase):
@@ -48,7 +48,7 @@ class GlobalDurationHealTest(unittest.TestCase):
             pass
         pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = self._saved
 
-    def _scan(self, secs):
+    def _scan(self, secs, whole_repo=True):
         probes = []
 
         def probe(path):
@@ -62,12 +62,15 @@ class GlobalDurationHealTest(unittest.TestCase):
         with mock.patch.object(plib, "_read_duration", probe), \
                 mock.patch.object(plib, "_read_tags_once", tags_once):
             lib.scan(AudioCache(), music_dir=self.root, skip_special=False, learn=False,
-                     analyze=False, global_cache=GlobalScanCache(), interactive=False)
+                     analyze=False, interactive=False,
+                     global_cache=GlobalScanCache() if whole_repo else None)
         return lib.entries[0], probes
 
     def test_a_reused_row_without_a_length_gets_one(self):
-        entry, _ = self._scan(0)                 # written with no length, like the old rows
+        entry, _ = self._scan(0)
         self.assertEqual(entry.duration, 0)
+        cache = GlobalScanCache()                # a row from before the duration column
+        cache.put(self.song, {**cache.get(self.song), "duration": 0})
         entry, _ = self._scan(185)
         self.assertEqual(entry.duration, 185)
         self.assertEqual(GlobalScanCache().get(self.song)["duration"], 185)
@@ -77,6 +80,27 @@ class GlobalDurationHealTest(unittest.TestCase):
         entry, probes = self._scan(999)
         self.assertEqual(entry.duration, 185)
         self.assertNotIn(self.song, probes)
+
+    # A header that gives no length was probed again on every start.
+    def test_a_file_without_a_length_is_probed_once(self):
+        self._scan(0, whole_repo=False)
+        entry, probes = self._scan(0, whole_repo=False)
+        self.assertEqual(entry.duration, 0)
+        self.assertNotIn(self.song, probes)
+
+    def test_nor_in_the_whole_repo_cache(self):
+        self._scan(0)
+        entry, probes = self._scan(0)
+        self.assertEqual(entry.duration, 0)
+        self.assertNotIn(self.song, probes)
+
+    def test_a_changed_file_is_probed_again(self):
+        self._scan(0, whole_repo=False)
+        self.song.write_bytes(b"a re-encoded file, longer than before")
+        later = self.song.stat().st_mtime + 60      # the fingerprint is cached per mtime
+        os.utime(self.song, (later, later))
+        entry, _ = self._scan(185, whole_repo=False)
+        self.assertEqual(entry.duration, 185)
 
 
 if __name__ == "__main__":

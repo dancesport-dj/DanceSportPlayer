@@ -30,14 +30,14 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_look_i18n_"))
 
-from PySide6.QtCore import Qt  # noqa: E402
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication
 
-from gui import dialogs  # noqa: E402
-from gui.dialogs import THEME_CHOICES, SettingsDialog  # noqa: E402
-from planner import i18n  # noqa: E402
-from shared import looks  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from gui import dialogs
+from gui.dialogs import THEME_CHOICES, SettingsDialog
+from planner import i18n
+from shared import looks
+from tests.qt_test_support import reap_widget
 
 
 class _Look(unittest.TestCase):

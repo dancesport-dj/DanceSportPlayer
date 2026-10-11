@@ -133,8 +133,7 @@ issue at <https://github.com/dancesport-dj/DanceSportPlayer/issues>.
 Run from source with the planning side (`requirements.txt`), two more things
 can go online: the optional AI suggestions send your request and the titles it
 is about to the AI service whose key you enter (OpenRouter by default), and the
-sound-search and vocal tools download their models on first use (CLAP from
-huggingface.co, Demucs from its publisher).
+vocal tool downloads its Demucs model from its publisher on first use.
 
 ## Built with AI
 

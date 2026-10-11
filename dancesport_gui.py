@@ -62,29 +62,40 @@ if sys.platform == "win32":
     os.environ["QT_MEDIA_BACKEND"] = "ffmpeg"   # alt. windows (WMF)
 
 import planner.config
+import planner.m3u
 # Before anything can start a child process (ffmpeg, gsettings, xdg-open).
 planner.config.restore_system_library_path()
 from planner.version import app_version
-from planner.db import AudioCache
+from planner.db import AudioCache, backup_safely
 from planner.library import MusicLibrary
 from planner.suggester import PlaylistSuggester
 
 log = logging.getLogger("dancesport.gui")
 
+def _without_gutter(menu: QMenu) -> QMenu:
+    """Entries start at the left edge: Fusion keeps a check/icon column even
+    when no entry has either. A look's own stylesheet already lays its menus
+    out, so it is left alone."""
+    if not QApplication.instance().styleSheet():
+        menu.setStyleSheet(
+            "QMenu::item { padding: 4px 24px 4px 8px; }"
+            "QMenu::item:selected { background: palette(highlight);"
+            " color: palette(highlighted-text); }")
+    return menu
+
 def exit_app(code: int):
     """Leave the process once the event loop has returned.
 
-    Normally a plain `sys.exit`. But destroying a QThread that is still running
-    aborts the process (0xC0000409), and interpreter teardown would destroy the
-    workers `adopt_running` holds — so while one runs, leave without tearing
-    anything down. Every save already ran in `closeEvent`; a worker's open
-    SQLite transaction rolls back as it would after a power cut."""
-    if orphans_running():
-        logging.shutdown()
-        sys.stdout.flush()
-        sys.stderr.flush()
-        os._exit(code)
-    sys.exit(code)
+    Without tearing anything down: every save already ran in `closeEvent`, and
+    the interpreter taking every Python and Qt object apart one by one cost
+    1.0-1.2 s of each quit (~0.2 s this way). It would also destroy the workers
+    `adopt_running` holds, and destroying a running QThread aborts the process
+    (0xC0000409). A worker's open SQLite transaction rolls back as it would
+    after a power cut."""
+    logging.shutdown()
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(code)
 
 
 # ── Shared GUI modules (light split) ─────────────────────────────────────────
@@ -96,12 +107,13 @@ from gui.workers import (
     SimilarFromFileWorker,
     LoudnessAnalyzer, PdHighlightAnalyzer,
     SilenceAnalyzer, VocalShareAnalyzer,
-    adopt_running, orphans_running,
+    adopt_running,
 )
 from shared.audio_probes import LoudnessWorker, PdHighlightWorker, SilenceWorker
 from shared.icons import counted_emoji
 from shared import error_reports, look_icons, theme, user_looks
-from planner import i18n, terms
+from planner import i18n, terms, venue_pack
+from planner.store import state_dir
 from gui.deck import Deck, DeckContext, DeckField
 from gui.undo_timeline import UndoTimeline
 from gui.shortcuts import show_shortcuts
@@ -138,23 +150,23 @@ from shared.stores import (
 # re-imported here so MainWindow and the smoke scripts keep using them unchanged.
 # === split re-exports ===
 
-from gui.playlist_table import (  # noqa: F401  (facade re-export)
+from gui.playlist_table import (  # facade re-export
     PlaylistTable,
 )
 
-from gui.config_panel import (  # noqa: F401  (facade re-export)
+from gui.config_panel import (  # facade re-export
     ConfigPanel,
 )
 
-from player.play_mode_panel import (  # noqa: F401  (facade re-export)
+from player.play_mode_panel import (  # facade re-export
     PlayModePanel,
 )
 
-from player.presenter import (  # noqa: F401  (facade re-export)
+from player.presenter import (  # facade re-export
     PresenterWindow,
 )
 
-from player.taskbar import (  # noqa: F401  (facade re-export)
+from player.taskbar import (  # facade re-export
     TaskbarPlayer,
 )
 
@@ -182,6 +194,7 @@ from player.audio_device import AudioDevice
 from player.playback_state import PlaybackState
 from player.between_dances import BetweenDances
 from player.pause_filler import PauseFiller
+from player.play_log_dialog import PlayLogDialog
 from player.system_sounds import SystemSoundGuard
 
 from player.player import (  # noqa: F401  (facade re-export)
@@ -204,6 +217,9 @@ from gui.main_persist import PersistenceMixin
 from player.main_player import PlayerControlMixin
 from gui.main_global import GlobalIndexMixin
 from player.main_cartwall import CartwallMixin
+from player.main_controller import ControllerMixin
+from player.main_remote import RemoteMixin
+from gui.main_fullscreen import FullscreenMixin
 
 
 class _ToolbarRow(QWidget):
@@ -226,7 +242,7 @@ class _ToolbarRow(QWidget):
         self._on_resize()
 
 
-class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, PersistenceMixin, PlayerControlMixin, GlobalIndexMixin, CartwallMixin):
+class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, PersistenceMixin, PlayerControlMixin, GlobalIndexMixin, CartwallMixin, RemoteMixin, ControllerMixin, FullscreenMixin):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("DanceSport Planner & Player")
@@ -258,6 +274,7 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         # folder BEFORE the library scan learns from it.
         if self._settings.get("playlist_dir"):
             planner.config.set_playlist_dir(self._settings["playlist_dir"])
+        planner.m3u.set_m3u_format(self._settings.get("m3u_format"))
         # Every open/add picker starts where the last one ended.
         set_browse_dir(self._settings.get("open_dir", ""),
                        self._remember_open_dir)
@@ -271,8 +288,24 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         self._allcache = None
         self._allcache_worker = None   # the probe step running inside it
 
+        # The scan needs nothing the window builds, so it runs while the window
+        # is built instead of after it.
+        self._setup_library_load()
         self.setWindowIcon(_app_icon())
+        self._setup_media_player()
+        self._setup_timed_play()
+        splitter = self._setup_left_panel()
+        right, rl, saved_cols, saved_widths = self._setup_decks()
+        self._setup_deck_toolbar(rl)
+        self._setup_deck_grids()
+        self._setup_lower_panes(rl, saved_cols, saved_widths)
+        self._setup_shortcuts()
+        self._setup_player_bar(right, rl, splitter)
+        # 🎛 Last: a press arriving at once must find the player and the wall.
+        self._init_controller()
 
+    def _setup_media_player(self):
+        """🎵 The media player, its voices and the volume around them."""
         # ── Media player ──
         # 🎵 The loaded title, its dance, the load token and the silence skipped
         # on it — read across the player, pause, Paso Doble and loudness parts.
@@ -357,6 +390,8 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
             self._device_watch.start()
         self._filler = PauseFiller()   # 🎵 the pause's filler titles and fade
 
+    def _setup_timed_play(self):
+        """▶ The timed-play engine's tick and the state of the running title."""
         # Timed-play engine (▶ Playing mode): a 200 ms tick drives the countdown,
         # the fade-out ramp and the end-of-play-length stop. Position-based, so
         # pausing/seeking behaves naturally.
@@ -461,6 +496,8 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
             self._preview.nextRequested.connect(lambda: self._preview_skip(+1))
             self._preview.duckToggled.connect(self._set_desk_duck)
 
+    def _setup_left_panel(self):
+        """📝/▶ The left side: config panel, mode switch and the Playing panel."""
         # ── Central layout ──
         central = QWidget()
         self.setCentralWidget(central)
@@ -507,7 +544,8 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
             self._big_player = BigPlayerWidget(
                 self._player, self._audio_out,
                 get_vol=lambda: self._mix.base,
-                set_vol=self._set_base_volume)
+                set_vol=self._set_base_volume,
+                cache_of=lambda: self._cache)
             self._player.playbackStateChanged.connect(self._on_playback_state)
             self._big_player.prevRequested.connect(lambda: self._preview_skip(-1))
             self._big_player.nextRequested.connect(self._on_player_next)
@@ -552,9 +590,18 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         QApplication.instance().screenAdded.connect(self._on_screen_added)
         self._play_panel.presenterThemeChanged.connect(self._theme_presenter)
         self._play_panel.timetableRequested.connect(self._edit_timetable)
+        self._play_panel.remoteRequested.connect(self.open_remote_window)
         # 🪟 ⏮ ⏯ ⏭ under the taskbar thumbnail on hover.
         self._taskbar: TaskbarPlayer | None = None
         self._init_taskbar()
+        # 📱 The phone remote: off at every launch, switched in its window.
+        # An older build saved Start / Stop in the settings — drop that.
+        self._settings.pop("phone_remote", None)
+        self._remote_wanted = False
+        self._remote = None
+        self._remote_timer = None
+        self._remote_bridge = None
+        self._remote_pad_keys = []
         # 🏆/🎉 lights: read off the controls, which the settings restored
         # a moment ago — so they need no memory of their own.
         self._refresh_set_lights()
@@ -562,9 +609,13 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         self._play_panel.tournamentSetRequested.connect(self._apply_tournament_set)
         # 🖼 Cover art on the player card, as the setting left it.
         self._play_panel.artworkToggled.connect(self._set_artwork_shown)
+        self._play_panel.waveformToggled.connect(self._set_waveform_shown)
+        self._play_panel.seekBarHiddenToggled.connect(self._set_seek_bar_hidden)
         self._play_panel.rememberToggled.connect(self._set_remember_pos)
         if self._big_player:
             self._big_player.set_artwork_enabled(self._play_panel.show_artwork())
+            self._big_player.set_waveform_enabled(self._play_panel.show_waveform())
+            self._big_player.set_seek_bar_hidden(self._play_panel.hide_seek_bar())
         self._pd_analyzer: PdHighlightAnalyzer | None = None
         left_box = QWidget()
         left_box.setMinimumWidth(250)
@@ -625,7 +676,10 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         self._left_stack.addWidget(self._play_scroll)
         ll.addWidget(self._left_stack, stretch=1)
         splitter.addWidget(left_box)
+        return splitter
 
+    def _setup_decks(self):
+        """The playlist, wishlist and day decks, and the columns each kind shows."""
         # Right: two playlist decks + wishlist + player bar
         right = QWidget()
         rl = QVBoxLayout(right)
@@ -736,7 +790,10 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
                     # After the hiding: a width for a column that is put away is
                     # kept for when it comes back, not a reason to show it.
                     t.set_column_widths(widths)
+        return right, rl, saved_cols, saved_widths
 
+    def _setup_deck_toolbar(self, rl):
+        """The toolbar above the decks: collapse, view cycles, actions."""
         # Collapse / expand + dual-view toggle toolbar above the decks.
         coll_bar = QHBoxLayout()
         coll_bar.setContentsMargins(0, 0, 0, 0)
@@ -775,23 +832,14 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
             "Empty every playlist deck (wishlists are kept).\n"
             "Tip: Del on a deck's title clears just that one playlist;\n"
             "Del on a wishlist's title clears that wishlist.")
-        btn_dups = QPushButton("🔁  Check duplicates")
-        btn_dups.setToolTip(
-            "Scan the visible playlist deck(s) for songs that appear more than once,\n"
-            "then resolve each: keep the ones you want and replace the rest with a\n"
-            "similar track (chosen from the Similar-Tracks picker).")
-        btn_bpm = QPushButton("🎵  Check Music")
-        btn_bpm.setToolTip(
-            "Check every deck track for tournament problems:\n"
-            "• Tempo: filename label (T51 = takt/bars per minute, via the dance's\n"
-            "  meter) vs the tempo librosa measured — catches mislabeled files.\n"
-            "• TSO range: is the tempo inside the official per-dance takt range.\n"
-            "• Length: warns when a song is shorter than the 1:30–1:45 play time\n"
-            "  or longer than 4:00.\n"
-            "• Round structure: uneven dance counts in a round and final/semifinal\n"
-            "  heat-count deviations.\n"
-            "Suspects can be listened to, removed or replaced from the report.\n"
-            "Tempo/range checks need 🔬 Audio Analysis for the measured tempo.")
+        # One button for every check, its tools in a menu like ❔'s.
+        self._check_btn = QPushButton("🚦  Check ▾")
+        self._check_btn.setToolTip(
+            "🚦 Ready? — the pre-flight before the event, one traffic light per\n"
+            "check: missing files, loudness, silence probe, Paso Doble highlights,\n"
+            "duplicates and the music check, each with its fix.\n"
+            "The menu also opens 🔁 Check duplicates, 🎵 Check music and\n"
+            "🧭 Fix paths on their own.")
         btn_day = QPushButton("📅  Day plan")
         btn_day.setToolTip(
             "Plan a whole tournament day: define the day's competitions\n"
@@ -801,20 +849,15 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
             "competitions stack several per deck. All share one no-repeat\n"
             "pool, so a song never appears in two of the day's competitions\n"
             "(Paso excepted). Exports write one M3U per competition.")
-        btn_warmup = QPushButton("🤸  Eintanzen / Party")
+        btn_warmup = QPushButton("🤸  Practice / Party")
         self._warmup_gen_btn = btn_warmup   # caption follows the app mode
         btn_warmup.setToolTip(
             "Build a practice playlist into the focused deck:\n"
-            "• Eintanzen for a tournament class — the class's dances round-robin\n"
+            "• Practice for a tournament class — the class's dances round-robin\n"
             "  (e.g. Latin S: SA, CC, RB, PD, JI …), TSO-conform, popular + fresh.\n"
             "• Party — alternating 3-dance rounds across all dances.\n"
             "Draw from your ⭐ Favorites (unused tracks), the open wishlists\n"
             "or a chosen .m3u file.")
-        btn_fixpaths = QPushButton("🧭  Fix paths")
-        btn_fixpaths.setToolTip(
-            "Relocate broken track references in the visible deck(s) to matching\n"
-            "real files in the library — fixes moved folders / changed drive\n"
-            "letters after an import. Anything still unresolved is reported.")
         btn_print = QPushButton("🖨  Print")
         btn_print.setToolTip(
             "Export the focused playlist as a printable PDF\n"
@@ -836,7 +879,7 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
                i18n.t("Right click walks the cycle backwards.")]
         if eight:
             tip.append(i18n.t("8 splits into two tabs of four (Group A–D / Group E–H)."))
-        tip += [i18n.t("No-playlist hides every deck so the Eintanzen / wishlist / "
+        tip += [i18n.t("No-playlist hides every deck so the Practice / wishlist / "
                        "library panes take over."),
                 i18n.t("Two or more decks also reveal the wishlist below."),
                 i18n.t("Generate / Save / ↺ / play act on whichever deck has focus.")]
@@ -853,7 +896,7 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         self._compact_btn.setToolTip(
             "Cycle the playlist headers: full → 🗜 Compact (per-dance header rows\n"
             "hidden, each round lists its songs directly) → 🚫 No groups (round and\n"
-            "─── section headers dropped too, so the list — an Eintanzen / party\n"
+            "─── section headers dropped too, so the list — a Practice / party\n"
             "list above all — is one flat run of songs) → 🔢 Numbers (no groups,\n"
             "plus an Nb. column up front counting the titles).")
         for t in self._all_tables:
@@ -880,7 +923,7 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
             "Right click walks it backwards.\n"
             "Off hides it entirely, even with multiple decks.\n"
             "Double-click any deck/wishlist title to rename it.")
-        self._warmup_toggle_btn = QPushButton("🤸  Eintanzen / Party ▾")
+        self._warmup_toggle_btn = QPushButton("🤸  Practice / Party ▾")
         self._warmup_toggle_btn.setCheckable(True)
         # The two 🤸 buttons would be identical at icon size — keep the toggle's ▾
         # (a fixed icon caption, so a mode-driven relabel cannot drop it again).
@@ -904,8 +947,8 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
             "Drag its title bar to dock it left / right / below, or float it.")
         for b in (self._collapse_btn, self._fold_decks_btn,
                   btn_save_all, btn_bundle, self._save_state_btn, btn_clear_all,
-                  btn_dups, btn_bpm, btn_day, btn_warmup, btn_fixpaths, btn_print,
-                  self._dual_btn, self._compact_btn, self._dual_wish_btn,
+                  self._check_btn, btn_day, btn_warmup,
+                  btn_print, self._dual_btn, self._compact_btn, self._dual_wish_btn,
                   self._warmup_toggle_btn, self._lib_btn, self._cart_btn):
             b.setFixedHeight(24)
             b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -920,10 +963,8 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         btn_day.clicked.connect(self._plan_tournament_day)
         self._save_state_btn.clicked.connect(self._save_state_now)
         btn_clear_all.clicked.connect(self._clear_all_playlists)
-        btn_dups.clicked.connect(self._check_duplicates)
-        btn_bpm.clicked.connect(self._check_music)
+        self._check_btn.clicked.connect(self._show_check_menu)
         btn_warmup.clicked.connect(self._generate_warmup)
-        btn_fixpaths.clicked.connect(self._fix_deck_paths)
         btn_print.clicked.connect(self._print_running_order)
         # Left click steps the ring forward, right click back. A QPushButton has
         # no right-click signal of its own, so the context-menu request is it —
@@ -947,11 +988,9 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         coll_bar.addWidget(btn_bundle)
         coll_bar.addWidget(self._save_state_btn)
         coll_bar.addWidget(btn_clear_all)
-        coll_bar.addWidget(btn_dups)
-        coll_bar.addWidget(btn_bpm)
+        coll_bar.addWidget(self._check_btn)
         coll_bar.addWidget(btn_day)
         coll_bar.addWidget(btn_warmup)
-        coll_bar.addWidget(btn_fixpaths)
         coll_bar.addWidget(btn_print)
         coll_bar.addStretch(1)
         coll_bar.addWidget(self._dual_btn)
@@ -975,8 +1014,8 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         self._toolbar_btns = [
             self._collapse_btn, self._fold_decks_btn,
             btn_save_all, btn_bundle, self._save_state_btn, btn_clear_all,
-            btn_dups, btn_bpm, btn_day, btn_warmup, btn_fixpaths, btn_print,
-            self._dual_btn, self._compact_btn, self._dual_wish_btn,
+            self._check_btn, btn_day, btn_warmup,
+            btn_print, self._dual_btn, self._compact_btn, self._dual_wish_btn,
             self._warmup_toggle_btn, self._lib_btn, self._cart_btn,
         ]
         self._toolbar_icon_btns = [
@@ -985,8 +1024,8 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         # Toolbar actions that exist only for the planning side: they generate,
         # curate or check a playlist. Hidden in a player-only install
         # (_apply_app_mode); everything else here also serves a tournament.
-        self._planner_btns = [btn_bundle, btn_dups, btn_bpm, btn_day, btn_warmup,
-                              btn_fixpaths]
+        # 🚦 Check stays: its menu shrinks to Ready? instead (_check_menu).
+        self._planner_btns = [btn_bundle, btn_day, btn_warmup]
         # Hidden by the player-only BUILD rather than by player mode: 🖨 Print
         # renders through Qt6Pdf, which that build does not ship (see
         # dancesport.spec). In every other build it stays, player mode included.
@@ -1010,6 +1049,8 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
             QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         rl.addWidget(self._toolbar_widget)
 
+    def _setup_deck_grids(self):
+        """The deck headers, the 2×2 grids and the tab widget that holds them."""
         # Decks side-by-side (top) + wishlists (bottom), each under its own header.
         self._rename_edit = None   # active inline header editor (one at a time)
         self._rename_finish = None # teardown callback for the active inline editor
@@ -1176,6 +1217,8 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         # while watching the running heat, not instead of it.
         self._build_cartwall()
 
+    def _setup_lower_panes(self, rl, saved_cols, saved_widths):
+        """Wishlists, warm-up panel and library pane below the decks."""
         # The wishlist area is a horizontal splitter. In the default row layout it holds
         # the 4 wishlist boxes directly; in 2×2 grid mode (4 wishlists only) it instead
         # holds two vertical column splitters — wish 1/3 left, wish 2/4 right, mirroring
@@ -1274,6 +1317,8 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         self._panel_table = self._focused_table
         self._set_active_table(self._tableA)
 
+    def _setup_shortcuts(self):
+        """⌨ The window's keyboard shortcuts."""
         # Ctrl+S (STRG+S) — save the currently focused playlist/wishlist as M3U.
         self._save_sc = QShortcut(QKeySequence.StandardKey.Save, self)
         self._save_sc.activated.connect(self._save_focused)
@@ -1313,6 +1358,8 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         # F1 — shortcut cheat sheet (also via the ❔ toolbar button).
         self._help_sc = QShortcut(QKeySequence("F1"), self)
         self._help_sc.activated.connect(self._show_shortcuts)
+        # F11 — ⛶ fullscreen, with the clock in the status bar.
+        self._setup_fullscreen()
 
         # Ctrl+X (and Ctrl+W, which is what every other window on the desk
         # answers to) closes the active dialog — or, on the main window, the
@@ -1323,6 +1370,8 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         if app is not None:
             app.installEventFilter(self)
 
+    def _setup_player_bar(self, right, rl, splitter):
+        """Hints bar, player bar, undo/redo and the persisted dividers."""
         # Hints bar (between table and player) — hidden until there's something to say
         self._hints_lbl = QLabel("")
         self._hints_lbl.setWordWrap(True)
@@ -1405,10 +1454,17 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
 
         self.statusBar().showMessage("Loading library…")
 
+    def _setup_library_load(self):
+        """⏳ The loading dialog and the background library loader."""
         # ── Loading dialog (shown while the background thread scans files) ──
         self._loading_dlg = LoadingDialog(app_title(app_mode_of(self._settings)),
                                           f"Version {app_version()}")
         self._loading_dlg.setWindowModality(Qt.WindowModality.ApplicationModal)
+        # Painted now, before the window's own build keeps the GUI thread busy.
+        # This is the last event pump before app.exec(): the loader's signals
+        # are queued, and nothing may deliver them to a half-built window.
+        self._loading_dlg.show()
+        QApplication.processEvents()
 
         # ── Load library in background ──
         # Parented, so _stop_workers finds it: an unparented loader is nobody's
@@ -1420,7 +1476,6 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         self._loader.finished_ok.connect(self._on_library_loaded)
         self._loader.error.connect(self._on_library_error)
         self._loader.start()
-        self._loading_dlg.show()
 
     # ── App mode (planner / player / both) ──────────────────────────────────────
 
@@ -1736,6 +1791,9 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
 
     def closeEvent(self, event):
         """Save the working playlist and the window layout before quitting."""
+        if not self._may_quit():
+            event.ignore()
+            return
         self.save_on_quit()
         # Before the widgets go: the announcer's engine is a child of this
         # window and reports one last state change as it is torn down, and a
@@ -1747,21 +1805,27 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
             log_dlg.close()
         self._cartwall_shutdown()
         self._taskbar_shutdown()
+        self._stop_remote()
+        self._controller_shutdown()
         self._audio_device.hold_system_sounds(False)
         self._stop_workers()
+        # The start's backup is from before this session: write today's again,
+        # with the evening's plays, once nothing else is writing to the DB.
+        backup_safely(refresh=True)
         super().closeEvent(event)
 
     def _stop_workers(self):
         """Let every background worker finish before this window takes its
         children down with it. Qt aborts the process outright — no traceback,
         just 0xC0000409 — if a QThread is destroyed while it is still running,
-        and every play of an un-analyzed track arms a 🔇 silence probe."""
-        for worker in self.findChildren(QThread):
-            if not worker.isRunning():
-                continue
+        and every play of an un-analyzed track arms a 🔇 silence probe.
+        All are told to stop first, so their 5 s waits run side by side."""
+        running = [w for w in self.findChildren(QThread) if w.isRunning()]
+        for worker in running:
             cancel = getattr(worker, "cancel", None)
             if callable(cancel):
                 cancel()
+        for worker in running:
             if not worker.wait(5000):
                 log.warning("🧵 Worker would not stop at quit\n"
                             "worker: %s", type(worker).__name__)
@@ -1813,13 +1877,52 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         """F1 / ❔: the cheat sheet — see `gui.shortcuts`."""
         show_shortcuts(self)
 
+    def _check_menu(self) -> QMenu:
+        """🚦 Check: Ready? and, for the planning side, the tools it sums up."""
+        menu = _without_gutter(QMenu(self))
+        menu.setToolTipsVisible(True)
+        menu.addAction("🚦  Ready?", self._check_readiness).setToolTip(
+            "Pre-flight before the event, one traffic light per check — over every\n"
+            "deck that holds titles and the Practice list, each with its fix.\n"
+            "A heading in the report opens its full tool.")
+        if app_mode_of(self._settings) in ("planner", "both"):
+            menu.addSeparator()
+            menu.addAction("🔁  Check duplicates", self._check_duplicates).setToolTip(
+                "Scan the visible playlist deck(s) for songs that appear more than once,\n"
+                "then resolve each: keep the ones you want and replace the rest with a\n"
+                "similar track (chosen from the Similar-Tracks picker).")
+            menu.addAction("🎵  Check music", self._check_music).setToolTip(
+                "Check every deck track for tournament problems:\n"
+                "• Tempo: filename label (T51 = takt/bars per minute, via the dance's\n"
+                "  meter) vs the tempo librosa measured — catches mislabeled files.\n"
+                "• TSO range: is the tempo inside the official per-dance takt range.\n"
+                "• Length: warns when a song is shorter than the 1:30–1:45 play time\n"
+                "  or longer than 4:00.\n"
+                "• Round structure: uneven dance counts in a round and final/semifinal\n"
+                "  heat-count deviations.\n"
+                "Suspects can be listened to, removed or replaced from the report.\n"
+                "Tempo/range checks need 🔬 Audio Analysis for the measured tempo.")
+            menu.addAction("🧭  Fix paths", self._fix_deck_paths).setToolTip(
+                "Relocate broken track references in the visible deck(s) to matching\n"
+                "real files in the library — fixes moved folders / changed drive\n"
+                "letters after an import. Anything still unresolved is reported.")
+        return menu
+
+    def _show_check_menu(self):
+        btn = self._check_btn
+        self._check_menu().exec(btn.mapToGlobal(btn.rect().bottomLeft()))
+
     def _help_menu(self) -> QMenu:
-        menu = QMenu(self)
+        menu = _without_gutter(QMenu(self))
         menu.addAction("⌨  Keyboard shortcuts  (F1)", self._show_shortcuts)
         pdf = manual_pdf()
         if pdf:
             menu.addAction("📖  Manual", lambda: open_manual(pdf))
+        menu.addAction("📜  Played titles…", self._show_play_log)
         menu.addAction("ℹ  About…", self._show_about)
+        menu.addAction("⛶  Exit Fullscreen  (F11)" if self.isFullScreen()
+                       else "⛶  Fullscreen  (F11)",
+                       lambda: self.set_fullscreen(not self.isFullScreen()))
         return menu
 
     def _show_help_menu(self):
@@ -1830,6 +1933,10 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
     def _show_about(self):
         """ℹ About — see `gui.about`."""
         show_about(self, app_title(app_mode_of(self._settings)))
+
+    def _show_play_log(self):
+        """📜 Played titles — see `player.play_log_dialog`."""
+        PlayLogDialog(self).exec()
 
     def eventFilter(self, obj, event):
         """App-wide Ctrl+X / Ctrl+W → close the active dialog; on the main window it only
@@ -2140,6 +2247,10 @@ def run_gui():
 
     # Qt's own diagnostics into the same file — the multimedia backend reports
     # its failures through qWarning, where nothing was listening until now.
+    # No Qt debug category is switched on to feed it: the handler is Python, so
+    # it runs on the sender's thread, and a message from the FFmpeg renderer's
+    # thread while the GUI thread waits on that thread in QMediaPlayer.stop()
+    # deadlocks on the GIL (tests/player/test_audio_dropouts.py).
     def _qt_message(mode, _ctx, msg):
         log.log({QtMsgType.QtDebugMsg: logging.DEBUG,
                  QtMsgType.QtInfoMsg: logging.INFO,
@@ -2148,6 +2259,13 @@ def run_gui():
                  QtMsgType.QtFatalMsg: logging.CRITICAL}.get(mode, logging.INFO),
                 "🧩 Qt: %s", msg)
     qInstallMessageHandler(_qt_message)
+    # 📥 A venue pack imported in the last session takes over now — before the
+    # first read of the settings, and after the last window that could have
+    # written over them has closed.
+    try:
+        venue_pack.apply_pending(state_dir())
+    except Exception as exc:
+        log.error("⚠️ Venue pack could not be applied: %s", exc)
     # ⚙ Settings → 🔊 Audio backend overrides the platform default picked at the
     # top of this file. Here and nowhere later: Qt loads the backend plugin the
     # first time something plays and never reads the variable again — which is

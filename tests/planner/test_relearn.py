@@ -93,6 +93,20 @@ class RelearnPlaylistsTest(PlaylistDirTestBase):
         lib.relearn_playlists()
         self.assertEqual(lib.entries[0].popularity, 0)
 
+    def test_practice_playlists_in_every_language_stay_excluded(self):
+        # The 🤸 panel's list is saved under its name in the UI language.
+        for name in ("Practice Latin D", "Práctica Latin D", "Oefenen Latin D",
+                     "Практика Latin D"):
+            with self.subTest(name=name):
+                lib = self._lib_with_entry()
+                path = self._dir / f"{name}.m3u"
+                path.write_text(r"D:\export\Tanguera (TG 32).mp3", encoding="utf-8")
+                try:
+                    lib.relearn_playlists()
+                finally:
+                    path.unlink()
+                self.assertEqual(lib.entries[0].popularity, 0)
+
 
 class LearnPlaylistFoldersTest(PlaylistDirTestBase):
     """Tournament FOLDER trees (copied music, no .m3u) count like playlists."""
@@ -216,13 +230,16 @@ class PlaylistIndexCacheTest(PlaylistDirTestBase):
     def _lib(self) -> MusicLibrary:
         """A library whose `_m3u_keys` logs which playlists it actually opened."""
         lib = self._lib_with_entry()
-        real = lib._m3u_keys
+        reads = self.reads
 
-        def logging_keys(m3u):
-            self.reads.append(m3u.name)
-            return real(m3u)
+        class LoggingLibrary(type(lib)):
+            # A subclass, not an instance attr: the learn runs on a copy of
+            # the library, and the method must bind to that copy.
+            def _m3u_keys(self, m3u):
+                reads.append(m3u.name)
+                return super()._m3u_keys(m3u)
 
-        lib._m3u_keys = logging_keys            # instance attr shadows the method
+        lib.__class__ = LoggingLibrary
         return lib
 
     def _write(self, name: str, *lines: str):
@@ -498,6 +515,40 @@ class LateRoundTest(PlaylistDirTestBase):
         (self._dir / "Turnier A.m3u").unlink()
         lib.relearn_playlists()
         self.assertEqual(sum(self._finals(lib).values()), 0)
+
+
+class LearnOffTheLibraryTest(PlaylistDirTestBase):
+    """The worker half builds the index aside; the library only changes when the
+    GUI thread adopts it — so a Generate during Re-learn never sees a half-empty
+    index (the old one stays whole until the swap)."""
+
+    def test_learning_leaves_the_library_as_it_was(self):
+        (self._dir / "Turnier 2026 Hgr B TG.m3u").write_text(
+            r"D:\export\Tanguera (TG 32).mp3", encoding="utf-8")
+        lib = self._lib_with_entry()
+        index_before = lib._track_playlists
+        learned = lib.learn_playlist_index()
+        self.assertIs(lib._track_playlists, index_before)
+        self.assertEqual(dict(lib._track_playlists), {})
+        self.assertEqual(lib.entries[0].popularity, 0)
+
+        self.assertEqual(lib.adopt_playlist_index(learned), 1)
+        self.assertEqual(lib.entries[0].popularity, 1)
+        self.assertTrue(lib._track_playlists)
+
+    def test_the_old_index_stays_whole_while_learning(self):
+        m3u = self._dir / "Turnier 2026 Hgr B TG.m3u"
+        m3u.write_text(r"D:\export\Tanguera (TG 32).mp3", encoding="utf-8")
+        lib = self._lib_with_entry()
+        lib.relearn_playlists()
+        old = {k: set(v) for k, v in lib._track_playlists.items()}
+        m3u.unlink()
+        learned = lib.learn_playlist_index()
+        self.assertEqual({k: set(v) for k, v in lib._track_playlists.items()}, old)
+        self.assertEqual(lib.entries[0].popularity, 1)
+        lib.adopt_playlist_index(learned)
+        self.assertEqual(lib.entries[0].popularity, 0)
+        self.assertEqual(lib.entries[0].source_info, "")
 
 
 if __name__ == "__main__":

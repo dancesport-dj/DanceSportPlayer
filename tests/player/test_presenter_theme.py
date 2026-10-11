@@ -10,13 +10,13 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_prestheme_"))
 
-from player.presenter_theme import (  # noqa: E402
+from player.presenter_theme import (
     DEFAULT_KEY,
     THEMES,
     theme_choices,
     theme_for,
 )
-from tests.qt_test_support import reap_widget   # noqa: E402
+from tests.qt_test_support import reap_widget
 
 
 def _app():

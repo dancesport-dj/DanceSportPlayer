@@ -16,9 +16,9 @@ from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import QCoreApplication  # noqa: E402
+from PySide6.QtCore import QCoreApplication
 
-from gui.workers import ReferenceCleanWorker, adopt_running  # noqa: E402
+from gui.workers import ReferenceCleanWorker, adopt_running
 
 
 class _SlowCache:

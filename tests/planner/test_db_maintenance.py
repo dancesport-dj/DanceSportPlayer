@@ -18,11 +18,12 @@ import tempfile
 import threading
 import unittest
 from pathlib import Path
+from unittest import mock
 
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_maint_"))
 
-import planner.db as pdb  # noqa: E402
+import planner.db as pdb
 
 
 class MaintenanceTest(unittest.TestCase):
@@ -183,6 +184,45 @@ class MaintenanceTest(unittest.TestCase):
         self.assertGreater(res["size_before"], 0)
         self.assertGreater(res["size_after"], 0)
         self.assertIn("audio_fps", res["removed"])
+
+    # ── the orphan cleanup on its own ───────────────────────────────────────
+    def test_an_orphan_cleanup_that_fails_half_way_deletes_nothing(self):
+        """Each DELETE committed on its own, so an error after the files rows
+        went left their scan_meta and the rest behind, half cleaned."""
+        self._track("gone.mp3", "fp-dead", on_disk=False)
+        conn = self.conn
+
+        class Flaky:
+            def __getattr__(self, name):
+                return getattr(conn, name)
+
+            def executemany(self, sql, rows):
+                if "scan_meta" in sql:
+                    raise OSError("disk full")
+                return conn.executemany(sql, rows)
+
+        with mock.patch.object(pdb, "_db", return_value=Flaky()):
+            with self.assertRaises(OSError):
+                pdb.cleanup_orphans()
+        self.assertEqual(len(self._rows("files")), 1)
+        self.assertEqual(len(self._rows("fingerprints")), 1)
+
+    def test_the_drive_of_missing_files_is_checked_once(self):
+        for i in range(3):
+            self._track(f"gone{i}.mp3", f"fp{i}", on_disk=False)
+        anchor = Path(self.dir.anchor)
+        real_exists = Path.exists
+        anchor_checks = []
+
+        def exists(path, *a, **kw):
+            if path == anchor:
+                anchor_checks.append(path)
+            return real_exists(path, *a, **kw)
+
+        with mock.patch.object(Path, "exists", exists):
+            removed = pdb.cleanup_orphans()
+        self.assertEqual(removed["files"], 3)
+        self.assertEqual(len(anchor_checks), 1)
 
 
 if __name__ == "__main__":

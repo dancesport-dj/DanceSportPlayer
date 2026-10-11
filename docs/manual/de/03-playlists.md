@@ -45,9 +45,22 @@ Spaltenkopf blendet sie ein: **★** bewertet einen Titel mit einem Klick, und
 
 Zeilenfarben:
 
-- eine **orange** Zeile mit ❗ ist markiert, zum Beispiel als Titel, der
+- eine **orange** Zeile ist markiert, zum Beispiel als Titel, der
   später getauscht werden soll (**Strg + M**);
-- ein **roter Titel** mit ❗ zeigt auf eine Datei, die es nicht mehr gibt.
+- eine **hellrote** Zeile mit ❗ auf dem ▶ zeigt auf eine Datei, die es nicht
+  mehr gibt. Ist die Datei wieder da und läuft der Titel, verschwindet die
+  Markierung. Ein Titel, der sich nicht abspielen ließ, wird genauso rot, mit
+  dem Grund im Tooltip, siehe
+  [Kapitel 4](04-playing.md#ein-titel-der-nicht-spielt);
+- eine **fliederfarbene** Zeile mit **📌** vor dem Titel ist angeheftet.
+
+**📌 Einen Titel anheften.** Rechtsklick auf einen Titel einer Runde ▸
+**📌 Anheften — Titel beim Neuwürfeln der Runde behalten**. Wird die Runde
+oder ihr Tanz auf der Planerseite neu erzeugt, behält ein angehefteter Titel
+seinen Platz; das Neuwürfeln seiner eigenen Zeile meldet, dass er angeheftet
+ist, statt ihn zu ersetzen. **📌 Lösen** nimmt die Nadel wieder heraus.
+Angeheftetes wird mit dem Deck gespeichert und geht, wenn das Deck geleert
+wird.
 
 Die Leiste unter dem Deck zeigt die Zahl der Titel **Σ** und die
 Gesamtzeit. Ein Klick auf ▸ zeigt die Zahl pro Tanz. Der Schalter
@@ -111,13 +124,28 @@ Beim Import erkennt ein Deck Runden, Tänze und Gruppen von selbst, auch ein
 Finale mit zusätzlichen Ersatztiteln. Eine Wunschliste hängt die Titel als
 flache Liste an.
 
+### Das Playlist-Dateiformat
+
+Jede Playlist, die die App schreibt, ist UTF-8, so überleben Umlaute und
+Akzente. Das **Playlist-Dateiformat** unter ⚙ Einstellungen ▸ 📁 Pfade wählt
+eine von drei Formen:
+
+- **UTF-8 (.m3u)**: der Standard, den aktuelle Player lesen.
+- **UTF-8 mit BOM (.m3u)**: für ein älteres Windows-Programm, das `Ã¼` statt
+  `ü` zeigt.
+- **UTF-8 (.m3u8)**: dasselbe UTF-8, unter der Endung, die manche Player
+  erwarten.
+
+Speichern als M3U, 💾 Speichern und die Exporte folgen ihm alle. Die App liest
+alle drei wieder ein, und `.m3u8`-Dateien zählen auch für die Spalte **Pop**.
+
 ## Playlists von einem anderen PC
 
 Eine Playlist-Datei speichert den vollen Pfad jedes Titels. Wurde sie auf
 einem anderen PC geschrieben oder liegt die Musik inzwischen auf einem anderen
 Laufwerk, stimmen diese Pfade nicht. Der Player repariert sie beim Laden der
 Playlist, mit zwei Einstellungen unter
-[⚙ Einstellungen ▸ 📁 Pfade & Suche](01-getting-started.md#der-app-deine-musik-zeigen):
+[⚙ Einstellungen ▸ 📁 Pfade](01-getting-started.md#der-app-deine-musik-zeigen):
 
 - **Referenzpfad**: der Ordner, in dem die Musik auf *diesem* PC liegt;
 - **Suchordner**: weitere Orte zum Suchen, einer pro Zeile.
@@ -133,5 +161,10 @@ wurden und wie viele nicht zu finden waren; **Details anzeigen** listet jeden
 alten und neuen Pfad. Ein Titel, der nicht zu finden war, steht rot mit ❗
 da. Trag den Ordner, in dem er liegt, unter Suchordner ein und importiere die
 Playlist dann noch einmal.
+
+Vor dem Abend zählt **🚦 Prüfen ▸ 🚦 Bereit?** die Titel, die fehlen oder
+nicht unter dem Referenzpfad liegen. Sein Knopf **🧭 Pfade reparieren…**, in
+der Zeile 📁 Musikdateien, hängt die Decks auf die Kopien dort um, siehe
+[Kapitel 4](04-playing.md#-bereit-vor-dem-abend).
 
 Weiter: [Den Abend fahren](04-playing.md)

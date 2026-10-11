@@ -15,15 +15,15 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_cartui_"))
 
-from PySide6.QtCore import (  # noqa: E402
+from PySide6.QtCore import (
     QEvent, QMimeData, QPoint, QPointF, QUrl, Qt)
-from PySide6.QtGui import (  # noqa: E402
+from PySide6.QtGui import (
     QDropEvent, QKeyEvent, QKeySequence, QMouseEvent)
-from PySide6.QtWidgets import QApplication  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from PySide6.QtWidgets import QApplication
+from tests.qt_test_support import reap_widget
 
-from planner import cartwall as pc  # noqa: E402
-from player import cartwall as gc  # noqa: E402
+from planner import cartwall as pc
+from player import cartwall as gc
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -782,6 +782,18 @@ class EditLockTest(unittest.TestCase):
                         [pc.Page(pads={(0, 0): pc.CartPad(path=_SAMPLE)})])
         self.w._buttons[(0, 0, 0)].tapped.emit((0, 0, 0))
         self.assertEqual(seen, [(0, 0, 0)])
+
+    def test_the_phone_remote_fires_through_the_same_edit_gate(self):
+        seen = []
+        self.w.padClicked.connect(seen.append)
+        self.w.set_wall(pc.DEFAULT_GRID,
+                        [pc.Page(pads={(0, 0): pc.CartPad(path=_SAMPLE)})])
+        self.w.play_pad((0, 0, 0))
+        self.assertEqual(seen, [(0, 0, 0)])
+        self.w.set_edit(True)
+        self.w.play_pad((0, 0, 0))
+        self.assertEqual(seen, [(0, 0, 0)])
+        self.w.set_edit(False)
 
     def test_an_editable_wall_does_not_fire(self):
         """Building a wall must not set off every pad you touch."""

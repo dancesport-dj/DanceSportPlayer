@@ -18,13 +18,13 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_flashrows_"))
 
-import shiboken6  # noqa: E402
-from PySide6.QtGui import QColor  # noqa: E402
-from PySide6.QtTest import QTest  # noqa: E402
-from PySide6.QtWidgets import QApplication, QTableWidgetItem  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+import shiboken6
+from PySide6.QtGui import QColor
+from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QApplication, QTableWidgetItem
+from tests.qt_test_support import reap_widget
 
-from gui.playlist_table import PlaylistTable  # noqa: E402
+from gui.playlist_table import PlaylistTable
 
 _FLASH = QColor(255, 236, 160)
 

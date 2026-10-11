@@ -29,9 +29,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_allcache_i18n_"))
 
-from gui import main_allcache as mac  # noqa: E402
-from planner import i18n  # noqa: E402
-from planner.models import MusicEntry  # noqa: E402
+from gui import main_allcache as mac
+from planner import i18n
+from planner.models import MusicEntry
 
 
 def _entry(name, dance="SA"):
@@ -165,7 +165,7 @@ class PlanSkipNotesI18nTest(_I18nCase):
         self.assertEqual(self.plan("de", have_ffmpeg=False, have_librosa=False,
                                    have_openl3=False, have_chroma=False),
                          ["librosa-Audioanalyse (kein funktionierender Decoder)",
-                          "Lautheit + Stillen (kein ffmpeg)",
+                          "Lautheit + Stille (kein ffmpeg)",
                           "OpenL3 (nicht installiert)",
                           "Chroma (nicht installiert)"])
 
@@ -208,8 +208,8 @@ class ScopeQuestionI18nTest(_I18nCase):
                       self.ask("de"))
 
     def test_the_skip_note_speaks_german(self):
-        self.assertIn("Übersprungen: Lautheit + Stillen (kein ffmpeg)",
-                      self.ask("de", skipped=["Lautheit + Stillen (kein ffmpeg)"]))
+        self.assertIn("Übersprungen: Lautheit + Stille (kein ffmpeg)",
+                      self.ask("de", skipped=["Lautheit + Stille (kein ffmpeg)"]))
 
     def test_a_machine_that_can_build_nothing_says_so_in_german(self):
         self.assertIn("Auf diesem Rechner kann gerade nichts gebaut werden.",

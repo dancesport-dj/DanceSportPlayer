@@ -19,17 +19,17 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_simround_"))
 
-from PySide6.QtWidgets import QApplication, QWidget  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from PySide6.QtWidgets import QApplication, QWidget
+from tests.qt_test_support import reap_widget
 
-import gui.table_actions as table_actions  # noqa: E402
-from gui.playlist_table import PlaylistTable  # noqa: E402
-from gui.similar_dialog import SimilarTracksDialog  # noqa: E402
-from planner import config as planner_config  # noqa: E402
-from planner.library import MusicLibrary  # noqa: E402
-from planner.models import MusicEntry, RoundConfig  # noqa: E402
-from planner.parsing import _song_title_key  # noqa: E402
-from planner.suggester import PlaylistSuggester  # noqa: E402
+import gui.table_actions as table_actions
+from gui.playlist_table import PlaylistTable
+from gui.similar_dialog import SimilarTracksDialog
+from planner import config as planner_config
+from planner.library import MusicLibrary
+from planner.models import MusicEntry, RoundConfig
+from planner.parsing import _song_title_key
+from planner.suggester import PlaylistSuggester
 
 
 def _tango(i: int, name: str | None = None) -> MusicEntry:

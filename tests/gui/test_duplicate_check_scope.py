@@ -21,15 +21,15 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_dup_scope_"))
 
-from PySide6.QtWidgets import QApplication, QWidget  # noqa: E402
+from PySide6.QtWidgets import QApplication, QWidget
 
-from gui.main_decks import DeckLayoutMixin  # noqa: E402
-from gui.main_dupes import DuplicateCheckMixin  # noqa: E402
-from gui.playlist_table import PlaylistTable  # noqa: E402
-from planner.library import MusicLibrary  # noqa: E402
-from planner.models import MusicEntry, RoundConfig  # noqa: E402
-from planner.suggester import PlaylistSuggester  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from gui.main_decks import DeckLayoutMixin
+from gui.main_dupes import DuplicateCheckMixin
+from gui.playlist_table import PlaylistTable
+from planner.library import MusicLibrary
+from planner.models import MusicEntry, RoundConfig
+from planner.suggester import PlaylistSuggester
+from tests.qt_test_support import reap_widget
 
 
 def _waltz(name: str, folder: str = "standardcd") -> MusicEntry:

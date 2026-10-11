@@ -260,6 +260,7 @@ class RestoreMixin:
             round_skip_dances=round_skip_dances,
             round_ctx=round_ctx,
             marked={str(p) for p in (data.get("marked") or [])},
+            pinned={str(p) for p in (data.get("pinned") or [])},
         )
         self._cfg.save_btn.setEnabled(True)
         total = sum(1 for hl in playlist.values()

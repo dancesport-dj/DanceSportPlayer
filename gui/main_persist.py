@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
 from planner import i18n
 from planner.suggester import PlaylistSuggester
 from gui.common import (
-    CART_DOCK_W,
+    CART_DOCK_SHARE,
 )
 from shared.widgets import (
     _show_toast,
@@ -349,9 +349,9 @@ class PersistenceMixin(ExportMixin, UndoMixin, RestoreMixin):
                 log.debug("📐 Stored dock state rejected: %s", exc)
         else:
             # No saved layout: the wall may be dragged narrow, so Qt would open it
-            # at that floor next to a hungry central widget. Hand it a width a
-            # full 8-wide page is actually readable at.
-            self.resizeDocks([self._cart_dock], [CART_DOCK_W],
+            # at that floor next to a hungry central widget. Hand it a quarter
+            # of the window instead.
+            self.resizeDocks([self._cart_dock], [round(self.width() * CART_DOCK_SHARE)],
                              Qt.Orientation.Horizontal)
         self._cart_dock.setVisible(self._cartwall_shown)
         # Deck view + 2nd-wishlist toggle decide which dividers are even visible, so

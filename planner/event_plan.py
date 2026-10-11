@@ -28,7 +28,7 @@ from planner.competition import (
 from planner.config import PLAYLIST_DIR
 from planner.models import ALLOW_REPEAT, DEFAULT_DANCES, RoundConfig, rounds_from_pattern
 from planner.parsing import _song_title_keys, is_version, version_base_keys
-from planner.playlist_text import read_playlist_text
+from planner.playlist_text import playlist_files, read_playlist_text
 from planner.scoring import class_popularity, effective_popularity
 from planner.similarity import SoundAlike
 from planner.sound import sound_codes
@@ -121,7 +121,7 @@ def event_series_list(root: Path | None = None) -> list[tuple[str, str, int]]:
 def edition_lists(spec: CompetitionSpec, edition: Path) -> list[Path]:
     """The lists of one edition that were this competition."""
     out = []
-    for m3u in sorted(edition.rglob("*.m3u")):
+    for m3u in playlist_files(edition):
         if _is_superseded_playlist(m3u) or is_side_list(m3u.stem):
             continue
         if competition_matches_file(spec, m3u):

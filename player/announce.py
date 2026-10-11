@@ -12,15 +12,14 @@ the dance name are separate files, played back to back with a breath between —
 so the same pieces serve the pause cue and the over-the-music one. A dance with
 no clip is not announced: the Windows synthesiser is no stand-in for the
 recordings (Marcel: "it is really bad"), and an announcement that can't be
-made must never break playback. The synthesiser only still reads the takt,
-which has no clips.
+made must never break playback. The synthesiser is left to
+tools/announce_audition.py; the app no longer speaks through it.
 
 Everything is spoken in the hall's language (planner.terms.hall_language),
 dance names included: a hall announcement made half in another language reads
 as a different speaker taking over mid-sentence, and Marcel wants one voice on
 the microphone, as far as the recordings go: a clip that was never recorded in
-English is played from the German set. The sentence is still built as
-fragments, because the takt has to be said separately from the name.
+English is played from the German set.
 """
 import logging
 import random
@@ -138,12 +137,19 @@ def spoken_fragment(text: str) -> str:
     return text + "." if text[-1:].isalnum() else text
 
 
-# The synthesiser's sentence in each language the hall can be in
-# (terms.hall_language): the lead-in, the takt, the word for a missing dance.
+# The sentence in each language the hall can be in (terms.hall_language): the
+# lead-in and the word for a missing dance.
 _SENTENCE = {
-    "de": {"next": "Nächster Tanz", "takt": "Takte", "dance": "Tanz"},
-    "en": {"next": "Next dance", "takt": "bars", "dance": "Dance"},
+    "de": {"next": "Nächster Tanz", "dance": "Tanz"},
+    "en": {"next": "Next dance", "dance": "Dance"},
 }
+
+
+def spoken_language() -> str:
+    """The language the announcement is made in: the hall's, where there is a
+    sentence for it — English for any other, with the international names."""
+    lang = terms.hall_language()
+    return lang if lang in _SENTENCE else "en"
 
 
 def spoken_name(dance_code: str) -> tuple:
@@ -153,7 +159,7 @@ def spoken_name(dance_code: str) -> tuple:
     are written for a German voice. The social dances keep their own names.
     """
     code = (dance_code or "").upper()
-    lang = terms.hall_language()
+    lang = spoken_language()
     if lang == "en":
         name = (terms.DANCE_NAMES_EN.get(code) or _SPOKEN.get(code)
                 or DANCE_NAMES.get(code) or code or _SENTENCE[lang]["dance"])
@@ -162,15 +168,11 @@ def spoken_name(dance_code: str) -> tuple:
     return name, "de"
 
 
-def announce_text(dance_code: str, takt: int = None, now: bool = False,
-                  heat: int = None) -> str:
-    """The whole sentence as one string — what gets logged, and what a
-    single-voice engine would say.
+def announce_text(dance_code: str, now: bool = False, heat: int = None) -> str:
+    """The whole sentence as one string — what gets logged.
 
-    `heat` (the heat number) and `takt` (bars per minute) are appended only when
-    the operator asked for them — the heat tells the couples which round they
-    are in, the takt is useful in training and noise on a tournament floor. The
-    heat comes first: it is the part the floor is waiting for.
+    `heat` (the heat number) is appended only when the operator asked for it —
+    it tells the couples which round they are in.
     `now=True` drops the "Nächster Tanz" framing: spoken over the first bars of
     the music, the dance isn't next any more, it is running.
     """
@@ -179,34 +181,14 @@ def announce_text(dance_code: str, takt: int = None, now: bool = False,
     text = name if now else f"{words['next']}: {name}"
     if heat:
         text += f", Heat {int(heat)}"
-    if takt:
-        text += f", {int(takt)} {words['takt']}"
     return text
 
 
-def announce_parts(dance_code: str, takt: int = None,
-                   now: bool = False, heat: int = None) -> list:
-    """The same sentence as [(text, language), …] — one fragment per phrase.
-
-    The heat and the takt stay their own fragments so the voice puts a beat
-    before them instead of running them into the dance name.
-    """
-    name, lang = spoken_name(dance_code)
-    words = _SENTENCE[lang]
-    parts = [] if now else [(f"{words['next']}:", lang)]
-    parts.append((name, lang))
-    if heat:
-        parts.append((f"Heat {int(heat)}", lang))
-    if takt:
-        parts.append((f"{int(takt)} {words['takt']}", lang))
-    return parts
-
-
 def clip_language() -> str:
-    """The clip folder the announcement is made from: the hall's language
-    (planner.terms.hall_language — English on an English screen unless the
-    German dance terms are kept), German for every other."""
-    return "english" if terms.hall_language() == "en" else _CLIP_FALLBACK
+    """The clip folder the announcement is made from: the spoken language
+    (`spoken_language` — English on any screen but a German one unless the
+    German dance terms are kept), German otherwise."""
+    return "english" if spoken_language() == "en" else _CLIP_FALLBACK
 
 
 def clip_folders(gender: str, root: Path = None,
@@ -362,9 +344,8 @@ def clip_secs(clips) -> float:
     return (total + _CLIP_GAP_MS * (len(clips) - 1)) / 1000.0
 
 
-def announce_secs(dance_code: str, takt: int = None, now: bool = False,
-                  heat: int = None, root: Path = None,
-                  language: str = None) -> float:
+def announce_secs(dance_code: str, now: bool = False, heat: int = None,
+                  root: Path = None, language: str = None) -> float:
     """How long this announcement will run, or 0.0 when that cannot be known.
 
     The pause needs this to start the voice early enough to be finished before
@@ -372,13 +353,9 @@ def announce_secs(dance_code: str, takt: int = None, now: bool = False,
     evening only draws the voice at the moment it speaks, and a lead that fits
     one of them is no lead at all.
 
-    0.0 for everything the recordings don't cover — the takt (read by the
-    synthesiser, whose speed is the system's) and a dance that was never
-    recorded. The caller falls back to its fixed lead there; guessing a length
-    for a voice nobody can time would be worse than admitting it.
+    0.0 for a dance that was never recorded — it is not announced, and the
+    caller falls back to its fixed lead.
     """
-    if takt:
-        return 0.0
     language = language or clip_language()
     return max((clip_secs(announce_clips(dance_code, gender, now, root, heat,
                                          language))
@@ -441,7 +418,9 @@ def pick_voice(voices, QLocale, QVoice, language=None):
 
 
 class DanceAnnouncer:
-    """Speaks `announce_parts` through QtTextToSpeech, one fragment per voice.
+    """Plays the recorded fragments of an announcement, ducking the music
+    under them. The QtTextToSpeech engine it can still build (`_engine`) is
+    only used by tools/announce_audition.py.
 
     Silently does nothing when the module or an engine is unavailable — an
     announcement that can't be made must never break playback.
@@ -453,7 +432,6 @@ class DanceAnnouncer:
         self._failed = False
         self._on_speaking = on_speaking   # ducks the music under the voice
         self._voices = {}    # 'de' / 'en' → (QLocale, QVoice)
-        self._queue = []     # fragments not spoken yet
         self._token = 0      # invalidates the watchdog of an older fragment
         self._state = None   # QTextToSpeech.State, once there is an engine
         self.speaking = False   # polled by the pause-music ducking
@@ -468,7 +446,6 @@ class DanceAnnouncer:
         self._clip_loaded = None   # …and LoadedMedia alone (see _on_clip_status)
         self._clip_queue: list[Path] = []
         self._clips_failed = False
-        self._takt_warned = False
         # Where the running clip's audio really starts and ends (see _BOUNDS),
         # and whether that clip has already been placed / already ended.
         self._clip_start_ms = 0
@@ -717,25 +694,11 @@ class DanceAnnouncer:
                 # this didn't get told about. Nothing left to duck; stop asking.
                 self._on_speaking = None
 
-    def _say(self, text: str, lang: str):
-        pair = self._voices.get(lang) or self._voices.get("de")
-        if pair is not None:
-            self._tts.setLocale(pair[0])
-            self._tts.setVoice(pair[1])
-        self._token += 1
-        token = self._token
-        QTimer.singleShot(_WATCHDOG_MS, lambda: self._give_up(token))
-        self._tts.say(spoken_fragment(text))
-
     def _on_state(self, state):
         if state == self._state.Speaking:
             self._set_speaking(True)
-            return
-        if state in (self._state.Ready, self._state.Error):
-            if self._queue:
-                self._say(*self._queue.pop(0))
-            else:
-                self._set_speaking(False)
+        elif state in (self._state.Ready, self._state.Error):
+            self._set_speaking(False)
 
     def _give_up(self, token: int):
         """The engine never said the fragment was over — let the music back up
@@ -747,64 +710,25 @@ class DanceAnnouncer:
         log.warning("🔈 Announcement never finished — restoring the music")
         self.stop()
 
-    def speak(self, dance_code: str, takt: int = None, now: bool = False,
+    def speak(self, dance_code: str, now: bool = False,
               heat: int = None) -> bool:
         """Say the dance from the recordings. Returns False when nothing was
-        spoken — a dance without a clip is not read by the synthesiser.
-
-        Asking for the takt hands the WHOLE announcement to the synthesiser:
-        there are no clips for a tempo (the recorded numbers are the heats
-        1-8), and half an announcement in the recorded voice with the tempo
-        tacked on by Windows reads as two announcers talking over each other.
-        One voice on the microphone — the operator ticking "…with takt" is
-        choosing which one.
-
-        The takt only steps aside for a synthesiser that is actually there: on
-        a machine with no speech engine the recordings still say everything
-        except the tempo, which beats an announcement nobody hears.
-        """
-        by_voice = bool(takt) and self._engine() is not None
-        if takt and not self._takt_warned:
-            self._takt_warned = True
-            log.info("🔈 The takt was asked for\n"
-                     "read by: %s\n"
-                     "why: the recordings have clips for the dances and the "
-                     "heats, none for a tempo",
-                     "the synthesiser" if by_voice
-                     else "the recordings, without the takt — no speech engine")
-        clips = [] if by_voice else self._clips_for(dance_code, now, heat)
+        spoken — a dance without a clip is not read by the synthesiser."""
+        clips = self._clips_for(dance_code, now, heat)
         if clips:
             log.info("🔈 Announcing dance from the recordings\n"
                      "text: %s\n"
                      "clips: %s\n"
                      "over the music: %s",
-                     announce_text(dance_code, None, now, heat),
+                     announce_text(dance_code, now, heat),
                      ", ".join(c.stem for c in clips), now)
-            if self._play_clips(clips):
-                return True
-        if not by_voice:
-            log.info("🔈 Dance not announced\n"
-                     "dance: %s\n"
-                     "why: no recording for it", dance_code)
-            return False
-        tts = self._engine()
-        if tts is None:
-            return False
-        parts = announce_parts(dance_code, takt, now, heat)
-        log.info("🔈 Announcing dance\n"
-                 "text: %s\n"
-                 "over the music: %s",
-                 announce_text(dance_code, takt, now, heat), now)
-        self._queue = parts[1:]
-        # Duck before the first word: the engine reports Speaking a moment
-        # later, and between fragments it reports Ready — neither must let the
-        # music jump back up mid-announcement.
-        self._set_speaking(True)
-        self._say(*parts[0])
-        return True
+            return self._play_clips(clips)
+        log.info("🔈 Dance not announced\n"
+                 "dance: %s\n"
+                 "why: no recording for it", dance_code)
+        return False
 
     def stop(self):
-        self._queue = []
         self._clip_queue = []
         self._clip_stop_ms = None   # no tail cut owed on a clip that is gone
         self._token += 1        # whatever was pending is no longer wanted
@@ -822,7 +746,6 @@ class DanceAnnouncer:
         calling back into them raises RuntimeError out of the deleted C++
         objects, which surfaces as an uncaught exception on quit."""
         self._on_speaking = None
-        self._queue = []
         self._clip_queue = []
         self.speaking = False
         for engine in (self._tts, self._clip_player):

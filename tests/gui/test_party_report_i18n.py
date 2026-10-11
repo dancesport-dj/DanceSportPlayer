@@ -27,11 +27,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_pcheck_de_"))
 
-from PySide6.QtWidgets import QApplication, QLabel, QPushButton  # noqa: E402
+from PySide6.QtWidgets import QApplication, QLabel, QPushButton
 
-from planner import i18n  # noqa: E402
-from tests.gui.test_party_check_ui import _Win, _e  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from planner import i18n
+from tests.gui.test_party_check_ui import _Win, _e
+from tests.qt_test_support import reap_widget
 
 
 class PartyReportGermanTest(unittest.TestCase):

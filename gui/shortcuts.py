@@ -49,6 +49,7 @@ def shortcut_rows():
                      "the next match)"),
         ("Esc  in the 🖥 presenter window", "Close the presenter screen"),
         ("F1", "This cheat sheet"),
+        ("F11", "Fullscreen on / off — with date and time in the status bar"),
         ("🖱  Mouse", ""),
         ("Click a round / dance header", "Collapse or expand that section"),
         ("Double-click a deck title", "Rename the playlist / wishlist"),

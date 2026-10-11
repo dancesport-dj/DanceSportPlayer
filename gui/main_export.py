@@ -15,13 +15,15 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QMessageBox,
 )
-from PySide6.QtCore import QEventLoop, QThread, Signal
+from PySide6.QtCore import QEventLoop, QThread, QTimer, Signal
 from pathlib import Path
-from planner import i18n
+from planner import i18n, venue_pack
 from planner.config import OUTPUT_DIR
-from planner.m3u import export_flat_m3u, export_m3u, numbered_folder_m3u
+from planner.m3u import export_flat_m3u, export_m3u, m3u_suffix, numbered_folder_m3u
 from planner.models import split_day_rounds
 from planner.paths import PathRemapper
+from planner.store import state_dir
+from planner.terms import practice_name
 from gui.common import (
     BusyDialog,
     _open_folder,
@@ -31,10 +33,13 @@ from shared.widgets import (
     _show_toast,
 )
 from gui.dialogs import (  # auto-resolved
+    AUTOSAVE,
     UsbExportDialog,
     _default_save_dir,
 )
 from shared.stores import (
+    CARTWALL,
+    SETTINGS,
     save_settings,
 )
 from gui.playlist_table import (  # auto-resolved
@@ -74,7 +79,7 @@ def _off_reference_text(path_for: _ReferenceMapper | None) -> str:
     lines = [f"  • {p}" for p in missing[:_OFF_REFERENCE_SHOWN]]
     if len(missing) > _OFF_REFERENCE_SHOWN:
         lines.append(i18n.t("  … and %d more") % (len(missing) - _OFF_REFERENCE_SHOWN))
-    return (i18n.t("⚠ %d title(s) are not on the Referenzpfad\n%s\n"
+    return (i18n.t("⚠ %d title(s) are not on the Reference path\n%s\n"
                    "and were saved with their own path:") % (len(missing), path_for.root)
             + "\n" + "\n".join(lines))
 
@@ -132,7 +137,7 @@ class _BundleWriter(QThread):
                     uniq = _uniq_name(title, "Playlist")
                     folder = self._bundle / uniq
                     folder.mkdir(parents=True, exist_ok=True)
-                    out = write_fn(folder / f"{uniq}.m3u")
+                    out = write_fn(folder / f"{uniq}{m3u_suffix()}")
                     files, miss = numbered_folder_m3u(out, progress_cb=self._prog)
                     self.copied_files += files
                     self.missing_total += miss
@@ -145,8 +150,167 @@ class _BundleWriter(QThread):
             self.aborted = True
 
 
+class _VenueJob(QThread):
+    """Runs one venue-pack write or unpack off the GUI thread — with the music
+    it copies hundreds of MB. `fn(progress, cancelled)`; the outcome is read
+    from `result` / `error` once it has finished."""
+
+    progress = Signal(int, int)
+
+    def __init__(self, fn, parent=None):
+        super().__init__(parent)
+        self._fn = fn
+        self._cancelled = False
+        self.result = None
+        self.error: BaseException | None = None
+
+    def cancel(self):
+        self._cancelled = True
+
+    def run(self):
+        try:
+            self.result = self._fn(self.progress.emit, lambda: self._cancelled)
+        except BaseException as exc:    # handed to the GUI thread, raised there
+            self.error = exc
+
+
 class ExportMixin:
     """💾 Playlists out to disk: single .m3u, day folders, USB bundle."""
+
+    # ── 📦 Venue pack (⚙ Settings) ─────────────────────────────────────────────
+    def _run_venue_job(self, message: str, fn):
+        """Run `fn(progress, cancelled)` behind an abortable progress dialog and
+        return what it returns; raises what it raised."""
+        dlg = BusyDialog(self, message=message, cancelable=True)
+        dlg.show_after(250)
+        job = _VenueJob(fn, self)
+        job.progress.connect(dlg.set_progress)
+        dlg.cancel_requested.connect(job.cancel)
+        loop = QEventLoop()
+        job.finished.connect(loop.quit)
+        job.start()
+        loop.exec()
+        dlg.finish()
+        if job.error is not None:
+            raise job.error
+        return job.result
+
+    def _export_venue_pack(self):
+        """📦 This desk — settings, decks, cartwall and keys, the music if
+        wanted — to one file for another PC."""
+        title = "Export venue pack"
+        # What is on screen, not what was last written.
+        self._autosave_playlist()
+        self._save_cartwall(edit=False)
+        save_settings(self._settings)
+        docs = {}
+        for store in (SETTINGS, AUTOSAVE, CARTWALL):
+            obj = store.read()
+            if obj is not None:
+                docs[store.name] = obj
+        tracks = venue_pack.track_paths(*docs.values())
+        present = [t for t in tracks if Path(t).is_file()]
+        size_mb = sum(Path(t).stat().st_size for t in present) / 1e6
+        ans = QMessageBox.question(
+            self, title,
+            i18n.t("Include the music files?\n\n"
+                   "Yes: the %d track(s) the decks and the cartwall use go into "
+                   "the pack too (%s MB) — the other PC needs nothing else.\n"
+                   "No: settings, decks and cartwall only — the other PC has the "
+                   "music already.") % (len(present), f"{size_mb:.0f}"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.No)
+        if ans not in (QMessageBox.StandardButton.Yes, QMessageBox.StandardButton.No):
+            return
+        with_music = ans == QMessageBox.StandardButton.Yes
+        chosen, _ = QFileDialog.getSaveFileName(
+            self, title,
+            str(Path.home() / f"venue-{date.today().isoformat()}{venue_pack.SUFFIX}"),
+            i18n.t("Venue packs") + f" (*{venue_pack.SUFFIX});;"
+            + i18n.t("All files") + " (*)")
+        if not chosen:
+            return
+        dest = Path(chosen)
+        try:
+            res = self._run_venue_job(
+                "📦 Writing the venue pack…",
+                lambda progress, cancelled: venue_pack.write_pack(
+                    dest, docs, with_music, progress, cancelled))
+        except venue_pack.VenuePackCancelled:
+            self.statusBar().showMessage("📦 Venue pack cancelled — nothing was written.")
+            return
+        except OSError as exc:
+            QMessageBox.warning(self, title, i18n.t("Could not write the file:") + "\n\n" + str(exc))
+            return
+        lines = [i18n.t("📦 Venue pack saved to:\n%s") % dest]
+        if with_music:
+            lines.append(i18n.t("%d track(s) included.") % res.tracks)
+        if res.missing:
+            lines.append(i18n.t("⚠ %d track(s) were missing on disk and are not "
+                                "in the pack.") % len(res.missing))
+        QMessageBox.information(self, title, "\n\n".join(lines))
+
+    def _import_venue_pack(self):
+        """📥 A venue pack from another PC: staged now, put in place at the
+        next start (closing the window would write over it otherwise)."""
+        title = "Import venue pack"
+        chosen, _ = QFileDialog.getOpenFileName(
+            self, title, str(Path.home()),
+            i18n.t("Venue packs") + f" (*{venue_pack.SUFFIX});;"
+            + i18n.t("All files") + " (*)")
+        if not chosen:
+            return
+        src = Path(chosen)
+        try:
+            pack = venue_pack.read_pack(src)
+        except venue_pack.VenuePackError as exc:
+            QMessageBox.warning(self, title, i18n.t("This is no venue pack:") + "\n\n" + str(exc))
+            return
+        music_dir = None
+        if pack.music:
+            ans = QMessageBox.question(
+                self, title,
+                i18n.t("The pack carries %d music file(s).\n\n"
+                       "Yes: unpack them into a folder of this PC — the decks and "
+                       "the cartwall then play them from there.\n"
+                       "No: leave them in the pack — this PC has the music "
+                       "already (🧭 Fix paths finds it if it lives elsewhere).")
+                % len(pack.music),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                | QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Yes)
+            if ans not in (QMessageBox.StandardButton.Yes, QMessageBox.StandardButton.No):
+                return
+            if ans == QMessageBox.StandardButton.Yes:
+                folder = QFileDialog.getExistingDirectory(
+                    self, i18n.t("Folder for the venue pack's music"), str(Path.home()))
+                if not folder:
+                    return
+                music_dir = Path(folder)
+        try:
+            self._run_venue_job(
+                "📥 Unpacking the venue pack…",
+                lambda progress, cancelled: venue_pack.stage_import(
+                    src, state_dir(), music_dir, progress, cancelled))
+        except venue_pack.VenuePackCancelled:
+            self.statusBar().showMessage("📥 Venue pack import cancelled.")
+            return
+        except (OSError, venue_pack.VenuePackError) as exc:
+            QMessageBox.warning(self, title, i18n.t("The import did not run:") + "\n\n" + str(exc))
+            return
+        log.info("📥 Venue pack staged\n"
+                 "file: %s\n"
+                 "music: %s", src, music_dir or "not unpacked")
+        # After ⚙ Settings has closed and applied what it holds — the restart
+        # closes the main window, which must not happen under an open dialog.
+        QTimer.singleShot(0, lambda: self._offer_restart(
+            title,
+            "The venue pack takes over at the next start: settings, decks and "
+            "cartwall are replaced then, and what they replace is kept in a "
+            "before-venue-import folder.\n\n"
+            "Anything you change before that is lost.\n\n"
+            "Restart now?"))
 
     def _export_path_for(self) -> "_ReferenceMapper | None":
         """The track-path mapper a saved .m3u is written through: every title
@@ -161,7 +325,7 @@ class ExportMixin:
         """⚠ After a single save: name the titles that are not on the Referenzpfad."""
         text = _off_reference_text(path_for)
         if text:
-            QMessageBox.warning(self, "Not on the Referenzpfad", text)
+            QMessageBox.warning(self, "Not on the Reference path", text)
 
     def _save_all_playlists(self, decks=None):
         """💾 Save-all: export every non-empty playlist deck to its own .m3u in the
@@ -230,12 +394,12 @@ class ExportMixin:
             except Exception as exc:
                 errors.append(f"{title}: {exc}")
         if warmup is not None:
-            title = (self.deck(warmup).name or "Eintanzen").replace("·", "-")
+            title = (self.deck(warmup).name or practice_name()).replace("·", "-")
             dlg.set_progress(1, 1, title)
             QApplication.processEvents()
             try:
                 out = export_flat_m3u(warmup._row_meta.entries(),
-                                      _uniq_name(title, "Eintanzen"),
+                                      _uniq_name(title, practice_name()),
                                       path_for=path_for)
                 warmup._m3u_path = Path(out)
                 saved.append(Path(out).name)
@@ -501,7 +665,7 @@ class ExportMixin:
                         n += 1
                     used_names.add(uniq)
                     out = export_m3u(playlist, c_dances, uniq, c_cls,
-                                     out_path=target / f"{uniq}.m3u",
+                                     out_path=target / f"{uniq}{m3u_suffix()}",
                                      path_for=path_for)
                     t._m3u_path = Path(out)
                     saved.append(Path(out).name)
@@ -612,14 +776,15 @@ class ExportMixin:
             Path(start_dir).mkdir(parents=True, exist_ok=True)
         except Exception as exc:
             log.debug("📁 Could not create the save folder %s: %s", start_dir, exc)
-        suggested = str(Path(start_dir) / f"{basename}.m3u")
+        suggested = str(Path(start_dir) / f"{basename}{m3u_suffix()}")
         chosen, _ = QFileDialog.getSaveFileName(
-            self, "Save as M3U", suggested, "M3U playlists (*.m3u);;All files (*)")
+            self, "Save as M3U", suggested,
+            "M3U playlists (*.m3u *.m3u8);;All files (*)")
         if not chosen:
             return
         out_path = Path(chosen)
-        if out_path.suffix.lower() != ".m3u":
-            out_path = out_path.with_suffix(".m3u")
+        if out_path.suffix.lower() not in (".m3u", ".m3u8"):
+            out_path = out_path.with_suffix(m3u_suffix())
         # Remember the folder the user chose for next time.
         if isinstance(getattr(self, "_settings", None), dict):
             self._settings["save_dir"] = str(out_path.parent)

@@ -13,7 +13,7 @@ from planner import i18n
 from planner.planned import path_key
 from planner.warmup import reshuffle_warmup
 from planner.models import is_non_turnier
-from planner.terms import dance_name
+from planner.terms import dance_name, practice_name
 from planner.planned import is_planned
 
 from PySide6.QtCore import (
@@ -144,6 +144,7 @@ class GenerateMixin:
         # …and its 🔁 "potential replace" marks, so a later restore/refill can't
         # resurrect orange rows the wipe was supposed to clear.
         table._marked_paths = set()
+        table._pinned_paths = set()
         table._m3u_path = None   # an empty deck is no file any more
         # A blanked deck has no committed competition style — so the first track
         # dropped in defines it and the cross-style guard doesn't fire spuriously
@@ -890,7 +891,7 @@ class GenerateMixin:
         a big library never freezes the UI."""
         if not self._lib or not self._lib.entries:
             QMessageBox.information(
-                self, "Eintanzen",
+                self, "Practice",
                 "The library is still loading — try again in a moment.")
             return
         opts = self._ask_warmup_options()
@@ -903,7 +904,7 @@ class GenerateMixin:
             src = self._entries_from_m3u_file(opts["m3u_path"])
             if not src:
                 QMessageBox.information(
-                    self, "Eintanzen",
+                    self, "Practice",
                     "No resolvable tracks in that .m3u file.")
                 return
         elif opts["source"] == "wishlists":
@@ -915,7 +916,7 @@ class GenerateMixin:
                         src.append(e)
             if not src:
                 QMessageBox.information(
-                    self, "Eintanzen",
+                    self, "Practice",
                     "Your open wishlists are empty — park some tracks there first.")
                 return
         else:
@@ -937,7 +938,7 @@ class GenerateMixin:
             params = dict(style=opts["style"], dance_class=opts["dance_class"],
                           max_tracks=opts["max_tracks"],
                           fresh_ratio=opts["fresh_ratio"], relax=opts["relax"])
-            label = f"Eintanzen {opts['style']} {opts['dance_class']}"
+            label = f"{practice_name()} {opts['style']} {opts['dance_class']}"
         else:
             params = dict(opts["etds"])
             label = "Party"
@@ -952,7 +953,7 @@ class GenerateMixin:
         w.done.connect(self._on_warmup_done)
         w.error.connect(self._on_warmup_error)
         w.finished.connect(busy.finish)
-        # i18n: data — the label is a name ("Eintanzen Latin D", "Party")
+        # i18n: data — the label is a name ("Practice Latin D", "Party")
         self.statusBar().showMessage(i18n.t("Building %s…") % label)
         # Show promptly: the in-memory build often finishes under the usual
         # 300 ms threshold, so the party/warm-up dialog would otherwise never
@@ -961,8 +962,8 @@ class GenerateMixin:
         w.start()
 
     def _on_warmup_error(self, msg: str):
-        QMessageBox.critical(self, "Eintanzen Error", msg)
-        self.statusBar().showMessage("Eintanzen failed.")
+        QMessageBox.critical(self, "Practice Error", msg)
+        self.statusBar().showMessage("Practice failed.")
 
     def _on_warmup_done(self, entries):
         """Load the freshly built warm-up / party list into the dedicated Eintanzen
@@ -971,10 +972,10 @@ class GenerateMixin:
         slot. Never clobbers a playlist deck or a wishlist."""
         if not entries:
             QMessageBox.information(
-                self, "Eintanzen",
+                self, "Practice",
                 "No matching tracks for the chosen options — check the class, the "
                 "source and that the library / .m3u actually has those dances.")
-            self.statusBar().showMessage("Eintanzen: no matching tracks.")
+            self.statusBar().showMessage("Practice: no matching tracks.")
             return
 
         opts        = getattr(self, "_warmup_opts", {}) or {}
@@ -982,7 +983,8 @@ class GenerateMixin:
         dance_class = opts.get("dance_class", "S")
         relax       = bool(opts.get("relax", True))
         if opts.get("mode") == "class":
-            list_label = self._warmup_title(f"Eintanzen {style} {dance_class}")
+            list_label = self._warmup_title(
+                f"{practice_name()} {style} {dance_class}")
         else:
             list_label = self._warmup_title("Party")
             style = ""   # ETDS mixes styles → ↺ tries every style per dance
@@ -1055,7 +1057,7 @@ class GenerateMixin:
             entries = self._entries_from_m3u_file(m3u_path, progress_cb=tick)
             if not entries:
                 self.statusBar().showMessage(
-                    i18n.t("🤸 Eintanzen: nothing loadable from %s")
+                    i18n.t("🤸 Practice: nothing loadable from %s")
                     % Path(m3u_path).name)
                 return
             list_label = self._warmup_title(Path(m3u_path).stem)
@@ -1073,7 +1075,7 @@ class GenerateMixin:
                     entries, list_label, style="", dance_class="S", relax=True,
                     play_cb=self._play_or_stop, suggester=PlaylistSuggester(self._lib),
                 )
-            log.info("🤸 Eintanzen panel loaded\n"
+            log.info("🤸 Practice panel loaded\n"
                      "file: %s\n"
                      "tracks: %s\n"
                      "rounds: %s", Path(m3u_path).name, len(entries),

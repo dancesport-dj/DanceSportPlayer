@@ -7,22 +7,33 @@ sobald du auf **OK** klickst. Erscheinungsbild, Akzentfarbe, Sprache und das
 Audio-Backend werden beim Start gelesen: für diese fragt die App nach einem
 Neustart.
 
-## Pfade und Suche
+Die Reiter, der Reihe nach: **⚙ Allgemein**, **📁 Pfade**, **🎨 Aussehen**,
+**🔊 Ton & Player**, **⚗ Analyse**, **🎛 Spiel-Sets** und **📦 Hallenpaket**.
+Die volle App ergänzt **🎵 Prüfungen**, die Schwellenwerte ihrer
+Musikprüfung; der Player blendet ihn aus.
 
-Der Reiter **📁 Pfade & Suche**.
+## Allgemein
 
-![Einstellungen, Reiter Pfade & Suche](../img/settings-paths.png)
-
-Die Ordner oben beschreibt
-[Kapitel 1](01-getting-started.md#der-app-deine-musik-zeigen). Darunter:
+Der Reiter **⚙ Allgemein**.
 
 | Einstellung | Macht |
 |---|---|
-| **▶ Player-Position** | Wo die Player-Karte steht: *neben den Playlists*, am Kopf des Wiedergabe-Bereichs, oder *über den Playlists*, als ein breiter Streifen über den Decks. |
-| **🎙 Erweiterte Ansagesteuerung** | Zeigt *…mit Takt*, *…mit Gruppe* und *🔈 Test* unter *Nächsten Tanz ansagen*. Ausgeblendet behalten sie ihre Werte. |
-| **🔊 Audio-Backend** | Die Engine, über die jeder Titel spielt. Unter Windows: *FFmpeg* (die Vorgabe) oder *Windows Media Foundation*. Ändere es nur, wenn ein Titel nicht spielt oder ein Tempowechsel eine Lücke reißt. Wirkt nach einem Neustart. |
-| **🔇 Die Soundkarte zwischen den Titeln freigeben** | Eine Onboard-Soundkarte legt ein Rauschen auf die Anlage, solange eine App sie offen hält. Diese Einstellung gibt das Gerät nach ein paar Sekunden Stille zurück. Der Preis ist ein leises Klicken, wenn der nächste Titel startet, schalte sie also nur ein, wenn du das Rauschen hörst. |
-| **🔕 Systemklänge stummschalten, solange der Abend läuft** | Kein Fehler-Ding und kein Benachrichtigungston über die Lautsprecher. Die Systemklänge kommen zurück, wenn du die App schließt. |
+| **App-Modus** | Welche Seite der App zu sehen ist: *Beides*, *Nur Planer* oder *Nur Player*. Zurückschalten bringt alles wieder. Der Player-Build hat diese Zeile nicht. |
+| **📱 Handy-Fernbedienung** | **📱 Server starten** startet die Handy-Fernbedienung und öffnet ihr Fenster über den Einstellungen. Solange sie läuft, heißt der Knopf **📱 Server stoppen**. Siehe [Kapitel 4](04-playing.md#-die-handy-fernbedienung). |
+| **🎛 DJ-Controller** | **🎛 Einrichten…** öffnet das Fenster für einen USB-MIDI- oder HID-Controller. Siehe [Kapitel 4](04-playing.md#-ein-dj-controller). |
+| **🐞 Fehlerberichte senden** | Nur in Builds, die sie senden können. Stößt die App auf einen Fehler, schickt sie die technischen Details an den Entwickler: den Fehler, die letzten Protokollzeilen, das System und die App-Version. Nie deine Musik oder Playlists. Standardmäßig aus. |
+
+## Pfade
+
+Der Reiter **📁 Pfade**.
+
+![Einstellungen, Reiter Pfade](../img/settings-paths.png)
+
+Die Ordner beschreibt
+[Kapitel 1](01-getting-started.md#der-app-deine-musik-zeigen). Zwischen ihnen
+sitzt das **Playlist-Dateiformat**: *UTF-8 (.m3u)*, *UTF-8 mit BOM (.m3u)*
+oder *UTF-8 (.m3u8)*, siehe
+[Kapitel 3](03-playlists.md#das-playlist-dateiformat).
 
 ## Aussehen
 
@@ -59,9 +70,33 @@ Der Reiter **🎨 Aussehen**.
 - **🎚 Akzentfarbe**: das Blau der Knöpfe, Regler und des Player-Bereichs,
   für *Hell* und *Dunkel*. **↺ Standardblau** setzt es zurück. Farben, die
   etwas bedeuten, etwa rote Warnungen, behalten ihren Ton.
-- **🌐 Sprache**: Englisch oder Deutsch.
+- **🌐 Sprache**: English, Deutsch, Español, Nederlands oder Русский.
+  Titelnamen und alles, was aus deinen Dateien gelesen wird, bleiben, wie sie
+  sind.
+- **Deutsche Tanz- und Rundennamen auch in einer anderssprachigen
+  Oberfläche**: *Langsamer Walzer*, *Vorrunde*, *Eintanzen* statt *Slow
+  Waltz*, *Round 1*, *Practice*. Der Präsentationsbildschirm und die
+  aufgenommenen Ansagen sind dann ebenfalls deutsch.
 
-Alle drei wirken nach einem Neustart.
+Erscheinungsbild, Akzentfarbe und Sprache wirken nach einem Neustart.
+
+- **⛶ Uhr im Vollbild: nur die Uhrzeit (20:45:12), ohne Datum**: die Uhr in
+  der Statusleiste, solange das Fenster im
+  [Vollbild](01-getting-started.md#-vollbild) ist. Sie wechselt innerhalb
+  einer Sekunde nach dem Speichern.
+
+## Ton und Player
+
+Der Reiter **🔊 Ton & Player**.
+
+| Einstellung | Macht |
+|---|---|
+| **🔊 Audio-Backend** | Die Engine, über die jeder Titel spielt. Unter Windows: *FFmpeg* (die Vorgabe) oder *Windows Media Foundation*. Ändere es nur, wenn ein Titel nicht spielt oder ein Tempowechsel eine Lücke reißt. Wirkt nach einem Neustart. |
+| **🔇 Die Soundkarte zwischen den Titeln freigeben** | Eine Onboard-Soundkarte legt ein Rauschen auf die Anlage, solange eine App sie offen hält. Diese Einstellung gibt das Gerät nach ein paar Sekunden Stille zurück. Der Preis ist ein leises Klicken, wenn der nächste Titel startet, schalte sie also nur ein, wenn du das Rauschen hörst. |
+| **🔕 Systemklänge stummschalten, solange der Abend läuft** | Kein Fehler-Ding und kein Benachrichtigungston über die Lautsprecher. Die Systemklänge kommen zurück, wenn du die App schließt. |
+| **🎧 Vorhör-Player** | Ein Mini-Player (Spulen, Springen, Lautstärke) schwebt über dem Deck, wenn du auf ein ▶ in einer Zeile klickst. |
+| **▶ Player-Position** | Wo die Player-Karte steht: *neben den Playlists*, am Kopf des Wiedergabe-Bereichs, oder *über den Playlists*, als ein breiter Streifen über den Decks. |
+| **🎙 Erweiterte Ansagesteuerung** | Zeigt *…mit Gruppe* und *🔈 Test* unter *Nächsten Tanz ansagen*. Ausgeblendet behält der Schalter seinen Wert. |
 
 ## Analyse
 
@@ -80,6 +115,15 @@ Der Player braucht drei davon:
 die du von Hand markiert hast, auf einen anderen PC. Aus der vollen App
 gestartet, listet der Reiter weitere Analysen; der Player-Build zeigt nur
 diese.
+
+Die von Hand gesetzten PD-Marken, die in der App geänderten Tags und das
+Protokoll der [gespielten Titel](04-playing.md#-gespielte-titel) sind die
+einzigen Daten, die keine Analyse wiederfindet, deshalb sichert die App sie
+selbst: beim ersten Start jedes Tages schreibt sie eine kleine Datei in den
+Ordner `backups` neben ihrer Datenbank, bringt sie beim Beenden auf den
+neuesten Stand und hebt die letzten sieben auf.
+**♻ Sicherung der eigenen Daten zurückholen…** spielt eine davon wieder ein;
+sie wirkt nach einem Neustart.
 
 **🧱 ALLE Caches aufbauen…** lässt jede Analyse der Reihe nach laufen, für
 eine Bibliothek deiner Wahl. Sie lässt sich abbrechen.
@@ -120,5 +164,24 @@ Gruppe zieht:
 - **Unten / Mitte / Oben**: ein festes Tempo innerhalb des TSO-Bereichs. Das
   lohnt sich bei den langsamen Tänzen, wo ein Takt pro Minute eine viel
   größere Tempoänderung ist.
+
+## Hallenpaket
+
+Das **📦 Hallenpaket** bringt das ganze Pult in einer Datei auf einen anderen
+PC: die Einstellungen, jedes Deck und jede Wunschliste und die 🎛 Cartwall mit
+ihren Pads und Tasten. Wenn du willst, kommt auch die Musik mit, die sie
+benutzen.
+
+- **📦 Hallenpaket exportieren…** schreibt die Datei. Ein Fortschrittsfenster
+  zeigt, wie weit es ist, und kann abbrechen.
+- **📥 Hallenpaket importieren…** lädt es auf dem anderen PC. Es übernimmt
+  Einstellungen, Decks und Cartwall beim nächsten Start; was es ersetzt, wird
+  in einem Ordner `before-venue-import` daneben aufgehoben. Musik im Paket
+  wird in einen Ordner deiner Wahl ausgepackt, und jedes Deck und jedes Pad
+  wird darauf umgehängt.
+
+Ordner-Einstellungen wie die Bibliothek, der Playlist- und der
+Speichern-unter-Ordner, der Präsentationsbildschirm und das Audio-Backend
+bleiben bei jedem PC.
 
 Weiter: [Tastatur und Maus](07-shortcuts.md)

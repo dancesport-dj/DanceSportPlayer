@@ -74,7 +74,8 @@ class EntryForTest(unittest.TestCase):
 
         self.lib.entry_for(r"C:\music\Latein\Rumba RB 25.mp3")   # builds the index
         n = len(self.lib.entries)
-        self.lib.entries = _Loud(self.lib.entries)
+        # under the setter: assigning a new list rightly rebuilds the index
+        self.lib._entries = _Loud(self.lib.entries)
         self.assertEqual(len(self.lib.entries), n)
         self.assertIsNotNone(self.lib.entry_for(r"C:\music\Latein\Rumba RB 25.mp3"))
 

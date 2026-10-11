@@ -88,6 +88,7 @@ class SerializeBackupsTest(unittest.TestCase):
             _dynamic_capacity=[],
             _use_timbre=False,
             _marked_paths=set(),
+            _pinned_paths=set(),
             _round_ctx={},
             _round_skip_dances={},
         )

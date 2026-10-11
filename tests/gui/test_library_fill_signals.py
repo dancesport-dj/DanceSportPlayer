@@ -22,11 +22,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_libfill_"))
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication
 
-from planner.models import MusicEntry  # noqa: E402
-from gui.library_browser import LibraryBrowser  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from planner.models import MusicEntry
+from gui.library_browser import LibraryBrowser
+from tests.qt_test_support import reap_widget
 
 DANCES = ["LW", "TG", "WW", "SF", "QS", "CC", "SA", "RB", "PD", "JI"]
 

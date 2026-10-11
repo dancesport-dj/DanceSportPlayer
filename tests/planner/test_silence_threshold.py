@@ -21,7 +21,7 @@ from pathlib import Path
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_sil_thr_"))
 
-import planner.db as pdb  # noqa: E402
+import planner.db as pdb
 
 
 class ThresholdTest(unittest.TestCase):

@@ -24,13 +24,13 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_idle_"))
 
-from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer  # noqa: E402
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
+from PySide6.QtWidgets import QApplication
 
-from shared.playback import _AUDIO_IDLE_S  # noqa: E402
-from player.audio_device import AudioDevice  # noqa: E402
-from player.mix import OutputMix  # noqa: E402
-from player.system_sounds import SystemSoundGuard  # noqa: E402
+from shared.playback import _AUDIO_IDLE_S
+from player.audio_device import AudioDevice
+from player.mix import OutputMix
+from player.system_sounds import SystemSoundGuard
 
 
 class _Voices:

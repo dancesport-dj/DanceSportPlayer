@@ -16,10 +16,10 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_warmup_dlg_"))
 
-from PySide6.QtWidgets import QApplication, QDialog  # noqa: E402
+from PySide6.QtWidgets import QApplication, QDialog
 
-from gui.dialogs import M3uDropDialog  # noqa: E402
-from gui.warmup_dialog import ask_warmup_options  # noqa: E402
+from gui.dialogs import M3uDropDialog
+from gui.warmup_dialog import ask_warmup_options
 
 ACCEPTED = QDialog.DialogCode.Accepted
 REJECTED = QDialog.DialogCode.Rejected

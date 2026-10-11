@@ -16,10 +16,10 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_buildenv_"))
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication
 
-import dancesport_gui as gui  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+import dancesport_gui as gui
+from tests.qt_test_support import reap_widget
 
 
 class BuildEnvFailureTest(unittest.TestCase):

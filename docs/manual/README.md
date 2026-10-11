@@ -18,13 +18,15 @@ changing a chapter, rebuild it with `py -m tools.build_manual_html`.
 3. [Playlists](03-playlists.md): the decks as running orders, the Party
    panel, wishlists, loading and saving `.m3u` playlists, and playlists
    written on another PC.
-4. [Playing the evening](04-playing.md): the player card, the Playing panel,
-   play sets, announcements, the Paso Doble stop, the cartwall and the
-   presenter screen.
+4. [Playing the evening](04-playing.md): the 🚦 Ready? check, the player
+   card and its waveform, the Playing panel, play sets, announcements, the
+   Paso Doble stop, the cartwall, the presenter screen, the 📱 phone remote
+   and a 🎛 hardware controller.
 5. [Tags](05-tags.md): the 🏷 tag editor, ★ ratings, the Custom field, and
    writing tags into the MP3.
-6. [Settings](06-settings.md): paths, the look (themes, looks of your own,
-   accent colour, language), analysis and play sets.
+6. [Settings](06-settings.md): the tabs one by one: general, paths, the look
+   (themes, looks of your own, accent colour, language), sound, analysis,
+   play sets and the 📦 venue pack.
 7. [Keyboard and mouse](07-shortcuts.md): every shortcut in one list.
 
 Installation and the configuration files are described in the project
@@ -40,12 +42,14 @@ Installation and the configuration files are described in the project
   hover over the control.
 - **F1** in the app opens the cheat sheet of all shortcuts. It is the same list
   as [chapter 7](07-shortcuts.md).
-- The app is in English or German (⚙ Settings ▸ 🎨 Look). The screenshots show
-  the English interface. On it the dance and round names are English too:
+- The app speaks English, German, Spanish, Dutch and Russian (⚙ Settings ▸
+  🎨 Look ▸ 🌐 Language). The screenshots show the English interface. On a
+  screen that is not German the dance and round names follow the language:
   *Slow Waltz*, *Round 1*, *Final*. Tick **Keep the German dance and round
   names** below the language to keep *Langsamer Walzer*, *Vorrunde*,
   *Finale*; the presenter screen and the recorded announcements are then
-  German as well. Playlists and exports keep the German words either way.
+  German as well, and a practice list is called *Eintanzen*. Playlists and
+  exports keep the German dance and round names either way.
 
 ## Terms
 

@@ -293,7 +293,7 @@ class SoundAlike:
             rows = [e for e in pool
                     if e.features is not None and len(e.features.mfcc) == dim]
             if len(rows) >= 2:
-                vec = lambda x: [x.centroid, x.rms, *x.mfcc]  # noqa: E731
+                vec = lambda x: [x.centroid, x.rms, *x.mfcc]
                 views["groove"] = dict(zip(
                     (str(e.path) for e in rows),
                     _z_cosines(vec(f), [vec(e.features) for e in rows])))

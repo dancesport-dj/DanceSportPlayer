@@ -14,11 +14,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_presenter_"))
 
-from planner.models import MusicEntry, RoundConfig   # noqa: E402
-from player.presenter import PAUSE_TEXT   # noqa: E402
-from tests.qt_test_support import reap_widget   # noqa: E402
-from player.playback_state import PlaybackState  # noqa: E402
-from player.between_dances import BetweenDances  # noqa: E402
+from planner.models import MusicEntry, RoundConfig
+from player.presenter import PAUSE_TEXT
+from tests.qt_test_support import reap_widget
+from player.playback_state import PlaybackState
+from player.between_dances import BetweenDances
 
 
 def _e(dance, n):
@@ -339,6 +339,24 @@ class PresenterStateTest(unittest.TestCase):
         self.assertEqual((played, left, ending), ("▶  01:00", "−  00:45", False))
         # The bar runs against the cut, not against the file's own length.
         self.assertAlmostEqual(frac, 60 / 105, places=3)
+
+    def test_a_point_on_the_bar_seeks_to_that_point_of_the_cut(self):
+        """📱 The phone's bar is the presenter's bar: halfway along it is
+        halfway through the 1:45, counted from where the music started."""
+        songs, _ = _rows(self.t)
+        self._play(songs[0])
+        seeks = []
+        self.win._player = SimpleNamespace(
+            playbackRate=lambda: 1.0,
+            position=lambda: 60_000,
+            duration=lambda: 300_000,
+            setPosition=seeks.append)
+        self.win._playback.offset_ms = 8_000   # 🔇 8 s of intro skipped
+        self.t._play_vals = {"secs": 105}
+        self.win._seek_fraction(0.5)
+        self.assertEqual(seeks, [8_000 + 52_500])
+        self.win._seek_fraction(0.0)
+        self.assertEqual(seeks[-1], 8_000)
 
 
 class PresenterWindowTest(unittest.TestCase):

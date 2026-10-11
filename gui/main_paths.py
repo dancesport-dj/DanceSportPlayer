@@ -116,8 +116,8 @@ class PathFixMixin:
             fix_btn.setEnabled(n > 0)
             summary.setText(
                 "<b style='color:#e07b00;'>"
-                + (i18n.t("🔧 %d track can be moved onto the Referenzpfad") if n == 1
-                   else i18n.t("🔧 %d tracks can be moved onto the Referenzpfad")) % n
+                + (i18n.t("🔧 %d track can be moved onto the Reference path") if n == 1
+                   else i18n.t("🔧 %d tracks can be moved onto the Reference path")) % n
                 + "</b>" if n else "")
 
         panel.resultsReady.connect(_on_fixable)
@@ -254,7 +254,7 @@ class PathFixMixin:
         if off_ref:
             ref_root = self._settings.get("reference_path") or ""
             msg.append(f"⚠  {off_ref} valid track{' is' if off_ref == 1 else 's are'} "
-                       f"not on the Referenzpfad {html.escape(ref_root)}")
+                       f"not on the Reference path {html.escape(ref_root)}")
             if off_ref_copy:
                 msg.append(f"&nbsp;&nbsp;&nbsp;↪ {off_ref_copy} "
                            f"{'has' if off_ref_copy == 1 else 'have'} a copy there "
@@ -315,12 +315,12 @@ class PathFixMixin:
         for table in changed:
             table._notify_changed()
         if swapped:
-            log.info("🧭 Deck tracks moved onto the Referenzpfad\n"
+            log.info("🧭 Deck tracks moved onto the Reference path\n"
                      "tracks: %s\n"
                      "first: %s", swapped, copies[0][2])
             _show_toast(self, (
-                i18n.t("🧭  Moved %d track onto the Referenzpfad") if swapped == 1
-                else i18n.t("🧭  Moved %d tracks onto the Referenzpfad")) % swapped)
+                i18n.t("🧭  Moved %d track onto the Reference path") if swapped == 1
+                else i18n.t("🧭  Moved %d tracks onto the Reference path")) % swapped)
         return swapped
 
     def _fix_cartwall_paths(self, remapper) -> list:
@@ -418,7 +418,7 @@ class PathFixMixin:
         if not remapper:
             QMessageBox.information(
                 self, "Fix paths",
-                "Set a Referenzpfad or a search folder in Settings before fixing "
+                "Set a Reference path or a search folder in Settings before fixing "
                 "dropped playlists.")
             return
         m3us = [p for p in paths if p.suffix.lower() in (".m3u", ".m3u8")]

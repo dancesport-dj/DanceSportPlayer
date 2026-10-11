@@ -22,12 +22,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_filterrow_"))
 
-from PySide6.QtWidgets import (  # noqa: E402
+from PySide6.QtWidgets import (
     QApplication, QLineEdit, QToolButton, QWidget)
-from tests.qt_test_support import reap_widget  # noqa: E402
+from tests.qt_test_support import reap_widget
 
-from shared.widgets import FlowLayout  # noqa: E402
-from gui.library_browser import LibraryBrowser  # noqa: E402
+from shared.widgets import FlowLayout
+from gui.library_browser import LibraryBrowser
 
 _app = QApplication.instance() or QApplication(sys.argv)
 

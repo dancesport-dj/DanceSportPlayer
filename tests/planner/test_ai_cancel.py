@@ -19,7 +19,7 @@ from unittest import mock
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_ai_cancel_"))
 
-from planner import ai, llm  # noqa: E402
+from planner import ai, llm
 
 
 class _Proc:

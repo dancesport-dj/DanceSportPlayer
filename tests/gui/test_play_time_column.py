@@ -20,13 +20,13 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_playtime_"))
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication
 
-from gui.common import _C_LEN_WARN_FG  # noqa: E402
+from gui.common import _C_LEN_WARN_FG
 from shared.columns import _COL_LEN, _COL_TITLE
-from gui.playlist_table import PlaylistTable  # noqa: E402
-from planner.models import MusicEntry  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from gui.playlist_table import PlaylistTable
+from planner.models import MusicEntry
+from tests.qt_test_support import reap_widget
 
 _TRIMMED = MusicEntry(path=Path(r"C:\music\hochzeit_aktuell_v9.mp3"),
                       title="Hochzeit aktuell v9", dance="DISCOFOX",

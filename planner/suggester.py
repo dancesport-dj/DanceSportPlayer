@@ -71,6 +71,9 @@ class PlaylistSuggester:
     def __init__(self, library: MusicLibrary):
         self.lib = library
         self._anchors: dict[str, AudioFeatures | None] = {}
+        # Each pick's timbre similarity to its round's anchor, for display — kept
+        # here per (round, path), not on the library entry every deck shares.
+        self._sims: dict[tuple[str | None, str], float | None] = {}
 
     def suggest(
         self,
@@ -121,7 +124,7 @@ class PlaylistSuggester:
             heat: list[MusicEntry | None] = []
             for dance in dances:
                 soft = pd_used if dance in ALLOW_REPEAT else None
-                entry = self._pick(dance, dance_class,
+                entry, sim = self._pick(dance, dance_class,
                                    rc.tier, used,
                                    anchor if use_timbre else None,
                                    soft,
@@ -130,6 +133,7 @@ class PlaylistSuggester:
                                    style=style,
                                    candidates=candidates)
                 if entry:
+                    self.set_similarity(entry, rc.name, sim)
                     if anchor is None and entry.features and use_timbre:
                         anchor = entry.features
                     if dance in ALLOW_REPEAT:
@@ -293,7 +297,9 @@ class PlaylistSuggester:
         style:        str | None = None,
         candidates:   list[MusicEntry] | None = None,
         timbre_first: bool = False,
-    ) -> MusicEntry | None:
+    ) -> tuple[MusicEntry | None, float | None]:
+        """Pick one song, with its timbre similarity to `anchor` (None when
+        there is no anchor or the song has no audio features)."""
         lo, hi = TEMPO_RANGES.get(dance, {}).get(dance_class, (20, 70))
 
         strat = _resolve_strategy(tier, prefer_fresh, strategy)
@@ -301,7 +307,7 @@ class PlaylistSuggester:
         pool = self._get_pool(dance, dance_class, tier, used, soft_used,
                               prefer_fresh, strat, style, candidates)
         if not pool:
-            return None
+            return None, None
 
         # Timbre similarity of the whole pool to the round anchor, via the app's
         # default metric (`_timbre_similarity` → Gaussian/KL). Empty when no anchor.
@@ -348,11 +354,17 @@ class PlaylistSuggester:
         # Weight = (popularity + 1) × similarity²: among equally-played tracks the closer
         # match wins more often, yet a lower one keeps a real chance (not deterministic).
         if timbre_first and anchor:
-            by_timbre = sorted(pool, key=lambda e: sims.get(str(e.path), 0.5), reverse=True)
+            # A song without audio features has no similarity: it ranks below
+            # every measured one instead of passing for an average match.
+            def sim_of(e: MusicEntry) -> float:
+                return sims.get(str(e.path), float("-inf"))
+
+            by_timbre = sorted(pool, key=sim_of, reverse=True)
             n = max(1, min(10, len(by_timbre)))
-            cutoff = sims.get(str(by_timbre[n - 1].path), 0.5)   # similarity of the 10th
+            cutoff = sim_of(by_timbre[n - 1])              # similarity of the 10th
             threshold = min(cutoff, _STRONG_TIMBRE)        # ≥ top-10 floor, and ≥ 0.80
-            shortlist = [e for e in by_timbre if sims.get(str(e.path), 0.5) >= threshold] \
+            shortlist = [e for e in by_timbre
+                         if str(e.path) in sims and sim_of(e) >= threshold] \
                 or by_timbre[:n]
 
             # How strongly playlist-proven-ness tilts the ↺ pick depends on the strategy
@@ -380,11 +392,10 @@ class PlaylistSuggester:
 
             # +0.01 floor so a near-zero similarity (cosine ≈ -1) still yields a positive
             # weight — random.choices() raises if every weight sums to zero.
-            weights = [_pop_weight(e) * (sims.get(str(e.path), 0.5) ** 2 + 0.01)
+            weights = [_pop_weight(e) * (sims.get(str(e.path), 0.0) ** 2 + 0.01)
                        for e in shortlist]
             chosen = random.choices(shortlist, weights=weights, k=1)[0]
-            chosen.sim_score = sims.get(str(chosen.path), 0.5)
-            return chosen
+            return chosen, sims.get(str(chosen.path))
 
         # ── Generation / whole-round: composite score (popularity-led), weighted pick ──
         # Better score → higher chance, but not deterministic; weight = how far each
@@ -394,12 +405,7 @@ class PlaylistSuggester:
         base = top[-1][0]
         weights = [(s - base) + 0.1 for s, _ in top]
         chosen = random.choices([e for _, e in top], weights=weights, k=1)[0]
-        # Store timbral similarity to the round anchor for display
-        if anchor and chosen.features:
-            chosen.sim_score = sims.get(str(chosen.path), 0.5)
-        else:
-            chosen.sim_score = None
-        return chosen
+        return chosen, sims.get(str(chosen.path))
 
     def regenerate(
         self,
@@ -426,10 +432,23 @@ class PlaylistSuggester:
         # planned songs there: a re-roll prefers a PD the list doesn't have yet
         # and still repeats one when the library has no other.
         soft = exclude if dance in ALLOW_REPEAT else None
-        return self._pick(dance, dance_class, tier, exclude, anchor=anchor,
-                          soft_used=soft,
-                          prefer_fresh=prefer_fresh, strategy=strategy, style=style,
-                          candidates=candidates, timbre_first=True)
+        chosen, sim = self._pick(dance, dance_class, tier, exclude, anchor=anchor,
+                                 soft_used=soft,
+                                 prefer_fresh=prefer_fresh, strategy=strategy,
+                                 style=style, candidates=candidates, timbre_first=True)
+        if chosen is not None:
+            self.set_similarity(chosen, round_name, sim)
+        return chosen
+
+    def similarity(self, entry: MusicEntry, round_name: str | None) -> float | None:
+        """The timbre similarity shown for `entry` in `round_name` (≈ / hover-%),
+        as last picked or placed there; None when nothing was measured."""
+        return self._sims.get((round_name, str(entry.path)))
+
+    def set_similarity(self, entry: MusicEntry, round_name: str | None,
+                       score: float | None) -> None:
+        """Record the similarity of a song picked or placed in `round_name`."""
+        self._sims[(round_name, str(entry.path))] = score
 
     def anchor_similarity(self, entry: MusicEntry,
                           round_name: str | None,

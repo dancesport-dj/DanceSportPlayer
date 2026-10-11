@@ -107,16 +107,25 @@ class TableActionsMixin:
             if m.round_name and m.dance:
                 pb_dance, pb_round = m.dance, m.round_name
 
+        # Each section adds its actions and files what each one does in
+        # `handlers`; the chosen one runs once the menu has closed.
         menu = QMenu(self)
-        act = act_wl = act_fresh = copy_act = reveal_act = remove_act = speed_act = None
-        retag_act = edit_act = None
-        edit_rows: set = set()
-        mark_act = reset_marks_act = None
-        swap_act = None
+        handlers: dict = {}
+        self._menu_playback(menu, handlers)
+        self._menu_title(menu, handlers, row, entry, pb_dance, pb_round)
+        self._menu_structure(menu, handlers, row, entry)
+        self._menu_list(menu, handlers)
+        if menu.isEmpty():
+            return
 
+        handler = handlers.get(menu.exec(event.globalPos()))
+        if handler is not None:
+            handler()
+
+    def _menu_playback(self, menu, handlers):
+        """Context menu: stop or skip the music that is playing."""
         # ── Playback, right where the mouse already is: end the music, or let
         # the current title go and start the next one. ─────────────────────────
-        stop_act = skip_act = None
         host = self.host
         if host.can_stop_and_skip():
             running = host.music_running()
@@ -124,7 +133,12 @@ class TableActionsMixin:
             skip_act = menu.addAction("⏭  Skip to the next title")
             stop_act.setEnabled(running)
             skip_act.setEnabled(running)
+            handlers[stop_act] = host.stop_music
+            handlers[skip_act] = host.skip_to_next
 
+    def _menu_title(self, menu, handlers, row, entry, pb_dance, pb_round):
+        """Context menu: what can be done with the title under the mouse."""
+        host = self.host
         # Both lookups are planning work — searching the library for a better
         # track, or for what an earlier tournament used in this slot. A
         # player-only install runs a finished playlist and has no use for
@@ -138,6 +152,7 @@ class TableActionsMixin:
             if not (self._suggester is not None and self._suggester.lib is not None):
                 a.setEnabled(False)
                 a.setText("📜  Find planned before (load library first)")
+            handlers[a] = lambda: self._show_planned_before(pb_dance, pb_round)
             return a
         planned_act = None
 
@@ -163,6 +178,13 @@ class TableActionsMixin:
                 elif wl_empty:
                     act_wl.setEnabled(False)
                     act_wl.setText("⭐  Find similar in wishlist (wishlist is empty)")
+                if entry.features is not None:
+                    slot = (pb_dance, pb_round)
+                    handlers[act] = lambda: self._show_similar(entry, slot=slot)
+                    handlers[act_wl] = lambda: self._show_similar(
+                        entry, wishlist_only=True, slot=slot)
+                    handlers[act_fresh] = lambda: self._show_similar(
+                        entry, fresh_only=True, slot=slot)
                 if pb_round and pb_dance:
                     planned_act = _mk_planned()
             copy_act = menu.addAction("📋  Copy file path")
@@ -179,6 +201,14 @@ class TableActionsMixin:
                 speed_act.setText("🎵  Check music speed (unavailable)")
                 retag_act.setEnabled(False)
                 retag_act.setText("🏷  Re-read MP3 tags (unavailable)")
+            if entry.path:
+                def _copy_path():
+                    QApplication.clipboard().setText(str(entry.path))
+                    _show_toast(self, "📋  Path copied to clipboard")
+                handlers[copy_act] = _copy_path
+                handlers[reveal_act] = lambda: reveal_in_explorer(entry.path, self)
+                handlers[speed_act] = lambda: host.check_track_speed(entry)
+                handlers[retag_act] = lambda: host.rescan_entry_tags(entry)
             # Stars, classes, markers — for the selection when the click is
             # inside it, like "Remove this title".
             edit_rows = self._title_rows_for(row)
@@ -186,6 +216,8 @@ class TableActionsMixin:
                 i18n.t("🏷  Edit tags of %d tracks…") % len(edit_rows)
                 if len(edit_rows) > 1 else i18n.t("🏷  Edit tags…"))
             edit_act.setEnabled(bool(entry.path))
+            handlers[edit_act] = lambda: host.edit_entry_tags(
+                [self._row_meta[r].entry for r in sorted(edit_rows)])
             # Mark / unmark "for potential replace", with Reset-all directly
             # below it.
             if self._marks_allowed():
@@ -194,30 +226,54 @@ class TableActionsMixin:
                 mark_act = menu.addAction("🔁  Unmark (potential replace)\tCtrl+M"
                                           if is_marked
                                           else "🔁  Mark for potential replace\tCtrl+M")
+                handlers[mark_act] = lambda: self._toggle_mark(
+                    {ix.row() for ix in self.selectedIndexes()} or {row})
                 if self._marked_paths:
                     reset_marks_act = menu.addAction("🔁  Reset all replacement marks")
+                    handlers[reset_marks_act] = self._reset_all_marks
+            # 📌 Pin: a slot of a round keeps its title through ↻ / ↺.
+            pin_meta = self._row_meta[row] if 0 <= row < len(self._row_meta) else None
+            if pin_meta and pin_meta.round_name and not pin_meta.theme and entry.path:
+                menu.addSeparator()
+                pin_act = menu.addAction(
+                    i18n.t("📌  Unpin") if str(entry.path) in self._pinned_paths
+                    else i18n.t("📌  Pin — keep this title when the round is re-rolled"))
+                handlers[pin_act] = lambda: self._toggle_pin(
+                    {ix.row() for ix in self.selectedIndexes()} or {row})
             if self._flat_mode:
                 menu.addSeparator()
                 remove_act = menu.addAction("🗑  Remove from wishlist")
+
+                def _remove_from_wishlist():
+                    if row == self._current_play_row and self._play_cb:
+                        self._play_cb(None)
+                        self._current_play_row = -1
+                    self.removeRow(row)
+                    del self._row_meta[row]
+                    self._notify_changed()
+                handlers[remove_act] = _remove_from_wishlist
             # Eintanzen list: two selected titles of one dance change places.
             if self._two_songs_selected():
                 menu.addSeparator()
                 swap_act = menu.addAction("⇅  Swap these two titles\tAlt+S")
+                handlers[swap_act] = self._swap_selected
 
         # Empty slot (no entry, so no "Find similar" above): still offer it, on top.
         if planning and planned_act is None and pb_round and pb_dance:
-            planned_act = _mk_planned()
+            _mk_planned()
+
+    def _menu_structure(self, menu, handlers, row, entry):
+        """Context menu: grow or shrink the rounds, heats and slots of a deck."""
+        def _remove_titles(title_rows):
+            if self._confirm_delete("Remove song",
+                                    self._remove_songs_prompt(len(title_rows))):
+                self._clear_slots_at(title_rows)
 
         # ── Dynamic-mode structure editing ─────────────────────────────────────
         # Two coherent groups so the menu reads logically: first GROW (➕ Add),
         # then SHRINK (🗑 Remove), each ordered smallest→largest scope
         # (heat→round for adds; title→heat for removes).
-        remove_title_act = heat_act = backup_act = remove_round_act = None
-        empty_slot_act = None
-        add_heat_act = new_round_act = remove_dance_act = None
-        remove_dance_all_act = None
         dance_here = round_here = None
-        title_rows: set = set()
         if self._dynamic:
             rmeta = (self._row_meta[row]
                      if 0 <= row < len(self._row_meta) else None)
@@ -244,9 +300,11 @@ class TableActionsMixin:
                 menu.addSeparator()
             if on_round:
                 add_heat_act = menu.addAction("➕  Add a heat to this round")
+                handlers[add_heat_act] = lambda: self._add_dynamic_heat(row)
             new_round_act = menu.addAction(
                 i18n.t("➕  Insert new round after %s") % round_name if on_round
                 else "➕  Create new round")
+            handlers[new_round_act] = lambda: self._insert_dynamic_round(row)
 
             # SHRINK: remove just the track(s) keeping the slot, then the whole
             # heat / a single stacked backup.
@@ -258,10 +316,13 @@ class TableActionsMixin:
                 if want_title:
                     remove_title_act = menu.addAction(
                         self._remove_titles_caption(len(title_rows)))
+                    handlers[remove_title_act] = lambda: _remove_titles(title_rows)
                 if is_backup_row:
                     backup_act = menu.addAction("🗑  Remove this backup\tCtrl+Del")
+                    handlers[backup_act] = lambda: self._remove_dynamic_backup(row)
                 elif on_heat_row:
                     heat_act = menu.addAction("🗑  Remove this heat (all dances)\tCtrl+Del")
+                    handlers[heat_act] = lambda: self._remove_dynamic_heat(row)
                     # An EMPTY slot (no song): offer a surgical clear that lifts a stacked
                     # backup up into it, or drops a lone dead slot — every other option
                     # here would also wipe the heat or the backup beneath it.
@@ -272,11 +333,15 @@ class TableActionsMixin:
                         _filled = _di >= 0 and any(
                             _di < len(h) and h[_di] is not None
                             for h in (self._playlist or {}).get(rmeta.round_name, []))
+                        empty_slot_act = None
                         if self._dynamic_backups.get(_key):
                             empty_slot_act = menu.addAction(
                                 "⬆  Move backup up into this empty slot")
                         elif not _filled:
                             empty_slot_act = menu.addAction("🗑  Remove this empty slot")
+                        if empty_slot_act is not None:
+                            handlers[empty_slot_act] = (
+                                lambda: self._remove_empty_dynamic_slot(row))
                 if can_remove_dance:
                     dn = dance_name(dance_here, dance_here)
                     remove_dance_act = menu.addAction(
@@ -284,8 +349,13 @@ class TableActionsMixin:
                                "(keep other dances)") % dn)
                     remove_dance_all_act = menu.addAction(
                         i18n.t("🗑  Remove %s from all rounds and heats") % dn)
+                    handlers[remove_dance_act] = (
+                        lambda: self._remove_dance_from_round(round_here, dance_here))
+                    handlers[remove_dance_all_act] = (
+                        lambda: self._remove_dance_everywhere(dance_here))
                 if on_round:
                     remove_round_act = menu.addAction("🗑  Remove this round (all heats)")
+                    handlers[remove_round_act] = lambda: self._remove_dynamic_round(row)
 
         # The same "take this title out" a dynamic deck has, for the other two
         # kinds of deck. Del does it too, but Del is not discoverable and on a
@@ -295,10 +365,13 @@ class TableActionsMixin:
             title_rows = self._title_rows_for(row)
             remove_title_act = menu.addAction(
                 self._remove_titles_caption(len(title_rows)))
+            handlers[remove_title_act] = lambda: _remove_titles(title_rows)
 
+    def _menu_list(self, menu, handlers):
+        """Context menu: actions on the whole list — mode, save, import, clean up."""
+        host = self.host
         # Static ⇄ dynamic mode toggle (decks only, not the flat wishlist — and
         # not in a player-only install, where a deck always adds a dropped title).
-        mode_act = None
         if not self._flat_mode and not self.player_only():
             if not menu.isEmpty():
                 menu.addSeparator()
@@ -306,21 +379,26 @@ class TableActionsMixin:
                 "🔒  Back to a planned grid" if self._player_list else
                 "🔒  Switch to static mode" if self._dynamic else
                 "🔓  Switch to dynamic mode")
+            handlers[mode_act] = lambda: host.set_deck_mode(
+                "static" if (self._dynamic or self._player_list) else "dynamic")
 
         # Save the whole list as an .m3u — always available (even on a header row).
-        save_act = tree_act = None
+        save_act = None
         if self._row_meta.has_songs():
             if not menu.isEmpty():
                 menu.addSeparator()
             save_act = menu.addAction("💾  Save as M3U…")
+            handlers[save_act] = lambda: self.saveRequested.emit(self)
             if host.has_tournaments():
                 tree_act = menu.addAction("🏆  Save and add to Tournaments…")
+                handlers[tree_act] = lambda: self.saveToTournamentsRequested.emit(self)
 
         # Import an .m3u INTO this table (deck: full rounds/heats detection;
         # wishlist: tracks are appended flat).
         if save_act is None and not menu.isEmpty():
             menu.addSeparator()
         import_act = menu.addAction("📂  Import M3U…")
+        handlers[import_act] = host.import_m3u_into
 
         # Wishlist: drop every track that's already sitting in an open playlist deck.
         clean_pl_act = None
@@ -328,6 +406,7 @@ class TableActionsMixin:
             if not menu.isEmpty():
                 menu.addSeparator()
             clean_pl_act = menu.addAction("🧹  Remove tracks already in a playlist")
+            handlers[clean_pl_act] = host.clean_wishlist_against_playlists
 
         # Deck: the same thing the other way round — drop what the OTHER open
         # playlists already plan, so a title runs once in the evening. The
@@ -342,110 +421,29 @@ class TableActionsMixin:
                 if not menu.isEmpty():
                     menu.addSeparator()
                 clean_deck_act = menu.addAction(_clean_deck_label(n_other))
+                handlers[clean_deck_act] = host.clean_deck_against_others
 
         # Any list: the same audio twice in THIS list (a C: and an F: copy, say).
-        dedupe_act = None
         if self._row_meta.has_songs():
             if clean_pl_act is None and clean_deck_act is None and not menu.isEmpty():
                 menu.addSeparator()
             dedupe_act = menu.addAction("♊  Remove duplicate titles in this list")
+            handlers[dedupe_act] = self._remove_duplicate_titles
 
         # Find a title in THIS list and jump to it (re-run to step to the next match).
-        search_act = None
         if self._row_meta.has_songs():
             if not menu.isEmpty():
                 menu.addSeparator()
             search_act = menu.addAction("🔍  Find a title in this list…\tCtrl+F")
+            handlers[search_act] = self._search_title
 
         # Empty the whole list (blank it again) — clearer than Del-on-header / Ctrl+A.
-        clear_act = None
         if self.rowCount() > 0:
             if not menu.isEmpty():
                 menu.addSeparator()
             clear_act = menu.addAction("🧹  Empty this wishlist" if self._flat_mode
                                        else "🧹  Empty this playlist")
-        if menu.isEmpty():
-            return
-
-        chosen = menu.exec(event.globalPos())
-        if chosen is None:
-            return
-        if stop_act is not None and chosen is stop_act:
-            host.stop_music()
-        elif skip_act is not None and chosen is skip_act:
-            host.skip_to_next()
-        elif save_act is not None and chosen is save_act:
-            self.saveRequested.emit(self)
-        elif tree_act is not None and chosen is tree_act:
-            self.saveToTournamentsRequested.emit(self)
-        elif chosen is import_act:
-            host.import_m3u_into()
-        elif clean_pl_act is not None and chosen is clean_pl_act:
-            host.clean_wishlist_against_playlists()
-        elif clean_deck_act is not None and chosen is clean_deck_act:
-            host.clean_deck_against_others()
-        elif dedupe_act is not None and chosen is dedupe_act:
-            self._remove_duplicate_titles()
-        elif swap_act is not None and chosen is swap_act:
-            self._swap_selected()
-        elif mark_act is not None and chosen is mark_act:
-            sel = {ix.row() for ix in self.selectedIndexes()}
-            self._toggle_mark(sel or {row})
-        elif reset_marks_act is not None and chosen is reset_marks_act:
-            self._reset_all_marks()
-        elif search_act is not None and chosen is search_act:
-            self._search_title()
-        elif clear_act is not None and chosen is clear_act:
-            self._clear_entire()
-        elif remove_title_act is not None and chosen is remove_title_act:
-            if self._confirm_delete("Remove song",
-                                    self._remove_songs_prompt(len(title_rows))):
-                self._clear_slots_at(title_rows)
-        elif heat_act is not None and chosen is heat_act:
-            self._remove_dynamic_heat(row)
-        elif remove_round_act is not None and chosen is remove_round_act:
-            self._remove_dynamic_round(row)
-        elif add_heat_act is not None and chosen is add_heat_act:
-            self._add_dynamic_heat(row)
-        elif backup_act is not None and chosen is backup_act:
-            self._remove_dynamic_backup(row)
-        elif empty_slot_act is not None and chosen is empty_slot_act:
-            self._remove_empty_dynamic_slot(row)
-        elif new_round_act is not None and chosen is new_round_act:
-            self._insert_dynamic_round(row)
-        elif remove_dance_act is not None and chosen is remove_dance_act:
-            self._remove_dance_from_round(round_here, dance_here)
-        elif remove_dance_all_act is not None and chosen is remove_dance_all_act:
-            self._remove_dance_everywhere(dance_here)
-        elif mode_act is not None and chosen is mode_act:
-            host.set_deck_mode("static" if (self._dynamic or self._player_list)
-                               else "dynamic")
-        elif remove_act is not None and chosen is remove_act:
-            if row == self._current_play_row and self._play_cb:
-                self._play_cb(None)
-                self._current_play_row = -1
-            self.removeRow(row)
-            del self._row_meta[row]
-            self._notify_changed()
-        elif copy_act is not None and chosen is copy_act and entry.path:
-            QApplication.clipboard().setText(str(entry.path))
-            _show_toast(self, "📋  Path copied to clipboard")
-        elif reveal_act is not None and chosen is reveal_act and entry.path:
-            reveal_in_explorer(entry.path, self)
-        elif speed_act is not None and chosen is speed_act and entry.path:
-            host.check_track_speed(entry)
-        elif retag_act is not None and chosen is retag_act and entry.path:
-            host.rescan_entry_tags(entry)
-        elif edit_act is not None and chosen is edit_act:
-            host.edit_entry_tags([self._row_meta[r].entry for r in sorted(edit_rows)])
-        elif planned_act is not None and chosen is planned_act:
-            self._show_planned_before(pb_dance, pb_round)
-        elif act is not None and chosen is act and entry.features is not None:
-            self._show_similar(entry, slot=(pb_dance, pb_round))
-        elif act_wl is not None and chosen is act_wl and entry.features is not None:
-            self._show_similar(entry, wishlist_only=True, slot=(pb_dance, pb_round))
-        elif act_fresh is not None and chosen is act_fresh and entry.features is not None:
-            self._show_similar(entry, fresh_only=True, slot=(pb_dance, pb_round))
+            handlers[clear_act] = self._clear_entire
 
     def _selected_song_rows(self) -> list[int]:
         """The selected rows that hold a title, top to bottom."""
@@ -740,6 +738,47 @@ class TableActionsMixin:
             return bool(e is not None and getattr(e, "path", None)
                         and str(e.path) in self._marked_paths)
         return False
+
+    def _is_row_pinned(self, row: int) -> bool:
+        """True when this row's title is 📌 pinned (sits out the re-rolls)."""
+        if 0 <= row < len(self._row_meta) and self._row_meta[row]:
+            e = self._row_meta[row].entry
+            return bool(e is not None and getattr(e, "path", None)
+                        and str(e.path) in self._pinned_paths)
+        return False
+
+    def _toggle_pin(self, rows) -> bool:
+        """📌 Pin or unpin the titles in `rows` (slots of a round only), keyed by
+        path like the 🔁 marks. If any of them is unpinned, pin them all;
+        otherwise unpin them all."""
+        paths = []
+        for r in rows:
+            if 0 <= r < len(self._row_meta) and self._row_meta[r]:
+                m = self._row_meta[r]
+                if (m.entry is not None and getattr(m.entry, "path", None)
+                        and m.round_name and not m.theme):
+                    paths.append(str(m.entry.path))
+        if not paths:
+            return False
+        pinning = any(p not in self._pinned_paths for p in paths)
+        if pinning:
+            self._pinned_paths.update(paths)
+        else:
+            self._pinned_paths.difference_update(paths)
+        affected = set(paths)
+        for r in range(min(self.rowCount(), len(self._row_meta))):
+            m = self._row_meta[r]
+            if m and m.entry is not None and str(getattr(m.entry, "path", "")) in affected:
+                self._refill_row(r, m)
+        n = len(affected)
+        if pinning:
+            _show_toast(self, (i18n.t("📌  Pinned %d title — the round's ↻ keeps it") if n == 1
+                               else i18n.t("📌  Pinned %d titles — the round's ↻ keeps them")) % n)
+        else:
+            _show_toast(self, (i18n.t("📌  Unpinned %d title") if n == 1
+                               else i18n.t("📌  Unpinned %d titles")) % n)
+        self._notify_changed()
+        return True
 
     def _row_base_bg(self, row: int, meta: dict | None) -> QColor:
         """The row's normal (unmarked) background — heat-parity alternating colour."""

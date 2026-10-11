@@ -22,18 +22,23 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_fade_"))
 
-from PySide6.QtMultimedia import QMediaPlayer  # noqa: E402
-from PySide6.QtWidgets import QApplication, QWidget  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from PySide6.QtMultimedia import QMediaPlayer
+from PySide6.QtWidgets import QApplication, QWidget
+from tests.qt_test_support import reap_widget
 
-from player.mix import OutputMix  # noqa: E402
-from player.main_player import PlayerControlMixin  # noqa: E402
-from player.player import BigPlayerWidget  # noqa: E402
-from player.playback_state import PlaybackState  # noqa: E402
-from player.between_dances import BetweenDances  # noqa: E402
+from player.mix import OutputMix
+from player.main_player import PlayerControlMixin
+from player.player import BigPlayerWidget
+from player.playback_state import PlaybackState
+from player.between_dances import BetweenDances
 
 ORANGE = "#fb8c00"
 RED = "#e53935"
+
+
+def _skin(card) -> str:
+    """Which skin the card shows: '' plain, 'end' red, 'fade' orange."""
+    return card.property("flash")
 
 
 class _PlayingStub(QMediaPlayer):
@@ -58,14 +63,35 @@ class FadeBlinkTest(unittest.TestCase):
     def test_the_card_blinks_orange_while_a_fade_runs(self):
         self.card.set_fading(True)
         self.assertTrue(self.card._flash.isActive())
-        self.assertIn(ORANGE, self.card.styleSheet())
+        self.assertEqual(_skin(self.card), "fade")
+
+    def test_the_skins_paint_their_colours(self):
+        self.card.resize(320, 240)
+        left_edge = (0, 120)
+
+        def border():
+            return self.card.grab().toImage().pixelColor(*left_edge).name()
+        self.card.set_fading(True)
+        self.assertEqual(border(), ORANGE)
+        self.card.set_fading(False)
+        self.assertNotIn(border(), (ORANGE, RED))
+
+    def test_the_blink_does_not_restyle_the_card(self):
+        """A new style sheet re-polishes every child of the card, and the beat
+        set one twice a second for the whole final stretch."""
+        self.card.set_fading(True)
+        calls = []
+        self.card.setStyleSheet = calls.append
+        self.card._flash_step()
+        self.card._flash_step()
+        self.assertEqual(calls, [])
 
     def test_the_blink_alternates_with_the_plain_card(self):
         self.card.set_fading(True)
         self.card._flash_step()
-        self.assertEqual(self.card.styleSheet(), self.card._base_qss)
+        self.assertEqual(_skin(self.card), "")
         self.card._flash_step()
-        self.assertIn(ORANGE, self.card.styleSheet())
+        self.assertEqual(_skin(self.card), "fade")
 
     def test_the_fade_colour_wins_over_the_red_end_warning(self):
         """Both can be true at once — the last seconds of a song the operator
@@ -73,8 +99,7 @@ class FadeBlinkTest(unittest.TestCase):
         self.card._flash.start()          # as the end warning would
         self.card._flash_on = False
         self.card.set_fading(True)
-        self.assertIn(ORANGE, self.card.styleSheet())
-        self.assertNotIn(RED, self.card.styleSheet())
+        self.assertEqual(_skin(self.card), "fade")
 
     def test_the_end_warning_does_not_stop_the_fade_blink(self):
         """`_update_end_flash` runs on every position tick and stops the blink
@@ -108,18 +133,18 @@ class FadeBlinkTest(unittest.TestCase):
         self.card.set_fading(False)
         self.assertFalse(self.card._flash.isActive())
         self.assertFalse(self.card._fading)
-        self.assertEqual(self.card.styleSheet(), self.card._base_qss)
+        self.assertEqual(_skin(self.card), "")
 
     def test_asking_twice_does_not_restart_the_beat(self):
         self.card.set_fading(True)
         self.card._flash_step()             # mid-beat: the plain card shows
         self.card.set_fading(True)
-        self.assertEqual(self.card.styleSheet(), self.card._base_qss)
+        self.assertEqual(_skin(self.card), "")
 
     def test_a_card_that_never_faded_is_untouched_by_the_off_switch(self):
         self.card.set_fading(False)
         self.assertFalse(self.card._flash.isActive())
-        self.assertEqual(self.card.styleSheet(), self.card._base_qss)
+        self.assertEqual(_skin(self.card), "")
 
 
 class _Card:
@@ -255,6 +280,21 @@ class FadeIndicatorWiringTest(unittest.TestCase):
         self.desk._fade_out_now()
         self.desk._stop_play_timer()
         self.assertFalse(self.desk._big_player.fading)
+
+    def test_both_fades_run_while_the_desk_shows_planning(self):
+        """📱 The phone sends 🔉↓ and 🛑 whichever side the desk shows; the
+        desk's own buttons are only on the playing side, so this went unseen:
+        the hold started and then nothing drove it, the fade-out did nothing."""
+        self.desk._is_playing_mode = lambda: False
+        self.desk._fade_and_hold()
+        self.desk._fade_now_end = time.monotonic() - 0.1
+        self.desk._on_play_tick()
+        self.assertEqual(self.desk._player.paused, 1)
+        self.desk._fade_out_now()
+        self.assertIsNotNone(self.desk._fade_now_end)
+        self.desk._fade_now_end = time.monotonic() - 0.1
+        self.desk._on_play_tick()
+        self.assertEqual(self.desk._ended, ["fade-out finished"])
 
     def test_no_card_on_the_desk_is_survived(self):
         self.desk._big_player = None

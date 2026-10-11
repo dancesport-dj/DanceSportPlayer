@@ -18,7 +18,7 @@ from pathlib import Path
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_retag_"))
 
-from planner.db import (  # noqa: E402
+from planner.db import (
     _AUDIO_FEAT_DIM, _FP_SAMPLE, AudioCache, AudioFeatures, _db,
     _fingerprints, _tag_offsets,
 )

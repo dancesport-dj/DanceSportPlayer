@@ -32,12 +32,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_analyze_i18n_"))
 
-from PySide6.QtWidgets import QApplication, QWidget  # noqa: E402
+from PySide6.QtWidgets import QApplication, QWidget
 
-from gui import main_analyze as man  # noqa: E402
-from planner import i18n  # noqa: E402
-from planner.models import MusicEntry  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from gui import main_analyze as man
+from planner import i18n
+from planner.models import MusicEntry
+from tests.qt_test_support import reap_widget
 
 
 def _entry(name, dance="SA"):

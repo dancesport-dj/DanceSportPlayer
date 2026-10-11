@@ -22,17 +22,17 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_event_compare_"))
 
-from PySide6.QtCore import QPoint, QPointF, Qt  # noqa: E402
-from PySide6.QtGui import QDragLeaveEvent, QDragMoveEvent, QDropEvent, QKeySequence  # noqa: E402
-from PySide6.QtTest import QTest  # noqa: E402
-from PySide6.QtWidgets import (  # noqa: E402
+from PySide6.QtCore import QPoint, QPointF, Qt
+from PySide6.QtGui import QDragLeaveEvent, QDragMoveEvent, QDropEvent, QKeySequence
+from PySide6.QtTest import QTest
+from PySide6.QtWidgets import (
     QApplication, QDialog, QLabel, QMessageBox, QPushButton, QWidget,
 )
 
-from gui.event_compare import TIER_NAMES, EventCompareDialog, SlotPicker  # noqa: E402
-from planner import event_plan  # noqa: E402
-from planner.competition import parse_competition_schedule  # noqa: E402
-from tests.planner.test_event_variants import EventFixture  # noqa: E402
+from gui.event_compare import TIER_NAMES, EventCompareDialog, SlotPicker
+from planner import event_plan
+from planner.competition import parse_competition_schedule
+from tests.planner.test_event_variants import EventFixture
 
 
 class _Host(QWidget):
@@ -109,7 +109,7 @@ class EventCompareTest(EventFixture, unittest.TestCase):
         2025 had no Jug A STD. Without a list of its own at the event, the tab
         and the note under the table say the class lists stand in."""
         dlg = self.open()                   # SEN I S STD: no list at DC
-        notes = lambda i: dlg._tabs.widget(i).findChild(QLabel).text()  # noqa: E731
+        notes = lambda i: dlg._tabs.widget(i).findChild(QLabel).text()
         self.assertTrue(dlg._tabs.tabText(1).startswith("∅ "))
         self.assertIn("no list of this competition", notes(1))
         self.assertIn("class lists", notes(1))
@@ -120,7 +120,7 @@ class EventCompareTest(EventFixture, unittest.TestCase):
         """Marcel: if there is no list from last year, label it like similar
         competitions — the class lists fill it."""
         dlg = self.open()                   # SEN I S STD: no list at DC
-        head = lambda i: dlg._tables[i].horizontalHeaderItem(0).text()  # noqa: E731
+        head = lambda i: dlg._tables[i].horizontalHeaderItem(0).text()
         self.assertEqual(head(1), "✔ Like similar competitions")
         self.assertEqual(head(0), "✔ Like last year")
         self.assertEqual(dlg._tables[1].horizontalHeaderItem(1).text(), "Variety")
@@ -131,7 +131,7 @@ class EventCompareTest(EventFixture, unittest.TestCase):
         bar = dlg._tabs.tabBar()
         bar.resize(bar.sizeHint())
         image = bar.grab().toImage()
-        orange = lambda k: (lambda c: c.red() > 200 and c.blue() < 150)(  # noqa: E731
+        orange = lambda k: (lambda c: c.red() > 200 and c.blue() < 150)(
             image.pixelColor(bar.tabRect(k).center().x(), bar.tabRect(k).bottom() - 2))
         self.assertTrue(orange(1))
         self.assertFalse(orange(0))
@@ -178,7 +178,7 @@ class EventCompareTest(EventFixture, unittest.TestCase):
         """Marcel: at the first test both were 1:1 the same — where nothing
         could be replaced, don't show the column twice."""
         dlg = self.open(profiles=self.RENEWED, twins=True)
-        notes = lambda i: dlg._tabs.widget(i).findChild(QLabel).text()  # noqa: E731
+        notes = lambda i: dlg._tabs.widget(i).findChild(QLabel).text()
         self.assertFalse(dlg._tables[0].isColumnHidden(1))
         self.assertTrue(dlg._tables[1].isColumnHidden(1))     # SEN I S: no list
         self.assertIn("the same as 'Like last year'", notes(1))
@@ -354,7 +354,7 @@ class EventCompareTest(EventFixture, unittest.TestCase):
 
     def test_the_tabs_variant_is_ticked_in_its_header(self):
         dlg = self.open()
-        head = lambda i, col: dlg._tables[i].horizontalHeaderItem(col).text()  # noqa: E731
+        head = lambda i, col: dlg._tables[i].horizontalHeaderItem(col).text()
         dlg._tabs.setCurrentIndex(0)
         dlg._variant.setCurrentIndex(1)
         self.assertEqual([head(0, 0), head(0, 1)], ["Like last year", "✔ Variety"])

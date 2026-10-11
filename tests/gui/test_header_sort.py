@@ -20,12 +20,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_sort_"))
 
-from PySide6.QtWidgets import QApplication, QWidget  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from PySide6.QtWidgets import QApplication, QWidget
+from tests.qt_test_support import reap_widget
 
-from shared.columns import _COL_ARTIST, _COL_DANCE, _COL_HEAT, _COL_TITLE  # noqa: E402
-from gui.playlist_table import PlaylistTable  # noqa: E402
-from planner.models import MusicEntry, RoundConfig  # noqa: E402
+from shared.columns import _COL_ARTIST, _COL_DANCE, _COL_HEAT, _COL_TITLE
+from gui.playlist_table import PlaylistTable
+from planner.models import MusicEntry, RoundConfig
 
 
 def _e(dance, title, artist=None):

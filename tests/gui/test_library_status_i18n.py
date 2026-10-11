@@ -33,10 +33,10 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_libstatus_i18n_"))
 
-from gui import main_global as glb  # noqa: E402
-from gui.config_panel import mark_index_gaps  # noqa: E402
-from planner import i18n  # noqa: E402
-from planner.models import MusicEntry  # noqa: E402
+from gui import main_global as glb
+from gui.config_panel import mark_index_gaps
+from planner import i18n
+from planner.models import MusicEntry
 
 
 def _entry(name, dance="SA", analyzed=True):
@@ -157,7 +157,7 @@ class LibraryStatusI18nTest(unittest.TestCase):
         for line in ("— Indizes (analysiert / gesamt) —",
                      "🔗 Fingerabdrücke: ",
                      "📊 Lautheit: ",
-                     "🔇 Stillen: ",
+                     "🔇 Stille: ",
                      "🐂 PD-Höhepunkte: "):
             self.assertIn(line, msg)
 

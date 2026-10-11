@@ -222,6 +222,8 @@ def load_settings() -> dict:
         "library_hidden_columns": [],
         "library_short_dances": False,
         "global_search": False,
+        # ⛶ The fullscreen clock without its date: "20:45:12".
+        "clock_time_only": False,
         "preview_player": True,
         # Where the master player is docked — see PLAYER_LAYOUT_CHOICES.
         "player_layout": "panel",
@@ -371,6 +373,14 @@ MEDIA_BACKEND_CHOICES = (
      ("ffmpeg", "🎬  FFmpeg — Qt's own engine")))
 
 
+# (planner.m3u.M3U_FORMATS key, caption) — what 'Save as M3U' and the exports write.
+M3U_FORMAT_CHOICES = (
+    ("utf-8", "UTF-8 (.m3u) — default"),
+    ("utf-8-sig", "UTF-8 with BOM (.m3u) — for Windows tools that guess ANSI"),
+    ("m3u8", "UTF-8 (.m3u8) — the encoding named in the extension"),
+)
+
+
 PLAYER_LAYOUT_CHOICES = (
     ("panel", "◧  Beside the playlists — at the head of the ▶ Playing panel",
      "The player card stands in the left panel, above the timed-play "
@@ -513,7 +523,7 @@ def warmup_name(mode: str) -> str:
     """What the 🤸 panel is called. Warming up ('Eintanzen') and running a party
     are the same flat list, but 'Eintanzen' is a tournament-preparation word — a
     player-only install never prepares one, it only plays the party."""
-    return "Party" if mode == "player" else "Eintanzen / Party"
+    return "Party" if mode == "player" else i18n.t("Practice / Party")
 
 
 class AppModeDialog(QDialog):
@@ -533,7 +543,7 @@ class AppModeDialog(QDialog):
         # Plain text, so the & must NOT be escaped — a QLabel only reads markup
         # when the string actually contains a tag, and this one does not.
         note = QLabel("You can change this later under ⚙ Settings → "
-                      "📁 Paths & search.")
+                      "⚙ General.")
         note.setWordWrap(True)
         note.setStyleSheet("color:#666; font-size:11px;")
         lyt.addWidget(note)
@@ -625,7 +635,7 @@ class ErrorReportsQuestion(QMessageBox):
             "Not sent: your music, your playlists, your computer's name.\n"
             "Your user folder is cut out of every path.\n\n"
             "You can change this at any time under ⚙ Settings → "
-            "📁 Paths & search.")
+            "⚙ General.")
         self.send_btn = self.addButton("Send reports",
                                        QMessageBox.ButtonRole.YesRole)
         self.keep_btn = self.addButton("Don't send",
@@ -913,7 +923,10 @@ class SettingsDialog(QDialog):
                  index_summary=None, all_cb=None, maintenance_cb=None, relearn_cb=None,
                  analyze_cb=None, loudness_cb=None, silence_cb=None, pd_cb=None,
                  vocals_cb=None, gaps_cb=None, n_unanalyzed: int = 0,
-                 pd_export_cb=None, pd_import_cb=None):
+                 pd_export_cb=None, pd_import_cb=None, backup_restore_cb=None,
+                 venue_export_cb=None, venue_import_cb=None, remote_cb=None,
+                 remote_running=None, remote_stop_cb=None, remote_changed=None,
+                 controller_cb=None):
         super().__init__(parent)
         self.setWindowTitle("⚙  Settings")
         self.setMinimumWidth(560)
@@ -929,14 +942,35 @@ class SettingsDialog(QDialog):
         self._silence_cb = silence_cb
         self._pd_cb = pd_cb
         self._vocals_cb = vocals_cb
+        self._venue_export_cb = venue_export_cb
+        self._venue_import_cb = venue_import_cb
+        self._remote_cb = remote_cb
+        self._remote_running = remote_running or (lambda: False)
+        self._remote_stop_cb = remote_stop_cb
+        self._remote_changed = remote_changed
+        self._controller_cb = controller_cb
         summ = index_summary or {}
         lyt = QVBoxLayout(self)
         tabs = QTabWidget()
         lyt.addWidget(tabs)
+        self._setup_general_tab(settings, tabs)
+        self._setup_paths_tab(relearn_cb, settings, tabs)
+        self._setup_look_tab(settings, tabs)
+        self._setup_sound_tab(settings, tabs)
+        self._setup_analysis_tab(
+            all_cb, analyze_cb, backup_restore_cb, build_cb, embed_cb, loudness_cb,
+            maintenance_cb, n_unanalyzed, pd_cb, pd_export_cb, pd_import_cb, silence_cb,
+            summ, tabs, vocals_cb)
+        sets_idx = self._setup_play_sets_tab(settings, tabs)
+        chk_idx = self._setup_checks_tab(gaps_cb, settings, tabs)
+        self._setup_venue_tab(tabs)
+        self._setup_tab_visibility(chk_idx, lyt, sets_idx, tabs)
 
-        # ═══ Tab 1: Paths & search ═══
-        paths_tab = QWidget()
-        plyt = QVBoxLayout(paths_tab)
+    def _setup_general_tab(self, settings, tabs):
+        """⚙ General: app mode, the 📱 phone remote, global search and error
+        reports."""
+        gen_tab = QWidget()
+        plyt = QVBoxLayout(gen_tab)
         plyt.setSpacing(10)
 
         # ── App mode ──
@@ -967,6 +1001,111 @@ class SettingsDialog(QDialog):
         plyt.addWidget(mode_sep)
         mode_sep.setVisible(not mode_locked)
 
+        # ── 📱 Phone remote: its own pane, switched in its own window ──
+        # Starting the server here leaves ⚙ Settings open: the window that
+        # shows the address, the QR code and the PIN opens on top of it.
+        self._remote_box = QGroupBox("📱  Phone remote")
+        rlyt = QHBoxLayout(self._remote_box)
+        self._remote_info = QLabel(
+            "Play, skip, fade and fire pads from a phone's browser on this "
+            "network — no app to install. The server's window shows the "
+            "address, a QR code that logs the phone in, and the PIN.")
+        self._remote_info.setWordWrap(True)
+        self._remote_info.setStyleSheet("color:#666; font-size:11px;")
+        rlyt.addWidget(self._remote_info, stretch=1)
+        self._remote_window_btn = QPushButton()
+        self._remote_window_btn.clicked.connect(self._on_remote_btn)
+        rlyt.addWidget(self._remote_window_btn)
+        self._remote_box.setVisible(self._remote_cb is not None)
+        plyt.addWidget(self._remote_box)
+        self._sync_remote_btn()
+        # Stopped or started from the server's own window: follow it.
+        if self._remote_changed is not None:
+            self._remote_changed.connect(self._sync_remote_btn)
+
+        # ── 🎛 Hardware controller: its own window, applied as it is set ──
+        ctl_box = QGroupBox("🎛  Controller")
+        clyt = QHBoxLayout(ctl_box)
+        ctl_info = QLabel(
+            "Play, skip, fade, set the volume and fire cartwall pads from a USB "
+            "MIDI or HID controller — a profile for the Korg nanoKONTROL2 is "
+            "built in, any other is learned by pressing its buttons.")
+        ctl_info.setWordWrap(True)
+        ctl_info.setStyleSheet("color:#666; font-size:11px;")
+        clyt.addWidget(ctl_info, stretch=1)
+        ctl_btn = QPushButton("🎛  Set up…")
+        ctl_btn.clicked.connect(lambda: self._controller_cb(self))
+        clyt.addWidget(ctl_btn)
+        ctl_box.setVisible(self._controller_cb is not None)
+        plyt.addWidget(ctl_box)
+
+        # ── Global search opt-in ──
+        self._global_chk = QCheckBox(
+            "🌐  Global search — match dropped files against the whole repository "
+            "(default: favorites library only)")
+        self._global_chk.setChecked(bool(settings.get("global_search", False)))
+        plyt.addWidget(self._global_chk)
+
+        note = QLabel(
+            "Global search needs the repo's audio analyzed once (⚗ Analysis tab). "
+            "Analysis only <i>reads</i> your files — it never modifies them. "
+            "Results are cached, so repeat searches are fast.")
+        note.setWordWrap(True)
+        note.setStyleSheet("color:#666; font-size:11px;")
+        plyt.addWidget(note)
+
+        # ── 🐞 Opt-in error reports, only where the build can send them ──
+        self._error_reports_chk = None
+        if error_reports.available():
+            self._error_reports_chk = QCheckBox(
+                "🐞  Send error reports — when the app hits an error, send its "
+                "technical details to the developer")
+            self._error_reports_chk.setChecked(
+                bool(settings.get("error_reports", False)))
+            self._error_reports_chk.setToolTip(
+                "Goes to the developer's GlitchTip project (app.glitchtip.com),\n"
+                "which also sees the IP address a report comes from.\n\n"
+                "Sent: the error and where in the program it happened, the last\n"
+                "log lines before it (they can name the title that was playing),\n"
+                "the operating system and the app version.\n\n"
+                "Not sent: your music, your playlists, your computer's name.\n"
+                "Your user folder is cut out of every path.\n\n"
+                "Off by default. Applies as soon as you save.")
+            plyt.addWidget(self._error_reports_chk)
+
+        plyt.addStretch()
+        tabs.addTab(gen_tab, "⚙ General")
+
+    def _on_remote_btn(self):
+        if self._remote_running():
+            self._remote_stop_cb()
+        else:
+            self._remote_cb(self)
+        self._sync_remote_btn()
+
+    def _sync_remote_btn(self):
+        """The button names what a click does: start the server, or stop the
+        one that is running."""
+        btn = self._remote_window_btn
+        if self._remote_running():
+            btn.setText("📱  Stop Server")
+            btn.setToolTip("Stops the phone remote's server — "
+                           "connected phones lose the remote.")
+        else:
+            btn.setText("📱  Start Server")
+            btn.setToolTip(
+                "Starts the server and opens its window — stop it there again.\n\n"
+                "Only phones on the same network get in, and only with the PIN;\n"
+                "wrong PINs lock the phone out for a while.\n"
+                "Windows may ask once whether the app may use the network —\n"
+                "allow it for private networks.")
+
+    def _setup_paths_tab(self, relearn_cb, settings, tabs):
+        """📁 Paths: the folders, the playlist file format and 🧭 Fix paths."""
+        paths_tab = QWidget()
+        plyt = QVBoxLayout(paths_tab)
+        plyt.setSpacing(10)
+
         # ── Favorites library path ──
         plyt.addWidget(QLabel(
             "<b>Favorites library</b> — scanned on start (your tanzcds folder):"))
@@ -984,6 +1123,20 @@ class SettingsDialog(QDialog):
             "<b>Save-as folder</b> — where 'Save as M3U…' starts (e.g. D:\\Dropbox\\Turniere):"))
         self._save_edit = QLineEdit(settings.get("save_dir", ""))
         plyt.addLayout(self._path_row(self._save_edit))
+
+        # ── Playlist file format (every M3U export) ──
+        plyt.addWidget(QLabel(
+            "<b>Playlist file format</b> — what 'Save as M3U' and the exports write:"))
+        self._m3u_format_combo = QComboBox()
+        for key, caption in M3U_FORMAT_CHOICES:
+            self._m3u_format_combo.addItem(caption, key)
+        self._m3u_format_combo.setCurrentIndex(
+            max(0, self._m3u_format_combo.findData(settings.get("m3u_format", "utf-8"))))
+        self._m3u_format_combo.setToolTip(
+            "UTF-8 keeps every umlaut and is what current players read.\n"
+            "Pick the BOM variant only if an older Windows tool shows 'Ã¼' instead\n"
+            "of 'ü'; .m3u8 is the same UTF-8 under the extension some players expect.")
+        plyt.addWidget(self._m3u_format_combo)
 
         # ── Tournament playlists folder (popularity learning) ──
         plyt.addWidget(QLabel(
@@ -1005,7 +1158,7 @@ class SettingsDialog(QDialog):
 
         # ── Reference path (Fix paths) ──
         plyt.addWidget(QLabel(
-            "<b>Referenzpfad</b> — base folder the playlist files live in on THIS PC; "
+            "<b>Reference path</b> — base folder the playlist files live in on THIS PC; "
             "🧭 Fix paths re-roots broken references here (e.g. "
             "C:\\Users\\…\\my music\\tanzcds):"))
         self._ref_edit = QLineEdit(settings.get("reference_path", ""))
@@ -1021,7 +1174,7 @@ class SettingsDialog(QDialog):
         self._remap_edit.setPlaceholderText("F:\\my music\nC:\\Users\\…\\my music")  # i18n: data
         self._remap_edit.setFixedHeight(66)
         self._remap_edit.setToolTip(
-            "🧭 Fix paths tries the Referenzpfad first and then these folders,\n"
+            "🧭 Fix paths tries the Reference path first and then these folders,\n"
             "in order, cutting the foreign path down until what is left lands on a\n"
             "real file underneath one of them. A path is only ever rewritten to a\n"
             "file that is actually there.")
@@ -1035,41 +1188,15 @@ class SettingsDialog(QDialog):
         remap_row.addLayout(remap_col)
         plyt.addLayout(remap_row)
 
-        plyt.addWidget(_hsep())
+        plyt.addStretch()
+        tabs.addTab(paths_tab, "📁 Paths")
 
-        # ── Preview player overlay ──
-        self._preview_chk = QCheckBox(
-            "🎧  Preview player — float a mini player (seek / skip / volume) over "
-            "the deck when a ▶ button is clicked")
-        self._preview_chk.setChecked(bool(settings.get("preview_player", True)))
-        plyt.addWidget(self._preview_chk)
-
-        # ── Where the master player is docked ──
-        plyt.addWidget(QLabel(
-            "<b>▶ Player position</b> — where the master player stands in "
-            "▶ Playing mode:"))
-        self._player_layout_combo = QComboBox()
-        for key, caption, blurb in PLAYER_LAYOUT_CHOICES:
-            self._player_layout_combo.addItem(caption, key)
-            self._player_layout_combo.setItemData(
-                self._player_layout_combo.count() - 1, i18n.t(blurb),
-                Qt.ItemDataRole.ToolTipRole)
-        self._player_layout_combo.setCurrentIndex(
-            max(0, self._player_layout_combo.findData(
-                player_layout_of(settings))))
-        plyt.addWidget(self._player_layout_combo)
-
-        # ── Advanced announcement controls ──
-        self._voice_adv_chk = QCheckBox(
-            "🎙  Advanced voice controls — show '…with takt', '…with heat' and "
-            "🔈 Test under 'Announce next dance'")
-        self._voice_adv_chk.setChecked(
-            bool(settings.get("announce_advanced", False)))
-        self._voice_adv_chk.setToolTip(
-            "Three switches that are set once and then never touched again,\n"
-            "in the busiest column of the desk. Hidden they keep whatever they\n"
-            "were set to — only the controls go away.")
-        plyt.addWidget(self._voice_adv_chk)
+    def _setup_sound_tab(self, settings, tabs):
+        """🔊 Sound & player: the audio engine, what reaches the PA and the
+        player's own rows."""
+        sound_tab = QWidget()
+        plyt = QVBoxLayout(sound_tab)
+        plyt.setSpacing(10)
 
         # ── Audio backend ──
         plyt.addWidget(QLabel(
@@ -1125,45 +1252,51 @@ class SettingsDialog(QDialog):
                    "macOS: the alert volume. Linux (GNOME): event sounds."))
         plyt.addWidget(self._mute_sys_chk)
 
-        # ── 🐞 Opt-in error reports, only where the build can send them ──
-        self._error_reports_chk = None
-        if error_reports.available():
-            self._error_reports_chk = QCheckBox(
-                "🐞  Send error reports — when the app hits an error, send its "
-                "technical details to the developer")
-            self._error_reports_chk.setChecked(
-                bool(settings.get("error_reports", False)))
-            self._error_reports_chk.setToolTip(
-                "Goes to the developer's GlitchTip project (app.glitchtip.com),\n"
-                "which also sees the IP address a report comes from.\n\n"
-                "Sent: the error and where in the program it happened, the last\n"
-                "log lines before it (they can name the title that was playing),\n"
-                "the operating system and the app version.\n\n"
-                "Not sent: your music, your playlists, your computer's name.\n"
-                "Your user folder is cut out of every path.\n\n"
-                "Off by default. Applies as soon as you save.")
-            plyt.addWidget(self._error_reports_chk)
-
         plyt.addWidget(_hsep())
-
-        # ── Global search opt-in ──
-        self._global_chk = QCheckBox(
-            "🌐  Global search — match dropped files against the whole repository "
-            "(default: favorites library only)")
-        self._global_chk.setChecked(bool(settings.get("global_search", False)))
-        plyt.addWidget(self._global_chk)
-
-        note = QLabel(
-            "Global search needs the repo's audio analyzed once (⚗ Analysis tab). "
-            "Analysis only <i>reads</i> your files — it never modifies them. "
-            "Results are cached, so repeat searches are fast.")
-        note.setWordWrap(True)
-        note.setStyleSheet("color:#666; font-size:11px;")
-        plyt.addWidget(note)
+        self._add_player_rows(settings, plyt)
 
         plyt.addStretch()
-        tabs.addTab(paths_tab, "📁 Paths && search")
+        tabs.addTab(sound_tab, "🔊 Sound && player")
 
+    def _add_player_rows(self, settings, plyt):
+        """The player's own rows, on the 🔊 Sound & player tab: the mini
+        player, where the master player stands and the voice controls."""
+        # ── Preview player overlay ──
+        self._preview_chk = QCheckBox(
+            "🎧  Preview player — float a mini player (seek / skip / volume) over "
+            "the deck when a ▶ button is clicked")
+        self._preview_chk.setChecked(bool(settings.get("preview_player", True)))
+        plyt.addWidget(self._preview_chk)
+
+        # ── Where the master player is docked ──
+        plyt.addWidget(QLabel(
+            "<b>▶ Player position</b> — where the master player stands in "
+            "▶ Playing mode:"))
+        self._player_layout_combo = QComboBox()
+        for key, caption, blurb in PLAYER_LAYOUT_CHOICES:
+            self._player_layout_combo.addItem(caption, key)
+            self._player_layout_combo.setItemData(
+                self._player_layout_combo.count() - 1, i18n.t(blurb),
+                Qt.ItemDataRole.ToolTipRole)
+        self._player_layout_combo.setCurrentIndex(
+            max(0, self._player_layout_combo.findData(
+                player_layout_of(settings))))
+        plyt.addWidget(self._player_layout_combo)
+
+        # ── Advanced announcement controls ──
+        self._voice_adv_chk = QCheckBox(
+            "🎙  Advanced voice controls — show '…with heat' and 🔈 Test under "
+            "'Announce next dance'")
+        self._voice_adv_chk.setChecked(
+            bool(settings.get("announce_advanced", False)))
+        self._voice_adv_chk.setToolTip(
+            "Two controls that are set once and then never touched again,\n"
+            "in the busiest column of the desk. Hidden the switch keeps whatever\n"
+            "it was set to — only the controls go away.")
+        plyt.addWidget(self._voice_adv_chk)
+
+    def _setup_look_tab(self, settings, tabs):
+        """🎨 Look: the theme list, its preview and the accent colour."""
         # ═══ Tab 2: Look — theme and accent colour ═══
         look_tab = QWidget()
         llyt = QVBoxLayout(look_tab)
@@ -1268,13 +1401,15 @@ class SettingsDialog(QDialog):
         llyt.addWidget(self._language_combo)
 
         self._german_terms_chk = QCheckBox(
-            "Keep the German dance and round names on an English screen "
-            "(Langsamer Walzer, Vorrunde, Standardrunde 1 …)")
+            "Keep the German dance and round names on a screen in another language "
+            "(Langsamer Walzer, Vorrunde, Standardrunde 1, Eintanzen …)")
         self._german_terms_chk.setToolTip(
             "On: the presenter screen and the recorded announcements are "
-            "German too.\n"
-            "Off: Slow Waltz, Round 1, Standard round 1 … — the playlists "
-            "and exports keep the German words either way.")
+            "German too, and a 🤸 practice list is called Eintanzen, also "
+            "in its saved file.\n"
+            "Off: Slow Waltz, Round 1, Standard round 1, Practice … — the "
+            "playlists and exports keep the German dance and round names "
+            "either way.")
         self._german_terms_chk.setChecked(bool(settings.get("german_dance_terms")))
         llyt.addWidget(self._german_terms_chk)
 
@@ -1285,8 +1420,19 @@ class SettingsDialog(QDialog):
         look_note.setStyleSheet("color:#666; font-size:11px;")
         llyt.addWidget(look_note)
 
+        llyt.addWidget(_hsep())
+        self._clock_time_only_chk = QCheckBox(
+            "⛶  Fullscreen clock: only the time (20:45:12), no date")
+        self._clock_time_only_chk.setChecked(
+            bool(settings.get("clock_time_only", False)))
+        llyt.addWidget(self._clock_time_only_chk)
+
         tabs.addTab(look_tab, "🎨 Look")
 
+    def _setup_analysis_tab(self, all_cb, analyze_cb, backup_restore_cb, build_cb,
+                            embed_cb, loudness_cb, maintenance_cb, n_unanalyzed, pd_cb,
+                            pd_export_cb, pd_import_cb, silence_cb, summ, tabs, vocals_cb):
+        """⚗ Analysis: every analyze/index action, light vs heavy."""
         # ═══ Tab 3: Analysis — every analyze/index action, light vs heavy ═══
         from planner import embeddings as ae
         from planner.vocals import demucs_available
@@ -1394,6 +1540,19 @@ class SettingsDialog(QDialog):
         self._pd_import_btn.setEnabled(pd_import_cb is not None)
         mrow.addWidget(self._pd_import_btn)
         llyt.addLayout(mrow)
+        # The same marks and the in-app tag edits go into a dated backup at
+        # every first start of a day (backups/ next to the database).
+        brow = QHBoxLayout()
+        self._backup_restore_btn = QPushButton("♻  Restore user data backup…")
+        self._backup_restore_btn.setToolTip(
+            "Merge a daily backup of your tag edits, hand-set Paso Doble\n"
+            "highlights and play log back in. The app keeps one per day for the last 7 days.\n"
+            "Everything else in the database is left as it is.")
+        self._backup_restore_btn.clicked.connect(lambda: self._run_and_close(backup_restore_cb))
+        self._backup_restore_btn.setEnabled(backup_restore_cb is not None)
+        brow.addWidget(self._backup_restore_btn)
+        brow.addStretch(1)
+        llyt.addLayout(brow)
         # …and what each of the three has actually done so far. Without these the
         # tab showed a coverage line for every librosa/AI index and none at all
         # for the ffmpeg ones, so "is my loudness done?" had no answer here.
@@ -1479,6 +1638,8 @@ class SettingsDialog(QDialog):
         alyt.addStretch()
         tabs.addTab(ana_tab, "⚗ Analysis")
 
+    def _setup_play_sets_tab(self, settings, tabs):
+        """🎛 Play sets: what the two buttons on the ▶ panel apply."""
         # ═══ Tab 4: Play sets — what the two buttons on the ▶ panel apply ═══
         sets_tab = QWidget()
         tlyt = QVBoxLayout(sets_tab)
@@ -1493,7 +1654,7 @@ class SettingsDialog(QDialog):
                  "The values a heat is run with — pressed to get back to them "
                  "after a party list has pulled the panel somewhere else."),
                 ("party", "🎉  Party set",
-                 "Applied by itself as soon as you play from the 🤸 Eintanzen / "
+                 "Applied by itself as soon as you play from the 🤸 Practice / "
                  "party list, and switched back when a tournament deck takes over.")):
             cur = dict(play_set_of(settings, which), tso=tso_of(settings, which))
             box = QGroupBox(caption)
@@ -1620,7 +1781,10 @@ class SettingsDialog(QDialog):
 
         tlyt.addStretch()
         sets_idx = tabs.addTab(sets_tab, "🎛 Play sets")
+        return sets_idx
 
+    def _setup_checks_tab(self, gaps_cb, settings, tabs):
+        """🎵 Checks: the Check-music thresholds."""
         # ═══ Tab 5: Checks — 🎵 Check-music thresholds ═══
         chk_tab = QWidget()
         klyt = QVBoxLayout(chk_tab)
@@ -1656,7 +1820,7 @@ class SettingsDialog(QDialog):
             int(settings.get("check_max_play_secs", 240)), 60, 900)
         spin_row("⏳  Too long — above:", self._max_time,
                  "Only flagged when the ⏳ checkbox in the Music-check window is "
-                 "on (Eintanzen playlists); default 4:00.")
+                 "on (Practice playlists); default 4:00.")
 
         self._dev_spin = QSpinBox()
         self._dev_spin.setRange(1, 50)
@@ -1688,6 +1852,46 @@ class SettingsDialog(QDialog):
 
         klyt.addStretch()
         chk_idx = tabs.addTab(chk_tab, "🎵 Checks")
+        return chk_idx
+
+    def _setup_venue_tab(self, tabs):
+        """📦 Venue pack: the whole desk — settings, decks, cartwall and keys,
+        the music if wanted — home PC to venue laptop in one file."""
+        venue_tab = QWidget()
+        vlyt = QVBoxLayout(venue_tab)
+        intro = QLabel(
+            "Take this desk to another PC in one file: the settings, every deck "
+            "and wishlist, the 🎛 cartwall with its pads and keys — and, if you "
+            "want, the music they use. Folder settings stay with each PC.")
+        intro.setWordWrap(True)
+        vlyt.addWidget(intro)
+        vrow = QHBoxLayout()
+        self._venue_export_btn = QPushButton("📦  Export venue pack…")
+        self._venue_export_btn.setToolTip(
+            "Save this desk to one file to take to another PC: the settings,\n"
+            "every deck and wishlist, the 🎛 cartwall with its pads and keys —\n"
+            "and, if you want, the music they use. Folder settings stay with\n"
+            "each PC.")
+        self._venue_export_btn.clicked.connect(
+            lambda: self._run_and_close(self._venue_export_cb))
+        self._venue_export_btn.setEnabled(self._venue_export_cb is not None)
+        vrow.addWidget(self._venue_export_btn)
+        self._venue_import_btn = QPushButton("📥  Import venue pack…")
+        self._venue_import_btn.setToolTip(
+            "Load a venue pack made on another PC. It replaces this PC's\n"
+            "settings, decks and cartwall at the next start; what it replaces\n"
+            "is kept in a before-venue-import folder next to them.")
+        self._venue_import_btn.clicked.connect(
+            lambda: self._run_and_close(self._venue_import_cb))
+        self._venue_import_btn.setEnabled(self._venue_import_cb is not None)
+        vrow.addWidget(self._venue_import_btn)
+        vrow.addStretch(1)
+        vlyt.addLayout(vrow)
+        vlyt.addStretch()
+        return tabs.addTab(venue_tab, "📦 Venue pack")
+
+    def _setup_tab_visibility(self, chk_idx, lyt, sets_idx, tabs):
+        """Tabs that follow the app mode, and the OK/Cancel buttons."""
         # A player-only install never runs the planning checks — and the tab
         # follows the combo above right away, so the dialog stays consistent
         # with what the user just picked.
@@ -2004,10 +2208,12 @@ class SettingsDialog(QDialog):
             "library_dir":   self._lib_edit.text().strip(),
             "global_dir":    self._glob_edit.text().strip(),
             "save_dir":      self._save_edit.text().strip(),
+            "m3u_format": self._m3u_format_combo.currentData(),
             "playlist_dir":  self._pl_edit.text().strip(),
             "reference_path": self._ref_edit.text().strip(),
             "remap_paths": parse_remap_paths(self._remap_edit.toPlainText()),
             "global_search": self._global_chk.isChecked(),
+            "clock_time_only": self._clock_time_only_chk.isChecked(),
             "preview_player": self._preview_chk.isChecked(),
             "player_layout": self._player_layout_combo.currentData(),
             "announce_advanced": self._voice_adv_chk.isChecked(),

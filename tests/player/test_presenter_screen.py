@@ -17,11 +17,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_prescreen_"))
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from PySide6.QtWidgets import QApplication
+from tests.qt_test_support import reap_widget
 
-from player import play_mode_panel as pmp  # noqa: E402
-from player.main_player import PlayerControlMixin  # noqa: E402
+from player import play_mode_panel as pmp
+from player.main_player import PlayerControlMixin
 
 _LAPTOP = ("1 · 1920×1080  (primary)", "LAPTOP")
 _BEAMER = ("2 · 1280×720", "BEAMER")

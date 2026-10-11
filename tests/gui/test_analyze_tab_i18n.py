@@ -32,12 +32,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_analyze_i18n_"))
 
-from PySide6.QtWidgets import (  # noqa: E402
+from PySide6.QtWidgets import (
     QApplication, QCheckBox, QGroupBox, QLabel)
 
-from gui.dialogs import SettingsDialog  # noqa: E402
-from planner import i18n  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from gui.dialogs import SettingsDialog
+from planner import i18n
+from tests.qt_test_support import reap_widget
 
 
 class _Analyze(unittest.TestCase):
@@ -108,7 +108,7 @@ class IndexLabelTest(_Analyze):
                      "🎼  Chroma indiziert:  —",
                      "📊  Lautheit gemessen:  —",
                      "🐂  PD-Höhepunkte erkannt:  —",
-                     "🔇  Stillen geprüft:  —",
+                     "🔇  Stille geprüft:  —",
                      "🧠  OpenL3 indiziert:  —"):
             self.assertIn(want, said, "%r is still English" % want)
 

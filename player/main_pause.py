@@ -103,18 +103,16 @@ class PauseMusicMixin:
                    if m and (m.dance or "") == dance
                    and table._row_round_hdr.get(r, -1) == section) or None
 
-    def _announce_dance_of(self, nxt) -> tuple[str, int | None, int | None]:
-        """(dance code, takt, heat) of a (table, row, path) advance target."""
+    def _announce_dance_of(self, nxt) -> tuple[str, int | None]:
+        """(dance code, heat) of a (table, row, path) advance target."""
         nxt = _live_target(nxt)
         if nxt is None:
-            return "", None, None
+            return "", None
         t, nrow, _npath = nxt
         meta = t._row_meta[nrow] if 0 <= nrow < len(t._row_meta) else None
         if not meta:
-            return "", None, None
-        ent = meta.entry
-        return (meta.dance or "", getattr(ent, "bpm", None) or None,
-                self._heat_of(t, nrow))
+            return "", None
+        return meta.dance or "", self._heat_of(t, nrow)
 
     def _announce_lead(self) -> float:
         """How far before the end of the pause the voice has to start.
@@ -124,15 +122,13 @@ class PauseMusicMixin:
         keeps the settled timing, a long one simply starts earlier instead of
         running into the music.
 
-        Falls back to the floor whenever the length cannot be known — the takt
-        is read by the synthesiser, whose speed is the system's.
+        Falls back to the floor whenever the length cannot be known — a dance
+        that was never recorded.
         """
         if self._between.pending is None:
             return _ANNOUNCE_LEAD
-        code, takt, heat = self._announce_dance_of(self._between.pending)
-        secs = announce_secs(code,
-                             takt if self._play_panel.announce_takt() else None,
-                             heat=heat)
+        code, heat = self._announce_dance_of(self._between.pending)
+        secs = announce_secs(code, heat=heat)
         return max(_ANNOUNCE_LEAD, secs + _ANNOUNCE_TAIL) if secs \
             else _ANNOUNCE_LEAD
 
@@ -166,12 +162,10 @@ class PauseMusicMixin:
                 or not self._deck_advance(self._between.pending[0])):
             return
         self._between.announced = True   # set first: a dead engine must not retry per tick
-        code, takt, heat = self._announce_dance_of(self._between.pending)
+        code, heat = self._announce_dance_of(self._between.pending)
         if not code:
             return
-        self._announcer.speak(code,
-                              takt if self._play_panel.announce_takt() else None,
-                              heat=heat)
+        self._announcer.speak(code, heat=heat)
 
     def _playing_row(self):
         """(deck, row) of the row that is actually playing (the one with a
@@ -192,13 +186,12 @@ class PauseMusicMixin:
                     and not self._engine_pause_secs() > 0
                     and self._playback.dance)
 
-    def _speak_start_call(self, ent) -> bool:
+    def _speak_start_call(self) -> bool:
         """Name the dance that is starting ("Langsamer Walzer", not "Nächster
         Tanz: …"). False when nothing was said."""
-        takt = getattr(ent, "bpm", None) or None
         return self._announcer.speak(
-            self._playback.dance, takt if self._play_panel.announce_takt() else None,
-            now=True, heat=self._heat_of(*self._playing_row()))
+            self._playback.dance, now=True,
+            heat=self._heat_of(*self._playing_row()))
 
     def _announce_start_first(self, ent) -> bool:
         """⏳ Call the dance into silence and hold the music for it.
@@ -213,7 +206,7 @@ class PauseMusicMixin:
         back — a title that never starts is worse than one announced over."""
         if not self._play_panel.announce_wait() or not self._wants_start_call():
             return False
-        return bool(self._speak_start_call(ent))
+        return bool(self._speak_start_call())
 
     def _wait_for_announcement(self, path):
         """Hold the music until the call is over, then start it.
@@ -250,15 +243,14 @@ class PauseMusicMixin:
         after the thing it announced."""
         if self._play_panel.announce_wait() or not self._wants_start_call():
             return
-        self._speak_start_call(ent)
+        self._speak_start_call()
 
     def _announce_test(self):
         """🔈 Test in the play panel — hear voice and level before the round."""
-        takt = 29 if self._play_panel.announce_takt() else None
         heat = 3 if self._play_panel.announce_heat() else None
-        if not self._announcer.speak("LW", takt, heat=heat):
+        if not self._announcer.speak("LW", heat=heat):
             self.statusBar().showMessage(
-                "🔈 No speech engine available on this system.", 6000)
+                "🔈 No announcement recordings found for this voice.", 6000)
 
     def _on_to_pause(self):
         """⏸♪ on the big player: end the playing song right now and jump into

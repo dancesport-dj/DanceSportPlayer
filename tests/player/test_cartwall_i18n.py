@@ -25,12 +25,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_wall_i18n_"))
 
-from PySide6.QtWidgets import QApplication, QMenu  # noqa: E402
+from PySide6.QtWidgets import QApplication, QMenu
 
-from planner import cartwall as pc  # noqa: E402
-from planner import i18n  # noqa: E402
-from player import cartwall as gc  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from planner import cartwall as pc
+from planner import i18n
+from player import cartwall as gc
+from tests.qt_test_support import reap_widget
 
 
 class _OpenedMenu(QMenu):

@@ -19,11 +19,11 @@ from pathlib import Path
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR", tempfile.mkdtemp(prefix="dp_host_"))
 
-from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
+from tests.qt_test_support import reap_widget
 
-from gui.playlist_table import PlaylistTable  # noqa: E402
-from gui.table_host import TableHost  # noqa: E402
+from gui.playlist_table import PlaylistTable
+from gui.table_host import TableHost
 
 REPO = Path(__file__).resolve().parents[2]
 TABLE_MODULES = ("gui/playlist_table.py", "gui/table_actions.py",

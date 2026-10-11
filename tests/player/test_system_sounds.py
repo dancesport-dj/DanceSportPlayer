@@ -18,9 +18,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_syssnd_"))
 
-from player import system_sounds  # noqa: E402
-from player.audio_device import AudioDevice  # noqa: E402
-from player.system_sounds import (  # noqa: E402
+from player import system_sounds
+from player.audio_device import AudioDevice
+from player.system_sounds import (
     LinuxBackend,
     MacBackend,
     SystemSoundGuard,

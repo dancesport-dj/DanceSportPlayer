@@ -19,12 +19,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_header_save_"))
 
-from PySide6.QtCore import QPoint  # noqa: E402
-from PySide6.QtWidgets import QMenu  # noqa: E402
+from PySide6.QtCore import QPoint
+from PySide6.QtWidgets import QMenu
 
-from dancesport_planner import MusicLibrary  # noqa: E402
-from tests.gui.test_deck_file_reveal import _DIR, _RightClick, _entry  # noqa: E402
-from tests.qt_test_support import reap_widget, stub_window_startup  # noqa: E402
+from dancesport_planner import MusicLibrary
+from tests.gui.test_deck_file_reveal import _DIR, _RightClick, _entry
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 
 def _menu_class(seen: dict, pick: str | None):

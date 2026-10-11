@@ -19,9 +19,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_gapflag_"))
 
-import planner.db  # noqa: E402
-from gui.index_summary import index_summary  # noqa: E402
-from planner.models import MusicEntry  # noqa: E402
+import planner.db
+from gui.index_summary import index_summary
+from planner.models import MusicEntry
 
 
 def _entry(name, dance="SA", analyzed=True):

@@ -22,14 +22,14 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_cols_"))
 
-from PySide6.QtWidgets import QApplication, QHeaderView  # noqa: E402
+from PySide6.QtWidgets import QApplication, QHeaderView
 
-from shared.columns import (  # noqa: E402
+from shared.columns import (
     _COL_ARTIST, _COL_BPM, _COL_DANCE, _COL_HEAT, _COL_POP, _COL_REGEN,
     _COL_TITLE, _N_COLS,
 )
-from gui.playlist_table import PlaylistTable  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from gui.playlist_table import PlaylistTable
+from tests.qt_test_support import reap_widget
 
 
 class _TableTest(unittest.TestCase):

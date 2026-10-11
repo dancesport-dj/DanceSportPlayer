@@ -26,12 +26,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_popcell_"))
 
-from PySide6.QtWidgets import QApplication, QWidget  # noqa: E402
+from PySide6.QtWidgets import QApplication, QWidget
 
-from shared.columns import _COL_POP  # noqa: E402
-from planner import i18n  # noqa: E402
-from planner.models import MusicEntry, RoundConfig  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from shared.columns import _COL_POP
+from planner import i18n
+from planner.models import MusicEntry, RoundConfig
+from tests.qt_test_support import reap_widget
 
 FRESH = MusicEntry(path=Path(r"C:\music\tanzcds\LW1.mp3"),
                    title="LW one", dance="LW", duration=180)

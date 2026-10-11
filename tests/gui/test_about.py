@@ -17,13 +17,13 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_about_"))
 
-from PySide6.QtCore import QUrl  # noqa: E402
-from PySide6.QtWidgets import QApplication, QLabel  # noqa: E402
+from PySide6.QtCore import QUrl
+from PySide6.QtWidgets import QApplication, QLabel
 
-from gui import about  # noqa: E402
-from gui.common import LoadingDialog  # noqa: E402
-from planner import i18n  # noqa: E402
-from tests.qt_test_support import reap_widget, stub_window_startup  # noqa: E402
+from gui import about
+from gui.common import LoadingDialog
+from planner import i18n
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -66,14 +66,21 @@ class AboutTextTest(unittest.TestCase):
         text = about.about_html("DanceSport Player", "1.2.0")
         for part in ("Voices", "href='https://elevenlabs.io'", "non-commercial",
                      "Libraries", "Qt / PySide6 (LGPL-3.0)", "mutagen (GPL-2.0+)",
-                     "FFmpeg (GPL-3.0)",
+                     # Every build has Qt's FFmpeg libraries; only the Windows
+                     # one adds ffmpeg.exe, the GPL-3.0 build.
+                     "FFmpeg (LGPL-2.1+, ffmpeg.exe GPL-3.0)",
                      "href='https://github.com/dancesport-dj/DanceSportPlayer/blob/main/"
                      "THIRD_PARTY_LICENSES.md'"):
             self.assertIn(part, text)
 
+    def test_the_libraries_take_two_lines(self):
+        # Marcel: "to not make the about dialog wider break them in 2 lines".
+        text = about.about_html("DanceSport Player", "1.2.0")
+        self.assertIn("mutagen (GPL-2.0+)<br>FFmpeg (", text)
+
     def test_the_named_licences_are_the_ones_in_the_list(self):
         listed = (ROOT / "THIRD_PARTY_LICENSES.md").read_text(encoding="utf-8")
-        for part in ("LGPL-3.0", "GPL-2.0-or-later", "GPL-3.0"):
+        for part in ("LGPL-3.0", "GPL-2.0-or-later", "GPL-3.0", "LGPL-2.1-or-later"):
             self.assertIn(part, listed)
         self.assertIn("non-commercial", (ROOT / "speech" / "LICENSE-AUDIO.md").read_text(
             encoding="utf-8"))
@@ -164,18 +171,46 @@ class HelpButtonTest(unittest.TestCase):
 
     def test_the_question_mark_offers_shortcuts_and_about(self):
         texts = [a.text() for a in self.win._help_menu().actions()]
-        self.assertEqual(texts, ["⌨  Keyboard shortcuts  (F1)", "ℹ  About…"])
+        self.assertEqual(texts, ["⌨  Keyboard shortcuts  (F1)", "📜  Played titles…", "ℹ  About…",
+                                 "⛶  Fullscreen  (F11)"])
+
+    def test_the_entries_start_without_an_empty_gutter(self):
+        """Marcel: "why are there a empty spot before the title comes" — Fusion
+        keeps a check/icon column even when no entry has either."""
+        self.assertLess(self.text_indent(self.win._help_menu()), 16)
+
+    def test_the_check_menu_has_no_gutter_either(self):
+        """Marcel: "by ? it is now fine but by check button still wrong"."""
+        self.assertLess(self.text_indent(self.win._check_menu()), 16)
+
+    def text_indent(self, menu) -> int:
+        """Pixels from an entry's left edge to its first ink."""
+        self.addCleanup(reap_widget, menu)
+        menu.adjustSize()
+        menu.show()
+        self.app.processEvents()
+        img = menu.grab().toImage()
+        r = menu.actionGeometry(menu.actions()[0])
+        bg = img.pixelColor(r.left() + 3, r.center().y()).lightness()
+        ink = next(x for x in range(r.left() + 3, r.right())
+                   for y in range(r.top() + 2, r.bottom() - 2)
+                   if abs(img.pixelColor(x, y).lightness() - bg) > 60)
+        return ink - r.left()
 
     def test_with_a_pdf_the_menu_offers_the_manual(self):
         pdfs(self.root, "", "de")
         texts = [a.text() for a in self.win._help_menu().actions()]
-        self.assertEqual(texts, ["⌨  Keyboard shortcuts  (F1)", "📖  Manual", "ℹ  About…"])
+        self.assertEqual(texts, ["⌨  Keyboard shortcuts  (F1)", "📖  Manual", "📜  Played titles…",
+                                 "ℹ  About…",
+                                 "⛶  Fullscreen  (F11)"])
 
     def test_the_german_menu_offers_the_handbuch(self):
         pdfs(self.root, "", "de")
         self.german()
         texts = [a.text() for a in self.win._help_menu().actions()]
-        self.assertEqual(texts, ["⌨  Tastenkürzel  (F1)", "📖  Handbuch", "ℹ  Über…"])
+        self.assertEqual(texts, ["⌨  Tastenkürzel  (F1)", "📖  Handbuch", "📜  Gespielte Titel…",
+                                 "ℹ  Über…",
+                                 "⛶  Vollbild  (F11)"])
 
     def test_the_manual_opens_in_the_pdf_viewer(self):
         manual = pdfs(self.root, "", "de")
@@ -189,7 +224,8 @@ class HelpButtonTest(unittest.TestCase):
         """Marcel: "Tastenkürzel_Maustricks should only be Tastenkürzel"."""
         self.german()
         texts = [a.text() for a in self.win._help_menu().actions()]
-        self.assertEqual(texts, ["⌨  Tastenkürzel  (F1)", "ℹ  Über…"])
+        self.assertEqual(texts, ["⌨  Tastenkürzel  (F1)", "📜  Gespielte Titel…", "ℹ  Über…",
+                                 "⛶  Vollbild  (F11)"])
 
     def test_the_about_title_has_no_icon(self):
         """Marcel: the ℹ belongs to the menu entry, not the window title."""
@@ -199,7 +235,8 @@ class HelpButtonTest(unittest.TestCase):
         self.assertEqual(dlg.windowTitle(), "Über")
 
     def test_about_opens_with_the_app_name(self):
-        about_action = self.win._help_menu().actions()[-1]
+        about_action = next(a for a in self.win._help_menu().actions()
+                            if a.text() == "ℹ  About…")
         with mock.patch.object(self.gui, "show_about") as show:
             about_action.trigger()
         show.assert_called_once_with(self.win, "DanceSport Player")

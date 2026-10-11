@@ -18,9 +18,9 @@ from pathlib import Path
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_rescan_"))
 
-import planner.db as pdb  # noqa: E402
-from planner.library import MusicLibrary  # noqa: E402
-from planner.models import MusicEntry  # noqa: E402
+import planner.db as pdb
+from planner.library import MusicLibrary
+from planner.models import MusicEntry
 
 _PATH = Path(r"C:\music\Latein\Rumba RB 25.mp3")
 

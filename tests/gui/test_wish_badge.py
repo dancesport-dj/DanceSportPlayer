@@ -25,12 +25,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_wish_"))
 
-from PySide6.QtWidgets import QApplication, QLabel  # noqa: E402
+from PySide6.QtWidgets import QApplication, QLabel
 
-from gui.deck import Deck  # noqa: E402
-from gui.main_wish import WishlistMixin  # noqa: E402
-from planner import i18n  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from gui.deck import Deck
+from gui.main_wish import WishlistMixin
+from planner import i18n
+from tests.qt_test_support import reap_widget
 
 
 class _Entry:

@@ -274,6 +274,35 @@ class ManualPackTest(unittest.TestCase):
                 self.assertIn("Handbuch.pdf", body)
 
 
+def _pins(name):
+    """{package: version} of a requirements file's `pkg==version` lines."""
+    path = Path(config.__file__).resolve().parent.parent / name
+    pins = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if "==" in line and not line.lstrip().startswith("#"):
+            pkg, version = line.split("==")
+            pins[pkg.strip().lower()] = version.strip()
+    return pins
+
+
+class PlayerRequirementsTest(unittest.TestCase):
+    """The CI player builds install requirements-player.txt, not
+    requirements.txt. segno and hidapi went into requirements.txt only, so the
+    1.2.0 player would have shipped without the phone remote's QR code and
+    without HID controllers."""
+
+    # The planning half, which a player build leaves out on purpose.
+    PLANNER_ONLY = {"librosa"}
+
+    def test_the_player_pins_every_runtime_package_but_the_planner_ones(self):
+        player = _pins("requirements-player.txt")
+        for pkg, version in _pins("requirements.txt").items():
+            if pkg in self.PLANNER_ONLY:
+                continue
+            with self.subTest(pkg=pkg):
+                self.assertEqual(player.get(pkg), version)
+
+
 class LicensePackTest(unittest.TestCase):
     """Marcel: "lege es mit rein". MIT, CC-BY and the ElevenLabs terms want
     their notice in every copy: the bundle carries the licence files in
@@ -281,8 +310,13 @@ class LicensePackTest(unittest.TestCase):
     downloads show them in a Licenses folder beside the manual."""
 
     ROOT = Path(config.__file__).resolve().parent.parent
+    # The GNU texts too: the GPL and LGPL want their full text with every copy
+    # (mutagen, FFmpeg, Qt and its FFmpeg, on Linux libusb and libudev), and
+    # PyInstaller leaves the packages' own licence files out of the bundle.
     FILES = ("LICENSE", "ICONS-LICENSE.txt", "THIRD_PARTY_LICENSES.md",
-             "speech/LICENSE-AUDIO.md")
+             "speech/LICENSE-AUDIO.md", "licenses/GPL-2.0.txt",
+             "licenses/GPL-3.0.txt", "licenses/LGPL-2.1.txt",
+             "licenses/LGPL-3.0.txt", "licenses/PYTHON-LICENSE.txt")
 
     def _read(self, name):
         return (self.ROOT / name).read_text(encoding="utf-8")
@@ -308,6 +342,42 @@ class LicensePackTest(unittest.TestCase):
                 self.assertIn(rf'copy /y "%~dp0{source}" "%~dp0dist\%APP_NAME%\Licenses\"',
                               bat)
                 self.assertIn(f'cp {name} "dist/$APP_NAME/Licenses/"', linux)
+
+    def test_the_notice_licences_have_their_notice(self):
+        # MIT, BSD and MPL want the notice in every copy, and the bundle
+        # has none of the packages' own files.
+        text = self._read("THIRD_PARTY_LICENSES.md")
+        notices = text[text.index("## Notices"):]
+        for pkg in ("segno", "hidapi (cython-hidapi)", "HIDAPI", "sentry-sdk",
+                    "urllib3", "certifi"):
+            with self.subTest(pkg=pkg):
+                self.assertIn(f"\n### {pkg}\n", notices)
+        python = self._read("licenses/PYTHON-LICENSE.txt")
+        self.assertIn("Copyright (c) 2001 Python Software Foundation", python)
+
+    def test_the_python_licence_has_the_libraries_python_brings(self):
+        # Marcel: "add missing libs". The interpreter carries expat, libffi,
+        # mpdecimal, mimalloc, OpenSSL (with a DSN), bzip2 and Zstandard, and
+        # their MIT/BSD/Apache terms want the notice in every copy.
+        python = self._read("licenses/PYTHON-LICENSE.txt")
+        for part in ("Licenses and Acknowledgements for Incorporated Software",
+                     "expat", "libffi", "libmpdec", "mimalloc", "Apache License",
+                     "strtod and dtoa", "Mersenne Twister",
+                     "copyright (C) 1996-2019 Julian R Seward",
+                     "For Zstandard software"):
+            with self.subTest(part=part):
+                self.assertIn(part, python)
+
+    def test_every_player_package_is_listed_with_its_version(self):
+        # segno and hidapi came with 1.2.0 and were missing from the list.
+        text = self._read("THIRD_PARTY_LICENSES.md")
+        player = text[text.index("## In the player build"):
+                      text.index("## Only in the planner")]
+        for pkg, version in _pins("requirements-player.txt").items():
+            with self.subTest(pkg=pkg):
+                row = next((line for line in player.splitlines()
+                            if f"[{pkg}](" in line.lower()), "")
+                self.assertIn(f"| {version} |", row)
 
 
 class DmgBackgroundTest(unittest.TestCase):

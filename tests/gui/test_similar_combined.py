@@ -16,11 +16,11 @@ from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication
 
-from gui.similar_dialog import SimilarTracksDialog  # noqa: E402
-from planner import embeddings as ae  # noqa: E402
-from tests.planner import test_sound_alike  # noqa: E402
+from gui.similar_dialog import SimilarTracksDialog
+from planner import embeddings as ae
+from tests.planner import test_sound_alike
 
 
 class _Store:

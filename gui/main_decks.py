@@ -1201,7 +1201,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
             ring = {nxt: cur for cur, nxt in ring.items()}
         self._deck_count = ring.get(self._deck_count, 1)
         self._apply_deck_view()
-        msg = {0: "No-playlist view — decks hidden; only Eintanzen / wishlist / library show",
+        msg = {0: "No-playlist view — decks hidden; only Practice / wishlist / library show",
                1: "Single-playlist view",
                2: "🎚️ Two-playlist view — focus a deck; its controls drive Generate / Save / ↺",
                4: "🎚️ Four-playlist view — focus a deck to drive Generate / Save / ↺",

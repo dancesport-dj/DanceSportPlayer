@@ -25,15 +25,15 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_deckadv_"))
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication
 
-from gui.playlist_table import PlaylistTable  # noqa: E402
-from gui.running_order import Row  # noqa: E402
-from player.main_player import PlayerControlMixin  # noqa: E402
-from player.play_mode_panel import PlayModePanel  # noqa: E402
-from player.playback_state import PlaybackState  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
-from player.between_dances import BetweenDances  # noqa: E402
+from gui.playlist_table import PlaylistTable
+from gui.running_order import Row
+from player.main_player import PlayerControlMixin
+from player.play_mode_panel import PlayModePanel
+from player.playback_state import PlaybackState
+from tests.qt_test_support import reap_widget
+from player.between_dances import BetweenDances
 
 
 class _Announcer:
@@ -43,7 +43,7 @@ class _Announcer:
         self.spoken = []
         self.speaking = False
 
-    def speak(self, code, takt=None, *, heat=None, now=False):
+    def speak(self, code, now=False, heat=None):
         self.spoken.append(code)
         return True
 

@@ -19,12 +19,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_pshuffle_"))
 
-from PySide6.QtWidgets import QApplication, QToolButton, QWidget  # noqa: E402
+from PySide6.QtWidgets import QApplication, QToolButton, QWidget
 
-from gui.main_generate import GenerateMixin  # noqa: E402
-from gui.playlist_table import PlaylistTable  # noqa: E402
-from planner.models import MusicEntry  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from gui.main_generate import GenerateMixin
+from gui.playlist_table import PlaylistTable
+from planner.models import MusicEntry
+from tests.qt_test_support import reap_widget
 
 
 def _e(dance, n):

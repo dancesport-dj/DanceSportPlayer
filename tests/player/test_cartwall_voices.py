@@ -13,11 +13,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_voices_"))
 
-from PySide6.QtCore import QCoreApplication, QObject, QUrl, Signal  # noqa: E402
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtCore import QCoreApplication, QObject, QUrl, Signal
+from PySide6.QtWidgets import QApplication
 
-from planner import cartwall as pc  # noqa: E402
-from player import cartwall as gc  # noqa: E402
+from planner import cartwall as pc
+from player import cartwall as gc
 
 _app = QApplication.instance() or QApplication(sys.argv)
 

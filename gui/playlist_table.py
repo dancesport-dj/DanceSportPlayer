@@ -24,6 +24,7 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QFrame,
+    QHBoxLayout,
     QHeaderView,
     QLabel,
     QMenu,
@@ -34,6 +35,7 @@ from PySide6.QtWidgets import (
     QStyleOptionViewItem,
     QTableWidget,
     QTableWidgetItem,
+    QWidget,
 )
 from pathlib import Path
 from collections.abc import Callable
@@ -86,8 +88,8 @@ from shared.columns import (
 )
 from shared.widgets import (
     _show_toast,
-    set_play_glyph,
 )
+from gui.row_buttons import BUTTON_ROLE, LOOK_ROLE, PATH_ROLE, RowButtonDelegate
 from gui.running_order import Row, RunningOrder
 from gui.star_rating import RATING_ROLE, StarDelegate
 from gui.table_dnd import TableDragDropMixin
@@ -101,15 +103,23 @@ from gui import table_actions
 log = logging.getLogger("dancesport.gui.playlist_table")
 
 
-# "Marked for potential replace" (dynamic decks): a light-orange row underlay plus
-# an orange ❗ in the last column — the same style as a missing file's red ❗, but
-# orange so a deliberately-marked song stays distinct from a genuinely missing one.
+# "Marked for potential replace" (dynamic decks): a light-orange row underlay and
+# an orange title — no ❗, which belongs to a missing file alone.
 _C_MARK_BG = QColor(255, 224, 178)
 _C_MARK_FG = QColor(216, 96, 24)
+
+# 📌 Pinned: the orange mark's look in lila. The title sits out the round's ↻
+# and the dance's ↺ re-rolls.
+_C_PIN_BG = QColor(231, 214, 247)
+_C_PIN_FG = QColor(122, 63, 176)
 
 # Live Check-Music mark: a row whose track (play length / takt) or round
 # (heat-tempo spread) has an issue stays RED until the issue is resolved.
 _C_ISSUE_BG = QColor(255, 183, 183)
+
+# A file not on disk: a light-red row, paler than the issue red so the two
+# stay apart — the orange mark's counterpart for the red ❗.
+_C_MISSING_BG = QColor(255, 222, 222)
 
 # How long the auto-play scroll takes to glide to the new row: long enough to
 # read as a movement, short enough that the list is settled before the operator
@@ -124,17 +134,22 @@ class _MarkSelectionDelegate(QStyledItemDelegate):
     style paint it, so every column of the row is covered (not a single cell)."""
 
     _SEL = QColor(232, 126, 14)   # orange counterpart of the default blue selection
+    _PIN_SEL = QColor(140, 82, 196)   # …and the lila one of a 📌 pinned row
 
     def __init__(self, table: PlaylistTable):
         super().__init__(table)
         self._table = table
 
     def paint(self, painter, option, index):
-        if (option.state & QStyle.StateFlag.State_Selected
-                and self._table._is_row_marked(index.row())):
+        sel = None
+        if option.state & QStyle.StateFlag.State_Selected:
+            row = index.row()
+            sel = (self._SEL if self._table._is_row_marked(row)
+                   else self._PIN_SEL if self._table._is_row_pinned(row) else None)
+        if sel is not None:
             opt = QStyleOptionViewItem(option)
             self.initStyleOption(opt, index)
-            opt.palette.setColor(QPalette.ColorRole.Highlight, self._SEL)
+            opt.palette.setColor(QPalette.ColorRole.Highlight, sel)
             super().paint(painter, opt, index)
         else:
             super().paint(painter, option, index)
@@ -363,6 +378,10 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
         # path so the orange mark survives structural re-renders. Persisted per deck
         # in the autosave/undo snapshot ("marked" key of _serialize_playlist_state).
         self._marked_paths: set = set()
+        # 📌 Pinned titles, keyed by path like the marks: the ↻ / ↺ re-rolls of
+        # their round or dance leave them where they are. Persisted per deck
+        # ("pinned" key of the snapshot).
+        self._pinned_paths: set = set()
         # Live Check-Music marks: path → issue text, recomputed after every grid
         # edit (refresh_issue_marks); keyed by path so red survives re-renders.
         self._issue_paths: dict[str, str] = {}
@@ -405,6 +424,9 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
             "Kept in the app's database; the MP3 itself is not changed."
         )
         self.setItemDelegateForColumn(_COL_RATING, StarDelegate(self._on_star_clicked, self))
+        buttons = RowButtonDelegate(self, self._on_row_button, self._is_row_marked)
+        self.setItemDelegateForColumn(_COL_PLAY, buttons)
+        self.setItemDelegateForColumn(_COL_REGEN, buttons)
         self.horizontalHeaderItem(_COL_CUSTOM).setToolTip(CUSTOM_HEADER_TIP)
         # `cb(entry, stars)` — the window stores the rating (see set_rating_callback).
         self._rating_cb: Callable | None = None
@@ -553,17 +575,24 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
         row stays ■ — unless the title is only cued (loaded, never started),
         which shows ▶ like any title that is not playing."""
         row = self._current_play_row
-        if row < 0:
-            return
-        w = self.cellWidget(row, _COL_PLAY)
-        if not isinstance(w, QPushButton):
+        if row < 0 or not self.play_glyph(row):
             return
         if not self.pauses_on_stop():
-            set_play_glyph(w, playing is not None or not self._player_stopped())
+            self._set_play_glyph(row, playing is not None or not self._player_stopped())
             return
         if playing is None:
             playing = self.host.is_player_running()
-        set_play_glyph(w, playing)
+        self._set_play_glyph(row, playing)
+
+    def play_glyph(self, row: int) -> str:
+        """The ▶ / ■ on `row`'s play button, "" where the row has none."""
+        it = self.item(row, _COL_PLAY)
+        return (it.data(BUTTON_ROLE) or "") if it is not None else ""
+
+    def _set_play_glyph(self, row: int, playing: bool):
+        it = self.item(row, _COL_PLAY)
+        if it is not None and it.data(BUTTON_ROLE):
+            it.setData(BUTTON_ROLE, "■" if playing else "▶")
 
     def _player_stopped(self) -> bool:
         """The window's player stands fully stopped — a cued title, not a
@@ -707,11 +736,23 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
             done += 1
         return done
 
+    def refresh_found(self, path) -> int:
+        """Repaint the rows that still show `path` as missing, now it plays
+        again (renamed back, drive plugged in) — a play only swaps the glyph."""
+        p = str(path)
+        if not any(m.path_str == p and (it := self.item(r, _COL_PLAY)) is not None
+                   and it.data(LOOK_ROLE) == "missing"
+                   for r, m in self._row_meta.numbered()):
+            return 0
+        return self.refresh_paths([path])
+
     def flash_rows(self, rows: list[int],
-                   color: QColor = QColor(255, 236, 160), msec: int = 2400):
+                   color: QColor | None = None, msec: int = 2400):
         """Briefly tint the given rows (then restore their exact backgrounds) so the
         user can SEE which songs an undo/redo just changed. Captures each cell's
         current brush and restores it, so it works for any row type."""
+        if color is None:
+            color = QColor(255, 236, 160)
         rows = [r for r in rows if 0 <= r < self.rowCount()]
         if not rows:
             return
@@ -811,6 +852,7 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
         round_skip_dances: dict | None = None,
         round_ctx: dict | None = None,
         marked: set | None = None,
+        pinned: set | None = None,
     ):
         self._playlist    = playlist
         self._warmup      = False
@@ -844,6 +886,8 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
         # clean — otherwise a re-picked song would come back already orange. Only a
         # restore hands its saved set in, so the rows below are painted marked.
         self._marked_paths = set(marked) if marked else set()
+        # 📌 Pins likewise: only a restore or a re-render hands them in.
+        self._pinned_paths = set(pinned) if pinned else set()
         # 'Past competitions': per-round history pool keyed by round name, so a row
         # ↺ re-rolls from the same round's history first (library as fallback).
         self._round_pools_by_name = {}
@@ -1197,13 +1241,17 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
         """Re-shade the song rows from `from_row` down. The stripes count songs,
         so inserting or dropping one flips the colour of everything under it —
         but only the colour, which is 500 brushes rather than 500 rebuilt rows.
-        A row painted red by a live 🎵 issue or orange by a replace mark keeps
-        what _fill_song_row gave it."""
+        A row painted red by a live 🎵 issue, light red for a missing file or
+        orange by a replace mark keeps what _fill_song_row gave it."""
         for i, (row, meta) in enumerate(self._row_meta.numbered()):
             if row < from_row:
                 continue
             path = meta.path_str
-            if path and (path in self._issue_paths or path in self._marked_paths):
+            if path and (path in self._issue_paths or path in self._marked_paths
+                         or path in self._pinned_paths):
+                continue
+            title = self.item(row, _COL_TITLE)
+            if title is not None and title.background().color() == _C_MISSING_BG:
                 continue
             bg = _C_ROW_EVEN if i % 2 == 0 else _C_ROW_ODD
             for col in range(self.columnCount()):
@@ -1460,7 +1508,12 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
             btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)   # keep keyboard focus on the table
             btn.setToolTip(regen_tip)
             btn.clicked.connect(lambda _: regen_cb())
-            self.setCellWidget(row, _COL_REGEN, btn)
+            # Centered like the song rows' painted ↺, not top-left as Qt puts a cell widget.
+            holder = QWidget()
+            lay = QHBoxLayout(holder)
+            lay.setContentsMargins(0, 0, 0, 0)
+            lay.addWidget(btn, 0, Qt.AlignmentFlag.AlignCenter)
+            self.setCellWidget(row, _COL_REGEN, holder)
         else:
             self.setSpan(row, 0, 1, _N_COLS)
         self.setRowHeight(row, 22)
@@ -1543,22 +1596,31 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
 
         ctr = Qt.AlignmentFlag.AlignCenter
         is_backup = meta.backup
+        sim = (self._suggester.similarity(entry, meta.round_name)
+               if entry and self._suggester else None)
         # Flag tracks whose file has vanished from disk since the playlist was made
         # (moved / deleted / drive offline) — red title + a red ❗ in the last column.
         missing = bool(entry) and not Path(entry.path).exists()
-        # "Marked for potential replace": orange row underlay + an orange ❗ (below).
+        # "Marked for potential replace": orange row underlay + an orange title.
         # A genuinely missing file wins the styling (its red ❗ is the more urgent flag).
         marked = bool(entry is not None and getattr(entry, "path", None)
                       and str(entry.path) in self._marked_paths)
+        # 📌 Pinned: the same look in lila, below the orange mark.
+        pinned = bool(entry is not None and getattr(entry, "path", None)
+                      and str(entry.path) in self._pinned_paths)
         # Live Check-Music issue (play length / takt / round tempo spread): the
         # row stays RED until the issue is resolved. Red outranks the orange
         # replace-mark; a genuinely missing file keeps its own styling.
         issue_text = (self._issue_paths.get(str(entry.path))
                       if entry is not None and getattr(entry, "path", None) else None)
-        if issue_text and not missing:
+        if missing:
+            bg = _C_MISSING_BG
+        elif issue_text:
             bg = _C_ISSUE_BG
         elif marked and not missing:
             bg = _C_MARK_BG
+        elif pinned:
+            bg = _C_PIN_BG
 
         # Dance column (also holds path for drag)
         cell(_COL_DANCE, "" if is_backup else self._dance_label(dance))
@@ -1570,12 +1632,14 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
             cell(_COL_HEAT, f"Heat {h_idx + 1}" if multi else "", align=ctr)
 
         if entry:
-            title_txt = ("    " + entry.title[:61]) if is_backup else entry.title[:65]
+            pin = "📌 " if pinned else ""
+            title_txt = ("    " + pin + entry.title[:61]) if is_backup else pin + entry.title[:65]
             resume_ms = self._resume_marks.get(str(entry.path))
             if resume_ms:
                 title_txt += f"   ↩ {_fmt_track_secs(resume_ms // 1000)}"
             cell(_COL_TITLE, title_txt,
                  fg=(_C_WARN_FG if missing else _C_MARK_FG if marked
+                     else _C_PIN_FG if pinned
                      else _C_NEW_FG if is_backup else _C_DEFAULT))
             # Hover the title → same rich track description as the Similar-Tracks window.
             title_it = self.item(row, _COL_TITLE)
@@ -1583,7 +1647,6 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
                 if missing:
                     title_it.setToolTip(i18n.t("⚠ File not found on disk:\n%s") % entry.path)
                 else:
-                    sim = entry.sim_score if entry.sim_score is not None else None
                     tip = _entry_tooltip(entry, sim, "Similarity")
                     if resume_ms:
                         tip = ("<div style='color:#2e9e5b'><b>"
@@ -1651,7 +1714,7 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
                 cell(_COL_POP, i18n.t("✦new"), fg=_C_NEW_FG, align=ctr)
 
             cls_parts = []
-            if entry.sim_score is not None and entry.sim_score >= 0.7:
+            if sim is not None and sim >= 0.7:
                 cls_parts.append("≈")
             if entry.classes_ok:
                 cls_parts.append(f"[{','.join(entry.classes_ok)}]")
@@ -1668,58 +1731,60 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
                       _COL_CUSTOM):
                 cell(c, "")
 
-        # ── Play button ──
-        play_btn = QPushButton()
-        set_play_glyph(play_btn, False)
-        play_btn.setFixedSize(26, 20)
-        play_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)   # keep keyboard focus on the table
-        if entry and self._play_cb:
-            p = entry.path
-            # Resolve the button's row LIVE on click: a captured row index goes stale
-            # once a row above is removed (drag a track out to another list, context
-            # remove, auto-clean), which otherwise plays the wrong / next track.
-            play_btn.clicked.connect(
-                lambda _, b=play_btn, path=p:
-                    self._on_play_click(self._row_of_widget(b, _COL_PLAY), path))
+        # ── Play button ── (painted by RowButtonDelegate; a click reads its row
+        # off the index then, so a row removed above never plays the wrong track)
+        def cell_button(col, glyph, look, tip=""):
+            it = QTableWidgetItem()
+            it.setData(BUTTON_ROLE, glyph)
+            it.setData(LOOK_ROLE, look)
+            it.setBackground(bg)                # the row's tint runs under the button
+            if tip:
+                it.setToolTip(tip)
+            it.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
+            self.setItem(row, col, it)
+            return it
+
+        if self.cellWidget(row, _COL_REGEN) is not None:   # a header's ↺ held the cell
+            self.removeCellWidget(row, _COL_REGEN)
+        # Playing mode hides the ↺ column — the ▶ is what stays on screen, and
+        # it could not play the file anyway. One ❗ per row, so ↺ then stays ↺.
+        missing_on_play = missing and bool(self._play_cb)
+        if missing_on_play:
+            cell_button(_COL_PLAY, "❗", "missing",
+                   i18n.t("⚠ File not found on disk:\n%s") % entry.path
+                   ).setData(PATH_ROLE, entry.path)
+        elif entry and self._play_cb:
+            cell_button(_COL_PLAY, "▶", "plain").setData(PATH_ROLE, entry.path)
         else:
-            play_btn.setEnabled(False)
-        self.setCellWidget(row, _COL_PLAY, play_btn)
+            cell_button(_COL_PLAY, "▶", "off")
 
         # ── Regenerate button ── (a flat Wishlist has no rounds to re-roll from)
         if not self._flat_mode:
-            regen_btn = QPushButton("❗" if (missing or marked) else "↺")
-            regen_btn.setFixedSize(26, 20)
-            regen_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)   # keep keyboard focus on the table
             if self._party_swap():
                 dname = dance_name(meta.dance, meta.dance) or "title"
                 regen_hint = (i18n.t("↺ click to swap it with a %s from the end "
                                      "of the list") % dname)
             else:
                 regen_hint = i18n.t("↺ click to re-roll a replacement")
-            if missing:
-                regen_btn.setStyleSheet("padding: 0; color: #c81e1e; font-weight: bold;")
-                regen_btn.setToolTip(
-                    i18n.t("⚠ File not found on disk:\n%s") % entry.path
-                    + "\n\n" + regen_hint)
+            if missing and not missing_on_play:
+                cell_button(_COL_REGEN, "❗", "missing",
+                       i18n.t("⚠ File not found on disk:\n%s") % entry.path
+                       + "\n\n" + regen_hint)
             elif marked:
-                regen_btn.setStyleSheet("padding: 0; color: #d86018; font-weight: bold;")
-                regen_btn.setToolTip(
-                    i18n.t("🔁 Marked for potential replace  "
-                           "(Ctrl+M to toggle)") + "\n" + regen_hint)
+                # The orange row is the mark — a ❗ here read like a missing file.
+                cell_button(_COL_REGEN, "↺", "plain",
+                       i18n.t("🔁 Marked for potential replace  "
+                              "(Ctrl+M to toggle)") + "\n" + regen_hint)
             elif self._party_swap():
-                regen_btn.setStyleSheet("padding: 0;")
-                regen_btn.setToolTip(
-                    i18n.t("Swap with a %s from the end of the list — a "
-                           "leftover that fits no round first, else one from "
-                           "the last third  (Ctrl+R / Ctrl+N)")
-                    % dname)
+                cell_button(_COL_REGEN, "↺", "plain",
+                       i18n.t("Swap with a %s from the end of the list — a "
+                              "leftover that fits no round first, else one from "
+                              "the last third  (Ctrl+R / Ctrl+N)")
+                       % dname)
             else:
-                regen_btn.setStyleSheet("padding: 0;")
-                regen_btn.setToolTip("Re-roll this song — best timbre match first  (Ctrl+R / Ctrl+N)")
-            regen_btn.clicked.connect(
-                lambda _, b=regen_btn: self._regen(self._row_of_widget(b, _COL_REGEN)))
-            self.setCellWidget(row, _COL_REGEN, regen_btn)
-        elif missing:
+                cell_button(_COL_REGEN, "↺", "plain",
+                       "Re-roll this song — best timbre match first  (Ctrl+R / Ctrl+N)")
+        elif missing and not missing_on_play:
             # Flat list (wishlist / Eintanzen) has no ↺ button — mark the dead file
             # with a red ❗ in the last column instead.
             warn = QTableWidgetItem("❗")
@@ -1734,14 +1799,14 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
 
     # ── Play / stop toggle ────────────────────────────────────────────────────
 
-    def _row_of_widget(self, widget, col: int) -> int:
-        """Current row of a cell widget, looked up live. Per-row buttons capture
-        their row at build time, but a removal above them (drag-out, context remove,
-        auto-clean) shifts rows up without re-filling — so resolve the row on click."""
-        for r in range(self.rowCount()):
-            if self.cellWidget(r, col) is widget:
-                return r
-        return -1
+    def _on_row_button(self, row: int, col: int):
+        """A row's ▶ or ↺ was clicked (RowButtonDelegate)."""
+        if col == _COL_PLAY:
+            path = self.item(row, _COL_PLAY).data(PATH_ROLE)
+            if path is not None:
+                self._on_play_click(row, path)
+        elif col == _COL_REGEN:
+            self._regen(row)
 
     def scroll_row_into_play_view(self, row: int):
         """Bring a starting title into view — and when it wasn't fully on
@@ -1793,18 +1858,14 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
                 self.host.toggle_play()
                 return
             # Same row → stop
-            w = self.cellWidget(row, _COL_PLAY)
-            if isinstance(w, QPushButton):
-                set_play_glyph(w, False)
+            self._set_play_glyph(row, False)
             self._current_play_row = -1
             if self._play_cb:
                 self._play_cb(None)
         else:
             # Different row (or nothing playing) → switch
             if self._current_play_row >= 0:
-                old = self.cellWidget(self._current_play_row, _COL_PLAY)
-                if isinstance(old, QPushButton):
-                    set_play_glyph(old, False)
+                self._set_play_glyph(self._current_play_row, False)
             self._current_play_row = row
             self.sync_play_glyph(True)
             # Keep the running title in sight and focused — matters most when
@@ -1832,9 +1893,7 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
         if self._current_play_row == row:
             return
         if self._current_play_row >= 0:
-            old = self.cellWidget(self._current_play_row, _COL_PLAY)
-            if isinstance(old, QPushButton):
-                set_play_glyph(old, False)
+            self._set_play_glyph(self._current_play_row, False)
         self._current_play_row = row
         self.sync_play_glyph()   # cued, not started → ▶ at the desk
         if scroll:
@@ -1845,9 +1904,7 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
         """Call this when the media player stops naturally (end of song)."""
         if self._current_play_row >= 0:
             row = self._current_play_row
-            w = self.cellWidget(row, _COL_PLAY)
-            if isinstance(w, QPushButton):
-                set_play_glyph(w, False)
+            self._set_play_glyph(row, False)
             self._current_play_row = -1
             self._update_play_row_hl()
 
@@ -2251,6 +2308,9 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
                 return
             if meta.theme:
                 return   # theme rows have no round/tier context to regenerate from
+            if self._is_row_pinned(row):
+                _show_toast(self, i18n.t("📌  Pinned — unpin the title to re-roll it"))
+                return
             if not self._suggester or not self._playlist:
                 return
 
@@ -2379,7 +2439,7 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
         )
         if not new_entry:
             QMessageBox.information(self, "Regenerate",
-                                    "No alternative Eintanzen track found.")
+                                    "No alternative Practice track found.")
             return
         was_playing = (row == self._current_play_row)
         if was_playing:
@@ -2412,6 +2472,7 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
                 r for r, m in enumerate(self._row_meta)
                 if m and not m.theme
                 and m.round_name == round_name and m.d_idx == d_idx
+                and not self._is_row_pinned(r)   # 📌 stays
             ]
             if not target_rows:
                 return
@@ -2500,7 +2561,8 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
             rows_by_dance: dict[int, list[int]] = {}
             for r, m in enumerate(self._row_meta):
                 if (m and not m.theme
-                        and m.round_name == round_name):
+                        and m.round_name == round_name
+                        and not self._is_row_pinned(r)):   # 📌 stays
                     rows_by_dance.setdefault(m.d_idx, []).append(r)
             if not rows_by_dance:
                 return

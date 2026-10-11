@@ -12,7 +12,7 @@ Du bekommst ihn auf zwei Wegen:
 - als **Player-Build**, `DanceSport-Player`, ein eigenes Programm für den
   PC in der Halle;
 - als volle App im **App-Modus** *Nur Player*, unter ⚙ Einstellungen ▸
-  📁 Pfade & Suche ▸ **App-Modus**.
+  ⚙ Allgemein ▸ **App-Modus**.
 
 Beide sehen gleich aus und arbeiten gleich. Das Fenster heißt
 **DanceSport Player** und öffnet auf der Seite ▶ Wiedergabe.
@@ -34,9 +34,9 @@ verlassen hast.
 ## Der App deine Musik zeigen
 
 Öffne ⚙ **Einstellungen**. Der Knopf sitzt unten im Wiedergabe-Bereich. Der
-erste Reiter hält die Ordner:
+Reiter **📁 Pfade** hält die Ordner:
 
-![Einstellungen, Reiter Pfade & Suche](../img/settings-paths.png)
+![Einstellungen, Reiter Pfade](../img/settings-paths.png)
 
 | Feld | Wofür es da ist |
 |---|---|
@@ -88,13 +88,14 @@ auf ihr Symbol. Fahr mit der Maus darüber, dann siehst du den vollen Namen.
 | 💾 Speichern | Schreibt jedes nicht leere Deck in seine eigene `.m3u`. |
 | 📌 Zustand | Speichert jetzt die ganze Sitzung. Das passiert auch von selbst bei jeder Änderung und beim Schließen. |
 | 🧹 Leeren | Leert jedes Deck. Wunschlisten bleiben erhalten. |
+| 🚦 Prüfen ▾ | **🚦 Bereit?**, der Check vor dem Abend, siehe [Kapitel 4](04-playing.md#-bereit-vor-dem-abend). Die volle App ergänzt das Menü um 🔁 Doppelte prüfen, 🎵 Musik prüfen und 🧭 Pfade reparieren. |
 | ⧉ *n* Playlists | Schaltet durch die Anzahl der Decks auf dem Bildschirm. Ein Rechtsklick geht rückwärts. |
 | 🗜 Kompakt | Schaltet die Kopfzeilen durch: voll → kompakt → ohne Gruppen → nummeriert. |
 | ⭐ *n* Wunschlisten | Schaltet den Wunschlistenbereich durch: aus → 1 → 2 → 3 → 4 → 2×2. |
 | 🤸 Party ▾ | Blendet den Party-Bereich ein oder aus. |
 | 📚 Bibliothek | Blendet den Bereich Bibliothek und Turniere ein oder aus. |
 | 🎛 Cartwall | Blendet die Wand mit den Sample-Pads ein oder aus. |
-| ❔ | Die Übersicht der Tastenkürzel (**F1**). |
+| ❔ | Ein Menü: ⌨ Tastenkürzel (**F1**), 📖 Handbuch, 📜 Gespielte Titel…, ℹ Über… und ⛶ Vollbild (**F11**). |
 
 **Mitte: die Decks.** Jedes Deck ist eine Playlist, siehe
 [Kapitel 3](03-playlists.md).
@@ -108,11 +109,30 @@ Bereich **📚 Bibliothek / 🏆 Turniere**, siehe
 - die Knöpfe für Rückgängig und Wiederholen, mit der Zahl der Schritte, die
   sie zurückgehen können;
 - der Titel, der im Player bereitliegt;
-- die Statusleiste.
+- die Statusleiste. Solange die 📱 Handy-Fernbedienung läuft, sitzt an ihrem
+  rechten Ende ein grünes Abzeichen **📱 LIVE**; ein Klick darauf öffnet das
+  Fenster der Fernbedienung, siehe
+  [Kapitel 4](04-playing.md#-die-handy-fernbedienung).
 
 Alles, was du siehst, wird beim Arbeiten gespeichert: Decks, Wunschlisten, das
 Fensterlayout und was ein- oder ausgeklappt ist. Der nächste Start bringt es
 genau so zurück.
+
+### ⛶ Vollbild
+
+**F11** oder ❔ ▸ **⛶ Vollbild** lässt das Fenster den ganzen Bildschirm
+füllen. Noch einmal **F11** oder ❔ ▸ **⛶ Vollbild beenden** holt es zurück.
+Im Vollbild zeigt die Statusleiste an ihrem rechten Ende eine Uhr, mit Datum
+und Sekunden: *Sa, 10.10.2026 20:45:12*. Für die Uhrzeit allein setzt du den
+Haken **⛶ Uhr im Vollbild: nur die Uhrzeit** unter ⚙ Einstellungen ▸
+🎨 Aussehen.
+
+### Die App schließen
+
+Das Fenster zu schließen, während Musik läuft, würde sie auf der Fläche
+anhalten, deshalb fragt die App zuerst: *Es läuft Musik. Trotzdem beenden und
+sie anhalten?* **Nein** ist vorgewählt und lässt alles weiterlaufen. Pausiert
+oder gestoppt schließt die App sofort.
 
 ## Der Player-Build
 

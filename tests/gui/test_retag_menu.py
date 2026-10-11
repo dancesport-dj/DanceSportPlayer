@@ -20,15 +20,15 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_retag_menu_"))
 
-from dancesport_planner import (  # noqa: E402
+from dancesport_planner import (
     MusicEntry,
     MusicLibrary,
     PlaylistSuggester,
     RoundConfig,
 )
-from gui.main_music import _tag_change_summary  # noqa: E402
-from gui.playlist_table import _COL_BPM, _COL_TITLE  # noqa: E402
-from tests.qt_test_support import (  # noqa: E402
+from gui.main_music import _tag_change_summary
+from gui.playlist_table import _COL_BPM, _COL_TITLE
+from tests.qt_test_support import (
     reap_widget, stub_window_startup)
 
 

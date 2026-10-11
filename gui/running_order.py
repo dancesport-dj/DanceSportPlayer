@@ -113,6 +113,9 @@ class RunningOrder:
             return self._rows == other._rows
         return self._rows == other
 
+    # Mutable and compared by its rows, so it can't be a dict key or set member.
+    __hash__ = None
+
     def append(self, row):
         self._rows.append(row)
 

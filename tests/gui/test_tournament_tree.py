@@ -17,14 +17,14 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_tree_"))
 
-from PySide6.QtCore import QMimeData, QPoint, QPointF, QUrl  # noqa: E402
-from PySide6.QtWidgets import QApplication  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from PySide6.QtCore import QMimeData, QPoint, QPointF, QUrl
+from PySide6.QtWidgets import QApplication
+from tests.qt_test_support import reap_widget
 
-from gui import tournament_tree as gt  # noqa: E402
-from planner.store import JsonStore  # noqa: E402
-from planner.m3u import read_m3u_tracks  # noqa: E402
-from planner.models import MusicEntry  # noqa: E402
+from gui import tournament_tree as gt
+from planner.store import JsonStore
+from planner.m3u import read_m3u_tracks
+from planner.models import MusicEntry
 
 _app = QApplication.instance() or QApplication(sys.argv)
 

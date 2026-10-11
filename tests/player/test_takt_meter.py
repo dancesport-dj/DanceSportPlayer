@@ -16,15 +16,15 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_takt_"))
 
-from PySide6.QtCore import QPoint  # noqa: E402
-from PySide6.QtTest import QTest  # noqa: E402
-from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer  # noqa: E402
-from PySide6.QtCore import Qt  # noqa: E402
-from PySide6.QtWidgets import QApplication, QWidget  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from PySide6.QtCore import QPoint
+from PySide6.QtTest import QTest
+from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QWidget
+from tests.qt_test_support import reap_widget
 
-from player.player import BigPlayerWidget  # noqa: E402
-from player.takt_meter import (  # noqa: E402
+from player.player import BigPlayerWidget
+from player.takt_meter import (
     TaktMeterOverlay,
     TapTempoMeter,
     default_sollwert,

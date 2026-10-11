@@ -1918,6 +1918,11 @@ class CartwallWidget(QWidget):
         if not self._edit:
             self.padClicked.emit(key)
 
+    def play_pad(self, key) -> None:
+        """A pad fired from outside the wall (📱 the phone remote) — through
+        the same gate as a click."""
+        self._fire(key)
+
     def _step_page(self, delta: int) -> None:
         """Turn the page. It never CREATES one — ➕ does that, and only in ✏
         mode. A nav that makes a page whenever you overshoot is how a wall grows

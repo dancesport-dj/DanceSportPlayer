@@ -30,6 +30,13 @@ numpy==2.5.3
 mutagen==1.48.1
 # Opt-in error reports (shared.error_reports); without it they stay off.
 sentry-sdk==2.71.0
+# The QR code in the 📱 phone remote's window (pure Python, no dependencies);
+# without it the window shows the address only.
+segno==1.6.6
+# 🎛 HID DJ controllers (a Traktor in its native mode); MIDI needs nothing, it
+# goes through what the system ships (winmm, CoreMIDI, the ALSA sequencer).
+# Without it the 🎛 window lists MIDI only.
+hidapi==0.15.0
 
 # MP3 decoding for audio analysis requires ffmpeg (not a pip package).
 # Put it on PATH, or drop the extracted build next to the app in an `ffmpeg*` folder

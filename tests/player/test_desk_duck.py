@@ -21,12 +21,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_duck_"))
 
-from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer  # noqa: E402
-from PySide6.QtWidgets import QApplication  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
+from PySide6.QtWidgets import QApplication
+from tests.qt_test_support import reap_widget
 
-from player.main_player import _DESK_DUCK  # noqa: E402
-from player.player import BigPlayerWidget, PreviewOverlay  # noqa: E402
+from player.main_player import _DESK_DUCK
+from player.player import BigPlayerWidget, PreviewOverlay
 
 
 class DuckFactorTest(unittest.TestCase):

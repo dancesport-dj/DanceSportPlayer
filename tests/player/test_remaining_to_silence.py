@@ -18,8 +18,8 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_remain_"))
 
-from planner.checks import trailing_silence_secs  # noqa: E402
-from player.playback_state import PlaybackState  # noqa: E402
+from planner.checks import trailing_silence_secs
+from player.playback_state import PlaybackState
 
 
 class TrailingSilenceTest(unittest.TestCase):
@@ -56,12 +56,16 @@ class BigPlayerLimitTest(unittest.TestCase):
         def __init__(self):
             self.limit = ("untouched",)
             self.marks = None
+            self.overlay = None
 
         def set_limit(self, ms, glyph="hourglass", to_end=False):
             self.limit = (ms, glyph, to_end)
 
         def set_pd_marks(self, marks, armed=None):
             self.marks = marks
+
+        def set_wave_overlay(self, silences, fade_start_ms):
+            self.overlay = (silences, fade_start_ms)
 
     class _Panel:
         def __init__(self, timed, secs):
@@ -75,7 +79,7 @@ class BigPlayerLimitTest(unittest.TestCase):
             return self._secs
 
         def play_set(self):
-            return {"secs": self._secs if self._timed else 0}
+            return {"secs": self._secs if self._timed else 0, "fade": 8}
 
     def _win(self, *, timed=False, play_secs=180, spans=None, duration=330.0):
         from player.main_player import PlayerControlMixin
@@ -117,6 +121,16 @@ class BigPlayerLimitTest(unittest.TestCase):
         w = self._win()
         w._sync_big_player_limit()
         self.assertEqual(w._big_player.limit[0], None)
+
+    def test_the_waveform_learns_the_silences_and_where_the_fade_begins(self):
+        w = self._win(timed=True, play_secs=180, spans=[[260, 330]])
+        w._sync_big_player_limit()
+        self.assertEqual(w._big_player.overlay, ([[260, 330]], 172_000))
+
+    def test_without_a_timed_cut_there_is_no_fade_to_draw(self):
+        w = self._win(spans=[[0, 3]])
+        w._sync_big_player_limit()
+        self.assertEqual(w._big_player.overlay, ([[0, 3]], None))
 
 
 if __name__ == "__main__":

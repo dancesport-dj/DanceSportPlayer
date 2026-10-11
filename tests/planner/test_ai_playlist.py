@@ -25,15 +25,15 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_ai_"))
 
-from PySide6.QtCore import Qt  # noqa: E402
-from PySide6.QtWidgets import QApplication, QLabel, QPushButton  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QLabel, QPushButton
+from tests.qt_test_support import reap_widget
 
-from planner import event_plan, i18n  # noqa: E402
-from planner import llm  # noqa: E402
-from planner import sound as planner_sound  # noqa: E402
-from planner.models import MusicEntry, RoundConfig  # noqa: E402
-from gui.ai_dialogs import (  # noqa: E402
+from planner import event_plan, i18n
+from planner import llm
+from planner import sound as planner_sound
+from planner.models import MusicEntry, RoundConfig
+from gui.ai_dialogs import (
     AiPlaylistDialog, AiTranscriptDialog, _Bubble, _ThinkingBubble,
 )
 

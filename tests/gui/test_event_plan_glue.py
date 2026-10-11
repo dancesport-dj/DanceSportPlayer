@@ -21,12 +21,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_event_glue_"))
 
-from PySide6.QtCore import QObject, Qt  # noqa: E402
-from PySide6.QtWidgets import QApplication, QDialog, QMessageBox  # noqa: E402
+from PySide6.QtCore import QObject, Qt
+from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
 
-from gui.main_generate import GenerateMixin  # noqa: E402
-from planner import event_plan  # noqa: E402
-from planner.competition import parse_competition_schedule  # noqa: E402
+from gui.main_generate import GenerateMixin
+from planner import event_plan
+from planner.competition import parse_competition_schedule
 
 
 class FakeWindow(GenerateMixin, QObject):

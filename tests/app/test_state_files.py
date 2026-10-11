@@ -23,8 +23,8 @@ from unittest import mock
 _STATE_DIR = Path(tempfile.mkdtemp(prefix="dp_state_"))
 os.environ["DANCEPLAYLIST_STATE_DIR"] = str(_STATE_DIR)
 
-from gui import dialogs  # noqa: E402
-from shared import stores  # noqa: E402
+from gui import dialogs
+from shared import stores
 
 # Belt and braces: if the redirect didn't take, skip instead of writing.
 # A skipped test is a bug report; a destroyed settings file is a bad afternoon.

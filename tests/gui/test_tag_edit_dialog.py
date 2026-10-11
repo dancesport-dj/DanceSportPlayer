@@ -15,17 +15,17 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_tagdlg_"))
 
-from unittest import mock  # noqa: E402
+from unittest import mock
 
-from PySide6.QtCore import QPoint, Qt  # noqa: E402
-from PySide6.QtGui import QContextMenuEvent  # noqa: E402
-from PySide6.QtWidgets import QApplication, QMenu, QWidget  # noqa: E402
+from PySide6.QtCore import QPoint, Qt
+from PySide6.QtGui import QContextMenuEvent
+from PySide6.QtWidgets import QApplication, QMenu, QWidget
 
-from gui import table_actions  # noqa: E402
-from gui.tag_edit_dialog import (  # noqa: E402
+from gui import table_actions
+from gui.tag_edit_dialog import (
     TagEditDialog, marker_suggestions, parse_markers)
-from planner.models import MusicEntry  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from planner.models import MusicEntry
+from tests.qt_test_support import reap_widget
 
 _C = Qt.CheckState
 

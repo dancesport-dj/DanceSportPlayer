@@ -78,6 +78,11 @@ if [ "$2" = "tar" ] || [ "$1" = "tar" ]; then
         cp ICONS-LICENSE.txt "dist/$APP_NAME/Licenses/"
         cp THIRD_PARTY_LICENSES.md "dist/$APP_NAME/Licenses/"
         cp speech/LICENSE-AUDIO.md "dist/$APP_NAME/Licenses/"
+        cp licenses/GPL-2.0.txt "dist/$APP_NAME/Licenses/"
+        cp licenses/GPL-3.0.txt "dist/$APP_NAME/Licenses/"
+        cp licenses/LGPL-2.1.txt "dist/$APP_NAME/Licenses/"
+        cp licenses/LGPL-3.0.txt "dist/$APP_NAME/Licenses/"
+        cp licenses/PYTHON-LICENSE.txt "dist/$APP_NAME/Licenses/"
     fi
     # The name says which machines it runs on: a build runs only on its own
     # architecture, and box64 on an ARM machine does not get it to start.

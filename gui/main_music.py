@@ -58,6 +58,7 @@ from gui.dialogs import (  # auto-resolved
     FileDropCheckPanel,
     MusicSpeedDialog,
 )
+from gui.readiness_dialog import ReadinessDialog
 from gui.tag_edit_dialog import CustomSourceDialog, TagEditDialog, marker_suggestions
 from gui.workers import CustomFieldReader
 from shared.audio_probes import detect_silences, find_ffmpeg, measure_noise_floor  # auto-resolved
@@ -66,6 +67,7 @@ from planner import custom_field
 from planner import i18n
 from planner import id3_frames
 from planner import party_check
+from planner import readiness
 
 log = logging.getLogger("dancesport.gui.music")
 
@@ -160,7 +162,7 @@ class MusicCheckMixin:
         there."""
         dur = int(getattr(e, "duration", 0) or 0)
         sil = self._track_silence_total(e, dur, probe=probe_silence) if dur > 0 else 0.0
-        return planner_checks.track_issues(
+        issues = planner_checks.track_issues(
             e,
             beats_per_bar=self._BEATS_PER_BAR,
             tempo_ratios=self._TEMPO_RATIOS,
@@ -173,6 +175,12 @@ class MusicCheckMixin:
             noise_max_db=self._check_noise_db(),
             in_final=in_final,
         )
+        # A title that would not play this session (see _playback_failed).
+        playback = getattr(self, "_playback", None)
+        failed = playback.failed.get(str(e.path)) if playback is not None else None
+        if failed is not None:
+            issues.append(i18n.t("🔇 would not play: %s") % failed)
+        return issues
 
     def _track_noise_floor(self, e, probe: bool = True) -> float | None:
         """A track's noise floor in dBFS, or None when the 🔇 check is off or
@@ -687,6 +695,56 @@ class MusicCheckMixin:
         # same reasoning as the Check-duplicates dialog.
         self._show_music_report(suspects, checked, skipped, structure)
 
+    def _readiness_findings(self) -> list:
+        """Grade what will be played tonight: every deck holding titles and the
+        Eintanzen list (planner/readiness.py)."""
+        tables = self._checkable_deck_tables()
+        if self._warmup_table._row_meta.has_songs():
+            tables.append(self._warmup_table)
+        tracks = [(e.path, e.dance) for t in tables for e in t._row_meta.entries()
+                  if getattr(e, "path", None)]
+        # The duplicate report renumbers `_dup_slots`, which an open 🔁 dialog's
+        # ✅ Apply still resolves through.
+        slots = getattr(self, "_dup_slots", None)
+        report = self._deck_dup_report() if tracks else {}
+        if slots is not None:
+            self._dup_slots = slots
+        # 🎵 runs behind its cancelable progress; cancelled, its line is left out.
+        music = None
+        result = self._music_suspects_with_progress() if tracks else None
+        if result is not None:
+            suspects, _checked, _skipped, structure, _any = result
+            music = ([s[0].title for s in suspects], [name for name, _w, _t in structure])
+        return readiness.readiness_findings(tracks, self._cache, report, music,
+                                            self._settings.get("reference_path") or "")
+
+    def _check_readiness(self):
+        """🚦: one pre-flight over the existing checks, a traffic light each."""
+        dlg = getattr(self, "_ready_dlg", None)
+        if dlg is not None:
+            dlg.refresh()
+            dlg.raise_()
+            dlg.activateWindow()
+            return
+        # Looked up on the click, not now: the window's actions, as they are then.
+        dlg = ReadinessDialog(self._readiness_findings, {
+            "paths": lambda: self._fix_deck_paths(),
+            "loudness": lambda: self._analyze_loudness(),
+            "silences": lambda: self._analyze_silences(),
+            "pd": lambda: self._analyze_pd_highlights(),
+            "duplicates": lambda: self._check_duplicates(),
+            "music": lambda: self._check_music(),
+        }, self)
+        log.info("🚦 Readiness check\n"
+                 "light: %s", ("green", "yellow", "red")[dlg.level])
+        dlg.finished.connect(lambda _r: self._close_readiness(dlg))
+        self._ready_dlg = dlg
+        dlg.show()
+
+    def _close_readiness(self, dlg):
+        self._ready_dlg = None
+        dlg.deleteLater()
+
     def _reveal_deck_row(self, table, r) -> None:
         """Bring deck `table` on screen (unhide / unfold / expand as needed),
         select + scroll to row `r`, and raise the window. Shared by the
@@ -842,8 +900,8 @@ class MusicCheckMixin:
             info += " · " + i18n.t("🔇 noise floor above %.0f dB") % self._check_noise_db()
         dlg._info.setText(info + ". " + i18n.t("Thresholds: ⚙ Settings → 🎵 Checks."))
         dlg._long_chk.setText(
-            i18n.t("⏳  Also flag long tracks (> %s) — only relevant when building an "
-                   "Eintanzen playlist") % mx_txt)
+            i18n.t("⏳  Also flag long tracks (> %s) — only relevant when building a "
+                   "Practice playlist") % mx_txt)
         dlg._noise_chk.setText(
             i18n.t("🔇  Also flag hissy tracks (never quieter than %.0f dB) — measures "
                    "each track once with ffmpeg, so the first run takes a moment")

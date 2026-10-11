@@ -64,7 +64,7 @@ from planner.db import (
 
 # === split re-exports ===
 
-from planner.m3u import (  # noqa: F401  (facade re-export)
+from planner.m3u import (  # facade re-export
     export_m3u,
     export_flat_m3u,
     numbered_folder_m3u,
@@ -75,7 +75,7 @@ from planner.m3u import (  # noqa: F401  (facade re-export)
     import_playlist_m3u,
 )
 
-from planner.cli import (  # noqa: F401  (facade re-export)
+from planner.cli import (  # facade re-export
     DLINE,
     LINE,
     hdr,
@@ -88,17 +88,17 @@ from planner.cli import (  # noqa: F401  (facade re-export)
     main,
 )
 
-from planner.library import (  # noqa: F401  (facade re-export)
+from planner.library import (  # facade re-export
     MusicLibrary,
 )
 
-from planner.suggester import (  # noqa: F401  (facade re-export)
+from planner.suggester import (  # facade re-export
     PlaylistSuggester,
     generate_hints,
     source_gap_hint,
 )
 
-from planner.gaps import (  # noqa: F401  (facade re-export)
+from planner.gaps import (  # facade re-export
     gap_stats,
     gap_reasons,
     ai_prompt,
@@ -108,7 +108,7 @@ from planner.gaps import (  # noqa: F401  (facade re-export)
     GAP_MIN_PROVEN,
 )
 
-from planner.ai import (  # noqa: F401  (facade re-export)
+from planner.ai import (  # facade re-export
     DEFAULT_API_BASE,
     OPENROUTER_URL,
     OPENROUTER_MODELS_URL,
@@ -123,19 +123,19 @@ from planner.ai import (  # noqa: F401  (facade re-export)
     match_suggestions_to_library,
 )
 
-from planner.themes import (  # noqa: F401  (facade re-export)
+from planner.themes import (  # facade re-export
     THEMES,
     load_user_themes,
     all_themes,
 )
 
-from planner.competition import (  # noqa: F401  (facade re-export)
+from planner.competition import (  # facade re-export
     CompetitionSpec,
     parse_competition_schedule,
     competition_matches_file,
 )
 
-from planner.warmup import (  # noqa: F401  (facade re-export)
+from planner.warmup import (  # facade re-export
     warmup_code,
     warmup_section,
     warmup_rounds,
@@ -147,7 +147,7 @@ from planner.warmup import (  # noqa: F401  (facade re-export)
     others_dance_of,
 )
 
-from planner.models import (  # noqa: F401  (facade re-export)
+from planner.models import (  # facade re-export
     DANCE_NAMES,
     DANCE_PATTERNS,
     GENRE_TO_DANCE,
@@ -176,11 +176,11 @@ from planner.models import (  # noqa: F401  (facade re-export)
     Playlist,
 )
 
-from planner.parsing import (  # noqa: F401  (facade re-export)
+from planner.parsing import (  # facade re-export
     detect_playlist_meta,
 )
 
-from planner.scoring import (  # noqa: F401  (facade re-export)
+from planner.scoring import (  # facade re-export
     W_POPULARITY,
     W_BPM_FIT,
     W_TIMBRE,

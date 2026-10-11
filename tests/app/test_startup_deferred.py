@@ -23,10 +23,10 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_startup_"))
 
-from PySide6.QtWidgets import QApplication    # noqa: E402
+from PySide6.QtWidgets import QApplication
 
-from gui import main_global as gmg                 # noqa: E402
-from planner import i18n                           # noqa: E402
+from gui import main_global as gmg
+from planner import i18n
 
 
 class _Bar:

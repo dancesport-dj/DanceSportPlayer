@@ -25,16 +25,16 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_i18n_"))
 
-import PySide6.QtCore as qtcore  # noqa: E402
-from PySide6.QtGui import QAction, QFontMetrics  # noqa: E402
-from PySide6.QtWidgets import (  # noqa: E402
+import PySide6.QtCore as qtcore
+from PySide6.QtGui import QAction, QFontMetrics
+from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QDialogButtonBox, QDoubleSpinBox,
     QGroupBox, QLabel, QLineEdit, QMenu, QMessageBox, QPushButton, QSpinBox,
     QTableWidget, QTabWidget, QWidget,
 )
 
-from planner import i18n  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from planner import i18n
+from tests.qt_test_support import reap_widget
 
 
 class _FakeLocale:

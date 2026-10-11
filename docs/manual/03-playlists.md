@@ -42,9 +42,19 @@ title. Both are described in [chapter 5](05-tags.md).
 
 Row colours:
 
-- an **orange** row with ❗ is marked, for example as a title to swap later
+- an **orange** row is marked, for example as a title to swap later
   (**Ctrl + M**);
-- a **red title** with ❗ points at a file that is gone.
+- a **light red** row with ❗ on its ▶ points at a file that is gone. Once
+  the file is back and the title plays, the mark goes away. A title that
+  would not play turns red the same way, with the reason in its tooltip,
+  see [chapter 4](04-playing.md#a-title-that-wont-play);
+- a **lilac** row with **📌** in front of its title is pinned.
+
+**📌 Pinning a title.** Right-click a title of a round ▸ **📌 Pin — keep this
+title when the round is re-rolled**. When the round or its dance is generated
+again on the planning side, a pinned title keeps its slot; re-rolling its own
+row says it is pinned instead of replacing it. **📌 Unpin** takes the pin off.
+Pins are saved with the deck and go when the deck is cleared.
 
 The bar under the deck shows the **Σ** song count and total time. Click ▸ for
 the count per dance. The **✋ Manual / ⏭ Auto** switch sets whether the deck
@@ -100,17 +110,31 @@ Wishlists are kept by **🧹 Clear all**.
 On import, a deck recognises rounds, dances and heats by itself, including a
 final with extra backup titles. A wishlist appends the tracks as a flat list.
 
+### The playlist file format
+
+Every playlist the app writes is UTF-8, so umlauts and accents survive. The
+**Playlist file format** in ⚙ Settings ▸ 📁 Paths picks one of three:
+
+- **UTF-8 (.m3u)**: the default, read by current players.
+- **UTF-8 with BOM (.m3u)**: for an older Windows tool that shows `Ã¼`
+  instead of `ü`.
+- **UTF-8 (.m3u8)**: the same UTF-8, under the extension some players
+  expect.
+
+Save as M3U, 💾 Save all and the exports all follow it. The app reads all
+three back, and `.m3u8` files count for the **Pop** column too.
+
 ## Playlists from another PC
 
 A playlist file stores the full path of every track. When it was written on
 another PC, or the music moved to another drive, those paths are wrong. The
 player repairs them as it loads the playlist, with two settings in
-[⚙ Settings ▸ 📁 Paths & search](01-getting-started.md#point-the-app-at-your-music):
+[⚙ Settings ▸ 📁 Paths](01-getting-started.md#point-the-app-at-your-music):
 
-- **Referenzpfad**: the folder the music lives in on *this* PC;
+- **Reference path**: the folder the music lives in on *this* PC;
 - **Search folders**: more places to look, one per line.
 
-The app tries the Referenzpfad first, then the search folders in order. It cuts
+The app tries the Reference path first, then the search folders in order. It cuts
 the old path from the front until the rest points at a real file under one of
 them. For example, `D:\Musik\tanzcds\lateincd\Samba.mp3` becomes
 `F:\my music\tanzcds\lateincd\Samba.mp3`. A path is only ever changed to a file
@@ -120,5 +144,10 @@ When a path had to change, a window says how many tracks were re-rooted and
 how many could not be found; **Show Details** lists every old and new path. A
 title that could not be found shows in red with ❗. Add the folder it is in
 under Search folders, then import the playlist again.
+
+Before the evening, **🚦 Check ▸ 🚦 Ready?** counts the titles that are
+missing or not on the Reference path. Its **🧭 Fix paths** button, on the
+📁 Music files line, moves the decks onto the copies there, see
+[chapter 4](04-playing.md#-ready-before-the-evening).
 
 Next: [Playing the evening](04-playing.md)

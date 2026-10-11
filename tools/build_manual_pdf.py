@@ -32,6 +32,7 @@ import tempfile
 from pathlib import Path
 from urllib.parse import unquote
 
+import planner.version
 from planner.version import build_version
 from tools import build_manual_html
 
@@ -112,11 +113,12 @@ def destPages(data: bytes) -> dict[str, int]:
 
 
 def isCurrent(manualDir: Path, outFile: Path) -> bool:
-    """True when the PDF is newer than everything it is printed from."""
+    """True when the PDF is newer than everything it is printed from, the
+    VERSION its cover names included."""
     if not outFile.is_file():
         return False
     sources = [*manualDir.glob("*.md"), *(build_manual_html.MANUAL_DIR / "img").glob("*"),
-               Path(build_manual_html.__file__), Path(__file__)]
+               Path(build_manual_html.__file__), Path(__file__), Path(planner.version.__file__)]
     return outFile.stat().st_mtime >= max(p.stat().st_mtime for p in sources)
 
 

@@ -166,4 +166,8 @@ def serialize_deck(table, meta_ctx: dict) -> dict | None:
     marked = sorted(table._marked_paths & live_paths)
     if marked:
         state["marked"] = marked
+    # 📌 pins, by the same rule.
+    pinned = sorted(table._pinned_paths & live_paths)
+    if pinned:
+        state["pinned"] = pinned
     return state

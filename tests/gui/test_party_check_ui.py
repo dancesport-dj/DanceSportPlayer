@@ -27,16 +27,16 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_pcheck_"))
 
-from PySide6.QtWidgets import (  # noqa: E402
+from PySide6.QtWidgets import (
     QApplication, QLabel, QToolButton, QWidget,
 )
 
-from gui.main_generate import GenerateMixin  # noqa: E402
-from gui.main_music import MusicCheckMixin  # noqa: E402
-from gui.playlist_table import PlaylistTable  # noqa: E402
-from planner import party_check as pc  # noqa: E402
-from planner.models import MusicEntry  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from gui.main_generate import GenerateMixin
+from gui.main_music import MusicCheckMixin
+from gui.playlist_table import PlaylistTable
+from planner import party_check as pc
+from planner.models import MusicEntry
+from tests.qt_test_support import reap_widget
 
 _TAKT = {'LW': 29, 'TG': 32, 'WW': 59, 'SF': 29, 'QS': 51,
          'CC': 31, 'SA': 51, 'RB': 25, 'PD': 59, 'JI': 42}

@@ -16,9 +16,9 @@ re-rooted, and which are still gone.
 import tempfile
 import unittest
 from pathlib import Path
-from types import SimpleNamespace
 
 from planner.m3u import import_playlist_m3u
+from planner.library import MusicLibrary
 from planner.models import MusicEntry
 from planner.paths import PathRemapper
 
@@ -27,8 +27,10 @@ FOREIGN_2 = "Q:\\my music\\tanzcds\\lateincd\\CC\\Havana (CC 31).mp3"
 
 
 def _lib(*entries):
-    """Minimal stand-in for MusicLibrary — import only reads `.entries`."""
-    return SimpleNamespace(entries=list(entries))
+    """A library of just `entries`."""
+    lib = MusicLibrary()
+    lib.entries = list(entries)
+    return lib
 
 
 class _Base(unittest.TestCase):

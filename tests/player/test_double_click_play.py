@@ -24,16 +24,16 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_dblclick_"))
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from PySide6.QtWidgets import QApplication
+from tests.qt_test_support import reap_widget
 
-from gui import playlist_table as gpt  # noqa: E402
-from dancesport_planner import MusicEntry  # noqa: E402
-from player.main_player import PlayerControlMixin  # noqa: E402
-from player.playback_state import PlaybackState  # noqa: E402
-from gui.playlist_table import PlaylistTable  # noqa: E402
-from gui.running_order import Row, RunningOrder  # noqa: E402
-from player.between_dances import BetweenDances  # noqa: E402
+from gui import playlist_table as gpt
+from dancesport_planner import MusicEntry
+from player.main_player import PlayerControlMixin
+from player.playback_state import PlaybackState
+from gui.playlist_table import PlaylistTable
+from gui.running_order import Row, RunningOrder
+from player.between_dances import BetweenDances
 
 
 def _entry(name: str) -> MusicEntry:
@@ -479,9 +479,9 @@ class AdvanceTargetFollowsTheTitleTest(_Table):
     def test_the_announcement_names_the_moved_title(self):
         desk, target = self._armed("second")
         self._reload("third", "first", "second")
-        self.t._row_meta[self._song_row("second")].entry.bpm = 33
-        _code, takt, _heat = desk._announce_dance_of(target)
-        self.assertEqual(takt, 33)
+        self.t._row_meta[self._song_row("second")].dance = "QS"
+        code, _heat = desk._announce_dance_of(target)
+        self.assertEqual(code, "QS")
 
     def test_an_unmoved_title_keeps_its_row(self):
         from player.main_pause import _live_target

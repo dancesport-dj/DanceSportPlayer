@@ -8,7 +8,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from planner.config import PLAYLIST_DIR
+from planner.config import PLAYLIST_DIR, folders_below
 from planner.models import DEFAULT_DANCES
 from planner.parsing import _CODE_ALIAS
 
@@ -102,15 +102,18 @@ def _is_superseded_playlist(m3u: Path) -> bool:
         These bins would otherwise inflate popularity and wrongly mark genuinely
         fresh (never-played) songs as 'proven'.
     """
-    try:
-        rel = m3u.relative_to(PLAYLIST_DIR)
-    except ValueError:
-        rel = m3u
-    for part in list(rel.parent.parts) + [rel.stem]:
+    folders = folders_below(str(m3u), str(PLAYLIST_DIR))
+    if folders is None:   # not from the playlist tree (a list opened elsewhere)
+        try:
+            rel = m3u.relative_to(PLAYLIST_DIR)
+        except ValueError:
+            rel = m3u
+        folders = list(rel.parent.parts)
+    for part in folders + [m3u.stem]:
         seg = part.strip()
         if seg.lower() == 'old' or _has_old_marker(seg):
             return True
-    stem = rel.stem.strip()
+    stem = m3u.stem.strip()
     name = stem.lower()
     if name.startswith('export'):
         return True
@@ -180,11 +183,16 @@ def _comp_tokens(text: str) -> list[str]:
     return [t.upper() for t in re.split(r'[^A-Za-z0-9]+', text) if t]
 
 
+# The 🤸 practice list is saved under its name in the UI language, hence
+# one word per catalog (planner/lang_*.py, key "Practice").
+SIDE_LIST_WORDS = ('eintanzen', 'practice', 'práctica', 'oefenen', 'практика',
+                   'party', 'weihn', 'christmas', 'xmas')
+
+
 def is_side_list(stem: str) -> bool:
     """A warm-up, party or Christmas list kept beside the competition lists."""
     name = stem.lower()
-    return any(w in name for w in
-               ('eintanzen', 'party', 'weihn', 'christmas', 'xmas'))
+    return any(w in name for w in SIDE_LIST_WORDS)
 
 
 _COMP_CLASS_LETTERS = ('S', 'A', 'B', 'C', 'D')

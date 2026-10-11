@@ -26,7 +26,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_theme_"))
 
-from shared import theme  # noqa: E402
+from shared import theme
 
 # (ink, ground, what it is) — every pair really used by the app.
 REAL_PAIRS = [

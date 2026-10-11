@@ -8,6 +8,7 @@ import logging
 
 import planner.config
 import planner.db
+import planner.m3u
 
 HAS_MULTIMEDIA = importlib.util.find_spec("PySide6.QtMultimedia") is not None
 
@@ -491,7 +492,15 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
                              gaps_cb=self._show_library_gaps,
                              n_unanalyzed=n_unanalyzed,
                              pd_export_cb=self._export_manual_pd,
-                             pd_import_cb=self._import_manual_pd)
+                             pd_import_cb=self._import_manual_pd,
+                             backup_restore_cb=self._restore_user_data,
+                             venue_export_cb=self._export_venue_pack,
+                             venue_import_cb=self._import_venue_pack,
+                             remote_cb=self.start_remote_server,
+                             remote_running=lambda: self._remote is not None,
+                             remote_stop_cb=lambda: self.set_remote_running(False),
+                             remote_changed=self.remote_hub().changed,
+                             controller_cb=self.open_controller_window)
         # 📊 Library gaps runs from inside this dialog and may want it out of the
         # way (see _show_library_gaps) — leave it a handle while it is open.
         self._settings_dlg = dlg
@@ -521,6 +530,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
                         or dlg.running_look_touched())
         self._settings = new
         save_settings(new)
+        planner.m3u.set_m3u_format(new.get("m3u_format"))
         error_reports.apply(new)   # 🐞 on or off at once, no restart
         if mode_changed:
             # Only visibility — no restart needed, both sides stay wired up.
@@ -689,12 +699,40 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
                                        "The others are kept and apply as soon as that "
                                        "music turns up here.") % (n, found))
 
+    def _restore_user_data(self):
+        """♻ Merge a daily user-data backup (tag edits, hand-set PD marks, play
+        log) back in."""
+        title = "Restore user data backup"
+        chosen, _ = QFileDialog.getOpenFileName(
+            self, title, str(planner.db._backup_dir()),
+            "Backups (user-data-*.db);;All files (*)")
+        if not chosen:
+            return
+        try:
+            edits, marks, plays = planner.db.restore_user_data(Path(chosen))
+        except ValueError as exc:
+            QMessageBox.warning(self, title, i18n.t("This is no user data backup:") + "\n\n" + str(exc))
+            return
+        log.info("♻ User data backup restored\n"
+                 "tag edits: %d\n"
+                 "manual PD marks: %d\n"
+                 "plays added: %d\n"
+                 "file: %s", edits, marks, plays, chosen)
+        QMessageBox.information(self, title,
+                                i18n.t("♻ %d tag edit(s) and %d hand-set Paso Doble highlight(s) "
+                                       "restored, %d played title(s) added to the play log.\n\n"
+                                       "They take effect after a restart of the app.")
+                                % (edits, marks, plays))
+
     def _relearn_playlists(self):
         """📜 Rebuild playlist popularity from the M3U folder — no library rescan."""
         if self._lib is None:
             QMessageBox.information(self, "Re-learn playlists",
                                     "The library is still loading — try again in a moment.")
             return
+        worker = getattr(self, "_relearn_worker", None)
+        if worker is not None and worker.isRunning():
+            return   # one at a time — the busy dialog shows only after 200 ms
         self._busy = BusyDialog(self, "Re-learning playlist popularity…")
         self._busy.show_after(200)
         self._relearn_worker = PlaylistRelearnWorker(self._lib, self)
@@ -702,9 +740,10 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         self._relearn_worker.error.connect(self._on_relearn_error)
         self._relearn_worker.start()
 
-    def _on_relearn_done(self, n: int):
+    def _on_relearn_done(self, learned):
         if self._busy:
             self._busy.finish()
+        n = self._lib.adopt_playlist_index(learned)
         # The global library borrows the competition library's playlist index —
         # re-share so 'based on my playlist history' sees the fresh counts too.
         if self._global_lib is not None:

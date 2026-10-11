@@ -18,7 +18,7 @@
 | **Entf** | Die markierten Titel nach einer Rückfrage aus einem Deck oder einer Wunschliste entfernen. |
 | **Entf** ohne Markierung | Die ganze Playlist oder Wunschliste nach einer Rückfrage leeren. Genauso, wenn jeder Titel markiert ist. |
 | **Strg + Umschalt + Entf** | Die aktive Playlist oder Wunschliste nach einer Rückfrage leeren, egal wo der Cursor steht. |
-| **Strg + M** | Die markierten Titel kennzeichnen oder die Kennzeichnung entfernen (❗ orange), zum Beispiel als Titel, die später getauscht werden sollen. **Strg + 1** macht dasselbe, solange die Cartwall ausgeblendet ist. |
+| **Strg + M** | Die markierten Titel kennzeichnen oder die Kennzeichnung entfernen (orange Zeile), zum Beispiel als Titel, die später getauscht werden sollen. **Strg + 1** macht dasselbe, solange die Cartwall ausgeblendet ist. |
 | **Alt + S** | Die zwei markierten Titel desselben Tanzes im Party-Bereich tauschen. |
 | **F2** im Baum 🏆 Turniere | Den Eintrag umbenennen. **Entf** entfernt ihn aus dem Baum. |
 | **Strg + A** in 🏆 Turniere | Jeden Slot des Ordners oder jeden Eintrag des Baums markieren. **Entf** und Ziehen nehmen dann alle mit. |
@@ -26,6 +26,7 @@
 | **T** in der 🖥 Präsentation | Zwischen den Titeln und der Seite mit dem Zeitplan umschalten. |
 | **Esc** in der 🖥 Präsentation | Den Präsentationsbildschirm schließen. |
 | **F1** | Die Übersicht. |
+| **F11** | Vollbild an und aus, mit Datum und Uhrzeit in der Statusleiste. |
 
 ## Maus
 
@@ -43,6 +44,8 @@
 | Doppelklick auf eine Zeile der 📚 Bibliothek | Den Titel in deinem externen Player öffnen. |
 | Klick auf einen Stern in der Spalte **★** | Den Titel bewerten. Ein Klick auf den Stern, auf dem die Bewertung endet, löscht sie. |
 | Doppelklick auf die 🖥 Präsentation | Den Vollbildmodus verlassen. |
+| Klick oder Ziehen auf der 〰 Wellenform | An diese Stelle springen. Ziehen spult, und die Musik springt beim Loslassen. |
+| Klick auf das grüne Abzeichen 📱 LIVE | Das Fenster der Handy-Fernbedienung öffnen. |
 
 ## Cartwall
 

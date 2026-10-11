@@ -78,8 +78,17 @@ def hall_language() -> str:
 
 
 def english() -> bool:
-    """Whether the screen names dances and rounds in English."""
-    return _english_terms and i18n.active_language() == "en"
+    """Whether the screen names dances and rounds in English: on every screen
+    but a German one — a Spanish, Dutch or Russian floor knows the dances by
+    their international English names, not by the German of the data."""
+    return _english_terms and i18n.active_language() != "de"
+
+
+def practice_name() -> str:
+    """What a 🤸 practice list is called, on its deck and in the file it is
+    saved to: Eintanzen, like the other German terms, unless the screen names
+    them in English — then the screen's own word."""
+    return i18n.t("Practice") if english() else "Eintanzen"
 
 
 def dance_name(code, default=None):

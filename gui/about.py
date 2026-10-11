@@ -51,8 +51,10 @@ def about_html(name: str, version: str) -> str:
         (i18n.t("Icons"), "Bootstrap Icons (MIT) · Twemoji (CC-BY 4.0)"),
         (i18n.t("Voices"), f"{html.escape(i18n.t('AI-generated, non-commercial use'))}"
                            f" · {_link(ELEVENLABS_URL)}"),
-        (i18n.t("Libraries"), "Qt / PySide6 (LGPL-3.0) · mutagen (GPL-2.0+) · "
-                              f"FFmpeg (GPL-3.0) · {_link(THIRD_PARTY_URL, i18n.t('all licences'))}"),
+        # Two lines, so the longest row doesn't widen the dialog.
+        (i18n.t("Libraries"), "Qt / PySide6 (LGPL-3.0) · mutagen (GPL-2.0+)<br>"
+                              "FFmpeg (LGPL-2.1+, ffmpeg.exe GPL-3.0) · "
+                              f"{_link(THIRD_PARTY_URL, i18n.t('all licences'))}"),
     )
     body = "".join(f"<tr><td style='padding-right:12px;'><b>{label}</b></td>"
                    f"<td>{value}</td></tr>" for label, value in rows)

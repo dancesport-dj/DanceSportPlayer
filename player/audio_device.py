@@ -66,7 +66,13 @@ class AudioDevice:
         if dev is None or dev.isNull():
             return
         if dev.id() == self.out_id:
-            return   # the list changed around a default that stayed put
+            # The list changed around a default that stayed put. On the record
+            # anyway: a stutter at the same second points here.
+            log.info("🔊 Audio outputs changed\n"
+                     "default: %s (kept)\n"
+                     "outputs: %d", dev.description(),
+                     len(QMediaDevices.audioOutputs()))
+            return
         self.out_id = dev.id()
         self._audio_out.setDevice(dev)
         if self._pause_out is not None:

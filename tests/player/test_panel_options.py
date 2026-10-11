@@ -5,7 +5,7 @@
     it over with everything else they switch,
   * 🐂 'Start after: x s' — how long a Paso Doble is held back after the call,
     and
-  * 🎙 the advanced voice controls ('…with takt', '…with heat', 🔈 Test), which
+  * 🎙 the advanced voice controls ('…with heat', 🔈 Test), which
     are hidden unless ⚙ Settings asks for them.
 
 Run:  py -m unittest tests.player.test_panel_options -v
@@ -25,11 +25,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_panel_opt_"))
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from PySide6.QtWidgets import QApplication
+from tests.qt_test_support import reap_widget
 
-from PySide6.QtCore import Qt  # noqa: E402
-from player.play_mode_panel import PlayModePanel, _Toggle  # noqa: E402
+from PySide6.QtCore import Qt
+from player.play_mode_panel import PlayModePanel, _Toggle
 
 
 class _PanelTest(unittest.TestCase):
@@ -102,12 +102,19 @@ class PdStartDelayTest(_PanelTest):
 
 
 class VoiceControlsTest(_PanelTest):
-    """'…with takt', '…with heat' and 🔈 Test are advanced — off the panel
-    unless asked for."""
+    """'…with heat' and 🔈 Test are advanced — off the panel unless asked
+    for."""
 
     def _advanced(self, p):
-        return (p.announce_takt_check, p.announce_heat_check,
-                p.announce_test_btn)
+        return (p.announce_heat_check, p.announce_test_btn)
+
+    def test_the_takt_is_never_announced(self):
+        """The recordings have no clip for a tempo; asking for one handed the
+        whole announcement to the Windows voice. The option is gone."""
+        p = self.panel(announce_next=True, announce_advanced=True,
+                       announce_takt=True)
+        self.assertFalse(hasattr(p, "announce_takt_check"))
+        self.assertFalse(hasattr(p, "announce_takt"))
 
     def test_they_are_not_shown_by_default(self):
         p = self.panel()
@@ -121,6 +128,17 @@ class VoiceControlsTest(_PanelTest):
             with self.subTest(control=w.text()):
                 self.assertTrue(w.isVisible())
 
+    def test_their_captions_fit_the_narrow_column(self):
+        """Side by side with 🔈 Test the switch was squeezed to '…with …' —
+        it gets a line of its own, like every other switch."""
+        p = self.panel(announce_next=True, announce_advanced=True)
+        p.resize(300, p.height())
+        self.app.processEvents()
+        w = p.announce_heat_check
+        self.assertGreaterEqual(w.width(), w.sizeHint().width())
+        self.assertGreaterEqual(p.announce_test_btn.width(),
+                                p.announce_test_btn.sizeHint().width())
+
     def test_they_can_be_switched_on_and_off_live(self):
         """⚙ Settings applies without a restart."""
         p = self.panel(announce_next=True)
@@ -132,10 +150,8 @@ class VoiceControlsTest(_PanelTest):
     def test_hidden_is_not_off(self):
         """The announcement keeps saying what it was set to say — only the
         switches are out of the way."""
-        p = self.panel(announce_next=True, announce_takt=True,
-                       announce_heat=True)
-        self.assertFalse(p.announce_takt_check.isVisible())
-        self.assertTrue(p.announce_takt())
+        p = self.panel(announce_next=True, announce_heat=True)
+        self.assertFalse(p.announce_heat_check.isVisible())
         self.assertTrue(p.announce_heat())
 
     def test_the_announce_box_itself_stays(self):
@@ -240,7 +256,7 @@ class ToggleButtonTest(_PanelTest):
     matters is that the swap changed nothing but the look."""
 
     _NAMES = ("pd_check", "advance_check", "pause_check", "announce_check",
-              "announce_takt_check", "announce_heat_check", "loudness_check",
+              "announce_heat_check", "loudness_check",
               "artwork_check", "dblclick_check")
 
     def test_every_option_is_a_switch(self):
@@ -291,7 +307,6 @@ class ToggleButtonTest(_PanelTest):
 
     def test_the_voice_extras_still_follow_the_announcement(self):
         p = self.panel(announce_next=False)
-        self.assertFalse(p.announce_takt_check.isEnabled())
         self.assertFalse(p.announce_heat_check.isEnabled())
 
 

@@ -31,7 +31,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_reveal_"))
 
-from gui import common  # noqa: E402
+from gui import common
 
 
 @unittest.skipUnless(sys.platform == "win32", "explorer.exe is Windows-only")

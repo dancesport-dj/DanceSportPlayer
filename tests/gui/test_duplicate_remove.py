@@ -19,11 +19,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_dup_remove_"))
 
-from PySide6.QtWidgets import QApplication, QComboBox, QMessageBox  # noqa: E402
+from PySide6.QtWidgets import QApplication, QComboBox, QMessageBox
 
-from gui.duplicate_dialog import DuplicateResolveDialog  # noqa: E402
-from tests.gui.test_duplicate_check_scope import _Status, _Win, _waltz  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from gui.duplicate_dialog import DuplicateResolveDialog
+from tests.gui.test_duplicate_check_scope import _Status, _Win, _waltz
+from tests.qt_test_support import reap_widget
 
 
 def _entries(table) -> list:

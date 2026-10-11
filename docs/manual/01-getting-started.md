@@ -12,7 +12,7 @@ You get it in two ways:
 - the **player build**, `DanceSport-Player`, a program of its own for the
   venue PC;
 - the full app set to the **app mode** *Player only*, under ⚙ Settings ▸
-  📁 Paths & search ▸ **App mode**.
+  ⚙ General ▸ **App mode**.
 
 Both look and work the same. The window is titled **DanceSport Player** and
 opens on the ▶ Playing side.
@@ -43,7 +43,7 @@ first tab holds the folders:
 | **Favorites library** | Your tournament music folder. It is scanned on every start and fills the 📚 library. |
 | **Save-as folder** | Where **Save as M3U…** starts. |
 | **Tournament playlists** | Your existing tournament `.m3u` files. The **Pop** column counts in how many of them a title appears. |
-| **Referenzpfad** | The folder the music lives in on *this* PC. A playlist written on another PC is moved onto it when you load it, see [chapter 3](03-playlists.md#playlists-from-another-pc). |
+| **Reference path** | The folder the music lives in on *this* PC. A playlist written on another PC is moved onto it when you load it, see [chapter 3](03-playlists.md#playlists-from-another-pc). |
 | **Search folders** | More places to look for a track when a playlist was written on another PC. One folder per line. |
 
 The rest of this tab is covered in [Settings](06-settings.md).
@@ -87,13 +87,14 @@ Hover over one for its full name.
 | 💾 Save all | Writes every non-empty deck to its own `.m3u`. |
 | 📌 Save state | Saves the whole session now. This also happens by itself on every edit and on close. |
 | 🧹 Clear all | Empties every deck. Wishlists are kept. |
+| 🚦 Check ▾ | **🚦 Ready?**, the check before the evening, see [chapter 4](04-playing.md#-ready-before-the-evening). The full app adds 🔁 Check duplicates, 🎵 Check music and 🧭 Fix paths to this menu. |
 | ⧉ *n* playlists | Cycles through the number of decks on screen. A right click goes backwards. |
 | 🗜 Compact | Cycles the header view: full → compact → no groups → numbered. |
 | ⭐ *n* wishlists | Cycles the wishlist area: off → 1 → 2 → 3 → 4 → 2×2. |
 | 🤸 Party ▾ | Shows or hides the Party panel. |
 | 📚 Library | Shows or hides the library and tournaments pane. |
 | 🎛 Cartwall | Shows or hides the sample-pad wall. |
-| ❔ | The shortcut cheat sheet (**F1**). |
+| ❔ | A menu: ⌨ Keyboard shortcuts (**F1**), 📖 Manual, 📜 Played titles…, ℹ About… and ⛶ Fullscreen (**F11**). |
 
 **Middle: the decks.** Each deck is one playlist, see
 [chapter 3](03-playlists.md).
@@ -106,10 +107,27 @@ Hover over one for its full name.
 
 - the undo and redo buttons, with the number of steps they can go back;
 - the title that is cued on the player;
-- the status bar.
+- the status bar. While the 📱 phone remote runs, a green **📱 LIVE** badge
+  sits at its right end; a click on it opens the remote's window, see
+  [chapter 4](04-playing.md#-the-phone-remote).
 
 Everything you see is saved as you work: decks, wishlists, the window layout
 and the fold state. The next start brings it back exactly as it was.
+
+### ⛶ Fullscreen
+
+**F11**, or ❔ ▸ **⛶ Fullscreen**, lets the window fill the screen. **F11**
+again, or ❔ ▸ **⛶ Exit Fullscreen**, brings it back. In fullscreen the
+status bar shows a clock at its right end, with the date and the seconds:
+*Sat, 10.10.2026 20:45:12*. To see the time alone, tick **⛶ Fullscreen clock:
+only the time** in ⚙ Settings ▸ 🎨 Look.
+
+### Closing the app
+
+Closing the window while music plays would stop it on the floor, so the app
+asks first: *Music is playing. Quit anyway and stop it?* **No** is the
+default and keeps everything running. Paused or stopped, the app closes at
+once.
 
 ## The player build
 

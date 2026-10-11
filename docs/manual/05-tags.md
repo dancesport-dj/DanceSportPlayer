@@ -25,6 +25,8 @@ at once.
 
 ## The Tags tab
 
+![The tag editor, Tags tab](img/tag-editor.png)
+
 ### In the MP3 file
 
 A form like Mp3tag's: **Title, Artist, Album, Year, Track, Genre, Comment,

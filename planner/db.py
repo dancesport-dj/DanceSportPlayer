@@ -11,6 +11,7 @@ plus orphan cleanup and the cheap coverage queries.
 """
 
 import contextlib
+import datetime
 import gc
 import hashlib
 import json
@@ -259,6 +260,7 @@ _FP_TABLES = {
     "loudness": "lufs",
     "pd_highlights": "times, manual",
     "silences": "spans",
+    "waveforms": "peaks",
     "vocals": "vocal_share",
     "noise": "floor_db",
     "tag_edits": "rating, classes_ok, is_instrumental, comment_tags, custom",
@@ -395,6 +397,9 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
         "  mfcc_mean BLOB, mfcc_cov BLOB);"
         "CREATE TABLE IF NOT EXISTS fingerprints ("
         "  file_id INTEGER PRIMARY KEY REFERENCES files(id), mtime INTEGER, fp TEXT);"
+        # Copies and orphans are found by fp, not by file: without this every
+        # such lookup scans the whole table.
+        "CREATE INDEX IF NOT EXISTS idx_fingerprints_fp ON fingerprints(fp);"
         f"CREATE TABLE IF NOT EXISTS scan_meta ("
         f"  ckey TEXT PRIMARY KEY, {_META_COLS_SQL});"
         f"CREATE TABLE IF NOT EXISTS global_meta ("
@@ -419,6 +424,10 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
         # JSON array of [start, end] pairs in seconds (ffmpeg silencedetect).
         # Used to measure the REAL play length and to skip stillness in playback.
         "CREATE TABLE IF NOT EXISTS silences (fp TEXT PRIMARY KEY, spans TEXT);"
+        # The 〰 outline the player card draws above its seek bar, content-
+        # addressed too: `peaks` is float32 0..1, one per slice (600, ~2.4 KB).
+        # Decoding a title takes about a second; a stored one draws at once.
+        "CREATE TABLE IF NOT EXISTS waveforms (fp TEXT PRIMARY KEY, peaks BLOB);"
         # Vocal-stem energy share (0..1), content-addressed too. Measured by the
         # optional Demucs source separation (🎙️ Analyze vocals); a track whose
         # vocal stem carries almost no energy is instrumental (planner.vocals).
@@ -439,6 +448,13 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
         # decoding the library again (AudioCache.reattach_retagged).
         "CREATE TABLE IF NOT EXISTS audio_fps (fp TEXT PRIMARY KEY, afp TEXT NOT NULL);"
         "CREATE INDEX IF NOT EXISTS idx_audio_fps_afp ON audio_fps(afp);"
+        # 📜 What actually ran in playing mode, one row per title heard >10 s
+        # (planner.play_log). `started_at` is local ISO time; `length` the
+        # track's own duration, so the report can work out how long it ran.
+        "CREATE TABLE IF NOT EXISTS play_log ("
+        "  id INTEGER PRIMARY KEY, started_at TEXT NOT NULL, path TEXT NOT NULL,"
+        "  artist TEXT, title TEXT, dance TEXT, list_name TEXT, length REAL,"
+        "  UNIQUE (started_at, path));"
     )
     for statement in script.split(";"):
         if statement.strip():
@@ -691,6 +707,8 @@ def _insert_legacy(conn: sqlite3.Connection, legacy: dict) -> None:
         try:
             d = json.loads(data)   # legacy global_meta.data held the flat entry dict
         except Exception:
+            log.debug("♻️ Legacy global_meta row skipped\n"
+                      "file: %s", path, exc_info=True)
             continue
         conn.execute(
             f"INSERT OR REPLACE INTO global_meta (file_id, mtime, {','.join(_META_COLS)}) "
@@ -709,7 +727,6 @@ def _db() -> sqlite3.Connection:
     conn = getattr(_DB_LOCAL, 'conn', None)
     if conn is not None:
         return conn
-    global _DB_INITIALIZED
     AUDIO_DB_FILE.parent.mkdir(parents=True, exist_ok=True)
     # isolation_level=None → autocommit: every write commits immediately instead of
     # leaving a deferred transaction open on this thread's connection. The caches are
@@ -728,6 +745,20 @@ def _db() -> sqlite3.Connection:
     # per-write commits from the autocommit mode above cheap during a full scan.
     conn.execute("PRAGMA synchronous=NORMAL")
     _DB_LOCAL.conn = conn                       # set first: _file_id/helpers call _db()
+    try:
+        _init_db(conn)
+    except BaseException:
+        # Not cached on a failed migration: the next call must retry it, not
+        # get this connection back with the schema never built.
+        _DB_LOCAL.conn = None
+        conn.close()
+        raise
+    return conn
+
+
+def _init_db(conn: sqlite3.Connection) -> None:
+    """Run the one-time migrations on the first connection of the process."""
+    global _DB_INITIALIZED
     with _DB_INIT_LOCK:
         if not _DB_INITIALIZED:
             # One transaction for all of it: the legacy tables are DROPPED before
@@ -756,7 +787,7 @@ def _db() -> sqlite3.Connection:
                 raise
             conn.execute("COMMIT")
             _DB_INITIALIZED = True
-    return conn
+            backup_safely()
 
 
 # Why audio analysis cannot run here. A library fails file by file for one single
@@ -788,7 +819,7 @@ def _sync_win32_stderr() -> None:
         import msvcrt
         ctypes.windll.kernel32.SetStdHandle(-12, msvcrt.get_osfhandle(2))   # STD_ERROR_HANDLE
     except Exception:
-        pass
+        log.debug("🪟 Could not point the Win32 stderr handle at fd 2", exc_info=True)
 
 
 def _mute_stderr() -> tuple[int, int] | None:
@@ -885,8 +916,8 @@ def _release_free_heap() -> None:
             ctypes.CDLL(None).malloc_zone_pressure_relief(None, 0)
         elif sys.platform.startswith('linux'):
             ctypes.CDLL("libc.so.6").malloc_trim(0)
-    except Exception:
-        pass    # best effort: a missing symbol only costs us the release
+    except Exception:   # best effort: a missing symbol only costs us the release
+        log.debug("🧹 No malloc release on this platform", exc_info=True)
 
 
 # ── Audio Feature Cache ────────────────────────────────────────────────────────
@@ -916,7 +947,14 @@ class AudioCache:
 
     def __init__(self):
         self._data: dict[str, dict] = {}   # content fingerprint → feature dict (deduped)
+        # Fingerprints with a features row. `_data` is filled from it on first use
+        # (`_features`): the DB holds the whole repository's analysis, and unpacking
+        # all of it cost the start a second for titles most sessions never ask for.
+        self._feat_fps: set[str] = set()
         self._fp:   dict[str, str]  = {}   # 'path::mtime' → content fingerprint (hash once)
+        # str(path) → mtime from a folder listing, used by `_key` instead of a stat
+        # while a library scan runs (MusicLibrary.scan sets and clears it).
+        self.listed_mtimes: dict[str, int] = {}
         # path → its newest 'path::mtime' key: what `recorded_fingerprint` reads
         # without a stat.
         self._path_key: dict[str, str] = {}
@@ -965,11 +1003,7 @@ class AudioCache:
 
     def _load(self) -> None:
         conn = _db()
-        rows = conn.execute(
-            "SELECT fp, bpm, centroid, rms, mfcc, mfcc_mean, mfcc_cov FROM features"
-        ).fetchall()
-        for fp, *cols in rows:
-            self._data[fp] = self._feat_dict(cols)
+        self._feat_fps = {r[0] for r in conn.execute("SELECT fp FROM features")}
         for path, mtime, fp in conn.execute(
                 "SELECT f.path, fp.mtime, fp.fp FROM fingerprints fp "
                 "JOIN files f ON f.id = fp.file_id").fetchall():
@@ -990,8 +1024,9 @@ class AudioCache:
                 continue
         self._vocal_share = dict(conn.execute("SELECT fp, vocal_share FROM vocals").fetchall())
         self._noise = dict(conn.execute("SELECT fp, floor_db FROM noise").fetchall())
-        if not self._data and CACHE_FILE.exists():
+        if not self._feat_fps and CACHE_FILE.exists():
             self._migrate_json()   # one-time import of the legacy JSON cache
+            self._feat_fps.update(self._data)
         newest: dict[str, int] = {}
         for key in self._fp:
             path, _, mt = key.rpartition('::')
@@ -1062,12 +1097,13 @@ class AudioCache:
             _db().commit()
             self._dirty = False
 
-    @staticmethod
-    def _key(path: Path) -> str:
-        try:
-            mtime = int(path.stat().st_mtime)
-        except OSError:
-            mtime = 0
+    def _key(self, path: Path) -> str:
+        mtime = self.listed_mtimes.get(str(path))
+        if mtime is None:
+            try:
+                mtime = int(path.stat().st_mtime)
+            except OSError:
+                mtime = 0
         return f"{path}::{mtime}"
 
     def fingerprint(self, path: Path) -> str | None:
@@ -1091,7 +1127,7 @@ class AudioCache:
             (_file_id(path or k), int(mt) if mt.isdigit() else 0, fp))
         conn.execute("INSERT OR REPLACE INTO audio_fps (fp, afp) VALUES (?,?)", (fp, afp))
         self._dirty = True
-        if fp not in self._data:
+        if fp not in self._feat_fps:
             # Freshly hashed and nothing analysed under this key: either a new file,
             # or one whose tags were edited since we last saw it — check.
             self.reattach_retagged(fp)
@@ -1148,6 +1184,7 @@ class AudioCache:
             "WHERE fp = ?", (fp,)).fetchone()
         if row:
             self._data[fp] = self._feat_dict(row)
+            self._feat_fps.add(fp)
         for table, col, mirror in (("loudness", "lufs", self._lufs),
                                    ("vocals", "vocal_share", self._vocal_share),
                                    ("noise", "floor_db", self._noise)):
@@ -1407,6 +1444,29 @@ class AudioCache:
                       (fp, json.dumps(spans)))
         self._dirty = True
 
+    # ── Waveform outline (content-addressed, decoded by the player card) ──
+
+    def get_waveform(self, path: Path) -> list[float] | None:
+        """The stored 〰 peaks of a track, or None when never decoded. Read from
+        the DB on demand — one title at a time, so no in-memory mirror."""
+        fp = self.fingerprint(path)
+        if fp is None:
+            return None
+        row = _db().execute("SELECT peaks FROM waveforms WHERE fp = ?", (fp,)).fetchone()
+        if not row or not row[0]:
+            return None
+        a = array('f')
+        a.frombytes(row[0])
+        return [round(v, 4) for v in a]
+
+    def put_waveform(self, path: Path, peaks: list[float]) -> None:
+        fp = self.fingerprint(path)
+        if fp is None:
+            return
+        _db().execute("INSERT OR REPLACE INTO waveforms (fp, peaks) VALUES (?,?)",
+                      (fp, array('f', peaks).tobytes()))
+        self._dirty = True
+
     # ── Vocal-stem share (content-addressed, measured via optional Demucs) ──
 
     def get_vocal_share(self, path: Path) -> float | None:
@@ -1450,6 +1510,17 @@ class AudioCache:
                       (fp, float(floor_db)))
         self._dirty = True
 
+    def _features(self, fp: str) -> dict | None:
+        """The feature dict of `fp`, unpacked from the DB the first time it is asked for."""
+        d = self._data.get(fp)
+        if d is None and fp in self._feat_fps:
+            row = _db().execute(
+                "SELECT bpm, centroid, rms, mfcc, mfcc_mean, mfcc_cov FROM features "
+                "WHERE fp = ?", (fp,)).fetchone()
+            if row:
+                d = self._data[fp] = self._feat_dict(row)
+        return d
+
     def get(self, path: Path, hash_if_missing: bool = True) -> AudioFeatures | None:
         """Return cached features for a file via its content fingerprint.
 
@@ -1463,7 +1534,7 @@ class AudioCache:
             fp = self._fp.get(self._key(path))
         if fp is None:
             return None
-        d = self._data.get(fp)
+        d = self._features(fp)
         if not d:
             return None
         # Length guard: a shorter vector predates the current feature schema (e.g. the
@@ -1482,6 +1553,7 @@ class AudioCache:
         fp = self.fingerprint(path)
         if fp is None:
             return
+        self._feat_fps.add(fp)
         self._data[fp] = {
             'bpm': feat.bpm, 'mfcc': feat.mfcc,
             'centroid': feat.centroid, 'rms': feat.rms,
@@ -1676,6 +1748,8 @@ class AudioCache:
             try:
                 total = float(librosa.get_duration(path=str(path)))
             except Exception:
+                log.debug("⏱ No length for the analysis window, reading from the start\n"
+                          "file: %s", path, exc_info=True)
                 total = 0.0
             win = 60.0
             offset = max(0.0, (total - win) / 2.0) if total > win else 0.0
@@ -1884,14 +1958,21 @@ class ScanCache:
         return had
 
 
-def _vanished(path: Path) -> bool:
+def _vanished(path: Path, drives: dict[str, bool] | None = None) -> bool:
     """Really deleted, as opposed to sitting on a drive that isn't plugged in.
 
     The playlist tree lives on an external drive here, and "the folder isn't
     there" would otherwise throw away a whole tournament index every time the
     drive is unplugged. A missing folder counts only when its drive answers.
+    `drives` remembers each drive's answer across the calls of one sweep.
     """
-    return not path.exists() and bool(path.anchor) and Path(path.anchor).exists()
+    if path.exists() or not path.anchor:
+        return False
+    if drives is None:
+        return Path(path.anchor).exists()
+    if path.anchor not in drives:
+        drives[path.anchor] = Path(path.anchor).exists()
+    return drives[path.anchor]
 
 
 def cleanup_orphans(prune_features: bool = False) -> dict:
@@ -1911,8 +1992,31 @@ def cleanup_orphans(prune_features: bool = False) -> dict:
     (`_vanished`) — Build ALL with F: out used to wipe the whole music drive.
     """
     conn = _db()
+    drives: dict[str, bool] = {}
     dead_ids = [fid for (fid, path) in conn.execute("SELECT id, path FROM files").fetchall()
-                if _vanished(Path(path))]
+                if _vanished(Path(path), drives)]
+    # One transaction: a crash half-way leaves the DB as it was, not half
+    # cleaned, and the deletes share one commit instead of one each.
+    conn.execute("BEGIN")
+    try:
+        removed = _delete_orphans(conn, dead_ids, prune_features)
+    except BaseException:
+        conn.execute("ROLLBACK")
+        raise
+    conn.execute("COMMIT")
+    if any(removed.values()):
+        log.info("  🧹 Orphan cleanup:\n"
+                 "    files: %s\n"
+                 "    scan_meta: %s\n"
+                 "    features: %s",
+                 f"{removed['files']:,}", f"{removed['scan_meta']:,}",
+                 f"{removed['features']:,}")
+    return removed
+
+
+def _delete_orphans(conn: sqlite3.Connection, dead_ids: list[int],
+                    prune_features: bool) -> dict:
+    """The deletes of `cleanup_orphans`, inside its transaction."""
     for fid in dead_ids:
         conn.execute("DELETE FROM fingerprints WHERE file_id = ?", (fid,))
         conn.execute("DELETE FROM global_meta  WHERE file_id = ?", (fid,))
@@ -1945,17 +2049,135 @@ def cleanup_orphans(prune_features: bool = False) -> dict:
                          [(fp,) for fp in dead_afps])
         afp_removed = len(dead_afps)
 
-    conn.commit()
-    removed = {"files": len(dead_ids), "scan_meta": len(dead_ckeys),
-               "features": feat_removed, "audio_fps": afp_removed}
-    if any(removed.values()):
-        log.info("  🧹 Orphan cleanup:\n"
-                 "    files: %s\n"
-                 "    scan_meta: %s\n"
-                 "    features: %s",
-                 f"{removed['files']:,}", f"{removed['scan_meta']:,}",
-                 f"{removed['features']:,}")
-    return removed
+    return {"files": len(dead_ids), "scan_meta": len(dead_ckeys),
+            "features": feat_removed, "audio_fps": afp_removed}
+
+
+BACKUPS_KEPT = 7
+
+
+def _backup_dir() -> Path:
+    return AUDIO_DB_FILE.parent / "backups"
+
+
+def backup_user_data(today: datetime.date | None = None,
+                     refresh: bool = False) -> Path | None:
+    """A small dated copy of the rows no rescan can rebuild: the tag edits made
+    in the app, the hand-set Paso Doble highlights, the 📜 play log, and the
+    audio fingerprints behind the first two (so a restore still finds a
+    re-tagged copy). Features, loudness
+    and the rest are left out: they are recomputed, and they are most of the
+    file. At most one backup per day, the newest BACKUPS_KEPT are kept.
+    `refresh` writes today's backup again even when it exists (at quit, so the
+    session's own changes are in it).
+
+    Returns the file written, or None when there is nothing to keep or today's
+    backup already exists."""
+    conn = _db()
+    n_keep = (conn.execute("SELECT COUNT(*) FROM tag_edits").fetchone()[0]
+              + conn.execute("SELECT COUNT(*) FROM pd_highlights WHERE manual = 1")
+              .fetchone()[0]
+              + conn.execute("SELECT COUNT(*) FROM play_log").fetchone()[0])
+    if not n_keep:
+        return None
+    today = today or datetime.date.today()
+    dest = _backup_dir() / f"user-data-{today.isoformat()}.db"
+    if dest.exists() and not refresh:
+        return None
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    part = dest.with_name(dest.name + ".part")
+    part.unlink(missing_ok=True)
+    out = sqlite3.connect(str(part))
+    try:
+        out.execute("ATTACH DATABASE ? AS src", (str(AUDIO_DB_FILE),))
+        out.execute("CREATE TABLE tag_edits AS SELECT * FROM src.tag_edits")
+        out.execute("CREATE TABLE pd_highlights AS "
+                    "SELECT * FROM src.pd_highlights WHERE manual = 1")
+        out.execute("CREATE TABLE audio_fps AS SELECT * FROM src.audio_fps "
+                    "WHERE fp IN (SELECT fp FROM tag_edits "
+                    "             UNION SELECT fp FROM pd_highlights)")
+        out.execute("CREATE TABLE play_log AS SELECT * FROM src.play_log")
+        out.commit()
+        out.execute("DETACH DATABASE src")
+    finally:
+        out.close()
+    os.replace(part, dest)
+    for old in sorted(_backup_dir().glob("user-data-*.db"))[:-BACKUPS_KEPT]:
+        old.unlink(missing_ok=True)
+    return dest
+
+
+def backup_safely(refresh: bool = False) -> None:
+    """Back the user's own rows up: at the first DB use of a start, and again
+    (`refresh`) when the app closes. A failure is logged and never stops the
+    app."""
+    try:
+        written = backup_user_data(refresh=refresh)
+    except (OSError, sqlite3.Error) as exc:
+        log.warning("💾 User data backup failed: %s", exc)
+        return
+    if written:
+        log.info("💾 User data backed up\n"
+                 "file: %s", written)
+
+
+def restore_user_data(src: Path) -> tuple[int, int, int]:
+    """Merge a `backup_user_data` file back in: its tag edits and hand-set PD
+    highlights replace this DB's rows for the same tracks, and also land on
+    every local copy with the same audio (a re-tagged file). Plays missing from
+    the 📜 play log are added. Other rows stay. The in-memory caches read them
+    on the next start.
+
+    Returns (tag edits, PD marks, plays added). Raises ValueError for a file
+    that is no such backup."""
+    play_cols = "started_at, path, artist, title, dance, list_name, length"
+    try:
+        with contextlib.closing(sqlite3.connect(
+                f"{Path(src).as_uri()}?mode=ro", uri=True)) as bak:
+            cur = bak.execute("SELECT * FROM tag_edits")
+            edit_cols = [d[0] for d in cur.description]
+            edits = cur.fetchall()
+            marks = bak.execute("SELECT fp, times FROM pd_highlights").fetchall()
+            afps = dict(bak.execute("SELECT fp, afp FROM audio_fps").fetchall())
+            # A backup from before the play log has none.
+            plays = (bak.execute(f"SELECT {play_cols} FROM play_log").fetchall()
+                     if bak.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' "
+                                    "AND name = 'play_log'").fetchone() else [])
+    except sqlite3.DatabaseError as exc:
+        raise ValueError(f"{src} is no user data backup: {exc}") from exc
+    conn = _db()
+    local_cols = {r[1] for r in conn.execute("PRAGMA table_info(tag_edits)")}
+    if edit_cols[:1] != ["fp"] or not set(edit_cols) <= local_cols:
+        raise ValueError(f"{src} is no user data backup: unknown tag edit columns")
+
+    def targets(fp: str) -> set:
+        afp = afps.get(fp)
+        if not afp:
+            return {fp}
+        conn.execute("INSERT OR IGNORE INTO audio_fps (fp, afp) VALUES (?,?)", (fp, afp))
+        return {fp} | {r[0] for r in conn.execute(
+            "SELECT fp FROM audio_fps WHERE afp = ?", (afp,))}
+
+    insert_edit = (f"INSERT OR REPLACE INTO tag_edits ({', '.join(edit_cols)}) "
+                   f"VALUES ({', '.join('?' * len(edit_cols))})")
+    conn.execute("BEGIN")
+    try:
+        for row in edits:
+            for t in targets(row[0]):
+                conn.execute(insert_edit, (t, *row[1:]))
+        for fp, times in marks:
+            for t in targets(fp):
+                conn.execute("INSERT OR REPLACE INTO pd_highlights (fp, times, manual) "
+                             "VALUES (?,?,1)", (t, times))
+        added = 0
+        for row in plays:
+            added += conn.execute(f"INSERT OR IGNORE INTO play_log ({play_cols}) "
+                                  "VALUES (?,?,?,?,?,?,?)", row).rowcount
+    except BaseException:
+        conn.execute("ROLLBACK")
+        raise
+    conn.execute("COMMIT")
+    return len(edits), len(marks), added
 
 
 def db_maintenance() -> dict:
@@ -1963,7 +2185,7 @@ def db_maintenance() -> dict:
 
     Beyond `cleanup_orphans(prune_features=True)` this also prunes the OTHER
     content-addressed side tables (embeddings / loudness / pd_highlights / silences /
-    vocals / noise) whose
+    waveforms / vocals / noise) whose
     fingerprint no live file references any more, then VACUUMs so the freed pages
     actually shrink the file on disk. Slow (stats every registered path, then
     rewrites the whole DB) — run it from an explicit maintenance action only.
@@ -1990,8 +2212,8 @@ def db_maintenance() -> dict:
     # Side tables keyed by content fingerprint (embeddings has one row per
     # fp+model; the others one per fp) — drop rows no live file points at.
     live_fps = {fp for (fp,) in conn.execute("SELECT DISTINCT fp FROM fingerprints")}
-    for table in ("embeddings", "loudness", "pd_highlights", "silences", "vocals",
-                  "noise"):
+    for table in ("embeddings", "loudness", "pd_highlights", "silences", "waveforms",
+                  "vocals", "noise"):
         if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
                         (table,)).fetchone() is None:
             removed[table] = 0
@@ -2277,6 +2499,7 @@ def global_index_count() -> int:
     try:
         return _db().execute("SELECT COUNT(*) FROM global_meta").fetchone()[0]
     except Exception:
+        log.debug("🗄️ Global index not countable", exc_info=True)
         return 0
 
 
@@ -2301,5 +2524,5 @@ def global_coverage(models: list[str] | None = None) -> dict:
                 "JOIN fingerprints f ON f.file_id = g.file_id "
                 "JOIN embeddings e ON e.fp = f.fp AND e.model = ?", (m,)).fetchone()[0]
     except Exception:
-        pass
+        log.debug("🗄️ Global index coverage not countable", exc_info=True)
     return out

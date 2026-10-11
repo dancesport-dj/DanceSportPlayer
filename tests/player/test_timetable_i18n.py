@@ -25,9 +25,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_tt_i18n_"))
 
-from PySide6.QtWidgets import QApplication, QPushButton  # noqa: E402
+from PySide6.QtWidgets import QApplication, QPushButton
 
-from planner import i18n  # noqa: E402
+from planner import i18n
 
 ENGLISH = {
     "➕  Add": "A new line at the end",

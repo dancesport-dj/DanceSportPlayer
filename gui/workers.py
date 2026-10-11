@@ -60,11 +60,6 @@ def adopt_running(worker) -> bool:
     _ORPHANS.append(worker)
     return True
 
-
-def orphans_running() -> bool:
-    """Whether an adopted worker still runs (see `dancesport_gui.exit_app`)."""
-    return any(w.isRunning() for w in _ORPHANS)
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Library Loader (background QThread)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -201,10 +196,12 @@ class DbMaintenanceWorker(QThread):
 class PlaylistRelearnWorker(QThread):
     """Re-learns playlist popularity from the M3U folder alone, off the UI thread.
 
-    No file walk / no audio analysis — MusicLibrary.relearn_playlists() just
-    re-reads the playlist text files and re-applies popularity per entry.
+    No file walk / no audio analysis — it re-reads the playlist text files and
+    works out popularity per entry, all into a scratch index
+    (MusicLibrary.learn_playlist_index). The library itself is untouched until
+    the GUI thread swaps the result in with adopt_playlist_index.
     """
-    done  = Signal(int)      # number of M3U files analyzed
+    done  = Signal(object)   # LearnedPlaylistIndex
     error = Signal(str)
 
     def __init__(self, lib: MusicLibrary, parent=None):
@@ -213,7 +210,7 @@ class PlaylistRelearnWorker(QThread):
 
     def run(self):
         try:
-            self.done.emit(self._lib.relearn_playlists())
+            self.done.emit(self._lib.learn_playlist_index())
         except Exception as exc:
             self.error.emit(str(exc))
 
@@ -229,7 +226,17 @@ class CustomFieldReader(QThread):
         self._paths = paths
 
     def run(self):
-        self.done.emit({p: custom_field.read_file(p) for p in self._paths})
+        # One file that raises must not kill the thread: `done` would never
+        # come and the window would refuse every later mapping.
+        values = {}
+        for p in self._paths:
+            try:
+                values[p] = custom_field.read_file(p)
+            except Exception:
+                log.debug("🏷 Custom field unreadable, left empty\n"
+                          "file: %s", p, exc_info=True)
+                values[p] = ""
+        self.done.emit(values)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -985,6 +992,8 @@ class ReferenceCleanWorker(QThread):
         try:
             fp = self._cache.fingerprint(path)
         except Exception:
+            log.debug("🔑 No fingerprint, keyed by path\n"
+                      "file: %s", path, exc_info=True)
             fp = None
         return f"fp:{fp}" if fp else f"p:{path_key(path)}"
 

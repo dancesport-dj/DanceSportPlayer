@@ -15,7 +15,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_aibackend_"))
 
-from planner import ai  # noqa: E402
+from planner import ai
 
 
 class _Resp:

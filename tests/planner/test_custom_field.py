@@ -18,12 +18,12 @@ from pathlib import Path
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_custom_"))
 
-from mutagen.id3 import COMM, ID3, TIT1, TIT2, TXXX  # noqa: E402
+from mutagen.id3 import COMM, ID3, TIT1, TIT2, TXXX
 
-import planner.db as pdb  # noqa: E402
-from planner import custom_field, id3_frames, tag_edits  # noqa: E402
-from planner.library import MusicLibrary  # noqa: E402
-from planner.models import MusicEntry  # noqa: E402
+import planner.db as pdb
+from planner import custom_field, id3_frames, tag_edits
+from planner.library import MusicLibrary
+from planner.models import MusicEntry
 
 _AUDIO = b"\xff\xfb\x90\x00" + b"\x00" * 4000
 

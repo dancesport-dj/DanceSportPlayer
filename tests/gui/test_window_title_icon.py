@@ -17,10 +17,10 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_title_"))
 
-from PySide6.QtWidgets import QApplication, QDialog, QMessageBox  # noqa: E402
+from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
 
-from gui.common import install_plain_title_hook, plain_title  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from gui.common import install_plain_title_hook, plain_title
+from tests.qt_test_support import reap_widget
 
 
 class PlainTitleTest(unittest.TestCase):

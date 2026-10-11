@@ -17,14 +17,14 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_tree_slot_rm_"))
 
-from PySide6.QtCore import QEvent, Qt  # noqa: E402
-from PySide6.QtGui import QKeyEvent  # noqa: E402
-from PySide6.QtWidgets import (QApplication, QInputDialog, QMessageBox,  # noqa: E402
+from PySide6.QtCore import QEvent, Qt
+from PySide6.QtGui import QKeyEvent
+from PySide6.QtWidgets import (QApplication, QInputDialog, QMessageBox,
                                QToolButton)
 
-from gui import tournament_tree as gt  # noqa: E402
-from planner.store import JsonStore  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from gui import tournament_tree as gt
+from planner.store import JsonStore
+from tests.qt_test_support import reap_widget
 
 _app = QApplication.instance() or QApplication(sys.argv)
 _YES = QMessageBox.StandardButton.Yes

@@ -7,6 +7,7 @@ from unittest import mock
 
 import shiboken6
 from PySide6.QtCore import QEventLoop, QThread
+from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtWidgets import QApplication
 
 
@@ -34,7 +35,9 @@ def reap_widget(w):
     for anything we are handed.
 
     Then close, so MainWindow.closeEvent stops the announcer engine and the
-    cartwall voices, and destroy `w` outright.
+    cartwall voices, and destroy `w` outright. Its players are stopped first:
+    a window still playing music asks before it closes, and nobody is there
+    to answer.
 
     shiboken6.delete rather than deleteLater + a drained DeferredDelete queue:
     that queue is process-wide, so draining it also destroys every dialog other
@@ -53,6 +56,8 @@ def reap_widget(w):
         if callable(cancel):
             cancel()
         worker.wait(10_000)
+    for player in w.findChildren(QMediaPlayer):
+        player.stop()
     w.close()
     shiboken6.delete(w)
 

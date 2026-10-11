@@ -18,12 +18,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_errq_"))
 
-from PySide6.QtWidgets import QApplication, QMessageBox  # noqa: E402
+from PySide6.QtWidgets import QApplication, QMessageBox
 
-from gui import dialogs  # noqa: E402
-from gui.dialogs import ErrorReportsQuestion, ensure_error_reports_choice  # noqa: E402
-from shared import error_reports  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from gui import dialogs
+from gui.dialogs import ErrorReportsQuestion, ensure_error_reports_choice
+from shared import error_reports
+from tests.qt_test_support import reap_widget
 
 
 class EnsureChoiceTest(unittest.TestCase):

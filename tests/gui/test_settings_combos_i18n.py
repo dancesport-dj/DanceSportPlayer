@@ -32,15 +32,15 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_combos_i18n_"))
 
-from PySide6.QtCore import Qt  # noqa: E402
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication
 
-from gui.dialogs import (  # noqa: E402
+from gui.dialogs import (
     APP_MODE_CHOICES, MEDIA_BACKEND_CHOICES, PLAYER_LAYOUT_CHOICES,
     AppModeDialog, SettingsDialog,
 )
-from planner import i18n  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from planner import i18n
+from tests.qt_test_support import reap_widget
 
 
 class _Combos(unittest.TestCase):

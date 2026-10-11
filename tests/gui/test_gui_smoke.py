@@ -38,11 +38,13 @@ _ASSEMBLY = (
     "gui/main_analyze.py",
     "player/main_audio.py",
     "player/main_cartwall.py",
+    "player/main_controller.py",
     "gui/main_decks.py",
     "gui/main_dupes.py",
     "gui/main_embed.py",
     "gui/main_export.py",
     "gui/main_fold.py",
+    "gui/main_fullscreen.py",
     "gui/main_generate.py",
     "gui/main_global.py",
     "gui/main_import.py",
@@ -53,6 +55,7 @@ _ASSEMBLY = (
     "gui/main_persist.py",
     "player/main_player.py",
     "gui/main_print.py",
+    "player/main_remote.py",
     "gui/main_restore.py",
     "gui/main_undo.py",
     "gui/main_wish.py",
@@ -255,6 +258,21 @@ class MainWindowSmokeTest(unittest.TestCase):
         """'Snapped on the right … and resized' — the wall has to be draggable
         down to a slim strip, not only wider."""
         self.assertLess(self.win._cart_dock.minimumSizeHint().width(), 500)
+
+    def test_a_first_run_opens_the_cartwall_at_a_quarter_of_the_window(self):
+        """No saved layout yet: a third of the window was too much wall."""
+        from gui.main_persist import layout_settings
+
+        layout_settings().clear()
+        self.win.resize(1600, 900)
+        self.win._cartwall_shown = False
+        self.win._restore_layout()
+        self.win.show()
+        # The wall comes up later, from the toolbar, as on a real first run.
+        self.win._cart_btn.setChecked(True)
+        self.app.processEvents()
+        self.assertAlmostEqual(self.win._cart_dock.width(), 400, delta=30)
+        self.win._cart_btn.setChecked(False)
 
     def test_the_toolbar_toggle_and_the_dock_stay_in_step(self):
         self.win.show()     # a dock closing before the window is up is not a click

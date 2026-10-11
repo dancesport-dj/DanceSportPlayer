@@ -21,10 +21,10 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_pd_hold_"))
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication
 
-from player.main_pd import PdStopMixin  # noqa: E402
-from player.playback_state import PlaybackState  # noqa: E402
+from player.main_pd import PdStopMixin
+from player.playback_state import PlaybackState
 
 
 class _Panel:
@@ -39,9 +39,6 @@ class _Panel:
     def announce_next(self):
         return self._announce
 
-    def announce_takt(self):
-        return False
-
     def pause_secs(self):
         return self._pause
 
@@ -50,7 +47,7 @@ class _Announcer:
     def __init__(self):
         self.said = []
 
-    def speak(self, dance, takt=None, now=False, heat=None):
+    def speak(self, dance, now=False, heat=None):
         self.said.append((dance, now))
 
 
@@ -76,10 +73,6 @@ class _Fades:
 
     def start(self):
         self.started += 1
-
-
-class _Entry:
-    bpm = 60
 
 
 class _Desk(PdStopMixin):
@@ -146,7 +139,7 @@ class _HoldTest(unittest.TestCase):
     def hold(self, d, secs=5.0):
         """Start the wait and make sure its ticker is dropped afterwards — no
         event loop runs here, so it only ever ticks when a test says so."""
-        d._hold_pd_start(secs, d.PATH, _Entry())
+        d._hold_pd_start(secs, d.PATH)
         self.addCleanup(d._end_pd_hold)
         return d
 

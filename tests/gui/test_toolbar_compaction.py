@@ -26,12 +26,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_toolbar_compact_"))
 
-from PySide6.QtCore import Qt  # noqa: E402
-from PySide6.QtWidgets import QApplication, QSplitter  # noqa: E402
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QSplitter
 
-from gui import dialogs  # noqa: E402
-from gui.main_persist import layout_settings  # noqa: E402
-from tests.qt_test_support import (  # noqa: E402
+from gui import dialogs
+from gui.main_persist import layout_settings
+from tests.qt_test_support import (
     reap_widget, stub_window_startup)
 
 

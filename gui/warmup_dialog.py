@@ -39,13 +39,13 @@ def ask_warmup_options(parent, entries: list, library_dir: str):
     popular + fresh mix) and the ETDS PARTY playlist (alternating 3-dance rounds).
     Either can draw from the whole library or a chosen .m3u file."""
     dlg = M3uDropDialog(parent)
-    dlg.setWindowTitle("🤸  Eintanzen / party playlist")
+    dlg.setWindowTitle("🤸  Practice / party playlist")
     lyt = QVBoxLayout(dlg)
 
     # ── Mode ──────────────────────────────────────────────────────────────
     mode_box = QGroupBox("What to build")
     mode_lyt = QVBoxLayout(mode_box)
-    rb_class = QRadioButton("🏆  Eintanzen for a tournament class "
+    rb_class = QRadioButton("🏆  Practice for a tournament class "
                             "(round-robin through the class's dances)")
     rb_etds = QRadioButton("🎉  Party playlist "
                            "(alternating 3-dance rounds, all dances)")
@@ -295,10 +295,10 @@ def ask_warmup_options(parent, entries: list, library_dir: str):
     use_m3u = rb_m3u.isChecked()
     m3u_path = m3u_edit.text().strip()
     if use_m3u and not m3u_path:
-        QMessageBox.warning(parent, "Eintanzen", "Choose an .m3u file first.")
+        QMessageBox.warning(parent, "Practice", "Choose an .m3u file first.")
         return None
     if not is_class and not (c_std.isChecked() or c_lat.isChecked()):
-        QMessageBox.warning(parent, "Eintanzen",
+        QMessageBox.warning(parent, "Practice",
                             "Pick at least Standard or Latin dances.")
         return None
 

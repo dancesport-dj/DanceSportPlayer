@@ -22,13 +22,13 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_new_day_tab_"))
 
-from PySide6.QtCore import QPoint  # noqa: E402
-from PySide6.QtGui import QContextMenuEvent  # noqa: E402
+from PySide6.QtCore import QPoint
+from PySide6.QtGui import QContextMenuEvent
 
-from dancesport_planner import MusicLibrary  # noqa: E402
-from tests.gui.test_deck_file_reveal import _RightClick, _entry  # noqa: E402
-from tests.gui.test_header_save_m3u import _menu_class  # noqa: E402
-from tests.qt_test_support import reap_widget, stub_window_startup  # noqa: E402
+from dancesport_planner import MusicLibrary
+from tests.gui.test_deck_file_reveal import _RightClick, _entry
+from tests.gui.test_header_save_m3u import _menu_class
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 _NEW = "📅  New tournament day…"
 

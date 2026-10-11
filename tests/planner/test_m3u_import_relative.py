@@ -14,9 +14,9 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
-from types import SimpleNamespace
 
 from planner.m3u import import_playlist_m3u, numbered_folder_m3u
+from planner.library import MusicLibrary
 from planner.models import MusicEntry
 
 
@@ -34,8 +34,10 @@ class RelativeImportTest(unittest.TestCase):
         return p
 
     def _lib_at(self, *paths):
-        return SimpleNamespace(entries=[
-            MusicEntry(path=p, title=p.stem, dance="CC", bpm=30) for p in paths])
+        lib = MusicLibrary()
+        lib.entries = [MusicEntry(path=p, title=p.stem, dance="CC", bpm=30)
+                       for p in paths]
+        return lib
 
     def test_the_app_re_imports_its_own_usb_bundle(self):
         a = self._mp3("Song A (CC 30).mp3")

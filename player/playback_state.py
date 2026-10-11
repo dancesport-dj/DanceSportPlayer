@@ -5,7 +5,7 @@ and read by the loudness, pause, Paso Doble and analysis mixins alike. Holding
 them in one object gives them one owner, and a part that is later cut out of
 the window takes this one object instead of four window attributes.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -24,3 +24,6 @@ class PlaybackState:
     # position but nobody danced to it, so the timed cut subtracts it again
     # (see audible_played_secs) — otherwise a silent intro shortens the round.
     offset_ms: int = 0
+    # Titles that would not play this session, path → the backend's reason.
+    # Their rows stay red (a live Check-Music issue) until one plays again.
+    failed: dict[str, str] = field(default_factory=dict)

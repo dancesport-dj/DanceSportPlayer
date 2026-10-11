@@ -18,7 +18,7 @@
 | **Del** | Remove the selected titles from a deck or wishlist, after asking. |
 | **Del** with nothing selected | Clear that whole playlist or wishlist, after asking. The same when every title is selected. |
 | **Ctrl + Shift + Del** | Clear the focused playlist or wishlist, after asking, wherever the cursor is. |
-| **Ctrl + M** | Mark or unmark the selected titles (❗ orange), for example as titles to swap later. **Ctrl + 1** does the same while the cartwall is hidden. |
+| **Ctrl + M** | Mark or unmark the selected titles (orange row), for example as titles to swap later. **Ctrl + 1** does the same while the cartwall is hidden. |
 | **Alt + S** | Swap the two selected titles of the same dance in the Party panel. |
 | **F2** in the 🏆 Tournaments tree | Rename the entry. **Del** removes it from the tree. |
 | **Ctrl + A** in 🏆 Tournaments | Mark every slot of the folder, or every entry of the tree. **Del** and a drag then take them all. |
@@ -26,6 +26,7 @@
 | **T** on the 🖥 presenter | Switch between the titles and the timetable page. |
 | **Esc** on the 🖥 presenter | Close the presenter screen. |
 | **F1** | The cheat sheet. |
+| **F11** | Fullscreen on and off, with the date and time in the status bar. |
 
 ## Mouse
 
@@ -43,6 +44,8 @@
 | Double-click a 📚 library row | Open the title in your external player. |
 | Click a star in the **★** column | Rate the title. Click the star the rating ends on to clear it. |
 | Double-click the 🖥 presenter | Leave full screen. |
+| Click or drag the 〰 waveform | Jump to that spot. A drag scrubs, and the music jumps when you let go. |
+| Click the green 📱 LIVE badge | Open the phone remote's window. |
 
 ## Cartwall
 

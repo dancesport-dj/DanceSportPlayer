@@ -31,11 +31,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_strat_i18n_"))
 
-from PySide6.QtCore import Qt  # noqa: E402
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication
 
-from planner import i18n  # noqa: E402
-from planner.scoring import STRATEGIES, STRATEGY_HELP, STRATEGY_LABELS  # noqa: E402
+from planner import i18n
+from planner.scoring import STRATEGIES, STRATEGY_HELP, STRATEGY_LABELS
 
 
 class StrategyComboI18nTest(unittest.TestCase):

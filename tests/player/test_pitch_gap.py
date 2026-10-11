@@ -25,15 +25,15 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_pitch_"))
 
-from PySide6.QtWidgets import QApplication, QWidget  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from PySide6.QtWidgets import QApplication, QWidget
+from tests.qt_test_support import reap_widget
 
-from player.mix import OutputMix  # noqa: E402
-from player.main_player import PlayerControlMixin  # noqa: E402
-from gui.playlist_table import PlaylistTable  # noqa: E402
-from planner.models import MusicEntry  # noqa: E402
-from player.playback_state import PlaybackState  # noqa: E402
-from player.between_dances import BetweenDances  # noqa: E402
+from player.mix import OutputMix
+from player.main_player import PlayerControlMixin
+from gui.playlist_table import PlaylistTable
+from planner.models import MusicEntry
+from player.playback_state import PlaybackState
+from player.between_dances import BetweenDances
 
 _MUSIC = Path(r"C:\music\tanzcds")
 
@@ -92,6 +92,9 @@ class _Card:
         pass
 
     def set_artwork(self, *a):
+        pass
+
+    def set_waveform_track(self, *a):
         pass
 
     def set_gain(self, *a):

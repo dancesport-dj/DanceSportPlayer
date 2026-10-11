@@ -18,12 +18,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_libfold_"))
 
-from PySide6.QtCore import Qt  # noqa: E402
-from PySide6.QtWidgets import (  # noqa: E402
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
     QApplication, QSplitter, QTabWidget, QWidget,
 )
 
-from gui.main_fold import FoldMixin  # noqa: E402
+from gui.main_fold import FoldMixin
 
 
 class _Win(FoldMixin):

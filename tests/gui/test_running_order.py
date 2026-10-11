@@ -69,6 +69,10 @@ class ShapeTest(unittest.TestCase):
     def test_it_compares_equal_to_the_plain_list(self):
         self.assertEqual(RunningOrder([None]), [None])
 
+    def test_it_is_mutable_so_it_has_no_hash(self):
+        with self.assertRaises(TypeError):
+            hash(self.o)
+
     def test_rows_can_be_replaced_dropped_and_inserted(self):
         self.o[2] = _slot("Charlie")
         self.assertEqual(self.o.entries()[1].title, "Charlie")

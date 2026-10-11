@@ -24,13 +24,13 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_libcols_"))
 
-from PySide6.QtCore import QPoint  # noqa: E402
-from PySide6.QtGui import QContextMenuEvent  # noqa: E402
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtCore import QPoint
+from PySide6.QtGui import QContextMenuEvent
+from PySide6.QtWidgets import QApplication
 
-from gui.library_browser import LibraryBrowser  # noqa: E402
-from planner.models import MusicEntry  # noqa: E402
-from tests.qt_test_support import (  # noqa: E402
+from gui.library_browser import LibraryBrowser
+from planner.models import MusicEntry
+from tests.qt_test_support import (
     reap_widget, stub_window_startup)
 
 _COL_PLAY, _COL_DANCE, _COL_ARTIST, _COL_TITLE, _COL_BPM = 0, 1, 2, 3, 4

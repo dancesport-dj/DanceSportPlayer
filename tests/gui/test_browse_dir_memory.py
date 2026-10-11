@@ -22,11 +22,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_browse_"))
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication
 
-from gui import common  # noqa: E402
-from shared import audio_files  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from gui import common
+from shared import audio_files
+from tests.qt_test_support import reap_widget
 
 _ELSEWHERE = Path(tempfile.mkdtemp(prefix="dp_browse_pick_"))
 _PICKED = _ELSEWHERE / "fare thee well.mp3"

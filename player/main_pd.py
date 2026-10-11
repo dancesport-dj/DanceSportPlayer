@@ -68,7 +68,7 @@ class PdStopMixin:
             return False
         return not self._engine_pause_secs() > 0
 
-    def _hold_pd_start(self, secs: float, path: Path, ent):
+    def _hold_pd_start(self, secs: float, path: Path):
         """Call the Paso Doble (or let the hall's announcer do it) and start the
         music `secs` later.
 
@@ -79,14 +79,12 @@ class PdStopMixin:
         """
         spoken = self._pd_call_wanted()
         if spoken:
-            takt = getattr(ent, "bpm", None) or None
             # `now=True` — the bare "Paso Doble", not "Nächster Tanz: …". The
             # couples are already walking on when this is called; it is the
             # hall announcer's word for the dance that starts here, and the
             # seconds run from it.
             self._announcer.speak(
-                "PD", takt if self._play_panel.announce_takt() else None,
-                now=True, heat=self._heat_of(*self._playing_row()))
+                "PD", now=True, heat=self._heat_of(*self._playing_row()))
         self._pd_hold = (self._playback.token, path, time.monotonic() + secs)
         self._pd_hold_timer = QTimer()
         self._pd_hold_timer.setInterval(_PD_HOLD_TICK_MS)

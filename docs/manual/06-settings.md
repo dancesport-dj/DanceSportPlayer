@@ -6,22 +6,32 @@ Open **⚙ Settings** from the bottom of the Playing panel. The changes apply
 when you click **OK**. Theme, accent colour, language and the audio backend
 are read at start: for those the app asks for a restart.
 
-## Paths and search
+The tabs, in order: **⚙ General**, **📁 Paths**, **🎨 Look**, **🔊 Sound &
+player**, **⚗ Analysis**, **🎛 Play sets** and **📦 Venue pack**. The full app
+adds **🎵 Checks**, the thresholds of its music check; the player hides it.
 
-The **📁 Paths & search** tab.
+## General
 
-![Settings, Paths & search tab](img/settings-paths.png)
-
-The folders on top are described in
-[chapter 1](01-getting-started.md#point-the-app-at-your-music). Under them:
+The **⚙ General** tab.
 
 | Setting | Does |
 |---|---|
-| **▶ Player position** | Where the player card stands: *beside the playlists*, at the head of the Playing panel, or *above the playlists*, as one wide strip over the decks. |
-| **🎙 Advanced voice controls** | Shows *…with takt*, *…with heat* and *🔈 Test* under *Announce next dance*. Hidden, they keep their values. |
-| **🔊 Audio backend** | The engine every title is played through. On Windows: *FFmpeg* (the default) or *Windows Media Foundation*. Only change it when a title won't play or a tempo change leaves a gap. Takes effect after a restart. |
-| **🔇 Release the sound card between titles** | An onboard sound card puts a hiss on the PA while an app holds it open. This hands the device back after a few seconds of silence. The price is a soft click when the next title starts, so switch it on only if you hear the hiss. |
-| **🔕 Mute system sounds while the evening runs** | No error ding or notification chime over the speakers. The system sounds come back when you close the app. |
+| **App mode** | Which side of the app is shown: *Both*, *Planner only* or *Player only*. Switching back brings everything back. The player build has no such row. |
+| **📱 Phone remote** | **📱 Start Server** starts the phone remote and opens its window on top of the settings. While it runs, the button reads **📱 Stop Server**. See [chapter 4](04-playing.md#-the-phone-remote). |
+| **🎛 Controller** | **🎛 Set up…** opens the window for a USB MIDI or HID controller. See [chapter 4](04-playing.md#-a-hardware-controller). |
+| **🐞 Send error reports** | Only in builds that can send them. When the app hits an error, it sends the technical details to the developer: the error, the last log lines, the system and the app version. Never your music or playlists. Off by default. |
+
+## Paths
+
+The **📁 Paths** tab.
+
+![Settings, Paths tab](img/settings-paths.png)
+
+The folders are described in
+[chapter 1](01-getting-started.md#point-the-app-at-your-music). Among them
+sits the **Playlist file format**: *UTF-8 (.m3u)*, *UTF-8 with BOM (.m3u)* or
+*UTF-8 (.m3u8)*, see
+[chapter 3](03-playlists.md#the-playlist-file-format).
 
 ## Look
 
@@ -56,9 +66,31 @@ The **🎨 Look** tab.
   for *Light* and *Dark*.
   **↺ Default blue** resets it. Colours that mean something, such as red
   warnings, keep their hue.
-- **🌐 Language**: English or German.
+- **🌐 Language**: English, Deutsch, Español, Nederlands or Русский. Track
+  names and anything read from your files stay as they are.
+- **Keep the German dance and round names on a screen in another language**:
+  *Langsamer Walzer*, *Vorrunde*, *Eintanzen* instead of *Slow Waltz*,
+  *Round 1*, *Practice*. The presenter screen and the recorded announcements
+  are then German too.
 
-All three take effect after a restart.
+Theme, accent colour and language take effect after a restart.
+
+- **⛶ Fullscreen clock: only the time (20:45:12), no date**: the clock in the
+  status bar while the window is in [fullscreen](01-getting-started.md#-fullscreen).
+  It changes within a second of saving.
+
+## Sound and player
+
+The **🔊 Sound & player** tab.
+
+| Setting | Does |
+|---|---|
+| **🔊 Audio backend** | The engine every title is played through. On Windows: *FFmpeg* (the default) or *Windows Media Foundation*. Only change it when a title won't play or a tempo change leaves a gap. Takes effect after a restart. |
+| **🔇 Release the sound card between titles** | An onboard sound card puts a hiss on the PA while an app holds it open. This hands the device back after a few seconds of silence. The price is a soft click when the next title starts, so switch it on only if you hear the hiss. |
+| **🔕 Mute system sounds while the evening runs** | No error ding or notification chime over the speakers. The system sounds come back when you close the app. |
+| **🎧 Preview player** | A mini player (seek, skip, volume) floats over the deck when you click a ▶ in a row. |
+| **▶ Player position** | Where the player card stands: *beside the playlists*, at the head of the Playing panel, or *above the playlists*, as one wide strip over the decks. |
+| **🎙 Advanced voice controls** | Shows *…with heat* and *🔈 Test* under *Announce next dance*. Hidden, the switch keeps its value. |
 
 ## Analysis
 
@@ -76,6 +108,13 @@ The player needs three of them:
 **📤 Export / 📥 Import manual PD marks** carries the highlights you marked by
 hand to another PC. Run from the full app, the tab lists more analyses; the
 player build shows only these.
+
+The hand-set PD marks, the tag edits made in the app and the log of
+[played titles](04-playing.md#-played-titles) are the only data no analysis
+can find again, so the app backs them up by itself: on the first
+start of each day it writes a small file to the `backups` folder next to its
+database, brings it up to date when the app closes, and keeps the last seven. **♻ Restore user data backup…** merges one
+of them back in; it takes effect after a restart.
 
 **🧱 Build ALL caches…** runs every analysis in turn, for a library you
 choose. It can be cancelled.
@@ -112,5 +151,21 @@ heat to:
 - **Lower / Middle / Upper**: a fixed tempo within the TSO range. This is
   worth setting for the slow dances, where one bar per minute is a much
   bigger pitch change.
+
+## Venue pack
+
+The **📦 Venue pack** takes the whole desk to another PC in one file: the
+settings, every deck and wishlist, and the 🎛 cartwall with its pads and
+keys. If you want, the music they use goes in too.
+
+- **📦 Export venue pack…** writes the file. A progress window shows how far
+  it is and can cancel it.
+- **📥 Import venue pack…** on the other PC loads it. It takes over the
+  settings, decks and cartwall at the next start; what it replaces is kept in
+  a `before-venue-import` folder next to them. Music in the pack is unpacked
+  into a folder you pick, and every deck and pad is pointed at it.
+
+Folder settings, such as the library, playlist and save-as folders, the
+presenter screen and the audio backend, stay with each PC.
 
 Next: [Keyboard and mouse](07-shortcuts.md)

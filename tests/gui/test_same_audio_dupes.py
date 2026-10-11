@@ -19,12 +19,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_sameaudio_"))
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication
 
-import planner.db as pdb  # noqa: E402
-from gui.playlist_table import PlaylistTable  # noqa: E402
-from planner.models import MusicEntry, RoundConfig  # noqa: E402
-from tests.qt_test_support import (  # noqa: E402
+import planner.db as pdb
+from gui.playlist_table import PlaylistTable
+from planner.models import MusicEntry, RoundConfig
+from tests.qt_test_support import (
     reap_widget, stub_window_startup)
 
 _AUDIO = bytes(range(256)) * 2048          # 512 KB of "music"

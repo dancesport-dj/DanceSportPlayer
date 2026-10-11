@@ -7,6 +7,29 @@ Du spielst direkt aus den Decks, dem Party-Bereich und den Wunschlisten.
 
 ![Das Hauptfenster beim Abspielen](../img/main-playing.png)
 
+## 🚦 Bereit? vor dem Abend
+
+**🚦 Prüfen ▸ 🚦 Bereit?** in der Werkzeugleiste prüft jedes Deck, das Titel
+hält, und die Partyliste in einem Durchgang. Es zeigt eine Ampel pro Prüfung
+und ein Gesamturteil: 🟢 *Bereit*, 🟡 *Spielbar, mit offenen Punkten* oder
+🔴 *Nicht bereit, manche Titel werden nicht spielen*.
+
+| Zeile | Prüft |
+|---|---|
+| 📁 Musikdateien | Jede Datei ist da. Ein Laufwerk, das nicht angesteckt ist, wird als solches genannt. Titel, die nicht unter dem Referenzpfad liegen, färben die Zeile gelb. |
+| 📊 Lautheit | Jeder Titel ist gemessen, so kann 🔊 Lautstärke angleichen an bleiben. |
+| 🔇 Stille-Prüfung | Jeder Titel ist geprüft, so werden seine stillen Ränder übersprungen. |
+| 🐂 Paso-Doble-Highlights | Jeder Paso Doble kennt seine Höhepunkte. |
+| 🔁 Doppelte | Kein Titel steht in zwei Listen. |
+| 🎶 Playlisten | Es gibt überhaupt etwas zu spielen. |
+
+Eine Zeile, die nicht grün ist, hat einen Knopf, der sie behebt:
+**📊 Lautheit messen…**, **🐂 Highlights finden…** oder **🔁 Doppelte
+auflösen…**. **🧭 Pfade reparieren…** steht jedes Mal in der Zeile
+📁 Musikdateien, ob grün oder nicht. Das Fenster bleibt offen, während eine
+Behebung läuft; **↻ Nochmal prüfen** bewertet neu. Die volle App ergänzt eine
+Zeile 🎵 Musikprüfung für Tempo, Länge und den Aufbau der Runden.
+
 ## Einen Titel starten
 
 - **▶** in einer Zeile spielt genau diesen Titel. **■** stoppt ihn.
@@ -30,6 +53,14 @@ Jedes Deck hat in seiner unteren Leiste einen eigenen Schalter
 Jede Liste merkt sich ihre eigene Einstellung. Die Partyliste kann von selbst
 laufen, während das Turnier-Deck daneben von Hand gestartet wird.
 
+### Ein Titel, der nicht spielt
+
+Ist eine Datei beschädigt oder weg, lässt der Player die Fläche nicht in der
+Stille stehen: Er nennt den Titel in einer kurzen Meldung, färbt seine Zeile
+rot mit dem Grund im Tooltip und startet den nächsten Titel derselben Runde.
+Am Ende einer Runde hält er an, wie nach jedem letzten Titel. Die Markierung
+verschwindet, sobald die Datei wieder spielt.
+
 ## Die Player-Karte
 
 Die Karte oben in der Seitenleiste zeigt den laufenden Titel, seinen Tanz und
@@ -37,7 +68,7 @@ die Restzeit.
 
 | Bedienelement | Macht |
 |---|---|
-| oranges **\|◀** | Springt zurück auf 0:00 dieses Titels. |
+| **\|◀** | Springt zurück auf 0:00 dieses Titels. |
 | **⏮ / ⏭** | Voriger / nächster Titel. |
 | **◀◀ / ▶▶** | 10 s zurück / vor. |
 | **⏯** | Pause / weiter. |
@@ -45,9 +76,24 @@ die Restzeit.
 | Ausblend-Knopf (durchgestrichener Lautsprecher) | Blendet den Titel jetzt über die Ausblendzeit aus und beendet ihn dann. |
 | **☕** | Beendet den Titel und geht direkt zur Pausenmusik. |
 | Verlängern-Knopf | Hängt eine weitere Pausenlänge an, wenn der Gruppenwechsel länger dauert. |
-| rotes **⊗** | Notfall: blendet die Musik aus und *hält* sie an. Nichts endet und nichts geht weiter. **⏯** setzt genau an dieser Stelle fort. |
+| **⊗** | Notfall: blendet die Musik aus und *hält* sie an. Nichts endet und nichts geht weiter. **⏯** setzt genau an dieser Stelle fort. |
 | **🔊** | Senkt auf 20 % und wieder auf voll. Die Pausenmusik geht mit herunter. |
 | Lautstärkeregler | Gesamtlautstärke. |
+
+### 〰 Die Wellenform
+
+Unter der Zeit liegt die **Wellenform** des laufenden Titels: die leisen
+Stellen, die Stille, die übersprungen wird, die Paso-Doble-Höhepunkte und wo
+das Ausblenden eines gekürzten Titels beginnt. In den letzten Sekunden wird
+sie rot.
+
+- Ein **Klick** springt an diese Stelle. **Ziehen** spult: Abspielkopf und
+  Zeiten folgen der Maus, und die Musik springt beim Loslassen. Über den
+  linken Rand hinaus gezogen geht es auf 0:00.
+- Standardmäßig ersetzt die Wellenform den Suchbalken, der dieselbe Strecke
+  abdeckt. Zwei Schalter im Wiedergabe-Bereich, unter *Klang und Anzeige*,
+  ändern das: **〰 Wellenform anzeigen** und **…Suchbalken ersetzen**. Ist die
+  Wellenform aus, kommt der Suchbalken immer zurück.
 
 Die Tempo-Zeile darunter:
 
@@ -118,13 +164,13 @@ Die App sagt den nächsten Tanz laut an: „Nächster Tanz: Langsamer Walzer“.
   Musikstart** (die Musik folgt der Ansage).
 - **Stimme**: Weiblich, Männlich oder Gemischt, was die beiden abwechselt. Ein
   Tanz, der nie aufgenommen wurde, wird nicht angesagt.
-- Die Ansage ist deutsch bei deutscher Oberfläche, und bei englischer, wenn
-  **Deutsche Tanz- und Rundennamen auch in der englischen Oberfläche**
+- Die Ansage ist deutsch bei deutscher Oberfläche, und bei einer anderen, wenn
+  **Deutsche Tanz- und Rundennamen auch in einer anderssprachigen Oberfläche**
   angehakt ist. Sonst ist sie englisch („Next dance: Slow Waltz“); eine
   Aufnahme, die bei den englischen fehlt, kommt aus den deutschen.
-- Mit der erweiterten Ansagesteuerung (⚙ Einstellungen ▸ 📁 Pfade & Suche)
-  fügt **…mit Takt** das Tempo hinzu („…, 29 Takt“) und **…mit Gruppe** die
-  Nummer der Gruppe. **🔈 Test** spricht ein Beispiel.
+- Mit der erweiterten Ansagesteuerung (⚙ Einstellungen ▸ 🔊 Ton & Player)
+  fügt **…mit Gruppe** die Nummer der Gruppe hinzu. **🔈 Test** spricht ein
+  Beispiel.
 
 ### Klang und Anzeige
 
@@ -133,6 +179,8 @@ Die App sagt den nächsten Tanz laut an: „Nächster Tanz: Langsamer Walzer“.
 - **🖼 Cover anzeigen**: ein Cover neben dem Titel im Player. Es nimmt das
   eigene Bild der Playlist (`#EXTIMG`), eine Cover-Datei im Ordner oder das
   Bild in der MP3.
+- **〰 Wellenform anzeigen** und **…Suchbalken ersetzen**: die Wellenform auf
+  der Player-Karte, siehe [oben](#-die-wellenform).
 - **▶️ Doppelklick startet den Titel**: an, spielt ein Doppelklick sofort. Aus,
   legt er den Titel nur bereit, und ⏯ startet ihn. Das ist es, was eine Gruppe
   braucht.
@@ -201,5 +249,96 @@ Siegerehrung.
   Seite.
 - Zieh die Wand links oder rechts ans Fenster, unter die Decks oder als
   eigenes Fenster hinaus. **📌** holt eine schwebende Wand zurück.
+
+## 📱 Die Handy-Fernbedienung
+
+Die Handy-Fernbedienung steuert das Pult aus dem Browser eines Handys, im
+selben Netz wie der PC. Eine App musst du nicht installieren. Vom Handy aus
+kannst du:
+
+- sehen, was läuft und was als Nächstes kommt;
+- abspielen und pausieren, zum vorigen oder nächsten Titel gehen;
+- ausblenden, oder ausblenden und halten;
+- **🔈 Nächsten Tanz ansagen** ein- oder ausschalten. Es ist derselbe
+  Schalter wie im Wiedergabe-Bereich, Stimme und Zeitpunkt folgen also;
+- den Fortschrittsbalken ziehen, um zu spulen. Die Stelle unter deinem
+  Finger ist die Stelle, die die Fläche hört;
+- die Pads der sichtbaren Cartwall-Seite feuern oder alle stoppen.
+
+![Die Handy-Fernbedienung im Browser eines Handys](../img/phone-remote.png)
+
+**Zum Starten** klickst du **📱 Handy-Fernbedienung…** im Wiedergabe-Bereich
+oder **📱 Server starten** unter ⚙ Einstellungen ▸ ⚙ Allgemein. Das Fenster
+der Fernbedienung öffnet sich:
+
+- **● Läuft / ○ Gestoppt** mit **▶ Starten / ■ Stoppen**;
+- ein **QR-Code**: scann ihn mit der Kamera des Handys, und das Handy ist
+  drin, ohne die PIN zu tippen;
+- die Adresse, mit einer Auswahl, wenn der PC in mehr als einem Netz hängt,
+  und ein Link, der die Fernbedienung zum schnellen Test im Browser dieses
+  PCs öffnet;
+- die **PIN** und **Neue PIN**, die ein laufender Server sofort übernimmt;
+- ein **Protokoll** dessen, was beim Server ankam: Handys, die die Seite
+  geöffnet haben, Anmeldungen, falsche PINs und jeder Befehl.
+
+Solange der Server läuft, trägt die Statusleiste ein grünes Abzeichen
+**📱 LIVE**; ein Klick darauf holt das Fenster zurück. In ⚙ Einstellungen heißt
+der Knopf dann **📱 Server stoppen**.
+
+- Nur Handys im lokalen Netz kommen hinein, und nur mit der PIN. Falsche PINs
+  sperren ein Handy eine Weile aus.
+- Beim ersten Mal fragt Windows vielleicht, ob die App das Netz nutzen darf.
+  Erlaube es für private Netze. Taucht nichts im Protokoll auf, während das
+  Handy es versucht, steht eine Firewall im Weg; das Fenster nennt das
+  Programm, das du freigeben musst.
+- Der Server läuft nur so lange wie die App. Jeder Start beginnt ohne ihn.
+
+## 🎛 Ein DJ-Controller
+
+Ein USB-MIDI- oder HID-Controller kann das Pult mit echten Tasten und einem
+Fader steuern. Eingerichtet wird er unter ⚙ Einstellungen ▸ ⚙ Allgemein ▸
+🎛 DJ-Controller ▸ **🎛 Einrichten…**.
+
+Was er auslösen kann:
+
+- ⏯ Abspielen / Pause, ⏭ Nächster Titel, ⏮ Vorheriger Titel;
+- 🔉↓ Jetzt ausblenden, 🛑 Ausblenden und halten;
+- 🔉 Musik absenken an / aus, 🔈 Nächsten Tanz ansagen an / aus;
+- 🔊 Musiklautstärke, über einen Fader oder einen Regler;
+- ⏹ Alle Pads stoppen, und sechzehn Cartwall-Pads: Pad *n* ist das *n*-te
+  Pad der sichtbaren Seite, wie bei **Strg + *n***.
+
+Im Fenster:
+
+![Das Controller-Fenster mit dem Profil für den nanoKONTROL2](../img/controller.png)
+
+1. Wähl den Controller unter **Gerät**. **↻** sucht nach neuen. Hak **Alle
+   HID-Geräte zeigen, nicht nur DJ-Controller** an, wenn deiner fehlt.
+2. **Vorlagen ▾** hält ein fertiges Profil für den Korg nanoKONTROL2.
+3. Für jeden anderen Controller klickst du **Anlernen** neben einer Aktion
+   und drückst die Taste oder bewegst den Fader, auf die sie hören soll.
+   **✕** löst die Zuordnung. Die Zeile unter der Tabelle zeigt das zuletzt
+   berührte Bedienelement.
+4. **💾 Profil speichern…** und **📂 Profil laden…** halten eine Belegung als
+   Datei fest, zum Beispiel für den PC in der Halle.
+
+Der Controller wirkt, sobald du ihn einrichtest, und wird gemerkt. Wird er
+abgezogen, sucht die App alle paar Sekunden wieder nach ihm. MIDI geht unter
+Windows, macOS und Linux.
+
+## 📜 Gespielte Titel
+
+Im Spielmodus schreibt die App jeden Titel auf, sobald er 10 Sekunden
+gelaufen ist, also in dem Moment, in dem seine Zeile grau wird: mit
+Startzeit, Interpret, Tanz und Liste. Vorhören beim Planen wird nie
+protokolliert. **❔ ▸ 📜 Gespielte Titel…** listet die Abende, der neueste
+oben; eine Pause von mehr als vier Stunden beginnt einen neuen, damit eine
+Party über Mitternacht ein Abend bleibt.
+
+- Klick auf einen Abend, um seine Titel zu sehen und wie lange jeder lief.
+- **💾 Als CSV speichern…** speichert den Abend als Tabelle für Excel, zum
+  Beispiel für eine GEMA-Meldung: Datum, Start, Interpret, Titel, Tanz, Liste
+  und Dauer.
+- **🗑 Abend löschen** entfernt ihn nach einer Rückfrage aus dem Protokoll.
 
 Weiter: [Tags](05-tags.md)

@@ -965,12 +965,13 @@ class TableDragDropMixin:
             # Recompute the timbral similarity to the round anchor so ≈ / hover-% match.
             # When dropping onto the anchor (first) song, anchor on the next song instead
             # so the score reflects the rest of the round, not the song being replaced.
-            if self._use_timbre and self._suggester:
-                new_entry.sim_score = self._suggester.anchor_similarity(
+            if self._suggester:
+                self._suggester.set_similarity(
                     new_entry, meta.round_name,
-                    anchor=self._effective_anchor(meta.round_name, {row}))
-            else:
-                new_entry.sim_score = None
+                    self._suggester.anchor_similarity(
+                        new_entry, meta.round_name,
+                        anchor=self._effective_anchor(meta.round_name, {row}))
+                    if self._use_timbre else None)
 
             if row == self._current_play_row:
                 self._current_play_row = -1
@@ -1083,13 +1084,15 @@ class TableDragDropMixin:
             # Recompute each moved song's timbral similarity vs its NEW round's anchor
             # so the ≈ flag / hover-% reflect the round it now lives in.
             if self._use_timbre and self._suggester:
-                src_entry.sim_score = self._suggester.anchor_similarity(
-                    src_entry, dm.round_name,
-                    anchor=self._effective_anchor(dm.round_name, {dst}))
+                self._suggester.set_similarity(
+                    src_entry, dm.round_name, self._suggester.anchor_similarity(
+                        src_entry, dm.round_name,
+                        anchor=self._effective_anchor(dm.round_name, {dst})))
                 if dst_entry is not None:
-                    dst_entry.sim_score = self._suggester.anchor_similarity(
-                        dst_entry, sm.round_name,
-                        anchor=self._effective_anchor(sm.round_name, {src}))
+                    self._suggester.set_similarity(
+                        dst_entry, sm.round_name, self._suggester.anchor_similarity(
+                            dst_entry, sm.round_name,
+                            anchor=self._effective_anchor(sm.round_name, {src})))
 
             bg_s = _C_ROW_EVEN if sm.h_idx % 2 == 0 else _C_ROW_ODD
             bg_d = _C_ROW_EVEN if dm.h_idx % 2 == 0 else _C_ROW_ODD
@@ -1169,13 +1172,15 @@ class TableDragDropMixin:
                         self._playlist[dm.round_name][dm.h_idx][dm.d_idx] = se
                 if self._use_timbre and self._suggester:
                     if se is not None:
-                        se.sim_score = self._suggester.anchor_similarity(
-                            se, dm.round_name,
-                            anchor=self._effective_anchor(dm.round_name, {t}))
+                        self._suggester.set_similarity(
+                            se, dm.round_name, self._suggester.anchor_similarity(
+                                se, dm.round_name,
+                                anchor=self._effective_anchor(dm.round_name, {t})))
                     if te is not None:
-                        te.sim_score = self._suggester.anchor_similarity(
-                            te, sm.round_name,
-                            anchor=self._effective_anchor(sm.round_name, {s}))
+                        self._suggester.set_similarity(
+                            te, sm.round_name, self._suggester.anchor_similarity(
+                                te, sm.round_name,
+                                anchor=self._effective_anchor(sm.round_name, {s})))
                 affected += [s, t]
 
             anchor_dst = plan[0][1]

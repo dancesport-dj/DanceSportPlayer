@@ -26,11 +26,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_mode_"))
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication
 
-from planner.library import MusicLibrary  # noqa: E402
-from planner.models import MusicEntry, RoundConfig  # noqa: E402
-from tests.qt_test_support import (  # noqa: E402
+from planner.library import MusicLibrary
+from planner.models import MusicEntry, RoundConfig
+from tests.qt_test_support import (
     reap_widget, stub_window_startup)
 
 

@@ -19,14 +19,14 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_multi_m3u_"))
 
-from PySide6.QtCore import QMimeData, QPoint, QPointF, Qt, QUrl  # noqa: E402
-from PySide6.QtGui import QDragEnterEvent, QDragMoveEvent, QDropEvent  # noqa: E402
-from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget  # noqa: E402
+from PySide6.QtCore import QMimeData, QPoint, QPointF, Qt, QUrl
+from PySide6.QtGui import QDragEnterEvent, QDragMoveEvent, QDropEvent
+from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
 
-from gui import main_import  # noqa: E402
-from gui.main_import import ImportMixin  # noqa: E402
-from gui.playlist_table import PlaylistTable  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from gui import main_import
+from gui.main_import import ImportMixin
+from gui.playlist_table import PlaylistTable
+from tests.qt_test_support import reap_widget
 
 
 def _drop(table, *paths):

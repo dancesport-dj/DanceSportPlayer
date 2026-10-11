@@ -14,11 +14,11 @@ import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication
 
-from gui.warmup_estimate import WarmupEstimateBox, estimate_text  # noqa: E402
-from planner.warmup import _WARMUP_BALLROOM, _WARMUP_LATIN, _WARMUP_MODE  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from gui.warmup_estimate import WarmupEstimateBox, estimate_text
+from planner.warmup import _WARMUP_BALLROOM, _WARMUP_LATIN, _WARMUP_MODE
+from tests.qt_test_support import reap_widget
 
 _ALL = _WARMUP_BALLROOM + _WARMUP_LATIN + _WARMUP_MODE
 

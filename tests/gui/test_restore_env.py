@@ -19,12 +19,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_restore_"))
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication
 
-import dancesport_gui as gui  # noqa: E402
-from gui import dialogs, main_restore  # noqa: E402
-from planner.models import MusicEntry  # noqa: E402
-from tests.qt_test_support import reap_widget, stub_window_startup  # noqa: E402
+import dancesport_gui as gui
+from gui import dialogs, main_restore
+from planner.models import MusicEntry
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 # A session with no tracks in it: everything below is about the state AROUND the
 # songs — titles, the two view shapes, the 📅 tab, the 🔒/🔓/✋ toggles — which

@@ -17,11 +17,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_settings_merge_"))
 
-from PySide6.QtWidgets import QApplication, QDialog  # noqa: E402
+from PySide6.QtWidgets import QApplication, QDialog
 
-import dancesport_gui as gui  # noqa: E402
-from gui import main_global  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+import dancesport_gui as gui
+from gui import main_global
+from tests.qt_test_support import reap_widget
 
 MUTED = ["{0.0.0.00000000}.{00aae184-test}"]
 

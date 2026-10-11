@@ -25,10 +25,10 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_load_"))
 
-from PySide6.QtCore import QTimer  # noqa: E402
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtCore import QTimer
+from PySide6.QtWidgets import QApplication
 
-from player.main_player import PlayerControlMixin, _LOAD_MIN_GAP_MS  # noqa: E402
+from player.main_player import PlayerControlMixin, _LOAD_MIN_GAP_MS
 
 
 class _Desk(PlayerControlMixin):

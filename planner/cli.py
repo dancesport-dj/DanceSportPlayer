@@ -162,7 +162,8 @@ def _round_label(rc: RoundConfig) -> str:
 
 
 def display_playlist(playlist: Playlist, dances: list[str],
-                     rounds: list[RoundConfig], dance_class: str = "C") -> None:
+                     rounds: list[RoundConfig], dance_class: str = "C",
+                     suggester: PlaylistSuggester | None = None) -> None:
     rc_map = {rc.name: rc for rc in rounds}
 
     for round_name, heats in playlist.items():
@@ -185,7 +186,8 @@ def display_playlist(playlist: Playlist, dances: list[str],
                     bpm_s  = _fmt_bpm(entry.bpm, dance, dance_class)
                     pop_s  = f" ★{entry.popularity}" if entry.popularity else "  ✦new"
                     src_s  = f"  ← {entry.source_info}" if entry.source_info and tier in ('semi','final') else ""
-                    sim_s  = " ≈" if (entry.sim_score is not None and entry.sim_score >= 0.7) else ""
+                    sim    = suggester.similarity(entry, round_name) if suggester else None
+                    sim_s  = " ≈" if (sim is not None and sim >= 0.7) else ""
                     cls_s  = f" [{','.join(entry.classes_ok)}]" if entry.classes_ok else ""
                     title  = entry.title[:40]
                     print(f"{prefix}{title}{bpm_s}{pop_s}{sim_s}{cls_s}{src_s}")
@@ -273,7 +275,7 @@ def interactive_refine(
             print("  No alternative found.")
 
         print()
-        display_playlist(playlist, dances, rounds, dance_class)
+        display_playlist(playlist, dances, rounds, dance_class, suggester)
 
     return playlist
 
@@ -340,7 +342,7 @@ def main() -> None:
 
             hdr(f"Suggested Playlist  ·  {age_group} {dance_class} {style}"
                 + (f"  #{iteration}" if iteration > 1 else ""))
-            display_playlist(playlist, dances, rounds, dance_class)
+            display_playlist(playlist, dances, rounds, dance_class, suggester)
 
             playlist = interactive_refine(playlist, dances, dance_class, rounds, suggester)
 

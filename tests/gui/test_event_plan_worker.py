@@ -16,13 +16,13 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_event_worker_"))
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication
 
-from gui.workers import EventPlanWorker  # noqa: E402
-from planner import event_plan  # noqa: E402
-from planner.competition import parse_competition_schedule  # noqa: E402
-from tests.planner.test_event_ai import FakeModel  # noqa: E402
-from tests.planner.test_event_variants import EventFixture  # noqa: E402
+from gui.workers import EventPlanWorker
+from planner import event_plan
+from planner.competition import parse_competition_schedule
+from tests.planner.test_event_ai import FakeModel
+from tests.planner.test_event_variants import EventFixture
 
 
 class EventPlanWorkerTest(EventFixture, unittest.TestCase):

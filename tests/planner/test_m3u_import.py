@@ -4,12 +4,12 @@ backup variants) and the round-name → tier mapping."""
 import tempfile
 import unittest
 from pathlib import Path
-from types import SimpleNamespace
 
 from planner.m3u import (_round_tiers, _tier_for_round_name, export_m3u,
                          grid_from_running_order, import_playlist_m3u,
                          m3u_marker_rounds, m3u_marker_rounds_in_order,
                          running_order_rounds)
+from planner.library import MusicLibrary
 from planner.models import MusicEntry
 
 
@@ -19,9 +19,11 @@ def _e(name, dance, bpm=None, duration=120):
 
 
 def _lib(*entries):
-    """Minimal stand-in for MusicLibrary: import only needs `.entries` for path
-    resolution (make_external_entry is never hit — the paths don't exist)."""
-    return SimpleNamespace(entries=list(entries))
+    """A library of just `entries` (make_external_entry is never hit — the
+    paths don't exist)."""
+    lib = MusicLibrary()
+    lib.entries = list(entries)
+    return lib
 
 
 def _write_m3u(lines) -> Path:

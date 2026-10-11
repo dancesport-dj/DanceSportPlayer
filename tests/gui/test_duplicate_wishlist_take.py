@@ -17,11 +17,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_dup_wish_take_"))
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication
 
-from tests.gui.test_duplicate_check_scope import _Status, _Win, _waltz  # noqa: E402
-from tests.gui.test_duplicate_remove import _entries  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from tests.gui.test_duplicate_check_scope import _Status, _Win, _waltz
+from tests.gui.test_duplicate_remove import _entries
+from tests.qt_test_support import reap_widget
 
 
 class DuplicateWishlistTakeTest(unittest.TestCase):

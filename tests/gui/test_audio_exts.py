@@ -16,9 +16,9 @@ from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication
 
-from gui import common  # noqa: E402
+from gui import common
 
 REPO = Path(__file__).resolve().parents[2]
 DOCUMENTED = (".mp3", ".m4a", ".m4b", ".flac", ".wav", ".ogg",

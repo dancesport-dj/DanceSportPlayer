@@ -109,9 +109,12 @@ for _dest in (os.path.join("docs", "manual"), os.path.join("docs", "manual", "de
               "(py -m tools.build_manual_pdf)")
 # The licence texts: the app's own MIT licence, the icons' (Icons8, Bootstrap,
 # Twemoji), every bundled library's and the ElevenLabs voices'. MIT, CC-BY and
-# the voices' terms want the notice in every copy, the .app included.
+# the voices' terms want the notice in every copy, the .app included. The GPL
+# and LGPL want their full text; the packages' own copies don't get bundled.
 for _licence in ("LICENSE", "ICONS-LICENSE.txt", "THIRD_PARTY_LICENSES.md",
-                 "speech/LICENSE-AUDIO.md"):
+                 "speech/LICENSE-AUDIO.md", "licenses/GPL-2.0.txt",
+                 "licenses/GPL-3.0.txt", "licenses/LGPL-2.1.txt",
+                 "licenses/LGPL-3.0.txt", "licenses/PYTHON-LICENSE.txt"):
     datas += [(os.path.join(SPECPATH, _licence), "licenses")]
 # A presenter theme's mark, resolved by player/presenter_theme.py relative to
 # the repo root — so it has to land in the bundle under the same folder name.
@@ -219,7 +222,8 @@ if not PLAYER:
 # planner.i18n loads a language's catalog by name (importlib), which PyInstaller
 # cannot follow — without this every build falls back to English. One module per
 # language in planner.i18n.LANGUAGES, English excepted (it has no catalog).
-hiddenimports += ["planner.lang_de"]
+hiddenimports += ["planner.lang_de", "planner.lang_es", "planner.lang_nl",
+                  "planner.lang_ru"]
 
 # Never pull these in — OpenL3/tensorflow in both flavors (see docstring), plus
 # general build hygiene. (PyInstaller follows even the lazy function-level

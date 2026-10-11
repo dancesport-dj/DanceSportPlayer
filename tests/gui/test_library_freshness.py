@@ -19,19 +19,19 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_fresh_"))
 
-from PySide6.QtCore import Qt  # noqa: E402
-from PySide6.QtWidgets import QApplication, QWidget  # noqa: E402
-from tests.qt_test_support import (  # noqa: E402
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QWidget
+from tests.qt_test_support import (
     reap_widget, stub_window_startup)
 
-from dancesport_planner import DANCE_NAMES, MusicLibrary  # noqa: E402
-from gui.common import _PROVEN_MIN_PLAYS  # noqa: E402
-from gui.dialogs import LibraryGapsDialog  # noqa: E402
-from gui.library_browser import LibraryBrowser  # noqa: E402
-from gui.playlist_table import PlaylistTable  # noqa: E402
-from gui.running_order import Row, RunningOrder  # noqa: E402
-from gui.similar_dialog import SimilarTracksDialog  # noqa: E402
-from planner.models import MusicEntry  # noqa: E402
+from dancesport_planner import DANCE_NAMES, MusicLibrary
+from gui.common import _PROVEN_MIN_PLAYS
+from gui.dialogs import LibraryGapsDialog
+from gui.library_browser import LibraryBrowser
+from gui.playlist_table import PlaylistTable
+from gui.running_order import Row, RunningOrder
+from gui.similar_dialog import SimilarTracksDialog
+from planner.models import MusicEntry
 
 _app = QApplication.instance() or QApplication(sys.argv)
 

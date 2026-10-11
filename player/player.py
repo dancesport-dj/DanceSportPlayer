@@ -35,6 +35,7 @@ from PySide6.QtWidgets import (
 from pathlib import Path
 from collections.abc import Callable
 from player.artwork import cover
+from player.waveform import WaveformLoader, WaveformStrip
 from shared.icons import (
     WARN,
     button as icon_button,
@@ -492,7 +493,7 @@ class BigPlayerWidget(QFrame):
     def __init__(self, player: QMediaPlayer, audio_out=None,
                  get_vol: Callable[[], float] | None = None,
                  set_vol: Callable[[float], None] | None = None,
-                 parent=None):
+                 parent=None, cache_of: Callable[[], object] | None = None):
         super().__init__(parent)
         self._player = player
         # Volume goes through MainWindow's base-volume factor so the fade-out
@@ -532,18 +533,19 @@ class BigPlayerWidget(QFrame):
         # song is in its last seconds — see _flash_step / _update_time).
         # Both skins use the SAME 2px border width so toggling them never
         # reflows the card's content (only the colour changes when flashing).
-        self._base_qss = (
-            "#BigPlayer { background:#1d2330; border:2px solid #10141d;"
-            " border-radius:8px; }" + _common_qss)
-        self._flash_qss = (
-            "#BigPlayer { background:#3a1d22; border:2px solid #e53935;"
-            " border-radius:8px; }" + _common_qss)
         # A deliberate fade (🔉↓ / 🛑) blinks the same beat in ORANGE: the song
         # is on its way out because the operator said so, which reads
         # differently from a song running into its own end.
-        self._fade_qss = (
-            "#BigPlayer { background:#3a2a17; border:2px solid #fb8c00;"
-            " border-radius:8px; }" + _common_qss)
+        # One sheet for all three, picked by the `flash` property: the beat
+        # flips the property instead of setting a new sheet, which re-polished
+        # every child of the card twice a second.
+        self.setProperty("flash", "")
+        card_qss = (
+            "#BigPlayer { background:#1d2330; border:2px solid #10141d;"
+            " border-radius:8px; }"
+            '#BigPlayer[flash="end"] { background:#3a1d22; border-color:#e53935; }'
+            '#BigPlayer[flash="fade"] { background:#3a2a17; border-color:#fb8c00; }'
+            + _common_qss)
         # The seek bar joins the warning but does NOT blink with the card: it
         # stays steadily red for the whole final stretch, so the played portion
         # keeps reading as a progress bar. Set on the slider itself (its own
@@ -554,7 +556,7 @@ class BigPlayerWidget(QFrame):
             " border-radius:3px; }"
             "QSlider::handle:horizontal { width:12px; margin:-4px 0;"
             " border-radius:6px; background:#ff8a80; }")
-        self.setStyleSheet(self._base_qss)
+        self.setStyleSheet(card_qss)
         # End-of-track flash: blinks the card red over the last seconds.
         self._END_FLASH_MS = 10_000   # warn over the final 10 s of playback
         self._flash_on = False
@@ -732,6 +734,16 @@ class BigPlayerWidget(QFrame):
         # Late-bound: the card can be retargeted to the pause-music player.
         self._slider.clickJumped.connect(
             lambda ms: self._player.setPosition(ms))
+        # 〰 The title's waveform above the seek bar — the same span, the same
+        # late-bound seek.
+        self._wave = WaveformStrip()
+        self._wave.scrubbed.connect(self._on_wave_scrubbed)
+        self._wave.seekRequested.connect(self._on_wave_released)
+        self._wave_on = True
+        self._seek_hidden = False   # the strip stands in for the seek bar
+        self._wave_path: str | None = None
+        self._wave_loader = WaveformLoader(self, cache_of=cache_of)
+        self._wave_loader.ready.connect(self._on_wave_ready)
 
         btns = QHBoxLayout()
         btns.setSpacing(4)
@@ -1055,6 +1067,7 @@ class BigPlayerWidget(QFrame):
                 top.addLayout(left, 0)
                 top.addLayout(right, 0)
                 player.addLayout(top)
+                player.addWidget(self._wave)
                 player.addWidget(self._slider)
                 # The strip is as deep as its deepest guest; the player itself
                 # stays the height it is and keeps to the top rather than
@@ -1070,6 +1083,7 @@ class BigPlayerWidget(QFrame):
                 far.addLayout(self._corner_row())
                 row.addLayout(far, 1)
             else:
+                left.addWidget(self._wave)
                 left.addWidget(self._slider)
                 left.addStretch(1)
                 row.addLayout(left, 0)
@@ -1078,7 +1092,7 @@ class BigPlayerWidget(QFrame):
                 row.addLayout(right, 0)
             lyt.addLayout(row)
         else:
-            for w in (self._head_box, self._time_box, self._slider,
+            for w in (self._head_box, self._time_box, self._wave, self._slider,
                       self._btn_box, self._aux_box, self._vol_box,
                       self._tempo_box):
                 lyt.addWidget(w)
@@ -1110,6 +1124,7 @@ class BigPlayerWidget(QFrame):
         # Another player, another timeline — the 🐂 marks of the song that was
         # on the bar mean nothing on the filler (or back again).
         self.set_pd_marks([])
+        self.set_waveform_track(None)
         old = self._player
         old.durationChanged.disconnect(self._on_duration)
         old.positionChanged.disconnect(self._on_position)
@@ -1157,6 +1172,7 @@ class BigPlayerWidget(QFrame):
             self._stop_end_flash()
             self.set_next_up("")   # nothing running → nothing "next"
             self.set_pd_marks([])
+            self.set_waveform_track(None)
         if sub_icon:
             self._sub_icon.setPixmap(icon_pixmap(sub_icon, 12, "#8fa3c4"))
         self._sub_icon.setVisible(bool(sub_icon))
@@ -1186,6 +1202,47 @@ class BigPlayerWidget(QFrame):
         self._art_on = bool(on)
         self._art.setVisible(self._art_on)
         self._refresh_artwork()
+
+    def set_waveform_enabled(self, on: bool):
+        """〰 Show the title's waveform above the seek bar, or give the height
+        back. Off, nothing is decoded; on, the title already playing loads."""
+        self._wave_on = bool(on)
+        self._wave.setVisible(self._wave_on)
+        self._sync_seek_bar()
+        self._load_wave()
+
+    def set_seek_bar_hidden(self, on: bool):
+        """Let the waveform stand in for the seek bar. Only while the strip
+        is shown: without it the card would have no timeline at all."""
+        self._seek_hidden = bool(on)
+        self._sync_seek_bar()
+
+    def _sync_seek_bar(self):
+        self._slider.setVisible(not (self._seek_hidden and self._wave_on))
+
+    def set_waveform_track(self, track: Path | None):
+        """The file whose outline the strip draws; None clears the strip."""
+        self._wave_path = str(track) if track is not None else None
+        if self._wave_path is None:
+            self._wave.set_peaks(None)
+            self.set_wave_overlay([], None)
+            return
+        self._load_wave()
+
+    def _load_wave(self):
+        if not self._wave_on or self._wave_path is None:
+            return
+        self._wave.set_peaks(self._wave_loader.request(Path(self._wave_path)))
+
+    def _on_wave_ready(self, key: str, peaks):
+        if key == self._wave_path:
+            self._wave.set_peaks(peaks)
+
+    def set_wave_overlay(self, silences_secs, fade_start_ms):
+        """The 🔇 spans the player skips and where the ⏳ fade-out begins (file
+        time, ms; None = no timed fade)."""
+        self._wave.set_silences(silences_secs)
+        self._wave.set_fade_start(fade_start_ms)
 
     def set_artwork(self, track: Path | None, playlist: Path | None = None):
         """The track now playing and the playlist it came from — the picture is
@@ -1537,6 +1594,7 @@ class BigPlayerWidget(QFrame):
         # The seek bar (and with it the -remaining readout) runs to the
         # actual end of playback, not the file's full length.
         self._slider.setRange(0, self._end_ms())
+        self._wave.set_span(self._end_ms(), self._dur)
 
     def _refresh_limit(self):
         if self._limit_ms and 0 < self._limit_ms < self._dur:
@@ -1553,8 +1611,10 @@ class BigPlayerWidget(QFrame):
     def set_pd_marks(self, marks_secs, armed_secs=None):
         """Draw the Paso Doble highlights on the seek bar. Highlights beyond
         the armed stop fall outside the bar's range and simply aren't shown."""
-        self._slider.set_marks([int(s * 1000) for s in (marks_secs or [])],
-                               int(armed_secs * 1000) if armed_secs else None)
+        marks = [int(s * 1000) for s in (marks_secs or [])]
+        armed = int(armed_secs * 1000) if armed_secs else None
+        self._slider.set_marks(marks, armed)
+        self._wave.set_marks(marks, armed)
 
     def set_next_up(self, text: str):
         """Show what plays after this title (⏭ …) or that the round ends here."""
@@ -1630,6 +1690,7 @@ class BigPlayerWidget(QFrame):
             self._slider.setValue(pos)
             self._slider.blockSignals(False)
             self._update_time(pos)
+        self._wave.set_position(pos)
 
     def _on_state(self, state):
         if self._pause_btn:
@@ -1673,6 +1734,7 @@ class BigPlayerWidget(QFrame):
             # the final stretch it is supposed to mark.
             if self._slider.styleSheet() != self._seek_end_qss:
                 self._slider.setStyleSheet(self._seek_end_qss)
+            self._wave.set_ending(True)     # 〰 red with it, just as steady
         elif not warn and self._flash.isActive() and not self._fading:
             self._stop_end_flash()
 
@@ -1699,15 +1761,24 @@ class BigPlayerWidget(QFrame):
 
     def _flash_step(self):
         self._flash_on = not self._flash_on
-        skin = self._fade_qss if self._fading else self._flash_qss
-        self.setStyleSheet(skin if self._flash_on else self._base_qss)
+        skin = "fade" if self._fading else "end"
+        self._set_skin(skin if self._flash_on else "")
+
+    def _set_skin(self, skin: str):
+        """Show the plain card (''), the red end warning ('end') or the orange
+        fade ('fade'); re-polishes the card alone, not its children."""
+        self.setProperty("flash", skin)
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self.update()
 
     def _stop_end_flash(self):
         self._flash.stop()
         self._flash_on = False
         self._fading = False
-        self.setStyleSheet(self._base_qss)
+        self._set_skin("")
         self._slider.setStyleSheet("")   # seek bar back to blue
+        self._wave.set_ending(False)
 
     # ── Controls ──
 
@@ -1720,6 +1791,19 @@ class BigPlayerWidget(QFrame):
     def _on_slider_released(self):
         self._dragging = False
         self._player.setPosition(self._slider.value())
+
+    def _on_wave_scrubbed(self, ms: int):
+        """A drag on the 〰 strip is a drag on the seek bar: the handle and
+        the times follow it, and playback ticks leave them alone."""
+        self._dragging = True
+        self._slider.blockSignals(True)
+        self._slider.setValue(ms)
+        self._slider.blockSignals(False)
+        self._update_time(ms)
+
+    def _on_wave_released(self, ms: int):
+        self._dragging = False
+        self._player.setPosition(ms)
 
     def _skip(self, delta_ms: int):
         dur = self._player.duration()

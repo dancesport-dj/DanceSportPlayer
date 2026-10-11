@@ -10,7 +10,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_presfit_"))
 
-from tests.qt_test_support import reap_widget   # noqa: E402
+from tests.qt_test_support import reap_widget
 
 
 def _app():

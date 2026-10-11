@@ -21,17 +21,17 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_appmode_"))
 
-from PySide6.QtTest import QTest  # noqa: E402
-from PySide6.QtWidgets import QApplication, QTabWidget  # noqa: E402
+from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QApplication, QTabWidget
 
-from gui import dialogs  # noqa: E402
-from planner import config  # noqa: E402
-from gui.dialogs import (  # noqa: E402
+from gui import dialogs
+from planner import config
+from gui.dialogs import (
     APP_MODES, PLAYER_FIRST_START, AppModeDialog, SettingsDialog, app_mode_of,
     app_title, ensure_app_mode,
 )
-from gui.main_persist import layout_settings  # noqa: E402
-from tests.qt_test_support import (  # noqa: E402
+from gui.main_persist import layout_settings
+from tests.qt_test_support import (
     reap_widget, stub_window_startup)
 
 
@@ -108,7 +108,7 @@ class ChooserDialogTest(_Qt):
         from PySide6.QtWidgets import QLabel
 
         texts = [lbl.text() for lbl in self._dlg().findChildren(QLabel)]
-        self.assertTrue(any("Paths & search" in t for t in texts), texts)
+        self.assertTrue(any("⚙ General" in t for t in texts), texts)
         self.assertFalse(any("&amp;" in t for t in texts), texts)
 
 
@@ -709,6 +709,20 @@ class ModeVisibilityTest(_ModeWindowCase):
         self.assertFalse(win._mode_row_w.isVisibleTo(win))
         self.assertTrue(win._is_playing_mode())
 
+    def test_the_check_menu_offers_the_planning_tools_only_where_they_belong(self):
+        """🚦 Check is on every toolbar; a tournament floor without the planner
+        gets Ready? alone — duplicates, music and paths fix a playlist."""
+        full = ["🚦  Ready?", "🔁  Check duplicates", "🎵  Check music",
+                "🧭  Fix paths"]
+        for mode, expected in (("both", full), ("planner", full),
+                               ("player", full[:1])):
+            with self.subTest(mode=mode):
+                win = self._win(mode)
+                self.assertTrue(win._check_btn.isVisibleTo(win))
+                texts = [a.text() for a in win._check_menu().actions()
+                         if not a.isSeparator()]
+                self.assertEqual(texts, expected)
+
     def test_player_only_can_still_reach_the_settings(self):
         """Without this the mode would be a one-way door: the ⚙ gear lives on
         the Planning panel, which is exactly what player-only hides. The
@@ -869,27 +883,27 @@ class CollapseButtonsTest(_ModeWindowCase):
 class PartyListNameTest(_ModeWindowCase):
     """What the party list is called, per mode."""
 
-    def test_the_party_list_drops_eintanzen_from_its_name_for_a_player(self):
-        """'Eintanzen' is what you do before a tournament — a player-only
+    def test_the_party_list_drops_practice_from_its_name_for_a_player(self):
+        """'Practice' is what you do before a tournament — a player-only
         install never prepares one, so there the panel is simply the party."""
         win = self._win("player")
         self.assertEqual(win._warmup_default_name(), "Party")
         for btn in (win._warmup_gen_btn, win._warmup_toggle_btn):
             self.assertIn("Party", btn.property("fullText"))
-            self.assertNotIn("Eintanzen", btn.property("fullText"))
+            self.assertNotIn("Practice", btn.property("fullText"))
         # Only the toggle is on screen here (the generator is planner-only), and
         # its tooltip is the one text that would still say the word.
-        self.assertNotIn("Eintanzen", win._warmup_toggle_btn.toolTip())
-        self.assertNotIn("Eintanzen",
+        self.assertNotIn("Practice", win._warmup_toggle_btn.toolTip())
+        self.assertNotIn("Practice",
                          win.deck(win._warmup_table).header.text())
 
     def test_the_party_list_keeps_both_names_where_both_happen(self):
         win = self._win("both")
-        self.assertEqual(win._warmup_default_name(), "Eintanzen / Party")
+        self.assertEqual(win._warmup_default_name(), "Practice / Party")
         self.assertEqual(win._warmup_gen_btn.property("fullText"),
-                         "🤸  Eintanzen / Party")
+                         "🤸  Practice / Party")
         self.assertEqual(win._warmup_toggle_btn.property("fullText"),
-                         "🤸  Eintanzen / Party ▾")
+                         "🤸  Practice / Party ▾")
 
     def test_the_two_warmup_buttons_stay_distinct_when_iconized(self):
         """Relabelling must not drop the toggle's ▾ — without it the two 🤸
@@ -902,7 +916,7 @@ class PartyListNameTest(_ModeWindowCase):
         win = self._win("player")
         win._settings["app_mode"] = "both"
         win._apply_app_mode()
-        self.assertIn("Eintanzen", win._warmup_toggle_btn.property("fullText"))
+        self.assertIn("Practice", win._warmup_toggle_btn.property("fullText"))
         self.assertEqual(win._warmup_toggle_btn.property("iconText"), "🤸▾")
 
 

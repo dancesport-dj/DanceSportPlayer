@@ -30,19 +30,24 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_pause_"))
 
-from PySide6.QtWidgets import QApplication, QWidget  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from PySide6.QtWidgets import QApplication, QWidget
+from tests.qt_test_support import reap_widget
 
-from player.mix import OutputMix  # noqa: E402
-from player.playback_state import PlaybackState  # noqa: E402
-from dancesport_planner import MusicEntry  # noqa: E402
-from gui.playlist_table import PlaylistTable, _COL_PLAY  # noqa: E402
-from gui.running_order import Row, RunningOrder  # noqa: E402
+from player.mix import OutputMix
+from player.playback_state import PlaybackState
+from dancesport_planner import MusicEntry
+from gui.playlist_table import PlaylistTable
+from gui.running_order import Row, RunningOrder
+
+
+_MUSIC = Path(tempfile.mkdtemp(prefix="dp_desk_pause_m_"))
 
 
 def _entry(name: str) -> MusicEntry:
-    return MusicEntry(path=Path(rf"C:\music\{name}.mp3"), title=name,
-                      dance="WW", bpm=29)
+    # On disk: a row whose file is missing shows ❗ instead of ▶.
+    path = _MUSIC / f"{name}.mp3"
+    path.write_bytes(b"x")
+    return MusicEntry(path=path, title=name, dance="WW", bpm=29)
 
 
 def _meta(name: str, h_idx: int) -> Row:
@@ -95,7 +100,7 @@ class _Deck(unittest.TestCase):
         return t
 
     def glyph(self, table, row: int) -> str:
-        return table.cellWidget(row, _COL_PLAY).text()
+        return table.play_glyph(row)
 
 
 class StopButtonTest(_Deck):
@@ -115,7 +120,7 @@ class StopButtonTest(_Deck):
         t._on_play_click(0, _entry("first").path)
         t._on_play_click(0, _entry("first").path)
         self.assertEqual(t.window()._big_player.toggles, 2)
-        self.assertEqual(self.played, [Path(r"C:\music\first.mp3")])
+        self.assertEqual(self.played, [_MUSIC / "first.mp3"])
 
     def test_planning_still_stops(self):
         t = self.deck(desk=False)
@@ -140,7 +145,7 @@ class StopButtonTest(_Deck):
         t._on_play_click(0, _entry("first").path)
         self.played.clear()
         t._on_play_click(1, _entry("second").path)
-        self.assertEqual(self.played, [Path(r"C:\music\second.mp3")])
+        self.assertEqual(self.played, [_MUSIC / "second.mp3"])
         self.assertEqual(t.window()._big_player.toggles, 0)
         self.assertEqual(self.glyph(t, 0), "▶")
 
@@ -231,7 +236,7 @@ class CuedRowTest(_Deck):
     def test_clicking_the_cued_row_starts_it(self):
         t = self.cued()
         t._on_play_click(0, _entry("first").path)
-        self.assertEqual(self.played, [Path(r"C:\music\first.mp3")],
+        self.assertEqual(self.played, [_MUSIC / "first.mp3"],
                          "a cued title must start, not be unloaded")
         self.assertEqual(t._current_play_row, 0)
         self.assertEqual(self.glyph(t, 0), "■")

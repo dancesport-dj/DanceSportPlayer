@@ -16,12 +16,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_error_reports_"))
 
-from PySide6.QtWidgets import QApplication, QDialog  # noqa: E402
+from PySide6.QtWidgets import QApplication, QDialog
 
-import dancesport_gui as gui  # noqa: E402
-from gui import main_global  # noqa: E402
-from shared import error_reports  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+import dancesport_gui as gui
+from gui import main_global
+from shared import error_reports
+from tests.qt_test_support import reap_widget
 
 
 class SettingsCheckboxTest(unittest.TestCase):

@@ -56,6 +56,31 @@ _WARMUP_MIN_ROUNDS = 3
 
 
 # ── M3U Export ─────────────────────────────────────────────────────────────────
+# The file format every export writes (⚙ Settings → Paths), key → (encoding,
+# extension). Plain UTF-8 is what current players read; the BOM is for Windows
+# tools that guess ANSI without one, and .m3u8 says UTF-8 in the name itself.
+M3U_FORMATS = {
+    "utf-8": ("utf-8", ".m3u"),
+    "utf-8-sig": ("utf-8-sig", ".m3u"),
+    "m3u8": ("utf-8", ".m3u8"),
+}
+_m3u_format = "utf-8"
+
+
+def set_m3u_format(key) -> None:
+    """Point the exports at the ⚙ setting; anything unknown → plain UTF-8."""
+    global _m3u_format
+    _m3u_format = key if key in M3U_FORMATS else "utf-8"
+
+
+def m3u_encoding() -> str:
+    return M3U_FORMATS[_m3u_format][0]
+
+
+def m3u_suffix() -> str:
+    return M3U_FORMATS[_m3u_format][1]
+
+
 def export_m3u(playlist: Playlist, dances: list[str], basename: str,
                dance_class: str = "C", timestamp: bool = True,
                progress_cb: Callable[[int, int, str], None] | None = None,
@@ -69,12 +94,12 @@ def export_m3u(playlist: Playlist, dances: list[str], basename: str,
     else:
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
         ts  = datetime.now().strftime("%Y%m%d_%H%M_") if timestamp else ""
-        out = OUTPUT_DIR / f"{ts}{basename}.m3u"
+        out = OUTPUT_DIR / f"{ts}{basename}{m3u_suffix()}"
 
     total = sum(1 for heats in playlist.values() for heat in heats
                 for e in heat if e is not None)
     done  = 0
-    with replacing_text(out) as f:
+    with replacing_text(out, encoding=m3u_encoding()) as f:
         f.write("#EXTM3U\n")
         for round_name, heats in playlist.items():
             f.write(f"\n# ══ {round_name} ({len(heats)} {'Heat' if len(heats)==1 else 'Heats'}) ══\n")
@@ -122,10 +147,10 @@ def export_flat_m3u(entries: list[MusicEntry], basename: str,
         target_dir = Path(out_dir) if out_dir is not None else OUTPUT_DIR
         target_dir.mkdir(parents=True, exist_ok=True)
         ts  = datetime.now().strftime("%Y%m%d_%H%M_") if timestamp else ""
-        out = target_dir / f"{ts}{basename}.m3u"
+        out = target_dir / f"{ts}{basename}{m3u_suffix()}"
     total = len(entries)
     round_at = _flat_round_starts(entries)
-    with replacing_text(out) as f:
+    with replacing_text(out, encoding=m3u_encoding()) as f:
         f.write("#EXTM3U\n")
         for i, e in enumerate(entries, 1):
             name = round_at.get(i - 1)
@@ -185,7 +210,10 @@ def numbered_folder_m3u(m3u_path: Path,
     import shutil
 
     folder = Path(m3u_path).parent
-    lines = Path(m3u_path).read_text(encoding="utf-8").splitlines()
+    # Written back in what it was read in: a BOM is kept, and not read as a
+    # track line.
+    text, encoding = read_playlist_text(m3u_path)
+    lines = text.splitlines()
     total = sum(1 for ln in lines
                 if ln.strip() and not ln.lstrip().startswith("#"))
     copied: list[Path] = []
@@ -225,7 +253,7 @@ def numbered_folder_m3u(m3u_path: Path,
         shutil.copy2(src, folder / name)
         copied.append(folder / name)
         lines[i] = name
-    with replacing_text(Path(m3u_path)) as f:
+    with replacing_text(Path(m3u_path), encoding=encoding) as f:
         f.write("\n".join(lines) + "\n")
     return copied, missing
 
@@ -332,14 +360,9 @@ def _resolve_import_path(path_str: str, lib: MusicLibrary, cache: AudioCache,
     p = Path(path_str)
     if base is not None and not p.is_absolute() and not _ROOTED_LINE_RE.match(path_str):
         p = base / p
-    target = str(p)
-    for ent in lib.entries:
-        if str(ent.path) == target:
-            return ent, True, None
-    tl = path_key(target)
-    for ent in lib.entries:
-        if path_key(ent.path) == tl:
-            return ent, True, None
+    ent = lib.entry_for(p)    # exact, then case-folded — off the path index
+    if ent is not None:
+        return ent, True, None
     try:
         if p.is_file():
             return lib.make_external_entry(p, cache), True, None
@@ -348,10 +371,9 @@ def _resolve_import_path(path_str: str, lib: MusicLibrary, cache: AudioCache,
     if remapper is not None:
         hit = remapper.remap(path_str)
         if hit is not None:
-            hl = path_key(hit)
-            for ent in lib.entries:
-                if path_key(ent.path) == hl:
-                    return ent, True, hit
+            ent = lib.entry_for(hit)
+            if ent is not None:
+                return ent, True, hit
             try:
                 return lib.make_external_entry(hit, cache), True, hit
             except Exception:

@@ -22,6 +22,13 @@ class PlaylistEncodingError(ValueError):
     """A playlist that is neither UTF-8 nor cp1252 (nor UTF-16 with a BOM)."""
 
 
+def playlist_files(root: Path) -> list[Path]:
+    """Every .m3u and .m3u8 under `root`, sorted — the exports can write
+    either (⚙ Settings → Paths), and a glob for '*.m3u' misses the second."""
+    return sorted(p for p in Path(root).rglob("*.m3u*")
+                  if p.suffix.lower() in (".m3u", ".m3u8"))
+
+
 def read_playlist_text(path) -> tuple[str, str]:
     """The text of the playlist at `path` and the encoding it was read in —
     the one to write it back in. Raises PlaylistEncodingError."""

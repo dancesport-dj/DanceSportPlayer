@@ -12,15 +12,15 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_look_icons_"))
 
-from PySide6.QtCore import Qt  # noqa: E402
-from PySide6.QtGui import QAction  # noqa: E402
-from PySide6.QtWidgets import (  # noqa: E402
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QAction
+from PySide6.QtWidgets import (
     QApplication, QCheckBox, QGroupBox, QLabel, QMenu, QPushButton, QTabWidget,
     QToolButton, QWidget)
 
-from planner import i18n  # noqa: E402
-from shared import icons, look_icons, looks, theme  # noqa: E402
-from tests.qt_test_support import reap_widget, stub_window_startup  # noqa: E402
+from planner import i18n
+from shared import icons, look_icons, looks, theme
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 LOOK = "midnight" if "midnight" in looks.LOOKS else next(iter(looks.LOOKS))
 

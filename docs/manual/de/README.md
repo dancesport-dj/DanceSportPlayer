@@ -20,13 +20,15 @@ mit `py -m tools.build_manual_html` neu.
 3. [Playlists](03-playlists.md): die Decks als Ablaufpläne, der
    Party-Bereich, Wunschlisten, `.m3u`-Playlists laden und speichern, und
    Playlists von einem anderen PC.
-4. [Den Abend fahren](04-playing.md): die Player-Karte, der
-   Wiedergabe-Bereich, Abspiel-Sets, Ansagen, der Paso-Doble-Stopp, die
-   Cartwall und der Präsentationsbildschirm.
+4. [Den Abend fahren](04-playing.md): der Check 🚦 Bereit?, die
+   Player-Karte und ihre Wellenform, der Wiedergabe-Bereich, Abspiel-Sets,
+   Ansagen, der Paso-Doble-Stopp, die Cartwall, der Präsentationsbildschirm,
+   die 📱 Handy-Fernbedienung und ein 🎛 Hardware-Controller.
 5. [Tags](05-tags.md): der 🏷 Tag-Editor, ★ Bewertungen, das Feld *Custom*
    und Tags in die MP3 schreiben.
-6. [Einstellungen](06-settings.md): Pfade, das Aussehen (Themes, eigene
-   Looks, Akzentfarbe, Sprache), Analyse und Abspiel-Sets.
+6. [Einstellungen](06-settings.md): die Reiter der Reihe nach: Allgemein,
+   Pfade, das Aussehen (Themes, eigene Looks, Akzentfarbe, Sprache), Ton,
+   Analyse, Spiel-Sets und das 📦 Hallenpaket.
 7. [Tastatur und Maus](07-shortcuts.md): alle Tastenkürzel in einer Liste.
 
 Installation und Konfigurationsdateien beschreibt die
@@ -42,13 +44,15 @@ Installation und Konfigurationsdateien beschreibt die
   Detail knapp ist, fahr mit der Maus darüber.
 - **F1** öffnet in der App die Übersicht aller Tastenkürzel. Es ist dieselbe
   Liste wie in [Kapitel 7](07-shortcuts.md).
-- Die App gibt es auf Deutsch und Englisch (⚙ Einstellungen ▸ 🎨 Aussehen).
-  Die Bilder zeigen die englische Oberfläche. Dort sind auch die Tanz- und
-  Rundennamen englisch: *Slow Waltz*, *Round 1*, *Final*. Mit dem Haken
-  **Deutsche Tanz- und Rundennamen auch in der englischen Oberfläche** unter
-  der Sprache bleiben es *Langsamer Walzer*, *Vorrunde*, *Finale*; der
-  Präsentationsbildschirm und die aufgenommenen Ansagen sind dann ebenfalls
-  deutsch. Playlists und Exporte behalten die deutschen Wörter in jedem Fall.
+- Die App spricht Deutsch, Englisch, Spanisch, Niederländisch und Russisch
+  (⚙ Einstellungen ▸ 🎨 Aussehen ▸ 🌐 Sprache). Die Bilder zeigen die
+  englische Oberfläche. In einer nicht deutschen Oberfläche folgen auch die
+  Tanz- und Rundennamen der Sprache: *Slow Waltz*, *Round 1*, *Final*. Mit
+  dem Haken **Deutsche Tanz- und Rundennamen auch in einer anderssprachigen
+  Oberfläche** unter der Sprache bleiben es *Langsamer Walzer*, *Vorrunde*,
+  *Finale*; der Präsentationsbildschirm und die aufgenommenen Ansagen sind
+  dann ebenfalls deutsch, und eine Eintanzliste heißt *Eintanzen*. Playlists
+  und Exporte behalten die deutschen Tanz- und Rundennamen in jedem Fall.
 
 ## Begriffe
 

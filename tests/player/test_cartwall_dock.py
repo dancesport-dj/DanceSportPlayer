@@ -22,13 +22,13 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_cartdock_"))
 
-from PySide6.QtCore import Qt  # noqa: E402
-from PySide6.QtWidgets import (  # noqa: E402
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
     QApplication, QDockWidget, QMainWindow)
-from tests.qt_test_support import reap_widget  # noqa: E402
+from tests.qt_test_support import reap_widget
 
-from player import cartwall as gc  # noqa: E402
-from player.main_cartwall import CART_DOCK, CartwallMixin  # noqa: E402
+from player import cartwall as gc
+from player.main_cartwall import CART_DOCK, CartwallMixin
 
 _app = QApplication.instance() or QApplication(sys.argv)
 

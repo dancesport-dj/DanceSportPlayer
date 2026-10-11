@@ -25,11 +25,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_keys_i18n_"))
 
-from gui.shortcuts import shortcut_rows, shortcut_sheet_html  # noqa: E402
-from planner import i18n  # noqa: E402
+from gui.shortcuts import shortcut_rows, shortcut_sheet_html
+from planner import i18n
 
 # Left halves that read the same on a German keyboard as on an English one.
-_SAME_IN_BOTH = {"F1", "Esc", "🎛  Cartwall"}
+_SAME_IN_BOTH = {"F1", "F11", "Esc", "🎛  Cartwall"}
 
 
 class ShortcutRowsI18nTest(unittest.TestCase):

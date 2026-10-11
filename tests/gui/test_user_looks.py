@@ -14,9 +14,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_user_looks_"))
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication
 
-from shared import looks, theme, user_looks  # noqa: E402
+from shared import looks, theme, user_looks
 
 
 class _Clean(unittest.TestCase):

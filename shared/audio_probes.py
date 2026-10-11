@@ -183,6 +183,26 @@ def decode_pcm_mono(path: Path, sr: int = 22050):
     return np.frombuffer(raw[:len(raw) - len(raw) % 4], dtype="<f4")
 
 
+def waveform_peaks(samples, bins: int) -> list[float]:
+    """The loudest sample of each of `bins` equal slices, scaled so the
+    loudest slice is 1.0 — the outline the player card's 〰 strip draws.
+
+    Fewer samples than bins gives one slice per sample; no samples, no peaks;
+    digital silence stays flat instead of dividing by zero."""
+    import numpy as np
+
+    x = np.abs(np.asarray(samples, dtype=np.float32))
+    if x.size == 0 or bins <= 0:
+        return []
+    bins = min(bins, x.size)
+    starts = np.linspace(0, x.size, bins + 1).astype(int)[:-1]
+    peaks = np.maximum.reduceat(x, starts)
+    top = float(peaks.max())
+    if top <= 0:
+        return [0.0] * bins
+    return [round(float(v), 4) for v in peaks / top]
+
+
 def _rms_envelope(y, frame_length: int = 2048, hop_length: int = 512):
     """Per-frame RMS of `y` — what `librosa.feature.rms` returns for its own
     defaults, reproduced so the highlight thresholds below keep their meaning.

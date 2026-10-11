@@ -20,9 +20,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_card_"))
 
-from PySide6.QtWidgets import QApplication, QScrollArea  # noqa: E402
+from PySide6.QtWidgets import QApplication, QScrollArea
 
-from tests.qt_test_support import (  # noqa: E402
+from tests.qt_test_support import (
     reap_widget, stub_window_startup)
 
 

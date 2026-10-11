@@ -14,12 +14,12 @@ import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import QCoreApplication, QEvent  # noqa: E402
-from PySide6.QtWidgets import QApplication, QWidget  # noqa: E402
+from PySide6.QtCore import QCoreApplication, QEvent
+from PySide6.QtWidgets import QApplication, QWidget
 
-from gui.duplicate_dialog import DuplicateResolveDialog  # noqa: E402
-from gui.main_dupes import DuplicateCheckMixin  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from gui.duplicate_dialog import DuplicateResolveDialog
+from gui.main_dupes import DuplicateCheckMixin
+from tests.qt_test_support import reap_widget
 
 
 class _Win(QWidget, DuplicateCheckMixin):

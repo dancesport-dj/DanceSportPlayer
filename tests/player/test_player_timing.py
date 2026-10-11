@@ -4,11 +4,12 @@ recorded clips it is made from."""
 import random
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from player import announce
 from shared.playback import audible_played_secs
-from player.announce import (DanceAnnouncer, announce_clips, announce_parts,
+from player.announce import (DanceAnnouncer, announce_clips,
                           announce_text, clip_bounds, clip_genders,
                           clip_language, parse_bounds, pick_clip_gender)
 from planner import i18n, terms
@@ -82,36 +83,17 @@ class AnnounceTextTest(_HallLanguage):
         self.assertEqual(announce_text("JI"), "Nächster Tanz: Jive")
         self.assertEqual(announce_text("CC"), "Nächster Tanz: Tscha Tscha")
 
-    def test_every_fragment_is_spoken_german(self):
+    def test_every_name_is_spoken_german(self):
         # One voice on the microphone, foreign dance names included.
-        self.assertEqual(announce_parts("JI"),
-                         [("Nächster Tanz:", "de"), ("Jive", "de")])
-        self.assertEqual(announce_parts("LW"),
-                         [("Nächster Tanz:", "de"), ("Langsamer Walzer", "de")])
-
-    def test_the_takt_is_a_fragment_of_its_own(self):
-        self.assertEqual(announce_parts("PD", 60),
-                         [("Nächster Tanz:", "de"), ("Paso doble", "de"),
-                          ("60 Takte", "de")])
+        self.assertEqual(announce.spoken_name("JI"), ("Jive", "de"))
+        self.assertEqual(announce.spoken_name("LW"), ("Langsamer Walzer", "de"))
 
     def test_over_the_music_drops_the_framing(self):
-        self.assertEqual(announce_parts("WW", now=True),
-                         [("Wiener Walzer", "de")])
+        self.assertEqual(announce_text("WW", now=True), "Wiener Walzer")
 
-    def test_takt_suffix_only_when_asked(self):
-        self.assertEqual(announce_text("WW", 60), "Nächster Tanz: Wiener Walzer, 60 Takte")
-        self.assertEqual(announce_text("WW"), "Nächster Tanz: Wiener Walzer")
-        self.assertEqual(announce_text("WW", 0), "Nächster Tanz: Wiener Walzer")
-
-    def test_the_heat_is_a_fragment_of_its_own(self):
-        self.assertEqual(announce_parts("LW", heat=3),
-                         [("Nächster Tanz:", "de"), ("Langsamer Walzer", "de"),
-                          ("Heat 3", "de")])
-
-    def test_the_heat_comes_before_the_takt(self):
-        # The floor is waiting for the heat; the takt is the trailing extra.
-        self.assertEqual(announce_text("LW", 29, heat=2),
-                         "Nächster Tanz: Langsamer Walzer, Heat 2, 29 Takte")
+    def test_the_heat_follows_the_dance(self):
+        self.assertEqual(announce_text("LW", heat=3),
+                         "Nächster Tanz: Langsamer Walzer, Heat 3")
 
     def test_heat_suffix_only_when_asked(self):
         self.assertEqual(announce_text("WW"), "Nächster Tanz: Wiener Walzer")
@@ -130,20 +112,19 @@ class EnglishAnnounceTextTest(_HallLanguage):
 
     def test_an_english_hall_hears_an_english_sentence(self):
         self.hall("en")
-        self.assertEqual(announce_text("LW", 29, heat=2),
-                         "Next dance: Slow Waltz, Heat 2, 29 bars")
+        self.assertEqual(announce_text("LW", heat=2),
+                         "Next dance: Slow Waltz, Heat 2")
 
-    def test_every_fragment_is_spoken_english(self):
+    def test_every_name_is_spoken_english(self):
         self.hall("en")
-        self.assertEqual(announce_parts("JI", heat=3),
-                         [("Next dance:", "en"), ("Jive", "en"), ("Heat 3", "en")])
+        self.assertEqual(announce.spoken_name("JI"), ("Jive", "en"))
 
     def test_english_names_are_written_plainly(self):
         # The German respellings ("Tscha Tscha", "Ruhmba") are for a German voice.
         self.hall("en")
-        self.assertEqual(announce_parts("CC", now=True), [("ChaCha", "en")])
-        self.assertEqual(announce_parts("RB", now=True), [("Rumba", "en")])
-        self.assertEqual(announce_parts("FORRO", now=True), [("Forro", "en")])
+        self.assertEqual(announce_text("CC", now=True), "ChaCha")
+        self.assertEqual(announce_text("RB", now=True), "Rumba")
+        self.assertEqual(announce_text("FORRO", now=True), "Forro")
 
     def test_missing_code_still_says_something_in_english(self):
         self.hall("en")
@@ -325,6 +306,15 @@ class ClipLanguageTest(unittest.TestCase):
         i18n.set_active("de")
         terms.apply_settings({})
         self.assertEqual(clip_language(), "german")
+
+    def test_a_hall_without_its_own_voice_is_announced_in_english(self):
+        """Spanish, Dutch, Russian: no recorded clips, no sentence table and
+        no voice on the PC — the international English names it is."""
+        terms.apply_settings({})
+        with mock.patch.object(terms, "hall_language", return_value="es"):
+            self.assertEqual(clip_language(), "english")
+            self.assertEqual(announce.spoken_name("LW"), ("Slow Waltz", "en"))
+            self.assertTrue(announce_text("TG").startswith("Next dance:"))
 
 
 class _Deck:
@@ -537,8 +527,8 @@ class AnnouncerClipRunTest(_ClipRunBase):
         self.assertEqual(self.ducked, [True])
 
     def test_a_dance_never_recorded_is_not_read_by_the_synthesiser(self):
-        # Only the takt still goes to the Windows voice; a dance without a
-        # clip is left unannounced rather than read by it.
+        # A dance without a clip is left unannounced rather than read by the
+        # Windows voice.
         said = []
 
         class _Tts:

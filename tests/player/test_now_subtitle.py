@@ -18,11 +18,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_subtitle_"))
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication
 
-from gui.playlist_table import PlaylistTable  # noqa: E402
-from tests.player.test_pitch_gap import _Desk, _entry  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from gui.playlist_table import PlaylistTable
+from tests.player.test_pitch_gap import _Desk, _entry
+from tests.qt_test_support import reap_widget
 
 
 class NowSubtitleTest(unittest.TestCase):

@@ -27,7 +27,8 @@ def p(name):
 
 
 def table(rows, **kw):
-    t = SimpleNamespace(_row_meta=rows, _marked_paths=set(), _dynamic=False,
+    t = SimpleNamespace(_row_meta=rows, _marked_paths=set(), _pinned_paths=set(),
+                        _dynamic=False,
                         _dynamic_dances=[], _dynamic_capacity=[],
                         _use_timbre=True)
     for k, v in kw.items():

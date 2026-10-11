@@ -28,19 +28,24 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_wedit_"))
 
-from PySide6.QtGui import QColor  # noqa: E402
-from PySide6.QtWidgets import QApplication, QWidget  # noqa: E402
+from PySide6.QtGui import QColor
+from PySide6.QtWidgets import QApplication, QWidget
 
-from gui.common import _C_ROW_EVEN, _C_ROW_ODD  # noqa: E402
+from gui.common import _C_ROW_EVEN, _C_ROW_ODD
 from shared.columns import _COL_PLAY, _COL_TITLE
-from gui.playlist_table import PlaylistTable  # noqa: E402
-from planner.models import MusicEntry  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from gui.playlist_table import PlaylistTable
+from planner.models import MusicEntry
+from tests.qt_test_support import reap_widget
+
+
+# Real files: a row whose file is not on disk is painted light red.
+_MUSIC = Path(tempfile.mkdtemp(prefix="dp_wedit_music_"))
 
 
 def _e(dance, n, secs=150):
-    return MusicEntry(path=Path(rf"C:\music\{dance}{n}.mp3"), title=f"{dance} {n}",
-                      dance=dance, duration=secs)
+    path = _MUSIC / f"{dance}{n}.mp3"
+    path.write_bytes(b"x")
+    return MusicEntry(path=path, title=f"{dance} {n}", dance=dance, duration=secs)
 
 
 class _Win(QWidget):
@@ -78,9 +83,9 @@ class _EditTest(unittest.TestCase):
                 for r in sorted(self.table._round_hdr_rows)]
 
     def buttons(self):
-        """The play button of every song row, by title — the objects a rebuild
-        would throw away and make again."""
-        return {m.entry.title: self.table.cellWidget(r, _COL_PLAY)
+        """The play button item of every song row, by title — the objects a
+        rebuild would throw away and make again."""
+        return {m.entry.title: self.table.item(r, _COL_PLAY)
                 for r, m in self.table._row_meta.numbered()}
 
     def stripes(self):

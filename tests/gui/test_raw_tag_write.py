@@ -19,15 +19,15 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_raw_tags_"))
 
-from mutagen.id3 import ID3, POPM, TIT2, TPE1, TXXX  # noqa: E402
-from PySide6.QtCore import QUrl  # noqa: E402
-from PySide6.QtMultimedia import QMediaPlayer  # noqa: E402
+from mutagen.id3 import ID3, POPM, TIT2, TPE1, TXXX
+from PySide6.QtCore import QUrl
+from PySide6.QtMultimedia import QMediaPlayer
 
-import planner.db as pdb  # noqa: E402
-from dancesport_planner import MusicLibrary, PlaylistSuggester, RoundConfig  # noqa: E402
-from planner import tag_edits  # noqa: E402
-from planner.db import AudioCache  # noqa: E402
-from tests.qt_test_support import reap_widget, stub_window_startup  # noqa: E402
+import planner.db as pdb
+from dancesport_planner import MusicLibrary, PlaylistSuggester, RoundConfig
+from planner import tag_edits
+from planner.db import AudioCache
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 _AUDIO = b"\xff\xfb\x90\x00" + bytes(range(256)) * 40
 

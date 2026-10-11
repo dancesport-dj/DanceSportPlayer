@@ -22,9 +22,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_warmsrc_"))
 
-from gui import main_generate as gen  # noqa: E402
-from gui.main_dupes import DuplicateCheckMixin  # noqa: E402
-from planner.models import MusicEntry  # noqa: E402
+from gui import main_generate as gen
+from gui.main_dupes import DuplicateCheckMixin
+from planner.models import MusicEntry
 
 
 def _entry(name, folder="lateincd/SA"):

@@ -235,6 +235,8 @@ def _id3_of(path: Path, tags=_UNREAD):
     try:
         return ID3(path)
     except Exception:
+        log.debug("🏷 No ID3 tag read\n"
+                  "file: %s", path, exc_info=True)
         return None
 
 
@@ -251,6 +253,8 @@ def _read_tags_once(path: Path) -> tuple:
     try:
         audio = MutagenFile(path)
     except Exception:
+        log.debug("🏷 Mutagen could not open the file\n"
+                  "file: %s", path, exc_info=True)
         audio = None
     secs = 0
     if audio is not None and audio.info is not None:
@@ -268,6 +272,8 @@ def _read_id3v1_comment(path: Path) -> str | None:
             f.seek(-128, 2)
             tag = f.read(128)
     except Exception:
+        log.debug("🏷 No ID3v1 tail read\n"
+                  "file: %s", path, exc_info=True)
         return None
     if len(tag) != 128 or tag[:3] != b'TAG':
         return None
@@ -570,7 +576,8 @@ def _get_raw_genre_tag(path: Path, tags=_UNREAD) -> str | None:
         if 'TCON' in tags:
             return str(tags['TCON']).strip()
     except Exception:
-        pass
+        log.debug("🏷 Genre tag unreadable\n"
+                  "file: %s", path, exc_info=True)
     return None
 
 
@@ -586,7 +593,8 @@ def _read_duration(path: Path) -> int:
         if audio is not None and audio.info is not None:
             return int(round(audio.info.length))
     except Exception:
-        pass
+        log.debug("⏱ No length from the header\n"
+                  "file: %s", path, exc_info=True)
     return 0
 
 
@@ -612,6 +620,7 @@ def popm_stars(tags) -> int | None:
     try:
         frames = tags.getall('POPM')
     except Exception:
+        log.debug("⭐ Rating frames unreadable", exc_info=True)
         return None
     rated = [f for f in frames if getattr(f, 'rating', 0)]
     if not rated:
@@ -634,6 +643,8 @@ def _get_title_artist_tags(path: Path, tags=_UNREAD) -> tuple[str | None, str | 
         album = str(tags['TALB']).strip() if 'TALB' in tags else None
         return (title or None), (artist or None), (album or None)
     except Exception:
+        log.debug("🏷 Title/artist/album tags unreadable\n"
+                  "file: %s", path, exc_info=True)
         return None, None, None
 
 
@@ -649,6 +660,8 @@ def _get_tag_bpm(path: Path) -> float | None:
             val = str(tags['TBPM']).strip()
             return float(val) if val else None
     except Exception:
+        log.debug("🥁 BPM tag unreadable\n"
+                  "file: %s", path, exc_info=True)
         return None
     return None
 
@@ -667,7 +680,8 @@ def _detect_year(name: str, path: Path, tags=_UNREAD) -> int | None:
                     if m:
                         return int(m.group(1))
         except Exception:
-            pass
+            log.debug("📅 Year tag unreadable\n"
+                      "file: %s", path, exc_info=True)
     m = _YEAR_PAT.search(name)
     return int(m.group(1)) if m else None
 

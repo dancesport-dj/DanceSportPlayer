@@ -17,10 +17,10 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_cfgpanel_"))
 
-from PySide6.QtWidgets import QApplication, QPushButton  # noqa: E402
+from PySide6.QtWidgets import QApplication, QPushButton
 
-from gui.config_panel import ConfigPanel, mark_index_gaps  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from gui.config_panel import ConfigPanel, mark_index_gaps
+from tests.qt_test_support import reap_widget
 
 
 class DanceSelectionTest(unittest.TestCase):

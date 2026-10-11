@@ -7,7 +7,7 @@ from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from player.artwork import cover, embedded_art, placeholder, playlist_art  # noqa: E402
+from player.artwork import cover, embedded_art, placeholder, playlist_art
 
 
 def _app():

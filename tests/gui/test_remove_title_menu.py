@@ -24,13 +24,13 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_rmmenu_"))
 
-from PySide6.QtCore import QPoint  # noqa: E402
-from PySide6.QtGui import QContextMenuEvent  # noqa: E402
-from PySide6.QtWidgets import QApplication, QMenu, QWidget  # noqa: E402
+from PySide6.QtCore import QPoint
+from PySide6.QtGui import QContextMenuEvent
+from PySide6.QtWidgets import QApplication, QMenu, QWidget
 
-from gui import table_actions  # noqa: E402
-from planner.models import MusicEntry  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from gui import table_actions
+from planner.models import MusicEntry
+from tests.qt_test_support import reap_widget
 
 SONGS = [MusicEntry(path=Path(rf"C:\music\tanzcds\LW{i}.mp3"),
                     title=f"LW {i}", dance="LW", duration=180)

@@ -15,11 +15,12 @@ from collections import deque
 from collections import defaultdict
 from pathlib import Path
 import re
-from typing import Any
+from typing import Any, NamedTuple
 from collections.abc import Callable
 from planner.config import (  # auto-resolved
     MUSIC_DIR,
     PLAYLIST_DIR,
+    folders_below,
 )
 from planner.db import (  # auto-resolved
     AudioCache,
@@ -79,7 +80,7 @@ from planner.competition import (  # auto-resolved
 from planner.warmup import (  # auto-resolved
     others_dance_from_path,
 )
-from planner.playlist_text import PlaylistEncodingError, read_playlist_text
+from planner.playlist_text import PlaylistEncodingError, playlist_files, read_playlist_text
 
 log = logging.getLogger("dancesport.library")
 
@@ -100,8 +101,7 @@ _ANCHOR_DEFAULT: Any = object()
 def _is_warmup_list_name(name: str) -> bool:
     """Playlist / folder names that mark warm-up, party or seasonal lists — those
     never count for popularity or co-occurrence."""
-    low = name.lower()
-    return any(k in low for k in ('eintanzen', 'party', 'weihn', 'christmas', 'xmas'))
+    return is_side_list(name)
 
 
 # (path, "mtime:size") for one file under the playlist dir.
@@ -132,7 +132,8 @@ def _playlist_tree() -> tuple[list[_TreeFile], list[_TreeFile]]:
                     stack.append(de.path)
                     continue
                 low = de.name.lower()
-                bucket = m3us if low.endswith(".m3u") else mp3s if low.endswith(".mp3") else None
+                bucket = (m3us if low.endswith((".m3u", ".m3u8"))
+                          else mp3s if low.endswith(".mp3") else None)
                 if bucket is not None:
                     st = de.stat()
                     bucket.append((Path(de.path), f"{st.st_mtime_ns}:{st.st_size}"))
@@ -143,7 +144,8 @@ def _playlist_tree() -> tuple[list[_TreeFile], list[_TreeFile]]:
     return m3us, mp3s
 
 
-def _library_mp3s(root: Path) -> list[tuple[Path, float]]:
+def _library_mp3s(root: Path,
+                  mtimes: dict[str, int] | None = None) -> list[tuple[Path, float]]:
     """Every .mp3 under `root` with the time it was created (breadth-first).
 
     Same trick as `_playlist_tree`: a Windows directory entry already carries the
@@ -152,6 +154,7 @@ def _library_mp3s(root: Path) -> list[tuple[Path, float]]:
     and the creation time comes along for free. That time is what the 🆕 "Added"
     column shows: a copied file gets a fresh creation time at its destination,
     while its mtime still carries whenever the tags were last written.
+    `mtimes`, when given, receives that mtime per path, for the scan's cache keys.
     """
     out: list[tuple[Path, float]] = []
     queue = deque([str(root)])
@@ -171,6 +174,8 @@ def _library_mp3s(root: Path) -> list[tuple[Path, float]]:
                     # elsewhere st_ctime is the closest thing on offer.
                     out.append((Path(de.path),
                                 getattr(st, "st_birthtime", None) or st.st_ctime))
+                    if mtimes is not None:
+                        mtimes[de.path] = int(st.st_mtime)
             except OSError:
                 continue
     return out
@@ -197,6 +202,11 @@ _FINAL_STAGE = 60
 # dances. A one- or two-line list has a "last round without a repeated dance"
 # too, and it says nothing at all about who danced a final.
 _FINAL_MIN_DANCES = 3
+
+# ⏱ A cached duration of 0 means "never probed" (rows from before the column),
+# so a header that gives no length is cached as this instead, or it would be
+# probed again on every start. MusicEntry turns it back into 0.
+_NO_LENGTH = -1
 
 
 def _split_last_round(lines: list[str], dances: list[str | None],
@@ -247,9 +257,23 @@ def _dq(dance: str | None, key: str) -> str:
 
 
 
+# What `_apply_popularity` sets on an entry — copied over by `adopt_playlist_index`.
+_POPULARITY_FIELDS = ("popularity", "class_plays", "final_plays", "semi_plays",
+                      "last_played", "source_info")
+
+
+class LearnedPlaylistIndex(NamedTuple):
+    """A playlist index built off the library (`learn_playlist_index`), waiting
+    to be swapped in (`adopt_playlist_index`)."""
+    count: int                       # playlists analyzed
+    scratch: "MusicLibrary"          # holds the new index dicts
+    values: list[tuple[MusicEntry, dict[str, Any]]]   # entry → popularity fields
+
+
 # ── Music Library ──────────────────────────────────────────────────────────────
 class MusicLibrary:
     def __init__(self):
+        self._entries_version = 0
         self.entries: list[MusicEntry] = []
         # normalised path → set of playlist ids it appears in (for co-occurrence)
         self._track_playlists: dict[str, set[str]] = defaultdict(set)
@@ -269,10 +293,10 @@ class MusicLibrary:
         # playlist line → its co-occurrence keys, see `_line_keys`.
         self._line_key_memo: dict[str, set[str]] = {}
         # path → entry, built lazily by `_path_index` and rebuilt whenever
-        # `entries` changes length (a scan, a cache load, an append).
+        # `entries` is replaced or changes length (a scan, a cache load, an append).
         self._by_path: dict[str, MusicEntry] = {}
         self._by_path_ci: dict[str, MusicEntry] = {}
-        self._path_idx_n = -1
+        self._path_idx_key: tuple[int, int] | None = None
         # Reused across make_external_entry() calls so restoring a playlist full
         # of external tracks doesn't reload the whole scan_meta table per track.
         self._scan_cache: ScanCache | None = None
@@ -305,6 +329,16 @@ class MusicLibrary:
         interactive  – False (GUI): never block on stdin prompts; missing-feature
                        analysis is deferred to the caller (see analyze_missing).
         """
+        try:
+            self._scan(cache, music_dir, skip_special, learn, analyze, global_cache,
+                       progress_cb, should_cancel, interactive)
+        finally:
+            # The listing's times are only as fresh as the scan: a file re-tagged
+            # later in the session must be stat'ed again.
+            cache.listed_mtimes = {}
+
+    def _scan(self, cache, music_dir, skip_special, learn, analyze, global_cache,
+              progress_cb, should_cancel, interactive) -> None:
         scan_cache = self._get_scan_cache(cache)
         music_dir = music_dir or MUSIC_DIR
         added_ts: dict[str, float] = {}   # file path → creation time (see the walk below)
@@ -319,10 +353,15 @@ class MusicLibrary:
             # Materialise the file list first so total (and "how many left") is known.
             if progress_cb is not None:
                 progress_cb(0, 0, music_dir, False)   # signal "listing files…" phase
-            found = _library_mp3s(music_dir)
+            # The walk already has every file's mtime: lent to the cache, it
+            # spares the fingerprint lookups a stat per file (two, in fact).
+            mtimes: dict[str, int] = {}
+            found = _library_mp3s(music_dir, mtimes)
+            cache.listed_mtimes = mtimes
             added_ts = {str(p): ts for p, ts in found}
             all_mp3 = [p for p, _ in found]
             total = len(all_mp3)
+            root = str(music_dir)
             for idx, mp3 in enumerate(all_mp3, 1):
                 if should_cancel is not None and idx % 25 == 0 and should_cancel():
                     if global_cache is not None:
@@ -332,14 +371,15 @@ class MusicLibrary:
                 was_reused = False
                 # Hard-excluded folders (sox, unbearbeitet) never enter the library,
                 # regardless of scan mode.
-                excl_parts = {p.lower() for p in mp3.relative_to(music_dir).parts[:-1]}
+                # Every path comes from the walk of music_dir, so it is below it.
+                rel_parts = folders_below(str(mp3), root)
+                excl_parts = {p.lower() for p in rel_parts}
                 if excl_parts & _EXCLUDED_FOLDERS:
                     if progress_cb is not None and (idx % 25 == 0 or idx == total):
                         progress_cb(idx, total, mp3, True)
                     continue
                 if skip_special:
-                    # parts[:-1] = all directory segments below music_dir (not the filename)
-                    rel_parts = mp3.relative_to(music_dir).parts[:-1]
+                    # rel_parts = all directory segments below music_dir (not the filename)
                     skip_hit  = next((p for p in rel_parts if _SKIP_DIR.search(p)), None)
                     # A soft library category (anthems / background / seasonal /
                     # wrong_tempo / duplicates) overrides the special/christmas
@@ -365,15 +405,16 @@ class MusicLibrary:
                         # probe the length once, like `_make_entry` does.
                         if not cached_entry.get('duration'):
                             secs = _read_duration(mp3)
-                            if secs:
-                                cached_entry = {**cached_entry, 'duration': secs}
-                                global_cache.put(mp3, cached_entry)
+                            cached_entry = {**cached_entry,
+                                            'duration': secs or _NO_LENGTH}
+                            global_cache.put(mp3, cached_entry)
                         self.entries.append(MusicEntry(path=mp3, **cached_entry))
                         reused += 1
                         was_reused = True
                     else:
                         entry = self._make_entry(mp3, scan_cache)
-                        global_cache.put(mp3, _entry_meta(entry))
+                        global_cache.put(mp3, {**_entry_meta(entry),
+                                               'duration': entry.duration or _NO_LENGTH})
                         self.entries.append(entry)
                 else:
                     self.entries.append(self._make_entry(mp3, scan_cache))
@@ -515,9 +556,8 @@ class MusicLibrary:
             # existed carry 0 — probe the header once and persist, no full re-scan.
             if not cached.get('duration'):
                 secs = _read_duration(path)
-                if secs:
-                    cached = {**cached, 'duration': secs}
-                    scan_cache.put(path, cached)
+                cached = {**cached, 'duration': secs or _NO_LENGTH}
+                scan_cache.put(path, cached)
             # 🩹 Comment markers heal lazily: rows cached before the column
             # existed carry None, which is NOT the same as [] ("read it, there
             # were none"). Re-reading the COMM frame costs one ID3 open, so a
@@ -640,7 +680,7 @@ class MusicLibrary:
             'tag_album':      tag_album,
             'duration':       duration,
         }
-        scan_cache.put(path, data)
+        scan_cache.put(path, {**data, 'duration': duration or _NO_LENGTH})
         return MusicEntry(path=path, **data)
 
     def _get_scan_cache(self, cache: AudioCache) -> ScanCache:
@@ -745,13 +785,26 @@ class MusicLibrary:
             entry.features = None
         return entry
 
+    @property
+    def entries(self) -> list[MusicEntry]:
+        return self._entries
+
+    @entries.setter
+    def entries(self, entries: list[MusicEntry]) -> None:
+        # A new list may hold as many entries as the old one: the version, not
+        # the length, tells `_path_index` it is stale.
+        self._entries = entries
+        self._entries_version += 1
+
     def _path_index(self) -> tuple[dict[str, MusicEntry], dict[str, MusicEntry]]:
-        """(exact, case-folded) path → entry, rebuilt when `entries` changes size.
+        """(exact, case-folded) path → entry, rebuilt when `entries` is replaced
+        or changes size.
 
         Two maps rather than one so an exact hit always beats a case-folded one,
         which is what the linear scans this replaced did: they walked the whole
         list looking for an exact match before ever lowercasing anything."""
-        if self._path_idx_n != len(self.entries):
+        key = (self._entries_version, len(self.entries))
+        if self._path_idx_key != key:
             exact: dict[str, MusicEntry] = {}
             ci: dict[str, MusicEntry] = {}
             for e in self.entries:
@@ -759,7 +812,7 @@ class MusicLibrary:
                 exact.setdefault(s, e)
                 ci.setdefault(s.lower(), e)
             self._by_path, self._by_path_ci = exact, ci
-            self._path_idx_n = len(self.entries)
+            self._path_idx_key = key
         return self._by_path, self._by_path_ci
 
     def entry_for(self, path: Path | str, cache: AudioCache | None = None, *,
@@ -943,15 +996,16 @@ class MusicLibrary:
         # Top-level subfolders whose tree already carries .m3u playlists
         # ('' = playlist dir root itself).
         m3u_tops = set()
+        root = str(PLAYLIST_DIR)
         for m3u, _sig in m3us:
-            rel = m3u.relative_to(PLAYLIST_DIR).parts
-            m3u_tops.add(rel[0] if len(rel) > 1 else "")
+            folders = folders_below(str(m3u), root)
+            m3u_tops.add(folders[0] if folders else "")
         groups: dict[Path, list[_TreeFile]] = defaultdict(list)
         for mp3, sig in mp3s:
             groups[mp3.parent].append((mp3, sig))
         count = 0
         for folder in sorted(groups):
-            rel_parts = folder.relative_to(PLAYLIST_DIR).parts
+            rel_parts = folders_below(str(groups[folder][0][0]), root)
             top = rel_parts[0] if rel_parts else ""
             if top in m3u_tops:
                 continue
@@ -977,15 +1031,46 @@ class MusicLibrary:
         from scratch and popularity re-applied per entry — so a freshly exported
         tournament counts without a full library reload.
         Returns the number of M3U files analyzed."""
-        self._track_playlists.clear()
-        self._playlist_cls.clear()
-        self._track_finals.clear()
-        self._track_semis.clear()
-        n = self._learn_playlists()
-        for e in self.entries:
-            e.source_info = ""   # _apply_popularity only overwrites on a hit
-            self._apply_popularity(e)
-        return n
+        return self.adopt_playlist_index(self.learn_playlist_index())
+
+    def learn_playlist_index(self) -> LearnedPlaylistIndex:
+        """The slow half of `relearn_playlists`, safe on a worker thread.
+
+        Builds the index into a scratch copy of this library and works out every
+        entry's popularity from it on a copy of the entry — this library and its
+        entries stay exactly as they were, so a Generate meanwhile still draws
+        from the whole old index. `adopt_playlist_index` swaps the result in."""
+        scratch = copy.copy(self)
+        scratch._track_playlists = defaultdict(set)
+        scratch._playlist_cls = {}
+        scratch._track_finals = defaultdict(set)
+        scratch._track_semis = defaultdict(set)
+        scratch._line_key_memo = {}
+        scratch._playlist_year = dict(self._playlist_year)
+        n = scratch._learn_playlists()
+        values = []
+        for e in list(self.entries):
+            probe = copy.copy(e)
+            probe.source_info = ""   # _apply_popularity only overwrites on a hit
+            scratch._apply_popularity(probe)
+            values.append((e, {f: getattr(probe, f) for f in _POPULARITY_FIELDS}))
+        return LearnedPlaylistIndex(n, scratch, values)
+
+    def adopt_playlist_index(self, learned: LearnedPlaylistIndex) -> int:
+        """Swap a `learn_playlist_index` result in — plain assignments, for the GUI
+        thread. Returns the number of playlists analyzed."""
+        scratch = learned.scratch
+        self._track_playlists = scratch._track_playlists
+        self._playlist_cls = scratch._playlist_cls
+        self._track_finals = scratch._track_finals
+        self._track_semis = scratch._track_semis
+        self._stem_dance = scratch._stem_dance
+        self._line_key_memo = scratch._line_key_memo
+        self._playlist_year = scratch._playlist_year
+        for e, values in learned.values:
+            for field, value in values.items():
+                setattr(e, field, value)
+        return learned.count
 
     def by_dance(self, dance: str) -> list[MusicEntry]:
         return [e for e in self.entries if e.dance == dance]
@@ -1002,7 +1087,6 @@ class MusicLibrary:
         """
         view = copy.copy(self)
         view.entries = list(entries)
-        view._path_idx_n = -1   # force the path index to rebuild for the subset
         return view
 
     def _refresh_stem_dance(self) -> None:
@@ -1200,13 +1284,10 @@ class MusicLibrary:
         n_files = 0
         self._refresh_stem_dance()
         if PLAYLIST_DIR.exists():
-            for m3u in PLAYLIST_DIR.rglob("*.m3u"):
+            for m3u in playlist_files(PLAYLIST_DIR):
                 if _is_superseded_playlist(m3u):
                     continue
-                stem_lower = m3u.stem.lower()
-                if ('eintanzen' in stem_lower or 'party' in stem_lower
-                        or 'weihn' in stem_lower or 'christmas' in stem_lower
-                        or 'xmas' in stem_lower):
+                if is_side_list(m3u.stem):
                     continue
                 if not competition_matches_file(spec, m3u):
                     continue
@@ -1299,7 +1380,7 @@ class MusicLibrary:
         _resolve = self.line_resolver()
 
         if PLAYLIST_DIR.exists():
-            for m3u in PLAYLIST_DIR.rglob("*.m3u"):
+            for m3u in playlist_files(PLAYLIST_DIR):
                 if _is_superseded_playlist(m3u):
                     continue
                 if is_side_list(m3u.stem):

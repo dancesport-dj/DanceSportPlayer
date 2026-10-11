@@ -21,15 +21,15 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_scroll_"))
 
-from PySide6.QtTest import QTest  # noqa: E402
-from PySide6.QtWidgets import QApplication, QWidget  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QApplication, QWidget
+from tests.qt_test_support import reap_widget
 
-from shared.columns import _COL_TITLE  # noqa: E402
-from gui.playlist_table import _SCROLL_MS, PlaylistTable  # noqa: E402
-from planner.models import MusicEntry  # noqa: E402
-from player.main_player import PlayerControlMixin  # noqa: E402
-from player.playback_state import PlaybackState  # noqa: E402
+from shared.columns import _COL_TITLE
+from gui.playlist_table import _SCROLL_MS, PlaylistTable
+from planner.models import MusicEntry
+from player.main_player import PlayerControlMixin
+from player.playback_state import PlaybackState
 
 
 def _e(n):

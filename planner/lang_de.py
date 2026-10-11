@@ -95,7 +95,7 @@ CATALOG = {
         "— Indizes (analysiert / gesamt) —",
     "🔗 Fingerprints: %s": "🔗 Fingerabdrücke: %s",
     "📊 Loudness: %s": "📊 Lautheit: %s",
-    "🔇 Silences: %s": "🔇 Stillen: %s",
+    "🔇 Silences: %s": "🔇 Stille: %s",
     "🐂 PD highlights: %s": "🐂 PD-Höhepunkte: %s",
     "🎙️ Demucs vocals: %s measured":
         "🎙️ Demucs-Gesang: %s gemessen",
@@ -122,11 +122,11 @@ CATALOG = {
         "nutzt alles bereits Zwischengespeicherte und kann abgebrochen werden.",
     "audio fingerprints": "Audio-Fingerabdrücke",
     "loudness": "Lautheit",
-    "silences": "Stillen",
+    "silences": "Stille",
     "PD highlights": "PD-Höhepunkte",
     "librosa audio analysis (no working audio decoder)":
         "librosa-Audioanalyse (kein funktionierender Decoder)",
-    "loudness + silences (no ffmpeg)": "Lautheit + Stillen (kein ffmpeg)",
+    "loudness + silences (no ffmpeg)": "Lautheit + Stille (kein ffmpeg)",
     "%s (not installed)": "%s (nicht installiert)",
     "\n\nSkipped: %s": "\n\nÜbersprungen: %s",
     "Nothing can be built on this machine right now.":
@@ -641,12 +641,19 @@ CATALOG = {
     "Settings — library paths, global search & analysis":
         "Einstellungen — Bibliothekspfade, globale Suche & Analyse",
     "⌨  Keyboard shortcuts  (F1)": "⌨  Tastenkürzel  (F1)",
+    "⛶  Fullscreen  (F11)": "⛶  Vollbild  (F11)",
+    "⛶  Exit Fullscreen  (F11)": "⛶  Vollbild beenden  (F11)",
+    "⛶  Fullscreen clock: only the time (20:45:12), no date":
+        "⛶  Uhr im Vollbild: nur die Uhrzeit (20:45:12), ohne Datum",
     "Shortcuts (F1), manual and about this app":
         "Tastenkürzel (F1), Handbuch und Über diese App",
     "📖  Manual": "📖  Handbuch",
     "ℹ  About…": "ℹ  Über…",
     "About": "Über",
     "Project": "Projekt",
+    "Music is playing": "Musik läuft",
+    "Music is playing. Quit anyway and stop it?":
+        "Es läuft Musik. Trotzdem beenden und sie anhalten?",
     "Author": "Autor",
     "License": "Lizenz",
     "App icon": "App-Icon",
@@ -674,8 +681,8 @@ CATALOG = {
     "Analysis failed.": "Analyse fehlgeschlagen.",
     "AI playlist failed.": "KI-Playlist fehlgeschlagen.",
     "AI playlist: nothing usable.": "KI-Playlist: nichts Verwertbares.",
-    "Eintanzen failed.": "Eintanzen fehlgeschlagen.",
-    "Eintanzen: no matching tracks.": "Eintanzen: keine passenden Titel.",
+    "Practice failed.": "Eintanzen fehlgeschlagen.",
+    "Practice: no matching tracks.": "Eintanzen: keine passenden Titel.",
     "Global index failed.": "Globaler Index fehlgeschlagen.",
     "Similar-track analysis failed.": "Ähnlichkeitsanalyse fehlgeschlagen.",
     "Repository scan cancelled.": "Durchsuchen des Repositorys abgebrochen.",
@@ -855,7 +862,9 @@ CATALOG = {
     "⚗ Analysis": "⚗ Analyse",
     "🎨 Look": "🎨 Aussehen",
     "🎨  Theme": "🎨  Design",
-    "📁 Paths && search": "📁 Pfade && Suche",
+    "⚙ General": "⚙ Allgemein",
+    "📁 Paths": "📁 Pfade",
+    "🔊 Sound && player": "🔊 Ton && Player",
     "📁  New folder…": "📁  Neuer Ordner…",
     "⌨  Shortcuts…": "⌨  Tastenkürzel…",
     "❔  Shortcuts": "❔  Tastenkürzel",
@@ -982,17 +991,17 @@ CATALOG = {
     "🏆 Saved and added %d playlists to Tournaments":
         "🏆 Gespeichert und %d Playlists in „Turniere“ eingetragen",
     "🏆 Saved — already in Tournaments": "🏆 Gespeichert — steht schon in „Turniere“",
-    "🔁  Check duplicates": "🔁  Doppelte",
+    "🔁  Check duplicates": "🔁  Doppelte prüfen",
     "🔁  Endless repeat": "🔁  Endlos wiederholen",
     "🔁  Replace…": "🔁  Ersetzen…",
     "🔁  Reset all replacement marks": "🔁  Alle Ersetzungsmarken zurücksetzen",
-    "🔇  Probe silences…": "🔇  Stillen prüfen…",
+    "🔇  Probe silences…": "🔇  Stille prüfen…",
     "🔇 No audio backend — the cartwall cannot play here.":
         "🔇 Kein Audio-Backend — die Cartwall kann hier nicht abspielen.",
     "🔈  Pull the music down while this pad plays":
         "🔈  Musik absenken, solange dieses Pad läuft",
-    "🔈 No speech engine available on this system.":
-        "🔈 Auf diesem System ist keine Sprachausgabe verfügbar.",
+    "🔈 No announcement recordings found for this voice.":
+        "🔈 Für diese Stimme wurden keine Ansage-Aufnahmen gefunden.",
     "🖌  Wall colour": "🖌  Cartwall-Farbe",
     "🖥  Presenter": "🖥  Präsentation",
     "🖥  Presenter — DancePlaylist": "🖥  Präsentation — DancePlaylist",
@@ -1034,7 +1043,7 @@ CATALOG = {
     "🧳 USB export": "🧳 USB-Export",
     "🧳 USB export aborted — incomplete bundle removed.":
         "🧳 USB-Export abgebrochen — unvollständiges Paket entfernt.",
-    "🧭  Fix paths": "🧭  Pfade",
+    "🧭  Fix paths": "🧭  Pfade reparieren",
     "🧭  Fix (overwrite)": "🧭  Reparieren (überschreiben)",
     "🧭  Fix (swap in playlists)": "🧭  Reparieren (in Playlists tauschen)",
     "🧱  Build ALL caches…": "🧱  ALLE Caches aufbauen…",
@@ -1044,7 +1053,7 @@ CATALOG = {
     "🤖  Build": "🤖  Erzeugen",
     "🤖  Get Suggestions": "🤖  Vorschläge holen",
     "🤖  Conversation with the model": "🤖  Unterhaltung mit dem Modell",
-    "🤸  Eintanzen / party playlist": "🤸  Eintanzen- / Party-Playlist",
+    "🤸  Practice / party playlist": "🤸  Eintanzen- / Party-Playlist",
     "🎉  Party set": "🎉  Party-Set",
     "🎉  Party playlist (alternating 3-dance rounds, all dances)":
         "🎉  Party-Playlist (abwechselnde 3-Tanz-Runden, alle Tänze)",
@@ -1062,7 +1071,7 @@ CATALOG = {
         "🎯 Letzte Marke gelöscht — 🐂 die Automatik übernimmt wieder.",
     "🎯 Play a Paso Doble first, then click when a highlight hits.":
         "🎯 Erst einen Paso Doble abspielen, dann beim Höhepunkt klicken.",
-    "🎵  Check Music": "🎵  Musik prüfen",
+    "🎵  Check music": "🎵  Musik prüfen",
     "🎵  Check music speed": "🎵  Musiktempo prüfen",
     "🎵  Check music speed (unavailable)":
         "🎵  Musiktempo prüfen (nicht verfügbar)",
@@ -1113,7 +1122,7 @@ CATALOG = {
     "4 wishlists": "4 Wunschlisten",
     "4 wishlists (2×2)": "4 Wunschlisten (2×2)",
     "Build a practice playlist into the focused deck:\n"
-    "• Eintanzen for a tournament class — the class's dances round-robin\n"
+    "• Practice for a tournament class — the class's dances round-robin\n"
     "  (e.g. Latin S: SA, CC, RB, PD, JI …), TSO-conform, popular + fresh.\n"
     "• Party — alternating 3-dance rounds across all dances.\n"
     "Draw from your ⭐ Favorites (unused tracks), the open wishlists\n"
@@ -1154,7 +1163,7 @@ CATALOG = {
         "nochmal klicken öffnet sie wieder.",
     "Cycle the playlist headers: full → 🗜 Compact (per-dance header rows\n"
     "hidden, each round lists its songs directly) → 🚫 No groups (round and\n"
-    "─── section headers dropped too, so the list — an Eintanzen / party\n"
+    "─── section headers dropped too, so the list — a Practice / party\n"
     "list above all — is one flat run of songs) → 🔢 Numbers (no groups,\n"
     "plus an Nb. column up front counting the titles).":
         "Die Playlist-Überschriften durchschalten: voll → 🗜 Kompakt\n"
@@ -1440,7 +1449,7 @@ CATALOG = {
     "<b>Favorites library</b> — scanned on start (your tanzcds folder):":
         "<b>Favoriten-Bibliothek</b> — wird beim Start eingelesen (dein "
         "tanzcds-Ordner):",
-    "<b>Referenzpfad</b> — base folder the playlist files live in on THIS PC; "
+    "<b>Reference path</b> — base folder the playlist files live in on THIS PC; "
     "🧭 Fix paths re-roots broken references here (e.g. C:\\Users\\…\\my "
     "music\\tanzcds):":
         "<b>Referenzpfad</b> — Basisordner, in dem die Playlist-Dateien auf DIESEM "
@@ -1450,6 +1459,20 @@ CATALOG = {
     "D:\\Dropbox\\Turniere):":
         "<b>Speichern-unter-Ordner</b> — wo „Als M3U speichern…“ beginnt (z. B. "
         "D:\\Dropbox\\Turniere):",
+    "<b>Playlist file format</b> — what 'Save as M3U' and the exports write:":
+        "<b>Playlist-Dateiformat</b> — was „Als M3U speichern“ und die Exporte schreiben:",
+    "UTF-8 (.m3u) — default":
+        "UTF-8 (.m3u) — Standard",
+    "UTF-8 with BOM (.m3u) — for Windows tools that guess ANSI":
+        "UTF-8 mit BOM (.m3u) — für Windows-Programme, die sonst ANSI raten",
+    "UTF-8 (.m3u8) — the encoding named in the extension":
+        "UTF-8 (.m3u8) — die Kodierung steht in der Endung",
+    "UTF-8 keeps every umlaut and is what current players read.\n"
+    "Pick the BOM variant only if an older Windows tool shows 'Ã¼' instead\n"
+    "of 'ü'; .m3u8 is the same UTF-8 under the extension some players expect.":
+        "UTF-8 behält jeden Umlaut und wird von aktuellen Playern gelesen.\n"
+        "Die BOM-Variante nur wählen, wenn ein älteres Windows-Programm „Ã¼“ statt\n"
+        "„ü“ zeigt; .m3u8 ist dasselbe UTF-8 unter der Endung, die manche Player erwarten.",
     "<b>Search folders</b> — where else to look for a track when a playlist "
     "was written on another PC, one folder per line (e.g. F:\\my music and "
     "C:\\Users\\…\\Documents\\datein\\my music):":
@@ -1529,7 +1552,7 @@ CATALOG = {
     "slower than the rest and stay a deliberate choice.":
         "Alles auf diesem Reiter in einem Durchlauf für eine gewählte\n"
         "Bibliothek bauen, der Reihe nach:\n"
-        "🎚 librosa → 📊 Lautheit → 🔇 Stillen → 🐂 PD-Höhepunkte → 🧠 OpenL3 →\n"
+        "🎚 librosa → 📊 Lautheit → 🔇 Stille → 🐂 PD-Höhepunkte → 🧠 OpenL3 →\n"
         "🎼 Chroma. Nutzt bereits Zwischengespeichertes weiter und lässt sich\n"
         "zwischen und innerhalb der Schritte abbrechen. Nur lesend; deine\n"
         "Audiodateien werden nie verändert.\n"
@@ -1710,27 +1733,21 @@ CATALOG = {
         "Erscheinungsbild, Akzentfarbe und Sprache werden beim Start der App "
         "gelesen, eine Änderung wirkt also nach einem Neustart — du wirst nach dem "
         "Speichern gefragt.",
-    "Keep the German dance and round names on an English screen "
-    "(Langsamer Walzer, Vorrunde, Standardrunde 1 …)":
-        "Deutsche Tanz- und Rundennamen auch in der englischen Oberfläche "
-        "(Langsamer Walzer, Vorrunde, Standardrunde 1 …)",
-    "On: the presenter screen and the recorded announcements are "
-    "German too.\n"
-    "Off: Slow Waltz, Round 1, Standard round 1 … — the playlists "
-    "and exports keep the German words either way.":
-        "An: Auch der Moderations-Bildschirm und die aufgenommenen Ansagen "
-        "sind deutsch.\n"
-        "Aus: Slow Waltz, Round 1, Standard round 1 … — Playlists und "
-        "Exporte behalten die deutschen Begriffe in jedem Fall.",
-    "Three switches that are set once and then never touched again,\n"
-    "in the busiest column of the desk. Hidden they keep whatever they\n"
-    "were set to — only the controls go away.":
-        "Drei Schalter, die einmal gesetzt und dann nie wieder angefasst\n"
-        "werden, in der vollsten Spalte des Pults. Ausgeblendet behalten\n"
-        "sie, worauf sie gesetzt waren — nur die Bedienelemente\n"
-        "verschwinden.",
-    "You can change this later under ⚙ Settings → 📁 Paths & search.":
-        "Das lässt sich später unter ⚙ Einstellungen → 📁 Pfade & Suche ändern.",
+    "Keep the German dance and round names on a screen in another language (Langsamer Walzer, Vorrunde, Standardrunde 1, Eintanzen …)":
+        "Deutsche Tanz- und Rundennamen auch in einer anderssprachigen Oberfläche (Langsamer Walzer, Vorrunde, Standardrunde 1, Eintanzen …)",
+    "On: the presenter screen and the recorded announcements are German too, and a 🤸 practice list is called Eintanzen, also in its saved file.\n"
+    "Off: Slow Waltz, Round 1, Standard round 1, Practice … — the playlists and exports keep the German dance and round names either way.":
+        "An: Auch der Moderations-Bildschirm und die aufgenommenen Ansagen sind deutsch, und eine 🤸 Übungsliste heißt Eintanzen, auch in ihrer Datei.\n"
+        "Aus: Slow Waltz, Round 1, Standard round 1, Practice … — Playlists und Exporte behalten die deutschen Tanz- und Rundennamen in jedem Fall.",
+    "Two controls that are set once and then never touched again,\n"
+    "in the busiest column of the desk. Hidden the switch keeps whatever\n"
+    "it was set to — only the controls go away.":
+        "Zwei Bedienelemente, die einmal gesetzt und dann nie wieder\n"
+        "angefasst werden, in der vollsten Spalte des Pults. Ausgeblendet\n"
+        "behält der Schalter, worauf er gesetzt war — nur die\n"
+        "Bedienelemente verschwinden.",
+    "You can change this later under ⚙ Settings → ⚙ General.":
+        "Das lässt sich später unter ⚙ Einstellungen → ⚙ Allgemein ändern.",
     "lower": "unten",
     "middle": "mittig",
     "upper": "oben",
@@ -1740,10 +1757,10 @@ CATALOG = {
     "(default: favorites library only)":
         "🌐  Globale Suche — hineingezogene Dateien gegen den gesamten Bestand "
         "abgleichen (Standard: nur die Favoriten-Bibliothek)",
-    "🎙  Advanced voice controls — show '…with takt', '…with heat' and 🔈 Test "
-    "under 'Announce next dance'":
-        "🎙  Erweiterte Ansagesteuerung — „…mit Takt“, „…mit Gruppe“ und 🔈 Test "
-        "unter „Nächsten Tanz ansagen“ zeigen",
+    "🎙  Advanced voice controls — show '…with heat' and 🔈 Test under "
+    "'Announce next dance'":
+        "🎙  Erweiterte Ansagesteuerung — „…mit Gruppe“ und 🔈 Test unter "
+        "„Nächsten Tanz ansagen“ zeigen",
     "🎧  Preview player — float a mini player (seek / skip / volume) over the "
     "deck when a ▶ button is clicked":
         "🎧  Vorhör-Player — beim Klick auf ▶ einen Mini-Player (Spulen / Springen "
@@ -1795,7 +1812,7 @@ CATALOG = {
     "the operating system and the app version.\n\n"
     "Not sent: your music, your playlists, your computer's name.\n"
     "Your user folder is cut out of every path.\n\n"
-    "You can change this at any time under ⚙ Settings → 📁 Paths & search.":
+    "You can change this at any time under ⚙ Settings → ⚙ General.":
         "Wenn in der App ein Fehler auftritt, kann sie die technischen Details\n"
         "an das GlitchTip-Projekt des Entwicklers (app.glitchtip.com) senden,\n"
         "damit der Fehler behoben wird. GlitchTip sieht dabei auch die\n"
@@ -1807,7 +1824,7 @@ CATALOG = {
         "das Betriebssystem und die App-Version.\n\n"
         "Nicht gesendet: deine Musik, deine Playlisten, der Name deines Computers.\n"
         "Dein Benutzerordner wird aus jedem Pfad herausgeschnitten.\n\n"
-        "Das kannst du jederzeit unter ⚙ Einstellungen → 📁 Pfade & Suche ändern.",
+        "Das kannst du jederzeit unter ⚙ Einstellungen → ⚙ Allgemein ändern.",
     "Send reports": "Berichte senden",
     "Don't send": "Nicht senden",
     "The music and the computer share the one sound card, so every\n"
@@ -1822,7 +1839,7 @@ CATALOG = {
         "zurückgestellt beim Wechsel ins Planen oder beim Schließen.\n"
         "Windows: der Regler „Systemsounds“ im Lautstärkemixer.\n"
         "macOS: die Warntonlautstärke. Linux (GNOME): Ereignisklänge.",
-    "🧭 Fix paths tries the Referenzpfad first and then these folders,\n"
+    "🧭 Fix paths tries the Reference path first and then these folders,\n"
     "in order, cutting the foreign path down until what is left lands on a\n"
     "real file underneath one of them. A path is only ever rewritten to a\n"
     "file that is actually there.":
@@ -1932,7 +1949,7 @@ CATALOG = {
     "Analyze vocals (Demucs)": "Gesang analysieren (Demucs)",
     "No Paso Doble tracks in the library.":
         "Keine Paso-Doble-Titel in der Bibliothek.",
-    "Probe silences": "Stillen prüfen",
+    "Probe silences": "Stille prüfen",
     "Re-analyze Audio": "Audio neu analysieren",
     "Redo the 🐂 auto-detection for the whole library — for after the\n"
     "detector changed. Hand-set 🎯 marks are kept untouched.":
@@ -1948,7 +1965,7 @@ CATALOG = {
     "ffmpeg was not found (neither on PATH nor the copy bundled\n"
     "with the project) — silences cannot be probed.":
         "ffmpeg wurde nicht gefunden (weder im PATH noch die mit dem\n"
-        "Projekt gelieferte Kopie) — die Stillen lassen sich nicht prüfen.",
+        "Projekt gelieferte Kopie) — die Stille lässt sich nicht prüfen.",
     "Clear playlists": "Playlists leeren",
     "Clear tournament day": "Turniertag leeren",
     "Close tournament day": "Turniertag schließen",
@@ -1988,7 +2005,7 @@ CATALOG = {
         "Die Bibliothek des Gesamtbestands ist noch nicht geladen. Ziehe einmal "
         "eine Datei hinein (oder baue den librosa-Index über den Bestand), um sie "
         "zu laden, und versuche es dann erneut.",
-    "Not on the Referenzpfad": "Nicht im Referenzpfad",
+    "Not on the Reference path": "Nicht im Referenzpfad",
     "Save Error": "Speicherfehler",
     "Save as M3U": "Als M3U speichern",
     "This deck is empty.": "Dieses Deck ist leer.",
@@ -2021,7 +2038,7 @@ CATALOG = {
     "Draw only from the tracks currently parked in your open ⭐ wishlists.":
         "Nur aus den Titeln ziehen, die gerade in deinen offenen ⭐ Wunschlisten "
         "liegen.",
-    "Eintanzen Error": "Eintanzen-Fehler",
+    "Practice Error": "Eintanzen-Fehler",
     "Enter a valid round pattern (e.g. 6-3-2-1).":
         "Gib ein gültiges Rundenschema ein (z. B. 6-3-2-1).",
     "Generate Error": "Fehler beim Erzeugen",
@@ -2091,7 +2108,7 @@ CATALOG = {
     "to seed it":
         "🆕 Zu diesem Turnier ist noch nichts gespeichert — drücke ⚡ Aus Verlauf "
         "erzeugen, um es anzulegen",
-    "🏆  Eintanzen for a tournament class (round-robin through the class's "
+    "🏆  Practice for a tournament class (round-robin through the class's "
     "dances)":
         "🏆  Eintanzen für eine Startgruppe (Rundlauf durch die Tänze der Gruppe)",
     "Analysis Error": "Analysefehler",
@@ -2135,7 +2152,7 @@ CATALOG = {
     "Fix paths": "Pfade korrigieren",
     "No track paths that can be re-rooted under the search folders.":
         "Keine Titelpfade, die sich unter den Suchordnern neu einhängen lassen.",
-    "Set a Referenzpfad or a search folder in Settings before fixing dropped "
+    "Set a Reference path or a search folder in Settings before fixing dropped "
     "playlists.":
         "Lege in den Einstellungen einen Referenzpfad oder einen Suchordner fest, "
         "bevor du hineingezogene Playlists korrigierst.",
@@ -2148,7 +2165,7 @@ CATALOG = {
         "Nichts zu drucken — keine Titel gefunden.",
     "Print playlist": "Playlist drucken",
     "Add folder": "Ordner hinzufügen",
-    "No alternative Eintanzen track found.":
+    "No alternative Practice track found.":
         "Kein anderer Eintanz-Titel gefunden.",
     "No alternative song found.": "Kein anderer Titel gefunden.",
     "Re-roll this song — best timbre match first  (Ctrl+R / Ctrl+N)":
@@ -2399,20 +2416,6 @@ CATALOG = {
         "Aus ist ein Paso Doble ein gewöhnlicher Titel: die Spielzeit\n"
         "schneidet ihn und die Blende nimmt ihn heraus, wie bei jedem\n"
         "anderen Tanz.",
-    "Append the bars per minute (\"…, 29 Takt\") — useful in training,\n"
-    "usually just noise on a tournament floor.\n"
-    "\n"
-    "Ticking this hands the WHOLE announcement to the Windows voice:\n"
-    "the recordings have clips for the dances and the heats, none for\n"
-    "a tempo, and two voices in one announcement sound like two\n"
-    "announcers.":
-        "Die Takte pro Minute anhängen („…, 29 Takt“) — im Training\n"
-        "nützlich, auf einer Turnierfläche meist nur Lärm.\n"
-        "\n"
-        "Wird das gesetzt, übernimmt die Windows-Stimme die GANZE Ansage:\n"
-        "die Aufnahmen haben Clips für die Tänze und die Gruppen, keinen\n"
-        "für ein Tempo, und zwei Stimmen in einer Ansage klingen nach zwei\n"
-        "Ansagern.",
     "Append the heat number (\"…, Heat 3\") — the couples hear which\n"
     "heat they are about to dance.\n"
     "\n"
@@ -2623,7 +2626,7 @@ CATALOG = {
     "every title to its full length, auto-advance to the next one, no\n"
     "pause (so no break music) in between and no spoken announcement.\n"
     "\n"
-    "Applied by itself as soon as you play from the 🤸 Eintanzen /\n"
+    "Applied by itself as soon as you play from the 🤸 Practice /\n"
     "party list, and switched back when a tournament deck takes over —\n"
     "a toast says what changed either way. What exactly it sets is\n"
     "yours to change: ⚙ Settings → 🎛 Play sets.":
@@ -2963,7 +2966,7 @@ CATALOG = {
         "Der Schnitt muss die TSO-Spielzeit von 1:30–1:45 abdecken; Standard 1:45.",
     "⏳  Too long — above:": "⏳  Zu lang — über:",
     "Only flagged when the ⏳ checkbox in the Music-check window is on "
-    "(Eintanzen playlists); default 4:00.":
+    "(Practice playlists); default 4:00.":
         "Wird nur gemeldet, wenn im Musik-Check-Fenster das Häkchen ⏳ gesetzt ist "
         "(Eintanzen-Playlists); Standard 4:00.",
     "⚡  Tempo mismatch — deviation above:":
@@ -3124,10 +3127,31 @@ CATALOG = {
     "🔁  Start again at the end": "🔁  Am Ende von vorn beginnen",
     "Pause between songs:": "Pause zwischen den Titeln:",
     "🔈  Announce next dance": "🔈  Nächsten Tanz ansagen",
-    "…with takt": "…mit Takt",
     "…with heat": "…mit Gruppe",
     "🔊  Equalize volume (R128)": "🔊  Lautstärke angleichen (R128)",
     "🖼  Show artwork": "🖼  Cover anzeigen",
+    "〰  Show waveform": "〰  Wellenform anzeigen",
+    "Draw the playing title's waveform above the seek bar: quiet\n"
+    "passages, the skipped silence, the Paso Doble highlights and\n"
+    "where the fade-out of a timed cut begins. Click it to jump.":
+        "Die Wellenform des laufenden Titels über dem Suchbalken zeigen:\n"
+        "leise Stellen, die übersprungene Stille, die Paso-Doble-Höhepunkte\n"
+        "und wo das Ausblenden einer Zeitbegrenzung beginnt. Klick springt hin.",
+    "…replace seek bar": "…Suchbalken ersetzen",
+    "Hide the seek bar while the waveform is shown — the waveform\n"
+    "covers the same stretch of the title and seeks on a click.":
+        "Den Suchbalken ausblenden, solange die Wellenform zu sehen ist — sie\n"
+        "deckt dieselbe Strecke des Titels ab und springt per Klick.",
+    "The waveform of the title — what has played is blue, all of it\n"
+    "red in the final seconds. The broad orange bar is where it plays.\n"
+    "Shaded: silence the player skips · thin orange: Paso Doble\n"
+    "highlights · red-tinted: the fade-out of a timed cut.\n"
+    "Click to jump there.":
+        "Die Wellenform des Titels — was schon lief, ist blau, in den letzten\n"
+        "Sekunden alles rot. Der breite orange Balken zeigt, wo er gerade läuft.\n"
+        "Schattiert: Stille, die der Player überspringt · dünn orange: Paso-Doble-\n"
+        "Höhepunkte · rötlich: das Ausblenden einer Zeitbegrenzung.\n"
+        "Klick springt dorthin.",
     "▶️  Double-click starts the title": "▶️  Doppelklick startet den Titel",
     "🎚  TSO pitch to the heat tempo": "🎚  TSO: auf den Takt der Gruppe ziehen",
     "↩  Remember where a title stopped":
@@ -3233,6 +3257,8 @@ CATALOG = {
         "nächsten Treffer)",
     "Esc  in the 🖥 presenter window": "Esc  im 🖥 Moderations-Fenster",
     "This cheat sheet": "Diese Übersicht",
+    "Fullscreen on / off — with date and time in the status bar":
+        "Vollbild an / aus — mit Datum und Uhrzeit in der Statusleiste",
     "🖱  Mouse": "🖱  Maus",
     "Click a round / dance header":
         "Klick auf eine Überschrift",
@@ -3503,7 +3529,7 @@ CATALOG = {
     "🎼  Chroma indexed": "🎼  Chroma indiziert",
     "📊  Loudness measured": "📊  Lautheit gemessen",
     "🐂  PD highlights detected": "🐂  PD-Höhepunkte erkannt",
-    "🔇  Silences probed": "🔇  Stillen geprüft",
+    "🔇  Silences probed": "🔇  Stille geprüft",
     "🧠  OpenL3 indexed": "🧠  OpenL3 indiziert",
     # A model that is not there says so — glued on, in both places, so the
     # suffix is its own key.
@@ -3518,7 +3544,7 @@ CATALOG = {
         "Die Werte, mit denen eine Runde läuft — gedrückt, um sie "
         "zurückzuholen, nachdem eine Partyliste das Panel woandershin "
         "gezogen hat.",
-    "Applied by itself as soon as you play from the 🤸 Eintanzen / "
+    "Applied by itself as soon as you play from the 🤸 Practice / "
     "party list, and switched back when a tournament deck takes over.":
         "Wird von selbst angewandt, sobald du aus der 🤸 Eintanzen-/"
         "Partyliste abspielst, und zurückgeschaltet, wenn ein Turnier-Deck "
@@ -3738,9 +3764,9 @@ CATALOG = {
         "🧭  %d Titelpfad repariert",
     "🧭  Fixed %d track paths":
         "🧭  %d Titelpfade repariert",
-    "🧭  Moved %d track onto the Referenzpfad":
+    "🧭  Moved %d track onto the Reference path":
         "🧭  %d Titel auf den Referenzpfad verschoben",
-    "🧭  Moved %d tracks onto the Referenzpfad":
+    "🧭  Moved %d tracks onto the Reference path":
         "🧭  %d Titel auf den Referenzpfad verschoben",
     "🧭  Fixed 1 path in 1 file":
         "🧭  1 Pfad in 1 Datei repariert",
@@ -3762,6 +3788,87 @@ CATALOG = {
         "🔁  Markierung von %d Titel entfernt",
     "🔁  Unmarked %d tracks":
         "🔁  Markierung von %d Titeln entfernt",
+    "📌  Pin — keep this title when the round is re-rolled":
+        "📌  Anheften — Titel beim Neuwürfeln der Runde behalten",
+    "📌  Unpin": "📌  Lösen",
+    "📌  Pinned — unpin the title to re-roll it":
+        "📌  Angeheftet — zum Neuwürfeln erst lösen",
+    "📌  Pinned %d title — the round's ↻ keeps it":
+        "📌  %d Titel angeheftet — das ↻ der Runde behält ihn",
+    "📌  Pinned %d titles — the round's ↻ keeps them":
+        "📌  %d Titel angeheftet — das ↻ der Runde behält sie",
+    "📌  Unpinned %d title":
+        "📌  %d Titel gelöst",
+    "📌  Unpinned %d titles":
+        "📌  %d Titel gelöst",
+    # 🚦 Ready? — the event pre-flight (planner/readiness.py)
+    "🚦  Check ▾": "🚦  Prüfen ▾",
+    "🚦 Ready? — the pre-flight before the event, one traffic light per\n"
+    "check: missing files, loudness, silence probe, Paso Doble highlights,\n"
+    "duplicates and the music check, each with its fix.\n"
+    "The menu also opens 🔁 Check duplicates, 🎵 Check music and\n"
+    "🧭 Fix paths on their own.":
+        "🚦 Bereit? — der Check vor der Veranstaltung, eine Ampel pro\n"
+        "Prüfung: fehlende Dateien, Lautheit, Stille-Prüfung, Paso-Doble-\n"
+        "Highlights, Doppelte und die Musikprüfung, jeweils mit der Behebung.\n"
+        "Das Menü öffnet außerdem 🔁 Doppelte prüfen, 🎵 Musik prüfen und\n"
+        "🧭 Pfade reparieren einzeln.",
+    "🚦  Ready?": "🚦  Bereit?",
+    "Pre-flight before the event, one traffic light per check — over every\n"
+    "deck that holds titles and the Practice list, each with its fix.\n"
+    "A heading in the report opens its full tool.":
+        "Check vor der Veranstaltung, eine Ampel pro Prüfung — über jedes\n"
+        "Deck mit Titeln und die Eintanzen-Liste, jeweils mit der Behebung.\n"
+        "Eine Überschrift im Bericht öffnet das ganze Werkzeug.",
+    "No tempo, length or round-structure problem in the decks.":
+        "Kein Problem mit Tempo, Länge oder Rundenaufbau in den Decks.",
+    "%d titles with a tempo or length problem: %s":
+        "%d Titel mit einem Tempo- oder Längenproblem: %s",
+    "%d playlists with uneven rounds or heats: %s":
+        "%d Playlists mit ungleichen Runden oder Gruppen: %s",
+    "🎵  Show the report…": "🎵  Bericht zeigen…",
+    "Click the heading to open the full tool.":
+        "Ein Klick auf die Überschrift öffnet das ganze Werkzeug.",
+    "🚦  Ready for the event?": "🚦  Bereit für die Veranstaltung?",
+    "🟢  Ready — every check is green.": "🟢  Bereit — jede Prüfung ist grün.",
+    "🟡  Playable, with loose ends.": "🟡  Spielbar, mit offenen Punkten.",
+    "🔴  Not ready — some titles will not play.":
+        "🔴  Nicht bereit — manche Titel werden nicht spielen.",
+    "🧭  Fix paths…": "🧭  Pfade reparieren…",
+    "📊  Measure loudness…": "📊  Lautheit messen…",
+    "🐂  Find highlights…": "🐂  Highlights finden…",
+    "🔁  Resolve duplicates…": "🔁  Doppelte auflösen…",
+    "📁  Music files": "📁  Musikdateien",
+    "Every title is where the list says.": "Jeder Titel liegt dort, wo die Liste sagt.",
+    "%d titles are not on the Reference path.": "%d Titel liegen nicht auf dem Referenzpfad.",
+    "%d have a copy there — 🧭 Fix paths swaps them in.":
+        "%d haben dort eine Kopie — 🧭 Pfade reparieren tauscht sie ein.",
+    "%d have no copy there: %s": "%d haben dort keine Kopie: %s",
+    "Drive %s is not connected — %d titles live there.":
+        "Laufwerk %s ist nicht angeschlossen — %d Titel liegen dort.",
+    "%d titles not found: %s": "%d Titel nicht gefunden: %s",
+    "🎶  Playlists": "🎶  Playlisten",
+    "Nothing to play yet — load or build a playlist first.":
+        "Noch nichts zu spielen — erst eine Playlist laden oder erstellen.",
+    "📊  Loudness": "📊  Lautheit",
+    "Every title is measured — 🔊 Equalize volume can stay on.":
+        "Jeder Titel ist gemessen — 🔊 Lautstärke angleichen kann an bleiben.",
+    "%d of %d titles have no loudness measurement — 🔊 Equalize volume stays off.":
+        "%d von %d Titeln haben keine Lautheitsmessung — 🔊 Lautstärke angleichen bleibt aus.",
+    "🔇  Silence probe": "🔇  Stille-Prüfung",
+    "Every title is probed — playback skips its silent edges.":
+        "Jeder Titel ist geprüft — die Wiedergabe überspringt seine stillen Ränder.",
+    "%d of %d titles are not probed — each is decoded when it starts.":
+        "%d von %d Titeln sind nicht geprüft — jeder wird beim Start dekodiert.",
+    "🐂  Paso Doble highlights": "🐂  Paso-Doble-Highlights",
+    "Every Paso Doble knows its highlights.": "Jeder Paso Doble kennt seine Highlights.",
+    "No Paso Doble in tonight's lists.": "Kein Paso Doble in den heutigen Listen.",
+    "%d of %d Paso Dobles have no highlights — 🐂 cannot stop at one.":
+        "%d von %d Paso Dobles haben keine Highlights — 🐂 kann an keinem stoppen.",
+    "🔁  Duplicates": "🔁  Doppelte",
+    "%d duplicates across the decks and the Practice list.":
+        "%d Doppelte über die Decks und die Eintanzen-Liste.",
+    "No title is planned twice.": "Kein Titel ist doppelt eingeplant.",
     "🧹  Removed %d duplicate title":
         "🧹  %d doppelten Titel entfernt",
     "🧹  Removed %d duplicate titles":
@@ -3900,7 +4007,7 @@ CATALOG = {
         "%s — %d Titel",
     "🔀 %s shuffled — %d tracks":
         "🔀 %s gemischt — %d Titel",
-    "🤸 Eintanzen: nothing loadable from %s":
+    "🤸 Practice: nothing loadable from %s":
         "🤸 Eintanzen: nichts Ladbares in %s",
     "🎧 Nothing loadable from %s":
         "🎧 Nichts Ladbares in %s",
@@ -4026,6 +4133,43 @@ CATALOG = {
         "Das ist keine Datei mit manuellen PD-Marken:",
     "📥 %d hand-set Paso Doble highlight(s) imported — %d of them belong to a track this PC already knows.\n\nThe others are kept and apply as soon as that music turns up here.":
         "📥 %d von Hand gesetzte(s) Paso-Doble-Highlight(s) importiert — %d davon gehören zu einem Titel, den dieser PC schon kennt.\n\nDie übrigen bleiben gespeichert und greifen, sobald diese Musik hier auftaucht.",
+    "♻  Restore user data backup…": "♻  Sicherung der eigenen Daten zurückholen…",
+    "Restore user data backup": "Sicherung der eigenen Daten zurückholen",
+    "Merge a daily backup of your tag edits, hand-set Paso Doble\n"
+    "highlights and play log back in. The app keeps one per day for the last 7 days.\n"
+    "Everything else in the database is left as it is.":
+        "Eine tägliche Sicherung deiner Tag-Änderungen, von Hand gesetzten\n"
+        "Paso-Doble-Highlights und gespielten Titel zurückholen. Die App hebt eine pro Tag für die letzten 7 Tage auf.\n"
+        "Alles andere in der Datenbank bleibt, wie es ist.",
+    "This is no user data backup:":
+        "Das ist keine Sicherung der eigenen Daten:",
+    "♻ %d tag edit(s) and %d hand-set Paso Doble highlight(s) restored, %d played title(s) added to the play log.\n\nThey take effect after a restart of the app.":
+        "♻ %d Tag-Änderung(en) und %d von Hand gesetzte(s) Paso-Doble-Highlight(s) zurückgeholt, %d gespielte(r) Titel ins Protokoll übernommen.\n\nSie wirken nach einem Neustart der App.",
+    "Date": "Datum",
+    "List": "Liste",
+    "Duration": "Dauer",
+    "📜 Played titles":
+        "📜 Gespielte Titel",
+    "📜  Played titles…":
+        "📜  Gespielte Titel…",
+    "Nothing has been played yet. A title is logged in playing mode\nonce it has run for 10 seconds, the moment its row greys out.":
+        "Noch nichts gespielt. Ein Titel wird im Spielmodus protokolliert,\nsobald er 10 Sekunden gelaufen ist – in dem Moment, in dem seine Zeile grau wird.",
+    "💾  Save as CSV…":
+        "💾  Als CSV speichern…",
+    "Save this evening as a table for Excel: date, start, artist, title,\ndance, list and how long each title ran — e.g. for a GEMA report.":
+        "Speichert diesen Abend als Tabelle für Excel: Datum, Start, Interpret, Titel,\nTanz, Liste und wie lange jeder Titel lief – z. B. für eine GEMA-Meldung.",
+    "🗑  Delete evening":
+        "🗑  Abend löschen",
+    "Delete evening":
+        "Abend löschen",
+    "%d title(s)":
+        "%d Titel",
+    "Save played titles":
+        "Gespielte Titel speichern",
+    "CSV files (*.csv);;All files (*)":
+        "CSV-Dateien (*.csv);;Alle Dateien (*)",
+    "Delete the evening of %s with its %d title(s) from the play log?\n\nIts daily backups still hold it for 7 days.":
+        "Den Abend vom %s mit seinen %d Titel(n) aus dem Protokoll löschen?\n\nDie täglichen Sicherungen enthalten ihn noch 7 Tage lang.",
     "Playlist popularity re-learned from %s playlists.":
         "Playlist-Beliebtheit aus %s Playlists neu gelernt.",
     "📜 %s playlists analyzed (M3U files + tournament folders) — popularity and co-occurrence are up to date, so a just-exported tournament counts now.\n\nRows already in the grid keep their old Pop value until regenerated.":
@@ -4034,7 +4178,7 @@ CATALOG = {
         "Neu lernen fehlgeschlagen:",
     "  … and %d more":
         "  … und %d weitere",
-    "⚠ %d title(s) are not on the Referenzpfad\n%s\nand were saved with their own path:":
+    "⚠ %d title(s) are not on the Reference path\n%s\nand were saved with their own path:":
         "⚠ %d Titel liegen nicht auf dem Referenzpfad\n%s\nund wurden mit ihrem eigenen Pfad gespeichert:",
     "💾 Saved %d playlist → %s":
         "💾 %d Playlist gespeichert → %s",
@@ -4122,7 +4266,7 @@ CATALOG = {
         "🔇 Grundrauschen über %.0f dB",
     "Thresholds: ⚙ Settings → 🎵 Checks.":
         "Schwellen: ⚙ Einstellungen → 🎵 Prüfungen.",
-    "⏳  Also flag long tracks (> %s) — only relevant when building an Eintanzen playlist":
+    "⏳  Also flag long tracks (> %s) — only relevant when building a Practice playlist":
         "⏳  Auch lange Titel markieren (> %s) — nur für eine Eintanzen-Playlist wichtig",
     "🔇  Also flag hissy tracks (never quieter than %.0f dB) — measures each track once with ffmpeg, so the first run takes a moment":
         "🔇  Auch rauschende Titel markieren (nie leiser als %.0f dB) — misst jeden Titel einmal mit ffmpeg, der erste Lauf dauert daher etwas",
@@ -4150,9 +4294,9 @@ CATALOG = {
         "🔧 %d Pfadzeilen zu korrigieren",
     "✅ Nothing to fix":
         "✅ Nichts zu korrigieren",
-    "🔧 %d track can be moved onto the Referenzpfad":
+    "🔧 %d track can be moved onto the Reference path":
         "🔧 %d Titel kann auf den Referenzpfad verschoben werden",
-    "🔧 %d tracks can be moved onto the Referenzpfad":
+    "🔧 %d tracks can be moved onto the Reference path":
         "🔧 %d Titel können auf den Referenzpfad verschoben werden",
     "%d tracks — <span style='color:#2a7a45;'>%d valid</span> · <b style='color:#e07b00; font-size:13px;'>🔧 %d to fix</b> · <span style='color:#a33;'>%d unresolved</span>":
         "%d Titel — <span style='color:#2a7a45;'>%d gültig</span> · <b style='color:#e07b00; font-size:13px;'>🔧 %d zu korrigieren</b> · <span style='color:#a33;'>%d ungelöst</span>",
@@ -4216,7 +4360,7 @@ CATALOG = {
         "Rechtsklick schaltet rückwärts durch.",
     "8 splits into two tabs of four (Group A–D / Group E–H).":
         "8 teilt sich in zwei Reiter zu je vier (Gruppe A–D / Gruppe E–H).",
-    "No-playlist hides every deck so the Eintanzen / wishlist / library panes take over.":
+    "No-playlist hides every deck so the Practice / wishlist / library panes take over.":
         "„Keine Playlist“ blendet alle Decks aus, sodass Eintanzen / Wunschliste / Bibliothek den Platz übernehmen.",
     "Two or more decks also reveal the wishlist below.":
         "Ab zwei Decks erscheint darunter auch die Wunschliste.",
@@ -4679,6 +4823,12 @@ CATALOG = {
         "⚠ Wiedergabe fehlgeschlagen: %s",
     "unknown error":
         "unbekannter Fehler",
+    "did not start":
+        "startete nicht",
+    "⚠ “%s” would not play — skipped to the next title.":
+        "⚠ „%s“ ließ sich nicht abspielen — weiter mit dem nächsten Titel.",
+    "🔇 would not play: %s":
+        "🔇 ließ sich nicht abspielen: %s",
     "▴  fold back":
         "▴  wieder einklappen",
     "⏹  Stop":
@@ -5054,4 +5204,272 @@ CATALOG = {
         "zu viele Tausche",
     "that slot is swapped already":
         "der Platz ist schon getauscht",
+    # ── 📦 Venue pack ──
+    "📦 Venue pack": "📦 Hallenpaket",
+    "Take this desk to another PC in one file: the settings, every deck "
+    "and wishlist, the 🎛 cartwall with its pads and keys — and, if you "
+    "want, the music they use. Folder settings stay with each PC.":
+        "Dieses Pult in einer Datei auf einen anderen PC mitnehmen: die "
+        "Einstellungen, alle Decks und Wunschlisten, die 🎛 Cartwall mit Pads "
+        "und Tasten — und auf Wunsch die Musik dazu. Ordner-Einstellungen "
+        "bleiben bei jedem PC.",
+    "📦  Export venue pack…": "📦  Hallenpaket exportieren…",
+    "📥  Import venue pack…": "📥  Hallenpaket importieren…",
+    "Save this desk to one file to take to another PC: the settings,\n"
+    "every deck and wishlist, the 🎛 cartwall with its pads and keys —\n"
+    "and, if you want, the music they use. Folder settings stay with\n"
+    "each PC.":
+        "Dieses Pult in eine Datei speichern, um es auf einen anderen PC\n"
+        "mitzunehmen: die Einstellungen, alle Decks und Wunschlisten, die\n"
+        "🎛 Cartwall mit Pads und Tasten — und auf Wunsch die Musik dazu.\n"
+        "Ordner-Einstellungen bleiben bei jedem PC.",
+    "Load a venue pack made on another PC. It replaces this PC's\n"
+    "settings, decks and cartwall at the next start; what it replaces\n"
+    "is kept in a before-venue-import folder next to them.":
+        "Ein Hallenpaket von einem anderen PC laden. Es ersetzt beim\n"
+        "nächsten Start Einstellungen, Decks und Cartwall dieses PCs; das\n"
+        "Ersetzte bleibt in einem Ordner before-venue-import daneben erhalten.",
+    "Export venue pack": "Hallenpaket exportieren",
+    "Import venue pack": "Hallenpaket importieren",
+    "Include the music files?\n\n"
+    "Yes: the %d track(s) the decks and the cartwall use go into the pack too "
+    "(%s MB) — the other PC needs nothing else.\n"
+    "No: settings, decks and cartwall only — the other PC has the music already.":
+        "Die Musikdateien mitnehmen?\n\n"
+        "Ja: die %d Titel, die Decks und Cartwall verwenden, kommen mit ins Paket "
+        "(%s MB) — der andere PC braucht sonst nichts.\n"
+        "Nein: nur Einstellungen, Decks und Cartwall — der andere PC hat die "
+        "Musik schon.",
+    "Venue packs": "Hallenpakete",
+    "📦 Writing the venue pack…": "📦 Hallenpaket wird geschrieben…",
+    "📥 Unpacking the venue pack…": "📥 Hallenpaket wird ausgepackt…",
+    "All files": "Alle Dateien",
+    "📦 Venue pack cancelled — nothing was written.":
+        "📦 Hallenpaket abgebrochen — es wurde nichts geschrieben.",
+    "📦 Venue pack saved to:\n%s": "📦 Hallenpaket gespeichert unter:\n%s",
+    "%d track(s) included.": "%d Titel sind enthalten.",
+    "⚠ %d track(s) were missing on disk and are not in the pack.":
+        "⚠ %d Titel fehlten auf der Platte und sind nicht im Paket.",
+    "This is no venue pack:": "Das ist kein Hallenpaket:",
+    "The pack carries %d music file(s).\n\n"
+    "Yes: unpack them into a folder of this PC — the decks and the cartwall "
+    "then play them from there.\n"
+    "No: leave them in the pack — this PC has the music already "
+    "(🧭 Fix paths finds it if it lives elsewhere).":
+        "Das Paket enthält %d Musikdatei(en).\n\n"
+        "Ja: in einen Ordner dieses PCs auspacken — Decks und Cartwall spielen "
+        "sie dann von dort.\n"
+        "Nein: im Paket lassen — dieser PC hat die Musik schon "
+        "(🧭 Pfade korrigieren findet sie, wenn sie woanders liegt).",
+    "Folder for the venue pack's music": "Ordner für die Musik des Hallenpakets",
+    "📥 Venue pack import cancelled.": "📥 Import des Hallenpakets abgebrochen.",
+    "The import did not run:": "Der Import ist nicht gelaufen:",
+    "The venue pack takes over at the next start: settings, decks and "
+    "cartwall are replaced then, and what they replace is kept in a "
+    "before-venue-import folder.\n\n"
+    "Anything you change before that is lost.\n\n"
+    "Restart now?":
+        "Das Hallenpaket übernimmt beim nächsten Start: Einstellungen, Decks "
+        "und Cartwall werden dann ersetzt, das Ersetzte bleibt in einem Ordner "
+        "before-venue-import erhalten.\n\n"
+        "Was du bis dahin änderst, geht verloren.\n\n"
+        "Jetzt neu starten?",
+
+    # ── 📱 Phone remote ──
+    "Play, skip, fade and fire pads from a phone's browser on this "
+    "network — no app to install. The server's window shows the "
+    "address, a QR code that logs the phone in, and the PIN.":
+        "Abspielen, weiterschalten, ausblenden und Pads auslösen — im "
+        "Browser eines Handys in diesem Netzwerk, ohne App. Das Fenster des "
+        "Servers zeigt die Adresse, einen QR-Code, der das Handy anmeldet, "
+        "und die PIN.",
+    "📱  Start Server": "📱  Server starten",
+    "📱  Stop Server": "📱  Server stoppen",
+    "Stops the phone remote's server — connected phones lose the remote.":
+        "Stoppt den Server der Handy-Fernbedienung — verbundene Handys "
+        "verlieren die Fernbedienung.",
+    "The phone remote's server is running — click for its window.":
+        "Der Server der Handy-Fernbedienung läuft — klicken für sein Fenster.",
+    "Starts the server and opens its window — stop it there again.\n\n"
+    "Only phones on the same network get in, and only with the PIN;\n"
+    "wrong PINs lock the phone out for a while.\n"
+    "Windows may ask once whether the app may use the network —\n"
+    "allow it for private networks.":
+        "Startet den Server und öffnet sein Fenster — dort auch wieder stoppen.\n\n"
+        "Nur Handys im selben Netz kommen rein, und nur mit der PIN;\n"
+        "falsche PINs sperren das Handy eine Weile aus.\n"
+        "Windows fragt evtl. einmal, ob die App das Netzwerk nutzen darf —\n"
+        "für private Netzwerke erlauben.",
+    "New PIN": "Neue PIN",
+    "Make up a new PIN — phones that know the old one have to enter it again.":
+        "Neue PIN ausdenken — Handys mit der alten müssen sie neu eingeben.",
+    "📱 The phone remote could not start: %s":
+        "📱 Die Handy-Fernbedienung konnte nicht starten: %s",
+    "📱 Phone remote on — open %s on the phone, PIN %s":
+        "📱 Handy-Fernbedienung an — auf dem Handy %s öffnen, PIN %s",
+    # 📱 The phone remote's window
+    "📱  Phone remote": "📱  Handy-Fernbedienung",
+    "📱  Phone remote…": "📱  Handy-Fernbedienung…",
+    "Play, skip, fade and fire pads from a phone's browser on this\n"
+    "network — no app to install. Opens the window to start the\n"
+    "server, with a QR code that logs the phone in and a log of what\n"
+    "reached it.":
+        "Abspielen, weiterschalten, ausblenden und Pads auslösen — im\n"
+        "Browser eines Handys in diesem Netzwerk, ohne App. Öffnet das\n"
+        "Fenster, das den Server startet, mit QR-Code, der das Handy\n"
+        "anmeldet, und einem Protokoll dessen, was ankam.",
+    "Scan the code with the phone's camera — it opens the remote, logged in. "
+    "Or type the address:":
+        "Den Code mit der Handykamera scannen — er öffnet die Fernbedienung, "
+        "schon angemeldet. Oder die Adresse eintippen:",
+    "This PC is on more than one network. The first one is the way to\n"
+    "the internet, usually the Wi-Fi the phone is on as well.":
+        "Dieser PC hängt in mehr als einem Netzwerk. Das erste ist der Weg\n"
+        "ins Internet, meist das WLAN, in dem auch das Handy ist.",
+    "Opens the remote in this PC's browser — a quick test that the server answers.":
+        "Öffnet die Fernbedienung im Browser dieses PCs — ein schneller Test, "
+        "ob der Server antwortet.",
+    "Nothing turns up in the log when the phone tries? Then a firewall on this PC "
+    "drops it: allow the program below for private networks (Windows Defender "
+    "Firewall, or your security suite's own, e.g. Norton → Firewall → Program "
+    "Control). The phone must be on the same Wi-Fi.%s":
+        "Im Protokoll erscheint nichts, wenn das Handy es versucht? Dann verwirft "
+        "eine Firewall auf diesem PC die Anfrage: erlaube das Programm unten für "
+        "private Netzwerke (Windows Defender Firewall oder die deiner Sicherheits-"
+        "Suite, z. B. Norton → Firewall → Programmsteuerung). Das Handy muss im "
+        "selben WLAN sein.%s",
+    "Log": "Protokoll",
+    "● Running — port %d": "● Läuft — Port %d",
+    "○ Stopped": "○ Gestoppt",
+    "■  Stop": "■  Stoppen",
+    "▶  Start": "▶  Starten",
+    "No network found — is this PC on the Wi-Fi?":
+        "Kein Netzwerk gefunden — ist dieser PC im WLAN?",
+    "Press Start — the code to scan shows up here.":
+        "Auf Starten drücken — dann erscheint hier der Code zum Scannen.",
+    "No QR code: the segno package is missing. Type the address instead.":
+        "Kein QR-Code: das Paket segno fehlt. Stattdessen die Adresse eintippen.",
+    "▶ Server started on port %(detail)s": "▶ Server gestartet auf Port %(detail)s",
+    "■ Server stopped": "■ Server gestoppt",
+    "%(ip)s opened the page": "%(ip)s hat die Seite geöffnet",
+    "✔ %(ip)s logged in with the PIN": "✔ %(ip)s hat sich mit der PIN angemeldet",
+    "✖ %(ip)s sent a wrong PIN": "✖ %(ip)s hat eine falsche PIN geschickt",
+    "⛔ %(ip)s locked out for %(detail)s s — too many wrong PINs":
+        "⛔ %(ip)s für %(detail)s s gesperrt — zu viele falsche PINs",
+    "⛔ %(ip)s refused — not on the local network":
+        "⛔ %(ip)s abgewiesen — nicht im lokalen Netzwerk",
+    "⚠ Could not start: %(detail)s": "⚠ Konnte nicht starten: %(detail)s",
+    "DancePlaylist remote": "DancePlaylist-Fernbedienung",
+    "Connect": "Verbinden",
+    "Wrong PIN": "Falsche PIN",
+    "Too many wrong PINs — wait a minute": "Zu viele falsche PINs — kurz warten",
+    "No connection to the desk": "Keine Verbindung zum Pult",
+    "Nothing is playing": "Es läuft nichts",
+    "Stop all pads": "Alle Pads stoppen",
+    "Next": "Weiter",
+    "Fade & hold": "Ausblenden & halten",
+    "Announce next dance": "Nächsten Tanz ansagen",
+
+    # ── 🌐 The other languages, in the ⚙ Settings combo ──
+    "Menus, buttons and dialogs are in Spanish. Dances and rounds keep their "
+    "international English names; track names and anything read from your "
+    "files stay as they are.":
+        "Menüs, Knöpfe und Dialoge auf Spanisch. Tänze und Runden tragen ihre "
+        "internationalen englischen Namen; Titel und alles aus deinen Dateien "
+        "bleibt, wie es ist.",
+    "Menus, buttons and dialogs are in Dutch. Dances and rounds keep their "
+    "international English names; track names and anything read from your "
+    "files stay as they are.":
+        "Menüs, Knöpfe und Dialoge auf Niederländisch. Tänze und Runden tragen "
+        "ihre internationalen englischen Namen; Titel und alles aus deinen "
+        "Dateien bleibt, wie es ist.",
+    "Menus, buttons and dialogs are in Russian. Dances and rounds keep their "
+    "international English names; track names and anything read from your "
+    "files stay as they are.":
+        "Menüs, Knöpfe und Dialoge auf Russisch. Tänze und Runden tragen ihre "
+        "internationalen englischen Namen; Titel und alles aus deinen Dateien "
+        "bleibt, wie es ist.",
+
+    # ── 🎛 Hardware controller ──
+    '🎛  Controller':
+        '🎛  DJ-Controller',
+    'Play, skip, fade, set the volume and fire cartwall pads from a USB MIDI controller (e.g. Korg nanoKONTROL2) or a HID one (e.g. a Traktor controller in its native mode). Pick the device, load a profile or click Learn and press the button that should do it.':
+        'Abspielen, überspringen, ausblenden, die Lautstärke stellen und Cartwall-Pads auslösen – mit einem USB-MIDI-Controller (z. B. Korg nanoKONTROL2) oder einem HID-Controller (z. B. einem Traktor-Controller im nativen Modus). Gerät wählen, ein Profil laden oder auf Anlernen klicken und den Knopf drücken, der es tun soll.',
+    '— none —':
+        '— keiner —',
+    'Device:':
+        'Gerät:',
+    'Look for devices again':
+        'Erneut nach Geräten suchen',
+    'Show all HID devices, not only DJ controllers':
+        'Alle HID-Geräte zeigen, nicht nur DJ-Controller',
+    'Presets ▾':
+        'Vorlagen ▾',
+    '📂  Load profile…':
+        '📂  Profil laden…',
+    '💾  Save profile…':
+        '💾  Profil speichern…',
+    'Control':
+        'Bedienelement',
+    'Learn':
+        'Anlernen',
+    'Unbind this action':
+        'Zuordnung lösen',
+    '%s — not plugged in':
+        '%s — nicht angeschlossen',
+    '● Connected — %s':
+        '● Verbunden — %s',
+    '○ Not connected — %s':
+        '○ Nicht verbunden — %s',
+    'No controller chosen.':
+        'Kein Controller gewählt.',
+    'Profile: %s':
+        'Profil: %s',
+    'own':
+        'eigenes',
+    'Press or move a control…':
+        'Element drücken oder bewegen…',
+    'Load controller profile':
+        'Controller-Profil laden',
+    'Controller profiles (*.json)':
+        'Controller-Profile (*.json)',
+    'This file is not a controller profile:\n%s':
+        'Diese Datei ist kein Controller-Profil:\n%s',
+    'Save controller profile':
+        'Controller-Profil speichern',
+    'Could not save the profile:\n%s':
+        'Profil konnte nicht gespeichert werden:\n%s',
+    'not bound':
+        'nicht zugeordnet',
+    'Last: %(control)s = %(value)d%% → %(action)s':
+        'Zuletzt: %(control)s = %(value)d%% → %(action)s',
+    '🎛  Cartwall pad %d':
+        '🎛  Cartwall-Pad %d',
+    '⏯  Play / pause':
+        '⏯  Abspielen / Pause',
+    '⏭  Next title':
+        '⏭  Nächster Titel',
+    '⏮  Previous title':
+        '⏮  Vorheriger Titel',
+    '🔉↓  Fade out now':
+        '🔉↓  Jetzt ausblenden',
+    '🛑  Fade out and hold':
+        '🛑  Ausblenden und halten',
+    '🔉  Duck the music on / off':
+        '🔉  Musik absenken an / aus',
+    '🔈  Announce the next dance on / off':
+        '🔈  Nächsten Tanz ansagen an / aus',
+    '🔊  Music volume (fader or knob)':
+        '🔊  Musiklautstärke (Fader oder Regler)',
+    '⏹  Stop all pads':
+        '⏹  Alle Pads stoppen',
+    'Play, skip, fade, set the volume and fire cartwall pads from a USB MIDI or HID controller — a profile for the Korg nanoKONTROL2 is built in, any other is learned by pressing its buttons.':
+        'Abspielen, überspringen, ausblenden, die Lautstärke stellen und Cartwall-Pads auslösen – mit einem USB-MIDI- oder HID-Controller. Ein Profil für den Korg nanoKONTROL2 ist eingebaut, jeden anderen lernt man an, indem man seine Knöpfe drückt.',
+    '🎛  Set up…':
+        '🎛  Einrichten…',
+    # 🤸 the practice panel's own name
+    "Practice": "Eintanzen",
+    "Practice / Party": "Eintanzen / Party",
+    "🤸  Practice / Party": "🤸  Eintanzen / Party",
+    "🤸  Practice / Party ▾": "🤸  Eintanzen / Party ▾",
 }

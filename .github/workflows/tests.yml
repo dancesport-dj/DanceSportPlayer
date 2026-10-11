@@ -1,8 +1,10 @@
 name: tests
 
-# The app is Windows-only (WMF media backend, ffmpeg.exe, packaged with
-# PyInstaller), so CI runs on Windows too — same platform the tests are written
-# against. The GUI smoke test drives Qt through its offscreen platform plugin.
+# The app ships for Windows, macOS and Linux, so the suite runs on all three.
+# Windows is the platform the tests were written against and the one that has
+# to pass. The macOS and Linux legs are new and may fail (continue-on-error)
+# until what they turn up is fixed or skipped; then the flag goes. The GUI
+# tests drive Qt through its offscreen platform plugin on every leg.
 on:
   push:
     branches: [main]
@@ -16,7 +18,12 @@ on:
 
 jobs:
   test:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.os != 'windows-latest' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -25,12 +32,28 @@ jobs:
           python-version: "3.14"
           cache: pip
 
+      # Qt's xcb/EGL libraries (as in build-player.yml) and ffmpeg for the
+      # audio analysis.
+      - name: System libraries (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
+            libxcb-keysyms1 libxcb-render-util0 libxcb-xkb1 libxkbcommon-x11-0 \
+            libegl1 libpulse0 ffmpeg
+
+      - name: ffmpeg (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt ruff==0.16.8 pillow
 
+      # The same on every platform, so once is enough.
       - name: Lint
+        if: runner.os == 'Windows'
         run: python -m ruff check .
 
       - name: Test
@@ -38,6 +61,7 @@ jobs:
           QT_QPA_PLATFORM: offscreen
           DANCEPLAYLIST_ERROR_DSN: ${{ secrets.DANCEPLAYLIST_ERROR_DSN }}
           # The live GlitchTip test sends one event, so it runs only when a
-          # manual run ticks live_tests (and the secret is there).
-          DANCEPLAYLIST_LIVE_TESTS: ${{ inputs.live_tests && '1' || '' }}
+          # manual run ticks live_tests (and the secret is there), and only on
+          # the Windows leg.
+          DANCEPLAYLIST_LIVE_TESTS: ${{ inputs.live_tests && runner.os == 'Windows' && '1' || '' }}
         run: python -m unittest discover -p "test_*.py" -v

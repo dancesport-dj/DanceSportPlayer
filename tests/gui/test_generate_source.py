@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Which pool ⚡ Generate is handed for each "Draw tracks from" choice.
+r"""Which pool ⚡ Generate is handed for each "Draw tracks from" choice.
 
 Run:  .venv\Scripts\python.exe -m unittest tests.gui.test_generate_source -v
 
@@ -19,9 +19,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_gensrc_"))
 
-from gui import main_generate as gen  # noqa: E402
-from planner.library import MusicLibrary  # noqa: E402
-from planner.models import MusicEntry  # noqa: E402
+from gui import main_generate as gen
+from planner.library import MusicLibrary
+from planner.models import MusicEntry
 
 
 def _entry(name, dance="SA"):

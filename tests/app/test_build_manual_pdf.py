@@ -151,6 +151,21 @@ class BuildManualPdfTest(unittest.TestCase):
             self.assertEqual(bp.buildPdf(self.dir, self.pdf), 0)
         self.assertEqual(self.pdf.read_bytes(), b"%PDF-1.7")
 
+    def test_a_version_bump_prints_it_again(self):
+        # The cover names the version: a PDF older than the VERSION bump
+        # would hand out the last release's number.
+        self.lastPdf(-60)
+        version = self.dir / "version.py"
+        version.write_text('VERSION = "9.9.9"\n', encoding="utf-8")
+        when = self.pdf.stat().st_mtime + 60
+        os.utime(version, (when, when))
+        with mock.patch.object(bp.planner.version, "__file__", str(version)), \
+                mock.patch.object(bp, "findBrowser", return_value="chrome"), \
+                mock.patch.object(bp.subprocess, "run", self.fakeBrowser(True)), \
+                self.assertLogs(bm.log, "INFO"):
+            self.assertEqual(bp.buildPdf(self.dir, self.pdf), 0)
+        self.assertEqual(self.pdf.read_bytes(), b"%PDF-1.7")
+
     def test_no_browser_is_a_failure(self):
         with mock.patch.object(bp, "findBrowser", return_value=None), \
                 self.assertLogs(bm.log, "INFO") as logs:

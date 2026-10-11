@@ -113,7 +113,8 @@ def splitRow(line: str) -> list[str]:
         line = line[1:]
     if line.endswith("|"):
         line = line[:-1]
-    return [cell.strip() for cell in line.split("|")]
+    # \| is a pipe inside a cell, as on GitHub
+    return [cell.strip().replace("\\|", "|") for cell in re.split(r"(?<!\\)\|", line)]
 
 
 def isBlockStart(lines: list[str], i: int) -> bool:
@@ -311,8 +312,10 @@ body.has-toc main { margin-left:max(290px, calc(50vw - 480px + 145px)); }
   h1, h2, h3, p:has(+ figure), p:has(+ .table), p:has(+ ul) { break-after:avoid; }
   figure, pre, tr { break-inside:avoid; }
   /* A screenshot taller than this would leave the page before it half
-     empty, or not fit a page at all and be cut off. */
-  figure img { max-height:150mm; width:auto; } }
+     empty, or not fit a page at all and be cut off. 100mm is the most at
+     which the tag editor and its heading still fit below the half page of
+     text before them, in English and German. */
+  figure img { max-height:100mm; width:auto; } }
 """
 
 # The printed manual only (buildPrintHtml): its cover and contents page.

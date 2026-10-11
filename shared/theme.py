@@ -485,7 +485,7 @@ def apply_window_frame(widget) -> bool:
                                          ctypes.byref(on),
                                          ctypes.sizeof(on)) == 0:
                 return True
-    except Exception as exc:                        # noqa: BLE001 — cosmetic
+    except Exception as exc:                        # cosmetic
         log.debug("🎨 Dark title bar not available: %s", exc)
     return False
 
@@ -538,6 +538,7 @@ _SHARED_COLORS = (
     ("gui.playlist_table", "_C_MARK_BG", "ground"),
     ("gui.playlist_table", "_C_MARK_FG", "ink"),
     ("gui.playlist_table", "_C_ISSUE_BG", "ground"),
+    ("gui.playlist_table", "_C_MISSING_BG", "ground"),
     ("gui.tournament_tree", "_C_MISS_BG", "ground"),
     # Class attributes rather than module constants — the resolver walks a
     # dotted path either way, they were simply never listed.

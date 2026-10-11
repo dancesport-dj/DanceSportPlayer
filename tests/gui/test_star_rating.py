@@ -18,21 +18,21 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_star_rating_"))
 
-from PySide6.QtCore import Qt  # noqa: E402
+from PySide6.QtCore import Qt
 
-import planner.db as pdb  # noqa: E402
-from dancesport_planner import (  # noqa: E402
+import planner.db as pdb
+from dancesport_planner import (
     MusicEntry,
     MusicLibrary,
     PlaylistSuggester,
     RoundConfig,
 )
-from gui.library_browser import _LIB_COL_RATING  # noqa: E402
-from gui.star_rating import (  # noqa: E402
+from gui.library_browser import _LIB_COL_RATING
+from gui.star_rating import (
     RATING_ROLE, clicked_rating, star_at, star_rects)
-from planner import tag_edits  # noqa: E402
-from shared.columns import _COL_RATING  # noqa: E402
-from tests.qt_test_support import (  # noqa: E402
+from planner import tag_edits
+from shared.columns import _COL_RATING
+from tests.qt_test_support import (
     reap_widget, stub_window_startup)
 
 _MUSIC = Path(tempfile.mkdtemp(prefix="dp_star_music_"))

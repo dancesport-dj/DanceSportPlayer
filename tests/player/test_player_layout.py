@@ -10,9 +10,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_playerpos_"))
 
-from PySide6.QtCore import QPoint          # noqa: E402
-from shared.stores import player_layout_of  # noqa: E402
-from tests.qt_test_support import (  # noqa: E402
+from PySide6.QtCore import QPoint
+from shared.stores import player_layout_of
+from tests.qt_test_support import (
     reap_widget, stub_window_startup)
 
 _BLOCKS = ("_head_box", "_time_box", "_slider", "_btn_box", "_aux_box",

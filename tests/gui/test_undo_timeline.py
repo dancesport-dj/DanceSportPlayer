@@ -17,7 +17,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_undo_"))
 
-from gui.undo_timeline import UndoTimeline  # noqa: E402
+from gui.undo_timeline import UndoTimeline
 
 
 def env(n):

@@ -19,14 +19,14 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_save_"))
 
-from pathlib import Path  # noqa: E402
+from pathlib import Path
 
-from PySide6.QtWidgets import QApplication, QWidget  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from PySide6.QtWidgets import QApplication, QWidget
+from tests.qt_test_support import reap_widget
 
-from gui.main_export import ExportMixin  # noqa: E402
-from gui.main_persist import PersistenceMixin  # noqa: E402
-from planner.models import MusicEntry  # noqa: E402
+from gui.main_export import ExportMixin
+from gui.main_persist import PersistenceMixin
+from planner.models import MusicEntry
 
 _app = QApplication.instance() or QApplication([])
 

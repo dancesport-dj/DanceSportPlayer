@@ -19,8 +19,8 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_aistop_"))
 
-from planner import llm  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from planner import llm
+from tests.qt_test_support import reap_widget
 
 
 class AiStopTest(unittest.TestCase):

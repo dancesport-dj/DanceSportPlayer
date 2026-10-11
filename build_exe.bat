@@ -52,6 +52,11 @@ if /I "%DANCESPORT_BUILD%"=="player" (
   copy /y "%~dp0ICONS-LICENSE.txt" "%~dp0dist\%APP_NAME%\Licenses\" >nul
   copy /y "%~dp0THIRD_PARTY_LICENSES.md" "%~dp0dist\%APP_NAME%\Licenses\" >nul
   copy /y "%~dp0speech\LICENSE-AUDIO.md" "%~dp0dist\%APP_NAME%\Licenses\" >nul
+  copy /y "%~dp0licenses\GPL-2.0.txt" "%~dp0dist\%APP_NAME%\Licenses\" >nul
+  copy /y "%~dp0licenses\GPL-3.0.txt" "%~dp0dist\%APP_NAME%\Licenses\" >nul
+  copy /y "%~dp0licenses\LGPL-2.1.txt" "%~dp0dist\%APP_NAME%\Licenses\" >nul
+  copy /y "%~dp0licenses\LGPL-3.0.txt" "%~dp0dist\%APP_NAME%\Licenses\" >nul
+  copy /y "%~dp0licenses\PYTHON-LICENSE.txt" "%~dp0dist\%APP_NAME%\Licenses\" >nul
   echo Copied the licence texts into Licenses.
 )
 

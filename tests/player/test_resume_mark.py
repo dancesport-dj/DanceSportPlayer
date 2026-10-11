@@ -65,6 +65,9 @@ class _FakeTable:
     def set_resume_marks(self, marks):
         self.marks = dict(marks)
 
+    def refresh_found(self, _path):
+        return 0
+
     def on_playback_stopped(self):
         self.stopped += 1
 

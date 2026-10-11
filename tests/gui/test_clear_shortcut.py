@@ -18,10 +18,10 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_clear_sc_"))
 
-from PySide6.QtGui import QKeySequence  # noqa: E402
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtGui import QKeySequence
+from PySide6.QtWidgets import QApplication
 
-from tests.qt_test_support import (  # noqa: E402
+from tests.qt_test_support import (
     reap_widget, stub_window_startup)
 
 

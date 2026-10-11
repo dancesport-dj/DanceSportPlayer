@@ -27,6 +27,15 @@ class BuildManualTest(unittest.TestCase):
         (self.dir / "01-start.md").write_text(
             "# 1 · Start\n\nHello.\n", encoding="utf-8")
 
+    def test_an_escaped_pipe_stays_in_its_table_cell(self):
+        # The player card's |◀ button: GitHub reads \| as a pipe inside the cell.
+        lines = ["| Control | What it does |", "|---|---|",
+                 "| orange **\\|◀** | Jumps back to 0:00. |"]
+        html = bm.renderBlocks(lines, "04-playing.md", [])
+        self.assertIn("<td>orange <strong>|◀</strong></td>", html)
+        self.assertIn("<td>Jumps back to 0:00.</td>", html)
+        self.assertNotIn("\\", html)
+
     def test_the_page_is_named_after_the_index_heading(self):
         page, broken = bm.buildHtml(self.dir)
         self.assertIn("<title>The Player Manual</title>", page)

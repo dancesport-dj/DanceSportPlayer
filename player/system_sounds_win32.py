@@ -18,7 +18,7 @@ import sys
 if sys.platform != "win32":   # pragma: no cover - guarded by the caller
     raise ImportError("player.system_sounds_win32 is Windows-only")
 
-from player.taskbar_win32 import _GUID, _method, release   # noqa: E402
+from player.taskbar_win32 import _GUID, _method, release
 
 _ole32 = ctypes.windll.ole32
 

@@ -27,20 +27,20 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_party_"))
 
-from PySide6.QtMultimedia import QMediaPlayer  # noqa: E402
-from PySide6.QtWidgets import QApplication, QWidget  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from PySide6.QtMultimedia import QMediaPlayer
+from PySide6.QtWidgets import QApplication, QWidget
+from tests.qt_test_support import reap_widget
 
-from player.main_player import PlayerControlMixin  # noqa: E402
-from planner.play_sets import (  # noqa: E402
+from player.main_player import PlayerControlMixin
+from planner.play_sets import (
     _PARTY_SET, _TOURNAMENT_SET, play_set_of, tso_of,
 )
-from player.play_mode_panel import PlayModePanel  # noqa: E402
-from shared.columns import _COL_TITLE  # noqa: E402
-from gui.playlist_table import PlaylistTable  # noqa: E402
-from planner.models import MusicEntry  # noqa: E402
-from player.between_dances import BetweenDances  # noqa: E402
-from player.pause_filler import PauseFiller  # noqa: E402
+from player.play_mode_panel import PlayModePanel
+from shared.columns import _COL_TITLE
+from gui.playlist_table import PlaylistTable
+from planner.models import MusicEntry
+from player.between_dances import BetweenDances
+from player.pause_filler import PauseFiller
 
 # What the panel happens to be standing on before anything is applied — neither
 # set, the way an operator's hand leaves it.

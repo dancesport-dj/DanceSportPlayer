@@ -434,7 +434,6 @@ class MusicEntry:
     is_instrumental: bool = False  # True when COMM tag or filename marks 'instr'
     audio_instr_prob: float | None = None  # learned from audio (planner.vocals), None = unknown
     vocal_share: float | None = None  # measured Demucs vocal-stem energy share, None = not measured
-    sim_score: float | None = None  # timbral similarity to round anchor (set at pick-time)
     is_xmas: bool = False  # True → Christmas song, excluded from playlists
     features: AudioFeatures | None = None
     replay_sources: list[str] | None = None  # 'Past Competitions': relevant M3Us (parent/stem)
@@ -443,6 +442,12 @@ class MusicEntry:
     semi_plays: int = 0   # …and how many in the SEMIFINAL — the other round that matters
     added: float | None = None  # file creation time (unix) — when it entered the library
     last_played: int | None = None  # newest year among the playlists it appears in
+
+    def __post_init__(self):
+        # The scan caches mark "probed, the header gives no length" as -1 so
+        # the file is not probed again; an entry has no length to show.
+        if self.duration and self.duration < 0:
+            self.duration = 0
 
 
 class ScanCancelled(Exception):

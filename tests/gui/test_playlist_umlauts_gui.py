@@ -24,7 +24,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_umlaut_gui_"))
 
-from planner.playlist_text import PlaylistEncodingError  # noqa: E402
+from planner.playlist_text import PlaylistEncodingError
 
 _UNDECODABLE = b"\x81\x8d not text \x8f\x90\r\n"
 

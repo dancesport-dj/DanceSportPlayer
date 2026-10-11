@@ -20,14 +20,14 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_pswap_"))
 
-from PySide6.QtCore import QEvent, QItemSelectionModel, Qt  # noqa: E402
-from PySide6.QtGui import QKeyEvent  # noqa: E402
-from PySide6.QtWidgets import QApplication, QWidget  # noqa: E402
+from PySide6.QtCore import QEvent, QItemSelectionModel, Qt
+from PySide6.QtGui import QKeyEvent
+from PySide6.QtWidgets import QApplication, QWidget
 
-from shared.columns import _COL_REGEN  # noqa: E402
-from gui.playlist_table import PlaylistTable  # noqa: E402
-from planner.models import MusicEntry  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from shared.columns import _COL_REGEN
+from gui.playlist_table import PlaylistTable
+from planner.models import MusicEntry
+from tests.qt_test_support import reap_widget
 
 
 _DIR = Path(tempfile.mkdtemp(prefix="dp_pswap_m_"))
@@ -100,12 +100,12 @@ class PartySwapTest(_PartyBase):
 
     def test_regen_button_says_it_swaps(self):
         t = self.table()
-        tip = t.cellWidget(self.row_of(t, "LW 1"), _COL_REGEN).toolTip()
+        tip = t.item(self.row_of(t, "LW 1"), _COL_REGEN).toolTip()
         self.assertIn("Swap", tip)
 
     def test_class_warmup_keeps_the_library_reroll(self):
         t = self.table(style="Latin")
-        self.assertNotIn("Swap", t.cellWidget(self.row_of(t, "LW 1"), _COL_REGEN).toolTip())
+        self.assertNotIn("Swap", t.item(self.row_of(t, "LW 1"), _COL_REGEN).toolTip())
         with mock.patch.object(t, "_regen_warmup") as reroll:
             t._regen(self.row_of(t, "LW 1"))
         reroll.assert_called_once()

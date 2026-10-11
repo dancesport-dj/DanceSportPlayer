@@ -18,8 +18,8 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_export_ref_"))
 
-from dancesport_planner import MusicEntry, MusicLibrary  # noqa: E402
-from tests.qt_test_support import (  # noqa: E402
+from dancesport_planner import MusicEntry, MusicLibrary
+from tests.qt_test_support import (
     reap_widget, stub_window_startup)
 
 _TMP = Path(tempfile.mkdtemp(prefix="dp_export_ref_files_"))

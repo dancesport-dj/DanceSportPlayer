@@ -46,6 +46,18 @@ LANGUAGES = (
     ("de", "🇩🇪  Deutsch — Menüs, Knöpfe und Dialoge auf Deutsch",
      "Menus, buttons and dialogs are translated. Track names, dance names and "
      "anything read from your files stay as they are."),
+    ("es", "🇪🇸  Español — menús, botones y diálogos en español",
+     "Menus, buttons and dialogs are in Spanish. Dances and rounds keep their "
+     "international English names; track names and anything read from your "
+     "files stay as they are."),
+    ("nl", "🇳🇱  Nederlands — menu's, knoppen en dialogen in het Nederlands",
+     "Menus, buttons and dialogs are in Dutch. Dances and rounds keep their "
+     "international English names; track names and anything read from your "
+     "files stay as they are."),
+    ("ru", "🇷🇺  Русский — меню, кнопки и диалоги на русском",
+     "Menus, buttons and dialogs are in Russian. Dances and rounds keep their "
+     "international English names; track names and anything read from your "
+     "files stay as they are."),
 )
 _LANGUAGE_CODES = tuple(code for code, _caption, _blurb in LANGUAGES)
 

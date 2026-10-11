@@ -30,10 +30,10 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_autosw_"))
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication
 
-from player.main_player import PlayerControlMixin  # noqa: E402
-from player.play_mode_panel import PlayModePanel  # noqa: E402
+from player.main_player import PlayerControlMixin
+from player.play_mode_panel import PlayModePanel
 
 
 class _Table:

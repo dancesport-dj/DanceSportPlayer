@@ -18,11 +18,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_len_i18n_"))
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication
 
-from planner import i18n  # noqa: E402
-from player.play_mode_panel import PlayModePanel, parse_play_length  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from planner import i18n
+from player.play_mode_panel import PlayModePanel, parse_play_length
+from tests.qt_test_support import reap_widget
 
 
 class PlayLengthReadoutTest(unittest.TestCase):

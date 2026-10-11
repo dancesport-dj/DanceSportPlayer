@@ -16,9 +16,9 @@ from pathlib import Path
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_tagedits_"))
 
-import planner.db as pdb  # noqa: E402
-from planner import tag_edits  # noqa: E402
-from planner.models import MusicEntry  # noqa: E402
+import planner.db as pdb
+from planner import tag_edits
+from planner.models import MusicEntry
 
 
 class _ScratchDb(unittest.TestCase):

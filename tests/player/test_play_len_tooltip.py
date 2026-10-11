@@ -18,11 +18,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_lentip_"))
 
-from PySide6.QtCore import QPoint  # noqa: E402
-from PySide6.QtWidgets import QApplication, QLabel, QToolTip  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from PySide6.QtCore import QPoint
+from PySide6.QtWidgets import QApplication, QLabel, QToolTip
+from tests.qt_test_support import reap_widget
 
-from player.play_mode_panel import PlayModePanel  # noqa: E402
+from player.play_mode_panel import PlayModePanel
 
 
 class PlayLengthTooltipTest(unittest.TestCase):

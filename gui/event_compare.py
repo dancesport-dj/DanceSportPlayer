@@ -739,7 +739,7 @@ class EventCompareDialog(QDialog):
     def _changed(self, i: int, row: int) -> bool:
         """Whether "Last year, renewed" plays another title there than its reference."""
         key = (i, *self._slots[i][row])
-        path = lambda p: str(p.entry.path) if p else None  # noqa: E731
+        path = lambda p: str(p.entry.path) if p else None
         return (path(event_plan.slot_pick(self._result.variants[RENEWED], key))
                 != path(event_plan.slot_pick(self._result.variants[REFERENCE], key)))
 
@@ -776,7 +776,7 @@ class EventCompareDialog(QDialog):
 
     def _status_text(self) -> str:
         r = self._result
-        names = lambda idx: ", ".join(self._cands[i].spec.label for i in idx)  # noqa: E731
+        names = lambda idx: ", ".join(self._cands[i].spec.label for i in idx)
         lines = []
         if r.pending:
             lines.append(i18n.t("⏳ Held back by the AI's limit: %s") % names(r.pending)

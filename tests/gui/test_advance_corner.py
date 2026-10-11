@@ -27,14 +27,14 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_corner_"))
 
-from PySide6.QtCore import Qt  # noqa: E402
-from PySide6.QtWidgets import (QApplication, QHBoxLayout,  # noqa: E402
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (QApplication, QHBoxLayout,
                                QLabel, QWidget)
 
-from gui.playlist_table import PlaylistTable  # noqa: E402
-from gui.main_decks import DeckLayoutMixin  # noqa: E402
-from player.main_player import PlayerControlMixin  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from gui.playlist_table import PlaylistTable
+from gui.main_decks import DeckLayoutMixin
+from player.main_player import PlayerControlMixin
+from tests.qt_test_support import reap_widget
 
 
 class _Setting:

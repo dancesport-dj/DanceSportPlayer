@@ -21,12 +21,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_sim_decks_"))
 
-from PySide6.QtWidgets import QApplication, QWidget  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from PySide6.QtWidgets import QApplication, QWidget
+from tests.qt_test_support import reap_widget
 
-from gui.main_decks import DeckLayoutMixin  # noqa: E402
-from gui.similar_dialog import SimilarTracksDialog  # noqa: E402
-from planner.models import MusicEntry  # noqa: E402
+from gui.main_decks import DeckLayoutMixin
+from gui.similar_dialog import SimilarTracksDialog
+from planner.models import MusicEntry
 
 _app = QApplication.instance() or QApplication(sys.argv)
 

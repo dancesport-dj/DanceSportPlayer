@@ -160,8 +160,20 @@ def _data_dir(install_dir: Path) -> Path:
 #   1. environment variable (DANCEPLAYLIST_MUSIC_DIR / _PLAYLIST_DIR / _OUTPUT_DIR)
 #   2. planner_config.json in the data dir (keys: music_dir, playlist_dir, output_dir)
 #   3. built-in default
+def _env_data_dir() -> Path | None:
+    """DANCEPLAYLIST_DATA_DIR moves the whole data folder — DB, backups, caches,
+    JSON state. The test suite sets it (tests/__init__.py) so a run never
+    touches the real audio_features.db or drops a copy into the real backups/."""
+    env = os.environ.get("DANCEPLAYLIST_DATA_DIR")
+    if not env:
+        return None
+    path = Path(env)
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
 INSTALL_DIR = _app_dir()      # read-only side: shipped files (ffmpeg, build marker)
-_BASE_DIR = _data_dir(INSTALL_DIR)
+_BASE_DIR = _env_data_dir() or _data_dir(INSTALL_DIR)
 APP_DIR = _BASE_DIR   # public alias for the GUI / other modules
 PATH_CONFIG_FILE = _BASE_DIR / "planner_config.json"
 
@@ -261,6 +273,26 @@ def set_playlist_dir(path) -> None:
         mod = sys.modules.get(mod_name)
         if mod is not None and hasattr(mod, "PLAYLIST_DIR"):
             mod.PLAYLIST_DIR = PLAYLIST_DIR
+
+
+def folders_below(path: str, root: str) -> list[str] | None:
+    """The folder names between `root` and the file at `path`.
+
+    What `Path(path).relative_to(root).parts[:-1]` gives, or None when `path`
+    does not start with the root's string. Paths from a walk of `root` always
+    do, and for those pathlib's `relative_to` was the slow part: 0.7 s per
+    start over the library and the playlist tree, where slicing the string
+    takes next to nothing.
+    """
+    prefix = root.rstrip("\\/") + os.sep
+    if not path.startswith(prefix):
+        return None
+    rel = path[len(prefix):]
+    if os.altsep:
+        rel = rel.replace(os.altsep, os.sep)
+    return rel.split(os.sep)[:-1]
+
+
 CACHE_FILE = _BASE_DIR / "audio_features.json"
 AUDIO_DB_FILE = _BASE_DIR / "audio_features.db"
 SCAN_CACHE_FILE = _BASE_DIR / "scan_cache.json"

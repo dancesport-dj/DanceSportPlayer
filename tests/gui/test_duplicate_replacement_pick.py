@@ -21,10 +21,10 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_dup_pick_"))
 
-from PySide6.QtWidgets import QApplication, QMessageBox  # noqa: E402
+from PySide6.QtWidgets import QApplication, QMessageBox
 
-from tests.gui.test_duplicate_check_scope import _Win, _waltz  # noqa: E402
-from tests.qt_test_support import reap_widget  # noqa: E402
+from tests.gui.test_duplicate_check_scope import _Win, _waltz
+from tests.qt_test_support import reap_widget
 
 
 class _PickWin(_Win):

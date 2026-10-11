@@ -20,16 +20,16 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_planned_"))
 
-from PySide6.QtWidgets import QApplication, QWidget  # noqa: E402
-from tests.qt_test_support import (  # noqa: E402
+from PySide6.QtWidgets import QApplication, QWidget
+from tests.qt_test_support import (
     reap_widget, stub_window_startup)
 
-import gui.table_actions as table_actions  # noqa: E402
-from gui.playlist_table import PlaylistTable  # noqa: E402
-from planner import config as planner_config  # noqa: E402
-from planner.library import MusicLibrary  # noqa: E402
-from planner.models import MusicEntry, RoundConfig  # noqa: E402
-from planner.suggester import PlaylistSuggester  # noqa: E402
+import gui.table_actions as table_actions
+from gui.playlist_table import PlaylistTable
+from planner import config as planner_config
+from planner.library import MusicLibrary
+from planner.models import MusicEntry, RoundConfig
+from planner.suggester import PlaylistSuggester
 
 _TRACK = r"C:\music\standardcd\Tango One (TG 32).mp3"
 

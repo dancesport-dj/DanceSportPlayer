@@ -16,7 +16,6 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
-from types import SimpleNamespace
 
 from dancesport_planner import MusicEntry, MusicLibrary
 from planner import config as planner_config
@@ -110,14 +109,16 @@ class ReadAndImportTest(_Base):
 
     def test_an_import_resolves_the_umlaut_title_to_the_library(self):
         p = self._cp1252_list("list.m3u")
-        res = import_playlist_m3u(p, SimpleNamespace(entries=[self.entry]), None)
+        lib = MusicLibrary()
+        lib.entries = [self.entry]
+        res = import_playlist_m3u(p, lib, None)
         self.assertEqual(res["missing"], 0)
         self.assertIs(next(iter(res["playlist"].values()))[0][0], self.entry)
 
     def test_an_import_of_an_undecodable_file_fails(self):
         p = self._write("list.m3u", _UNDECODABLE)
         with self.assertRaises(PlaylistEncodingError):
-            import_playlist_m3u(p, SimpleNamespace(entries=[]), None)
+            import_playlist_m3u(p, MusicLibrary(), None)
 
 
 if __name__ == "__main__":

@@ -17,12 +17,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_dance_counts_"))
 
-from PySide6.QtCore import Qt  # noqa: E402
-from PySide6.QtTest import QTest  # noqa: E402
+from PySide6.QtCore import Qt
+from PySide6.QtTest import QTest
 
-from dancesport_planner import MusicEntry, MusicLibrary  # noqa: E402
-from gui.main_decks import dance_counts_line  # noqa: E402
-from tests.qt_test_support import (  # noqa: E402
+from dancesport_planner import MusicEntry, MusicLibrary
+from gui.main_decks import dance_counts_line
+from tests.qt_test_support import (
     reap_widget, stub_window_startup)
 
 _MUSIC = Path(tempfile.mkdtemp(prefix="dp_dance_counts_music_"))

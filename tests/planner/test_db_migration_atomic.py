@@ -21,7 +21,7 @@ from unittest import mock
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_db_migrate_"))
 
-import planner.db as pdb  # noqa: E402
+import planner.db as pdb
 
 
 class MigrationAtomicTest(unittest.TestCase):
@@ -102,6 +102,19 @@ class MigrationAtomicTest(unittest.TestCase):
         self.assertEqual(
             self._raw().execute("SELECT file_id, size FROM scan_meta").fetchall(),
             [(1, 4096)])
+
+    def test_the_same_thread_retries_a_migration_that_failed(self):
+        # The connection was cached before the migration ran, so the next
+        # _db() on that thread handed it back with the schema never built.
+        with mock.patch.object(pdb, "_ensure_schema",
+                               side_effect=OSError("disk full")):
+            with self.assertRaises(OSError):
+                pdb._db()
+
+        conn = pdb._db()
+        self.assertTrue(pdb._DB_INITIALIZED)
+        self.assertEqual(conn.execute("PRAGMA user_version").fetchone()[0],
+                         pdb._SCHEMA_VERSION)
 
 
 if __name__ == "__main__":

@@ -27,15 +27,15 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_flat_"))
 
-from PySide6.QtCore import QEvent, QMimeData, QPointF, Qt, QUrl  # noqa: E402
-from PySide6.QtGui import QDropEvent, QKeyEvent  # noqa: E402
-from PySide6.QtWidgets import (QApplication,  # noqa: E402
+from PySide6.QtCore import QEvent, QMimeData, QPointF, Qt, QUrl
+from PySide6.QtGui import QDropEvent, QKeyEvent
+from PySide6.QtWidgets import (QApplication,
                                QMessageBox as _QMessageBox, QWidget)
-from tests.qt_test_support import reap_widget  # noqa: E402
+from tests.qt_test_support import reap_widget
 
-from gui.deck import Deck  # noqa: E402
-from gui.playlist_table import PlaylistTable  # noqa: E402
-from planner.models import MusicEntry, RoundConfig  # noqa: E402
+from gui.deck import Deck
+from gui.playlist_table import PlaylistTable
+from planner.models import MusicEntry, RoundConfig
 
 
 def _e(dance, n):

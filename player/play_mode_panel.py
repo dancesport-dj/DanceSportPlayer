@@ -378,9 +378,12 @@ class PlayModePanel(QWidget):
     presenterScreenChanged = Signal(int)   # another monitor picked for it
     presenterThemeChanged = Signal(str)    # …and another palette for it
     timetableRequested = Signal()          # 🕒 edit the evening's running order
+    remoteRequested = Signal()           # 📱 the phone remote's window
     partySetToggled = Signal(bool)       # 🎉 party play set on/off
     tournamentSetRequested = Signal()    # 🏆 back to the competition values
     artworkToggled = Signal(bool)        # 🖼 cover art on the player card on/off
+    waveformToggled = Signal(bool)       # 〰 waveform above the card's seek bar
+    seekBarHiddenToggled = Signal(bool)  # 〰 the waveform stands in for the seek bar
     rememberToggled = Signal(bool)       # ↩ remembering where a title stopped on/off
     settingsRequested = Signal()         # ⚙ — only shown in a player-only install
 
@@ -397,7 +400,20 @@ class PlayModePanel(QWidget):
         self._title_row.setStyleSheet("font-weight:bold; font-size:14px;")
         lyt.addWidget(self._title_row)
         lyt.addWidget(_hsep())
+        self._setup_length_row(lyt, settings)
+        self._setup_paso_doble(lyt, settings)
+        self._setup_auto_advance(lyt, settings)
+        self._setup_announce(lyt, settings)
+        self._setup_play_options(lyt, settings)
+        self._setup_play_set_buttons(lyt)
+        self._setup_presenter(lyt, settings)
+        self._setup_awake_and_countdown(lyt, settings)
+        self._setup_gear(lyt)
+        self._connect_signals(settings)
+        self._setup_sections()
 
+    def _setup_length_row(self, lyt, settings):
+        """⏱ Timed play: the length ladder, its readout and the fade."""
         # ── Timed play: − / + around a big readout, stepping the length in
         # 15 s rungs up to 2:30 and then to "full" (no cut at all). One control
         # instead of a slider plus an on/off box: "full" IS the off position.
@@ -462,6 +478,8 @@ class PlayModePanel(QWidget):
 
         lyt.addWidget(_hsep())
 
+    def _setup_paso_doble(self, lyt, settings):
+        """Paso Doble: stop after a highlight, manual marks and edit mode."""
         # ── Paso Doble: stop after a highlight instead of the fade ──
         self.pd_check = _Toggle("🐂  Stop Paso Doble after highlight")
         self.pd_check.setToolTip(
@@ -572,6 +590,8 @@ class PlayModePanel(QWidget):
 
         lyt.addWidget(_hsep())
 
+    def _setup_auto_advance(self, lyt, settings):
+        """⏭ Auto-advance, repeat and the pause with its filler music."""
         # ── Auto-advance: heat flow without touching the mouse ──
         self.advance_check = _Toggle("⏭  Auto-advance to next song")
         self.advance_check.setToolTip(
@@ -689,6 +709,8 @@ class PlayModePanel(QWidget):
         pv_row.addStretch(1)
         self.pause_sub_box.add(self.pause_vol_box)
 
+    def _setup_announce(self, lyt, settings):
+        """🗣 The spoken cue for the couples: voice, timing and extras."""
         # Spoken cue for the couples, timed to land just before the pause ends.
         self.announce_check = _Toggle("🔈  Announce next dance")
         self.announce_check.setToolTip(
@@ -746,19 +768,8 @@ class PlayModePanel(QWidget):
         self.announce_when_box = _row_box(when_col)
         self.announce_sub_box.add(self.announce_when_box)
 
-        ann_row = QHBoxLayout()
-        ann_row.setSpacing(4)
-        self.announce_takt_check = _Toggle("…with takt")
-        self.announce_takt_check.setToolTip(
-            "Append the bars per minute (\"…, 29 Takt\") — useful in training,\n"
-            "usually just noise on a tournament floor.\n\n"
-            "Ticking this hands the WHOLE announcement to the Windows voice:\n"
-            "the recordings have clips for the dances and the heats, none for\n"
-            "a tempo, and two voices in one announcement sound like two\n"
-            "announcers.")
-        self.announce_takt_check.setChecked(bool(settings.get("announce_takt", False)))
-        self.announce_takt_check.setEnabled(self.announce_check.isChecked())
-        ann_row.addWidget(self.announce_takt_check, stretch=1)
+        # A line of its own, like every other switch on the panel: side by
+        # side with 🔈 Test the column squeezed the caption to '…with …'.
         self.announce_heat_check = _Toggle("…with heat")
         self.announce_heat_check.setToolTip(
             "Append the heat number (\"…, Heat 3\") — the couples hear which\n"
@@ -768,7 +779,7 @@ class PlayModePanel(QWidget):
             "beyond that the number is left out.")
         self.announce_heat_check.setChecked(bool(settings.get("announce_heat", False)))
         self.announce_heat_check.setEnabled(self.announce_check.isChecked())
-        ann_row.addWidget(self.announce_heat_check, stretch=1)
+        self.announce_sub_box.add(self.announce_heat_check)
         self.announce_test_btn = QPushButton("🔈  Test")
         self.announce_test_btn.setFixedHeight(26)
         self.announce_test_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -776,10 +787,9 @@ class PlayModePanel(QWidget):
             "Speak a sample announcement now — check voice and level\n"
             "before the round, not during it.")
         self.announce_test_btn.clicked.connect(self.announceTestRequested.emit)
-        ann_row.addWidget(self.announce_test_btn)
-        self.announce_sub_box.add(_row_box(ann_row))
 
-        # Which of the recorded voices reads the announcement.
+        # Which of the recorded voices reads the announcement — and 🔈 Test
+        # beside it, which plays that voice.
         voice_row = QHBoxLayout()
         voice_row.setSpacing(4)
         voice_row.addWidget(QLabel("Voice:"))
@@ -797,10 +807,13 @@ class PlayModePanel(QWidget):
             max(0, self.announce_voice_combo.findData(want)))
         self.announce_voice_combo.setEnabled(self.announce_check.isChecked())
         voice_row.addWidget(self.announce_voice_combo, stretch=1)
+        voice_row.addWidget(self.announce_test_btn)
         self.announce_sub_box.add(_row_box(voice_row))
 
         lyt.addWidget(_hsep())
 
+    def _setup_play_options(self, lyt, settings):
+        """Loudness, cover art, double-click and pick-up-where-left."""
         # ── Loudness equalization (EBU R128) ──
         self.loudness_check = _Toggle("🔊  Equalize volume (R128)")
         self.loudness_check.setToolTip(
@@ -824,6 +837,28 @@ class PlayModePanel(QWidget):
             "embedded artwork, otherwise a plain ♪ tile.")
         self.artwork_check.setChecked(bool(settings.get("show_artwork", True)))
         lyt.addWidget(self.artwork_check)
+
+        # ── 〰 The title's waveform above the seek bar ──
+        self.waveform_check = _Toggle("〰  Show waveform")
+        self.waveform_check.setToolTip(
+            "Draw the playing title's waveform above the seek bar: quiet\n"
+            "passages, the skipped silence, the Paso Doble highlights and\n"
+            "where the fade-out of a timed cut begins. Click it to jump.")
+        self.waveform_check.setChecked(bool(settings.get("show_waveform", True)))
+        lyt.addWidget(self.waveform_check)
+        # The strip seeks on a click and spans the same stretch, so with it on
+        # the seek bar under it says nothing new. Only a question while the
+        # strip is shown at all.
+        self.hide_seek_check = _Toggle("…replace seek bar")
+        self.hide_seek_check.setToolTip(
+            "Hide the seek bar while the waveform is shown — the waveform\n"
+            "covers the same stretch of the title and seeks on a click.")
+        # Not the old `hide_seek_bar` key: it was saved on every save while
+        # "off" was the default, so its False was never anybody's choice.
+        self.hide_seek_check.setChecked(bool(settings.get("replace_seek_bar", True)))
+        self.waveform_sub_box = _Rows()
+        self.waveform_sub_box.add(self.hide_seek_check)
+        lyt.addWidget(self.waveform_sub_box)
 
         # ── ▶️ What a double-click on a title in the deck does ──
         self.dblclick_check = _Toggle("▶️  Double-click starts the title")
@@ -851,6 +886,8 @@ class PlayModePanel(QWidget):
 
         lyt.addWidget(_hsep())
 
+    def _setup_play_set_buttons(self, lyt):
+        """🏆/🎉 The tournament and party play-set buttons."""
         # ── 🏆 Tournament play set: the competition values in one press ──
         # Above the party button on purpose: it is the one you reach for when a
         # party list has just left the panel somewhere else, and the pair reads
@@ -881,7 +918,7 @@ class PlayModePanel(QWidget):
             "Switch the tournament settings over to party playing in one go:\n"
             "every title to its full length, auto-advance to the next one, no\n"
             "pause (so no break music) in between and no spoken announcement.\n\n"
-            "Applied by itself as soon as you play from the 🤸 Eintanzen /\n"
+            "Applied by itself as soon as you play from the 🤸 Practice /\n"
             "party list, and switched back when a tournament deck takes over —\n"
             "a toast says what changed either way. What exactly it sets is\n"
             "yours to change: ⚙ Settings → 🎛 Play sets.")
@@ -891,6 +928,8 @@ class PlayModePanel(QWidget):
         self.party_btn.toggled.connect(self.partySetToggled.emit)
         lyt.addWidget(self.party_btn)
 
+    def _setup_presenter(self, lyt, settings):
+        """🖥 The presenter screen: switch, palette and monitor."""
         # ── 🖥 Presenter screen: what's playing + what's next, hall-sized ──
         pres_row = QHBoxLayout()
         pres_row.setSpacing(4)
@@ -951,6 +990,18 @@ class PlayModePanel(QWidget):
         theme_row.addWidget(self.timetable_btn)
         lyt.addWidget(_row_box(theme_row))
 
+        # 📱 The phone remote: its server, its QR code, its log.
+        self.remote_btn = QPushButton("📱  Phone remote…")
+        self.remote_btn.setFixedHeight(26)
+        self.remote_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.remote_btn.setToolTip(
+            "Play, skip, fade and fire pads from a phone's browser on this\n"
+            "network — no app to install. Opens the window to start the\n"
+            "server, with a QR code that logs the phone in and a log of what\n"
+            "reached it.")
+        self.remote_btn.clicked.connect(self.remoteRequested.emit)
+        lyt.addWidget(self.remote_btn)
+
         # The monitor the presenter is wanted on, by name. It outlives an
         # unplug: the combo falls back to what is there, and goes back to
         # this one as soon as it is connected again.
@@ -967,6 +1018,8 @@ class PlayModePanel(QWidget):
             app.screenAdded.connect(lambda _s: self._fill_screens())
             app.screenRemoved.connect(lambda _s: self._fill_screens())
 
+    def _setup_awake_and_countdown(self, lyt, settings):
+        """☀ The screensaver hold and the live countdown."""
         # ── ☀ Hold the screensaver off while the desk is working ──
         self.awake_check = _Toggle("☀  Keep the screen awake")
         self.awake_check.setToolTip(
@@ -991,6 +1044,8 @@ class PlayModePanel(QWidget):
 
         lyt.addStretch(1)
 
+    def _setup_gear(self, lyt):
+        """⚙ The settings gear, for a player-only install."""
         # ── ⚙ Settings, in the corner the ConfigPanel keeps it ──
         # A player-only install never shows the planning panel, so its gear is
         # out of reach and the app mode could not be changed back. This one sits
@@ -1015,6 +1070,8 @@ class PlayModePanel(QWidget):
         self._gear_box.setVisible(False)
         lyt.addWidget(self._gear_box)
 
+    def _connect_signals(self, settings):
+        """Every control's change reaches settingsChanged; initial sync."""
         self.fade_spin.valueChanged.connect(lambda _: self.settingsChanged.emit())
         self.pd_check.toggled.connect(self._on_pd_on)
         self.pd_check.toggled.connect(lambda _: self.settingsChanged.emit())
@@ -1031,11 +1088,9 @@ class PlayModePanel(QWidget):
         self.pause_spin.valueChanged.connect(lambda _: self.settingsChanged.emit())
         self.pause_vol_spin.valueChanged.connect(lambda _: self.settingsChanged.emit())
         self.announce_check.toggled.connect(self.announce_sub_box.setVisible)
-        self.announce_check.toggled.connect(self.announce_takt_check.setEnabled)
         self.announce_check.toggled.connect(self.announce_heat_check.setEnabled)
         self.announce_check.toggled.connect(self.announce_voice_combo.setEnabled)
         self.announce_check.toggled.connect(lambda _: self.settingsChanged.emit())
-        self.announce_takt_check.toggled.connect(lambda _: self.settingsChanged.emit())
         self.announce_heat_check.toggled.connect(lambda _: self.settingsChanged.emit())
         self.announce_voice_combo.currentIndexChanged.connect(
             lambda _: self.settingsChanged.emit())
@@ -1043,6 +1098,14 @@ class PlayModePanel(QWidget):
         self.awake_check.toggled.connect(lambda _: self.settingsChanged.emit())
         self.artwork_check.toggled.connect(self.artworkToggled.emit)
         self.artwork_check.toggled.connect(lambda _: self.settingsChanged.emit())
+        self.waveform_check.toggled.connect(self.waveformToggled.emit)
+        self.waveform_check.toggled.connect(lambda _: self.settingsChanged.emit())
+        self.waveform_check.toggled.connect(self.waveform_sub_box.setVisible)
+        # Switched on, the strip takes the seek bar's place straight away.
+        self.waveform_check.toggled.connect(
+            lambda on: on and self.hide_seek_check.setChecked(True))
+        self.hide_seek_check.toggled.connect(self.seekBarHiddenToggled.emit)
+        self.hide_seek_check.toggled.connect(lambda _: self.settingsChanged.emit())
         self.dblclick_check.toggled.connect(lambda _: self.settingsChanged.emit())
         self.remember_check.toggled.connect(self.rememberToggled.emit)
         self.remember_check.toggled.connect(lambda _: self.settingsChanged.emit())
@@ -1050,9 +1113,12 @@ class PlayModePanel(QWidget):
         self._sync_pause_row()
         self.pd_sub_box.setVisible(self.pd_check.isChecked())
         self.announce_sub_box.setVisible(self.announce_check.isChecked())
+        self.waveform_sub_box.setVisible(self.waveform_check.isChecked())
         self.set_voice_advanced_shown(
             bool(settings.get("announce_advanced", False)))
 
+    def _setup_sections(self):
+        """Cut the panel into sections the wide strip can lay out."""
         # Everything above went straight into the panel's own layout, one
         # group under the next, because down a side panel that is the only
         # shape there is. Cut at the rules, those groups become blocks that
@@ -1241,18 +1307,17 @@ class PlayModePanel(QWidget):
 
 
     def set_voice_advanced_shown(self, on: bool):
-        """Show or hide the fine print of the announcement: …with takt, …with
-        heat and the 🔈 Test button (⚙ Settings → 'Advanced voice controls').
+        """Show or hide the fine print of the announcement: …with heat and the
+        🔈 Test button (⚙ Settings → 'Advanced voice controls').
 
-        Three controls that are set once and then never touched again, sitting
+        Two controls that are set once and then never touched again, sitting
         in the busiest column of the desk. Hidden they are still ON — what they
         were set to keeps being announced; only the switches are out of the
         way.
 
         They sit inside the announcement's own folder, so with 🔈 off they are
         off the panel whatever this says."""
-        for w in (self.announce_takt_check, self.announce_heat_check,
-                  self.announce_test_btn):
+        for w in (self.announce_heat_check, self.announce_test_btn):
             w.setVisible(bool(on))
 
     def set_settings_visible(self, on: bool):
@@ -1686,9 +1751,6 @@ class PlayModePanel(QWidget):
         under it — the ⏳ half of the pair under ⏭."""
         return self.announce_wait_radio.isChecked()
 
-    def announce_takt(self) -> bool:
-        return self.announce_takt_check.isChecked()
-
     def announce_heat(self) -> bool:
         return self.announce_heat_check.isChecked()
 
@@ -1698,6 +1760,13 @@ class PlayModePanel(QWidget):
 
     def show_artwork(self) -> bool:
         return self.artwork_check.isChecked()
+
+    def show_waveform(self) -> bool:
+        return self.waveform_check.isChecked()
+
+    def hide_seek_bar(self) -> bool:
+        """True where the waveform stands in for the seek bar (while shown)."""
+        return self.hide_seek_check.isChecked()
 
     def dblclick_plays(self) -> bool:
         """True where a double-click in a deck starts the title, False where it

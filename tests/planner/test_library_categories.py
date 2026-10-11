@@ -20,9 +20,9 @@ from pathlib import Path
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_cat_state_"))
 
-from planner.db import AudioCache  # noqa: E402
-from planner.library import MusicLibrary  # noqa: E402
-from planner.models import (  # noqa: E402
+from planner.db import AudioCache
+from planner.library import MusicLibrary
+from planner.models import (
     MusicEntry,
     folder_category_of_parts,
     is_non_turnier,

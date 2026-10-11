@@ -21,8 +21,8 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_deck_path_ref_"))
 
-from dancesport_planner import MusicEntry, MusicLibrary  # noqa: E402
-from tests.qt_test_support import (  # noqa: E402
+from dancesport_planner import MusicEntry, MusicLibrary
+from tests.qt_test_support import (
     reap_widget, stub_window_startup)
 
 _TMP = Path(tempfile.mkdtemp(prefix="dp_deck_path_ref_files_"))
@@ -78,10 +78,10 @@ class DeckPathReferenceTest(unittest.TestCase):
         self.load(self.on_c, self.on_f, self.only_f)
         text = self.win._run_deck_path_fix()
         self.assertNotIn("All track paths are valid", text)
-        self.assertIn("2 valid tracks are not on the Referenzpfad", text)
+        self.assertIn("2 valid tracks are not on the Reference path", text)
         self.assertIn("1 has a copy there", text)
         self.assertIn("Only On F", text)
-        self.assertNotIn("both", text.split("Referenzpfad", 1)[1].split("no copy", 1)[1])
+        self.assertNotIn("both", text.split("Reference path", 1)[1].split("no copy", 1)[1])
 
     def test_the_deck_keeps_its_valid_paths(self):
         self.load(self.on_c, self.on_f, self.only_f)
@@ -92,14 +92,14 @@ class DeckPathReferenceTest(unittest.TestCase):
         self.load(self.on_c)
         text = self.win._run_deck_path_fix()
         self.assertIn("All track paths are valid", text)
-        self.assertNotIn("not on the Referenzpfad", text)
+        self.assertNotIn("not on the Reference path", text)
 
     def test_no_referenzpfad_no_warning(self):
         self.win._settings["reference_path"] = ""
         self.load(self.on_c, self.on_f, self.only_f)
         text = self.win._run_deck_path_fix()
         self.assertIn("All track paths are valid", text)
-        self.assertNotIn("not on the Referenzpfad", text)
+        self.assertNotIn("not on the Reference path", text)
 
     # ── 🧭 Fix: swap the tracks that have a copy there ─────────────────────────
     def test_the_swap_moves_the_copies_onto_the_referenzpfad(self):
@@ -114,7 +114,7 @@ class DeckPathReferenceTest(unittest.TestCase):
         self.load(self.on_c, self.on_f, self.only_f)
         self.win._swap_decks_to_reference()
         text = self.win._run_deck_path_fix()
-        self.assertIn("1 valid track is not on the Referenzpfad", text)
+        self.assertIn("1 valid track is not on the Reference path", text)
         self.assertNotIn("a copy there", text)
         self.assertIn("Only On F", text)
 
@@ -150,7 +150,7 @@ class DeckPathReferenceTest(unittest.TestCase):
     def test_a_wishlist_track_off_the_referenzpfad_is_warned_about(self):
         self.load_wish(self.on_c, self.on_f, self.only_f)
         text = self.win._run_deck_path_fix()
-        self.assertIn("2 valid tracks are not on the Referenzpfad", text)
+        self.assertIn("2 valid tracks are not on the Reference path", text)
         self.assertIn("Only On F", text)
 
     def test_the_swap_moves_wishlist_tracks_too(self):

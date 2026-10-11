@@ -1216,6 +1216,7 @@ class DynamicModeMixin:
             backups=dict(self._dynamic_backups),
             round_skip_dances={k: set(v) for k, v in self._round_skip_dances.items()},
             marked=set(self._marked_paths),
+            pinned=set(self._pinned_paths),
         )
         self._restore_scroll(scroll)
 
