@@ -19,8 +19,8 @@ from typing import Any, NamedTuple
 from collections.abc import Callable
 from planner.config import (  # auto-resolved
     MUSIC_DIR,
-    PLAYLIST_DIR,
     folders_below,
+    playlist_dir,
 )
 from planner.db import (  # auto-resolved
     AudioCache,
@@ -119,7 +119,7 @@ def _playlist_tree() -> tuple[list[_TreeFile], list[_TreeFile]]:
     """
     m3us: list[_TreeFile] = []
     mp3s: list[_TreeFile] = []
-    stack = [str(PLAYLIST_DIR)]
+    stack = [str(playlist_dir())]
     while stack:
         try:
             with os.scandir(stack.pop()) as it:
@@ -225,7 +225,7 @@ def _split_last_round(lines: list[str], dances: list[str | None],
     in the real tree."""
     seen: set[str] = set()
     tail: list[str] = []
-    for line, dance in zip(reversed(lines), reversed(dances)):
+    for line, dance in zip(reversed(lines), reversed(dances), strict=True):
         if dance in seen:
             break
         if dance:
@@ -432,7 +432,7 @@ class MusicLibrary:
             self.apply_tag_edits(cache)
 
         if learn:
-            log.info("  📜 Analyzing existing playlists … %s", PLAYLIST_DIR)
+            log.info("  📜 Analyzing existing playlists … %s", playlist_dir())
             n = self._learn_playlists()
             log.info("  📜 %s playlists analyzed (M3U files + tournament folders)", n)
 
@@ -523,7 +523,7 @@ class MusicLibrary:
                 raise ValueError(f"cannot read {Path(e.path).name}")
             fps.append(fp)
         touched: dict[str, Path] = {}
-        for e, fp in zip(entries, fps):
+        for e, fp in zip(entries, fps, strict=True):
             edit = tag_edits.save(fp, changes_for(e))
             same = [x for x in self.entries
                     if x is not e and cache.recorded_fingerprint(x.path) == fp]
@@ -877,12 +877,14 @@ class MusicLibrary:
 
     def _learn_playlists(self) -> int:
         count = 0
-        if not PLAYLIST_DIR.exists():
+        root = playlist_dir()
+        if not root.exists():
             return count
         self._refresh_stem_dance()   # so lines qualify by the file's calculated dance
         m3us, mp3s = _playlist_tree()
-        cache = PlaylistIndexCache(PLAYLIST_DIR, self._dance_map_digest())
+        cache = PlaylistIndexCache(root, self._dance_map_digest())
         seen: set[str] = set()
+        failed = 0
         for m3u, sig in m3us:
             try:
                 if _is_superseded_playlist(m3u):
@@ -897,8 +899,15 @@ class MusicLibrary:
                 self._index_playlist(
                     cache, pl_id, sig,
                     lambda m=m3u: (_playlist_class_of(m), *self._m3u_keys(m)))
-            except Exception:
-                pass
+            except Exception as exc:
+                # One bad file must not cost the others, but it leaves a trace.
+                failed += 1
+                log.debug("⚠️ Playlist not learned\n"
+                          "file: %s\n"
+                          "reason: %r", m3u, exc)
+        if failed:
+            log.info("  ⚠️ %s playlist(s) skipped while learning, see the debug log",
+                     failed)
         count += self._learn_playlist_folders(cache, seen, m3us, mp3s)
         cache.prune(seen)
         cache.save()
@@ -996,7 +1005,7 @@ class MusicLibrary:
         # Top-level subfolders whose tree already carries .m3u playlists
         # ('' = playlist dir root itself).
         m3u_tops = set()
-        root = str(PLAYLIST_DIR)
+        root = str(playlist_dir())
         for m3u, _sig in m3us:
             folders = folders_below(str(m3u), root)
             m3u_tops.add(folders[0] if folders else "")
@@ -1283,8 +1292,8 @@ class MusicLibrary:
         key_to_files: dict[str, set[Path]] = defaultdict(set)
         n_files = 0
         self._refresh_stem_dance()
-        if PLAYLIST_DIR.exists():
-            for m3u in playlist_files(PLAYLIST_DIR):
+        if (root := playlist_dir()).exists():
+            for m3u in playlist_files(root):
                 if _is_superseded_playlist(m3u):
                     continue
                 if is_side_list(m3u.stem):
@@ -1379,8 +1388,8 @@ class MusicLibrary:
 
         _resolve = self.line_resolver()
 
-        if PLAYLIST_DIR.exists():
-            for m3u in playlist_files(PLAYLIST_DIR):
+        if (root := playlist_dir()).exists():
+            for m3u in playlist_files(root):
                 if _is_superseded_playlist(m3u):
                     continue
                 if is_side_list(m3u.stem):

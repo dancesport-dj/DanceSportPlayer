@@ -132,7 +132,7 @@ class GenerateLabelsTest(unittest.TestCase):
         entry = MusicEntry(path=Path(_TRACK), title="Tango One", dance="TG", bpm=32)
         lib = MusicLibrary()
         lib.entries.append(entry)
-        self.win._lib = lib
+        self.win._library.lib = lib
         spec = parse_competition_schedule("HGR B STD 1")[0]
         self.win._cfg.get_replay_config = lambda: (spec, rounds_from_pattern("1"),
                                                    False)

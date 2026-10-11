@@ -71,6 +71,11 @@ class GridTest(unittest.TestCase):
                            progress_cb=lambda done, total, name: seen.append((done, total, name)))
         self.assertEqual(seen, [(1, 3, "s1.mp3"), (2, 3, "c1.mp3"), (3, 3, "s2.mp3")])
 
+    def test_a_generated_deck_keeps_its_seed(self):
+        t = table(grid_rows(), _suggester=SimpleNamespace(seed=81723))
+        self.assertEqual(serialize_deck(t, META)["seed"], 81723)
+        self.assertNotIn("seed", serialize_deck(table(grid_rows()), META))
+
     def test_a_dynamic_deck_keeps_its_empty_columns(self):
         t = table(grid_rows(), _dynamic=True, _dynamic_dances=["SA", "CC", "RB"],
                   _dynamic_capacity=[2, 2, 0])

@@ -46,7 +46,7 @@ class DeckContextTest(unittest.TestCase):
         self.win = self.gui.MainWindow()
         self.win._loading_dlg.accept()   # closeEvent blocks a plain close()
         self.addCleanup(reap_widget, self.win)
-        self.a, self.b, self.c = self.win._tableA, self.win._tableB, self.win._tableC
+        self.a, self.b, self.c = self.win._deckset.tableA, self.win._deckset.tableB, self.win._deckset.tableC
 
     def test_the_focused_deck_holds_its_context(self):
         self.win._set_active_table(self.a)

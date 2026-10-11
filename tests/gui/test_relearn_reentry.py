@@ -17,6 +17,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication, QMainWindow
 
 import dancesport_gui as dg
+from gui.library_service import LibraryService
 from gui import main_global
 
 
@@ -29,7 +30,8 @@ class RelearnReentryTest(unittest.TestCase):
         win = dg.MainWindow.__new__(dg.MainWindow)
         QMainWindow.__init__(win)
         self.addCleanup(win.deleteLater)
-        win._lib = mock.Mock()
+        win._library = LibraryService()
+        win._library.lib = mock.Mock()
         worker = mock.Mock()
         worker.isRunning.return_value = True
         with mock.patch.object(main_global, "BusyDialog"), \

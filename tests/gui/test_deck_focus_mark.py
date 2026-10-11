@@ -47,24 +47,24 @@ class DeckFocusMarkTest(unittest.TestCase):
         win = self.gui.MainWindow()
         win._loading_dlg.accept()   # closeEvent blocks a plain close()
         self.addCleanup(reap_widget, win)
-        win._on_table_focused(win._tableA)
+        win._on_table_focused(win._deckset.tableA)
         return win
 
     def test_a_rename_keeps_the_dot(self):
         for key in ("light", "dark", "midnight"):
             with self.subTest(theme=key):
                 win = self.window(key)
-                win._set_deck_name(win._tableA, "Finale")
-                self.assertIn("●", win.deck(win._tableA).header.text())
+                win._set_deck_name(win._deckset.tableA, "Finale")
+                self.assertIn("●", win.deck(win._deckset.tableA).header.text())
 
     def test_a_header_refresh_keeps_the_dot(self):
         for key in ("light", "dark"):
             with self.subTest(theme=key):
                 win = self.window(key)
-                win._refresh_deck_header(win._tableA)
-                self.assertIn("●", win.deck(win._tableA).header.text())
-                win._refresh_deck_header(win._tableB)
-                self.assertNotIn("●", win.deck(win._tableB).header.text())
+                win._refresh_deck_header(win._deckset.tableA)
+                self.assertIn("●", win.deck(win._deckset.tableA).header.text())
+                win._refresh_deck_header(win._deckset.tableB)
+                self.assertNotIn("●", win.deck(win._deckset.tableB).header.text())
 
 
 if __name__ == "__main__":

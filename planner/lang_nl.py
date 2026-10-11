@@ -780,8 +780,8 @@ CATALOG = {
     "▶  Playing": "▶  Afspelen",
     "▶  Playing mode": "▶  Afspeelmodus",
     "▶  Load onto the focused deck": "▶  Op het actieve deck laden",
-    "▴  Fold decks": "▴  Decks inklappen",
-    "⊟  Collapse all": "⊟  Alles inklappen",
+    "▴  Fold decks": "▴  Decks",
+    "⊟  Collapse all": "⊟  Inklappen",
     "⏹  Stop all": "⏹  Alles stoppen",
     "⏹  Stop the music": "⏹  Muziek stoppen",
     "⏭  Skip to the next title": "⏭  Naar de volgende titel",
@@ -892,11 +892,11 @@ CATALOG = {
     "📊 Library gaps": "📊 Gaten in de bibliotheek",
     "📤  Export wall…": "📤  Cartwall exporteren…",
     "📥  Import wall…": "📥  Cartwall importeren…",
-    "📌  Save state": "📌  Status opslaan",
+    "📌  Save state": "📌  Status",
     "📌 Cartwall docked": "📌 Cartwall vastgezet",
     "💾  Save M3U": "💾  M3U opslaan",
     "💾  Save as M3U…": "💾  Opslaan als M3U…",
-    "💾  Save all": "💾  Alles opslaan",
+    "💾  Save all": "💾  Opslaan",
     "💾  Save all competition M3Us": "💾  Alle wedstrijd-M3U's opslaan",
     "💾  Save all playlists as M3U": "💾  Alle afspeellijsten als M3U opslaan",
     "🏆  Save all and add to Tournaments":
@@ -946,7 +946,7 @@ CATALOG = {
         "🗑  Deze ronde verwijderen (alle heats)",
     "🚫  No groups": "🚫  Geen groepen",
     "🔢  Numbers": "🔢  Nummers",
-    "🧹  Clear all": "🧹  Alles leegmaken",
+    "🧹  Clear all": "🧹  Leegmaken",
     "🧹  Clear all playlists": "🧹  Alle afspeellijsten leegmaken",
     "🧹  Empty this playlist": "🧹  Deze afspeellijst leegmaken",
     "🧹  Clean up database…": "🧹  Database opruimen…",
@@ -1584,6 +1584,44 @@ CATALOG = {
         "Je kunt dit altijd wijzigen onder ⚙ Instellingen → ⚙ Algemeen.",
     "Send reports": "Rapporten versturen",
     "Don't send": "Niet versturen",
+    "Once per start, the app asks GitHub (api.github.com) for the latest\n"
+    "release. The request carries nothing about you or your music; GitHub\n"
+    "sees the IP address it comes from. A newer version is announced once,\n"
+    "with a link to its download page. Nothing is downloaded or installed.\n"
+    "\n"
+    "You can change this at any time under ⚙ Settings → ⚙ General.":
+        "Eén keer per start vraagt de app GitHub (api.github.com) naar de\n"
+        "nieuwste release. Het verzoek bevat niets over jou of je muziek; GitHub\n"
+        "ziet het IP-adres waar het vandaan komt. Een nieuwere versie wordt één\n"
+        "keer aangekondigd, met een link naar de downloadpagina. Er wordt niets\n"
+        "gedownload of geïnstalleerd.\n"
+        "\n"
+        "Je kunt dit altijd wijzigen onder ⚙ Instellingen → ⚙ Algemeen.",
+    "🔔  Also tell me when a new version is out":
+        "🔔  Laat me ook weten wanneer er een nieuwe versie is",
+    "New versions": "Nieuwe versies",
+    "Tell you when a new version is out?": "Je laten weten wanneer er een nieuwe versie is?",
+    "Check for new versions": "Naar nieuwe versies zoeken",
+    "Don't check": "Niet zoeken",
+    "🔔  Check for new versions — once per start, ask GitHub whether a newer release is out":
+        "🔔  Naar nieuwe versies zoeken — één keer per start GitHub vragen of er een nieuwere release is",
+    "Asks api.github.com for the latest release. The request carries\n"
+    "nothing about you or your music; GitHub sees the IP address it\n"
+    "comes from. A newer version is announced once, with a link to\n"
+    "its download page. Nothing is downloaded or installed.\n"
+    "\n"
+    "Off by default. Applies from the next start.":
+        "Vraagt api.github.com naar de nieuwste release. Het verzoek bevat niets\n"
+        "over jou of je muziek; GitHub ziet het IP-adres waar het vandaan komt.\n"
+        "Een nieuwere versie wordt één keer aangekondigd, met een link naar de\n"
+        "downloadpagina. Er wordt niets gedownload of geïnstalleerd.\n"
+        "\n"
+        "Standaard uit. Geldt vanaf de volgende start.",
+    "New version": "Nieuwe versie",
+    "Version %s is out.": "Versie %s is uit.",
+    "You are running %s. The download page lists what changed.":
+        "Je gebruikt %s. De downloadpagina vermeldt wat er veranderd is.",
+    "Open download page": "Downloadpagina openen",
     "The music and the computer share the one sound card, so every\n"
     "sound the system makes goes out over the PA too.\n"
     "\n"
@@ -3211,6 +3249,34 @@ CATALOG = {
         "🧭  %d nummer naar het referentiepad verplaatst",
     "🧭  Moved %d tracks onto the Reference path":
         "🧭  %d nummers naar het referentiepad verplaatst",
+    "No tracks in the visible playlists or the wishlists.":
+        "Geen nummers in de zichtbare afspeellijsten of de wensenlijsten.",
+    "Checked %d tracks — %d already valid.":
+        "%d nummers gecontroleerd — %d al geldig.",
+    "🧭  Relocated %d broken reference to their real files (Ctrl+Z undoes).":
+        "🧭  %d kapotte verwijzing naar het echte bestand omgezet (Ctrl+Z maakt het ongedaan).",
+    "🧭  Relocated %d broken references to their real files (Ctrl+Z undoes).":
+        "🧭  %d kapotte verwijzingen naar de echte bestanden omgezet (Ctrl+Z maakt het ongedaan).",
+    "⚠  %d still unresolved — no matching file in the library:":
+        "⚠  %d nog onopgelost — geen passend bestand in de bibliotheek:",
+    "⚠  %d valid track is not on the Reference path %s":
+        "⚠  %d geldig nummer staat niet in het referentiepad %s",
+    "⚠  %d valid tracks are not on the Reference path %s":
+        "⚠  %d geldige nummers staan niet in het referentiepad %s",
+    "↪ %d has a copy there — 🧭 Fix swaps them in the playlists.":
+        "↪ %d heeft daar een kopie — 🧭 Herstellen wisselt ze in de afspeellijsten.",
+    "↪ %d have a copy there — 🧭 Fix swaps them in the playlists.":
+        "↪ %d hebben daar een kopie — 🧭 Herstellen wisselt ze in de afspeellijsten.",
+    "⚠ %d has no copy there:":
+        "⚠ %d heeft daar geen kopie:",
+    "⚠ %d have no copy there:":
+        "⚠ %d hebben daar geen kopie:",
+    "✅  All track paths are valid.":
+        "✅  Alle nummerpaden zijn geldig.",
+    "🎛  Re-pointed %d cartwall pad at its real sample.":
+        "🎛  %d Cartwall-Pad wijst weer naar zijn echte sample.",
+    "🎛  Re-pointed %d cartwall pads at their real samples.":
+        "🎛  %d Cartwall-Pads wijzen weer naar hun echte samples.",
     "🧭  Fixed 1 path in 1 file": "🧭  1 pad in 1 bestand gecorrigeerd",
     "🧭  Fixed %d paths in 1 file": "🧭  %d paden in 1 bestand gecorrigeerd",
     "🧭  Fixed %d paths in %d files":
@@ -3237,7 +3303,7 @@ CATALOG = {
         "📌  %d titels vastgezet — de ↻ van de ronde houdt ze",
     "📌  Unpinned %d title": "📌  %d titel losgemaakt",
     "📌  Unpinned %d titles": "📌  %d titels losgemaakt",
-    "🚦  Check ▾": "🚦  Controleren ▾",
+    "🚦  Check ▾": "🚦  Controle ▾",
     "🚦 Ready? — the pre-flight before the event, one traffic light per\n"
     "check: missing files, loudness, silence probe, Paso Doble highlights,\n"
     "duplicates and the music check, each with its fix.\n"
@@ -4704,6 +4770,8 @@ CATALOG = {
     "✖ %(ip)s sent a wrong PIN": "✖ %(ip)s stuurde een verkeerde pincode",
     "⛔ %(ip)s locked out for %(detail)s s — too many wrong PINs":
         "⛔ %(ip)s %(detail)s s buitengesloten — te veel verkeerde pincodes",
+    "⛔ New phones paused for %(detail)s s — too many wrong PINs from the network":
+        "⛔ Nieuwe telefoons %(detail)s s gepauzeerd — te veel verkeerde pincodes uit het netwerk",
     "⛔ %(ip)s refused — not on the local network":
         "⛔ %(ip)s geweigerd — niet in het lokale netwerk",
     "⚠ Could not start: %(detail)s": "⚠ Kon niet starten: %(detail)s",

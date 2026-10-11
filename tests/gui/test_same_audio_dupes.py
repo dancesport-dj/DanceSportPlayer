@@ -22,6 +22,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication
 
 import planner.db as pdb
+from planner import config as planner_config
 from gui.playlist_table import PlaylistTable
 from planner.models import MusicEntry, RoundConfig
 from tests.qt_test_support import (
@@ -50,8 +51,8 @@ class _ScratchDbTest(unittest.TestCase):
 
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp(prefix="dp_sameaudio_f_"))
-        self._saved = (pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
-        pdb.AUDIO_DB_FILE = self.dir / "scratch.db"
+        self._saved = (planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
+        planner_config.AUDIO_DB_FILE = self.dir / "scratch.db"
         pdb._DB_LOCAL = threading.local()
         pdb._DB_INITIALIZED = False
         self.addCleanup(self._restore)
@@ -62,7 +63,7 @@ class _ScratchDbTest(unittest.TestCase):
             pdb._DB_LOCAL.conn.close()
         except Exception:
             pass
-        pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = self._saved
+        planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = self._saved
 
     def file(self, drive: str, name: str, data: bytes = _mp3()) -> Path:
         p = self.dir / drive / f"{name}.mp3"
@@ -387,9 +388,9 @@ class LoadOffersCleanupTest(_ScratchDbTest):
         self.win = self.gui.MainWindow()
         self.win._loading_dlg.accept()
         self.addCleanup(reap_widget, self.win)
-        self.win._lib = MusicLibrary()
-        self.win._cache = self.cache
-        for t in self.win._all_tables:
+        self.win._library.lib = MusicLibrary()
+        self.win._library.cache = self.cache
+        for t in self.win._deckset.all_tables:
             t._cache = self.cache
 
     def m3u(self) -> Path:
@@ -397,7 +398,7 @@ class LoadOffersCleanupTest(_ScratchDbTest):
         other = self.file("C", "Fly Me (TG 32)", _AUDIO[::-1])
         f = self.file("F", "Moon River (LW 29)")
         for p, d in ((c, "LW"), (other, "TG"), (f, "LW")):
-            self.win._lib.entries.append(
+            self.win._library.lib.entries.append(
                 MusicEntry(path=p, title=p.stem, dance=d, duration=180))
         m = self.dir / "order.m3u"
         m.write_text("#EXTM3U\n" + "\n".join(map(str, (c, other, f))), encoding="utf-8")
@@ -409,21 +410,21 @@ class LoadOffersCleanupTest(_ScratchDbTest):
         return asked
 
     def test_the_player_list_load_asks_and_removes(self):
-        table = self.win._decks[0]
+        table = self.win._deckset.decks[0]
         asked = self.answer(table, True)
         self.win._load_player_list_from_m3u(table, self.m3u())
         self.assertEqual(len(asked), 1)
         self.assertEqual(len(table._row_meta.entries()), 2)
 
     def test_the_deck_import_asks_and_empties_the_slot(self):
-        table = self.win._table
+        table = self.win._deckset.table
         asked = self.answer(table, True)
         self.win._import_playlist_path(str(self.m3u()))
         self.assertEqual(len(asked), 1)
         self.assertEqual(len(table._row_meta.entries()), 2)
 
     def test_the_eintanzen_load_asks_and_keeps_on_no(self):
-        table = self.win._warmup_table
+        table = self.win._deckset.warmup_table
         asked = self.answer(table, False)
         self.win._load_warmup_from_m3u(table, self.m3u())
         self.assertEqual(len(asked), 1)

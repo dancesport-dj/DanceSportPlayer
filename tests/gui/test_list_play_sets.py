@@ -4,7 +4,7 @@
 Run:  py -m unittest tests.gui.test_list_play_sets -v
 
 One player, several lists: the 🤸 party list runs full length and hands-free
-while the tournament deck beside it cuts at 1:40 and is started title by title.
+while the tournament deck beside it cuts at 1:45 and is started title by title.
 So the values a play set covers — play length, fade, ⏭, the pause switch,
 loudness, 🔈, the double-click and the TSO pitch — belong to the LIST.
 
@@ -59,9 +59,9 @@ class _WindowCase(unittest.TestCase):
     def setUp(self):
         self.win = self.window()
         self.panel = self.win._play_panel
-        self.a = self.win._tableA
-        self.b = self.win._tableB
-        self.party = self.win._warmup_table
+        self.a = self.win._deckset.tableA
+        self.b = self.win._deckset.tableB
+        self.party = self.win._deckset.warmup_table
 
     def vals(self, table):
         return self.win._list_vals(table)
@@ -97,10 +97,10 @@ class BindingTest(_WindowCase):
 
     def test_a_list_seen_for_the_first_time_gets_the_set_of_its_kind(self):
         self.win._settings["tournament_set"] = dict(
-            self.set_of("tournament"), secs=105)
+            self.set_of("tournament"), secs=120)
         self.click(self.b)
         self.assertEqual(self.panel.play_set(), self.set_of("tournament"))
-        self.assertEqual(self.panel.play_secs(), 105)
+        self.assertEqual(self.panel.play_secs(), 120)
         self.click(self.party)
         self.assertEqual(self.panel.play_set(), self.set_of("party"))
 
@@ -111,8 +111,8 @@ class BindingTest(_WindowCase):
         self.win._settings["party_set"] = dict(
             self.set_of("party"), secs=200, advance=True)
         self.win._settings["tournament_set"] = dict(
-            self.set_of("tournament"), secs=105, advance=True)
-        for wish in self.win._wishlists:
+            self.set_of("tournament"), secs=120, advance=True)
+        for wish in self.win._deckset.wishlists:
             self.click(wish)
             self.assertEqual(self.panel.play_secs(), 0)
             self.assertIs(self.vals(wish)["secs"], 0)
@@ -209,20 +209,20 @@ class SwitchToastTest(_WindowCase):
 
 
 class NoReapplyTest(_WindowCase):
-    """His case: 1:40 nudged to 1:55, one party song, back — and 1:40 again."""
+    """His case: 1:45 nudged to 2:00, one party song, back — and 2:00 again."""
 
     def test_a_nudged_play_length_survives_a_party_and_back(self):
-        self.click(self.b)                          # the tournament set: 1:40
-        self.assertEqual(self.panel.play_secs(), 100)
-        self.panel._step_len(1)                     # → 1:55
-        self.assertEqual(self.panel.play_secs(), 115)
+        self.click(self.b)                          # the tournament set: 1:45
+        self.assertEqual(self.panel.play_secs(), 105)
+        self.panel._step_len(1)                     # → 2:00
+        self.assertEqual(self.panel.play_secs(), 120)
         self.play(self.b)
         self.click(self.party)
         self.play(self.party)
         self.click(self.b)
         self.play(self.b)
-        self.assertEqual(self.panel.play_secs(), 115)
-        self.assertEqual(self.vals(self.b)["secs"], 115)
+        self.assertEqual(self.panel.play_secs(), 120)
+        self.assertEqual(self.vals(self.b)["secs"], 120)
 
     def test_starting_a_title_applies_nothing_to_the_panel(self):
         self.click(self.b)
@@ -387,8 +387,8 @@ class PersistTest(_WindowCase):
         env = self.win._build_env()
         again = self.window()
         again._restore_list_play(env["list_play"], {})
-        self.assertEqual(again._list_vals(again._tableB)["secs"], 115)
-        self.assertIs(again._list_vals(again._warmup_table)["advance"], False)
+        self.assertEqual(again._list_vals(again._deckset.tableB)["secs"], 115)
+        self.assertIs(again._list_vals(again._deckset.warmup_table)["advance"], False)
 
     def test_the_panel_shows_what_its_list_brought_back(self):
         vals = dict(self.vals(self.a), secs=115)

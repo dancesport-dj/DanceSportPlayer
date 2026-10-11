@@ -54,8 +54,8 @@ class SaveToTournamentsTest(unittest.TestCase):
         self.win = self.gui.MainWindow()
         self.win._loading_dlg.accept()
         self.addCleanup(reap_widget, self.win)
-        self.win._lib = MusicLibrary()
-        self.table = self.win._tableB
+        self.win._library.lib = MusicLibrary()
+        self.table = self.win._deckset.tableB
         self.table.load_player_list([_entry("c1"), _entry("r1", "RB")],
                                     "Party", play_cb=None)
         filed = mock.patch.object(self.win._tourney_tree, "file_saved",
@@ -133,7 +133,7 @@ class SaveToTournamentsTest(unittest.TestCase):
 
     def test_a_saved_day_is_filed_as_its_own_folder(self):
         from gui import main_export
-        day = self.win._day_decks[0]
+        day = self.win._deckset.day_decks[0]
         day.load_player_list([_entry("s1")], "Day", play_cb=None)
         self.win._day_tab_title = "Samstag"
         written = []

@@ -66,8 +66,8 @@ class _DeckModeBase(unittest.TestCase):
         self.win._loading_dlg.accept()   # closeEvent blocks a plain close()
         self.addCleanup(reap_widget, self.win)
         self.entries = [_e("LW", 1), _e("TG", 2), _e("LW", 3), _e("TG", 4)]
-        self.win._lib = _lib_of(*self.entries)
-        self.table = self.win._tableA
+        self.win._library.lib = _lib_of(*self.entries)
+        self.table = self.win._deckset.tableA
         self.draw()
 
     # ── fixtures ────────────────────────────────────────────────────────────
@@ -279,7 +279,7 @@ class FreeDeckDragTest(_DeckModeBase):
     def setUp(self):
         super().setUp()
         self.win._set_deck_mode(self.table, "free")
-        self.other = self.win._tableB
+        self.other = self.win._deckset.tableB
         self.other.load_player_list([_e("WW", 7)], "Playlist 2", play_cb=None)
 
     def _drag_first_row_over(self, ctrl: bool = False) -> int:
@@ -311,7 +311,7 @@ class FreeDeckDragTest(_DeckModeBase):
 
     def test_dragging_out_of_the_eintanzen_panel_is_still_a_copy(self):
         """The panel is a source of music, not a list tracks are taken from."""
-        self.win._warmup_table = self.table
+        self.win._deckset.warmup_table = self.table
         self.assertEqual(self._drag_first_row_over(), 0)
         self.assertIn("LW 1", self._titles(self.table))
 
@@ -323,7 +323,7 @@ class PlayerOnlyModeTest(_DeckModeBase):
     def setUp(self):
         super().setUp()
         self.win._settings["app_mode"] = "player"
-        self.empty = self.win._tableB
+        self.empty = self.win._deckset.tableB
 
     def test_an_empty_deck_is_free_from_the_start(self):
         self.assertEqual(self.win._deck_mode(self.empty), "free")
@@ -381,7 +381,7 @@ class DeckModePersistTest(_DeckModeBase):
 
     def setUp(self):
         super().setUp()
-        self.empty = self.win._tableB
+        self.empty = self.win._deckset.tableB
 
     def modes(self):
         return self.win._build_env()["deck_modes"]
@@ -403,7 +403,7 @@ class DeckModePersistTest(_DeckModeBase):
         self.addCleanup(reap_widget, fresh)
         fresh._loading_dlg.accept()
         fresh._restore_deck_modes(saved)
-        self.assertEqual(fresh._deck_mode(fresh._tableB), "free")
+        self.assertEqual(fresh._deck_mode(fresh._deckset.tableB), "free")
 
     def test_a_deck_with_tracks_is_left_alone(self):
         """Its own saved state already restored its mode — re-applying one here
@@ -413,7 +413,7 @@ class DeckModePersistTest(_DeckModeBase):
         self.assertEqual(self.songs(), ["LW 1", "TG 2", "LW 3", "TG 4"])
 
     def test_a_day_deck_keeps_its_mode_too(self):
-        day = self.win._day_decks[0]
+        day = self.win._deckset.day_decks[0]
         self.win._set_deck_mode(day, "dynamic")
         self.assertEqual(self.modes()["day_a"], "dynamic")
 

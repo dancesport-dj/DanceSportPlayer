@@ -43,7 +43,7 @@ class AnalysisMixin:
     def _library_paths(self, dance: str | None = None) -> list:
         """Every distinct track path of the loaded library, optionally of one
         dance only — the pool every pass below is offered."""
-        lib = self._lib
+        lib = self._library.lib
         paths, seen = [], set()
         for e in (lib.entries if lib else []):
             if dance is not None and e.dance != dance:
@@ -113,9 +113,9 @@ class AnalysisMixin:
         worker.start()
 
     def _analyze_audio(self, force: bool = False):
-        if not self._lib or not self._cache:
+        if not self._library.lib or not self._library.cache:
             return
-        missing = [e for e in self._lib.entries if e.features is None]
+        missing = [e for e in self._library.lib.entries if e.features is None]
         if not force and not missing:
             # Nothing missing → offer a full refresh (e.g. after a tempo-method change).
             ans = QMessageBox.question(
@@ -123,14 +123,14 @@ class AnalysisMixin:
                 i18n.t("All %s files are already cached.\n\n"
                        "Re-analyze the whole library anyway to refresh the "
                        "measured tempo with the current method?")
-                % len(self._lib.entries),
+                % len(self._library.lib.entries),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No,
             )
             if ans == QMessageBox.StandardButton.Yes:
                 self._analyze_audio(force=True)
             return
-        targets = list(self._lib.entries) if force else missing
+        targets = list(self._library.lib.entries) if force else missing
         why = self._librosa_unavailable(targets)
         if why:
             QMessageBox.warning(self, "Audio analysis unavailable", why)
@@ -153,22 +153,22 @@ class AnalysisMixin:
         self.statusBar().showMessage(
             i18n.t("Audio analysis started — %s files…") % len(targets)
         )
-        self._analyzer = AudioAnalyzer(self._cache, targets, self, force=force)
+        self._analyzer = AudioAnalyzer(self._library.cache, targets, self, force=force)
         self._run_library_pass(self._analyzer, "Analyzing audio (timbre)…", "🔬",
                                "Audio analysis", "files cached",
                                after=self._apply_analysis_results)
 
     def _apply_analysis_results(self, _ok: int):
-        if self._lib:
+        if self._library.lib:
             # Newly analyzed tracks now have features → give them a vocal/instr
             # probability too (and retrain on any features analyzed fresh).
-            learn_instrumental_probs(self._lib.entries)
+            learn_instrumental_probs(self._library.lib.entries)
         self._refresh_library_status()
 
     def _analyze_loudness(self):
         """📊 in the Playing panel: measure every library track that has no
         cached loudness yet (whole competition library, not just the decks)."""
-        if not self._cache:
+        if not self._library.cache:
             return
         ffmpeg = find_ffmpeg()
         if not ffmpeg:
@@ -177,7 +177,7 @@ class AnalysisMixin:
                 "ffmpeg was not found (neither on PATH nor the copy bundled\n"
                 "with the project) — loudness cannot be measured.")
             return
-        lib = self._lib
+        lib = self._library.lib
         if lib is None or not lib.entries:
             QMessageBox.information(self, "Analyze loudness",
                                     "The music library is not loaded yet.")
@@ -191,7 +191,7 @@ class AnalysisMixin:
                        "ones are\ndecoded (≈1 s each). You can cancel "
                        "anytime; results so far\nare kept.") % len(paths)) != QMessageBox.StandardButton.Yes:
             return
-        self._loudness_worker = LoudnessAnalyzer(self._cache, paths, ffmpeg, self)
+        self._loudness_worker = LoudnessAnalyzer(self._library.cache, paths, ffmpeg, self)
         self._run_library_pass(self._loudness_worker,
                                "Measuring loudness (EBU R128)…", "📊",
                                "Loudness analysis", "tracks measured",
@@ -200,7 +200,7 @@ class AnalysisMixin:
     def _analyze_silences(self):
         """🔇 in ⚙ Settings: probe every library track that has no cached silence
         spans yet, so playback never has to run an ffmpeg decode of its own."""
-        if not self._cache:
+        if not self._library.cache:
             return
         ffmpeg = find_ffmpeg()
         if not ffmpeg:
@@ -209,13 +209,13 @@ class AnalysisMixin:
                 "ffmpeg was not found (neither on PATH nor the copy bundled\n"
                 "with the project) — silences cannot be probed.")
             return
-        lib = self._lib
+        lib = self._library.lib
         if lib is None or not lib.entries:
             QMessageBox.information(self, "Probe silences",
                                     "The music library is not loaded yet.")
             return
         paths = self._library_paths()
-        todo = sum(1 for p in paths if self._cache.get_silences(p) is None)
+        todo = sum(1 for p in paths if self._library.cache.get_silences(p) is None)
         if QMessageBox.question(
                 self, "Probe silences",
                 i18n.t("Probe the silent stretches of the whole library "
@@ -225,7 +225,7 @@ class AnalysisMixin:
                        "cancel anytime; results so far\nare kept.")
                 % (len(paths), todo)) != QMessageBox.StandardButton.Yes:
             return
-        self._silence_analyzer = SilenceAnalyzer(self._cache, paths, ffmpeg, self)
+        self._silence_analyzer = SilenceAnalyzer(self._library.cache, paths, ffmpeg, self)
         self._run_library_pass(self._silence_analyzer,
                                "Probing silent stretches…", "🔇",
                                "Silence probe", "tracks probed",
@@ -236,14 +236,14 @@ class AnalysisMixin:
         red ⏱ flag appears (or clears) as soon as the probe has an answer.
         Rows are painted at load time and would otherwise keep whatever the
         spans said then — for a freshly probed library, nothing at all."""
-        for table in getattr(self, "_all_tables", ()):
+        for table in self._deckset.all_tables:
             table.refresh_paths(paths)
 
     def _sync_loudness_available(self):
         """Enable the 🔊 equalize checkbox only when EVERY track currently in
         the visible playlists has a measured loudness — a half-equalized round
         would jump in level between songs."""
-        if self._cache is None or self._cache.lufs_count() == 0:
+        if self._library.cache is None or self._library.cache.lufs_count() == 0:
             self._play_panel.set_loudness_available(False, -1)
             return
         missing = 0
@@ -253,26 +253,26 @@ class AnalysisMixin:
                 if str(e.path) in seen:
                     continue
                 seen.add(str(e.path))
-                if self._cache.get_lufs(e.path, touch_disk=False) is None:
+                if self._library.cache.get_lufs(e.path, touch_disk=False) is None:
                     missing += 1
         self._play_panel.set_loudness_available(missing == 0, missing)
 
     def _analyze_vocals(self):
         """🎙️ in ⚙ Settings: measure the Demucs vocal-stem share of every
         library track not yet in the vocals table (optional demucs install)."""
-        if not self._cache:
+        if not self._library.cache:
             return
         if not demucs_available():
             QMessageBox.information(self, "Analyze vocals (Demucs)",
                                     DEMUCS_INSTALL_HINT)
             return
-        lib = self._lib
+        lib = self._library.lib
         if lib is None or not lib.entries:
             QMessageBox.information(self, "Analyze vocals (Demucs)",
                                     "The music library is not loaded yet.")
             return
         paths = self._library_paths()
-        remaining = sum(1 for p in paths if self._cache.get_vocal_share(p) is None)
+        remaining = sum(1 for p in paths if self._library.cache.get_vocal_share(p) is None)
         if not remaining:
             QMessageBox.information(
                 self, "Analyze vocals (Demucs)",
@@ -291,7 +291,7 @@ class AnalysisMixin:
                 % (remaining, eta_min)
                 ) != QMessageBox.StandardButton.Yes:
             return
-        self._vocals_worker = VocalShareAnalyzer(self._cache, paths, self)
+        self._vocals_worker = VocalShareAnalyzer(self._library.cache, paths, self)
         self._run_library_pass(self._vocals_worker,
                                "Separating vocals (Demucs)…", "🎙️",
                                "Vocal separation", "tracks measured",
@@ -300,16 +300,16 @@ class AnalysisMixin:
     def _apply_vocals_results(self, _ok: int):
         """Push freshly measured shares onto the entries and re-filter the
         library browser, so the Vocal/Instr. filter reflects them right away."""
-        if self._lib and self._cache:
-            apply_vocal_shares(self._lib.entries, self._cache)
-            self._lib_browser.set_entries(self._lib.entries)
+        if self._library.lib and self._library.cache:
+            apply_vocal_shares(self._library.lib.entries, self._library.cache)
+            self._lib_browser.set_entries(self._library.lib.entries)
 
     def _analyze_pd_highlights(self):
         """🐂 in the Playing panel: detect the highlights of every Paso Doble
         of the library that has none stored yet → instant arming on playback."""
-        if not self._cache:
+        if not self._library.cache:
             return
-        lib = self._lib
+        lib = self._library.lib
         if lib is None or not lib.entries:
             QMessageBox.information(self, "Analyze PD highlights",
                                     "The music library is not loaded yet.")
@@ -339,7 +339,7 @@ class AnalysisMixin:
         box.setDefaultButton(QMessageBox.StandardButton.No)
         if box.exec() != QMessageBox.StandardButton.Yes:
             return
-        self._pd_analyzer = PdHighlightAnalyzer(self._cache, paths, self,
+        self._pd_analyzer = PdHighlightAnalyzer(self._library.cache, paths, self,
                                                 force=redo.isChecked())
         self._run_library_pass(self._pd_analyzer,
                                "Detecting Paso Doble highlights…", "🐂",

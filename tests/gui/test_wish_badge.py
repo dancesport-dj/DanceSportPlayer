@@ -31,6 +31,7 @@ from gui.deck import Deck
 from gui.main_wish import WishlistMixin
 from planner import i18n
 from tests.qt_test_support import reap_widget
+from gui.deck_set import DeckSet
 
 
 class _Entry:
@@ -54,7 +55,8 @@ class _Host(WishlistMixin):
     def __init__(self, entries):
         self.lbl = QLabel()
         deck = Deck(table=_Table(entries), count_lbl=self.lbl)
-        self._deck_of = {deck.table: deck}
+        self._deckset = DeckSet()
+        self._deckset.deck_of = {deck.table: deck}
 
     def _update_deck_totals(self):
         """Lives in DeckLayoutMixin; the badge only piggybacks on it."""

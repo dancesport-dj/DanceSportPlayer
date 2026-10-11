@@ -25,8 +25,10 @@ from PySide6.QtCore import QObject, Qt
 from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
 
 from gui.main_generate import GenerateMixin
+from planner import config as planner_config
 from planner import event_plan
 from planner.competition import parse_competition_schedule
+from gui.deck_set import DeckSet
 
 
 class FakeWindow(GenerateMixin, QObject):
@@ -35,7 +37,8 @@ class FakeWindow(GenerateMixin, QObject):
         QObject.__init__(self)
         self.shown = []
         self._ai_log = mock.Mock()
-        self._lib = object()
+        self._library = types.SimpleNamespace(lib=object())
+        self._grid = types.SimpleNamespace()
         self.runs = []
         self.store = mock.Mock()
 
@@ -192,7 +195,7 @@ class ReopenPlanTest(unittest.TestCase):
     def setUp(self):
         self.win = FakeWindow()
         self.addCleanup(self.win.deleteLater)
-        self.win._lib = types.SimpleNamespace(entries=[object()])
+        self.win._library.lib = types.SimpleNamespace(entries=[object()])
         self.win._settings = {}
         self.win._show_event_compare = mock.Mock()
         self.win._plan_event = mock.Mock()
@@ -244,9 +247,8 @@ class PlanEventTest(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.root, True)
         for name in ("DanceConvention 2025", "DanceConvention 2026"):
             (self.root / name).mkdir()
-        orig = event_plan.PLAYLIST_DIR
-        event_plan.PLAYLIST_DIR = self.root
-        self.addCleanup(setattr, event_plan, "PLAYLIST_DIR", orig)
+        self.addCleanup(planner_config.set_playlist_dir, planner_config.playlist_dir())
+        planner_config.set_playlist_dir(self.root)
 
     def opts(self, **event):
         ev = dict(schedule="", specs=parse_competition_schedule("HGR S STD 2-1"),
@@ -311,7 +313,8 @@ class ApplyEventTest(unittest.TestCase):
     def setUp(self):
         w = self.win = FakeWindow()
         self.addCleanup(w.deleteLater)
-        w._day_decks = [mock.Mock(name=f"day{k}") for k in range(8)]
+        w._deckset = DeckSet()
+        w._deckset.day_decks = [mock.Mock(name=f"day{k}") for k in range(8)]
         self.filled = set()
         w._serialize_playlist_state = lambda t: {} if t in self.filled else None
         self.loaded = []
@@ -323,8 +326,8 @@ class ApplyEventTest(unittest.TestCase):
             setattr(w, name, mock.Mock())
         w._cfg = mock.Mock()
         w._cfg.get_config.return_value = ("Standard", "HGR", "S", [], "", True)
-        w._deck_tabs = mock.Mock()
-        w._day_tabs = mock.Mock()
+        w._grid.deck_tabs = mock.Mock()
+        w._grid.day_tabs = mock.Mock()
         w._event_opts = {"event": {"series_name": "DanceConvention", "year": 2026}}
         for target in ("gui.main_generate._show_toast",
                        "gui.main_generate.PlaylistSuggester"):
@@ -357,18 +360,18 @@ class ApplyEventTest(unittest.TestCase):
         self.win._event_result.variants["like_last_year"] = other
         with mock.patch("gui.main_generate.QMessageBox"):
             self.win._apply_event_plan(["like_last_year", "variety"])
-        decks = self.win._day_decks
+        decks = self.win._deckset.day_decks
         self.assertEqual(self.loaded, [(decks[0], ["V0"]), (decks[1], ["C1"])])
 
     def test_a_deck_per_competition(self):
         self.day(3)
         box = self.apply()
         box.question.assert_not_called()
-        decks = self.win._day_decks
+        decks = self.win._deckset.day_decks
         self.assertEqual(self.loaded, [(decks[0], ["C0"]), (decks[1], ["C1"]),
                                        (decks[2], ["C2"])])
         self.win._set_day_tab_title.assert_called_once_with("DanceConvention 2026")
-        self.win._deck_tabs.setCurrentIndex.assert_called_once_with(2)
+        self.win._grid.deck_tabs.setCurrentIndex.assert_called_once_with(2)
         self.win._set_active_table.assert_called_with(decks[0])
 
     def test_more_than_eight_share_decks(self):
@@ -380,11 +383,11 @@ class ApplyEventTest(unittest.TestCase):
 
     def test_an_earlier_day_plan_is_replaced_only_on_yes(self):
         self.day(2)
-        self.filled = {self.win._day_decks[5]}
+        self.filled = {self.win._deckset.day_decks[5]}
         self.apply(answer=QMessageBox.StandardButton.No)
         self.assertEqual(self.loaded, [])
         self.apply()
-        self.win._blank_deck.assert_called_once_with(self.win._day_decks[5])
+        self.win._blank_deck.assert_called_once_with(self.win._deckset.day_decks[5])
         self.assertEqual(len(self.loaded), 2)
 
 

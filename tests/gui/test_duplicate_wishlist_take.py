@@ -35,8 +35,8 @@ class DuplicateWishlistTakeTest(unittest.TestCase):
         self.win.statusBar = lambda: _Status()
         self.addCleanup(reap_widget, self.win)
         self.a, self.b, self.c = _waltz("Alpha"), _waltz("Beta"), _waltz("Gamma")
-        self.deck_a, self.deck_e = self.win._decks[0], self.win._decks[4]
-        self.wish = self.win._wishlists[0]
+        self.deck_a, self.deck_e = self.win._deckset.decks[0], self.win._deckset.decks[4]
+        self.wish = self.win._deckset.wishlists[0]
         self.win.fill_deck(self.deck_a, [self.a, self.b])
 
     def _slot(self, table, entry) -> int:

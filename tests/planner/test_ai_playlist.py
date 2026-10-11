@@ -29,6 +29,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QLabel, QPushButton
 from tests.qt_test_support import reap_widget
 
+from planner import config as planner_config
 from planner import event_plan, i18n
 from planner import llm
 from planner import sound as planner_sound
@@ -1077,9 +1078,8 @@ class EventDialogTest(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.root, True)
         for name in ("DanceConvention 2024", "DanceConvention 2025", "WiDaFe 2014"):
             (self.root / name).mkdir()
-        orig = event_plan.PLAYLIST_DIR
-        event_plan.PLAYLIST_DIR = self.root
-        self.addCleanup(setattr, event_plan, "PLAYLIST_DIR", orig)
+        self.addCleanup(planner_config.set_playlist_dir, planner_config.playlist_dir())
+        planner_config.set_playlist_dir(self.root)
 
     def _dlg(self, settings=None):
         dlg = AiPlaylistDialog(settings if settings is not None else {})

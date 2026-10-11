@@ -789,8 +789,8 @@ CATALOG = {
     "▶  Playing": "▶  Воспроизведение",
     "▶  Playing mode": "▶  Режим воспроизведения",
     "▶  Load onto the focused deck": "▶  Загрузить в активный дек",
-    "▴  Fold decks": "▴  Свернуть деки",
-    "⊟  Collapse all": "⊟  Свернуть всё",
+    "▴  Fold decks": "▴  Деки",
+    "⊟  Collapse all": "⊟  Свернуть",
     "⏹  Stop all": "⏹  Остановить всё",
     "⏹  Stop the music": "⏹  Остановить музыку",
     "⏭  Skip to the next title": "⏭  Перейти к следующему треку",
@@ -899,11 +899,11 @@ CATALOG = {
     "📊 Library gaps": "📊 Пробелы в библиотеке",
     "📤  Export wall…": "📤  Экспорт Cartwall…",
     "📥  Import wall…": "📥  Импорт Cartwall…",
-    "📌  Save state": "📌  Сохранить состояние",
+    "📌  Save state": "📌  Состояние",
     "📌 Cartwall docked": "📌 Cartwall закреплён",
     "💾  Save M3U": "💾  Сохранить M3U",
     "💾  Save as M3U…": "💾  Сохранить как M3U…",
-    "💾  Save all": "💾  Сохранить всё",
+    "💾  Save all": "💾  Сохранить",
     "💾  Save all competition M3Us": "💾  Сохранить все M3U соревнований",
     "💾  Save all playlists as M3U": "💾  Сохранить все плейлисты как M3U",
     "🏆  Save all and add to Tournaments":
@@ -950,7 +950,7 @@ CATALOG = {
     "🗜  Compact": "🗜  Компактно",
     "🚫  No groups": "🚫  Без групп",
     "🔢  Numbers": "🔢  Номера",
-    "🧹  Clear all": "🧹  Очистить всё",
+    "🧹  Clear all": "🧹  Очистить",
     "🧹  Clear all playlists": "🧹  Очистить все плейлисты",
     "🧹  Empty this playlist": "🧹  Очистить этот плейлист",
     "🧹  Clean up database…": "🧹  Очистить базу данных…",
@@ -962,7 +962,7 @@ CATALOG = {
     "🧹 Cleared all playlists.": "🧹 Все плейлисты очищены.",
     "🧹 Tournament-day playlists cleared.":
         "🧹 Плейлисты турнирного дня очищены.",
-    "🧳  USB export": "🧳  Экспорт на USB",
+    "🧳  USB export": "🧳  USB-экспорт",
     "🧳 USB export": "🧳 Экспорт на USB",
     "🧳 USB export aborted — incomplete bundle removed.":
         "🧳 Экспорт на USB прерван — неполный пакет удалён.",
@@ -1033,12 +1033,12 @@ CATALOG = {
     "%d playlist": "Плейлистов: %d",
     "%d playlists": "Плейлистов: %d",
     "No playlist": "Нет плейлиста",
-    "No wishlist": "Нет списка пожеланий",
-    "1 wishlist": "1 список пожеланий",
-    "2 wishlists": "2 списка пожеланий",
-    "3 wishlists": "3 списка пожеланий",
-    "4 wishlists": "4 списка пожеланий",
-    "4 wishlists (2×2)": "4 списка пожеланий (2×2)",
+    "No wishlist": "Без пожеланий",
+    "1 wishlist": "Пожелания: 1",
+    "2 wishlists": "Пожелания: 2",
+    "3 wishlists": "Пожелания: 3",
+    "4 wishlists": "Пожелания: 4",
+    "4 wishlists (2×2)": "Пожелания: 4 (2×2)",
     "Build a practice playlist into the focused deck:\n"
     "• Practice for a tournament class — the class's dances round-robin\n"
     "  (e.g. Latin S: SA, CC, RB, PD, JI …), TSO-conform, popular + fresh.\n"
@@ -1588,6 +1588,45 @@ CATALOG = {
         "Изменить это можно в любой момент в ⚙ Настройки → ⚙ Общие.",
     "Send reports": "Отправлять отчёты",
     "Don't send": "Не отправлять",
+    "Once per start, the app asks GitHub (api.github.com) for the latest\n"
+    "release. The request carries nothing about you or your music; GitHub\n"
+    "sees the IP address it comes from. A newer version is announced once,\n"
+    "with a link to its download page. Nothing is downloaded or installed.\n"
+    "\n"
+    "You can change this at any time under ⚙ Settings → ⚙ General.":
+        "Один раз при каждом запуске приложение спрашивает у GitHub\n"
+        "(api.github.com) последний выпуск. Запрос не содержит ничего о вас\n"
+        "или вашей музыке; GitHub видит IP-адрес, с которого он пришёл. О более\n"
+        "новой версии сообщается один раз, со ссылкой на страницу загрузки.\n"
+        "Ничего не скачивается и не устанавливается.\n"
+        "\n"
+        "Изменить это можно в любой момент в ⚙ Настройки → ⚙ Общие.",
+    "🔔  Also tell me when a new version is out":
+        "🔔  Также сообщать, когда выйдет новая версия",
+    "New versions": "Новые версии",
+    "Tell you when a new version is out?": "Сообщать вам, когда выйдет новая версия?",
+    "Check for new versions": "Проверять новые версии",
+    "Don't check": "Не проверять",
+    "🔔  Check for new versions — once per start, ask GitHub whether a newer release is out":
+        "🔔  Проверять новые версии — один раз при запуске спрашивать у GitHub, не вышел ли более новый выпуск",
+    "Asks api.github.com for the latest release. The request carries\n"
+    "nothing about you or your music; GitHub sees the IP address it\n"
+    "comes from. A newer version is announced once, with a link to\n"
+    "its download page. Nothing is downloaded or installed.\n"
+    "\n"
+    "Off by default. Applies from the next start.":
+        "Спрашивает у api.github.com последний выпуск. Запрос не содержит\n"
+        "ничего о вас или вашей музыке; GitHub видит IP-адрес, с которого он\n"
+        "пришёл. О более новой версии сообщается один раз, со ссылкой на\n"
+        "страницу загрузки. Ничего не скачивается и не устанавливается.\n"
+        "\n"
+        "По умолчанию выключено. Действует со следующего запуска.",
+    "New version": "Новая версия",
+    "Version %s is out.": "Вышла версия %s.",
+    "You are running %s. The download page lists what changed.":
+        "У вас установлена %s. На странице загрузки указано, что изменилось.",
+    "Open download page": "Открыть страницу загрузки",
+    "Later": "Позже",
     "The music and the computer share the one sound card, so every\n"
     "sound the system makes goes out over the PA too.\n"
     "\n"
@@ -3215,6 +3254,34 @@ CATALOG = {
         "🧭  Перенесено треков на опорный путь: %d",
     "🧭  Moved %d tracks onto the Reference path":
         "🧭  Перенесено треков на опорный путь: %d",
+    "No tracks in the visible playlists or the wishlists.":
+        "В видимых плейлистах и списках пожеланий нет треков.",
+    "Checked %d tracks — %d already valid.":
+        "Проверено треков: %d — уже в порядке: %d.",
+    "🧭  Relocated %d broken reference to their real files (Ctrl+Z undoes).":
+        "🧭  Битых ссылок перенаправлено на реальные файлы: %d (Ctrl+Z отменяет).",
+    "🧭  Relocated %d broken references to their real files (Ctrl+Z undoes).":
+        "🧭  Битых ссылок перенаправлено на реальные файлы: %d (Ctrl+Z отменяет).",
+    "⚠  %d still unresolved — no matching file in the library:":
+        "⚠  Всё ещё не найдено: %d — в библиотеке нет подходящего файла:",
+    "⚠  %d valid track is not on the Reference path %s":
+        "⚠  Рабочих треков: %d — не на опорном пути %s",
+    "⚠  %d valid tracks are not on the Reference path %s":
+        "⚠  Рабочих треков: %d — не на опорном пути %s",
+    "↪ %d has a copy there — 🧭 Fix swaps them in the playlists.":
+        "↪ С копией там: %d — 🧭 Исправить заменит их в плейлистах.",
+    "↪ %d have a copy there — 🧭 Fix swaps them in the playlists.":
+        "↪ С копией там: %d — 🧭 Исправить заменит их в плейлистах.",
+    "⚠ %d has no copy there:":
+        "⚠ Без копии там (%d):",
+    "⚠ %d have no copy there:":
+        "⚠ Без копии там (%d):",
+    "✅  All track paths are valid.":
+        "✅  Все пути треков в порядке.",
+    "🎛  Re-pointed %d cartwall pad at its real sample.":
+        "🎛  Пэдов Cartwall перенаправлено на реальные сэмплы: %d.",
+    "🎛  Re-pointed %d cartwall pads at their real samples.":
+        "🎛  Пэдов Cartwall перенаправлено на реальные сэмплы: %d.",
     "🧭  Fixed 1 path in 1 file": "🧭  Исправлен 1 путь в 1 файле",
     "🧭  Fixed %d paths in 1 file": "🧭  Исправлено путей в 1 файле: %d",
     "🧭  Fixed %d paths in %d files": "🧭  Исправлено путей: %d, в файлах: %d",
@@ -4696,6 +4763,8 @@ CATALOG = {
     "✖ %(ip)s sent a wrong PIN": "✖ %(ip)s отправил неверный PIN",
     "⛔ %(ip)s locked out for %(detail)s s — too many wrong PINs":
         "⛔ %(ip)s заблокирован на %(detail)s с — слишком много неверных PIN",
+    "⛔ New phones paused for %(detail)s s — too many wrong PINs from the network":
+        "⛔ Новые телефоны приостановлены на %(detail)s с — слишком много неверных PIN из сети",
     "⛔ %(ip)s refused — not on the local network":
         "⛔ %(ip)s отклонён — не в локальной сети",
     "⚠ Could not start: %(detail)s": "⚠ Не удалось запустить: %(detail)s",
@@ -4794,7 +4863,7 @@ CATALOG = {
         '🎛  Настроить…',
     # 🤸 the practice panel's own name
     "Practice": "Практика",
-    "Practice / Party": "Практика / Вечеринка",
-    "🤸  Practice / Party": "🤸  Практика / Вечеринка",
-    "🤸  Practice / Party ▾": "🤸  Практика / Вечеринка ▾",
+    "Practice / Party": "Практика / Пати",
+    "🤸  Practice / Party": "🤸  Практика / Пати",
+    "🤸  Practice / Party ▾": "🤸  Практика / Пати ▾",
 }

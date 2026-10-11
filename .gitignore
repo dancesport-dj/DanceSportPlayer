@@ -12,6 +12,9 @@ _*.wav
 # Test coverage data (coverage.py)
 .coverage
 
+# IDE project files (PyCharm)
+.idea/
+
 # Crash dumps (faulthandler + uncaught-exception log) and the breadcrumb log
 # whose tail says what the app was doing when it died
 crash.log
@@ -62,14 +65,6 @@ build_pyi/
 dist/
 pyi_build.log
 build_flavor.txt
-
-# The planner's own description: kept on this machine only, the public
-# README describes the player
-README-planner.md
-
-# The planner's manual: kept on this machine only, the public manual in
-# docs/manual describes the player
-docs/manual-planner/
 
 # The manual as a PDF, English and German: built for each download
 # (tools/build_manual_pdf), with its print page and half-done print beside it

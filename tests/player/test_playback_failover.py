@@ -15,6 +15,7 @@ that ends normally, and so does 🔁: it would only hand the broken title to its
 import os
 import tempfile
 import unittest
+from types import SimpleNamespace
 from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -43,7 +44,7 @@ class _FailDesk(_Desk):
 
     def _reset_playback_ui(self, message: str):
         self.resets.append(message)
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             t.on_playback_stopped()
 
 
@@ -120,7 +121,7 @@ class FailedTitleIssueTest(unittest.TestCase):
             _MIN_PLAY_SECS = 105
             _MAX_PLAY_SECS = 240
             _NOISE_FLOOR_DB = -50.0
-            _cache = None
+            _library = SimpleNamespace(cache=None)
             _settings = {}
 
         win = Win()

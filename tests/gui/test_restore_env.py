@@ -63,7 +63,7 @@ class RestoreEnvTest(_WindowCase):
         self.win._restore_env(dict(ENV), deck_modes=True)
 
     def test_the_deck_view_comes_back(self):
-        self.assertEqual(self.win._deck_count, 4)
+        self.assertEqual(self.win._deckset.deck_count, 4)
 
     def test_the_wishlist_view_comes_back(self):
         self.assertEqual(self.win._wish_state, 2)
@@ -75,20 +75,20 @@ class RestoreEnvTest(_WindowCase):
         """A deck, a 📅 day deck and a wishlist — three different lists reached
         through one walk, where a key that got left out of it means a list that
         silently loses its title."""
-        self.assertEqual(self.win.deck(self.win._tableA).name, "HGR B Latein")
-        self.assertEqual(self.win.deck(self.win._day_decks[2]).name,
+        self.assertEqual(self.win.deck(self.win._deckset.tableA).name, "HGR B Latein")
+        self.assertEqual(self.win.deck(self.win._deckset.day_decks[2]).name,
                          "Nachmittag")
-        self.assertEqual(self.win.deck(self.win._wishlist2).name, "⭐  Ideen")
+        self.assertEqual(self.win.deck(self.win._deckset.wishlist2).name, "⭐  Ideen")
 
     def test_the_toggle_of_a_deck_that_came_back_empty_is_replayed(self):
         """An empty deck carries no state of its own to hold its mode."""
-        self.assertEqual(self.win._deck_own_mode(self.win._tableB), "free")
-        self.assertEqual(self.win._deck_own_mode(self.win._day_decks[0]),
+        self.assertEqual(self.win._deck_own_mode(self.win._deckset.tableB), "free")
+        self.assertEqual(self.win._deck_own_mode(self.win._deckset.day_decks[0]),
                          "dynamic")
 
     def test_deck_a_is_left_in_front(self):
         """Restoring the later decks leaves the window's globals theirs."""
-        self.assertIs(self.win._table, self.win._tableA)
+        self.assertIs(self.win._deckset.table, self.win._deckset.tableA)
 
 
 class ReaderParityTest(_WindowCase):
@@ -100,7 +100,7 @@ class ReaderParityTest(_WindowCase):
         self.addCleanup(setattr, main_restore, "load_autosave",
                         main_restore.load_autosave)
         main_restore.load_autosave = lambda: dict(ENV)
-        win._lib = win._lib or object()   # the restore is skipped without one
+        win._library.lib = win._library.lib or object()   # the restore is skipped without one
         win._restore_playlist()
         return win
 
@@ -112,12 +112,12 @@ class ReaderParityTest(_WindowCase):
 
     def test_both_readers_bring_back_the_same_titles(self):
         for win in (self._restored(), self._applied()):
-            self.assertEqual(win.deck(win._tableA).name, "HGR B Latein")
-            self.assertEqual(win.deck(win._wishlist2).name, "⭐  Ideen")
+            self.assertEqual(win.deck(win._deckset.tableA).name, "HGR B Latein")
+            self.assertEqual(win.deck(win._deckset.wishlist2).name, "⭐  Ideen")
 
     def test_both_readers_bring_back_the_same_views(self):
         for win in (self._restored(), self._applied()):
-            self.assertEqual(win._deck_count, 4)
+            self.assertEqual(win._deckset.deck_count, 4)
             self.assertEqual(win._wish_state, 2)
             self.assertEqual(win._day_tab_title, "Herbstpokal")
 
@@ -136,7 +136,7 @@ class ReaderParityTest(_WindowCase):
         self.addCleanup(setattr, main_restore, "load_autosave",
                         main_restore.load_autosave)
         main_restore.load_autosave = lambda: {"deck_count": 1}
-        win._lib = win._lib or object()
+        win._library.lib = win._library.lib or object()
         win._restore_playlist()
         self.assertEqual(win._wish_state, 3)
 
@@ -148,7 +148,7 @@ class EmptyDayTabTest(_WindowCase):
 
     def _opened(self):
         win = self._win()
-        win._deck_count = 4
+        win._deckset.deck_count = 4
         win._set_day_tab_title("Herbstpokal")
         win._day_tab_keep = True
         win._apply_deck_view()
@@ -172,19 +172,19 @@ class EmptyDayTabTest(_WindowCase):
                         main_restore.load_autosave)
         main_restore.load_autosave = lambda: dict(env)
         started = self._win()
-        started._lib = started._lib or object()
+        started._library.lib = started._library.lib or object()
         started._restore_playlist()
         undone = self._win()
         undone._apply_env(dict(env))
         for win in (started, undone):
-            self.assertTrue(win._deck_tabs.isTabVisible(2))
-            self.assertEqual(win._deck_tabs.tabText(2), "📅 Herbstpokal")
+            self.assertTrue(win._grid.deck_tabs.isTabVisible(2))
+            self.assertEqual(win._grid.deck_tabs.tabText(2), "📅 Herbstpokal")
 
     def test_a_snapshot_without_it_closes_the_tab(self):
         """An undo to a moment before the tab was opened takes it away again."""
         win = self._opened()
         win._apply_env(dict(ENV))
-        self.assertFalse(win._deck_tabs.isTabVisible(2))
+        self.assertFalse(win._grid.deck_tabs.isTabVisible(2))
 
 
 HERE = r"F:\my music\tanzcds\WW\Mondschein.mp3"
@@ -213,7 +213,7 @@ class IncompleteRestoreTest(_WindowCase):
         dialogs.AUTOSAVE.write(env)
         self.before = dialogs.AUTOSAVE.path.read_bytes()
         win = self._win()
-        win._lib = win._lib or object()
+        win._library.lib = win._library.lib or object()
         win._resolve_entry = resolve
         win._restore_playlist()
         return win

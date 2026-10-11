@@ -366,8 +366,10 @@ def _resolve_import_path(path_str: str, lib: MusicLibrary, cache: AudioCache,
     try:
         if p.is_file():
             return lib.make_external_entry(p, cache), True, None
-    except Exception:
-        pass
+    except Exception as exc:
+        log.debug("🎵 Could not build an external entry\n"
+                  "file: %s\n"
+                  "reason: %r", p, exc)
     if remapper is not None:
         hit = remapper.remap(path_str)
         if hit is not None:
@@ -376,8 +378,10 @@ def _resolve_import_path(path_str: str, lib: MusicLibrary, cache: AudioCache,
                 return ent, True, hit
             try:
                 return lib.make_external_entry(hit, cache), True, hit
-            except Exception:
-                pass
+            except Exception as exc:
+                log.debug("🎵 Could not build an external entry\n"
+                          "file: %s\n"
+                          "reason: %r", hit, exc)
     # The filename is cut by hand: on macOS a Windows path is ONE filename to
     # `Path`, so `p.stem` would title the slot with the whole backslash line and
     # the dance detection would read the folder names too.
@@ -549,7 +553,8 @@ def _segments_by_section(
     names: list[str] = []
     dances: list[str] = []
     cur = None
-    for (dance, entry), name in zip(seq, labels):
+    # `labels` can come from a saved session that is older than the list.
+    for (dance, entry), name in zip(seq, labels, strict=False):
         if not segments or name != cur:
             segments.append([])
             names.append(name)
@@ -578,7 +583,7 @@ def _grid_from_segments(
     playlist: dict[str, list[list[MusicEntry | None]]] = {}
     rounds: list[RoundConfig] = []
     backups: dict[tuple[str, int, int], list[MusicEntry]] = {}
-    for idx, (name, seg) in enumerate(zip(names, segments)):
+    for idx, (name, seg) in enumerate(zip(names, segments, strict=True)):
         heats, seg_backups = _round_heats_and_backups(
             _segment_buckets(seg, dances), dances, name)
         backups.update(seg_backups)
@@ -638,7 +643,7 @@ def running_order_rounds(
     names = ROUND_NAMES.get(len(segments)) if len(segments) > 1 else None
     if not names:
         return warmup_rounds(entries, min_rounds=_WARMUP_MIN_ROUNDS) if warmup else []
-    return [(name, [e for _d, e in seg]) for name, seg in zip(names, segments)]
+    return [(name, [e for _d, e in seg]) for name, seg in zip(names, segments, strict=True)]
 
 
 def m3u_marker_rounds_in_order(m3u_path) -> list[tuple[str, str]]:
@@ -840,7 +845,7 @@ def import_playlist_m3u(m3u_path, lib: MusicLibrary, cache: AudioCache,
         playlist: dict[str, list[list[MusicEntry | None]]] = {}
         rounds: list[RoundConfig] = []
         tiers = _round_tiers([name for name, _ in rounds_ord])
-        for (name, dmap), tier in zip(rounds_ord, tiers):
+        for (name, dmap), tier in zip(rounds_ord, tiers, strict=True):
             heat_n = max((len(v) for v in dmap.values()), default=1) or 1
             heats: list[list[MusicEntry | None]] = []
             for h in range(heat_n):

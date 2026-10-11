@@ -9,8 +9,10 @@ string compares. It now asks `MusicLibrary.entry_for`, with the same answer:
 an exact path first, then a case-folded one.
 """
 
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from dancesport_planner import MusicEntry, MusicLibrary
 from planner.m3u import _resolve_import_path
@@ -54,6 +56,23 @@ class M3uImportLookupTest(unittest.TestCase):
         entry, found, _ = _resolve_import_path(TANGO.upper(), lib, None, "Tanguera")
         self.assertIs(entry, lib.entries[0])
         self.assertTrue(found)
+
+    def test_a_file_whose_tags_fail_is_logged_and_kept_as_a_ghost(self):
+        """A file that is there but can't be read still fills the slot, and the
+        reason it came in as a ghost is in the debug log, not swallowed."""
+        with tempfile.TemporaryDirectory() as tmp:
+            song = Path(tmp) / "Tanguera (TG 32).mp3"
+            song.write_bytes(b"")
+            lib = _library()
+            with mock.patch.object(MusicLibrary, "make_external_entry",
+                                   side_effect=RuntimeError("bad tags")), \
+                    self.assertLogs("dancesport.m3u", "DEBUG") as logs:
+                entry, found, _ = _resolve_import_path(str(song), lib, None, "Tanguera")
+        self.assertFalse(found)
+        self.assertEqual(entry.title, "Tanguera")
+        text = "\n".join(logs.output)
+        self.assertIn(str(song), text)
+        self.assertIn("bad tags", text)
 
 
 if __name__ == "__main__":

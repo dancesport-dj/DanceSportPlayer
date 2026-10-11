@@ -1,6 +1,7 @@
 """Tests for planner.config: build_flavor() (dev / lite / full detection via the
 build_flavor.txt marker), the writable data dir, and write_json_atomic."""
 import json
+import re
 import sys
 import tempfile
 import unittest
@@ -251,7 +252,7 @@ class ManualPackTest(unittest.TestCase):
         from tools import dmg_background as bg
         row = sorted(bg.LAYOUT[k][0] for k in ("readme", "manual", "handbuch"))
         self.assertEqual(len({bg.LAYOUT[k][1] for k in ("readme", "manual", "handbuch")}), 1)
-        for a, b in zip(row, row[1:]):
+        for a, b in zip(row, row[1:], strict=False):
             self.assertGreaterEqual(b - a, bg.LAYOUT["icon_size"] + 40)
         self.assertGreaterEqual(row[0] - bg.LAYOUT["icon_size"] / 2, 0)
         self.assertLessEqual(row[-1] + bg.LAYOUT["icon_size"] / 2, bg.LAYOUT["window"][0])
@@ -283,6 +284,57 @@ def _pins(name):
             pkg, version = line.split("==")
             pins[pkg.strip().lower()] = version.strip()
     return pins
+
+
+_LOCK_LINE = re.compile(r"^([A-Za-z0-9._-]+)==([^\s;\\]+)")
+
+
+def _locked(name):
+    """{package: version} of a lock file's top-level `pkg==version` entries."""
+    path = Path(config.__file__).resolve().parent.parent / name
+    pins = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        m = _LOCK_LINE.match(line)
+        if m:
+            pins[m.group(1).lower().replace("_", "-")] = m.group(2)
+    return pins
+
+
+class LockFileTest(unittest.TestCase):
+    """H3: builds and CI install from the hash-locked files, so a tag built
+    weeks later bundles what was tested. A pin moved in a requirements file
+    without regenerating its lock would silently not take effect there."""
+
+    ROOT = Path(config.__file__).resolve().parent.parent
+    LOCKS = {"requirements.lock": ("requirements.txt", "requirements-build.txt"),
+             "requirements-player.lock": ("requirements-player.txt",
+                                          "requirements-build.txt")}
+
+    def test_each_lock_pins_its_sources_at_their_versions(self):
+        for lock, sources in self.LOCKS.items():
+            locked = _locked(lock)
+            for source in sources:
+                for pkg, version in _pins(source).items():
+                    with self.subTest(lock=lock, pkg=pkg):
+                        self.assertEqual(locked.get(pkg), version)
+
+    def test_every_locked_package_carries_a_hash(self):
+        for lock in self.LOCKS:
+            text = (self.ROOT / lock).read_text(encoding="utf-8")
+            entries = re.split(r"\n(?=[A-Za-z0-9])", text.split("\n\n", 1)[1])
+            with self.subTest(lock=lock):
+                self.assertGreater(len(entries), 10)
+                for entry in entries:
+                    self.assertIn("--hash=sha256:", entry, entry.splitlines()[0])
+
+    def test_ci_installs_from_the_locks(self):
+        workflows = self.ROOT / ".github" / "workflows"
+        player = (workflows / "build-player.yml").read_text(encoding="utf-8")
+        self.assertEqual(player.count("pip install -r requirements-player.lock"), 3)
+        self.assertNotIn("requirements-player.txt", player)
+        tests = (workflows / "tests.yml").read_text(encoding="utf-8")
+        self.assertIn("pip install -r requirements.lock", tests)
+        self.assertNotIn("-r requirements.txt", tests)
 
 
 class PlayerRequirementsTest(unittest.TestCase):
@@ -385,12 +437,13 @@ class DmgBackgroundTest(unittest.TestCase):
 
     def test_the_tests_workflow_has_pillow_to_draw_it(self):
         """Pillow is a build tool, not in requirements.txt: without it here
-        the GitHub tests run died on `No module named 'PIL'`."""
+        the GitHub tests run died on `No module named 'PIL'`. It comes in
+        through requirements-build.txt, which the lock the run installs takes in."""
         workflow = (Path(config.__file__).resolve().parent.parent / ".github"
                     / "workflows" / "tests.yml").read_text(encoding="utf-8")
-        install = next(line for line in workflow.splitlines()
-                       if "pip install -r requirements.txt" in line)
-        self.assertIn("pillow", install.split())
+        self.assertIn("pip install -r requirements.lock", workflow)
+        self.assertIn("pillow", _pins("requirements-build.txt"))
+        self.assertIn("pillow", _locked("requirements.lock"))
 
     def test_it_draws_the_window_size_and_twice_that_for_retina(self):
         from tools import dmg_background as bg
@@ -596,6 +649,35 @@ class WriteJsonAtomicTest(unittest.TestCase):
         target = self._tmp / "out.json"
         with mock.patch.object(config.os, "replace", side_effect=OSError("locked")):
             with self.assertRaises(OSError):
+                config.write_json_atomic(target, {"a": 1})
+        self.assertEqual(list(self._tmp.iterdir()), [])
+
+    def test_a_target_locked_for_a_moment_is_written_anyway(self):
+        """A virus scanner opens a file the moment it is written, and Windows
+        refuses to replace it while it looks (WinError 32): the next save of the
+        same file, a moment later, was lost."""
+        target = self._tmp / "out.json"
+        real_replace = config.os.replace
+        state = {"locked": 2}
+
+        def replace(src, dst):
+            if state["locked"]:
+                state["locked"] -= 1
+                raise PermissionError(13, "used by another process")
+            real_replace(src, dst)
+
+        with mock.patch.object(config.os, "replace", side_effect=replace), \
+             mock.patch.object(config.time, "sleep") as sleep:
+            config.write_json_atomic(target, {"a": 1})
+        self.assertEqual(json.loads(target.read_text(encoding="utf-8")), {"a": 1})
+        self.assertEqual(sleep.call_count, 2)
+
+    def test_a_target_that_stays_locked_still_fails(self):
+        target = self._tmp / "out.json"
+        with mock.patch.object(config.os, "replace",
+                               side_effect=PermissionError(13, "locked")), \
+             mock.patch.object(config.time, "sleep"):
+            with self.assertRaises(PermissionError):
                 config.write_json_atomic(target, {"a": 1})
         self.assertEqual(list(self._tmp.iterdir()), [])
 

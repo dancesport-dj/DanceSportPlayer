@@ -170,7 +170,7 @@ class PauseMusicMixin:
     def _playing_row(self):
         """(deck, row) of the row that is actually playing (the one with a
         marked ▶), or (None, -1)."""
-        t = next((t for t in self._all_tables if t._current_play_row >= 0), None)
+        t = next((t for t in self._deckset.all_tables if t._current_play_row >= 0), None)
         return (t, t._current_play_row) if t is not None else (None, -1)
 
     def _wants_start_call(self) -> bool:

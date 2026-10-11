@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 import planner.db as pdb
+from planner import config as planner_config
 from planner import play_log
 
 
@@ -19,8 +20,8 @@ class PlayLogTest(unittest.TestCase):
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp(prefix="dp_play_log_"))
         self.addCleanup(shutil.rmtree, self.dir, ignore_errors=True)
-        saved = (pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
-        pdb.AUDIO_DB_FILE = self.dir / "scratch.db"
+        saved = (planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
+        planner_config.AUDIO_DB_FILE = self.dir / "scratch.db"
         pdb._DB_LOCAL = threading.local()
         pdb._DB_INITIALIZED = False
 
@@ -29,7 +30,7 @@ class PlayLogTest(unittest.TestCase):
                 pdb._DB_LOCAL.conn.close()
             except Exception:
                 pass
-            pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = saved
+            planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = saved
         self.addCleanup(restore)
 
     def play(self, when, title, dance="LW", length=180.0, list_name="Deck A"):

@@ -47,13 +47,13 @@ class ImportRemapWiringTest(unittest.TestCase):
         self.win = self.gui.MainWindow()
         self.win._loading_dlg.accept()
         self.addCleanup(reap_widget, self.win)
-        self.win._lib = MusicLibrary()
+        self.win._library.lib = MusicLibrary()
         self.foreign = []
         for sub, name, dance in TRACKS:
             local = self.root / "lateincd" / sub / name
             local.parent.mkdir(parents=True, exist_ok=True)
             local.write_bytes(b"\0" * 16)
-            self.win._lib.entries.append(
+            self.win._library.lib.entries.append(
                 MusicEntry(path=local, title=local.stem, dance=dance,
                            bpm=50, duration=180))
             self.foreign.append(FOREIGN.format(sub, name))
@@ -68,7 +68,7 @@ class ImportRemapWiringTest(unittest.TestCase):
         return m
 
     def _deck_paths(self) -> list[Path]:
-        return [Path(e.path) for e in self.win._table._row_meta.entries()]
+        return [Path(e.path) for e in self.win._deckset.table._row_meta.entries()]
 
     def test_the_search_folder_setting_reaches_the_import(self):
         self.win._settings["remap_paths"] = [str(self.root)]
@@ -103,7 +103,7 @@ class ImportRemapWiringTest(unittest.TestCase):
         """The Windows case — every path resolves as written."""
         m = self.dir / "local.m3u"
         m.write_text("#EXTM3U\n" + "\n".join(
-            str(e.path) for e in self.win._lib.entries) + "\n", encoding="utf-8")
+            str(e.path) for e in self.win._library.lib.entries) + "\n", encoding="utf-8")
         self.win._settings["remap_paths"] = [str(self.root)]
         self.win._import_playlist_path(str(m))
         self.assertEqual(self.shown, [])

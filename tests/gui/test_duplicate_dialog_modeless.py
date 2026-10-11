@@ -18,6 +18,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -34,6 +35,7 @@ from planner.library import MusicLibrary
 from planner.models import MusicEntry, RoundConfig
 from planner.suggester import PlaylistSuggester
 from tests.qt_test_support import reap_widget
+from gui.deck_set import DeckSet
 
 
 def _waltz(name: str) -> MusicEntry:
@@ -47,18 +49,18 @@ class _Win(QWidget, DuplicateCheckMixin):
     def __init__(self, songs):
         super().__init__()
         self._settings = {"app_mode": "full"}
-        self._cache = None
-        self._lib = MusicLibrary()
-        self._lib.entries += songs
+        self._library = SimpleNamespace(cache=None, lib=MusicLibrary())
+        self._library.lib.entries += songs
         self.deck_table = PlaylistTable()
         self.deck_table.setParent(self)
         heats = [[s] for s in songs]
         self.deck_table.load(
             {"Vorrunde": heats}, ["LW"],
             [RoundConfig(name="Vorrunde", heats=len(heats), tier="early")], "D",
-            play_cb=None, suggester=PlaylistSuggester(self._lib),
+            play_cb=None, suggester=PlaylistSuggester(self._library.lib),
             use_timbre=False)
-        self._wishlists = []
+        self._deckset = DeckSet()
+        self._deckset.wishlists = []
         self.status = mock.Mock()
 
     def _dup_check_tables(self):

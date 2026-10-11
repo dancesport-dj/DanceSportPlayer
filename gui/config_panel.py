@@ -117,6 +117,39 @@ class ConfigPanel(QWidget):
         layout.addWidget(self.mode_combo)
         layout.addWidget(_hsep())
 
+        self._build_favorites_box(layout)
+        self._build_rounds_box()
+        self._build_replay_box()
+        # Order: replay box sits ABOVE the shared rounds/strategy box
+        layout.addWidget(self._replay_box)
+        layout.addWidget(self._rounds_box)
+
+        self._build_theme_box(layout)
+
+        layout.addWidget(_hsep())
+
+        self._build_actions(layout)
+
+        # ── Drop zone: find similar from an external file ──
+        self.drop_zone = DropZone()
+        layout.addWidget(self.drop_zone)
+
+        layout.addStretch()
+        layout.addWidget(_hsep())
+
+        self._build_status_row(layout)
+
+        # Connect signals after all widgets exist
+        self.style_combo.currentTextChanged.connect(self._update_dances)
+        self.class_combo.currentTextChanged.connect(self._update_dances)
+        self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
+
+        # Populate dances + parse default rounds
+        self._update_dances()
+        self._parse_rounds()
+
+    def _build_favorites_box(self, layout):
+        """Source, style, age, class and the dance checkboxes (Favorites mode)."""
         # ── Favorites config (hidden in Theme mode) ──
         self._comp = QWidget()
         clyt = QVBoxLayout(self._comp)
@@ -191,6 +224,8 @@ class ConfigPanel(QWidget):
         clyt.addWidget(self.dances_box)
         clyt.addWidget(_hsep())
 
+    def _build_rounds_box(self):
+        """Rounds, round strategy, auto re-roll and timbre (Favorites + Past Competitions)."""
         # ── Rounds + strategy + options (shared by Favorites & Past Competitions) ──
         self._rounds_box = QWidget()
         rlyt = QVBoxLayout(self._rounds_box)
@@ -249,6 +284,8 @@ class ConfigPanel(QWidget):
         )
         rlyt.addWidget(self.timbre_check)
 
+    def _build_replay_box(self):
+        """Schedule paste, parse and competition pick (Past Competitions mode)."""
         # ── Past Competitions config (above the rounds box; hidden in Favorites mode) ──
         self._replay_box = QWidget()
         plyt = QVBoxLayout(self._replay_box)
@@ -278,10 +315,9 @@ class ConfigPanel(QWidget):
         plyt.addWidget(_hsep())
         self._replay_specs: list[CompetitionSpec] = []
         self._replay_box.setVisible(False)
-        # Order: replay box sits ABOVE the shared rounds/strategy box
-        layout.addWidget(self._replay_box)
-        layout.addWidget(self._rounds_box)
 
+    def _build_theme_box(self, layout):
+        """Theme pick and track count (Theme mode)."""
         # ── Theme config (hidden in Favorites mode) ──
         self._theme_box = QWidget()
         tlyt = QVBoxLayout(self._theme_box)
@@ -306,8 +342,8 @@ class ConfigPanel(QWidget):
         self._theme_box.setVisible(False)
         layout.addWidget(self._theme_box)
 
-        layout.addWidget(_hsep())
-
+    def _build_actions(self, layout):
+        """Generate, Save, Import and the AI playlist row."""
         # ── Action buttons ──
         self.generate_btn = QPushButton("⚡  Generate Playlist")
         self.generate_btn.setEnabled(False)
@@ -368,13 +404,8 @@ class ConfigPanel(QWidget):
         # self.ai_btn.clicked.connect(self.ai_requested)
         # layout.addWidget(self.ai_btn)
 
-        # ── Drop zone: find similar from an external file ──
-        self.drop_zone = DropZone()
-        layout.addWidget(self.drop_zone)
-
-        layout.addStretch()
-        layout.addWidget(_hsep())
-
+    def _build_status_row(self, layout):
+        """The library counts with the 🧱 build and ⚙ settings buttons."""
         # ── Library status (+ settings gear) ──
         status_row = QHBoxLayout()
         status_row.setContentsMargins(0, 0, 0, 0)
@@ -396,15 +427,6 @@ class ConfigPanel(QWidget):
         self.settings_btn.clicked.connect(self.settings_requested)
         status_row.addWidget(self.settings_btn, alignment=Qt.AlignmentFlag.AlignTop)
         layout.addLayout(status_row)
-
-        # Connect signals after all widgets exist
-        self.style_combo.currentTextChanged.connect(self._update_dances)
-        self.class_combo.currentTextChanged.connect(self._update_dances)
-        self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
-
-        # Populate dances + parse default rounds
-        self._update_dances()
-        self._parse_rounds()
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 

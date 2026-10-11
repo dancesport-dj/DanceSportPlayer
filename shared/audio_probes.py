@@ -250,7 +250,8 @@ def parse_silences(stderr: str) -> list:
             ends.append(int(h) * 3600 + int(mi) * 60 + float(s))
         else:
             starts = starts[:len(ends)]
-    return [[max(0.0, s), e] for s, e in zip(starts, ends) if e > s]
+    # ffmpeg can report an end with no start; such a stray end pairs with nothing.
+    return [[max(0.0, s), e] for s, e in zip(starts, ends, strict=False) if e > s]
 
 
 def detect_silences(ffmpeg: str, path: Path, on_proc=None) -> list | None:

@@ -28,6 +28,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
@@ -91,9 +92,9 @@ class _Win:
     _global_index_line = glb.GlobalIndexMixin._global_index_line
 
     def __init__(self, lib, cache=None, global_lib=None, global_search=False):
-        self._lib = lib
-        self._cache = cache if cache is not None else _Cache()
-        self._global_lib = global_lib
+        self._library = SimpleNamespace(
+            lib=lib, cache=cache if cache is not None else _Cache(),
+            global_lib=global_lib)
         self._settings = {"global_search": global_search}
         self._cfg = _Cfg()
 

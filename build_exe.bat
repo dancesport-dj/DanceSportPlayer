@@ -15,6 +15,9 @@ if /I "%~1"=="full" set DANCESPORT_BUILD=full
 if /I "%~1"=="full" set APP_NAME=DanceSport-Planner-Player-Full
 if /I "%~1"=="player" set DANCESPORT_BUILD=player
 if /I "%~1"=="player" set APP_NAME=DanceSport-Player
+rem The locked install (every package pinned with hashes, PyInstaller included).
+set LOCK=requirements.lock
+if /I "%~1"=="player" set LOCK=requirements-player.lock
 
 set PY=%~dp0.venv\Scripts\python.exe
 if not exist "%PY%" goto :no_venv
@@ -83,17 +86,17 @@ exit /b 0
 
 :no_venv
 echo ERROR: no build venv at .venv\Scripts\python.exe
-echo   fix: py -m venv .venv ^&^& .venv\Scripts\pip install -r requirements.txt pyinstaller
+echo   fix: py -m venv .venv ^&^& .venv\Scripts\pip install -r %LOCK%
 goto :stop
 
 :no_deps
 echo ERROR: the build venv is missing one of: %DEPS%
-echo   fix: .venv\Scripts\pip install -r requirements.txt
+echo   fix: .venv\Scripts\pip install -r %LOCK%
 goto :stop
 
 :no_pyinstaller
 echo ERROR: PyInstaller is not installed in the build venv
-echo   fix: .venv\Scripts\pip install pyinstaller
+echo   fix: .venv\Scripts\pip install -r %LOCK%
 goto :stop
 
 :failed

@@ -334,16 +334,16 @@ class ExportMixin:
         Wishlists are saved too, into a separate ``wishlists`` sub-folder (also name +
         date/time). Given `decks` (a Group tab's page), only those are saved."""
         only = decks is not None
-        decks = [t for t in (decks if only else self._decks + self._day_decks)
+        decks = [t for t in (decks if only else self._deckset.decks + self._deckset.day_decks)
                  if t.rowCount() > 0]
-        wishes = [] if only else [t for t in getattr(self, "_wishlists", [])
+        wishes = [] if only else [t for t in self._deckset.wishlists
                                   if t.wishlist_entries()]
         # The 🤸 Eintanzen panel is neither a deck nor a wishlist, and it is the
         # one list an evening is actually run from — it saves along with them,
         # flat and with its rounds, into the playlist folder.
-        warmup = (self._warmup_table
+        warmup = (self._deckset.warmup_table
                   if not only and self._warmup_has_content()
-                  and self._warmup_table._row_meta.entries()
+                  and self._deckset.warmup_table._row_meta.entries()
                   else None)
         if not decks and not wishes and warmup is None:
             self.statusBar().showMessage("Nothing to save — all playlists are empty.")
@@ -470,11 +470,11 @@ class ExportMixin:
 
         Asks first WHAT to bundle: all open decks, only the 📅 tournament day, or
         saved .m3u files dragged in. Wishlists are never bundled."""
-        decks = [t for t in self._decks if t.rowCount() > 0]
-        day = [t for t in self._day_decks if t.rowCount() > 0]
+        decks = [t for t in self._deckset.decks if t.rowCount() > 0]
+        day = [t for t in self._deckset.day_decks if t.rowCount() > 0]
         ask = UsbExportDialog(
             self, n_decks=len(decks), n_day=len(day),
-            day_selected=self._deck_tabs.currentIndex() == 2)
+            day_selected=self._grid.deck_tabs.currentIndex() == 2)
         if ask.exec() != QDialog.DialogCode.Accepted:
             return
         if ask.mode() == "dropped":
@@ -627,7 +627,7 @@ class ExportMixin:
         puts the files into a sub-folder named after the tab / the day.
         `file_in_tree` then files them in 🏆 Tournaments, in a folder named
         like that sub-folder."""
-        decks = [t for t in self._day_decks if t.rowCount() > 0]
+        decks = [t for t in self._deckset.day_decks if t.rowCount() > 0]
         if not decks:
             self.statusBar().showMessage("Nothing to save — the day decks are empty.")
             return
@@ -727,7 +727,7 @@ class ExportMixin:
         basename = _sanitize_filename(default) or "Playlist"
         # Resolve the export work first, so empty decks/wishlists are caught before
         # the user picks a file.
-        is_wish = table in self._wishlists
+        is_wish = table in self._deckset.wishlists
         # The 🤸 Eintanzen panel is flat like a wishlist, and it is neither a deck
         # nor a wishlist — without this it fell through to the grid branch and a
         # party list came out wrapped in a competition draw's heat comments.
@@ -820,7 +820,7 @@ class ExportMixin:
     def _save_focused(self):
         """Ctrl+S — save the currently focused playlist/wishlist as M3U, falling back
         to the active deck when nothing has been focused yet."""
-        table = getattr(self, "_focused_table", None) or self._table
+        table = getattr(self, "_focused_table", None) or self._deckset.table
         if table is None:
             self.statusBar().showMessage("Nothing to save yet.")
             return
@@ -829,7 +829,7 @@ class ExportMixin:
     def _clear_focused(self):
         """Ctrl+Shift+Del — empty the focused playlist/wishlist, after the
         same question Del asks."""
-        table = getattr(self, "_focused_table", None) or self._table
+        table = getattr(self, "_focused_table", None) or self._deckset.table
         if table is not None:
             table._clear_entire()
 
@@ -861,7 +861,7 @@ class ExportMixin:
     def _save_m3u(self):
         # A focused wishlist is saved directly (flat M3U with a name prompt).
         focused = getattr(self, "_focused_table", None)
-        if focused is not None and focused in self._wishlists:
+        if focused is not None and focused in self._deckset.wishlists:
             self._on_table_save_requested(focused)
             return
         if self._mode == "Theme":
@@ -881,10 +881,10 @@ class ExportMixin:
         if not self._playlist:
             return
         # A stacked 📅 day-plan deck saves one M3U per competition it holds.
-        comps = {c.get("comp") for c in getattr(self._table, "_round_ctx", {}).values()
+        comps = {c.get("comp") for c in getattr(self._deckset.table, "_round_ctx", {}).values()
                  if c.get("comp")}
         if len(comps) > 1:
-            data = self._serialize_playlist_state(self._table)
+            data = self._serialize_playlist_state(self._deckset.table)
             outs = []
             path_for = self._export_path_for()
             for comp, playlist, c_dances, c_cls in self._deck_export_jobs(data or {}):
@@ -906,8 +906,11 @@ class ExportMixin:
             cls      = self._dance_class
             basename = f"{self._replay_label}{suffix}"
         else:
-            _, age, cls, dances, _rounds, _ = self._cfg.get_config()
-            basename = f"{age.replace(' ', '_')}_{cls}_{self._style}{suffix}"
+            # What the playlist was generated with, not the live checkboxes: a
+            # dance ticked since then has no song in any heat.
+            dances = self._dances
+            cls = self._dance_class
+            basename = f"{self._age.replace(' ', '_')}_{cls}_{self._style}{suffix}"
         path_for = self._export_path_for()
         out = self._run_export(
             "💾 Saving playlist…",

@@ -160,7 +160,7 @@ class PdStopMixin:
         # the music it was counted from.
         self._now_playing.setText(f"▶  {path.stem[:80]}")
         self._set_countdown("")
-        QTimer.singleShot(2000, lambda: self._check_playback(token, path))
+        QTimer.singleShot(2000, self, lambda: self._check_playback(token, path))
 
     # ── Highlights ────────────────────────────────────────────────────────────
 
@@ -172,8 +172,8 @@ class PdStopMixin:
         if str(path) in self._pd_highlights:
             self._arm_pd_stop(path)
             return
-        if self._cache:
-            stored = self._cache.get_pd_highlights(path)
+        if self._library.cache:
+            stored = self._library.cache.get_pd_highlights(path)
             if stored is not None:
                 self._pd_highlights[str(path)] = list(stored)
                 self._arm_pd_stop(path)
@@ -203,7 +203,7 @@ class PdStopMixin:
             self._pd_stop_at = pd_stop_at(
                 self._pd_highlights.get(str(path)) or [],
                 self._play_panel.pd_highlight_n(),
-                manual=bool(self._cache and self._cache.is_pd_manual(path)),
+                manual=bool(self._library.cache and self._library.cache.is_pd_manual(path)),
                 duration=self._track_duration(path),
                 takt=self._track_takt(path),
                 name=path.name)
@@ -246,14 +246,14 @@ class PdStopMixin:
         so 🐂 auto-detection never overwrites it). The first manual mark on a
         track replaces any auto guess; further marks add the 2nd / 3rd."""
         path = self._playback.path
-        if self._playback.dance != "PD" or path is None or not self._cache:
+        if self._playback.dance != "PD" or path is None or not self._library.cache:
             self.statusBar().showMessage(
                 "🎯 Play a Paso Doble first, then click when a highlight hits.", 4000)
             return
         pos = self._player.position() / 1000.0
         if pos <= 0:
             return
-        if self._cache.is_pd_manual(path):
+        if self._library.cache.is_pd_manual(path):
             base = [t for t in (self._pd_highlights.get(str(path)) or [])
                     if t is not None]
         else:
@@ -279,11 +279,11 @@ class PdStopMixin:
         chips. An empty list means 'forget it' — auto-detection takes over."""
         if marks:
             self._pd_highlights[str(path)] = marks
-            self._cache.put_pd_highlights(path, marks, manual=True)
+            self._library.cache.put_pd_highlights(path, marks, manual=True)
         else:
             self._pd_highlights.pop(str(path), None)
-            self._cache.clear_pd_highlights(path)
-        self._cache.save()
+            self._library.cache.clear_pd_highlights(path)
+        self._library.cache.save()
         self._arm_pd_stop(path)
         self._refresh_pd_chips()
 
@@ -291,7 +291,7 @@ class PdStopMixin:
         """✕ on a mark chip. Dropping the last one reverts the track to 🐂
         auto-detection rather than leaving it with no highlights at all."""
         path = self._playback.path
-        if path is None or not self._cache:
+        if path is None or not self._library.cache:
             return
         marks = [t for t in (self._pd_highlights.get(str(path)) or [])
                  if t is not None and abs(t - secs) >= 0.05]
@@ -333,10 +333,10 @@ class PdStopMixin:
         """✖ Forget the current track's highlights (manual or auto) and let
         auto-detection take over again on the next play."""
         path = self._playback.path
-        if path is None or not self._cache:
+        if path is None or not self._library.cache:
             return
-        self._cache.clear_pd_highlights(path)
-        self._cache.save()
+        self._library.cache.clear_pd_highlights(path)
+        self._library.cache.save()
         self._pd_highlights.pop(str(path), None)
         self._pd_stop_at = None
         self._refresh_pd_chips()
@@ -346,11 +346,17 @@ class PdStopMixin:
             self._ensure_pd_highlights(path)
         self._sync_big_player_limit()
 
+    def _hand_marked(self, path_str: str) -> bool:
+        """A 🎯 mark set while the detection ran: it wins, as in the database."""
+        return bool(self._library.cache and self._library.cache.is_pd_manual(Path(path_str)))
+
     def _on_pd_highlights(self, path_str: str, times: list):
+        if self._hand_marked(path_str):
+            return
         self._pd_highlights[path_str] = list(times)
-        if self._cache:   # persist, so the next session arms instantly
-            self._cache.put_pd_highlights(Path(path_str), times)
-            self._cache.save()
+        if self._library.cache:   # persist, so the next session arms instantly
+            self._library.cache.put_pd_highlights(Path(path_str), times)
+            self._library.cache.save()
         log.info("🐂 Paso Doble highlights detected\n"
                  "file: %s\n"
                  "highlights: %s", Path(path_str).name,
@@ -364,4 +370,5 @@ class PdStopMixin:
 
     def _on_pd_error(self, path_str: str, _msg: str):
         # Remember the failure so we don't re-analyze on every play.
-        self._pd_highlights[path_str] = []
+        if not self._hand_marked(path_str):
+            self._pd_highlights[path_str] = []

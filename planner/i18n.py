@@ -1,4 +1,5 @@
-"""EN/DE chrome translation, keyed by the English string itself.
+"""Chrome translation (English, German, Spanish, Dutch, Russian), keyed by
+the English string itself.
 
 The app was written in English, with its visible text sitting as literals at
 roughly 500 call sites across gui/ and player/. Two ways to translate that:
@@ -19,13 +20,13 @@ at 330 call sites — and it buys three properties that matter more here:
   actually titled "Close" — would be translated. The keys are chrome phrases
   and the collision has not been seen, but it is the price of keying by text.
 
-The catalog for a language lives in its own module (`planner/lang_de.py`), so
-it is bundled by PyInstaller like any other import and needs no data-file entry
-in the spec.
+The catalog for a language lives in its own module (`planner/lang_de.py`,
+`lang_es`, `lang_nl`, `lang_ru`), so it is bundled by PyInstaller like any
+other import and needs no data-file entry in the spec.
 
 Qt's own chrome — the OK/Cancel on a message box, the file dialog, the colour
 picker — is not ours to translate and is not in the catalog. PySide6 ships
-`qtbase_de.qm`; `install_qt_translator()` loads it.
+`qtbase_<code>.qm` for each of them; `install_qt_translator()` loads it.
 
 Nothing here imports PySide6 at module level: planner/ is the no-Qt core, and
 `t()` has to stay callable from anywhere. The Qt imports live inside the two

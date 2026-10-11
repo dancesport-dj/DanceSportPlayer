@@ -33,6 +33,7 @@ from planner.competition import parse_competition_schedule
 from player.main_player import PlayerControlMixin
 from player.player import PreviewOverlay
 from tests.planner.test_event_variants import EventFixture
+from gui.deck_set import DeckSet
 
 
 class _Main(QWidget):
@@ -50,7 +51,8 @@ class _Main(QWidget):
         self._settings = {}
         self._preview = PreviewOverlay(QMediaPlayer(), QAudioOutput())
         self.deck = mock.Mock(_current_play_row=-1)
-        self._all_tables = [self.deck]
+        self._deckset = DeckSet()
+        self._deckset.all_tables = [self.deck]
         self._lib_browser = mock.Mock()
         self._announcer = mock.Mock()
         self._continue_event_plan = mock.Mock()

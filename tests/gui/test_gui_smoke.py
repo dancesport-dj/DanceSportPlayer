@@ -151,8 +151,8 @@ class MainWindowSmokeTest(unittest.TestCase):
         self.addCleanup(reap_widget, self.win)
 
     def test_window_constructs_without_a_library(self):
-        self.assertIsNone(self.win._lib)
-        self.assertTrue(self.win._loader.started)
+        self.assertIsNone(self.win._library.lib)
+        self.assertTrue(self.win._library.loader.started)
         self.assertEqual(self.win.windowTitle(), "DanceSport Planner & Player")
 
     def test_every_mixin_contributed_its_methods(self):
@@ -168,21 +168,21 @@ class MainWindowSmokeTest(unittest.TestCase):
 
     def test_deck_view_cycles_through_every_count(self):
         """1 → 2 → 4 → 8 → 0 (no playlists) → 1, decks following along."""
-        self.win._deck_count = 1
+        self.win._deckset.deck_count = 1
         self.win._apply_deck_view()
         for expected in (2, 4, 8, 0, 1):
             self.win._cycle_deck_view()
-            self.assertEqual(self.win._deck_count, expected)
-        self.assertTrue(self.win._deck_tabs.isVisible() or self.win.isHidden())
+            self.assertEqual(self.win._deckset.deck_count, expected)
+        self.assertTrue(self.win._grid.deck_tabs.isVisible() or self.win.isHidden())
 
     def test_a_right_click_walks_the_deck_cycle_backwards(self):
         """Right click = one step back, so overshooting the view you wanted
         costs one click instead of four more forward."""
-        self.win._deck_count = 1
+        self.win._deckset.deck_count = 1
         self.win._apply_deck_view()
         for expected in (0, 8, 4, 2, 1):
             self.win._cycle_deck_view(back=True)
-            self.assertEqual(self.win._deck_count, expected)
+            self.assertEqual(self.win._deckset.deck_count, expected)
 
     def test_a_right_click_walks_the_wishlist_cycle_backwards(self):
         """Same ring as the ⭐ button's left click, the other way round —
@@ -195,39 +195,39 @@ class MainWindowSmokeTest(unittest.TestCase):
                              (state, grid))
 
     def test_no_playlist_view_hides_the_decks(self):
-        self.win._deck_count = 0
+        self.win._deckset.deck_count = 0
         self.win._apply_deck_view()
-        self.assertFalse(self.win._deck_tabs.isVisibleTo(self.win))
+        self.assertFalse(self.win._grid.deck_tabs.isVisibleTo(self.win))
 
     def test_a_filled_deck_is_brought_back_into_view(self):
         """A playlist generated behind the 'No playlist' view looks exactly like
         a run that did nothing — whatever the view was, the deck comes back."""
-        self.win._deck_count = 0
+        self.win._deckset.deck_count = 0
         self.win._apply_deck_view()
-        self.win._reveal_deck(self.win._tableA)
-        self.assertGreaterEqual(self.win._deck_count, 1)
-        self.assertTrue(self.win._deck_tabs.isVisibleTo(self.win))
-        self.assertIs(self.win._table, self.win._tableA)
+        self.win._reveal_deck(self.win._deckset.tableA)
+        self.assertGreaterEqual(self.win._deckset.deck_count, 1)
+        self.assertTrue(self.win._grid.deck_tabs.isVisibleTo(self.win))
+        self.assertIs(self.win._deckset.table, self.win._deckset.tableA)
 
     def test_revealing_a_later_deck_widens_the_view_and_fronts_its_tab(self):
-        self.win._deck_count = 1
+        self.win._deckset.deck_count = 1
         self.win._apply_deck_view()
-        self.win._reveal_deck(self.win._tableF)
-        self.assertEqual(self.win._deck_count, 8)
-        self.assertEqual(self.win._deck_tabs.currentIndex(), 1)
-        self.assertTrue(self.win._box_shown(self.win._tableF))
+        self.win._reveal_deck(self.win._deckset.tableF)
+        self.assertEqual(self.win._deckset.deck_count, 8)
+        self.assertEqual(self.win._grid.deck_tabs.currentIndex(), 1)
+        self.assertTrue(self.win._box_shown(self.win._deckset.tableF))
 
     def test_revealing_unfolds_a_deck_folded_to_a_strip(self):
-        self.win._deck_count = 2
+        self.win._deckset.deck_count = 2
         self.win._apply_deck_view()
-        self.win._toggle_deck_fold(self.win._tableB, True)
-        self.win._reveal_deck(self.win._tableB)
-        self.assertFalse(self.win.deck(self.win._tableB).folded)
+        self.win._toggle_deck_fold(self.win._deckset.tableB, True)
+        self.win._reveal_deck(self.win._deckset.tableB)
+        self.assertFalse(self.win.deck(self.win._deckset.tableB).folded)
 
     def test_the_cartwall_is_a_dock_beside_the_decks_not_a_tab(self):
         from PySide6.QtCore import Qt
 
-        self.assertEqual(self.win._deck_tabs.count(), 3)
+        self.assertEqual(self.win._grid.deck_tabs.count(), 3)
         self.assertIs(self.win._cart_dock.widget(), self.win._cartwall)
         self.assertEqual(self.win.dockWidgetArea(self.win._cart_dock),
                          Qt.DockWidgetArea.RightDockWidgetArea)
@@ -288,9 +288,9 @@ class MainWindowSmokeTest(unittest.TestCase):
         """A dock is not inside _deck_tabs, so the view that hides the whole tab
         area no longer takes the wall down with it."""
         self.win._cart_btn.setChecked(True)
-        self.win._deck_count = 0
+        self.win._deckset.deck_count = 0
         self.win._apply_deck_view()
-        self.assertFalse(self.win._deck_tabs.isVisibleTo(self.win))
+        self.assertFalse(self.win._grid.deck_tabs.isVisibleTo(self.win))
         self.assertFalse(self.win._cart_dock.isHidden())
         self.win._cart_btn.setChecked(False)
 
@@ -299,27 +299,27 @@ class MainWindowSmokeTest(unittest.TestCase):
         hidden entirely (party list, no normal playlists) it must show — that view
         exists precisely so the wishlist / Eintanzen / library panes take over."""
         self.win._set_wish_state(1)
-        self.win._deck_count = 1
+        self.win._deckset.deck_count = 1
         self.win._apply_deck_view()
-        self.assertFalse(self.win._wish_split.isVisibleTo(self.win))
-        self.win._deck_count = 0
+        self.assertFalse(self.win._grid.wish_split.isVisibleTo(self.win))
+        self.win._deckset.deck_count = 0
         self.win._apply_deck_view()
-        self.assertTrue(self.win._wish_split.isVisibleTo(self.win))
-        self.assertTrue(self.win._wish_box.isVisibleTo(self.win))
+        self.assertTrue(self.win._grid.wish_split.isVisibleTo(self.win))
+        self.assertTrue(self.win._grid.wish_box.isVisibleTo(self.win))
 
     def test_the_wishlist_off_state_survives_the_no_playlist_view(self):
         """⭐ off means off — even with every deck hidden."""
         self.win._set_wish_state(0)
-        self.win._deck_count = 0
+        self.win._deckset.deck_count = 0
         self.win._apply_deck_view()
-        self.assertFalse(self.win._wish_split.isVisibleTo(self.win))
+        self.assertFalse(self.win._grid.wish_split.isVisibleTo(self.win))
 
     def test_active_deck_can_be_switched(self):
         """Focusing a deck makes it the Generate / Save / ↺ target."""
-        self.win._set_active_table(self.win._tableB)
-        self.assertIs(self.win._table, self.win._tableB)
-        self.win._set_active_table(self.win._tableA)
-        self.assertIs(self.win._table, self.win._tableA)
+        self.win._set_active_table(self.win._deckset.tableB)
+        self.assertIs(self.win._deckset.table, self.win._deckset.tableB)
+        self.win._set_active_table(self.win._deckset.tableA)
+        self.assertIs(self.win._deckset.table, self.win._deckset.tableA)
 
 
 if __name__ == "__main__":

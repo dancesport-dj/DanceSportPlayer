@@ -61,9 +61,9 @@ class PartyPanelExportTest(unittest.TestCase):
         self.win._loading_dlg.accept()
         self.addCleanup(reap_widget, self.win)
         self.entries = [_entry(d, i) for i, d in enumerate(_PARTY)]
-        self.win._lib = MusicLibrary()
-        self.win._lib.entries = list(self.entries)
-        self.table = self.win._warmup_table
+        self.win._library.lib = MusicLibrary()
+        self.win._library.lib.entries = list(self.entries)
+        self.table = self.win._deckset.warmup_table
         self.table.load_warmup(self.entries, "Party", style="",
                                dance_class="S", relax=True, play_cb=None,
                                suggester=None)
@@ -79,8 +79,9 @@ class PartyPanelExportTest(unittest.TestCase):
             self.win._on_table_save_requested(self.table)
         return out
 
-    def save_all(self) -> tuple[list[Path], str]:
-        """💾 Save all: (the written .m3u files, the summary box's text)."""
+    def save_all(self, click=False) -> tuple[list[Path], str]:
+        """💾 Save all: (the written .m3u files, the summary box's text).
+        `click` goes through the toolbar button instead of the method."""
         from gui import main_export
         out_dir = _TMP / "all"
         for old in out_dir.rglob("*.m3u"):
@@ -90,10 +91,18 @@ class PartyPanelExportTest(unittest.TestCase):
         with mock.patch.object(main_export, "OUTPUT_DIR", out_dir), \
                 mock.patch("planner.m3u.OUTPUT_DIR", out_dir), \
                 mock.patch.object(main_export, "QMessageBox", return_value=box):
-            self.win._save_all_playlists()
+            if click:
+                self._save_all_button().click()
+            else:
+                self.win._save_all_playlists()
         # Nothing saved → the summary box never opens, so there is no text.
         text = box.setText.call_args.args[0] if box.setText.call_args else ""
         return sorted(out_dir.rglob("*.m3u")), text
+
+    def _save_all_button(self):
+        from PySide6.QtWidgets import QPushButton
+        return next(b for b in self.win.findChildren(QPushButton)
+                    if b.toolTip().startswith("Export every non-empty playlist"))
 
     def _lines(self, m3u: Path) -> list[str]:
         return m3u.read_text(encoding="utf-8").splitlines()
@@ -132,6 +141,12 @@ class SaveAllIncludesThePanelTest(PartyPanelExportTest):
         self.assertEqual(len(written), 1, written)
         self.assertEqual(self._tracks(written[0]),
                          [str(e.path) for e in self.entries])
+
+    def test_the_toolbar_button_saves_like_the_method(self):
+        # `clicked` hands its `checked` flag to a slot that takes an argument,
+        # and _save_all_playlists(decks=None) took it for a list of decks.
+        written, _text = self.save_all(click=True)
+        self.assertEqual(len(written), 1, written)
 
     def test_it_goes_out_flat_with_its_rounds(self):
         written, _text = self.save_all()

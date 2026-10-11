@@ -187,11 +187,11 @@ class MusicCheckMixin:
         the floor isn't known. Measuring means decoding the whole file through
         ffmpeg, so it happens only when the user asked for the check — and the
         result is cached by content, so a re-run is instant."""
-        if not getattr(self, "_check_noise", False) or self._cache is None:
+        if not getattr(self, "_check_noise", False) or self._library.cache is None:
             return None
         p = Path(e.path)
         try:
-            floor = self._cache.get_noise_floor(p, touch_disk=probe)
+            floor = self._library.cache.get_noise_floor(p, touch_disk=probe)
         except Exception:
             return None
         if floor is None and probe:
@@ -199,8 +199,8 @@ class MusicCheckMixin:
             if ffmpeg:
                 floor = measure_noise_floor(ffmpeg, p)
                 if floor is not None:
-                    self._cache.put_noise_floor(p, floor)
-                    self._cache.save()
+                    self._library.cache.put_noise_floor(p, floor)
+                    self._library.cache.save()
         return floor
 
     def _track_silence_total(self, e, dur: int, probe: bool = True) -> float:
@@ -208,11 +208,11 @@ class MusicCheckMixin:
         Cached spans are used when present (also filled during playback);
         borderline-short tracks are probed on the fly via ffmpeg and the result
         cached, so re-checks are instant. 0.0 when unknown."""
-        if self._cache is None:
+        if self._library.cache is None:
             return 0.0
         p = Path(e.path)
         try:
-            spans = self._cache.get_silences(p, touch_disk=probe)
+            spans = self._library.cache.get_silences(p, touch_disk=probe)
         except Exception:
             return 0.0
         # Probe only borderline-short tracks (a whole deck would take minutes):
@@ -223,8 +223,8 @@ class MusicCheckMixin:
             if ffmpeg:
                 spans = detect_silences(ffmpeg, p)
                 if spans is not None:
-                    self._cache.put_silences(p, spans)
-                    self._cache.save()
+                    self._library.cache.put_silences(p, spans)
+                    self._library.cache.save()
         return sum(end - start for start, end in (spans or []))
 
     def _track_play_secs(self, e) -> int | None:
@@ -235,10 +235,10 @@ class MusicCheckMixin:
         never start an ffmpeg decode. None = never probed, and the ⏱ column
         then shows the file's own length."""
         dur = int(getattr(e, "duration", 0) or 0)
-        if dur <= 0 or self._cache is None:
+        if dur <= 0 or self._library.cache is None:
             return None
         try:
-            spans = self._cache.get_silences(Path(e.path), touch_disk=False)
+            spans = self._library.cache.get_silences(Path(e.path), touch_disk=False)
         except Exception:
             return None
         if spans is None:
@@ -254,10 +254,10 @@ class MusicCheckMixin:
         Cached spans only, like `_track_play_secs` — this runs for every row of
         every repaint and must never start a decode. 0.0 = nothing to flag."""
         dur = int(getattr(e, "duration", 0) or 0)
-        if dur <= 0 or self._cache is None:
+        if dur <= 0 or self._library.cache is None:
             return 0.0
         try:
-            spans = self._cache.get_silences(Path(e.path), touch_disk=False)
+            spans = self._library.cache.get_silences(Path(e.path), touch_disk=False)
         except Exception:
             return 0.0
         return max(planner_checks.edge_silence_secs(dur, spans or []))
@@ -276,7 +276,7 @@ class MusicCheckMixin:
             return {}
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
-            changed = self._lib.rescan_tags(entry, self._cache)
+            changed = self._library.lib.rescan_tags(entry, self._library.cache)
         except Exception as exc:
             log.warning("🏷 Couldn't re-read the tags of %s:\n%s", p.name, exc)
             _show_toast(self, i18n.t("🏷  Couldn't re-read %s: %s") % (p.name, exc))
@@ -284,11 +284,11 @@ class MusicCheckMixin:
         finally:
             QApplication.restoreOverrideCursor()
 
-        for table in self._all_tables:
+        for table in self._deckset.all_tables:
             table.refresh_paths([p])
         browser = getattr(self, "_lib_browser", None)
         if browser is not None:
-            browser.set_entries(self._lib.entries)
+            browser.set_entries(self._library.lib.entries)
         if changed:
             log.info("🏷 Tags re-read for %s:\n%s", p.name,
                      _tag_change_summary(changed))
@@ -303,16 +303,16 @@ class MusicCheckMixin:
         in the library one cell rather than the whole pane. Rows holding
         another MusicEntry object for the same file — an outside copy restored
         from an M3U — are handed in too, so they don't keep the old stars."""
-        if entry is None or self._cache is None:
+        if entry is None or self._library.cache is None:
             return
         try:
-            paths = self._lib.edit_tags(self._copies_of(entry), self._cache,
+            paths = self._library.lib.edit_tags(self._copies_of(entry), self._library.cache,
                                         {"rating": stars})
         except ValueError as exc:
             log.warning("★ Couldn't store the rating of %s:\n%s", Path(entry.path).name, exc)
             _show_toast(self, i18n.t("★  Couldn't store the rating: %s") % exc)
             return
-        for table in self._all_tables:
+        for table in self._deckset.all_tables:
             table.refresh_paths(paths)
         browser = getattr(self, "_lib_browser", None)
         if browser is not None:
@@ -323,7 +323,7 @@ class MusicCheckMixin:
         same file — an edit must reach those rows too."""
         path = str(entry.path)
         out = [entry]
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             for e in t._row_meta.entries():
                 if str(e.path) == path and not any(e is x for x in out):
                     out.append(e)
@@ -336,9 +336,9 @@ class MusicCheckMixin:
             if e is not None and getattr(e, "path", None) and str(e.path) not in seen:
                 seen.add(str(e.path))
                 todo.append(e)
-        if not todo or self._cache is None:
+        if not todo or self._library.cache is None:
             return
-        dlg = TagEditDialog(todo, marker_suggestions(self._lib.entries), self,
+        dlg = TagEditDialog(todo, marker_suggestions(self._library.lib.entries), self,
                             custom_source=custom_field.source(),
                             map_custom=self._set_custom_source)
         if dlg.exec() == QDialog.DialogCode.Accepted:
@@ -381,26 +381,26 @@ class MusicCheckMixin:
         try:
             if dlg.reset_requested:
                 for e in entries:
-                    paths += self._lib.reset_tag_edits(self._copies_of(e), self._cache)
+                    paths += self._library.lib.reset_tag_edits(self._copies_of(e), self._library.cache)
             for e, changes in todo:
-                paths += self._lib.edit_tags(self._copies_of(e), self._cache, changes)
+                paths += self._library.lib.edit_tags(self._copies_of(e), self._library.cache, changes)
         except ValueError as exc:
             log.warning("🏷 Couldn't store the tag edit:\n%s", exc)
             _show_toast(self, i18n.t("🏷  Couldn't store the tags: %s") % exc)
         if not paths:
             return
-        for table in self._all_tables:
+        for table in self._deckset.all_tables:
             table.refresh_paths(paths)
         browser = getattr(self, "_lib_browser", None)
         if browser is not None:
-            browser.set_entries(self._lib.entries)   # a class edit may change the filter
+            browser.set_entries(self._library.lib.entries)   # a class edit may change the filter
 
     def _map_custom_field(self):
         """Header right-click "Map Custom to an MP3 tag…": ask which frame
         fills the Custom field, then read that frame of every track the
         library and the lists show — off the GUI thread, a whole library is
         some seconds of ID3 reads — and repaint."""
-        if self._custom_reader is not None or self._cache is None:
+        if self._custom_reader is not None or self._library.cache is None:
             return
         answer = self._ask_custom_source()
         if answer is not None:
@@ -410,12 +410,12 @@ class MusicCheckMixin:
         """Map Custom to `frame` (None: the app only) and read it anew — from
         the header menu or a row of the 🏷 editor's Extended tab. False while
         a reading is still under way: the mapping is left as it was then."""
-        if self._custom_reader is not None or self._cache is None:
+        if self._custom_reader is not None or self._library.cache is None:
             return False
         if not custom_field.set_source(frame, desc):
             return True
-        entries = list(self._lib.entries)
-        for t in self._all_tables:
+        entries = list(self._library.lib.entries)
+        for t in self._deckset.all_tables:
             entries += t._row_meta.entries()
         paths = list(dict.fromkeys(str(e.path) for e in entries))
         reader = CustomFieldReader(paths, self)
@@ -429,7 +429,7 @@ class MusicCheckMixin:
         """(frame id or None, description) from the mapping dialog; None
         when it was cancelled."""
         # A look into some MP3s of the archive, for the descriptions they use.
-        paths = [e.path for e in self._lib.entries if str(e.path).lower().endswith(".mp3")]
+        paths = [e.path for e in self._library.lib.entries if str(e.path).lower().endswith(".mp3")]
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
             samples = id3_frames.sample_custom(paths)
@@ -442,14 +442,14 @@ class MusicCheckMixin:
 
     def _on_custom_read(self, entries, values: dict):
         self._custom_reader = None
-        paths = self._lib.read_custom(entries, self._cache, values)
+        paths = self._library.lib.read_custom(entries, self._library.cache, values)
         src = custom_field.source()
         log.info("🏷 Custom field mapped\n"
                  "frame: %s\n"
                  "tracks changed: %d", ":".join(src) if src else "app only", len(paths))
         if not paths:
             return
-        for table in self._all_tables:
+        for table in self._deckset.all_tables:
             table.refresh_paths(paths)
         browser = getattr(self, "_lib_browser", None)
         if browser is not None:
@@ -493,7 +493,7 @@ class MusicCheckMixin:
                                      "its MP3 tags") % p.name)
             return []
         try:
-            self._cache.ensure_audio_fp(p)
+            self._library.cache.ensure_audio_fp(p)
             write(p)
         except (OSError, ValueError, MutagenError) as exc:
             log.warning("🏷 Couldn't write the MP3 tags of %s:\n%s", p.name, exc)
@@ -505,11 +505,11 @@ class MusicCheckMixin:
             self._player.setSource(src)
         try:
             for e in self._copies_of(entry):
-                self._lib.rescan_tags(e, self._cache)
+                self._library.lib.rescan_tags(e, self._library.cache)
         except Exception as exc:
             log.warning("🏷 Couldn't re-read the tags of %s:\n%s", p.name, exc)
             _show_toast(self, i18n.t("🏷  Couldn't re-read %s: %s") % (p.name, exc))
-        self._cache.save()
+        self._library.cache.save()
         log.info("🏷 MP3 tags written\n"
                  "file: %s\n"
                  "%s", p.name, what)
@@ -546,8 +546,8 @@ class MusicCheckMixin:
                 feat = planner.db.AudioCache._analyze_file(
                     p, _tempo_prior(dance, entry.bpm))
                 entry.features = feat
-                if self._cache is not None:
-                    self._cache.put(p, feat)
+                if self._library.cache is not None:
+                    self._library.cache.put(p, feat)
                 measured = float(getattr(feat, "bpm", 0) or 0)
             except Exception as exc:
                 log.warning("🎵 Couldn't measure %s: %s", p.name, exc)
@@ -699,8 +699,8 @@ class MusicCheckMixin:
         """Grade what will be played tonight: every deck holding titles and the
         Eintanzen list (planner/readiness.py)."""
         tables = self._checkable_deck_tables()
-        if self._warmup_table._row_meta.has_songs():
-            tables.append(self._warmup_table)
+        if self._deckset.warmup_table._row_meta.has_songs():
+            tables.append(self._deckset.warmup_table)
         tracks = [(e.path, e.dance) for t in tables for e in t._row_meta.entries()
                   if getattr(e, "path", None)]
         # The duplicate report renumbers `_dup_slots`, which an open 🔁 dialog's
@@ -715,7 +715,7 @@ class MusicCheckMixin:
         if result is not None:
             suspects, _checked, _skipped, structure, _any = result
             music = ([s[0].title for s in suspects], [name for name, _w, _t in structure])
-        return readiness.readiness_findings(tracks, self._cache, report, music,
+        return readiness.readiness_findings(tracks, self._library.cache, report, music,
                                             self._settings.get("reference_path") or "")
 
     def _check_readiness(self):
@@ -798,84 +798,132 @@ class MusicCheckMixin:
         dlg = getattr(self, "_bpm_dlg", None)
         fresh = dlg is None or not dlg.isVisible()
         if fresh:
-            dlg = QDialog(self)
-            dlg.setWindowTitle("🎵  Music check")
-            dlg.resize(1040, 480)
-            dlg.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-            self._bpm_dlg = dlg
-            dlg._play_state = {"row": -1}
+            dlg = self._build_music_report_shell()
 
-            lyt = QVBoxLayout(dlg)
-            info = QLabel()
-            info.setWordWrap(True)
-            lyt.addWidget(info)
-            dlg._info = info
+        self._set_music_report_texts(dlg, suspects, checked, skipped, structure)
 
-            def rerun():
-                result = self._music_suspects_with_progress()
-                if result is None:
-                    return   # aborted — keep the current report
-                s, c, sk, st, _ = result
-                self._show_music_report(s, c, sk, st)
-                dlg._music_panel.refresh()
+        # Stop any track left playing by the previous body, then clear the body.
+        st = dlg._play_state
+        if st["row"] >= 0:
+            self._play_or_stop(None)
+            st["row"] = -1
+        body_lyt = dlg._body_lyt
+        while body_lyt.count():
+            item = body_lyt.takeAt(0)
+            w = item.widget()
+            if w is not None:
+                w.setParent(None)   # leave the hierarchy now (no lingering ghost)
+                w.deleteLater()
 
-            long_chk = QCheckBox()
-            long_chk.setChecked(bool(getattr(self, "_check_long", False)))
-            dlg._long_chk = long_chk
+        # Playlist-level round-structure warnings (uneven dance counts, heat
+        # taper, heat tempo spread). Slot segments become links that jump to
+        # the exact round/heat/dance row in the deck, like the suspects table.
+        if structure:
+            struct_lbl = self._build_structure_label(structure)
+            body_lyt.addWidget(struct_lbl)
 
-            def on_long_toggled(on: bool):
-                self._check_long = on
-                rerun()
-            long_chk.toggled.connect(on_long_toggled)
-            lyt.addWidget(long_chk)
+        if not suspects:
+            none_lbl = QLabel(
+                "✅  No tempo / length issues in the current tracks."
+                if checked else
+                "No tracks in any open playlist — drag playlists into the "
+                "📂 tab to check loose files.")
+            none_lbl.setStyleSheet("color:#2a7a45;")
+            body_lyt.addWidget(none_lbl)
+            body_lyt.addStretch(1)
+            if fresh:
+                dlg.show()
+            return
 
-            noise_chk = QCheckBox()
-            noise_chk.setChecked(bool(getattr(self, "_check_noise", False)))
-            dlg._noise_chk = noise_chk
+        t = self._build_suspects_table(dlg, suspects)
+        body_lyt.addWidget(t, stretch=1)
 
-            def on_noise_toggled(on: bool):
-                self._check_noise = on
-                rerun()
-            noise_chk.toggled.connect(on_noise_toggled)
-            lyt.addWidget(noise_chk)
+        if fresh:
+            dlg.show()   # non-modal: the decks stay clickable next to the report
 
-            body = QWidget()
-            body_lyt = QVBoxLayout(body)
-            body_lyt.setContentsMargins(0, 0, 0, 0)
-            dlg._body_lyt = body_lyt
+    def _build_music_report_shell(self):
+        """The kept dialog shell: info line, check toggles, tabs, Close, seek keys."""
+        dlg = QDialog(self)
+        dlg.setWindowTitle("🎵  Music check")
+        dlg.resize(1040, 480)
+        dlg.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        self._bpm_dlg = dlg
+        dlg._play_state = {"row": -1}
 
-            music_panel = FileDropCheckPanel(
-                "Drag <b>.m3u playlists</b> (or audio files) here to check their tracks "
-                "for the same issues — tempo label vs measured, TSO takt range, play "
-                "length — plus the playlists' round structure (heat tempo spread).",
-                run_fn=self._dropped_music_results)
-            dlg._music_panel = music_panel
-            tabs = QTabWidget()
-            tabs.addTab(body, "🎚️  Open playlists")
-            tabs.addTab(music_panel, "📂  Drag files in")
-            lyt.addWidget(tabs, stretch=1)
+        lyt = QVBoxLayout(dlg)
+        info = QLabel()
+        info.setWordWrap(True)
+        lyt.addWidget(info)
+        dlg._info = info
 
-            close_btn = QPushButton("Close")
-            close_btn.clicked.connect(dlg.close)
-            lyt.addWidget(close_btn, alignment=Qt.AlignmentFlag.AlignRight)
+        def rerun():
+            result = self._music_suspects_with_progress()
+            if result is None:
+                return   # aborted — keep the current report
+            s, c, sk, st, _ = result
+            self._show_music_report(s, c, sk, st)
+            dlg._music_panel.refresh()
 
-            # Ctrl+←/→ seek the player ∓30 s while the (non-modal) report is focused.
-            sk_back = QShortcut(QKeySequence("Ctrl+Left"), dlg)
-            sk_back.activated.connect(lambda: self._seek(-30000))
-            sk_fwd = QShortcut(QKeySequence("Ctrl+Right"), dlg)
-            sk_fwd.activated.connect(lambda: self._seek(30000))
+        long_chk = QCheckBox()
+        long_chk.setChecked(bool(getattr(self, "_check_long", False)))
+        dlg._long_chk = long_chk
 
-            def on_finished(_result=0):
-                st = getattr(dlg, "_play_state", None)
-                if st and st["row"] >= 0:
-                    self._play_or_stop(None)
-                if getattr(self, "_drop_play_btn", None) is not None:
-                    self._play_or_stop(None)
-                    self._drop_play_btn = None
-                if getattr(self, "_bpm_dlg", None) is dlg:
-                    self._bpm_dlg = None
-            dlg.finished.connect(on_finished)
+        def on_long_toggled(on: bool):
+            self._check_long = on
+            rerun()
+        long_chk.toggled.connect(on_long_toggled)
+        lyt.addWidget(long_chk)
 
+        noise_chk = QCheckBox()
+        noise_chk.setChecked(bool(getattr(self, "_check_noise", False)))
+        dlg._noise_chk = noise_chk
+
+        def on_noise_toggled(on: bool):
+            self._check_noise = on
+            rerun()
+        noise_chk.toggled.connect(on_noise_toggled)
+        lyt.addWidget(noise_chk)
+
+        body = QWidget()
+        body_lyt = QVBoxLayout(body)
+        body_lyt.setContentsMargins(0, 0, 0, 0)
+        dlg._body_lyt = body_lyt
+
+        music_panel = FileDropCheckPanel(
+            "Drag <b>.m3u playlists</b> (or audio files) here to check their tracks "
+            "for the same issues — tempo label vs measured, TSO takt range, play "
+            "length — plus the playlists' round structure (heat tempo spread).",
+            run_fn=self._dropped_music_results)
+        dlg._music_panel = music_panel
+        tabs = QTabWidget()
+        tabs.addTab(body, "🎚️  Open playlists")
+        tabs.addTab(music_panel, "📂  Drag files in")
+        lyt.addWidget(tabs, stretch=1)
+
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(dlg.close)
+        lyt.addWidget(close_btn, alignment=Qt.AlignmentFlag.AlignRight)
+
+        # Ctrl+←/→ seek the player ∓30 s while the (non-modal) report is focused.
+        sk_back = QShortcut(QKeySequence("Ctrl+Left"), dlg)
+        sk_back.activated.connect(lambda: self._seek(-30000))
+        sk_fwd = QShortcut(QKeySequence("Ctrl+Right"), dlg)
+        sk_fwd.activated.connect(lambda: self._seek(30000))
+
+        def on_finished(_result=0):
+            st = getattr(dlg, "_play_state", None)
+            if st and st["row"] >= 0:
+                self._play_or_stop(None)
+            if getattr(self, "_drop_play_btn", None) is not None:
+                self._play_or_stop(None)
+                self._drop_play_btn = None
+            if getattr(self, "_bpm_dlg", None) is dlg:
+                self._bpm_dlg = None
+        dlg.finished.connect(on_finished)
+        return dlg
+
+    def _set_music_report_texts(self, dlg, suspects, checked: int, skipped: int, structure):
+        """The info line and the toggle captions for this run's findings."""
         mn = self._check_min_secs()
         mx = self._check_max_secs()
         n_struct = sum(len(w) for _, w, _ in structure) if structure else 0
@@ -907,82 +955,40 @@ class MusicCheckMixin:
                    "each track once with ffmpeg, so the first run takes a moment")
             % self._check_noise_db())
 
-        # Stop any track left playing by the previous body, then clear the body.
-        st = dlg._play_state
-        if st["row"] >= 0:
-            self._play_or_stop(None)
-            st["row"] = -1
-        body_lyt = dlg._body_lyt
-        while body_lyt.count():
-            item = body_lyt.takeAt(0)
-            w = item.widget()
-            if w is not None:
-                w.setParent(None)   # leave the hierarchy now (no lingering ghost)
-                w.deleteLater()
+    def _build_structure_label(self, structure):
+        """The yellow round-structure box; its slot links jump into the decks."""
+        targets = []   # href index → (deck table, (round, h_idx, d_idx))
+        lines = []
+        for name, findings, table in structure:
+            lines.append(f"<b>{html.escape(name)}</b>")
+            for segs in findings:
+                parts = []
+                for text, slot in segs:
+                    esc = html.escape(text)
+                    if slot is None:
+                        parts.append(esc)
+                    else:
+                        targets.append((table, slot))
+                        parts.append(f'<a href="{len(targets) - 1}">{esc}</a>')
+                lines.append("&nbsp;&nbsp;• " + "".join(parts))
+        struct_lbl = QLabel(i18n.t("🧩 <b>Round structure</b> — click a spot to "
+                                   "jump to it") + "<br>" + "<br>".join(lines))
+        struct_lbl.setWordWrap(True)
+        struct_lbl.setStyleSheet(
+            "background:#fff6e0; border:1px solid #e0c060;"
+            "border-radius:4px; padding:6px;")
 
-        # Playlist-level round-structure warnings (uneven dance counts, heat
-        # taper, heat tempo spread). Slot segments become links that jump to
-        # the exact round/heat/dance row in the deck, like the suspects table.
-        if structure:
-            targets = []   # href index → (deck table, (round, h_idx, d_idx))
-            lines = []
-            for name, findings, table in structure:
-                lines.append(f"<b>{html.escape(name)}</b>")
-                for segs in findings:
-                    parts = []
-                    for text, slot in segs:
-                        esc = html.escape(text)
-                        if slot is None:
-                            parts.append(esc)
-                        else:
-                            targets.append((table, slot))
-                            parts.append(f'<a href="{len(targets) - 1}">{esc}</a>')
-                    lines.append("&nbsp;&nbsp;• " + "".join(parts))
-            struct_lbl = QLabel(i18n.t("🧩 <b>Round structure</b> — click a spot to "
-                                       "jump to it") + "<br>" + "<br>".join(lines))
-            struct_lbl.setWordWrap(True)
-            struct_lbl.setStyleSheet(
-                "background:#fff6e0; border:1px solid #e0c060;"
-                "border-radius:4px; padding:6px;")
+        def on_struct_link(href, targets=targets):
+            table, (rname, h_idx, d_idx) = targets[int(href)]
+            if not self._focus_slot_in_deck(table, rname, h_idx, d_idx):
+                self.statusBar().showMessage(
+                    "⚠  That spot is no longer in an open deck.")
+        struct_lbl.linkActivated.connect(on_struct_link)
+        return struct_lbl
 
-            def on_struct_link(href, targets=targets):
-                table, (rname, h_idx, d_idx) = targets[int(href)]
-                if not self._focus_slot_in_deck(table, rname, h_idx, d_idx):
-                    self.statusBar().showMessage(
-                        "⚠  That spot is no longer in an open deck.")
-            struct_lbl.linkActivated.connect(on_struct_link)
-            body_lyt.addWidget(struct_lbl)
-
-        if not suspects:
-            none_lbl = QLabel(
-                "✅  No tempo / length issues in the current tracks."
-                if checked else
-                "No tracks in any open playlist — drag playlists into the "
-                "📂 tab to check loose files.")
-            none_lbl.setStyleSheet("color:#2a7a45;")
-            body_lyt.addWidget(none_lbl)
-            body_lyt.addStretch(1)
-            if fresh:
-                dlg.show()
-            return
-
-        t = QTableWidget(len(suspects), 8)
-        t.setHorizontalHeaderLabels(["▶", "Playlist", "Dance", "Title", "Label",
-                                     "Length", "Issue(s)", "Action"])
-        t.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        t.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        t.verticalHeader().setVisible(False)
-        hh = t.horizontalHeader()
-        hh.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)   # Title
-        hh.setSectionResizeMode(6, QHeaderView.ResizeMode.Stretch)   # Issue(s)
-        for c in (0, 2, 4, 5, 7):
-            hh.setSectionResizeMode(c, QHeaderView.ResizeMode.ResizeToContents)
-        # Playlist (1): size to content but CAPPED — a track that sits in many
-        # playlists (typical for Paso Doble) would otherwise blow this column up
-        # and crush the Title to the point it's unreadable. Full list is in the
-        # cell tooltip + the item elides with "…" when the cap kicks in.
-        hh.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
-        hh.setMinimumSectionSize(24)
+    def _build_suspects_table(self, dlg, suspects):
+        """One row per suspect track, with ▶ listen / 🗑 remove / ↺ replace."""
+        t = self._new_suspects_table(suspects)
 
         state = dlg._play_state
         play_btns: list[QPushButton] = []
@@ -999,7 +1005,7 @@ class MusicCheckMixin:
                 self._play_or_stop(None)
                 return
             reset_play_marker()
-            for tb in self._all_tables:
+            for tb in self._deckset.all_tables:
                 tb.on_playback_stopped()
             self._lib_browser.on_playback_stopped()
             self._play_or_stop(path)
@@ -1051,53 +1057,8 @@ class MusicCheckMixin:
                         % (e.title, new_entry.title, n))
             mark_done(row, note, new_title=new_entry.title if n else "")
 
-        for r, (e, bpb, measured, dur, issues, pnames) in enumerate(suspects):
-            pb = QPushButton("▶")
-            pb.setFixedSize(26, 22)
-            pb.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-            pb.setToolTip("Listen to this track")
-            pb.clicked.connect(lambda _=False, row=r, p=e.path: on_play(row, p))
-            play_btns.append(pb)
-            t.setCellWidget(r, 0, pb)
-            pl_txt = ", ".join(pnames)
-            pl_it = QTableWidgetItem(pl_txt)
-            pl_it.setToolTip(i18n.t("In playlist: %s") % pl_txt)
-            t.setItem(r, 1, pl_it)
-            tip = _entry_tooltip(e)
-            dance_it = QTableWidgetItem(dance_name(e.dance, e.dance or "?"))
-            dance_it.setToolTip(tip)
-            t.setItem(r, 2, dance_it)
-            title_it = QTableWidgetItem(e.title or "")
-            title_it.setToolTip(tip)
-            t.setItem(r, 3, title_it)
-            label_txt = f"T{e.bpm}" if getattr(e, "bpm", 0) else "—"
-            len_txt = f"{dur // 60}:{dur % 60:02d}" if dur else "—"
-            for col, txt, center in ((4, label_txt, True), (5, len_txt, True),
-                                     (6, "  ·  ".join(issues), False)):
-                it = QTableWidgetItem(txt)
-                if center:
-                    it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    it.setToolTip(tip)
-                else:
-                    it.setToolTip("\n".join(issues))
-                t.setItem(r, col, it)
-            act = QWidget()
-            ah = QHBoxLayout(act)
-            ah.setContentsMargins(2, 0, 2, 0)
-            ah.setSpacing(4)
-            rm = QPushButton("🗑")
-            rm.setFixedSize(26, 22)
-            rm.setToolTip("Remove from the playlist(s) — the slot stays "
-                          "empty (Ctrl+Z undoes)")
-            rm.clicked.connect(lambda _=False, row=r, ent=e: on_remove(row, ent))
-            rp = QPushButton("↺")
-            rp.setFixedSize(26, 22)
-            rp.setToolTip("Replace via the similar-tracks picker")
-            rp.clicked.connect(lambda _=False, row=r, ent=e: on_replace(row, ent))
-            ah.addWidget(rm)
-            ah.addWidget(rp)
-            t.setCellWidget(r, 7, act)
-            t.setRowHeight(r, 26)
+        for r, suspect in enumerate(suspects):
+            play_btns.append(self._fill_suspect_row(t, r, suspect, on_play, on_remove, on_replace))
 
         # Cap the Playlist column to its natural width but never past _PL_COL_CAP,
         # so a multi-playlist Paso Doble can't starve the Title column.
@@ -1113,10 +1074,78 @@ class MusicCheckMixin:
                     self.statusBar().showMessage(
                         i18n.t("⚠  “%s” is no longer in an open deck.") % e.title)
         t.cellDoubleClicked.connect(on_row_double)
-        body_lyt.addWidget(t, stretch=1)
+        return t
 
-        if fresh:
-            dlg.show()   # non-modal: the decks stay clickable next to the report
+    def _new_suspects_table(self, suspects):
+        """The empty suspects table: its columns and how they size."""
+        t = QTableWidget(len(suspects), 8)
+        t.setHorizontalHeaderLabels(["▶", "Playlist", "Dance", "Title", "Label",
+                                     "Length", "Issue(s)", "Action"])
+        t.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        t.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        t.verticalHeader().setVisible(False)
+        hh = t.horizontalHeader()
+        hh.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)   # Title
+        hh.setSectionResizeMode(6, QHeaderView.ResizeMode.Stretch)   # Issue(s)
+        for c in (0, 2, 4, 5, 7):
+            hh.setSectionResizeMode(c, QHeaderView.ResizeMode.ResizeToContents)
+        # Playlist (1): size to content but CAPPED — a track that sits in many
+        # playlists (typical for Paso Doble) would otherwise blow this column up
+        # and crush the Title to the point it's unreadable. Full list is in the
+        # cell tooltip + the item elides with "…" when the cap kicks in.
+        hh.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
+        hh.setMinimumSectionSize(24)
+        return t
+
+    def _fill_suspect_row(self, t, r: int, suspect, on_play, on_remove, on_replace):
+        """Fill row `r` for one suspect; returns its ▶ button."""
+        e, _bpb, _measured, dur, issues, pnames = suspect
+        pb = QPushButton("▶")
+        pb.setFixedSize(26, 22)
+        pb.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        pb.setToolTip("Listen to this track")
+        pb.clicked.connect(lambda _=False, row=r, p=e.path: on_play(row, p))
+        t.setCellWidget(r, 0, pb)
+        pl_txt = ", ".join(pnames)
+        pl_it = QTableWidgetItem(pl_txt)
+        pl_it.setToolTip(i18n.t("In playlist: %s") % pl_txt)
+        t.setItem(r, 1, pl_it)
+        tip = _entry_tooltip(e)
+        dance_it = QTableWidgetItem(dance_name(e.dance, e.dance or "?"))
+        dance_it.setToolTip(tip)
+        t.setItem(r, 2, dance_it)
+        title_it = QTableWidgetItem(e.title or "")
+        title_it.setToolTip(tip)
+        t.setItem(r, 3, title_it)
+        label_txt = f"T{e.bpm}" if getattr(e, "bpm", 0) else "—"
+        len_txt = f"{dur // 60}:{dur % 60:02d}" if dur else "—"
+        for col, txt, center in ((4, label_txt, True), (5, len_txt, True),
+                                 (6, "  ·  ".join(issues), False)):
+            it = QTableWidgetItem(txt)
+            if center:
+                it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                it.setToolTip(tip)
+            else:
+                it.setToolTip("\n".join(issues))
+            t.setItem(r, col, it)
+        act = QWidget()
+        ah = QHBoxLayout(act)
+        ah.setContentsMargins(2, 0, 2, 0)
+        ah.setSpacing(4)
+        rm = QPushButton("🗑")
+        rm.setFixedSize(26, 22)
+        rm.setToolTip("Remove from the playlist(s) — the slot stays "
+                      "empty (Ctrl+Z undoes)")
+        rm.clicked.connect(lambda _=False, row=r, ent=e: on_remove(row, ent))
+        rp = QPushButton("↺")
+        rp.setFixedSize(26, 22)
+        rp.setToolTip("Replace via the similar-tracks picker")
+        rp.clicked.connect(lambda _=False, row=r, ent=e: on_replace(row, ent))
+        ah.addWidget(rm)
+        ah.addWidget(rp)
+        t.setCellWidget(r, 7, act)
+        t.setRowHeight(r, 26)
+        return pb
 
     def _dropped_music_results(self, paths: list, progress_cb=None) -> QWidget:
         """Tab 2 of the Music check: run the same tempo / TSO / length checks over the
@@ -1127,7 +1156,7 @@ class MusicCheckMixin:
             self._drop_play_btn = None
         box = QWidget()
         v = QVBoxLayout(box)
-        if not self._lib or self._cache is None:
+        if not self._library.lib or self._library.cache is None:
             v.addWidget(QLabel("Load the music library first."))
             v.addStretch(1)
             return box
@@ -1166,7 +1195,7 @@ class MusicCheckMixin:
             if p.suffix.lower() not in (".m3u", ".m3u8"):
                 continue
             try:
-                res = import_playlist_m3u(p, self._lib, self._cache)
+                res = import_playlist_m3u(p, self._library.lib, self._library.cache)
                 warns = (self._grid_structure_issues(res["playlist"], res["dances"])
                          if res.get("playlist") else [])
             except Exception:
@@ -1227,7 +1256,7 @@ class MusicCheckMixin:
                 return
             if cur is not None:
                 cur.setText("▶")
-            for tb in self._all_tables:
+            for tb in self._deckset.all_tables:
                 tb.on_playback_stopped()
             self._lib_browser.on_playback_stopped()
             self._play_or_stop(p)
@@ -1303,7 +1332,7 @@ class MusicCheckMixin:
         The two late gates come from the options the list was last built with
         — checking against a gate the operator turned off would be inventing a
         rule they declined."""
-        t = self._warmup_table
+        t = self._deckset.warmup_table
         etds = (getattr(self, "_warmup_opts", None) or {}).get("etds") or {}
         return party_check.party_findings(
             t._row_meta.entries(),
@@ -1313,7 +1342,7 @@ class MusicCheckMixin:
 
     def _check_party_list(self):
         """🩺 on the 🤸 Eintanzen header: check the list in place and report."""
-        t = self._warmup_table
+        t = self._deckset.warmup_table
         n = len(t._row_meta.song_rows())
         if not n:
             return
@@ -1330,7 +1359,7 @@ class MusicCheckMixin:
             self._on_warmup_toggle(True)
         if self._warmup_folded:
             self._toggle_warmup_fold(False)
-        self._reveal_deck_row(self._warmup_table, row)
+        self._reveal_deck_row(self._deckset.warmup_table, row)
 
     def _show_party_report(self, findings, n_tracks: int):
         """Non-modal report: one panel per rule group, every row number a link
@@ -1345,7 +1374,7 @@ class MusicCheckMixin:
         self._party_dlg = dlg
         lyt = QVBoxLayout(dlg)
 
-        label = self._warmup_table._warmup_label or i18n.t("Party list")
+        label = self._deckset.warmup_table._warmup_label or i18n.t("Party list")
         # Built by `%`, so the hook never sees it: the whole sentence is the
         # key, one per plural, rather than a "finding"/"findings" word dropped
         # into a template that no language but English builds that way.
@@ -1360,7 +1389,7 @@ class MusicCheckMixin:
 
         # Song row N of the engine is table row song_rows[N] — the ═══ section
         # headers sit between them and are rows of their own.
-        song_rows = self._warmup_table._row_meta.song_rows()
+        song_rows = self._deckset.warmup_table._row_meta.song_rows()
         targets: list[int] = []
 
         def panel(title, group, bg, border):

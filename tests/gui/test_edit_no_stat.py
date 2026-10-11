@@ -19,6 +19,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 import planner.db as pdb
+from planner import config as planner_config
 from gui.main_analyze import AnalysisMixin
 from gui.main_decks import DeckLayoutMixin
 from gui.main_music import MusicCheckMixin
@@ -29,8 +30,8 @@ class _ScratchCache(unittest.TestCase):
 
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp(prefix="dp_nostat_"))
-        saved = (pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
-        pdb.AUDIO_DB_FILE = self.dir / "scratch.db"
+        saved = (planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
+        planner_config.AUDIO_DB_FILE = self.dir / "scratch.db"
         pdb._DB_LOCAL = threading.local()
         pdb._DB_INITIALIZED = False
         self.addCleanup(self._restore, saved)
@@ -51,7 +52,7 @@ class _ScratchCache(unittest.TestCase):
             pdb._DB_LOCAL.conn.close()
         except Exception:
             pass
-        pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = saved
+        planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = saved
 
     def stats(self):
         """Count every Path.stat made inside the block."""
@@ -104,8 +105,9 @@ class EditHooksTest(_ScratchCache):
         browser = mock.Mock()
         browser.unplanned_active.return_value = True
         win = SimpleNamespace(
-            _cache=self.cache, _play_panel=panel, _lib_browser=browser,
-            _lib=SimpleNamespace(entries=entries), _check_noise=True,
+            _library=SimpleNamespace(cache=self.cache,
+                                     lib=SimpleNamespace(entries=entries)),
+            _play_panel=panel, _lib_browser=browser, _check_noise=True,
             _visible_deck_tables=lambda: [table],
             _deck_dedup_index=lambda: (set(), {"some other fp"}),
             _check_min_secs=lambda: 105)

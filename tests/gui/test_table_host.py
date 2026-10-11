@@ -24,6 +24,7 @@ from tests.qt_test_support import reap_widget
 
 from gui.playlist_table import PlaylistTable
 from gui.table_host import TableHost
+from gui.deck_set import DeckSet
 
 REPO = Path(__file__).resolve().parents[2]
 TABLE_MODULES = ("gui/playlist_table.py", "gui/table_actions.py",
@@ -45,7 +46,8 @@ class _Window(QWidget):
     def __init__(self):
         super().__init__()
         self._settings = {"app_mode": "player"}
-        self._warmup_table = None
+        self._deckset = DeckSet()
+        self._deckset.warmup_table = None
         self.calls = []
 
     def _is_player_running(self):

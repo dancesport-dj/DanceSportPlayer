@@ -65,7 +65,7 @@ class _Counts(unittest.TestCase):
         return win
 
     def decks(self, win, n):
-        win._deck_count = n
+        win._deckset.deck_count = n
         win._apply_deck_view()
         return win._dual_btn.text()
 

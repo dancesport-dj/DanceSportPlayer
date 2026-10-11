@@ -30,6 +30,7 @@ from gui.playlist_table import _SCROLL_MS, PlaylistTable
 from planner.models import MusicEntry
 from player.main_player import PlayerControlMixin
 from player.playback_state import PlaybackState
+from gui.deck_set import DeckSet
 
 
 def _e(n):
@@ -107,7 +108,8 @@ class _Desk(PlayerControlMixin):
         self._player = object()          # only tested for truthiness
         self._playback = PlaybackState()
         self._playback.path = playing
-        self._all_tables = tuple(tables)
+        self._deckset = DeckSet()
+        self._deckset.all_tables = tuple(tables)
 
     def _play_or_stop(self, path, start=True):
         self._playback.path = path

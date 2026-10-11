@@ -27,6 +27,7 @@ from gui import main_import
 from gui.main_import import ImportMixin
 from gui.playlist_table import PlaylistTable
 from tests.qt_test_support import reap_widget
+from gui.deck_set import DeckSet
 
 
 def _drop(table, *paths):
@@ -104,8 +105,9 @@ class _Deck:
 class _ImportWin(ImportMixin):
 
     def __init__(self, flat):
-        self._decks = [_Deck(flat) for _ in range(4)]
-        self._deck_count = 4
+        self._deckset = DeckSet()
+        self._deckset.decks = [_Deck(flat) for _ in range(4)]
+        self._deckset.deck_count = 4
         self.loaded = []
 
     def _max_decks(self):
@@ -118,10 +120,10 @@ class _ImportWin(ImportMixin):
         self._active = table
 
     def _import_playlist_path(self, path, report=True):
-        self.loaded.append(("grid", self._decks.index(self._active), path))
+        self.loaded.append(("grid", self._deckset.decks.index(self._active), path))
 
     def _load_player_list_from_m3u(self, table, path):
-        self.loaded.append(("flat", self._decks.index(table), path))
+        self.loaded.append(("flat", self._deckset.decks.index(table), path))
 
     def _autosave_playlist(self):
         pass

@@ -21,6 +21,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtCore import Qt
 
 import planner.db as pdb
+from planner import config as planner_config
 from dancesport_planner import (
     MusicEntry,
     MusicLibrary,
@@ -99,8 +100,8 @@ class RatingClickTest(unittest.TestCase):
 
     def setUp(self):
         db_dir = Path(tempfile.mkdtemp(prefix="dp_star_db_"))
-        saved = (pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
-        pdb.AUDIO_DB_FILE = db_dir / "scratch.db"
+        saved = (planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
+        planner_config.AUDIO_DB_FILE = db_dir / "scratch.db"
         pdb._DB_LOCAL = threading.local()
         pdb._DB_INITIALIZED = False
 
@@ -109,7 +110,7 @@ class RatingClickTest(unittest.TestCase):
                 pdb._DB_LOCAL.conn.close()
             except Exception:
                 pass
-            pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = saved
+            planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = saved
         self.addCleanup(restore)
 
         self.win = self.gui.MainWindow()
@@ -120,14 +121,14 @@ class RatingClickTest(unittest.TestCase):
         self.rum = _entry("Rum One (RB 25)", "RB")
         lib = MusicLibrary()
         lib.entries.extend([self.cha, self.rum])
-        self.win._lib = lib
-        self.win._cache = _Cache({str(self.cha.path): "fpCha",
+        self.win._library.lib = lib
+        self.win._library.cache = _Cache({str(self.cha.path): "fpCha",
                                   str(self.rum.path): "fpRum"})
         # Deck B holds the library's object; deck C an outside copy of the
         # same file, as a restored M3U would.
         self.copy = _entry("Cha One (CC 30)", "CC", rating=2)
-        self._load(self.win._tableB, self.cha)
-        self._load(self.win._tableC, self.copy)
+        self._load(self.win._deckset.tableB, self.cha)
+        self._load(self.win._deckset.tableC, self.copy)
         # The 🏷 editor's "also write into the MP3?" — No: these are DB edits.
         self.win._ask_write_to_mp3 = lambda n, fields: False
 
@@ -135,7 +136,7 @@ class RatingClickTest(unittest.TestCase):
         table.load({"Runde 1": [[entry, self.rum]]}, ["CC", "RB"],
                    [RoundConfig(name="Runde 1", heats=1, tier="final")], "S",
                    play_cb=self.win._play_or_stop,
-                   suggester=PlaylistSuggester(self.win._lib),
+                   suggester=PlaylistSuggester(self.win._library.lib),
                    use_timbre=False, style="Latin", dynamic=True, capacity=[1])
 
     def _stars(self, table, entry) -> int:
@@ -152,19 +153,19 @@ class RatingClickTest(unittest.TestCase):
         self.fail(f"no row for {entry.title}")
 
     def test_a_click_stores_the_rating_in_the_database(self):
-        self._click(self.win._tableB, self.cha, 5)
+        self._click(self.win._deckset.tableB, self.cha, 5)
         self.assertEqual(self.cha.rating, 5)
         self.assertEqual(tag_edits.load("fpCha"), {"rating": 5})
 
     def test_every_row_showing_the_track_repaints(self):
-        self._click(self.win._tableB, self.cha, 4)
-        self.assertEqual(self._stars(self.win._tableB, self.cha), 4)
-        self.assertEqual(self._stars(self.win._tableC, self.copy), 4)
+        self._click(self.win._deckset.tableB, self.cha, 4)
+        self.assertEqual(self._stars(self.win._deckset.tableB, self.cha), 4)
+        self.assertEqual(self._stars(self.win._deckset.tableC, self.copy), 4)
         self.assertEqual(self.copy.rating, 4)
 
     def test_the_other_track_is_left_alone(self):
-        self._click(self.win._tableB, self.cha, 4)
-        self.assertEqual(self._stars(self.win._tableB, self.rum), 0)
+        self._click(self.win._deckset.tableB, self.cha, 4)
+        self.assertEqual(self._stars(self.win._deckset.tableB, self.rum), 0)
         self.assertEqual(tag_edits.load("fpRum"), {})
 
     # ----- the 📚 library pane ------------------------------------------------
@@ -181,24 +182,24 @@ class RatingClickTest(unittest.TestCase):
 
     def test_the_library_shows_the_stars(self):
         browser = self.win._lib_browser
-        browser.set_entries(self.win._lib.entries)
+        browser.set_entries(self.win._library.lib.entries)
         it = browser._table.item(self._lib_row(self.cha), _LIB_COL_RATING)
         self.assertEqual(it.data(RATING_ROLE), 2)
 
     def test_a_click_in_the_library_rates_the_track_everywhere(self):
         browser = self.win._lib_browser
-        browser.set_entries(self.win._lib.entries)
+        browser.set_entries(self.win._library.lib.entries)
         row = self._lib_row(self.cha)
         browser._on_star_clicked(browser._table.model().index(row, _LIB_COL_RATING), 3)
         self.assertEqual(tag_edits.load("fpCha"), {"rating": 3})
-        self.assertEqual(self._stars(self.win._tableC, self.copy), 3)
+        self.assertEqual(self._stars(self.win._deckset.tableC, self.copy), 3)
         it = browser._table.item(self._lib_row(self.cha), _LIB_COL_RATING)
         self.assertEqual(it.data(RATING_ROLE), 3)
 
     def test_a_deck_click_reaches_the_library_row(self):
         browser = self.win._lib_browser
-        browser.set_entries(self.win._lib.entries)
-        self._click(self.win._tableB, self.cha, 5)
+        browser.set_entries(self.win._library.lib.entries)
+        self._click(self.win._deckset.tableB, self.cha, 5)
         it = browser._table.item(self._lib_row(self.cha), _LIB_COL_RATING)
         self.assertEqual(it.data(RATING_ROLE), 5)
 
@@ -207,7 +208,7 @@ class RatingClickTest(unittest.TestCase):
     def test_a_double_click_on_the_stars_does_not_play_the_deck_row(self):
         """In playing mode a double-click puts the row on the speakers."""
         from PySide6.QtTest import QTest
-        table = self.win._tableB
+        table = self.win._deckset.tableB
         table.setColumnHidden(_COL_RATING, False)
         table.resize(900, 300)
         table.show()
@@ -221,7 +222,7 @@ class RatingClickTest(unittest.TestCase):
 
     def test_a_double_click_on_the_stars_does_not_open_the_library_file(self):
         browser = self.win._lib_browser
-        browser.set_entries(self.win._lib.entries)
+        browser.set_entries(self.win._library.lib.entries)
         opened = []
         browser._open_external = opened.append
         browser._on_double_click(self._lib_row(self.cha), _LIB_COL_RATING)
@@ -255,7 +256,7 @@ class RatingClickTest(unittest.TestCase):
         self.assertEqual(tag_edits.load("fpCha"),
                          {"rating": 4, "classes_ok": ["A", "S"], "comment_tags": ["classic"]})
         self.assertEqual(self.copy.classes_ok, ["A", "S"])
-        self.assertEqual(self._stars(self.win._tableC, self.copy), 4)
+        self.assertEqual(self._stars(self.win._deckset.tableC, self.copy), 4)
 
     def test_the_editor_edits_a_whole_selection(self):
         self.win._apply_tag_dialog([self.cha, self.rum], self._Answer({"rating": 1}))
@@ -267,11 +268,11 @@ class RatingClickTest(unittest.TestCase):
         self.win._apply_tag_dialog([self.cha], self._Answer(reset=True))
         self.assertEqual(tag_edits.load("fpCha"), {})
         self.assertEqual((self.cha.rating, self.copy.rating), (2, 2))
-        self.assertEqual(self._stars(self.win._tableC, self.copy), 2)
+        self.assertEqual(self._stars(self.win._deckset.tableC, self.copy), 2)
 
     def test_the_library_pane_shows_an_edited_class(self):
         browser = self.win._lib_browser
-        browser.set_entries(self.win._lib.entries)
+        browser.set_entries(self.win._library.lib.entries)
         self.win._apply_tag_dialog([self.cha], self._Answer({"classes_ok": ["S"]}))
         self.assertEqual(browser._table.item(self._lib_row(self.cha), 7).text(), "[S]")
 
@@ -305,13 +306,13 @@ class RatingClickTest(unittest.TestCase):
 
     def test_the_library_menu_edits_the_row(self):
         browser = self.win._lib_browser
-        browser.set_entries(self.win._lib.entries)
+        browser.set_entries(self.win._library.lib.entries)
         handed = self._lib_menu(self._lib_row(self.rum), "🏷  Edit tags…")
         self.assertEqual(handed, [[self.rum]])
 
     def test_the_library_menu_edits_the_selection(self):
         browser = self.win._lib_browser
-        browser.set_entries(self.win._lib.entries)
+        browser.set_entries(self.win._library.lib.entries)
         t = browser._table
         t.setSelectionMode(t.SelectionMode.MultiSelection)
         t.selectRow(self._lib_row(self.cha))
@@ -320,10 +321,10 @@ class RatingClickTest(unittest.TestCase):
         self.assertEqual(sorted(e.title for e in handed[0]), [self.cha.title, self.rum.title])
 
     def test_a_file_that_cannot_be_hashed_changes_nothing(self):
-        self.win._cache.fps.pop(str(self.cha.path))
-        self._click(self.win._tableB, self.cha, 5)
+        self.win._library.cache.fps.pop(str(self.cha.path))
+        self._click(self.win._deckset.tableB, self.cha, 5)
         self.assertEqual(self.cha.rating, 2)
-        self.assertEqual(self._stars(self.win._tableB, self.cha), 2)
+        self.assertEqual(self._stars(self.win._deckset.tableB, self.cha), 2)
 
 
 if __name__ == "__main__":

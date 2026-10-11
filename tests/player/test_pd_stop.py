@@ -5,8 +5,11 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from player.fade_now import FadeNow
 from player.playback_state import PlaybackState
 from player.between_dances import BetweenDances
+from types import SimpleNamespace
+from gui.deck_set import DeckSet
 
 
 def _player_mixin():
@@ -43,7 +46,7 @@ class _FakeWindow:
                  takt=0.0):
         self._pd_highlights = {str(self.PATH): list(highlights)}
         self._play_panel = _FakePanel(n, on, editing)
-        self._cache = None            # no DB → never "manually learned"
+        self._library = SimpleNamespace(cache=None)  # no DB → never "manually learned"
         self._pd_stop_at = None
         self._dur = dur
         self._takt = takt             # 0 = unscanned tempo
@@ -234,15 +237,16 @@ class _TickDesk:
         self._playback.dance = "PD"
         self._playback.path = Path(r"C:\music\paso.mp3")
         self._play_panel = _TickPanel(on)
-        self._all_tables = ()    # no list: the panel's values are the ones
+        self._deckset = DeckSet()
+        self._deckset.all_tables = ()    # no list: the panel's values are the ones
         self._player = _TickPlayer(pos_ms)
         self._mix = OutputMix()
-        self._cache = None
+        self._library = SimpleNamespace(cache=None)
         self._pd_stop_at = None
         self._pd_worker = None
         self._between = BetweenDances()
         self._between.pending = None
-        self._fade_now_end = None
+        self._fade_now = FadeNow()
         self._playback.offset_ms = 0
         self._played_marked = True
         self._countdown = ""

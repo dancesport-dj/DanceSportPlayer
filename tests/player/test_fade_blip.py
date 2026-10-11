@@ -83,9 +83,9 @@ class FadeBlipTest(unittest.TestCase):
         self.addCleanup(reap_widget, self.desk)
 
     def ramp_to_the_end(self):
-        self.desk._fade_now_end = time.monotonic() + 0.2   # the last tick of it
+        self.desk._fade_now.end = time.monotonic() + 0.2   # the last tick of it
         self.desk._on_play_tick()
-        self.desk._fade_now_end = time.monotonic() - 0.1
+        self.desk._fade_now.end = time.monotonic() - 0.1
         self.desk._on_play_tick()
 
     def test_the_panic_hold_does_not_turn_the_paused_song_back_up(self):
@@ -104,7 +104,7 @@ class FadeBlipTest(unittest.TestCase):
         """⏹ and the end of 🔉↓ halt the engine BEFORE the stop reaches the
         player — a level pushed there is heard."""
         self.desk._fade_out_now()
-        self.desk._fade_now_end = time.monotonic() + 0.3
+        self.desk._fade_now.end = time.monotonic() + 0.3
         self.desk._on_play_tick()
         quiet = self.desk.log[-1]
         self.assertLess(quiet, 1.0)
@@ -114,7 +114,7 @@ class FadeBlipTest(unittest.TestCase):
 
     def test_the_next_start_is_at_the_full_level(self):
         self.desk._fade_out_now()
-        self.desk._fade_now_end = time.monotonic() + 0.3
+        self.desk._fade_now.end = time.monotonic() + 0.3
         self.desk._on_play_tick()
         self.desk._stop_play_timer()
         self.desk._on_playback_state(PLAYING)

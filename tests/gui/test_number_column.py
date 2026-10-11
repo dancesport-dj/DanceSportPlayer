@@ -21,6 +21,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication
 
+from gui.deck_set import DeckSet
 from gui.main_decks import DeckLayoutMixin
 from gui.playlist_table import PlaylistTable
 from planner.models import MusicEntry, RoundConfig
@@ -123,9 +124,10 @@ class CycleTest(unittest.TestCase):
 
     def win(self, state):
         warm, wish = mock.Mock(), mock.Mock()
-        w = SimpleNamespace(_compact_state=state, _decks=[], _day_decks=[],
-                            _warmup_table=warm, _wishlists=[wish],
-                            _all_tables=[warm, wish], _settings={},
+        tables = DeckSet()
+        tables.warmup_table, tables.wishlists = warm, [wish]
+        tables.all_tables = [warm, wish]
+        w = SimpleNamespace(_compact_state=state, _deckset=tables, _settings={},
                             _compact_btn=mock.Mock(),
                             _set_toolbar_btn_text=mock.Mock(),
                             statusBar=mock.Mock())
@@ -139,7 +141,7 @@ class CycleTest(unittest.TestCase):
         with mock.patch("gui.main_decks.save_settings"):
             w = self.win(2)
             DeckLayoutMixin._cycle_compact(w)
-        w._wishlists[0].set_grouping.assert_called_once_with(3)
+        w._deckset.wishlists[0].set_grouping.assert_called_once_with(3)
 
     def test_cycle(self):
         with mock.patch("gui.main_decks.save_settings"):
@@ -147,7 +149,7 @@ class CycleTest(unittest.TestCase):
                 w = self.win(state)
                 DeckLayoutMixin._cycle_compact(w)
                 self.assertEqual(w._compact_state, nxt)
-                w._warmup_table.set_grouping.assert_called_once_with(nxt)
+                w._deckset.warmup_table.set_grouping.assert_called_once_with(nxt)
 
     def test_numbers_caption(self):
         with mock.patch("gui.main_decks.save_settings"):

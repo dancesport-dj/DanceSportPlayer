@@ -112,10 +112,10 @@ class AudioLevelMixin:
         """Per-track equalization factor: pull the track's measured EBU R128
         loudness towards the common target, clamped to −12…+9 dB so a broken
         measurement can never blast or mute a song."""
-        if not self._pv("loudness") or not self._cache:
+        if not self._pv("loudness") or not self._library.cache:
             return 1.0
         try:
-            lufs = self._cache.get_lufs(path)
+            lufs = self._library.cache.get_lufs(path)
         except Exception:
             return 1.0
         if lufs is None:
@@ -145,8 +145,8 @@ class AudioLevelMixin:
         the background and arm once the spans land (the song plays meanwhile)."""
         if str(path) in self._silences:
             return
-        if self._cache:
-            stored = self._cache.get_silences(path)
+        if self._library.cache:
+            stored = self._library.cache.get_silences(path)
             if stored is not None:
                 self._silences[str(path)] = [list(s) for s in stored]
                 return
@@ -166,16 +166,16 @@ class AudioLevelMixin:
 
     def _on_silences(self, path_str: str, spans: list):
         self._silences[path_str] = [list(s) for s in spans]
-        if self._cache:   # persist, so the next session arms instantly
-            self._cache.put_silences(Path(path_str), spans)
-            self._cache.save()
+        if self._library.cache:   # persist, so the next session arms instantly
+            self._library.cache.put_silences(Path(path_str), spans)
+            self._library.cache.save()
         if self._playback.path is not None and str(self._playback.path) == path_str:
             # The probe ran while this very track plays — the countdown was
             # still aimed at the end of the file until now.
             self._sync_big_player_limit()
         # The ⏱ cells were painted before this answer existed: a row that should
         # read red (or no longer should) only learns it here.
-        for table in getattr(self, "_all_tables", ()):
+        for table in self._deckset.all_tables:
             table.refresh_paths([Path(path_str)])
         if spans:
             log.info("🔇 Silence probed\n"
@@ -204,12 +204,12 @@ class AudioLevelMixin:
         through `_resume_after_loudness` once the number is in.
         """
         self._lufs_pending = None   # any new load supersedes an older wait
-        if not self._pv("loudness") or not self._cache:
+        if not self._pv("loudness") or not self._library.cache:
             return False
         if str(path) in self._lufs_failed:
             return False    # measured once, ffmpeg said no — never wait again
         try:
-            if self._cache.get_lufs(path) is not None:
+            if self._library.cache.get_lufs(path) is not None:
                 return False
         except Exception:
             return False
@@ -250,9 +250,9 @@ class AudioLevelMixin:
         """A measurement landed: store it, then either start the title that was
         waiting for it or — if that title is already running because the wait
         timed out — ramp its gain to where it should have started."""
-        if self._cache:
-            self._cache.put_lufs(Path(path_str), lufs)
-            self._cache.save()
+        if self._library.cache:
+            self._library.cache.put_lufs(Path(path_str), lufs)
+            self._library.cache.save()
         log.info("📊 Loudness measured\n"
                  "file: %s\n"
                  "lufs: %.1f", Path(path_str).name, lufs)

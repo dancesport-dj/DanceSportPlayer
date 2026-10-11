@@ -15,6 +15,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
@@ -139,7 +140,7 @@ class EdgeSilenceFromTheCacheTest(unittest.TestCase):
         class Win(MusicCheckMixin):
             pass
         w = Win()
-        w._cache = PlaySecsFromTheCacheTest._Cache(spans)
+        w._library = SimpleNamespace(cache=PlaySecsFromTheCacheTest._Cache(spans))
         return w
 
     def test_the_tail_is_measured(self):
@@ -176,7 +177,7 @@ class PlaySecsFromTheCacheTest(unittest.TestCase):
         class Win(MusicCheckMixin):
             pass
         w = Win()
-        w._cache = self._Cache(spans)
+        w._library = SimpleNamespace(cache=self._Cache(spans))
         return w
 
     def test_dead_air_at_the_end_comes_off_the_play_time(self):
@@ -185,14 +186,14 @@ class PlaySecsFromTheCacheTest(unittest.TestCase):
     def test_the_repaint_lookup_does_not_touch_the_disk(self):
         w = self._win([[260, 330]])
         w._track_play_secs(_TRIMMED)
-        self.assertFalse(w._cache.touched_disk)
+        self.assertFalse(w._library.cache.touched_disk)
 
     def test_a_track_that_was_never_probed_has_no_play_time(self):
         self.assertIsNone(self._win(None)._track_play_secs(_TRIMMED))
 
     def test_without_a_cache_nothing_is_claimed(self):
         w = self._win([[260, 330]])
-        w._cache = None
+        w._library.cache = None
         self.assertIsNone(w._track_play_secs(_TRIMMED))
 
 

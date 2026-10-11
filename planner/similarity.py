@@ -296,7 +296,7 @@ class SoundAlike:
                 vec = lambda x: [x.centroid, x.rms, *x.mfcc]
                 views["groove"] = dict(zip(
                     (str(e.path) for e in rows),
-                    _z_cosines(vec(f), [vec(e.features) for e in rows])))
+                    _z_cosines(vec(f), [vec(e.features) for e in rows]), strict=True))
         own = self._chroma(anchor) if self._chroma else None
         if own is not None and HAS_LIBROSA:
             have = [(e, v) for e in pool
@@ -304,7 +304,7 @@ class SoundAlike:
             if len(have) >= 2:
                 views["melody"] = dict(zip(
                     (str(e.path) for e, _v in have),
-                    _z_cosines(own, [v for _e, v in have])))
+                    _z_cosines(own, [v for _e, v in have]), strict=True))
         shares = {view: _shares(scores) for view, scores in views.items()}
         out: dict[str, dict[str, float]] = {}
         for e in pool:

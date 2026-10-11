@@ -58,7 +58,7 @@ class PartyReportGermanTest(unittest.TestCase):
         t.setParent(host)
         t.load_warmup([_e(d, i) for i, d in enumerate(codes)], "ETDS Party",
                       "", "S", True, lambda _p: None, None)
-        host._warmup_table = t
+        host._deckset.warmup_table = t
         for attr, value in kw.items():
             setattr(t, attr, value)
         host._show_party_report(host._party_findings(),

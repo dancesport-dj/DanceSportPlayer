@@ -155,11 +155,11 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
             if panel_list is None or table is panel_list:
                 vals = self._play_panel.play_set()
                 vals["tso"] = self._card_tso()
-            elif any(table is t for t in getattr(self, "_wishlists", ())):
+            elif any(table is t for t in self._deckset.wishlists):
                 vals = dict(_WISHLIST_VALS)
             else:
                 settings = getattr(self, "_settings", {})
-                kind = ("party" if table is getattr(self, "_warmup_table", None)
+                kind = ("party" if table is self._deckset.warmup_table
                         else "tournament")
                 vals = play_set_of(settings, kind)
                 vals["tso"] = tso_of(settings, kind)
@@ -290,7 +290,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
         """Repaint the corner switch on every list."""
         # getattr: the panel exists before the decks do, and a play set applied
         # during start-up flips this switch before there is anything to repaint.
-        for t in getattr(self, "_all_tables", ()):
+        for t in self._deckset.all_tables:
             t.refresh_advance_toggle()
 
     def _apply_player_layout(self):
@@ -351,7 +351,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
         if self._big_player and self._big_player.is_wide():
             self._big_player.setVisible(playing)
             self._dock_mode_row()
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             t.set_play_highlight_enabled(playing)
             # No song swapping while a tournament runs — hide the ↺ column.
             t.setColumnHidden(_COL_REGEN, playing)
@@ -435,7 +435,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
         self._fade_timer.stop()
         self._between.pending = None
         self._pd_stop_at = None
-        self._fade_now_end = None
+        self._fade_now.cancel()
         self._between.fade_end = None
         self._set_fade_indicator(False)
         self._stop_pause_music()
@@ -521,7 +521,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
         """(table, row, path) of the song AFTER the one currently playing, or
         None. Must be resolved BEFORE the play buttons are reset — afterwards
         no table remembers which row was active."""
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             row = t._current_play_row
             if row < 0:
                 continue
@@ -687,7 +687,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
         if table is None:
             return
         vals = self._list_vals(table)
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             t.set_advance_live(t is table)
         self._sync_card_tso(vals["tso"], table)
         if self._big_player is not None:
@@ -712,7 +712,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
     def _playing_m3u(self) -> Path | None:
         """The .m3u the running deck was imported from, if it was — its own
         picture beats the cover of whatever CD the track came off."""
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             if t._current_play_row >= 0:
                 return getattr(t, "_m3u_path", None)
         return None
@@ -873,9 +873,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
                 or self._player.playbackState()
                 != QMediaPlayer.PlaybackState.PlayingState):
             return
-        self._fade_now_hold = False
-        self._fade_now_total = max(0.5, float(self._pv("fade")))
-        self._fade_now_end = time.monotonic() + self._fade_now_total
+        self._fade_now.start(self._pv("fade"))
         self._set_fade_indicator(True)
         self._fade_timer.start()   # make sure the tick is running to drive it
 
@@ -888,14 +886,12 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
                 or self._player.playbackState()
                 != QMediaPlayer.PlaybackState.PlayingState):
             return
-        if self._fade_now_end is not None:
+        if self._fade_now.running:
             return   # a fade is already running — don't restart the ramp
-        self._fade_now_hold = True
-        self._fade_now_total = max(0.5, float(self._pv("fade")))
-        self._fade_now_end = time.monotonic() + self._fade_now_total
+        self._fade_now.start(self._pv("fade"), hold=True)
         log.info("🛑 Panic fade — holding playback in place\n"
                  "file: %s\n"
-                 "fade: %.1fs", self._playback.path.name, self._fade_now_total)
+                 "fade: %.1fs", self._playback.path.name, self._fade_now.total)
         self._set_fade_indicator(True)
         self._fade_timer.start()
 
@@ -911,7 +907,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
         target = str(path)
         hit_table = None
         hit_row = -1
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             for r, m in t._row_meta.numbered():
                 if str(getattr(m.entry, "path", "")) == target:
                     hit_table, hit_row = t, r
@@ -919,7 +915,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
             if hit_table is not None:
                 break
         # One playing deck at a time: clear stale markers on every other deck.
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             if t is not hit_table and t._current_play_row >= 0:
                 t.on_playback_stopped()
         if hit_table is None:
@@ -1000,7 +996,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
         # (🔉↓) keep priority — no skipping mid-fade.
         if (self._player.playbackState()
                 == QMediaPlayer.PlaybackState.PlayingState
-                and self._fade_now_end is None
+                and not self._fade_now.running
                 and self._maybe_skip_silence()):
             return
         if (self._player.playbackState()
@@ -1009,17 +1005,17 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
         # Manual "fade out now" (🔉↓): ramp to silence, then end like a timed
         # cut. Takes priority over the normal timed/PD logic below. On either
         # side of the desk: the 📱 phone sends it whichever one is showing.
-        if self._fade_now_end is not None:
-            hold = self._fade_now_hold
-            remaining = self._fade_now_end - time.monotonic()
+        if self._fade_now.running:
+            hold = self._fade_now.hold
+            remaining = self._fade_now.remaining()
             if remaining <= 0:
-                self._fade_now_end = None
+                self._fade_now.cancel()
                 self._set_fade_indicator(False)
                 if hold:
                     # 🛑 Panic: stay on this song at this position. ⏯ resumes at
                     # the normal level — pushed when it runs again, not here:
                     # the pause lands late and the buffer would play it loud.
-                    self._fade_now_hold = False
+                    self._fade_now.hold = False
                     self._player.pause()
                     self._mix.fade = 1.0
                     self._level_owed = True
@@ -1027,8 +1023,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
                     return
                 self._on_timed_end("fade-out finished")
                 return
-            self._mix.fade = (max(0.0, remaining / self._fade_now_total)
-                              if self._fade_now_total > 0 else 0.0)
+            self._mix.fade = self._fade_now.level(remaining)
             self._apply_volume()
             self._set_countdown(f"{'🛑' if hold else '🔉↓'}  {remaining:.0f} s")
             return
@@ -1066,8 +1061,8 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
                     return
                 remaining /= max(0.01, self._player.playbackRate())
                 r = int(remaining + 0.999)
-                tag = ("🎯" if (self._cache and self._playback.path
-                                and self._cache.is_pd_manual(self._playback.path))
+                tag = ("🎯" if (self._library.cache and self._playback.path
+                                and self._library.cache.is_pd_manual(self._playback.path))
                        else "🐂")
                 self._set_countdown(f"{tag}  {r // 60}:{r % 60:02d}")
             elif (self._pd_worker is not None
@@ -1100,16 +1095,16 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
 
     def _mark_path_played(self, path: Path):
         """Grey this track in every deck that holds a copy of it."""
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             t.mark_path_played(str(path))
 
     def _log_play(self, path: Path):
         """📜 Put a title heard in playing mode into the play log — called at
         the same point it greys, so once per play. Pre-listening in planning
         mode is not a play; a desk without a database logs nothing."""
-        if self._cache is None or not self._is_playing_mode():
+        if self._library.cache is None or not self._is_playing_mode():
             return
-        deck = next((t for t in self._all_tables if t._current_play_row >= 0), None)
+        deck = next((t for t in self._deckset.all_tables if t._current_play_row >= 0), None)
         meta = deck._row_meta[deck._current_play_row] if deck else None
         ent = meta.entry if meta else None
         if ent is None or Path(ent.path) != Path(path):
@@ -1144,7 +1139,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
                     "Play a title first — then TSO sets its heat tempo.", 4000)
             return False
         # The deck that is actually playing (the one with a marked ▶/■ row).
-        deck = next((t for t in self._all_tables
+        deck = next((t for t in self._deckset.all_tables
                      if t._current_play_row >= 0), None)
         if deck is None or not (0 <= deck._current_play_row < len(deck._row_meta)):
             if not auto:
@@ -1221,7 +1216,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
                 # Release the file; with an armed advance the NEXT source is
                 # already preloaded (see _queue_auto_advance) — keep it.
                 self._player.setSource(QUrl())
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             t.on_playback_stopped()
         self._reset_aux_play_markers()
         if self._preview:
@@ -1491,8 +1486,9 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
                 # Watchdog: if the backend silently hangs in Loading/Stalled (it
                 # happens on rapid source switches), retry the load once, then give
                 # up cleanly instead of showing a forever-"playing" dead player.
+                # Tied to the window: it goes when the window does.
                 token = self._playback.token
-                QTimer.singleShot(2000, lambda: self._check_playback(token, path))
+                QTimer.singleShot(2000, self, lambda: self._check_playback(token, path))
             # ⏱ What the GUI thread spent before the backend took over. The
             # matching "media ready" line comes from _on_media_status, so a slow
             # start can be blamed on us or on the decoder without guessing.
@@ -1521,7 +1517,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
             self._player.setSource(QUrl())
             self._player.setSource(QUrl.fromLocalFile(str(path)))
             self._player.play()
-            QTimer.singleShot(2500, lambda: self._check_playback(token, path, True))
+            QTimer.singleShot(2500, self, lambda: self._check_playback(token, path, True))
             return
         log.error("🔇 Playback did not start (status %s)\nfile: %s", status, path)
         self._playback_failed(path, i18n.t("did not start"),
@@ -1535,7 +1531,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
         if self._player:
             self._player.stop()
             self._player.setSource(QUrl())
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             t.on_playback_stopped()
         self._reset_aux_play_markers()
         if self._preview:
@@ -1559,7 +1555,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
         # renamed since then still looks fine. Repaint its rows (→ red ❗) and
         # say so where it is seen — the status line alone went unnoticed.
         if src and not Path(src).exists():
-            for t in self._all_tables:
+            for t in self._deckset.all_tables:
                 t.refresh_paths([Path(src)])
             _show_toast(self, i18n.t("⚠ File not found on disk:\n%s") % Path(src))
 
@@ -1576,7 +1572,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
         self._reset_playback_ui(message)
         if path is None:
             return
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             t.refresh_issue_marks()      # → its rows turn red, reason in the tooltip
         if nxt is None:
             return
@@ -1632,7 +1628,10 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
             # pane…). The overlay's slider stays wired to the shared player, so a
             # leftover overlay would keep ticking on the new track while its title
             # is frozen on the old one — hide it instead of leaving it stale.
-            if self._preview.isVisible():
+            # One that already names this title isn't stale: the library pane
+            # opens it itself, before a rate-limited load has caught up.
+            if (self._preview.isVisible()
+                    and self._preview.title() != path.stem):
                 self._preview.hide()
             return
         self._preview.show_for(src, src._current_play_row, path.stem)
@@ -1646,7 +1645,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
                 or self._player.playbackState()
                 != QMediaPlayer.PlaybackState.PlayingState):
             return
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             row = t._current_play_row
             if 0 <= row < len(t._row_meta) and t._row_meta[row]:
                 entry = t._row_meta[row].entry
@@ -1663,7 +1662,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
         # skipping used to stack one announcement per step and read them all
         # out over the music that finally stayed.
         self._announcer.stop()
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             row = t._current_play_row
             if row < 0:
                 continue
@@ -1695,7 +1694,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
         if playing or state == QMediaPlayer.PlaybackState.PausedState:
             # StoppedState is deliberately skipped: it also fires on every track
             # switch, and the stop paths clear the row markers themselves.
-            for t in self._all_tables:
+            for t in self._deckset.all_tables:
                 t.sync_play_glyph(playing)
         if not playing:
             return
@@ -1728,7 +1727,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
             self._playback.token += 1
             self._player.stop()
             self._player.setSource(QUrl())   # release the file (see _play_or_stop)
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             t.on_playback_stopped()
         self._reset_aux_play_markers()
         if self._preview:
@@ -1739,13 +1738,9 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
 
     # ── ↩ Where a title was left ─────────────────────────────────────────────
     # One player serves every deck, so stepping away from a half-heard title is
-    # the normal way to lose your place in it. These keep the place, in memory,
-    # for as long as the app runs.
-
-    # Both windows are the 10 s the rest of the player already counts in
-    # (`_PLAYED_AFTER_MS`, the point a title counts as heard).
-    _RESUME_MIN_MS = 10_000    # the first seconds are not a place to come back to
-    _RESUME_TAIL_MS = 10_000   # stopped this near the end, a title is finished
+    # the normal way to lose your place in it. self._resume (player.resume_marks)
+    # keeps the place, in memory, for as long as the app runs; these wire it to
+    # the switch, the player and the row badges.
 
     def remember_pos(self) -> bool:
         """Whether the ↩ switch on the Playing panel is on."""
@@ -1754,8 +1749,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
     def _set_remember_pos(self, on: bool):
         """The ↩ switch moved. Switching it off drops every mark: a tick left
         on a bar by a switch that is now off is a promise nothing will keep."""
-        if not on and self._resume_pos:
-            self._resume_pos.clear()
+        if not on and self._resume.clear_all():
             self._refresh_resume_marks()
 
     def _resume_mark_for(self, path: Path) -> int | None:
@@ -1768,27 +1762,17 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
         """
         if not self.remember_pos() or not self._is_playing_mode():
             return None
-        return self._resume_pos.get(str(path))
+        return self._resume.get(path)
 
     def _note_resume(self, path: Path, pos_ms: int, dur_ms: int):
-        """Keep (or drop) the mark for `path` at `pos_ms`.
-
-        Two guards decide whether there is anything worth coming back to: the
-        opening seconds are not a place anyone wants back, and a title stopped
-        on its last note is one that finished — resuming there would play the
-        run-out and call it a title.
-        """
-        key = str(path)
-        done = dur_ms > 0 and pos_ms >= dur_ms - self._RESUME_TAIL_MS
-        if pos_ms < self._RESUME_MIN_MS or done:
-            self._resume_pos.pop(key, None)
-        else:
-            self._resume_pos[key] = int(pos_ms)
+        """Keep (or drop) the mark for `path` at `pos_ms` (ResumeMarks.note
+        decides which) and repaint the badges."""
+        self._resume.note(path, pos_ms, dur_ms)
         self._refresh_resume_marks(path)
 
     def _clear_resume(self, path: Path | None):
         """Forget where `path` stood — it has just been heard to the end."""
-        if path is not None and self._resume_pos.pop(str(path), None) is not None:
+        if path is not None and self._resume.clear(path):
             self._refresh_resume_marks(path)
 
     def _remember_stop_point(self):
@@ -1822,8 +1806,8 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
         `path` only says which title moved — every deck gets the whole dict and
         repaints the rows whose badge actually changed.
         """
-        for t in self._all_tables:
-            t.set_resume_marks(self._resume_pos)
+        for t in self._deckset.all_tables:
+            t.set_resume_marks(self._resume.at)
 
     def _seek(self, delta_ms: int):
         """Seek the player by delta_ms (clamped to [0, duration]). Used by the
@@ -1842,7 +1826,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
             # A file back on disk opens again — rows drawn while it was gone
             # still carry its red ❗, and a title that failed earlier its red row.
             failed = self._playback.failed.pop(str(self._playback.path), None)
-            for t in self._all_tables:
+            for t in self._deckset.all_tables:
                 t.refresh_found(self._playback.path)
                 if failed is not None:
                     t.refresh_issue_marks()
@@ -1887,7 +1871,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
                 self.statusBar().showMessage(
                     "✏️ Title ended — still loaded for editing; scrub back and "
                     "⏯ to listen.", 6000)
-                for t in self._all_tables:
+                for t in self._deckset.all_tables:
                     t.on_playback_stopped()
                 self._reset_aux_play_markers()
                 return
@@ -1900,7 +1884,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
                     self._big_player.set_now("")
             if self._preview:
                 self._preview.hide()
-            for t in self._all_tables:
+            for t in self._deckset.all_tables:
                 t.on_playback_stopped()
             self._reset_aux_play_markers()
 
@@ -2197,7 +2181,7 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
         resolve a follower — the armed advance is then the first entry."""
         out: list[tuple[str, str]] = []
         table = None
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             if t._current_play_row >= 0:
                 table, row = t, t._current_play_row
                 break

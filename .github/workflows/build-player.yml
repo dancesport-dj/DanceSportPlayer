@@ -61,7 +61,7 @@ jobs:
         run: |
           python -m venv .venv
           .venv\Scripts\python.exe -m pip install --upgrade pip
-          .venv\Scripts\python.exe -m pip install -r requirements-player.txt pyinstaller==6.22.0
+          .venv\Scripts\python.exe -m pip install -r requirements-player.lock
 
       # Not in the repository (see BUILD.md): the essentials build, put where
       # build_exe.bat looks for it, which copies it next to the .exe. Pinned to
@@ -119,7 +119,7 @@ jobs:
         run: |
           python -m venv .venv
           .venv/bin/python -m pip install --upgrade pip
-          .venv/bin/python -m pip install -r requirements-player.txt pyinstaller==6.22.0 pillow
+          .venv/bin/python -m pip install -r requirements-player.lock
 
       # Lays out the .dmg window over the drawn hint (build_app.sh).
       - name: create-dmg
@@ -184,7 +184,7 @@ jobs:
         run: |
           python -m venv .venv
           .venv/bin/python -m pip install --upgrade pip
-          .venv/bin/python -m pip install -r requirements-player.txt pyinstaller==6.22.0
+          .venv/bin/python -m pip install -r requirements-player.lock
 
       # Builds and packs the tar.gz (a tar keeps the executable bit, which an
       # artifact zip would drop), before the start below writes its settings

@@ -7,7 +7,9 @@ post-build advisory notes.
 import logging
 
 from collections import Counter, defaultdict
+import math
 import random
+import secrets
 from typing import Any
 from planner import i18n
 from planner.db import (  # auto-resolved
@@ -68,8 +70,12 @@ log = logging.getLogger("dancesport.suggester")
 
 
 class PlaylistSuggester:
-    def __init__(self, library: MusicLibrary):
+    def __init__(self, library: MusicLibrary, seed: int | None = None):
         self.lib = library
+        # Every draw comes from this one generator, so a generation replays
+        # exactly from its seed, and the interpreter's global `random` stays out.
+        self.seed = secrets.randbits(32) if seed is None else seed
+        self.rng = random.Random(self.seed)
         self._anchors: dict[str, AudioFeatures | None] = {}
         # Each pick's timbre similarity to its round's anchor, for display — kept
         # here per (round, path), not on the library entry every deck shares.
@@ -85,6 +91,9 @@ class PlaylistSuggester:
         round_pools: list[list[MusicEntry]] | None = None,
         exclude:     set | None = None,
     ) -> Playlist:
+        log.info("🎲 Generating a playlist\n"
+                 "class: %s\n"
+                 "seed: %s", dance_class, self.seed)
         # `exclude` seeds the no-repeat set with paths already used elsewhere
         # (the day planner's cross-competition pool). ALLOW_REPEAT dances (PD)
         # are exempt automatically — their pools never consult `used`.
@@ -313,12 +322,20 @@ class PlaylistSuggester:
         # default metric (`_timbre_similarity` → Gaussian/KL). Empty when no anchor.
         sims = _timbre_similarity(anchor, pool) if anchor else {}
 
+        # Popularity on the pool's own 0..1 scale, logarithmic so the 20th play
+        # adds less than the 2nd. A raw play count next to the 0..1 timbre and
+        # tempo terms let one extra play outweigh the best possible sound match.
+        top_pop = math.log1p(max((effective_popularity(e, dance_class) for e in pool),
+                                 default=0.0))
+
         def score(e: MusicEntry) -> float:
             # 'all' = no proven/fresh preference → popularity must not bias the pick.
             # Popularity is CLASS-WEIGHTED (see effective_popularity): plays in the
             # selected start class count fully, other-class plays barely — so a
             # D-class warhorse can't outrank the genuine S staples in an S round.
-            s = effective_popularity(e, dance_class) * (0 if strat == 'all' else W_POPULARITY)
+            pop = (math.log1p(effective_popularity(e, dance_class)) / top_pop
+                   if top_pop else 0.0)
+            s = pop * (0 if strat == 'all' else W_POPULARITY)
             s += _bpm_fit(e.bpm, lo, hi) * W_BPM_FIT
             if e.bpm is not None and e.bpm < lo:
                 s -= PENALTY_BELOW_TEMPO
@@ -338,7 +355,7 @@ class PlaylistSuggester:
                         s -= PENALTY_CLASS_DILUTED
                 else:
                     s -= PENALTY_CLASS_MISMATCH
-            s += random.random() * RANDOM_TIEBREAK   # spread comes from weighting
+            s += self.rng.random() * RANDOM_TIEBREAK   # spread comes from weighting
             return s
 
         # ── Replace / ↺ mode: TIMBRE is the first criterion, popularity orders within ──
@@ -394,17 +411,17 @@ class PlaylistSuggester:
             # weight — random.choices() raises if every weight sums to zero.
             weights = [_pop_weight(e) * (sims.get(str(e.path), 0.0) ** 2 + 0.01)
                        for e in shortlist]
-            chosen = random.choices(shortlist, weights=weights, k=1)[0]
+            chosen = self.rng.choices(shortlist, weights=weights, k=1)[0]
             return chosen, sims.get(str(chosen.path))
 
-        # ── Generation / whole-round: composite score (popularity-led), weighted pick ──
+        # ── Generation / whole-round: composite score, weighted pick ──
         # Better score → higher chance, but not deterministic; weight = how far each
         # candidate sits above the weakest of the shortlist (+ a floor so it keeps a chance).
         scored = sorted(((score(e), e) for e in pool), key=lambda x: x[0], reverse=True)
         top = scored[:max(1, min(10, len(scored)))]
         base = top[-1][0]
         weights = [(s - base) + 0.1 for s, _ in top]
-        chosen = random.choices([e for _, e in top], weights=weights, k=1)[0]
+        chosen = self.rng.choices([e for _, e in top], weights=weights, k=1)[0]
         return chosen, sims.get(str(chosen.path))
 
     def regenerate(
@@ -493,7 +510,7 @@ class PlaylistSuggester:
         def score(e: MusicEntry) -> float:
             sim = sims.get(str(e.path), 0.0)
             pop = min(effective_popularity(e, dance_class), 10.0)
-            return sim * 5.0 + pop * 0.3 + random.random() * 0.5
+            return sim * 5.0 + pop * 0.3 + self.rng.random() * 0.5
         pool.sort(key=score, reverse=True)
         return pool[0]
 
@@ -538,7 +555,7 @@ class PlaylistSuggester:
             return []
 
         def score(e: MusicEntry) -> float:
-            return e.popularity * 3 + random.random() * 2
+            return e.popularity * 3 + self.rng.random() * 2
 
         pool.sort(key=score, reverse=True)
         selected = pool[:max(count, 0)]

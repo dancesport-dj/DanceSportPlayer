@@ -31,7 +31,8 @@ class _Desk(AudioLevelMixin):
 
     def __init__(self, lufs, active: bool = True):
         self._loudness = active
-        self._cache = SimpleNamespace(get_lufs=lambda _p: lufs)
+        self._library = SimpleNamespace(
+            cache=SimpleNamespace(get_lufs=lambda _p: lufs))
 
     def _pv(self, key):
         # The playing list's own values — only the 📊 switch is asked here.

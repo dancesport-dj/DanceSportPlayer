@@ -769,16 +769,16 @@ class VenueLayoutTest(_ModeWindowCase):
         """A player-only first start opens on a flat party list plus library —
         not on an empty tournament grid."""
         win = self._win("player", **{PLAYER_FIRST_START: True})
-        self.assertEqual(win._deck_count, 0)          # no playlist decks
+        self.assertEqual(win._deckset.deck_count, 0)          # no playlist decks
         self.assertEqual(win._wish_state, 0)          # no wishlists
         self.assertEqual(win._compact_state, 2)       # no round/dance grouping
         self.assertTrue(win._warmup_toggle_btn.isChecked())   # party list armed
         self.assertTrue(win._lib_btn.isChecked())
         self.assertFalse(win._cart_btn.isChecked())
         # 🎉 the party set, on the party list the panel now stands on
-        self.assertIs(win._panel_list(), win._warmup_table)
+        self.assertIs(win._panel_list(), win._deckset.warmup_table)
         self.assertIs(win._play_panel.party_btn.isChecked(), True)
-        self.assertEqual(win._list_vals(win._warmup_table)["secs"], 0)
+        self.assertEqual(win._list_vals(win._deckset.warmup_table)["secs"], 0)
 
     def test_the_venue_layout_is_never_applied_twice(self):
         """The flag is consumed — from the second start the layout is the
@@ -786,13 +786,13 @@ class VenueLayoutTest(_ModeWindowCase):
         win = self._win("player", **{PLAYER_FIRST_START: True})
         self.assertNotIn(PLAYER_FIRST_START, win._settings)
         again = self._win("player")
-        self.assertEqual(again._deck_count, 1)
-        self.assertIs(again._panel_list(), again._tableA)
+        self.assertEqual(again._deckset.deck_count, 1)
+        self.assertIs(again._panel_list(), again._deckset.tableA)
 
     def test_the_other_modes_never_get_the_venue_layout(self):
         win = self._win("both")
-        self.assertEqual(win._deck_count, 1)
-        self.assertIs(win._panel_list(), win._tableA)
+        self.assertEqual(win._deckset.deck_count, 1)
+        self.assertIs(win._panel_list(), win._deckset.tableA)
 
 
 class DeckCapTest(_ModeWindowCase):
@@ -803,24 +803,24 @@ class DeckCapTest(_ModeWindowCase):
 
     def test_a_normal_build_still_walks_on_to_eight(self):
         win = self._win("both")
-        win._deck_count = 4
+        win._deckset.deck_count = 4
         win._cycle_deck_view()
-        self.assertEqual(win._deck_count, 8)
+        self.assertEqual(win._deckset.deck_count, 8)
 
     def test_a_player_build_folds_four_straight_to_the_no_playlist_view(self):
         with _PlayerBuild():
             win = self._win("player")
-            win._deck_count = 4
+            win._deckset.deck_count = 4
             win._cycle_deck_view()
-            self.assertEqual(win._deck_count, 0)
+            self.assertEqual(win._deckset.deck_count, 0)
 
     def test_a_player_build_walks_the_ring_backwards_the_same_way(self):
         """A right click on ⧉ — 0 must come back to 4, not to 8."""
         with _PlayerBuild():
             win = self._win("player")
-            win._deck_count = 0
+            win._deckset.deck_count = 0
             win._cycle_deck_view(back=True)
-            self.assertEqual(win._deck_count, 4)
+            self.assertEqual(win._deckset.deck_count, 4)
 
     def test_a_carried_over_eight_deck_layout_clamps_to_four(self):
         """Settings written by a planner install, opened by the player .exe:
@@ -828,10 +828,10 @@ class DeckCapTest(_ModeWindowCase):
         build no longer offers."""
         with _PlayerBuild():
             win = self._win("player")
-            win._deck_count = 8
+            win._deckset.deck_count = 8
             win._apply_deck_view()
-            self.assertEqual(win._deck_count, 4)
-            self.assertFalse(win._deck_tabs.isTabVisible(1))
+            self.assertEqual(win._deckset.deck_count, 4)
+            self.assertFalse(win._grid.deck_tabs.isTabVisible(1))
 
 
 class CollapseButtonsTest(_ModeWindowCase):
@@ -842,7 +842,7 @@ class CollapseButtonsTest(_ModeWindowCase):
         made ⊟ / ⊞ / ▴ / ▾ look broken in the no-playlist view, where it is the
         only list on screen."""
         win = self._win("player", **{PLAYER_FIRST_START: True})
-        win._warmup_table.collapse_all()
+        win._deckset.warmup_table.collapse_all()
         win._fold_all_decks(True)
         self.assertTrue(win._warmup_folded)
         win._fold_all_decks(False)
@@ -857,7 +857,7 @@ class CollapseButtonsTest(_ModeWindowCase):
         self.assertEqual(win._collapse_btn.property("fullText"), "⊞  Expand all")
         win._toggle_collapse_all()
         self.assertFalse(win._all_collapsed)
-        self.assertFalse(win._decks[0]._collapsed)
+        self.assertFalse(win._deckset.decks[0]._collapsed)
         self.assertEqual(win._collapse_btn.property("fullText"), "⊟  Collapse all")
 
     def test_one_button_folds_the_decks_and_opens_them_again(self):
@@ -875,9 +875,9 @@ class CollapseButtonsTest(_ModeWindowCase):
         """Anything folded → the click opens everything: the button never asks
         the operator to first fold the rest to get their deck back."""
         win = self._win("both")
-        win._toggle_deck_fold(win._decks[0], True)
+        win._toggle_deck_fold(win._deckset.decks[0], True)
         win._toggle_fold_all_decks()
-        self.assertFalse(win.deck(win._decks[0]).folded)
+        self.assertFalse(win.deck(win._deckset.decks[0]).folded)
 
 
 class PartyListNameTest(_ModeWindowCase):
@@ -895,7 +895,7 @@ class PartyListNameTest(_ModeWindowCase):
         # its tooltip is the one text that would still say the word.
         self.assertNotIn("Practice", win._warmup_toggle_btn.toolTip())
         self.assertNotIn("Practice",
-                         win.deck(win._warmup_table).header.text())
+                         win.deck(win._deckset.warmup_table).header.text())
 
     def test_the_party_list_keeps_both_names_where_both_happen(self):
         win = self._win("both")

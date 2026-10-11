@@ -109,19 +109,19 @@ class UndoMixin:
         wishlist + the Eintanzen panel so the user sees exactly what the step altered."""
         if not after:
             return
-        for key, table in zip(ALL_DECK_KEYS, self._decks + self._day_decks):
+        for key, table in zip(ALL_DECK_KEYS, self._deckset.decks + self._deckset.day_decks, strict=True):
             if not table.isVisible():
                 continue
             denv = (before or {}).get(key)
             self._flash_new_rows(table, deck_paths(denv),
                                  before_slots=deck_slots(denv),
                                  positional=(denv or {}).get("mode") == "Theme")
-        for key, table in zip(WISH_KEYS, self._wishlists):
+        for key, table in zip(WISH_KEYS, self._deckset.wishlists, strict=True):
             if not table.isVisible():
                 continue
             before_paths = [p for p in ((before or {}).get(key) or []) if p]
             self._flash_new_rows(table, before_paths, positional=True)
-        wt = getattr(self, "_warmup_table", None)
+        wt = self._deckset.warmup_table
         if wt is not None and wt.isVisible():
             before_paths = [p for p in (((before or {}).get("warmup") or {}).get("paths") or []) if p]
             self._flash_new_rows(wt, before_paths, positional=True)

@@ -47,7 +47,7 @@ class ReadinessDialogTest(unittest.TestCase):
         self.addCleanup(reap_widget, self.win)
         self.dir = Path(tempfile.mkdtemp(prefix="dp_ready_music_"))
         self.addCleanup(shutil.rmtree, self.dir, True)
-        self.win._cache = None   # no measurements known: only files + duplicates
+        self.win._library.cache = None   # no measurements known: only files + duplicates
 
     def entry(self, name, dance="LW", exists=True) -> MusicEntry:
         path = self.dir / f"{name}.mp3"
@@ -58,8 +58,8 @@ class ReadinessDialogTest(unittest.TestCase):
     def load(self, *entries):
         lib = MusicLibrary()
         lib.entries.extend(entries)
-        self.win._lib = lib
-        self.win._tableB.load(
+        self.win._library.lib = lib
+        self.win._deckset.tableB.load(
             {"Finale": [[e] for e in entries]}, ["LW"],
             [RoundConfig(name="Finale", heats=len(entries), tier="final")], "S",
             play_cb=self.win._play_or_stop, suggester=PlaylistSuggester(lib),

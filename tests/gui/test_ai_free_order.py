@@ -58,7 +58,7 @@ class AiFreeOrderTest(unittest.TestCase):
                        _entry("Sam One (SA 50)", "SA")]
         lib = MusicLibrary()
         lib.entries.extend(self.tracks)
-        self.win._lib = lib
+        self.win._library.lib = lib
 
     def _finish_a_wish_run(self):
         """The done-handler with the picks a wish run would have produced."""
@@ -70,29 +70,29 @@ class AiFreeOrderTest(unittest.TestCase):
 
     def test_the_deck_comes_out_in_free_order(self):
         self._finish_a_wish_run()
-        self.assertTrue(self.win._table.plays_flat())
-        self.assertEqual(self.win._deck_mode(self.win._table), "free")
+        self.assertTrue(self.win._deckset.table.plays_flat())
+        self.assertEqual(self.win._deck_mode(self.win._deckset.table), "free")
 
     def test_every_wish_is_still_there_in_the_order_it_was_picked(self):
         """Free order re-renders the list — it must not lose or re-sort it."""
         self._finish_a_wish_run()
-        self.assertEqual([e.title for e in self.win._table._row_meta.entries()],
+        self.assertEqual([e.title for e in self.win._deckset.table._row_meta.entries()],
                          [t.title for t in self.tracks])
 
     def test_a_dropped_title_is_added_not_swapped_in(self):
         """The whole point of free order: a new wish joins the list."""
         self._finish_a_wish_run()
-        self.assertTrue(self.win._table._deck_adds_on_drop()
-                        or self.win._table._player_list)
+        self.assertTrue(self.win._deckset.table._deck_adds_on_drop()
+                        or self.win._deckset.table._player_list)
 
     def test_the_deck_is_named_after_the_list(self):
         self._finish_a_wish_run()
-        self.assertEqual(self.win.deck(self.win._table).name, "📝 Wish list")
+        self.assertEqual(self.win.deck(self.win._deckset.table).name, "📝 Wish list")
 
     def test_the_answer_goes_to_the_deck_that_asked_for_it(self):
         """A run takes minutes and the active deck follows the focus. Clicking
         another deck meanwhile must not get that deck's playlist overwritten."""
-        asked, other = self.win._decks[0], self.win._decks[1]
+        asked, other = self.win._deckset.decks[0], self.win._deckset.decks[1]
         self.win._set_active_table(asked)
         self.win._ai_ctx = dict(mode="flat", label="📝 Wish list",
                                 candidates=list(self.tracks), table=asked)
@@ -114,7 +114,7 @@ class AiFreeOrderTest(unittest.TestCase):
         self.win._on_ai_playlist_done(
             [{"n": 1, "dance": "CC", "round": "Runde 1", "heat": 1},
              {"n": 2, "dance": "RB", "round": "Runde 1", "heat": 1}], "", "claude")
-        self.assertFalse(self.win._table.plays_flat())
+        self.assertFalse(self.win._deckset.table.plays_flat())
 
 
 if __name__ == "__main__":

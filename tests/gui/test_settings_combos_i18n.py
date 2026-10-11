@@ -94,7 +94,7 @@ class AppModeComboI18nTest(_Combos):
 
     def test_german_captions(self):
         shown = self.captions(self.combo("de"))
-        for caption, (_k, english, _b) in zip(shown, APP_MODE_CHOICES):
+        for caption, (_k, english, _b) in zip(shown, APP_MODE_CHOICES, strict=True):
             self.assertNotEqual(caption, english,
                                 f"{english!r} stayed English")
         self.assertIn("Beides", shown[0])
@@ -104,7 +104,7 @@ class AppModeComboI18nTest(_Combos):
     def test_german_per_item_tooltips(self):
         """setItemData is not patched — this is the half that goes silently."""
         for (key, _c, english), tip in zip(APP_MODE_CHOICES,
-                                           self.tips(self.combo("de"))):
+                                           self.tips(self.combo("de")), strict=True):
             self.assertTrue(tip, f"{key} has no tooltip at all")
             self.assertNotEqual(tip, english, f"{key} kept its English tooltip")
 
@@ -133,7 +133,7 @@ class PlayerLayoutComboI18nTest(_Combos):
 
     def test_german_captions(self):
         shown = self.captions(self.combo("de"))
-        for caption, (_k, english, _b) in zip(shown, PLAYER_LAYOUT_CHOICES):
+        for caption, (_k, english, _b) in zip(shown, PLAYER_LAYOUT_CHOICES, strict=True):
             self.assertNotEqual(caption, english,
                                 f"{english!r} stayed English")
         self.assertIn("Neben den Playlists", shown[0])
@@ -141,7 +141,7 @@ class PlayerLayoutComboI18nTest(_Combos):
 
     def test_german_per_item_tooltips(self):
         for (key, _c, english), tip in zip(PLAYER_LAYOUT_CHOICES,
-                                           self.tips(self.combo("de"))):
+                                           self.tips(self.combo("de")), strict=True):
             self.assertTrue(tip, f"{key} has no tooltip at all")
             self.assertNotEqual(tip, english, f"{key} kept its English tooltip")
 
@@ -164,7 +164,7 @@ class MediaBackendComboI18nTest(_Combos):
 
     def test_german_captions(self):
         for caption, (_k, english) in zip(self.captions(self.combo("de")),
-                                          MEDIA_BACKEND_CHOICES):
+                                          MEDIA_BACKEND_CHOICES, strict=True):
             self.assertNotEqual(caption, english,
                                 f"{english!r} stayed English")
 

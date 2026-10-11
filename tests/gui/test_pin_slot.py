@@ -65,9 +65,9 @@ class PinSlotTest(unittest.TestCase):
                       "RB": _entry("Rum New (RB 25)", "RB")}
         lib = MusicLibrary()
         lib.entries.extend([self.cha1, self.cha2, self.rum1, self.rum2, *self.fresh.values()])
-        self.win._lib = lib
+        self.win._library.lib = lib
 
-        self.table = self.win._tableB
+        self.table = self.win._deckset.tableB
         self.table.load(
             {"Finale": [[self.cha1, self.rum1], [self.cha2, self.rum2]]},
             ["CC", "RB"],

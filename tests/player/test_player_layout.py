@@ -339,7 +339,7 @@ class DockedPlayerTest(unittest.TestCase):
         # Under the toolbar, above the deck area — in the right column, not
         # in the left panel any more.
         self.assertLess(win._right_col.indexOf(win._big_player),
-                        win._right_col.indexOf(win._right_split))
+                        win._right_col.indexOf(win._grid.right_split))
         self.assertGreater(win._right_col.indexOf(win._big_player), 0)
 
     def test_it_is_the_same_card_that_moves(self):

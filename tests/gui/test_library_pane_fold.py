@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QApplication, QSplitter, QTabWidget, QWidget,
 )
 
+from gui.deck_grid import DeckGrid
 from gui.main_fold import FoldMixin
 
 
@@ -33,14 +34,15 @@ class _Win(FoldMixin):
     def __init__(self):
         self._settings = {}
         self._saved = []
-        self._right_split = QSplitter(Qt.Orientation.Vertical)
+        self._grid = DeckGrid()
+        self._grid.right_split = QSplitter(Qt.Orientation.Vertical)
         self._decks_area = QWidget()
-        self._right_split.addWidget(self._decks_area)
+        self._grid.right_split.addWidget(self._decks_area)
         self._lib_tabs = QTabWidget()
         self._lib_tabs.addTab(QWidget(), "📚  Library")
         self._lib_tabs.addTab(QWidget(), "🏆  Tournaments")
-        self._right_split.addWidget(self._lib_tabs)
-        self._right_split.setSizes([600, 200])
+        self._grid.right_split.addWidget(self._lib_tabs)
+        self._grid.right_split.setSizes([600, 200])
         self.messages = []
 
     def statusBar(self):
@@ -100,15 +102,15 @@ class LibraryPaneFoldTest(unittest.TestCase):
 
     def test_the_decks_get_the_freed_height_and_give_it_back(self):
         w = self.win
-        sizes = w._right_split.sizes()
+        sizes = w._grid.right_split.sizes()
         before, decks_before = sum(sizes), sizes[0]
         w._toggle_lib_pane_fold(True)
-        self.assertEqual(sum(w._right_split.sizes()), before,
+        self.assertEqual(sum(w._grid.right_split.sizes()), before,
                          "folding must move height, never invent or lose it")
-        self.assertGreater(w._right_split.sizes()[0], decks_before)
+        self.assertGreater(w._grid.right_split.sizes()[0], decks_before)
         w._toggle_lib_pane_fold(False)
-        self.assertEqual(sum(w._right_split.sizes()), before)
-        self.assertLess(w._right_split.sizes()[0], before)
+        self.assertEqual(sum(w._grid.right_split.sizes()), before)
+        self.assertLess(w._grid.right_split.sizes()[0], before)
 
     def test_the_choice_is_remembered(self):
         w = self.win

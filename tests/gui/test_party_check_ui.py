@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
     QApplication, QLabel, QToolButton, QWidget,
 )
 
+from gui.deck_set import DeckSet
 from gui.main_generate import GenerateMixin
 from gui.main_music import MusicCheckMixin
 from gui.playlist_table import PlaylistTable
@@ -65,6 +66,7 @@ class _Win(MusicCheckMixin, QWidget):
     def __init__(self):
         super().__init__()
         self._settings = {"app_mode": "both"}
+        self._deckset = DeckSet()
         self._warmup_opts = {}
         self._party_dlg = None
         self._warmup_closed = False
@@ -89,7 +91,7 @@ class PartyCheckUiTest(unittest.TestCase):
         t.setParent(host)
         t.load_warmup([_e(d, i) for i, d in enumerate(codes)], "ETDS Party",
                       style, "S", True, lambda _p: None, None)
-        host._warmup_table = t
+        host._deckset.warmup_table = t
         return host, t
 
     # ── the button ───────────────────────────────────────────────────────────
@@ -97,8 +99,9 @@ class PartyCheckUiTest(unittest.TestCase):
     def buttons(self, style=""):
         host, t = self.table(('LW', 'TG', 'QS', 'CC', 'RB', 'JI'), style=style)
         shuffle_btn, check_btn = QToolButton(host), QToolButton(host)
-        w = SimpleNamespace(_warmup_table=t, _warmup_shuffle_btn=shuffle_btn,
+        w = SimpleNamespace(_deckset=DeckSet(), _warmup_shuffle_btn=shuffle_btn,
                             _warmup_check_btn=check_btn)
+        w._deckset.warmup_table = t
         return w, t, check_btn
 
     def test_the_check_button_shows_on_a_party_list(self):
@@ -144,7 +147,7 @@ class PartyCheckUiTest(unittest.TestCase):
     def report(self, host):
         host._show_party_report(
             host._party_findings(),
-            len(host._warmup_table._row_meta.song_rows()))
+            len(host._deckset.warmup_table._row_meta.song_rows()))
         dlg = host._party_dlg
         self.addCleanup(reap_widget, dlg)
         return dlg
@@ -179,7 +182,7 @@ class PartyCheckUiTest(unittest.TestCase):
         host, _t = self.table(('LW', 'SF', 'QS',                 # not LW TG QS
                                'CC', 'RB', 'JI',
                                'WW', 'TG', 'LW'))       # WW on title 7 of 12
-        host._warmup_table._row_meta.entries()[0].duration = 400
+        host._deckset.warmup_table._row_meta.entries()[0].duration = 400
         dlg = self.report(host)
         texts = " ".join(w.text() for w in dlg.findChildren(QLabel))
         self.assertIn("🔁 Rounds", texts)

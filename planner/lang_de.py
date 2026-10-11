@@ -1827,6 +1827,46 @@ CATALOG = {
         "Das kannst du jederzeit unter ⚙ Einstellungen → ⚙ Allgemein ändern.",
     "Send reports": "Berichte senden",
     "Don't send": "Nicht senden",
+    "Once per start, the app asks GitHub (api.github.com) for the latest\n"
+    "release. The request carries nothing about you or your music; GitHub\n"
+    "sees the IP address it comes from. A newer version is announced once,\n"
+    "with a link to its download page. Nothing is downloaded or installed.\n"
+    "\n"
+    "You can change this at any time under ⚙ Settings → ⚙ General.":
+        "Einmal pro Start fragt die App bei GitHub (api.github.com) nach dem\n"
+        "neuesten Release. Die Anfrage enthält nichts über dich oder deine Musik;\n"
+        "GitHub sieht die IP-Adresse, von der sie kommt. Eine neuere Version wird\n"
+        "einmal angekündigt, mit einem Link zu ihrer Downloadseite. Es wird nichts\n"
+        "heruntergeladen oder installiert.\n"
+        "\n"
+        "Das kannst du jederzeit unter ⚙ Einstellungen → ⚙ Allgemein ändern.",
+    "🔔  Also tell me when a new version is out":
+        "🔔  Sag mir auch, wenn eine neue Version erscheint",
+    "New versions": "Neue Versionen",
+    "Tell you when a new version is out?":
+        "Dir Bescheid sagen, wenn eine neue Version erscheint?",
+    "Check for new versions": "Nach neuen Versionen suchen",
+    "Don't check": "Nicht suchen",
+    "🔔  Check for new versions — once per start, ask GitHub whether a newer release is out":
+        "🔔  Nach neuen Versionen suchen — einmal pro Start bei GitHub fragen, ob ein neueres Release erschienen ist",
+    "Asks api.github.com for the latest release. The request carries\n"
+    "nothing about you or your music; GitHub sees the IP address it\n"
+    "comes from. A newer version is announced once, with a link to\n"
+    "its download page. Nothing is downloaded or installed.\n"
+    "\n"
+    "Off by default. Applies from the next start.":
+        "Fragt api.github.com nach dem neuesten Release. Die Anfrage enthält\n"
+        "nichts über dich oder deine Musik; GitHub sieht die IP-Adresse, von der\n"
+        "sie kommt. Eine neuere Version wird einmal angekündigt, mit einem Link\n"
+        "zu ihrer Downloadseite. Es wird nichts heruntergeladen oder installiert.\n"
+        "\n"
+        "Standardmäßig aus. Gilt ab dem nächsten Start.",
+    "New version": "Neue Version",
+    "Version %s is out.": "Version %s ist erschienen.",
+    "You are running %s. The download page lists what changed.":
+        "Du nutzt %s. Die Downloadseite nennt, was sich geändert hat.",
+    "Open download page": "Downloadseite öffnen",
+    "Later": "Später",
     "The music and the computer share the one sound card, so every\n"
     "sound the system makes goes out over the PA too.\n\n"
     "Muted all through Playing mode and whenever something plays,\n"
@@ -3768,6 +3808,34 @@ CATALOG = {
         "🧭  %d Titel auf den Referenzpfad verschoben",
     "🧭  Moved %d tracks onto the Reference path":
         "🧭  %d Titel auf den Referenzpfad verschoben",
+    "No tracks in the visible playlists or the wishlists.":
+        "Keine Titel in den sichtbaren Playlists oder den Wunschlisten.",
+    "Checked %d tracks — %d already valid.":
+        "%d Titel geprüft — %d bereits gültig.",
+    "🧭  Relocated %d broken reference to their real files (Ctrl+Z undoes).":
+        "🧭  %d defekter Verweis auf die echte Datei umgelenkt (Strg+Z macht es rückgängig).",
+    "🧭  Relocated %d broken references to their real files (Ctrl+Z undoes).":
+        "🧭  %d defekte Verweise auf die echten Dateien umgelenkt (Strg+Z macht es rückgängig).",
+    "⚠  %d still unresolved — no matching file in the library:":
+        "⚠  %d weiterhin ungelöst — keine passende Datei in der Bibliothek:",
+    "⚠  %d valid track is not on the Reference path %s":
+        "⚠  %d gültiger Titel liegt nicht im Referenzpfad %s",
+    "⚠  %d valid tracks are not on the Reference path %s":
+        "⚠  %d gültige Titel liegen nicht im Referenzpfad %s",
+    "↪ %d has a copy there — 🧭 Fix swaps them in the playlists.":
+        "↪ %d hat dort eine Kopie — 🧭 Reparieren tauscht sie in den Playlists aus.",
+    "↪ %d have a copy there — 🧭 Fix swaps them in the playlists.":
+        "↪ %d haben dort eine Kopie — 🧭 Reparieren tauscht sie in den Playlists aus.",
+    "⚠ %d has no copy there:":
+        "⚠ %d hat dort keine Kopie:",
+    "⚠ %d have no copy there:":
+        "⚠ %d haben dort keine Kopie:",
+    "✅  All track paths are valid.":
+        "✅  Alle Titelpfade sind gültig.",
+    "🎛  Re-pointed %d cartwall pad at its real sample.":
+        "🎛  %d Cartwall-Pad auf sein echtes Sample umgestellt.",
+    "🎛  Re-pointed %d cartwall pads at their real samples.":
+        "🎛  %d Cartwall-Pads auf ihre echten Samples umgestellt.",
     "🧭  Fixed 1 path in 1 file":
         "🧭  1 Pfad in 1 Datei repariert",
     "🧭  Fixed %d paths in 1 file":
@@ -5356,6 +5424,8 @@ CATALOG = {
     "✖ %(ip)s sent a wrong PIN": "✖ %(ip)s hat eine falsche PIN geschickt",
     "⛔ %(ip)s locked out for %(detail)s s — too many wrong PINs":
         "⛔ %(ip)s für %(detail)s s gesperrt — zu viele falsche PINs",
+    "⛔ New phones paused for %(detail)s s — too many wrong PINs from the network":
+        "⛔ Neue Handys für %(detail)s s gesperrt — zu viele falsche PINs aus dem Netz",
     "⛔ %(ip)s refused — not on the local network":
         "⛔ %(ip)s abgewiesen — nicht im lokalen Netzwerk",
     "⚠ Could not start: %(detail)s": "⚠ Konnte nicht starten: %(detail)s",

@@ -20,6 +20,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 # Offscreen BEFORE any QApplication exists, and state files into a temp dir (the
 # gui modules resolve those at import time — see test_gui_smoke.py).
@@ -31,6 +32,7 @@ from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtWidgets import QApplication, QWidget
 from tests.qt_test_support import reap_widget
 
+from player.fade_now import FadeNow
 from player.main_player import PlayerControlMixin
 from planner.play_sets import (
     _PARTY_SET, _TOURNAMENT_SET, play_set_of, tso_of,
@@ -41,6 +43,7 @@ from gui.playlist_table import PlaylistTable
 from planner.models import MusicEntry
 from player.between_dances import BetweenDances
 from player.pause_filler import PauseFiller
+from gui.deck_set import DeckSet
 
 # What the panel happens to be standing on before anything is applied — neither
 # set, the way an operator's hand leaves it.
@@ -218,9 +221,9 @@ class TournamentSetTest(unittest.TestCase):
         self.addCleanup(reap_widget, self.desk)
 
     def test_it_is_what_a_heat_is_run_with(self):
-        """1:40 per song out over 3 s, started by the operator, nothing
+        """1:45 per song out over 3 s, started by the operator, nothing
         spoken in between."""
-        self.assertEqual(_TOURNAMENT_SET["secs"], 100)
+        self.assertEqual(_TOURNAMENT_SET["secs"], 105)
         self.assertEqual(_TOURNAMENT_SET["fade"], 3.0)
         self.assertIs(_TOURNAMENT_SET["advance"], False)
         self.assertIs(_TOURNAMENT_SET["pause_off"], True)
@@ -343,10 +346,10 @@ class PartyOffIsTheTournamentSetTest(unittest.TestCase):
 
     def test_a_configured_tournament_set_is_what_comes_back(self):
         """⚙ Settings → 🎛 Play sets, not the built-in default."""
-        self.desk._settings["tournament_set"] = dict(_TOURNAMENT_SET, secs=105)
+        self.desk._settings["tournament_set"] = dict(_TOURNAMENT_SET, secs=120)
         self.desk._set_party_mode(True)
         self.desk._set_party_mode(False)
-        self.assertEqual(self.desk._play_panel.play_set()["secs"], 105)
+        self.assertEqual(self.desk._play_panel.play_set()["secs"], 120)
 
     def test_the_tso_pitch_comes_back_with_it(self):
         """A heat is danced to the dance's mean tempo — the tournament set's
@@ -410,7 +413,7 @@ class WhichSetIsOnTest(unittest.TestCase):
     def test_a_configured_set_is_what_they_are_measured_against(self):
         """⚙ Settings → 🎛 Play sets moved the goalposts, so the light moves."""
         self.desk._apply_tournament_set()
-        self.desk._settings["tournament_set"] = dict(_TOURNAMENT_SET, secs=105)
+        self.desk._settings["tournament_set"] = dict(_TOURNAMENT_SET, secs=120)
         self.desk._refresh_set_lights()
         self.assertEqual(self.lights(), (False, False))
 
@@ -435,9 +438,9 @@ class PlaySetDefaultsTest(unittest.TestCase):
         self.assertEqual(play_set_of({}, "tournament"), _TOURNAMENT_SET)
 
     def test_a_configured_set_wins(self):
-        got = play_set_of({"tournament_set": {"secs": 105, "announce": True}},
+        got = play_set_of({"tournament_set": {"secs": 120, "announce": True}},
                           "tournament")
-        self.assertEqual(got["secs"], 105)
+        self.assertEqual(got["secs"], 120)
         self.assertIs(got["announce"], True)
 
     def test_fields_are_filled_in_one_by_one(self):
@@ -721,12 +724,13 @@ class _AdvanceDesk(PlayerControlMixin, QWidget):
             "pause_secs": 15, "pause_enabled": True, "auto_advance": False,
             "timed_enabled": True, "play_secs": 90,
             "pause_music": list(pause_music)})
-        self._all_tables = [table]
+        self._deckset = DeckSet()
+        self._deckset.all_tables = [table]
         self._big_player = None
         self._player = _MediaStub()
         self._pause_player = _MediaStub()
         self._pause_out = _MediaStub()
-        self._cache = None          # → _await_loudness has nothing to measure
+        self._library = SimpleNamespace(cache=None)  # → _await_loudness has nothing to measure
         self._filler = PauseFiller()
         self._between = BetweenDances()
         self._between.pending = None
@@ -736,7 +740,7 @@ class _AdvanceDesk(PlayerControlMixin, QWidget):
         self._between.quiet_until = 0.0
         self._between.held = False
         self._between.fade_end = None
-        self._fade_now_end = None
+        self._fade_now = FadeNow()
         self._announcer = _Announcer()
         self._fade_timer = _TimerStub()
         self._party_on = False

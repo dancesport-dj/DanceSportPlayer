@@ -6,7 +6,11 @@ same spec.
 
 ## Build (Windows)
 
+Build from a venv installed from the lock file, so the bundle holds the
+versions the suite passed on (see *Locked dependencies* below):
+
 ```powershell
+py -3.14 -m venv .venv; .venv\Scripts\pip install -r requirements.lock
 .venv\Scripts\pyinstaller.exe dancesport.spec --noconfirm
 ```
 
@@ -37,7 +41,7 @@ launches and immediately quits with "PySide6 not found". Install a current
 Python from <https://www.python.org/downloads/macos/> and use it by name:
 
 ```sh
-python3.14 -m venv .venv && .venv/bin/pip install -r requirements.txt pyinstaller pillow
+python3.14 -m venv .venv && .venv/bin/pip install -r requirements.lock
 ./build_app.sh            # dist/DanceSport-Planner-Player.app
 ./build_app.sh full       # dist/DanceSport-Planner-Player-Full.app  (+ Demucs)
 ./build_app.sh lite dmg   # plus dist/DanceSport-Planner-Player.dmg
@@ -82,7 +86,7 @@ has been built on Linux so far.
 sudo apt install libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
   libxcb-render-util0 libxcb-xkb1 libxkbcommon-x11-0 libegl1 libpulse0
 python3.14 -m venv .venv
-.venv/bin/pip install -r requirements-player.txt pyinstaller
+.venv/bin/pip install -r requirements-player.lock
 ./build_linux.sh player        # dist/DanceSport-Player
 ./build_linux.sh player tar    # plus dist/DanceSport-Player-linux-x86_64.tar.gz
 ./build_linux.sh               # lite / full like build_app.sh, not tried yet
@@ -124,7 +128,7 @@ that tag's GitHub release (`DanceSport-Player-1.2.0-windows.zip`, `…-macos.dmg
 `…-linux-x86_64.tar.gz` and `…-linux-arm64.tar.gz` for the tag `v1.2.0`, so the
 names carry no v either), with the tagged commit's message as the release text.
 
-The version number is `VERSION` in `planner/version.py` (`1.2.0`), and a build
+The version number is `VERSION` in `planner/version.py` (`1.2.1`), and a build
 without a tag gets it. A `v*` tag overrides it, so name the tag
 `vMAJOR.MINOR.PATCH` (`v1.2.0`); the app in the release then says `1.2.0`, the
 tag without its v. Keep `VERSION` in step after a release, so desk builds carry
@@ -166,9 +170,25 @@ next to `DanceSport-Player.exe` and this build reads the stored PD highlights
 and LUFS values verbatim — no analysis run on tournament day. It can also produce
 them itself, since all three of those scans are ffmpeg-only.
 
-The build venv needs less as well: `requirements-player.txt` (requirements.txt
-without librosa) instead of `requirements.txt`. `build_exe.bat` knows this and does not
+The build venv needs less as well: `requirements-player.lock` (the locked
+requirements-player.txt, i.e. requirements.txt without librosa) instead of
+`requirements.lock`. `build_exe.bat` knows this and does not
 demand librosa for this flavor.
+
+## Locked dependencies
+
+`requirements.txt` and `requirements-player.txt` pin the direct dependencies;
+`requirements.lock` and `requirements-player.lock` pin everything they pull in,
+with hashes, for Windows, macOS and Linux — plus the build tools from
+`requirements-build.txt` (PyInstaller and its hooks decide what lands in the
+bundle). Every build script and CI job installs from a lock, so the same tag
+built weeks apart bundles the same binaries.
+
+To move a pin: change it in the `.txt`, regenerate the lock with the command
+in its header (`uv pip compile … --universal --python-version 3.14
+--generate-hashes`; uv keeps every other pin the lock already has), run the
+suite and commit both files. `tests/app/test_build_flavor.py` fails while a lock
+and its `.txt` disagree.
 
 ## The manual (PDF)
 

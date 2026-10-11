@@ -21,6 +21,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_gdur_state_"))
 
 import planner.db as pdb
+from planner import config as planner_config
 import planner.library as plib
 from planner.db import AudioCache, GlobalScanCache
 from planner.library import MusicLibrary
@@ -32,8 +33,8 @@ class GlobalDurationHealTest(unittest.TestCase):
         self.root = Path(tempfile.mkdtemp(prefix="dp_gdur_"))
         # The scan writes cache rows, and `AUDIO_DB_FILE` has no env override —
         # point it at a scratch DB so nothing lands in the real one.
-        self._saved = (pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
-        pdb.AUDIO_DB_FILE = self.root / "scratch.db"
+        self._saved = (planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
+        planner_config.AUDIO_DB_FILE = self.root / "scratch.db"
         pdb._DB_LOCAL = threading.local()
         pdb._DB_INITIALIZED = False
         self.addCleanup(self._restore)
@@ -46,7 +47,7 @@ class GlobalDurationHealTest(unittest.TestCase):
             pdb._DB_LOCAL.conn.close()
         except Exception:
             pass
-        pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = self._saved
+        planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = self._saved
 
     def _scan(self, secs, whole_repo=True):
         probes = []

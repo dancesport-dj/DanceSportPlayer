@@ -19,6 +19,7 @@ from player.presenter import PAUSE_TEXT
 from tests.qt_test_support import reap_widget
 from player.playback_state import PlaybackState
 from player.between_dances import BetweenDances
+from gui.deck_set import DeckSet
 
 
 def _e(dance, n):
@@ -191,7 +192,8 @@ class PresenterStateTest(unittest.TestCase):
 
         class Win(PlayerControlMixin):
             def __init__(self, table):
-                self._all_tables = [table]
+                self._deckset = DeckSet()
+                self._deckset.all_tables = [table]
                 self._between = BetweenDances()
                 self._between.pending = None
                 self._between.shown = True     # a pause the hall should see

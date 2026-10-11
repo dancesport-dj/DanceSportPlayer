@@ -6,7 +6,7 @@ Uses your music library, learns from past playlists, and optionally uses librosa
 audio-feature-based similarity (rhythm + timbre).
 """
 
-import io, re, random, sys, json, os, unicodedata
+import re, random, sys, json, os, unicodedata
 import logging
 import urllib.request, urllib.error
 from pathlib import Path
@@ -21,7 +21,7 @@ from datetime import datetime
 # stdout at all (sys.stdout is None), so guard before touching its encoding.
 if (sys.stdout is not None and sys.stdout.encoding
         and sys.stdout.encoding.lower() not in ('utf-8', 'utf-8-sig')):
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 # Diagnostics go through logging; interactive CLI output (menus, prompts, result
 # tables) stays on print. The CLI entry point installs a bare-message handler so
@@ -50,8 +50,8 @@ except ImportError:
 # name imports it from the module that owns it, where it is visibly private.
 from planner.config import (
     APP_DIR, INSTALL_DIR,
-    MUSIC_DIR, PLAYLIST_DIR, OUTPUT_DIR,
-    CACHE_FILE, AUDIO_DB_FILE, SCAN_CACHE_FILE, GLOBAL_SCAN_CACHE_FILE,
+    MUSIC_DIR, OUTPUT_DIR,
+    CACHE_FILE, SCAN_CACHE_FILE, GLOBAL_SCAN_CACHE_FILE,
     PATH_CONFIG_FILE,
     write_json_atomic, set_playlist_dir, build_flavor, player_build,
 )

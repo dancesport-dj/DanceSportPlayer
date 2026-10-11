@@ -12,7 +12,10 @@ Kept small on purpose, because it is a door into the desk:
 - Everything but the page itself needs the PIN in a header. A page of another
   website cannot send that header without a CORS preflight, and nothing here
   answers one, so no website the operator browses can call the desk either.
-- Guessing the PIN locks that address out, longer each time.
+- Guessing the PIN locks that address out, longer each time. Wrong PINs from
+  the whole network share one budget too, so changing addresses does not
+  buy more guesses: once it is spent, only phones already in get through.
+- A connection that sends nothing is dropped after ten minutes.
 - Commands are a fixed list; a request body is at most 1 KB.
 
 The server runs on plain daemon threads (http.server), not QThreads — see
@@ -29,6 +32,7 @@ import secrets
 import socket
 import threading
 import time
+from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from shared.remote_page import page_html
@@ -41,6 +45,9 @@ COMMANDS = frozenset({"toggle", "next", "prev", "fade", "hold", "pad", "stop_pad
                       "announce", "seek"})
 MAX_FAILS = 5
 _LOCK_SECS = 60
+GLOBAL_MAX_FAILS = 30          # wrong PINs from all addresses together…
+_GLOBAL_WINDOW_SECS = 600      # …within this long pause new logins
+_IDLE_SECS = 600
 _MAX_BODY = 1024
 
 
@@ -89,6 +96,7 @@ def lan_addresses() -> list[str]:
 class _Handler(BaseHTTPRequestHandler):
     server_version = "DancePlaylistRemote"
     sys_version = ""
+    timeout = _IDLE_SECS        # a client that never speaks frees its thread
 
     def log_message(self, fmt, *args):     # the console is not the log
         log.debug("📱 %s %s", self.client_address[0], fmt % args)
@@ -204,6 +212,7 @@ class RemoteServer:
         self._state: dict = {}
         self._lock = threading.Lock()
         self._fails: dict[str, tuple[int, float, int]] = {}
+        self._recent_fails: deque[float] = deque()   # every wrong PIN, any address
         self._httpd: ThreadingHTTPServer | None = None
         self._thread: threading.Thread | None = None
 
@@ -272,16 +281,30 @@ class RemoteServer:
 
     def check_pin(self, ip: str, given: str) -> int:
         """200 for the right PIN; 401 for a wrong one; 429 while `ip` is locked
-        out — after MAX_FAILS wrong ones, for a minute, doubling every time."""
+        out — after MAX_FAILS wrong ones, for a minute, doubling every time —
+        and, for an address not logged in yet, while the network has sent
+        GLOBAL_MAX_FAILS wrong PINs within _GLOBAL_WINDOW_SECS."""
         now = time.monotonic()
+        paused_all = False
         with self._lock:
             fails, until, rounds = self._fails.get(ip, (0, 0.0, 0))
             if now < until:
+                return 429
+            recent = self._recent_fails
+            while recent and recent[0] <= now - _GLOBAL_WINDOW_SECS:
+                recent.popleft()
+            if len(recent) >= GLOBAL_MAX_FAILS and ip not in self._seen:
                 return 429
             if hmac.compare_digest(given.encode("utf-8"), self._pin.encode("utf-8")):
                 self._fails.pop(ip, None)
                 return 200
             fails += 1
+            recent.append(now)
+            paused_all = len(recent) == GLOBAL_MAX_FAILS
+            if paused_all:
+                log.warning("📱 Phone remote: %d wrong PINs from the network\n"
+                            "new logins paused for: %ds", GLOBAL_MAX_FAILS,
+                            _GLOBAL_WINDOW_SECS)
             locked = fails >= MAX_FAILS
             if locked:
                 rounds += 1
@@ -292,6 +315,8 @@ class RemoteServer:
                             "locked for: %ds", MAX_FAILS, ip, int(until - now))
             self._fails[ip] = (fails, until, rounds)
         # Outside the lock: the listener may take its time.
+        if paused_all:
+            self.note("locked_all", "", str(_GLOBAL_WINDOW_SECS))
         if locked:
             self.note("locked", ip, str(int(until - now)))
         elif given:

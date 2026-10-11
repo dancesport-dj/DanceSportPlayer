@@ -43,8 +43,9 @@ except ImportError:
     HAS_LIBROSA = False
 
 from planner.config import (
-    AUDIO_DB_FILE, CACHE_FILE, SCAN_CACHE_FILE, GLOBAL_SCAN_CACHE_FILE,
+    CACHE_FILE, SCAN_CACHE_FILE, GLOBAL_SCAN_CACHE_FILE, audio_db_file,
 )
+from planner.dances import BEATS_PER_BAR, default_takt
 
 log = logging.getLogger("dancesport.db")
 
@@ -67,16 +68,6 @@ _TIMBRE_MFCC_DIM = 60
 # summary vector above; uses raw per-frame MFCCs with short (Java-matched) frames.
 _GAUSS_MFCC = 20
 
-# Beats per BAR (takt) per dance code. The filename label is a TAKT (bars/min); the
-# librosa tempo estimator works in musical BPM (beats/min) = takt × beats-per-bar.
-_BEATS_PER_BAR = {"LW": 3, "TG": 2, "WW": 3, "SF": 4, "QS": 4,
-                  "CC": 4, "SA": 2, "RB": 4, "PD": 2, "JI": 4}
-
-# Standard takt midpoint per dance, used as a fallback prior when the per-file takt
-# is unknown. Mirrors planner.TEMPO_RANGES (kept local to avoid a circular import).
-_DEFAULT_TAKT = {"LW": 29, "TG": 32, "WW": 59, "SF": 29, "QS": 51,
-                 "CC": 31, "SA": 51, "RB": 25, "PD": 59, "JI": 42}
-
 
 def _tempo_prior(dance: str | None, takt: float | None) -> float | None:
     """Expected musical tempo (beats/min) to seed librosa's beat tracker.
@@ -87,10 +78,10 @@ def _tempo_prior(dance: str | None, takt: float | None) -> float | None:
     estimate back onto the real beat. Returns None when the dance is unknown (→ keep
     librosa's default prior). Prefers the per-file takt; falls back to the dance norm.
     """
-    bpb = _BEATS_PER_BAR.get(dance or "")
+    bpb = BEATS_PER_BAR.get(dance or "")
     if bpb is None:
         return None
-    t = takt if takt else _DEFAULT_TAKT.get(dance or "")
+    t = takt if takt else default_takt(dance)
     return float(t * bpb) if t else None
 
 
@@ -719,7 +710,7 @@ def _insert_legacy(conn: sqlite3.Connection, legacy: dict) -> None:
              "%s unique paths · %s fingerprints · "
              "%s scan_meta · %s global_meta → %s",
              _SCHEMA_VERSION, f"{len(ids):,}", f"{n_fp:,}",
-             f"{n_sm:,}", f"{n_gm:,}", AUDIO_DB_FILE.name)
+             f"{n_sm:,}", f"{n_gm:,}", audio_db_file().name)
 
 
 def _db() -> sqlite3.Connection:
@@ -727,7 +718,7 @@ def _db() -> sqlite3.Connection:
     conn = getattr(_DB_LOCAL, 'conn', None)
     if conn is not None:
         return conn
-    AUDIO_DB_FILE.parent.mkdir(parents=True, exist_ok=True)
+    audio_db_file().parent.mkdir(parents=True, exist_ok=True)
     # isolation_level=None → autocommit: every write commits immediately instead of
     # leaving a deferred transaction open on this thread's connection. The caches are
     # shared across threads (main + loader + analyzer) but each thread has its OWN
@@ -737,7 +728,7 @@ def _db() -> sqlite3.Connection:
     # audio worker's INSERTs fail with 'database is locked'. Autocommit + WAL fixes it;
     # the explicit commit()/save() calls become harmless no-ops, and bulk executemany
     # in the one-time migrations still commits in a single batch.
-    conn = sqlite3.connect(str(AUDIO_DB_FILE), isolation_level=None)
+    conn = sqlite3.connect(str(audio_db_file()), isolation_level=None)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout = 10000")   # wait instead of 'database is locked'
     # NORMAL (not FULL) so autocommit doesn't fsync on every write — safe under WAL
@@ -1090,7 +1081,7 @@ class AudioCache:
         log.info("  ♻️  Audio cache migrated JSON v%s → SQLite v%s: "
                  "%s unique vectors, %s duplicates merged, "
                  "%s missing files dropped → %s",
-                 ver, self.CACHE_VERSION, kept, dups, dropped, AUDIO_DB_FILE.name)
+                 ver, self.CACHE_VERSION, kept, dups, dropped, audio_db_file().name)
 
     def save(self) -> None:
         if self._dirty:
@@ -1639,7 +1630,7 @@ class AudioCache:
 
         ok, errors, _ = self.analyze_entries(entries, progress_cb=cli_progress)
         log.info("  💾 Cached %s audio analyses → %s%s",
-                 ok, AUDIO_DB_FILE,
+                 ok, audio_db_file(),
                  f"  ({errors} files skipped)" if errors else "")
 
     def analyze_entries(
@@ -1904,7 +1895,7 @@ class ScanCache:
         except OSError:
             pass
         log.info("  ♻️  Scan cache migrated JSON → content-addressed scan_meta: "
-                 "%s/%s files → %s", imported, len(entries), AUDIO_DB_FILE.name)
+                 "%s/%s files → %s", imported, len(entries), audio_db_file().name)
 
     def save(self) -> None:
         if self._dirty:
@@ -2057,7 +2048,7 @@ BACKUPS_KEPT = 7
 
 
 def _backup_dir() -> Path:
-    return AUDIO_DB_FILE.parent / "backups"
+    return audio_db_file().parent / "backups"
 
 
 def backup_user_data(today: datetime.date | None = None,
@@ -2089,7 +2080,7 @@ def backup_user_data(today: datetime.date | None = None,
     part.unlink(missing_ok=True)
     out = sqlite3.connect(str(part))
     try:
-        out.execute("ATTACH DATABASE ? AS src", (str(AUDIO_DB_FILE),))
+        out.execute("ATTACH DATABASE ? AS src", (str(audio_db_file()),))
         out.execute("CREATE TABLE tag_edits AS SELECT * FROM src.tag_edits")
         out.execute("CREATE TABLE pd_highlights AS "
                     "SELECT * FROM src.pd_highlights WHERE manual = 1")
@@ -2197,7 +2188,7 @@ def db_maintenance() -> dict:
     expensive cached analysis for the entire library.
     """
     conn = _db()
-    size_before = AUDIO_DB_FILE.stat().st_size
+    size_before = audio_db_file().stat().st_size
 
     total = conn.execute("SELECT COUNT(*) FROM files").fetchone()[0]
     missing = sum(1 for (p,) in conn.execute("SELECT path FROM files")
@@ -2245,10 +2236,10 @@ def db_maintenance() -> dict:
     removed["app_meta"] = len(dead_keys)
     conn.commit()
 
-    log.info("  🧹 VACUUM %s (%.1f MB) …", AUDIO_DB_FILE.name, size_before / 1e6)
+    log.info("  🧹 VACUUM %s (%.1f MB) …", audio_db_file().name, size_before / 1e6)
     conn.execute("VACUUM")
     conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-    size_after = AUDIO_DB_FILE.stat().st_size
+    size_after = audio_db_file().stat().st_size
     log.info("  🧹 Database maintenance done:\n"
              "    size: %.1f MB → %.1f MB\n"
              "    removed rows: %s",
@@ -2326,7 +2317,7 @@ class GlobalScanCache:
         except OSError:
             pass
         log.info("  ♻️  Global scan cache migrated JSON → SQLite global_meta: "
-                 "%s files → %s", len(entries), AUDIO_DB_FILE.name)
+                 "%s files → %s", len(entries), audio_db_file().name)
 
     def save(self) -> None:
         if self._dirty:

@@ -35,6 +35,7 @@ from gui.playlist_table import PlaylistTable
 from gui.main_decks import DeckLayoutMixin
 from player.main_player import PlayerControlMixin
 from tests.qt_test_support import reap_widget
+from gui.deck_set import DeckSet
 
 
 class _Setting:
@@ -205,9 +206,10 @@ class _Window(PlayerControlMixin):
 
     def __init__(self, tables=()):
         self._play_panel = _Panel()
-        self._deck_of = {}
+        self._deckset = DeckSet()
+        self._deckset.deck_of = {}
         if tables:
-            self._all_tables = tables
+            self._deckset.all_tables = tables
 
 
 class AdvanceRepaintTest(unittest.TestCase):

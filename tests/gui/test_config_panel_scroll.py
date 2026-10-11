@@ -92,7 +92,7 @@ class ConfigPanelScrollTest(unittest.TestCase):
         want = [w.sizeHint().height() for w in parts]
         for h in (650, 450):
             self._shrink_to(h)
-            for w, hint in zip(parts, want):
+            for w, hint in zip(parts, want, strict=True):
                 with self.subTest(column=h, part=w.objectName() or type(w).__name__):
                     self.assertGreaterEqual(w.height(), hint)
 

@@ -22,6 +22,7 @@ from mutagen.id3 import ID3, TIT2, TXXX
 from PySide6.QtCore import Qt
 
 import planner.db as pdb
+from planner import config as planner_config
 from dancesport_planner import (
     MusicEntry,
     MusicLibrary,
@@ -79,8 +80,8 @@ class CustomColumnTest(unittest.TestCase):
 
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp(prefix="dp_custom_col_db_"))
-        saved = (pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
-        pdb.AUDIO_DB_FILE = self.dir / "scratch.db"
+        saved = (planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
+        planner_config.AUDIO_DB_FILE = self.dir / "scratch.db"
         pdb._DB_LOCAL = threading.local()
         pdb._DB_INITIALIZED = False
 
@@ -89,7 +90,7 @@ class CustomColumnTest(unittest.TestCase):
                 pdb._DB_LOCAL.conn.close()
             except Exception:
                 pass
-            pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = saved
+            planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = saved
         self.addCleanup(restore)
 
         self.win = self.gui.MainWindow()
@@ -100,14 +101,14 @@ class CustomColumnTest(unittest.TestCase):
         self.rum = self._entry("Rum One (RB 25)", "RB", "7")
         lib = MusicLibrary()
         lib.entries.extend([self.cha, self.rum])
-        self.win._lib = lib
-        self.win._cache = _Cache({str(self.cha.path): "fpCha",
+        self.win._library.lib = lib
+        self.win._library.cache = _Cache({str(self.cha.path): "fpCha",
                                   str(self.rum.path): "fpRum"})
         # Deck C holds an outside copy of the same file, as a restored M3U would.
         self.copy = MusicEntry(path=self.cha.path, title=self.cha.title,
                                dance="CC", bpm=30, custom="-1")
-        self._load(self.win._tableB, self.cha)
-        self._load(self.win._tableC, self.copy)
+        self._load(self.win._deckset.tableB, self.cha)
+        self._load(self.win._deckset.tableC, self.copy)
         self.asked = []
         self.win._ask_write_to_mp3 = lambda n, fields: self.asked.append(fields) or False
 
@@ -125,7 +126,7 @@ class CustomColumnTest(unittest.TestCase):
         table.load({"Runde 1": [[entry, self.rum]]}, ["CC", "RB"],
                    [RoundConfig(name="Runde 1", heats=1, tier="final")], "S",
                    play_cb=self.win._play_or_stop,
-                   suggester=PlaylistSuggester(self.win._lib),
+                   suggester=PlaylistSuggester(self.win._library.lib),
                    use_timbre=False, style="Latin", dynamic=True, capacity=[1])
 
     def _cell(self, table, entry) -> str:
@@ -163,22 +164,22 @@ class CustomColumnTest(unittest.TestCase):
     # ----- the column ---------------------------------------------------------
 
     def test_a_deck_starts_with_it_put_away(self):
-        self.assertTrue(self.win._tableB.isColumnHidden(_COL_CUSTOM))
-        self.assertEqual(self.win._tableB.horizontalHeaderItem(_COL_CUSTOM).text(), "Custom")
+        self.assertTrue(self.win._deckset.tableB.isColumnHidden(_COL_CUSTOM))
+        self.assertEqual(self.win._deckset.tableB.horizontalHeaderItem(_COL_CUSTOM).text(), "Custom")
 
     def test_a_deck_row_shows_the_value(self):
-        self.assertEqual(self._cell(self.win._tableB, self.cha), "-1")
-        self.assertEqual(self._cell(self.win._tableB, self.rum), "")
+        self.assertEqual(self._cell(self.win._deckset.tableB, self.cha), "-1")
+        self.assertEqual(self._cell(self.win._deckset.tableB, self.rum), "")
 
     def test_the_library_starts_with_it_put_away(self):
         self.assertIn(_LIB_COL_CUSTOM, self.win._lib_browser.hidden_columns())
 
     def test_the_library_shows_the_value(self):
-        self.win._lib_browser.set_entries(self.win._lib.entries)
+        self.win._lib_browser.set_entries(self.win._library.lib.entries)
         self.assertEqual(self._lib_cell(self.cha), "-1")
 
     def test_the_header_menu_offers_the_mapping(self):
-        menu = self.win._tableB.build_column_menu()
+        menu = self.win._deckset.tableB.build_column_menu()
         texts = [a.text() for a in menu.actions()]
         self.assertIn("Map Custom to an MP3 tag…", texts)
         self.assertIn("Custom", texts)
@@ -188,17 +189,17 @@ class CustomColumnTest(unittest.TestCase):
         self.assertIn("Map Custom to an MP3 tag…", [a.text() for a in menu.actions()])
 
     def test_it_sorts_by_the_value(self):
-        key = self.win._tableB._FLAT_SORT_KEYS[_COL_CUSTOM]
+        key = self.win._deckset.tableB._FLAT_SORT_KEYS[_COL_CUSTOM]
         self.assertLess(key(self.rum), key(self.cha))
 
     # ----- the 🏷 editor -------------------------------------------------------
 
     def test_what_is_typed_reaches_every_row(self):
-        self.win._lib_browser.set_entries(self.win._lib.entries)
+        self.win._lib_browser.set_entries(self.win._library.lib.entries)
         self.win._apply_tag_dialog([self.cha], self._Answer({"custom": "Gala"}))
         self.assertEqual(tag_edits.load("fpCha"), {"custom": "Gala"})
-        self.assertEqual(self._cell(self.win._tableB, self.cha), "Gala")
-        self.assertEqual(self._cell(self.win._tableC, self.copy), "Gala")
+        self.assertEqual(self._cell(self.win._deckset.tableB, self.cha), "Gala")
+        self.assertEqual(self._cell(self.win._deckset.tableC, self.copy), "Gala")
         self.assertEqual(self._lib_cell(self.cha), "Gala")
 
     def test_without_a_mapping_it_is_not_offered_for_the_mp3(self):
@@ -232,19 +233,19 @@ class CustomColumnTest(unittest.TestCase):
         self.assertIsNone(self.win._custom_reader, "the reader never reported back")
 
     def test_a_new_mapping_reads_the_frame_into_every_row(self):
-        self.win._lib_browser.set_entries(self.win._lib.entries)
+        self.win._lib_browser.set_entries(self.win._library.lib.entries)
         self._map("TXXX", "ultramixer_meter")
         self.assertEqual(custom_field.source(), ("TXXX", "ultramixer_meter"))
-        self.assertEqual(self._cell(self.win._tableB, self.cha), "meter Cha One (CC 30)")
-        self.assertEqual(self._cell(self.win._tableC, self.copy), "meter Cha One (CC 30)")
-        self.assertEqual(self._cell(self.win._tableB, self.rum), "meter Rum One (RB 25)")
+        self.assertEqual(self._cell(self.win._deckset.tableB, self.cha), "meter Cha One (CC 30)")
+        self.assertEqual(self._cell(self.win._deckset.tableC, self.copy), "meter Cha One (CC 30)")
+        self.assertEqual(self._cell(self.win._deckset.tableB, self.rum), "meter Rum One (RB 25)")
         self.assertEqual(self._lib_cell(self.rum), "meter Rum One (RB 25)")
 
     def test_app_only_empties_what_came_from_the_files(self):
         custom_field.set_source("TXXX", "ultramixer_last_played")
         self._map(None)
         self.assertIsNone(custom_field.source())
-        self.assertEqual(self._cell(self.win._tableB, self.cha), "")
+        self.assertEqual(self._cell(self.win._deckset.tableB, self.cha), "")
 
     def test_the_tag_editor_maps_it_from_a_row(self):
         import time
@@ -254,7 +255,7 @@ class CustomColumnTest(unittest.TestCase):
             self.app.processEvents()
             time.sleep(0.01)
         self.assertEqual(custom_field.source(), ("TXXX", "ultramixer_meter"))
-        self.assertEqual(self._cell(self.win._tableB, self.rum), "meter Rum One (RB 25)")
+        self.assertEqual(self._cell(self.win._deckset.tableB, self.rum), "meter Rum One (RB 25)")
 
     def test_while_a_reading_runs_the_tag_editor_is_told_no(self):
         self.win._custom_reader = object()

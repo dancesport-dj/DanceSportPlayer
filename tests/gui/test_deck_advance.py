@@ -34,6 +34,7 @@ from player.play_mode_panel import PlayModePanel
 from player.playback_state import PlaybackState
 from tests.qt_test_support import reap_widget
 from player.between_dances import BetweenDances
+from gui.deck_set import DeckSet
 
 
 class _Announcer:
@@ -58,7 +59,8 @@ class _Desk(PlayerControlMixin):
 
     def __init__(self, panel, tables=()):
         self._play_panel = panel
-        self._all_tables = tuple(tables)
+        self._deckset = DeckSet()
+        self._deckset.all_tables = tuple(tables)
         self._announcer = _Announcer()
         self._between = BetweenDances()
         self._between.announced = False

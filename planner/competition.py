@@ -8,7 +8,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from planner.config import PLAYLIST_DIR, folders_below
+from planner.config import folders_below, playlist_dir
 from planner.models import DEFAULT_DANCES
 from planner.parsing import _CODE_ALIAS
 
@@ -102,10 +102,11 @@ def _is_superseded_playlist(m3u: Path) -> bool:
         These bins would otherwise inflate popularity and wrongly mark genuinely
         fresh (never-played) songs as 'proven'.
     """
-    folders = folders_below(str(m3u), str(PLAYLIST_DIR))
+    root = playlist_dir()
+    folders = folders_below(str(m3u), str(root))
     if folders is None:   # not from the playlist tree (a list opened elsewhere)
         try:
-            rel = m3u.relative_to(PLAYLIST_DIR)
+            rel = m3u.relative_to(root)
         except ValueError:
             rel = m3u
         folders = list(rel.parent.parts)

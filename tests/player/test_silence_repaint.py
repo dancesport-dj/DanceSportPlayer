@@ -15,6 +15,8 @@ import tempfile
 import unittest
 from pathlib import Path
 from player.playback_state import PlaybackState
+from types import SimpleNamespace
+from gui.deck_set import DeckSet
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
@@ -43,12 +45,13 @@ class ProbeWhilePlayingTest(unittest.TestCase):
 
         w = Win()
         w._silences = {}
-        w._cache = None
+        w._library = SimpleNamespace(cache=None)
         w._playback = PlaybackState()
         w._playback.path = None
         w._big_player = None
         w.table = _Table()
-        w._all_tables = [w.table]
+        w._deckset = DeckSet()
+        w._deckset.all_tables = [w.table]
         return w
 
     def test_the_rows_showing_that_file_are_repainted(self):
@@ -75,7 +78,8 @@ class BulkProbeTest(unittest.TestCase):
 
         w = Win()
         w.table = _Table()
-        w._all_tables = [w.table]
+        w._deckset = DeckSet()
+        w._deckset.all_tables = [w.table]
         return w
 
     def test_every_probed_path_is_repainted_when_the_pass_ends(self):

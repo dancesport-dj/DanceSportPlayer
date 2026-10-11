@@ -26,11 +26,13 @@ from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtWidgets import QApplication, QWidget
 from tests.qt_test_support import reap_widget
 
+from player.fade_now import FadeNow
 from player.mix import OutputMix
 from player.main_player import PlayerControlMixin
 from player.player import BigPlayerWidget
 from player.playback_state import PlaybackState
 from player.between_dances import BetweenDances
+from gui.deck_set import DeckSet
 
 ORANGE = "#fb8c00"
 RED = "#e53935"
@@ -202,15 +204,15 @@ class _Desk(PlayerControlMixin, QWidget):
         QWidget.__init__(self)
         self._player = _MediaStub()
         self._play_panel = _Panel()
-        self._all_tables = ()    # no list: the panel's values are the ones
+        self._deckset = DeckSet()
+        self._deckset.all_tables = ()    # no list: the panel's values are the ones
         self._fade_timer = _TimerStub()
         self._big_player = _Card()
         self._playback = PlaybackState()
         self._playback.path = Path(r"C:\music\WW.mp3")
         self._mix = OutputMix()
-        self._fade_now_end = None
-        self._fade_now_hold = False
-        self._fade_now_total = 2.0
+        self._fade_now = FadeNow()
+        self._fade_now.total = 2.0
         self._between = BetweenDances()
         self._between.pending = None
         self._pd_stop_at = None
@@ -257,14 +259,14 @@ class FadeIndicatorWiringTest(unittest.TestCase):
 
     def test_it_goes_out_when_the_fade_has_run_its_course(self):
         self.desk._fade_out_now()
-        self.desk._fade_now_end = time.monotonic() - 0.1   # ramp finished
+        self.desk._fade_now.end = time.monotonic() - 0.1   # ramp finished
         self.desk._on_play_tick()
         self.assertEqual(self.desk._ended, ["fade-out finished"])
         self.assertFalse(self.desk._big_player.fading)
 
     def test_it_goes_out_when_the_panic_fade_reaches_the_hold(self):
         self.desk._fade_and_hold()
-        self.desk._fade_now_end = time.monotonic() - 0.1
+        self.desk._fade_now.end = time.monotonic() - 0.1
         self.desk._on_play_tick()
         self.assertEqual(self.desk._player.paused, 1)
         self.assertFalse(self.desk._big_player.fading)
@@ -287,19 +289,19 @@ class FadeIndicatorWiringTest(unittest.TestCase):
         the hold started and then nothing drove it, the fade-out did nothing."""
         self.desk._is_playing_mode = lambda: False
         self.desk._fade_and_hold()
-        self.desk._fade_now_end = time.monotonic() - 0.1
+        self.desk._fade_now.end = time.monotonic() - 0.1
         self.desk._on_play_tick()
         self.assertEqual(self.desk._player.paused, 1)
         self.desk._fade_out_now()
-        self.assertIsNotNone(self.desk._fade_now_end)
-        self.desk._fade_now_end = time.monotonic() - 0.1
+        self.assertIsNotNone(self.desk._fade_now.end)
+        self.desk._fade_now.end = time.monotonic() - 0.1
         self.desk._on_play_tick()
         self.assertEqual(self.desk._ended, ["fade-out finished"])
 
     def test_no_card_on_the_desk_is_survived(self):
         self.desk._big_player = None
         self.desk._fade_out_now()
-        self.assertIsNotNone(self.desk._fade_now_end)
+        self.assertIsNotNone(self.desk._fade_now.end)
 
 
 if __name__ == "__main__":

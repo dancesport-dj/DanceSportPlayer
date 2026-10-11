@@ -5,18 +5,18 @@ dancesport_gui.py  –  PySide6 GUI for the Dancesport Playlist Planner
 Run:  py dancesport_gui.py
 CLI:  py dancesport_planner.py
 """
-import io
 import os
 import sys
+import time
 import logging
 from pathlib import Path
 from collections.abc import Callable
 
-# The log goes to stdout with emoji in it. A Windows console is cp1252, so wrap
-# it as UTF-8; a windowed build has no stdout at all (sys.stdout is None).
+# The log goes to stdout with emoji in it. A Windows console is cp1252, so switch
+# it to UTF-8; a windowed build has no stdout at all (sys.stdout is None).
 if (sys.stdout is not None and sys.stdout.encoding
         and sys.stdout.encoding.lower() not in ('utf-8', 'utf-8-sig')):
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 try:
     from PySide6.QtWidgets import (
@@ -66,8 +66,8 @@ import planner.m3u
 # Before anything can start a child process (ffmpeg, gsettings, xdg-open).
 planner.config.restore_system_library_path()
 from planner.version import app_version
-from planner.db import AudioCache, backup_safely
-from planner.library import MusicLibrary
+from planner.dances import BEATS_PER_BAR
+from planner.db import backup_safely
 from planner.suggester import PlaylistSuggester
 
 log = logging.getLogger("dancesport.gui")
@@ -103,7 +103,7 @@ def exit_app(code: int):
 # the names are re-imported here so the rest of this file keeps using them
 # unchanged.
 from gui.workers import (
-    LibraryLoader, GlobalLibraryLoader, GlobalCacheLoader, AudioAnalyzer,
+    LibraryLoader, AudioAnalyzer,
     SimilarFromFileWorker,
     LoudnessAnalyzer, PdHighlightAnalyzer,
     SilenceAnalyzer, VocalShareAnalyzer,
@@ -118,6 +118,7 @@ from gui.deck import Deck, DeckContext, DeckField
 from gui.undo_timeline import UndoTimeline
 from gui.shortcuts import show_shortcuts
 from gui.about import manual_pdf, open_manual, show_about
+from gui.update_notice import UpdateNotice
 from gui.common import (
     BusyDialog,
     DEFAULT_HIDDEN_COLUMNS,
@@ -136,6 +137,7 @@ from gui.dialogs import (  # auto-resolved
     app_title,
     ensure_app_mode,
     ensure_error_reports_choice,
+    ensure_update_check_choice,
     warmup_name,
     PLAYER_FIRST_START,
     apply_media_backend,
@@ -192,6 +194,11 @@ from gui.tournament_tree import (  # noqa: F401  (facade re-export)
 from player.mix import OutputMix
 from player.audio_device import AudioDevice
 from player.playback_state import PlaybackState
+from player.fade_now import FadeNow
+from player.resume_marks import ResumeMarks
+from gui.deck_grid import DeckGrid
+from gui.deck_set import DeckSet
+from gui.library_service import LibraryService
 from player.between_dances import BetweenDances
 from player.pause_filler import PauseFiller
 from player.play_log_dialog import PlayLogDialog
@@ -243,6 +250,8 @@ class _ToolbarRow(QWidget):
 
 
 class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, PersistenceMixin, PlayerControlMixin, GlobalIndexMixin, CartwallMixin, RemoteMixin, ControllerMixin, FullscreenMixin):
+    _space_at = 0.0   # when Space last toggled the big player — see eventFilter
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("DanceSport Planner & Player")
@@ -257,8 +266,12 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         self._undo_timeline = UndoTimeline(limit=50)
         self._restoring     = False             # guards edit hooks during _apply_env
 
-        self._lib:        MusicLibrary | None      = None
-        self._cache:      AudioCache | None         = None
+        # 📚 The libraries and the threads loading them (gui.library_service).
+        self._library = LibraryService()
+        # 🗂 The boxes and splitters the decks sit in (gui.deck_grid).
+        self._grid = DeckGrid()
+        # 🎛 The decks, day decks, wishlists and their Decks (gui.deck_set).
+        self._deckset = DeckSet()
         self._suggester:  PlaylistSuggester | None  = None
         # Deck A's generation context, read and written through the DeckFields
         # (_style, _playlist …) until the decks exist to hold it.
@@ -278,12 +291,9 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         # Every open/add picker starts where the last one ended.
         set_browse_dir(self._settings.get("open_dir", ""),
                        self._remember_open_dir)
-        self._global_lib:    MusicLibrary | None     = None
-        self._global_loader: GlobalLibraryLoader | None = None
         self._pending_drop:  str | None              = None
         self._pending_after_global: Callable[[], None] | None = None
         self._index_analyzer: AudioAnalyzer | None   = None
-        self._cache_loader:  GlobalCacheLoader | None = None
         self._emb_idx_worker = None
         self._allcache = None
         self._allcache_worker = None   # the probe step running inside it
@@ -431,13 +441,8 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         self._announcer = DanceAnnouncer(
             self, self._on_announcer_speaking,
             voice=str(self._settings.get("announce_voice", "female")))
-        # Manual "fade out now" (🔉↓ on the card): monotonic time the fade ends
-        # (None = not fading) and the fade's total length, for the ramp ratio.
-        self._fade_now_end: float | None = None
-        self._fade_now_total = 0.0
-        # True while the 🛑 panic fade runs: at the bottom of the ramp the song
-        # is PAUSED in place instead of ended, so nothing auto-advances.
-        self._fade_now_hold = False
+        # Manual "fade out now" (🔉↓ on the card) and the 🛑 panic fade.
+        self._fade_now = FadeNow()
         # 🕘 (dance, title) of the title before the running one — the presenter
         # screen shows it when asked to; None until a second title starts.
         self._last_played: tuple[str, str] | None = None
@@ -445,12 +450,8 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         # for this many ms — robust against the operator skipping rows around.
         self._PLAYED_AFTER_MS = 10_000
         self._played_marked = False   # current track already marked played?
-        # ↩ Where each title was left, in ms, keyed by path — one player serves
-        # every deck, so leaving a title to hear another one is the normal way
-        # to lose your place in it. Session-scoped on purpose (the ▶️ Remember
-        # switch on the Playing panel): a mark is about the evening being
-        # planned, not something to find again next week.
-        self._resume_pos: dict[str, int] = {}
+        # ↩ Where each title was left (player.resume_marks), for this session.
+        self._resume = ResumeMarks()
         # Where the title now loading has to be put once its media is open —
         # a seek issued before that is dropped by the backend.
         self._resume_seek_ms: int | None = None
@@ -545,7 +546,7 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
                 self._player, self._audio_out,
                 get_vol=lambda: self._mix.base,
                 set_vol=self._set_base_volume,
-                cache_of=lambda: self._cache)
+                cache_of=lambda: self._library.cache)
             self._player.playbackStateChanged.connect(self._on_playback_state)
             self._big_player.prevRequested.connect(lambda: self._preview_skip(-1))
             self._big_player.nextRequested.connect(self._on_player_next)
@@ -690,48 +691,48 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
 
         # Three tables: two full playlist decks side-by-side + a flat wishlist below.
         # Controls (Generate / Save / ↺ / play / collapse) act on the focused deck.
-        self._tableA    = PlaylistTable()
-        self._tableB    = PlaylistTable()
-        self._tableC    = PlaylistTable()
-        self._tableD    = PlaylistTable()
+        self._deckset.tableA    = PlaylistTable()
+        self._deckset.tableB    = PlaylistTable()
+        self._deckset.tableC    = PlaylistTable()
+        self._deckset.tableD    = PlaylistTable()
         # Decks E–H back the 8-playlist mode: a second 2×2 grid shown on its own tab
         # ("Group E–H") so eight playlists never crowd the screen at once.
-        self._tableE    = PlaylistTable()
-        self._tableF    = PlaylistTable()
-        self._tableG    = PlaylistTable()
-        self._tableH    = PlaylistTable()
-        self._wishlist  = PlaylistTable()
-        self._wishlist2 = PlaylistTable()
-        self._wishlist3 = PlaylistTable()
-        self._wishlist4 = PlaylistTable()
-        self._wishlist._flat_mode  = True
-        self._wishlist2._flat_mode = True
-        self._wishlist3._flat_mode = True
-        self._wishlist4._flat_mode = True
+        self._deckset.tableE    = PlaylistTable()
+        self._deckset.tableF    = PlaylistTable()
+        self._deckset.tableG    = PlaylistTable()
+        self._deckset.tableH    = PlaylistTable()
+        self._deckset.wishlist  = PlaylistTable()
+        self._deckset.wishlist2 = PlaylistTable()
+        self._deckset.wishlist3 = PlaylistTable()
+        self._deckset.wishlist4 = PlaylistTable()
+        self._deckset.wishlist._flat_mode  = True
+        self._deckset.wishlist2._flat_mode = True
+        self._deckset.wishlist3._flat_mode = True
+        self._deckset.wishlist4._flat_mode = True
         # Dedicated warm-up (Eintanzen) list — its own panel between the decks and the
         # wishlist area, never clobbering a playlist. Holds a single warm-up list with
         # ↺ timbre re-roll + drag-drop replace; hidden until a warm-up is generated.
-        self._warmup_table = PlaylistTable()
+        self._deckset.warmup_table = PlaylistTable()
         # Up to eight full playlist decks (generation targets); 1/2/4/8 shown via _dual_btn
         # (8 = two tabs of four).
-        self._decks      = [self._tableA, self._tableB, self._tableC, self._tableD,
-                            self._tableE, self._tableF, self._tableG, self._tableH]
+        self._deckset.decks      = [self._deckset.tableA, self._deckset.tableB, self._deckset.tableC, self._deckset.tableD,
+                            self._deckset.tableE, self._deckset.tableF, self._deckset.tableG, self._deckset.tableH]
         # Eight dedicated 📅 day decks on the third tab ("Tournament day", two
         # sub-tabs of four). Filled only by the 📅 Day-plan planner, so decks A–H
         # always stay normal working playlists; the tab shows while they hold a plan.
-        self._day_decks  = [PlaylistTable() for _ in range(8)]
-        self._wishlists  = [self._wishlist, self._wishlist2,
-                            self._wishlist3, self._wishlist4]
-        self._all_tables = (self._decks + self._day_decks
-                            + self._wishlists + [self._warmup_table])
-        self._table      = self._tableA                   # the focused/active deck
-        self._deck_count = 1                              # visible deck count: 1, 2, 4 or 8
+        self._deckset.day_decks  = [PlaylistTable() for _ in range(8)]
+        self._deckset.wishlists  = [self._deckset.wishlist, self._deckset.wishlist2,
+                            self._deckset.wishlist3, self._deckset.wishlist4]
+        self._deckset.all_tables = (self._deckset.decks + self._deckset.day_decks
+                            + self._deckset.wishlists + [self._deckset.warmup_table])
+        self._deckset.table      = self._deckset.tableA                   # the focused/active deck
+        self._deckset.deck_count = 1                              # visible deck count: 1, 2, 4 or 8
         # One Deck per table, holding everything this window keeps about it
         # (see gui.deck); reached through self.deck(table), never directly.
-        self._deck_of: dict[PlaylistTable, Deck] = {}
-        self.deck(self._tableA).ctx = self._boot_ctx
+        self._deckset.deck_of: dict[PlaylistTable, Deck] = {}
+        self.deck(self._deckset.tableA).ctx = self._boot_ctx
 
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             t._seek_cb = self._seek   # Ctrl+←/→ seeks ∓30 s
             t._short_secs_cb = lambda t=t: self._configured_play_secs(t)   # orange ⏱ on short tracks
             t._play_secs_cb = self._track_play_secs   # ⏱ tooltip: real play time
@@ -761,7 +762,7 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
                 "Space: play / stop the selected song\n"
                 "Ctrl + ← / → : seek 30 s back / forward\n"
                 "Click a round / dance header to collapse or expand it")
-        for t in self._decks + self._day_decks:
+        for t in self._deckset.decks + self._deckset.day_decks:
             # Empty deck → first drop turns dynamic; capacity comes from the Rounds field.
             t._capacity_provider = self._current_capacity
 
@@ -772,9 +773,9 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         saved_cols = self._settings.get("hidden_columns") or {}
         saved_widths = self._settings.get("column_widths") or {}
         saved_short = self._settings.get("short_dances") or {}
-        for kind, tables in (("playlist", self._decks + self._day_decks),
-                             ("wishlist", self._wishlists),
-                             ("party", [self._warmup_table])):
+        for kind, tables in (("playlist", self._deckset.decks + self._deckset.day_decks),
+                             ("wishlist", self._deckset.wishlists),
+                             ("party", [self._deckset.warmup_table])):
             # A saved empty list is a decision (Heat ticked back on), not an
             # absent setting — only the missing key falls back to the default.
             hidden = ([int(c) for c in saved_cols[kind]] if kind in saved_cols
@@ -899,7 +900,7 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
             "─── section headers dropped too, so the list — a Practice / party\n"
             "list above all — is one flat run of songs) → 🔢 Numbers (no groups,\n"
             "plus an Nb. column up front counting the titles).")
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             # Honoured when the tables render during restore. The wishlists are
             # in here too: flat lists have no headers to drop, but their titles
             # get numbered like everything else.
@@ -958,7 +959,9 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         # on screen (the no-playlist view).
         self._collapse_btn.clicked.connect(self._toggle_collapse_all)
         self._fold_decks_btn.clicked.connect(self._toggle_fold_all_decks)
-        btn_save_all.clicked.connect(self._save_all_playlists)
+        # A lambda: `clicked` passes its `checked` flag to any slot that takes
+        # an argument, and _save_all_playlists(decks=…) took it for the decks.
+        btn_save_all.clicked.connect(lambda: self._save_all_playlists())
         btn_bundle.clicked.connect(self._export_bundle)
         btn_day.clicked.connect(self._plan_tournament_day)
         self._save_state_btn.clicked.connect(self._save_state_now)
@@ -1058,117 +1061,117 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         self._warmup_closed = False                              # Eintanzen panel hidden?
         # Fixed A/B/C/D badge per deck, rendered before the (possibly renamed) title so
         # each playlist stays visually identifiable even after the user renames it.
-        for t, letter in zip(self._decks,
-                             ("🅰", "🅱", "🅲", "🅳", "🅴", "🅵", "🅶", "🅷")):
+        for t, letter in zip(self._deckset.decks,
+                             ("🅰", "🅱", "🅲", "🅳", "🅴", "🅵", "🅶", "🅷"), strict=True):
             self.deck(t).letter = letter
         # Day decks carry outline (squared) letters so they never get confused
         # with the normal decks' filled 🅰–🅷 badges.
-        for t, letter in zip(self._day_decks,
-                             ("🄰", "🄱", "🄲", "🄳", "🄴", "🄵", "🄶", "🄷")):
+        for t, letter in zip(self._deckset.day_decks,
+                             ("🄰", "🄱", "🄲", "🄳", "🄴", "🄵", "🄶", "🄷"), strict=True):
             self.deck(t).letter = letter
-        deckA_box        = self._make_deck_box(self._tableA, "Playlist 1")
-        self._deckB_box  = self._make_deck_box(self._tableB, "Playlist 2")
-        self._deckC_box  = self._make_deck_box(self._tableC, "Playlist 3")
-        self._deckD_box  = self._make_deck_box(self._tableD, "Playlist 4")
-        self._deckE_box  = self._make_deck_box(self._tableE, "Playlist 5")
-        self._deckF_box  = self._make_deck_box(self._tableF, "Playlist 6")
-        self._deckG_box  = self._make_deck_box(self._tableG, "Playlist 7")
-        self._deckH_box  = self._make_deck_box(self._tableH, "Playlist 8")
-        self._day_boxes  = [self._make_deck_box(t, f"📅 Competition {i + 1}")
-                            for i, t in enumerate(self._day_decks)]
-        self._wish_box   = self._make_deck_box(self._wishlist, "⭐  Wishlist")
-        self._wish_box2  = self._make_deck_box(self._wishlist2, "⭐  Wishlist 2")
-        self._wish_box3  = self._make_deck_box(self._wishlist3, "⭐  Wishlist 3")
-        self._wish_box4  = self._make_deck_box(self._wishlist4, "⭐  Wishlist 4")
-        self._warmup_box = self._make_deck_box(self._warmup_table,
+        deckA_box        = self._make_deck_box(self._deckset.tableA, "Playlist 1")
+        self._grid.deckB_box  = self._make_deck_box(self._deckset.tableB, "Playlist 2")
+        self._grid.deckC_box  = self._make_deck_box(self._deckset.tableC, "Playlist 3")
+        self._grid.deckD_box  = self._make_deck_box(self._deckset.tableD, "Playlist 4")
+        self._grid.deckE_box  = self._make_deck_box(self._deckset.tableE, "Playlist 5")
+        self._grid.deckF_box  = self._make_deck_box(self._deckset.tableF, "Playlist 6")
+        self._grid.deckG_box  = self._make_deck_box(self._deckset.tableG, "Playlist 7")
+        self._grid.deckH_box  = self._make_deck_box(self._deckset.tableH, "Playlist 8")
+        self._grid.day_boxes  = [self._make_deck_box(t, f"📅 Competition {i + 1}")
+                            for i, t in enumerate(self._deckset.day_decks)]
+        self._grid.wish_box   = self._make_deck_box(self._deckset.wishlist, "⭐  Wishlist")
+        self._grid.wish_box2  = self._make_deck_box(self._deckset.wishlist2, "⭐  Wishlist 2")
+        self._grid.wish_box3  = self._make_deck_box(self._deckset.wishlist3, "⭐  Wishlist 3")
+        self._grid.wish_box4  = self._make_deck_box(self._deckset.wishlist4, "⭐  Wishlist 4")
+        self._grid.warmup_box = self._make_deck_box(self._deckset.warmup_table,
                                                self._warmup_title(""))
 
         # 2×2 grid of decks as two COLUMNS side by side: A above C (left) and
         # B above D (right). Built column-wise (not row-wise) so folding a deck
         # to a tab frees VERTICAL space for the other deck in the same column.
         # Single/Two-deck views use the top decks only.
-        self._decks_col1 = QSplitter(Qt.Orientation.Vertical)
-        self._decks_col1.addWidget(deckA_box)
-        self._decks_col1.addWidget(self._deckC_box)
-        self._decks_col1.setSizes([500, 500])
-        self._decks_col2 = QSplitter(Qt.Orientation.Vertical)
-        self._decks_col2.addWidget(self._deckB_box)
-        self._decks_col2.addWidget(self._deckD_box)
-        self._decks_col2.setSizes([500, 500])
-        self._decks_split = QSplitter(Qt.Orientation.Horizontal)
-        self._decks_split.addWidget(self._decks_col1)
-        self._decks_split.addWidget(self._decks_col2)
-        self._decks_split.setSizes([500, 500])
+        self._grid.decks_col1 = QSplitter(Qt.Orientation.Vertical)
+        self._grid.decks_col1.addWidget(deckA_box)
+        self._grid.decks_col1.addWidget(self._grid.deckC_box)
+        self._grid.decks_col1.setSizes([500, 500])
+        self._grid.decks_col2 = QSplitter(Qt.Orientation.Vertical)
+        self._grid.decks_col2.addWidget(self._grid.deckB_box)
+        self._grid.decks_col2.addWidget(self._grid.deckD_box)
+        self._grid.decks_col2.setSizes([500, 500])
+        self._grid.decks_split = QSplitter(Qt.Orientation.Horizontal)
+        self._grid.decks_split.addWidget(self._grid.decks_col1)
+        self._grid.decks_split.addWidget(self._grid.decks_col2)
+        self._grid.decks_split.setSizes([500, 500])
         # One shared row divider for the whole 2×2 grid: dragging the 🅰/🅲
         # handle also moves the 🅱/🅳 handle and vice-versa, so all four decks keep
         # the same row heights (setSizes doesn't re-emit splitterMoved → no loop).
-        self._decks_col1.splitterMoved.connect(
-            lambda *_: self._decks_col2.setSizes(self._decks_col1.sizes()))
-        self._decks_col2.splitterMoved.connect(
-            lambda *_: self._decks_col1.setSizes(self._decks_col2.sizes()))
+        self._grid.decks_col1.splitterMoved.connect(
+            lambda *_: self._grid.decks_col2.setSizes(self._grid.decks_col1.sizes()))
+        self._grid.decks_col2.splitterMoved.connect(
+            lambda *_: self._grid.decks_col1.setSizes(self._grid.decks_col2.sizes()))
 
         # Second 2×2 grid (decks E–H), shown on the "Group E–H" tab in 8-deck mode.
         # Built exactly like the first grid: 🅴 above 🅶 (left), 🅵 above 🅷 (right).
-        self._decks_col3 = QSplitter(Qt.Orientation.Vertical)
-        self._decks_col3.addWidget(self._deckE_box)
-        self._decks_col3.addWidget(self._deckG_box)
-        self._decks_col3.setSizes([500, 500])
-        self._decks_col4 = QSplitter(Qt.Orientation.Vertical)
-        self._decks_col4.addWidget(self._deckF_box)
-        self._decks_col4.addWidget(self._deckH_box)
-        self._decks_col4.setSizes([500, 500])
-        self._decks_split2 = QSplitter(Qt.Orientation.Horizontal)
-        self._decks_split2.addWidget(self._decks_col3)
-        self._decks_split2.addWidget(self._decks_col4)
-        self._decks_split2.setSizes([500, 500])
-        self._decks_col3.splitterMoved.connect(
-            lambda *_: self._decks_col4.setSizes(self._decks_col3.sizes()))
-        self._decks_col4.splitterMoved.connect(
-            lambda *_: self._decks_col3.setSizes(self._decks_col4.sizes()))
+        self._grid.decks_col3 = QSplitter(Qt.Orientation.Vertical)
+        self._grid.decks_col3.addWidget(self._grid.deckE_box)
+        self._grid.decks_col3.addWidget(self._grid.deckG_box)
+        self._grid.decks_col3.setSizes([500, 500])
+        self._grid.decks_col4 = QSplitter(Qt.Orientation.Vertical)
+        self._grid.decks_col4.addWidget(self._grid.deckF_box)
+        self._grid.decks_col4.addWidget(self._grid.deckH_box)
+        self._grid.decks_col4.setSizes([500, 500])
+        self._grid.decks_split2 = QSplitter(Qt.Orientation.Horizontal)
+        self._grid.decks_split2.addWidget(self._grid.decks_col3)
+        self._grid.decks_split2.addWidget(self._grid.decks_col4)
+        self._grid.decks_split2.setSizes([500, 500])
+        self._grid.decks_col3.splitterMoved.connect(
+            lambda *_: self._grid.decks_col4.setSizes(self._grid.decks_col3.sizes()))
+        self._grid.decks_col4.splitterMoved.connect(
+            lambda *_: self._grid.decks_col3.setSizes(self._grid.decks_col4.sizes()))
 
         # Two more 2×2 grids for the 📅 day decks, mirroring the normal groups:
         # day 🄰 above 🄲 (left) and 🄱 above 🄳 (right), same for 🄴–🄷. They live
         # in their own sub-tab widget on the "📅 Tournament day" page.
-        self._day_col1 = QSplitter(Qt.Orientation.Vertical)
-        self._day_col1.addWidget(self._day_boxes[0])
-        self._day_col1.addWidget(self._day_boxes[2])
-        self._day_col1.setSizes([500, 500])
-        self._day_col2 = QSplitter(Qt.Orientation.Vertical)
-        self._day_col2.addWidget(self._day_boxes[1])
-        self._day_col2.addWidget(self._day_boxes[3])
-        self._day_col2.setSizes([500, 500])
-        self._day_split = QSplitter(Qt.Orientation.Horizontal)
-        self._day_split.addWidget(self._day_col1)
-        self._day_split.addWidget(self._day_col2)
-        self._day_split.setSizes([500, 500])
-        self._day_col1.splitterMoved.connect(
-            lambda *_: self._day_col2.setSizes(self._day_col1.sizes()))
-        self._day_col2.splitterMoved.connect(
-            lambda *_: self._day_col1.setSizes(self._day_col2.sizes()))
-        self._day_col3 = QSplitter(Qt.Orientation.Vertical)
-        self._day_col3.addWidget(self._day_boxes[4])
-        self._day_col3.addWidget(self._day_boxes[6])
-        self._day_col3.setSizes([500, 500])
-        self._day_col4 = QSplitter(Qt.Orientation.Vertical)
-        self._day_col4.addWidget(self._day_boxes[5])
-        self._day_col4.addWidget(self._day_boxes[7])
-        self._day_col4.setSizes([500, 500])
-        self._day_split2 = QSplitter(Qt.Orientation.Horizontal)
-        self._day_split2.addWidget(self._day_col3)
-        self._day_split2.addWidget(self._day_col4)
-        self._day_split2.setSizes([500, 500])
-        self._day_col3.splitterMoved.connect(
-            lambda *_: self._day_col4.setSizes(self._day_col3.sizes()))
-        self._day_col4.splitterMoved.connect(
-            lambda *_: self._day_col3.setSizes(self._day_col4.sizes()))
-        self._day_tabs = QTabWidget()
-        self._day_tabs.setDocumentMode(True)
-        self._day_tabs.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._day_tabs.addTab(self._day_split, "Group A–D")
-        self._day_tabs.addTab(self._day_split2, "Group E–H")
-        self._day_tabs.currentChanged.connect(self._on_day_tab_changed)
+        self._grid.day_col1 = QSplitter(Qt.Orientation.Vertical)
+        self._grid.day_col1.addWidget(self._grid.day_boxes[0])
+        self._grid.day_col1.addWidget(self._grid.day_boxes[2])
+        self._grid.day_col1.setSizes([500, 500])
+        self._grid.day_col2 = QSplitter(Qt.Orientation.Vertical)
+        self._grid.day_col2.addWidget(self._grid.day_boxes[1])
+        self._grid.day_col2.addWidget(self._grid.day_boxes[3])
+        self._grid.day_col2.setSizes([500, 500])
+        self._grid.day_split = QSplitter(Qt.Orientation.Horizontal)
+        self._grid.day_split.addWidget(self._grid.day_col1)
+        self._grid.day_split.addWidget(self._grid.day_col2)
+        self._grid.day_split.setSizes([500, 500])
+        self._grid.day_col1.splitterMoved.connect(
+            lambda *_: self._grid.day_col2.setSizes(self._grid.day_col1.sizes()))
+        self._grid.day_col2.splitterMoved.connect(
+            lambda *_: self._grid.day_col1.setSizes(self._grid.day_col2.sizes()))
+        self._grid.day_col3 = QSplitter(Qt.Orientation.Vertical)
+        self._grid.day_col3.addWidget(self._grid.day_boxes[4])
+        self._grid.day_col3.addWidget(self._grid.day_boxes[6])
+        self._grid.day_col3.setSizes([500, 500])
+        self._grid.day_col4 = QSplitter(Qt.Orientation.Vertical)
+        self._grid.day_col4.addWidget(self._grid.day_boxes[5])
+        self._grid.day_col4.addWidget(self._grid.day_boxes[7])
+        self._grid.day_col4.setSizes([500, 500])
+        self._grid.day_split2 = QSplitter(Qt.Orientation.Horizontal)
+        self._grid.day_split2.addWidget(self._grid.day_col3)
+        self._grid.day_split2.addWidget(self._grid.day_col4)
+        self._grid.day_split2.setSizes([500, 500])
+        self._grid.day_col3.splitterMoved.connect(
+            lambda *_: self._grid.day_col4.setSizes(self._grid.day_col3.sizes()))
+        self._grid.day_col4.splitterMoved.connect(
+            lambda *_: self._grid.day_col3.setSizes(self._grid.day_col4.sizes()))
+        self._grid.day_tabs = QTabWidget()
+        self._grid.day_tabs.setDocumentMode(True)
+        self._grid.day_tabs.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._grid.day_tabs.addTab(self._grid.day_split, "Group A–D")
+        self._grid.day_tabs.addTab(self._grid.day_split2, "Group E–H")
+        self._grid.day_tabs.currentChanged.connect(self._on_day_tab_changed)
         # Drag-hover flips the day sub-tab too (handled in eventFilter).
-        self._day_tabs.tabBar().setAcceptDrops(True)
+        self._grid.day_tabs.tabBar().setAcceptDrops(True)
         # 🧹 in the day page's tab row: empty all day playlists (with confirm) —
         # unlike the tab's ✕ this reads as "clear", and the tab name is kept.
         day_clear = QToolButton()
@@ -1176,19 +1179,19 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         day_clear.setAutoRaise(True)
         day_clear.setToolTip("Clear all tournament-day playlists")
         day_clear.clicked.connect(self._clear_day_plan)
-        self._day_tabs.setCornerWidget(day_clear, Qt.Corner.TopRightCorner)
+        self._grid.day_tabs.setCornerWidget(day_clear, Qt.Corner.TopRightCorner)
 
         # All grids live in a tab widget. In 1/2/4-deck modes the tab bar is hidden
         # and only the first page shows, so the deck area looks like a plain panel;
         # 8-deck mode reveals "Group E–H", a loaded day plan reveals "📅 Tournament day".
-        self._deck_tabs = QTabWidget()
-        self._deck_tabs.setDocumentMode(True)
-        self._deck_tabs.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._deck_tabs.addTab(self._decks_split, "Group A–D")
-        self._deck_tabs.addTab(self._decks_split2, "Group E–H")
-        self._deck_tabs.addTab(self._day_tabs, "📅 Tournament day")
+        self._grid.deck_tabs = QTabWidget()
+        self._grid.deck_tabs.setDocumentMode(True)
+        self._grid.deck_tabs.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._grid.deck_tabs.addTab(self._grid.decks_split, "Group A–D")
+        self._grid.deck_tabs.addTab(self._grid.decks_split2, "Group E–H")
+        self._grid.deck_tabs.addTab(self._grid.day_tabs, "📅 Tournament day")
         # The 📅 tab only shows when its view is switched on (_apply_deck_view).
-        self._deck_tabs.setTabVisible(2, False)
+        self._grid.deck_tabs.setTabVisible(2, False)
         # ✕ on the 📅 tab closes the whole tournament-day view (clears the day
         # decks after a confirm); double-click on the tab renames it to the
         # competition name, e.g. "DanceComp 2026" (handled in eventFilter).
@@ -1200,18 +1203,18 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         day_close.setAutoRaise(True)
         day_close.setToolTip("Close the tournament day — clears all 📅 day decks")
         day_close.clicked.connect(self._close_day_plan)
-        self._deck_tabs.tabBar().setTabButton(
+        self._grid.deck_tabs.tabBar().setTabButton(
             2, QTabBar.ButtonPosition.RightSide, day_close)
         # A QTabWidget normally draws a pane border + margin around its pages; strip
         # both so a single-tab (≤4-deck) view is visually identical to the old layout.
-        self._deck_tabs.setStyleSheet(
+        self._grid.deck_tabs.setStyleSheet(
             "QTabWidget::pane { border: 0; margin: 0; } "
             "QTabWidget::tab-bar { left: 0; }")
-        self._deck_tabs.currentChanged.connect(self._on_deck_tab_changed)
+        self._grid.deck_tabs.currentChanged.connect(self._on_deck_tab_changed)
         # Accept drag-hover on the tab bar: dragging a track onto a tab flips the
         # 8-deck view to that group's 4 decks so it can be dropped there (handled
         # in eventFilter). The tab bar itself takes no drop — it's just a switcher.
-        self._deck_tabs.tabBar().setAcceptDrops(True)
+        self._grid.deck_tabs.tabBar().setAcceptDrops(True)
         # 🎛 Sample pads that fire OVER the deck music (Tusch, applause, a bed
         # under the Siegerehrung). Its own dock, not a tab — the wall is used
         # while watching the running heat, not instead of it.
@@ -1223,28 +1226,28 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         # the 4 wishlist boxes directly; in 2×2 grid mode (4 wishlists only) it instead
         # holds two vertical column splitters — wish 1/3 left, wish 2/4 right, mirroring
         # the deck grid. _rebuild_wish_layout reparents the boxes between the two shapes.
-        self._wish_col1 = QSplitter(Qt.Orientation.Vertical)
-        self._wish_col2 = QSplitter(Qt.Orientation.Vertical)
+        self._grid.wish_col1 = QSplitter(Qt.Orientation.Vertical)
+        self._grid.wish_col2 = QSplitter(Qt.Orientation.Vertical)
         # One shared row divider for the 2×2 grid (drag either handle, both move).
-        self._wish_col1.splitterMoved.connect(
-            lambda *_: self._wish_col2.setSizes(self._wish_col1.sizes()))
-        self._wish_col2.splitterMoved.connect(
-            lambda *_: self._wish_col1.setSizes(self._wish_col2.sizes()))
-        self._wish_split = QSplitter(Qt.Orientation.Horizontal)
+        self._grid.wish_col1.splitterMoved.connect(
+            lambda *_: self._grid.wish_col2.setSizes(self._grid.wish_col1.sizes()))
+        self._grid.wish_col2.splitterMoved.connect(
+            lambda *_: self._grid.wish_col1.setSizes(self._grid.wish_col2.sizes()))
+        self._grid.wish_split = QSplitter(Qt.Orientation.Horizontal)
         self._rebuild_wish_layout()
         # Remember the user's manual divider drags per wish-state (2 vs 3 vs 4 visible
         # wishlists each keep their own layout); _update_wish_area replays these instead
         # of snapping back to the default ratio. Persisted across sessions in _save_layout.
         self._wish_sizes: dict[int, list[int]] = {}
-        self._wish_split.splitterMoved.connect(self._on_wish_split_moved)
+        self._grid.wish_split.splitterMoved.connect(self._on_wish_split_moved)
 
-        self._right_split = QSplitter(Qt.Orientation.Vertical)
-        self._right_split.addWidget(self._deck_tabs)
+        self._grid.right_split = QSplitter(Qt.Orientation.Vertical)
+        self._grid.right_split.addWidget(self._grid.deck_tabs)
         # Warm-up (Eintanzen) panel sits ABOVE the wishlist, BELOW the playlists;
         # hidden until a warm-up is generated (or restored from autosave).
-        self._right_split.addWidget(self._warmup_box)
-        self._warmup_box.setVisible(False)
-        self._right_split.addWidget(self._wish_split)
+        self._grid.right_split.addWidget(self._grid.warmup_box)
+        self._grid.warmup_box.setVisible(False)
+        self._grid.right_split.addWidget(self._grid.wish_split)
         # Library browser docked under the wishlists — foldable to its header,
         # fully hideable via the 📚 toolbar toggle.
         self._lib_browser = LibraryBrowser()
@@ -1278,8 +1281,8 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         # A tournament list may point outside the library (an older copy of the
         # collection, a stick) — those tracks are read off the file itself.
         self._tourney_tree.resolve_entry = (
-            lambda p: self._lib.make_external_entry(p, self._cache)
-            if self._lib else None)
+            lambda p: self._library.lib.make_external_entry(p, self._library.cache)
+            if self._library.lib else None)
         self._lib_tabs = QTabWidget()
         self._lib_tabs.setDocumentMode(True)
         self._lib_tabs.setStyleSheet(
@@ -1288,9 +1291,9 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         self._lib_tabs.addTab(self._lib_browser, "📚  Library")
         self._lib_tabs.addTab(self._tourney_tree, "🏆  Tournaments")
         self._lib_tabs.currentChanged.connect(self._on_lib_tab_changed)
-        self._right_split.addWidget(self._lib_tabs)
-        self._right_split.setStretchFactor(0, 1)
-        self._right_split.setSizes([560, 200, 160, 160])
+        self._grid.right_split.addWidget(self._lib_tabs)
+        self._grid.right_split.setStretchFactor(0, 1)
+        self._grid.right_split.setSizes([560, 200, 160, 160])
         self._lib_tabs.setVisible(bool(self._settings.get("library_pane", True)))
         if self._settings.get("library_folded"):
             self._lib_browser.set_folded(True)
@@ -1300,22 +1303,22 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         # Folded tabs ARE the minimized representation — never let a splitter
         # collapse a pane to 0px on top of that (the tabs would vanish with no
         # way to unfold them).
-        for s in (self._decks_col1, self._decks_col2, self._decks_split,
-                  self._decks_col3, self._decks_col4, self._decks_split2,
-                  self._wish_col1, self._wish_col2,
-                  self._wish_split, self._right_split):
+        for s in (self._grid.decks_col1, self._grid.decks_col2, self._grid.decks_split,
+                  self._grid.decks_col3, self._grid.decks_col4, self._grid.decks_split2,
+                  self._grid.wish_col1, self._grid.wish_col2,
+                  self._grid.wish_split, self._grid.right_split):
             s.setChildrenCollapsible(False)
-        rl.addWidget(self._right_split, stretch=1)
+        rl.addWidget(self._grid.right_split, stretch=1)
 
         # Single-playlist view by default; _dual_btn reveals decks 2–4 / wishlists.
-        self._wish_box2.setVisible(False)
-        self._wish_box3.setVisible(False)
-        self._wish_box4.setVisible(False)
+        self._grid.wish_box2.setVisible(False)
+        self._grid.wish_box3.setVisible(False)
+        self._grid.wish_box4.setVisible(False)
         self._apply_deck_view()   # hides decks B/C/D + wishlist area for _deck_count == 1
-        self._focused_table = self._tableA   # Ctrl+S target, updated on focus
+        self._focused_table = self._deckset.tableA   # Ctrl+S target, updated on focus
         # The list whose own play values the panel shows and edits.
         self._panel_table = self._focused_table
-        self._set_active_table(self._tableA)
+        self._set_active_table(self._deckset.tableA)
 
     def _setup_shortcuts(self):
         """⌨ The window's keyboard shortcuts."""
@@ -1433,13 +1436,13 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         # comes back exactly as they left it. Restored at the end of construction.
         self._persist_splitters = {
             "main":  self._main_splitter,
-            "right": self._right_split,
-            "cols":  self._decks_split,
-            "col1":  self._decks_col1,
-            "col2":  self._decks_col2,
-            "cols2": self._decks_split2,
-            "col3":  self._decks_col3,
-            "col4":  self._decks_col4,
+            "right": self._grid.right_split,
+            "cols":  self._grid.decks_split,
+            "col1":  self._grid.decks_col1,
+            "col2":  self._grid.decks_col2,
+            "cols2": self._grid.decks_split2,
+            "col3":  self._grid.decks_col3,
+            "col4":  self._grid.decks_col4,
             # NOTE: _wish_split is NOT here — its layout is persisted per wish-state
             # via _wish_sizes (layout/wish_sizes), replayed by _update_wish_area.
         }
@@ -1470,12 +1473,12 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         # Parented, so _stop_workers finds it: an unparented loader is nobody's
         # child, outlives the window that started it and is destroyed mid-scan
         # when the process ends — which Qt answers by aborting.
-        self._loader = LibraryLoader(music_dir=self._settings.get("library_dir"),
-                                     parent=self)
-        self._loader.status.connect(self._loading_dlg.set_status)
-        self._loader.finished_ok.connect(self._on_library_loaded)
-        self._loader.error.connect(self._on_library_error)
-        self._loader.start()
+        self._library.loader = LibraryLoader(music_dir=self._settings.get("library_dir"),
+                                             parent=self)
+        self._library.loader.status.connect(self._loading_dlg.set_status)
+        self._library.loader.finished_ok.connect(self._on_library_loaded)
+        self._library.loader.error.connect(self._on_library_error)
+        self._library.loader.start()
 
     # ── App mode (planner / player / both) ──────────────────────────────────────
 
@@ -1515,7 +1518,7 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         self._play_panel.set_settings_visible(not planning)
         # The decks' 🔒/🔓/✋ mode button is planning work too — it goes with the panel
         # (and comes back with it, without a restart).
-        for d in list(self._deck_of.values()):
+        for d in list(self._deckset.deck_of.values()):
             if d.mode_btn is not None:
                 self._refresh_mode_btn(d.table)
         self._apply_warmup_labels(mode)
@@ -1551,14 +1554,14 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         dropped .m3u, 📚 the library open and the 🎛 cartwall away. The 🎉 party
         set goes with it — full length, auto-advance, no break, equalized
         volume — which is what such a list has to play with."""
-        self._deck_count = 0
+        self._deckset.deck_count = 0
         self._apply_deck_view()
         self._set_wish_state(0)
         self._set_compact_state(2)
         self._warmup_toggle_btn.setChecked(True)   # arms an empty party list
         self._lib_btn.setChecked(True)
         self._cart_btn.setChecked(False)
-        self._on_table_focused(self._warmup_table)   # the panel shows the party list
+        self._on_table_focused(self._deckset.warmup_table)   # the panel shows the party list
         self._set_party_mode(True)
         save_settings(self._settings)   # the consumed flag must not come back
         log.info("🎚️ Player-only first start — venue layout applied\n"
@@ -1693,8 +1696,7 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
 
     # Beats per bar by dance: filename BPM values are BARS per minute, librosa
     # measures BEATS per minute — the product of the two bridges them.
-    _BEATS_PER_BAR = {"LW": 3, "TG": 2, "WW": 3, "SF": 4, "QS": 4,
-                      "CC": 4, "SA": 2, "RB": 4, "PD": 2, "JI": 4}
+    _BEATS_PER_BAR = BEATS_PER_BAR
     # Metric levels a beat tracker commonly locks onto instead of the true
     # beat: octaves (×2, ×4), the bar of triple meters (×3) and the dotted /
     # compound groupings (×1.5). Any of these counts as "matching the label".
@@ -1947,7 +1949,7 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         # track can be dropped onto one of its 4 decks. The tab bar accepts the
         # drag only to keep the hover events flowing; it never takes the drop.
         if event.type() in (QEvent.Type.DragEnter, QEvent.Type.DragMove):
-            for tabs in (self._deck_tabs, self._day_tabs):
+            for tabs in (self._grid.deck_tabs, self._grid.day_tabs):
                 tb = tabs.tabBar()
                 if obj is tb:
                     idx = tb.tabAt(event.position().toPoint())
@@ -1957,7 +1959,7 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
                     return True
         # Double-click on the 📅 tab → rename it to the competition name.
         if event.type() == QEvent.Type.MouseButtonDblClick:
-            tb = self._deck_tabs.tabBar()
+            tb = self._grid.deck_tabs.tabBar()
             if obj is tb and tb.tabAt(event.position().toPoint()) == 2:
                 self._rename_day_tab()
                 return True
@@ -1965,7 +1967,7 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
         # close menu; Group A–D / E–H: clear-that-page menu. Beside the tabs
         # (the bar spans the whole width) → open a 📅 tab.
         if event.type() == QEvent.Type.ContextMenu:
-            tb = self._deck_tabs.tabBar()
+            tb = self._grid.deck_tabs.tabBar()
             if obj is tb:
                 idx = tb.tabAt(event.pos())
                 if idx == 2:
@@ -1987,7 +1989,12 @@ class MainWindow(QMainWindow, DeckLayoutMixin, GenerateMixin, ImportMixin, Persi
                     and QApplication.activeWindow() is self):
                 fw = QApplication.focusWidget()
                 if not isinstance(fw, (QLineEdit, QPlainTextEdit, QSpinBox)):
-                    self._big_player.toggle_play()
+                    # A double tap is one press, not play-then-pause; the
+                    # swallowed tap still must not reach the focused widget.
+                    now = time.monotonic()
+                    if now - self._space_at >= QApplication.doubleClickInterval() / 1000:
+                        self._space_at = now
+                        self._big_player.toggle_play()
                     return True
             if (event.key() in (Qt.Key.Key_X, Qt.Key.Key_W)
                     and (event.modifiers() & Qt.KeyboardModifier.ControlModifier)
@@ -2331,8 +2338,12 @@ def run_gui():
     # than on the next start.
     if ensure_error_reports_choice():
         error_reports.apply(load_settings())
+    # 🔔 Asked under that question; asked on its own only where it was not.
+    ensure_update_check_choice()
 
     app.window = MainWindow()  # keep reference; shows itself after library loads
+    app.update_notice = UpdateNotice(app.window)
+    app.update_notice.start(load_settings())
 
     if prev_crash:
         # Deferred into the event loop so the library keeps loading behind the

@@ -22,8 +22,11 @@ else
     echo "🧹 ruff not installed — skipping lint (pip install ruff)"
 fi
 
-echo "🧪 whole suite… (~4.5 min)"
-QT_QPA_PLATFORM=offscreen "$PY" -m unittest discover -p "test_*.py" -q || {
+# Across several processes (tools/parallel_suite.py): under 2 min instead of
+# ~7, and a native crash is retried once instead of refusing the push. The
+# runner prints the time it took, so this comment need not keep up with it.
+echo "🧪 whole suite, in parallel…"
+"$PY" -m tools.parallel_suite || {
     echo "🛑 Suite is red — push refused."
     echo "   Fix it, or push with --no-verify if you know what you are doing."
     exit 1

@@ -47,17 +47,17 @@ class ClearShortcutTest(unittest.TestCase):
         self.assertEqual(self.win._clear_sc.key(), QKeySequence("Ctrl+Shift+Del"))
 
     def test_it_empties_the_focused_deck(self):
-        deck = self.win._tableA
+        deck = self.win._deckset.tableA
         self.win._on_table_focused(deck)
         with mock.patch.object(deck, "_clear_entire") as clear:
             self.win._clear_sc.activated.emit()
         clear.assert_called_once_with()
 
     def test_it_empties_the_focused_wishlist(self):
-        wish = self.win._wishlist
+        wish = self.win._deckset.wishlist
         self.win._on_table_focused(wish)
         with mock.patch.object(wish, "_clear_entire") as clear, \
-                mock.patch.object(self.win._tableA, "_clear_entire") as deck:
+                mock.patch.object(self.win._deckset.tableA, "_clear_entire") as deck:
             self.win._clear_sc.activated.emit()
         clear.assert_called_once_with()
         deck.assert_not_called()

@@ -1,6 +1,6 @@
 """Run the tests a commit has to pass, read off the files it stages.
 
-The whole suite is too slow to carry every commit (~3400 tests, ~4.5 min), and
+The whole suite is too slow to carry every commit (~5,200 tests, ~7 min serially), and
 a gate that slow ends up skipped with --no-verify. So the pre-commit hook asks
 this tool which part of the suite the staged change can actually break:
 

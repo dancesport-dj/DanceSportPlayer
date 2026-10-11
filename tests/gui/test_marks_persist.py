@@ -62,11 +62,11 @@ class MarkPersistenceTest(unittest.TestCase):
         self.rum = _entry("Rum One (RB 25)", "RB")
         lib = MusicLibrary()
         lib.entries.extend([self.cha, self.rum])
-        self.win._lib = lib
+        self.win._library.lib = lib
 
         # Deck B (not the active deck) so _deck_meta falls back to the stored
         # context instead of the live combos.
-        self.table = self.win._tableB
+        self.table = self.win._deckset.tableB
         self.table.load(
             {"Runde 1": [[self.cha, self.rum]]},
             ["CC", "RB"],
@@ -139,7 +139,7 @@ class MarkPersistenceTest(unittest.TestCase):
             [RoundConfig(name="Runde 1", heats=1, tier="final")],
             "S",
             play_cb=self.win._play_or_stop,
-            suggester=PlaylistSuggester(self.win._lib),
+            suggester=PlaylistSuggester(self.win._library.lib),
             use_timbre=False, style="Latin",
             dynamic=True, capacity=[1],
         )
@@ -165,7 +165,7 @@ class MarkPersistenceTest(unittest.TestCase):
             [RoundConfig(name="Runde 1", heats=1, tier="final")],
             "S",
             play_cb=self.win._play_or_stop,
-            suggester=PlaylistSuggester(self.win._lib),
+            suggester=PlaylistSuggester(self.win._library.lib),
             use_timbre=False, style="Latin",
             dynamic=False,
         )
@@ -208,7 +208,7 @@ class FreeOrderMarkTest(MarkPersistenceTest):
             [RoundConfig(name="Runde 1", heats=1, tier="final")],
             "S",
             play_cb=self.win._play_or_stop,
-            suggester=PlaylistSuggester(self.win._lib),
+            suggester=PlaylistSuggester(self.win._library.lib),
             use_timbre=False, style="Latin",
             dynamic=True, capacity=[1],
         )

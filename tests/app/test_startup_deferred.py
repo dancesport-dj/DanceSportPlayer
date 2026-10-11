@@ -16,6 +16,7 @@ still actually run.
 import os
 import tempfile
 import unittest
+from types import SimpleNamespace
 
 # Offscreen BEFORE any QApplication exists, and state files into a temp dir (the
 # gui modules resolve those at import time — see test_gui_smoke.py).
@@ -27,6 +28,7 @@ from PySide6.QtWidgets import QApplication
 
 from gui import main_global as gmg
 from planner import i18n
+from gui.deck_set import DeckSet
 
 
 class _Bar:
@@ -78,13 +80,13 @@ class _Win:
 
     def __init__(self):
         self.log = []
-        self._all_tables = []
+        self._deckset = DeckSet()
+        self._deckset.all_tables = []
         self._loading_dlg = _Splash(self.log)
         self._lib_browser = _Entries(self.log, "browser")
         self._tourney_tree = _Entries(self.log, "tree")
         self._bar = _Bar(self.log)
-        self._lib = None
-        self._cache = None
+        self._library = SimpleNamespace(lib=None, cache=None)
 
     def statusBar(self):
         return self._bar
@@ -177,8 +179,8 @@ class DeferredStartupTest(_StartupCase):
         """Deferring the tail must not defer the library itself: everything the
         open window offers to do reads self._lib."""
         self.win._on_library_loaded(_Lib(), "the cache")
-        self.assertEqual(len(self.win._lib.entries), 3)
-        self.assertEqual(self.win._cache, "the cache")
+        self.assertEqual(len(self.win._library.lib.entries), 3)
+        self.assertEqual(self.win._library.cache, "the cache")
         self._settle()
 
 

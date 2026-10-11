@@ -10,6 +10,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 from shared.audio_probes import parse_noise_floor  # does NOT import gui.dialogs
@@ -99,7 +100,7 @@ class ProbeWiringTest(unittest.TestCase):
         class Win(self.ImportMixin):
             _NOISE_FLOOR_DB = -50.0
             _settings = {}
-            _cache = _Cache()
+            _library = SimpleNamespace(cache=_Cache())
             _check_noise = on
 
         return Win(), calls

@@ -76,7 +76,7 @@ class AnnounceWhenCaptionTest(_AnnouncePanel):
     def test_the_german_pair_left_the_english_behind(self):
         """A caption missing from the catalog would still be English, and
         still fit — so measuring alone would not catch it."""
-        for de, en in zip(self.radios("de"), self.radios("en")):
+        for de, en in zip(self.radios("de"), self.radios("en"), strict=True):
             with self.subTest(caption=en.text()):
                 self.assertNotEqual(de.text(), en.text())
 

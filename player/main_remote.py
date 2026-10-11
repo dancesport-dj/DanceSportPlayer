@@ -33,6 +33,7 @@ _EVENT_TEXT = {
     "login": "✔ %(ip)s logged in with the PIN",
     "wrong_pin": "✖ %(ip)s sent a wrong PIN",
     "locked": "⛔ %(ip)s locked out for %(detail)s s — too many wrong PINs",
+    "locked_all": "⛔ New phones paused for %(detail)s s — too many wrong PINs from the network",
     "refused": "⛔ %(ip)s refused — not on the local network",
     "cmd": "%(ip)s → %(detail)s",
     "failed": "⚠ Could not start: %(detail)s",

@@ -34,7 +34,7 @@ def _pack(field: str, value):
 
 def _unpack(row) -> dict:
     out = {}
-    for field, raw in zip(EDIT_FIELDS, row):
+    for field, raw in zip(EDIT_FIELDS, row, strict=True):
         if raw is None:
             continue
         if field in _LIST_FIELDS:

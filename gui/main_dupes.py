@@ -66,9 +66,9 @@ class DuplicateCheckMixin:
         key are byte-identical music."""
         if entry is None:
             return None
-        if entry.path and self._cache is not None:
+        if entry.path and self._library.cache is not None:
             try:
-                fp = self._cache.known_fingerprint(Path(entry.path))   # in-memory only
+                fp = self._library.cache.known_fingerprint(Path(entry.path))   # in-memory only
                 if fp:
                     return f"fp:{fp}"
             except Exception as exc:
@@ -116,9 +116,9 @@ class DuplicateCheckMixin:
                 if not getattr(e, "path", None):
                     continue
                 paths.add(path_key(e.path))
-                if self._cache is not None:
+                if self._library.cache is not None:
                     try:
-                        fp = self._cache.fingerprint(Path(e.path))   # hashed on demand
+                        fp = self._library.cache.fingerprint(Path(e.path))   # hashed on demand
                         if fp:
                             fps.add(fp)
                     except Exception as exc:
@@ -147,7 +147,7 @@ class DuplicateCheckMixin:
             return 0
         paths, fps = self._deck_dedup_index(exclude=table)
         # hashed on demand
-        fingerprint = self._cache.fingerprint if self._cache is not None else None
+        fingerprint = self._library.cache.fingerprint if self._library.cache is not None else None
         rows = []
         for r, m in table._row_meta.numbered():
             e = m.entry
@@ -183,7 +183,7 @@ class DuplicateCheckMixin:
         list, 🔀 shared between two)
         with a Keep / Replace control per occurrence. Reports both 🟰 exact copies
         (identical audio) and ≈ similar songs (same title, a different recording)."""
-        if not self._lib:
+        if not self._library.lib:
             QMessageBox.information(self, "Check duplicates",
                                     "Load the music library first.")
             return
@@ -228,7 +228,7 @@ class DuplicateCheckMixin:
         screen), plus the wishlists and the Eintanzen panel that are shown and
         hold titles. A folded list still counts as shown."""
         tables = self._checkable_deck_tables()
-        for t in [*self._wishlists, self._warmup_table]:
+        for t in [*self._deckset.wishlists, self._deckset.warmup_table]:
             box = self.deck(t).box
             if box is not None and box.isVisibleTo(self) and t._row_meta.has_songs():
                 tables.append(t)
@@ -282,7 +282,7 @@ class DuplicateCheckMixin:
         would make every reference track look unused."""
         from gui.workers import ReferenceCleanWorker
         return ReferenceCleanWorker(ref_path, tournament_paths,
-                                    self._cache, m3u_track_paths)
+                                    self._library.cache, m3u_track_paths)
 
     def _check_dropped_duplicates(self, paths: list, progress_cb=None) -> dict:
         """Tab 2 of Check duplicates: check the dragged-in .m3u playlists (raw audio is
@@ -294,7 +294,7 @@ class DuplicateCheckMixin:
         same normalised title but a different file. Each track keeps its 1-based line
         number in its own playlist. Returns
         {'within': [...], 'cross': [...]}; calls progress_cb(done, total) while reading."""
-        if not self._lib or self._cache is None:
+        if not self._library.lib or self._library.cache is None:
             return {"within": [], "cross": []}
         # One (name, [rec]) per dropped file, in drop order.
         file_tracks: list[tuple] = []
@@ -314,7 +314,7 @@ class DuplicateCheckMixin:
                 fp = None
                 if entry is not None:
                     try:
-                        fp = self._cache.known_fingerprint(Path(t))
+                        fp = self._library.cache.known_fingerprint(Path(t))
                     except Exception:
                         fp = None
                 exact = f"fp:{fp}" if fp else f"p:{str(t).lower()}"
@@ -346,7 +346,7 @@ class DuplicateCheckMixin:
         replacements already chosen in its dialog. Otherwise a replacement is the
         next duplicate, and the check plays ping-pong. The wishlists stay on
         offer: they are where a replacement comes from (its ⭐ option)."""
-        taken = [m.entry for t in self._dup_check_tables() if t not in self._wishlists
+        taken = [m.entry for t in self._dup_check_tables() if t not in self._deckset.wishlists
                  for _r, m in t._row_meta.numbered()]
         dlg = getattr(self, "_dup_dlg", None)
         if dlg is not None:
@@ -356,7 +356,7 @@ class DuplicateCheckMixin:
     def _pick_replacement(self, entry, avoid=None) -> MusicEntry | None:
         """Open the Similar-Tracks picker for `entry`; return the chosen track or None.
         `avoid` (duplicate-report records) hides the tracks that clash with them."""
-        lib = self._lib
+        lib = self._library.lib
         if lib is None:
             return None
         results = lib.similar_tracks(entry, n=100, same_dance=True, min_display=0.5)
@@ -379,7 +379,7 @@ class DuplicateCheckMixin:
         holder = {"entry": None}
         dlg = SimilarTracksDialog(
             entry, results, self, play_cb=self._play_or_stop, lib=lib,
-            cache=self._cache, seek_cb=self._seek,
+            cache=self._library.cache, seek_cb=self._seek,
             wishlist_paths=self.current_wishlist_paths(), hide_fn=hide,
             pick_cb=lambda e: holder.__setitem__("entry", e))
         dlg.setModal(True)
@@ -405,7 +405,7 @@ class DuplicateCheckMixin:
             elif self._replace_occurrence(table, row, new_entry):
                 changed.add(table)
                 n += 1
-                if table not in self._wishlists:
+                if table not in self._deckset.wishlists:
                     taken.append(new_entry)
         for table in changed:
             table._notify_changed()   # persists + feeds the undo timeline
@@ -440,17 +440,17 @@ class DuplicateCheckMixin:
             if not getattr(e, "path", None):
                 continue
             paths.add(path_key(e.path))
-            if self._cache is not None:
+            if self._library.cache is not None:
                 try:
-                    fp = self._cache.fingerprint(Path(e.path))
+                    fp = self._library.cache.fingerprint(Path(e.path))
                     if fp:
                         fps.add(fp)
                 except Exception as exc:
                     log.debug("🔁 Could not fingerprint a replacement: %s", exc)
         if not paths:
             return
-        fingerprint = self._cache.fingerprint if self._cache is not None else None
-        for wishlist in self._wishlists:
+        fingerprint = self._library.cache.fingerprint if self._library.cache is not None else None
+        for wishlist in self._deckset.wishlists:
             rows = [r for r, m in wishlist._row_meta.numbered()
                     if is_planned(getattr(m.entry, "path", None), paths, fps, fingerprint)]
             if rows:

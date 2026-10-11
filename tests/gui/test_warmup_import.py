@@ -53,8 +53,8 @@ class WarmupImportTest(unittest.TestCase):
         self.win._loading_dlg.accept()   # closeEvent blocks a plain close()
         self.addCleanup(reap_widget, self.win)
         self.lib = MusicLibrary()
-        self.win._lib = self.lib
-        self.table = self.win._warmup_table
+        self.win._library.lib = self.lib
+        self.table = self.win._deckset.warmup_table
 
     # ── fixtures ────────────────────────────────────────────────────────────
     def _m3u(self, name, dances):

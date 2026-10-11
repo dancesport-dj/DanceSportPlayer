@@ -11,6 +11,7 @@ It is modeless now, so it is freed when it is closed.
 
 import os
 import unittest
+from types import SimpleNamespace
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -23,7 +24,7 @@ from tests.qt_test_support import reap_widget
 
 
 class _Win(QWidget, DuplicateCheckMixin):
-    _lib = object()
+    _library = SimpleNamespace(lib=object())
 
     def _deck_dup_report(self):
         return {"within": [], "cross": []}

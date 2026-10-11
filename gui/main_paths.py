@@ -155,7 +155,7 @@ class PathFixMixin:
         the user's home folder, in that order."""
         by_name: dict[str, list[MusicEntry]] = {}
         by_path: dict[str, MusicEntry] = {}
-        lib = self._lib
+        lib = self._library.lib
         if lib and lib.entries:
             for e in lib.entries:
                 by_name.setdefault(Path(e.path).name.lower(), []).append(e)
@@ -176,16 +176,16 @@ class PathFixMixin:
         The panel is neither a deck nor a wishlist, and while it was left out the
         dialog answered a party list full of dead references with "all valid" —
         it had only ever looked at the decks."""
-        tables = self._visible_deck_tables() + list(getattr(self, "_wishlists", []))
+        tables = self._visible_deck_tables() + list(self._deckset.wishlists)
         if self._warmup_has_content():
-            tables.append(self._warmup_table)
+            tables.append(self._deckset.warmup_table)
         return tables
 
     def _run_deck_path_fix(self) -> str:
         """Relocate broken track references in the visible deck(s) — first by re-rooting
         under the search folders, then by a same-named library file — applying the swaps
         live. Returns an HTML summary for the dialog."""
-        lib = self._lib
+        lib = self._library.lib
         if not lib or not lib.entries:
             return "The library is still loading — try again in a moment."
         by_name, by_path, remapper = self._remap_index()
@@ -231,21 +231,23 @@ class PathFixMixin:
         pads = self._fix_cartwall_paths(remapper)
 
         if checked == 0:
-            return ("No tracks in the visible playlists or the wishlists."
+            return (i18n.t("No tracks in the visible playlists or the wishlists.")
                     + (f"<br>{self._pad_fix_line(pads)}" if pads else ""))
-        msg = [f"Checked {checked} tracks — {ok} already valid."]
+        msg = [i18n.t("Checked %d tracks — %d already valid.") % (checked, ok)]
         if pads:
             msg.append(self._pad_fix_line(pads))
         if fixed:
-            msg.append(f"🧭  Relocated {fixed} broken reference"
-                       f"{'s' if fixed != 1 else ''} to their real files "
-                       f"(Ctrl+Z undoes).")
+            msg.append((i18n.t("🧭  Relocated %d broken reference to their real files "
+                               "(Ctrl+Z undoes).") if fixed == 1
+                        else i18n.t("🧭  Relocated %d broken references to their real "
+                                    "files (Ctrl+Z undoes).")) % fixed)
         if unresolved:
-            msg.append(f"⚠  {len(unresolved)} still unresolved — no matching "
-                       f"file in the library:")
+            msg.append(i18n.t("⚠  %d still unresolved — no matching file in the "
+                              "library:") % len(unresolved))
             msg.extend("&nbsp;&nbsp;&nbsp;• " + html.escape(t) for t in unresolved[:20])
             if len(unresolved) > 20:
-                msg.append(f"&nbsp;&nbsp;&nbsp;… and {len(unresolved) - 20} more.")
+                msg.append("&nbsp;&nbsp;&nbsp;"
+                           + i18n.t("… and %d more") % (len(unresolved) - 20) + ".")
         # Valid tracks off the Referenzpfad are only reported here; 🧭 Fix swaps
         # the ones with a copy there (`_swap_decks_to_reference`).
         ref_copies, off_ref_none = self._deck_reference_rows()
@@ -253,22 +255,27 @@ class PathFixMixin:
         off_ref = off_ref_copy + len(off_ref_none)
         if off_ref:
             ref_root = self._settings.get("reference_path") or ""
-            msg.append(f"⚠  {off_ref} valid track{' is' if off_ref == 1 else 's are'} "
-                       f"not on the Reference path {html.escape(ref_root)}")
+            msg.append((i18n.t("⚠  %d valid track is not on the Reference path %s")
+                        if off_ref == 1
+                        else i18n.t("⚠  %d valid tracks are not on the Reference path %s"))
+                       % (off_ref, html.escape(ref_root)))
             if off_ref_copy:
-                msg.append(f"&nbsp;&nbsp;&nbsp;↪ {off_ref_copy} "
-                           f"{'has' if off_ref_copy == 1 else 'have'} a copy there "
-                           "— 🧭 Fix swaps them in the playlists.")
+                msg.append("&nbsp;&nbsp;&nbsp;"
+                           + (i18n.t("↪ %d has a copy there — 🧭 Fix swaps them in the "
+                                     "playlists.") if off_ref_copy == 1
+                              else i18n.t("↪ %d have a copy there — 🧭 Fix swaps them in "
+                                          "the playlists.")) % off_ref_copy)
             if off_ref_none:
-                msg.append(f"&nbsp;&nbsp;&nbsp;⚠ {len(off_ref_none)} "
-                           f"{'has' if len(off_ref_none) == 1 else 'have'} no copy there:")
+                msg.append("&nbsp;&nbsp;&nbsp;"
+                           + (i18n.t("⚠ %d has no copy there:") if len(off_ref_none) == 1
+                              else i18n.t("⚠ %d have no copy there:")) % len(off_ref_none))
                 msg.extend("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;• " + html.escape(t)
                            for t in off_ref_none[:20])
                 if len(off_ref_none) > 20:
-                    msg.append(f"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;… and "
-                               f"{len(off_ref_none) - 20} more.")
+                    msg.append("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
+                               + i18n.t("… and %d more") % (len(off_ref_none) - 20) + ".")
         if not unresolved and not fixed and not off_ref:
-            msg.append("✅  All track paths are valid.")
+            msg.append(i18n.t("✅  All track paths are valid."))
         if fixed:
             _show_toast(self, (i18n.t("🧭  Fixed %d track path") if fixed == 1
                                else i18n.t("🧭  Fixed %d track paths")) % fixed)
@@ -344,9 +351,8 @@ class PathFixMixin:
     @staticmethod
     def _pad_fix_line(moved: list) -> str:
         n = len(moved)
-        return (f"🎛  Re-pointed {n} cartwall pad{'s' if n != 1 else ''} "
-                f"at {'their' if n != 1 else 'its'} real sample"
-                f"{'s' if n != 1 else ''}.")
+        return (i18n.t("🎛  Re-pointed %d cartwall pad at its real sample.") if n == 1
+                else i18n.t("🎛  Re-pointed %d cartwall pads at their real samples.")) % n
 
     def _check_dropped_paths(self, paths: list, progress_cb=None):
         """Tab 2 of Fix paths: per dropped .m3u, classify each track path as valid /

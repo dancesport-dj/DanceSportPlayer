@@ -22,6 +22,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_sil_thr_"))
 
 import planner.db as pdb
+from planner import config as planner_config
 
 
 class ThresholdTest(unittest.TestCase):
@@ -50,8 +51,8 @@ class StaleSpansTest(unittest.TestCase):
 
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp(prefix="dp_sil_thr_db_"))
-        self._saved = (pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
-        pdb.AUDIO_DB_FILE = self.dir / "scratch.db"
+        self._saved = (planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
+        planner_config.AUDIO_DB_FILE = self.dir / "scratch.db"
         pdb._DB_LOCAL = threading.local()
         pdb._DB_INITIALIZED = False
         self.addCleanup(self._restore)
@@ -62,7 +63,7 @@ class StaleSpansTest(unittest.TestCase):
             pdb._DB_LOCAL.conn.close()
         except Exception:
             pass
-        pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = self._saved
+        planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = self._saved
 
     def _reopen(self):
         pdb._DB_LOCAL.conn.close()

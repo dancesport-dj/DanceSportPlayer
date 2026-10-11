@@ -13,6 +13,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from planner import config as planner_config
 from dancesport_planner import MusicEntry, MusicLibrary
@@ -549,6 +550,33 @@ class LearnOffTheLibraryTest(PlaylistDirTestBase):
         lib.adopt_playlist_index(learned)
         self.assertEqual(lib.entries[0].popularity, 0)
         self.assertEqual(lib.entries[0].source_info, "")
+
+
+class UnreadablePlaylistTest(PlaylistDirTestBase):
+    def test_a_playlist_that_fails_is_logged_not_swallowed(self):
+        """One broken playlist must not stop the others, but it must leave a
+        trace: which file, and why, plus how many were skipped in all."""
+        good = self._dir / "Turnier 2026 Hgr B TG.m3u"
+        bad = self._dir / "Turnier 2026 Hgr A TG.m3u"
+        good.write_text(r"D:\export\Tanguera (TG 32).mp3", encoding="utf-8")
+        bad.write_text(r"D:\export\Tanguera (TG 32).mp3", encoding="utf-8")
+        real = MusicLibrary._m3u_keys
+
+        def keys(lib, m3u):
+            if m3u == bad:
+                raise RuntimeError("boom")
+            return real(lib, m3u)
+
+        lib = self._lib_with_entry()
+        with mock.patch.object(MusicLibrary, "_m3u_keys", keys), \
+                self.assertLogs("dancesport.library", "DEBUG") as logs:
+            lib.relearn_playlists()
+        self.assertEqual(lib.entries[0].popularity, 1)
+        text = "\n".join(logs.output)
+        self.assertIn(str(bad), text)
+        self.assertIn("boom", text)
+        self.assertTrue(any(r.levelname == "INFO" and "1 playlist" in r.getMessage()
+                            for r in logs.records), text)
 
 
 if __name__ == "__main__":

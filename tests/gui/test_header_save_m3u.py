@@ -58,8 +58,8 @@ class HeaderSaveM3uTest(unittest.TestCase):
         self.win = self.gui.MainWindow()
         self.win._loading_dlg.accept()
         self.addCleanup(reap_widget, self.win)
-        self.win._lib = MusicLibrary()
-        self.table = self.win._tableB
+        self.win._library.lib = MusicLibrary()
+        self.table = self.win._deckset.tableB
         self.table.load_player_list([_entry("c1"), _entry("r1", "RB")],
                                     "Party", play_cb=None)
 
@@ -85,12 +85,12 @@ class HeaderSaveM3uTest(unittest.TestCase):
         save.assert_called_once_with(self.table)
 
     def test_an_empty_deck_offers_it_greyed_out(self):
-        self.assertFalse(self.header_menu(self.win._tableA)["💾  Save as M3U…"])
+        self.assertFalse(self.header_menu(self.win._deckset.tableA)["💾  Save as M3U…"])
 
     def test_the_wishlist_header_saves_it(self):
-        wish = self.win._wishlists[0]
+        wish = self.win._deckset.wishlists[0]
         tracks = [_entry("w1")]
-        self.win._lib.entries = tracks
+        self.win._library.lib.entries = tracks
         wish.load_wishlist(tracks, play_cb=None, suggester=None)
         with mock.patch.object(self.win, "_on_table_save_requested") as save:
             self.header_menu(wish, pick="💾")
@@ -110,14 +110,14 @@ class HeaderSaveM3uTest(unittest.TestCase):
     # ── the Group tab ───────────────────────────────────────────────────────
     def test_a_group_tab_saves_every_playlist_on_its_page(self):
         page = self.win._deck_tab_index(self.table)
-        other = next(t for t in self.win._decks
+        other = next(t for t in self.win._deckset.decks
                      if self.win._deck_tab_index(t) != page)
         other_tracks, wish_tracks = [_entry("s1", "SA")], [_entry("w2")]
         other.load_player_list(other_tracks, "Other", play_cb=None)
-        wish = self.win._wishlists[0]
+        wish = self.win._deckset.wishlists[0]
         wish.load_wishlist(wish_tracks, play_cb=None, suggester=None)
         # A saved list names its titles through the library.
-        self.win._lib.entries = [*self.table._row_meta.entries(),
+        self.win._library.lib.entries = [*self.table._row_meta.entries(),
                                  *other_tracks, *wish_tracks]
         from gui import main_export
         out_dir = _DIR / "grouptab"

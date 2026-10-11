@@ -31,7 +31,7 @@ import sys
 if sys.version_info < (3, 14):
     sys.exit(f"❌ Python {sys.version.split()[0]} is too old — the code needs 3.14+.\n"
              f"   interpreter: {sys.executable}\n"
-             f"   fix: python3.14 -m venv .venv && .venv/bin/pip install -r requirements.txt pyinstaller pillow")
+             f"   fix: python3.14 -m venv .venv && .venv/bin/pip install -r requirements.lock")
 
 # PIL only converts icon.png for the Dock icon; the rest are the app itself.
 # The player flavor is built without librosa on purpose (see BUILD.md), so
@@ -46,11 +46,11 @@ for mod in mods:
     except ImportError:
         missing.append(mod)
 if missing:
-    reqs = ("requirements-player.txt"
-            if os.environ.get("DANCESPORT_BUILD") == "player" else "requirements.txt")
+    reqs = ("requirements-player.lock"
+            if os.environ.get("DANCESPORT_BUILD") == "player" else "requirements.lock")
     sys.exit(f"❌ Build venv is missing: {', '.join(missing)}\n"
              f"   interpreter: {sys.executable}\n"
-             f"   fix: .venv/bin/pip install -r {reqs} pyinstaller pillow")
+             f"   fix: .venv/bin/pip install -r {reqs}")
 EOF
 
 # The manual as a PDF, which the spec bundles (tools/build_manual_pdf, printed

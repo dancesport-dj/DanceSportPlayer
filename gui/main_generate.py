@@ -75,7 +75,8 @@ def _spread_over_decks(decks: list, items: list) -> list[tuple]:
     sizes = [base + 1] * rem + [base] * (n_decks - rem)
     it = iter(items)
     return [(deck, [next(it) for _ in range(size)])
-            for deck, size in zip(decks, sizes)]
+            # Fewer sizes than decks when there are fewer items: the rest stay empty.
+            for deck, size in zip(decks, sizes, strict=False)]
 
 
 class GenerateMixin:
@@ -94,7 +95,7 @@ class GenerateMixin:
         one we're entering is restored if it was worked on before, otherwise the
         current grid stays put for the user to ⚡ Generate from history.
         """
-        if self._cfg.get_mode() != "Past Competitions" or not self._lib:
+        if self._cfg.get_mode() != "Past Competitions" or not self._library.lib:
             return
         if idx == self._active_replay_idx:
             return
@@ -113,10 +114,10 @@ class GenerateMixin:
 
     def _clear_replay_grid(self):
         """Blank the table when switching to a competition with no saved work yet."""
-        if self._table._current_play_row >= 0:
+        if self._deckset.table._current_play_row >= 0:
             self._play_or_stop(None)
-        self._table.setRowCount(0)
-        self._table._row_meta.clear()
+        self._deckset.table.setRowCount(0)
+        self._deckset.table._row_meta.clear()
         self._playlist = None
         self._replay_active = False
         self._cfg.save_btn.setEnabled(False)
@@ -151,13 +152,13 @@ class GenerateMixin:
         # against a stale "Latin"/"Standard" left over from the cleared list.
         table._style = ""
         self._refresh_mode_btn(table)
-        if table is not self._table:   # the focused deck's context is reset below
+        if table is not self._deckset.table:   # the focused deck's context is reset below
             self.deck(table).ctx = None
         # Reset the deck's header title back to its default ("Playlist N").
         default_name = self.deck(table).default_name
         if default_name:
             self._set_deck_name(table, default_name)
-        if table is self._table:
+        if table is self._deckset.table:
             self._playlist          = None
             self._mode              = "Favorites"
             self._ui_mode           = "Favorites"
@@ -174,7 +175,7 @@ class GenerateMixin:
     def _on_table_cleared(self, table: PlaylistTable):
         """A deck's header got a Del → blank that deck (focus it first so the active
         context is the one being cleared)."""
-        if self._is_deck(table) and table is not self._table:
+        if self._is_deck(table) and table is not self._deckset.table:
             self._set_active_table(table)
         self._blank_deck(table)
         self._apply_deck_view()   # a cleared day-plan deck may retire the 📅 tab
@@ -182,8 +183,8 @@ class GenerateMixin:
 
     def _clear_replay_sources(self):
         """Drop stale 'Past Competitions' tooltip data from the shared entries."""
-        if self._lib:
-            for e in self._lib.entries:
+        if self._library.lib:
+            for e in self._library.lib.entries:
                 e.replay_sources = None
 
     def _source_library(self):
@@ -200,7 +201,7 @@ class GenerateMixin:
         kind, path = self._cfg.get_source()
         if kind == "wishlists":
             entries, seen = [], set()
-            for t in self._wishlists:
+            for t in self._deckset.wishlists:
                 for e in t.wishlist_entries():
                     if str(e.path) not in seen:
                         seen.add(str(e.path))
@@ -209,7 +210,7 @@ class GenerateMixin:
                 return None, "", ("Your open wishlists are empty — park some "
                                   "tracks there first, or switch the source "
                                   "back to the Favorites library.")
-            return self._lib.restricted_to(entries), i18n.t("⭐ the open wishlists"), ""
+            return self._library.lib.restricted_to(entries), i18n.t("⭐ the open wishlists"), ""
         if kind == "m3u":
             if not path:
                 return None, "", "Choose an .m3u file first."
@@ -220,9 +221,9 @@ class GenerateMixin:
                 dlg.finish()
             if not entries:
                 return None, "", f"No resolvable tracks in {Path(path).name}."
-            return (self._lib.restricted_to(entries),
+            return (self._library.lib.restricted_to(entries),
                     f"📂 {Path(path).name}", "")
-        return self._lib, "", ""
+        return self._library.lib, "", ""
 
     def _browse_source_m3u(self):
         """'Browse…' next to the .m3u source: pick the file the next ⚡ Generate
@@ -235,7 +236,7 @@ class GenerateMixin:
             self._cfg.set_source_m3u(path)
 
     def _generate(self):
-        if not self._lib:
+        if not self._library.lib:
             return
         mode = self._cfg.get_mode()
         if mode == "Theme":
@@ -288,15 +289,15 @@ class GenerateMixin:
         self._mode          = "Favorites"
         self._ui_mode       = "Favorites"
         self._theme_entries = []
-        self._table.load(
+        self._deckset.table.load(
             self._playlist, dances, rounds, cls,
             play_cb=self._play_or_stop,
             suggester=self._suggester,
             use_timbre=use_timbre,
             style=style,
         )
-        self._set_deck_name(self._table, self._favorites_deck_name(age, cls, style))
-        self._reveal_deck(self._table)   # never fill a deck the view is hiding
+        self._set_deck_name(self._deckset.table, self._favorites_deck_name(age, cls, style))
+        self._reveal_deck(self._deckset.table)   # never fill a deck the view is hiding
         self._cfg.generate_btn.setEnabled(True)
         self._cfg.save_btn.setEnabled(True)
 
@@ -319,9 +320,9 @@ class GenerateMixin:
         competition — fully separated from the normal working decks A–H. All
         competitions share one 'already played today' exclusion pool, so no
         song repeats anywhere across the day (Paso Doble excepted)."""
-        if not self._lib:
+        if not self._library.lib:
             return
-        day_decks = self._day_decks
+        day_decks = self._deckset.day_decks
         old_day = [t for t in day_decks
                    if self._serialize_playlist_state(t) is not None]
         free = [t for t in day_decks if self._serialize_playlist_state(t) is None]
@@ -384,7 +385,7 @@ class GenerateMixin:
                     skipped.append(label)
                     continue
                 try:
-                    suggester = PlaylistSuggester(self._lib)
+                    suggester = PlaylistSuggester(self._library.lib)
                     playlist = suggester.suggest(
                         c_cls, rounds, dances,
                         use_timbre=use_timbre, style=c_style,
@@ -416,8 +417,8 @@ class GenerateMixin:
 
         if built:
             self._apply_deck_view()   # reveal the 📅 Tournament-day tab
-            self._deck_tabs.setCurrentIndex(2)
-            self._day_tabs.setCurrentIndex(0)
+            self._grid.deck_tabs.setCurrentIndex(2)
+            self._grid.day_tabs.setCurrentIndex(0)
             self._set_active_table(targets[0])
             self._cfg.save_btn.setEnabled(True)
             self._autosave_playlist()
@@ -452,7 +453,7 @@ class GenerateMixin:
             self._dances = first["dances"]
             self._suggester = first["suggester"]
             self._playlist = first["playlist"]
-            self._table.load(
+            self._deckset.table.load(
                 first["playlist"], first["dances"], first["rounds"],
                 first["cls"],
                 play_cb=self._play_or_stop,
@@ -469,7 +470,7 @@ class GenerateMixin:
             self._dances = union
             self._suggester = first["suggester"]
             self._playlist = merged
-            self._table.load(
+            self._deckset.table.load(
                 merged, union, mrounds, first["cls"],
                 play_cb=self._play_or_stop,
                 suggester=first["suggester"],
@@ -482,7 +483,7 @@ class GenerateMixin:
         # 📅 prefix marks the deck as part of the day plan (shared no-repeat
         # pool) — otherwise it would look like an ordinary generated playlist.
         # _sanitize_filename strips it again, so export names stay clean.
-        self._set_deck_name(self._table, f"📅  {deck_label}")
+        self._set_deck_name(self._deckset.table, f"📅  {deck_label}")
 
     def _generate_replay(self):
         cfg = self._cfg.get_replay_config()
@@ -506,7 +507,7 @@ class GenerateMixin:
         self._clear_replay_sources()   # drop stale matches from any earlier competition
         try:
             schedule_heats = [rc.heats for rc in rounds]
-            entries, round_pools, n_files, round_sources = self._lib.past_competition_round_pools(
+            entries, round_pools, n_files, round_sources = self._library.lib.past_competition_round_pools(
                 spec, schedule_heats, len(spec.dances)
             )
             # The hover tooltip lists every past list of THIS competition a
@@ -528,7 +529,7 @@ class GenerateMixin:
         # One FULL-library suggester drives generation, the per-round pools, ↺ and
         # live strategy re-rolls. Candidates restrict each round to its history;
         # `_get_pool` falls back to the full library for a dance history never used.
-        suggester = PlaylistSuggester(self._lib)
+        suggester = PlaylistSuggester(self._library.lib)
 
         # Live-regen context: a strategy-combo / 🎯-scope change re-rolls one round.
         self._suggester         = suggester
@@ -564,7 +565,7 @@ class GenerateMixin:
         self._active_replay_idx = self._cfg.replay_combo.currentIndex()
         self._replay_work.pop(self._active_replay_idx, None)   # fresh seed supersedes old work
 
-        self._table.load(
+        self._deckset.table.load(
             self._playlist, spec.dances, rounds, spec.dance_class,
             play_cb=self._play_or_stop,
             suggester=self._suggester,
@@ -572,11 +573,11 @@ class GenerateMixin:
             style=spec.style,
             round_pools=effective_pools,
         )
-        self._set_deck_name(self._table, spec.label)   # name the deck after the competition
+        self._set_deck_name(self._deckset.table, spec.label)   # name the deck after the competition
         self._cfg.generate_btn.setEnabled(True)
         self._cfg.save_btn.setEnabled(True)
 
-        hints = generate_hints(self._lib, self._playlist, spec.dances,
+        hints = generate_hints(self._library.lib, self._playlist, spec.dances,
                                spec.dance_class, rounds)
         if seeded:
             per_round = ", ".join(
@@ -615,8 +616,8 @@ class GenerateMixin:
         """Apply a 'Use Timbre Similarity' toggle live so the ↺ buttons (and the
         replay live re-roll) pick it up without a full regenerate."""
         self._replay_use_timbre = on
-        if self._table is not None:
-            self._table.set_use_timbre(on)
+        if self._deckset.table is not None:
+            self._deckset.table.set_use_timbre(on)
         self.statusBar().showMessage(
             "Timbre similarity on for ↺ regenerations" if on
             else "Timbre similarity off for ↺ regenerations"
@@ -647,7 +648,7 @@ class GenerateMixin:
 
         # Auto re-roll off → keep the grid, just store the strategy for the ↺ buttons.
         if not self._cfg.auto_reroll_check.isChecked():
-            self._table.update_strategy(round_name, strategy or "", strategy == "fresh")
+            self._deckset.table.update_strategy(round_name, strategy or "", strategy == "fresh")
             label = i18n.t(STRATEGY_LABELS.get(strategy, strategy))
             self.statusBar().showMessage(
                 i18n.t("%s: strategy set to %s — ↺ a song or dance to apply")
@@ -670,7 +671,7 @@ class GenerateMixin:
                     else:
                         used.add(str(e.path))
 
-        if self._table._current_play_row >= 0:
+        if self._deckset.table._current_play_row >= 0:
             self._play_or_stop(None)
 
         use_timbre = self._cfg.timbre_check.isChecked()
@@ -683,7 +684,7 @@ class GenerateMixin:
             self.statusBar().showMessage(i18n.t("Re-roll failed: %s") % exc)
             return
 
-        self._table.load(
+        self._deckset.table.load(
             self._playlist, self._dances, self._cfg._round_cfgs, self._dance_class,
             play_cb=self._play_or_stop,
             suggester=self._suggester,
@@ -718,7 +719,7 @@ class GenerateMixin:
         # buttons draw from: the new strategy AND the current 🎯 scope (this
         # competition's history pool when ticked, full library when unticked).
         if not self._cfg.auto_reroll_check.isChecked():
-            self._table.update_strategy(round_name, strategy or "", strategy == "fresh")
+            self._deckset.table.update_strategy(round_name, strategy or "", strategy == "fresh")
             try:
                 ri = names.index(round_name)
             except ValueError:
@@ -726,7 +727,7 @@ class GenerateMixin:
             pool = (self._replay_pools[ri]
                     if (self._replay_pools and 0 <= ri < len(self._replay_pools)
                         and self._cfg.round_scope(round_name)) else None)
-            self._table.set_round_pool(round_name, pool)
+            self._deckset.table.set_round_pool(round_name, pool)
             label = i18n.t(STRATEGY_LABELS.get(strategy, strategy))
             scope = (i18n.t("this comp") if self._cfg.round_scope(round_name)
                      else i18n.t("all playlists"))
@@ -760,7 +761,7 @@ class GenerateMixin:
                         used.add(str(e.path))
 
         # Stop playback if a row in this round is currently playing.
-        if self._table._current_play_row >= 0:
+        if self._deckset.table._current_play_row >= 0:
             self._play_or_stop(None)
 
         try:
@@ -773,7 +774,7 @@ class GenerateMixin:
             self.statusBar().showMessage(i18n.t("Re-roll failed: %s") % exc)
             return
 
-        self._table.load(
+        self._deckset.table.load(
             self._playlist, self._dances, self._replay_rounds, self._dance_class,
             play_cb=self._play_or_stop,
             suggester=self._suggester,
@@ -803,7 +804,7 @@ class GenerateMixin:
         QApplication.processEvents()
 
         try:
-            self._suggester = PlaylistSuggester(self._lib)
+            self._suggester = PlaylistSuggester(self._library.lib)
             entries = self._suggester.suggest_theme(theme_key, count=count)
         except Exception as exc:
             self._cfg.generate_btn.setEnabled(True)
@@ -813,7 +814,12 @@ class GenerateMixin:
         self._cfg.generate_btn.setEnabled(True)
         if not entries:
             self._show_hints([])
-            self._table.setRowCount(0)
+            # The rows AND what they stand for: Ctrl+S and the autosave read the
+            # rows' meta, so a deck that only looked empty still saved the old list.
+            if self._deckset.table._current_play_row >= 0:
+                self._play_or_stop(None)
+            self._deckset.table.setRowCount(0)
+            self._deckset.table._row_meta.clear()
             self._cfg.save_btn.setEnabled(False)
             QMessageBox.information(
                 self, "No Matches",
@@ -830,12 +836,12 @@ class GenerateMixin:
         self._theme_entries = entries
         self._theme_label   = theme_label
         self._playlist      = None
-        self._table.load_theme(
+        self._deckset.table.load_theme(
             entries, theme_label,
             play_cb=self._play_or_stop,
             suggester=self._suggester,
         )
-        self._reveal_deck(self._table)   # never fill a deck the view is hiding
+        self._reveal_deck(self._deckset.table)   # never fill a deck the view is hiding
         self._cfg.save_btn.setEnabled(True)
 
         dance_mix = ", ".join(
@@ -850,7 +856,7 @@ class GenerateMixin:
     def _ask_warmup_options(self):
         """The 🤸 dialog for this window's library — see `ask_warmup_options`."""
         return ask_warmup_options(
-            self, self._lib.entries if self._lib else [],
+            self, self._library.lib.entries if self._library.lib else [],
             self._settings.get("library_dir", "") or "")
 
     def _entries_from_m3u_file(self, path, progress_cb=None) -> list[MusicEntry]:
@@ -861,7 +867,7 @@ class GenerateMixin:
         `progress_cb(done, total, detail)` is called every few lines: a long list
         reads the tags of everything that isn't in the library, which takes
         seconds, and a window that simply stops looks broken."""
-        lib = self._lib
+        lib = self._library.lib
         if lib is None:
             return []
         try:
@@ -882,14 +888,14 @@ class GenerateMixin:
         # comment per track, so a 282-track party list has 565 of them — and a
         # progress bar counting those ran up past 500 and finished at 282, which
         # reads as half the file having been thrown away.
-        return resolve_playlist_entries(playlist_paths(lines), lib, self._cache,
+        return resolve_playlist_entries(playlist_paths(lines), lib, self._library.cache,
                                         remapper, progress_cb)
 
     def _generate_warmup(self):
         """🤸: build a per-class warm-up or an ETDS party playlist into the focused
         deck. Heavy lifting runs in a WarmupBuilder thread with a progress dialog so
         a big library never freezes the UI."""
-        if not self._lib or not self._lib.entries:
+        if not self._library.lib or not self._library.lib.entries:
             QMessageBox.information(
                 self, "Practice",
                 "The library is still loading — try again in a moment.")
@@ -909,7 +915,7 @@ class GenerateMixin:
                 return
         elif opts["source"] == "wishlists":
             src, seen = [], set()
-            for t in self._wishlists:
+            for t in self._deckset.wishlists:
                 for e in t._row_meta.entries():
                     if str(e.path) not in seen:
                         seen.add(str(e.path))
@@ -925,11 +931,11 @@ class GenerateMixin:
             # tracks (duplicates / wrong tempo / seasonal / background) live in
             # that folder but are not tournament music: `class_warmup_pool`
             # already drops them, the party build does not, so drop them here.
-            src = [e for e in self._lib.entries
+            src = [e for e in self._library.lib.entries
                    if not getattr(e, "is_xmas", False) and not is_non_turnier(e)]
             if opts["unused_only"]:
                 planned_paths, planned_fps = self._deck_dedup_index()
-                fingerprint = self._cache.known_fingerprint if self._cache else None
+                fingerprint = self._library.cache.known_fingerprint if self._library.cache else None
                 src = [e for e in src
                        if not is_planned(e.path, planned_paths, planned_fps,
                                          fingerprint)]
@@ -989,14 +995,14 @@ class GenerateMixin:
             list_label = self._warmup_title("Party")
             style = ""   # ETDS mixes styles → ↺ tries every style per dance
 
-        target = self._warmup_table
+        target = self._deckset.warmup_table
         target.load_warmup(
             entries, list_label, style, dance_class, relax,
-            play_cb=self._play_or_stop, suggester=PlaylistSuggester(self._lib),
+            play_cb=self._play_or_stop, suggester=PlaylistSuggester(self._library.lib),
         )
         self._set_deck_name(target, list_label)
         self._warmup_closed = False
-        self._warmup_box.setVisible(True)   # reveal the panel now it has content
+        self._grid.warmup_box.setVisible(True)   # reveal the panel now it has content
         self._toggle_warmup_fold(False)     # always open a freshly built list
         self._sync_warmup_toggle()          # enable + check the toolbar toggle
         self._set_active_table(target)      # Save / similar follow this list
@@ -1017,7 +1023,7 @@ class GenerateMixin:
         titles. ✓ shares the gate: the rules it reads back are the ones that
         built THIS kind of list, and a competition running order dropped on the
         panel would break every one of them by design."""
-        t = self._warmup_table
+        t = self._deckset.warmup_table
         on = bool(t._party_swap() and t._row_meta.song_rows())
         self._warmup_shuffle_btn.setVisible(on)
         self._warmup_check_btn.setVisible(on)
@@ -1026,7 +1032,7 @@ class GenerateMixin:
         """🔀 Put the party list's titles in a fresh order, as a new build from
         scratch would. The late WW / PD rules follow this session's last ETDS
         build; the playing title keeps playing."""
-        t = self._warmup_table
+        t = self._deckset.warmup_table
         entries = t._row_meta.entries()
         if not t._party_swap() or not entries:
             return
@@ -1069,11 +1075,11 @@ class GenerateMixin:
             if sections:
                 table.load_player_list(
                     entries, list_label, play_cb=self._play_or_stop,
-                    suggester=PlaylistSuggester(self._lib), sections=sections)
+                    suggester=PlaylistSuggester(self._library.lib), sections=sections)
             else:
                 table.load_warmup(
                     entries, list_label, style="", dance_class="S", relax=True,
-                    play_cb=self._play_or_stop, suggester=PlaylistSuggester(self._lib),
+                    play_cb=self._play_or_stop, suggester=PlaylistSuggester(self._library.lib),
                 )
             log.info("🤸 Practice panel loaded\n"
                      "file: %s\n"
@@ -1085,7 +1091,7 @@ class GenerateMixin:
             dlg.finish()
         self._set_deck_name(table, list_label)
         self._warmup_closed = False
-        self._warmup_box.setVisible(True)
+        self._grid.warmup_box.setVisible(True)
         self._toggle_warmup_fold(False)
         self._sync_warmup_toggle()
         self._set_active_table(table)
@@ -1144,7 +1150,7 @@ class GenerateMixin:
             tick(len(entries), len(entries), "building the list…")
             sections = self._player_round_sections(m3u_path, entries)
             table.load_player_list(entries, label, play_cb=self._play_or_stop,
-                                   suggester=PlaylistSuggester(self._lib),
+                                   suggester=PlaylistSuggester(self._library.lib),
                                    sections=sections)
             table._m3u_path = Path(m3u_path)
         finally:
@@ -1169,7 +1175,7 @@ class GenerateMixin:
         off those rows — it can never name a track that isn't in the library. Competition mode reuses the left panel's style / class / dances
         / rounds; flat mode just asks for N tracks in playing order; wish mode hands
         it the titles the user named and lets it find them."""
-        if not self._lib or not self._lib.entries:
+        if not self._library.lib or not self._library.lib.entries:
             QMessageBox.information(
                 self, "AI playlist",
                 "The library is still loading — try again in a moment.")
@@ -1219,7 +1225,7 @@ class GenerateMixin:
                                     "Enter a valid round pattern (e.g. 6-3-2-1).")
                 return
             candidates = llm.competition_candidates(
-                self._lib.entries, style, cls, dances)
+                self._library.lib.entries, style, cls, dances)
             task = llm.competition_task(style, age, cls, dances, rounds,
                                                 opts["brief"])
             ctx = dict(mode="competition", style=style, age=age, dance_class=cls,
@@ -1232,13 +1238,13 @@ class GenerateMixin:
                     "per line or a column per dance.")
                 return
             cls = None
-            candidates = llm.flat_candidates(self._lib.entries)
+            candidates = llm.flat_candidates(self._library.lib.entries)
             task = llm.wish_task(opts["wishes"], opts["brief"])
             # A wish list is a flat list that the user, not the model, ordered.
             ctx = dict(mode="flat", label="\U0001f4dd Wish list")
         else:
             cls = None
-            candidates = llm.flat_candidates(self._lib.entries)
+            candidates = llm.flat_candidates(self._library.lib.entries)
             task = llm.flat_task(opts["count"], opts["brief"])
             ctx = dict(mode="flat", count=opts["count"])
 
@@ -1261,7 +1267,7 @@ class GenerateMixin:
         # The deck this run belongs to, pinned NOW: `self._table` follows the
         # focus and a run takes minutes, so a click on another deck while the
         # model thinks must not send the answer into that deck's playlist.
-        ctx["table"] = self._table
+        ctx["table"] = self._deckset.table
         self._ai_ctx = ctx
         # The exchange goes into a window of its own instead of behind a
         # spinner: two prompts, two replies and the query pass between them,
@@ -1285,7 +1291,7 @@ class GenerateMixin:
         self._ai_worker = AiPlaylistWorker(
             opts["rules"], task, candidates, opts["model"],
             opts["config_dir"], self,
-            dance_class=cls, used_paths=used_paths, lib=self._lib)
+            dance_class=cls, used_paths=used_paths, lib=self._library.lib)
         w = self._ai_worker
         w.step.connect(self._ai_log.add_step)
         w.done.connect(self._on_ai_playlist_done)
@@ -1332,13 +1338,13 @@ class GenerateMixin:
         deck's own generation context back, so everything after this writes to
         the deck that asked for the playlist."""
         table = ctx.get("table")
-        if table is not None and table is not self._table:
+        if table is not None and table is not self._deckset.table:
             self._reveal_deck(table)
 
     def _on_ai_playlist_done(self, picks, notes: str, backend: str):
         ctx = getattr(self, "_ai_ctx", None) or {}
         candidates = ctx.get("candidates") or []
-        self._suggester = PlaylistSuggester(self._lib)
+        self._suggester = PlaylistSuggester(self._library.lib)
 
         if ctx.get("mode") == "competition":
             dances, rounds = ctx["dances"], ctx["rounds"]
@@ -1367,7 +1373,7 @@ class GenerateMixin:
             self._mode        = "Favorites"
             self._ui_mode     = "Favorites"
             self._theme_entries = []
-            self._table.load(
+            self._deckset.table.load(
                 grid, dances, rounds, ctx["dance_class"],
                 play_cb=self._play_or_stop,
                 suggester=self._suggester,
@@ -1375,7 +1381,7 @@ class GenerateMixin:
                 style=ctx["style"],
             )
             self._set_deck_name(
-                self._table,
+                self._deckset.table,
                 self._favorites_deck_name(ctx["age"], ctx["dance_class"],
                                           ctx["style"]))
             total = sum(rc.heats for rc in rounds) * len(dances)
@@ -1406,23 +1412,23 @@ class GenerateMixin:
             self._playlist      = None
             self._theme_entries = entries
             self._theme_label   = label
-            self._set_deck_name(self._table, label)
-            self._table.load_theme(entries, label,
+            self._set_deck_name(self._deckset.table, label)
+            self._deckset.table.load_theme(entries, label,
                                    play_cb=self._play_or_stop,
                                    suggester=self._suggester)
             # A flat list is a running order, not a draw — so hand the deck over
             # in ✋ free order: every row can be dragged anywhere, and a title
             # dropped in is ADDED where it lands instead of replacing what was
             # there. A theme grid would only allow a move within the same dance.
-            self._table.become_player_list()
-            self._refresh_mode_btn(self._table)
+            self._deckset.table.become_player_list()
+            self._refresh_mode_btn(self._deckset.table)
             head = i18n.t("🤖 %d tracks by %s") % (len(entries), backend)
 
         self._cfg.save_btn.setEnabled(True)
         # The transcript window is not modal and the deck view may be hiding
         # the very deck this just filled — bring the playlist forward, and the
         # main window with it, so a finished run is visibly finished.
-        self._reveal_deck(self._table)
+        self._reveal_deck(self._deckset.table)
         self.raise_()
         self.activateWindow()
         self._show_hints([head] + ([notes] if notes else []))
@@ -1467,7 +1473,7 @@ class GenerateMixin:
             history = i18n.t("not used")
         self._event_opts = opts
         self._event_run(
-            EventPlanWorker(self._lib, ev["specs"], editions,
+            EventPlanWorker(self._library.lib, ev["specs"], editions,
                             profiles=ev["variants"], use_class=ev["use_class"],
                             new_share=ev["new_share"], rare_share=ev["rare_share"],
                             ask_ai=ev["ai_check"],
@@ -1483,7 +1489,7 @@ class GenerateMixin:
         from planner import embeddings as ae
         store = self._embedding_store()
         chroma = (lambda e: store.recorded(e.path, ae.MODEL_CHROMA)) if store else None
-        return SoundAlike(self._lib, chroma=chroma)
+        return SoundAlike(self._library.lib, chroma=chroma)
 
     def _continue_event_plan(self, only: list[int]):
         """Ask the AI again about `only`, starting from the plan as it stands."""
@@ -1592,7 +1598,7 @@ class GenerateMixin:
     def _on_event_prehear(self, table, row: int, title: str):
         """A cell of the event plan plays: the decks' ▶/■ go back, and the
         mini player comes up below its row, as for the library pane."""
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             t.on_playback_stopped()
         self._reset_aux_play_markers(keep=self._event_compare)
         if (self._preview and self._settings.get("preview_player", True)
@@ -1611,7 +1617,7 @@ class GenerateMixin:
         """📅 The event plan into the day decks, each competition as its tab
         chose (`profiles[i]`): a deck per competition, several sharing one
         when there are more than eight."""
-        old_day = [t for t in self._day_decks
+        old_day = [t for t in self._deckset.day_decks
                    if self._serialize_playlist_state(t) is not None]
         if old_day:
             ret = QMessageBox.question(
@@ -1627,7 +1633,7 @@ class GenerateMixin:
         parts = [{"label": c.spec.label, "playlist": c.playlist(),
                   "dances": c.spec.dances, "rounds": c.rounds,
                   "cls": c.spec.dance_class, "style": c.spec.style,
-                  "age": c.spec.label, "suggester": PlaylistSuggester(self._lib)}
+                  "age": c.spec.label, "suggester": PlaylistSuggester(self._library.lib)}
                  for c in (self._event_result.variants[p][i]
                            for i, p in enumerate(profiles))]
         self._stash_active_replay()   # keep any worked competition grid first
@@ -1635,15 +1641,15 @@ class GenerateMixin:
         self._replay_active = False
         self._clear_replay_sources()
         use_timbre = self._cfg.get_config()[-1]
-        assign = _spread_over_decks(self._day_decks, parts)
+        assign = _spread_over_decks(self._deckset.day_decks, parts)
         for deck, deck_parts in assign:
             self._load_day_deck(deck, deck_parts, use_timbre)
         ev = self._event_opts["event"]
         if ev["series_name"]:
             self._set_day_tab_title(f"{ev['series_name']} {ev['year']}")
         self._apply_deck_view()   # reveal the 📅 Tournament-day tab
-        self._deck_tabs.setCurrentIndex(2)
-        self._day_tabs.setCurrentIndex(0)
+        self._grid.deck_tabs.setCurrentIndex(2)
+        self._grid.day_tabs.setCurrentIndex(0)
         self._set_active_table(assign[0][0])
         self._cfg.save_btn.setEnabled(True)
         self._autosave_playlist()
@@ -1662,12 +1668,12 @@ class GenerateMixin:
     def _show_library_gaps(self):
         """📊 (Settings → 🎵 Checks): per dance × class pool statistics — where
         does the library run thin for a real competition?"""
-        if not self._lib or not self._lib.entries:
+        if not self._library.lib or not self._library.lib.entries:
             QMessageBox.information(
                 self, "Library gaps",
                 "The library is still loading — try again in a moment.")
             return
-        dlg = LibraryGapsDialog(self._lib, self)
+        dlg = LibraryGapsDialog(self._library.lib, self)
         dlg.exec()
         if not dlg.jump_to:
             return
@@ -1682,7 +1688,7 @@ class GenerateMixin:
                                                   plays="never"))
 
     def _open_ai_dialog(self):
-        if not self._lib:
+        if not self._library.lib:
             return
         # Seed with the first selected dance (Favorites) or the chosen theme
         dance = self._dances[0] if self._dances else None
@@ -1691,6 +1697,6 @@ class GenerateMixin:
             _, theme, _ = self._cfg.get_theme_config()
             dance = None
         AiSuggestDialog(
-            self._lib, self, play_cb=self._play_or_stop,
+            self._library.lib, self, play_cb=self._play_or_stop,
             dance=dance, theme=theme,
         ).exec()

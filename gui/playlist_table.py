@@ -205,6 +205,47 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
 
     def __init__(self, parent=None):
         super().__init__(0, _N_COLS, parent)
+        self._init_state()
+        self._build_drag_overlays()
+        self._build_advance_button()
+        # Tracks already played this session (playing mode greys them out).
+        self._played_paths: set = set()
+        self._played_saved: dict[tuple[int, int], QBrush] = {}
+        # Songs the user flagged "for potential replace" (dynamic decks), keyed by file
+        # path so the orange mark survives structural re-renders. Persisted per deck
+        # in the autosave/undo snapshot ("marked" key of _serialize_playlist_state).
+        self._marked_paths: set = set()
+        # 📌 Pinned titles, keyed by path like the marks: the ↻ / ↺ re-rolls of
+        # their round or dance leave them where they are. Persisted per deck
+        # ("pinned" key of the snapshot).
+        self._pinned_paths: set = set()
+        # Live Check-Music marks: path → issue text, recomputed after every grid
+        # edit (refresh_issue_marks); keyed by path so red survives re-renders.
+        self._issue_paths: dict[str, str] = {}
+        # ↩ Resume marks: path → position in ms where the title was left. Session
+        # only (the player owns the dict), keyed by path so the badge survives
+        # re-renders. Only marked titles get one.
+        self._resume_marks: dict[str, int] = {}
+        # Custom delegate so a marked row's orange shows through the selection colour.
+        self.setItemDelegate(_MarkSelectionDelegate(self))
+
+        # Collapsible headers: maps a managed row → its round / dance header row, so a
+        # collapsed header hides all rows beneath it. Rebuilt on every load().
+        self._row_round_hdr: dict[int, int] = {}
+        self._row_dance_hdr: dict[int, int] = {}
+        self._round_hdr_rows: set = set()
+        self._dance_hdr_rows: set = set()
+        self._dance_hdr_dance: dict[int, str] = {}   # dance header row → dance code
+        self._row_round_name: dict[int, str] = {}    # header row → its round name
+        self._collapsed: set = set()
+        self._hdr_base_text: dict[int, str] = {}
+
+        self._build_columns()
+        self._build_headers()
+        self._configure_view()
+
+    def _init_state(self):
+        """The list's own state: its modes, the window's callbacks, the play cursor."""
         # The glide of the auto-play scroll, built on first use and reused after.
         self._scroll_anim = None
         # The .m3u this list was loaded from or last saved to (📂 Show in Explorer
@@ -293,6 +334,8 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
         # be autosaved. Set via set_change_callback(); fired through _notify_changed().
         self._change_cb: Callable[[], None] | None = None
 
+    def _build_drag_overlays(self):
+        """Drag auto-scroll, the drop line / row highlight and the playing-row marker."""
         # Edge auto-scroll while a drag is held near the top/bottom of the viewport.
         self._autoscroll_dir = 0
         self._autoscroll_speed = self._AUTOSCROLL_MIN_PX
@@ -324,6 +367,9 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
         self._play_row_hl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self._play_row_hl.hide()
         self._play_hl_enabled = False
+
+    def _build_advance_button(self):
+        """The ⏭/✋ auto-advance switch the deck box lays out next to Σ."""
         # ⏭/✋ auto-advance switch: the difference between a round running by
         # itself and every title started by hand, and it gets flipped between
         # heats — so it sits on every deck instead of only on the play panel.
@@ -371,38 +417,9 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
         self._advance_btn.hide()
         self.verticalScrollBar().valueChanged.connect(
             lambda _: self._update_play_row_hl())
-        # Tracks already played this session (playing mode greys them out).
-        self._played_paths: set = set()
-        self._played_saved: dict[tuple[int, int], QBrush] = {}
-        # Songs the user flagged "for potential replace" (dynamic decks), keyed by file
-        # path so the orange mark survives structural re-renders. Persisted per deck
-        # in the autosave/undo snapshot ("marked" key of _serialize_playlist_state).
-        self._marked_paths: set = set()
-        # 📌 Pinned titles, keyed by path like the marks: the ↻ / ↺ re-rolls of
-        # their round or dance leave them where they are. Persisted per deck
-        # ("pinned" key of the snapshot).
-        self._pinned_paths: set = set()
-        # Live Check-Music marks: path → issue text, recomputed after every grid
-        # edit (refresh_issue_marks); keyed by path so red survives re-renders.
-        self._issue_paths: dict[str, str] = {}
-        # ↩ Resume marks: path → position in ms where the title was left. Session
-        # only (the player owns the dict), keyed by path so the badge survives
-        # re-renders. Only marked titles get one.
-        self._resume_marks: dict[str, int] = {}
-        # Custom delegate so a marked row's orange shows through the selection colour.
-        self.setItemDelegate(_MarkSelectionDelegate(self))
 
-        # Collapsible headers: maps a managed row → its round / dance header row, so a
-        # collapsed header hides all rows beneath it. Rebuilt on every load().
-        self._row_round_hdr: dict[int, int] = {}
-        self._row_dance_hdr: dict[int, int] = {}
-        self._round_hdr_rows: set = set()
-        self._dance_hdr_rows: set = set()
-        self._dance_hdr_dance: dict[int, str] = {}   # dance header row → dance code
-        self._row_round_name: dict[int, str] = {}    # header row → its round name
-        self._collapsed: set = set()
-        self._hdr_base_text: dict[int, str] = {}
-
+    def _build_columns(self):
+        """Column captions, header tooltips, cell delegates and the column-tick state."""
         self.setHorizontalHeaderLabels(
             ["Dance", "Heat", "▶", "Artist", "Title", "BPM", "⏱", "Pop", "Class", "★",
              "Custom", "↺"]
@@ -446,6 +463,8 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
         self._width_timer.setInterval(400)
         self._width_timer.timeout.connect(self._notify_widths)
 
+    def _build_headers(self):
+        """Column widths and resizing, the column menu and the Nb. number column."""
         hh = self.horizontalHeader()
         # Every column is user-resizable (drag the handles) — Interactive throughout
         # with seeded default widths, exactly like the library browser. Title was the
@@ -475,6 +494,9 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
         self._nb_label.setFont(self.horizontalHeader().font())
         self._nb_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self._nb_label.hide()
+
+    def _configure_view(self):
+        """Selection, drag-and-drop, scrolling and the click / double-click wiring."""
         self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.setDragEnabled(True)
@@ -892,7 +914,7 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
         # ↺ re-rolls from the same round's history first (library as fallback).
         self._round_pools_by_name = {}
         if round_pools:
-            for rc, pool in zip(rounds, round_pools):
+            for rc, pool in zip(rounds, round_pools, strict=True):
                 self._round_pools_by_name[rc.name] = pool
         self._reset_collapse_state()
         self.setRowCount(0)
@@ -1047,7 +1069,7 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
         if not self._player_list:
             return warmup_rounds(entries)
         rounds: list[tuple[str, list[MusicEntry]]] = []
-        for section, e in zip(self._player_section_labels(entries), entries):
+        for section, e in zip(self._player_section_labels(entries), entries, strict=True):
             if not rounds or rounds[-1][0] != section:
                 rounds.append((section, []))
             rounds[-1][1].append(e)
@@ -1598,21 +1620,7 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
         is_backup = meta.backup
         sim = (self._suggester.similarity(entry, meta.round_name)
                if entry and self._suggester else None)
-        # Flag tracks whose file has vanished from disk since the playlist was made
-        # (moved / deleted / drive offline) — red title + a red ❗ in the last column.
-        missing = bool(entry) and not Path(entry.path).exists()
-        # "Marked for potential replace": orange row underlay + an orange title.
-        # A genuinely missing file wins the styling (its red ❗ is the more urgent flag).
-        marked = bool(entry is not None and getattr(entry, "path", None)
-                      and str(entry.path) in self._marked_paths)
-        # 📌 Pinned: the same look in lila, below the orange mark.
-        pinned = bool(entry is not None and getattr(entry, "path", None)
-                      and str(entry.path) in self._pinned_paths)
-        # Live Check-Music issue (play length / takt / round tempo spread): the
-        # row stays RED until the issue is resolved. Red outranks the orange
-        # replace-mark; a genuinely missing file keeps its own styling.
-        issue_text = (self._issue_paths.get(str(entry.path))
-                      if entry is not None and getattr(entry, "path", None) else None)
+        missing, marked, pinned, issue_text = self._row_flags(entry)
         if missing:
             bg = _C_MISSING_BG
         elif issue_text:
@@ -1647,27 +1655,7 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
                 if missing:
                     title_it.setToolTip(i18n.t("⚠ File not found on disk:\n%s") % entry.path)
                 else:
-                    tip = _entry_tooltip(entry, sim, "Similarity")
-                    if resume_ms:
-                        tip = ("<div style='color:#2e9e5b'><b>"
-                               + i18n.t("↩ Left at %s — starts there again")
-                               % _fmt_track_secs(resume_ms // 1000)
-                               + "</b></div><hr>" + tip)
-                    if marked:
-                        # Same HTML treatment as the ⚠ issue block below — the
-                        # base tooltip is rich text, plain \n prefixes mangle it.
-                        tip = ("<div style='color:#d86018'><b>"
-                               + i18n.t("🔁 Marked for potential replace  (Ctrl+M to toggle)")
-                               + "</b></div><hr>" + tip)
-                    if issue_text:
-                        # The base tooltip is rich text (<div>…</div>) — the
-                        # issue lines must be an HTML block too, or Qt mangles
-                        # the layout (plain \n text glued above the div).
-                        issue_html = "<br>".join(
-                            "⚠ " + html.escape(line)
-                            for line in issue_text.split("\n"))
-                        tip = (f"<div style='color:#c62828'><b>{issue_html}"
-                               "</b></div><hr>" + tip)
+                    tip = self._title_tooltip(entry, sim, resume_ms, marked, issue_text)
                     title_it.setToolTip(tip)
 
             cell(_COL_ARTIST, getattr(entry, "tag_artist", None) or "")
@@ -1679,34 +1667,7 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
             bpm_fg = QColor(200, 130, 80) if bpm_s.endswith("*") else _C_DEFAULT
             cell(_COL_BPM, bpm_s, fg=bpm_fg, align=ctr)
 
-            secs = int(getattr(entry, "duration", 0) or 0)
-            if secs:
-                play = self._play_secs_cb(entry) if self._play_secs_cb else None
-                trimmed = play is not None and int(play) != secs
-                # Red is for an edge long enough to notice on the floor, not for
-                # every file with a couple of seconds of room tone (which is
-                # most of them). The tooltip still reports any trim.
-                edge = self._edge_silence_cb(entry) if self._edge_silence_cb else 0.0
-                flagged = trimmed and edge >= FLAG_EDGE_SILENCE
-                limit = self._short_secs_cb() if self._short_secs_cb else 0
-                too_short = bool(limit) and (int(play) if trimmed else secs) < limit
-                # Orange, not red: red in this table is a file that is MISSING,
-                # and a track that merely ends early is not that. Both length
-                # warnings share the amber; the tooltip says which one fired.
-                fg = _C_LEN_WARN_FG if (flagged or too_short) else _C_DEFAULT
-                cell(_COL_LEN, _fmt_track_secs(secs), fg=fg, align=ctr)
-                tips = []
-                if trimmed:
-                    tips.append(
-                        i18n.t("Plays %s — the stillness at the edges of the file is skipped")
-                        % _fmt_track_secs(int(play)))
-                if too_short:
-                    tips.append(i18n.t("Shorter than the configured play length (%s)")
-                                % _fmt_track_secs(limit))
-                if tips:
-                    self.item(row, _COL_LEN).setToolTip("\n".join(tips))
-            else:
-                cell(_COL_LEN, "", align=ctr)
+            self._fill_length_cell(row, cell, entry, ctr)
 
             if entry.popularity:
                 cell(_COL_POP, f"★{entry.popularity}", fg=_C_POP_FG, align=ctr)
@@ -1731,6 +1692,89 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
                       _COL_CUSTOM):
                 cell(c, "")
 
+        self._fill_row_buttons(row, meta, bg, missing, marked)
+
+        self.setRowHeight(row, 24)
+
+    def _row_flags(self, entry):
+        """What colours this title's row: missing file, replace mark, 📌 pin, open issue."""
+        # Flag tracks whose file has vanished from disk since the playlist was made
+        # (moved / deleted / drive offline) — red title + a red ❗ in the last column.
+        missing = bool(entry) and not Path(entry.path).exists()
+        # "Marked for potential replace": orange row underlay + an orange title.
+        # A genuinely missing file wins the styling (its red ❗ is the more urgent flag).
+        marked = bool(entry is not None and getattr(entry, "path", None)
+                      and str(entry.path) in self._marked_paths)
+        # 📌 Pinned: the same look in lila, below the orange mark.
+        pinned = bool(entry is not None and getattr(entry, "path", None)
+                      and str(entry.path) in self._pinned_paths)
+        # Live Check-Music issue (play length / takt / round tempo spread): the
+        # row stays RED until the issue is resolved. Red outranks the orange
+        # replace-mark; a genuinely missing file keeps its own styling.
+        issue_text = (self._issue_paths.get(str(entry.path))
+                      if entry is not None and getattr(entry, "path", None) else None)
+        return missing, marked, pinned, issue_text
+
+    def _title_tooltip(self, entry, sim, resume_ms, marked, issue_text):
+        """The title's hover text, with the resume / mark / issue notes on top."""
+        tip = _entry_tooltip(entry, sim, "Similarity")
+        if resume_ms:
+            tip = ("<div style='color:#2e9e5b'><b>"
+                   + i18n.t("↩ Left at %s — starts there again")
+                   % _fmt_track_secs(resume_ms // 1000)
+                   + "</b></div><hr>" + tip)
+        if marked:
+            # Same HTML treatment as the ⚠ issue block below — the
+            # base tooltip is rich text, plain \n prefixes mangle it.
+            tip = ("<div style='color:#d86018'><b>"
+                   + i18n.t("🔁 Marked for potential replace  (Ctrl+M to toggle)")
+                   + "</b></div><hr>" + tip)
+        if issue_text:
+            # The base tooltip is rich text (<div>…</div>) — the
+            # issue lines must be an HTML block too, or Qt mangles
+            # the layout (plain \n text glued above the div).
+            issue_html = "<br>".join(
+                "⚠ " + html.escape(line)
+                for line in issue_text.split("\n"))
+            tip = (f"<div style='color:#c62828'><b>{issue_html}"
+                   "</b></div><hr>" + tip)
+        return tip
+
+    def _fill_length_cell(self, row: int, cell, entry, ctr):
+        """The ⏱ cell: the length, amber when it plays short or trims long silence."""
+        secs = int(getattr(entry, "duration", 0) or 0)
+        if secs:
+            play = self._play_secs_cb(entry) if self._play_secs_cb else None
+            trimmed = play is not None and int(play) != secs
+            # Red is for an edge long enough to notice on the floor, not for
+            # every file with a couple of seconds of room tone (which is
+            # most of them). The tooltip still reports any trim.
+            edge = self._edge_silence_cb(entry) if self._edge_silence_cb else 0.0
+            flagged = trimmed and edge >= FLAG_EDGE_SILENCE
+            limit = self._short_secs_cb() if self._short_secs_cb else 0
+            too_short = bool(limit) and (int(play) if trimmed else secs) < limit
+            # Orange, not red: red in this table is a file that is MISSING,
+            # and a track that merely ends early is not that. Both length
+            # warnings share the amber; the tooltip says which one fired.
+            fg = _C_LEN_WARN_FG if (flagged or too_short) else _C_DEFAULT
+            cell(_COL_LEN, _fmt_track_secs(secs), fg=fg, align=ctr)
+            tips = []
+            if trimmed:
+                tips.append(
+                    i18n.t("Plays %s — the stillness at the edges of the file is skipped")
+                    % _fmt_track_secs(int(play)))
+            if too_short:
+                tips.append(i18n.t("Shorter than the configured play length (%s)")
+                            % _fmt_track_secs(limit))
+            if tips:
+                self.item(row, _COL_LEN).setToolTip("\n".join(tips))
+        else:
+            cell(_COL_LEN, "", align=ctr)
+
+    def _fill_row_buttons(self, row: int, meta, bg: QColor, missing: bool, marked: bool):
+        """The ▶ and ↺ cells, or ❗ where the file is gone."""
+        entry = meta.entry
+        ctr = Qt.AlignmentFlag.AlignCenter
         # ── Play button ── (painted by RowButtonDelegate; a click reads its row
         # off the index then, so a row removed above never plays the wrong track)
         def cell_button(col, glyph, look, tip=""):
@@ -1794,8 +1838,6 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
             warn.setToolTip(i18n.t("⚠ File not found on disk:\n%s") % entry.path)
             warn.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
             self.setItem(row, _COL_REGEN, warn)
-
-        self.setRowHeight(row, 24)
 
     # ── Play / stop toggle ────────────────────────────────────────────────────
 
@@ -2319,25 +2361,30 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
 
             # Build exclusion set: every current entry AND any library copy of it
             # (same filename / fingerprint), so a re-roll can't return a duplicate of
-            # a song already planned here. Drop this slot's own song so it stays an
-            # available fallback when no alternative exists.
+            # a song already planned here. This slot's own song is only the
+            # fallback when no alternative exists: left in the draw, it came back
+            # about once in as many ↺ as the dance has titles.
             planned = self._row_meta.entries()
             exclude = self._exclude_with_dupes(planned)
             current = meta.entry
-            if current and dance not in ALLOW_REPEAT:
-                exclude.discard(str(current.path))
 
             r_cls, r_style = self._round_cls_style(meta.round_name)
-            new_entry = self._suggester.regenerate(
-                dance, r_cls, tier, exclude,
-                prefer_fresh=meta.prefer_fresh,
-                round_name=meta.round_name,
-                use_timbre=self._use_timbre,
-                strategy=meta.strategy or None,
-                style=r_style,
-                candidates=self._round_pools_by_name.get(meta.round_name),
-                anchor=self._effective_anchor(meta.round_name, {row}),
-            )
+
+            def pick():
+                return self._suggester.regenerate(
+                    dance, r_cls, tier, exclude,
+                    prefer_fresh=meta.prefer_fresh,
+                    round_name=meta.round_name,
+                    use_timbre=self._use_timbre,
+                    strategy=meta.strategy or None,
+                    style=r_style,
+                    candidates=self._round_pools_by_name.get(meta.round_name),
+                    anchor=self._effective_anchor(meta.round_name, {row}),
+                )
+            new_entry = pick()
+            if not new_entry and current and dance not in ALLOW_REPEAT:
+                exclude.discard(str(current.path))
+                new_entry = pick()
             if not new_entry:
                 QMessageBox.information(self, "Regenerate", "No alternative song found.")
                 return

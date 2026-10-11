@@ -20,6 +20,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 # Offscreen BEFORE any QApplication exists, and state files into a temp dir (the
 # gui modules resolve those at import time — see test_gui_smoke.py).
@@ -34,6 +35,7 @@ from PySide6.QtWidgets import (QApplication,
 from tests.qt_test_support import reap_widget
 
 from gui.deck import Deck
+from gui.deck_set import DeckSet
 from gui.playlist_table import PlaylistTable
 from planner.models import MusicEntry, RoundConfig
 
@@ -374,10 +376,11 @@ class ConversionTest(_FlatTest):
         from gui.main_decks import DeckLayoutMixin
 
         planned, running = self.deck("player"), self.player_list(_e("LW", 1))
+        tables = DeckSet()
+        tables.decks = [planned, running]
 
         class _App(DeckLayoutMixin):
-            _decks = [planned, running]
-            _day_decks: list = []
+            _deckset = tables
 
             def _autosave_playlist(_self):
                 pass
@@ -433,7 +436,7 @@ class PersistTest(_FlatTest):
         from gui.main_persist import PersistenceMixin
 
         class _Win(PersistenceMixin):
-            _table = None
+            _deckset = DeckSet()
 
             def deck(self, table):
                 return Deck(table)
@@ -486,8 +489,7 @@ class M3uProgressTest(_FlatTest):
                 return None
 
         class _Win(GenerateMixin):
-            _lib = _Lib()
-            _cache = None
+            _library = SimpleNamespace(lib=_Lib(), cache=None)
 
         seen = []
         got = _Win()._entries_from_m3u_file(
@@ -525,8 +527,7 @@ class M3uProgressTest(_FlatTest):
             entries = [_e("LW", 1)]
 
         class _Win(GenerateMixin):
-            _lib = _Lib()
-            _cache = None
+            _library = SimpleNamespace(lib=_Lib(), cache=None)
 
         self.assertEqual(len(_Win()._entries_from_m3u_file(path)), 1)
 

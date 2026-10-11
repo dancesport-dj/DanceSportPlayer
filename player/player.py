@@ -401,6 +401,10 @@ class PreviewOverlay(QFrame):
     def mouseDoubleClickEvent(self, event):
         event.accept()   # don't let double-clicks reach the table either
 
+    def title(self) -> str:
+        """The full title it shows — not the elided caption."""
+        return self._full_title
+
     def _elide_title(self):
         fm = self._title.fontMetrics()
         avail = max(40, self.width() - 90)
@@ -516,6 +520,42 @@ class BigPlayerWidget(QFrame):
         self._marquee = QTimer(self)
         self._marquee.setInterval(300)
         self._marquee.timeout.connect(self._marquee_step)
+        self._build_skin()
+
+        # The blocks below stand in a body of their own, so the whole
+        # arrangement can be swapped for the wide one (see set_wide) without
+        # the frame, its skins or its wiring noticing.
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+        self._wide = False
+        self._extra = None            # guest in the wide strip's middle
+        self._lead = None             # …and in its bottom-right corner
+        self._body = QWidget()
+        outer.addWidget(self._body)
+
+        self._build_head()
+        self._build_aux_buttons()
+        self._build_time()
+        self._build_seek(cache_of)
+        self._build_transport()
+        self._build_aux_row()
+        self._build_volume()
+        self._build_tempo()
+
+        # The decks own Space / Ctrl+←→ shortcuts — never steal keyboard focus.
+        self._relayout()
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        # Drop a track from a deck / the library onto the card to play it.
+        self.setAcceptDrops(True)
+
+        player.durationChanged.connect(self._on_duration)
+        player.positionChanged.connect(self._on_position)
+        player.playbackStateChanged.connect(self._on_state)
+        self.set_now("")
+
+    def _build_skin(self):
+        """The card's skins (normal / end-of-track / fade) and the flash beat."""
         self.setObjectName("BigPlayer")
         _common_qss = (
             "QLabel { background:transparent; }"
@@ -565,18 +605,8 @@ class BigPlayerWidget(QFrame):
         self._flash.setInterval(450)
         self._flash.timeout.connect(self._flash_step)
 
-        # The blocks below stand in a body of their own, so the whole
-        # arrangement can be swapped for the wide one (see set_wide) without
-        # the frame, its skins or its wiring noticing.
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
-        outer.setSpacing(0)
-        self._wide = False
-        self._extra = None            # guest in the wide strip's middle
-        self._lead = None             # …and in its bottom-right corner
-        self._body = QWidget()
-        outer.addWidget(self._body)
-
+    def _build_head(self):
+        """Cover, title, subtitle row and the what-comes-next line."""
         # 🖼 Cover next to the title block — off unless the operator asks for it
         # (see set_artwork_enabled); the text column keeps the rest of the width.
         head_row = QHBoxLayout()
@@ -652,9 +682,11 @@ class BigPlayerWidget(QFrame):
         self._full_next = ""
         text_col.addWidget(self._next_lbl)
 
+    def _build_aux_buttons(self):
+        """Fade-out / jump-to-pause / extend-pause; placed by _build_aux_row."""
         # Context aux buttons — fade-out / jump-to-pause / extend-pause. Created
         # here but placed in their OWN row BELOW the transport buttons (see
-        # aux_row further down); shown only while a song plays / a pause runs.
+        # _build_aux_row); shown only while a song plays / a pause runs.
         self._fade_btn = QToolButton()
         icon_button(self._fade_btn, "fade_out", 16, _CARD_FADE)
         self._fade_btn.setFixedHeight(28)
@@ -689,6 +721,8 @@ class BigPlayerWidget(QFrame):
         self._is_paused = False
         self._has_song = False
 
+    def _build_time(self):
+        """Elapsed time, remaining time and the adjusted-length readout."""
         time_row = QHBoxLayout()
         time_row.setSpacing(8)
         self._elapsed = QLabel("00:00")
@@ -725,6 +759,8 @@ class BigPlayerWidget(QFrame):
         time_row.addLayout(right_col)
         self._time_box = _block(time_row)
 
+    def _build_seek(self, cache_of):
+        """The seek bar and the waveform strip above it."""
         self._slider = _ClickSlider(Qt.Orientation.Horizontal)
         self._slider.setObjectName("seek")
         self._slider.setRange(0, 0)
@@ -745,6 +781,8 @@ class BigPlayerWidget(QFrame):
         self._wave_loader = WaveformLoader(self, cache_of=cache_of)
         self._wave_loader.ready.connect(self._on_wave_ready)
 
+    def _build_transport(self):
+        """Cue, prev / rewind / play-pause / forward / next and the loop toggle."""
         btns = QHBoxLayout()
         btns.setSpacing(4)
         btns.addStretch(1)
@@ -793,6 +831,8 @@ class BigPlayerWidget(QFrame):
         btns.addStretch(1)
         self._btn_box = _block(btns)
 
+    def _build_aux_row(self):
+        """The row under the transport that holds the aux buttons."""
         # Aux controls row — fade-out / jump-to-pause / extend-pause — sitting
         # in their own row right BELOW the transport buttons (the operator's
         # "end this song" / "manage the pause" actions, kept clear of the main
@@ -806,6 +846,8 @@ class BigPlayerWidget(QFrame):
         aux_row.addStretch(1)
         self._aux_box = _block(aux_row)
 
+    def _build_volume(self):
+        """Panic, duck, the master volume slider and its readout."""
         # ── Master volume — the ONLY volume control in Playing mode (the
         # preview overlay, which owns the other one, is hidden here). Full width
         # on purpose: it has to be hittable at a glance from a standing desk.
@@ -852,6 +894,8 @@ class BigPlayerWidget(QFrame):
         self._vol_box = _block(vol_row)
         self._refresh_vol_lbl()
 
+    def _build_tempo(self):
+        """The tempo fader with its step buttons, TSO, reset, pin and takt meter."""
         # ── Tempo fader: ±16% time-stretch, pitch preserved (the Qt ffmpeg
         # backend keeps the key — verified with a 440 Hz sine at rate 1.16).
         self._takt: int | None = None
@@ -955,17 +999,6 @@ class BigPlayerWidget(QFrame):
         info_row.addWidget(self._takt_btn)
         tempo_box.addLayout(info_row)
         self._tempo_box = _block(tempo_box)
-
-        # The decks own Space / Ctrl+←→ shortcuts — never steal keyboard focus.
-        self._relayout()
-        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        # Drop a track from a deck / the library onto the card to play it.
-        self.setAcceptDrops(True)
-
-        player.durationChanged.connect(self._on_duration)
-        player.positionChanged.connect(self._on_position)
-        player.playbackStateChanged.connect(self._on_state)
-        self.set_now("")
 
     def set_wide(self, on: bool):
         """Lay the card out along the width instead of down a panel — the wide

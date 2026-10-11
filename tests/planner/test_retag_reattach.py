@@ -18,6 +18,7 @@ from pathlib import Path
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_retag_"))
 
+from planner import config as planner_config
 from planner.db import (
     _AUDIO_FEAT_DIM, _FP_SAMPLE, AudioCache, AudioFeatures, _db,
     _fingerprints, _tag_offsets,
@@ -187,8 +188,8 @@ class AudioFingerprintLookupTest(unittest.TestCase):
         import planner.db as pdb
         self.pdb = pdb
         self.dir = Path(tempfile.mkdtemp(prefix="dp_afp_"))
-        self._saved = (pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
-        pdb.AUDIO_DB_FILE = self.dir / "scratch.db"
+        self._saved = (planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
+        planner_config.AUDIO_DB_FILE = self.dir / "scratch.db"
         pdb._DB_LOCAL = threading.local()
         pdb._DB_INITIALIZED = False
         self.addCleanup(self._restore)
@@ -198,7 +199,7 @@ class AudioFingerprintLookupTest(unittest.TestCase):
             self.pdb._DB_LOCAL.conn.close()
         except Exception:
             pass
-        self.pdb.AUDIO_DB_FILE, self.pdb._DB_LOCAL, self.pdb._DB_INITIALIZED = self._saved
+        planner_config.AUDIO_DB_FILE, self.pdb._DB_LOCAL, self.pdb._DB_INITIALIZED = self._saved
 
     def _file(self, name: str, data: bytes) -> Path:
         p = self.dir / name

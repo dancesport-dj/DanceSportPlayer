@@ -66,9 +66,9 @@ class ResumeBadgeTest(unittest.TestCase):
         self.rum = _entry("Rum One (RB 25)", "RB")
         lib = MusicLibrary()
         lib.entries.extend([self.cha, self.rum])
-        self.win._lib = lib
+        self.win._library.lib = lib
 
-        self.table = self.win._tableB
+        self.table = self.win._deckset.tableB
         self.table.load(
             {"Runde 1": [[self.cha, self.rum]]},
             ["CC", "RB"],

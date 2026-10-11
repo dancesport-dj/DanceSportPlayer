@@ -206,7 +206,7 @@ class Timetable:
         added to the start, which needs no such care."""
         times, minutes = self._reading(now)
         ends = []
-        for entry, start in zip(self.entries, times):
+        for entry, start in zip(self.entries, times, strict=True):
             if start is None:
                 ends.append(None)
                 continue

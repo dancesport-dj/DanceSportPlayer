@@ -22,6 +22,7 @@ Der Reiter **⚙ Allgemein**.
 | **📱 Handy-Fernbedienung** | **📱 Server starten** startet die Handy-Fernbedienung und öffnet ihr Fenster über den Einstellungen. Solange sie läuft, heißt der Knopf **📱 Server stoppen**. Siehe [Kapitel 4](04-playing.md#-die-handy-fernbedienung). |
 | **🎛 DJ-Controller** | **🎛 Einrichten…** öffnet das Fenster für einen USB-MIDI- oder HID-Controller. Siehe [Kapitel 4](04-playing.md#-ein-dj-controller). |
 | **🐞 Fehlerberichte senden** | Nur in Builds, die sie senden können. Stößt die App auf einen Fehler, schickt sie die technischen Details an den Entwickler: den Fehler, die letzten Protokollzeilen, das System und die App-Version. Nie deine Musik oder Playlists. Standardmäßig aus. |
+| **🔔 Nach neuen Versionen suchen** | Einmal pro Start bei GitHub (api.github.com) fragen, ob ein neueres Release erschienen ist, und es einmal mit einem Link zur Downloadseite ankündigen. Die Anfrage enthält nichts über dich oder deine Musik; GitHub sieht die IP-Adresse, von der sie kommt. Es wird nichts heruntergeladen oder installiert. Standardmäßig aus; der erste Start fragt. Gilt ab dem nächsten Start. |
 
 ## Pfade
 

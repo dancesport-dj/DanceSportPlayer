@@ -27,6 +27,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
@@ -199,9 +200,10 @@ class _Win(QWidget):
 
     def __init__(self, entries=None, dance="SA"):
         super().__init__()
-        self._lib = _Lib(entries if entries is not None
-                         else [_entry("A", dance), _entry("B", dance)])
-        self._cache = _Cache()
+        self._library = SimpleNamespace(
+            lib=_Lib(entries if entries is not None
+                     else [_entry("A", dance), _entry("B", dance)]),
+            cache=_Cache())
         self._busy = None
         self._bar = _Bar()
         self.worker = _Worker()
@@ -366,7 +368,7 @@ class EveryUnitIsTranslatedTest(_AnalyzeCase):
             with self.subTest(noun=noun):
                 self.setUp()
                 if start is _Win._analyze_pd_highlights:
-                    self.win._lib = _Lib([_entry("A", "PD")])
+                    self.win._library.lib = _Lib([_entry("A", "PD")])
                 win = self.run_pass("de", start)
                 win.worker.done.emit(5, 0)
                 self.assertEqual(win._bar.msg, f"{noun} fertig — 5 {unit}")
@@ -426,7 +428,7 @@ class QuestionBoxI18nTest(_AnalyzeCase):
         self.assertIn("Jetzt starten?", text)
 
     def test_an_unloaded_library_says_so_in_german(self):
-        self.win._lib = None
+        self.win._library.lib = None
         self.assertEqual(self.ask("de", _Win._analyze_loudness),
                          "Die Musikbibliothek ist noch nicht geladen.")
 
@@ -436,7 +438,7 @@ class QuestionBoxI18nTest(_AnalyzeCase):
                       self.ask("de", _Win._analyze_loudness))
 
     def test_a_library_without_paso_doble_says_so_in_german(self):
-        self.win._lib = _Lib([_entry("A", "SA")])
+        self.win._library.lib = _Lib([_entry("A", "SA")])
         self.assertEqual(self.ask("de", _Win._analyze_pd_highlights),
                          "Keine Paso-Doble-Titel in der Bibliothek.")
 

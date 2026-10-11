@@ -68,8 +68,8 @@ class _Desk(unittest.TestCase):
         win = self.gui.MainWindow()
         win._loading_dlg.accept()
         self.addCleanup(reap_widget, win)
-        win._lib = MusicLibrary()
-        table = win._tableB
+        win._library.lib = MusicLibrary()
+        table = win._deckset.tableB
         table.load_player_list(songs, "Party", play_cb=None)
         win._settings["totals_by_dance"] = False
         win._update_deck_totals()

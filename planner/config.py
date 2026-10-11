@@ -11,6 +11,7 @@ import logging
 import os
 import sys
 import tempfile
+import time
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -260,19 +261,18 @@ OUTPUT_DIR = _configured_dir("DANCEPLAYLIST_OUTPUT_DIR", "output_dir",
                              _BASE_DIR / "playlists")
 
 
-def set_playlist_dir(path) -> None:
-    """Repoint the learned-playlists dir at runtime (⚙ GUI setting).
+def playlist_dir() -> Path:
+    """The learned-playlists dir, read at call time.
 
-    PLAYLIST_DIR was re-imported by name into the planner modules at import
-    time, so their module globals are updated too — otherwise they would keep
-    using the old binding."""
+    Import this, not PLAYLIST_DIR: a name imported from here is a copy that
+    keeps the old folder after `set_playlist_dir`."""
+    return PLAYLIST_DIR
+
+
+def set_playlist_dir(path) -> None:
+    """Repoint the learned-playlists dir at runtime (⚙ GUI setting)."""
     global PLAYLIST_DIR
     PLAYLIST_DIR = Path(path).expanduser()
-    for mod_name in ("planner.library", "planner.competition", "planner.event_plan",
-                     "dancesport_planner"):
-        mod = sys.modules.get(mod_name)
-        if mod is not None and hasattr(mod, "PLAYLIST_DIR"):
-            mod.PLAYLIST_DIR = PLAYLIST_DIR
 
 
 def folders_below(path: str, root: str) -> list[str] | None:
@@ -298,6 +298,27 @@ AUDIO_DB_FILE = _BASE_DIR / "audio_features.db"
 SCAN_CACHE_FILE = _BASE_DIR / "scan_cache.json"
 GLOBAL_SCAN_CACHE_FILE = _BASE_DIR / "global_scan_cache.json"
 
+
+def audio_db_file() -> Path:
+    """The SQLite DB, read at call time: a test points AUDIO_DB_FILE here at
+    a scratch file and every module follows."""
+    return AUDIO_DB_FILE
+
+def _replace(tmp: str, path: Path) -> None:
+    """os.replace that waits out a target held open for a moment.
+
+    A virus scanner or the search indexer opens a file the moment it is
+    written, and Windows refuses to replace a file that is open (WinError 32),
+    so the next save a moment later was lost. A target still locked after
+    three quarters of a second raises as before."""
+    for delay in (0.05, 0.1, 0.2, 0.4):
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            time.sleep(delay)
+    os.replace(tmp, path)
+
 def write_json_atomic(path: Path, obj: Any) -> None:
     """Write JSON via a temp file + os.replace so a crash never corrupts the target.
 
@@ -314,7 +335,7 @@ def write_json_atomic(path: Path, obj: Any) -> None:
             f.write(text)
             f.flush()
             os.fsync(f.fileno())
-        os.replace(tmp, path)
+        _replace(tmp, path)
     except BaseException:
         try:
             os.unlink(tmp)
@@ -338,7 +359,7 @@ def replacing_text(path: Path, encoding: str = "utf-8"):
             yield f
             f.flush()
             os.fsync(f.fileno())
-        os.replace(tmp, path)
+        _replace(tmp, path)
     except BaseException:
         try:
             os.unlink(tmp)

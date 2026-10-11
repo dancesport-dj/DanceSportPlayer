@@ -50,10 +50,10 @@ class NewDayTabTest(unittest.TestCase):
         self.win = self.gui.MainWindow()
         self.win._loading_dlg.accept()
         self.addCleanup(reap_widget, self.win)
-        self.win._lib = MusicLibrary()
+        self.win._library.lib = MusicLibrary()
         # A view with decks: the settings the suite shares may carry the
         # no-playlist view, which shows no tabs at all.
-        self.win._deck_count = 4
+        self.win._deckset.deck_count = 4
         self.win._apply_deck_view()
 
     def tab_menu(self, pick=None, typed=("", False)) -> dict:
@@ -84,13 +84,13 @@ class NewDayTabTest(unittest.TestCase):
         return handled, seen
 
     def eight_decks_on_screen(self):
-        self.win._deck_count = 8
+        self.win._deckset.deck_count = 8
         self.win._apply_deck_view()
         self.win.show()
         self.app.processEvents()
 
     def day_tab_shown(self) -> bool:
-        return self.win._deck_tabs.isTabVisible(2)
+        return self.win._grid.deck_tabs.isTabVisible(2)
 
     def test_a_group_tab_offers_it(self):
         self.assertTrue(self.tab_menu()[_NEW])
@@ -98,9 +98,9 @@ class NewDayTabTest(unittest.TestCase):
     def test_it_opens_the_day_tab_under_that_name(self):
         self.tab_menu(pick="📅", typed=("DanceComp 2026", True))
         self.assertTrue(self.day_tab_shown())
-        self.assertEqual(self.win._deck_tabs.tabText(2), "📅 DanceComp 2026")
-        self.assertEqual(self.win._deck_tabs.currentIndex(), 2)
-        self.assertTrue(all(t.rowCount() == 0 for t in self.win._day_decks))
+        self.assertEqual(self.win._grid.deck_tabs.tabText(2), "📅 DanceComp 2026")
+        self.assertEqual(self.win._grid.deck_tabs.currentIndex(), 2)
+        self.assertTrue(all(t.rowCount() == 0 for t in self.win._deckset.day_decks))
 
     def test_cancelling_opens_nothing(self):
         self.tab_menu(pick="📅", typed=("DanceComp 2026", False))
@@ -112,32 +112,32 @@ class NewDayTabTest(unittest.TestCase):
 
     def test_while_a_day_is_open_it_is_greyed_out(self):
         # There is one 📅 tab; renaming it is on its own menu.
-        self.win._day_decks[0].load_player_list([_entry("c1")], "HGR D",
+        self.win._deckset.day_decks[0].load_player_list([_entry("c1")], "HGR D",
                                                 play_cb=None)
         self.win._apply_deck_view()
         self.assertFalse(self.tab_menu()[_NEW])
 
     # ── a playlist's header ────────────────────────────────────────────────
     def test_with_four_playlists_a_header_opens_it(self):
-        tb = self.win._deck_tabs.tabBar()
+        tb = self.win._grid.deck_tabs.tabBar()
         self.assertTrue(tb.isHidden(), "1–4 playlists: no tab bar to click")
-        self.header_menu(self.win._tableA, pick="📅",
+        self.header_menu(self.win._deckset.tableA, pick="📅",
                          typed=("DanceComp 2026", True))
         self.assertTrue(self.day_tab_shown())
         self.assertFalse(tb.isHidden())
-        self.assertEqual(self.win._deck_tabs.tabText(2), "📅 DanceComp 2026")
+        self.assertEqual(self.win._grid.deck_tabs.tabText(2), "📅 DanceComp 2026")
 
     def test_the_header_greys_it_out_while_a_day_is_open(self):
-        self.header_menu(self.win._tableA, pick="📅",
+        self.header_menu(self.win._deckset.tableA, pick="📅",
                          typed=("DanceComp 2026", True))
-        self.assertFalse(self.header_menu(self.win._tableB)[_NEW])
+        self.assertFalse(self.header_menu(self.win._deckset.tableB)[_NEW])
 
     # ── beside the tabs ────────────────────────────────────────────────────
     def test_right_of_the_last_tab_on_the_bar_opens_it(self):
         # The bar spans the tab widget's whole width, so every click beside
         # the tabs lands on it.
         self.eight_decks_on_screen()
-        tb = self.win._deck_tabs.tabBar()
+        tb = self.win._grid.deck_tabs.tabBar()
         pos = QPoint(tb.tabRect(1).right() + 20, tb.height() // 2)
         self.assertEqual(tb.tabAt(pos), -1)
         handled, menu = self.right_click(tb, pos, pick="📅",

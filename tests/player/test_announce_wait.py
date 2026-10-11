@@ -27,6 +27,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_annwait_"))
 
+from PySide6.QtCore import QObject
 from PySide6.QtWidgets import QApplication
 
 from gui.playlist_table import PlaylistTable
@@ -36,6 +37,7 @@ from player.play_mode_panel import PlayModePanel
 from player.playback_state import PlaybackState
 from tests.qt_test_support import reap_widget
 from player.between_dances import BetweenDances
+from gui.deck_set import DeckSet
 
 
 class _Announcer:
@@ -80,14 +82,17 @@ class _Entry:
     bpm = 29
 
 
-class _Desk(PlayerControlMixin):
-    """A MainWindow as far as the start call reaches into one."""
+class _Desk(QObject, PlayerControlMixin):
+    """A MainWindow as far as the start call reaches into one. A QObject like
+    the real one: the playback watchdog is tied to it."""
 
     PATH = Path(r"C:\music\walzer.mp3")
 
     def __init__(self, panel, table, announcer):
+        QObject.__init__(self)
         self._play_panel = panel
-        self._all_tables = (table,)
+        self._deckset = DeckSet()
+        self._deckset.all_tables = (table,)
         self._announcer = announcer
         self._playback = PlaybackState()
         self._playback.dance = "LW"

@@ -25,6 +25,7 @@ from tests.qt_test_support import reap_widget
 
 from gui.duplicate_dialog import DuplicateResolveDialog
 from gui.main_decks import DeckLayoutMixin
+from gui.deck_set import DeckSet
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -45,7 +46,8 @@ class _Main(QWidget):
         self.deck = mock.Mock()
         self.deck.on_playback_stopped.side_effect = (
             lambda: self.events.append("deck ▶"))
-        self._all_tables = [self.deck]
+        self._deckset = DeckSet()
+        self._deckset.all_tables = [self.deck]
         self._lib_browser = mock.Mock()
         self.now = None
 

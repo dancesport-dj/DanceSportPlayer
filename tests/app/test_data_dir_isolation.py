@@ -23,7 +23,7 @@ _ROOT = Path(__file__).resolve().parents[2]
 class SuiteIsolationTest(unittest.TestCase):
     def test_the_suite_runs_on_a_data_folder_of_its_own(self):
         self.assertNotEqual(config._BASE_DIR.resolve(), config.INSTALL_DIR.resolve())
-        self.assertNotEqual(db.AUDIO_DB_FILE.resolve(),
+        self.assertNotEqual(config.audio_db_file().resolve(),
                             (config.INSTALL_DIR / "audio_features.db").resolve())
 
     def test_backups_land_in_that_folder_too(self):

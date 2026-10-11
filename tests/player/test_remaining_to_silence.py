@@ -20,6 +20,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from planner.checks import trailing_silence_secs
 from player.playback_state import PlaybackState
+from gui.deck_set import DeckSet
 
 
 class TrailingSilenceTest(unittest.TestCase):
@@ -97,7 +98,8 @@ class BigPlayerLimitTest(unittest.TestCase):
         w._playback.path = "hochzeit_aktuell_v9.mp3"
         w._silences = {"hochzeit_aktuell_v9.mp3": spans} if spans else {}
         w._play_panel = self._Panel(timed, play_secs)
-        w._all_tables = ()    # no list: the panel's values are the ones
+        w._deckset = DeckSet()
+        w._deckset.all_tables = ()    # no list: the panel's values are the ones
         w._playback.offset_ms = 0
         w._player = None
         return w

@@ -67,7 +67,7 @@ class WishlistMixin:
         drag = QDrag(self.deck(table).header)
         mime = QMimeData()
         mime.setData(self._WISH_REORDER_MIME,
-                     str(self._wishlists.index(table)).encode("ascii"))
+                     str(self._deckset.wishlists.index(table)).encode("ascii"))
         drag.setMimeData(mime)
         drag.exec(Qt.DropAction.MoveAction)
 
@@ -89,11 +89,11 @@ class WishlistMixin:
         except ValueError:
             e.ignore()
             return
-        if not (0 <= src_idx < len(self._wishlists)) or self._wishlists[src_idx] is table:
+        if not (0 <= src_idx < len(self._deckset.wishlists)) or self._deckset.wishlists[src_idx] is table:
             e.ignore()
             return
         e.acceptProposedAction()
-        self._swap_wishlists(self._wishlists[src_idx], table)
+        self._swap_wishlists(self._deckset.wishlists[src_idx], table)
 
     def _swap_wishlists(self, a: PlaylistTable, b: PlaylistTable):
         """Exchange two wishlists' tracks and names — the user-visible effect of
@@ -116,7 +116,7 @@ class WishlistMixin:
         """Lazily attach playback / similar-track drop support to a wishlist."""
         if table._suggester is not None:
             return
-        sug = self._suggester or (PlaylistSuggester(self._lib) if self._lib else None)
+        sug = self._suggester or (PlaylistSuggester(self._library.lib) if self._library.lib else None)
         if sug is not None:
             table.load_wishlist([], play_cb=self._play_or_stop, suggester=sug)
 
@@ -131,23 +131,23 @@ class WishlistMixin:
         — only with 4 wishlists and grid mode on — a 2×2 stack (wish 1/3 left, 2/4
         right, mirroring the deck grid). Reparents the 4 boxes between _wish_split and
         its two column splitters."""
-        boxes = (self._wish_box, self._wish_box2, self._wish_box3, self._wish_box4)
+        boxes = (self._grid.wish_box, self._grid.wish_box2, self._grid.wish_box3, self._grid.wish_box4)
         grid = bool(getattr(self, "_wish_grid", False)) and self._wish_state == 4
-        for w in (*boxes, self._wish_col1, self._wish_col2):
+        for w in (*boxes, self._grid.wish_col1, self._grid.wish_col2):
             w.setParent(None)
         if grid:
-            self._wish_col1.addWidget(self._wish_box)
-            self._wish_col1.addWidget(self._wish_box3)
-            self._wish_col2.addWidget(self._wish_box2)
-            self._wish_col2.addWidget(self._wish_box4)
-            self._wish_col1.setSizes([500, 500])
-            self._wish_col2.setSizes([500, 500])
-            self._wish_split.addWidget(self._wish_col1)
-            self._wish_split.addWidget(self._wish_col2)
-            self._wish_split.setSizes([500, 500])
+            self._grid.wish_col1.addWidget(self._grid.wish_box)
+            self._grid.wish_col1.addWidget(self._grid.wish_box3)
+            self._grid.wish_col2.addWidget(self._grid.wish_box2)
+            self._grid.wish_col2.addWidget(self._grid.wish_box4)
+            self._grid.wish_col1.setSizes([500, 500])
+            self._grid.wish_col2.setSizes([500, 500])
+            self._grid.wish_split.addWidget(self._grid.wish_col1)
+            self._grid.wish_split.addWidget(self._grid.wish_col2)
+            self._grid.wish_split.setSizes([500, 500])
         else:
             for b in boxes:
-                self._wish_split.addWidget(b)
+                self._grid.wish_split.addWidget(b)
         self._wish_grid_active = grid
 
     def _wish_grid_on(self) -> bool:
@@ -155,9 +155,9 @@ class WishlistMixin:
 
     def _wish_col_pair(self, table) -> tuple:
         """The two wishlists sharing a column in 2×2 mode (left 1&3, right 2&4)."""
-        if table in (self._wishlist, self._wishlist3):
-            return (self._wishlist, self._wishlist3)
-        return (self._wishlist2, self._wishlist4)
+        if table in (self._deckset.wishlist, self._deckset.wishlist3):
+            return (self._deckset.wishlist, self._deckset.wishlist3)
+        return (self._deckset.wishlist2, self._deckset.wishlist4)
 
     def _wish_col_folded(self, table) -> bool:
         """True when every visible wishlist in this one's 2×2 column is folded."""
@@ -167,22 +167,22 @@ class WishlistMixin:
     def _wish_is_top(self, table) -> bool:
         """In 2×2 mode the upper wishlists (1, 2) are 'top'; a row reads all as top."""
         if self._wish_grid_on():
-            return table in (self._wishlist, self._wishlist2)
+            return table in (self._deckset.wishlist, self._deckset.wishlist2)
         return True
 
     def _wish_is_left(self, table) -> bool:
-        return table in (self._wishlist, self._wishlist3)
+        return table in (self._deckset.wishlist, self._deckset.wishlist3)
 
     def _wish_split_for(self, table):
         """The splitter a wishlist's box actually lives in (its column in 2×2 mode)."""
         if self._wish_grid_on():
-            return (self._wish_col1 if table in (self._wishlist, self._wishlist3)
-                    else self._wish_col2)
-        return self._wish_split
+            return (self._grid.wish_col1 if table in (self._deckset.wishlist, self._deckset.wishlist3)
+                    else self._grid.wish_col2)
+        return self._grid.wish_split
 
     def _wish_fold_group(self, table) -> tuple:
         """The fold-neighbour group: the 2×2 column pair, else all wishlists in a row."""
-        return self._wish_col_pair(table) if self._wish_grid_on() else tuple(self._wishlists)
+        return self._wish_col_pair(table) if self._wish_grid_on() else tuple(self._deckset.wishlists)
 
     def _update_wish_area(self):
         """The wishlist area follows the cycle (_wish_state): 0 off · 1..4 show that many
@@ -192,20 +192,20 @@ class WishlistMixin:
         the wishlist / Eintanzen / library panes take over; states 2-4 always show that
         many. With 4 wishlists and _wish_grid on they stack 2×2 instead of in a row."""
         state = self._wish_state
-        show_area = state >= 1 and (self._deck_count != 1 or state >= 2)
-        self._wish_split.setVisible(show_area)
-        boxes = (self._wish_box, self._wish_box2, self._wish_box3, self._wish_box4)
+        show_area = state >= 1 and (self._deckset.deck_count != 1 or state >= 2)
+        self._grid.wish_split.setVisible(show_area)
+        boxes = (self._grid.wish_box, self._grid.wish_box2, self._grid.wish_box3, self._grid.wish_box4)
         for i, box in enumerate(boxes):
             box.setVisible(show_area and i < state)
         if show_area:
-            for i, wl in enumerate(self._wishlists):
+            for i, wl in enumerate(self._deckset.wishlists):
                 if i < state:
                     self._wire_wishlist(wl)
             if self._wish_grid_on():
                 # 2×2: two equal columns, each two equal rows.
-                self._wish_split.setSizes([500, 500])
-                self._wish_col1.setSizes([500, 500])
-                self._wish_col2.setSizes([500, 500])
+                self._grid.wish_split.setSizes([500, 500])
+                self._grid.wish_col1.setSizes([500, 500])
+                self._grid.wish_col2.setSizes([500, 500])
             else:
                 # Replay the user's remembered drag for this wish-state if there is one;
                 # otherwise fall back to the default ratio. Wishlists 1 & 2 are the primary
@@ -219,7 +219,7 @@ class WishlistMixin:
                 else:
                     weights = (1000, 1000, 400, 400)
                     sizes = [weights[i] if i < state else 0 for i in range(len(boxes))]
-                self._wish_split.setSizes(sizes)
+                self._grid.wish_split.setSizes(sizes)
         # Which wishlists count as "all folded" depends on visibility.
         self._sync_wish_fold_constraints()
 
@@ -231,7 +231,7 @@ class WishlistMixin:
         if self._wish_grid_on():
             return
         if self._wish_state >= 1:
-            self._wish_sizes[self._wish_state] = self._wish_split.sizes()
+            self._wish_sizes[self._wish_state] = self._grid.wish_split.sizes()
 
     def _set_wish_state(self, state: int, grid: bool = False):
         """Apply a wishlist-area state (0 off · 1..4 wishlists; grid stacks 4 as 2×2):
@@ -285,7 +285,7 @@ class WishlistMixin:
             return 0
         paths, fps = self._deck_dedup_index()
         # hashed on demand
-        fingerprint = self._cache.fingerprint if self._cache is not None else None
+        fingerprint = self._library.cache.fingerprint if self._library.cache is not None else None
         rows = []
         if paths or fps:
             for r, m in wishlist._row_meta.numbered():
@@ -307,7 +307,7 @@ class WishlistMixin:
         """Refresh the title-count badge under each wishlist (total · fresh).
         Piggybacks the deck Σ-total badges — both refresh on the same events."""
         self._update_deck_totals()
-        for d in self._deck_of.values():
+        for d in self._deckset.deck_of.values():
             lbl = d.count_lbl
             if lbl is None:
                 continue
@@ -328,7 +328,7 @@ class WishlistMixin:
     def current_wishlist_paths(self) -> set:
         """Set of file paths currently in any wishlist (for wishlist-scoped search)."""
         paths = set()
-        for wl in getattr(self, "_wishlists", []):
+        for wl in self._deckset.wishlists:
             for e in wl.wishlist_entries():
                 if e is not None and e.path:
                     paths.add(str(e.path))

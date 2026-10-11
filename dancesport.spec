@@ -263,7 +263,9 @@ if PLAYER:
     # No AI backends and no OpenRouter UI in this build, so nothing left here
     # speaks TLS. Dropping the module drops OpenSSL's two DLLs with it (~13 MB);
     # hashlib falls back to its built-in digests without _hashlib.
-    # The one exception is the 🐞 error reports: they go out over HTTPS.
+    # The one exception is the 🐞 error reports: they go out over HTTPS. The
+    # 🔔 update check rides on the same ssl module and is not offered without
+    # it (shared.update_check.available).
     if not ERROR_DSN:
         excludes += ["ssl", "_ssl"]
 if not FULL:

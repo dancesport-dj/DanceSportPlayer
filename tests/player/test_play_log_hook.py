@@ -10,10 +10,13 @@ from types import SimpleNamespace
 from PySide6.QtMultimedia import QMediaPlayer
 
 import planner.db as pdb
+from planner import config as planner_config
 from planner import play_log
 from planner.models import MusicEntry
+from player.fade_now import FadeNow
 from player.main_player import PlayerControlMixin
 from player.playback_state import PlaybackState
+from gui.deck_set import DeckSet
 
 PLAYING = QMediaPlayer.PlaybackState.PlayingState
 
@@ -40,13 +43,14 @@ class _Desk(PlayerControlMixin):
                                 dance="WW", duration=150, tag_artist="Henry Mancini")
         self.table = SimpleNamespace(_current_play_row=0,
                                      _row_meta=[SimpleNamespace(entry=self.entry)])
-        self._all_tables = [self.table]
+        self._deckset = DeckSet()
+        self._deckset.all_tables = [self.table]
         self._player = _Media(12_000)
         self._playback = PlaybackState(path=self.entry.path, dance="WW")
-        self._cache = object()
+        self._library = SimpleNamespace(cache=object())
         self._playing = playing
         self._between = SimpleNamespace(pending=None)
-        self._fade_now_end = None
+        self._fade_now = FadeNow()
         self._played_marked = False
         self._PLAYED_AFTER_MS = 10_000
         self._mix = SimpleNamespace(fade=1.0)
@@ -78,8 +82,8 @@ class PlayLogHookTest(unittest.TestCase):
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp(prefix="dp_play_hook_"))
         self.addCleanup(shutil.rmtree, self.dir, ignore_errors=True)
-        saved = (pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
-        pdb.AUDIO_DB_FILE = self.dir / "scratch.db"
+        saved = (planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
+        planner_config.AUDIO_DB_FILE = self.dir / "scratch.db"
         pdb._DB_LOCAL = threading.local()
         pdb._DB_INITIALIZED = False
 
@@ -88,7 +92,7 @@ class PlayLogHookTest(unittest.TestCase):
                 pdb._DB_LOCAL.conn.close()
             except Exception:
                 pass
-            pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = saved
+            planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = saved
         self.addCleanup(restore)
 
     def logged(self):

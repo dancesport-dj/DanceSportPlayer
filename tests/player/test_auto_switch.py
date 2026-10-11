@@ -34,6 +34,7 @@ from PySide6.QtWidgets import QApplication
 
 from player.main_player import PlayerControlMixin
 from player.play_mode_panel import PlayModePanel
+from gui.deck_set import DeckSet
 
 
 class _Table:
@@ -51,7 +52,8 @@ class _Desk(PlayerControlMixin):
 
     def __init__(self, panel):
         self._play_panel = panel
-        self._all_tables = ()
+        self._deckset = DeckSet()
+        self._deckset.all_tables = ()
 
     def _autosave_playlist(self):
         pass

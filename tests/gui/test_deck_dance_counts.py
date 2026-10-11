@@ -82,8 +82,8 @@ class BadgeTest(unittest.TestCase):
         self.win = self.gui.MainWindow()
         self.win._loading_dlg.accept()
         self.addCleanup(reap_widget, self.win)
-        self.win._lib = MusicLibrary()
-        self.table = self.win._tableB
+        self.win._library.lib = MusicLibrary()
+        self.table = self.win._deckset.tableB
         self.table.load_player_list(
             [_entry("c1", "CC"), _entry("r1", "RB"), _entry("c2", "CC")],
             "Party", play_cb=None)

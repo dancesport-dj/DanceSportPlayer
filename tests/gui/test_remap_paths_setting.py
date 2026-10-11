@@ -13,6 +13,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
@@ -57,7 +58,7 @@ class _Win(PathFixMixin):
 
     def __init__(self, settings):
         self._settings = settings
-        self._lib = None
+        self._library = SimpleNamespace(lib=None)
 
 
 class RemapIndexTest(unittest.TestCase):

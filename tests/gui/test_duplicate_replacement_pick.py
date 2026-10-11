@@ -48,13 +48,13 @@ class DuplicateReplacementPickTest(unittest.TestCase):
         self.win = _PickWin()
         self.addCleanup(reap_widget, self.win)
         self.a, self.b = _waltz("Alpha"), _waltz("Beta")
-        self.win.fill_deck(self.win._decks[0], [self.a, self.b])
-        self.win.fill_deck(self.win._decks[4], [_waltz("Gamma")])
-        self.win.fill_list(self.win._wishlists[0], [_waltz("Delta")])
+        self.win.fill_deck(self.win._deckset.decks[0], [self.a, self.b])
+        self.win.fill_deck(self.win._deckset.decks[4], [_waltz("Gamma")])
+        self.win.fill_list(self.win._deckset.wishlists[0], [_waltz("Delta")])
         self.offered = None
 
     def _pick(self, results, fn=None):
-        self.win._lib.similar_tracks = lambda *a, **k: results
+        self.win._library.lib.similar_tracks = lambda *a, **k: results
 
         def capture(entry, res, *a, **k):
             self.offered = [e.title for _s, e in res]

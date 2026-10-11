@@ -18,6 +18,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 # Offscreen BEFORE any QApplication exists, and state files into a temp dir (the
 # gui modules resolve those at import time — see test_gui_smoke.py).
@@ -29,6 +30,7 @@ from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtWidgets import QApplication, QWidget
 from tests.qt_test_support import reap_widget
 
+from player.fade_now import FadeNow
 from player.main_player import PlayerControlMixin
 from player.play_mode_panel import PlayModePanel
 from player.player import BigPlayerWidget
@@ -36,6 +38,7 @@ from gui.playlist_table import PlaylistTable
 from planner.models import MusicEntry, RoundConfig
 from player.between_dances import BetweenDances
 from player.pause_filler import PauseFiller
+from gui.deck_set import DeckSet
 
 
 def _song(dance: str, i: int) -> MusicEntry:
@@ -115,12 +118,13 @@ class _Desk(PlayerControlMixin, QWidget):
         base = {"auto_advance": True, "pause_enabled": False, "pause_secs": 0}
         base.update(settings)
         self._play_panel = PlayModePanel(base)
-        self._all_tables = [table]
+        self._deckset = DeckSet()
+        self._deckset.all_tables = [table]
         self._big_player = card
         self._player = _MediaStub()
         self._pause_player = _MediaStub()
         self._pause_out = _MediaStub()
-        self._cache = None          # → _await_loudness has nothing to measure
+        self._library = SimpleNamespace(cache=None)  # → _await_loudness has nothing to measure
         self._filler = PauseFiller()
         self._between = BetweenDances()
         self._between.pending = None
@@ -129,7 +133,7 @@ class _Desk(PlayerControlMixin, QWidget):
         self._between.announced = False
         self._between.held = False
         self._between.fade_end = None
-        self._fade_now_end = None
+        self._fade_now = FadeNow()
         self._announcer = None
         self._fade_timer = _TimerStub()
         self._settings = {}

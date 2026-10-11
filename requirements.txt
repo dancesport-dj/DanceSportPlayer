@@ -10,7 +10,9 @@
 #
 # Every direct dependency is pinned to the version the suite last passed on, so
 # a build made months later bundles what was tested. Move a pin on purpose, run
-# the whole suite, then commit it.
+# the whole suite, then commit it. What they pull in is pinned too, with hashes,
+# in requirements.lock / requirements-player.lock: regenerate those with the
+# command in their header whenever a pin here moves (BUILD.md, Locked dependencies).
 
 # PySide6 in particular is not to be moved without testing playback on Windows first.
 # 6.11.1's Windows Media Foundation plugin cuts a track about a second in, resets

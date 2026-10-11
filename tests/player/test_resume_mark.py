@@ -16,7 +16,9 @@ import tempfile
 import unittest
 from pathlib import Path
 from player.playback_state import PlaybackState
+from player.resume_marks import ResumeMarks
 from player.between_dances import BetweenDances
+from gui.deck_set import DeckSet
 
 TRACK = Path(r"C:\music\track.mp3")
 OTHER = Path(r"C:\music\other.mp3")
@@ -110,7 +112,7 @@ class _FakeWindow:
         self._player = _FakePlayer(pos_ms, dur_ms, playing)
         self._playback = PlaybackState()
         self._playback.path = TRACK
-        self._resume_pos: dict[str, int] = {}
+        self._resume = ResumeMarks()
         self._resume_seek_ms = None
         self._playback.offset_ms = 0
         self._settings = {"remember_pos": remember}
@@ -122,7 +124,8 @@ class _FakeWindow:
         self._between.pending = None
         self._bar = _FakeBar()
         self.table = _FakeTable()
-        self._all_tables = (self.table,)
+        self._deckset = DeckSet()
+        self._deckset.all_tables = (self.table,)
         self._play_ready_logged = True
         self._play_t0 = None
         # …and what `_on_playback_state` walks past on its way to the ↩ line.
@@ -171,51 +174,51 @@ class ResumeMarkTest(unittest.TestCase):
     def test_switching_away_mid_title_keeps_the_spot(self):
         w = self.Win(pos_ms=63_000)
         w._remember_stop_point()
-        self.assertEqual(w._resume_pos, {str(TRACK): 63_000})
+        self.assertEqual(w._resume.at, {str(TRACK): 63_000})
         self.assertEqual(w.table.marks, {str(TRACK): 63_000})
 
     def test_the_opening_seconds_are_no_place_to_come_back_to(self):
         # 10 s, the same window in which the player counts a title as heard.
         w = self.Win(pos_ms=8_000)
         w._remember_stop_point()
-        self.assertEqual(w._resume_pos, {})
+        self.assertEqual(w._resume.at, {})
 
     def test_a_title_stopped_on_its_last_note_counts_as_finished(self):
         w = self.Win(pos_ms=172_000, dur_ms=180_000)
         w._remember_stop_point()
-        self.assertEqual(w._resume_pos, {})
+        self.assertEqual(w._resume.at, {})
 
     def test_the_floating_overlay_leaves_no_mark(self):
         """Planning means trying a dozen rows for a few seconds each — none of
         them is a title anyone comes back to."""
         w = self.Win(big=False, pos_ms=63_000)
         w._remember_stop_point()
-        self.assertEqual(w._resume_pos, {})
+        self.assertEqual(w._resume.at, {})
 
     def test_a_late_stop_drops_the_earlier_mark(self):
         w = self.Win(pos_ms=178_000, dur_ms=180_000)
-        w._resume_pos[str(TRACK)] = 20_000
+        w._resume.at[str(TRACK)] = 20_000
         w._remember_stop_point()
-        self.assertEqual(w._resume_pos, {})
+        self.assertEqual(w._resume.at, {})
 
     def test_nothing_is_noted_while_the_switch_is_off(self):
         w = self.Win(remember=False, pos_ms=63_000)
         w._remember_stop_point()
-        self.assertEqual(w._resume_pos, {})
+        self.assertEqual(w._resume.at, {})
 
     def test_a_stopped_deck_does_not_wipe_the_mark(self):
         # _load_track is re-entered once the loudness is known; by then the deck
         # is stopped and position() reads 0 — recording that would wipe it.
         w = self.Win(playing=False, pos_ms=0)
-        w._resume_pos[str(TRACK)] = 42_000
+        w._resume.at[str(TRACK)] = 42_000
         w._remember_stop_point()
-        self.assertEqual(w._resume_pos, {str(TRACK): 42_000})
+        self.assertEqual(w._resume.at, {str(TRACK): 42_000})
 
     def test_with_nothing_loaded_there_is_nothing_to_note(self):
         w = self.Win(pos_ms=63_000)
         w._playback.path = None
         w._remember_stop_point()
-        self.assertEqual(w._resume_pos, {})
+        self.assertEqual(w._resume.at, {})
 
     # ----- spending it --------------------------------------------------------
 
@@ -242,19 +245,19 @@ class ResumeMarkTest(unittest.TestCase):
     def test_the_floating_overlay_never_picks_a_title_up(self):
         """A pre-listen starts at the top and leaves the mark where it is."""
         w = self.Win(big=False)
-        w._resume_pos[str(TRACK)] = 63_000
+        w._resume.at[str(TRACK)] = 63_000
         self.assertIsNone(w._resume_mark_for(TRACK))
         self.assertEqual(w._resume_mark_for(OTHER), None)
 
     def test_the_big_player_picks_the_marked_title_up(self):
         w = self.Win()
-        w._resume_pos[str(TRACK)] = 63_000
+        w._resume.at[str(TRACK)] = 63_000
         self.assertEqual(w._resume_mark_for(TRACK), 63_000)
         self.assertIsNone(w._resume_mark_for(OTHER))
 
     def test_no_mark_is_spent_while_the_switch_is_off(self):
         w = self.Win(remember=False)
-        w._resume_pos[str(TRACK)] = 63_000
+        w._resume.at[str(TRACK)] = 63_000
         self.assertIsNone(w._resume_mark_for(TRACK))
 
     def test_loading_a_title_leaves_its_badge_alone(self):
@@ -262,35 +265,35 @@ class ResumeMarkTest(unittest.TestCase):
         looking at a title must not cost the place in it."""
         from PySide6.QtMultimedia import QMediaPlayer
         w = self.Win()
-        w._resume_pos[str(TRACK)] = 63_000
+        w._resume.at[str(TRACK)] = 63_000
         w._resume_seek_ms = 63_000
         w._on_media_status(QMediaPlayer.MediaStatus.LoadedMedia)
         self.assertEqual(w._player.seeks, [63_000])
-        self.assertEqual(w._resume_pos, {str(TRACK): 63_000})
+        self.assertEqual(w._resume.at, {str(TRACK): 63_000})
 
     def test_pressing_play_spends_the_badge(self):
         """The music is running from the mark, so a badge still pointing at it
         names a place already passed."""
         from PySide6.QtMultimedia import QMediaPlayer
         w = self.Win()
-        w._resume_pos[str(TRACK)] = 63_000
+        w._resume.at[str(TRACK)] = 63_000
         w._on_playback_state(QMediaPlayer.PlaybackState.PlayingState)
-        self.assertEqual(w._resume_pos, {})
+        self.assertEqual(w._resume.at, {})
         self.assertEqual(w.table.marks, {})
 
     def test_the_other_decks_keep_their_marks(self):
         from PySide6.QtMultimedia import QMediaPlayer
         w = self.Win()
-        w._resume_pos.update({str(TRACK): 63_000, str(OTHER): 20_000})
+        w._resume.at.update({str(TRACK): 63_000, str(OTHER): 20_000})
         w._on_playback_state(QMediaPlayer.PlaybackState.PlayingState)
-        self.assertEqual(w._resume_pos, {str(OTHER): 20_000})
+        self.assertEqual(w._resume.at, {str(OTHER): 20_000})
 
     def test_a_pre_listen_that_starts_keeps_the_badge(self):
         from PySide6.QtMultimedia import QMediaPlayer
         w = self.Win(big=False)
-        w._resume_pos[str(TRACK)] = 63_000
+        w._resume.at[str(TRACK)] = 63_000
         w._on_playback_state(QMediaPlayer.PlaybackState.PlayingState)
-        self.assertEqual(w._resume_pos, {str(TRACK): 63_000})
+        self.assertEqual(w._resume.at, {str(TRACK): 63_000})
 
     def test_without_a_mark_the_title_starts_at_the_top(self):
         from PySide6.QtMultimedia import QMediaPlayer
@@ -304,9 +307,9 @@ class ResumeMarkTest(unittest.TestCase):
     def test_a_title_heard_out_loses_its_mark(self):
         from PySide6.QtMultimedia import QMediaPlayer
         w = self.Win()
-        w._resume_pos[str(TRACK)] = 63_000
+        w._resume.at[str(TRACK)] = 63_000
         w._on_media_status(QMediaPlayer.MediaStatus.EndOfMedia)
-        self.assertEqual(w._resume_pos, {})
+        self.assertEqual(w._resume.at, {})
         self.assertEqual(w.table.marks, {})
 
     def test_hearing_it_out_in_the_overlay_keeps_the_mark(self):
@@ -314,22 +317,59 @@ class ResumeMarkTest(unittest.TestCase):
         is still the place the big player has to come back to."""
         from PySide6.QtMultimedia import QMediaPlayer
         w = self.Win(big=False)
-        w._resume_pos[str(TRACK)] = 63_000
+        w._resume.at[str(TRACK)] = 63_000
         w._on_media_status(QMediaPlayer.MediaStatus.EndOfMedia)
-        self.assertEqual(w._resume_pos, {str(TRACK): 63_000})
+        self.assertEqual(w._resume.at, {str(TRACK): 63_000})
 
     def test_switching_the_feature_off_drops_every_mark(self):
         w = self.Win()
-        w._resume_pos.update({str(TRACK): 63_000, str(OTHER): 20_000})
+        w._resume.at.update({str(TRACK): 63_000, str(OTHER): 20_000})
         w._set_remember_pos(False)
-        self.assertEqual(w._resume_pos, {})
+        self.assertEqual(w._resume.at, {})
         self.assertEqual(w.table.marks, {})
 
     def test_switching_it_on_keeps_what_is_there(self):
         w = self.Win()
-        w._resume_pos[str(TRACK)] = 63_000
+        w._resume.at[str(TRACK)] = 63_000
         w._set_remember_pos(True)
-        self.assertEqual(w._resume_pos, {str(TRACK): 63_000})
+        self.assertEqual(w._resume.at, {str(TRACK): 63_000})
+
+
+class ResumeMarksTest(unittest.TestCase):
+    """The rules on their own, without a window."""
+
+    def test_a_mark_mid_title_is_kept(self):
+        marks = ResumeMarks()
+        marks.note(TRACK, 63_000, 180_000)
+        self.assertEqual(marks.get(TRACK), 63_000)
+        self.assertIsNone(marks.get(OTHER))
+
+    def test_the_opening_and_the_run_out_leave_no_mark(self):
+        marks = ResumeMarks()
+        marks.note(TRACK, ResumeMarks.MIN_MS - 1, 180_000)
+        marks.note(OTHER, 180_000 - ResumeMarks.TAIL_MS, 180_000)
+        self.assertEqual(marks.at, {})
+
+    def test_an_unknown_length_only_needs_the_opening_guard(self):
+        marks = ResumeMarks()
+        marks.note(TRACK, 63_000, 0)
+        self.assertEqual(marks.get(TRACK), 63_000)
+
+    def test_a_later_stop_in_the_opening_drops_the_mark(self):
+        marks = ResumeMarks()
+        marks.note(TRACK, 63_000, 180_000)
+        marks.note(TRACK, 2_000, 180_000)
+        self.assertIsNone(marks.get(TRACK))
+
+    def test_clear_says_whether_there_was_a_mark(self):
+        marks = ResumeMarks()
+        marks.note(TRACK, 63_000, 180_000)
+        self.assertTrue(marks.clear(TRACK))
+        self.assertFalse(marks.clear(TRACK))
+        self.assertFalse(marks.clear_all())
+        marks.note(OTHER, 63_000, 180_000)
+        self.assertTrue(marks.clear_all())
+        self.assertEqual(marks.at, {})
 
 
 if __name__ == "__main__":

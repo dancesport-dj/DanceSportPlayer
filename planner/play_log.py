@@ -110,7 +110,7 @@ def to_csv(plays_: list[Play], file: Path) -> None:
         w = csv.writer(f, delimiter=";")
         w.writerow([i18n.t(c) for c in
                     ("Date", "Start", "Artist", "Title", "Dance", "List", "Duration")])
-        for p, secs in zip(plays_, durations(plays_)):
+        for p, secs in zip(plays_, durations(plays_), strict=True):
             w.writerow([p.started_at.date().isoformat(),
                         p.started_at.time().isoformat("seconds"),
                         p.artist, p.title, dance_name(p.dance, p.dance) or "",

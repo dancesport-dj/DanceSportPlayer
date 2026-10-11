@@ -7,10 +7,23 @@ line-length = 120
 extend-exclude = ["_build_shims", "build", "build_pyi", "dist"]
 
 [tool.ruff.lint]
-# Deliberately light: pyflakes only (real errors — undefined names,
-# unused imports/variables). Style rules are intentionally left off.
-select = ["F"]
+# Deliberately light: pyflakes (real errors — undefined names, unused
+# imports/variables) plus B905: every zip() says whether its inputs must be
+# the same length (strict=True) or may be cut short (strict=False), so a round
+# or dance list that runs short fails loudly instead of losing its tail.
+# Style rules are intentionally left off.
+select = ["F", "B905"]
 
 [tool.ruff.lint.per-file-ignores]
 # The facade re-exports planner symbols on purpose.
 "dancesport_planner.py" = ["F401"]
+
+[tool.basedpyright]
+# Type checking, started small: the Qt-free core only, in pyright's basic mode
+# (basedpyright's default "recommended" is far stricter). basedpyright rather
+# than pyright for its baseline: the errors that were there when the check came
+# in sit in .basedpyright/baseline.json and are not reported, a new one fails
+# CI. Fixing one shrinks the baseline (`basedpyright --writebaseline`).
+include = ["planner"]
+typeCheckingMode = "basic"
+pythonVersion = "3.14"

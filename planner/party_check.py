@@ -299,7 +299,7 @@ def spacing_findings(rounds, *, late_ww=True, late_pd=True) -> list:
     for name, songs, rows in rounds:
         if _base(name) == "Lateinrunde":
             latin_rounds += 1
-        for entry, row in zip(songs, rows):
+        for entry, row in zip(songs, rows, strict=True):
             code = warmup_code(entry)
             if code == "WW" and late_ww and played < LATE_WW_AFTER:
                 out.append(_finding(

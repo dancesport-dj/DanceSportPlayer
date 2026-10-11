@@ -74,10 +74,10 @@ def _render(key: str) -> None:
     heat2 = [by_dance[d][-1] for d in dances]
     rounds = [RoundConfig(name="Vorrunde", heats=2, tier="early"),
               RoundConfig(name="Endrunde", heats=1, tier="final")]
-    win._tableA.load({"Vorrunde": [heat1, heat2], "Endrunde": [heat2]},
+    win._deckset.tableA.load({"Vorrunde": [heat1, heat2], "Endrunde": [heat2]},
                      dances, rounds, "S", play_cb=lambda *a: None,
                      suggester=None, use_timbre=False, style="Standard")
-    win._set_active_table(win._tableA)
+    win._set_active_table(win._deckset.tableA)
     win.resize(1500, 900)
     win.show()
     for _ in range(30):
@@ -85,7 +85,7 @@ def _render(key: str) -> None:
     out = ROOT / "assets" / "themes" / f"{key}.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     win.grab(QRect(*CROP)).save(str(out), "PNG")
-    _blur_names(out, _name_cells(win, win._tableA), win.devicePixelRatioF())
+    _blur_names(out, _name_cells(win, win._deckset.tableA), win.devicePixelRatioF())
     print(f"wrote {out.relative_to(ROOT)}", flush=True)
     # The app's threads and hooks make a clean Qt shutdown slow and noisy;
     # the picture is written, nothing else is left to do.

@@ -133,7 +133,7 @@ def _sources() -> list[tuple[str, int]]:
             cf.CFRelease(text)
         names.append(name or f"MIDI source {idx + 1}")
         refs.append(src)
-    return list(zip(unique_names(names), refs))
+    return list(zip(unique_names(names), refs, strict=True))
 
 
 def list_inputs() -> list[str]:

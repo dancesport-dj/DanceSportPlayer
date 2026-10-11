@@ -81,7 +81,7 @@ def _max_return_gap(codes, dance):
     idx = [i for i, c in enumerate(codes) if c == dance]
     if len(idx) < 2:
         return None
-    return max(b - a for a, b in zip(idx, idx[1:]))
+    return max(b - a for a, b in zip(idx, idx[1:], strict=False))
 
 
 class WarmupCoverageTest(unittest.TestCase):
@@ -189,7 +189,7 @@ class WarmupWienerWalzerTest(unittest.TestCase):
             with self.subTest(seed=seed):
                 random.seed(seed)
                 for rnd in self._rounds(late_ww=False):
-                    for a, b in zip(rnd, rnd[1:]):
+                    for a, b in zip(rnd, rnd[1:], strict=False):
                         self.assertFalse(
                             a == "LW" and b == "WW",
                             f"round {rnd} plays WW straight after LW")

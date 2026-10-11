@@ -323,7 +323,7 @@ class VoiceFadeTest(_VoiceCase):
             self.v._step_fades()
             levels.append(voice.out.volume())
         self.assertGreater(len(levels), 4, "0.4 s at 25 ms is many steps")
-        self.assertTrue(all(b <= a for a, b in zip(levels, levels[1:])),
+        self.assertTrue(all(b <= a for a, b in zip(levels, levels[1:], strict=False)),
                         "the level must only ever go down")
         self.assertIsNone(voice.key)
         self.assertIn("pause", voice.player.names())

@@ -20,14 +20,15 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_fp_index_"))
 
 import planner.db as pdb
+from planner import config as planner_config
 
 
 class FingerprintIndexTest(unittest.TestCase):
 
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp(prefix="dp_fp_index_"))
-        self._saved = (pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
-        pdb.AUDIO_DB_FILE = self.dir / "scratch.db"
+        self._saved = (planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
+        planner_config.AUDIO_DB_FILE = self.dir / "scratch.db"
         pdb._DB_LOCAL = threading.local()
         pdb._DB_INITIALIZED = False
         self.addCleanup(self._restore)
@@ -36,7 +37,7 @@ class FingerprintIndexTest(unittest.TestCase):
         conn = getattr(pdb._DB_LOCAL, "conn", None)
         if conn is not None:
             conn.close()
-        pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = self._saved
+        planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = self._saved
 
     def _plan(self, conn):
         rows = conn.execute("EXPLAIN QUERY PLAN "
@@ -47,7 +48,7 @@ class FingerprintIndexTest(unittest.TestCase):
         self.assertIn("idx_fingerprints_fp", self._plan(pdb._db()))
 
     def test_a_database_from_before_gets_the_index(self):
-        raw = sqlite3.connect(str(pdb.AUDIO_DB_FILE))
+        raw = sqlite3.connect(str(planner_config.AUDIO_DB_FILE))
         raw.execute("CREATE TABLE files (id INTEGER PRIMARY KEY, path TEXT UNIQUE NOT NULL)")
         raw.execute("CREATE TABLE fingerprints ("
                     "file_id INTEGER PRIMARY KEY REFERENCES files(id), mtime INTEGER, fp TEXT)")

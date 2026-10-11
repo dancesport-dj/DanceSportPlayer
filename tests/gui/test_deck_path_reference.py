@@ -64,9 +64,9 @@ class DeckPathReferenceTest(unittest.TestCase):
         _file(_C, r"lateincd\both.mp3")
         self.on_f = _file(_F, r"lateincd\both.mp3")
         self.only_f = _file(_F, r"lateincd\Only On F.mp3")
-        self.win._lib = MusicLibrary()
-        self.win._lib.entries = [_entry(self.on_c)]
-        self.table = self.win._tableA
+        self.win._library.lib = MusicLibrary()
+        self.win._library.lib.entries = [_entry(self.on_c)]
+        self.table = self.win._deckset.tableA
 
     def load(self, *paths: Path):
         self.table.load_player_list([_entry(p) for p in paths], "Party", play_cb=None)
@@ -141,7 +141,7 @@ class DeckPathReferenceTest(unittest.TestCase):
 
     # ── the wishlists are playlists too ────────────────────────────────────────
     def load_wish(self, *paths: Path):
-        self.wish = self.win._wishlists[0]
+        self.wish = self.win._deckset.wishlists[0]
         self.wish.load_wishlist([_entry(p) for p in paths], play_cb=None, suggester=None)
 
     def wish_paths(self) -> list[Path]:

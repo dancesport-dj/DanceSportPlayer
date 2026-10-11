@@ -134,8 +134,9 @@ class DuplicateTitlesDialog(QDialog):
     def removed_rows(self) -> set[int]:
         """The rows of every file not picked in a group that has a pick."""
         out: set[int] = set()
-        for group, radios in zip(self._groups, self.radios):
-            kept = next((row for (row, _e), rb in zip(group, radios) if rb.isChecked()), None)
+        for group, radios in zip(self._groups, self.radios, strict=True):
+            # `radios` ends in the extra "Keep all" button, which has no file.
+            kept = next((row for (row, _e), rb in zip(group, radios, strict=False) if rb.isChecked()), None)
             if kept is not None:
                 out |= {row for row, _e in group if row != kept}
         return out

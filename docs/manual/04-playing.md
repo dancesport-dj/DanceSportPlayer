@@ -183,7 +183,7 @@ The app says the next dance out loud: "Nächster Tanz: Langsamer Walzer".
 
 Two buttons switch the whole panel over in one go:
 
-- **🏆 Tournament set**: 1:40 play length with a 3 s fade-out, no pause, no
+- **🏆 Tournament set**: 1:45 play length with a 3 s fade-out, no pause, no
   auto-advance, no announcement, equalized volume. It is lit gold while the
   panel is on those values.
 - **🎉 Party set**: every title at full length with a 3 s fade-out,
@@ -268,7 +268,11 @@ click on it brings the window back. In ⚙ Settings the button then reads
 **📱 Stop Server**.
 
 - Only phones on the local network get in, and only with the PIN. Wrong PINs
-  lock a phone out for a while.
+  lock a phone out for a while, and after 30 wrong PINs from the whole network
+  within ten minutes no new phone gets in; phones already in keep working.
+- The PIN travels unencrypted (plain HTTP). On your own network that is fine.
+  On an open venue Wi-Fi anyone on it could read it, so start a
+  phone hotspot or a router of your own for the desk where you can.
 - The first time, Windows may ask whether the app may use the network. Allow
   it for private networks. If nothing turns up in the log while the phone
   tries, a firewall is in the way; the window names the program to allow.

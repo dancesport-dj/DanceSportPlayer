@@ -132,7 +132,8 @@ class TableHost:
 
     def warmup_table(self):
         """The Eintanzen panel's table, or None."""
-        return getattr(self._win(), "_warmup_table", None)
+        tables = getattr(self._win(), "_deckset", None)
+        return tables.warmup_table if tables else None
 
     # ── The other lists ─────────────────────────────────────────────────────
     def planned_paths(self) -> set:

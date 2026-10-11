@@ -14,7 +14,10 @@ log = logging.getLogger("dancesport.scoring")
 # ── Pick-scoring weights ─────────────────────────────────────────────────────
 # One place to tune how `_pick` ranks candidates. Composite score:
 #   popularity·W_POPULARITY + bpm_fit·W_BPM_FIT + timbre·W_TIMBRE + bonuses/maluses
-W_POPULARITY = 3            # ×popularity (forced to 0 under 'all' — no proven bias)
+# Every term but the bonuses spans 0..1 before weighting, popularity included, so
+# popularity (0..10) leads, while a clearly closer sound (0..5) can still beat
+# a title that was played once more.
+W_POPULARITY = 10           # ×popularity on the pool's 0..1 log scale (0 under 'all')
 
 
 W_BPM_FIT = 2               # ×_bpm_fit (1.0 = perfectly inside tournament tempo)

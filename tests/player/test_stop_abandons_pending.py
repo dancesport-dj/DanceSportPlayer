@@ -77,7 +77,7 @@ class StopAbandonsLoudnessWaitTest(unittest.TestCase):
         self.win = self.gui.MainWindow()
         self.win._loading_dlg.accept()   # closeEvent blocks a plain close()
         self.addCleanup(reap_widget, self.win)
-        self.win._cache = _NoLufsCache()
+        self.win._library.cache = _NoLufsCache()
         self.win._pv = lambda key: True if key == "loudness" else 0
         patches = [
             mock.patch("player.main_audio.find_ffmpeg", return_value="ffmpeg"),

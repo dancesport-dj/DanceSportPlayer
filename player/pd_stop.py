@@ -43,7 +43,8 @@ def pd_h2_position(takt: float) -> float:
     if not takt or takt <= 0:
         return _PD_FALLBACK[2]
     tks = sorted(_PD_H2_BY_TAKT)
-    for lo, hi in zip(tks, tks[1:]):
+    # Neighbouring pairs: one fewer than the list.
+    for lo, hi in zip(tks, tks[1:], strict=False):
         if lo <= takt <= hi:
             f = (takt - lo) / (hi - lo)
             return _PD_H2_BY_TAKT[lo] + f * (_PD_H2_BY_TAKT[hi] - _PD_H2_BY_TAKT[lo])

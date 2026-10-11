@@ -157,6 +157,11 @@ def serialize_deck(table, meta_ctx: dict) -> dict | None:
         "dynamic": bool(table._dynamic),
         "dynamic_capacity": list(table._dynamic_capacity),
     }
+    # 🎲 The seed the deck was generated from: the same seed and settings deal
+    # the same playlist again, which makes a surprising pick traceable.
+    suggester = getattr(table, "_suggester", None)
+    if suggester is not None:
+        state["seed"] = suggester.seed
 
     # 🔁 "potential replace" marks (Ctrl+M) — only the ones whose song is still
     # in this deck, so marks left behind by re-rolled/removed tracks don't pile

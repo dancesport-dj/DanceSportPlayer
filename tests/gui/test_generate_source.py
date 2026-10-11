@@ -14,6 +14,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
@@ -22,6 +23,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from gui import main_generate as gen
 from planner.library import MusicLibrary
 from planner.models import MusicEntry
+from gui.deck_set import DeckSet
 
 
 def _entry(name, dance="SA"):
@@ -54,10 +56,11 @@ class _Win:
     """MainWindow reduced to what `_source_library` reads."""
 
     def __init__(self, source, lib_entries, wishlists=(), m3u_entries=()):
-        self._lib = MusicLibrary()
-        self._lib.entries = list(lib_entries)
+        self._library = SimpleNamespace(lib=MusicLibrary())
+        self._library.lib.entries = list(lib_entries)
         self._cfg = _Cfg(source)
-        self._wishlists = list(wishlists)
+        self._deckset = DeckSet()
+        self._deckset.wishlists = list(wishlists)
         self._m3u_entries = list(m3u_entries)
 
     _source_library = gen.GenerateMixin._source_library
@@ -78,7 +81,7 @@ class GenerateSourceTest(unittest.TestCase):
     def test_the_default_source_is_the_untouched_library(self):
         win = _Win(("library", ""), [_entry("A"), _entry("B")])
         lib, label, problem = win._source_library()
-        self.assertIs(lib, win._lib)
+        self.assertIs(lib, win._library.lib)
         self.assertEqual((label, problem), ("", ""))
 
     def test_the_wishlist_source_carries_only_parked_tracks(self):
@@ -87,7 +90,7 @@ class GenerateSourceTest(unittest.TestCase):
                    wishlists=[_Wishlist([parked])])
         lib, label, problem = win._source_library()
         self.assertEqual(self._titles(lib), ["Parked"])
-        self.assertEqual(self._titles(win._lib), ["A", "Parked"])   # untouched
+        self.assertEqual(self._titles(win._library.lib), ["A", "Parked"])   # untouched
         self.assertIn("wishlists", label)
         self.assertEqual(problem, "")
 

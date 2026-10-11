@@ -144,7 +144,7 @@ def _sources() -> dict[str, tuple[int, int]]:
     clients = [entry[2] for entry in found]
     names = [cname if clients.count(client) == 1 else f"{cname}: {pname}"
              for cname, pname, client, _port in found]
-    return dict(zip(unique_names(names), [(c, p) for _cn, _pn, c, p in found]))
+    return dict(zip(unique_names(names), [(c, p) for _cn, _pn, c, p in found], strict=True))
 
 
 def list_inputs() -> list[str]:

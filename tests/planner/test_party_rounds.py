@@ -291,7 +291,7 @@ class LatePasoSpacingTest(unittest.TestCase):
 
     def _gaps(self, rounds) -> list[int]:
         at = [i for i, rnd in enumerate(rounds) if "PD" in rnd]
-        return [b - a - 1 for a, b in zip(at, at[1:])]
+        return [b - a - 1 for a, b in zip(at, at[1:], strict=False)]
 
     def test_three_latin_rounds_lie_between_two_pasos(self):
         # A long evening on purpose: past the 40-track gate and its own weight

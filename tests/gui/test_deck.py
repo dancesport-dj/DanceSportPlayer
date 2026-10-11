@@ -12,6 +12,7 @@ Qt, no window.
 import unittest
 
 from gui.deck import Deck, DeckContext
+from gui.deck_set import DeckSet
 
 
 class DeckTitleTest(unittest.TestCase):
@@ -82,7 +83,8 @@ class DeckAccessorTest(unittest.TestCase):
             deck = DeckLayoutMixin.deck
 
             def __init__(self):
-                self._deck_of = {}
+                self._deckset = DeckSet()
+                self._deckset.deck_of = {}
 
         self.win = _Win()
 

@@ -17,6 +17,7 @@ from pathlib import Path
 from unittest import mock
 
 import planner.db as pdb
+from planner import config as planner_config
 from planner.library import MusicLibrary
 
 
@@ -24,8 +25,8 @@ class ScanSingleStatTest(unittest.TestCase):
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp(prefix="dp_single_stat_"))
         self.addCleanup(shutil.rmtree, self.dir, ignore_errors=True)
-        saved = (pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
-        pdb.AUDIO_DB_FILE = self.dir / "scratch.db"
+        saved = (planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
+        planner_config.AUDIO_DB_FILE = self.dir / "scratch.db"
         pdb._DB_LOCAL = threading.local()
         pdb._DB_INITIALIZED = False
 
@@ -34,7 +35,7 @@ class ScanSingleStatTest(unittest.TestCase):
                 pdb._DB_LOCAL.conn.close()
             except Exception:
                 pass
-            pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = saved
+            planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = saved
         self.addCleanup(restore)
         self.root = self.dir / "music"
         for name in ("Waltz LW 29.mp3", "Tango TG 32.mp3", "Rumba RB 25.mp3"):

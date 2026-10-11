@@ -46,7 +46,7 @@ class EnvShapeTest(unittest.TestCase):
         self.assertEqual(len(WISH_KEYS), 4)
 
     def test_all_deck_keys_is_the_decks_then_the_day_decks(self):
-        """Zipped against `self._decks + self._day_decks` — the order IS the
+        """Zipped against `self._deckset.decks + self._deckset.day_decks` — the order IS the
         mapping from key to table, so it may not be sorted or reshuffled."""
         self.assertEqual(ALL_DECK_KEYS, DECK_KEYS + DAY_KEYS)
 

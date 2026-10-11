@@ -21,6 +21,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication, QToolButton, QWidget
 
+from gui.deck_set import DeckSet
 from gui.main_generate import GenerateMixin
 from gui.playlist_table import PlaylistTable
 from planner.models import MusicEntry
@@ -56,9 +57,10 @@ class PartyShuffleTest(unittest.TestCase):
                    for d in ("LW", "TG", "WW", "SF", "QS", "SA", "CC", "RB", "PD", "JI")]
         t.load_warmup(entries, "ETDS Party", style, "S", True, lambda _p: None, None)
         btn = QToolButton(host)
-        w = SimpleNamespace(_warmup_table=t, _warmup_shuffle_btn=btn,
+        w = SimpleNamespace(_deckset=DeckSet(), _warmup_shuffle_btn=btn,
                             _warmup_check_btn=QToolButton(host),
                             _warmup_opts={}, statusBar=mock.Mock())
+        w._deckset.warmup_table = t
         return w, t, btn
 
     def titles(self, t):

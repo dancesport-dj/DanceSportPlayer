@@ -23,6 +23,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtCore import QUrl
 
 from player.playback_state import PlaybackState
+from gui.deck_set import DeckSet
 
 
 class _Table:
@@ -62,7 +63,8 @@ class VanishedFileTest(unittest.TestCase):
         w._playback = PlaybackState()
         w._player = _Player(path)
         w.table = _Table()
-        w._all_tables = [w.table]
+        w._deckset = DeckSet()
+        w._deckset.all_tables = [w.table]
         w.reset = []
         w._reset_playback_ui = w.reset.append
         return w

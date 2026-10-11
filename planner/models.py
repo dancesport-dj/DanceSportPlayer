@@ -9,6 +9,7 @@ import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 
+from planner.dances import TEMPO_RANGES  # noqa: F401  (re-exported)
 from planner.db import AudioFeatures
 
 
@@ -82,22 +83,6 @@ OTHER_GENRE_LABELS: dict[str, str] = {
     'xmas':          'Weihnachten',
     'misc':          'Sonstiges',
     'test':          'Test',
-}
-
-
-# Tempo ranges (bars per minute) – same for all age classes and all start classes.
-# Songs outside this range but within BELOW_TEMPO_EXT are still allowed, marked *.
-TEMPO_RANGES: dict[str, dict[str, tuple[int, int]]] = {
-    'LW': {'D': (28,30),'C': (28,30),'B': (28,30),'A': (28,30),'S': (28,30)},
-    'TG': {'D': (31,33),'C': (31,33),'B': (31,33),'A': (31,33),'S': (31,33)},
-    'WW': {'D': (58,60),'C': (58,60),'B': (58,60),'A': (58,60),'S': (58,60)},
-    'SF': {'D': (28,30),'C': (28,30),'B': (28,30),'A': (28,30),'S': (28,30)},
-    'QS': {'D': (50,52),'C': (50,52),'B': (50,52),'A': (50,52),'S': (50,52)},
-    'CC': {'D': (30,32),'C': (30,32),'B': (30,32),'A': (30,32),'S': (30,32)},
-    'SA': {'D': (50,52),'C': (50,52),'B': (50,52),'A': (50,52),'S': (50,52)},
-    'RB': {'D': (24,26),'C': (24,26),'B': (24,26),'A': (24,26),'S': (24,26)},
-    'PD': {'D': (58,60),'C': (58,60),'B': (58,60),'A': (58,60),'S': (58,60)},
-    'JI': {'D': (41,43),'C': (41,43),'B': (41,43),'A': (41,43),'S': (41,43)},
 }
 
 
@@ -397,7 +382,7 @@ def rounds_from_pattern(raw: str) -> list[RoundConfig]:
     n = len(counts)
     names = ROUND_NAMES.get(n, [f"Runde {i + 1}" for i in range(n)])
     cfgs = []
-    for i, (name, heats) in enumerate(zip(names, counts)):
+    for i, (name, heats) in enumerate(zip(names, counts, strict=True)):
         tier = (
             "final"    if i == n - 1 else
             "semi"     if i == n - 2 else
@@ -530,7 +515,7 @@ def split_day_rounds(rounds_data: list[dict], dances: list[str]) -> list[dict]:
     groups: list[dict] = []
     cur: dict | None = None
     remap: dict[int, int] = {}
-    for r, comp in zip(rounds_data, comps):
+    for r, comp in zip(rounds_data, comps, strict=True):
         rctx = r.get("ctx") or {}
         if cur is None or comp != cur["comp"]:
             skip = set(r.get("skip_dances") or [])

@@ -629,7 +629,7 @@ def screen_choices() -> list:
     """(label, name) per connected monitor. The name is what a pick is kept
     by: the list's order changes when a beamer comes and goes."""
     return list(zip(screen_labels(),
-                    (s.name() for s in QGuiApplication.screens())))
+                    (s.name() for s in QGuiApplication.screens()), strict=True))
 
 
 class PresenterWindow(QWidget):

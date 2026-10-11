@@ -21,6 +21,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_pd_hold_"))
 
+from PySide6.QtCore import QObject
 from PySide6.QtWidgets import QApplication
 
 from player.main_pd import PdStopMixin
@@ -75,12 +76,14 @@ class _Fades:
         self.started += 1
 
 
-class _Desk(PdStopMixin):
-    """Just enough MainWindow for the wait."""
+class _Desk(QObject, PdStopMixin):
+    """Just enough MainWindow for the wait. A QObject like the real one: the
+    playback watchdog is tied to it."""
 
     PATH = Path(r"C:\music\espana.mp3")
 
     def __init__(self, playing=True, dance="PD", **panel):
+        QObject.__init__(self)
         self._playing = playing
         self._playback = PlaybackState()
         self._playback.dance = dance

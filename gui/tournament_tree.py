@@ -792,7 +792,7 @@ class TournamentTree(QWidget):
         # A track the library doesn't know still has its dance in the file name,
         # which is all the round derivation reads.
         stand_ins = [e if e is not None else MusicEntry(path=p, title=x or p.stem)
-                     for (p, x), e in zip(tracks, entries)]
+                     for (p, x), e in zip(tracks, entries, strict=True)]
         # The order is only cut, never regrouped, so the segment lengths lay the
         # names back onto the rows — and a file listed twice keeps both rounds.
         names: list[str] = []
@@ -829,7 +829,7 @@ class TournamentTree(QWidget):
         entries = [self._entry_for(tp) for tp, _x in tracks]
         rounds = self._round_names(p, tracks, entries) if tracks else []
         rows = []
-        for (path, extinf), entry, round_name in zip(tracks, entries, rounds):
+        for (path, extinf), entry, round_name in zip(tracks, entries, rounds, strict=True):
             missing = not path.is_file()
             secs = int(getattr(entry, "duration", 0) or 0) if entry is not None else 0
             rows.append({

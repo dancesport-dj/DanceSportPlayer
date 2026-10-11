@@ -16,12 +16,12 @@ one of them was excluded before and has to stay excluded.
 
 import unittest
 
-from planner import competition
 from planner.competition import _is_superseded_playlist
+from planner.config import playlist_dir
 
 
 def _excluded(rel: str) -> bool:
-    return _is_superseded_playlist(competition.PLAYLIST_DIR / rel)
+    return _is_superseded_playlist(playlist_dir() / rel)
 
 
 class SupersededWordsTest(unittest.TestCase):

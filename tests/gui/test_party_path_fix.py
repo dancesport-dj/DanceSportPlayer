@@ -65,11 +65,11 @@ class PartyPathFixTest(unittest.TestCase):
         self.addCleanup(reap_widget, self.win)
         self.win._settings["reference_path"] = str(_LIB)
         self.real = [_real(sub, name) for sub, _d, name in _TRACKS]
-        self.win._lib = MusicLibrary()
-        self.win._lib.entries = [
+        self.win._library.lib = MusicLibrary()
+        self.win._library.lib.entries = [
             MusicEntry(path=p, title=p.stem, dance=d, duration=180)
-            for p, (_s, d, _n) in zip(self.real, _TRACKS)]
-        self.table = self.win._warmup_table
+            for p, (_s, d, _n) in zip(self.real, _TRACKS, strict=True)]
+        self.table = self.win._deckset.warmup_table
 
     def _m3u(self, name: str) -> Path:
         """A party list naming every track at the OLD library location."""

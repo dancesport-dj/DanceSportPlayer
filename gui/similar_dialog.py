@@ -117,27 +117,7 @@ class SimilarTracksDialog(QDialog):
         self._source = source
         self._same_dance = same_dance
         self._is_global = is_global
-        # Paths currently in the user's wishlist(s) — lets the dialog narrow results
-        # to that curated set so they can pick the best-matching one to add next.
-        # We also key the set by normalised song title and content fingerprint so a
-        # DIFFERENT file copy of a wishlisted song still counts as "in the wishlist".
-        self._wishlist_paths = {str(p) for p in (wishlist_paths or [])}
-        self._wishlist_keys = set()
-        self._wishlist_fps  = set()
-        for p in self._wishlist_paths:
-            try:
-                k = _song_title_key(p)
-                if k:
-                    self._wishlist_keys.add(k)
-            except Exception as exc:
-                log.debug("🔑 No title key for %s: %s", p, exc)
-            if cache is not None:
-                try:
-                    fp = cache.known_fingerprint(Path(p))   # in-memory only, no I/O
-                    if fp:
-                        self._wishlist_fps.add(fp)
-                except Exception as exc:
-                    log.debug("🔑 No cached fingerprint for %s: %s", p, exc)
+        self._init_wishlist_match(wishlist_paths, cache)
         # 📜 Round history: called once, on the first tick of the checkbox, for the
         # (paths, title keys) past competitions played in the source slot's round.
         self._round_history_cb = round_history_cb
@@ -160,6 +140,46 @@ class SimilarTracksDialog(QDialog):
 
         lyt = QVBoxLayout(self)
 
+        self._build_head(lyt, source)
+        self._build_behavior_box(lyt, lib)
+        self._build_wishlist_box(lyt, wishlist_only)
+        self._build_round_box(lyt, round_history_cb, history_title, round_name)
+        self._build_method_row(lyt, lib, cache, history_title)
+        self._build_dedup_box(lyt, is_global)
+        self._build_instr_box(lyt)
+        self._build_fresh_combo(lyt, fresh_only)
+        self._build_table(lyt, history_title, seek_cb)
+        self._build_drop(lyt, lib, cache, history_title)
+        self._build_footer(lyt)
+
+        self._populate_ranked(source, results)
+
+    def _init_wishlist_match(self, wishlist_paths, cache):
+        """Wishlist paths, title keys and fingerprints, so another copy still counts."""
+        # Paths currently in the user's wishlist(s) — lets the dialog narrow results
+        # to that curated set so they can pick the best-matching one to add next.
+        # We also key the set by normalised song title and content fingerprint so a
+        # DIFFERENT file copy of a wishlisted song still counts as "in the wishlist".
+        self._wishlist_paths = {str(p) for p in (wishlist_paths or [])}
+        self._wishlist_keys = set()
+        self._wishlist_fps  = set()
+        for p in self._wishlist_paths:
+            try:
+                k = _song_title_key(p)
+                if k:
+                    self._wishlist_keys.add(k)
+            except Exception as exc:
+                log.debug("🔑 No title key for %s: %s", p, exc)
+            if cache is not None:
+                try:
+                    fp = cache.known_fingerprint(Path(p))   # in-memory only, no I/O
+                    if fp:
+                        self._wishlist_fps.add(fp)
+                except Exception as exc:
+                    log.debug("🔑 No cached fingerprint for %s: %s", p, exc)
+
+    def _build_head(self, lyt, source):
+        """The ▶ base-track button and the heading beside it."""
         # Header row: a small ▶ button (like the table) left of the base-track label
         self._head = QLabel()
         self._head.setWordWrap(True)
@@ -175,6 +195,8 @@ class SimilarTracksDialog(QDialog):
         head_row.addWidget(self._head, 1)
         lyt.addLayout(head_row)
 
+    def _build_behavior_box(self, lyt, lib):
+        """📋 Sound-alike vs. played-together, with a library."""
         # Mode switch: timbre (sound-alike) vs. behaviour (played together).
         # Only meaningful when we have the library to query playlist history.
         self._behavior_chk: QCheckBox | None = None
@@ -187,6 +209,8 @@ class SimilarTracksDialog(QDialog):
             self._behavior_chk.toggled.connect(self._on_mode_toggled)
             lyt.addWidget(self._behavior_chk)
 
+    def _build_wishlist_box(self, lyt, wishlist_only):
+        """⭐ Only tracks in the wishlist(s)."""
         # Restrict the matches to songs already in the wishlist(s), so you can find
         # the best-matching track from your curated list to add next. Only useful
         # when the wishlist isn't empty.
@@ -211,6 +235,8 @@ class SimilarTracksDialog(QDialog):
         self._wishlist_chk.toggled.connect(self._on_wishlist_toggled)
         lyt.addWidget(self._wishlist_chk)
 
+    def _build_round_box(self, lyt, round_history_cb, history_title, round_name):
+        """📜 Only titles played in this slot's round before (deck slots only)."""
         # Narrow the matches to what past competitions played in this slot's round
         # (a final: other finals; round 2: any heat of past second rounds). Only a
         # deck slot has a round, so the library pane and history mode go without.
@@ -226,6 +252,8 @@ class SimilarTracksDialog(QDialog):
             self._round_chk.toggled.connect(self._on_round_toggled)
             lyt.addWidget(self._round_chk)
 
+    def _build_method_row(self, lyt, lib, cache, history_title):
+        """The Method: combo; Combined is the default."""
         # Similarity method: librosa timbre+rhythm vector vs. OpenL3 deep embedding.
         # OpenL3 is optional (heavy ML dep) — only offered when it can be used.
         self._method_combo: QComboBox | None = None
@@ -273,6 +301,8 @@ class SimilarTracksDialog(QDialog):
             # Index (re)building lives in ⚙ Settings now — no per-window button here.
             lyt.addLayout(row)
 
+    def _build_dedup_box(self, lyt, is_global):
+        """🧹 Hide duplicate copies, on by default for the whole-repo search."""
         # Libraries surface several copies of the same song under slightly different
         # names ('… DJ Ice', 'jive(43) - …', '16 …'). Offer to collapse them. Shown in
         # both scopes; defaults ON for the whole-repo search (where copies are rife).
@@ -286,6 +316,8 @@ class SimilarTracksDialog(QDialog):
         self._dedup_chk.toggled.connect(self._on_dedup_toggled)
         lyt.addWidget(self._dedup_chk)
 
+    def _build_instr_box(self, lyt):
+        """🎙️ Only instrumental tracks."""
         # Restrict the matches to instrumental tracks (no vocals) — handy when the
         # tournament calls for neutral music.
         self._instr_chk = QCheckBox("🎙️  Only instrumental tracks (no vocals)")
@@ -297,6 +329,8 @@ class SimilarTracksDialog(QDialog):
         self._instr_chk.toggled.connect(self._on_instr_toggled)
         lyt.addWidget(self._instr_chk)
 
+    def _build_fresh_combo(self, lyt, fresh_only):
+        """🌱 The freshness selector: all / never / rarely / not since 1 y."""
         # Narrow the matches to music the floor hasn't heard from you — the
         # point of a similarity search when the old title is simply worn out.
         self._fresh_combo = QComboBox()
@@ -318,6 +352,8 @@ class SimilarTracksDialog(QDialog):
         self._fresh_combo.currentIndexChanged.connect(self._on_fresh_changed)
         lyt.addWidget(self._fresh_combo)
 
+    def _build_table(self, lyt, history_title, seek_cb):
+        """The draggable result table with its play and seek keys."""
         self._table = _DragTable(self._paths)
         table = self._table
         table.setColumnCount(len(self._COLS))
@@ -353,6 +389,8 @@ class SimilarTracksDialog(QDialog):
         table.cellDoubleClicked.connect(self._on_row_double_clicked)
         lyt.addWidget(table)
 
+    def _build_drop(self, lyt, lib, cache, history_title):
+        """The drop field that chains to another file's matches."""
         # Drop field for chaining to another file (only if we can analyze)
         if lib is not None and cache is not None and HAS_LIBROSA and history_title is None:
             self._drop = DropZone(
@@ -361,6 +399,8 @@ class SimilarTracksDialog(QDialog):
             self._drop.fileDropped.connect(self._on_dropped)
             lyt.addWidget(self._drop)
 
+    def _build_footer(self, lyt):
+        """The status line and the Close / Use-this-track buttons."""
         self._status = QLabel("")
         self._status.setStyleSheet("color:#666; font-size:11px;")
         lyt.addWidget(self._status)
@@ -384,8 +424,6 @@ class SimilarTracksDialog(QDialog):
         close.clicked.connect(self.reject if self._pick_cb is not None else self.accept)
         btn_row.addWidget(close)
         lyt.addLayout(btn_row)
-
-        self._populate_ranked(source, results)
 
     # ── Pick mode (replacement chooser) ──────────────────────────────────────────
     def _pick_selected(self):

@@ -36,6 +36,7 @@ from tests.qt_test_support import reap_widget
 from player.mix import OutputMix
 from player.playback_state import PlaybackState
 from dancesport_planner import MusicEntry
+from gui.deck_set import DeckSet
 from gui.playlist_table import PlaylistTable
 from gui.running_order import Row, RunningOrder
 
@@ -287,8 +288,11 @@ class _MixinTest(unittest.TestCase):
             def isActive(_self):
                 return True
 
+        tables = DeckSet()
+        tables.all_tables = (_Table(),)
+
         class _Desk(self.Mixin):
-            _all_tables = (_Table(),)
+            _deckset = tables
             _fade_timer = _Timer()
             _playback = PlaybackState(dance="WW")
             _big_player = None

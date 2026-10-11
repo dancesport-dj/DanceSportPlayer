@@ -197,7 +197,7 @@ class MixinWrapperTest(unittest.TestCase):
             _MIN_PLAY_SECS = 105
             _MAX_PLAY_SECS = 240
             _NOISE_FLOOR_DB = -50.0
-            _cache = None
+            _library = SimpleNamespace(cache=None)
             _settings = {"check_min_play_secs": 200}
 
         cls.win = Win()

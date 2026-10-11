@@ -31,10 +31,10 @@ class EmbeddingIndexMixin:
 
     def _embedding_store(self):
         """Lazily-created EmbeddingStore for read-only coverage queries."""
-        if getattr(self, "_emb_store_cache", None) is None and self._cache is not None:
+        if getattr(self, "_emb_store_cache", None) is None and self._library.cache is not None:
             try:
                 from planner import embeddings as ae
-                self._emb_store_cache = ae.EmbeddingStore(self._cache)
+                self._emb_store_cache = ae.EmbeddingStore(self._library.cache)
             except Exception:
                 self._emb_store_cache = None
         return getattr(self, "_emb_store_cache", None)
@@ -68,7 +68,7 @@ class EmbeddingIndexMixin:
             i18n.t("Audio index: analyzing %s files…") % len(to_do))
         self._busy = BusyDialog(
             self, i18n.t("Building audio index (%s)…") % scope_label, cancelable=True)
-        self._index_analyzer = AudioAnalyzer(self._cache, entries, self)
+        self._index_analyzer = AudioAnalyzer(self._library.cache, entries, self)
         self._busy.cancel_requested.connect(self._index_analyzer.cancel)
         self._busy.show_after(300)
         self._index_analyzer.progress.connect(self._on_index_progress)
@@ -144,7 +144,7 @@ class EmbeddingIndexMixin:
         lazy load from the warm cache and runs `on_ready` once it finishes, then
         returns False so the caller defers.
         """
-        if scope in ("global", "both") and not (self._global_lib and self._global_lib.entries):
+        if scope in ("global", "both") and not (self._library.global_lib and self._library.global_lib.entries):
             self._ensure_global_lib(then_build=on_ready)
             return False
         return True
@@ -155,8 +155,8 @@ class EmbeddingIndexMixin:
         Returns (entries, label); (None, "") with a message shown when the
         requested library isn't loaded yet.
         """
-        glob = self._global_lib if (self._global_lib and self._global_lib.entries) else None
-        comp = self._lib if (self._lib and self._lib.entries) else None
+        glob = self._library.global_lib if (self._library.global_lib and self._library.global_lib.entries) else None
+        comp = self._library.lib if (self._library.lib and self._library.lib.entries) else None
         if scope in ("global", "both") and glob is None:
             QMessageBox.information(
                 self, name,
@@ -204,7 +204,7 @@ class EmbeddingIndexMixin:
             QMessageBox.information(self, i18n.t("%s not installed") % name,
                                     ae.install_hint(model))
             return
-        if self._cache is None:
+        if self._library.cache is None:
             QMessageBox.information(self, name, "Audio cache not ready yet — try again shortly.")
             return
         # Let the user choose which library this index should cover.
@@ -239,7 +239,7 @@ class EmbeddingIndexMixin:
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if ans != QMessageBox.StandardButton.Yes:
             return
-        store = ae.EmbeddingStore(self._cache)
+        store = ae.EmbeddingStore(self._library.cache)
         self.statusBar().showMessage(i18n.t("Building %s index…") % name)
         self._busy = BusyDialog(self, i18n.t("Building %s embedding index…") % name,
                                 cancelable=True)

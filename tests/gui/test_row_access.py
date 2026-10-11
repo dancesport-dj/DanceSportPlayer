@@ -63,7 +63,7 @@ class PrintDroppedFilesTest(unittest.TestCase):
     def test_a_dropped_playlist_and_a_loose_file_print(self):
         tracks = {"Echo": _entry("Echo"), "Foxtrot": _entry("Foxtrot")}
         win = SimpleNamespace(
-            _lib=object(), _cache=object(),
+            _library=SimpleNamespace(lib=object(), cache=object()),
             _external_entry=lambda p: tracks.get(Path(p).stem),
             _m3u_track_paths=lambda p: [Path("Echo.mp3")])
         decks = PrintMixin._dropped_print_decks(

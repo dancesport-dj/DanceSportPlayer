@@ -41,7 +41,7 @@ class DuplicateRemoveTest(unittest.TestCase):
         self.win.statusBar = lambda: _Status()
         self.addCleanup(reap_widget, self.win)
         self.a, self.b, self.c = _waltz("Alpha"), _waltz("Beta"), _waltz("Gamma")
-        self.deck_a, self.deck_e = self.win._decks[0], self.win._decks[4]
+        self.deck_a, self.deck_e = self.win._deckset.decks[0], self.win._deckset.decks[4]
         self.win.fill_deck(self.deck_a, [self.a, self.b])
         self.win.fill_deck(self.deck_e, [self.c, self.a])
 
@@ -89,7 +89,7 @@ class DuplicateRemoveTest(unittest.TestCase):
         self.assertEqual(self.deck_e.rowCount(), rows)
 
     def test_remove_from_a_wishlist_drops_the_row(self):
-        wl = self.win._wishlists[0]
+        wl = self.win._deckset.wishlists[0]
         self.win.fill_list(wl, [self.c, _waltz("Delta"), self.b])
         rows = wl.rowCount()
         dlg = self._dialog()
@@ -99,7 +99,7 @@ class DuplicateRemoveTest(unittest.TestCase):
         self.assertEqual(wl.rowCount(), rows - 1)
 
     def test_a_title_doubled_in_one_list_can_be_removed(self):
-        wl = self.win._wishlists[0]
+        wl = self.win._deckset.wishlists[0]
         again = _waltz("Omega", folder="other")
         self.win.fill_list(wl, [_waltz("Omega"), _waltz("Delta"), again])
         dlg = self._dialog()

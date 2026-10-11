@@ -23,7 +23,8 @@ a dancesport tournament or a dance party from the music desk.
   editor with a live preview and a contrast check, and travels as a .json
   file. See [Settings › Look](docs/manual/06-settings.md#look).
 
-The user interface is in English and German.
+The user interface is in English, German, Spanish, Dutch and Russian (⚙
+Settings › Look › 🌐 Language). The manual is in English and German.
 It runs on Windows, macOS and Linux. Windows is the main platform, the one the
 player is used on at events; the macOS and Linux builds are newer and less
 tested.
@@ -92,13 +93,21 @@ and publishes them as a release for every `v*` tag.
 ## Development
 
 ```powershell
-.venv\Scripts\python.exe -m unittest discover -p "test_*.py"
+.venv\Scripts\python.exe -m tools.parallel_suite                     # whole suite, ~2 min
+.venv\Scripts\python.exe -m unittest discover -p "test_*.py"         # whole suite, serial, ~7 min
 .venv\Scripts\python.exe -m unittest tests.player.test_cartwall -v   # one module
 .venv\Scripts\python.exe -m ruff check .
+.venv\Scripts\basedpyright --pythonpath .venv\Scripts\python.exe   # planner/ types
 ```
 
 The full test suite needs `requirements.txt`. Tests are plain `unittest`;
 GUI tests drive Qt through its offscreen platform, so no window opens.
+`tools.parallel_suite` runs the test modules in batches on 8 processes, each
+with its own data folder; a batch that ends in a native crash is run once more
+and reported as "native crash, retried". The pre-push hook uses it.
+The type check covers `planner/` and reports only errors that are not in
+`.basedpyright/baseline.json`; after fixing some, shrink the baseline with
+`--writebaseline`.
 Enable the git hooks once per clone with `git config core.hooksPath .githooks`.
 
 | Path | Contents |
@@ -112,12 +121,12 @@ Enable the git hooks once per clone with `git config core.hooksPath .githooks`.
 ## Privacy
 
 The player keeps everything on your computer: the music, the playlists, the
-settings and its database. It has no account, no telemetry and no update check.
-It goes online for one thing only:
+settings and its database. It has no account and no telemetry. It goes online
+for two things only, and for each only if you allow it:
 
 **Error reports, only if you allow them.** On the first start the app asks
 whether it may send error reports; "Don't send" is the default, and
-⚙ Settings → 📁 Paths & search changes the answer at any time. When the app
+⚙ Settings → ⚙ General changes the answer at any time. When the app
 then hits an unexpected error, it sends a report to the developer's
 [GlitchTip](https://glitchtip.com) project (app.glitchtip.com): the error and
 where in the program it happened, the log lines before it (they can name the
@@ -125,6 +134,15 @@ title that was playing), the operating system, the build and the app version.
 Not your music, not your playlists, not your computer's name, and your user
 folder is cut out of every path. Like any server, GlitchTip sees the IP address
 a report comes from.
+
+**A check for new versions, only if you allow it.** The same first-start
+question has a box for it, unticked by default; ⚙ Settings → ⚙ General
+changes it at any time. When it is on, every start asks GitHub's API
+(api.github.com) once for the latest release of this repository. The request
+carries no version, no settings and nothing about your music; like any server,
+GitHub sees the IP address it comes from. A newer version is announced once,
+with a link to its release page. The app never downloads or installs anything
+by itself.
 
 **Who is responsible.** marcelkb, the developer of this app. Questions about
 your data, or a request to delete the reports from your computer: open an

@@ -28,17 +28,17 @@ Read-only — nothing in the database is modified.
 
 Run:  .venv\\Scripts\\python.exe -m tools.find_missing_metadata [--all] [--save report.txt]
 """
-import io
 import re
 import sys
 from pathlib import PurePath
 from urllib.parse import quote_plus
 
 # Windows console is cp1252; force UTF-8 so dance/title emojis don't crash.
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+sys.stdout.reconfigure(encoding="utf-8")
 
 from planner import db as db
-from planner.db import _row_to_meta, _META_COLS, _BEATS_PER_BAR
+from planner.dances import BEATS_PER_BAR as _BEATS_PER_BAR
+from planner.db import _row_to_meta, _META_COLS
 from planner.models import STYLE_FOLDERS
 from planner.parsing import _detect_bpm_tagged
 

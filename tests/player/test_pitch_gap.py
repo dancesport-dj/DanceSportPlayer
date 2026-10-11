@@ -33,7 +33,9 @@ from player.main_player import PlayerControlMixin
 from gui.playlist_table import PlaylistTable
 from planner.models import MusicEntry
 from player.playback_state import PlaybackState
+from player.resume_marks import ResumeMarks
 from player.between_dances import BetweenDances
+from gui.deck_set import DeckSet
 
 _MUSIC = Path(r"C:\music\tanzcds")
 
@@ -140,7 +142,8 @@ class _Desk(PlayerControlMixin, QWidget):
         self._player = _Player(self.log)
         self._big_player = _Card(self.log, tso)
         self._play_panel = _Panel()
-        self._all_tables = [table]
+        self._deckset = DeckSet()
+        self._deckset.all_tables = [table]
         self._now_playing = _Label()
         self._fade_timer = _Timer()
         self._preview = None
@@ -153,7 +156,7 @@ class _Desk(PlayerControlMixin, QWidget):
         self._taskbar = None        # 🪟 no shell here: the caption is a no-op
         self._played_marked = False
         self._playback.offset_ms = 0
-        self._resume_pos = {}       # ↩ where titles were left (session only)
+        self._resume = ResumeMarks()   # ↩ where titles were left (session only)
         self._resume_seek_ms = None
         self._between = BetweenDances()
         self._between.round_start = None
@@ -166,7 +169,7 @@ class _Desk(PlayerControlMixin, QWidget):
         return False
 
     def _resolve_entry(self, path):
-        return next((m.entry for m in self._all_tables[0]._row_meta
+        return next((m.entry for m in self._deckset.all_tables[0]._row_meta
                      if m and m.entry is not None
                      and str(m.entry.path) == str(path)), None)
 

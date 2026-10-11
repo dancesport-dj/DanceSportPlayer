@@ -91,6 +91,8 @@ class TableActionsMixin:
     """User-action concern: the right-click context menu (find similar,
     replace, mark, …) and every keyboard shortcut of the grid."""
 
+    _space_at = 0.0   # when Space last played/stopped — a quick second tap is the same press
+
     # ── Context menu: find similar tracks ──────────────────────────────────────
 
     def contextMenuEvent(self, event):
@@ -864,7 +866,12 @@ class TableActionsMixin:
         if key == Qt.Key.Key_Space and mods == Qt.KeyboardModifier.NoModifier:
             row, path = self._selected_song_row()
             if row >= 0:
-                self._on_play_click(row, path)
+                # A double tap is one press: the second would stop the title
+                # the first just started (still loading, so it looked idle).
+                now = time.monotonic()
+                if now - self._space_at >= QApplication.doubleClickInterval() / 1000:
+                    self._space_at = now
+                    self._on_play_click(row, path)
                 event.accept()
                 return
         elif (key in (Qt.Key.Key_R, Qt.Key.Key_N)
@@ -1035,7 +1042,7 @@ class TableActionsMixin:
         # back while those numbers still mean the rows they were taken from.
         self._ungrey_played_rows()
         placed = self._row_meta.placements()
-        for pos, (r, e) in enumerate(zip(song_rows, final_entries)):
+        for pos, (r, e) in enumerate(zip(song_rows, final_entries, strict=True)):
             m = self._row_meta[r]
             if m.entry is not e:
                 m.entry = e
@@ -1229,7 +1236,7 @@ class TableActionsMixin:
         out: list[MusicEntry] = []
         unreadable: list[Path] = []
         for (p, from_m3u), ent in zip(todo, self._entries_for_paths(
-                [tp for tp, _ in todo])):
+                [tp for tp, _ in todo]), strict=True):
             if ent is not None:
                 out.append(ent)
             elif not from_m3u:

@@ -11,10 +11,9 @@ Audio analysis is cached in audio_features.db, so the first run is slow
 (~minutes for the samba pool) and later runs are instant.
 """
 import sys
-import io
 from pathlib import Path
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 import dancesport_planner as P
 

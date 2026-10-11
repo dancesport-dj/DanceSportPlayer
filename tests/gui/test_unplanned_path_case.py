@@ -29,8 +29,9 @@ class UnplannedPathCaseTest(unittest.TestCase):
         browser = mock.Mock()
         browser.unplanned_active.return_value = True
         win = SimpleNamespace(
-            _cache=None, _lib_browser=browser,
-            _lib=SimpleNamespace(entries=[planned, other]),
+            _library=SimpleNamespace(
+                cache=None, lib=SimpleNamespace(entries=[planned, other])),
+            _lib_browser=browser,
             _visible_deck_tables=lambda: [deck])
         win._deck_dedup_index = functools.partial(
             DuplicateCheckMixin._deck_dedup_index, win)

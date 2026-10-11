@@ -90,7 +90,7 @@ class StrategyComboI18nTest(unittest.TestCase):
         """The half that setItemData does not translate on its own."""
         tips = self._tips(self.combo("de"))
         english = [STRATEGY_HELP[k] for k in STRATEGIES]
-        for key, tip, en in zip(STRATEGIES, tips, english):
+        for key, tip, en in zip(STRATEGIES, tips, english, strict=True):
             self.assertTrue(tip, f"{key} has no tooltip at all")
             self.assertNotEqual(tip, en, f"{key} kept its English tooltip")
 

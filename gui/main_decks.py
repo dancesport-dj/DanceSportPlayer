@@ -92,9 +92,9 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         Decks come into existence as their box is built, and the wishlists and
         the Eintanzen panel are asked about before that — hence on first ask
         rather than up front."""
-        d = self._deck_of.get(table)
+        d = self._deckset.deck_of.get(table)
         if d is None:
-            d = self._deck_of[table] = Deck(table)
+            d = self._deckset.deck_of[table] = Deck(table)
         return d
 
     def _deck_header_text(self, table: PlaylistTable, active: bool) -> str:
@@ -117,23 +117,23 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
     def _is_deck(self, table: PlaylistTable) -> bool:
         """True for any full playlist deck — the normal decks A–H AND the 📅 day
         decks (wishlists and the Eintanzen panel are not decks)."""
-        return table in self._decks or table in self._day_decks
+        return table in self._deckset.decks or table in self._deckset.day_decks
 
     # ── Deck grid geometry (2×2 grids: A/C·B/D on tab 1, E/G·F/H on tab 2, and
     #    two more of 📅 day decks on the Tournament-day tab's sub-tabs) ──
     def _deck_columns(self):
         """Every deck column as (column_splitter, (top_deck, bottom_deck), grid_splitter).
         All grids are listed; callers scope to what's visible via `_box_shown`."""
-        d = self._day_decks
+        d = self._deckset.day_decks
         return (
-            (self._decks_col1, (self._tableA, self._tableC), self._decks_split),
-            (self._decks_col2, (self._tableB, self._tableD), self._decks_split),
-            (self._decks_col3, (self._tableE, self._tableG), self._decks_split2),
-            (self._decks_col4, (self._tableF, self._tableH), self._decks_split2),
-            (self._day_col1, (d[0], d[2]), self._day_split),
-            (self._day_col2, (d[1], d[3]), self._day_split),
-            (self._day_col3, (d[4], d[6]), self._day_split2),
-            (self._day_col4, (d[5], d[7]), self._day_split2),
+            (self._grid.decks_col1, (self._deckset.tableA, self._deckset.tableC), self._grid.decks_split),
+            (self._grid.decks_col2, (self._deckset.tableB, self._deckset.tableD), self._grid.decks_split),
+            (self._grid.decks_col3, (self._deckset.tableE, self._deckset.tableG), self._grid.decks_split2),
+            (self._grid.decks_col4, (self._deckset.tableF, self._deckset.tableH), self._grid.decks_split2),
+            (self._grid.day_col1, (d[0], d[2]), self._grid.day_split),
+            (self._grid.day_col2, (d[1], d[3]), self._grid.day_split),
+            (self._grid.day_col3, (d[4], d[6]), self._grid.day_split2),
+            (self._grid.day_col4, (d[5], d[7]), self._grid.day_split2),
         )
 
     def _deck_col_pair(self, table: PlaylistTable):
@@ -141,50 +141,50 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         for _col, pair, _grid in self._deck_columns():
             if table in pair:
                 return pair
-        return (self._tableA, self._tableC)
+        return (self._deckset.tableA, self._deckset.tableC)
 
     def _deck_col_split(self, table: PlaylistTable):
         """The vertical column splitter holding `table`."""
         for col, pair, _grid in self._deck_columns():
             if table in pair:
                 return col
-        return self._decks_col1
+        return self._grid.decks_col1
 
     def _deck_is_top(self, table: PlaylistTable) -> bool:
         """True for the upper deck of its column (folds up / expands down).
         Pure identity check — safe to call before the column splitters exist."""
-        d = self._day_decks
-        return table in (self._tableA, self._tableB, self._tableE, self._tableF,
+        d = self._deckset.day_decks
+        return table in (self._deckset.tableA, self._deckset.tableB, self._deckset.tableE, self._deckset.tableF,
                          d[0], d[1], d[4], d[5])
 
     def _deck_is_left(self, table: PlaylistTable) -> bool:
         """True for the left column of its grid (sideways tab expands right ▸)."""
-        d = self._day_decks
-        return table in (self._tableA, self._tableC, self._tableE, self._tableG,
+        d = self._deckset.day_decks
+        return table in (self._deckset.tableA, self._deckset.tableC, self._deckset.tableE, self._deckset.tableG,
                          d[0], d[2], d[4], d[6])
 
     def _deck_tab_index(self, table: PlaylistTable) -> int:
         """Which top-level tab page (0 = Group A–D, 1 = Group E–H,
         2 = 📅 Tournament day) holds this deck."""
-        if table in self._day_decks:
+        if table in self._deckset.day_decks:
             return 2
-        return 1 if table in (self._tableE, self._tableF,
-                              self._tableG, self._tableH) else 0
+        return 1 if table in (self._deckset.tableE, self._deckset.tableF,
+                              self._deckset.tableG, self._deckset.tableH) else 0
 
     def _day_tab_index(self, table: PlaylistTable) -> int:
         """Which 📅 sub-tab (0 = Group A–D, 1 = Group E–H) holds this day deck."""
-        return 1 if table in self._day_decks[4:] else 0
+        return 1 if table in self._deckset.day_decks[4:] else 0
 
     def _day_plan_active(self) -> bool:
         """True while any 📅 day deck holds tracks — drives the visibility of the
         Tournament-day tab (its decks are only ever filled by the day planner)."""
-        return any(t.rowCount() > 0 for t in self._day_decks)
+        return any(t.rowCount() > 0 for t in self._deckset.day_decks)
 
     def _set_day_tab_title(self, title: str):
         """Label the 📅 top-level tab: the competition/event name when the user
         renamed it (persisted in the autosave env), the generic default otherwise."""
         self._day_tab_title = (title or "").strip()
-        self._deck_tabs.setTabText(
+        self._grid.deck_tabs.setTabText(
             2, f"📅 {self._day_tab_title}" if self._day_tab_title
             else "📅 Tournament day")
 
@@ -203,7 +203,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
     def _close_day_plan(self):
         """✕ on the 📅 tab: clear every day deck and retire the whole tab view
         (confirmed first while any day deck still holds tracks)."""
-        filled = [t for t in self._day_decks if t.rowCount() > 0]
+        filled = [t for t in self._deckset.day_decks if t.rowCount() > 0]
         if filled:
             n = len(filled)
             ans = QMessageBox.question(
@@ -217,7 +217,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
             )
             if ans != QMessageBox.StandardButton.Yes:
                 return
-        for t in self._day_decks:
+        for t in self._deckset.day_decks:
             self._blank_deck(t)
         self._set_day_tab_title("")
         self._day_tab_keep = False
@@ -228,7 +228,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
     def _clear_day_plan(self):
         """🧹 on the 📅 tab: empty every day playlist (confirmed first). The tab
         stays open with its name kept — only ✕ Close retires it."""
-        filled = [t for t in self._day_decks if t.rowCount() > 0]
+        filled = [t for t in self._deckset.day_decks if t.rowCount() > 0]
         if not filled:
             return
         n = len(filled)
@@ -241,7 +241,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         )
         if ans != QMessageBox.StandardButton.Yes:
             return
-        for t in self._day_decks:
+        for t in self._deckset.day_decks:
             self._blank_deck(t)
         self._day_tab_keep = True
         self._apply_deck_view()
@@ -251,7 +251,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
     def _group_tab_menu(self, page: int, global_pos):
         """Right-click on a Group A–D / E–H tab: save that page's decks as .m3u
         files, or clear them."""
-        decks = [t for t in self._decks if self._deck_tab_index(t) == page]
+        decks = [t for t in self._deckset.decks if self._deck_tab_index(t) == page]
         filled = any(t.rowCount() > 0 for t in decks)
         menu = QMenu(self)
         save = menu.addAction("💾  Save all playlists as M3U")
@@ -271,7 +271,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
     def _add_new_day_action(self, menu: QMenu):
         """📅 New tournament day… — greyed out while the one 📅 tab is shown."""
         act = menu.addAction("📅  New tournament day…")
-        act.setEnabled(not self._deck_tabs.isTabVisible(2))
+        act.setEnabled(not self._grid.deck_tabs.isTabVisible(2))
         return act
 
     def _tab_strip_menu(self, global_pos):
@@ -292,13 +292,13 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         self._set_day_tab_title(title)
         self._day_tab_keep = True
         self._apply_deck_view()
-        self._deck_tabs.setCurrentIndex(2)
+        self._grid.deck_tabs.setCurrentIndex(2)
         self._autosave_playlist()
 
     def _clear_group_tab(self, page: int):
         """Empty every deck on one Group tab page (confirmed first) — the other
         page, the 📅 day decks and the wishlists stay untouched."""
-        decks = [t for t in self._decks if self._deck_tab_index(t) == page]
+        decks = [t for t in self._deckset.decks if self._deck_tab_index(t) == page]
         filled = [t for t in decks if t.rowCount() > 0]
         if not filled:
             return
@@ -307,7 +307,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
             self, "Clear playlists",
             (i18n.t("Clear the %d playlist on “%s”?") if n == 1
              else i18n.t("Clear all %d playlists on “%s”?"))
-            % (n, self._deck_tabs.tabText(page)),
+            % (n, self._grid.deck_tabs.tabText(page)),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
@@ -317,7 +317,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
             self._blank_deck(t)
         self._autosave_playlist()
         self.statusBar().showMessage(
-            i18n.t("🧹 %s playlists cleared.") % self._deck_tabs.tabText(page))
+            i18n.t("🧹 %s playlists cleared.") % self._grid.deck_tabs.tabText(page))
 
     def _day_tab_menu(self, global_pos):
         """Right-click on the 📅 tab: save every competition as its own M3U
@@ -350,10 +350,10 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         their sub-tab)."""
         if self._is_deck(table):
             idx = self._deck_tab_index(table)
-            if self._deck_tabs.isTabVisible(idx):
-                self._deck_tabs.setCurrentIndex(idx)
-                if table in self._day_decks:
-                    self._day_tabs.setCurrentIndex(self._day_tab_index(table))
+            if self._grid.deck_tabs.isTabVisible(idx):
+                self._grid.deck_tabs.setCurrentIndex(idx)
+                if table in self._deckset.day_decks:
+                    self._grid.day_tabs.setCurrentIndex(self._day_tab_index(table))
 
     def _on_deck_tab_changed(self, index: int):
         """Focus the first open deck on the page the user switched to, so
@@ -361,9 +361,9 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         if getattr(self, "_restoring", False):
             return
         if index == 2:
-            self._on_day_tab_changed(self._day_tabs.currentIndex())
+            self._on_day_tab_changed(self._grid.day_tabs.currentIndex())
             return
-        for t in self._decks:
+        for t in self._deckset.decks:
             if self._deck_tab_index(t) == index and not self.deck(t).folded:
                 self._set_active_table(t)
                 break
@@ -372,7 +372,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         """Focus the first open 📅 day deck on the sub-tab the user switched to."""
         if getattr(self, "_restoring", False):
             return
-        decks = self._day_decks[:4] if index == 0 else self._day_decks[4:]
+        decks = self._deckset.day_decks[:4] if index == 0 else self._deckset.day_decks[4:]
         for t in decks:
             if not self.deck(t).folded:
                 self._set_active_table(t)
@@ -390,7 +390,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         hdr.setStyleSheet(self._DECK_HDR_IDLE)
         hdr.setToolTip("Click to focus · right-click or double-click to rename")
         hdr.mouseDoubleClickEvent = lambda _e, t=table: self._begin_inline_rename(t)
-        if table in self._wishlists:
+        if table in self._deckset.wishlists:
             # Wishlist headers can be dragged onto one another to swap the two
             # wishlists' position (their tracks + name trade places). Works in the
             # 2-up row and the 2×2 grid alike, since it just swaps content.
@@ -428,7 +428,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         # the other open playlists dynamically get the space. The stand-alone warm-up
         # panel has no fold (it's a single full-width list).
         hb.addWidget(hdr, stretch=1)
-        if self._is_deck(table) or table in self._wishlists:
+        if self._is_deck(table) or table in self._deckset.wishlists:
             fold_btn = QToolButton()
             fold_btn.setAutoRaise(True)
             fold_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -439,7 +439,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         # The stand-alone warm-up (Eintanzen) panel gets a compact toggle (fold to a
         # header tab), the twin of the decks' fold. Showing / hiding it entirely is
         # the 🤸 Eintanzen toolbar toggle (mirrors the ⭐ wishlist toggle).
-        if table is self._warmup_table:
+        if table is self._deckset.warmup_table:
             # 🔀 only on the ETDS party list: the same titles in a fresh order.
             self._warmup_shuffle_btn = QToolButton()
             self._warmup_shuffle_btn.setText("🔀")
@@ -491,7 +491,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         badge = None
         # Σ total play time badge below each deck (the whole playlist) — the
         # Eintanzen / party panel is a playlist too, so it gets one as well.
-        if self._is_deck(table) or table is self._warmup_table:
+        if self._is_deck(table) or table is self._deckset.warmup_table:
             tot = _TotalBadge("")
             tot.setStyleSheet(
                 "color:#2c4a73; background:#eef3fb; border:1px solid #c9d6ea; "
@@ -505,7 +505,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
             self.deck(table).total_lbl = tot
             badge = tot
         # Title-count badge below each wishlist (like the "✦new" fresh indicator).
-        if table in self._wishlists:
+        if table in self._deckset.wishlists:
             cnt = QLabel("")
             cnt.setStyleSheet(
                 "color:#7a5b00; background:#fff8e6; border:1px solid #e6d28a; "
@@ -682,7 +682,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         in the file for the install that does plan; an empty deck's dynamic flag
         is not worth carrying, which is why `_blank_deck` drops it too."""
         player_only = app_mode_of(self._settings) == "player"
-        for key, table in zip(ALL_DECK_KEYS, self._decks + self._day_decks):
+        for key, table in zip(ALL_DECK_KEYS, self._deckset.decks + self._deckset.day_decks, strict=True):
             mode = modes.get(key)
             if mode not in self._DECK_MODES or table._row_meta or player_only:
                 continue
@@ -700,8 +700,8 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         the usual way and then takes that answer. A list in neither keeps
         nothing, so it is seeded on first use like a fresh one."""
         for key, table in zip(ALL_DECK_KEYS + WISH_KEYS + ("warmup",),
-                              self._decks + self._day_decks
-                              + self._wishlists + [self._warmup_table]):
+                              self._deckset.decks + self._deckset.day_decks
+                              + self._deckset.wishlists + [self._deckset.warmup_table], strict=True):
             if isinstance(list_play.get(key), dict):
                 table._play_vals = None
                 self._list_vals(table).update(list_play[key])
@@ -805,7 +805,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
 
     def _warmup_has_content(self) -> bool:
         """True when the Eintanzen panel holds a warm-up list (something to show)."""
-        t = self._warmup_table
+        t = self._deckset.warmup_table
         return bool(getattr(t, "_warmup", False) and t._row_meta)
 
     def _decks_to_player_lists(self) -> int:
@@ -817,7 +817,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         another slot of its own dance. Nobody is planning any more, so the same
         songs, in the same order, become one list that can be dragged freely."""
         changed = 0
-        for t in self._decks + self._day_decks:
+        for t in self._deckset.decks + self._deckset.day_decks:
             if t.plays_flat() and not t._player_list and t._row_meta:
                 t.become_player_list()
                 changed += 1
@@ -833,12 +833,12 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         if self._warmup_has_content():
             return
         label = self._warmup_title(self._warmup_default_name())
-        self._warmup_table.load_warmup(
+        self._deckset.warmup_table.load_warmup(
             [], label, style="", dance_class="S", relax=True,
             play_cb=self._play_or_stop,
-            suggester=PlaylistSuggester(self._lib) if self._lib else None,
+            suggester=PlaylistSuggester(self._library.lib) if self._library.lib else None,
         )
-        self._set_deck_name(self._warmup_table, label)
+        self._set_deck_name(self._deckset.warmup_table, label)
 
     def _on_warmup_toggle(self, on: bool):
         """🤸 Eintanzen toolbar toggle: show / hide the warm-up panel. When nothing
@@ -847,9 +847,9 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         if on:
             self._ensure_empty_warmup()
         self._warmup_closed = not on
-        self._warmup_box.setVisible(on)
-        if not on and self._focused_table is self._warmup_table:
-            self._set_active_table(self._tableA)
+        self._grid.warmup_box.setVisible(on)
+        if not on and self._focused_table is self._deckset.warmup_table:
+            self._set_active_table(self._deckset.tableA)
         self._autosave_playlist()
         name = self._warmup_default_name()
         if on:
@@ -878,14 +878,14 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
     def _ensure_deck_ready(self, table: PlaylistTable):
         """Wire a never-generated deck with a suggester / play callback / cache so a
         dynamic drop onto an empty deck can resolve and render tracks."""
-        if self._lib is None:
+        if self._library.lib is None:
             return
         if table._suggester is None:
-            table._suggester = self._suggester or PlaylistSuggester(self._lib)
+            table._suggester = self._suggester or PlaylistSuggester(self._library.lib)
         if table._play_cb is None:
             table._play_cb = self._play_or_stop
         if table._cache is None:
-            table._cache = self._cache
+            table._cache = self._library.cache
 
     def _on_header_press(self, e, table: PlaylistTable):
         """Left-click focuses the deck (and clears its row selection, so a following
@@ -946,7 +946,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
                     table._clear_entire()
                 elif chosen is new_day:
                     self._new_day_tab()
-            elif table is self._warmup_table:
+            elif table is self._deckset.warmup_table:
                 if self._warmup_folded:
                     self._toggle_warmup_fold(False)
                 else:
@@ -978,7 +978,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
                     self._toggle_deck_fold(table, not is_folded)
         else:
             # Clicking a folded tab re-opens the deck.
-            if table is self._warmup_table:
+            if table is self._deckset.warmup_table:
                 if self._warmup_folded:
                     self._toggle_warmup_fold(False)
             elif self.deck(table).folded:
@@ -1077,7 +1077,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         """Mark `table` as focused. Decks (not the wishlist) also become the target
         of Generate / Save / ↺, with their generation context swapped in."""
         # Highlight whichever of the tables has focus.
-        for d in self._deck_of.values():
+        for d in self._deckset.deck_of.values():
             if d.header is None:
                 continue
             active = d.active = (d.table is table)
@@ -1096,12 +1096,12 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
                 # so nothing leaks in from the deck we just left. (Clearing a deck
                 # still resets the combos — that's _blank_deck.)
                 deck.ctx = self._focused_ctx().carried_over(self._cfg.get_mode())
-            self._table = table
+            self._deckset.table = table
             self._ensure_deck_tab_visible(table)   # 8-mode: front its tab page
             if not fresh:
                 self._show_deck_ctx(table)         # this deck's context on the combos
             self._cfg.save_btn.setEnabled(bool(table._row_meta))
-        elif table in self._wishlists or table is self._warmup_table:
+        elif table in self._deckset.wishlists or table is self._deckset.warmup_table:
             self._cfg.save_btn.setEnabled(bool(table._row_meta))
 
     def _focused_ctx(self) -> DeckContext:
@@ -1109,9 +1109,9 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         other DeckFields read and write. Before the decks exist, the one deck
         A starts with; a deck focused without ever being generated starts
         from the defaults."""
-        if getattr(self, "_deck_of", None) is None:
+        if not self._deckset.deck_of:
             return self._boot_ctx
-        deck = self.deck(self._table)
+        deck = self.deck(self._deckset.table)
         if deck.ctx is None:
             deck.ctx = DeckContext()
         return deck.ctx
@@ -1149,11 +1149,11 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         """Show exactly `_deck_count` decks (1 → A · 2 → A,B · 4 → A,B,C,D · 8 → two
         tabs of four) and keep the wishlist area in sync. If the active deck got
         hidden, refocus deck A."""
-        n = min(self._deck_count, self._max_decks())
-        self._deck_count = n   # a restored 8-deck layout lands here in a player build
+        n = min(self._deckset.deck_count, self._max_decks())
+        self._deckset.deck_count = n   # a restored 8-deck layout lands here in a player build
         # No-playlist view: hide the whole deck-tab area so the Eintanzen /
         # wishlist / library panes below take over the space.
-        self._deck_tabs.setVisible(n >= 1)
+        self._grid.deck_tabs.setVisible(n >= 1)
         if n == 0:
             self._dual_btn.setProperty("countText", "0")
             self._set_toolbar_btn_text(self._dual_btn, "No playlist")
@@ -1161,33 +1161,33 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
             return
         eight = (n == 8)
         g1 = min(n, 4)   # decks shown on the first grid (tab "Group A–D")
-        self._decks_col2.setVisible(g1 >= 2)   # right column (decks B+D)
-        self._deckC_box.setVisible(g1 >= 4)    # bottom decks only at 4+
-        self._deckD_box.setVisible(g1 >= 4)
+        self._grid.decks_col2.setVisible(g1 >= 2)   # right column (decks B+D)
+        self._grid.deckC_box.setVisible(g1 >= 4)    # bottom decks only at 4+
+        self._grid.deckD_box.setVisible(g1 >= 4)
         # Second grid (E–H) is a full 2×2; it shows on its own tab in 8-mode. The
         # 📅 Tournament-day tab (its own eight day decks in two sub-tabs) shows
         # whenever a day plan is loaded, independent of the deck-count view.
-        for b in (self._deckE_box, self._deckF_box, self._deckG_box, self._deckH_box):
+        for b in (self._grid.deckE_box, self._grid.deckF_box, self._grid.deckG_box, self._grid.deckH_box):
             b.setVisible(True)
         day = self._day_plan_active() or getattr(self, "_day_tab_keep", False)
-        self._deck_tabs.setTabVisible(0, True)
-        self._deck_tabs.setTabVisible(1, eight)
-        self._deck_tabs.setTabVisible(2, day)
-        self._deck_tabs.tabBar().setVisible(eight or day)
-        if not self._deck_tabs.isTabVisible(self._deck_tabs.currentIndex()):
-            self._deck_tabs.setCurrentIndex(0)
+        self._grid.deck_tabs.setTabVisible(0, True)
+        self._grid.deck_tabs.setTabVisible(1, eight)
+        self._grid.deck_tabs.setTabVisible(2, day)
+        self._grid.deck_tabs.tabBar().setVisible(eight or day)
+        if not self._grid.deck_tabs.isTabVisible(self._grid.deck_tabs.currentIndex()):
+            self._grid.deck_tabs.setCurrentIndex(0)
         self._dual_btn.setProperty("countText", str(n))
         self._set_toolbar_btn_text(
             self._dual_btn,
             (i18n.t("%d playlist") if n == 1 else i18n.t("%d playlists")) % n)
         self._update_wish_area()
         # Single-playlist view must never end up as a lone folded tab.
-        if n == 1 and self.deck(self._tableA).folded:
-            self._toggle_deck_fold(self._tableA, False)
+        if n == 1 and self.deck(self._deckset.tableA).folded:
+            self._toggle_deck_fold(self._deckset.tableA, False)
         # Which decks count as "whole column folded" depends on visibility.
         self._sync_col_fold_constraints()
-        if self._table is not None and not self._box_shown(self._table):
-            self._set_active_table(self._tableA)
+        if self._deckset.table is not None and not self._box_shown(self._deckset.table):
+            self._set_active_table(self._deckset.tableA)
 
     def _cycle_deck_view(self, back: bool = False):
         """Cycle the deck view 1 → 2 → 4 → 8 → 0 (no playlists) → 1, stopping at
@@ -1199,14 +1199,14 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
                 else {1: 2, 2: 4, 4: 0, 0: 1})
         if back:
             ring = {nxt: cur for cur, nxt in ring.items()}
-        self._deck_count = ring.get(self._deck_count, 1)
+        self._deckset.deck_count = ring.get(self._deckset.deck_count, 1)
         self._apply_deck_view()
         msg = {0: "No-playlist view — decks hidden; only Practice / wishlist / library show",
                1: "Single-playlist view",
                2: "🎚️ Two-playlist view — focus a deck; its controls drive Generate / Save / ↺",
                4: "🎚️ Four-playlist view — focus a deck to drive Generate / Save / ↺",
                8: "🎚️ Eight-playlist view — two tabs (Group A–D / E–H); focus a deck to drive Generate / Save / ↺"}
-        self.statusBar().showMessage(msg[self._deck_count])
+        self.statusBar().showMessage(msg[self._deckset.deck_count])
         self._autosave_playlist()
 
     def _reveal_deck(self, table) -> None:
@@ -1223,12 +1223,12 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
             # Day decks live on the 📅 tab (shown while they hold tracks) and
             # need no deck-count at all; a normal deck may need a wider view
             # first. Either way the page holding it comes to the front.
-            if table not in self._day_decks:
-                idx = self._decks.index(table)
+            if table not in self._deckset.day_decks:
+                idx = self._deckset.decks.index(table)
                 want = 8 if idx >= 4 else 4 if idx >= 2 else 2 if idx >= 1 else 1
                 want = min(want, self._max_decks())
-                if want > self._deck_count:
-                    self._deck_count = want
+                if want > self._deckset.deck_count:
+                    self._deckset.deck_count = want
                     self._apply_deck_view()
             self._ensure_deck_tab_visible(table)
         if self.deck(table).folded:   # deck folded to a slim tab strip
@@ -1246,7 +1246,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         The wishlists included: they are flat, so steps 0-2 have no headers to
         drop there, but 🔢 numbers their titles like any other list."""
         self._compact_state = state
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             t.set_grouping(state)
         self._apply_compact_label()
         self._settings["compact"] = state
@@ -1268,7 +1268,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
     def _on_deck_play(self, source: PlaylistTable):
         """One shared player: when a deck starts a song, clear the others' ■ markers."""
         self._preview_src = source   # anchor for the preview overlay in _play_or_stop
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             if t is not source:
                 t.on_playback_stopped()
         self._reset_aux_play_markers()
@@ -1278,7 +1278,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         """A preview window (Similar tracks) takes the shared player over: every
         deck's ■ and the panes' markers go back to ▶, as when another deck
         starts — the row that was running is no longer what plays."""
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             t.on_playback_stopped()
         self._reset_aux_play_markers()
 
@@ -1304,28 +1304,28 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         """The deck tables currently shown (matches the 1 / 2 / 4 / 8 deck view).
         In 8-mode all eight count, even those on the inactive tab page; an active
         📅 day plan adds the eight day decks the same way."""
-        tables = [self._tableA]
-        if self._deck_count >= 2:
-            tables.append(self._tableB)
-        if self._deck_count >= 4:
-            tables += [self._tableC, self._tableD]
-        if self._deck_count >= 8:
-            tables += [self._tableE, self._tableF, self._tableG, self._tableH]
+        tables = [self._deckset.tableA]
+        if self._deckset.deck_count >= 2:
+            tables.append(self._deckset.tableB)
+        if self._deckset.deck_count >= 4:
+            tables += [self._deckset.tableC, self._deckset.tableD]
+        if self._deckset.deck_count >= 8:
+            tables += [self._deckset.tableE, self._deckset.tableF, self._deckset.tableG, self._deckset.tableH]
         if self._day_plan_active():
-            tables += self._day_decks
+            tables += self._deckset.day_decks
         return tables
 
     def _checkable_deck_tables(self) -> list[PlaylistTable]:
         """Every deck that currently HOLDS tracks — across all tabs / view modes,
         not just the on-screen ones. This is what the Music check scans, so an
         'open' playlist sitting on the inactive 8-mode tab still gets checked."""
-        return [t for t in self._decks + self._day_decks if t._row_meta.has_songs()]
+        return [t for t in self._deckset.decks + self._deckset.day_decks if t._row_meta.has_songs()]
 
     def _update_deck_totals(self):
         """Refresh the Σ total-play-time badge under each deck (whole playlist)
         and under the Eintanzen / party panel."""
         by_dance = bool(self._settings.get("totals_by_dance"))
-        for d in self._deck_of.values():
+        for d in self._deckset.deck_of.values():
             lbl = d.total_lbl
             if lbl is None:
                 continue
@@ -1343,7 +1343,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
                             + (f"\n{dance_counts_line(entries)}" if by_dance else ""))
             else:
                 lbl.setText("")
-            folded = (self._warmup_folded if table is self._warmup_table
+            folded = (self._warmup_folded if table is self._deckset.warmup_table
                       else self.deck(table).folded)
             lbl.setVisible(bool(n) and not folded)
 
@@ -1407,7 +1407,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         cols = [int(c) for c in hidden]
         self._settings.setdefault("hidden_columns", {})[kind] = cols
         save_settings(self._settings)
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             if t.list_kind == kind and t.hidden_columns() != cols:
                 t.set_hidden_columns(cols)
 
@@ -1418,7 +1418,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         cols = {str(k): int(v) for k, v in widths.items() if int(v) > 0}
         self._settings.setdefault("column_widths", {})[kind] = cols
         save_settings(self._settings)
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             if t.list_kind == kind and t.column_widths() != widths:
                 t.set_column_widths(cols)
 
@@ -1428,7 +1428,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         short = bool(short)
         self._settings.setdefault("short_dances", {})[kind] = short
         save_settings(self._settings)
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             if t.list_kind == kind:
                 t.set_short_dances(short)
 
@@ -1461,7 +1461,7 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
         via the shared player, with the mini overlay anchored to the clicked
         row. `pane` is which of the two asked for it."""
         pane = pane if pane is not None else self._lib_browser
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             t.on_playback_stopped()
         self._reset_aux_play_markers(keep=pane)
         self._play_or_stop(path)
@@ -1485,10 +1485,10 @@ class DeckLayoutMixin(FoldMixin, WishlistMixin):
             return
         paths, fps = self._deck_dedup_index()
         planned = set(paths)
-        fingerprint = (self._cache.recorded_fingerprint
-                       if self._cache is not None else None)
-        if self._lib is not None:
-            for e in self._lib.entries:
+        fingerprint = (self._library.cache.recorded_fingerprint
+                       if self._library.cache is not None else None)
+        if self._library.lib is not None:
+            for e in self._library.lib.entries:
                 p = getattr(e, "path", None)
                 # `paths` is lowercased; the browser looks up `str(path)` as is.
                 if is_planned(p, paths, fps, fingerprint):

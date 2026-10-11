@@ -651,113 +651,10 @@ class TableDragDropMixin:
         row = self._event_row(e)
         src_tbl = e.source()
         if src_tbl is self:
-            # Dance-header drag: move the whole dance to the target section.
-            if self._dance_drag:
-                tgt = self._dance_at_row(row)
-                if tgt is not None and tgt != self._dance_drag:
-                    e.setDropAction(Qt.DropAction.MoveAction)
-                    e.accept()
-                    self._reorder_dance(self._dance_drag, tgt)
-                else:
-                    e.ignore()
-                return
-            # Wishlist / warm-up list: reorder its own rows. Ctrl held → SWAP the
-            # dragged track with the one under the cursor; otherwise move it to the
-            # gap shown by the red line. The reorder re-fills ONLY the rows that
-            # actually changed (see _apply_song_reorder), so the scroll position
-            # holds at the drop point and there's no full-table rebuild. It's still
-            # deferred to the next event-loop tick (QTimer.singleShot(0)) so the
-            # drag gesture ends immediately before the autosave/disk-write runs.
-            if self._supports_row_reorder() and self._drag_src_rows:
-                e.setDropAction(Qt.DropAction.CopyAction)
-                e.accept()
-                src_rows = list(self._drag_src_rows)   # cleared after drag.exec()
-                drop_idx = self._drop_index(e)
-                ctrl     = self._drop_ctrl(e)
-                tgt_row  = row
-
-                def _do():
-                    self._drag_src_rows = src_rows      # restore for the helpers
-                    try:
-                        if ctrl:
-                            self._swap_reorder(tgt_row)
-                        elif self._warmup:
-                            self._reorder_warmup(drop_idx)
-                        else:
-                            self._reorder_flat(drop_idx)
-                    finally:
-                        self._drag_src_rows = []
-                QTimer.singleShot(0, _do)
-                return
-            src = self._internal_drag_src()
-            # _dynamic_drop_row: empty space below the grid snaps to the nearest
-            # visible row instead of falling through as "no row".
-            tgt = self._resolve_internal_drop(self._dynamic_drop_row(e), src)
-            if self._internal_drop_ok(src, tgt):
-                e.setDropAction(Qt.DropAction.CopyAction)
-                e.accept()
-                # Multiple selected song rows → move the whole block, keeping each
-                # track's heat offset from the anchor (single row keeps the old path).
-                heats = self._row_meta.heat_rows()
-                movable = [r for r in self._drag_src_rows if r in heats]
-                if len(movable) > 1:
-                    self._move_rows_block(movable, tgt)
-                else:
-                    self._move_or_swap_rows(src, tgt)
-            else:
-                e.ignore()
+            self._drop_internal(e, row)
             return
         if self._flat_mode:
-            # Wishlist: insert every dropped audio file at the cursor gap; expand
-            # any dropped .m3u in place. The red drop line marked the spot.
-            files = self._wishlist_droppables(e)
-            if not files:
-                e.ignore()
-                return
-            # A .m3u dropped onto an EMPTY wishlist names it after the file (keeping
-            # the ⭐ Wishlist prefix): "⭐  Wishlist: <m3u name>".
-            was_empty = self.rowCount() == 0
-            m3u_drop = next((f for f in files
-                             if f.suffix.lower() in (".m3u", ".m3u8")), None)
-            e.setDropAction(Qt.DropAction.CopyAction)
-            e.accept()
-            added = self._insert_drop_files(files, self._drop_index(e))
-            if was_empty and added and m3u_drop is not None:
-                self.host.name_after_playlist(m3u_drop.stem)
-            ctrl = self._drop_ctrl(e)
-            from_deck = (isinstance(src_tbl, PlaylistTable) and src_tbl is not self
-                         and not src_tbl._flat_mode)
-            from_wishlist = (isinstance(src_tbl, PlaylistTable) and src_tbl is not self
-                             and src_tbl._flat_mode)
-            # Both wishlist → wishlist AND deck → wishlist are a MOVE unless Ctrl is held
-            # (then a copy). A deck source has its dragged slots emptied so the track is
-            # taken OUT of the playlist and lands in the wishlist ("dragged back").
-            moved = False
-            if added and not ctrl:
-                if from_wishlist:
-                    moved = src_tbl._remove_rows(src_tbl._drag_src_rows, select_after=True)
-                elif from_deck:
-                    moved = src_tbl._clear_slots_at(set(src_tbl._drag_src_rows), select_after=True)
-            # Auto-clean: a wishlist shouldn't hold tracks already in an open playlist, so
-            # re-run the check on every add (user-requested). Skip it for a deck → wishlist
-            # drop — that's a deliberate placement, and running it here would instantly
-            # remove the very track just dragged in (it's, or just was, in that playlist).
-            cleaned = 0
-            if not from_deck:
-                cleaned = self.host.clean_wishlist_against_playlists(announce=False)
-            # Duplicates are auto-filtered by _append_entry, so `added` only counts
-            # genuinely new tracks; tell the user when everything was a dup.
-            if added:
-                msg = (i18n.t("⭐  Moved %d track(s) to the wishlist") if moved
-                       else i18n.t("⭐  Added %d track(s) to the wishlist")) % added
-                if cleaned:
-                    msg += i18n.t("  ·  🧹 %d already in a playlist removed") % cleaned
-                _show_toast(self, msg)
-            elif cleaned:
-                _show_toast(self, i18n.t("🧹  Removed %d track(s) already in a playlist")
-                            % cleaned)
-            else:
-                _show_toast(self, "⭐  Already in the wishlist — nothing added")
+            self._drop_on_wishlist(e, src_tbl)
             return
         # Several .m3u at once (the 🏆 tab's marked playlists) go into the free
         # decks, one each — what 📂 Import M3U does with several picked files.
@@ -807,19 +704,138 @@ class TableDragDropMixin:
             self.become_player_list()
         elif (not self._flat_mode and not self._player_list
               and (self._dynamic or not self._row_meta)):
-            # Dynamic deck, or an empty one going dynamic now: build/extend the grid.
-            # A deck in free order is never one of them — emptied out, its next drop
-            # would otherwise silently hand it a grid back.
-            if not self._can_dynamic_drop(e):
+            self._drop_dynamic(e)
+            return
+        self._drop_static(e, row)
+
+    def _drop_internal(self, e, row: int):
+        """A drag from this table onto itself: a dance, a reorder, or a slot move."""
+        # Dance-header drag: move the whole dance to the target section.
+        if self._dance_drag:
+            tgt = self._dance_at_row(row)
+            if tgt is not None and tgt != self._dance_drag:
+                e.setDropAction(Qt.DropAction.MoveAction)
+                e.accept()
+                self._reorder_dance(self._dance_drag, tgt)
+            else:
                 e.ignore()
-                return
+            return
+        # Wishlist / warm-up list: reorder its own rows. Ctrl held → SWAP the
+        # dragged track with the one under the cursor; otherwise move it to the
+        # gap shown by the red line. The reorder re-fills ONLY the rows that
+        # actually changed (see _apply_song_reorder), so the scroll position
+        # holds at the drop point and there's no full-table rebuild. It's still
+        # deferred to the next event-loop tick (QTimer.singleShot(0)) so the
+        # drag gesture ends immediately before the autosave/disk-write runs.
+        if self._supports_row_reorder() and self._drag_src_rows:
             e.setDropAction(Qt.DropAction.CopyAction)
             e.accept()
-            pre_planned = self._planned_keys()
-            self._dynamic_drop(e, self._dynamic_drop_row(e), replace=self._drop_ctrl(e))
-            # dragging from another deck / wishlist is a MOVE
-            self._move_from_drag_source(e, pre_planned=pre_planned)
+            src_rows = list(self._drag_src_rows)   # cleared after drag.exec()
+            drop_idx = self._drop_index(e)
+            ctrl     = self._drop_ctrl(e)
+            tgt_row  = row
+
+            def _do():
+                self._drag_src_rows = src_rows      # restore for the helpers
+                try:
+                    if ctrl:
+                        self._swap_reorder(tgt_row)
+                    elif self._warmup:
+                        self._reorder_warmup(drop_idx)
+                    else:
+                        self._reorder_flat(drop_idx)
+                finally:
+                    self._drag_src_rows = []
+            QTimer.singleShot(0, _do)
             return
+        src = self._internal_drag_src()
+        # _dynamic_drop_row: empty space below the grid snaps to the nearest
+        # visible row instead of falling through as "no row".
+        tgt = self._resolve_internal_drop(self._dynamic_drop_row(e), src)
+        if self._internal_drop_ok(src, tgt):
+            e.setDropAction(Qt.DropAction.CopyAction)
+            e.accept()
+            # Multiple selected song rows → move the whole block, keeping each
+            # track's heat offset from the anchor (single row keeps the old path).
+            heats = self._row_meta.heat_rows()
+            movable = [r for r in self._drag_src_rows if r in heats]
+            if len(movable) > 1:
+                self._move_rows_block(movable, tgt)
+            else:
+                self._move_or_swap_rows(src, tgt)
+        else:
+            e.ignore()
+
+    def _drop_on_wishlist(self, e, src_tbl):
+        """Files dropped onto a wishlist: insert at the gap, moved from their source."""
+        # Wishlist: insert every dropped audio file at the cursor gap; expand
+        # any dropped .m3u in place. The red drop line marked the spot.
+        files = self._wishlist_droppables(e)
+        if not files:
+            e.ignore()
+            return
+        # A .m3u dropped onto an EMPTY wishlist names it after the file (keeping
+        # the ⭐ Wishlist prefix): "⭐  Wishlist: <m3u name>".
+        was_empty = self.rowCount() == 0
+        m3u_drop = next((f for f in files
+                         if f.suffix.lower() in (".m3u", ".m3u8")), None)
+        e.setDropAction(Qt.DropAction.CopyAction)
+        e.accept()
+        added = self._insert_drop_files(files, self._drop_index(e))
+        if was_empty and added and m3u_drop is not None:
+            self.host.name_after_playlist(m3u_drop.stem)
+        ctrl = self._drop_ctrl(e)
+        from_deck = (isinstance(src_tbl, PlaylistTable) and src_tbl is not self
+                     and not src_tbl._flat_mode)
+        from_wishlist = (isinstance(src_tbl, PlaylistTable) and src_tbl is not self
+                         and src_tbl._flat_mode)
+        # Both wishlist → wishlist AND deck → wishlist are a MOVE unless Ctrl is held
+        # (then a copy). A deck source has its dragged slots emptied so the track is
+        # taken OUT of the playlist and lands in the wishlist ("dragged back").
+        moved = False
+        if added and not ctrl:
+            if from_wishlist:
+                moved = src_tbl._remove_rows(src_tbl._drag_src_rows, select_after=True)
+            elif from_deck:
+                moved = src_tbl._clear_slots_at(set(src_tbl._drag_src_rows), select_after=True)
+        # Auto-clean: a wishlist shouldn't hold tracks already in an open playlist, so
+        # re-run the check on every add (user-requested). Skip it for a deck → wishlist
+        # drop — that's a deliberate placement, and running it here would instantly
+        # remove the very track just dragged in (it's, or just was, in that playlist).
+        cleaned = 0
+        if not from_deck:
+            cleaned = self.host.clean_wishlist_against_playlists(announce=False)
+        # Duplicates are auto-filtered by _append_entry, so `added` only counts
+        # genuinely new tracks; tell the user when everything was a dup.
+        if added:
+            msg = (i18n.t("⭐  Moved %d track(s) to the wishlist") if moved
+                   else i18n.t("⭐  Added %d track(s) to the wishlist")) % added
+            if cleaned:
+                msg += i18n.t("  ·  🧹 %d already in a playlist removed") % cleaned
+            _show_toast(self, msg)
+        elif cleaned:
+            _show_toast(self, i18n.t("🧹  Removed %d track(s) already in a playlist")
+                        % cleaned)
+        else:
+            _show_toast(self, "⭐  Already in the wishlist — nothing added")
+
+    def _drop_dynamic(self, e):
+        """A dynamic deck (or an empty one going dynamic) builds or extends its grid."""
+        # Dynamic deck, or an empty one going dynamic now: build/extend the grid.
+        # A deck in free order is never one of them — emptied out, its next drop
+        # would otherwise silently hand it a grid back.
+        if not self._can_dynamic_drop(e):
+            e.ignore()
+            return
+        e.setDropAction(Qt.DropAction.CopyAction)
+        e.accept()
+        pre_planned = self._planned_keys()
+        self._dynamic_drop(e, self._dynamic_drop_row(e), replace=self._drop_ctrl(e))
+        # dragging from another deck / wishlist is a MOVE
+        self._move_from_drag_source(e, pre_planned=pre_planned)
+
+    def _drop_static(self, e, row: int):
+        """A static deck or warm-up list: add, replace or fill slots with the tracks."""
         # Static deck / warm-up: collect EVERY dropped track.
         paths = [p for p in self._wishlist_droppables(e)
                  if p.suffix.lower() not in (".m3u", ".m3u8")]
@@ -876,7 +892,7 @@ class TableDragDropMixin:
         order = list(range(max(0, start_row), n)) + list(range(0, max(0, start_row)))
         # Resolved in one pass so a folder's worth of tracks gets the progress
         # dialog rather than reading tags silently in the placement loop.
-        for p, ent in zip(paths, self._entries_for_paths(paths)):
+        for p, ent in zip(paths, self._entries_for_paths(paths), strict=True):
             dance = getattr(ent, "dance", None) if ent else None
             for r in order:
                 m = self._row_meta[r]

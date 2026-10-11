@@ -789,8 +789,8 @@ CATALOG = {
     "▶  Playing": "▶  Reproducción",
     "▶  Playing mode": "▶  Modo reproducción",
     "▶  Load onto the focused deck": "▶  Cargar en el deck activo",
-    "▴  Fold decks": "▴  Plegar decks",
-    "⊟  Collapse all": "⊟  Contraer todo",
+    "▴  Fold decks": "▴  Decks",
+    "⊟  Collapse all": "⊟  Contraer",
     "⏹  Stop all": "⏹  Detener todo",
     "⏹  Stop the music": "⏹  Detener la música",
     "⏭  Skip to the next title": "⏭  Saltar al siguiente título",
@@ -900,11 +900,11 @@ CATALOG = {
     "📊 Library gaps": "📊 Huecos de la biblioteca",
     "📤  Export wall…": "📤  Exportar Cartwall…",
     "📥  Import wall…": "📥  Importar Cartwall…",
-    "📌  Save state": "📌  Guardar estado",
+    "📌  Save state": "📌  Estado",
     "📌 Cartwall docked": "📌 Cartwall acoplada",
     "💾  Save M3U": "💾  Guardar M3U",
     "💾  Save as M3U…": "💾  Guardar como M3U…",
-    "💾  Save all": "💾  Guardar todo",
+    "💾  Save all": "💾  Guardar",
     "💾  Save all competition M3Us": "💾  Guardar todos los M3U de competición",
     "💾  Save all playlists as M3U": "💾  Guardar todas las listas como M3U",
     "🏆  Save all and add to Tournaments": "🏆  Guardar todo y añadir a Torneos",
@@ -952,7 +952,7 @@ CATALOG = {
     "🗜  Compact": "🗜  Compacto",
     "🚫  No groups": "🚫  Sin grupos",
     "🔢  Numbers": "🔢  Números",
-    "🧹  Clear all": "🧹  Vaciar todo",
+    "🧹  Clear all": "🧹  Vaciar",
     "🧹  Clear all playlists": "🧹  Vaciar todas las listas",
     "🧹  Empty this playlist": "🧹  Vaciar esta lista",
     "🧹  Clean up database…": "🧹  Limpiar la base de datos…",
@@ -964,7 +964,7 @@ CATALOG = {
     "🧹 Cleared all playlists.": "🧹 Todas las listas vaciadas.",
     "🧹 Tournament-day playlists cleared.":
         "🧹 Listas del día de torneo vaciadas.",
-    "🧳  USB export": "🧳  Exportar a USB",
+    "🧳  USB export": "🧳  Exportar USB",
     "🧳 USB export": "🧳 Exportar a USB",
     "🧳 USB export aborted — incomplete bundle removed.":
         "🧳 Exportación a USB cancelada — paquete incompleto eliminado.",
@@ -1591,6 +1591,45 @@ CATALOG = {
         "Puedes cambiarlo en cualquier momento en ⚙ Ajustes → ⚙ General.",
     "Send reports": "Enviar informes",
     "Don't send": "No enviar",
+    "Once per start, the app asks GitHub (api.github.com) for the latest\n"
+    "release. The request carries nothing about you or your music; GitHub\n"
+    "sees the IP address it comes from. A newer version is announced once,\n"
+    "with a link to its download page. Nothing is downloaded or installed.\n"
+    "\n"
+    "You can change this at any time under ⚙ Settings → ⚙ General.":
+        "Una vez por inicio, la app pregunta a GitHub (api.github.com) por la\n"
+        "última versión publicada. La petición no lleva nada sobre ti ni sobre tu\n"
+        "música; GitHub ve la dirección IP de la que procede. Una versión más\n"
+        "nueva se anuncia una sola vez, con un enlace a su página de descarga.\n"
+        "No se descarga ni se instala nada.\n"
+        "\n"
+        "Puedes cambiarlo en cualquier momento en ⚙ Ajustes → ⚙ General.",
+    "🔔  Also tell me when a new version is out":
+        "🔔  Avísame también cuando salga una versión nueva",
+    "New versions": "Versiones nuevas",
+    "Tell you when a new version is out?": "¿Avisarte cuando salga una versión nueva?",
+    "Check for new versions": "Buscar versiones nuevas",
+    "Don't check": "No buscar",
+    "🔔  Check for new versions — once per start, ask GitHub whether a newer release is out":
+        "🔔  Buscar versiones nuevas — una vez por inicio, preguntar a GitHub si hay una versión más reciente",
+    "Asks api.github.com for the latest release. The request carries\n"
+    "nothing about you or your music; GitHub sees the IP address it\n"
+    "comes from. A newer version is announced once, with a link to\n"
+    "its download page. Nothing is downloaded or installed.\n"
+    "\n"
+    "Off by default. Applies from the next start.":
+        "Pregunta a api.github.com por la última versión publicada. La petición\n"
+        "no lleva nada sobre ti ni sobre tu música; GitHub ve la dirección IP de\n"
+        "la que procede. Una versión más nueva se anuncia una sola vez, con un\n"
+        "enlace a su página de descarga. No se descarga ni se instala nada.\n"
+        "\n"
+        "Desactivado por defecto. Se aplica a partir del próximo inicio.",
+    "New version": "Versión nueva",
+    "Version %s is out.": "Ya está disponible la versión %s.",
+    "You are running %s. The download page lists what changed.":
+        "Usas la %s. La página de descarga indica qué ha cambiado.",
+    "Open download page": "Abrir página de descarga",
+    "Later": "Más tarde",
     "The music and the computer share the one sound card, so every\n"
     "sound the system makes goes out over the PA too.\n"
     "\n"
@@ -3230,6 +3269,34 @@ CATALOG = {
         "🧭  Movido %d tema a la ruta de referencia",
     "🧭  Moved %d tracks onto the Reference path":
         "🧭  Movidos %d temas a la ruta de referencia",
+    "No tracks in the visible playlists or the wishlists.":
+        "No hay temas en las listas visibles ni en las listas de deseos.",
+    "Checked %d tracks — %d already valid.":
+        "%d temas comprobados — %d ya válidos.",
+    "🧭  Relocated %d broken reference to their real files (Ctrl+Z undoes).":
+        "🧭  Reubicada %d referencia rota en su archivo real (Ctrl+Z lo deshace).",
+    "🧭  Relocated %d broken references to their real files (Ctrl+Z undoes).":
+        "🧭  Reubicadas %d referencias rotas en sus archivos reales (Ctrl+Z lo deshace).",
+    "⚠  %d still unresolved — no matching file in the library:":
+        "⚠  %d siguen sin resolver — ningún archivo coincidente en la biblioteca:",
+    "⚠  %d valid track is not on the Reference path %s":
+        "⚠  %d tema válido no está en la ruta de referencia %s",
+    "⚠  %d valid tracks are not on the Reference path %s":
+        "⚠  %d temas válidos no están en la ruta de referencia %s",
+    "↪ %d has a copy there — 🧭 Fix swaps them in the playlists.":
+        "↪ %d tiene una copia allí — 🧭 Corregir lo cambia en las listas.",
+    "↪ %d have a copy there — 🧭 Fix swaps them in the playlists.":
+        "↪ %d tienen una copia allí — 🧭 Corregir los cambia en las listas.",
+    "⚠ %d has no copy there:":
+        "⚠ %d no tiene copia allí:",
+    "⚠ %d have no copy there:":
+        "⚠ %d no tienen copia allí:",
+    "✅  All track paths are valid.":
+        "✅  Todas las rutas de temas son válidas.",
+    "🎛  Re-pointed %d cartwall pad at its real sample.":
+        "🎛  %d Pad de la Cartwall apunta de nuevo a su sample real.",
+    "🎛  Re-pointed %d cartwall pads at their real samples.":
+        "🎛  %d Pads de la Cartwall apuntan de nuevo a sus samples reales.",
     "🧭  Fixed 1 path in 1 file": "🧭  Corregida 1 ruta en 1 archivo",
     "🧭  Fixed %d paths in 1 file": "🧭  Corregidas %d rutas en 1 archivo",
     "🧭  Fixed %d paths in %d files": "🧭  Corregidas %d rutas en %d archivos",
@@ -3253,7 +3320,7 @@ CATALOG = {
         "📌  Fijados %d títulos — el ↻ de la ronda los conserva",
     "📌  Unpinned %d title": "📌  Soltado %d título",
     "📌  Unpinned %d titles": "📌  Soltados %d títulos",
-    "🚦  Check ▾": "🚦  Comprobar ▾",
+    "🚦  Check ▾": "🚦  Revisar ▾",
     "🚦 Ready? — the pre-flight before the event, one traffic light per\n"
     "check: missing files, loudness, silence probe, Paso Doble highlights,\n"
     "duplicates and the music check, each with its fix.\n"
@@ -4722,6 +4789,8 @@ CATALOG = {
     "✖ %(ip)s sent a wrong PIN": "✖ %(ip)s envió un PIN incorrecto",
     "⛔ %(ip)s locked out for %(detail)s s — too many wrong PINs":
         "⛔ %(ip)s bloqueado durante %(detail)s s — demasiados PIN incorrectos",
+    "⛔ New phones paused for %(detail)s s — too many wrong PINs from the network":
+        "⛔ Nuevos móviles en pausa durante %(detail)s s — demasiados PIN incorrectos desde la red",
     "⛔ %(ip)s refused — not on the local network":
         "⛔ %(ip)s rechazado — no está en la red local",
     "⚠ Could not start: %(detail)s": "⚠ No se pudo iniciar: %(detail)s",

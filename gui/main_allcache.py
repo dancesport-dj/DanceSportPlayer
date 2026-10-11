@@ -122,7 +122,7 @@ class AllCacheMixin:
         """
         save_settings(vals)
         self._settings = vals
-        if self._cache is None:
+        if self._library.cache is None:
             QMessageBox.information(
                 self, "Build all caches",
                 "Audio cache not ready yet — try again shortly.")
@@ -331,7 +331,7 @@ class AllCacheMixin:
             % f"{len(to_do)}")
         self._busy = BusyDialog(self, i18n.t("Build all caches — librosa…"),
                                 cancelable=True)
-        self._index_analyzer = AudioAnalyzer(self._cache, pool, self)
+        self._index_analyzer = AudioAnalyzer(self._library.cache, pool, self)
         self._busy.cancel_requested.connect(self._index_analyzer.cancel)
         self._busy.show_after(300)
         self._index_analyzer.progress.connect(self._on_index_progress)
@@ -344,7 +344,7 @@ class AllCacheMixin:
 
     def _allcache_run_embedding(self, model: str, name: str, pool):
         from planner import embeddings as ae
-        store = ae.EmbeddingStore(self._cache)
+        store = ae.EmbeddingStore(self._library.cache)
         self.statusBar().showMessage(
             i18n.t("Build all caches — %s…") % i18n.t(name))
         self._busy = BusyDialog(
@@ -385,12 +385,12 @@ class AllCacheMixin:
             self._allcache_advance()
             return
         if step == "audiofp":
-            worker = AudioFpAnalyzer(self._cache, paths, self)
+            worker = AudioFpAnalyzer(self._library.cache, paths, self)
         elif step == "pd":
-            worker = PdHighlightAnalyzer(self._cache, paths, self, force=False)
+            worker = PdHighlightAnalyzer(self._library.cache, paths, self, force=False)
         else:
             cls = LoudnessAnalyzer if step == "loudness" else SilenceAnalyzer
-            worker = cls(self._cache, paths, find_ffmpeg(), self)
+            worker = cls(self._library.cache, paths, find_ffmpeg(), self)
         caption = i18n.t("Build all caches — %s…") % i18n.t(name)
         self.statusBar().showMessage(caption)
         self._busy = BusyDialog(self, caption, cancelable=True)

@@ -69,9 +69,9 @@ class ExportReferencePathTest(unittest.TestCase):
         self.on_f = _file(_F, r"lateincd\both.mp3")
         self.only_f = _file(_F, r"lateincd\only_f.mp3")
         tracks = [_entry(self.on_c), _entry(self.on_f), _entry(self.only_f)]
-        self.win._lib = MusicLibrary()
-        self.win._lib.entries = tracks
-        self.table = self.win._tableB
+        self.win._library.lib = MusicLibrary()
+        self.win._library.lib.entries = tracks
+        self.table = self.win._deckset.tableB
         self.table.load_player_list(tracks, "Party", play_cb=None)
 
     def save_as(self, name: str) -> Path:

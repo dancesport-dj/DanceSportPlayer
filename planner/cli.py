@@ -120,7 +120,7 @@ def ask_rounds_with_heats() -> list[RoundConfig]:
     n     = len(counts)
     names = ROUND_NAMES.get(n, [f"Runde {i+1}" for i in range(n)])
     cfgs  = []
-    for i, (name, heats) in enumerate(zip(names, counts)):
+    for i, (name, heats) in enumerate(zip(names, counts, strict=True)):
         tier = (
             'final'    if i == n - 1       else
             'semi'     if i == n - 2       else
@@ -238,7 +238,7 @@ def interactive_refine(
 
         heat = heats[h_idx]
         print(f"\n  Songs in {round_name}, Heat {h_idx+1}:")
-        for i, (dance, entry) in enumerate(zip(dances, heat), 1):
+        for i, (dance, entry) in enumerate(zip(dances, heat, strict=True), 1):
             dn    = DANCE_NAMES.get(dance, dance)
             title = entry.title[:40] if entry else "(none)"
             print(f"    {i}. {dn}: {title}")
@@ -254,7 +254,9 @@ def interactive_refine(
         dance = dances[d_idx]
         tier  = tier_map.get(round_name, 'early')
 
-        # Build full exclusion set (all currently used paths, minus current song)
+        # Build full exclusion set (all currently used paths). The current
+        # song is only the fallback when no alternative exists: left in the
+        # draw, it came back about once in as many tries as the dance has titles.
         exclude = {
             str(e.path)
             for hs in playlist.values()
@@ -263,10 +265,11 @@ def interactive_refine(
             if e is not None
         }
         current = heat[d_idx]
-        if current and dance not in ALLOW_REPEAT:
-            exclude.discard(str(current.path))
 
         new_entry = suggester.regenerate(dance, dance_class, tier, exclude)
+        if not new_entry and current and dance not in ALLOW_REPEAT:
+            exclude.discard(str(current.path))
+            new_entry = suggester.regenerate(dance, dance_class, tier, exclude)
         if new_entry:
             heat[d_idx] = new_entry
             bpm_s = _fmt_bpm(new_entry.bpm, dance, dance_class)

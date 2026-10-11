@@ -19,6 +19,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_pdx_"))
 
 import planner.db as pdb
+from planner import config as planner_config
 
 _AUDIO = b"ID3 a paso doble, as far as the hash can tell"
 
@@ -26,12 +27,12 @@ _AUDIO = b"ID3 a paso doble, as far as the hash can tell"
 class ManualPdTransferTest(unittest.TestCase):
 
     def setUp(self):
-        self._saved = (pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
+        self._saved = (planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
         self.addCleanup(self._restore)
 
     def _restore(self):
         self._close()
-        pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = self._saved
+        planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = self._saved
 
     def _close(self):
         """Close a scratch PC's connection — never the one the saved state owns."""
@@ -46,7 +47,7 @@ class ManualPdTransferTest(unittest.TestCase):
         """A fresh machine: its own folder and database."""
         self._close()
         d = Path(tempfile.mkdtemp(prefix="dp_pdx_pc_"))
-        pdb.AUDIO_DB_FILE = d / "scratch.db"
+        planner_config.AUDIO_DB_FILE = d / "scratch.db"
         pdb._DB_LOCAL = threading.local()
         pdb._DB_INITIALIZED = False
         return d, pdb.AudioCache()

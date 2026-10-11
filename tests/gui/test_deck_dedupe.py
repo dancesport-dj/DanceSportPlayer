@@ -16,6 +16,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 from gui.deck import Deck
 from gui.running_order import Row, RunningOrder
@@ -65,9 +66,8 @@ class DeckCleanTest(unittest.TestCase):
         cls.md = md
 
         class Win(md.DuplicateCheckMixin):
-            _cache = None
-
             def __init__(self, tables):
+                self._library = SimpleNamespace(cache=None)
                 self._tables = list(tables)
 
             def _visible_deck_tables(self):

@@ -17,6 +17,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
@@ -25,6 +26,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from gui import main_generate as gen
 from gui.main_dupes import DuplicateCheckMixin
 from planner.models import MusicEntry
+from gui.deck_set import DeckSet
 
 
 def _entry(name, folder="lateincd/SA"):
@@ -69,12 +71,14 @@ class _Win:
     """The MainWindow reduced to what `_generate_warmup` reads."""
 
     def __init__(self, entries, opts, planned=()):
-        self._lib = type("L", (), {"entries": entries})()
-        # A loaded global repository that must stay out of the result.
-        self._global_lib = type("L", (), {
-            "entries": [_entry("REPO ONLY", "F:/repo")]})()
-        self._cache = None
-        self._wishlists = []
+        self._library = SimpleNamespace(
+            lib=type("L", (), {"entries": entries})(),
+            # A loaded global repository that must stay out of the result.
+            global_lib=type("L", (), {
+                "entries": [_entry("REPO ONLY", "F:/repo")]})(),
+            cache=None)
+        self._deckset = DeckSet()
+        self._deckset.wishlists = []
         self._opts = opts
         self._planned = list(planned)
 

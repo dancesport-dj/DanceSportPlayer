@@ -1,6 +1,7 @@
 """📱 Phone remote: the little web server the phone's browser talks to."""
 import http.client
 import json
+import socket
 import unittest
 from unittest import mock
 
@@ -164,6 +165,60 @@ class EventTest(unittest.TestCase):
     def test_a_failing_listener_never_breaks_a_request(self):
         self.srv._on_event = mock.Mock(side_effect=RuntimeError("boom"))
         self.assertEqual(self._req("GET", "/", pin=None)[0], 200)
+
+
+class FailureBudgetTest(unittest.TestCase):
+    """The per-address lockout is beaten by changing addresses; a budget for
+    the whole network is not. Phones already in keep working through it."""
+
+    def setUp(self):
+        self.events = []
+        self.srv = rs.RemoteServer(pin="4711", on_command=lambda c, a: None,
+                                   on_event=lambda *e: self.events.append(e))
+        patcher = mock.patch.multiple(rs, MAX_FAILS=100, GLOBAL_MAX_FAILS=3)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _flood(self):
+        for i in range(rs.GLOBAL_MAX_FAILS):
+            self.srv.check_pin(f"10.0.0.{i + 1}", "0000")
+
+    def test_wrong_pins_from_many_addresses_pause_new_logins(self):
+        self._flood()
+        self.assertEqual(self.srv.check_pin("10.0.0.99", "4711"), 429)
+
+    def test_a_phone_already_in_keeps_working(self):
+        self.assertEqual(self.srv.check_pin("10.0.0.50", "4711"), 200)
+        self.srv.logged_in("10.0.0.50")
+        self._flood()
+        self.assertEqual(self.srv.check_pin("10.0.0.50", "4711"), 200)
+
+    def test_the_pause_ends_with_the_window(self):
+        with mock.patch.object(rs.time, "monotonic", return_value=1000.0):
+            self._flood()
+        later = 1000.0 + rs._GLOBAL_WINDOW_SECS + 1
+        with mock.patch.object(rs.time, "monotonic", return_value=later):
+            self.assertEqual(self.srv.check_pin("10.0.0.99", "4711"), 200)
+
+    def test_the_pause_is_reported_once(self):
+        self._flood()
+        self.srv.check_pin("10.0.0.98", "0000")
+        paused = [e for e in self.events if e[0] == "locked_all"]
+        self.assertEqual(paused, [("locked_all", "", str(rs._GLOBAL_WINDOW_SECS))])
+
+
+class IdleConnectionTest(unittest.TestCase):
+    def test_the_default_idle_timeout_is_ten_minutes(self):
+        self.assertEqual(rs._Handler.timeout, 600)
+
+    def test_a_connection_that_never_speaks_is_dropped(self):
+        srv = rs.RemoteServer(pin="4711", on_command=lambda c, a: None,
+                              host="127.0.0.1", port=0)
+        with mock.patch.object(rs._Handler, "timeout", 0.2):
+            srv.start()
+            self.addCleanup(srv.stop)
+            with socket.create_connection(("127.0.0.1", srv.port), timeout=5) as sock:
+                self.assertEqual(sock.recv(1), b"")    # closed by the server
 
 
 class PageTest(unittest.TestCase):

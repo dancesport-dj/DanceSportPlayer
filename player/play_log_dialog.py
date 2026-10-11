@@ -104,7 +104,7 @@ class PlayLogDialog(QDialog):
         evening = self._current()
         plays = play_log.plays(evening) if evening else []
         self.plays_table.setRowCount(len(plays))
-        for r, (p, secs) in enumerate(zip(plays, play_log.durations(plays))):
+        for r, (p, secs) in enumerate(zip(plays, play_log.durations(plays), strict=True)):
             s = int(round(secs))
             cells = (f"{p.started_at:%H:%M:%S}", p.artist, p.title,
                      dance_name(p.dance, p.dance) or "", p.list_name,

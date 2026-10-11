@@ -58,7 +58,7 @@ class PrintMixin:
             decks = self._dropped_print_decks(dlg.dropped_paths())
             default_name = "Dropped"
         else:
-            table = self._table
+            table = self._deckset.table
             metas = table._row_meta.songs()
             decks = [(self.deck(table).name or "Playlist", metas)] if metas else []
             default_name = self.deck(table).name or "Playlist"
@@ -82,7 +82,7 @@ class PrintMixin:
         per dropped .m3u (its tracks in file order), plus a 'Dropped files' section for
         any raw audio. Metas are flat (no round/heat) so the print loop renders them as
         a single table."""
-        if not self._lib or self._cache is None:
+        if not self._library.lib or self._library.cache is None:
             return []
         decks: list[tuple] = []
         loose: list[Row] = []
@@ -103,7 +103,7 @@ class PrintMixin:
         return decks
 
     def _external_entry(self, path: Path):
-        return self._lib.entry_for(path, self._cache)
+        return self._library.lib.entry_for(path, self._library.cache)
 
     def _write_print_pdf(self, parts: list, name: str):
         target = OUTPUT_DIR / (f"{time.strftime('%Y-%m-%d')}_"

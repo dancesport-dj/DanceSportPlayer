@@ -22,14 +22,15 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_db_migrate_"))
 
 import planner.db as pdb
+from planner import config as planner_config
 
 
 class MigrationAtomicTest(unittest.TestCase):
 
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp(prefix="dp_db_migrate_"))
-        self._saved = (pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
-        pdb.AUDIO_DB_FILE = self.dir / "scratch.db"
+        self._saved = (planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
+        planner_config.AUDIO_DB_FILE = self.dir / "scratch.db"
         self.addCleanup(self._restore)
         self._fresh()
 
@@ -44,10 +45,10 @@ class MigrationAtomicTest(unittest.TestCase):
 
     def _restore(self):
         self._close()
-        pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = self._saved
+        planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = self._saved
 
     def _raw(self):
-        conn = sqlite3.connect(str(pdb.AUDIO_DB_FILE))
+        conn = sqlite3.connect(str(planner_config.AUDIO_DB_FILE))
         self.addCleanup(conn.close)
         return conn
 

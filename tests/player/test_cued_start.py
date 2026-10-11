@@ -24,6 +24,7 @@ from PySide6.QtWidgets import QApplication
 from player.main_player import PlayerControlMixin
 from player.playback_state import PlaybackState
 from player.between_dances import BetweenDances
+from gui.deck_set import DeckSet
 
 
 class _Desk(PlayerControlMixin):
@@ -38,7 +39,8 @@ class _Desk(PlayerControlMixin):
         self._between = BetweenDances()
         self._between.round_start = None
         self._playback.token = 1
-        self._all_tables = ()   # no deck: the start names none as live
+        self._deckset = DeckSet()
+        self._deckset.all_tables = ()   # no deck: the start names none as live
         self.loads = []
 
     def _is_player_stopped(self):

@@ -94,11 +94,11 @@ class RetagTest(unittest.TestCase):
         self.rum = _entry("Rum One (RB 25)", "RB", 25)
         lib = MusicLibrary()
         lib.entries.extend([self.cha, self.rum])
-        self.win._lib = lib
-        self.scan = _StubScan(self.win._cache)
+        self.win._library.lib = lib
+        self.scan = _StubScan(self.win._library.cache)
         lib._scan_cache = self.scan
 
-        self.table = self.win._tableB
+        self.table = self.win._deckset.tableB
         self.table.load(
             {"Runde 1": [[self.cha, self.rum]]},
             ["CC", "RB"],
@@ -158,7 +158,7 @@ class RetagTest(unittest.TestCase):
 
     def test_the_library_pane_re_reads_the_row_it_was_clicked_on(self):
         browser = self.win._lib_browser
-        browser.set_entries(self.win._lib.entries)
+        browser.set_entries(self.win._library.lib.entries)
         browser._rescan_tags(Path(self.cha.path))
         self.assertEqual((self.cha.dance, self.cha.bpm), ("CC", 30))
 

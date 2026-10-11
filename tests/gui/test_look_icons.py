@@ -191,9 +191,9 @@ class TheWindowsBuild(_Base):
         win = self.gui.MainWindow()
         win._loading_dlg.accept()
         self.addCleanup(reap_widget, win)
-        win._on_table_focused(win._tableA)
+        win._on_table_focused(win._deckset.tableA)
         # The fold entry in a deck's menu keeps its arrow, now an icon.
-        self.assertIn(win.deck(win._tableA).fold_btn.property("lookGlyph"),
+        self.assertIn(win.deck(win._deckset.tableA).fold_btn.property("lookGlyph"),
                       ("▾", "▴", "▸", "◂"))
         dlg = self.keep(SettingsDialog({}))
         self.assertGreater(dlg.findChildren(QTabWidget)[0].count(), 0)

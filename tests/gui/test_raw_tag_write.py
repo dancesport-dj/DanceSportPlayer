@@ -24,6 +24,7 @@ from PySide6.QtCore import QUrl
 from PySide6.QtMultimedia import QMediaPlayer
 
 import planner.db as pdb
+from planner import config as planner_config
 from dancesport_planner import MusicLibrary, PlaylistSuggester, RoundConfig
 from planner import tag_edits
 from planner.db import AudioCache
@@ -70,8 +71,8 @@ class _WindowTest(unittest.TestCase):
     def setUp(self):
         tmp = Path(tempfile.mkdtemp(prefix="dp_raw_db_"))
         self.addCleanup(shutil.rmtree, tmp, True)
-        saved = (pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
-        pdb.AUDIO_DB_FILE = tmp / "scratch.db"
+        saved = (planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
+        planner_config.AUDIO_DB_FILE = tmp / "scratch.db"
         pdb._DB_LOCAL = threading.local()
         pdb._DB_INITIALIZED = False
 
@@ -80,7 +81,7 @@ class _WindowTest(unittest.TestCase):
                 pdb._DB_LOCAL.conn.close()
             except Exception:
                 pass
-            pdb.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = saved
+            planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = saved
         self.addCleanup(restore)
 
         self.path = tmp / "Cha One (CC 30).mp3"
@@ -98,12 +99,12 @@ class _WindowTest(unittest.TestCase):
         self.win = self.gui.MainWindow()
         self.win._loading_dlg.accept()
         self.addCleanup(reap_widget, self.win)
-        self.win._cache = AudioCache()
+        self.win._library.cache = AudioCache()
         lib = MusicLibrary()
-        self.entry = lib._make_entry(self.path, lib._get_scan_cache(self.win._cache))
+        self.entry = lib._make_entry(self.path, lib._get_scan_cache(self.win._library.cache))
         lib.entries.append(self.entry)
-        self.win._lib = lib
-        self.win._tableB.load(
+        self.win._library.lib = lib
+        self.win._deckset.tableB.load(
             {"Runde 1": [[self.entry]]}, ["CC"],
             [RoundConfig(name="Runde 1", heats=1, tier="final")], "S",
             play_cb=self.win._play_or_stop, suggester=PlaylistSuggester(lib),
@@ -131,7 +132,7 @@ class RawWriteTest(_WindowTest):
         self.assertEqual(self.entry.tag_artist, "New Band")
 
     def test_stars_set_in_the_app_survive_the_new_fingerprint(self):
-        cache = self.win._cache
+        cache = self.win._library.cache
         self.win._apply_tag_dialog([self.entry], _Answer(changes={"rating": 5}))
         old_fp = cache.fingerprint(self.path)
         self.assertEqual(tag_edits.load(old_fp), {"rating": 5})
@@ -150,7 +151,7 @@ class RawWriteTest(_WindowTest):
             changes={"classes_ok": ["S"]}))
         self.assertEqual(self.entry.tag_artist, "New Band")
         self.assertEqual(self.entry.classes_ok, ["S"])
-        self.assertEqual(tag_edits.load(self.win._cache.fingerprint(self.path)),
+        self.assertEqual(tag_edits.load(self.win._library.cache.fingerprint(self.path)),
                          {"classes_ok": ["S"]})
 
     def test_the_playing_track_is_not_written(self):
@@ -195,7 +196,7 @@ class AppFieldsWriteTest(_WindowTest):
 
     def test_yes_writes_them_and_the_file_is_the_truth_again(self):
         self.answer = True
-        cache = self.win._cache
+        cache = self.win._library.cache
         self.win._apply_tag_dialog([self.entry], _Answer(changes={
             "rating": 4, "classes_ok": ["A", "S"], "comment_tags": ["vocal_f"]}))
         self.assertEqual(self.asked, [(1, ["stars", "classes", "markers"])])
@@ -212,7 +213,7 @@ class AppFieldsWriteTest(_WindowTest):
         self.win._apply_tag_dialog([self.entry], _Answer(changes={"rating": 4}))
         self.assertEqual(len(self.asked), 1)
         self.assertEqual(self.path.read_bytes(), before)
-        self.assertEqual(tag_edits.load(self.win._cache.fingerprint(self.path)),
+        self.assertEqual(tag_edits.load(self.win._library.cache.fingerprint(self.path)),
                          {"rating": 4})
         self.assertEqual(self.entry.rating, 4)
 
@@ -224,7 +225,7 @@ class AppFieldsWriteTest(_WindowTest):
         with mock.patch("planner.library.title_marks_instrumental", return_value=True):
             self.win._apply_tag_dialog([self.entry], _Answer(changes={
                 "is_instrumental": False, "rating": 3}))
-            self.assertEqual(tag_edits.load(self.win._cache.fingerprint(self.path)),
+            self.assertEqual(tag_edits.load(self.win._library.cache.fingerprint(self.path)),
                              {"is_instrumental": False})
         self.assertFalse(self.entry.is_instrumental)
         self.assertEqual(self.entry.rating, 3)
@@ -250,7 +251,7 @@ class AppFieldsWriteTest(_WindowTest):
             self.win._apply_tag_dialog([self.entry], _Answer(changes={"rating": 4}))
         self.assertEqual(self.path.read_bytes(), before)
         self.assertEqual(len(self.toasts), 1)
-        self.assertEqual(tag_edits.load(self.win._cache.fingerprint(self.path)),
+        self.assertEqual(tag_edits.load(self.win._library.cache.fingerprint(self.path)),
                          {"rating": 4})
 
 
@@ -263,8 +264,8 @@ class FormWriteTest(_WindowTest):
         tags = ID3(path)
         tags["TIT2"].text = ["Cha Two"]
         tags.save(path, v2_version=3)
-        lib = self.win._lib
-        entry = lib._make_entry(path, lib._get_scan_cache(self.win._cache))
+        lib = self.win._library.lib
+        entry = lib._make_entry(path, lib._get_scan_cache(self.win._library.cache))
         lib.entries.append(entry)
         return entry
 
@@ -281,7 +282,7 @@ class FormWriteTest(_WindowTest):
 
     def test_form_table_and_app_fields_in_one_save(self):
         self.answer = True
-        cache = self.win._cache
+        cache = self.win._library.cache
         self.win._apply_tag_dialog([self.entry], _Answer(
             raw={"sets": {"TXXX:ultramixer_meter": "3/4"}, "deletes": [], "adds": []},
             form={"comment": "Erscheinungsdatum 2016"}, changes={"classes_ok": ["C"]},
@@ -297,7 +298,7 @@ class FormWriteTest(_WindowTest):
             form={"title": "Cha Neu"}, changes={"rating": 5}, mp3s=[self.entry]))
         self.assertEqual(ID3(self.path)["TIT2"].text, ["Cha Neu"])
         self.assertEqual(ID3(self.path)["POPM:Windows Media Player 9 Series"].rating, 64)
-        self.assertEqual(tag_edits.load(self.win._cache.fingerprint(self.path)),
+        self.assertEqual(tag_edits.load(self.win._library.cache.fingerprint(self.path)),
                          {"rating": 5})
 
 

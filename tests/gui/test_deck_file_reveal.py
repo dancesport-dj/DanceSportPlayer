@@ -63,8 +63,8 @@ class DeckFileRevealTest(unittest.TestCase):
         self.win = self.gui.MainWindow()
         self.win._loading_dlg.accept()
         self.addCleanup(reap_widget, self.win)
-        self.win._lib = MusicLibrary()
-        self.table = self.win._tableB
+        self.win._library.lib = MusicLibrary()
+        self.table = self.win._deckset.tableB
         self.table.load_player_list([_entry("c1"), _entry("r1", "RB")],
                                     "Party", play_cb=None)
 
@@ -99,7 +99,7 @@ class DeckFileRevealTest(unittest.TestCase):
     def write_m3u(self, name="Tanzparty.m3u") -> Path:
         m3u = _DIR / name
         tracks = [_entry(n) for n in ("a1", "a2")]
-        self.win._lib.entries = tracks   # empty stubs only resolve from the library
+        self.win._library.lib.entries = tracks   # empty stubs only resolve from the library
         m3u.write_text("#EXTM3U\n" + "\n".join(str(e.path) for e in tracks) + "\n",
                        encoding="utf-8")
         return m3u
@@ -149,9 +149,9 @@ class DeckFileRevealTest(unittest.TestCase):
 
     # ── ⭐ wishlists get the same entry ────────────────────────────────────────
     def wishlist(self, index=0, names=("w1", "w2")):
-        wish = self.win._wishlists[index]
+        wish = self.win._deckset.wishlists[index]
         tracks = [_entry(n) for n in names]
-        self.win._lib.entries = tracks
+        self.win._library.lib.entries = tracks
         wish.load_wishlist(tracks, play_cb=None, suggester=None)
         return wish
 
@@ -209,9 +209,9 @@ class DeckFileRevealTest(unittest.TestCase):
         wish._m3u_path = m3u
         env = self.win._build_env()
         self.win._apply_env({})          # a desk with nothing on it
-        self.assertIsNone(self.win._wishlists[0]._m3u_path)
+        self.assertIsNone(self.win._deckset.wishlists[0]._m3u_path)
         self.win._apply_env(env)
-        self.assertEqual(self.win._wishlists[0]._m3u_path, m3u)
+        self.assertEqual(self.win._deckset.wishlists[0]._m3u_path, m3u)
 
 
 if __name__ == "__main__":

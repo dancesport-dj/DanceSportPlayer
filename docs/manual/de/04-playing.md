@@ -192,7 +192,7 @@ Die App sagt den nächsten Tanz laut an: „Nächster Tanz: Langsamer Walzer“.
 
 Zwei Knöpfe stellen den ganzen Bereich auf einmal um:
 
-- **🏆 Turnier-Set**: 1:40 Spieldauer mit 3 s Ausblenden, keine Pause, kein
+- **🏆 Turnier-Set**: 1:45 Spieldauer mit 3 s Ausblenden, keine Pause, kein
   automatisches Weiterschalten, keine Ansage, angeglichene Lautstärke. Es
   leuchtet golden, solange der Bereich auf diesen Werten steht.
 - **🎉 Party-Set**: jeder Titel in voller Länge mit 3 s Ausblenden,
@@ -286,7 +286,13 @@ Solange der Server läuft, trägt die Statusleiste ein grünes Abzeichen
 der Knopf dann **📱 Server stoppen**.
 
 - Nur Handys im lokalen Netz kommen hinein, und nur mit der PIN. Falsche PINs
-  sperren ein Handy eine Weile aus.
+  sperren ein Handy eine Weile aus, und nach 30 falschen PINs aus dem ganzen
+  Netz binnen zehn Minuten kommt kein neues Handy mehr hinein; Handys, die schon
+  drin sind, laufen weiter.
+- Die PIN geht unverschlüsselt übers Netz (einfaches HTTP). Im eigenen Netz ist
+  das in Ordnung. In einem offenen WLAN der Halle könnte sie jeder darin
+  mitlesen; nimm dort wenn möglich einen Handy-Hotspot oder einen eigenen Router
+  für das Pult.
 - Beim ersten Mal fragt Windows vielleicht, ob die App das Netz nutzen darf.
   Erlaube es für private Netze. Taucht nichts im Protokoll auf, während das
   Handy es versucht, steht eine Firewall im Weg; das Fenster nennt das

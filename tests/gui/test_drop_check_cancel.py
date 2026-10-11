@@ -12,6 +12,7 @@ every track and has a Cancel; the drop tab now does the same.
 
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 from PySide6.QtCore import QTimer
@@ -26,8 +27,7 @@ _app = QApplication.instance() or QApplication([])
 
 
 class _Host(QWidget, MusicCheckMixin):
-    _lib = object()
-    _cache = object()
+    _library = SimpleNamespace(lib=object(), cache=object())
 
     def _external_entry(self, path):
         return object()

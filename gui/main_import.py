@@ -89,7 +89,7 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
     def _import_dropped_playlist(self, table: PlaylistTable, path):
         """A .m3u dropped onto a deck → focus that deck, then import the file into it
         (same detection as the 📂 Import M3U button, which targets the focused deck)."""
-        if not self._lib:
+        if not self._library.lib:
             QMessageBox.information(self, "Import M3U",
                                    "Load the music library first.")
             return
@@ -100,9 +100,9 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
         """🏆 double-click in the tournament tree: load that playlist onto the
         focused deck, exactly as dropping the file on it would — the deck asks
         first when it already holds tracks, because an import REPLACES it."""
-        table = getattr(self, "_focused_table", None) or self._table
-        if table in self._wishlists or getattr(table, "_warmup", False):
-            table = self._table   # a playlist file belongs on a deck
+        table = getattr(self, "_focused_table", None) or self._deckset.table
+        if table in self._deckset.wishlists or getattr(table, "_warmup", False):
+            table = self._deckset.table   # a playlist file belongs on a deck
         if not table._confirm_m3u_replaces(Path(m3u_path)):
             return
         if table.plays_flat():
@@ -113,7 +113,7 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
     def _import_playlist(self):
         """📂 Import M3U button: load an .m3u into the focused table — a deck gets
         the full rounds/heats detection, a focused wishlist appends the tracks flat."""
-        table = getattr(self, "_focused_table", None) or self._table
+        table = getattr(self, "_focused_table", None) or self._deckset.table
         self._import_m3u_into(table)
 
     def _import_m3u_into(self, table: PlaylistTable):
@@ -123,7 +123,7 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
         when the file came from this app, otherwise heuristically); a final round
         with extra backup variants rides along as stacked backups.
         Wishlists: every track is appended flat (duplicates skipped)."""
-        if not self._lib:
+        if not self._library.lib:
             QMessageBox.information(self, "Import M3U",
                                     "Load the music library first.")
             return
@@ -148,12 +148,12 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
             return
 
         # Multiple files → fan them out into the FREE (empty) playlist slots, one each.
-        if len(paths) > 1 and table not in self._wishlists:
+        if len(paths) > 1 and table not in self._deckset.wishlists:
             self._import_m3u_multi(paths)
             return
 
         path = paths[0]
-        if table in self._wishlists:
+        if table in self._deckset.wishlists:
             # A focused wishlist appends every picked file flat (duplicates skipped).
             added = table._insert_drop_files([Path(p) for p in paths], table.rowCount())
             self._update_wish_counts()
@@ -172,7 +172,7 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
         fewer free slots than files."""
         # Only decks the view can actually reach — a player build stops at four,
         # and a deck nobody can bring on screen is not a free slot.
-        decks = self._decks[:self._max_decks()]
+        decks = self._deckset.decks[:self._max_decks()]
         free = [t for t in decks if self._serialize_playlist_state(t) is None]
         if not free:
             QMessageBox.warning(
@@ -196,15 +196,15 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
 
         targets = free[:len(paths)]
         # Grow the visible deck view so every target slot is actually on screen.
-        highest = max(self._decks.index(t) for t in targets)
+        highest = max(self._deckset.decks.index(t) for t in targets)
         want = 8 if highest >= 4 else 4 if highest >= 2 else 2 if highest >= 1 else 1
         want = min(want, self._max_decks())
-        if want > self._deck_count:
-            self._deck_count = want
+        if want > self._deckset.deck_count:
+            self._deckset.deck_count = want
             self._apply_deck_view()
 
         self._pending_import_reports = []
-        for path, deck in zip(paths, targets):
+        for path, deck in zip(paths, targets, strict=True):
             if deck.plays_flat():
                 # A player-only install's deck: the file is its running order.
                 self._load_player_list_from_m3u(deck, path)
@@ -239,7 +239,7 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
 
         `report=False` holds the 🧭 path report back for the caller to show once
         (see `_import_m3u_multi`), instead of a dialog per file."""
-        if not self._lib:
+        if not self._library.lib:
             return
         self._stash_active_replay()   # preserve any worked competition grid first
         self.statusBar().showMessage(i18n.t("Importing %s …") % Path(path).name)
@@ -263,7 +263,7 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
             remapper = None
 
         try:
-            res = import_playlist_m3u(path, self._lib, self._cache,
+            res = import_playlist_m3u(path, self._library.lib, self._library.cache,
                                       progress_cb=_prog,
                                       remapper=remapper or None)
         except Exception as exc:
@@ -311,7 +311,7 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
         self._dance_class   = cls
         self._dances        = dances
         self._playlist      = playlist
-        self._suggester     = PlaylistSuggester(self._lib)
+        self._suggester     = PlaylistSuggester(self._library.lib)
 
         # Push the recovered settings into the visible combos + heat-count field so the
         # controls reflect what was imported (mode back to Favorites for editing).
@@ -327,7 +327,7 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
         # lets the user keep dragging songs in to extend the imported rounds (🔒 to revert).
         import_backups = res.get("backups") or {}
         capacity = [int(getattr(r, "heats", 0) or 0) for r in rounds]
-        self._table.load(
+        self._deckset.table.load(
             playlist, dances, rounds, cls,
             play_cb=self._play_or_stop,
             suggester=self._suggester,
@@ -337,15 +337,15 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
             capacity=capacity,
             backups=import_backups,
         )
-        self._refresh_mode_btn(self._table)                 # sync the 🔒/🔓 glyph to dynamic
-        self._set_deck_name(self._table, Path(path).stem)   # name the deck after the file
+        self._refresh_mode_btn(self._deckset.table)                 # sync the 🔒/🔓 glyph to dynamic
+        self._set_deck_name(self._deckset.table, Path(path).stem)   # name the deck after the file
         # Remember the file: a playlist with its own picture beside it shows
         # that on the player card instead of the tracks' own covers.
-        self._table._m3u_path = Path(path)
+        self._deckset.table._m3u_path = Path(path)
         self._cfg.save_btn.setEnabled(True)
 
         try:
-            self._show_hints(generate_hints(self._lib, playlist, dances, cls, rounds))
+            self._show_hints(generate_hints(self._library.lib, playlist, dances, cls, rounds))
         except Exception:
             self._show_hints([])
 
@@ -384,12 +384,12 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
             toast += "\n" + "\n".join("• " + n for n in notes)
         # The load() above already ran the live Check-Music marks (via
         # _notify_changed) — tell the user how many rows came up red.
-        n_issues = len(self._table._issue_paths)
+        n_issues = len(self._deckset.table._issue_paths)
         if n_issues:
             toast += "\n" + i18n.t("⚠ %d row(s) marked red — play-length / takt "
                                    "issues (hover a red title for details)") % n_issues
-        _show_toast(self._table, toast, msec=4000 if (notes or n_issues) else 1800)
-        self._table._remove_duplicate_titles(on_load=True)
+        _show_toast(self._deckset.table, toast, msec=4000 if (notes or n_issues) else 1800)
+        self._deckset.table._remove_duplicate_titles(on_load=True)
 
         # Last, with the deck already on screen behind it: what the paths did.
         rep = build_import_remap_report(res, Path(path).name)

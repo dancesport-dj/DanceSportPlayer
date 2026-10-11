@@ -30,21 +30,21 @@ class FoldMixin:
         b = self.deck(table).box
         if b is None:
             return False
-        root = getattr(self, "_right_split", None)
+        root = self._grid.right_split
         if root is None:   # during construction: only explicit hides exist yet
             return not b.isHidden()
         return b.isVisibleTo(root)
 
     def _all_decks_folded(self) -> bool:
         """True if every deck shown by the current view is folded to a tab."""
-        vis = [t for t in (*self._decks, *self._day_decks) if self._box_shown(t)]
+        vis = [t for t in (*self._deckset.decks, *self._deckset.day_decks) if self._box_shown(t)]
         return bool(vis) and all(self.deck(t).folded for t in vis)
 
     def _folded_tab_is_sideways(self, table: PlaylistTable) -> bool:
         """True when this folded playlist lives in a SIDEWAYS-collapsed strip
         (width-clamped slim column), where only the badge fits the tab. A
         full-width tab (vertical fold / whole section collapsed) returns False."""
-        if table in self._wishlists:
+        if table in self._deckset.wishlists:
             if self._wish_grid_on():
                 # Sideways (badge-only) tab only inside a fully-folded column.
                 return not self._wish_all_folded() and self._wish_col_folded(table)
@@ -66,7 +66,7 @@ class FoldMixin:
     def _toggle_deck_fold(self, table: PlaylistTable, folded: bool | None = None):
         """Fold a deck/wishlist to a slim header tab (or unfold it) so the remaining
         open playlists dynamically get its space — without changing the view."""
-        if not self._is_deck(table) and table not in self._wishlists:
+        if not self._is_deck(table) and table not in self._deckset.wishlists:
             return
         box = self.deck(table).box
         hdr = self.deck(table).header
@@ -77,7 +77,7 @@ class FoldMixin:
         if bool(self.deck(table).folded) == bool(folded):
             return
         self._commit_inline_rename()   # never fold a header mid-rename
-        is_wish = table in self._wishlists
+        is_wish = table in self._deckset.wishlists
         if is_wish:
             group = self._wish_fold_group(table)
             split = self._wish_split_for(table)
@@ -111,9 +111,9 @@ class FoldMixin:
                        % self.deck(table).name
                        if folded else
                        "Click to focus · right-click or double-click to rename")
-        if folded and table is self._table:
+        if folded and table is self._deckset.table:
             # A folded deck shouldn't stay the Generate/Save/↺ target.
-            for t in (*self._decks, *self._day_decks):
+            for t in (*self._deckset.decks, *self._deckset.day_decks):
                 if not self.deck(t).folded and self._box_shown(t):
                     self._set_active_table(t)
                     break
@@ -121,12 +121,12 @@ class FoldMixin:
             self._sync_wish_fold_constraints()
         else:
             self._sync_col_fold_constraints(group_was_all_folded)
-        for s in (self._decks_col1, self._decks_col2, self._decks_split,
-                  self._decks_col3, self._decks_col4, self._decks_split2,
-                  self._day_col1, self._day_col2, self._day_split,
-                  self._day_col3, self._day_col4, self._day_split2,
-                  self._wish_col1, self._wish_col2,
-                  self._wish_split, self._right_split):
+        for s in (self._grid.decks_col1, self._grid.decks_col2, self._grid.decks_split,
+                  self._grid.decks_col3, self._grid.decks_col4, self._grid.decks_split2,
+                  self._grid.day_col1, self._grid.day_col2, self._grid.day_split,
+                  self._grid.day_col3, self._grid.day_col4, self._grid.day_split2,
+                  self._grid.wish_col1, self._grid.wish_col2,
+                  self._grid.wish_split, self._grid.right_split):
             # QSplitter re-derives its own max size from its children on a
             # DEFERRED event — force it now so the setSizes below aren't
             # clamped by the pre-fold constraints.
@@ -140,14 +140,14 @@ class FoldMixin:
                 # redistribute synchronously, and zeroing the pane instead
                 # would make its tabs vanish (the splitter drops it to its
                 # minimum, not to the strip height).
-                sizes = self._right_split.sizes()
+                sizes = self._grid.right_split.sizes()
                 rt = sizes[0] + sizes[1]
                 if rt > 0:
-                    strip = (self._wish_split if is_wish
-                             else self._deck_tabs).sizeHint().height()
+                    strip = (self._grid.wish_split if is_wish
+                             else self._grid.deck_tabs).sizeHint().height()
                     strip = min(strip, rt)
                     # Panes beyond decks+wishlists (library browser) keep theirs.
-                    self._right_split.setSizes(
+                    self._grid.right_split.setSizes(
                         ([rt - strip, strip] if is_wish
                          else [strip, rt - strip]) + sizes[2:])
         if not folded:
@@ -158,10 +158,10 @@ class FoldMixin:
             # If its whole section (decks / wishlist area) was collapsed to tab
             # height, give the section its share of the window back too.
             if section_was_collapsed:
-                sizes = self._right_split.sizes()
+                sizes = self._grid.right_split.sizes()
                 rt = sizes[0] + sizes[1]
                 if rt > 0:
-                    self._right_split.setSizes(
+                    self._grid.right_split.setSizes(
                         [int(rt * 0.75), rt - int(rt * 0.75)] + sizes[2:])
 
     def _sync_col_fold_constraints(self, rebalance: bool = False):
@@ -210,17 +210,17 @@ class FoldMixin:
                 self._refresh_fold_btn(t)   # arrows depend on the column state
         if rebalance:
             # Rebalance each grid's two columns (the hidden grids are inert).
-            for grid, right_col in ((self._decks_split, self._decks_col2),
-                                    (self._decks_split2, self._decks_col4),
-                                    (self._day_split, self._day_col2),
-                                    (self._day_split2, self._day_col4)):
+            for grid, right_col in ((self._grid.decks_split, self._grid.decks_col2),
+                                    (self._grid.decks_split2, self._grid.decks_col4),
+                                    (self._grid.day_split, self._grid.day_col2),
+                                    (self._grid.day_split2, self._grid.day_col4)):
                 vt = sum(grid.sizes())
                 if vt > 0 and right_col.isVisible():
                     grid.setSizes([vt // 2, vt - vt // 2])
 
     def _wish_all_folded(self) -> bool:
         """True if every wishlist shown right now is folded to a tab."""
-        vis = [t for t in self._wishlists if self._box_shown(t)]
+        vis = [t for t in self._deckset.wishlists if self._box_shown(t)]
         return bool(vis) and all(self.deck(t).folded for t in vis)
 
     def _sync_wish_fold_constraints(self):
@@ -236,8 +236,8 @@ class FoldMixin:
             # exactly like a deck column — a folded one clamps HEIGHT (its column
             # partner gets the room); a whole folded column clamps WIDTH for the open
             # column; all folded falls back to height so the area collapses to tabs.
-            for pair in ((self._wishlist, self._wishlist3),
-                         (self._wishlist2, self._wishlist4)):
+            for pair in ((self._deckset.wishlist, self._deckset.wishlist3),
+                         (self._deckset.wishlist2, self._deckset.wishlist4)):
                 vis = [t for t in pair if self._box_shown(t)]
                 col_folded = bool(vis) and all(self.deck(t).folded for t in vis)
                 for t in pair:
@@ -258,7 +258,7 @@ class FoldMixin:
                             b.setMaximumHeight(16777215)
                     self._refresh_fold_btn(t)
             return
-        for t in self._wishlists:
+        for t in self._deckset.wishlists:
             b = self.deck(t).box
             if b is None:
                 continue
@@ -291,7 +291,7 @@ class FoldMixin:
         button look broken in the no-playlist view, where it is the only list."""
         collapse = not getattr(self, "_all_collapsed", False)
         self._all_collapsed = collapse
-        tables = [*self._decks, *self._day_decks, self._warmup_table]
+        tables = [*self._deckset.decks, *self._deckset.day_decks, self._deckset.warmup_table]
         for t in tables:
             (t.collapse_all if collapse else t.expand_all)()
         self._set_toolbar_btn_text(
@@ -301,7 +301,7 @@ class FoldMixin:
         """▴ / ▾ in one button: fold every visible playlist to its header tab,
         or open them all again once any of them is folded — so a single deck
         folded by hand is opened by the same click that would fold the rest."""
-        vis = [t for t in (*self._decks, *self._day_decks, *self._wishlists)
+        vis = [t for t in (*self._deckset.decks, *self._deckset.day_decks, *self._deckset.wishlists)
                if self._box_shown(t)]
         folded_now = (any(self.deck(t).folded for t in vis)
                       or self._warmup_folded)
@@ -314,7 +314,7 @@ class FoldMixin:
         (it is one full-width box in the right splitter) and so has its own
         fold; without this line the buttons did nothing at all in the
         no-playlist view, where that panel is all there is."""
-        for t in (*self._decks, *self._day_decks, *self._wishlists):
+        for t in (*self._deckset.decks, *self._deckset.day_decks, *self._deckset.wishlists):
             if self._box_shown(t):
                 self._toggle_deck_fold(t, folded)
         self._toggle_warmup_fold(folded)   # no-ops while the panel is hidden
@@ -336,7 +336,7 @@ class FoldMixin:
         if btn is None:
             return
         if not self.deck(table).folded:
-            if table in self._wishlists:
+            if table in self._deckset.wishlists:
                 top = self._wish_is_top(table)
             else:
                 top = self._deck_is_top(table)
@@ -345,7 +345,7 @@ class FoldMixin:
                            "the other open playlists get its space.")
             return
         btn.setToolTip("Unfold this playlist")
-        if table in self._wishlists:
+        if table in self._deckset.wishlists:
             if self._wish_all_folded():
                 btn.setText("▾")   # whole area expands back down
             elif self._wish_grid_on():
@@ -354,7 +354,7 @@ class FoldMixin:
                 else:
                     btn.setText("▾" if self._wish_is_top(table) else "▴")
             else:
-                btn.setText("▸" if table is self._wishlist else "◂")
+                btn.setText("▸" if table is self._deckset.wishlist else "◂")
             return
         if self._all_decks_folded():
             btn.setText("▾")       # whole deck section expands back down
@@ -371,8 +371,8 @@ class FoldMixin:
         again), handing the freed vertical height to the decks. Mirrors the deck /
         wishlist fold, but the warm-up panel is one full-width box in the right
         splitter, so the bookkeeping is far simpler."""
-        box = self._warmup_box
-        if not box.isVisibleTo(self._right_split):   # as _box_shown, ancestors included
+        box = self._grid.warmup_box
+        if not box.isVisibleTo(self._grid.right_split):   # as _box_shown, ancestors included
             return
         if folded is None:
             folded = not self._warmup_folded
@@ -380,9 +380,9 @@ class FoldMixin:
         changed = (folded != self._warmup_folded)
         self._commit_inline_rename()   # never fold a header mid-rename
         self._warmup_folded = folded
-        self._warmup_table.setVisible(not folded)
+        self._deckset.warmup_table.setVisible(not folded)
         # Σ badge goes with the table (before the height clamp below reads sizeHint).
-        tot = self.deck(self._warmup_table).total_lbl
+        tot = self.deck(self._deckset.warmup_table).total_lbl
         if tot is not None:
             tot.setVisible(not folded and bool(tot.text()))
         name = self._warmup_default_name()
@@ -393,7 +393,7 @@ class FoldMixin:
                            i18n.t("Compact the %s panel to its header tab —\n"
                                   "click the tab (or this arrow) to open it "
                                   "again.") % name)
-        hdr = self.deck(self._warmup_table).header
+        hdr = self.deck(self._deckset.warmup_table).header
         if hdr is not None:
             hdr.setToolTip(i18n.t("%s — folded.  Click to open.") % name
                            if folded else
@@ -402,9 +402,9 @@ class FoldMixin:
         # shrinks it (the deferred max-size recalc must be forced before setSizes).
         box.layout().activate()
         box.setMaximumHeight(box.sizeHint().height() + 4 if folded else 16777215)
-        self._right_split.refresh()
-        idx = self._right_split.indexOf(box)
-        sizes = self._right_split.sizes()
+        self._grid.right_split.refresh()
+        idx = self._grid.right_split.indexOf(box)
+        sizes = self._grid.right_split.sizes()
         if changed and idx > 0 and len(sizes) > idx and sum(sizes) > 0:
             if folded:
                 strip = box.sizeHint().height() + 4
@@ -416,7 +416,7 @@ class FoldMixin:
                 grow = min(max(0, want - sizes[idx]), max(0, sizes[0] - 200))
                 sizes[idx] += grow
                 sizes[0]   -= grow
-            self._right_split.setSizes(sizes)
+            self._grid.right_split.setSizes(sizes)
         self._autosave_playlist()
 
     def _folded_lib_height(self) -> int:
@@ -441,7 +441,7 @@ class FoldMixin:
     def _hand_lib_pane_height(self, folded: bool, folded_height: int):
         """Give the library pane `folded_height` (or a quarter of the splitter
         when opening) and share what is left among the panes above it."""
-        sizes = self._right_split.sizes()
+        sizes = self._grid.right_split.sizes()
         if len(sizes) < 2:
             return
         total = sum(sizes)
@@ -461,7 +461,7 @@ class FoldMixin:
             new_head[0] += rest - sum(new_head)   # absorb rounding into the decks
         else:
             new_head = [rest] + [0] * (len(head) - 1)
-        self._right_split.setSizes(new_head + [lib])
+        self._grid.right_split.setSizes(new_head + [lib])
 
     # ── Fold the WHOLE pane — both tabs — from the tab bar's corner ──────────────
 

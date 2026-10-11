@@ -92,7 +92,8 @@ class ReferenceCleanerTest(_Base):
 
     def test_the_tournament_lists_are_read_by_a_reader_that_fails_too(self):
         from gui.main_dupes import DuplicateCheckMixin
-        fake = types.SimpleNamespace(_cache=None)
+        fake = types.SimpleNamespace(
+            _library=types.SimpleNamespace(cache=None))
         w = DuplicateCheckMixin._make_reference_clean_worker(fake, "ref.m3u", [])
         self.addCleanup(w.deleteLater)
         with self.assertRaises(PlaylistEncodingError):
@@ -105,7 +106,8 @@ class PartyListTest(_Base):
         from dancesport_planner import MusicEntry
         entry = MusicEntry(path=self.track, title="Küss mich", dance="TG")
         return types.SimpleNamespace(
-            _lib=types.SimpleNamespace(entries=[entry]), _cache=None,
+            _library=types.SimpleNamespace(
+                lib=types.SimpleNamespace(entries=[entry]), cache=None),
             _remap_index=mock.Mock(side_effect=RuntimeError)), entry
 
     def test_a_cp1252_party_list_resolves_to_the_library(self):

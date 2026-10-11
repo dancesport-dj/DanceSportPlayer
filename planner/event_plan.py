@@ -25,7 +25,7 @@ from planner.competition import (
     competition_matches_file,
     is_side_list,
 )
-from planner.config import PLAYLIST_DIR
+from planner.config import playlist_dir
 from planner.models import ALLOW_REPEAT, DEFAULT_DANCES, RoundConfig, rounds_from_pattern
 from planner.parsing import _song_title_keys, is_version, version_base_keys
 from planner.playlist_text import playlist_files, read_playlist_text
@@ -78,7 +78,7 @@ def past_editions(series: str, *, root: Path | None = None,
                   before_year: int | None = None) -> list[Path]:
     """Every edition folder of `series` directly under `root`, newest first.
     `before_year` leaves out the edition being planned (and anything later)."""
-    root = PLAYLIST_DIR if root is None else root
+    root = playlist_dir() if root is None else root
     if not root.is_dir():
         return []
     found = []
@@ -97,7 +97,7 @@ def event_series_list(root: Path | None = None) -> list[tuple[str, str, int]]:
     """Every series under `root` as (series, name, editions), by name. The name
     is the newest edition's folder name without its dates and year; a folder
     that names no year is no edition."""
-    root = PLAYLIST_DIR if root is None else root
+    root = playlist_dir() if root is None else root
     if not root.is_dir():
         return []
     newest: dict[str, tuple[int, str]] = {}
@@ -602,7 +602,8 @@ def plan_variant(cands_list: list[EventCandidates],
                 pools = [per_round[x].get(d, []) for x in order]
             else:
                 pools = [{"new": c.new, "rare": c.rare}.get(tier, c.library).get(d, [])]
-            window = 1 if anchor is None or c.sound is None or tier == "event"                 else HEAT_LIKE_WINDOW
+            window = (1 if anchor is None or c.sound is None or tier == "event"
+                      else HEAT_LIKE_WINDOW)
             found = []
             for pool in pools:
                 for p in pool:

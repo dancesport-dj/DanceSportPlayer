@@ -13,13 +13,13 @@ live below both: gui/ never imports player/ (tests/app/test_layering.py).
 _PARTY_SET = {"secs": 0, "fade": 3.0, "advance": True, "pause_off": True,
               "loudness": True, "announce": False, "dblclick": True}
 
-# 🏆 …and what a competition heat needs: the TSO play length — 1:40, and a
+# 🏆 …and what a competition heat needs: the TSO play length — 1:45, and a
 # 3 s ramp (Marcel found 1.5 s too abrupt on the floor) —
 # and every title started by the operator: no advancing, no pause running on by
 # itself, no voice, and a double-click that only CUES the title — the music
 # starts when the couples stand, on ⏯. The Paso Doble highlight stop is
 # deliberately NOT part of either set.
-_TOURNAMENT_SET = {"secs": 100, "fade": 3.0, "advance": False,
+_TOURNAMENT_SET = {"secs": 105, "fade": 3.0, "advance": False,
                    "pause_off": True, "loudness": True, "announce": False,
                    "dblclick": False}
 
@@ -64,26 +64,31 @@ def play_set_of(settings: dict, which: str) -> dict:
 
 
 # Bumped when a set's default changes in a way a saved set has to follow.
-PLAY_SETS_VERSION = 2
+PLAY_SETS_VERSION = 3
 _OLD_TOURNAMENT_FADE = 1.5
+_OLD_TOURNAMENT_SECS = 100
 
 
 def migrate_play_sets(s: dict) -> dict:
     """Bring play sets saved under older defaults up to date, in place.
 
-    v2 raised the 🏆 tournament fade-out from 1.5 s to 3 s. ⚙ Settings saves a
-    set whole, so a stored 1.5 is the old default as often as a choice — it
-    is lifted to 3; any other stored value was chosen and stays. Runs once:
-    a 1.5 picked after the update is kept."""
-    if int(s.get("play_sets_version") or 1) >= PLAY_SETS_VERSION:
+    v2 raised the 🏆 tournament fade-out from 1.5 s to 3 s, v3 its play
+    length from 1:40 to 1:45. ⚙ Settings saves a set whole, so a stored old
+    default is that default as often as a choice — it is lifted; any other
+    stored value was chosen and stays. Runs once: an old value picked after
+    the update is kept."""
+    version = int(s.get("play_sets_version") or 1)
+    if version >= PLAY_SETS_VERSION:
         return s
     stored = s.get("tournament_set")
     if isinstance(stored, dict):
-        try:
-            if float(stored.get("fade")) == _OLD_TOURNAMENT_FADE:
-                stored["fade"] = _TOURNAMENT_SET["fade"]
-        except (TypeError, ValueError):
-            pass
+        for since, key, old in ((2, "fade", _OLD_TOURNAMENT_FADE),
+                                (3, "secs", _OLD_TOURNAMENT_SECS)):
+            try:
+                if version < since and float(stored.get(key)) == old:
+                    stored[key] = _TOURNAMENT_SET[key]
+            except (TypeError, ValueError):
+                pass
     s["play_sets_version"] = PLAY_SETS_VERSION
     return s
 

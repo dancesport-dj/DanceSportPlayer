@@ -42,7 +42,7 @@ class RestoreMixin:
         (`deck_modes`). An undo step is the whole truth about one moment, so a
         missing wishlist view there means "one wishlist" (`wish_default`), not
         "keep whatever is on screen"."""
-        for key, table in zip(ALL_DECK_KEYS, self._decks + self._day_decks):
+        for key, table in zip(ALL_DECK_KEYS, self._deckset.decks + self._deckset.day_decks, strict=True):
             if data.get(key):
                 self._restore_into_deck(table, data[key])
         if deck_modes:
@@ -52,25 +52,25 @@ class RestoreMixin:
         self._set_day_tab_title(data.get("day_tab") or "")
         self._day_tab_keep = bool(data.get("day_tab_keep"))
 
-        for key, tbl in zip(WISH_KEYS, self._wishlists):
+        for key, tbl in zip(WISH_KEYS, self._deckset.wishlists, strict=True):
             ents = [e for e in (self._resolve_entry(p)
                                 for p in (data.get(key) or [])) if e]
             if ents:
                 tbl.load_wishlist(ents, play_cb=self._play_or_stop,
-                                  suggester=PlaylistSuggester(self._lib))
+                                  suggester=PlaylistSuggester(self._library.lib))
         self._restore_warmup_state(data.get("warmup"))
 
         names = data.get("names") or {}
         for key, table in zip(ALL_DECK_KEYS + WISH_KEYS,
-                              self._decks + self._day_decks + self._wishlists):
+                              self._deckset.decks + self._deckset.day_decks + self._deckset.wishlists, strict=True):
             if names.get(key):
                 self._set_deck_name(table, names[key])
         files = data.get("m3u_paths") or {}
         for key, table in zip(ALL_DECK_KEYS + WISH_KEYS,
-                              self._decks + self._day_decks + self._wishlists):
+                              self._deckset.decks + self._deckset.day_decks + self._deckset.wishlists, strict=True):
             table._m3u_path = Path(files[key]) if files.get(key) else None
 
-        self._deck_count = self._env_deck_count(data)
+        self._deckset.deck_count = self._env_deck_count(data)
         self._apply_deck_view()
         if "wish_state" in data:
             self._set_wish_state(int(data.get("wish_state") or 0),
@@ -80,7 +80,7 @@ class RestoreMixin:
             self._set_wish_state(2, grid=bool(data.get("wish_grid")))
         elif wish_default:
             self._set_wish_state(1, grid=bool(data.get("wish_grid")))
-        self._set_active_table(self._tableA)
+        self._set_active_table(self._deckset.tableA)
 
     @staticmethod
     def _env_deck_count(data: dict) -> int:
@@ -105,9 +105,9 @@ class RestoreMixin:
         feed back into the undo timeline."""
         self._restoring = True
         try:
-            for table in self._decks + self._day_decks:
+            for table in self._deckset.decks + self._deckset.day_decks:
                 self._blank_deck(table)
-            for wl in self._wishlists:
+            for wl in self._deckset.wishlists:
                 wl.load_wishlist([], play_cb=self._play_or_stop, suggester=None)
             self._restore_env(data, wish_default=True)
         except Exception as exc:
@@ -120,9 +120,9 @@ class RestoreMixin:
     def _resolve_entry(self, path: str) -> MusicEntry | None:
         """Find a saved path in the library, else rebuild it as an external entry,
         else None (file gone)."""
-        if not self._lib:
+        if not self._library.lib:
             return None
-        return self._lib.entry_for(path, self._cache, require_file=True)
+        return self._library.lib.entry_for(path, self._library.cache, require_file=True)
 
     def _resolve_paths(self, paths: list[str], progress_cb=None) -> list:
         """`_resolve_entry` over a flat list, reporting as it goes and dropping
@@ -141,10 +141,10 @@ class RestoreMixin:
         """Reload the autosaved decks + wishlist from the last session, if any."""
         # A new session starts with a clean slate: nothing counts as already
         # played, even though the decks themselves are restored.
-        for t in self._all_tables:
+        for t in self._deckset.all_tables:
             t.reset_played_marks()
         data = load_autosave()
-        if not data or not self._lib:
+        if not data or not self._library.lib:
             return
         # Guard the whole restore: each table.load() fires the change-callback
         # autosave, which would otherwise re-save the file with the still-default
@@ -154,10 +154,10 @@ class RestoreMixin:
         try:
             if data.get("version") == 1:
                 # Legacy single-playlist file → restore into deck A.
-                self._restore_into_deck(self._tableA, data)
+                self._restore_into_deck(self._deckset.tableA, data)
                 # Front the primary deck's context again (a deck B restore
                 # leaves the globals stale) — _restore_env does this itself.
-                self._set_active_table(self._tableA)
+                self._set_active_table(self._deckset.tableA)
             else:
                 self._restore_env(data, deck_modes=True)
         except Exception as exc:
@@ -182,8 +182,8 @@ class RestoreMixin:
             # The restore sets what the file holds; the rest starts as the
             # focused deck has it, as the combos did when restores swapped them.
             self.deck(table).ctx = replace(self._focused_ctx())
-        prev = self._table
-        self._table = table
+        prev = self._deckset.table
+        self._deckset.table = table
         try:
             if data.get("player_list"):
                 self._restore_player_list(data)
@@ -198,7 +198,7 @@ class RestoreMixin:
                     table.become_player_list()
             self._refresh_mode_btn(table)
         finally:
-            self._table = prev
+            self._deckset.table = prev
 
     def _restore_favorites(self, data: dict):
         dances      = data.get("dances") or []
@@ -241,7 +241,8 @@ class RestoreMixin:
 
         round_ctx = {r["name"]: r["ctx"] for r in rounds_data if r.get("ctx")}
 
-        suggester = PlaylistSuggester(self._lib)
+        seed = data.get("seed")
+        suggester = PlaylistSuggester(self._library.lib, seed=seed if isinstance(seed, int) else None)
         self._suggester     = suggester
         self._playlist      = playlist
         self._mode          = "Favorites"
@@ -252,7 +253,7 @@ class RestoreMixin:
         self._dances        = dances
         self._age           = data.get("age", self._age)
 
-        self._table.load(
+        self._deckset.table.load(
             playlist, dances, rounds, dance_class,
             play_cb=self._play_or_stop, suggester=suggester,
             use_timbre=use_timbre, style=style,
@@ -277,13 +278,13 @@ class RestoreMixin:
                                for p in (data.get("theme_entries") or [])) if e]
         if not entries:
             return
-        suggester = PlaylistSuggester(self._lib)
+        suggester = PlaylistSuggester(self._library.lib)
         self._suggester = suggester
         self._playlist  = None
         # Set before the load, not after: the rows read the mark set as they are
         # filled, so this way they come back orange in one pass with no re-render.
-        self._table._marked_paths = {str(p) for p in (data.get("marked") or [])}
-        self._table.load_player_list(
+        self._deckset.table._marked_paths = {str(p) for p in (data.get("marked") or [])}
+        self._deckset.table.load_player_list(
             entries, data.get("theme_label") or "",
             play_cb=self._play_or_stop, suggester=suggester,
             sections=data.get("player_sections") or None,
@@ -299,7 +300,7 @@ class RestoreMixin:
                 entries.append(e)
         if not entries:
             return
-        suggester = PlaylistSuggester(self._lib)
+        suggester = PlaylistSuggester(self._library.lib)
         self._suggester     = suggester
         self._mode          = "Theme"
         self._ui_mode       = "Theme"
@@ -309,7 +310,7 @@ class RestoreMixin:
         self._style         = data.get("style", self._style)
         self._dance_class   = data.get("dance_class", self._dance_class)
 
-        self._table.load_theme(
+        self._deckset.table.load_theme(
             entries, self._theme_label or "Theme",
             play_cb=self._play_or_stop, suggester=suggester,
         )
@@ -324,28 +325,28 @@ class RestoreMixin:
         state = state or {}
         entries = [e for e in (self._resolve_entry(p) for p in state.get("paths", [])) if e]
         if not entries:
-            self._warmup_table._warmup = False
-            self._warmup_table.setRowCount(0)
-            self._warmup_table._row_meta.clear()
+            self._deckset.warmup_table._warmup = False
+            self._deckset.warmup_table.setRowCount(0)
+            self._deckset.warmup_table._row_meta.clear()
             self._warmup_folded = False
             self._warmup_closed = False
-            self._warmup_box.setVisible(False)
+            self._grid.warmup_box.setVisible(False)
             self._sync_warmup_toggle()
             return
         label = self._warmup_title(state.get("label") or "")
         if state.get("player_list"):
-            self._warmup_table.load_player_list(
+            self._deckset.warmup_table.load_player_list(
                 entries, label, play_cb=self._play_or_stop,
-                suggester=PlaylistSuggester(self._lib),
+                suggester=PlaylistSuggester(self._library.lib),
                 sections=state.get("player_sections") or None)
         else:
-            self._warmup_table.load_warmup(
+            self._deckset.warmup_table.load_warmup(
                 entries, label, state.get("style", "") or "",
                 state.get("dance_class", "S"), bool(state.get("relax", True)),
-                play_cb=self._play_or_stop, suggester=PlaylistSuggester(self._lib))
-        self._set_deck_name(self._warmup_table, label)
+                play_cb=self._play_or_stop, suggester=PlaylistSuggester(self._library.lib))
+        self._set_deck_name(self._deckset.warmup_table, label)
         self._warmup_closed = bool(state.get("closed", False))
-        self._warmup_box.setVisible(not self._warmup_closed)
+        self._grid.warmup_box.setVisible(not self._warmup_closed)
         if not self._warmup_closed:
             self._toggle_warmup_fold(bool(state.get("folded", False)))
         self._sync_warmup_toggle()

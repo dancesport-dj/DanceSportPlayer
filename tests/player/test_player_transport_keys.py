@@ -13,6 +13,7 @@ longer moves the volume, the tempo or the position of a song playing to a hall.
 import os
 import tempfile
 import unittest
+from unittest import mock
 
 # Offscreen BEFORE any QApplication exists, and state files into a temp dir (the
 # gui modules resolve those at import time — see test_gui_smoke.py).
@@ -21,6 +22,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_keys_"))
 
 from pathlib import Path
+from types import SimpleNamespace
 
 from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
 from PySide6.QtGui import (
@@ -96,7 +98,7 @@ class TransportShortcutTest(_WindowTest):
         the deck a second time (which would skip a title outright)."""
         fired = []
         self.win._fire_pending_advance = lambda: fired.append(True)
-        self.win._between.pending = (self.win._tableA, 0, Path("x.mp3"))
+        self.win._between.pending = (self.win._deckset.tableA, 0, Path("x.mp3"))
         self.win._filler.active = False   # nothing audible to fade first
         self.win._next_sc.activated.emit()
         self.assertEqual(fired, [True])
@@ -134,7 +136,7 @@ class HeldKeyTest(_WindowTest):
                 self.assertFalse(sc.autoRepeat())
 
     def test_a_held_space_does_not_play_stop_play(self):
-        table = self.win._tableA
+        table = self.win._deckset.tableA
         played = []
         table._on_play_click = lambda row, path: played.append(row)
         table._selected_song_row = lambda: (0, Path("x.mp3"))
@@ -145,7 +147,7 @@ class HeldKeyTest(_WindowTest):
         self.assertEqual(played, [0], "the repeats toggled playback again")
 
     def test_a_held_ctrl_r_re_rolls_once(self):
-        table = self.win._tableA
+        table = self.win._deckset.tableA
         rolled = []
         table._regen = rolled.append
         table._selected_song_row = lambda: (0, Path("x.mp3"))
@@ -158,7 +160,7 @@ class HeldKeyTest(_WindowTest):
 
     def test_holding_the_seek_key_still_seeks(self):
         """The one action a repeat is meant for: running through a song."""
-        table = self.win._tableA
+        table = self.win._deckset.tableA
         seeks = []
         table._seek_cb = seeks.append
 
@@ -167,6 +169,62 @@ class HeldKeyTest(_WindowTest):
         self._press(table, Qt.Key.Key_Right, Qt.KeyboardModifier.ControlModifier,
                     repeat=True)
         self.assertEqual(seeks, [30000, 30000])
+
+
+class DoubleTapSpaceTest(_WindowTest):
+    """Two quick taps on Space are one press, not play-and-stop.
+
+    A tap that bounces, or a second one because the first seemed to do nothing
+    while the title was still loading, used to start the title and stop it
+    again (Planning) or pause it at once (Playing). Within the system's
+    double-click interval the second tap is swallowed; after it, Space toggles
+    as before."""
+
+    def setUp(self):
+        super().setUp()
+        # The two handlers' clock only: the window's own timers run on as usual.
+        self.clock = [100.0]
+        fake = SimpleNamespace(monotonic=lambda: self.clock[0])
+        for tick in (mock.patch("gui.table_actions.time", fake),
+                     mock.patch.object(self.gui, "time", fake, create=True)):
+            tick.start()
+            self.addCleanup(tick.stop)
+
+    @staticmethod
+    def _space():
+        return QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_Space,
+                         Qt.KeyboardModifier.NoModifier)
+
+    def test_the_deck_plays_once(self):
+        table = self.win._deckset.tableA
+        played = []
+        table._on_play_click = lambda row, path: played.append(row)
+        table._selected_song_row = lambda: (0, Path("x.mp3"))
+
+        table.keyPressEvent(self._space())
+        self.clock[0] += 0.15
+        table.keyPressEvent(self._space())
+        self.assertEqual(played, [0], "the second tap stopped it again")
+        self.clock[0] += 1.0
+        table.keyPressEvent(self._space())
+        self.assertEqual(played, [0, 0], "a later Space no longer stops it")
+
+    def test_the_desk_toggles_once(self):
+        toggled = []
+        self.win._big_player.toggle_play = lambda: toggled.append(True)
+        with (mock.patch.object(QApplication, "activeWindow",
+                                return_value=self.win),
+              mock.patch.object(QApplication, "focusWidget",
+                                return_value=None)):
+            self.assertTrue(self.win.eventFilter(self.win, self._space()))
+            self.clock[0] += 0.15
+            self.assertTrue(self.win.eventFilter(self.win, self._space()),
+                            "the swallowed tap reached the focused widget")
+            self.assertEqual(toggled, [True], "the second tap paused it again")
+            self.clock[0] += 1.0
+            self.win.eventFilter(self.win, self._space())
+        self.assertEqual(len(toggled), 2, "a later Space no longer pauses")
+
 
 
 class TempoStepTest(_WindowTest):

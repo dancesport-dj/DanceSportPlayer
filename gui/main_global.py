@@ -81,9 +81,9 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
     """
 
     def _on_library_loaded(self, lib: MusicLibrary, cache: AudioCache):
-        self._lib   = lib
-        self._cache = cache
-        for t in self._all_tables:
+        self._library.lib   = lib
+        self._library.cache = cache
+        for t in self._deckset.all_tables:
             t._cache = cache   # enable chained drops in the similar-tracks dialog
         n          = len(lib.entries)
         comp       = sum(1 for e in lib.entries if e.dance is not None)
@@ -129,7 +129,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
             # whatever 🎙️ Analyze vocals has really measured.
             ("🎙️  Learning vocal / instrumental…",
              lambda: (learn_instrumental_probs(lib.entries),
-                      apply_vocal_shares(lib.entries, self._cache))),
+                      apply_vocal_shares(lib.entries, self._library.cache))),
             # 📚 the browser pane (it filters lazily from this list) and the
             # 🏆 tree, which names a playlist's tracks from the same one.
             ("📚  Filling the library browser…",
@@ -160,11 +160,11 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
 
     def _refresh_library_status(self, enable_generate: bool = False):
         """Recompose the ConfigPanel status label (mode + counts + per-model index)."""
-        if not self._lib:
+        if not self._library.lib:
             return
-        n          = len(self._lib.entries)
-        comp       = sum(1 for e in self._lib.entries if e.dance is not None)
-        cached     = sum(1 for e in self._lib.entries if e.features is not None)
+        n          = len(self._library.lib.entries)
+        comp       = sum(1 for e in self._library.lib.entries if e.dance is not None)
+        cached     = sum(1 for e in self._library.lib.entries if e.features is not None)
         unanalyzed = n - cached
         # Every line takes its numbers through a placeholder: the assembled
         # block is unique on each refresh and would match no catalog key.
@@ -184,22 +184,22 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
             i18n.t("🔇 Silences: %s") % summ["silences"],
             i18n.t("🐂 PD highlights: %s") % summ["pd"],
             i18n.t("🧠 OpenL3: %s") % summ["openl3"]))
-        if self._cache is not None and self._cache.vocal_share_count():
+        if self._library.cache is not None and self._library.cache.vocal_share_count():
             status += "\n" + i18n.t("🎙️ Demucs vocals: %s measured") % (
-                f"{self._cache.vocal_share_count():,}")
+                f"{self._library.cache.vocal_share_count():,}")
         self._cfg.set_library_status(status, enable_generate=enable_generate,
                                      n_unanalyzed=unanalyzed,
                                      needs_build=bool(summ.get("favorites_gap")))
 
     def _index_summary(self) -> dict:
-        return index_summary(self._cache, self._embedding_store(),
-                             self._lib, self._global_lib)
+        return index_summary(self._library.cache, self._embedding_store(),
+                             self._library.lib, self._library.global_lib)
 
     def _global_index_line(self) -> str:
         """One-line global-repo index state — shown in every mode."""
-        if self._global_lib is not None:
-            gn = len(self._global_lib.entries)
-            gc = sum(1 for e in self._global_lib.entries if e.features is not None)
+        if self._library.global_lib is not None:
+            gn = len(self._library.global_lib.entries)
+            gc = sum(1 for e in self._library.global_lib.entries if e.features is not None)
             return i18n.t("🌐 Global index: %s files, %s analyzed") % (
                 f"{gn:,}", f"{gc:,}")
         built = planner.db.global_index_count()
@@ -217,7 +217,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         QMessageBox.critical(self, "Library Load Error", msg)
 
     def _on_file_dropped(self, path: str):
-        if not self._lib or not self._cache:
+        if not self._library.lib or not self._library.cache:
             return
         if not HAS_LIBROSA:
             QMessageBox.warning(
@@ -231,12 +231,12 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         # Global search → match against the whole repo (build the index lazily once);
         # otherwise match against the favorites library only.
         if self._settings.get("global_search"):
-            if self._global_lib is not None:
-                self._start_similar_worker(path, self._global_lib)
+            if self._library.global_lib is not None:
+                self._start_similar_worker(path, self._library.global_lib)
             else:
                 self._ensure_global_lib(then_drop=path)
         else:
-            self._start_similar_worker(path, self._lib)
+            self._start_similar_worker(path, self._library.lib)
 
     def _start_similar_worker(self, path: str, lib: MusicLibrary):
         self._sim_lib = lib
@@ -244,7 +244,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         self._busy = BusyDialog(self, i18n.t("Analyzing %s …") % Path(path).name)
         self._busy.show_after(500)
         self._sim_worker = SimilarFromFileWorker(
-            lib, self._cache, path, n=100, min_display=0.5, parent=self)
+            lib, self._library.cache, path, n=100, min_display=0.5, parent=self)
         self._sim_worker.done.connect(self._on_similar_ready)
         self._sim_worker.error.connect(self._on_similar_error)
         self._sim_worker.start()
@@ -252,8 +252,8 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
     def _on_similar_ready(self, source, results):
         if self._busy:
             self._busy.finish()
-        search_lib = getattr(self, "_sim_lib", None) or self._lib
-        scope = (i18n.t("the whole repository") if search_lib is self._global_lib
+        search_lib = getattr(self, "_sim_lib", None) or self._library.lib
+        scope = (i18n.t("the whole repository") if search_lib is self._library.global_lib
                  else i18n.t("the favorites library"))
         if not results:
             self.statusBar().showMessage("No similar tracks found.")
@@ -264,7 +264,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
                 hint = "\n\n" + i18n.t(
                     "Global search is on but the repository isn't analyzed yet — "
                     "open ⚙ Settings → “Build / refresh global audio index”."
-                    if search_lib is self._global_lib else
+                    if search_lib is self._library.global_lib else
                     "No tracks are analyzed yet — run 'Analyze Audio' first.")
             elif analyzed < total:
                 running = (getattr(self, "_analyzer", None) and self._analyzer.isRunning())
@@ -285,8 +285,8 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         self.statusBar().showMessage(
             i18n.t("Found %d similar to %s (%s)") % (len(results), source.title[:40], scope))
         SimilarTracksDialog(source, results, self, play_cb=self._play_or_stop,
-                            lib=search_lib, cache=self._cache, seek_cb=self._seek,
-                            is_global=(search_lib is self._global_lib),
+                            lib=search_lib, cache=self._library.cache, seek_cb=self._seek,
+                            is_global=(search_lib is self._library.global_lib),
                             wishlist_paths=self.current_wishlist_paths()).exec()
 
     def _on_similar_error(self, msg: str):
@@ -312,16 +312,16 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         # straight from the warm cache — no filesystem re-walk, no indexing window.
         # Reconstructing 53k+ entries still takes a moment, so do it OFF the UI thread
         # behind a small load window. (New / changed files need a ⚙ Settings rebuild.)
-        if self._cache is not None and planner.db.global_index_count() > 0:
-            if getattr(self, "_cache_loader", None) and self._cache_loader.isRunning():
+        if self._library.cache is not None and planner.db.global_index_count() > 0:
+            if self._library.cache_loader and self._library.cache_loader.isRunning():
                 return
             self._pending_drop = then_drop
             self._busy = BusyDialog(self, "Loading repository from cache…")
             self._busy.show_after(200)
-            self._cache_loader = GlobalCacheLoader(self._cache, self)
-            self._cache_loader.done.connect(self._on_global_cache_loaded)
-            self._cache_loader.error.connect(self._on_global_error)
-            self._cache_loader.start()
+            self._library.cache_loader = GlobalCacheLoader(self._library.cache, self)
+            self._library.cache_loader.done.connect(self._on_global_cache_loaded)
+            self._library.cache_loader.error.connect(self._on_global_error)
+            self._library.cache_loader.start()
             return
         self._start_global_scan(then_drop)
 
@@ -331,17 +331,17 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         if not gdir or not Path(gdir).exists():
             return
         self._pending_drop = then_drop
-        if self._global_loader and self._global_loader.isRunning():
+        if self._library.global_loader and self._library.global_loader.isRunning():
             return
         self._busy = BusyDialog(self, "Indexing whole repository…", cancelable=True)
-        self._global_loader = GlobalLibraryLoader(self._cache, gdir, self)
-        self._busy.cancel_requested.connect(self._global_loader.cancel)
+        self._library.global_loader = GlobalLibraryLoader(self._library.cache, gdir, self)
+        self._busy.cancel_requested.connect(self._library.global_loader.cancel)
         self._busy.show_after(300)
-        self._global_loader.progress.connect(self._on_global_scan_progress)
-        self._global_loader.done.connect(self._on_global_ready)
-        self._global_loader.error.connect(self._on_global_error)
-        self._global_loader.cancelled.connect(self._on_global_cancelled)
-        self._global_loader.start()
+        self._library.global_loader.progress.connect(self._on_global_scan_progress)
+        self._library.global_loader.done.connect(self._on_global_ready)
+        self._library.global_loader.error.connect(self._on_global_error)
+        self._library.global_loader.cancelled.connect(self._on_global_cancelled)
+        self._library.global_loader.start()
 
     def _on_global_cache_loaded(self, lib: MusicLibrary):
         if self._busy:
@@ -350,9 +350,9 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         if not lib.entries:
             self._start_global_scan(self._pending_drop)
             return
-        if self._lib is not None:
-            lib.share_playlist_index_from(self._lib)
-        self._global_lib = lib
+        if self._library.lib is not None:
+            lib.share_playlist_index_from(self._library.lib)
+        self._library.global_lib = lib
         self._refresh_library_status()
         self.statusBar().showMessage(
             i18n.t("Global library ready from cache — %s files.") % f"{len(lib.entries):,}")
@@ -365,9 +365,9 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
     def _on_global_ready(self, lib: MusicLibrary):
         if self._busy:
             self._busy.finish()
-        if self._lib is not None:
-            lib.share_playlist_index_from(self._lib)
-        self._global_lib = lib
+        if self._library.lib is not None:
+            lib.share_playlist_index_from(self._library.lib)
+        self._library.global_lib = lib
         n      = len(lib.entries)
         cached = sum(1 for e in lib.entries if e.features is not None)
         self._refresh_library_status()   # add the global-index line to the label
@@ -427,17 +427,17 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
                 "Set a valid music repository folder first."
             )
             return
-        if self._global_loader and self._global_loader.isRunning():
+        if self._library.global_loader and self._library.global_loader.isRunning():
             return
         self._busy = BusyDialog(self, "Scanning repository…", cancelable=True)
-        self._global_loader = GlobalLibraryLoader(self._cache, gdir, self)
-        self._busy.cancel_requested.connect(self._global_loader.cancel)
+        self._library.global_loader = GlobalLibraryLoader(self._library.cache, gdir, self)
+        self._busy.cancel_requested.connect(self._library.global_loader.cancel)
         self._busy.show_after(300)
-        self._global_loader.progress.connect(self._on_global_scan_progress)
-        self._global_loader.done.connect(self._on_global_index_scanned)
-        self._global_loader.error.connect(self._on_global_error)
-        self._global_loader.cancelled.connect(self._on_global_cancelled)
-        self._global_loader.start()
+        self._library.global_loader.progress.connect(self._on_global_scan_progress)
+        self._library.global_loader.done.connect(self._on_global_index_scanned)
+        self._library.global_loader.error.connect(self._on_global_error)
+        self._library.global_loader.cancelled.connect(self._on_global_cancelled)
+        self._library.global_loader.start()
 
     def _on_global_scan_progress(self, done: int, total: int, name: str, reused: bool):
         if not self._busy:
@@ -452,16 +452,16 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
     def _on_global_index_scanned(self, lib: MusicLibrary):
         if self._busy:
             self._busy.finish()
-        if self._lib is not None:
-            lib.share_playlist_index_from(self._lib)
-        self._global_lib = lib
+        if self._library.lib is not None:
+            lib.share_playlist_index_from(self._library.lib)
+        self._library.global_lib = lib
         self._refresh_library_status()
         # 'both' analyzes the repo + favorites library together (deduped by path).
         scope = getattr(self, "_librosa_scope", "global")
-        if scope == "both" and self._lib is not None and self._lib.entries:
+        if scope == "both" and self._library.lib is not None and self._library.lib.entries:
             seen = set()
             entries = []
-            for e in list(lib.entries) + list(self._lib.entries):
+            for e in list(lib.entries) + list(self._library.lib.entries):
                 k = str(e.path)
                 if k in seen:
                     continue
@@ -475,8 +475,8 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
 
     # ── ⚙ Settings, the restart offer and the maintenance jobs ──────────────────
     def _open_settings(self):
-        n_unanalyzed = (sum(1 for e in self._lib.entries if e.features is None)
-                        if self._lib else 0)
+        n_unanalyzed = (sum(1 for e in self._library.lib.entries if e.features is None)
+                        if self._library.lib else 0)
         given = dict(self._settings)
         dlg = SettingsDialog(self._settings, self, build_cb=self._build_global_index,
                              embed_cb=self._build_embedding_index,
@@ -536,7 +536,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
             # Only visibility — no restart needed, both sides stay wired up.
             self._apply_app_mode()
         if global_changed:
-            self._global_lib = None   # force a rebuild of the global index on next use
+            self._library.global_lib = None   # force a rebuild of the global index on next use
         if pl_changed and new.get("playlist_dir"):
             # Apply right away: repoint the learning dir, then rebuild the
             # popularity / co-occurrence index from it (no library rescan).
@@ -605,7 +605,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
     # ── Maintenance (⚙ Settings) ──────────────────────────────────────────────
     def _run_db_maintenance(self):
         """🧹 Clean up database: orphan cleanup + VACUUM, off the UI thread."""
-        db_file = planner.config.AUDIO_DB_FILE
+        db_file = planner.config.audio_db_file()
         size_mb = db_file.stat().st_size / 1e6 if db_file.exists() else 0.0
         ans = QMessageBox.question(
             self, "Clean up database",
@@ -651,7 +651,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
     def _export_manual_pd(self):
         """📤 The hand-set Paso Doble highlights to a JSON file for another PC."""
         title = "Export manual PD marks"
-        marks = self._cache.export_manual_pd() if self._cache else []
+        marks = self._library.cache.export_manual_pd() if self._library.cache else []
         if not marks:
             QMessageBox.information(self, title, "No Paso Doble highlight has been set by hand yet.")
             return
@@ -677,7 +677,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
     def _import_manual_pd(self):
         """📥 Hand-set Paso Doble highlights from a file another PC exported."""
         title = "Import manual PD marks"
-        if not self._cache:
+        if not self._library.cache:
             return
         chosen, _ = QFileDialog.getOpenFileName(
             self, title, str(Path.home()), "JSON files (*.json);;All files (*)")
@@ -685,7 +685,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
             return
         try:
             marks = json.loads(Path(chosen).read_text(encoding="utf-8"))["manual_pd_marks"]
-            n, found = self._cache.import_manual_pd(marks)
+            n, found = self._library.cache.import_manual_pd(marks)
         except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
             QMessageBox.warning(self, title, i18n.t("This is no manual-PD-marks file:") + "\n\n" + str(exc))
             return
@@ -726,7 +726,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
 
     def _relearn_playlists(self):
         """📜 Rebuild playlist popularity from the M3U folder — no library rescan."""
-        if self._lib is None:
+        if self._library.lib is None:
             QMessageBox.information(self, "Re-learn playlists",
                                     "The library is still loading — try again in a moment.")
             return
@@ -735,7 +735,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
             return   # one at a time — the busy dialog shows only after 200 ms
         self._busy = BusyDialog(self, "Re-learning playlist popularity…")
         self._busy.show_after(200)
-        self._relearn_worker = PlaylistRelearnWorker(self._lib, self)
+        self._relearn_worker = PlaylistRelearnWorker(self._library.lib, self)
         self._relearn_worker.done.connect(self._on_relearn_done)
         self._relearn_worker.error.connect(self._on_relearn_error)
         self._relearn_worker.start()
@@ -743,11 +743,11 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
     def _on_relearn_done(self, learned):
         if self._busy:
             self._busy.finish()
-        n = self._lib.adopt_playlist_index(learned)
+        n = self._library.lib.adopt_playlist_index(learned)
         # The global library borrows the competition library's playlist index —
         # re-share so 'based on my playlist history' sees the fresh counts too.
-        if self._global_lib is not None:
-            self._global_lib.share_playlist_index_from(self._lib)
+        if self._library.global_lib is not None:
+            self._library.global_lib.share_playlist_index_from(self._library.lib)
         self._refresh_library_status()
         self.statusBar().showMessage(
             i18n.t("Playlist popularity re-learned from %s playlists.") % f"{n:,}")
