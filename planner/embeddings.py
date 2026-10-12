@@ -64,7 +64,7 @@ def _enable_system_certs() -> None:
         return
     _certs_injected = True
     try:
-        import truststore
+        import truststore  # pyright: ignore[reportMissingImports]
         truststore.inject_into_ssl()
         logger.info("🔐 Using OS certificate store for model downloads (truststore)")
     except Exception as exc:

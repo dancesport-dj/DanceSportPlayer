@@ -549,6 +549,12 @@ class Operator(Monkey):
                     if shiboken6.isValid(w):
                         w.setProperty("monkey_busy", False)
                 return
+        from gui.common import BusyDialog
+        if isinstance(w, BusyDialog):
+            # A progress window asks nothing: the operator waits for it. Its
+            # reject() is Cancel — closing it aborted a check that only ran
+            # past the 250 ms show delay on a loaded machine.
+            return
         super()._handle(w)
 
 

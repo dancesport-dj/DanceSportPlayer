@@ -85,7 +85,7 @@ def migrate_play_sets(s: dict) -> dict:
         for since, key, old in ((2, "fade", _OLD_TOURNAMENT_FADE),
                                 (3, "secs", _OLD_TOURNAMENT_SECS)):
             try:
-                if version < since and float(stored.get(key)) == old:
+                if version < since and float(stored.get(key, 0)) == old:
                     stored[key] = _TOURNAMENT_SET[key]
             except (TypeError, ValueError):
                 pass

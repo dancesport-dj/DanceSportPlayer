@@ -38,6 +38,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from pathlib import Path
+from collections import Counter
 from collections.abc import Callable
 from planner.db import AudioCache
 from planner.m3u import running_order_rounds
@@ -291,6 +292,8 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
         # each run of a dance when no round could be derived.
         self._player_list = False
         self._player_sections: dict[str, str] = {}
+        # Row → "Heat 2" in such a list, derived from its order (_paint_player_heats).
+        self._player_heat_text: dict[int, str] = {}
         # Set by MainWindow on decks: returns the current "6-3-2-1" Rounds-field pattern,
         # used as the capacity when an empty deck turns dynamic on its first drop.
         self._capacity_provider: Callable[[], list[int]] | None = None
@@ -1155,6 +1158,7 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
                 bg = _C_ROW_EVEN if i % 2 == 0 else _C_ROW_ODD
                 self._fill_song_row(row, meta, bg)
                 i += 1
+        self._paint_player_heats()
         self._row_meta.adopt(placed)   # the ■ marker follows a title still here
         self._follow_play_row()
         self._notify_changed()
@@ -1255,6 +1259,7 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
                 i += 1
                 row += 1
         self._restripe_song_rows(head)
+        self._paint_player_heats()
         self._notify_changed()
         self.loaded.emit(self)
         return True
@@ -1298,6 +1303,29 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
         # Anything dropped ahead of the first known track joins that first round.
         first = next((lbl for lbl in out if lbl), "")
         return [lbl or first for lbl in out]
+
+    def _paint_player_heats(self) -> None:
+        """Write "Heat 2" into the Heat column of a running order: the place of
+        a title among the same dance in its round. Like the strips, a pure
+        function of the order, so a drop renumbers its round. A dance played
+        once in its round (a final, a party round) names no heat, and without
+        known rounds there are none to count in."""
+        self._player_heat_text = {}
+        if not (self._player_list and self._player_sections):
+            return
+        rows = self._row_meta.numbered()
+        labels = self._player_section_labels([m.entry for _, m in rows])
+        keys = [(lbl, m.dance) for lbl, (_, m) in zip(labels, rows, strict=True)]
+        total = Counter(keys)
+        seen: Counter = Counter()
+        for key, (row, _) in zip(keys, rows, strict=True):
+            seen[key] += 1
+            text = i18n.t("Heat %d") % seen[key] if total[key] > 1 else ""
+            if text:
+                self._player_heat_text[row] = text
+            it = self.item(row, _COL_HEAT)
+            if it is not None:
+                it.setText(text)
 
     def load_player_list(self, entries: list[MusicEntry], label: str,
                          play_cb, suggester: PlaylistSuggester | None = None,
@@ -1636,6 +1664,8 @@ class PlaylistTable(TableDragDropMixin, DynamicModeMixin,
         # Heat column
         if is_backup:
             cell(_COL_HEAT, f"↳ backup {meta.backup_n or ''}".rstrip(), align=ctr)
+        elif meta.warmup:
+            cell(_COL_HEAT, self._player_heat_text.get(row, ""), align=ctr)
         else:
             cell(_COL_HEAT, f"Heat {h_idx + 1}" if multi else "", align=ctr)
 

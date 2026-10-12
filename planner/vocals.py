@@ -159,11 +159,11 @@ def _get_demucs_model():
         try:
             # Trust the OS certificate store for the weight download (corporate /
             # antivirus TLS proxies re-sign HTTPS with a CA certifi doesn't know).
-            import truststore
+            import truststore  # pyright: ignore[reportMissingImports]
             truststore.inject_into_ssl()
         except Exception:
             pass
-        from demucs.pretrained import get_model
+        from demucs.pretrained import get_model  # pyright: ignore[reportMissingImports]
         _demucs_model = get_model("htdemucs")
         _demucs_model.eval()
         log.info("🎙️ Demucs htdemucs model loaded (sources: %s)", _demucs_model.sources)
@@ -178,7 +178,7 @@ def measure_vocal_share(path: Path) -> float:
     decode/separation failure."""
     import numpy as np
     import librosa
-    import torch
+    import torch  # pyright: ignore[reportMissingImports]
 
     model = _get_demucs_model()
     sr = model.samplerate
@@ -189,7 +189,7 @@ def measure_vocal_share(path: Path) -> float:
         y, _ = librosa.load(str(path), sr=sr, mono=False, duration=20.0)
         if y.ndim == 1:
             y = np.stack([y, y])
-    from demucs.apply import apply_model
+    from demucs.apply import apply_model  # pyright: ignore[reportMissingImports]
     wav = torch.from_numpy(np.ascontiguousarray(y, dtype=np.float32))
     ref = wav.mean(0)
     wav = (wav - ref.mean()) / (float(ref.std()) + 1e-8)

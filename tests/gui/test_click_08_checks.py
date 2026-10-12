@@ -226,6 +226,20 @@ class ChecksClickTest(ClickThrough):
                             "a second ▶ did not stop it")
             report.close()
 
+    def test_a_check_slow_enough_for_its_progress_window_still_reports(self):
+        """On a loaded machine the scan outlasts the 250 ms before its progress
+        window shows. The operator waits it out; pressing Cancel (its reject)
+        aborted the check and no report opened."""
+        from gui.common import BusyDialog
+        show_after = BusyDialog.show_after
+        with mock.patch.object(BusyDialog, "show_after",
+                               lambda dlg, _ms=500: show_after(dlg, 0)), \
+                self.clicking() as op:
+            self.analysed()
+            self.generate(rounds="2-1")
+            report, _suspects = self.check_music(op)
+            report.close()
+
     def test_check_music_remove_empties_the_slots_and_ctrl_z_undoes(self):
         with self.clicking() as op:
             self.analysed()

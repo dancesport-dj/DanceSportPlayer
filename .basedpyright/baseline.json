@@ -858,24 +858,6 @@
                 }
             }
         ],
-        "./planner/play_sets.py": [
-            {
-                "code": "reportArgumentType",
-                "range": {
-                    "startColumn": 21,
-                    "endColumn": 39,
-                    "lineCount": 1
-                }
-            },
-            {
-                "code": "reportArgumentType",
-                "range": {
-                    "startColumn": 21,
-                    "endColumn": 39,
-                    "lineCount": 1
-                }
-            }
-        ],
         "./planner/readiness.py": [
             {
                 "code": "reportArgumentType",

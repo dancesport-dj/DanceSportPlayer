@@ -361,11 +361,11 @@ _C_DEFAULT   = QColor( 30,  30,  30)  # near-black
 
 # Columns a KIND of list starts without (header right-click ticks them back on,
 # and that choice is then saved). Heat only ever reads "Heat 2" on a deck whose
-# dance runs several heats; a wishlist and a party list are flat, so it is 56 px
-# of blank there. ★ Rating and Custom start put away in every kind: Marcel
+# dance runs several heats; everywhere else it is 56 px of blank, so it starts
+# put away in every kind, decks included. ★ Rating and Custom too: Marcel
 # asked for them hidden until wanted.
 DEFAULT_HIDDEN_COLUMNS = {
-    "playlist": [_COL_RATING, _COL_CUSTOM],
+    "playlist": [_COL_HEAT, _COL_RATING, _COL_CUSTOM],
     "wishlist": [_COL_HEAT, _COL_RATING, _COL_CUSTOM],
     "party": [_COL_HEAT, _COL_RATING, _COL_CUSTOM],
 }
@@ -462,6 +462,12 @@ def _open_in_default_player(path: Path, parent: QWidget | None = None) -> None:
         QMessageBox.warning(parent, "Open file",
                             i18n.t("This is not an audio file, so it won't be opened:\n%s") % path)
         return
+    _open_with_default_app(path, parent)
+
+
+def _open_with_default_app(path: Path, parent: QWidget | None = None) -> None:
+    """Open a file the app wrote itself (e.g. the printed PDF) in its OS
+    default application. No audio gate: never hand it a path from a playlist."""
     if not path.exists():
         QMessageBox.warning(parent, "Open file",
                             i18n.t("File not found:\n%s") % path)

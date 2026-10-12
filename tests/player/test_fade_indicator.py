@@ -14,6 +14,7 @@ import os
 import tempfile
 import time
 import unittest
+from types import SimpleNamespace
 from pathlib import Path
 
 # Offscreen BEFORE any QApplication exists, and state files into a temp dir (the
@@ -147,6 +148,29 @@ class FadeBlinkTest(unittest.TestCase):
         self.card.set_fading(False)
         self.assertFalse(self.card._flash.isActive())
         self.assertEqual(_skin(self.card), "")
+
+    def test_a_stop_on_a_plain_card_leaves_its_style_alone(self):
+        """Every halt runs `_stop_end_flash`, right inside the player's stop().
+        A re-polish there takes Qt's signal-slot locks while this thread holds
+        Python's — and Qt's FFmpeg thread, tearing down the old title at that
+        moment, can hold one of those locks while it waits for Python: the
+        desk froze for good. A card that is already plain has nothing to undo."""
+        repolished, restyled = [], []
+        self.card.style = lambda: SimpleNamespace(unpolish=repolished.append,
+                                                  polish=lambda w: None)
+        self.card._slider.setStyleSheet = restyled.append
+        self.card._on_state(QMediaPlayer.PlaybackState.StoppedState)
+        self.assertEqual(repolished, [])
+        self.assertEqual(restyled, [])
+
+    def test_a_stop_in_the_final_seconds_still_turns_the_card_plain(self):
+        card = BigPlayerWidget(_PlayingStub())
+        self.addCleanup(reap_widget, card)
+        card._update_end_flash(5_000, 200_000)
+        self.assertEqual(_skin(card), "end")
+        card._on_state(QMediaPlayer.PlaybackState.StoppedState)
+        self.assertEqual(_skin(card), "")
+        self.assertEqual(card._slider.styleSheet(), "")
 
 
 class _Card:

@@ -1331,6 +1331,10 @@ class PlayerControlMixin(AudioLevelMixin, PdStopMixin, PauseMusicMixin):
             return
         gap_left = _LOAD_MIN_GAP_MS - 1000.0 * (time.monotonic() - self._last_load_at)
         if path is not None and gap_left > 0:
+            # A newer title supersedes one still waiting for its loudness:
+            # that wait would otherwise start the old title when its level
+            # lands, before this one loads.
+            self._lufs_pending = None
             self._pending_load = (path, start)
             self._load_timer.start(int(gap_left))
             return

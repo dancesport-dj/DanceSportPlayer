@@ -14,6 +14,7 @@ lookup and the loudness worker are stood in for, so no decode runs.
 
 import os
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -132,6 +133,23 @@ class StopAbandonsLoudnessWaitTest(unittest.TestCase):
         with mock.patch.object(self.win, "_load_track") as load:
             self.win._flush_pending_load()
         load.assert_not_called()
+
+    def test_a_newer_title_held_by_the_rate_limit_supersedes_the_wait(self):
+        """▶ on one title, ▶ on another within 250 ms: the second is parked by
+        the rate limit while the first still waits for its level. When that
+        level lands, the first title must not start — the operator has moved
+        on, and its load used to hide the mini player the second ▶ opened."""
+        self._arm_wait()
+        self.win._last_load_at = time.monotonic()
+        other = self.path.with_name("Next one (LW 29).mp3")
+        self.win._play_or_stop(other, True)
+        self.assertEqual(self.win._pending_load, (other, True))
+        with mock.patch.object(self.win, "_load_track") as load:
+            self.win._on_track_lufs(str(self.path), -10.0)
+            self.win._resume_after_loudness(self.path)   # the wait's timer
+        load.assert_not_called()
+        self.win._pending_load = None
+        self.win._load_timer.stop()
 
     def test_stop_silences_a_running_announcement(self):
         with mock.patch.object(self.win._announcer, "stop") as stop:

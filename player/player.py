@@ -1800,6 +1800,12 @@ class BigPlayerWidget(QFrame):
     def _set_skin(self, skin: str):
         """Show the plain card (''), the red end warning ('end') or the orange
         fade ('fade'); re-polishes the card alone, not its children."""
+        if self.property("flash") == skin:
+            # Every halt lands here, inside the player's stop(). A re-polish
+            # takes Qt's signal-slot locks while holding the GIL, and Qt's
+            # FFmpeg thread, tearing the old title down, can hold one of them
+            # while it waits for the GIL: the desk froze for good.
+            return
         self.setProperty("flash", skin)
         self.style().unpolish(self)
         self.style().polish(self)
@@ -1810,7 +1816,8 @@ class BigPlayerWidget(QFrame):
         self._flash_on = False
         self._fading = False
         self._set_skin("")
-        self._slider.setStyleSheet("")   # seek bar back to blue
+        if self._slider.styleSheet():   # seek bar back to blue (see _set_skin)
+            self._slider.setStyleSheet("")
         self._wave.set_ending(False)
 
     # ── Controls ──

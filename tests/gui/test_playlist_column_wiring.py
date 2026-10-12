@@ -91,16 +91,14 @@ class ColumnWiringTest(unittest.TestCase):
         self.assertTrue(win._deckset.warmup_table.isColumnHidden(_COL_HEAT))
         self.assertFalse(win._deckset.tableA.isColumnHidden(_COL_REGEN))
 
-    def test_a_fresh_install_hides_heat_where_there_are_no_heats(self):
+    def test_a_fresh_install_hides_heat_in_every_kind(self):
         """Heat only ever reads "Heat 2" on a deck with multiple heats per
-        dance. A wishlist and a party list are flat, so the column is 56 px of
-        blank — off by default, still tickable back on. ★ Rating is off
+        dance, so most decks show it as 56 px of blank too. Marcel asked for
+        it off by default everywhere, still tickable back on. ★ Rating is off
         everywhere until asked for."""
         win = self.window()
-        for t in win._deckset.wishlists + [win._deckset.warmup_table]:
+        for t in win._deckset.all_tables:
             self.assertEqual(t.hidden_columns(), [_COL_HEAT, _COL_RATING, _COL_CUSTOM])
-        for t in win._deckset.decks + win._deckset.day_decks:
-            self.assertEqual(t.hidden_columns(), [_COL_RATING, _COL_CUSTOM])
 
     def test_a_saved_numbers_view_reaches_the_wishlists_too(self):
         """The 🔢 state is restored per table at startup, and the wishlists were

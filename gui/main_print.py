@@ -25,7 +25,7 @@ from pathlib import Path
 from planner import i18n
 from planner.config import OUTPUT_DIR
 from gui.common import (
-    _open_in_default_player,
+    _open_with_default_app,
     _sanitize_filename,
 )
 from gui.print_sheet import deck_print_html
@@ -137,4 +137,4 @@ class PrintMixin:
             # The shared helper, not os.startfile: off Windows that attribute
             # does not exist at all and the AttributeError would sail straight
             # past an `except OSError`.
-            _open_in_default_player(target, self)
+            _open_with_default_app(target, self)
