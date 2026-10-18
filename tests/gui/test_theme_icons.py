@@ -4,9 +4,9 @@
 Run:  .venv/Scripts/python.exe -m unittest tests.gui.test_theme_icons -v
 
 Every other colour in the app is set through a stylesheet, and the hook in
-shared/theme.py rewrites those. An icon is different: its colour ends up in the
+shared/appearance/theme.py rewrites those. An icon is different: its colour ends up in the
 pixels, so `color:` never applies to it and the hook never sees it. That is why
-shared/icons.py shades inside the painter — and why these tests look at the
+shared/appearance/icons.py shades inside the painter — and why these tests look at the
 rendered pixels rather than at a string. A test that only checked `shade()`
 would pass just as happily with the painting left unthemed.
 
@@ -25,11 +25,11 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication
 
-from shared import icons, theme
+from shared.appearance import icons, theme
 
 MAGENTA = "#b8006e"
 
-# The ▶ player's icon colours, split by what they are. shared/theme.py recolours
+# The ▶ player's icon colours, split by what they are. shared/appearance/theme.py recolours
 # the accent's own family and spares anything whose colour is its meaning.
 PLAYER_ACCENT = {
     "_OVERLAY_INK": "#1565c0",   # the overlay's ink, the accent itself
@@ -43,7 +43,7 @@ PLAYER_MEANING = {
     "_CARD_PANIC": "#e58080",    # fade to silence and hold
     "_CARD_GAIN": "#d8b35c",     # the R128 readout
 }
-# The panel's own surfaces, set through stylesheets in player/player.py.
+# The panel's own surfaces, set through stylesheets in player/widgets/player_setup.py.
 PLAYER_SURFACES = ("#1d2330", "#10141d", "#2a3346", "#3a4a68")
 
 
@@ -221,14 +221,14 @@ class IconThemeTest(unittest.TestCase):
 
         The colours are mutated IN PLACE and the transform does not invert, so
         every value is snapshotted and put back."""
-        from gui import playlist_table
-        from player import play_mode_panel
+        from gui.table import playlist_table
+        from player.widgets import panel_parts
 
         painted = ((playlist_table._NumberHeader, "_BG", "ground"),
                    (playlist_table._NumberHeader, "_FG", "ink"),
                    (playlist_table._NumberHeader, "_LINE", "line"),
-                   (play_mode_panel._Toggle, "_OFF_TRACK", "ground"),
-                   (play_mode_panel._Toggle, "_DISABLED_TEXT", "ink"))
+                   (panel_parts._Toggle, "_OFF_TRACK", "ground"),
+                   (panel_parts._Toggle, "_DISABLED_TEXT", "ink"))
         saved = [(getattr(owner, name), getattr(owner, name).rgba())
                  for owner, name, _role in painted]
         try:
@@ -241,12 +241,12 @@ class IconThemeTest(unittest.TestCase):
                 round(theme.contrast_ratio(
                     playlist_table._NumberHeader._FG.name(), gutter.name()), 2),
                 4.5, "the row numbers are not readable on their own gutter")
-            track = play_mode_panel._Toggle._OFF_TRACK
+            track = panel_parts._Toggle._OFF_TRACK
             self.assertLess(track.lightness(), 90,
                             f"the off switch stayed a bright pill ({track.name()})")
             self.assertGreaterEqual(
                 round(theme.contrast_ratio(
-                    play_mode_panel._Toggle._KNOB.name(), track.name()), 2),
+                    panel_parts._Toggle._KNOB.name(), track.name()), 2),
                 3.0, "the knob no longer stands out on its track")
         finally:
             for color, rgba in saved:
@@ -283,8 +283,8 @@ class IconThemeTest(unittest.TestCase):
 
     def test_the_on_switch_keeps_the_green_that_means_on(self):
         theme.set_active("dark", theme.ACCENT_DEFAULT)
-        from player import play_mode_panel
-        green = play_mode_panel._Toggle._ON_TRACK.name()
+        from player.widgets import panel_parts
+        green = panel_parts._Toggle._ON_TRACK.name()
         self.assertEqual(theme.shade(green, "ground"), green)
 
     def test_the_player_ink_still_reads_on_the_panel_it_was_recoloured_with(self):

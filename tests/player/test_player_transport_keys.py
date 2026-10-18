@@ -33,7 +33,7 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QApplication, QToolButton
 
-from player import player as gui_player
+from player.widgets import player_parts
 from tests.qt_test_support import (
     reap_widget, stub_window_startup)
 
@@ -73,23 +73,23 @@ class TransportShortcutTest(_WindowTest):
         self.win._preview_skip = self.stepped.append   # where both ⏮/⏭ end up
 
     def test_they_are_the_keys_the_cheat_sheet_promises(self):
-        self.assertEqual(self.win._next_sc.key(),
+        self.assertEqual(self.win._desk_keys["next"].key(),
                          QKeySequence("Ctrl+Shift+Right"))
-        self.assertEqual(self.win._prev_sc.key(),
+        self.assertEqual(self.win._desk_keys["prev"].key(),
                          QKeySequence("Ctrl+Shift+Left"))
 
     def test_they_do_not_collide_with_seeking_inside_the_song(self):
         """Ctrl+←/→ belongs to the deck (seek ∓30 s) and must stay untouched."""
-        for sc in (self.win._next_sc, self.win._prev_sc):
+        for sc in (self.win._desk_keys["next"], self.win._desk_keys["prev"]):
             self.assertNotIn(sc.key(), (QKeySequence("Ctrl+Right"),
                                         QKeySequence("Ctrl+Left")))
 
     def test_forward_steps_to_the_next_title(self):
-        self.win._next_sc.activated.emit()
+        self.win._desk_keys["next"].activated.emit()
         self.assertEqual(self.stepped, [+1])
 
     def test_back_steps_to_the_previous_title(self):
-        self.win._prev_sc.activated.emit()
+        self.win._desk_keys["prev"].activated.emit()
         self.assertEqual(self.stepped, [-1])
 
     def test_forward_during_a_pause_ends_the_pause_instead(self):
@@ -100,7 +100,7 @@ class TransportShortcutTest(_WindowTest):
         self.win._fire_pending_advance = lambda: fired.append(True)
         self.win._between.pending = (self.win._deckset.tableA, 0, Path("x.mp3"))
         self.win._filler.active = False   # nothing audible to fade first
-        self.win._next_sc.activated.emit()
+        self.win._desk_keys["next"].activated.emit()
         self.assertEqual(fired, [True])
         self.assertEqual(self.stepped, [], "the deck was stepped as well")
 
@@ -122,7 +122,7 @@ class HeldKeyTest(_WindowTest):
                                       0, 0, 0, "", repeat))
 
     def test_the_transport_shortcuts_do_not_repeat(self):
-        for name, sc in (("⏭", self.win._next_sc), ("⏮", self.win._prev_sc)):
+        for name, sc in (("⏭", self.win._desk_keys["next"]), ("⏮", self.win._desk_keys["prev"])):
             with self.subTest(shortcut=name):
                 self.assertFalse(sc.autoRepeat())
 
@@ -185,7 +185,7 @@ class DoubleTapSpaceTest(_WindowTest):
         # The two handlers' clock only: the window's own timers run on as usual.
         self.clock = [100.0]
         fake = SimpleNamespace(monotonic=lambda: self.clock[0])
-        for tick in (mock.patch("gui.table_actions.time", fake),
+        for tick in (mock.patch("gui.table.table_actions.time", fake),
                      mock.patch.object(self.gui, "time", fake, create=True)):
             tick.start()
             self.addCleanup(tick.stop)
@@ -238,20 +238,20 @@ class TempoStepTest(_WindowTest):
 
     def test_plus_raises_the_tempo_by_a_tenth_of_a_percent(self):
         self.plus.click()
-        self.assertEqual(self.card._tempo.value(), gui_player._TEMPO_STEP)
+        self.assertEqual(self.card._tempo.value(), player_parts._TEMPO_STEP)
 
     def test_a_step_is_the_finest_the_fader_has(self):
         """0.1 % — the fader's own unit. A takt is hit by tenths."""
-        self.assertEqual(gui_player._TEMPO_STEP, 1)
+        self.assertEqual(player_parts._TEMPO_STEP, 1)
 
     def test_minus_lowers_it_by_the_same(self):
         self.minus.click()
-        self.assertEqual(self.card._tempo.value(), -gui_player._TEMPO_STEP)
+        self.assertEqual(self.card._tempo.value(), -player_parts._TEMPO_STEP)
 
     def test_steps_accumulate(self):
         for _ in range(4):
             self.plus.click()
-        self.assertEqual(self.card._tempo.value(), 4 * gui_player._TEMPO_STEP)
+        self.assertEqual(self.card._tempo.value(), 4 * player_parts._TEMPO_STEP)
 
     def test_they_stop_at_the_ends_of_the_range(self):
         """Holding + at +16 % must not run the value past the fader."""
@@ -278,7 +278,44 @@ class TempoStepTest(_WindowTest):
         self.assertEqual(applied, [], "the rate was set mid-glide")
         self.assertTrue(self.card._tempo_apply.isActive())
         self.card._tempo_apply.timeout.emit()
-        self.assertEqual(applied, [6 * gui_player._TEMPO_STEP])
+        self.assertEqual(applied, [6 * player_parts._TEMPO_STEP])
+
+    def test_the_desk_keys_step_and_reset_it(self):
+        """⌨ Ctrl+Shift+PgUp / PgDown are the + / − buttons from anywhere,
+        Ctrl+Shift+Home the 0."""
+        self.win._desk_keys["tempo_up"].activated.emit()
+        self.win._desk_keys["tempo_up"].activated.emit()
+        self.win._desk_keys["tempo_down"].activated.emit()
+        self.assertEqual(self.card._tempo.value(), player_parts._TEMPO_STEP)
+        self.win._desk_keys["tempo_reset"].activated.emit()
+        self.assertEqual(self.card._tempo.value(), 0)
+
+    def test_held_step_keys_glide_the_reset_does_not_repeat(self):
+        keys = self.win._desk_keys
+        self.assertTrue(keys["tempo_up"].autoRepeat())
+        self.assertTrue(keys["tempo_down"].autoRepeat())
+        self.assertFalse(keys["tempo_reset"].autoRepeat())
+
+    def test_the_knob_spans_the_fader(self):
+        """🎛 The controller's tempo knob: the ends are the fader's ends,
+        the middle is ±0 %."""
+        for value, want in ((1.0, self.card._tempo.maximum()),
+                            (0.0, self.card._tempo.minimum()),
+                            (64 / 127, 0)):
+            with self.subTest(value=value):
+                self.win._run_controller_action("tempo", value)
+                self.assertEqual(self.card._tempo.value(), want)
+
+    def test_a_turn_of_the_knob_costs_one_rate_change(self):
+        """A knob sends a reading per step while it turns; every
+        setPlaybackRate is a gap. The rate lands once, when it stops."""
+        applied = []
+        self.card.apply_tempo = lambda: applied.append(self.card._tempo.value())
+        for raw in range(64, 80):
+            self.win._run_controller_action("tempo", raw / 127)
+        self.assertEqual(applied, [], "the rate was set mid-turn")
+        self.card._tempo_apply.timeout.emit()
+        self.assertEqual(applied, [self.card._tempo.value()])
 
     def test_the_readout_follows_every_step(self):
         self.plus.click()

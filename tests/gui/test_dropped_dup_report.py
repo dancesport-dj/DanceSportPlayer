@@ -8,7 +8,7 @@ practice, so within a list only byte-identical PD copies are reported —
 similar recordings (same title, different file) are not. Other dances and
 exact PD copies keep warning as before.
 
-The builder lives in planner.checks (pure, Qt-free), so no window is needed.
+The builder lives in planner.playlist.checks (pure, Qt-free), so no window is needed.
 """
 
 import os
@@ -22,7 +22,7 @@ if "DANCEPLAYLIST_STATE_DIR" not in os.environ:
 
 def _rec(idx: int, path: str, dance: str, exact: str = ""):
     """A report record like _check_dropped_duplicates builds them."""
-    from planner.parsing import _song_title_keys
+    from planner.music.parsing import _song_title_keys
     return {"idx": idx, "title": Path(path).stem, "path": path,
             "exact": exact or f"p:{path.lower()}",
             "tkeys": _song_title_keys(path), "dance": dance}
@@ -31,7 +31,7 @@ def _rec(idx: int, path: str, dance: str, exact: str = ""):
 class WithinListPdTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        from planner.checks import build_dropped_dup_report
+        from planner.playlist.checks import build_dropped_dup_report
         cls.build = staticmethod(build_dropped_dup_report)
 
     def test_pd_similar_within_one_list_is_suppressed(self):

@@ -21,9 +21,9 @@ from PySide6.QtCore import QMimeData, QPoint, QPointF, QUrl
 from PySide6.QtWidgets import QApplication
 from tests.qt_test_support import reap_widget
 
-from gui import tournament_tree as gt
+from gui import tournament_tiles as tiles, tournament_tree as gt
 from planner.store import JsonStore
-from planner.m3u import read_m3u_tracks
+from planner.playlist.m3u import read_m3u_tracks
 from planner.models import MusicEntry
 
 _app = QApplication.instance() or QApplication(sys.argv)
@@ -268,13 +268,13 @@ class PaneFilingTest(_PaneCase):
         mime = QMimeData()
         mime.setUrls([QUrl.fromLocalFile(r"C:\lists\t1.m3u"),
                       QUrl.fromLocalFile(r"C:\music\a.mp3")])
-        self.assertEqual(gt._TourneyTree._m3u_urls(mime),
+        self.assertEqual(tiles._TourneyTree._m3u_urls(mime),
                          [Path(r"C:\lists\t1.m3u")])
 
     def test_a_folder_is_taken_from_a_drop_too(self):
         mime = QMimeData()
         mime.setUrls([QUrl.fromLocalFile(str(self.dir))])
-        self.assertEqual(gt._TourneyTree._m3u_urls(mime), [self.dir])
+        self.assertEqual(tiles._TourneyTree._m3u_urls(mime), [self.dir])
 
     def test_a_dropped_folder_arrives_as_the_branch_it_is_on_disk(self):
         comp = self.dir / "DanceComp 2026"
@@ -582,7 +582,7 @@ class PaneInteractionTest(_PaneCase):
         m3u = _m3u(self.dir, "Turnier 1")
         self.pane._on_files_dropped(None, [m3u])
         item = self.pane._tree.topLevelItem(0)
-        node = self.pane._tree.node_of(item.data(0, gt._ROLE_KEY))
+        node = self.pane._tree.node_of(item.data(0, tiles._ROLE_KEY))
         self.assertEqual(node["m3u"], str(m3u))
 
     def test_a_track_row_carries_the_file_the_drag_exports(self):
@@ -782,7 +782,7 @@ class PaneSlotBoardTest(_PaneCase):
         self._pick(0)
         tile = next(iter(self.pane._board._tiles.values()))
         tile._press = QPoint(0, 0)
-        with mock.patch.object(gt, "QDrag") as drag_cls:
+        with mock.patch.object(tiles, "QDrag") as drag_cls:
             tile.mouseMoveEvent(_Move(200, 200))
         mime = drag_cls.return_value.setMimeData.call_args[0][0]
         self.assertEqual([Path(u.toLocalFile()) for u in mime.urls()], [t1])
@@ -793,7 +793,7 @@ class PaneSlotBoardTest(_PaneCase):
         self._pick(0)
         tile = next(iter(self.pane._board._tiles.values()))
         tile._press = QPoint(0, 0)
-        with mock.patch.object(gt, "QDrag") as drag_cls:
+        with mock.patch.object(tiles, "QDrag") as drag_cls:
             tile.mouseMoveEvent(_Move(1, 1))
         drag_cls.assert_not_called()
 

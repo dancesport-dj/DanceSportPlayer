@@ -16,23 +16,29 @@ titles into a deck, the Party panel or a wishlist.
 |---|---|
 | 🔍 text field | Titles whose title, artist or comment tag contains the text. Tags are markers like `vocal_f`, `classic`, `eintanzen`. |
 | All dances | One dance, or all Standard or all Latin dances. |
-| All classes | Titles suited to that start class. Titles without a class tag always show. |
+| All classes | Titles suited to that start class. Titles without a class tag always show, unless 🏷 Only with a class is ticked. |
 | Vocal + instr. | Only 🎤 vocal or only 🎻 instrumental titles. |
-| All categories | 🏆 **Tournament only** hides anthems, background music, wrong-tempo files, duplicates and seasonal folders. You can also pick one of those categories, which is handy for a party. |
+| All categories | 🏆 **Tournament only** hides anthems, background music, wrong-tempo files, duplicates and seasonal folders. You can also pick one of those categories, which is handy for a party. **🏷 No class** lists the competition titles whose comment carries no class tag, so you can tag them. |
 | Plays: all | ✦ **Never played**, ★ **Rarely**, ★ **Proven**, or 📅 **Not since 1 y** (played, but not in any playlist of the last year). |
 | Added: all | Files created in the last 30 or 90 days, or the last 12 or 18 months. Combine it with ✦ Never played to find what you copied in but never used. |
 | 🆕 Unplanned | Only titles that are in none of the open decks. |
+| 🏷 Only with a class | Hides the competition titles without a class tag, which the class filter otherwise shows for every class. Social dances have no classes and stay. |
 
 - **▶** in a row plays the title on the player. **Space** does the same for
-  the selected row.
+  the selected row. With a [🎧 pre-listen output](04-playing.md#-pre-listening-on-headphones)
+  set, it plays there instead, and the music keeps running.
+- **Title** shows the MP3's title tag; a file without one shows its
+  cleaned-up file name. **BPM** is the tempo in bars per minute, see
+  [chapter 3](03-playlists.md).
 - **Double-click** a row to open the file in your external audio player.
 - **Right-click** a row for **📋 Copy file path**, **📂 Show in Explorer**,
   **🎧 Open in external player**, **🏷 Re-read MP3 tags** and
   **🏷 Edit tags…**. With several rows selected, the tag editor edits them all.
   See [chapter 5](05-tags.md).
 - **Right-click the column header** to choose the columns, or to switch to
-  short dance names (LW, SB). The **★** rating and **Custom** columns are
-  hidden at first and can be shown here. **Map Custom to an MP3 tag…** fills
+  short dance names (LW, SB). The **★** rating, **Custom** and **File name**
+  columns are hidden at first and can be shown here. File name is the
+  cleaned-up name of the file, with the full path in its tooltip. **Map Custom to an MP3 tag…** fills
   Custom from a tag of your choice.
 
 ## 🏆 Tournaments
@@ -89,8 +95,8 @@ the slots write them (VR, 1ZR, ER). Hover over one for the full name.
 
 ![The Tournaments tab, tracks view](img/tournaments-tracks.png)
 
-- **▶** or **Space** plays a title. A double-click opens it in your
-  external player.
+- **▶** or **Space** plays a title, on the 🎧 pre-listen output when one is
+  set. A double-click opens it in your external player.
 - Drag titles onto a deck, the Party panel or a wishlist.
 - The bar underneath shows the songs and total play time. Titles that the
   library doesn't know are counted, but add no time.

@@ -28,7 +28,7 @@ import unittest
 from collections import Counter
 from pathlib import Path
 
-from planner import warmup as w
+from planner.generate import warmup as w
 from planner.models import MusicEntry
 
 _BAL = w._WARMUP_BALLROOM

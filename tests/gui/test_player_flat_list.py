@@ -34,9 +34,9 @@ from PySide6.QtWidgets import (QApplication,
                                QMessageBox as _QMessageBox, QWidget)
 from tests.qt_test_support import reap_widget
 
-from gui.deck import Deck
-from gui.deck_set import DeckSet
-from gui.playlist_table import PlaylistTable
+from gui.decks.deck import Deck
+from gui.decks.deck_set import DeckSet
+from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry, RoundConfig
 
 
@@ -294,7 +294,7 @@ class DeleteTest(_FlatTest):
         """Select the n-th song, press Del, and return the messages asked."""
         from unittest import mock
 
-        from gui import table_actions
+        from gui.table import table_actions
 
         seen = []
 
@@ -373,7 +373,7 @@ class ConversionTest(_FlatTest):
         self.assertTrue(t._supports_row_reorder())
 
     def test_the_mode_switch_converts_every_deck(self):
-        from gui.main_decks import DeckLayoutMixin
+        from gui.window.main_decks import DeckLayoutMixin
 
         planned, running = self.deck("player"), self.player_list(_e("LW", 1))
         tables = DeckSet()
@@ -433,7 +433,7 @@ class PersistTest(_FlatTest):
     rounds in it and would drop the whole deck."""
 
     def state(self, table):
-        from gui.main_persist import PersistenceMixin
+        from gui.window.main_persist import PersistenceMixin
 
         class _Win(PersistenceMixin):
             _deckset = DeckSet()
@@ -477,7 +477,7 @@ class M3uProgressTest(_FlatTest):
     """Reading a long .m3u reports progress instead of freezing the window."""
 
     def read(self, lines):
-        from gui.main_generate import GenerateMixin
+        from gui.window.main_generate import GenerateMixin
 
         path = Path(tempfile.mkdtemp(prefix="dp_flat_m3u_")) / "list.m3u"
         path.write_text("\n".join(lines), encoding="utf-8")
@@ -518,7 +518,7 @@ class M3uProgressTest(_FlatTest):
 
     def test_it_still_reads_without_a_callback(self):
         """The generator's own 'from an .m3u file' source passes none."""
-        from gui.main_generate import GenerateMixin
+        from gui.window.main_generate import GenerateMixin
 
         path = Path(tempfile.mkdtemp(prefix="dp_flat_m3u2_")) / "list.m3u"
         path.write_text(r"C:\music\LW1.mp3", encoding="utf-8")
@@ -540,7 +540,7 @@ class M3uReplaceWarningTest(_FlatTest):
         """Answer the confirmation with `answer`; returns (went ahead, messages)."""
         from unittest import mock
 
-        from gui import table_dnd as gui_table_dnd
+        from gui.table import table_dnd as gui_table_dnd
 
         seen = []
 
@@ -578,7 +578,7 @@ class M3uReplaceWarningTest(_FlatTest):
     def test_a_declined_drop_never_reaches_the_importer(self):
         from unittest import mock
 
-        from gui import table_dnd as gui_table_dnd
+        from gui.table import table_dnd as gui_table_dnd
 
         t = self.player_list(_e("LW", 1))
         m3u = Path(tempfile.mkdtemp(prefix="dp_flat_drop_")) / "Turnier1.m3u"
@@ -606,7 +606,7 @@ class PlayerRoundSectionsTest(_FlatTest):
     app writes, else the order itself, else nothing (the dance then groups)."""
 
     def sections(self, lines, entries):
-        from gui.main_generate import GenerateMixin
+        from gui.window.main_generate import GenerateMixin
 
         path = Path(tempfile.mkdtemp(prefix="dp_flat_sec_")) / "list.m3u"
         path.write_text("\n".join(lines), encoding="utf-8")

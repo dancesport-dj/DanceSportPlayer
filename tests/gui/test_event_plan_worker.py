@@ -19,10 +19,10 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication
 
 from gui.workers import EventPlanWorker
-from planner import event_plan
-from planner.competition import parse_competition_schedule
+from planner.event import event_plan
+from planner.event.competition import parse_competition_schedule
 from tests.planner.test_event_ai import FakeModel
-from tests.planner.test_event_variants import EventFixture
+from tests.planner.event.test_event_variants import EventFixture
 
 
 class EventPlanWorkerTest(EventFixture, unittest.TestCase):

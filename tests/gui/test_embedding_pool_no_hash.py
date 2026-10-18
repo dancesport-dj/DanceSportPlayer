@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Picking the OpenL3 / Chroma method counts the indexed pool without reading it.
+"""Picking the MERT / Chroma method counts the indexed pool without reading it.
 
 Run:  py -m unittest tests.gui.test_embedding_pool_no_hash -v
 
@@ -14,10 +14,10 @@ import unittest
 from types import SimpleNamespace
 from unittest import mock
 
-import planner.db as pdb
-from planner import embeddings as ae
-from gui.similar_dialog import SimilarTracksDialog
-from tests.gui.test_edit_no_stat import _ScratchCache
+import planner.music.db as pdb
+from planner.music import embeddings as ae
+from gui.dialogs.similar_dialog import SimilarTracksDialog
+from tests.gui.window.test_edit_no_stat import _ScratchCache
 
 
 class EmbeddingPoolCountTest(_ScratchCache):
@@ -25,13 +25,13 @@ class EmbeddingPoolCountTest(_ScratchCache):
     def test_the_indexed_count_reads_no_file(self):
         store = ae.EmbeddingStore(self.cache)
         for p in self.tracks:
-            store.put(self.cache.fingerprint(p), ae.MODEL_OPENL3, [0.1, 0.2])
+            store.put(self.cache.fingerprint(p), ae.MODEL_MERT, [0.1, 0.2])
         fresh = self.dir / "fresh.mp3"
         fresh.write_bytes(b"never fingerprinted")
         pool = [SimpleNamespace(path=p) for p in (*self.tracks, fresh)]
         dlg = SimpleNamespace(
-            _method="openl3", _cache=self.cache, _lib=object(),
-            _emb_info=lambda m: (ae.MODEL_OPENL3, True, "OpenL3"),
+            _method="mert", _cache=self.cache, _lib=object(),
+            _emb_info=lambda m: (ae.MODEL_MERT, True, "MERT"),
             _get_store=lambda: store, _emb_pool=lambda: pool,
             _run_embedding_rank=mock.Mock())
         calls = self.stats()

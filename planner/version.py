@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 # The release this code is, for a build without a tag.
-VERSION = "1.2.2"
+VERSION = "1.3.0"
 VERSION_ENV = "DANCEPLAYLIST_VERSION"
 VERSION_FILE = "build_version.txt"
 DEV = "dev"
@@ -35,7 +35,8 @@ def numbers(version: str) -> tuple[int, int, int]:
     m = re.match(r"v?(\d+)\.(\d+)(?:\.(\d+))?", version.strip())
     if not m:
         return (0, 0, 0)
-    return tuple(int(part or 0) for part in m.groups())
+    major, minor, patch = (int(part or 0) for part in m.groups())
+    return (major, minor, patch)
 
 
 def app_version() -> str:

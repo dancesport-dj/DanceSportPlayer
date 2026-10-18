@@ -55,7 +55,7 @@ EOF
 
 # The manual as a PDF, which the spec bundles (tools/build_manual_pdf, printed
 # by Chrome, Chromium or Edge). Without one the build goes on, only without a manual.
-"$PY" -m tools.build_manual_pdf || echo "NOTE: no manual PDF printed, see above"
+"$PY" -m tools.docs.build_manual_pdf || echo "NOTE: no manual PDF printed, see above"
 
 "$PY" -m PyInstaller dancesport.spec --noconfirm
 
@@ -74,12 +74,12 @@ fi
 command -v ffmpeg >/dev/null 2>&1 || echo "NOTE: no ffmpeg on PATH — brew install ffmpeg"
 
 # The .dmg window with a background that says where to drag the app and how to
-# allow its first start (tools/dmg_background.py), the icons placed on it by
+# allow its first start (tools/assets/dmg_background.py), the icons placed on it by
 # create-dmg through Finder. Called inside an `if`, where set -e is off, so
 # every step returns on its own failure.
 pretty_dmg() {
     BGDIR="build/dmg-background"
-    layout=$("$PY" -m tools.dmg_background "$BGDIR") || return 1
+    layout=$("$PY" -m tools.assets.dmg_background "$BGDIR") || return 1
     eval "$layout"
     tiffutil -cathidpicheck "$BGDIR/background.png" "$BGDIR/background@2x.png" \
              -out "$BGDIR/background.tiff" || return 1

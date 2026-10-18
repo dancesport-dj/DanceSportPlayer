@@ -19,6 +19,6 @@
 
 ## To undo
 
-    .venv\Scripts\python.exe -m tools.announce_eq --restore
+    .venv\Scripts\python.exe -m tools.audio.announce_eq --restore
 
-Written by `tools/announce_eq.py`; the next --apply overwrites it.
+Written by `tools/audio/announce_eq.py`; the next --apply overwrites it.

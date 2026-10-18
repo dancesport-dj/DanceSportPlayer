@@ -3,7 +3,7 @@ r"""The two walks that still read a Row like the dict it used to be.
 
 Run:  .venv\Scripts\python.exe -m unittest test_row_access -v
 
-A deck's rows became `Row` objects (gui.running_order); everything that used to
+A deck's rows became `Row` objects (gui.decks.running_order); everything that used to
 say `m['h_idx']` had to become `m.h_idx`. Two walks were missed, and both only
 run on a shape that is rare in testing and normal at a tournament: a round that
 dances more than one dance, and a final with a stacked spare under a slot. The
@@ -14,10 +14,10 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-from gui.main_persist import PersistenceMixin
-from gui.main_print import PrintMixin
+from gui.window.main_persist import PersistenceMixin
+from gui.window.main_print import PrintMixin
 from gui.print_sheet import deck_print_html
-from gui.running_order import Row, RunningOrder
+from gui.decks.running_order import Row, RunningOrder
 
 
 def _entry(name, bpm=58):

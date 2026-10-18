@@ -4,7 +4,7 @@
 Run:  py -m unittest tests.gui.test_party_social_dance -v
 
 Discofox, Salsa and the rest have no `.dance` at all — the genre names the
-dance, and `planner.warmup.warmup_code` is what turns "Discofox" into the
+dance, and `planner.generate.warmup.warmup_code` is what turns "Discofox" into the
 DISCOFOX the Dance column then writes out. Both render paths of the party list
 (`load_warmup` and the in-place edit) ask it.
 
@@ -25,7 +25,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication, QWidget
 
 from shared.columns import _COL_DANCE
-from gui.playlist_table import PlaylistTable
+from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry
 from tests.qt_test_support import reap_widget
 

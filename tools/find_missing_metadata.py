@@ -28,19 +28,21 @@ Read-only — nothing in the database is modified.
 
 Run:  .venv\\Scripts\\python.exe -m tools.find_missing_metadata [--all] [--save report.txt]
 """
+import io
 import re
 import sys
 from pathlib import PurePath
 from urllib.parse import quote_plus
 
 # Windows console is cp1252; force UTF-8 so dance/title emojis don't crash.
-sys.stdout.reconfigure(encoding="utf-8")
+if isinstance(sys.stdout, io.TextIOWrapper):
+    sys.stdout.reconfigure(encoding="utf-8")
 
-from planner import db as db
+from planner.music import db as db
 from planner.dances import BEATS_PER_BAR as _BEATS_PER_BAR
-from planner.db import _row_to_meta, _META_COLS
+from planner.music.db import _row_to_meta, _META_COLS
 from planner.models import STYLE_FOLDERS
-from planner.parsing import _detect_bpm_tagged
+from planner.music.parsing import _detect_bpm_tagged
 
 CASA_SEARCH = "https://casa-musica.com/de/23-single-tracks?title={}"
 
@@ -120,7 +122,7 @@ def scan_rows(conn):
     `scan_meta.ckey` is '{fingerprint}::{filename stem}' (a fingerprint never
     contains '::', so a single split is safe)."""
     cols = ",".join(_META_COLS)
-    for row in conn.execute(f"SELECT ckey, {cols} FROM scan_meta"):
+    for row in conn.execute(f"SELECT ckey, {cols} FROM scan_meta"):  # nosec B608: constant names
         fp, _, stem = row[0].partition("::")
         yield fp, stem, _row_to_meta(row[1:])
 

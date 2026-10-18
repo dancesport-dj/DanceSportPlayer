@@ -56,7 +56,7 @@ EOF
 
 # The manual as a PDF, which the spec bundles (tools/build_manual_pdf, printed
 # by Chrome, Chromium or Edge). Without one the build goes on, only without a manual.
-"$PY" -m tools.build_manual_pdf || echo "NOTE: no manual PDF printed, see above"
+"$PY" -m tools.docs.build_manual_pdf || echo "NOTE: no manual PDF printed, see above"
 
 "$PY" -m PyInstaller dancesport.spec --noconfirm
 

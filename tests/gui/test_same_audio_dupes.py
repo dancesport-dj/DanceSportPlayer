@@ -11,7 +11,6 @@ list must not be added again — and a list that arrives holding such a pair
 """
 import os
 import tempfile
-import threading
 import unittest
 from pathlib import Path
 
@@ -21,10 +20,10 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication
 
-import planner.db as pdb
-from planner import config as planner_config
-from gui.playlist_table import PlaylistTable
+import planner.music.db as pdb
+from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry, RoundConfig
+from tests.db_support import use_scratch_db
 from tests.qt_test_support import (
     reap_widget, stub_window_startup)
 
@@ -51,19 +50,8 @@ class _ScratchDbTest(unittest.TestCase):
 
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp(prefix="dp_sameaudio_f_"))
-        self._saved = (planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
-        planner_config.AUDIO_DB_FILE = self.dir / "scratch.db"
-        pdb._DB_LOCAL = threading.local()
-        pdb._DB_INITIALIZED = False
-        self.addCleanup(self._restore)
+        use_scratch_db(self, self.dir / "scratch.db")
         self.cache = pdb.AudioCache()
-
-    def _restore(self):
-        try:
-            pdb._DB_LOCAL.conn.close()
-        except Exception:
-            pass
-        planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = self._saved
 
     def file(self, drive: str, name: str, data: bytes = _mp3()) -> Path:
         p = self.dir / drive / f"{name}.mp3"
@@ -105,7 +93,7 @@ class AddIsRefusedTest(_ScratchDbTest):
         empty = next(r for r, m in enumerate(t._row_meta)
                      if m and not m.theme and m.entry is None)
         t._entry_for = lambda p: self.entry(Path(p))
-        import gui.table_dnd as dnd
+        import gui.table.table_dnd as dnd
         shown = []
         real = dnd.QMessageBox.information
         dnd.QMessageBox.information = lambda *a, **kw: shown.append(a)
@@ -172,7 +160,7 @@ class CleanupTest(_ScratchDbTest):
 
     def setUp(self):
         super().setUp()
-        import gui.table_actions as ta
+        import gui.table.table_actions as ta
         self.toasts = []
         real = ta._show_toast
         ta._show_toast = lambda _w, text, **kw: self.toasts.append(text)
@@ -384,7 +372,7 @@ class LoadOffersCleanupTest(_ScratchDbTest):
 
     def setUp(self):
         super().setUp()
-        from planner.library import MusicLibrary
+        from planner.music.library import MusicLibrary
         self.win = self.gui.MainWindow()
         self.win._loading_dlg.accept()
         self.addCleanup(reap_widget, self.win)
@@ -439,7 +427,7 @@ class ChoiceDialogTest(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def dialog(self, play_cb=None):
-        from gui.duplicate_titles_dialog import DuplicateTitlesDialog
+        from gui.dialogs.duplicate_titles_dialog import DuplicateTitlesDialog
         e = lambda name, dance="TG": MusicEntry(path=Path("C:/m") / name, title=name,
                                                  dance=dance, bpm=None)
         dlg = DuplicateTitlesDialog(

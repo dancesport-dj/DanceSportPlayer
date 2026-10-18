@@ -21,7 +21,7 @@ from unittest import mock
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_db_migrate_"))
 
-import planner.db as pdb
+import planner.music.db as pdb
 from planner import config as planner_config
 
 

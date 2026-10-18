@@ -34,31 +34,41 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 # Files holding MainWindow and its mixins — the assembly under test.
 _ASSEMBLY = (
     "dancesport_gui.py",
-    "gui/main_allcache.py",
-    "gui/main_analyze.py",
-    "player/main_audio.py",
-    "player/main_cartwall.py",
-    "player/main_controller.py",
-    "gui/main_decks.py",
-    "gui/main_dupes.py",
-    "gui/main_embed.py",
-    "gui/main_export.py",
-    "gui/main_fold.py",
-    "gui/main_fullscreen.py",
-    "gui/main_generate.py",
-    "gui/main_global.py",
-    "gui/main_import.py",
-    "gui/main_music.py",
-    "gui/main_paths.py",
-    "player/main_pause.py",
-    "player/main_pd.py",
-    "gui/main_persist.py",
-    "player/main_player.py",
-    "gui/main_print.py",
-    "player/main_remote.py",
-    "gui/main_restore.py",
-    "gui/main_undo.py",
-    "gui/main_wish.py",
+    "gui/window/main_ai.py",
+    "gui/window/main_allcache.py",
+    "gui/window/main_analyze.py",
+    "player/window/main_audio.py",
+    "player/window/main_cartwall.py",
+    "player/window/main_controller.py",
+    "gui/window/main_deck_setup.py",
+    "gui/window/main_decks.py",
+    "gui/window/main_dupes.py",
+    "gui/window/main_embed.py",
+    "gui/window/main_event.py",
+    "gui/window/main_export.py",
+    "gui/window/main_fold.py",
+    "gui/window/main_fullscreen.py",
+    "gui/window/main_generate.py",
+    "gui/window/main_global.py",
+    "player/window/main_guest.py",
+    "gui/window/main_import.py",
+    "gui/window/main_libpane.py",
+    "player/window/main_load.py",
+    "gui/window/main_music.py",
+    "gui/window/main_paths.py",
+    "player/window/main_pause.py",
+    "player/window/main_pd.py",
+    "gui/window/main_persist.py",
+    "player/window/main_play_values.py",
+    "player/window/main_player.py",
+    "player/window/main_presenter.py",
+    "gui/window/main_print.py",
+    "player/window/main_remote.py",
+    "gui/window/main_restore.py",
+    "gui/window/main_tags.py",
+    "gui/window/main_undo.py",
+    "gui/window/main_wish.py",
+    "player/window/main_xfade.py",
 )
 
 _REPO = pathlib.Path(__file__).resolve().parents[2]
@@ -155,6 +165,14 @@ class MainWindowSmokeTest(unittest.TestCase):
         self.assertTrue(self.win._library.loader.started)
         self.assertEqual(self.win.windowTitle(), "DanceSport Planner & Player")
 
+    def test_the_guest_window_opens_before_any_library(self):
+        """📨 Closed, no titles yet — and the same window again on the next open."""
+        dlg = self.win.open_guest_window()
+        self.addCleanup(dlg.close)
+        self.assertFalse(self.win.guest_desk().status()["running"])
+        self.assertEqual(self.win.guest_desk()._catalog(), [])
+        self.assertIs(self.win.open_guest_window(), dlg)
+
     def test_every_mixin_contributed_its_methods(self):
         """Each mixin's public entry points really landed on the instance."""
         for name, cls in _assembly_classes():
@@ -235,7 +253,7 @@ class MainWindowSmokeTest(unittest.TestCase):
     def test_the_wall_can_ask_the_desk_for_the_sound_device(self):
         """🔇 idle release: a pad fires straight from the wall, so the wall has
         to be able to tell the desk to take the card back — see
-        player.audio_device.AudioDevice.ensure."""
+        player.audio.audio_device.AudioDevice.ensure."""
         if self.win._cart_voices is None:
             self.skipTest("no audio backend here")
         self.win._audio_device.released = True
@@ -261,18 +279,24 @@ class MainWindowSmokeTest(unittest.TestCase):
 
     def test_a_first_run_opens_the_cartwall_at_a_quarter_of_the_window(self):
         """No saved layout yet: a third of the window was too much wall."""
-        from gui.main_persist import layout_settings
+        from gui.window.main_persist import layout_settings
+        from tests.qt_test_support import reap_widget
 
+        # Cleared before the window is built: setUp's window already restored
+        # whatever an earlier test's window saved — fullscreen, say.
         layout_settings().clear()
-        self.win.resize(1600, 900)
-        self.win._cartwall_shown = False
-        self.win._restore_layout()
-        self.win.show()
+        win = self.gui.MainWindow()
+        win._loading_dlg.accept()
+        self.addCleanup(reap_widget, win)
+        win.resize(1600, 900)
+        win._cartwall_shown = False
+        win._restore_layout()
+        win.show()
         # The wall comes up later, from the toolbar, as on a real first run.
-        self.win._cart_btn.setChecked(True)
+        win._cart_btn.setChecked(True)
         self.app.processEvents()
-        self.assertAlmostEqual(self.win._cart_dock.width(), 400, delta=30)
-        self.win._cart_btn.setChecked(False)
+        self.assertAlmostEqual(win._cart_dock.width(), 400, delta=30)
+        win._cart_btn.setChecked(False)
 
     def test_the_toolbar_toggle_and_the_dock_stay_in_step(self):
         self.win.show()     # a dock closing before the window is up is not a click

@@ -27,7 +27,7 @@ from PySide6.QtWidgets import QApplication
 
 from gui import dialogs
 from planner import i18n
-from gui.main_persist import layout_settings
+from gui.window.main_persist import layout_settings
 from tests.qt_test_support import (
     reap_widget, stub_window_startup)
 

@@ -30,15 +30,15 @@ from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtWidgets import QApplication, QWidget
 from tests.qt_test_support import reap_widget
 
-from player.fade_now import FadeNow
-from player.main_player import PlayerControlMixin
-from player.play_mode_panel import PlayModePanel
-from player.player import BigPlayerWidget
-from gui.playlist_table import PlaylistTable
+from player.audio.fade_now import FadeNow
+from player.window.main_player import PlayerControlMixin
+from player.widgets.play_mode_panel import PlayModePanel
+from player.widgets.player import BigPlayerWidget
+from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry, RoundConfig
-from player.between_dances import BetweenDances
-from player.pause_filler import PauseFiller
-from gui.deck_set import DeckSet
+from player.audio.between_dances import BetweenDances
+from player.audio.pause_filler import PauseFiller
+from gui.decks.deck_set import DeckSet
 
 
 def _song(dance: str, i: int) -> MusicEntry:
@@ -111,7 +111,7 @@ class _CardStub:
 class _Desk(PlayerControlMixin, QWidget):
     """The advance engine with the REAL play panel and the REAL
     `_queue_auto_advance`, with the media backend, the fade timer and the
-    player card stubbed out (the shape tests/player/test_party_set.py set)."""
+    player card stubbed out (the shape tests/player/audio/test_party_set.py set)."""
 
     def __init__(self, table, card, **settings):
         QWidget.__init__(self)

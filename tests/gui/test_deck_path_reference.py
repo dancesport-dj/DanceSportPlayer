@@ -121,7 +121,7 @@ class DeckPathReferenceTest(unittest.TestCase):
     def test_the_fix_button_swaps_on_the_open_playlists_tab(self):
         from PySide6.QtWidgets import QPushButton
 
-        from gui import main_paths
+        from gui.window import main_paths
         self.load(self.on_c, self.on_f, self.only_f)
         seen = {}
 
@@ -168,7 +168,7 @@ class DeckPathReferenceTest(unittest.TestCase):
     def test_the_fix_button_stays_off_with_nothing_to_swap(self):
         from PySide6.QtWidgets import QPushButton
 
-        from gui import main_paths
+        from gui.window import main_paths
         self.load(self.on_c, self.only_f)
         seen = {}
 

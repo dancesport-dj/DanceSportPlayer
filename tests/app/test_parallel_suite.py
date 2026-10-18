@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for tools/parallel_suite.py — the suite across several processes.
+"""Tests for tools/dev/parallel_suite.py — the suite across several processes.
 
 Run:  py -m unittest tests.app.test_parallel_suite -v
 
@@ -10,11 +10,12 @@ stay red. That is what is pinned down here, with the processes faked.
 import contextlib
 import io
 import os
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
-from tools import parallel_suite as ps
+from tools.dev import parallel_suite as ps
 
 GREEN = (0, "Ran 3 tests in 0.1s\n\nOK\n")
 RED = (1, "Ran 3 tests in 0.1s\n\nFAILED (failures=1)\n")
@@ -79,11 +80,21 @@ class BatchTest(unittest.TestCase):
 
     def test_the_batches_cover_every_test_module_once(self):
         names = [name for batch in ps.batches() for name in batch]
-        on_disk = {f"tests.{p.parent.name}.{p.stem}"
-                   for p in Path(ps.ROOT).glob("tests/*/test_*.py")}
+        on_disk = {".".join(p.relative_to(ps.ROOT).with_suffix("").parts)
+                   for p in Path(ps.ROOT).glob("tests/**/test_*.py")}
         self.assertEqual(len(names), len(set(names)))
         self.assertEqual(set(names), on_disk)
         self.assertIn("tests.app.test_parallel_suite", names)
+
+    def test_a_test_module_in_a_subpackage_is_found(self):
+        # tests/<side>/<subpackage>/ mirrors the app's own subpackages.
+        root = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        for rel in ("tests/gui/test_top.py", "tests/gui/decks/test_deep.py"):
+            (root / rel).parent.mkdir(parents=True, exist_ok=True)
+            (root / rel).write_text("")
+        with mock.patch.object(ps, "ROOT", root):
+            names = [name for batch in ps.batches() for name in batch]
+        self.assertEqual(names, ["tests.gui.decks.test_deep", "tests.gui.test_top"])
 
     def test_each_child_makes_its_own_data_folder(self):
         with mock.patch.dict(os.environ, {"DANCEPLAYLIST_DATA_DIR": "shared"}):

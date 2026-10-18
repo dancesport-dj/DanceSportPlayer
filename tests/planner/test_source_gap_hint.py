@@ -11,7 +11,7 @@ the point of the setting — but a silently blank slot reads as a bug, so
 
 import unittest
 
-from planner.suggester import source_gap_hint
+from planner.generate.suggester import source_gap_hint
 
 
 def _entry(title):

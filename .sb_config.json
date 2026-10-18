@@ -1,0 +1,530 @@
+{
+  "version": "1.0",
+  "slopmop_version": "2.18.1",
+  "swabbing_timeout": 20,
+  "exclude_paths": [],
+  "overconfidence": {
+    "enabled": true,
+    "gates": {
+      "untested-code.py": {
+        "enabled": true,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "test_dirs": [
+          "tests"
+        ],
+        "timeout": 600,
+        "include_dirs": []
+      },
+      "coverage-gaps.py": {
+        "enabled": true,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "threshold": 80
+      },
+      "missing-annotations.py": {
+        "enabled": true,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "strict_typing": false,
+        "include_dirs": [
+          "planner"
+        ],
+        "disabled_by": "init"
+      },
+      "type-blindness.py": {
+        "enabled": false,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "strict": false,
+        "pyright_config_file": null,
+        "include_dirs": [
+          "planner"
+        ],
+        "disabled_by": "init"
+      },
+      "untested-code.js": {
+        "enabled": false,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "test_command": "npx --yes jest --ci --coverage",
+        "exclude_dirs": [],
+        "disabled_by": "init"
+      },
+      "coverage-gaps.js": {
+        "enabled": false,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "threshold": 80,
+        "coverage_command": "npx --yes jest --ci --coverage --coverageReporters=json-summary",
+        "coverage_report_path": "coverage/coverage-summary.json",
+        "coverage_format": "json-summary",
+        "disabled_by": "init"
+      },
+      "type-blindness.js": {
+        "enabled": false,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "tsconfig": "tsconfig.json",
+        "disabled_by": "init"
+      },
+      "missing-annotations.dart": {
+        "enabled": false,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "disabled_by": "init"
+      },
+      "untested-code.dart": {
+        "enabled": false,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "disabled_by": "init"
+      },
+      "coverage-gaps.dart": {
+        "enabled": false,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "threshold": 80,
+        "disabled_by": "init"
+      },
+      "dangling-references": {
+        "enabled": true,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "exclude_dirs": []
+      }
+    }
+  },
+  "deceptiveness": {
+    "enabled": true,
+    "gates": {
+      "bogus-tests.js": {
+        "enabled": false,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "max_allowed": 0,
+        "exclude_dirs": [],
+        "additional_assert_functions": [],
+        "disabled_by": "init"
+      },
+      "hand-wavy-tests.js": {
+        "enabled": false,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "additional_assert_functions": [],
+        "exclude_dirs": [],
+        "max_violations": 0,
+        "disabled_by": "init"
+      },
+      "bogus-tests.dart": {
+        "enabled": false,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "max_allowed": 0,
+        "disabled_by": "init"
+      },
+      "bogus-tests.py": {
+        "enabled": true,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "test_dirs": [
+          "tests"
+        ],
+        "exclude_patterns": [
+          "conftest.py"
+        ],
+        "min_test_statements": 1,
+        "short_test_severity": "fail"
+      },
+      "gate-dodging": {
+        "enabled": true,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "base_ref": "main",
+        "disabled_by": "init"
+      }
+    }
+  },
+  "laziness": {
+    "enabled": true,
+    "gates": {
+      "sloppy-formatting.py": {
+        "enabled": true,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "exclude_dirs": [],
+        "include_dirs": [],
+        "line_length": 120,
+        "tool_timeout": 60,
+        "formatter": "none",
+        "disabled_by": "init"
+      },
+      "sloppy-formatting.js": {
+        "enabled": false,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "npm_install_flags": [],
+        "disabled_by": "init"
+      },
+      "dead-code.js": {
+        "enabled": false,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "knip_config": "",
+        "ignore_patterns": [],
+        "ignore_dependencies": [],
+        "disabled_by": "init"
+      },
+      "sloppy-frontend.js": {
+        "enabled": false,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "frontend_dirs": [],
+        "disabled_by": "init"
+      },
+      "sloppy-formatting.dart": {
+        "enabled": false,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "disabled_by": "init"
+      },
+      "generated-artifacts.dart": {
+        "enabled": false,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "exclude_paths": [],
+        "disabled_by": "init"
+      },
+      "complexity-creep.py": {
+        "enabled": true,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "max_rank": "C",
+        "max_complexity": 15,
+        "src_dirs": [],
+        "disabled_by": "init"
+      },
+      "dead-code.py": {
+        "enabled": true,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "min_confidence": 80,
+        "exclude_patterns": [
+          "**/venv/**",
+          "**/.venv/**",
+          "**/node_modules/**",
+          "**/ephemeral/**",
+          "**/test_*",
+          "**/tests/**",
+          "**/conftest.py",
+          "**/*.egg-info/**",
+          "**/build/**",
+          "**/dist/**",
+          "**/cursor-rules/**"
+        ],
+        "src_dirs": [
+          "."
+        ],
+        "whitelist_file": "vulture_whitelist.py",
+        "disabled_by": "init"
+      },
+      "debugger-artifacts": {
+        "enabled": true,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "exclude_dirs": [],
+        "max_files": 50000
+      },
+      "repeated-code": {
+        "enabled": true,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "threshold": 5,
+        "include_dirs": [
+          "."
+        ],
+        "min_tokens": 50,
+        "min_lines": 5,
+        "exclude_dirs": []
+      },
+      "silenced-gates": {
+        "enabled": true,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "disabled_by": "init"
+      },
+      "broken-templates.py": {
+        "enabled": true,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "templates_dir": null
+      }
+    }
+  },
+  "myopia": {
+    "enabled": true,
+    "gates": {
+      "just-this-once.py": {
+        "enabled": true,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": []
+      },
+      "dependency-risk.py": {
+        "enabled": true,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "scanners": [
+          "bandit",
+          "semgrep",
+          "detect-secrets"
+        ],
+        "exclude_dirs": [
+          "node_modules",
+          "venv",
+          ".venv",
+          "cursor-rules",
+          "archives",
+          "logs",
+          "tests",
+          "*/.venv",
+          "*/venv",
+          ".git",
+          ".slopmop",
+          ".mypy_cache",
+          ".ruff_cache",
+          ".pytest_cache",
+          ".basedpyright",
+          ".idea",
+          ".claude"
+        ],
+        "scanner_timeout": 600,
+        "semgrep_exclude_rules": [
+          "python.lang.compatibility",
+          "yaml.github-actions.security.github-actions-mutable-action-tag",
+          "python.sqlalchemy",
+          "python.lang.security.audit.formatted-sql-query",
+          "python.lang.security.audit.dynamic-urllib-use-detected",
+          "python.lang.security.insecure-hash-algorithms.insecure-hash-algorithm-sha1"
+        ],
+        "config_file_path": ".secrets.baseline",
+        "bandit_config_file": null,
+        "pip_audit_ignore_vulns": [],
+        "disabled_by": "init"
+      },
+      "vulnerability-blindness.py": {
+        "enabled": true,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "scanners": [
+          "bandit",
+          "semgrep",
+          "detect-secrets"
+        ],
+        "exclude_dirs": [
+          "node_modules",
+          "venv",
+          ".venv",
+          "cursor-rules",
+          "archives",
+          "logs",
+          "tests",
+          "*/.venv",
+          "*/venv",
+          ".git",
+          ".slopmop",
+          ".mypy_cache",
+          ".ruff_cache",
+          ".pytest_cache",
+          ".basedpyright",
+          ".idea",
+          ".claude"
+        ],
+        "scanner_timeout": 120,
+        "semgrep_exclude_rules": [
+          "python.lang.compatibility",
+          "yaml.github-actions.security.github-actions-mutable-action-tag",
+          "python.sqlalchemy",
+          "python.lang.security.audit.formatted-sql-query",
+          "python.lang.security.audit.dynamic-urllib-use-detected",
+          "python.lang.security.insecure-hash-algorithms.insecure-hash-algorithm-sha1"
+        ],
+        "config_file_path": ".secrets.baseline",
+        "bandit_config_file": null,
+        "pip_audit_ignore_vulns": [],
+        "disabled_by": "init"
+      },
+      "github-actions-hygiene": {
+        "enabled": true,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "workflow_dirs": [
+          ".github/workflows"
+        ],
+        "run_actionlint": true,
+        "allow_unpinned": [
+          "actions/checkout",
+          "actions/upload-artifact",
+          "actions/download-artifact",
+          "actions/setup-python"
+        ],
+        "disabled_by": "init"
+      },
+      "ambiguity-mines.py": {
+        "enabled": true,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "include_dirs": [
+          "."
+        ],
+        "exclude_dirs": [
+          "tests"
+        ]
+      },
+      "conflicting-metadata": {
+        "enabled": true,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "exclude_dirs": []
+      },
+      "interactive-assumptions": {
+        "enabled": true,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "exclude_dirs": []
+      },
+      "string-duplication.py": {
+        "enabled": false,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "threshold": 2,
+        "min_file_count": 1,
+        "min_length": 8,
+        "min_words": 3,
+        "include_patterns": [
+          "**/*.py"
+        ],
+        "ignore_patterns": [
+          "**/node_modules/**",
+          "**/.venv/**",
+          "**/venv/**",
+          "**/__pycache__/**",
+          "**/.git/**",
+          "**/*.egg-info/**",
+          "**/build/**",
+          "build/**",
+          "**/dist/**",
+          "dist/**",
+          "**/cursor-rules/**",
+          "cursor-rules/**",
+          "**/test_*",
+          "**/tests/**",
+          "**/conftest.py"
+        ],
+        "disabled_by": "init"
+      },
+      "code-sprawl": {
+        "enabled": true,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "max_file_lines": 1000,
+        "max_function_lines": 100,
+        "include_dirs": [
+          "."
+        ],
+        "exclude_dirs": [
+          "planner/i18n/lang_de.py",
+          "planner/i18n/lang_es.py",
+          "planner/i18n/lang_nl.py",
+          "planner/i18n/lang_ru.py"
+        ],
+        "extensions": []
+      },
+      "ignored-feedback": {
+        "enabled": false,
+        "auto_fix": false,
+        "run_on": null,
+        "extra_exclude_paths": [],
+        "include_paths": [],
+        "fail_on_unresolved": true,
+        "disabled_by": "init"
+      }
+    }
+  },
+  "disabled_gates": [
+    "overconfidence:type-blindness.py"
+  ]
+}

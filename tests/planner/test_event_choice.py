@@ -12,9 +12,9 @@ warning, since the day's rules are the planner's, not a law.
 
 import unittest
 
-from planner import event_plan
-from planner.competition import parse_competition_schedule
-from tests.planner.test_event_variants import EventFixture
+from planner.event import event_plan
+from planner.event.competition import parse_competition_schedule
+from tests.planner.event.test_event_variants import EventFixture
 
 
 class EventChoiceTest(EventFixture, unittest.TestCase):

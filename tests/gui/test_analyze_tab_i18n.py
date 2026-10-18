@@ -13,7 +13,7 @@ sentence no catalog can hold.
   🔬  Analyze audio …     carries "— 7 files to do" or "✓ all cached"
   🎚️  librosa indexed: —  six captions, all glued to their coverage by
                           `_index_label`
-  🧠  OpenL3 …            glued to "  – not installed" when it is missing
+  🧠  MERT …            glued to "  – not installed" when it is missing
   🎙️  Analyze vocals …    the same glue
 
 The two 🎛 Play-set blurbs and the 🔇 sound-card tooltip are the same bug on
@@ -35,7 +35,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import (
     QApplication, QCheckBox, QGroupBox, QLabel)
 
-from gui.dialogs import SettingsDialog
+from gui.dialogs.settings_dialog import SettingsDialog
 from planner import i18n
 from tests.qt_test_support import reap_widget
 
@@ -46,7 +46,7 @@ class _Analyze(unittest.TestCase):
     The heavy models are pinned absent and the flavour to "dev" so the group
     is built on every machine and both "– not installed" captions appear —
     otherwise the test would say something different on a box that happens to
-    have OpenL3 installed."""
+    have MERT installed."""
 
     @classmethod
     def setUpClass(cls):
@@ -61,8 +61,8 @@ class _Analyze(unittest.TestCase):
         i18n.install_text_hook()
         with mock.patch("planner.config.build_flavor", return_value="dev"), \
              mock.patch("planner.config.player_build", return_value=False), \
-             mock.patch("planner.embeddings.openl3_available", return_value=False), \
-             mock.patch("planner.vocals.demucs_available", return_value=False):
+             mock.patch("planner.music.embeddings.mert_available", return_value=False), \
+             mock.patch("planner.music.vocals.demucs_available", return_value=False):
             dlg = SettingsDialog({}, n_unanalyzed=n_unanalyzed)
         self.addCleanup(reap_widget, dlg)
         return dlg
@@ -109,17 +109,17 @@ class IndexLabelTest(_Analyze):
                      "📊  Lautheit gemessen:  —",
                      "🐂  PD-Höhepunkte erkannt:  —",
                      "🔇  Stille geprüft:  —",
-                     "🧠  OpenL3 indiziert:  —"):
+                     "🧠  MERT indiziert:  —"):
             self.assertIn(want, said, "%r is still English" % want)
 
 
 class NotInstalledTest(_Analyze):
     """A model that is not there says so — glued on, in both places."""
 
-    def test_the_openl3_combo_entry(self):
+    def test_the_mert_combo_entry(self):
         combo = self.dlg("de")._embed_combo
         said = [combo.itemText(i) for i in range(combo.count())]
-        self.assertIn("🧠  OpenL3-Index „klingt ähnlich“  – nicht installiert",
+        self.assertIn("🧠  MERT-Index „klingt ähnlich“  – nicht installiert",
                       said, said)
 
     def test_the_demucs_button(self):

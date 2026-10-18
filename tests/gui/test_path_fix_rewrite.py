@@ -12,7 +12,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from planner.playlist_text import (
+from planner.playlist.playlist_text import (
     PlaylistEncodingError,
     rerooted,
     rewrite_playlist_paths,

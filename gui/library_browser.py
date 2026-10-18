@@ -35,16 +35,17 @@ from PySide6.QtWidgets import (
 )
 from pathlib import Path
 from collections.abc import Callable
-from planner.models import DANCE_NAMES, MusicEntry
+from planner.models import DANCE_NAMES, TEMPO_RANGES, MusicEntry
 from planner.terms import dance_name, genre_name
 from planner import i18n
 from planner.models import (  # auto-resolved
     DEFAULT_DANCES,
     LIBRARY_CATEGORIES,
+    is_non_turnier,
     library_category,
 )
-from planner.vocals import entry_is_instrumental
-from planner.warmup import warmup_code
+from planner.music.vocals import entry_is_instrumental
+from planner.generate.warmup import warmup_code
 from gui.common import (
     CUSTOM_HEADER_TIP,
     DANCE_SHORT,
@@ -55,10 +56,13 @@ from gui.common import (
     _fmt_track_secs,
     _open_in_default_player,
     add_custom_mapping_action,
+    bpm_tooltip,
+    display_title,
     reveal_in_explorer,
+    set_header_tip,
     stopwatch_header,
 )
-from gui.star_rating import RATING_ROLE, StarDelegate
+from gui.table.star_rating import RATING_ROLE, StarDelegate
 from shared.widgets import (
     FlowLayout,
     _show_toast,
@@ -74,6 +78,7 @@ _LIB_COL_TITLE = 3
 _LIB_COL_LEN = 5
 _LIB_COL_RATING = 10   # ★ came last: the sections are movable, a saved order is by index
 _LIB_COL_CUSTOM = 11   # …and Custom after it
+_LIB_COL_FILE = 12     # …and the cleaned-up file name after that
 
 
 class _LibSortItem(QTableWidgetItem):
@@ -142,8 +147,8 @@ class _LibTable(QTableWidget):
 
     def startDrag(self, _actions):
         rows = sorted({i.row() for i in self.selectedIndexes()})
-        paths = [self.item(r, 0).data(Qt.ItemDataRole.UserRole)
-                 for r in rows if self.item(r, 0)]
+        paths = [it.data(Qt.ItemDataRole.UserRole)
+                 for r in rows if (it := self.item(r, 0))]
         paths = [p for p in paths if p]
         if not paths:
             return
@@ -229,7 +234,7 @@ class LibraryBrowser(QWidget):
     # Narrow columns keep their width while Artist/Title share the rest — the
     # 🏆 pane's default has no Added/Last, so this list carries them.
     _FIXED_COL_W = {0: 30, 1: 90, 4: 52, 5: 52, 6: 52, 7: 70, 8: 82, 9: 52, 10: 72,
-                    11: 90}
+                    11: 90, 12: 220}
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -244,6 +249,45 @@ class LibraryBrowser(QWidget):
         v.setSpacing(2)
 
         # ── Header strip (stays visible when folded) ──
+        self._build_header()
+        v.addWidget(self._hdr)
+
+        # ── Content (filter row + table) — hidden while folded ──
+        self._content = QWidget()
+        cv = QVBoxLayout(self._content)
+        cv.setContentsMargins(0, 0, 0, 0)
+        cv.setSpacing(2)
+
+        # A flow layout, not a row: six combos plus the search box do not fit
+        # across a pane docked at half the window, and a clipped filter strip
+        # would keep the whole pane wider than the screen. They wrap instead.
+        flt = FlowLayout(spacing=4)
+        self._add_filters(flt)
+        self._add_fresh_filters(flt)
+        cv.addLayout(flt)
+
+        self._build_table()
+        cv.addWidget(self._table, stretch=1)
+        v.addWidget(self._content, stretch=1)
+
+        # Debounced re-filter so typing doesn't rebuild 3k rows per keystroke.
+        self._filter_timer = QTimer(self)
+        self._filter_timer.setSingleShot(True)
+        self._filter_timer.setInterval(180)
+        self._filter_timer.timeout.connect(self._refilter)
+        self._filter_edit.textChanged.connect(
+            lambda _: self._filter_timer.start())
+        self._dance_combo.currentIndexChanged.connect(lambda _: self._refilter())
+        self._class_combo.currentIndexChanged.connect(lambda _: self._refilter())
+        self._vocal_combo.currentIndexChanged.connect(lambda _: self._refilter())
+        self._cat_combo.currentIndexChanged.connect(lambda _: self._refilter())
+        self._plays_combo.currentIndexChanged.connect(lambda _: self._refilter())
+        self._added_combo.currentIndexChanged.connect(lambda _: self._refilter())
+        self._unplanned_chk.toggled.connect(self._on_unplanned_toggled)
+        self._class_only_chk.toggled.connect(lambda _: self._refilter())
+
+    def _build_header(self):
+        """The header strip: ▾ fold, the title and the count."""
         self._hdr = QWidget()
         self._hdr.setStyleSheet("background:#e8edf6; border-radius:3px;")
         hh = QHBoxLayout(self._hdr)
@@ -262,18 +306,9 @@ class LibraryBrowser(QWidget):
         self._count_lbl.setStyleSheet("color:#666;")
         hh.addWidget(self._count_lbl)
         hh.addStretch(1)
-        v.addWidget(self._hdr)
 
-        # ── Content (filter row + table) — hidden while folded ──
-        self._content = QWidget()
-        cv = QVBoxLayout(self._content)
-        cv.setContentsMargins(0, 0, 0, 0)
-        cv.setSpacing(2)
-
-        # A flow layout, not a row: six combos plus the search box do not fit
-        # across a pane docked at half the window, and a clipped filter strip
-        # would keep the whole pane wider than the screen. They wrap instead.
-        flt = FlowLayout(spacing=4)
+    def _add_filters(self, flt):
+        """🔍 The search box and the dance, class, vocal and category combos."""
         self._filter_edit = QLineEdit()
         self._filter_edit.setPlaceholderText(
             "🔍  Filter title / artist / comment tag…")
@@ -290,7 +325,7 @@ class LibraryBrowser(QWidget):
         self._dance_combo.addItem("— Standard —", "grp:Standard")
         self._dance_combo.addItem("— Latin —", "grp:Latin")
         for code in DANCE_NAMES:
-            self._dance_combo.addItem(dance_name(code), code)
+            self._dance_combo.addItem(dance_name(code, code), code)
         flt.addWidget(cap_filter_combo(self._dance_combo))
         self._class_combo = QComboBox()
         self._class_combo.addItem("All classes", "")
@@ -319,6 +354,9 @@ class LibraryBrowser(QWidget):
             "folders (anthems, background, wrong-tempo, duplicates, seasonal);\n"
             "pick a category to look only at those (handy for parties).")
         flt.addWidget(cap_filter_combo(self._cat_combo))
+
+    def _add_fresh_filters(self, flt):
+        """✦ Plays, 🆕 added, unplanned and class-only: is this fresh?"""
         # ── The two "is this fresh?" filters ──
         # Play history: how often (and how recently) the track was used in a real
         # tournament, read off the playlist index (popularity / last_played).
@@ -357,14 +395,21 @@ class LibraryBrowser(QWidget):
             "Show only tracks not already used in any open playlist deck —\n"
             "handy for finding fresh music while building rounds.")
         flt.addWidget(self._unplanned_chk)
-        cv.addLayout(flt)
+        self._class_only_chk = QCheckBox("🏷 Only with a class")
+        self._class_only_chk.setToolTip(
+            "Hide competition titles without a class tag — the class filter\n"
+            "shows those for every class.")
+        flt.addWidget(self._class_only_chk)
 
-        self._table = _LibTable(0, 12)
+    def _build_table(self):
+        """The track table: its columns, header menu, widths and clicks."""
+        self._table = _LibTable(0, 13)
         self._table.setHorizontalHeaderLabels(
             ["▶", "Dance", "Artist", "Title", "BPM", "⏱", "Pop", "Class",
-             "Added", "Last", "★", "Custom"])
-        self._table.horizontalHeaderItem(_LIB_COL_CUSTOM).setToolTip(CUSTOM_HEADER_TIP)
-        self._table.horizontalHeaderItem(_LIB_COL_RATING).setToolTip(
+             "Added", "Last", "★", "Custom", "File name"])
+        set_header_tip(self._table, _LIB_COL_CUSTOM, CUSTOM_HEADER_TIP)
+        set_header_tip(
+            self._table, _LIB_COL_RATING,
             "Rating — click a star to set it, the last lit one again to clear it.\n"
             "Kept in the app's database; the MP3 itself is not changed."
         )
@@ -377,7 +422,7 @@ class LibraryBrowser(QWidget):
         hh2.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         hh2.setStretchLastSection(False)
         hh2.setMinimumSectionSize(24)
-        for c, w in enumerate((30, 90, 200, 280, 52, 52, 52, 70, 82, 52, 72, 90)):
+        for c, w in enumerate((30, 90, 200, 280, 52, 52, 52, 70, 82, 52, 72, 90, 220)):
             self._table.setColumnWidth(c, w)
         # Until the user drags a handle (or saved widths are restored), the
         # columns stretch to fill the whole pane on every resize.
@@ -385,7 +430,7 @@ class LibraryBrowser(QWidget):
         self._filling = False
         self._col_width: dict[int, int] = {}   # width a column had when it was hidden
         self._short_dances = False             # Dance column: "LW", not "Langsamer Walzer"
-        self.set_hidden_columns([_LIB_COL_RATING, _LIB_COL_CUSTOM])   # wait until asked for
+        self.set_hidden_columns([_LIB_COL_RATING, _LIB_COL_CUSTOM, _LIB_COL_FILE])   # wait until asked for
         self._table.resize_cb = self._on_table_resized
         # Right-click the header to tick columns away or shorten the dance names.
         hh2.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -417,23 +462,6 @@ class LibraryBrowser(QWidget):
         self._table.cellDoubleClicked.connect(self._on_double_click)
         self._table.space_cb = lambda row: self._on_cell_clicked(row, 0)
         self._table.context_menu_cb = self._on_context_menu
-        cv.addWidget(self._table, stretch=1)
-        v.addWidget(self._content, stretch=1)
-
-        # Debounced re-filter so typing doesn't rebuild 3k rows per keystroke.
-        self._filter_timer = QTimer(self)
-        self._filter_timer.setSingleShot(True)
-        self._filter_timer.setInterval(180)
-        self._filter_timer.timeout.connect(self._refilter)
-        self._filter_edit.textChanged.connect(
-            lambda _: self._filter_timer.start())
-        self._dance_combo.currentIndexChanged.connect(lambda _: self._refilter())
-        self._class_combo.currentIndexChanged.connect(lambda _: self._refilter())
-        self._vocal_combo.currentIndexChanged.connect(lambda _: self._refilter())
-        self._cat_combo.currentIndexChanged.connect(lambda _: self._refilter())
-        self._plays_combo.currentIndexChanged.connect(lambda _: self._refilter())
-        self._added_combo.currentIndexChanged.connect(lambda _: self._refilter())
-        self._unplanned_chk.toggled.connect(self._on_unplanned_toggled)
 
     # ── Fold to header strip ──
 
@@ -678,9 +706,10 @@ class LibraryBrowser(QWidget):
         self._filter_edit.blockSignals(True)
         self._filter_edit.clear()
         self._filter_edit.blockSignals(False)
-        self._unplanned_chk.blockSignals(True)
-        self._unplanned_chk.setChecked(False)
-        self._unplanned_chk.blockSignals(False)
+        for chk in (self._unplanned_chk, self._class_only_chk):
+            chk.blockSignals(True)
+            chk.setChecked(False)
+            chk.blockSignals(False)
         if self._folded:
             self.set_folded(False)
         self._refilter()
@@ -696,6 +725,7 @@ class LibraryBrowser(QWidget):
         added_after = time.time() - int(added) * 86400 if added else None
         stale_before = (date.today().year - int(plays[-1])) if plays.startswith("stale") else None
         unplanned_only = self._unplanned_chk.isChecked()
+        class_only = self._class_only_chk.isChecked()
         rows = []
         for e in self._entries:
             if unplanned_only and str(e.path) in self._planned_paths:
@@ -715,13 +745,11 @@ class LibraryBrowser(QWidget):
                     continue
             if added_after is not None and (e.added or 0) < added_after:
                 continue
-            if cat:
-                ecat = library_category(e)
-                if cat == "turnier":
-                    if ecat:
-                        continue   # 🏆 only plain tournament tracks
-                elif ecat != cat:
-                    continue       # a specific non-tournament category
+            if cat == "turnier":
+                if is_non_turnier(e):
+                    continue       # 🏆 only what generation draws from
+            elif cat and library_category(e) != cat:
+                continue           # a specific non-tournament category
             if dance.startswith("grp:"):
                 # Style group (Standard / Latin): keep any dance of that style.
                 if (e.dance or "") not in self._STYLE_DANCES.get(dance[4:], ()):
@@ -734,9 +762,11 @@ class LibraryBrowser(QWidget):
             classes_ok = getattr(e, "classes_ok", None)
             if cls and classes_ok and cls not in classes_ok:
                 continue
+            if class_only and not classes_ok and e.dance in TEMPO_RANGES:
+                continue   # social dances have no classes — they stay
             if vocal:
                 # Tag/filename marker first, then the learned audio probability
-                # (planner.vocals) for the untagged rest.
+                # (planner.music.vocals) for the untagged rest.
                 if entry_is_instrumental(e) != (vocal == "instr"):
                     continue
             if text:
@@ -772,7 +802,7 @@ class LibraryBrowser(QWidget):
             model.blockSignals(False)
         if entries:
             model.dataChanged.emit(model.index(0, 0),
-                                   model.index(len(entries) - 1, _LIB_COL_CUSTOM))
+                                   model.index(len(entries) - 1, _LIB_COL_FILE))
         t.setSortingEnabled(True)
 
     def _fill_rows(self, entries: list[MusicEntry], now: float):
@@ -788,12 +818,13 @@ class LibraryBrowser(QWidget):
             artist_it = QTableWidgetItem(getattr(e, "tag_artist", None) or "")
             artist_it.setToolTip(_entry_tooltip(e))
             t.setItem(r, 2, artist_it)   # Artist sits LEFT of Title
-            title_it = QTableWidgetItem(e.title or "")
+            title_it = QTableWidgetItem(display_title(e))
             title_it.setToolTip(_entry_tooltip(e))
             t.setItem(r, 3, title_it)
             bpm_it = _LibSortItem(str(e.bpm) if e.bpm else "")
             bpm_it.setData(Qt.ItemDataRole.UserRole, e.bpm or -1)
             bpm_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            bpm_it.setToolTip(bpm_tooltip(e))
             t.setItem(r, 4, bpm_it)
             secs = int(getattr(e, "duration", 0) or 0)
             len_it = _LibSortItem(_fmt_track_secs(secs) if secs else "")
@@ -835,6 +866,9 @@ class LibraryBrowser(QWidget):
             t.setItem(r, 9, last_it)
             t.setItem(r, _LIB_COL_RATING, self._rating_item(e))
             t.setItem(r, _LIB_COL_CUSTOM, self._custom_item(e))
+            file_it = QTableWidgetItem(e.title or "")
+            file_it.setToolTip(str(e.path))
+            t.setItem(r, _LIB_COL_FILE, file_it)
             t.setRowHeight(r, 22)
 
     @staticmethod
@@ -854,13 +888,13 @@ class LibraryBrowser(QWidget):
     def _on_star_clicked(self, index, stars: int):
         """★ clicked: MainWindow owns the library and the cache and stores the
         rating, then hands the changed paths back through `show_tag_cells`."""
-        win = self.window()
+        set_rating = getattr(self.window(), "_set_entry_rating", None)
         path = self._row_path(index.row())
-        if path is None or not hasattr(win, "_set_entry_rating"):
+        if path is None or set_rating is None:
             return
         entry = next((e for e in self._entries if str(e.path) == str(path)), None)
         if entry is not None:
-            win._set_entry_rating(entry, stars)
+            set_rating(entry, stars)
 
     def show_tag_cells(self, paths):
         """Repaint the ★ and Custom cells of the rows showing `paths` — two
@@ -950,27 +984,27 @@ class LibraryBrowser(QWidget):
         cache, and its re-read feeds every pane back through `set_entries` — so
         a row whose new dance or takt drops it out of the active filter goes
         away here, which is the correct answer."""
-        win = self.window()
-        if not hasattr(win, "_rescan_entry_tags"):
+        rescan = getattr(self.window(), "_rescan_entry_tags", None)
+        if rescan is None:
             return
         entry = next((e for e in self._entries if str(e.path) == str(path)), None)
         if entry is not None:
-            win._rescan_entry_tags(entry)
+            rescan(entry)
 
     def _edit_tags(self, paths: set):
         """🏷 Open the window's tag editor on these rows. The window stores the
         edit and feeds every pane back through `set_entries`."""
-        win = self.window()
-        if not hasattr(win, "_edit_entry_tags"):
+        edit_tags = getattr(self.window(), "_edit_entry_tags", None)
+        if edit_tags is None:
             return
         entries = [e for e in self._entries if str(e.path) in paths]
         if entries:
-            win._edit_entry_tags(entries)
+            edit_tags(entries)
 
     def _start_row(self, row: int):
         it = self._table.item(row, 0)
         path = it.data(Qt.ItemDataRole.UserRole) if it else None
-        if path:
+        if it is not None and path:
             self.on_playback_stopped()
             it.setText("■")
             self.playRequested.emit(path, row)

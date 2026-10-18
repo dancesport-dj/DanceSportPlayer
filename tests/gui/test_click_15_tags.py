@@ -23,7 +23,7 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QDialogButtonBox, QMessageBox
 from shared.columns import _COL_CUSTOM, _COL_RATING, _COL_TITLE
 
-_RAW_DESC, _RAW_VALUE = 1, 2      # the Extended tab's columns (gui.tag_edit_dialog)
+_RAW_DESC, _RAW_VALUE = 1, 2      # the Extended tab's columns (gui.dialogs.tag_edit_dialog)
 
 
 class TagsClickTest(ClickThrough):
@@ -62,7 +62,7 @@ class TagsClickTest(ClickThrough):
         self.assertTrue(self.wait_until(lambda: not op.script), op.script)
 
     def click_star(self, table, row: int, star: int, double=False):
-        from gui.star_rating import star_rects
+        from gui.table.star_rating import star_rects
         idx = table.model().index(row, _COL_RATING)
         table.scrollTo(idx)
         at = star_rects(table.visualRect(idx), table.fontMetrics())[star - 1].center()
@@ -72,7 +72,7 @@ class TagsClickTest(ClickThrough):
 
     def edit_tags(self, op, row: int, act):
         """Right-click ▸ 🏷 Edit tags…, `act` works the editor."""
-        from gui.tag_edit_dialog import TagEditDialog
+        from gui.dialogs.tag_edit_dialog import TagEditDialog
         op.pick("🏷  Edit tags")
         op.answer(lambda w: isinstance(w, TagEditDialog), act)
         self.right_click(op, self.win._deckset.table, row)
@@ -95,7 +95,7 @@ class TagsClickTest(ClickThrough):
         self.type_into(QApplication.focusWidget(), text)
 
     def test_edited_tags_are_written_into_the_mp3_and_read_back(self):
-        from planner import id3_frames
+        from planner.music import id3_frames
 
         def edit(dlg):
             dlg._form["title"].setEditText("Retitled")
@@ -129,7 +129,7 @@ class TagsClickTest(ClickThrough):
             self.assertIn("Retitled", self.win._deckset.table.item(row, _COL_TITLE).text())
 
     def test_the_extended_tab_edits_adds_and_removes_frames_in_the_file(self):
-        from planner import id3_frames
+        from planner.music import id3_frames
         seen = {}
 
         def edit(dlg):
@@ -195,7 +195,7 @@ class TagsClickTest(ClickThrough):
             self.click_star(table, row, 3)
             started, opened_files = [], []
             table.playRequested.connect(started.append)
-            with mock.patch("gui.playlist_table._open_in_default_player",
+            with mock.patch("gui.table.playlist_table._open_in_default_player",
                             lambda path, _parent: opened_files.append(path)):
                 self.click_star(table, row, 3, double=True)
             self.assertEqual(started, [], "a double-click on ★ played the title")
@@ -242,7 +242,7 @@ class TagsClickTest(ClickThrough):
             self.assertIsNone(self.entry_at(row).custom or None)
 
     def test_fill_custom_from_an_extended_tag_maps_the_column(self):
-        from planner import custom_field
+        from planner.music import custom_field
         self.addCleanup(custom_field.set_source, None)
         seen = {}
 
@@ -271,8 +271,8 @@ class TagsClickTest(ClickThrough):
             self.assertEqual(table.item(other, _COL_CUSTOM).text(), "")
 
     def test_map_custom_from_the_header_reads_the_tag_and_back(self):
-        from planner import custom_field
-        from gui.tag_edit_dialog import CustomSourceDialog
+        from planner.music import custom_field
+        from gui.dialogs.tag_edit_dialog import CustomSourceDialog
         self.addCleanup(custom_field.set_source, None)
         seen = {}
 

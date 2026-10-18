@@ -3,7 +3,7 @@
 # audio analysis (timbre/BPM/similarity), playback, Check Music, health check.
 #   pip install -r requirements.txt        (~0.6 GB)
 #
-# The OPTIONAL AI extras (Demucs vocal separation, OpenL3)
+# The OPTIONAL AI extras (Demucs vocal separation, MERT)
 # live in requirements-full.txt — the app runs fine without them; their buttons
 # simply show an install hint until the packages are present:
 #   pip install -r requirements-full.txt   (adds torch & friends, several GB)

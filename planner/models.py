@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from planner.dances import TEMPO_RANGES  # noqa: F401  (re-exported)
-from planner.db import AudioFeatures
+from planner.music.analysis import AudioFeatures
 
 
 # ── Dance Configuration ────────────────────────────────────────────────────────
@@ -264,7 +264,33 @@ LIBRARY_CATEGORIES: dict[str, tuple[str, tuple[str, ...]]] = {
     'duplicates':  ('👥 Duplicates / raw versions',
                     ('doppelte musikdatein', 'doppeltvlt', 'orig', 'original',
                      'originale', 'converted', 'einpegelung', 'sample', 'samples')),
+    # Not a folder: a competition title whose comment carries no class tag
+    # (library_category below). No folder names, so it never matches a path.
+    'no_class':    ('🏷 No class', ()),
 }
+
+# Whether the MAIN library uses class tags at all. Without any, 'no_class' would
+# take every title out of generation, so the category only applies once one
+# title carries a class. Set by whoever owns the main library (the window's
+# library load, the CLI scan) and by an in-app tag edit — never by a plain
+# MusicLibrary load: the whole-repo index is a library too.
+_class_tags_in_use = False
+
+
+def note_class_tag_use(entries) -> None:
+    global _class_tags_in_use
+    _class_tags_in_use = any(getattr(e, 'classes_ok', None) for e in entries)
+
+
+# Whether 'no_class' titles also stay out of GENERATION. Off by default: the
+# category is there to find them in the library pane; leaving them out of the
+# playlists is the user's call (⚙ Settings → General, 'exclude_no_class').
+_exclude_no_class = False
+
+
+def set_no_class_exclusion(on) -> None:
+    global _exclude_no_class
+    _exclude_no_class = bool(on)
 
 # Flat lookup: lowercased folder name → category id.
 _FOLDER_CATEGORY = {f: cid for cid, (_lbl, folders) in LIBRARY_CATEGORIES.items()
@@ -287,19 +313,29 @@ def library_category(entry) -> str:
     """Non-tournament category id of a library entry ('' = a normal tournament
     track). The deepest matching folder segment of the path wins; a christmas
     track flagged per-file (is_xmas) counts as 'seasonal' even outside a christmas
-    folder. Drives both the generation soft-exclude and the browser filter."""
+    folder. A competition title without a class tag is 'no_class' while the
+    library uses class tags (note_class_tag_use); social dances have no
+    classes and never are. Drives the browser filter and, through
+    is_non_turnier, the generation soft-exclude."""
     cid = folder_category_of_parts(entry.path.parts[:-1])
     if cid:
         return cid
     if getattr(entry, 'is_xmas', False):
         return 'seasonal'
+    if (_class_tags_in_use and entry.dance in TEMPO_RANGES
+            and not getattr(entry, 'classes_ok', None)):
+        return 'no_class'
     return ''
 
 
 def is_non_turnier(entry) -> bool:
     """True → keep this entry out of GENERATION pools (it still lives in the
-    library and stays browsable). Mirrors the is_xmas soft exclude."""
-    return bool(library_category(entry))
+    library and stays browsable). Mirrors the is_xmas soft exclude. A
+    'no_class' title only when set_no_class_exclusion asked for it."""
+    cid = library_category(entry)
+    if cid == 'no_class':
+        return _exclude_no_class
+    return bool(cid)
 
 
 # 'Others' dance code → keyword fragments that identify it in a path / filename.
@@ -344,7 +380,7 @@ ALLOW_REPEAT = {'PD'}
 # They are included in suggestions but marked with * (need on-the-fly pitch-up).
 # Value = how many BPM below the minimum are still acceptable.
 #   TG: min is 31 → T30 included with *
-#   JI: min is 41 → T40 included with *
+#   JI: min is 42 → T41 included with *
 # (RB/PD dropped: their TSO windows themselves moved down to 24-26 / 58-60,
 #  no extra margin.)
 BELOW_TEMPO_EXT: dict[str, int] = {'TG': 1, 'JI': 1}
@@ -411,13 +447,14 @@ class MusicEntry:
     classes_ok: list[str] | None = None  # class codes from COMM tag, e.g. ['B','A','S']
     comment_tags: list[str] | None = None  # free COMM markers, e.g. ['vocal_f','classic']
     rating: int | None = None  # 1–5 stars (POPM), None = unrated
-    custom: str | None = None  # the free Custom field (planner.custom_field)
+    custom: str | None = None  # the free Custom field (planner.music.custom_field)
     tag_edits: dict | None = None  # file values of fields an in-app tag edit overrides
     tag_title: str | None = None  # ID3 TIT2 title (for renamed-file playlist matching)
     tag_artist: str | None = None  # ID3 TPE1 artist (for renamed-file playlist matching)
     tag_album: str | None = None  # ID3 TALB album (shown in hover info)
+    tag_bpm: float | None = None  # ID3 TBPM as written (usually beats/min), None = no tag
     is_instrumental: bool = False  # True when COMM tag or filename marks 'instr'
-    audio_instr_prob: float | None = None  # learned from audio (planner.vocals), None = unknown
+    audio_instr_prob: float | None = None  # learned from audio (planner.music.vocals), None = unknown
     vocal_share: float | None = None  # measured Demucs vocal-stem energy share, None = not measured
     is_xmas: bool = False  # True → Christmas song, excluded from playlists
     features: AudioFeatures | None = None

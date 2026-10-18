@@ -16,8 +16,8 @@ integrated loudness is stored and never a true peak.
 import unittest
 from types import SimpleNamespace
 
-from shared.playback import _TARGET_LUFS
-from player.main_audio import AudioLevelMixin
+from shared.audio.playback import _TARGET_LUFS
+from player.window.main_audio import AudioLevelMixin
 
 
 def _db(gain: float) -> float:

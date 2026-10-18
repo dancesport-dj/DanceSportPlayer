@@ -11,15 +11,14 @@ and the folders are a slice of it.
 import os
 import shutil
 import tempfile
-import threading
 import unittest
 from pathlib import Path
 from unittest import mock
 
-import planner.db as pdb
-from planner import config as planner_config
+import planner.music.db as pdb
 from planner.config import folders_below
-from planner.library import MusicLibrary
+from planner.music.library import MusicLibrary
+from tests.db_support import use_scratch_db
 
 
 class FoldersBelowTest(unittest.TestCase):
@@ -50,18 +49,7 @@ class ScanFolderPartsTest(unittest.TestCase):
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp(prefix="dp_folder_parts_"))
         self.addCleanup(shutil.rmtree, self.dir, ignore_errors=True)
-        saved = (planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
-        planner_config.AUDIO_DB_FILE = self.dir / "scratch.db"
-        pdb._DB_LOCAL = threading.local()
-        pdb._DB_INITIALIZED = False
-
-        def restore():
-            try:
-                pdb._DB_LOCAL.conn.close()
-            except Exception:
-                pass
-            planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = saved
-        self.addCleanup(restore)
+        use_scratch_db(self, self.dir / "scratch.db")
         self.root = self.dir / "music"
         for rel in ("standardcd/Waltz LW 29.mp3", "special/Hymnen/Anthem.mp3",
                     "endrunden/Final LW 29.mp3", "sox/raw LW 29.mp3"):

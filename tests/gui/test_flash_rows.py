@@ -24,7 +24,7 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QTableWidgetItem
 from tests.qt_test_support import reap_widget
 
-from gui.playlist_table import PlaylistTable
+from gui.table.playlist_table import PlaylistTable
 
 _FLASH = QColor(255, 236, 160)
 

@@ -9,6 +9,7 @@ thread gave up on its own. Stopping now kills a `claude -p` that is still
 thinking, cuts a retry wait short and never starts the fallback.
 """
 import os
+import socket
 import subprocess
 import tempfile
 import threading
@@ -19,7 +20,7 @@ from unittest import mock
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_ai_cancel_"))
 
-from planner import ai, llm
+from planner.generate import ai, llm
 
 
 class _Proc:
@@ -112,6 +113,62 @@ class AskCancelTest(unittest.TestCase):
         with mock.patch.object(llm, "_ask", side_effect=llm.Cancelled()):
             with self.assertRaises(llm.Cancelled):
                 llm.search_rows("rules", "task", [], cancel=cancel)
+
+
+class HttpCancelTest(unittest.TestCase):
+    """The fallback host's request was the one thing a stop could not end: it
+    sat in urlopen for its whole timeout (600 s in a run). A stop now shuts
+    its socket, so the run ends at once and the host sees the client leave."""
+
+    def setUp(self):
+        self.srv = socket.create_server(("127.0.0.1", 0))
+        self.addCleanup(self.srv.close)
+        self.hung_up = threading.Event()
+        threading.Thread(target=self._never_answer, daemon=True).start()
+        self.base = f"http://127.0.0.1:{self.srv.getsockname()[1]}/v1"
+
+    def _never_answer(self):
+        """Takes the request, says nothing, notes when the client hangs up."""
+        try:
+            conn, _addr = self.srv.accept()
+        except OSError:
+            return
+        with conn:
+            conn.settimeout(30)
+            try:
+                while conn.recv(65536):
+                    pass
+                self.hung_up.set()
+            except OSError:
+                self.hung_up.set()
+
+    def _stop_soon(self):
+        cancel = threading.Event()
+        timer = threading.Timer(0.3, cancel.set)
+        timer.start()
+        self.addCleanup(timer.cancel)
+        return cancel
+
+    def test_a_stop_cuts_the_chat_request_on_the_wire(self):
+        cancel = self._stop_soon()
+        started = time.monotonic()
+        with self.assertRaises(OSError):
+            ai.openrouter_chat("k", "m", "s", "u", timeout=30,
+                               base_url=self.base, cancel=cancel)
+        self.assertLess(time.monotonic() - started, 5, "not the 30 s timeout")
+        self.assertTrue(self.hung_up.wait(5), "the host saw no hang-up")
+
+    def test_a_stop_while_the_fallback_waits_ends_the_run(self):
+        cancel = self._stop_soon()
+        cfg = {"api_key": "k", "model": "m", "base_url": self.base}
+        started = time.monotonic()
+        with mock.patch.object(llm, "call_claude_cli",
+                               side_effect=RuntimeError("no CLI")), \
+             mock.patch.object(ai, "load_openrouter_config", return_value=cfg), \
+             self.assertRaises(llm.Cancelled):
+            llm._ask("s", "u", model="opus", config_dir="", timeout=30,
+                     cancel=cancel)
+        self.assertLess(time.monotonic() - started, 5, "not the 30 s timeout")
 
 
 if __name__ == "__main__":

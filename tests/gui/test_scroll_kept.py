@@ -26,11 +26,11 @@ from PySide6.QtWidgets import QApplication, QWidget
 from tests.qt_test_support import reap_widget
 
 from shared.columns import _COL_TITLE
-from gui.playlist_table import _SCROLL_MS, PlaylistTable
+from gui.table.playlist_table import _SCROLL_MS, PlaylistTable
 from planner.models import MusicEntry
-from player.main_player import PlayerControlMixin
-from player.playback_state import PlaybackState
-from gui.deck_set import DeckSet
+from player.window.main_player import PlayerControlMixin
+from player.audio.playback_state import PlaybackState
+from gui.decks.deck_set import DeckSet
 
 
 def _e(n):

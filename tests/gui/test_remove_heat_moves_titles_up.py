@@ -22,7 +22,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication
 from tests.qt_test_support import reap_widget
 
-from gui.playlist_table import PlaylistTable
+from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry, RoundConfig
 
 _app = QApplication.instance() or QApplication(sys.argv)

@@ -20,7 +20,7 @@ from pathlib import Path
 
 from dancesport_planner import MusicEntry, MusicLibrary
 from planner import config as planner_config
-from planner.competition import parse_competition_schedule
+from planner.event.competition import parse_competition_schedule
 
 _TRACK = r"C:\music\standardcd\Tango One (TG 32).mp3"
 

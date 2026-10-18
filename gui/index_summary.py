@@ -3,7 +3,7 @@
 Shown in the library status block and in ⚙ Settings. Built from the loaded
 libraries, the audio cache and the embedding store — no window, no Qt.
 """
-import planner.db
+import planner.music.scan_caches
 from planner import i18n
 
 
@@ -15,8 +15,8 @@ def index_summary(cache, store, favorites, repository) -> dict:
     back to DB-only coverage (`planner.global_coverage`) so it still shows even
     before the repo is loaded into memory.
     """
-    from planner import embeddings as ae
-    libro_parts, ol3_parts, chroma_parts = [], [], []
+    from planner.music import embeddings as ae
+    libro_parts, mert_parts, chroma_parts = [], [], []
     loud_parts, sil_parts, pd_parts, afp_parts = [], [], [], []
     # 🔗 The audio fingerprints have no in-memory mirror — one query here,
     # shared by both libraries, instead of one per coverage call.
@@ -58,20 +58,20 @@ def index_summary(cache, store, favorites, repository) -> dict:
             # The fingerprint SETS, not the vectors: asking the store for
             # each entry's embedding unpacked every model's whole mirror —
             # five seconds of startup to print three counts.
-            have_ol3 = store.fps(ae.MODEL_OPENL3)
+            have_mert = store.fps(ae.MODEL_MERT)
             have_chroma = store.fps(ae.MODEL_CHROMA)
-            ol3 = chroma = 0
+            mert = chroma = 0
             for e in lib.entries:
                 fp = cache.known_fingerprint(e.path)
                 if not fp:
                     continue
-                if fp in have_ol3:
-                    ol3 += 1
+                if fp in have_mert:
+                    mert += 1
                 if fp in have_chroma:
                     chroma += 1
-            ol3_parts.append(f"{shown} {ol3:,}/{n:,}")
+            mert_parts.append(f"{shown} {mert:,}/{n:,}")
             chroma_parts.append(f"{shown} {chroma:,}/{n:,}")
-            note_gap(label, ol3, n, ae.openl3_available())
+            note_gap(label, mert, n, ae.mert_available())
             note_gap(label, chroma, n, ae.chroma_available())
 
     if favorites and favorites.entries:
@@ -79,14 +79,14 @@ def index_summary(cache, store, favorites, repository) -> dict:
     # Repository: loaded library if present, else DB-only coverage.
     if repository and repository.entries:
         add_loaded("Repository", repository)
-    elif planner.db.global_index_count() > 0:
-        cov = planner.db.global_coverage(
-            [ae.MODEL_OPENL3, ae.MODEL_CHROMA])
+    elif planner.music.scan_caches.global_index_count() > 0:
+        cov = planner.music.scan_caches.global_coverage(
+            [ae.MODEL_MERT, ae.MODEL_CHROMA])
         tot = cov["total"]
         libro_parts.append(f"Repository {cov['librosa']:,}/{tot:,}")
         if store:
-            ol3_parts.append(
-                f"Repository {cov['embeddings'].get(ae.MODEL_OPENL3, 0):,}/{tot:,}")
+            mert_parts.append(
+                f"Repository {cov['embeddings'].get(ae.MODEL_MERT, 0):,}/{tot:,}")
             chroma_parts.append(
                 f"Repository {cov['embeddings'].get(ae.MODEL_CHROMA, 0):,}/{tot:,}")
 
@@ -94,7 +94,7 @@ def index_summary(cache, store, favorites, repository) -> dict:
     return {
         "audiofp": join(afp_parts),
         "librosa": join(libro_parts),
-        "openl3": join(ol3_parts) if store else i18n.t("(OpenL3 not available)"),
+        "mert": join(mert_parts) if store else i18n.t("(MERT not available)"),
         "chroma": join(chroma_parts) if store else i18n.t("(chroma not available)"),
         "loudness": join(loud_parts),
         "silences": join(sil_parts),

@@ -25,7 +25,7 @@ from PySide6.QtWidgets import QApplication
 
 from gui.common import _C_LEN_WARN_FG
 from shared.columns import _COL_LEN, _COL_TITLE
-from gui.playlist_table import PlaylistTable
+from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry
 from tests.qt_test_support import reap_widget
 
@@ -135,7 +135,7 @@ class EdgeSilenceFromTheCacheTest(unittest.TestCase):
     """The callback the window hands the table: longest edge, cached only."""
 
     def _win(self, spans):
-        from gui.main_music import MusicCheckMixin
+        from gui.window.main_music import MusicCheckMixin
 
         class Win(MusicCheckMixin):
             pass
@@ -172,7 +172,7 @@ class PlaySecsFromTheCacheTest(unittest.TestCase):
             return self.spans
 
     def _win(self, spans):
-        from gui.main_music import MusicCheckMixin
+        from gui.window.main_music import MusicCheckMixin
 
         class Win(MusicCheckMixin):
             pass

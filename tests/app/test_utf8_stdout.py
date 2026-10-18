@@ -19,7 +19,7 @@ class Utf8StdoutTest(unittest.TestCase):
 
     def test_stdout_survives_every_utf8_switch(self):
         code = ("import gc, dancesport_gui, dancesport_planner, "
-                "tests.planner.test_senorita_similarity, tools.find_missing_metadata\n"
+                "tests.planner.music.test_senorita_similarity, tools.find_missing_metadata\n"
                 "gc.collect()\n"
                 "print('still writable ✓')\n")
         env = dict(os.environ, PYTHONIOENCODING="cp1252", QT_QPA_PLATFORM="offscreen")

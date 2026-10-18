@@ -28,7 +28,7 @@ from shared.columns import (
     _COL_ARTIST, _COL_BPM, _COL_DANCE, _COL_HEAT, _COL_POP, _COL_REGEN,
     _COL_TITLE, _N_COLS,
 )
-from gui.playlist_table import PlaylistTable
+from gui.table.playlist_table import PlaylistTable
 from tests.qt_test_support import reap_widget
 
 

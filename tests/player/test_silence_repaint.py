@@ -14,9 +14,9 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from player.playback_state import PlaybackState
+from player.audio.playback_state import PlaybackState
 from types import SimpleNamespace
-from gui.deck_set import DeckSet
+from gui.decks.deck_set import DeckSet
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
@@ -38,7 +38,7 @@ class ProbeWhilePlayingTest(unittest.TestCase):
     """The background probe of the track that is playing."""
 
     def _win(self):
-        from player.main_audio import AudioLevelMixin
+        from player.window.main_audio import AudioLevelMixin
 
         class Win(AudioLevelMixin):
             pass
@@ -71,7 +71,7 @@ class BulkProbeTest(unittest.TestCase):
     """The ⚙ Settings pass over the whole library."""
 
     def _win(self):
-        from gui.main_analyze import AnalysisMixin
+        from gui.window.main_analyze import AnalysisMixin
 
         class Win(AnalysisMixin):
             pass

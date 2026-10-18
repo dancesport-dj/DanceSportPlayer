@@ -11,8 +11,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication, QDialog
 
 import dancesport_gui as gui
-from gui import main_global
-from gui.dialogs import SettingsDialog
+from gui.window import main_global
+from gui.dialogs.settings_dialog import SettingsDialog
 from tests.qt_test_support import reap_widget
 
 
@@ -53,7 +53,7 @@ class PhoneRemoteSettingTest(unittest.TestCase):
 
     def test_a_running_server_offers_stop_server(self):
         # Marcel: "Start Server should renamed to Stop Server if Server running".
-        from player.main_remote import _RemoteHub
+        from player.window.main_remote import _RemoteHub
         hub = _RemoteHub()
         running = [True]
         start, stop = mock.Mock(), mock.Mock(side_effect=lambda: running.clear())
@@ -98,7 +98,11 @@ class SaveAppliesTest(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def setUp(self):
-        gui.load_settings = lambda *a, **kw: {"app_mode": "both", "remote_pin": "4711"}
+        patcher = mock.patch.object(
+            gui, "load_settings",
+            lambda *a, **kw: {"app_mode": "both", "remote_pin": "4711"})
+        patcher.start()
+        self.addCleanup(patcher.stop)
         self.win = gui.MainWindow()
         self.win._loading_dlg.accept()
         self.addCleanup(reap_widget, self.win)
@@ -140,7 +144,9 @@ class SaveAppliesTest(unittest.TestCase):
             win._apply_remote()
             badge = win._remote_badge
             self.assertFalse(badge.isHidden())
-            self.assertIn("LIVE", badge.text())
+            # Marcel: "rename live from phone remote to remote to make it
+            # diff to nanacontrol" — the 🎛 badge sits next to it.
+            self.assertEqual("📱 Remote", badge.text())
             self.assertTrue(win.statusBar().isAncestorOf(badge))
             win._remote_wanted = False
             win._apply_remote()

@@ -57,8 +57,10 @@ class KeyboardClickTest(ClickThrough):
             table = self.win._deckset.table
             row = self.song_rows()[1]
             table.selectRow(row)
+            # A double tap is one press. Back to back: under load, the event
+            # processing of a wait between the taps outlasted the interval.
+            QTest.keyClick(table, Qt.Key.Key_Space)
             self.key(Qt.Key.Key_Space)
-            self.key(Qt.Key.Key_Space)   # a double tap is one press
             self.assertTrue(self.wait_until(lambda: table._current_play_row == row),
                             f"playing row {table._current_play_row}, not {row}")
             self.assertTrue(self.wait_until(lambda: not table._player_stopped()))
@@ -182,7 +184,7 @@ class KeyboardClickTest(ClickThrough):
     # ── Cartwall ────────────────────────────────────────────────────────────
 
     def test_cartwall_drops_fill_free_pads_and_a_dragged_pad_swaps(self):
-        from planner import cartwall as pc
+        from planner.playing import cartwall as pc
         win = self.win
         with self.clicking():
             self.click(win._mode_play_btn)

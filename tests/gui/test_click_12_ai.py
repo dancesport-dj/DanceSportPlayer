@@ -26,8 +26,8 @@ from tests.gui.monkey_support import ClickThrough, printable
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMessageBox, QPushButton
-from gui.ai_dialogs import AiPlaylistDialog, AiTranscriptDialog
-from planner import llm
+from gui.dialogs.ai_dialogs import AiPlaylistDialog, AiTranscriptDialog
+from planner.generate import llm
 
 _ROW_RE = re.compile(r"^\s*(\d+) \| ", re.MULTILINE)
 

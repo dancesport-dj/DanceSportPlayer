@@ -27,9 +27,10 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication, QMenu
 
-from planner import cartwall as pc
+from planner.playing import cartwall as pc
 from planner import i18n
-from player import cartwall as gc
+from player.dialogs import cart_pad_dialog as cpd
+from player.widgets import cartwall as gc
 from tests.qt_test_support import reap_widget
 
 
@@ -124,7 +125,7 @@ class PadColourI18nTest(_PadMenu):
 
     def test_every_colour_name_has_a_german_one(self):
         i18n.set_active("de")
-        for name in gc.PAD_COLOURS:
+        for name in cpd.PAD_COLOURS:
             self.assertNotEqual(i18n.t(name), name,
                                 f"the pad colour {name!r} stayed English")
 
@@ -137,15 +138,15 @@ class PadColourI18nTest(_PadMenu):
     def test_the_value_behind_a_name_is_untouched(self):
         """What the signal carries and what the checkmark compares."""
         i18n.set_active("de")
-        self.assertEqual(gc.PAD_COLOURS["Green"], "#2f8f4e")
-        self.assertEqual(gc.PAD_COLOURS["Wall default"], "")
+        self.assertEqual(cpd.PAD_COLOURS["Green"], "#2f8f4e")
+        self.assertEqual(cpd.PAD_COLOURS["Wall default"], "")
 
     def test_the_settings_dialog_reads_its_combo_back_by_value(self):
         """The same names fill the pad-settings combo through
         `addItem(name, value)`; `findData` is what reads it back."""
         i18n.set_active("de")
         i18n.install_text_hook()    # `addItem` only translates through the hook
-        dlg = gc.CartPadDialog(pc.CartPad(path="a.mp3", colour="#b23b3b"),
+        dlg = cpd.CartPadDialog(pc.CartPad(path="a.mp3", colour="#b23b3b"),
                                slot_key="1")
         self.addCleanup(reap_widget, dlg)
         self.assertEqual(dlg._colour.currentData(), "#b23b3b")

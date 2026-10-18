@@ -11,6 +11,7 @@ coming up with the session of hours ago.
 import os
 import tempfile
 import unittest
+from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
@@ -29,7 +30,10 @@ class BuildEnvFailureTest(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def setUp(self):
-        gui.load_settings = lambda *a, **kw: {"app_mode": "both"}
+        patcher = mock.patch.object(gui, "load_settings",
+                                    lambda *a, **kw: {"app_mode": "both"})
+        patcher.start()
+        self.addCleanup(patcher.stop)
         self.win = gui.MainWindow()
         self.win._loading_dlg.accept()
         self.addCleanup(reap_widget, self.win)

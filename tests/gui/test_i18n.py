@@ -321,7 +321,7 @@ class TextHookTest(unittest.TestCase):
         library: one track is called "Time" and another "Action", and both are
         column headers elsewhere in the app. The presenter screen is what the
         hall reads the song name off, so a title must never be translated."""
-        from player.presenter import _ScrollLabel
+        from player.presenter.presenter import _ScrollLabel
 
         i18n.set_active("de")
         i18n.install_text_hook()
@@ -455,7 +455,7 @@ class CatalogQualityTest(unittest.TestCase):
 class SwitchCaptionWidthTest(unittest.TestCase):
     """A switch caption that grows in German is lost, not wrapped.
 
-    `_Toggle` (player/play_mode_panel.py) draws its own text and elides it on
+    `_Toggle` (player/widgets/panel_parts.py) draws its own text and elides it on
     the right, and its sizeHint counts the track and six average characters —
     never the caption. So a switch can not widen the panel to make room: a
     German caption longer than the English one it replaces simply ends in an
@@ -505,13 +505,13 @@ class GermanInTheSourceTest(unittest.TestCase):
         i18n.install_text_hook()
 
     def takt_meter(self):
-        from player.takt_meter import TaktMeterOverlay
+        from player.widgets.takt_meter import TaktMeterOverlay
         w = TaktMeterOverlay()
         self.addCleanup(reap_widget, w)
         return w
 
     def presenter(self):
-        from player.presenter import PresenterWindow
+        from player.presenter.presenter import PresenterWindow
         w = PresenterWindow(lambda: ("LW", "Titel", ("00:10", "− 02:00", False, 0.1),
                                      [("TG", "Zweiter")], ("", "")))
         self.addCleanup(reap_widget, w)

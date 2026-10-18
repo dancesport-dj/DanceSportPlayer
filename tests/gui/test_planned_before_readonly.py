@@ -24,12 +24,12 @@ from PySide6.QtWidgets import QApplication, QWidget
 from tests.qt_test_support import (
     reap_widget, stub_window_startup)
 
-import gui.table_actions as table_actions
-from gui.playlist_table import PlaylistTable
+import gui.table.table_menu as table_menu
+from gui.table.playlist_table import PlaylistTable
 from planner import config as planner_config
-from planner.library import MusicLibrary
+from planner.music.library import MusicLibrary
 from planner.models import MusicEntry, RoundConfig
-from planner.suggester import PlaylistSuggester
+from planner.generate.suggester import PlaylistSuggester
 
 _TRACK = r"C:\music\standardcd\Tango One (TG 32).mp3"
 
@@ -66,9 +66,9 @@ class PlannedBeforeTest(unittest.TestCase):
         (self.dir / "Turnier Hgr S STD.m3u").write_text(
             "#EXTM3U\n" + _TRACK + "\n", encoding="utf-8")
 
-        orig_dlg = table_actions.SimilarTracksDialog
-        table_actions.SimilarTracksDialog = _FakeDialog
-        self.addCleanup(setattr, table_actions, "SimilarTracksDialog", orig_dlg)
+        orig_dlg = table_menu.SimilarTracksDialog
+        table_menu.SimilarTracksDialog = _FakeDialog
+        self.addCleanup(setattr, table_menu, "SimilarTracksDialog", orig_dlg)
         _FakeDialog.shown = []
 
     def test_the_lookup_shows_copies_and_keeps_the_shared_entry(self):
@@ -126,7 +126,7 @@ class GenerateLabelsTest(unittest.TestCase):
         self.addCleanup(reap_widget, self.win)
 
     def test_generate_labels_its_tracks_with_the_competition_lists(self):
-        from planner.competition import parse_competition_schedule
+        from planner.event.competition import parse_competition_schedule
         from planner.models import rounds_from_pattern
 
         entry = MusicEntry(path=Path(_TRACK), title="Tango One", dance="TG", bpm=32)

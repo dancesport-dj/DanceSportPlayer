@@ -1,4 +1,4 @@
-"""Tests for the ffmpeg-based PD highlight decoding in shared.audio_probes.
+"""Tests for the ffmpeg-based PD highlight decoding in shared.audio.audio_probes.
 
 The player build ships no librosa, so `detect_pd_highlights` decodes through
 ffmpeg and computes the RMS envelope itself. Both replacements have to behave
@@ -13,7 +13,7 @@ import unittest
 import wave
 from pathlib import Path
 
-from shared import audio_probes as gw
+from shared.audio import audio_probes as gw
 
 try:
     import numpy as np

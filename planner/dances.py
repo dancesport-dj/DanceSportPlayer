@@ -1,6 +1,6 @@
 """The ten tournament dances' tempo tables, in one place.
 
-A leaf: it imports nothing from the planner, so planner.db (which models
+A leaf: it imports nothing from the planner, so planner.music.db (which models
 imports) and planner.models can both read it without a circular import.
 """
 
@@ -16,7 +16,7 @@ TEMPO_RANGES: dict[str, dict[str, tuple[int, int]]] = {
     'SA': {'D': (50,52),'C': (50,52),'B': (50,52),'A': (50,52),'S': (50,52)},
     'RB': {'D': (24,26),'C': (24,26),'B': (24,26),'A': (24,26),'S': (24,26)},
     'PD': {'D': (58,60),'C': (58,60),'B': (58,60),'A': (58,60),'S': (58,60)},
-    'JI': {'D': (41,43),'C': (41,43),'B': (41,43),'A': (41,43),'S': (41,43)},
+    'JI': {'D': (42,44),'C': (42,44),'B': (42,44),'A': (42,44),'S': (42,44)},
 }
 
 # Beats per BAR (takt) per dance code. The filename label is a TAKT (bars/min); the

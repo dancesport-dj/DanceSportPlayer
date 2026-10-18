@@ -9,7 +9,7 @@ out to the deck and back in on every focus change. Anything that finished later
 (an AI run, a restore) had to put the focus back on its deck before it could
 write, or it wrote into whichever deck the user had clicked meanwhile.
 
-Now they live on the deck (gui.deck.DeckContext). `self._style` and friends on
+Now they live on the deck (gui.decks.deck.DeckContext). `self._style` and friends on
 the window read and write the FOCUSED deck's context, and a deck that is not
 focused can be written directly through `win.deck(table).ctx`.
 """
@@ -22,7 +22,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_deckctx_"))
 
-from gui.deck import DeckContext
+from gui.decks.deck import DeckContext
 from tests.qt_test_support import (
     reap_widget, stub_window_startup)
 

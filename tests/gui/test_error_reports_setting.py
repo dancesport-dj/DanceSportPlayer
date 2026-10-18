@@ -19,7 +19,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication, QDialog
 
 import dancesport_gui as gui
-from gui import main_global
+from gui.window import main_global
 from shared import error_reports
 from tests.qt_test_support import reap_widget
 
@@ -31,7 +31,7 @@ class SettingsCheckboxTest(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def _dialog(self, settings, available=True):
-        from gui.dialogs import SettingsDialog
+        from gui.dialogs.settings_dialog import SettingsDialog
         with mock.patch.object(error_reports, "available", return_value=available):
             dlg = SettingsDialog(settings)
         self.addCleanup(reap_widget, dlg)
@@ -77,7 +77,10 @@ class SaveAppliesTest(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def setUp(self):
-        gui.load_settings = lambda *a, **kw: {"app_mode": "both"}
+        patcher = mock.patch.object(gui, "load_settings",
+                                    lambda *a, **kw: {"app_mode": "both"})
+        patcher.start()
+        self.addCleanup(patcher.stop)
         self.win = gui.MainWindow()
         self.win._loading_dlg.accept()
         self.addCleanup(reap_widget, self.win)
@@ -88,7 +91,7 @@ class SaveAppliesTest(unittest.TestCase):
             self.addCleanup(patch.stop)
 
     def test_saving_starts_the_reports_at_once(self):
-        with mock.patch.object(error_reports, "apply") as apply:
+        with mock.patch.object(error_reports, "apply_settings") as apply:
             self.win._open_settings()
         apply.assert_called_once()
         self.assertTrue(apply.call_args.args[0]["error_reports"])

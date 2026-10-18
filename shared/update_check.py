@@ -33,7 +33,7 @@ SEEN_SETTING = "update_seen"
 _TIMEOUT_SECS = 10
 
 
-def available() -> bool:
+def available() -> bool:  # slop-mop noqa: ambiguity-mine - an optional feature's own can-this-run check
     """Whether this run can check: a release build (a version to compare)
     that kept TLS — a player build without error reports drops the ssl
     module, see dancesport.spec."""
@@ -61,7 +61,7 @@ def latest_release(timeout: float = _TIMEOUT_SECS) -> tuple[str, str] | None:
         "User-Agent": "DanceSportPlayer",
     })
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as resp:
+        with urllib.request.urlopen(request, timeout=timeout) as resp:  # nosec B310: fixed https URL
             data = json.load(resp)
     except (OSError, ValueError, http.client.HTTPException) as exc:
         log.info("🔔 Update check failed: %s", exc)

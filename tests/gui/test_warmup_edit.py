@@ -33,7 +33,7 @@ from PySide6.QtWidgets import QApplication, QWidget
 
 from gui.common import _C_ROW_EVEN, _C_ROW_ODD
 from shared.columns import _COL_PLAY, _COL_TITLE
-from gui.playlist_table import PlaylistTable
+from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry
 from tests.qt_test_support import reap_widget
 

@@ -33,9 +33,11 @@ class QWaitReleasesGilTest(unittest.TestCase):
         t = threading.Thread(target=lambda: (time.sleep(0.02), woke.append(time.monotonic())))
         start = time.monotonic()
         t.start()
-        QTest.qWait(400)
+        # A wait that holds the GIL lets the thread wake only after all 2 s;
+        # one that lets go, within 20 ms — next to a full suite up to ~1 s.
+        QTest.qWait(2000)
         t.join()
-        self.assertLess(woke[0] - start, 0.3,
+        self.assertLess(woke[0] - start, 1.5,
                         "the thread only got the GIL back once the wait was over")
 
     def test_the_wait_still_runs_timers_and_deferred_deletes(self):
@@ -44,7 +46,11 @@ class QWaitReleasesGilTest(unittest.TestCase):
         obj = QObject()
         obj.destroyed.connect(lambda: gone.append(True))
         obj.deleteLater()
-        QTest.qWait(50)
+        # Up to 2 s: a 10 ms timer under a full parallel suite can be late
+        # for one 50 ms wait (seen once), and late is not "never".
+        deadline = time.monotonic() + 2.0
+        while not (fired and gone) and time.monotonic() < deadline:
+            QTest.qWait(50)
         self.assertEqual(fired, [True])
         self.assertEqual(gone, [True])
 

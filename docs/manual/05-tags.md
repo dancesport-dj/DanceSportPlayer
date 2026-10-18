@@ -77,8 +77,9 @@ Only for a single MP3. It lists every ID3 frame of the file, including the
 ones the form doesn't show: UltraMixer's custom text frames, MediaMonkey's
 comments, the Windows rating.
 
-- Edit a value in the table, **🗑** deletes a frame, **➕** adds one. Pictures
-  and other binary frames can only be removed.
+- Edit a value in the table. **➖ Remove selected** deletes the selected
+  frames, **➕ Add field** adds one. Pictures and other binary frames can
+  only be removed.
 - The frames the form shows are read-only here and follow the form as you
   type.
 - A frame's description can't be changed, but you can copy it: double-click

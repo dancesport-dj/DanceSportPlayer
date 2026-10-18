@@ -119,7 +119,7 @@ class ShownTest(unittest.TestCase):
                                return_value="https://k@errors.example.invalid/1"), \
                 mock.patch.object(error_reports, "app_version", return_value="1.2.0"), \
                 mock.patch("sentry_sdk.init") as init:
-            error_reports.apply({"error_reports": True})
+            error_reports.apply_settings({"error_reports": True})
         self.assertEqual(init.call_args.kwargs["release"], "1.2.0")
 
 

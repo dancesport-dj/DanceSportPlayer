@@ -27,10 +27,10 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtWidgets import QApplication
 
-from shared.playback import _AUDIO_IDLE_S
-from player.audio_device import AudioDevice
-from player.mix import OutputMix
-from player.system_sounds import SystemSoundGuard
+from shared.audio.playback import _AUDIO_IDLE_S
+from player.audio.audio_device import AudioDevice
+from player.audio.mix import OutputMix
+from player.audio.system_sounds import SystemSoundGuard
 
 
 class _Voices:
@@ -48,6 +48,9 @@ class _Voices:
 
     def restore_outputs(self):
         self.held = True
+
+    def set_device(self, device):
+        pass   # 🔊 AudioDevice.sync puts the wall on its output
 
     def set_level(self, level):
         pass
@@ -200,7 +203,7 @@ class CartwallTest(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def voices(self):
-        from player.cartwall import CartVoices
+        from player.audio.cart_voices import CartVoices
 
         def factory():
             player = QMediaPlayer()
@@ -223,7 +226,7 @@ class CartwallTest(unittest.TestCase):
         """The wall takes its own voices back inside `fire`. Doing that behind
         the desk's back would leave `released` set for good: the deck
         would keep its output detached and the evening's music stays silent."""
-        from planner.cartwall import CartPad
+        from planner.playing.cartwall import CartPad
 
         v = self.voices()
         desk = _Desk(voices=v)

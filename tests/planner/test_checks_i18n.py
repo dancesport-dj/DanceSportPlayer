@@ -13,7 +13,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from planner import i18n
-from planner.checks import grid_structure_findings, track_issues
+from planner.playlist.checks import grid_structure_findings, track_issues
 from planner.models import MusicEntry
 
 _BEATS_PER_BAR = {"LW": 3, "TG": 2, "WW": 3, "SF": 4, "QS": 4}

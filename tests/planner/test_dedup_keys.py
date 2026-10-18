@@ -13,7 +13,7 @@ plus the long-standing DJ-tag / dance-code collapses they build on.
 
 import unittest
 
-from planner.parsing import (
+from planner.music.parsing import (
     _norm_title, _song_title_key, _song_title_keys,
 )
 

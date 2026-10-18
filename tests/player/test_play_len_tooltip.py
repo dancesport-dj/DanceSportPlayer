@@ -22,7 +22,7 @@ from PySide6.QtCore import QPoint
 from PySide6.QtWidgets import QApplication, QLabel, QToolTip
 from tests.qt_test_support import reap_widget
 
-from player.play_mode_panel import PlayModePanel
+from player.widgets.play_mode_panel import PlayModePanel
 
 
 class PlayLengthTooltipTest(unittest.TestCase):

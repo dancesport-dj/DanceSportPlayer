@@ -3,8 +3,8 @@
 
 Run:  py -m unittest tests.gui.test_warmup_estimate_box -v
 
-The numbers come from `planner.warmup.estimate_warmup_counts` (tested in
-tests/planner/test_warmup_estimate.py); here: the text, and that the box
+The numbers come from `planner.generate.warmup.estimate_warmup_counts` (tested in
+tests/planner/generate/test_warmup_estimate.py); here: the text, and that the box
 recomputes on its own thread whenever the hours or the options change.
 """
 
@@ -16,8 +16,8 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication
 
-from gui.warmup_estimate import WarmupEstimateBox, estimate_text
-from planner.warmup import _WARMUP_BALLROOM, _WARMUP_LATIN, _WARMUP_MODE
+from gui.dialogs.warmup_estimate import WarmupEstimateBox, estimate_text
+from planner.generate.warmup import _WARMUP_BALLROOM, _WARMUP_LATIN, _WARMUP_MODE
 from tests.qt_test_support import reap_widget
 
 _ALL = _WARMUP_BALLROOM + _WARMUP_LATIN + _WARMUP_MODE

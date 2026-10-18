@@ -17,10 +17,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from planner.m3u import import_playlist_m3u
-from planner.library import MusicLibrary
+from planner.playlist.m3u import import_playlist_m3u
+from planner.music.library import MusicLibrary
 from planner.models import MusicEntry
-from planner.paths import PathRemapper
+from planner.music.paths import PathRemapper
 
 FOREIGN = "Q:\\my music\\tanzcds\\lateincd\\SB\\Senorita (SB 50).mp3"
 FOREIGN_2 = "Q:\\my music\\tanzcds\\lateincd\\CC\\Havana (CC 31).mp3"

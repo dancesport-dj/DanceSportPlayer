@@ -23,9 +23,9 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication, QWidget
 from tests.qt_test_support import reap_widget
 
-from gui.duplicate_dialog import DuplicateResolveDialog
-from gui.main_decks import DeckLayoutMixin
-from gui.deck_set import DeckSet
+from gui.dialogs.duplicate_dialog import DuplicateResolveDialog
+from gui.window.main_decks import DeckLayoutMixin
+from gui.decks.deck_set import DeckSet
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -57,6 +57,9 @@ class _Main(QWidget):
 
     def deck_path(self):
         return self.now
+
+    def _cue_wanted(self):
+        return False   # no 🎧 pre-listen output chosen
 
 
 class DuplicatePreviewDecksTest(unittest.TestCase):

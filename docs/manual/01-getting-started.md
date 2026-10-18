@@ -64,6 +64,10 @@ Start it with **🧱 Build ALL caches…** in ⚙ Settings ▸ ⚗ Analysis. The
 analysis only *reads* your files and can be cancelled. Whatever is already
 cached is reused.
 
+Each run writes its progress to `session.log` in the app's data folder,
+next to `audio_features.db`: how many files it starts with, a line every
+5 % with the time left, and a summary with the errors at the end.
+
 ### Analyse at home, play at the venue
 
 The analysis takes time you may not have on the day. Run it at home, then
@@ -94,7 +98,7 @@ Hover over one for its full name.
 | 🤸 Party ▾ | Shows or hides the Party panel. |
 | 📚 Library | Shows or hides the library and tournaments pane. |
 | 🎛 Cartwall | Shows or hides the sample-pad wall. |
-| ❔ | A menu: ⌨ Keyboard shortcuts (**F1**), 📖 Manual, 📜 Played titles…, ℹ About… and ⛶ Fullscreen (**F11**). |
+| ❔ | A menu: ⌨ Keyboard shortcuts (**F1**), 📖 Manual, 📜 Played titles…, ⚙ Settings… (**F12**), ℹ About… and ⛶ Fullscreen (**F11**). |
 
 **Middle: the decks.** Each deck is one playlist, see
 [chapter 3](03-playlists.md).
@@ -107,7 +111,7 @@ Hover over one for its full name.
 
 - the undo and redo buttons, with the number of steps they can go back;
 - the title that is cued on the player;
-- the status bar. While the 📱 phone remote runs, a green **📱 LIVE** badge
+- the status bar. While the 📱 phone remote runs, a green **📱 Remote** badge
   sits at its right end; a click on it opens the remote's window, see
   [chapter 4](04-playing.md#-the-phone-remote).
 

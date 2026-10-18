@@ -12,7 +12,7 @@ play straight from the decks, the Party panel and the wishlists.
 **🚦 Check ▸ 🚦 Ready?** in the toolbar checks every deck that holds titles,
 and the Party list, in one go. It shows one traffic light per check and an
 overall verdict: 🟢 *Ready*, 🟡 *Playable, with loose ends* or 🔴 *Not
-ready, some titles will not play*.
+ready*: some titles will not play, or a sound output is not connected.
 
 | Line | Checks |
 |---|---|
@@ -22,9 +22,13 @@ ready, some titles will not play*.
 | 🐂 Paso Doble highlights | Every Paso Doble knows its highlights. |
 | 🔁 Duplicates | No title is in two lists. |
 | 🎶 Playlists | There is something to play at all. |
+| 🔈 Sound outputs | Every output chosen in ⚙ Settings → 🔊 Sound & player is plugged in. A missing card for the music, the filler, the cartwall or the announcements is red: that source plays on the system default instead. A missing 🎧 Pre-listen card is yellow, and so is a pre-listen that would land on the music's own output, because every preview would be refused. |
+| 🎛 Controller | The chosen hardware controller is connected. Not every evening needs one, so this line is yellow at worst, and it is left out while no controller is set up. |
+| ☀ Screen and sleep | ☀ Keep the screen awake is on, so the screen, the beamer and the computer stay awake while music plays or the presenter screen is up. |
 
 A line that is not green has a button that fixes it: **📊 Measure
-loudness…**, **🐂 Find highlights…** or **🔁 Resolve duplicates…**.
+loudness…**, **🐂 Find highlights…**, **🔁 Resolve duplicates…**,
+**⚙ Choose outputs…**, **🎛 Open the controller…** or **☀ Keep it awake**.
 **🧭 Fix paths…** stands on the 📁 Music files line every time, green or
 not. The window stays open while a fix runs; **↻ Check again** grades anew.
 The full app adds a 🎵 Music check line for tempo, length and round
@@ -46,7 +50,9 @@ Every deck has its own **✋ Manual / ⏭ Auto** switch in its bottom bar:
 - **⏭ Auto**: a finished title is followed by the next row, so a whole round
   runs hands-free.
 - **✋ Manual**: you start every title yourself. The spoken announcement is off
-  as well.
+  as well. When a title ends, by a fade-out, the play length or its natural
+  end, the next row is put on the player card at 0:00, silent, with its row
+  marked. **⏯** starts it, and **⏭** walks on from there.
 
 Each list remembers its own answer. The party list can run by itself while the
 competition deck next to it is started by hand.
@@ -87,16 +93,18 @@ fade-out of a timed cut begins. In the last seconds it turns red.
 - **Click** it to jump to that spot. **Drag** along it to scrub: the playhead
   and the times follow the mouse, and the music jumps when you let go. A drag
   off the left edge goes to 0:00.
-- By default the waveform replaces the seek bar, which covers the same
-  stretch. Two switches in the Playing panel, under *Sound and display*,
-  change that: **〰 Show waveform** and **…replace seek bar**. With the
-  waveform off, the seek bar always comes back.
+- The waveform replaces the seek bar, which covers the same stretch: you
+  see one or the other, never both. To get the seek bar back, switch
+  **〰 Show waveform** off in
+  [⚙ Settings ▸ 🔊 Sound & player](06-settings.md#sound-and-player).
 
 The tempo row under it:
 
 - **Tempo fader**: −16 % to +16 % without changing the pitch (time stretch),
   for example to pull a title onto the tempo the tournament needs. **− / +**
   step it, hold them to glide. **0** or a double-click on the fader resets it.
+  [Desk keys](#-desk-keys) and a knob on a
+  [hardware controller](#-a-hardware-controller) move it too.
 - **TSO**: while on, every title is pitched to the average tempo of its dance
   in this round, kept inside the TSO range. A Rumba at 23 becomes T24, a Paso
   Doble at 57 becomes T58.
@@ -116,6 +124,9 @@ The tempo row under it:
   (**full**). Double-click the number to type an exact length, for example
   `1:37`.
 - **Fade-out**: the volume ramps to 0 over the last seconds.
+- **within the length**: ticked, the fade-out ends at the play length, so a
+  1:45 title with a 3 s fade starts fading at 1:42. Unticked, the title plays
+  its full 1:45 and then fades, so it ends at 1:48.
 
 Once the analysis has measured it, silence at the start and end of a title
 is skipped.
@@ -132,7 +143,8 @@ at a highlight, the musical break the couples dance to.
 - **✏️ Edit highlights** pauses the music and suspends the stop, so you can
   scrub through the whole title and set its marks.
 - **Start after** holds a Paso Doble back before the music starts, so the
-  couples can take their position.
+  couples can take their position. A Paso Doble picked up again at its
+  ↩ mark starts at once: the couples are still on the floor.
 
 With the switch off, a Paso Doble is an ordinary title.
 
@@ -146,6 +158,38 @@ With the switch off, a Paso Doble is an ordinary title.
   breath. Off, the next title follows at once.
 - **Pause music**: 📂 picks one or more titles, or an `.m3u`, that play during
   the pause. ✕ removes it. **Pause music volume** sets how loud it plays.
+- **🔀 Crossfade**: the last seconds of a title and the first of the next
+  play together. The old one fades out while the new one fades in, so the
+  floor never hears a gap. The caption is a switch: off, one title ends and
+  the next starts. The seconds beside it (0.5 to 10, in half-second steps)
+  stay set while it is off, so switching it on comes back on them; the
+  first time that is 4 s. The small picture shows the fade the way a DJ mixer
+  does: red is the title going out, green the one coming in, and the steeper
+  the cross, the shorter the fade. *off* is a hard cut.
+
+  The button left of the picture picks the fade's shape, and the picture
+  follows it:
+  - **equal power** (the default): the two titles add up to one steady level
+    all the way across, right for two unrelated songs.
+  - **linear**: two straight lines, the way a plain mixer fader does it,
+    a little quieter in the middle.
+  - **S-curve**: steady like equal power, but slow off both ends: the new
+    title is barely there at first, the old one lingers.
+
+  A fade that is already running keeps the shape it started with. Around
+  it, a yellow line walks across the picture, with a dot on each curve
+  where the two titles stand. It comes in at the left edge a few seconds
+  before the fade, reaches the ramp the moment the next title starts, and
+  goes out at the right edge after it, so you can see a crossfade coming.
+
+  It only happens where the list walks on by itself with no pause. A pause,
+  ⏭ auto-advance off, the 🏁 end of a round, a 🔁 title, a 🐂 Paso Doble run
+  to its highlight and a 🔉↓ fade by hand all keep the ordinary ending. While
+  a pause is on, the row is gone: a pause needs no crossfade, and what the
+  pause switch shows sits right under it. ⏭ fades into the
+  next title the same way, even into the next round. ⏹, ⏭ or a click on
+  another title during the fade cuts the old title off at once. Every playlist keeps its own
+  value.
 
 ### 🔈 Announce next dance
 
@@ -154,25 +198,24 @@ The app says the next dance out loud: "Nächster Tanz: Langsamer Walzer".
 - With a pause, the call comes shortly before the pause ends.
 - Without a pause, the dance is named as the title starts: **over the first
   bars** (the music is ducked under the voice) or **before the music starts**
-  (the music follows the call).
-- **Voice**: Female, Male, or Mixed, which alternates the two. A dance that
-  was never recorded is not announced.
+  (the music follows the call), as ⚙ Settings ▸ 🔊 Sound & player has it.
+- With 🔀 Crossfade, the dance is named once the crossover is through, over
+  the music, whatever the setting says. A 🐂 Paso Doble with a start
+  wait is named once, at the head of its wait.
+- The voice, the heat number and the over/before choice are set in
+  ⚙ Settings ▸ 🔊 Sound & player (see [Settings](06-settings.md)). While the
+  switch is on, a line under it names the choice in short, such as *Mixed
+  voices · with heat · over the music*. Under a crossfade the last part is
+  left out. A dance that was never recorded is not announced.
 - The call is in German on a German screen, and on an English one with
   **Keep the German dance and round names** ticked. Otherwise it is English
   ("Next dance: Slow Waltz"); a clip missing from the English recordings is
   played from the German ones.
-- With the advanced voice controls on (⚙ Settings ▸ 🔊 Sound & player),
-  **…with heat** adds the heat number. **🔈 Test** speaks a sample.
 
 ### Sound and display
 
 - **🔊 Equalize volume (R128)**: levels the loudness between titles. It needs
   the loudness analysis.
-- **🖼 Show artwork**: a cover next to the title on the player. It uses the
-  playlist's own image (`#EXTIMG`), a cover file in the folder, or the art in
-  the MP3.
-- **〰 Show waveform** and **…replace seek bar**: the waveform on the player
-  card, see [above](#-the-waveform).
 - **▶️ Double-click starts the title**: on, a double-click plays at once. Off,
   it only cues the title and ⏯ starts it. That is what a heat wants.
 - **↩ Remember where a title stopped**: a title you left starts again at that
@@ -183,16 +226,30 @@ The app says the next dance out loud: "Nächster Tanz: Langsamer Walzer".
 
 Two buttons switch the whole panel over in one go:
 
-- **🏆 Tournament set**: 1:45 play length with a 3 s fade-out, no pause, no
-  auto-advance, no announcement, equalized volume. It is lit gold while the
-  panel is on those values.
-- **🎉 Party set**: every title at full length with a 3 s fade-out,
-  auto-advance, no pause, no announcement and equalized volume. It is applied by itself when you play
+- **🏆 Tournament set**: 1:45 play length, then a 2.5 s fade-out after it, no
+  pause, no crossfade, no auto-advance, no announcement, equalized volume.
+  It also puts the 🐂 Paso Doble on the set's values: out of the box the
+  stop off and Start after 0 s. It is lit gold while the panel is on those
+  values.
+- **🎉 Party set**: every title at full length with a 3 s fade-out within it,
+  no 🔀 crossfade, auto-advance, no pause, no announcement and equalized
+  volume. The 🐂 Paso Doble stops after its 2nd highlight and starts
+  after 3 s. It is applied by itself when you play
   from the 🤸 Party panel, and switched back when a tournament deck takes
   over.
 
 What each set contains is yours to change, in
 [⚙ Settings ▸ 🎛 Play sets](06-settings.md#play-sets).
+
+The tournament set can also give a dance **its own play length**, for
+example 1:30 for the Viennese Waltz and 1:37 for the Tango. While a list is on
+the 🏆 set, the big number shows that dance's length, and the dance is named in
+gold underneath. This is the dance that is playing, or else the row you
+picked. **− / +** and typing then change that dance's length, not the list's.
+Change the list's length by hand and the list leaves the set: from then on its
+one length applies to every dance. Out of the box the 🏆 set plays 1:30 for
+the Waltz, Viennese Waltz, Quickstep and Jive, and 1:37 for the Tango,
+Slow Foxtrot, Samba, Cha-Cha-Cha and Rumba; the Paso Doble has no length of its own.
 
 ### 🖥 Presenter
 
@@ -203,14 +260,33 @@ next three titles.
 ![The presenter screen](img/presenter.png)
 
 - The box next to it picks the screen.
-- **🎨 Theme**: *Default* is the black hall display. *Light* is cream paper
-  with warm brown type, for a lit room.
-- **🕒** holds a running order for the evening, such as dinner or the opening
+- **🕒**, at the end of the same row, holds a running order for the evening, such as dinner or the opening
   dance. It is a second page on the presenter. **T** there switches pages.
 - **Esc** closes the presenter. A double-click on it leaves full screen.
 
+Its colours are set in
+[⚙ Settings ▸ 🎨 Look](06-settings.md#look).
+
 **☀ Keep the screen awake** stops the screensaver and the display timeout
 while music plays or the presenter is open.
+
+## 🎧 Pre-listening on headphones
+
+With a second output, for example headphones on the desk, you can listen to
+a title while the hall hears the music. Pick that output in
+[⚙ Settings ▸ 🔊 Sound & player ▸ 🔈 Outputs ▸ 🎧 Pre-listen](06-settings.md#-outputs).
+
+- **▶** in the 📚 Library and in the 🏆 Tournaments pane then plays on the
+  pre-listen output. The music keeps running.
+- The pre-listen has a mini player of its own, with a seek bar, ⏮ / ⏭ and
+  its volume. **✕** on it stops only the pre-listen.
+- **Ctrl+←/→** seeks the pre-listen by 30 s while it plays, from the panes
+  and windows that pre-listen. On a deck row they still seek the music.
+- **▶** on a deck row still starts the music for the hall.
+- A pre-listen output that is not plugged in plays on the system default
+  instead. When that default is the music's own output, the pre-listen is
+  refused, with a message: a preview on the PA is worse than none.
+- Left on **Same as the music**, every ▶ plays on the one player, as before.
 
 ## 🎛 The cartwall
 
@@ -235,16 +311,53 @@ drum roll, the national anthem, a jingle for the award ceremony.
 - Drag the wall to the left or right of the window, below the decks, or out
   as its own window. **📌** snaps a floating wall back.
 
+### ⌨ The cartwall's keys
+
+**Right-click a pad ▸ ⌨ Shortcuts…** opens the **⌨ Keys** window on its
+**🎛 Cartwall** tab. While the wall is unlocked with ✏, the **⌨** button
+beside ✏ opens it too. The tab lists every key the wall answers to:
+
+- **Slot defaults** fire whichever pad sits in that slot on the page on
+  screen, so the same finger hits the same corner on every page. Slots 1 to
+  9 start on **Ctrl + 1 … 9**.
+- **Pad keys** travel with their pad, wherever it is moved, and work from any
+  page. A pad without one answers to its slot's key.
+
+![The cartwall's keys, with a key taken twice](img/cartwall-keys.png)
+
+To give a key, click **Learn** and press it. Any key works, F13 to F24 from
+a Stream Deck or a macro keypad too. While it waits, **Learn** reads
+**Cancel**: a second click keeps the old key. **✕** takes the key away.
+
+A key taken twice is marked on its row. **⚠ already used by Anthem (p1)**
+names the pad or slot that has it, and **⚠ The app uses this key: …** names
+a [desk key](#-desk-keys) or one of the app's own shortcuts. A key with two
+owners fires for neither, so the line at the bottom counts the keys still
+claimed twice. A pad key wins over a slot key. **Restore slot defaults** puts
+the slots back on Ctrl + 1 … 9 and leaves the pad keys alone.
+
+The window's other tab holds the [desk keys](#-desk-keys), and one **OK**
+saves both tabs. A key you learn on one tab is flagged on the other at once,
+before anything is saved.
+
 ## 📱 The phone remote
 
 The phone remote runs the desk from a phone's browser, on the same network
 as the PC. There is no app to install. From the phone you can:
 
 - see what is playing and what comes next;
+- tap a title under *Next* to play it now. The phone asks first. On yes the
+  playing title fades out while the tapped one comes in, over the crossfade
+  length, or over the fade-out time when the crossfade is off. When nothing
+  is playing, or during a pause between dances, it simply starts;
 - play and pause, go to the previous or next title;
 - fade out, or fade out and hold;
 - switch **🔈 Announce next dance** on or off. It is the same switch as on
   the Playing panel, so its voice and timing follow;
+- switch between **⏭ Auto** and **✋ Manual**, and **🔀 Crossfade** on or
+  off. They are the Playing panel's own switches. Under ✋ Manual or a pause
+  between songs the phone shows no crossfade button, as the panel shows no
+  crossfade row;
 - drag the progress bar to seek. The spot under your finger is the spot the
   floor hears;
 - fire the pads of the cartwall page on screen, or stop them all.
@@ -255,6 +368,15 @@ as the PC. There is no app to install. From the phone you can:
 **📱 Start Server** in ⚙ Settings ▸ ⚙ General. The remote's window opens:
 
 - **● Running / ○ Stopped** with **▶ Start / ■ Stop**;
+- **The phone reaches the desk:** **Wi-Fi only**, or **Wi-Fi and mobile data
+  (Cloudflare tunnel)** for when the phone has internet but is not on the
+  PC's network. The tunnel works like the guest page's (see below): no
+  account, the free program `cloudflared`, offered for download on the first
+  start, and a new `https://….trycloudflare.com` address on every start, which
+  the window lists first. Until Cloudflare answers, the window shows
+  "waiting for Cloudflare…" and no QR code. Through the tunnel the PIN grows
+  to 8 digits, as the address is open to the whole internet; the QR code types
+  it for you. Changing the choice restarts a running server;
 - a **QR code**: scan it with the phone's camera and the phone is in, without
   typing the PIN;
 - the address, with a picker when the PC is on more than one network, and a
@@ -263,7 +385,7 @@ as the PC. There is no app to install. From the phone you can:
 - a **log** of what reached the server: phones that opened the page, logins,
   wrong PINs and every command.
 
-While the server runs, the status bar carries a green **📱 LIVE** badge; a
+While the server runs, the status bar carries a green **📱 Remote** badge; a
 click on it brings the window back. In ⚙ Settings the button then reads
 **📱 Stop Server**.
 
@@ -278,6 +400,89 @@ click on it brings the window back. In ⚙ Settings the button then reads
   tries, a firewall is in the way; the window names the program to allow.
 - The server runs only as long as the app. Every start begins without it.
 
+## 📨 Guest requests
+
+Guests ask for songs from their own phones. They search the library and
+request a title, or write a few words when it is not there. Nothing a guest
+sends is played on its own: it lands in an inbox, and you decide.
+
+**To start it**, click **📨 Guest requests…** in ⚙ Settings ▸ ⚙ General,
+next to the phone remote. The window holds:
+
+- **▶ Start / ■ Stop**, and **Guests reach the page:** with three ways (see
+  below);
+- a **QR code** for the guests' cameras, the address, and the **event
+  code**. **New code** turns away every older link and photo of the QR code;
+- **🖥 Show the QR code on the presenter screen** (on by default): while
+  guests can ask, the presenter screen carries the same code in its bottom
+  right corner, under "Song request? Scan here", so guests scan it from the
+  floor;
+- the **inbox**: one row per title or wish, with how often it was asked for.
+  **⭐ To wishlist** (or a double-click) puts a title on the first ⭐
+  wishlist; **✕ Dismiss** takes a row out;
+- a **log** of what reached the server.
+
+While guests can ask, or while requests wait, the status bar carries a blue
+**📨** badge with the number waiting. A click on it opens the window.
+When a new request comes in while the window is closed, a short message
+names it and the badge flashes orange until you open the window.
+
+**How guests reach the page:**
+
+| Way | What it needs | The address |
+|---|---|---|
+| **Wi-Fi only** | Guests on the same Wi-Fi as the PC, or on its hotspot. | This PC's, on the local network. |
+| **Wi-Fi and mobile data (Cloudflare tunnel)** | The free program `cloudflared`. Already installed (installer, winget, Homebrew) is found on its own. Otherwise the first start offers to download it (about 55 MB), or you put it next to the program. No account. | A new `https://….trycloudflare.com` on every start. |
+
+- Each guest may send ten requests in ten minutes, and all guests together
+  120. A wrong or old event code counts against that too.
+- Stopping closes the page for guests. Like the phone remote, guest
+  requests run only as long as the app.
+- While the tunnel is connecting, also after switching the
+  way with requests open, the window shows *Connecting…* instead of a QR
+  code. The code appears once guests can reach the page, so nobody
+  copies an address that does not work (yet).
+
+## ⌨ Desk keys
+
+Every action of the phone remote and the controller, except the faders and
+the pads, also has a key. The keys work from anywhere in the window, so
+anything that types can run the desk: a Stream Deck in hotkey mode or a
+macro keypad needs no driver for them.
+
+| Action | Key at first |
+|---|---|
+| ⏯ Play / pause | **Ctrl + Shift + P** |
+| ⏭ Next title / ⏮ Previous title | **Ctrl + Shift + → / ←** |
+| 🔉↓ Fade out now | **Ctrl + Shift + F** |
+| 🛑 Fade out and hold | **Ctrl + Shift + H** |
+| 🔉 Duck the music on / off | **Ctrl + Shift + D** |
+| 🔈 Announce the next dance on / off | **Ctrl + Shift + A** |
+| 🔼 / 🔽 Music volume up / down, 5 % a step | **Ctrl + Shift + ↑ / ↓** |
+| ⏫ / ⏬ Tempo up / down, 0.1 % a step | **Ctrl + Shift + PgUp / PgDown** |
+| 🎯 Tempo back to ±0 % | **Ctrl + Shift + Home** |
+| ⏹ Stop all pads | **Ctrl + Shift + X** |
+
+To change them, open **⌨ Keys…** in ⚙ Settings ▸ ⚙ General ▸
+🎛 Controller, or from the **F1** cheat sheet, which lists the keys as they
+are bound. Both open the **⌨ Keys** window on its **⌨ Desk keys** tab. Its
+**🎛 Cartwall** tab holds the [cartwall's keys](#-the-cartwalls-keys), so
+every key is set up in one place.
+
+![The desk keys, one of them also on a cartwall pad](img/desk-keys.png)
+
+- **Learn**, then press the key. Learn pressed again cancels and keeps the
+  old key. **✕** leaves the action without a key.
+- **＋** beside an action's key adds a field for another key. Every key of
+  the action does the same thing, and the F1 cheat sheet lists them on one row.
+  **−** beside an added field takes it away again, with its key.
+- A Stream Deck or a macro keypad can send **F13 to F24**. No keyboard has
+  those keys, so they never clash with anything.
+- A key that is taken already says so on its row. **⚠ The app uses this
+  key: …** names what the app, or a cartwall pad, does with it. Change one of
+  the two: a key with two owners fires for neither.
+- **↺ Restore defaults** puts every key back on the table above.
+
 ## 🎛 A hardware controller
 
 A USB MIDI or HID controller can run the desk with real buttons and a fader.
@@ -288,7 +493,12 @@ The actions it can take:
 - ⏯ Play / pause, ⏭ Next title, ⏮ Previous title;
 - 🔉↓ Fade out now, 🛑 Fade out and hold;
 - 🔉 Duck the music on / off, 🔈 Announce the next dance on / off;
-- 🔊 Music volume, from a fader or a knob;
+- 🔊 Music volume, from a fader or a knob, and 🔼 / 🔽 Music volume up /
+  down in 5 % steps, for buttons;
+- 🎚 Tempo / pitch, from a fader or a knob: its middle is ±0 %, its ends
+  −16 % and +16 %. For buttons, ⏫ / ⏬ Tempo up / down in 0.1 % steps and
+  🎯 Tempo back to ±0 %. The tempo changes once the knob stops, not at every
+  step, so the music does not break up while you turn it;
 - ⏹ Stop all pads, and sixteen cartwall pads: pad *n* is the *n*-th pad of
   the page on screen, as with **Ctrl + *n***.
 
@@ -298,16 +508,39 @@ In the window:
 
 1. Pick the controller under **Device**. **↻** looks for new ones. Tick
    **Show all HID devices, not only DJ controllers** if yours is not listed.
-2. **Presets ▾** holds a ready profile for the Korg nanoKONTROL2.
+2. **Presets ▾** holds a ready profile for the Korg nanoKONTROL2. Its
+   transport row drives the player, fader 1 is the music volume, the knob
+   above it the tempo and **S1** puts the tempo back to ±0 % (the knobs
+   have no push switch). The cartwall pads sit on the S, M and R buttons of
+   strips 5–8 and on M1–M4.
 3. For any other controller, click **Learn** next to an action and press the
-   button, or move the fader, it should answer to. **✕** unbinds an action.
-   The line under the table shows the last control you touched.
+   button, or move the fader, it should answer to. While it waits, the
+   button reads **Cancel**: click it again, or **✕**, to stop and keep what
+   was bound. **✕** on any other row unbinds that action. The line under the
+   table shows the last control you touched.
 4. **💾 Save profile…** and **📂 Load profile…** keep a mapping as a file,
    for example to take it to the venue PC.
 
+- A control can do one thing only. When Learn takes a control another action
+  had, that action's row reads **⚠ moved to …** with the action that has it
+  now. Learn that row again, or leave it empty.
+- Learn tells a button from a knob or fader by how it moves. A button action
+  takes only a press, so a knob turned while it waits is passed over. The
+  volume and the tempo take only a knob or fader, never a button.
+- 🔼 / 🔽 Music volume up / down without a button of their own read
+  **on the fader — CC 0 · ch 1** in grey: the 🔊 fader sets the volume
+  already. The nanoKONTROL2 preset leaves them that way.
+
+While the controller is connected, the status bar carries a green
+**🎛 nanoKONTROL2** badge, with the controller's name. A click on it opens the
+controller window.
+
+![The controller badge in the status bar](img/controller-badge.png)
+
 The controller is applied as you set it and remembered. When it is unplugged,
-the app looks for it again every few seconds. MIDI works on Windows, macOS
-and Linux.
+the badge goes within a few seconds, and the app looks for it again every few
+seconds; plugged back in, it is used again by itself. MIDI works on Windows,
+macOS and Linux.
 
 ## 📜 Played titles
 

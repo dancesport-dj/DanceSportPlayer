@@ -22,7 +22,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication
 
 import dancesport_gui as gui
-from gui import dialogs, main_restore
+from gui import dialogs
+from gui.window import main_restore
 from planner.models import MusicEntry
 from tests.qt_test_support import reap_widget, stub_window_startup
 
@@ -158,7 +159,7 @@ class EmptyDayTabTest(_WindowCase):
         self.assertTrue(self._opened()._build_env()["day_tab_keep"])
 
     def test_an_empty_session_with_the_tab_is_written(self):
-        from gui import main_persist
+        from gui.window import main_persist
         saved = []
         self.addCleanup(setattr, main_persist, "save_autosave",
                         main_persist.save_autosave)

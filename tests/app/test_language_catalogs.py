@@ -15,7 +15,7 @@ import importlib
 import unittest
 
 from planner import i18n
-from planner.lang_de import CATALOG as GERMAN
+from planner.i18n.lang_de import CATALOG as GERMAN
 
 # How much of the German catalog another language must cover. Short of 1.0
 # because a word that reads the same in that language is left out on purpose.
@@ -25,7 +25,7 @@ MIN_COVERAGE = 0.95
 def _catalogs():
     for code, _caption, _blurb in i18n.LANGUAGES:
         if code != i18n.DEFAULT_LANGUAGE:
-            yield code, importlib.import_module(f"planner.lang_{code}").CATALOG
+            yield code, importlib.import_module(f"planner.i18n.lang_{code}").CATALOG
 
 
 class LanguageCatalogTest(unittest.TestCase):

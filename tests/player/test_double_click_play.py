@@ -27,14 +27,14 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication
 from tests.qt_test_support import reap_widget
 
-from gui import playlist_table as gpt
+from gui.table import playlist_table as gpt
 from dancesport_planner import MusicEntry
-from player.main_player import PlayerControlMixin
-from player.playback_state import PlaybackState
-from gui.playlist_table import PlaylistTable
-from gui.running_order import Row, RunningOrder
-from player.between_dances import BetweenDances
-from gui.deck_set import DeckSet
+from player.window.main_player import PlayerControlMixin
+from player.audio.playback_state import PlaybackState
+from gui.table.playlist_table import PlaylistTable
+from gui.decks.running_order import Row, RunningOrder
+from player.audio.between_dances import BetweenDances
+from gui.decks.deck_set import DeckSet
 
 
 def _entry(name: str) -> MusicEntry:
@@ -486,7 +486,7 @@ class AdvanceTargetFollowsTheTitleTest(_Table):
         self.assertEqual(code, "QS")
 
     def test_an_unmoved_title_keeps_its_row(self):
-        from player.main_pause import _live_target
+        from player.window.main_pause import _live_target
         desk, target = self._armed("second")
         self.assertIs(_live_target(target), target)
         self._reload("first", "second", "third")

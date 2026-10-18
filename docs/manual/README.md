@@ -5,7 +5,7 @@ dance evening: set it up once, load the playlists, then run the music on the
 floor.
 
 The whole manual is also a single web page, [manual.html](manual.html). After
-changing a chapter, rebuild it with `py -m tools.build_manual_html`.
+changing a chapter, rebuild it with `py -m tools.docs.build_manual_html`.
 
 ![The main window while playing](img/main-playing.png)
 
@@ -30,7 +30,7 @@ changing a chapter, rebuild it with `py -m tools.build_manual_html`.
 7. [Keyboard and mouse](07-shortcuts.md): every shortcut in one list.
 
 Installation and the configuration files are described in the project
-[README](../../README.md#installation).
+[README](../../README.md#download).
 
 ## Conventions
 

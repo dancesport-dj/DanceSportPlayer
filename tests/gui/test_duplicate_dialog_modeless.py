@@ -28,14 +28,14 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtCore import QCoreApplication, QEvent
 from PySide6.QtWidgets import QApplication, QWidget
 
-from gui.duplicate_dialog import DuplicateResolveDialog
-from gui.main_dupes import DuplicateCheckMixin
-from gui.playlist_table import PlaylistTable
-from planner.library import MusicLibrary
+from gui.dialogs.duplicate_dialog import DuplicateResolveDialog
+from gui.window.main_dupes import DuplicateCheckMixin
+from gui.table.playlist_table import PlaylistTable
+from planner.music.library import MusicLibrary
 from planner.models import MusicEntry, RoundConfig
-from planner.suggester import PlaylistSuggester
+from planner.generate.suggester import PlaylistSuggester
 from tests.qt_test_support import reap_widget
-from gui.deck_set import DeckSet
+from gui.decks.deck_set import DeckSet
 
 
 def _waltz(name: str) -> MusicEntry:

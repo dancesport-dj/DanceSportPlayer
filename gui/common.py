@@ -1,6 +1,6 @@
 """Shared GUI primitives of the Dancesport Playlist Planner.
 
-Leaf module (imports nothing GUI-side), extracted 1:1 from gui/dialogs.py in
+Leaf module (imports nothing GUI-side), extracted 1:1 from gui/dialogs/__init__.py in
 the big-module split: palette constants, small label/busy/loading
 widgets, tooltips, open-in-player/folder helpers, the drag-enabled result
 table and the drop-zone widget family. What the evening uses too (columns,
@@ -13,6 +13,7 @@ import os
 import re
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 from PySide6.QtWidgets import (
@@ -28,12 +29,13 @@ from PySide6.QtGui import (
 )
 
 from planner import i18n
+from planner.music.parsing import bpm_source
 from planner.terms import DANCE_SHORT, dance_name  # noqa: F401 (DANCE_SHORT: re-exported)
-from planner.vocals import entry_is_instrumental
-from planner.warmup import warmup_code
-from shared.audio_files import _AUDIO_EXTS, music_browse_dir, remember_browse_dir
-from shared.columns import _COL_CUSTOM, _COL_HEAT, _COL_RATING
-from shared.icons import INK, icon
+from planner.music.vocals import entry_is_instrumental
+from planner.generate.warmup import warmup_code
+from shared.audio.audio_files import _AUDIO_EXTS, music_browse_dir, remember_browse_dir
+from shared.columns import _COL_CUSTOM, _COL_FILE, _COL_HEAT, _COL_RATING
+from shared.appearance.icons import INK, icon
 from shared.widgets import _ICON_ICO, _app_icon, _show_toast
 
 log = logging.getLogger("dancesport.gui")
@@ -124,7 +126,8 @@ def install_plain_title_hook():
 
     app = QApplication.instance()
     watcher = _TitleWatcher(app)
-    app.installEventFilter(watcher)
+    if app is not None:
+        app.installEventFilter(watcher)
     return watcher
 
 
@@ -362,12 +365,12 @@ _C_DEFAULT   = QColor( 30,  30,  30)  # near-black
 # Columns a KIND of list starts without (header right-click ticks them back on,
 # and that choice is then saved). Heat only ever reads "Heat 2" on a deck whose
 # dance runs several heats; everywhere else it is 56 px of blank, so it starts
-# put away in every kind, decks included. ★ Rating and Custom too: Marcel
-# asked for them hidden until wanted.
+# put away in every kind, decks included. ★ Rating, Custom and File name too:
+# Marcel asked for them hidden until wanted.
 DEFAULT_HIDDEN_COLUMNS = {
-    "playlist": [_COL_HEAT, _COL_RATING, _COL_CUSTOM],
-    "wishlist": [_COL_HEAT, _COL_RATING, _COL_CUSTOM],
-    "party": [_COL_HEAT, _COL_RATING, _COL_CUSTOM],
+    "playlist": [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE],
+    "wishlist": [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE],
+    "party": [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE],
 }
 
 # The Custom column's header, in the decks and the library alike.
@@ -391,6 +394,25 @@ def _fmt_track_secs(secs: int) -> str:
     if secs >= 3600:
         return f"{secs // 3600}:{secs % 3600 // 60:02d}:{secs % 60:02d}"
     return f"{secs // 60}:{secs % 60:02d}"
+
+
+def display_title(e) -> str:
+    """What the Title column shows: the ID3 title tag, or the cleaned-up file
+    name (`e.title`) when the tag is empty. Display only — `e.title` stays
+    what matching and the duplicate keys work on."""
+    return (getattr(e, "tag_title", None) or "").strip() or e.title or ""
+
+
+def bpm_tooltip(e) -> str:
+    """The BPM cell's hover text: where the takt came from ('' = unknown)."""
+    src = bpm_source(e)
+    if src == "name":
+        return i18n.t("Tempo from the file name")
+    if src == "tag":
+        return i18n.t("Tempo from the BPM tag (%s bpm)") % f"{e.tag_bpm:g}"
+    if src == "title":
+        return i18n.t("Tempo from the title tag")
+    return ""
 
 
 def _entry_tooltip(e, sim=None, sim_label: str = "Match", tags=None) -> str:
@@ -615,6 +637,13 @@ def stopwatch_header(table, col: int, px: int = 6):
     return hh
 
 
+def set_header_tip(table: QTableWidget, col: int, tip: str) -> None:
+    """Tooltip on the header item of `col`, once setHorizontalHeaderLabels made it."""
+    item = table.horizontalHeaderItem(col)
+    if item is not None:
+        item.setToolTip(tip)
+
+
 def _unreadable_playlist(anchor: QWidget, m3u, exc) -> None:
     """A dropped playlist whose text could not be decoded without losing
     characters: it counts as empty, and the window says so instead of
@@ -637,7 +666,7 @@ class _DragTable(QTableWidget):
         super().__init__(parent)
         self._paths = paths
         self._seek_cb = None         # fn(delta_ms): seek the shared player
-        self._play_toggle_cb = None  # fn(row): play/stop the given row
+        self._play_toggle_cb: Callable[[int], None] | None = None  # play/stop the given row
 
     def keyPressEvent(self, event):
         """Space: play/stop the current row.  Ctrl+←/→: seek ∓30 s.

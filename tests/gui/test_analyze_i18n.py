@@ -35,7 +35,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication, QWidget
 
-from gui import main_analyze as man
+from gui.window import main_analyze as man
 from planner import i18n
 from planner.models import MusicEntry
 from tests.qt_test_support import reap_widget
@@ -122,7 +122,7 @@ class _Box:
     """Records what a QMessageBox was asked to show, and answers Yes.
 
     It translates the title and the text itself, because that is precisely
-    what the real static does — planner/i18n.py patches
+    what the real static does — planner/i18n/__init__.py patches
     QMessageBox.question / information / warning on arguments 1 and 2 — and
     replacing the static takes that with it. Mirroring it is what keeps the
     assertions meaningful: a body still assembled by an f-string goes through

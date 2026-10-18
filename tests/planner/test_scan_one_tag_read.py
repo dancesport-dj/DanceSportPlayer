@@ -19,7 +19,7 @@ from unittest import mock
 
 from mutagen.id3 import COMM, ID3, TALB, TCON, TDRC, TIT2, TPE1
 
-from planner.library import MusicLibrary
+from planner.music.library import MusicLibrary
 
 # One MPEG-1 Layer III frame header (128 kbit/s, 44.1 kHz): 417 bytes a frame.
 _FRAME = b"\xff\xfb\x90\x64" + b"\x00" * 413

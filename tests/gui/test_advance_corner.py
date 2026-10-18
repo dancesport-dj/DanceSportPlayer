@@ -10,7 +10,7 @@ reads a setting instead of holding one, that a click reaches that setting, and
 that it lays out in the badge bar without covering the rows.
 
 WHICH setting it reads is one per deck, with the panel's switch as the default
-— that is tests/gui/test_deck_advance.py.
+— that is tests/gui/decks/test_deck_advance.py.
 
 It used to float in the bottom-right of the viewport, where it covered the rows
 and sat across the middle of the list while scrolling. It now goes into the
@@ -31,11 +31,11 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QApplication, QHBoxLayout,
                                QLabel, QWidget)
 
-from gui.playlist_table import PlaylistTable
-from gui.main_decks import DeckLayoutMixin
-from player.main_player import PlayerControlMixin
+from gui.table.playlist_table import PlaylistTable
+from gui.window.main_decks import DeckLayoutMixin
+from player.window.main_player import PlayerControlMixin
 from tests.qt_test_support import reap_widget
-from gui.deck_set import DeckSet
+from gui.decks.deck_set import DeckSet
 
 
 class _Setting:
@@ -220,7 +220,7 @@ class AdvanceRepaintTest(unittest.TestCase):
         _Window(tables)._refresh_advance_toggles()
         self.assertEqual([t.refreshed for t in tables], [1, 1, 1])
 
-    def test_a_flip_before_the_decks_exist_is_harmless(self):
+    def test_a_flip_before_the_decks_exist_is_harmless(self):  # overconfidence:short-test-ok - passes if it does not raise
         """A play set applied during start-up flips auto-advance while the
         panel is built and the decks are not."""
         _Window()._refresh_advance_toggles()     # must not raise

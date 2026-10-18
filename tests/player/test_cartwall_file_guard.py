@@ -21,8 +21,8 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QMainWindow
 
 from shared import stores
-from planner import cartwall as pc
-from player.main_cartwall import CartwallMixin
+from planner.playing import cartwall as pc
+from player.window.main_cartwall import CartwallMixin
 from tests.qt_test_support import reap_widget
 
 NEWER = {"version": pc.CARTWALL_VERSION + 1, "pages": [{"name": "from the future"}]}

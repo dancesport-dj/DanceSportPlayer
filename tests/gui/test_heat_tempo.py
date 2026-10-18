@@ -8,18 +8,18 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-from gui.deck import Deck
-from gui.running_order import Row, RunningOrder
+from gui.decks.deck import Deck
+from gui.decks.running_order import Row, RunningOrder
 from planner.models import MusicEntry
 
 
-# gui.main_import pulls in gui.dialogs, which resolves the state files at
+# gui.window.main_import pulls in gui.dialogs, which resolves the state files at
 # import time — keep the import at TEST time (see test_silence.py) so during
 # discovery test_state_files still claims DANCEPLAYLIST_STATE_DIR first.
 def _import_mixin():
     os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                           tempfile.mkdtemp(prefix="dp_heat_"))
-    from gui.main_import import ImportMixin
+    from gui.window.main_import import ImportMixin
     return ImportMixin
 
 

@@ -10,7 +10,6 @@ what the file says now, and the file the player has loaded is left alone.
 import os
 import shutil
 import tempfile
-import threading
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -23,11 +22,10 @@ from mutagen.id3 import ID3, POPM, TIT2, TPE1, TXXX
 from PySide6.QtCore import QUrl
 from PySide6.QtMultimedia import QMediaPlayer
 
-import planner.db as pdb
-from planner import config as planner_config
 from dancesport_planner import MusicLibrary, PlaylistSuggester, RoundConfig
-from planner import tag_edits
-from planner.db import AudioCache
+from planner.music import tag_edits
+from planner.music.db import AudioCache
+from tests.db_support import use_scratch_db
 from tests.qt_test_support import reap_widget, stub_window_startup
 
 _AUDIO = b"\xff\xfb\x90\x00" + bytes(range(256)) * 40
@@ -71,18 +69,7 @@ class _WindowTest(unittest.TestCase):
     def setUp(self):
         tmp = Path(tempfile.mkdtemp(prefix="dp_raw_db_"))
         self.addCleanup(shutil.rmtree, tmp, True)
-        saved = (planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
-        planner_config.AUDIO_DB_FILE = tmp / "scratch.db"
-        pdb._DB_LOCAL = threading.local()
-        pdb._DB_INITIALIZED = False
-
-        def restore():
-            try:
-                pdb._DB_LOCAL.conn.close()
-            except Exception:
-                pass
-            planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = saved
-        self.addCleanup(restore)
+        use_scratch_db(self, tmp / "scratch.db")
 
         self.path = tmp / "Cha One (CC 30).mp3"
         self.path.write_bytes(_AUDIO)
@@ -110,7 +97,7 @@ class _WindowTest(unittest.TestCase):
             play_cb=self.win._play_or_stop, suggester=PlaylistSuggester(lib),
             use_timbre=False, style="Latin", dynamic=True, capacity=[1])
         self.toasts = []
-        patcher = mock.patch("gui.main_music._show_toast",
+        patcher = mock.patch("gui.window.main_tags._show_toast",
                              lambda _w, text, *a, **kw: self.toasts.append(text))
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -222,7 +209,7 @@ class AppFieldsWriteTest(_WindowTest):
         says, so a "not instrumental" can only live in the DB."""
         self.answer = True
         self.entry.is_instrumental = True
-        with mock.patch("planner.library.title_marks_instrumental", return_value=True):
+        with mock.patch("planner.music.library.title_marks_instrumental", return_value=True):
             self.win._apply_tag_dialog([self.entry], _Answer(changes={
                 "is_instrumental": False, "rating": 3}))
             self.assertEqual(tag_edits.load(self.win._library.cache.fingerprint(self.path)),

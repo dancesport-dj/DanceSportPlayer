@@ -52,14 +52,14 @@ jobs:
           python -m pip install -r requirements.lock
           # A call of its own: the lock is hash-checked, and pip then wants a
           # hash for every package on the same command line.
-          python -m pip install ruff==0.16.8 basedpyright==1.39.10
+          python -m pip install ruff==0.16.8 basedpyright==1.39.10 -r requirements-dev.txt
 
       # The same on every platform, so once is enough.
       - name: Lint
         if: runner.os == 'Windows'
         run: python -m ruff check .
 
-      # planner/ only, in basic mode; the errors already there sit in
+      # All app code (not tests/), in basic mode; the errors already there sit in
       # .basedpyright/baseline.json, so only a new one fails (pyproject.toml).
       - name: Type check
         if: runner.os == 'Windows'
@@ -73,4 +73,6 @@ jobs:
           # manual run ticks live_tests (and the secret is there), and only on
           # the Windows leg.
           DANCEPLAYLIST_LIVE_TESTS: ${{ inputs.live_tests && runner.os == 'Windows' && '1' || '' }}
-        run: python -m unittest discover -p "test_*.py" -v
+        # pytest, as locally and in slop-mop: the root conftest.py's fixtures
+        # only apply under it, and -n auto (pyproject.toml) runs it on every core.
+        run: python -m pytest

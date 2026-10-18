@@ -16,7 +16,7 @@ one of them was excluded before and has to stay excluded.
 
 import unittest
 
-from planner.competition import _is_superseded_playlist
+from planner.event.competition import _is_superseded_playlist
 from planner.config import playlist_dir
 
 

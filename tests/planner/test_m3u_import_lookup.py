@@ -15,7 +15,7 @@ from pathlib import Path
 from unittest import mock
 
 from dancesport_planner import MusicEntry, MusicLibrary
-from planner.m3u import _resolve_import_path
+from planner.playlist.m3u import _resolve_import_path
 
 TANGO = r"C:\music\tanzcds\standardcd\TG\Tanguera (TG 32).mp3"
 
@@ -67,7 +67,9 @@ class M3uImportLookupTest(unittest.TestCase):
             with mock.patch.object(MusicLibrary, "make_external_entry",
                                    side_effect=RuntimeError("bad tags")), \
                     self.assertLogs("dancesport.m3u", "DEBUG") as logs:
-                entry, found, _ = _resolve_import_path(str(song), lib, None, "Tanguera")
+                # Any cache: without one an outside file is never read at all.
+                entry, found, _ = _resolve_import_path(str(song), lib, mock.Mock(),
+                                                       "Tanguera")
         self.assertFalse(found)
         self.assertEqual(entry.title, "Tanguera")
         text = "\n".join(logs.output)

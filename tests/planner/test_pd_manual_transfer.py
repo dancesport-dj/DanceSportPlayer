@@ -18,7 +18,7 @@ from pathlib import Path
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_pdx_"))
 
-import planner.db as pdb
+import planner.music.db as pdb
 from planner import config as planner_config
 
 _AUDIO = b"ID3 a paso doble, as far as the hash can tell"

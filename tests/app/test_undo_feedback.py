@@ -6,7 +6,7 @@ These read a SessionEnv — plain dicts in, a sentence out — so no QApplicatio
 no window and no state dir are needed to ask what an undo step would say."""
 import unittest
 
-from gui.session_env import SessionEnv, deck_slots, list_moved
+from gui.window.session_env import SessionEnv, deck_slots, list_moved
 
 
 def _deck(grid_paths, name="Final"):

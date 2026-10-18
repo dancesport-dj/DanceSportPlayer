@@ -12,7 +12,7 @@ own:
   catalog key and never will be, because the number in it is not known until
   it runs;
 * a `QTableWidgetItem` tooltip, because that class is deliberately NOT one of
-  i18n's patched constructors (`planner/i18n.py` `_CTOR_CLASSES`) and is not a
+  i18n's patched constructors (`planner/i18n/__init__.py` `_CTOR_CLASSES`) and is not a
   QWidget either, so `setToolTip` on one reaches the screen as written — even
   for the two phrases the catalog has carried all along.
 

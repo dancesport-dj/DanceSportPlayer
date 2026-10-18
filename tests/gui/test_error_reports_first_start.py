@@ -116,7 +116,7 @@ class QuestionTest(unittest.TestCase):
         self.assertIn(f"https://{issues}", readme)
 
     def test_every_text_of_it_is_in_german_too(self):
-        from planner.lang_de import CATALOG
+        from planner.i18n.lang_de import CATALOG
         box = self.question()
         for text in (box.windowTitle(), box.text(), box.informativeText(),
                      box.send_btn.text(), box.keep_btn.text()):

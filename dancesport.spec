@@ -6,9 +6,9 @@ One spec, two flavors (same split as requirements.txt vs requirements-full.txt):
   LITE (default, ~0.7 GB):
       .venv\\Scripts\\pyinstaller.exe dancesport.spec --noconfirm
       → dist\\DanceSport-Planner-Player\\DanceSport-Planner-Player.exe
-      Core app only; the Demucs / OpenL3 buttons show a pip hint.
+      Core app only; the Demucs and MERT controls are hidden.
 
-  FULL (~4 GB, adds the torch stack → 🎙️ Demucs vocals):
+  FULL (~4 GB, adds the torch stack → 🎙️ Demucs vocals, 🧠 MERT):
       set DANCESPORT_BUILD=full  (PowerShell: $env:DANCESPORT_BUILD='full')
       .venv\\Scripts\\pyinstaller.exe dancesport.spec --noconfirm
       → dist\\DanceSport-Planner-Player-Full\\DanceSport-Planner-Player-Full.exe
@@ -24,9 +24,8 @@ macOS (same spec, run it ON a Mac — PyInstaller cannot cross-build):
   its data in ~/Library/Application Support/DanceSport-Planner-Player rather than inside
   the bundle — see planner.config._in_app_bundle.
 
-OpenL3 stays excluded from BOTH flavors: it needs tensorflow next to torch
-(a second multi-GB ML framework in one bundle, fragile under PyInstaller) and
-its weights download at import time. Use a venv install for OpenL3.
+MERT ships in the FULL flavor only: it runs on the torch Demucs already
+brings, plus transformers. Its weights (~380 MB) download on first use.
 
 The app keeps its database + JSON files NEXT TO the .exe (planner.config._app_dir
 switches to the executable's folder when frozen), so audio_features.db,
@@ -92,8 +91,8 @@ for _pkg in collect_pkgs:
 
 # Read-only app resources that the code loads relative to its own folder.
 datas += [("icon.ico", "."), ("icon.png", ".")]
-# The pictures ⚙ Settings shows for each theme (shared/looks.py PREVIEW_DIR,
-# rendered by tools/theme_previews.py).
+# The pictures ⚙ Settings shows for each theme (shared/appearance/looks.py PREVIEW_DIR,
+# rendered by tools/assets/theme_previews.py).
 datas += [(os.path.join(SPECPATH, "assets", "themes", "*.png"),
            os.path.join("assets", "themes"))]
 # The manual as a PDF, English and German, for the app to open from its ❔
@@ -106,7 +105,7 @@ for _dest in (os.path.join("docs", "manual"), os.path.join("docs", "manual", "de
         print(f"Manual: {_dest}/manual.pdf bundled")
     else:
         print(f"NOTE: no {_dest}/manual.pdf, the build has no manual there "
-              "(py -m tools.build_manual_pdf)")
+              "(py -m tools.docs.build_manual_pdf)")
 # The licence texts: the app's own MIT licence, the icons' (Icons8, Bootstrap,
 # Twemoji), every bundled library's and the ElevenLabs voices'. MIT, CC-BY and
 # the voices' terms want the notice in every copy, the .app included. The GPL
@@ -116,7 +115,11 @@ for _licence in ("LICENSE", "ICONS-LICENSE.txt", "THIRD_PARTY_LICENSES.md",
                  "licenses/GPL-3.0.txt", "licenses/LGPL-2.1.txt",
                  "licenses/LGPL-3.0.txt", "licenses/PYTHON-LICENSE.txt"):
     datas += [(os.path.join(SPECPATH, _licence), "licenses")]
-# A presenter theme's mark, resolved by player/presenter_theme.py relative to
+if FULL:
+    # torch's own third-party libraries (pybind11, protobuf, sleef, ...): the
+    # wheel keeps their texts in its dist-info, which the bundle leaves out.
+    datas += [(os.path.join(SPECPATH, "licenses/TORCH-THIRD-PARTY.txt"), "licenses")]
+# A presenter theme's mark, resolved by player/presenter/presenter_theme.py relative to
 # the repo root — so it has to land in the bundle under the same folder name.
 # The wedding marks are a couple's names and stay out of git: a clone has none,
 # and the theme then simply shows no mark.
@@ -217,24 +220,28 @@ if ERROR_DSN:
 # the GUI modules that import it at module scope still bring it along, and it
 # imports fine with nothing behind it.
 if not PLAYER:
-    hiddenimports += ["planner.embeddings"]
+    hiddenimports += ["planner.music.embeddings"]
+if FULL:
+    # 🧠 MERT's model code is downloaded with its weights and imported from the
+    # Hugging Face cache, so PyInstaller never sees what it imports. These are
+    # its imports, at the pinned revision (planner.music.embeddings._MERT_REVISION).
+    hiddenimports += ["transformers.models.hubert.modeling_hubert",
+                      "transformers.models.wav2vec2.feature_extraction_wav2vec2",
+                      "transformers.modeling_outputs"]
 
 # planner.i18n loads a language's catalog by name (importlib), which PyInstaller
 # cannot follow — without this every build falls back to English. One module per
 # language in planner.i18n.LANGUAGES, English excepted (it has no catalog).
-hiddenimports += ["planner.lang_de", "planner.lang_es", "planner.lang_nl",
-                  "planner.lang_ru"]
+hiddenimports += ["planner.i18n.lang_de", "planner.i18n.lang_es", "planner.i18n.lang_nl",
+                  "planner.i18n.lang_ru"]
 
-# Never pull these in — OpenL3/tensorflow in both flavors (see docstring), plus
+# Never pull these in — a second ML framework in any flavor, plus
 # general build hygiene. (PyInstaller follows even the lazy function-level
-# imports in planner.vocals/planner.embeddings, so the optional backends must be
+# imports in planner.music.vocals/planner.music.embeddings, so the optional backends must be
 # excluded explicitly in the lite flavor.)
 excludes = [
-    "tensorflow", "tensorboard", "keras", "openl3", "jax", "flax", "clang",
+    "tensorflow", "tensorboard", "keras", "jax", "flax", "clang",
     "torchvision", "timm",
-    # Only the dropped CLAP search used it; torch still reaches for it, so it
-    # has to be kept out of the full flavor by name.
-    "transformers",
     "skimage", "matplotlib", "IPython", "notebook", "pytest",
     # 28 MB nobody imports: librosa reaches for sklearn only in decompose() and
     # segment(), and the app calls neither (load, get_duration, beat, feature,
@@ -242,21 +249,21 @@ excludes = [
     "sklearn",
 ]
 if not sys.platform.startswith("linux"):
-    # Only the Linux wake lock speaks D-Bus (shared.playback._awake_linux);
+    # Only the Linux wake lock speaks D-Bus (shared.audio.playback._awake_linux);
     # its import is inside a function, which PyInstaller follows anyway.
     excludes += ["PySide6.QtDBus"]
 if PLAYER:
     # The player build runs prepared playlists and never analyses anything, so
     # the entire librosa stack goes — 215 MB of the 483 MB lite build, and by
     # far the biggest single win here. Nothing breaks: every import of these is
-    # either try/except-guarded (planner.db's HAS_NUMPY / HAS_LIBROSA,
-    # planner.similarity) or inside a function that this build never reaches,
+    # either try/except-guarded (planner.music.analysis's HAS_NUMPY / HAS_LIBROSA,
+    # planner.music.db's HAS_NUMPY, planner.music.similarity) or inside a function that this build never reaches,
     # so the similarity subsystem simply reports itself unavailable.
     #
     # numpy STAYS. The three features a player build must keep are loudness
     # (ffmpeg ebur128), tempo/pitch (Qt's own media backend) and the Paso Doble
     # highlight detection — and that last one computes its RMS envelope with
-    # numpy after decoding through ffmpeg (shared.audio_probes._rms_envelope).
+    # numpy after decoding through ffmpeg (shared.audio.audio_probes._rms_envelope).
     excludes += ["librosa", "numba", "llvmlite", "scipy", "soundfile", "soxr",
                  "audioread", "pooch", "lazy_loader", "joblib", "msgpack",
                  "decorator"]
@@ -271,11 +278,11 @@ if PLAYER:
 if not FULL:
     # The torch stack only exists in the full flavor. (sympy is a torch
     # dependency, so it must stay IN when FULL.)
-    excludes += ["torch", "torchaudio", "demucs", "sympy"]
+    excludes += ["torch", "torchaudio", "demucs", "sympy", "transformers"]
     # Demucs pulls its weights through huggingface_hub, which lands on hf_xet
     # (9 MB) + PIL (13 MB, via a TYPE_CHECKING import) + safetensors. The lite
     # flavor hides the 🎙 vocals button outright, so none of it can ever run,
-    # and planner.vocals imports torch inside a function — it still imports fine
+    # and planner.music.vocals imports torch inside a function — it still imports fine
     # without any of them.
     excludes += ["huggingface_hub", "hf_xet", "safetensors", "PIL"]
 

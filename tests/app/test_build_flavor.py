@@ -1,5 +1,6 @@
 """Tests for planner.config: build_flavor() (dev / lite / full detection via the
 build_flavor.txt marker), the writable data dir, and write_json_atomic."""
+import importlib.metadata
 import json
 import re
 import sys
@@ -100,8 +101,8 @@ class SpecLanguagesTest(unittest.TestCase):
             if code == DEFAULT_LANGUAGE:
                 continue
             with self.subTest(language=code):
-                self.assertTrue(f'"planner.lang_{code}"' in spec,
-                                f"planner.lang_{code} is not in dancesport.spec")
+                self.assertTrue(f'"planner.i18n.lang_{code}"' in spec,
+                                f"planner.i18n.lang_{code} is not in dancesport.spec")
 
 
 class BuildNamesTest(unittest.TestCase):
@@ -150,7 +151,7 @@ class DmgTest(unittest.TestCase):
     def test_the_window_shows_the_hint_with_the_icons_on_it(self):
         # Marcel: "können wir einen kurzen hinweis auf das freigeben bei mac
         # auch direkt im dmg fenster anzeigen?"
-        self.assertIn('"$PY" -m tools.dmg_background', self.script)
+        self.assertIn('"$PY" -m tools.assets.dmg_background', self.script)
         self.assertIn('create-dmg "$@" "dist/$APP_NAME.dmg" "$STAGE"', self.script)
         for icon in ('"$APP_NAME.app" "$APP_X" "$APP_Y"',
                      'Applications "$APPLICATIONS_X" "$APPLICATIONS_Y"',
@@ -249,7 +250,7 @@ class ManualPackTest(unittest.TestCase):
                 self.assertIn(f"--icon {icon}", mac)
 
     def test_the_dmg_icons_below_the_hint_do_not_overlap(self):
-        from tools import dmg_background as bg
+        from tools.assets import dmg_background as bg
         row = sorted(bg.LAYOUT[k][0] for k in ("readme", "manual", "handbuch"))
         self.assertEqual(len({bg.LAYOUT[k][1] for k in ("readme", "manual", "handbuch")}), 1)
         for a, b in zip(row, row[1:], strict=False):
@@ -258,7 +259,7 @@ class ManualPackTest(unittest.TestCase):
         self.assertLessEqual(row[-1] + bg.LAYOUT["icon_size"] / 2, bg.LAYOUT["window"][0])
 
     def test_ci_prints_both_once_with_the_release_version(self):
-        self.assertIn("python3 -m tools.build_manual_pdf", self.manualJob)
+        self.assertIn("python3 -m tools.docs.build_manual_pdf", self.manualJob)
         self.assertIn("DANCEPLAYLIST_VERSION:", self.manualJob)
         self.assertIn("docs/manual/manual.pdf", self.manualJob)
         self.assertIn("docs/manual/de/manual.pdf", self.manualJob)
@@ -431,9 +432,60 @@ class LicensePackTest(unittest.TestCase):
                             if f"[{pkg}](" in line.lower()), "")
                 self.assertIn(f"| {version} |", row)
 
+    def test_every_full_package_is_listed_with_its_version(self):
+        # Marcel: "do we need to add the lib mert to die about dialog, what is
+        # with licence file?" The FULL build's torch stack was missing.
+        text = self._read("THIRD_PARTY_LICENSES.md")
+        full = text[text.index("## Only in the FULL build"):
+                    text.index("## Icons and recordings")]
+        for pkg, version in _pins("requirements-full.txt").items():
+            with self.subTest(pkg=pkg):
+                row = next((line for line in full.splitlines()
+                            if f"[{pkg}](" in line.lower()), "")
+                self.assertIn(f"| {version} |", row)
+        # The weights are not bundled, but MERT's are non-commercial.
+        mert = next((line for line in full.splitlines() if "MERT-v1-95M" in line), "")
+        self.assertIn("CC BY-NC 4.0", mert)
+
+    def test_the_full_notice_licences_have_their_notice(self):
+        # Marcel: "add The file doesn't include the full MIT/BSD notice texts
+        # for the full-build-only packages". Every package of a FULL row under
+        # MIT, BSD or ISC gets its notice, as the player build's do.
+        text = self._read("THIRD_PARTY_LICENSES.md")
+        full = text[text.index("## Only in the FULL build"):
+                    text.index("The model weights are not part")]
+        notices = text[text.index("## Notices"):]
+        rows = [line for line in full.splitlines() if line.startswith("| [")]
+        self.assertGreater(len(rows), 10)
+        for row in rows:
+            licence = row.rstrip(" |").rsplit("|", 1)[-1]
+            if not re.search(r"\b(MIT|BSD|ISC)\b", licence):
+                continue
+            for name in re.findall(r"\[([^\]]+)\]\(", row.split("|")[1]):
+                with self.subTest(pkg=name):
+                    self.assertIn(f"\n### {name}\n", notices)
+
+    def test_the_full_build_carries_torchs_third_party_licences(self):
+        # torch bundles over 30 libraries of its own; their texts ship in its
+        # wheel's dist-info, which the bundle leaves out.
+        spec = self._read("dancesport.spec")
+        full = spec[spec.index("if FULL:\n    # torch's own third-party"):]
+        self.assertIn('"licenses/TORCH-THIRD-PARTY.txt"', full.split("\n\n")[0])
+        text = self._read("licenses/TORCH-THIRD-PARTY.txt")
+        try:
+            dist = importlib.metadata.distribution("torch")
+        except importlib.metadata.PackageNotFoundError:
+            self.skipTest("torch is not installed")
+        self.assertIn(f"torch {dist.version}", text.splitlines()[0])
+        third = {Path(str(f)).parts[3] for f in dist.files
+                 if str(f).replace("\\", "/").split("/")[1:3] == ["licenses", "third_party"]}
+        for name in sorted(third):
+            with self.subTest(lib=name):
+                self.assertIn(f"third_party/{name}/", text)
+
 
 class DmgBackgroundTest(unittest.TestCase):
-    """The drawn half of the .dmg window (tools/dmg_background.py)."""
+    """The drawn half of the .dmg window (tools/assets/dmg_background.py)."""
 
     def test_the_tests_workflow_has_pillow_to_draw_it(self):
         """Pillow is a build tool, not in requirements.txt: without it here
@@ -446,7 +498,7 @@ class DmgBackgroundTest(unittest.TestCase):
         self.assertIn("pillow", _locked("requirements.lock"))
 
     def test_it_draws_the_window_size_and_twice_that_for_retina(self):
-        from tools import dmg_background as bg
+        from tools.assets import dmg_background as bg
         with tempfile.TemporaryDirectory() as tmp:
             with mock.patch("sys.stdout"):
                 bg.main([tmp])
@@ -457,14 +509,14 @@ class DmgBackgroundTest(unittest.TestCase):
                 self.assertEqual(two.size, tuple(2 * n for n in bg.LAYOUT["window"]))
 
     def test_it_names_where_macos_lets_the_app_open(self):
-        from tools import dmg_background as bg
+        from tools.assets import dmg_background as bg
         hint = " ".join(text for text, _ in bg.HINT)
         self.assertIn("Datenschutz & Sicherheit", hint)
         self.assertIn("Trotzdem öffnen", hint)
         self.assertIn("Privacy & Security", hint)
 
     def test_every_variable_the_script_reads_is_printed(self):
-        from tools import dmg_background as bg
+        from tools.assets import dmg_background as bg
         script = (Path(config.__file__).resolve().parent.parent
                   / "build_app.sh").read_text(encoding="utf-8")
         for name in bg.shell_vars():

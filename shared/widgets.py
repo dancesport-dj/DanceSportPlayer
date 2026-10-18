@@ -3,10 +3,11 @@ flow layout, the app icon, the separator line, the play-button glyph and the
 toast.
 """
 from pathlib import Path
+from typing import Any, cast
 
 from PySide6.QtCore import QPoint, QRect, QSize, Qt, QTimer
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QFrame, QLabel, QLayout, QWidget
+from PySide6.QtWidgets import QFrame, QLabel, QLayout, QLayoutItem, QWidget
 
 
 class FlowLayout(QLayout):
@@ -19,7 +20,7 @@ class FlowLayout(QLayout):
 
     def __init__(self, parent=None, spacing: int = 6):
         super().__init__(parent)
-        self._items: list[object] = []
+        self._items: list[QLayoutItem] = []
         self.setSpacing(spacing)
         self.setContentsMargins(0, 0, 0, 0)
 
@@ -154,7 +155,8 @@ def _show_toast(anchor: QWidget, text: str, msec: int = 1500) -> None:
     message replaces the old one and restarts its clock."""
     win = anchor.window()
     lbl = getattr(win, "_toast_lbl", None)
-    if lbl is None:
+    timer = getattr(win, "_toast_timer", None)
+    if lbl is None or timer is None:
         lbl = QLabel(win)
         lbl.setStyleSheet(
             "background:#323232; color:white; padding:7px 14px;"
@@ -164,8 +166,10 @@ def _show_toast(anchor: QWidget, text: str, msec: int = 1500) -> None:
         timer = QTimer(win)
         timer.setSingleShot(True)
         timer.timeout.connect(lbl.hide)
-        win._toast_lbl = lbl
-        win._toast_timer = timer
+        # Kept on the window itself, which QWidget does not declare.
+        keep = cast(Any, win)
+        keep._toast_lbl = lbl
+        keep._toast_timer = timer
     lbl.setText(text)
     lbl.adjustSize()
     rect = win.rect()
@@ -174,4 +178,4 @@ def _show_toast(anchor: QWidget, text: str, msec: int = 1500) -> None:
     lbl.move(max(0, x), max(0, y))
     lbl.show()
     lbl.raise_()
-    win._toast_timer.start(msec)
+    timer.start(msec)

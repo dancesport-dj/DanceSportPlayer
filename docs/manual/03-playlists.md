@@ -28,17 +28,24 @@ The columns:
 
 - **Dance / Heat**: which dance and heat the row is.
 - **▶**: plays or stops exactly this title.
-- **BPM**: the tempo in bars per minute, as written in the file (`[T51]`).
-  `[?BPM]` means the file carries no tempo.
+- **Title**: the MP3's title tag. A file without one shows its cleaned-up
+  file name.
+- **BPM**: the tempo in bars per minute. It is read from the file name
+  (`[T51]`) first, then from the MP3's BPM tag, then from a tempo written in
+  the title tag. A BPM tag counts beats, so it is turned into bars per
+  minute, and it is only used when it lands near the TSO range of the dance.
+  The cell's tooltip says where the tempo came from. `[?BPM]` means the file
+  carries no tempo.
 - **⏱**: the length. It is **orange** when the title is shorter than the play
   length, or when 5 s or more of silence at an edge will be skipped.
 - **Pop**: `★58` means the title is in 58 of your tournament playlists.
   **✦ new** means it is in none.
 - **Class**: the class tags from the MP3 comment, for example `[B,A,S]`.
 
-Two more columns are hidden at first. Right-click the column header to show
-them: **★** rates a title with a click, and **Custom** holds a free text per
-title. Both are described in [chapter 5](05-tags.md).
+Three more columns are hidden at first. Right-click the column header to
+show them: **★** rates a title with a click, **Custom** holds a free text per
+title, and **File name** shows the cleaned-up file name, with the full path
+in its tooltip. ★ and Custom are described in [chapter 5](05-tags.md).
 
 Row colours:
 

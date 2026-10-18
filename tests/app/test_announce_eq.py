@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for tools/announce_eq.py — the EQ baked into the announcement clips.
+"""Tests for tools/audio/announce_eq.py — the EQ baked into the announcement clips.
 
 Run:  py -m unittest tests.app.test_announce_eq -v
 
@@ -18,7 +18,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tools import announce_eq as eq
+from tools.audio import announce_eq as eq
 
 
 class ChainTest(unittest.TestCase):

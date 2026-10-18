@@ -11,7 +11,8 @@ from pathlib import Path
 
 import dancesport_planner  # noqa: F401  (the facade, loaded by the CLI)
 from planner import config as planner_config
-from planner import competition, event_plan, library  # noqa: F401  (imported at GUI start, before the setting)
+from planner.event import competition, event_plan  # noqa: F401  (imported at GUI start, before the setting)
+from planner.music import library  # noqa: F401  (imported at GUI start, before the setting)
 
 
 class SetPlaylistDirTest(unittest.TestCase):
@@ -27,7 +28,7 @@ class SetPlaylistDirTest(unittest.TestCase):
     def test_no_module_keeps_a_copy(self):
         """The modules imported PLAYLIST_DIR by name, and the GUI loads them
         before it applies the setting, so set_playlist_dir patched four named
-        modules by hand. planner.event_plan was once missed, and the search for
+        modules by hand. planner.event.event_plan was once missed, and the search for
         an event's past editions looked in the default folder. Now they read
         config.playlist_dir() at call time and hold no copy to go stale."""
         holders = sorted(name for name, mod in list(sys.modules.items())

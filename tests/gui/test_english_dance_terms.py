@@ -23,7 +23,7 @@ from PySide6.QtWidgets import QApplication
 
 from shared.columns import _COL_DANCE
 from planner import i18n, terms
-from planner.library import MusicLibrary
+from planner.music.library import MusicLibrary
 from planner.models import MusicEntry
 from tests.qt_test_support import (
     reap_widget, stub_window_startup)
@@ -129,7 +129,7 @@ class SettingsCheckboxTest(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def _dialog(self, settings):
-        from gui.dialogs import SettingsDialog
+        from gui.dialogs.settings_dialog import SettingsDialog
         dlg = SettingsDialog(settings)
         self.addCleanup(reap_widget, dlg)
         return dlg

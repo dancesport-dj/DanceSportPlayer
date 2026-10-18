@@ -183,7 +183,7 @@ def build_flavor() -> str:
     """Which build this is: 'lite' / 'full' / 'player' for a frozen .exe (marker file
     `build_flavor.txt`, written by dancesport.spec and driven by build_exe.bat's
     DANCESPORT_BUILD), or 'dev' when running from source. The GUI hides optional
-    heavy features (OpenL3/Demucs) in frozen builds that don't bundle them
+    heavy features (MERT/Demucs) in frozen builds that don't bundle them
     — in an exe a pip hint is useless.
 
     Read from beside the .exe first, where a hand-placed marker belongs, then

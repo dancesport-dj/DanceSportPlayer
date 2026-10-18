@@ -7,7 +7,7 @@ import logging
 
 import re
 import sys
-from planner.db import (  # auto-resolved
+from planner.music.db import (  # auto-resolved
     AudioCache,
 )
 from planner.models import (  # auto-resolved
@@ -18,23 +18,24 @@ from planner.models import (  # auto-resolved
     Playlist,
     ROUND_NAMES,
     RoundConfig,
+    note_class_tag_use,
 )
-from planner.parsing import (  # auto-resolved
+from planner.music.parsing import (  # auto-resolved
     _fmt_bpm,
 )
-from planner.scoring import (  # auto-resolved
+from planner.generate.scoring import (  # auto-resolved
     STRATEGIES,
     STRATEGY_HELP,
     STRATEGY_LABELS,
     _resolve_strategy,
 )
-from planner.library import (  # auto-resolved
+from planner.music.library import (  # auto-resolved
     MusicLibrary,
 )
-from planner.suggester import (  # auto-resolved
+from planner.generate.suggester import (  # auto-resolved
     PlaylistSuggester,
 )
-from planner.m3u import (  # auto-resolved
+from planner.playlist.m3u import (  # auto-resolved
     export_m3u,
 )
 
@@ -294,6 +295,7 @@ def main() -> None:
     cache = AudioCache()
     lib   = MusicLibrary()
     lib.scan(cache)
+    note_class_tag_use(lib.entries)
 
     # ── Library summary ──
     summary       = lib.summary()

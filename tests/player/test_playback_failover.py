@@ -26,9 +26,9 @@ from PySide6.QtCore import QUrl
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtWidgets import QApplication
 
-from gui.main_music import MusicCheckMixin
-from player.playback_state import PlaybackState
-from tests.player.test_repeat_list import _Desk, _Fixture, _song
+from gui.window.main_music import MusicCheckMixin
+from player.audio.playback_state import PlaybackState
+from tests.player.audio.test_repeat_list import _Desk, _Fixture, _song
 
 
 class _FailDesk(_Desk):
@@ -65,7 +65,7 @@ class FailoverTest(_Fixture):
         return desk, rows, path
 
     def break_play(self, desk):
-        with mock.patch("player.main_player._show_toast") as toast:
+        with mock.patch("player.window.main_load._show_toast") as toast:
             desk._on_player_error(None, "Could not decode the file")
             QApplication.processEvents()
         return toast

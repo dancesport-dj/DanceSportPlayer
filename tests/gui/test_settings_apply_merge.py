@@ -20,7 +20,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication, QDialog
 
 import dancesport_gui as gui
-from gui import main_global
+from gui.window import main_global
 from tests.qt_test_support import reap_widget
 
 MUTED = ["{0.0.0.00000000}.{00aae184-test}"]
@@ -55,8 +55,11 @@ class SettingsApplyMergeTest(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def setUp(self):
-        gui.load_settings = lambda *a, **kw: {"app_mode": "both",
-                                               "master_volume": 0.8}
+        patcher = mock.patch.object(gui, "load_settings",
+                                    lambda *a, **kw: {"app_mode": "both",
+                                                      "master_volume": 0.8})
+        patcher.start()
+        self.addCleanup(patcher.stop)
         self.win = gui.MainWindow()
         self.win._loading_dlg.accept()
         self.addCleanup(reap_widget, self.win)

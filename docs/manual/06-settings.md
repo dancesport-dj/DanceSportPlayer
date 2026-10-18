@@ -18,7 +18,7 @@ The **⚙ General** tab.
 |---|---|
 | **App mode** | Which side of the app is shown: *Both*, *Planner only* or *Player only*. Switching back brings everything back. The player build has no such row. |
 | **📱 Phone remote** | **📱 Start Server** starts the phone remote and opens its window on top of the settings. While it runs, the button reads **📱 Stop Server**. See [chapter 4](04-playing.md#-the-phone-remote). |
-| **🎛 Controller** | **🎛 Set up…** opens the window for a USB MIDI or HID controller. See [chapter 4](04-playing.md#-a-hardware-controller). |
+| **🎛 Controller** | **🎛 Set up…** opens the window for a USB MIDI or HID controller. See [chapter 4](04-playing.md#-a-hardware-controller). **⌨ Keys…** puts the same actions on keys and holds the cartwall's keys too, see [chapter 4](04-playing.md#-desk-keys). |
 | **🐞 Send error reports** | Only in builds that can send them. When the app hits an error, it sends the technical details to the developer: the error, the last log lines, the system and the app version. Never your music or playlists. Off by default. |
 | **🔔 Check for new versions** | Once per start, ask GitHub (api.github.com) whether a newer release is out, and announce it once with a link to its download page. The request carries nothing about you or your music; GitHub sees the IP address it comes from. Nothing is downloaded or installed. Off by default; the first start asks. Applies from the next start. |
 
@@ -79,6 +79,10 @@ Theme, accent colour and language take effect after a restart.
 - **⛶ Fullscreen clock: only the time (20:45:12), no date**: the clock in the
   status bar while the window is in [fullscreen](01-getting-started.md#-fullscreen).
   It changes within a second of saving.
+- **🖥 Presenter screen**: the colours of the
+  [presenter](04-playing.md#-presenter). *Default* is the black hall display.
+  *Light* is cream paper with warm brown type, for a lit room. An open
+  presenter changes as soon as you save.
 
 ## Sound and player
 
@@ -90,8 +94,43 @@ The **🔊 Sound & player** tab.
 | **🔇 Release the sound card between titles** | An onboard sound card puts a hiss on the PA while an app holds it open. This hands the device back after a few seconds of silence. The price is a soft click when the next title starts, so switch it on only if you hear the hiss. |
 | **🔕 Mute system sounds while the evening runs** | No error ding or notification chime over the speakers. The system sounds come back when you close the app. |
 | **🎧 Preview player** | A mini player (seek, skip, volume) floats over the deck when you click a ▶ in a row. |
+| **🖼 Show artwork** | A cover next to the title on the player card. It uses the playlist's own image (`#EXTIMG`), a cover file in the folder, or the art in the MP3. |
+| **〰 Show waveform** | The title's [waveform](04-playing.md#-the-waveform) on the player card in place of the seek bar. |
+| **🎙 Announcement voice** | Who reads [🔈 Announce next dance](04-playing.md#-announce-next-dance): *Female*, *Male* or *Mixed* (the default), which alternates the two. **…with heat** adds the heat number, off by default. **🔈 Test** speaks a sample in the voice shown, before you click OK. |
+| **🗣 Dance is named** | Where the call sits when a title names its dance as it starts, with no pause: **over the first bars** (the default; the music is ducked under the voice) or **before the music starts** (the music follows the call). The ▶ Playing panel names it in short: *over the music* or *before the music*. |
 | **▶ Player position** | Where the player card stands: *beside the playlists*, at the head of the Playing panel, or *above the playlists*, as one wide strip over the decks. |
-| **🎙 Advanced voice controls** | Shows *…with heat* and *🔈 Test* under *Announce next dance*. Hidden, the switch keeps its value. |
+
+### 🔈 Outputs
+
+Where each part of the evening is heard. Every output the operating system
+lists can be picked, on Windows, macOS and Linux.
+
+![Settings, Sound & player tab with the outputs](img/settings-sound.png)
+
+| Output | Plays |
+|---|---|
+| **🎵 Music** | The titles. *System default (follows the OS)* goes wherever Windows sends its sound. |
+| **🎧 Pre-listen** | ▶ in the 📚 Library and the 🏆 Tournaments pane, with a mini player of its own, while the music runs on. See [chapter 4](04-playing.md#-pre-listening-on-headphones). |
+| **🎛 Cartwall** | The pads. |
+| **⏸ Filler music** | The pause music. |
+| **🔈 Announcements** | The spoken calls. |
+
+- Every output except the music starts on **Same as the music**. *System
+  default* pins one to the default while the music plays elsewhere.
+- On a sound card with several outputs, each pair the system shows as a
+  device of its own ("Out 3/4" next to "Out 1/2") can take a source of its
+  own. Channels 3/4 of *one* multichannel device cannot be picked apart.
+- A card that is not plugged in plays on the system default, with one
+  message, and the sound goes back to the card when it is back. The
+  pre-listen is the exception when that default is the music's output: it is
+  refused, so nothing meant for the headphones reaches the PA.
+- Windows sometimes gives a replugged card a new number, so
+  `2- ESI Audio Device` comes back as `3- ESI Audio Device`. The app then
+  finds the card again by its name, as long as only one plugged-in card
+  has it.
+- While the card chosen for the 🎵 music is plugged in, the status bar
+  shows a small **🔊** with its name. A click on it opens this tab.
+- The choice applies when you click OK, without a restart.
 
 ## Analysis
 
@@ -135,14 +174,29 @@ set** buttons of the Playing panel apply (see
 For each set:
 
 - **Play length**: pick one, type `m:ss` or seconds, or choose *full*.
-- **Fade-out**, in half-second steps.
+- **Fade-out**, in half-second steps, and **within the length**: ticked, the
+  fade ends at the play length; unticked, it comes after it. The 🏆 set's
+  per-dance lengths follow it too. Out of the box the 🏆 set fades after the
+  length, the 🎉 set within it.
+- **🔀 Crossfade**: a switch, and 0.5 to 10 s in half-second steps, with the
+  same curve button (equal power, linear or S-curve) and picture as on the
+  Playing panel. Off in both sets out of the box, at 4 s with equal power
+  once switched on.
 - **⏭ Auto-advance**, **⏸ No pause between songs**, **🔈 Announce next
   dance**, **🔊 Equalize volume**, **▶️ Double-click starts the title** and
   **🎚 TSO pitch to the heat tempo**.
 
-The tournament set always switches the 🐂 Paso Doble stop off: the detection
-is not reliable enough to cut a competition Paso Doble. The party set leaves
-it as it is.
+The tournament set also has **⏱ Per dance**: one length per dance. Leave a dance
+on *— the set's length*, pick *full* or a step, or type `m:ss`. A dance with its
+own length is cut there while a list is on the 🏆 set. Out of the box: 1:30
+for the Waltz, Viennese Waltz, Quickstep and Jive, 1:37 for the Tango, Slow
+Foxtrot, Samba, Cha-Cha-Cha and Rumba, and the Paso Doble in *full*.
+
+Both sets also carry the 🐂 Paso Doble: **stop after highlight** (and which
+one) and **Start after**. Out of the box the tournament set has the stop
+off, since the detection is not reliable enough to cut a competition Paso
+Doble, and Start after at 0 s. The party set stops after the 2nd highlight
+and waits 3 s, so the couples can take their position.
 
 **🎚 TSO pitch target** sets, per dance, the tempo the TSO button pitches a
 heat to:

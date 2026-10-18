@@ -29,8 +29,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication
 
-from gui.running_order import Row
-from planner.play_sets import play_set_of, tso_of
+from gui.decks.running_order import Row
+from planner.playing.play_sets import play_set_of, tso_of
 from tests.qt_test_support import (
     reap_widget, stub_window_startup)
 
@@ -165,7 +165,7 @@ class SwitchToastTest(_WindowCase):
         from unittest import mock
         self.win.show()
         self.toasts = []
-        patcher = mock.patch("player.main_player._show_toast",
+        patcher = mock.patch("player.window.main_play_values._show_toast",
                              lambda _w, text, *_a: self.toasts.append(text))
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -283,8 +283,8 @@ class EngineTest(_WindowCase):
     def test_each_deck_flags_short_tracks_against_its_own_length(self):
         self.vals(self.b)["secs"] = 115
         self.vals(self.party)["secs"] = 0
-        self.assertEqual(self.b._short_secs_cb(), 115)
-        self.assertEqual(self.party._short_secs_cb(), 0)
+        self.assertEqual(self.b._short_secs_cb(""), 115)
+        self.assertEqual(self.party._short_secs_cb(""), 0)
 
 
 class TsoTest(_WindowCase):

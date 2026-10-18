@@ -3,7 +3,7 @@
 
 Run:  py -m unittest tests.gui.test_import_remap_wiring -v
 
-`planner.m3u` can re-root a carried-over playlist, but only if someone hands
+`planner.playlist.m3u` can re-root a carried-over playlist, but only if someone hands
 it a remapper — and the desk is the only side that knows the search folders.
 This pins the wiring end to end: a playlist full of `Q:\\…` lines, a library
 sitting somewhere else on this machine, and a deck that comes out pointing at
@@ -20,7 +20,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication
 
-from planner.library import MusicLibrary
+from planner.music.library import MusicLibrary
 from planner.models import MusicEntry
 from tests.qt_test_support import (
     reap_widget, stub_window_startup)

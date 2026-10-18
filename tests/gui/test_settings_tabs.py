@@ -12,7 +12,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication, QLabel, QTabWidget
 
-from gui.dialogs import SettingsDialog
+from gui.dialogs.settings_dialog import SettingsDialog
 
 
 class SettingsTabsTest(unittest.TestCase):
@@ -57,7 +57,8 @@ class SettingsTabsTest(unittest.TestCase):
 
     def test_the_player_rows_sit_with_the_sound(self):
         self.assertOn("🔊 Sound && player", self.dlg._preview_chk,
-                      self.dlg._player_layout_combo, self.dlg._voice_adv_chk)
+                      self.dlg._player_layout_combo, self.dlg._voice_combo,
+                      self.dlg._heat_chk, self.dlg._voice_test_btn)
 
     def test_the_venue_intro_wraps_to_the_tab_width(self):
         # A hard line break inside a word-wrapped label pins it to a narrow

@@ -18,17 +18,17 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-from gui.deck import Deck
-from gui.running_order import Row, RunningOrder
+from gui.decks.deck import Deck
+from gui.decks.running_order import Row, RunningOrder
 from planner.models import MusicEntry
 
 
 def _dupes_module():
-    """gui.main_dupes resolves the state files at import time — keep the import
+    """gui.window.main_dupes resolves the state files at import time — keep the import
     at TEST time (see test_heat_tempo.py)."""
     os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                           tempfile.mkdtemp(prefix="dp_dedup_"))
-    import gui.main_dupes as md
+    import gui.window.main_dupes as md
     return md
 
 
@@ -193,7 +193,7 @@ class MenuLabelTest(unittest.TestCase):
     def setUpClass(cls):
         os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                              tempfile.mkdtemp(prefix="dp_dedup_"))
-        from gui.table_actions import _clean_deck_label
+        from gui.table.table_menu import _clean_deck_label
         cls.label = staticmethod(_clean_deck_label)
 
     def test_a_single_other_playlist_is_not_counted(self):

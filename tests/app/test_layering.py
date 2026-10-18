@@ -88,9 +88,9 @@ class ImportsOfTest(unittest.TestCase):
             f.write_text("""from typing import TYPE_CHECKING
 import typing
 if TYPE_CHECKING:
-    from gui.playlist_table import PlaylistTable
+    from gui.table.playlist_table import PlaylistTable
 if typing.TYPE_CHECKING:
-    import gui.deck
+    import gui.decks.deck
 else:
     import gui.common
 def f():

@@ -27,7 +27,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 
-BUDGET = 233
+BUDGET = 232
 
 
 def ownClasses() -> list[tuple[type, Path]]:

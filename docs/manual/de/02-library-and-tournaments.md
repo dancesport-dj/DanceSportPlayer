@@ -17,15 +17,21 @@ zieh dann Titel in ein Deck, den Party-Bereich oder eine Wunschliste.
 |---|---|
 | 🔍 Textfeld | Titel, deren Titel, Interpret oder Kommentar-Tag den Text enthält. Tags sind Markierungen wie `vocal_f`, `classic`, `eintanzen`. |
 | Alle Tänze | Einen Tanz, oder alle Standard- oder alle Lateintänze. |
-| Alle Klassen | Titel, die zu dieser Startklasse passen. Titel ohne Klassen-Tag erscheinen immer. |
+| Alle Klassen | Titel, die zu dieser Startklasse passen. Titel ohne Klassen-Tag erscheinen immer, außer 🏷 Nur mit Klasse ist angehakt. |
 | Gesang + Instr. | Nur 🎤 Titel mit Gesang oder nur 🎻 instrumentale Titel. |
-| Alle Kategorien | 🏆 **Nur Turnier** blendet Hymnen, Hintergrundmusik, Dateien mit falschem Tempo, Duplikate und Saison-Ordner aus. Du kannst auch eine dieser Kategorien wählen, was für eine Party praktisch ist. |
+| Alle Kategorien | 🏆 **Nur Turnier** blendet Hymnen, Hintergrundmusik, Dateien mit falschem Tempo, Duplikate und Saison-Ordner aus. Du kannst auch eine dieser Kategorien wählen, was für eine Party praktisch ist. **🏷 Kein Klassen-Tag** listet die Turniertitel, deren Kommentar kein Klassen-Tag trägt, damit du sie taggen kannst. |
 | Gespielt: alle | ✦ **Nie gespielt**, ★ **Selten**, ★ **Bewährt** oder 📅 **Seit 1 J. nicht** (gespielt, aber in keiner Playlist des letzten Jahres). |
 | Hinzugefügt: alle | Dateien, die in den letzten 30 oder 90 Tagen oder den letzten 12 oder 18 Monaten angelegt wurden. Kombiniert mit ✦ Nie gespielt findest du, was du hineinkopiert, aber nie benutzt hast. |
 | 🆕 Ungeplant | Nur Titel, die in keinem der offenen Decks stehen. |
+| 🏷 Nur mit Klasse | Blendet die Turniertitel ohne Klassen-Tag aus, die der Klassenfilter sonst bei jeder Klasse zeigt. Gesellschaftstänze haben keine Klassen und bleiben. |
 
 - **▶** in einer Zeile spielt den Titel im Player ab. Die **Leertaste** macht
-  dasselbe für die markierte Zeile.
+  dasselbe für die markierte Zeile. Ist ein
+  [🎧 Vorhör-Ausgang](04-playing.md#-vorhören-über-kopfhörer) gewählt, spielt
+  er dort, und die Musik läuft weiter.
+- **Titel** zeigt das Titel-Tag der MP3; eine Datei ohne zeigt ihren
+  bereinigten Dateinamen. **BPM** ist das Tempo in Takten pro Minute, siehe
+  [Kapitel 3](03-playlists.md).
 - Ein **Doppelklick** auf eine Zeile öffnet die Datei in deinem externen
   Audioplayer.
 - Ein **Rechtsklick** auf eine Zeile bietet **📋 Dateipfad kopieren**,
@@ -34,8 +40,10 @@ zieh dann Titel in ein Deck, den Party-Bereich oder eine Wunschliste.
   Zeilen markiert, bearbeitet der Tag-Editor alle. Siehe
   [Kapitel 5](05-tags.md).
 - Ein **Rechtsklick auf den Spaltenkopf** wählt die Spalten oder schaltet auf
-  kurze Tanznamen (LW, SB) um. Die Spalten **★** (Bewertung) und **Custom**
-  sind anfangs ausgeblendet und lassen sich hier einblenden.
+  kurze Tanznamen (LW, SB) um. Die Spalten **★** (Bewertung), **Custom**
+  und **Dateiname** sind anfangs ausgeblendet und lassen sich hier
+  einblenden. Dateiname ist der bereinigte Name der Datei, mit dem vollen
+  Pfad im Tooltip.
   **Custom einem MP3-Tag zuordnen…** füllt Custom aus einem Tag deiner Wahl.
 
 ## 🏆 Turniere
@@ -97,8 +105,9 @@ Namen.
 
 ![Der Reiter Turniere, Titel-Ansicht](../img/tournaments-tracks.png)
 
-- **▶** oder die **Leertaste** spielt einen Titel ab. Ein Doppelklick öffnet
-  ihn in deinem externen Player.
+- **▶** oder die **Leertaste** spielt einen Titel ab, auf dem 🎧 Vorhör-Ausgang,
+  wenn einer gewählt ist. Ein Doppelklick öffnet ihn in deinem externen
+  Player.
 - Zieh Titel auf ein Deck, den Party-Bereich oder eine Wunschliste.
 - Die Leiste darunter zeigt die Zahl der Titel und die gesamte Spielzeit.
   Titel, die die Bibliothek nicht kennt, werden mitgezählt, bringen aber keine

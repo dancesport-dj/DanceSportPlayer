@@ -30,7 +30,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication, QLabel, QPushButton
 
 from planner import i18n
-from tests.gui.test_party_check_ui import _Win, _e
+from tests.gui.window.test_party_check_ui import _Win, _e
 from tests.qt_test_support import reap_widget
 
 
@@ -50,7 +50,7 @@ class PartyReportGermanTest(unittest.TestCase):
 
     def report(self, codes, **kw):
         """The dialog the 🩺 button opens, over a list of `codes`."""
-        from gui.playlist_table import PlaylistTable
+        from gui.table.playlist_table import PlaylistTable
 
         host = _Win()
         self.addCleanup(reap_widget, host)

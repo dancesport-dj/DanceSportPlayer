@@ -26,7 +26,7 @@ from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtWidgets import QApplication
 from tests.qt_test_support import reap_widget
 
-from tests.player.test_fade_indicator import _Desk
+from tests.player.audio.test_fade_indicator import _Desk
 
 PLAYING = QMediaPlayer.PlaybackState.PlayingState
 

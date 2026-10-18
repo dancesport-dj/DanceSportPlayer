@@ -19,7 +19,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_save_m3u_dances_"))
 
-from tests.gui.test_deck_file_reveal import _entry
+from tests.gui.window.test_deck_file_reveal import _entry
 from tests.qt_test_support import reap_widget, stub_window_startup
 
 
@@ -54,7 +54,7 @@ class SaveM3uGeneratedDancesTest(unittest.TestCase):
 
         checks[extra].setChecked(True)
         out_dir = Path(tempfile.mkdtemp(prefix="dp_save_m3u_dances_out_"))
-        with mock.patch("planner.m3u.OUTPUT_DIR", out_dir):
+        with mock.patch("planner.playlist.m3u.OUTPUT_DIR", out_dir):
             win._save_m3u()
 
         [saved] = out_dir.glob("*.m3u*")

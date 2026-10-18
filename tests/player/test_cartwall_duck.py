@@ -16,7 +16,7 @@ happened to read.
 
 import unittest
 
-from player.mix import (
+from player.audio.mix import (
     OutputMix,
     _ANNOUNCE_DUCK,
     _CART_DUCK,

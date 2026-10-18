@@ -20,14 +20,17 @@ from pathlib import Path
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_cat_state_"))
 
-from planner.db import AudioCache
-from planner.library import MusicLibrary
+from planner.music.db import AudioCache
+from planner.music.library import MusicLibrary
 from planner.models import (
     MusicEntry,
     folder_category_of_parts,
     is_non_turnier,
     library_category,
+    note_class_tag_use,
+    set_no_class_exclusion,
 )
+from planner.generate.suggester import PlaylistSuggester
 
 
 def _entry(*parts):
@@ -67,6 +70,103 @@ class FolderCategoryTest(unittest.TestCase):
         e = _entry("lateincd", "002 SA Cinema Italiano T51.mp3")
         self.assertEqual(library_category(e), "")
         self.assertFalse(is_non_turnier(e))
+
+
+def _tagged(name, dance="LW", classes_ok=None):
+    return MusicEntry(path=Path("C:/lib/standardcd") / name, title=name,
+                      dance=dance, bpm=29, classes_ok=classes_ok)
+
+
+class NoClassCategoryTest(unittest.TestCase):
+    """A competition title without a class tag is its own category, for the
+    library pane — but only in a library that uses class tags at all. It
+    stays in generation unless ⚙ Settings asks to leave it out."""
+
+    def setUp(self):
+        note_class_tag_use([_tagged("Tagged.mp3", classes_ok=["S"])])
+        self.addCleanup(note_class_tag_use, [])
+        self.addCleanup(set_no_class_exclusion, False)
+
+    def test_an_untagged_competition_title_is_no_class(self):
+        e = _tagged("Moon River.mp3")
+        self.assertEqual(library_category(e), "no_class")
+
+    def test_it_stays_in_generation_by_default(self):
+        self.assertFalse(is_non_turnier(_tagged("Moon River.mp3")))
+
+    def test_the_setting_takes_it_out_of_generation(self):
+        set_no_class_exclusion(True)
+        self.assertTrue(is_non_turnier(_tagged("Moon River.mp3")))
+        set_no_class_exclusion(False)
+        self.assertFalse(is_non_turnier(_tagged("Moon River.mp3")))
+
+    def test_the_setting_leaves_the_folder_categories_alone(self):
+        e = MusicEntry(path=Path("C:/lib/special/Fanfare.mp3"), title="Fanfare",
+                       dance="LW")
+        self.assertTrue(is_non_turnier(e))
+
+    def test_a_tagged_title_is_a_normal_track(self):
+        e = _tagged("Moon River.mp3", classes_ok=["B", "A", "S"])
+        self.assertEqual(library_category(e), "")
+        self.assertFalse(is_non_turnier(e))
+
+    def test_a_social_dance_needs_no_class(self):
+        self.assertEqual(library_category(_tagged("Salsa.mp3", dance=None)), "")
+
+    def test_a_folder_category_wins(self):
+        e = MusicEntry(path=Path("C:/lib/special/Fanfare.mp3"), title="Fanfare",
+                       dance="LW")
+        self.assertEqual(library_category(e), "background")
+
+    def test_a_library_without_class_tags_keeps_everything(self):
+        # Otherwise an untagged library would generate nothing at all.
+        note_class_tag_use([_tagged("Moon River.mp3")])
+        e = _tagged("Moon River.mp3")
+        self.assertEqual(library_category(e), "")
+        self.assertFalse(is_non_turnier(e))
+
+    def _pool(self):
+        lib = MusicLibrary()
+        self.tagged = _tagged("Tagged.mp3", classes_ok=["D", "C", "B", "A", "S"])
+        self.untagged = _tagged("Untagged.mp3")
+        lib.entries = [self.tagged, self.untagged]
+        return PlaylistSuggester(lib, seed=1)._get_pool("LW", "B", "", set())
+
+    def test_generation_draws_from_the_untagged_title(self):
+        pool = self._pool()
+        self.assertIn(self.tagged, pool)
+        self.assertIn(self.untagged, pool)
+
+    def test_generation_leaves_the_untagged_title_out_when_asked(self):
+        set_no_class_exclusion(True)
+        pool = self._pool()
+        self.assertIn(self.tagged, pool)
+        self.assertNotIn(self.untagged, pool)
+
+
+class ClassTagUseTest(unittest.TestCase):
+    """Only the main library's owner says whether class tags are in use."""
+
+    def tearDown(self):
+        note_class_tag_use([])
+
+    def test_one_tagged_title_switches_it_on(self):
+        note_class_tag_use([_tagged("a.mp3"), _tagged("b.mp3", classes_ok=["S"])])
+        self.assertEqual(library_category(_tagged("a.mp3")), "no_class")
+
+    def test_an_untagged_library_switches_it_off(self):
+        note_class_tag_use([_tagged("b.mp3", classes_ok=["S"])])
+        note_class_tag_use([_tagged("a.mp3"), _tagged("b.mp3")])
+        self.assertEqual(library_category(_tagged("a.mp3")), "")
+
+    def test_a_plain_library_load_leaves_it_alone(self):
+        # The whole-repo index is a MusicLibrary too; loading it must not
+        # decide for the main library.
+        note_class_tag_use([_tagged("b.mp3", classes_ok=["S"])])
+        lib = MusicLibrary()
+        lib.entries = [_tagged("a.mp3")]
+        lib.apply_tag_edits(AudioCache())
+        self.assertEqual(library_category(_tagged("a.mp3")), "no_class")
 
 
 class ScanSkipTest(unittest.TestCase):

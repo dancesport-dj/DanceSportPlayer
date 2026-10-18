@@ -17,9 +17,9 @@ import re
 import threading
 import unittest
 
-from planner import event_plan
-from planner.competition import parse_competition_schedule
-from tests.planner.test_event_variants import EventFixture
+from planner.event import event_plan
+from planner.event.competition import parse_competition_schedule
+from tests.planner.event.test_event_variants import EventFixture
 
 
 class FakeModel:
@@ -428,7 +428,7 @@ class EventAiTest(EventFixture, unittest.TestCase):
         self.assertIsNot(hgr2.grid["Finale"][0][0].entry, new.entry)
 
     def test_the_limit_messages_are_recognised(self):
-        from planner import llm
+        from planner.generate import llm
         for text in ("claude -p exited 1: You've hit your limit · resets 3pm",
                      "claude -p exited 1: 5-hour limit reached ∙ resets 11pm",
                      "HTTP 429: Too Many Requests",

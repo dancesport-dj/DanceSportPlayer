@@ -21,7 +21,8 @@ from tests.gui.monkey_support import ClickThrough, describe
 import shiboken6
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QAbstractButton, QApplication, QFileDialog
+from PySide6.QtWidgets import (
+    QAbstractButton, QApplication, QDialogButtonBox, QFileDialog, QTabWidget)
 from shared.columns import _COL_PLAY
 
 
@@ -37,7 +38,7 @@ class PlayingClickTest(ClickThrough):
             self.assertTrue(self.win._mode_plan_btn.isChecked())
 
     def test_next_title_then_stop(self):
-        with self.clicking() as op:
+        with self.clicking():
             self.generate(rounds="1")
             self.click(self.win._mode_play_btn)
             table = self.win._deckset.table
@@ -46,8 +47,7 @@ class PlayingClickTest(ClickThrough):
             self.click(self.button("Next title"))
             self.assertTrue(self.wait_until(lambda: table._current_play_row == second),
                             f"playing row {table._current_play_row}, not {second}")
-            op.pick("⏹  Stop the music")
-            self.right_click(op, table, second)
+            self.win._on_stop_btn()
             self.assertTrue(self.wait_until(lambda: table._current_play_row < 0),
                             "the title kept playing")
 
@@ -95,7 +95,7 @@ class PlayingClickTest(ClickThrough):
             self.key(Qt.Key.Key_Left, mods)
             self.assertTrue(self.wait_until(lambda: table._current_play_row == first))
 
-    def test_every_button_once_in_each_mode(self):
+    def test_every_button_once_in_each_mode(self):  # overconfidence:short-test-ok - asserts in the helper
         with self.clicking() as op:
             self.generate()
             for mode in (self.win._mode_plan_btn, self.win._mode_play_btn):
@@ -189,8 +189,9 @@ class PlayingClickTest(ClickThrough):
             self.assertEqual(table._current_play_row, row)
 
     def test_a_cartwall_pad_plays_over_the_running_title(self):
-        from planner import cartwall as pc
-        from player.cartwall import _FIRE_GAP_MS, _CartPadButton
+        from planner.playing import cartwall as pc
+        from player.audio.cart_voices import _FIRE_GAP_MS
+        from player.widgets.cartwall import _CartPadButton
         win = self.win
         with self.clicking():
             self.generate(rounds="1")
@@ -311,7 +312,7 @@ class PlayingClickTest(ClickThrough):
             self.click(win._mode_play_btn)
             self.assertFalse(panel.pause_check.isChecked())
             self.click(panel.announce_check)
-            self.assertTrue(panel.announce_over_radio.isChecked())
+            self.assertFalse(panel.announce_wait())
             self.play_row(self.cha_cha_row())
             self.assertTrue(self.wait_until(lambda: said), "the title started uncalled")
             # The bare dance, not "Nächster Tanz: …": it is starting now.
@@ -326,11 +327,25 @@ class PlayingClickTest(ClickThrough):
         playing = QMediaPlayer.PlaybackState.PlayingState
         win, panel = self.win, self.win._play_panel
         said = self.voice(secs=0.8)
-        with self.clicking():
+        with self.clicking() as op:
             self.generate(rounds="1")
+
+            # ⚙ Settings → 🔊 Sound & player: the dance is named before the music.
+            def wait_first(dlg):
+                bar = dlg.findChild(QTabWidget).tabBar()
+                sound = next(i for i in range(bar.count()) if "Sound" in bar.tabText(i))
+                QTest.mouseClick(bar, Qt.MouseButton.LeftButton,
+                                 Qt.KeyboardModifier.NoModifier, bar.tabRect(sound).center())
+                self.click(dlg._lead_wait_radio)
+                self.click(dlg.findChild(QDialogButtonBox).button(
+                    QDialogButtonBox.StandardButton.Ok))
+            op.answer(self.titled("⚙  Settings"), wait_first)
+            self.click(win._cfg.settings_btn)
+            self.assertTrue(self.wait_until(lambda: not op.script), op.script)
+
             self.click(win._mode_play_btn)
             self.click(panel.announce_check)
-            self.click(panel.announce_wait_radio)
+            self.assertTrue(panel.announce_wait())
             self.play_row(self.cha_cha_row())
             self.assertTrue(self.wait_until(lambda: said), "the title started uncalled")
             self.assertEqual(said, [["CC"]])

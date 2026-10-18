@@ -24,7 +24,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_umlaut_gui_"))
 
-from planner.playlist_text import PlaylistEncodingError
+from planner.playlist.playlist_text import PlaylistEncodingError
 
 _UNDECODABLE = b"\x81\x8d not text \x8f\x90\r\n"
 
@@ -57,8 +57,8 @@ class DropTest(_Base):
     """The two `_m3u_track_paths` a drop goes through: the window's and a deck's."""
 
     def _readers(self):
-        from gui.main_dupes import DuplicateCheckMixin
-        from gui.table_actions import TableActionsMixin
+        from gui.window.main_dupes import DuplicateCheckMixin
+        from gui.table.table_actions import TableActionsMixin
         return (DuplicateCheckMixin._m3u_track_paths,
                 TableActionsMixin._m3u_track_paths)
 
@@ -91,7 +91,7 @@ class ReferenceCleanerTest(_Base):
             _parse_m3u_blocks(self._undecodable())
 
     def test_the_tournament_lists_are_read_by_a_reader_that_fails_too(self):
-        from gui.main_dupes import DuplicateCheckMixin
+        from gui.window.main_dupes import DuplicateCheckMixin
         fake = types.SimpleNamespace(
             _library=types.SimpleNamespace(cache=None))
         w = DuplicateCheckMixin._make_reference_clean_worker(fake, "ref.m3u", [])
@@ -111,15 +111,15 @@ class PartyListTest(_Base):
             _remap_index=mock.Mock(side_effect=RuntimeError)), entry
 
     def test_a_cp1252_party_list_resolves_to_the_library(self):
-        from gui.main_generate import GenerateMixin
+        from gui.window.main_generate import GenerateMixin
         fake, entry = self._fake()
         got = GenerateMixin._entries_from_m3u_file(fake, self._cp1252(str(self.track)))
         self.assertEqual(got, [entry])
 
     def test_an_undecodable_party_list_is_refused_with_a_message(self):
-        from gui.main_generate import GenerateMixin
+        from gui.window.main_generate import GenerateMixin
         fake, _entry = self._fake()
-        with mock.patch("gui.main_generate.QMessageBox") as box:
+        with mock.patch("gui.window.main_generate.QMessageBox") as box:
             got = GenerateMixin._entries_from_m3u_file(fake, self._undecodable())
         self.assertEqual(got, [])
         box.warning.assert_called_once()
@@ -129,23 +129,23 @@ class PartyListTest(_Base):
 class PlayerTest(_Base):
 
     def test_the_pause_music_list_keeps_its_umlaut_paths(self):
-        from player.play_mode_panel import PlayModePanel
+        from player.widgets.play_mode_panel import PlayModePanel
         p = self._cp1252(str(self.track))
         self.assertEqual(PlayModePanel._read_m3u(str(p)), [str(self.track)])
 
     def test_an_undecodable_pause_list_is_empty_and_logged(self):
-        from player.play_mode_panel import PlayModePanel
+        from player.widgets.play_mode_panel import PlayModePanel
         with self.assertLogs("dancesport", "WARNING"):
             self.assertEqual(PlayModePanel._read_m3u(str(self._undecodable())), [])
 
     def test_the_list_cover_is_found_through_an_umlaut_path(self):
-        from player.artwork import playlist_art
+        from player.widgets.artwork import playlist_art
         img = self.dir / "Plakat Küss.png"
         img.write_bytes(b"")
         self.assertEqual(playlist_art(self._cp1252(f"#EXTIMG:{img}")), img)
 
     def test_an_undecodable_list_just_has_no_cover(self):
-        from player.artwork import playlist_art
+        from player.widgets.artwork import playlist_art
         self.assertIsNone(playlist_art(self._undecodable()))
 
 

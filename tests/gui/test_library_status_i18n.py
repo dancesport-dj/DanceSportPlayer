@@ -12,7 +12,7 @@ so by the time `ConfigPanel.set_library_status` calls the patched `setText`,
 the text is one unique string that matches no catalog key and never will —
 the numbers in it change on every refresh. The hook cannot help here; each
 fragment has to ask for its own translation and take its numbers through a
-placeholder, the way gui/main_wish.py:331 already does it.
+placeholder, the way gui/window/main_wish.py:331 already does it.
 
 The numbers are the reason to be careful: `mark_index_gaps` finds the
 "analyzed/total" pairs with a regex and paints a short count amber. A
@@ -34,7 +34,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_libstatus_i18n_"))
 
-from gui import main_global as glb
+from gui.window import main_global as glb
 from gui.config_panel import mark_index_gaps
 from planner import i18n
 from planner.models import MusicEntry
@@ -107,9 +107,9 @@ class LibraryStatusI18nTest(unittest.TestCase):
     def setUp(self):
         # No global library loaded → the summary would ask the real DB how big
         # the repository index is. Keep the test off the disk.
-        real = glb.planner.db.global_index_count
-        glb.planner.db.global_index_count = lambda: 0
-        self.addCleanup(setattr, glb.planner.db, "global_index_count", real)
+        real = glb.planner.music.scan_caches.global_index_count
+        glb.planner.music.scan_caches.global_index_count = lambda: 0
+        self.addCleanup(setattr, glb.planner.music.scan_caches, "global_index_count", real)
 
     def tearDown(self):
         i18n.set_active(i18n.DEFAULT_LANGUAGE)
@@ -126,6 +126,8 @@ class LibraryStatusI18nTest(unittest.TestCase):
 
     # ── English must not move ────────────────────────────────────────────
     def test_english_is_unchanged(self):
+        # The two sounds-alike indexes side by side. Marcel: "for the indexes
+        # stat put mert below chroma before loudness".
         self.assertEqual(self.status("en"), "\n".join((
             "🎯  Search mode: Favorites library only",
             "Library: 2 files",
@@ -135,10 +137,10 @@ class LibraryStatusI18nTest(unittest.TestCase):
             "🔗 Fingerprints: Favorites 1/2",
             "🎚️ librosa: Favorites 1/2",
             "🎼 Chroma: (chroma not available)",
+            "🧠 MERT: (MERT not available)",
             "📊 Loudness: Favorites 1/2",
             "🔇 Silences: Favorites 1/2",
             "🐂 PD highlights: no Paso Doble in the library",
-            "🧠 OpenL3: (OpenL3 not available)",
         )))
 
     # ── German ───────────────────────────────────────────────────────────
@@ -169,7 +171,7 @@ class LibraryStatusI18nTest(unittest.TestCase):
     def test_a_model_that_is_not_installed_says_so_in_german(self):
         msg = self.status("de")
         self.assertIn("(Chroma nicht verfügbar)", msg)
-        self.assertIn("(OpenL3 nicht verfügbar)", msg)
+        self.assertIn("(MERT nicht verfügbar)", msg)
         self.assertIn("kein Paso Doble in der Bibliothek", msg)
 
     def test_the_demucs_line_speaks_german(self):
@@ -185,7 +187,7 @@ class LibraryStatusI18nTest(unittest.TestCase):
         """The thousands separator stays the English one on purpose: nothing
         else in the app localises numbers, and doing it here alone would make
         this one line disagree with every other count on screen."""
-        glb.planner.db.global_index_count = lambda: 1234
+        glb.planner.music.scan_caches.global_index_count = lambda: 1234
         self.assertIn(
             "🌐 Globaler Index: 1,234 Dateien gebaut (lädt bei der ersten "
             "globalen Suche)", self.status("de"))

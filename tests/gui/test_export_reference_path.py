@@ -77,7 +77,7 @@ class ExportReferencePathTest(unittest.TestCase):
     def save_as(self, name: str) -> Path:
         """Save the deck as `name`; the ⚠ warning it raised (a mock) is in
         `self.warning`."""
-        from gui import main_export
+        from gui.window import main_export
         out = _TMP / name
         with mock.patch.object(main_export.QFileDialog, "getSaveFileName",
                                return_value=(str(out), "")), \
@@ -89,14 +89,14 @@ class ExportReferencePathTest(unittest.TestCase):
 
     def save_all(self) -> tuple[Path, str]:
         """Save all decks; (the one written file, the summary box's text)."""
-        from gui import main_export
+        from gui.window import main_export
         out_dir = _TMP / "all"
         for old in out_dir.glob("*.m3u"):
             old.unlink()
         box = mock.MagicMock()
         box.clickedButton.return_value = None
         with mock.patch.object(main_export, "OUTPUT_DIR", out_dir), \
-                mock.patch("planner.m3u.OUTPUT_DIR", out_dir), \
+                mock.patch("planner.playlist.m3u.OUTPUT_DIR", out_dir), \
                 mock.patch.object(main_export, "QMessageBox", return_value=box):
             self.win._save_all_playlists()
         written = list(out_dir.glob("*.m3u"))

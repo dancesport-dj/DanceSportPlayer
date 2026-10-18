@@ -24,7 +24,7 @@ from PySide6.QtWidgets import QApplication, QWidget
 from tests.qt_test_support import reap_widget
 
 from shared.columns import _COL_ARTIST, _COL_DANCE, _COL_HEAT, _COL_TITLE
-from gui.playlist_table import PlaylistTable
+from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry, RoundConfig
 
 

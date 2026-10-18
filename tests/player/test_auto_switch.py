@@ -32,9 +32,9 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication
 
-from player.main_player import PlayerControlMixin
-from player.play_mode_panel import PlayModePanel
-from gui.deck_set import DeckSet
+from player.window.main_player import PlayerControlMixin
+from player.widgets.play_mode_panel import PlayModePanel
+from gui.decks.deck_set import DeckSet
 
 
 class _Table:
@@ -106,7 +106,7 @@ class AutoSwitchTest(unittest.TestCase):
 
     def test_the_deck_corner_switch_leaves_the_panel_alone(self):
         """⏭ Auto / ✋ Manual under a deck answers for THAT deck (see
-        tests/gui/test_deck_advance.py), so it must not reach the panel's
+        tests/gui/decks/test_deck_advance.py), so it must not reach the panel's
         🔈 tick — the other lists are still being announced. The deck's own
         silence is not stored here but applied where it is spoken."""
         p = self.panel(announce=True)

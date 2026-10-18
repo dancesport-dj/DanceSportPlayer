@@ -12,7 +12,7 @@ from pathlib import Path
 
 from planner import i18n
 from planner.models import MusicEntry, RoundConfig
-from planner.suggester import generate_hints, source_gap_hint
+from planner.generate.suggester import generate_hints, source_gap_hint
 
 
 class _Lib:

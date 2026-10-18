@@ -29,7 +29,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_allcache_i18n_"))
 
-from gui import main_allcache as mac
+from gui.window import main_allcache as mac
 from planner import i18n
 from planner.models import MusicEntry
 
@@ -135,9 +135,9 @@ class _I18nCase(unittest.TestCase):
         real_box = mac.QMessageBox
         mac.QMessageBox = self.box
         self.addCleanup(setattr, mac, "QMessageBox", real_box)
-        real_cleanup = mac.planner.db.cleanup_orphans
-        mac.planner.db.cleanup_orphans = lambda *a, **kw: None
-        self.addCleanup(setattr, mac.planner.db, "cleanup_orphans", real_cleanup)
+        real_cleanup = mac.planner.music.db_upkeep.cleanup_orphans
+        mac.planner.music.db_upkeep.cleanup_orphans = lambda *a, **kw: None
+        self.addCleanup(setattr, mac.planner.music.db_upkeep, "cleanup_orphans", real_cleanup)
 
     def tearDown(self):
         i18n.set_active(i18n.DEFAULT_LANGUAGE)
@@ -149,24 +149,24 @@ class PlanSkipNotesI18nTest(_I18nCase):
     def plan(self, language, **kw):
         i18n.set_active(language)
         args = dict(has_pd=True, have_librosa=True, have_ffmpeg=True,
-                    have_openl3=True, have_chroma=True)
+                    have_mert=True, have_chroma=True)
         args.update(kw)
         return mac.plan_allcache_steps(**args)[1]
 
     def test_english_is_unchanged(self):
         self.assertEqual(self.plan("en", have_ffmpeg=False, have_librosa=False,
-                                   have_openl3=False, have_chroma=False),
+                                   have_mert=False, have_chroma=False),
                          ["librosa audio analysis (no working audio decoder)",
                           "loudness + silences (no ffmpeg)",
-                          "OpenL3 (not installed)",
+                          "MERT (not installed)",
                           "Chroma (not installed)"])
 
     def test_german_names_every_missing_piece(self):
         self.assertEqual(self.plan("de", have_ffmpeg=False, have_librosa=False,
-                                   have_openl3=False, have_chroma=False),
+                                   have_mert=False, have_chroma=False),
                          ["librosa-Audioanalyse (kein funktionierender Decoder)",
                           "Lautheit + Stille (kein ffmpeg)",
-                          "OpenL3 (nicht installiert)",
+                          "MERT (nicht installiert)",
                           "Chroma (nicht installiert)"])
 
     def test_the_step_keys_are_never_translated(self):
@@ -174,9 +174,9 @@ class PlanSkipNotesI18nTest(_I18nCase):
         i18n.set_active("de")
         steps, _ = mac.plan_allcache_steps(
             has_pd=True, have_librosa=True, have_ffmpeg=True,
-            have_openl3=True, have_chroma=True)
+            have_mert=True, have_chroma=True)
         self.assertEqual(steps, ["audiofp", "librosa", "loudness", "silences",
-                                 "pd", "openl3", "chroma"])
+                                 "pd", "mert", "chroma"])
 
 
 class ScopeQuestionI18nTest(_I18nCase):

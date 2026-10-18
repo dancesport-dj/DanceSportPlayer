@@ -19,7 +19,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtCore import QDateTime, QDate, QTime
 from PySide6.QtWidgets import QApplication
 
-from gui.main_fullscreen import clock_text
+from gui.window.main_fullscreen import clock_text
 from planner import i18n
 from tests.qt_test_support import reap_widget, stub_window_startup
 
@@ -119,7 +119,7 @@ class ClockSettingTest(unittest.TestCase):
 
     def test_a_box_on_look_off_by_default(self):
         from PySide6.QtWidgets import QTabWidget
-        from gui.dialogs import SettingsDialog
+        from gui.dialogs.settings_dialog import SettingsDialog
         dlg = SettingsDialog({}, None)
         self.addCleanup(dlg.deleteLater)
         tabs = dlg.findChild(QTabWidget)

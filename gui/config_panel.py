@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from planner.competition import CompetitionSpec, parse_competition_schedule
+from planner.event.competition import CompetitionSpec, parse_competition_schedule
 from planner.models import (
     DANCE_STYLES,
     DEFAULT_DANCES,
@@ -35,10 +35,10 @@ from planner.models import (
 )
 from planner import terms
 from planner.terms import dance_name
-from planner.scoring import STRATEGIES, STRATEGY_HELP, STRATEGY_LABELS
+from planner.generate.scoring import STRATEGIES, STRATEGY_HELP, STRATEGY_LABELS
 from planner.themes import all_themes
 from planner import i18n
-from planner.scoring import _resolve_strategy
+from planner.generate.scoring import _resolve_strategy
 from gui.common import (
     DropZone,
     _lbl,
@@ -501,7 +501,7 @@ class ConfigPanel(QWidget):
         # Clear existing checkboxes
         while self.dances_layout.count():
             item = self.dances_layout.takeAt(0)
-            w    = item.widget()
+            w    = item.widget() if item is not None else None
             if w:
                 w.setParent(None)
         self.dance_checks.clear()
@@ -525,7 +525,7 @@ class ConfigPanel(QWidget):
         # Rebuild strategy UI
         while self.strategy_lyt.count():
             item = self.strategy_lyt.takeAt(0)
-            w    = item.widget()
+            w    = item.widget() if item is not None else None
             if w:
                 w.setParent(None)
         self._strategy_combos.clear()

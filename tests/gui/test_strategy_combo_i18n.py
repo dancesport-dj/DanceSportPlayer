@@ -35,7 +35,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 from planner import i18n
-from planner.scoring import STRATEGIES, STRATEGY_HELP, STRATEGY_LABELS
+from planner.generate.scoring import STRATEGIES, STRATEGY_HELP, STRATEGY_LABELS
 
 
 class StrategyComboI18nTest(unittest.TestCase):

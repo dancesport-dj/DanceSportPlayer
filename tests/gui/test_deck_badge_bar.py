@@ -29,7 +29,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
 
 from dancesport_planner import MusicEntry, MusicLibrary
-from gui.main_decks import dance_counts_line
+from gui.window.main_decks import dance_counts_line
 from planner import i18n
 from tests.qt_test_support import (
     reap_widget, stub_window_startup)

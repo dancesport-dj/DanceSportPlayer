@@ -12,7 +12,8 @@ Du spielst direkt aus den Decks, dem Party-Bereich und den Wunschlisten.
 **🚦 Prüfen ▸ 🚦 Bereit?** in der Werkzeugleiste prüft jedes Deck, das Titel
 hält, und die Partyliste in einem Durchgang. Es zeigt eine Ampel pro Prüfung
 und ein Gesamturteil: 🟢 *Bereit*, 🟡 *Spielbar, mit offenen Punkten* oder
-🔴 *Nicht bereit, manche Titel werden nicht spielen*.
+🔴 *Nicht bereit*: Manche Titel werden nicht spielen, oder ein Audioausgang
+ist nicht angeschlossen.
 
 | Zeile | Prüft |
 |---|---|
@@ -22,10 +23,14 @@ und ein Gesamturteil: 🟢 *Bereit*, 🟡 *Spielbar, mit offenen Punkten* oder
 | 🐂 Paso-Doble-Highlights | Jeder Paso Doble kennt seine Höhepunkte. |
 | 🔁 Doppelte | Kein Titel steht in zwei Listen. |
 | 🎶 Playlisten | Es gibt überhaupt etwas zu spielen. |
+| 🔈 Audioausgänge | Jeder Ausgang, der in ⚙ Einstellungen → 🔊 Ton & Player gewählt ist, ist angeschlossen. Fehlt die Karte für die Musik, die Pausenmusik, die Cartwall oder die Ansagen, ist die Zeile rot: Diese Quelle spielt dann auf dem Systemstandard. Fehlt die Karte fürs 🎧 Vorhören, ist sie gelb, ebenso wenn das Vorhören auf dem Ausgang der Musik läge, denn dann würde jedes Vorhören abgelehnt. |
+| 🎛 Controller | Der gewählte Hardware-Controller ist verbunden. Nicht jeder Abend braucht einen, darum ist diese Zeile höchstens gelb, und sie fehlt, solange kein Controller eingerichtet ist. |
+| ☀ Bildschirm und Ruhezustand | ☀ Bildschirm wach halten ist an, also bleiben Bildschirm, Beamer und Computer wach, solange Musik läuft oder der Präsentationsbildschirm offen ist. |
 
 Eine Zeile, die nicht grün ist, hat einen Knopf, der sie behebt:
-**📊 Lautheit messen…**, **🐂 Highlights finden…** oder **🔁 Doppelte
-auflösen…**. **🧭 Pfade reparieren…** steht jedes Mal in der Zeile
+**📊 Lautheit messen…**, **🐂 Highlights finden…**, **🔁 Doppelte
+auflösen…**, **⚙ Ausgänge wählen…**, **🎛 Controller öffnen…** oder
+**☀ Wach halten**. **🧭 Pfade reparieren…** steht jedes Mal in der Zeile
 📁 Musikdateien, ob grün oder nicht. Das Fenster bleibt offen, während eine
 Behebung läuft; **↻ Nochmal prüfen** bewertet neu. Die volle App ergänzt eine
 Zeile 🎵 Musikprüfung für Tempo, Länge und den Aufbau der Runden.
@@ -48,7 +53,10 @@ Jedes Deck hat in seiner unteren Leiste einen eigenen Schalter
 - **⏭ Auto**: auf einen fertigen Titel folgt die nächste Zeile, so läuft eine
   ganze Runde ohne Handgriff.
 - **✋ Manuell**: du startest jeden Titel selbst. Die gesprochene Ansage ist
-  dann ebenfalls aus.
+  dann ebenfalls aus. Endet ein Titel, durch Ausblenden, die Spieldauer oder
+  sein natürliches Ende, liegt die nächste Zeile stumm bei 0:00 auf der
+  Player-Karte bereit, ihre Zeile markiert. **⏯** startet sie, und **⏭** geht
+  von dort weiter.
 
 Jede Liste merkt sich ihre eigene Einstellung. Die Partyliste kann von selbst
 laufen, während das Turnier-Deck daneben von Hand gestartet wird.
@@ -90,17 +98,19 @@ sie rot.
 - Ein **Klick** springt an diese Stelle. **Ziehen** spult: Abspielkopf und
   Zeiten folgen der Maus, und die Musik springt beim Loslassen. Über den
   linken Rand hinaus gezogen geht es auf 0:00.
-- Standardmäßig ersetzt die Wellenform den Suchbalken, der dieselbe Strecke
-  abdeckt. Zwei Schalter im Wiedergabe-Bereich, unter *Klang und Anzeige*,
-  ändern das: **〰 Wellenform anzeigen** und **…Suchbalken ersetzen**. Ist die
-  Wellenform aus, kommt der Suchbalken immer zurück.
+- Die Wellenform ersetzt den Suchbalken, der dieselbe Strecke abdeckt: Man
+  sieht das eine oder das andere, nie beides. Den Suchbalken bringt
+  **〰 Wellenform anzeigen** zurück, ausgeschaltet unter
+  [⚙ Einstellungen ▸ 🔊 Ton und Player](06-settings.md#ton-und-player).
 
 Die Tempo-Zeile darunter:
 
 - **Tempo-Regler**: −16 % bis +16 %, ohne die Tonhöhe zu ändern (Time
   Stretch), zum Beispiel um einen Titel auf das Tempo zu ziehen, das das
   Turnier braucht. **− / +** gehen in Schritten, gedrückt gehalten gleiten
-  sie. **0** oder ein Doppelklick auf den Regler setzt ihn zurück.
+  sie. **0** oder ein Doppelklick auf den Regler setzt ihn zurück. Auch
+  [Pult-Tasten](#-pult-tasten) und ein Drehregler am
+  [DJ-Controller](#-ein-dj-controller) bewegen ihn.
 - **TSO**: solange an, wird jeder Titel auf das mittlere Tempo seines Tanzes in
   dieser Runde gezogen, innerhalb des TSO-Bereichs. Eine Rumba mit 23 wird
   T24, ein Paso Doble mit 57 wird T58.
@@ -120,6 +130,10 @@ Die Tempo-Zeile darunter:
   bis zu seinem Ende (**komplett**). Ein Doppelklick auf die Zahl lässt dich
   eine genaue Länge eintippen, zum Beispiel `1:37`.
 - **Ausblenden**: die Lautstärke fährt über die letzten Sekunden auf 0.
+- **innerhalb der Spieldauer**: angehakt endet das Ausblenden mit der
+  Spieldauer, ein Titel mit 1:45 und 3 s Ausblenden wird also ab 1:42 leiser.
+  Nicht angehakt läuft der Titel die vollen 1:45 und wird danach ausgeblendet,
+  er endet also bei 1:48.
 
 Sobald die Analyse sie gemessen hat, wird Stille am Anfang und Ende eines
 Titels übersprungen.
@@ -138,7 +152,9 @@ tanzen.
 - **✏️ Highlights bearbeiten** pausiert die Musik und setzt den Stopp aus, so
   kannst du durch den ganzen Titel spulen und seine Marken setzen.
 - **Start nach** hält einen Paso Doble vor dem Musikstart zurück, damit die
-  Paare ihre Ausgangsposition einnehmen können.
+  Paare ihre Ausgangsposition einnehmen können. Ein Paso Doble, der an seiner
+  ↩-Marke wieder aufgenommen wird, startet sofort: die Paare stehen noch auf
+  der Fläche.
 
 Mit ausgeschaltetem Schalter ist ein Paso Doble ein gewöhnlicher Titel.
 
@@ -153,6 +169,43 @@ Mit ausgeschaltetem Schalter ist ein Paso Doble ein gewöhnlicher Titel.
 - **Pausenmusik**: 📂 wählt einen oder mehrere Titel oder eine `.m3u`, die in
   der Pause laufen. ✕ entfernt sie. **Lautstärke Pausenmusik** legt fest, wie
   laut sie spielt.
+- **🔀 Überblenden**: die letzten Sekunden eines Titels und die ersten des
+  nächsten spielen zusammen. Der alte blendet aus, während der neue einblendet,
+  so hört die Fläche nie eine Lücke. Die Beschriftung ist ein Schalter: aus,
+  endet ein Titel und dann beginnt der nächste. Die Sekunden daneben (0,5 bis
+  10, in halben Sekunden) bleiben eingestellt, solange er aus ist, sodass er
+  beim Einschalten auf ihnen weitermacht; beim ersten Mal sind es 4 s. Das
+  kleine Bild zeigt die
+  Überblendung wie ein DJ-Mixer: rot der ausgehende Titel, grün der kommende,
+  und je steiler das Kreuz, desto kürzer die Überblendung. *aus* ist ein harter
+  Schnitt.
+
+  Der Knopf links vom Bild wählt die Form der Überblendung, und das Bild folgt
+  ihm:
+  - **gleiche Leistung** (Standard): die beiden Titel ergeben zusammen einen
+    gleichmäßigen Pegel über die ganze Strecke, richtig für zwei verschiedene
+    Songs.
+  - **geradlinig**: zwei gerade Linien, wie ein einfacher Mischpult-Fader es
+    macht, in der Mitte etwas leiser.
+  - **S-Kurve**: gleichmäßig wie gleiche Leistung, aber an beiden Enden
+    langsam: der neue Titel ist anfangs kaum da, der alte klingt noch nach.
+
+  Eine Überblendung, die schon läuft, behält die Form, mit der sie begann.
+  Rund um sie wandert eine gelbe Linie durch das Bild, mit einem Punkt auf
+  jeder Kurve, wo die beiden Titel gerade stehen. Sie kommt einige Sekunden
+  vor der Überblendung am linken Rand herein, erreicht die Rampe genau, wenn
+  der nächste Titel einsetzt, und geht danach am rechten Rand hinaus. So
+  sieht man eine Überblendung kommen.
+
+  Sie passiert nur, wo die Liste von selbst ohne Pause weiterläuft. Eine Pause,
+  ⏭ automatisches Weiterschalten aus, das 🏁 Ende einer Runde, ein 🔁 Titel,
+  ein 🐂 Paso Doble bis zum Höhepunkt und ein 🔉↓ Ausblenden von Hand behalten
+  das gewohnte Ende. Solange eine Pause an ist, verschwindet die Zeile: eine
+  Pause braucht kein Überblenden, und was der Pausenschalter zeigt, steht
+  direkt unter ihm. ⏭ blendet genauso in
+  den nächsten Titel über, auch in die nächste Runde. ⏹, ⏭ oder ein Klick
+  auf einen anderen Titel während der Überblendung schneidet den alten
+  Titel sofort ab. Jede Playlist behält ihren eigenen Wert.
 
 ### 🔈 Nächsten Tanz ansagen
 
@@ -161,26 +214,25 @@ Die App sagt den nächsten Tanz laut an: „Nächster Tanz: Langsamer Walzer“.
 - Mit Pause kommt die Ansage kurz bevor die Pause endet.
 - Ohne Pause wird der Tanz genannt, wenn der Titel startet: **über den ersten
   Takten** (die Musik wird unter der Stimme leiser) oder **vor dem
-  Musikstart** (die Musik folgt der Ansage).
-- **Stimme**: Weiblich, Männlich oder Gemischt, was die beiden abwechselt. Ein
-  Tanz, der nie aufgenommen wurde, wird nicht angesagt.
+  Musikstart** (die Musik folgt der Ansage), je nach ⚙ Einstellungen ▸
+  🔊 Ton & Player.
+- Mit 🔀 Überblenden wird der Tanz genannt, sobald die Überblendung durch
+  ist, über der Musik, egal was eingestellt ist. Ein 🐂 Paso Doble mit
+  Wartezeit vor dem Start wird nur einmal genannt, zu Beginn der Wartezeit.
+- Stimme, Gruppennummer und über/vor der Musik werden unter ⚙ Einstellungen
+  ▸ 🔊 Ton & Player eingestellt (siehe [Einstellungen](06-settings.md)).
+  Solange der Schalter an ist, nennt eine Zeile darunter die Wahl kurz, etwa
+  *Gemischte Stimmen · mit Gruppe · über der Musik*. Beim Überblenden fehlt
+  der letzte Teil. Ein Tanz, der nie aufgenommen wurde, wird nicht angesagt.
 - Die Ansage ist deutsch bei deutscher Oberfläche, und bei einer anderen, wenn
   **Deutsche Tanz- und Rundennamen auch in einer anderssprachigen Oberfläche**
   angehakt ist. Sonst ist sie englisch („Next dance: Slow Waltz“); eine
   Aufnahme, die bei den englischen fehlt, kommt aus den deutschen.
-- Mit der erweiterten Ansagesteuerung (⚙ Einstellungen ▸ 🔊 Ton & Player)
-  fügt **…mit Gruppe** die Nummer der Gruppe hinzu. **🔈 Test** spricht ein
-  Beispiel.
 
 ### Klang und Anzeige
 
 - **🔊 Lautstärke angleichen (R128)**: gleicht die Lautheit zwischen den
   Titeln an. Braucht die Lautheitsanalyse.
-- **🖼 Cover anzeigen**: ein Cover neben dem Titel im Player. Es nimmt das
-  eigene Bild der Playlist (`#EXTIMG`), eine Cover-Datei im Ordner oder das
-  Bild in der MP3.
-- **〰 Wellenform anzeigen** und **…Suchbalken ersetzen**: die Wellenform auf
-  der Player-Karte, siehe [oben](#-die-wellenform).
 - **▶️ Doppelklick startet den Titel**: an, spielt ein Doppelklick sofort. Aus,
   legt er den Titel nur bereit, und ⏯ startet ihn. Das ist es, was eine Gruppe
   braucht.
@@ -192,16 +244,30 @@ Die App sagt den nächsten Tanz laut an: „Nächster Tanz: Langsamer Walzer“.
 
 Zwei Knöpfe stellen den ganzen Bereich auf einmal um:
 
-- **🏆 Turnier-Set**: 1:45 Spieldauer mit 3 s Ausblenden, keine Pause, kein
-  automatisches Weiterschalten, keine Ansage, angeglichene Lautstärke. Es
-  leuchtet golden, solange der Bereich auf diesen Werten steht.
-- **🎉 Party-Set**: jeder Titel in voller Länge mit 3 s Ausblenden,
-  automatisch weiter, keine Pause, keine Ansage und angeglichene Lautstärke.
+- **🏆 Turnier-Set**: 1:45 Spieldauer, danach 2,5 s Ausblenden, keine Pause,
+  kein Überblenden, kein automatisches Weiterschalten, keine Ansage, angeglichene Lautstärke.
+  Es stellt auch den 🐂 Paso Doble auf die Werte des Sets: von Haus aus den
+  Stopp aus und Start nach auf 0 s. Es leuchtet golden, solange der Bereich
+  auf diesen Werten steht.
+- **🎉 Party-Set**: jeder Titel in voller Länge mit 3 s Ausblenden darin,
+  kein 🔀 Überblenden, automatisch weiter, keine Pause, keine Ansage und angeglichene Lautstärke.
+  Der 🐂 Paso Doble stoppt nach seinem 2. Highlight und startet nach 3 s.
   Es wird von selbst angewandt, wenn du aus dem 🤸 Party-Bereich spielst, und
   zurückgeschaltet, wenn ein Turnier-Deck übernimmt.
 
 Was jedes Set enthält, legst du selbst fest, unter
 [⚙ Einstellungen ▸ 🎛 Spiel-Sets](06-settings.md#spiel-sets).
+
+Das Turnier-Set kann einem Tanz auch **eine eigene Spieldauer** geben, zum
+Beispiel 1:30 für den Wiener Walzer und 1:37 für den Tango. Solange
+eine Liste auf dem 🏆 Set steht, zeigt die große Zahl die Dauer dieses Tanzes,
+und darunter steht der Tanz in Gold. Das ist der Tanz, der gerade spielt, sonst
+die gewählte Zeile. **− / +** und Eintippen ändern dann die Dauer dieses Tanzes,
+nicht die der Liste. Änderst du die Dauer der Liste von Hand, verlässt die
+Liste das Set: ab dann gilt ihre eine Dauer für jeden Tanz. Ab Werk spielt das
+🏆 Set 1:30 für Langsamen Walzer, Wiener Walzer, Quickstep und Jive und 1:37
+für Tango, Slowfox, Samba, Cha-Cha-Cha und Rumba; der Paso Doble hat keine eigene
+Dauer.
 
 ### 🖥 Präsentation
 
@@ -212,16 +278,38 @@ Tanz und die nächsten drei Titel.
 ![Der Präsentationsbildschirm](../img/presenter.png)
 
 - Das Feld daneben wählt den Bildschirm.
-- **🎨 Design**: *Default* ist die schwarze Hallenanzeige. *Light* ist cremefarbenes
-  Papier mit warmer brauner Schrift, für einen hellen Raum.
-- **🕒** hält einen Zeitplan für den Abend, etwa Essen oder den
+- **🕒**, am Ende derselben Zeile, hält einen Zeitplan für den Abend, etwa Essen oder den
   Eröffnungstanz. Er ist eine zweite Seite der Präsentation. **T** schaltet
   dort zwischen den Seiten um.
 - **Esc** schließt die Präsentation. Ein Doppelklick darauf verlässt den
   Vollbildmodus.
 
+Ihre Farben stellst du unter
+[⚙ Einstellungen ▸ 🎨 Aussehen](06-settings.md#aussehen) ein.
+
 **☀ Bildschirm wach halten** hält Bildschirmschoner und Bildschirm-Abschaltung
 auf, solange Musik läuft oder die Präsentation offen ist.
+
+## 🎧 Vorhören über Kopfhörer
+
+Mit einem zweiten Ausgang, zum Beispiel Kopfhörern am Pult, hörst du einen
+Titel vor, während der Saal die Musik hört. Wähl diesen Ausgang unter
+[⚙ Einstellungen ▸ 🔊 Ton & Player ▸ 🔈 Ausgänge ▸ 🎧 Vorhören](06-settings.md#-ausgänge).
+
+- **▶** in der 📚 Bibliothek und im Bereich 🏆 Turniere spielt dann auf dem
+  Vorhör-Ausgang. Die Musik läuft weiter.
+- Das Vorhören hat einen eigenen Mini-Player mit Suchbalken, ⏮ / ⏭ und
+  Lautstärke. **✕** darauf stoppt nur das Vorhören.
+- **Strg+←/→** springt im Vorhören um 30 s, solange es läuft, in den
+  Bereichen und Fenstern, die vorhören. Auf einer Deck-Zeile springen sie
+  weiter in der Musik.
+- **▶** in einer Deck-Zeile startet weiterhin die Musik für den Saal.
+- Ist der Vorhör-Ausgang nicht angeschlossen, spielt er auf dem
+  Systemstandard. Ist dieser Standard der Ausgang der Musik, wird das
+  Vorhören mit einer Meldung abgelehnt: ein Vorhören über die Anlage ist
+  schlimmer als keins.
+- Steht er auf **Wie die Musik**, spielt jedes ▶ wie bisher auf dem einen
+  Player.
 
 ## 🎛 Die Cartwall
 
@@ -250,6 +338,41 @@ Siegerehrung.
 - Zieh die Wand links oder rechts ans Fenster, unter die Decks oder als
   eigenes Fenster hinaus. **📌** holt eine schwebende Wand zurück.
 
+### ⌨ Die Tasten der Cartwall
+
+**Rechtsklick auf ein Pad ▸ ⌨ Tastenkürzel…** öffnet das Fenster
+**⌨ Tasten** auf seinem Reiter **🎛 Cartwall**. Ist die Wand mit ✏
+entsperrt, öffnet es auch der Knopf **⌨** neben ✏. Der Reiter listet jede
+Taste, auf die die Wand hört:
+
+- **Slot-Vorgaben** feuern das Pad, das auf der sichtbaren Seite in diesem
+  Slot sitzt, so trifft derselbe Finger auf jeder Seite dieselbe Ecke. Slot 1
+  bis 9 beginnen auf **Strg + 1 … 9**.
+- **Pad-Tasten** wandern mit ihrem Pad, wohin es auch verschoben wird, und
+  gehen von jeder Seite aus. Ein Pad ohne eigene Taste hört auf die Taste
+  seines Slots.
+
+![Die Tasten der Cartwall, eine Taste doppelt vergeben](../img/cartwall-keys.png)
+
+Für eine Taste klickst du **Anlernen** und drückst sie. Jede Taste geht, auch
+F13 bis F24 von einem Stream Deck oder einem Makro-Keypad. Solange es wartet,
+heißt **Anlernen** **Abbrechen**: ein zweiter Klick behält die alte Taste.
+**✕** nimmt die Taste weg.
+
+Eine doppelt vergebene Taste wird in ihrer Zeile markiert.
+**⚠ schon belegt von Anthem (p1)** nennt das Pad oder den Slot, der sie hat,
+und **⚠ Die App nutzt diese Taste: …** nennt eine [Pult-Taste](#-pult-tasten)
+oder ein Tastenkürzel der App. Eine Taste mit zwei Besitzern löst bei keinem
+aus, darum zählt die Zeile unten, welche Tasten noch doppelt vergeben sind.
+Eine Pad-Taste geht vor einer Slot-Taste. **Standardbelegung
+wiederherstellen** legt die Slots wieder auf Strg + 1 … 9 und lässt die
+Pad-Tasten, wie sie sind.
+
+Der andere Reiter des Fensters enthält die [Pult-Tasten](#-pult-tasten), und
+ein **OK** speichert beide Reiter. Eine Taste, die du auf einem Reiter
+anlernst, wird auf dem anderen sofort markiert, noch bevor etwas gespeichert
+ist.
+
 ## 📱 Die Handy-Fernbedienung
 
 Die Handy-Fernbedienung steuert das Pult aus dem Browser eines Handys, im
@@ -257,10 +380,19 @@ selben Netz wie der PC. Eine App musst du nicht installieren. Vom Handy aus
 kannst du:
 
 - sehen, was läuft und was als Nächstes kommt;
+- einen Titel unter *Weiter* antippen, um ihn sofort zu spielen. Das Handy
+  fragt vorher nach. Bei Ja wird der laufende Titel ausgeblendet, während der
+  angetippte kommt, über die Überblendlänge, oder über die Ausblendzeit, wenn
+  das Überblenden aus ist. Läuft nichts, oder in einer Pause zwischen den
+  Tänzen, startet er einfach;
 - abspielen und pausieren, zum vorigen oder nächsten Titel gehen;
 - ausblenden, oder ausblenden und halten;
 - **🔈 Nächsten Tanz ansagen** ein- oder ausschalten. Es ist derselbe
   Schalter wie im Wiedergabe-Bereich, Stimme und Zeitpunkt folgen also;
+- zwischen **⏭ Auto** und **✋ Manuell** wechseln und **🔀 Überblenden**
+  ein- oder ausschalten. Es sind die Schalter des Wiedergabe-Bereichs. Unter
+  ✋ Manuell oder mit einer Pause zwischen den Titeln zeigt das Handy keinen
+  Überblenden-Knopf, so wie der Bereich dann keine Überblenden-Zeile zeigt;
 - den Fortschrittsbalken ziehen, um zu spulen. Die Stelle unter deinem
   Finger ist die Stelle, die die Fläche hört;
 - die Pads der sichtbaren Cartwall-Seite feuern oder alle stoppen.
@@ -272,6 +404,16 @@ oder **📱 Server starten** unter ⚙ Einstellungen ▸ ⚙ Allgemein. Das Fens
 der Fernbedienung öffnet sich:
 
 - **● Läuft / ○ Gestoppt** mit **▶ Starten / ■ Stoppen**;
+- **Das Handy erreicht das Pult:** **Nur WLAN**, oder **WLAN und mobile Daten
+  (Cloudflare-Tunnel)** für den Fall, dass das Handy Internet hat, aber nicht
+  im Netz des PCs ist. Der Tunnel funktioniert wie der der Gästeseite (siehe
+  unten): kein Konto, das kostenlose Programm `cloudflared`, das der erste
+  Start zum Herunterladen anbietet, und bei jedem Start eine neue Adresse
+  `https://….trycloudflare.com`, die das Fenster als erste nennt. Bis
+  Cloudflare antwortet, zeigt das Fenster „warte auf Cloudflare…“ und keinen
+  QR-Code. Durch den Tunnel wächst die PIN auf 8 Stellen, weil die Adresse
+  dem ganzen Internet offensteht; der QR-Code tippt sie für dich. Eine andere
+  Wahl startet einen laufenden Server neu;
 - ein **QR-Code**: scann ihn mit der Kamera des Handys, und das Handy ist
   drin, ohne die PIN zu tippen;
 - die Adresse, mit einer Auswahl, wenn der PC in mehr als einem Netz hängt,
@@ -282,7 +424,7 @@ der Fernbedienung öffnet sich:
   geöffnet haben, Anmeldungen, falsche PINs und jeder Befehl.
 
 Solange der Server läuft, trägt die Statusleiste ein grünes Abzeichen
-**📱 LIVE**; ein Klick darauf holt das Fenster zurück. In ⚙ Einstellungen heißt
+**📱 Fernbedienung**; ein Klick darauf holt das Fenster zurück. In ⚙ Einstellungen heißt
 der Knopf dann **📱 Server stoppen**.
 
 - Nur Handys im lokalen Netz kommen hinein, und nur mit der PIN. Falsche PINs
@@ -299,6 +441,95 @@ der Knopf dann **📱 Server stoppen**.
   Programm, das du freigeben musst.
 - Der Server läuft nur so lange wie die App. Jeder Start beginnt ohne ihn.
 
+## 📨 Gästewünsche
+
+Gäste wünschen sich Titel vom eigenen Handy aus. Sie durchsuchen die
+Bibliothek und wünschen sich einen Titel, oder schreiben ein paar Worte, wenn
+er nicht dabei ist. Nichts, was ein Gast schickt, läuft von selbst: es landet
+in einem Posteingang, und du entscheidest.
+
+**Zum Starten** klickst du **📨 Gästewünsche…** unter ⚙ Einstellungen ▸
+⚙ Allgemein, neben der Handy-Fernbedienung. Das Fenster enthält:
+
+- **▶ Starten / ■ Stoppen** und **Gäste erreichen die Seite:** mit drei Wegen
+  (siehe unten);
+- einen **QR-Code** für die Kameras der Gäste, die Adresse und den
+  **Event-Code**. **Neuer Code** sperrt jeden älteren Link und jedes Foto des
+  QR-Codes aus;
+- **🖥 QR-Code auf dem Präsentationsbildschirm zeigen** (von Haus aus an):
+  solange Gäste wünschen können, trägt der Präsentationsbildschirm denselben
+  Code unten rechts, unter „Musikwunsch? Hier scannen“, und die Gäste scannen
+  ihn von der Fläche aus;
+- den **Posteingang**: eine Zeile je Titel oder Wunsch, mit der Zahl, wie oft
+  er kam. **⭐ Auf die Wunschliste** (oder ein Doppelklick) setzt einen Titel
+  auf die erste ⭐ Wunschliste; **✕ Verwerfen** nimmt eine Zeile heraus;
+- ein **Protokoll** dessen, was beim Server ankam.
+
+Solange Gäste wünschen können oder Wünsche warten, trägt die Statusleiste ein
+blaues Abzeichen **📨** mit der Zahl der wartenden Wünsche. Ein Klick darauf
+öffnet das Fenster. Kommt ein neuer Wunsch, während das Fenster zu ist, nennt
+ihn eine kurze Meldung, und das Abzeichen blinkt orange, bis du das Fenster
+öffnest.
+
+**Wie Gäste die Seite erreichen:**
+
+| Weg | Was er braucht | Die Adresse |
+|---|---|---|
+| **Nur WLAN** | Gäste im selben WLAN wie der PC oder in seinem Hotspot. | Die dieses PCs im lokalen Netz. |
+| **WLAN und mobile Daten (Cloudflare-Tunnel)** | Das kostenlose Programm `cloudflared`. Ein schon installiertes (Installer, winget, Homebrew) wird von selbst gefunden. Sonst bietet der erste Start an, es herunterzuladen (etwa 55 MB), oder du legst es neben das Programm. Kein Konto. | Bei jedem Start eine neue `https://….trycloudflare.com`. |
+
+- Jeder Gast darf in zehn Minuten zehn Wünsche schicken, alle Gäste zusammen
+  120. Ein falscher oder alter Event-Code zählt dabei mit.
+- Stoppen schließt die Seite für die Gäste. Wie die Handy-Fernbedienung
+  laufen Gästewünsche nur so lange wie die App.
+- Solange der Tunnel sich verbindet, auch nach einem Wechsel des
+  Wegs bei offenen Wünschen, zeigt das Fenster *Verbinde…* statt eines
+  QR-Codes. Der Code erscheint, sobald Gäste die Seite erreichen; so
+  kopiert niemand eine Adresse, die (noch) nicht geht.
+
+## ⌨ Pult-Tasten
+
+Jede Aktion der Handy-Fernbedienung und des Controllers, außer den Fadern und
+den Pads, hat auch eine Taste. Die Tasten gehen von überall im Fenster, so
+kann alles, was tippt, das Pult steuern: ein Stream Deck im Hotkey-Modus oder
+ein Makro-Keypad braucht dafür keinen Treiber.
+
+| Aktion | Taste zu Beginn |
+|---|---|
+| ⏯ Abspielen / Pause | **Strg + Umschalt + P** |
+| ⏭ Nächster Titel / ⏮ Vorheriger Titel | **Strg + Umschalt + → / ←** |
+| 🔉↓ Jetzt ausblenden | **Strg + Umschalt + F** |
+| 🛑 Ausblenden und halten | **Strg + Umschalt + H** |
+| 🔉 Musik absenken an / aus | **Strg + Umschalt + D** |
+| 🔈 Nächsten Tanz ansagen an / aus | **Strg + Umschalt + A** |
+| 🔼 / 🔽 Musik lauter / leiser, 5 % pro Schritt | **Strg + Umschalt + ↑ / ↓** |
+| ⏫ / ⏬ Tempo schneller / langsamer, 0,1 % pro Schritt | **Strg + Umschalt + Bild ↑ / Bild ↓** |
+| 🎯 Tempo zurück auf ±0 % | **Strg + Umschalt + Pos1** |
+| ⏹ Alle Pads stoppen | **Strg + Umschalt + X** |
+
+Ändern kannst du sie über **⌨ Tasten…** in ⚙ Einstellungen ▸
+⚙ Allgemein ▸ 🎛 DJ-Controller oder in der Übersicht unter **F1**, die die
+Tasten so listet, wie sie belegt sind. Beide öffnen das Fenster **⌨ Tasten**
+auf seinem Reiter **⌨ Pult-Tasten**. Sein Reiter **🎛 Cartwall** enthält die
+[Tasten der Cartwall](#-die-tasten-der-cartwall), so stellst du alle Tasten an
+einer Stelle ein.
+
+![Die Pult-Tasten, eine davon auch auf einem Cartwall-Pad](../img/desk-keys.png)
+
+- **Anlernen**, dann die Taste drücken. Noch einmal Anlernen bricht ab und
+  behält die alte Taste. **✕** lässt die Aktion ohne Taste.
+- **＋** neben der Taste einer Aktion fügt ein Feld für eine weitere Taste
+  hinzu. Jede Taste der Aktion macht dasselbe, und der F1-Spickzettel listet
+  sie in einer Zeile. **−** neben einem hinzugefügten Feld nimmt es samt
+  seiner Taste wieder weg.
+- Ein Stream Deck oder ein Makro-Keypad kann **F13 bis F24** senden. Keine
+  Tastatur hat diese Tasten, also kommen sie nie mit etwas anderem ins Gehege.
+- Eine Taste, die schon vergeben ist, sagt das in ihrer Zeile.
+  **⚠ Die App nutzt diese Taste: …** nennt, was die App oder ein Cartwall-Pad
+  damit macht. Änder eine der beiden: eine Taste mit zwei Besitzern löst bei
+  keinem aus.
+- **↺ Standard wiederherstellen** legt jede Taste zurück auf die Tabelle oben.
+
 ## 🎛 Ein DJ-Controller
 
 Ein USB-MIDI- oder HID-Controller kann das Pult mit echten Tasten und einem
@@ -310,7 +541,13 @@ Was er auslösen kann:
 - ⏯ Abspielen / Pause, ⏭ Nächster Titel, ⏮ Vorheriger Titel;
 - 🔉↓ Jetzt ausblenden, 🛑 Ausblenden und halten;
 - 🔉 Musik absenken an / aus, 🔈 Nächsten Tanz ansagen an / aus;
-- 🔊 Musiklautstärke, über einen Fader oder einen Regler;
+- 🔊 Musiklautstärke, über einen Fader oder einen Regler, und 🔼 / 🔽 Musik
+  lauter / leiser in 5-%-Schritten, für Tasten;
+- 🎚 Tempo / Pitch, über einen Fader oder einen Drehregler: seine Mitte ist
+  ±0 %, seine Enden −16 % und +16 %. Für Tasten ⏫ / ⏬ Tempo schneller /
+  langsamer in 0,1-%-Schritten und 🎯 Tempo zurück auf ±0 %. Das Tempo
+  ändert sich, sobald der Regler stillsteht, nicht bei jedem Schritt: so
+  stockt die Musik nicht, während du drehst;
 - ⏹ Alle Pads stoppen, und sechzehn Cartwall-Pads: Pad *n* ist das *n*-te
   Pad der sichtbaren Seite, wie bei **Strg + *n***.
 
@@ -320,17 +557,42 @@ Im Fenster:
 
 1. Wähl den Controller unter **Gerät**. **↻** sucht nach neuen. Hak **Alle
    HID-Geräte zeigen, nicht nur DJ-Controller** an, wenn deiner fehlt.
-2. **Vorlagen ▾** hält ein fertiges Profil für den Korg nanoKONTROL2.
+2. **Vorlagen ▾** hält ein fertiges Profil für den Korg nanoKONTROL2. Dort
+   steuert die Transportreihe den Player, Fader 1 ist die Musiklautstärke,
+   der Drehregler darüber das Tempo, und **S1** setzt das Tempo zurück auf
+   ±0 % (die Drehregler lassen sich nicht drücken). Die Cartwall-Pads
+   liegen auf den Tasten S, M und R der Kanäle 5–8 und auf M1–M4.
 3. Für jeden anderen Controller klickst du **Anlernen** neben einer Aktion
    und drückst die Taste oder bewegst den Fader, auf die sie hören soll.
-   **✕** löst die Zuordnung. Die Zeile unter der Tabelle zeigt das zuletzt
-   berührte Bedienelement.
+   Solange es wartet, heißt der Knopf **Abbrechen**: noch ein Klick darauf,
+   oder **✕**, beendet das Anlernen und behält die bisherige Zuordnung.
+   **✕** in jeder anderen Zeile löst die Zuordnung dieser Aktion. Die Zeile
+   unter der Tabelle zeigt das zuletzt berührte Bedienelement.
 4. **💾 Profil speichern…** und **📂 Profil laden…** halten eine Belegung als
    Datei fest, zum Beispiel für den PC in der Halle.
 
+- Ein Bedienelement macht nur eine Sache. Nimmt Anlernen ein Bedienelement,
+  das eine andere Aktion hatte, steht in deren Zeile **⚠ verschoben auf …**
+  mit der Aktion, die es jetzt hat. Lern diese Zeile neu an oder lass sie
+  leer.
+- Anlernen unterscheidet eine Taste von einem Drehregler oder Fader daran,
+  wie sie sich bewegen. Eine Tasten-Aktion nimmt nur einen Druck an, ein
+  Drehregler, der dabei gedreht wird, zählt nicht. Lautstärke und Tempo
+  nehmen nur einen Drehregler oder Fader, nie eine Taste.
+- 🔼 / 🔽 Musik lauter / leiser ohne eigene Taste zeigen in Grau
+  **über den Fader — CC 0 · ch 1**: der 🔊 Fader stellt die Lautstärke schon.
+  Die Vorlage für den nanoKONTROL2 lässt sie so.
+
+Solange der Controller verbunden ist, trägt die Statusleiste ein grünes
+Abzeichen mit seinem Namen, etwa **🎛 nanoKONTROL2**. Ein Klick darauf öffnet
+das Controller-Fenster.
+
+![Das Controller-Abzeichen in der Statusleiste](../img/controller-badge.png)
+
 Der Controller wirkt, sobald du ihn einrichtest, und wird gemerkt. Wird er
-abgezogen, sucht die App alle paar Sekunden wieder nach ihm. MIDI geht unter
-Windows, macOS und Linux.
+abgezogen, verschwindet das Abzeichen nach wenigen Sekunden, und die App
+sucht alle paar Sekunden wieder nach ihm; wieder eingesteckt, wird er von
+selbst wieder benutzt. MIDI geht unter Windows, macOS und Linux.
 
 ## 📜 Gespielte Titel
 

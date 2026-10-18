@@ -21,7 +21,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication
 
 from planner import i18n
-from player.play_mode_panel import PlayModePanel, parse_play_length
+from player.widgets.play_mode_panel import PlayModePanel, parse_play_length
 from tests.qt_test_support import reap_widget
 
 

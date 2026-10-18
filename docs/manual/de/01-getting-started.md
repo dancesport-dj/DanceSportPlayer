@@ -64,6 +64,11 @@ Du startest sie mit **🧱 ALLE Caches aufbauen…** unter ⚙ Einstellungen ▸
 ⚗ Analyse. Die Analyse *liest* deine Dateien nur und lässt sich abbrechen.
 Was schon im Cache liegt, wird wiederverwendet.
 
+Jeder Lauf schreibt seinen Fortschritt in `session.log` im Datenordner der
+App, neben `audio_features.db`: mit wie vielen Dateien er beginnt, alle 5 %
+eine Zeile mit der Restzeit und am Ende eine Zusammenfassung mit den
+Fehlern.
+
 ### Zu Hause analysieren, in der Halle spielen
 
 Die Analyse braucht Zeit, die du am Turniertag vielleicht nicht hast. Lass sie
@@ -95,7 +100,7 @@ auf ihr Symbol. Fahr mit der Maus darüber, dann siehst du den vollen Namen.
 | 🤸 Party ▾ | Blendet den Party-Bereich ein oder aus. |
 | 📚 Bibliothek | Blendet den Bereich Bibliothek und Turniere ein oder aus. |
 | 🎛 Cartwall | Blendet die Wand mit den Sample-Pads ein oder aus. |
-| ❔ | Ein Menü: ⌨ Tastenkürzel (**F1**), 📖 Handbuch, 📜 Gespielte Titel…, ℹ Über… und ⛶ Vollbild (**F11**). |
+| ❔ | Ein Menü: ⌨ Tastenkürzel (**F1**), 📖 Handbuch, 📜 Gespielte Titel…, ⚙ Einstellungen… (**F12**), ℹ Über… und ⛶ Vollbild (**F11**). |
 
 **Mitte: die Decks.** Jedes Deck ist eine Playlist, siehe
 [Kapitel 3](03-playlists.md).
@@ -110,7 +115,7 @@ Bereich **📚 Bibliothek / 🏆 Turniere**, siehe
   sie zurückgehen können;
 - der Titel, der im Player bereitliegt;
 - die Statusleiste. Solange die 📱 Handy-Fernbedienung läuft, sitzt an ihrem
-  rechten Ende ein grünes Abzeichen **📱 LIVE**; ein Klick darauf öffnet das
+  rechten Ende ein grünes Abzeichen **📱 Fernbedienung**; ein Klick darauf öffnet das
   Fenster der Fernbedienung, siehe
   [Kapitel 4](04-playing.md#-die-handy-fernbedienung).
 

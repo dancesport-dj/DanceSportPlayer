@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from planner.library import MusicLibrary
+from planner.music.library import MusicLibrary
 from planner.models import MusicEntry
 
 

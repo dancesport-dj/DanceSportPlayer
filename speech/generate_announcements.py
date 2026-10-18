@@ -5,7 +5,7 @@ The script creates one MP3 per announcement, per language and per configured
 voice:
   announcements/german/male/{CODE}.mp3
   announcements/english/female/{CODE}.mp3
-That is the set the app plays (player.announce._CLIP_DIR): the dances, the
+That is the set the app plays (player.audio.announce._CLIP_DIR): the dances, the
 "Nächster Tanz" / "Next dance" lead-in, "Heat" and the heat numbers 1-8. The
 file names are the same in every language (the lead-in is next_dance.mp3
 in German too), so the app finds a clip by its code and takes the German one
@@ -146,7 +146,7 @@ SPEEDS = {
 # Punctuation is a pronunciation variant too: a bare word is read as if the
 # sentence went on, which is why "Rumba" comes out of the PA sounding like a
 # question. A full stop makes the voice put it down, an exclamation mark calls
-# it out. player.announce.spoken_fragment does the same for the live synthesiser.
+# it out. player.audio.announce.spoken_fragment does the same for the live synthesiser.
 PRONUNCIATION_VARIANTS = {
     "german": {
         "RB": ["Rumba.", "Rumba!"],
@@ -179,7 +179,7 @@ _PUNCTUATION = {
 def get_api_key() -> str | None:
     """Read the key from the environment, optionally loading a local .env."""
     try:
-        from dotenv import load_dotenv
+        from dotenv import load_dotenv  # pyright: ignore[reportMissingImports]  # optional
     except ImportError:
         load_dotenv = None
 
@@ -246,7 +246,7 @@ def main() -> int:
         return 2
 
     try:
-        from elevenlabs.client import ElevenLabs
+        from elevenlabs.client import ElevenLabs  # pyright: ignore[reportMissingImports]  # optional
     except ImportError:
         print("Error: the 'elevenlabs' package is missing. Install it with: pip install -U elevenlabs", file=sys.stderr)
         return 3
@@ -279,7 +279,7 @@ def main() -> int:
             if speed is not None:
                 # Only the pace is sent. Reading the voice's stored settings to
                 # change just that needs a voices_read key, which ours isn't.
-                from elevenlabs import VoiceSettings
+                from elevenlabs import VoiceSettings  # pyright: ignore[reportMissingImports]  # optional
                 options["voice_settings"] = VoiceSettings(speed=speed)
             audio = client.text_to_speech.convert(
                 text=spoken_text,

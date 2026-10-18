@@ -7,7 +7,7 @@ The promises the wall makes to the operator:
 """
 import unittest
 
-from planner.cartwall import (
+from planner.playing.cartwall import (
     CARTWALL_VERSION, DEFAULT_GRID, DEFAULT_PAD_COLOUR, DEFAULT_PAGES,
     GRID_SIZES, LABEL_MAX, SLOT_KEYS, CartPad, Page, blank_page, cell_key,
     clean_slot_keys, clear_pad, default_label, dump_doc, fill_pads, is_portrait,

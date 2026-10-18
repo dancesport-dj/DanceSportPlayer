@@ -23,7 +23,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication, QMessageBox
 
-from tests.gui.test_duplicate_check_scope import _Win, _waltz
+from tests.gui.window.test_duplicate_check_scope import _Win, _waltz
 from tests.qt_test_support import reap_widget
 
 
@@ -34,7 +34,13 @@ class _PickWin(_Win):
     def _play_or_stop(self, path):
         pass
 
+    def _prehear(self, path):
+        pass
+
     def _seek(self, ms):
+        pass
+
+    def _prehear_seek(self, ms):
         pass
 
 
@@ -62,7 +68,7 @@ class DuplicateReplacementPickTest(unittest.TestCase):
             dlg = mock.Mock()
             dlg.exec.return_value = 0
             return dlg
-        with mock.patch("gui.main_dupes.SimilarTracksDialog", side_effect=capture):
+        with mock.patch("gui.window.main_dupes.SimilarTracksDialog", side_effect=capture):
             return (fn or self.win._pick_dup_replacement)(self.a)
 
     def test_titles_in_the_decks_are_not_offered(self):

@@ -21,6 +21,7 @@ import os
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 from planner import config
 from planner.version import app_version
@@ -66,7 +67,7 @@ def dsn() -> str:
     return ""
 
 
-def available() -> bool:
+def available() -> bool:  # slop-mop noqa: ambiguity-mine - an optional feature's own can-this-run check
     """Whether this run could send reports at all — the settings offer the
     switch only then."""
     if not dsn():
@@ -91,7 +92,7 @@ def scrub(event: dict) -> dict:
     name."""
     pattern = _home_pattern()
 
-    def walk(value):
+    def walk(value) -> Any:
         if isinstance(value, str):
             return pattern.sub("~", value)
         if isinstance(value, dict):
@@ -105,7 +106,8 @@ def scrub(event: dict) -> dict:
     return out
 
 
-def _before_send(event, _hint):
+def _before_send(event: Any, _hint: Any) -> Any:
+    # Any: sentry hands in its Event TypedDict, scrub works on plain dicts.
     return scrub(event)
 
 
@@ -133,7 +135,7 @@ def _systemTrustTransport():
     return SystemTrustTransport
 
 
-def apply(settings: dict) -> bool:
+def apply_settings(settings: dict) -> bool:  # slop-mop noqa: ambiguity-mine - the settings hook each settings-driven module has
     """Start or stop sending, as the settings say. Returns whether reports
     are on now. Called at start-up and whenever ⚙ Settings is saved."""
     global _active

@@ -11,6 +11,10 @@ _*.wav
 
 # Test coverage data (coverage.py)
 .coverage
+.coverage.*
+coverage.xml
+# pytest-testmon's dependency database (slop-mop's untested-code gate)
+.testmondata
 
 # IDE project files (PyCharm)
 .idea/
@@ -76,3 +80,7 @@ docs/manual/manual.zip
 # The wedding theme's marks carry a couple's names: on this machine only, the
 # presenter shows no mark without them
 assets/hochzeit/
+
+# slop-mop working directory (machine-local state)
+.slopmop/
+relay/relay-state.json

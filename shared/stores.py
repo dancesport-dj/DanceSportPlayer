@@ -33,7 +33,7 @@ def player_layout_of(settings: dict) -> str:
 def load_cartwall_file():
     """The parsed cartwall.json, or None when there is nothing readable there.
     Interpreting it — including refusing to overwrite a newer version — is
-    planner.cartwall.load_doc's job."""
+    planner.playing.cartwall.load_doc's job."""
     return CARTWALL.read()
 
 

@@ -27,8 +27,8 @@ from PySide6.QtWidgets import (
     QApplication, QDockWidget, QMainWindow)
 from tests.qt_test_support import reap_widget
 
-from player import cartwall as gc
-from player.main_cartwall import CART_DOCK, CartwallMixin
+from player.widgets import cartwall as gc
+from player.window.main_cartwall import CART_DOCK, CartwallMixin
 
 _app = QApplication.instance() or QApplication(sys.argv)
 

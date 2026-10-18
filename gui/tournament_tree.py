@@ -15,53 +15,47 @@ import logging
 import re
 import threading
 
+from collections.abc import Callable
 from pathlib import Path
 
 from PySide6.QtCore import (
     QEventLoop,
-    QMimeData,
     Qt,
     QTimer,
-    QUrl,
     Signal,
 )
 from PySide6.QtGui import (
     QColor,
-    QDrag,
     QKeySequence,
 )
 from PySide6.QtWidgets import (
     QAbstractItemView,
-    QApplication,
     QFileDialog,
-    QFrame,
     QHBoxLayout,
     QHeaderView,
     QInputDialog,
     QLabel,
     QMenu,
     QMessageBox,
-    QScrollArea,
     QSplitter,
     QStackedWidget,
     QTableWidgetItem,
     QToolButton,
-    QTreeWidget,
     QTreeWidgetItem,
     QTreeWidgetItemIterator,
     QVBoxLayout,
     QWidget,
 )
 
-from planner.m3u import (m3u_marker_rounds_in_order, read_m3u_tracks,
+from planner.playlist.m3u import (m3u_marker_rounds_in_order, read_m3u_tracks,
                          running_order_rounds)
 from planner import i18n
 from planner.models import DEFAULT_DANCES, MusicEntry
-from planner.warmup import warmup_code
+from planner.generate.warmup import warmup_code
 from planner import terms
 from planner.terms import dance_name
-from planner.planned import path_key
-from planner.parsing import _detect_dance
+from planner.playlist.planned import path_key
+from planner.music.parsing import _detect_dance
 from gui.common import (
     BusyDialog,
     _C_NEW_FG,
@@ -71,9 +65,6 @@ from gui.common import (
     _open_in_default_player,
     stopwatch_header,
 )
-from shared.widgets import (
-    FlowLayout,
-)
 
 from gui.library_browser import (
     _LibPlayItem,
@@ -81,14 +72,10 @@ from gui.library_browser import (
     _LibTable,
     fill_track_columns,
 )
+from gui.tournament_tiles import _ROLE_KEY, _TourneyTree, _SlotBoard
 
 log = logging.getLogger("dancesport.gui.tournament_tree")
 
-# Where a tree item sits in the node list, as "0/2/1". NOT the node dict
-# itself: PySide6 marshals a dict through QVariant as a C++ QVariantMap and
-# hands back a COPY, so edits would never reach the model and `is` comparisons
-# would all miss. An index path is a string, which survives the round trip.
-_ROLE_KEY = Qt.ItemDataRole.UserRole
 # Track path on a row of the list below (what _LibTable.startDrag exports).
 _ROLE_PATH = Qt.ItemDataRole.UserRole
 # Fixed widths of the narrow columns; Artist (3) and Title (4) share the rest.
@@ -101,13 +88,9 @@ _C_MISS_BG = QColor(255, 224, 178)   # orange
 VIEW_SLOTS = "slots"   # ▦ folders left, their playlists as draggable tiles
 VIEW_LIST = "list"     # ▤ the whole tree left, the picked playlist's tracks right
 
-# One slot. Wide enough for "Turnier 3 Sen I S" and two rows of them fit the
-# strip the pane gets at the bottom of the window.
-_SLOT_W, _SLOT_H = 200, 62
 # Section tints, by which dances a playlist turns out to hold.
 _STD = frozenset(DEFAULT_DANCES["Standard"]["S"])
 _LAT = frozenset(DEFAULT_DANCES["Latin"]["S"])
-_SLOT_TINTS = {"Standard": "#3b6ea5", "Latin": "#b5533c", "": "#9aa3ad"}
 
 _ROUND_SHORT = {"vorrunde": "VR", "zwischenrunde": "ZR", "semifinale": "SF",
                 "halbfinale": "SF", "finale": "ER", "endrunde": "ER"}
@@ -202,254 +185,6 @@ def save_tree(store, nodes: list[dict], view: str = VIEW_SLOTS):
                  "view": VIEW_LIST if view == VIEW_LIST else VIEW_SLOTS})
 
 
-class _TourneyTree(QTreeWidget):
-    """The tree itself: .m3u files dropped in from Explorer become leaves,
-    and a leaf dragged out is that .m3u file — so it lands on a deck exactly
-    as it would coming from Explorer."""
-
-    filesDropped = Signal(object, object)   # (target item | None, [Path, …])
-
-    node_of = None      # set by TournamentTree: item key → node dict
-    # set by TournamentTree: Ctrl+A → True when it marked something else instead
-    select_all_cb = None
-
-    def keyPressEvent(self, event):
-        if (event.matches(QKeySequence.StandardKey.SelectAll)
-                and self.select_all_cb is not None and self.select_all_cb()):
-            return
-        super().keyPressEvent(event)
-
-    @staticmethod
-    def _m3u_urls(mime) -> list[Path]:
-        """The dropped .m3u files AND folders — a whole competition folder
-        dropped in is the fastest way to get a weekend into the tree, and the
-        folder itself says how it is organised."""
-        out = []
-        for u in mime.urls():
-            if not u.isLocalFile():
-                continue
-            p = Path(u.toLocalFile())
-            if p.is_dir() or p.name.lower().endswith(".m3u"):
-                out.append(p)
-        return out
-
-    def dragEnterEvent(self, event):
-        if self._m3u_urls(event.mimeData()):
-            event.acceptProposedAction()
-            return
-        event.ignore()
-
-    def dragMoveEvent(self, event):
-        if self._m3u_urls(event.mimeData()):
-            event.acceptProposedAction()
-            return
-        event.ignore()
-
-    def dropEvent(self, event):
-        paths = self._m3u_urls(event.mimeData())
-        if not paths:
-            event.ignore()
-            return
-        event.acceptProposedAction()
-        # Handled on the next tick: reading a dropped folder walks everything
-        # under it and puts a progress dialog up, and neither belongs inside the
-        # drag gesture — Explorer stays frozen until this handler returns.
-        item = self.itemAt(event.position().toPoint())
-        QTimer.singleShot(0, lambda: self.filesDropped.emit(item, paths))
-
-    def startDrag(self, _actions):
-        paths = []
-        for item in self.selectedItems():
-            node = self.node_of(item.data(0, _ROLE_KEY)) or {}
-            if node.get("m3u"):
-                paths.append(str(node["m3u"]))
-        if not paths:
-            return
-        mime = QMimeData()
-        mime.setUrls([QUrl.fromLocalFile(p) for p in paths])
-        mime.setText("\n".join(paths))
-        drag = QDrag(self)
-        drag.setMimeData(mime)
-        drag.exec(Qt.DropAction.CopyAction | Qt.DropAction.LinkAction,
-                  Qt.DropAction.CopyAction)
-
-
-class _SlotTile(QFrame):
-    """One playlist as a thing to grab.
-
-    It is a drag source first and a label second: what the operator does with a
-    tournament at the desk is pull it onto a deck, and that gesture has to work
-    from anywhere on the tile. So the press is remembered and the drag starts
-    only past the system's drag distance — otherwise a click that wandered two
-    pixels would be a drag and the tile could never simply be selected.
-    """
-
-    picked = Signal(str)        # key — this tile is now the selected one
-    released = Signal(str)      # key — a click that did not become a drag
-    activated = Signal(str)     # key — load it (double-click)
-    menuRequested = Signal(str, object)   # key, global pos
-
-    def __init__(self, key: str, meta: dict, parent=None):
-        super().__init__(parent)
-        self._key = key
-        self._m3u = meta["m3u"]
-        self._missing = meta["missing"]
-        self._style = meta["style"]
-        self._press = None
-        self._selected = False
-        # What a drag from here carries — set by the board, so a tile among
-        # several marked ones takes them all along.
-        self.drag_paths = lambda: [self._m3u]
-        self.setObjectName("slot")
-        self.setFixedSize(_SLOT_W, _SLOT_H)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.customContextMenuRequested.connect(
-            lambda pos: self.menuRequested.emit(self._key,
-                                                self.mapToGlobal(pos)))
-
-        box = QVBoxLayout(self)
-        box.setContentsMargins(7, 4, 7, 4)
-        box.setSpacing(0)
-        self._name_lbl = QLabel()
-        self._name_lbl.setStyleSheet("font-weight:600; font-size:11px;")
-        self._sub_lbl = QLabel(meta["subtitle"])
-        self._sub_lbl.setStyleSheet("color:#6b7480; font-size:10px;")
-        # How far the tournament runs. Its own line and a shade darker than the
-        # song count: which rounds are in the file is what says whether this is
-        # the whole event or one round of it.
-        self._round_lbl = QLabel()
-        self._round_lbl.setStyleSheet("color:#4c5563; font-size:10px;")
-        box.addWidget(self._name_lbl)
-        box.addWidget(self._sub_lbl)
-        box.addWidget(self._round_lbl)
-        # Elided by hand: a QLabel would just clip, and the tail of "Turnier 3
-        # Sen I S" is the half that says which tournament it is.
-        self._name_lbl.setText(self._name_lbl.fontMetrics().elidedText(
-            meta["name"], Qt.TextElideMode.ElideRight, _SLOT_W - 20))
-        self._round_lbl.setText(self._round_lbl.fontMetrics().elidedText(
-            meta.get("rounds", ""), Qt.TextElideMode.ElideRight, _SLOT_W - 20))
-        self.setToolTip(meta["tip"])
-        self._paint()
-
-    def _paint(self):
-        """The tile's own look. Written as a stylesheet rather than painted so
-        the hover state comes for free — a slot has to answer the mouse, or
-        nobody believes it can be picked up."""
-        tint = "#e08a2e" if self._missing else _SLOT_TINTS[self._style]
-        bg = "#fff5e6" if self._missing else ("#eaf1fb" if self._selected
-                                              else "#ffffff")
-        self.setStyleSheet(
-            f"QFrame#slot {{ background:{bg}; border:1px solid "
-            f"{'#7aa0d0' if self._selected else '#d3dae3'}; "
-            f"border-left:4px solid {tint}; border-radius:6px; }}"
-            f"QFrame#slot:hover {{ background:#f2f7ff; border-color:#7aa0d0; "
-            f"border-left:4px solid {tint}; }}")
-
-    def set_selected(self, on: bool):
-        if on != self._selected:
-            self._selected = on
-            self._paint()
-
-    # ── the grab ──
-
-    def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            self._press = event.position().toPoint()
-            self.picked.emit(self._key)
-        super().mousePressEvent(event)
-
-    def mouseMoveEvent(self, event):
-        if self._press is None:
-            return
-        if ((event.position().toPoint() - self._press).manhattanLength()
-                < QApplication.startDragDistance()):
-            return
-        self._press = None
-        paths = self.drag_paths()
-        mime = QMimeData()
-        mime.setUrls([QUrl.fromLocalFile(p) for p in paths])
-        mime.setText("\n".join(paths))
-        drag = QDrag(self)
-        drag.setMimeData(mime)
-        drag.setPixmap(self.grab())   # the tile itself rides the cursor
-        drag.exec(Qt.DropAction.CopyAction | Qt.DropAction.LinkAction,
-                  Qt.DropAction.CopyAction)
-
-    def mouseReleaseEvent(self, event):
-        if self._press is not None:
-            self.released.emit(self._key)
-        self._press = None
-        super().mouseReleaseEvent(event)
-
-    def mouseDoubleClickEvent(self, event):
-        self.activated.emit(self._key)
-
-
-class _SlotBoard(QScrollArea):
-    """The tiles of one folder, wrapped across whatever width there is."""
-
-    picked = Signal(str)
-    activated = Signal(str)
-    menuRequested = Signal(str, object)
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWidgetResizable(True)
-        self.setFrameShape(QFrame.Shape.NoFrame)
-        self.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self._inner = QWidget()
-        self._flow = FlowLayout(self._inner, spacing=6)
-        self.setWidget(self._inner)
-        self._tiles: dict[str, _SlotTile] = {}
-        self.selected_keys: list[str] = []   # the marked tiles, in filed order
-        self._empty = QLabel("", self._inner)
-        self._empty.setStyleSheet("color:#8a929c; font-size:11px;")
-
-    def set_slots(self, slots: list[dict], hint: str):
-        """slots: one meta dict per playlist, in the order they are filed."""
-        while self._flow.count():
-            item = self._flow.takeAt(0)
-            w = item.widget()
-            if w is not None:
-                w.setParent(None)
-                w.deleteLater()
-        self._tiles.clear()
-        self.selected_keys = []
-        for meta in slots:
-            tile = _SlotTile(meta["key"], meta)
-            tile.drag_paths = lambda k=meta["key"]: self.drag_paths_of(k)
-            tile.picked.connect(self.picked)
-            tile.released.connect(self.select)
-            tile.activated.connect(self.activated)
-            tile.menuRequested.connect(self.menuRequested)
-            self._tiles[meta["key"]] = tile
-            self._flow.addWidget(tile)
-        self._empty.setVisible(not slots)
-        self._empty.setText(hint)
-        if not slots:
-            self._empty.adjustSize()
-            self._empty.move(4, 4)
-
-    def select(self, key: str):
-        self._mark([key] if key in self._tiles else [])
-
-    def select_all(self):
-        self._mark(list(self._tiles))
-
-    def _mark(self, keys: list[str]):
-        self.selected_keys = keys
-        for k, tile in self._tiles.items():
-            tile.set_selected(k in keys)
-
-    def drag_paths_of(self, key: str) -> list[str]:
-        """The playlists a drag from tile `key` carries: every marked one when
-        it is among them, else just its own."""
-        keys = self.selected_keys if key in self.selected_keys else [key]
-        return [self._tiles[k]._m3u for k in keys]
-
-
 class TournamentTree(QWidget):
     """The 🏆 tab: the filing on the left, what a pick of it holds on the right.
 
@@ -462,7 +197,7 @@ class TournamentTree(QWidget):
     loadRequested = Signal(str)           # .m3u to load onto the focused deck
 
     # Path → MusicEntry for tracks that are NOT in the library, set by MainWindow.
-    resolve_entry = None
+    resolve_entry: Callable[[Path], MusicEntry | None] | None = None
 
     def __init__(self, store, parent=None):
         super().__init__(parent)
@@ -479,100 +214,20 @@ class TournamentTree(QWidget):
         v.setContentsMargins(0, 0, 0, 0)
         v.setSpacing(2)
 
-        bar = QHBoxLayout()
-        bar.setSpacing(4)
-        self._count_lbl = QLabel("")
-        self._count_lbl.setStyleSheet("color:#666;")
-        bar.addWidget(self._count_lbl)
-        bar.addStretch(1)
-        for text, tip, slot in (
-                ("▤", "Show the tracks of one playlist instead of the slots —\n"
-                      "the whole tree on the left, the titles of whatever is\n"
-                      "picked on the right (click again for the slots)",
-                 self._toggle_view),
-                ("⊟", "Collapse every folder — click again to open them all\n"
-                      "(a whole season of weekends is a long tree)",
-                 self._toggle_collapse_all),
-                ("📁", "New folder — a day, a venue, a competition", self._add_folder),
-                ("＋", "Add playlist files (.m3u) to the selected folder",
-                 self._add_playlists),
-                ("✎", "Rename the selected entry (F2)", self._rename),
-                ("🗑", "Remove the selected entry from the tree —\n"
-                       "the playlist file on disk is left alone (Del)", self._remove)):
-            btn = QToolButton()
-            btn.setText(text)
-            btn.setToolTip(tip)
-            btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-            btn.clicked.connect(slot)
-            if text == "⊟":
-                self._collapse_btn = btn   # its face says what the next click does
-            elif text == "▤":
-                self._view_btn = btn
-            bar.addWidget(btn)
+        bar = self._build_toolbar()
         v.addLayout(bar)
 
         # Always side by side: this pane is the wide, short strip at the bottom
         # of the window, and both views put a list of names next to what that
         # name holds — stacking them halves the one dimension there is least of.
         split = self._split = QSplitter(Qt.Orientation.Horizontal)
-        self._tree = _TourneyTree()
-        self._tree.node_of = self.node_at
-        self._tree.select_all_cb = self._select_all_slots
-        self._tree.setHeaderHidden(True)
-        # Extended, so Ctrl+A marks the whole tree for Del or one drag.
-        self._tree.setSelectionMode(
-            QAbstractItemView.SelectionMode.ExtendedSelection)
-        self._tree.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self._tree.setDragEnabled(True)
-        self._tree.setAcceptDrops(True)
-        self._tree.setDropIndicatorShown(True)
-        self._tree.setToolTip(
-            "Your competitions, days and tournaments — folders are labels,\n"
-            "the 🎵 entries point at .m3u files wherever they lie.\n\n"
-            "Drop .m3u files or a whole folder in from Explorer · pick a folder\n"
-            "to lay its playlists out as slots on the right · drag a slot onto\n"
-            "a deck to load the round · double-click it to load it onto the\n"
-            "focused deck.")
-        self._tree.currentItemChanged.connect(lambda *_: self._show_current())
-        # Clicking the folder again makes IT the picked thing once more — what
-        # Del, 🗑 and F2 act on has to be what is highlighted.
-        self._tree.itemPressed.connect(lambda *_: self._board.select(""))
-        self._tree.itemDoubleClicked.connect(self._on_tree_double_click)
-        self._tree.filesDropped.connect(self._on_files_dropped)
-        self._tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self._tree.customContextMenuRequested.connect(self._on_context_menu)
+        self._build_tree()
         split.addWidget(self._tree)
 
         # The library pane's columns plus the round each track is played in —
         # the same grouping the deck will head its ─── strips with once the
         # playlist is loaded, so the list can be read against the running order.
-        self._table = _LibTable(0, 9)
-        self._table.setHorizontalHeaderLabels(
-            ["▶", "Round", "Dance", "Artist", "Title", "BPM", "⏱", "Pop", "Class"])
-        hh = stopwatch_header(self._table, 6)
-        hh.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
-        hh.setStretchLastSection(False)
-        hh.setMinimumSectionSize(24)
-        for c, w in enumerate((30, 46, 90, 160, 240, 52, 52, 52, 70)):
-            self._table.setColumnWidth(c, w)
-        # …and they stretch to the pane on every resize, exactly as the library's
-        # do — the same track has to read the same in both lists.
-        self._table.resize_cb = lambda: fill_track_columns(
-            self._table, _TRACK_COL_W, artist_col=3, title_col=4)
-        self._table.verticalHeader().setVisible(False)
-        # Plain rows without cell borders, as a deck draws a playlist.
-        self._table.setShowGrid(False)
-        self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self._table.setSelectionBehavior(
-            QAbstractItemView.SelectionBehavior.SelectRows)
-        self._table.setDragEnabled(True)
-        self._table.space_cb = self._start_row   # Space plays the selected row
-        self._table.setToolTip(
-            "The tracks of the selected playlist, in playing order.\n"
-            "▶ or Space previews · drag them onto a deck or the player list ·\n"
-            "double-click to open in your external player.")
-        self._table.cellClicked.connect(self._on_cell_clicked)
-        self._table.cellDoubleClicked.connect(self._on_track_double_click)
+        self._build_track_table()
 
         self._board = _SlotBoard()
         self._board.picked.connect(self._on_slot_picked)
@@ -611,6 +266,99 @@ class TournamentTree(QWidget):
 
         self._apply_view()
         self._rebuild()
+
+    def _build_toolbar(self):
+        """The count and the ▤ ⊟ 📁 ＋ ✎ 🗑 buttons above the tree."""
+        bar = QHBoxLayout()
+        bar.setSpacing(4)
+        self._count_lbl = QLabel("")
+        self._count_lbl.setStyleSheet("color:#666;")
+        bar.addWidget(self._count_lbl)
+        bar.addStretch(1)
+        for text, tip, slot in (
+                ("▤", "Show the tracks of one playlist instead of the slots —\n"
+                      "the whole tree on the left, the titles of whatever is\n"
+                      "picked on the right (click again for the slots)",
+                 self._toggle_view),
+                ("⊟", "Collapse every folder — click again to open them all\n"
+                      "(a whole season of weekends is a long tree)",
+                 self._toggle_collapse_all),
+                ("📁", "New folder — a day, a venue, a competition", self._add_folder),
+                ("＋", "Add playlist files (.m3u) to the selected folder",
+                 self._add_playlists),
+                ("✎", "Rename the selected entry (F2)", self._rename),
+                ("🗑", "Remove the selected entry from the tree —\n"
+                       "the playlist file on disk is left alone (Del)", self._remove)):
+            btn = QToolButton()
+            btn.setText(text)
+            btn.setToolTip(tip)
+            btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            btn.clicked.connect(slot)
+            if text == "⊟":
+                self._collapse_btn = btn   # its face says what the next click does
+            elif text == "▤":
+                self._view_btn = btn
+            bar.addWidget(btn)
+        return bar
+
+    def _build_tree(self):
+        """The tree of folders and 🎵 playlists, with its drops and menu."""
+        self._tree = _TourneyTree()
+        self._tree.node_of = self.node_at
+        self._tree.select_all_cb = self._select_all_slots
+        self._tree.setHeaderHidden(True)
+        # Extended, so Ctrl+A marks the whole tree for Del or one drag.
+        self._tree.setSelectionMode(
+            QAbstractItemView.SelectionMode.ExtendedSelection)
+        self._tree.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self._tree.setDragEnabled(True)
+        self._tree.setAcceptDrops(True)
+        self._tree.setDropIndicatorShown(True)
+        self._tree.setToolTip(
+            "Your competitions, days and tournaments — folders are labels,\n"
+            "the 🎵 entries point at .m3u files wherever they lie.\n\n"
+            "Drop .m3u files or a whole folder in from Explorer · pick a folder\n"
+            "to lay its playlists out as slots on the right · drag a slot onto\n"
+            "a deck to load the round · double-click it to load it onto the\n"
+            "focused deck.")
+        self._tree.currentItemChanged.connect(lambda *_: self._show_current())
+        # Clicking the folder again makes IT the picked thing once more — what
+        # Del, 🗑 and F2 act on has to be what is highlighted.
+        self._tree.itemPressed.connect(lambda *_: self._board.select(""))
+        self._tree.itemDoubleClicked.connect(self._on_tree_double_click)
+        self._tree.filesDropped.connect(self._on_files_dropped)
+        self._tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self._tree.customContextMenuRequested.connect(self._on_context_menu)
+
+    def _build_track_table(self):
+        """The ▤ track list: one playlist's titles in playing order."""
+        self._table = _LibTable(0, 9)
+        self._table.setHorizontalHeaderLabels(
+            ["▶", "Round", "Dance", "Artist", "Title", "BPM", "⏱", "Pop", "Class"])
+        hh = stopwatch_header(self._table, 6)
+        hh.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        hh.setStretchLastSection(False)
+        hh.setMinimumSectionSize(24)
+        for c, w in enumerate((30, 46, 90, 160, 240, 52, 52, 52, 70)):
+            self._table.setColumnWidth(c, w)
+        # …and they stretch to the pane on every resize, exactly as the library's
+        # do — the same track has to read the same in both lists.
+        self._table.resize_cb = lambda: fill_track_columns(
+            self._table, _TRACK_COL_W, artist_col=3, title_col=4)
+        self._table.verticalHeader().setVisible(False)
+        # Plain rows without cell borders, as a deck draws a playlist.
+        self._table.setShowGrid(False)
+        self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self._table.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows)
+        self._table.setDragEnabled(True)
+        self._table.space_cb = self._start_row   # Space plays the selected row
+        self._table.setToolTip(
+            "The tracks of the selected playlist, in playing order.\n"
+            "▶ or Space previews · drag them onto a deck or the player list ·\n"
+            "double-click to open in your external player.")
+        self._table.cellClicked.connect(self._on_cell_clicked)
+        self._table.cellDoubleClicked.connect(self._on_track_double_click)
 
     # ── Data ──
 
@@ -1087,7 +835,9 @@ class TournamentTree(QWidget):
                 # The ⚠ alone is easy to scroll past — a whole orange row is not,
                 # and on the desk this is the one thing worth noticing early.
                 for c in range(t.columnCount()):
-                    t.item(r, c).setBackground(_C_MISS_BG)
+                    cell = t.item(r, c)
+                    if cell is not None:
+                        cell.setBackground(_C_MISS_BG)
             t.setRowHeight(r, 22)
 
     # ── Previewing a track ──
@@ -1113,7 +863,9 @@ class TournamentTree(QWidget):
         path = self._row_path(row)
         if path:
             self.on_playback_stopped()
-            self._table.item(row, 0).setText("■")
+            cell = self._table.item(row, 0)
+            if cell is not None:
+                cell.setText("■")
             self.playRequested.emit(path, row)
 
     def on_playback_stopped(self):
@@ -1340,13 +1092,14 @@ class TournamentTree(QWidget):
         """Double-click on a playlist loads it — MainWindow asks first when the
         deck it would land on is not empty. A folder just folds open/shut."""
         node = self.node_at(item.data(0, _ROLE_KEY)) if item else None
-        if not (node or {}).get("m3u"):
+        m3u = (node or {}).get("m3u")
+        if not m3u:
             return
-        if not Path(node["m3u"]).is_file():
+        if not Path(m3u).is_file():
             QMessageBox.warning(self, "Load playlist",
-                                i18n.t("The playlist file is gone:\n\n%s") % node['m3u'])
+                                i18n.t("The playlist file is gone:\n\n%s") % m3u)
             return
-        self.loadRequested.emit(str(node["m3u"]))
+        self.loadRequested.emit(str(m3u))
 
     def _rename(self):
         # No argument of its own: this is a button slot, and Qt hands a slot

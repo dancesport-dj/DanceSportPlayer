@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for tools/build_manual_html.py — which manual it builds, and its title.
+"""Tests for tools/docs/build_manual_html.py — which manual it builds, and its title.
 
 Run:  py -m unittest tests.app.test_build_manual_html -v
 
@@ -13,7 +13,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from tools import build_manual_html as bm
+from tools.docs import build_manual_html as bm
 
 
 class BuildManualTest(unittest.TestCase):

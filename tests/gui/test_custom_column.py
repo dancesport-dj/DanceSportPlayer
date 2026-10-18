@@ -10,7 +10,6 @@ mapping reads that frame of every listed track again, off the GUI thread.
 """
 import os
 import tempfile
-import threading
 import unittest
 from pathlib import Path
 
@@ -21,8 +20,6 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from mutagen.id3 import ID3, TIT2, TXXX
 from PySide6.QtCore import Qt
 
-import planner.db as pdb
-from planner import config as planner_config
 from dancesport_planner import (
     MusicEntry,
     MusicLibrary,
@@ -30,7 +27,8 @@ from dancesport_planner import (
     RoundConfig,
 )
 from gui.library_browser import _LIB_COL_CUSTOM
-from planner import custom_field, tag_edits
+from planner.music import custom_field, tag_edits
+from tests.db_support import use_scratch_db
 from shared.columns import _COL_CUSTOM, _COL_REGEN, _N_COLS
 from tests.qt_test_support import (
     reap_widget, stub_window_startup)
@@ -63,7 +61,7 @@ class _Cache:
 class ColumnsTest(unittest.TestCase):
 
     def test_custom_sits_in_front_of_regen(self):
-        self.assertEqual((_COL_CUSTOM, _COL_REGEN, _N_COLS), (10, 11, 12))
+        self.assertEqual((_COL_CUSTOM, _COL_REGEN, _N_COLS), (10, 12, 13))
 
 
 class CustomColumnTest(unittest.TestCase):
@@ -80,18 +78,7 @@ class CustomColumnTest(unittest.TestCase):
 
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp(prefix="dp_custom_col_db_"))
-        saved = (planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
-        planner_config.AUDIO_DB_FILE = self.dir / "scratch.db"
-        pdb._DB_LOCAL = threading.local()
-        pdb._DB_INITIALIZED = False
-
-        def restore():
-            try:
-                pdb._DB_LOCAL.conn.close()
-            except Exception:
-                pass
-            planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = saved
-        self.addCleanup(restore)
+        use_scratch_db(self, self.dir / "scratch.db")
 
         self.win = self.gui.MainWindow()
         self.win._loading_dlg.accept()
@@ -265,7 +252,7 @@ class CustomColumnTest(unittest.TestCase):
 
     def test_the_dialog_is_shown_what_the_library_mp3s_hold(self):
         from unittest import mock
-        from gui import main_music
+        from gui.window import main_tags
         seen = {}
 
         class _Dlg:
@@ -274,7 +261,7 @@ class CustomColumnTest(unittest.TestCase):
 
             def exec(self):
                 return 0
-        with mock.patch.object(main_music, "CustomSourceDialog", _Dlg):
+        with mock.patch.object(main_tags, "CustomSourceDialog", _Dlg):
             self.assertIsNone(self.win._ask_custom_source())
         read, found = seen["samples"]
         self.assertEqual(read, 2)

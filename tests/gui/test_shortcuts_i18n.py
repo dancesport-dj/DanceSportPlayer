@@ -25,7 +25,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_keys_i18n_"))
 
-from gui.shortcuts import shortcut_rows, shortcut_sheet_html
+from gui.dialogs.shortcuts import shortcut_rows, shortcut_sheet_html
 from planner import i18n
 
 # Left halves that read the same on a German keyboard as on an English one.

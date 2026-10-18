@@ -16,8 +16,9 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtCore import QCoreApplication, QObject, QUrl, Signal
 from PySide6.QtWidgets import QApplication
 
-from planner import cartwall as pc
-from player import cartwall as gc
+from planner.playing import cartwall as pc
+from player.audio import cart_voices
+from player.widgets import cartwall as gc
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -108,7 +109,7 @@ class _VoiceCase(unittest.TestCase):
     """A four-voice pool over stub players, drained by hand."""
 
     def setUp(self):
-        self.v = gc.CartVoices(voices=4, factory=_factory)
+        self.v = cart_voices.CartVoices(voices=4, factory=_factory)
         self.v.set_level(1.0)
 
     def tearDown(self):

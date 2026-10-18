@@ -21,7 +21,7 @@ from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtWidgets import QApplication, QTableWidget, QTableWidgetItem
 from tests.qt_test_support import reap_widget
 
-from player.player import PreviewOverlay
+from player.widgets.player import PreviewOverlay
 
 _app = QApplication.instance() or QApplication([])
 

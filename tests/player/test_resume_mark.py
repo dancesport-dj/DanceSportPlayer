@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Tests for the ↩ "remember where a title stopped" marks
-(player.main_player: _remember_stop_point / _note_resume / _clear_resume and the
+(player.window.main_player: _remember_stop_point / _note_resume / _clear_resume and the
 resume seek in _on_media_status).
 
 Run:  py -m unittest tests.player.test_resume_mark -v
@@ -15,10 +15,10 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from player.playback_state import PlaybackState
-from player.resume_marks import ResumeMarks
-from player.between_dances import BetweenDances
-from gui.deck_set import DeckSet
+from player.audio.playback_state import PlaybackState
+from player.audio.resume_marks import ResumeMarks
+from player.audio.between_dances import BetweenDances
+from gui.decks.deck_set import DeckSet
 
 TRACK = Path(r"C:\music\track.mp3")
 OTHER = Path(r"C:\music\other.mp3")
@@ -29,7 +29,7 @@ def _player_mixin():
     # time, so import at TEST time and give a standalone run a temp dir.
     os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                           tempfile.mkdtemp(prefix="dp_resume_"))
-    from player.main_player import PlayerControlMixin
+    from player.window.main_player import PlayerControlMixin
     return PlayerControlMixin
 
 

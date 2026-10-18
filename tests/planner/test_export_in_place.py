@@ -14,7 +14,7 @@ import unittest
 from pathlib import Path
 
 from planner.config import replacing_text
-from planner.m3u import export_flat_m3u, export_m3u
+from planner.playlist.m3u import export_flat_m3u, export_m3u
 from planner.models import MusicEntry
 
 OLD = "#EXTM3U\n#EXTINF:180,Mondschein über Wien\nF:\\music\\old.mp3\n"

@@ -20,7 +20,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication
 
 from shared.columns import (
-    _COL_ARTIST, _COL_CUSTOM, _COL_HEAT, _COL_POP, _COL_RATING, _COL_REGEN,
+    _COL_ARTIST, _COL_CUSTOM, _COL_FILE, _COL_HEAT, _COL_POP, _COL_RATING,
+    _COL_REGEN,
 )
 from tests.qt_test_support import (
     reap_widget, stub_window_startup)
@@ -48,11 +49,12 @@ class ColumnWiringTest(unittest.TestCase):
     def setUp(self):
         # Every window in this module writes through the same seam; patch the
         # module function so no test can reach gui_settings.json.
-        import gui.main_decks as md
+        import gui.window.main_decks as md
+        import gui.window.main_libpane as ml
         self.written = []
-        real = md.save_settings
-        md.save_settings = self.written.append
-        self.addCleanup(lambda: setattr(md, "save_settings", real))
+        for mod in (md, ml):
+            self.addCleanup(setattr, mod, "save_settings", mod.save_settings)
+            mod.save_settings = self.written.append
 
     def test_each_table_knows_which_kind_of_list_it_is(self):
         win = self.window()
@@ -80,7 +82,7 @@ class ColumnWiringTest(unittest.TestCase):
         win._deckset.wishlist._toggle_column(_COL_POP, False)
         # Heat, Rating and Custom were already off
         self.assertEqual(win._settings["hidden_columns"]["wishlist"],
-                         [_COL_HEAT, _COL_POP, _COL_RATING, _COL_CUSTOM])
+                         [_COL_HEAT, _COL_POP, _COL_RATING, _COL_CUSTOM, _COL_FILE])
         self.assertTrue(self.written, "nothing was saved")
 
     def test_a_saved_tick_comes_back_on_the_next_start(self):
@@ -94,11 +96,11 @@ class ColumnWiringTest(unittest.TestCase):
     def test_a_fresh_install_hides_heat_in_every_kind(self):
         """Heat only ever reads "Heat 2" on a deck with multiple heats per
         dance, so most decks show it as 56 px of blank too. Marcel asked for
-        it off by default everywhere, still tickable back on. ★ Rating is off
-        everywhere until asked for."""
+        it off by default everywhere, still tickable back on. ★ Rating, Custom
+        and File name are off everywhere until asked for."""
         win = self.window()
         for t in win._deckset.all_tables:
-            self.assertEqual(t.hidden_columns(), [_COL_HEAT, _COL_RATING, _COL_CUSTOM])
+            self.assertEqual(t.hidden_columns(), [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE])
 
     def test_a_saved_numbers_view_reaches_the_wishlists_too(self):
         """The 🔢 state is restored per table at startup, and the wishlists were
@@ -157,7 +159,7 @@ class ColumnWiringTest(unittest.TestCase):
         for t in win._deckset.wishlists:
             self.assertEqual(t.hidden_columns(), [])
         self.assertEqual(win._deckset.warmup_table.hidden_columns(),
-                         [_COL_HEAT, _COL_RATING, _COL_CUSTOM])
+                         [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE])
 
 
 if __name__ == "__main__":

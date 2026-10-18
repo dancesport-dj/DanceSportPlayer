@@ -81,7 +81,7 @@ class ResumeBadgeTest(unittest.TestCase):
         )
 
     def _title_of(self, entry) -> str:
-        from gui.playlist_table import _COL_TITLE
+        from gui.table.playlist_table import _COL_TITLE
         for r, m in enumerate(self.table._row_meta):
             if m and m.entry is entry:
                 return self.table.item(r, _COL_TITLE).text()
@@ -108,7 +108,7 @@ class ResumeBadgeTest(unittest.TestCase):
         self.assertEqual(self._title_of(self.cha), self.cha.title)
 
     def test_the_tooltip_says_it_starts_there_again(self):
-        from gui.playlist_table import _COL_TITLE
+        from gui.table.playlist_table import _COL_TITLE
         self.table.set_resume_marks({str(self.cha.path): 63_000})
         for r, m in enumerate(self.table._row_meta):
             if m and m.entry is self.cha:

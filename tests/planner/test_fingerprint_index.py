@@ -12,32 +12,22 @@ index gets it on the next start.
 import os
 import sqlite3
 import tempfile
-import threading
 import unittest
 from pathlib import Path
 
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_fp_index_"))
 
-import planner.db as pdb
+import planner.music.db as pdb
 from planner import config as planner_config
+from tests.db_support import use_scratch_db
 
 
 class FingerprintIndexTest(unittest.TestCase):
 
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp(prefix="dp_fp_index_"))
-        self._saved = (planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
-        planner_config.AUDIO_DB_FILE = self.dir / "scratch.db"
-        pdb._DB_LOCAL = threading.local()
-        pdb._DB_INITIALIZED = False
-        self.addCleanup(self._restore)
-
-    def _restore(self):
-        conn = getattr(pdb._DB_LOCAL, "conn", None)
-        if conn is not None:
-            conn.close()
-        planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = self._saved
+        use_scratch_db(self, self.dir / "scratch.db")
 
     def _plan(self, conn):
         rows = conn.execute("EXPLAIN QUERY PLAN "

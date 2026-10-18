@@ -7,7 +7,7 @@ The button starts "Build ALL caches", and that build can only be pointed at a
 library that is loaded — so it may only show for a gap in the FAVORITES
 library. Two things would otherwise put a permanent button on screen that no
 click can ever clear: a half-built repository index, and a model whose backend
-is not installed at all (OpenL3 without TensorFlow, say).
+is not installed at all (MERT without torch, say).
 """
 
 import os
@@ -19,7 +19,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_gapflag_"))
 
-import planner.db
+import planner.music.scan_caches
 from gui.index_summary import index_summary
 from planner.models import MusicEntry
 
@@ -64,8 +64,8 @@ class _Cache:
 class _Store:
     """The embedding store, as a pair of fingerprint sets."""
 
-    def __init__(self, ol3, chroma):
-        self._fps = {"openl3": set(ol3), "chroma2dftm": set(chroma)}
+    def __init__(self, mert, chroma):
+        self._fps = {"mert": set(mert), "chroma2dftm": set(chroma)}
 
     def fps(self, model):
         return self._fps.get(model, set())
@@ -81,9 +81,9 @@ class FavoritesGapFlagTest(unittest.TestCase):
     def setUp(self):
         # No global library loaded → the summary would ask the real DB how big
         # the repository index is. Keep the test off the disk.
-        self._real_count = planner.db.global_index_count
-        planner.db.global_index_count = lambda: 0
-        self.addCleanup(setattr, planner.db, "global_index_count", self._real_count)
+        self._real_count = planner.music.scan_caches.global_index_count
+        planner.music.scan_caches.global_index_count = lambda: 0
+        self.addCleanup(setattr, planner.music.scan_caches, "global_index_count", self._real_count)
 
     def test_a_fully_analyzed_favorites_library_needs_no_build(self):
         summ = _summary(_Lib([_entry("A"), _entry("B")]))
@@ -118,20 +118,20 @@ class FavoritesGapFlagTest(unittest.TestCase):
         self.assertTrue(summ["favorites_gap"])
 
     def test_an_uninstalled_model_is_not_a_gap(self):
-        """OpenL3 without TensorFlow: 0/2 forever, and no build can close it."""
-        self._patch_availability(openl3=False, chroma=False)
+        """MERT without torch: 0/2 forever, and no build can close it."""
+        self._patch_availability(mert=False, chroma=False)
         summ = _summary(_Lib([_entry("A"), _entry("B")]), store=_Store([], []))
         self.assertFalse(summ["favorites_gap"])
 
     def test_an_installed_model_that_is_behind_is_a_gap(self):
-        self._patch_availability(openl3=False, chroma=True)
+        self._patch_availability(mert=False, chroma=True)
         summ = _summary(_Lib([_entry("A"), _entry("B")]),
                         store=_Store([], ["FP:A.mp3"]))
         self.assertTrue(summ["favorites_gap"])
 
-    def _patch_availability(self, openl3: bool, chroma: bool):
-        from planner import embeddings as ae
-        for name, val in (("openl3_available", openl3), ("chroma_available", chroma)):
+    def _patch_availability(self, mert: bool, chroma: bool):
+        from planner.music import embeddings as ae
+        for name, val in (("mert_available", mert), ("chroma_available", chroma)):
             real = getattr(ae, name)
             setattr(ae, name, lambda v=val: v)
             self.addCleanup(setattr, ae, name, real)

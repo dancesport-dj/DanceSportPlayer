@@ -81,8 +81,9 @@ Nur für eine einzelne MP3. Er listet jedes ID3-Frame der Datei, auch die, die
 das Formular nicht zeigt: die eigenen Text-Frames von UltraMixer, die
 Kommentare von MediaMonkey, die Windows-Bewertung.
 
-- Bearbeite einen Wert in der Tabelle, **🗑** löscht ein Frame, **➕** fügt
-  eins hinzu. Bilder und andere binäre Frames lassen sich nur entfernen.
+- Bearbeite einen Wert in der Tabelle. **➖ Auswahl entfernen** löscht die
+  gewählten Frames, **➕ Feld hinzufügen** fügt eins hinzu. Bilder und andere
+  binäre Frames lassen sich nur entfernen.
 - Die Frames, die das Formular zeigt, sind hier schreibgeschützt und folgen
   dem Formular, während du tippst.
 - Die Beschreibung eines Frames lässt sich nicht ändern, aber kopieren:

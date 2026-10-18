@@ -23,7 +23,7 @@ from shared.columns import _COL_REGEN, _COL_TITLE
 class PlanningClickTest(ClickThrough):
     """02 Planning."""
 
-    def test_generate_fills_the_deck(self):
+    def test_generate_fills_the_deck(self):  # overconfidence:short-test-ok - asserts in the helper
         with self.clicking():
             self.generate()
 

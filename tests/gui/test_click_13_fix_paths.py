@@ -23,7 +23,7 @@ from tests.gui.monkey_support import ClickThrough, DropFrom, printable
 from PySide6.QtCore import QMimeData, QPointF, Qt, QUrl
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QLabel, QPushButton, QTabWidget
-from gui.row_buttons import BUTTON_ROLE
+from gui.table.row_buttons import BUTTON_ROLE
 from shared.columns import _COL_PLAY
 from tests.qt_test_support import reap_widget
 

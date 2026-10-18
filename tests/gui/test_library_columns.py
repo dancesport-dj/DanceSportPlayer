@@ -35,8 +35,8 @@ from tests.qt_test_support import (
 
 _COL_PLAY, _COL_DANCE, _COL_ARTIST, _COL_TITLE, _COL_BPM = 0, 1, 2, 3, 4
 _COL_LEN, _COL_POP, _COL_CLASS, _COL_ADDED, _COL_LAST = 5, 6, 7, 8, 9
-_COL_RATING, _COL_CUSTOM = 10, 11
-_N_COLS = 12
+_COL_RATING, _COL_CUSTOM, _COL_FILE = 10, 11, 12
+_N_COLS = 13
 
 
 def _e(dance, n, other_genre=None):
@@ -69,6 +69,16 @@ class _LibTest(unittest.TestCase):
                 for r in range(t.rowCount())}
 
 
+class LibraryBpmTooltipTest(_LibTest):
+
+    def test_the_bpm_cell_names_the_tag_as_its_source(self):
+        e = MusicEntry(path=Path(r"C:\music\Moon River.mp3"), title="Moon River",
+                       dance="LW", bpm=29, tag_bpm=87.0)
+        lb = self.browser([e])
+        self.assertEqual(lb._table.item(0, _COL_BPM).toolTip(),
+                         "Tempo from the BPM tag (87 bpm)")
+
+
 class LibraryHideColumnsTest(_LibTest):
 
     def test_the_header_offers_a_tick_per_column(self):
@@ -76,9 +86,9 @@ class LibraryHideColumnsTest(_LibTest):
         menu = lb.build_column_menu()
         ticks = [a for a in menu.actions() if a.data() is not None]
         self.assertEqual(len(ticks), _N_COLS - 1)   # Title is not offered
-        # ★ Rating and Custom start put away; every other column is on.
+        # ★ Rating, Custom and File name start put away; every other column is on.
         self.assertEqual([a.data() for a in ticks if not a.isChecked()],
-                         [_COL_RATING, _COL_CUSTOM])
+                         [_COL_RATING, _COL_CUSTOM, _COL_FILE])
         menu.deleteLater()
 
     def test_right_clicking_the_header_opens_it(self):
@@ -113,8 +123,8 @@ class LibraryHideColumnsTest(_LibTest):
         act = next(a for a in menu.actions() if a.data() == _COL_CLASS)
         act.trigger()
         self.assertTrue(lb._table.isColumnHidden(_COL_CLASS))
-        # ★ and Custom were already off
-        self.assertEqual(seen, [[_COL_CLASS, _COL_RATING, _COL_CUSTOM]])
+        # ★, Custom and File name were already off
+        self.assertEqual(seen, [[_COL_CLASS, _COL_RATING, _COL_CUSTOM, _COL_FILE]])
         menu.deleteLater()
 
     def test_what_is_hidden_reads_back(self):
@@ -256,11 +266,12 @@ class LibraryColumnWiringTest(unittest.TestCase):
         cls.gui = stub_window_startup(cls)
 
     def setUp(self):
-        import gui.main_decks as md
+        import gui.window.main_decks as md
+        import gui.window.main_libpane as ml
         self.written = []
-        real = md.save_settings
-        md.save_settings = self.written.append
-        self.addCleanup(lambda: setattr(md, "save_settings", real))
+        for mod in (md, ml):
+            self.addCleanup(setattr, mod, "save_settings", mod.save_settings)
+            mod.save_settings = self.written.append
 
     def window(self, settings: dict | None = None):
         self.gui.load_settings = lambda *_a, **_kw: dict(settings or {})

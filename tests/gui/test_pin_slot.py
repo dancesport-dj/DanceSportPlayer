@@ -119,7 +119,7 @@ class PinSlotTest(unittest.TestCase):
     def test_the_rows_own_reroll_leaves_a_pinned_title_alone(self):
         row = self.row_of(self.cha2)
         self.table._toggle_pin({row})
-        with mock.patch("gui.playlist_table._show_toast") as toast:
+        with mock.patch("gui.table.table_regen._show_toast") as toast:
             self.table._regen(row)
         self.settle()
         self.assertEqual(self.rolled, [])
@@ -137,7 +137,7 @@ class PinSlotTest(unittest.TestCase):
     # ----- the look -------------------------------------------------------------
 
     def test_a_pinned_row_is_lila(self):
-        from gui.playlist_table import _C_PIN_BG, _C_PIN_FG
+        from gui.table.playlist_table import _C_PIN_BG, _C_PIN_FG
         from shared.columns import _COL_TITLE
         row = self.row_of(self.rum1)
         self.table._toggle_pin({row})

@@ -34,7 +34,7 @@ if /I not "%DANCESPORT_BUILD%"=="player" set DEPS=PySide6, librosa, numpy, mutag
 
 rem The manual as a PDF, which the spec bundles (tools\build_manual_pdf, printed
 rem by Edge or Chrome). Without one the build goes on, only without a manual.
-"%PY%" -m tools.build_manual_pdf || echo NOTE: no manual PDF printed - see above.
+"%PY%" -m tools.docs.build_manual_pdf || echo NOTE: no manual PDF printed - see above.
 
 "%PY%" -m PyInstaller "%~dp0dancesport.spec" --noconfirm || goto :failed
 
@@ -63,7 +63,7 @@ if /I "%DANCESPORT_BUILD%"=="player" (
   echo Copied the licence texts into Licenses.
 )
 
-rem ffmpeg is looked up next to the .exe first (shared.audio_probes.find_ffmpeg), and
+rem ffmpeg is looked up next to the .exe first (shared.audio.audio_probes.find_ffmpeg), and
 rem PyInstaller wipes dist\%APP_NAME% on every build - so put it back each time.
 rem It is not in the repository (see BUILD.md); without it the packaged app
 rem does no loudness analysis and asks for one on first start.

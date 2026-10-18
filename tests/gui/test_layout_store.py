@@ -30,7 +30,7 @@ from pathlib import Path
 from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import QApplication
 
-from gui.main_persist import layout_settings
+from gui.window.main_persist import layout_settings
 from planner.store import state_dir
 
 _app = QApplication.instance() or QApplication(sys.argv)

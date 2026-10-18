@@ -27,10 +27,11 @@ from PySide6.QtWidgets import QApplication, QTabWidget
 from gui import dialogs
 from planner import config
 from gui.dialogs import (
-    APP_MODES, PLAYER_FIRST_START, AppModeDialog, SettingsDialog, app_mode_of,
+    APP_MODES, PLAYER_FIRST_START, AppModeDialog, app_mode_of,
     app_title, ensure_app_mode,
 )
-from gui.main_persist import layout_settings
+from gui.dialogs.settings_dialog import SettingsDialog
+from gui.window.main_persist import layout_settings
 from tests.qt_test_support import (
     reap_widget, stub_window_startup)
 
@@ -285,7 +286,7 @@ class FindFfmpegTest(unittest.TestCase):
         /opt/homebrew/bin — a brew-installed ffmpeg is there and invisible to
         shutil.which, so the prefixes have to be checked directly. Anything the
         install dialog tells the user to run has to be findable afterwards."""
-        from shared import audio_probes
+        from shared.audio import audio_probes
 
         cands = [str(p).replace("\\", "/")
                  for p in audio_probes._FFMPEG_CANDIDATES]
@@ -298,7 +299,7 @@ class FindFfmpegTest(unittest.TestCase):
         import shutil
         from pathlib import Path
 
-        from shared import audio_probes
+        from shared.audio import audio_probes
 
         exe = Path(tempfile.mkdtemp(prefix="dp_ffmpeg_")) / "ffmpeg"
         exe.write_text("")
@@ -314,7 +315,7 @@ class FindFfmpegTest(unittest.TestCase):
         name carries the version, so an update must not need a code change."""
         from pathlib import Path
 
-        from shared import audio_probes
+        from shared.audio import audio_probes
 
         root = Path(tempfile.mkdtemp(prefix="dp_ffmpeg_"))
         for version in ("8.1.1", "10.0", "9.0.2"):
@@ -551,12 +552,15 @@ class PlaySetsTabTest(_Qt):
         return tabs, idx
 
     def test_the_built_in_sets_are_what_it_starts_on(self):
-        from planner.play_sets import _PARTY_SET, _TOURNAMENT_SET
+        from planner.playing.play_sets import (_PARTY_PD, _PARTY_SET,
+                                               _TOURNAMENT_PD, _TOURNAMENT_SET)
         vals = self._dlg({}).values()
-        for key, built_in in (("tournament_set", _TOURNAMENT_SET),
-                              ("party_set", _PARTY_SET)):
+        for key, built_in, pd in (("tournament_set", _TOURNAMENT_SET, _TOURNAMENT_PD),
+                                  ("party_set", _PARTY_SET, _PARTY_PD)):
             got = dict(vals[key])
             got.pop("tso")          # its own default — see below
+            # 🐂 Each set's Paso Doble, kept beside the set's dict.
+            self.assertEqual({k: got.pop(k) for k in pd}, pd)
             self.assertEqual(got, built_in)
 
     def test_the_tso_pitch_is_one_of_them(self):
@@ -568,9 +572,11 @@ class PlaySetsTabTest(_Qt):
 
     def test_a_configured_set_is_shown_and_handed_back(self):
         """Round trip: what is in the file comes up in the tab and out again."""
-        mine = {"secs": 105, "fade": 2.5, "advance": True, "pause_off": False,
+        mine = {"secs": 105, "fade": 2.5, "fade_inside": False, "advance": True,
+                "pause_off": False,
                 "announce": True, "loudness": False, "dblclick": True,
-                "tso": False}
+                "xfade": 2.5, "xfade_on": True, "xfade_curve": "scurve",
+                "tso": False, "pd_stop": True, "pd_n": 3, "pd_delay": 5}
         self.assertEqual(self._dlg({"tournament_set": mine}).values()["tournament_set"],
                          mine)
 
@@ -940,8 +946,8 @@ class PlayerMenuTest(_Qt):
         from PySide6.QtGui import QContextMenuEvent
         from PySide6.QtWidgets import QMenu, QWidget
 
-        from gui import table_actions
-        from gui.playlist_table import PlaylistTable
+        from gui.table import table_menu
+        from gui.table.playlist_table import PlaylistTable
         from planner.models import MusicEntry
 
         opened = []
@@ -960,7 +966,7 @@ class PlayerMenuTest(_Qt):
                                   title="LW 1", dance="LW", duration=180)],
                       "🤸 Party", "both", "S", False, lambda *a: None, None)
         pos = QPoint(5, t.rowViewportPosition(t.rowCount() - 1) + 2)
-        with mock.patch.object(table_actions, "QMenu", _Menu):
+        with mock.patch.object(table_menu, "QMenu", _Menu):
             t.contextMenuEvent(QContextMenuEvent(
                 QContextMenuEvent.Reason.Mouse, pos, t.mapToGlobal(pos)))
         self.assertTrue(opened, "the context menu never opened")
@@ -1010,7 +1016,7 @@ class RestartOfferTest(unittest.TestCase):
     def _offer(self, answer, started=True, closes=True):
         from unittest import mock
 
-        from gui import main_global
+        from gui.window import main_global
         from PySide6.QtWidgets import QMessageBox
 
         host = _RestartHost(closes=closes)

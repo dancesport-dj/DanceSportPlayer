@@ -37,9 +37,9 @@ import unittest
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[2]
-_SOURCES = [*sorted((_ROOT / "gui").glob("*.py")),
-            *sorted((_ROOT / "player").glob("*.py")),
-            *sorted((_ROOT / "shared").glob("*.py")),
+_SOURCES = [*sorted((_ROOT / "gui").rglob("*.py")),
+            *sorted((_ROOT / "player").rglob("*.py")),
+            *sorted((_ROOT / "shared").rglob("*.py")),
             _ROOT / "dancesport_gui.py"]
 
 # Every call whose text the hook translates → the positions that carry text.
@@ -73,10 +73,10 @@ _SAME_IN_GERMAN = {
     "DanceSport Planner & Player",
     "Cartwall", "🎛  Cartwall", "Slot %d", "Pool", "TSO",
     "Name:", "⏭  Auto", "🔈  Test", "♪ Takt", "≈ Takt", "— Standard —",
-    "🎻 Instrumental", "🎚️ librosa: %s", "🎼 Chroma: %s", "🧠 OpenL3: %s",
+    "🎻 Instrumental", "🎚️ librosa: %s", "🎼 Chroma: %s", "🧠 MERT: %s",
     "Social Modetänze (Discofox, Salsa, Bachata, WCS, …)", "Tags", "Frame",
     "Custom:", "Version", "Looks (*.json)", "A  ·  Playlist 1",
-    "B  ·  Playlist 2", "Standard",
+    "B  ·  Playlist 2", "Standard", "cloudflared", "Cloudflare",
 }
 _TAG = re.compile(r"<[^>]*>|&\w+;|\w*_\w*")   # tags, entities, file_name_parts
 _WORD = re.compile(r"[A-Za-z]{3,}")
@@ -208,9 +208,9 @@ def _literals(node):
 
 
 def _uncataloged() -> list[str]:
-    from planner.lang_de import CATALOG
+    from planner.i18n.lang_de import CATALOG
     found = []
-    for path in [*_SOURCES, *sorted((_ROOT / "planner").glob("*.py"))]:
+    for path in [*_SOURCES, *sorted((_ROOT / "planner").rglob("*.py"))]:
         source = path.read_text(encoding="utf-8")
         lines = source.splitlines()
         in_planner = path.parent.name == "planner"

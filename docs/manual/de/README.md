@@ -6,7 +6,7 @@ auf der Fläche fahren.
 
 Das ganze Handbuch gibt es auch als eine einzige Webseite,
 [manual.html](manual.html). Nach einer Änderung an einem Kapitel baust du sie
-mit `py -m tools.build_manual_html` neu.
+mit `py -m tools.docs.build_manual_html` neu.
 
 ![Das Hauptfenster beim Abspielen](../img/main-playing.png)
 
@@ -32,7 +32,7 @@ mit `py -m tools.build_manual_html` neu.
 7. [Tastatur und Maus](07-shortcuts.md): alle Tastenkürzel in einer Liste.
 
 Installation und Konfigurationsdateien beschreibt die
-[README](../../../README.md#installation) des Projekts.
+[README](../../../README.md#download) des Projekts.
 
 ## Schreibweisen
 

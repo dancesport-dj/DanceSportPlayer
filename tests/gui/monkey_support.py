@@ -42,7 +42,7 @@ from PySide6.QtWidgets import (
     QAbstractSpinBox, QApplication, QCheckBox, QColorDialog, QComboBox, QDialog,
     QDoubleSpinBox, QFileDialog, QInputDialog, QLineEdit, QMenu, QMessageBox,
     QScrollBar, QSpinBox, QStyle, QStyleOptionButton, QTabBar, QWidget)
-from planner.db import AudioFeatures
+from planner.music.analysis import AudioFeatures
 from shared.columns import _COL_PLAY, _COL_TITLE
 from tests.qt_test_support import reap_widget
 
@@ -73,11 +73,11 @@ def _silent_mp3(path: Path, seconds: int) -> None:
 
 def _output_dir_modules():
     """Every module holding its own copy of planner.config.OUTPUT_DIR."""
-    import gui.main_export
-    import gui.main_import
-    import gui.main_print
-    import planner.m3u
-    return [planner.m3u, gui.main_export, gui.main_import, gui.main_print]
+    import gui.window.main_export
+    import gui.window.main_import
+    import gui.window.main_print
+    import planner.playlist.m3u
+    return [planner.playlist.m3u, gui.window.main_export, gui.window.main_import, gui.window.main_print]
 
 
 def printable(text: str) -> str:
@@ -381,9 +381,9 @@ class LoadedWindow(unittest.TestCase):
         """Everything a click can reach outside this process, answered from
         here. Started once for the class, stopped after it."""
         import dancesport_gui
-        import gui.main_global
+        import gui.window.main_global
         import shared.error_reports
-        import shared.remote_server
+        import shared.remote.remote_server
 
         def refuse(*_a, **_kw):
             raise FileNotFoundError("monkey test: no child processes")
@@ -407,7 +407,7 @@ class LoadedWindow(unittest.TestCase):
         patches = [
             (dancesport_gui, "load_settings",
              staticmethod(lambda *_a, **_kw: dict(cls.settings))),
-            (gui.main_global, "apply_taskbar_icon", lambda _win: None),
+            (gui.window.main_global, "apply_taskbar_icon", lambda _win: None),
             (QMessageBox, "question", boxes(sb.Yes | sb.No)),
             (QMessageBox, "warning", boxes(sb.Ok)),
             (QMessageBox, "information", boxes(sb.Ok)),
@@ -425,7 +425,7 @@ class LoadedWindow(unittest.TestCase):
             (subprocess, "Popen", refuse),
             (subprocess, "run", refuse),
             (urllib.request, "urlopen", network_down),
-            (shared.remote_server.RemoteServer, "start", no_sockets),
+            (shared.remote.remote_server.RemoteServer, "start", no_sockets),
             # Ticking 🐞 Send error reports in ⚙ Settings must not start Sentry.
             (shared.error_reports, "available", lambda: False),
         ]

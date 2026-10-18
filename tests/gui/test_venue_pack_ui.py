@@ -10,9 +10,9 @@ from unittest import mock
 
 from PySide6.QtWidgets import QApplication, QMessageBox, QTabWidget
 
-from gui import main_export
-from gui.dialogs import SettingsDialog
-from planner import venue_pack as vp
+from gui.window import main_export
+from gui.dialogs.settings_dialog import SettingsDialog
+from planner.event import venue_pack as vp
 
 _YES = QMessageBox.StandardButton.Yes
 _NO = QMessageBox.StandardButton.No

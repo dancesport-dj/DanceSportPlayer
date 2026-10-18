@@ -18,7 +18,8 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication, QMessageBox
 
-from gui import common, main_print
+from gui import common
+from gui.window import main_print
 
 
 class PrintOpenPdfTest(unittest.TestCase):

@@ -6,7 +6,7 @@ Run:  py -m unittest tests.app.test_facade_imports -v
 
 The facade re-exports every public planner name so the command line and old
 call sites keep working. Production modules that went through it hid where a
-name lives, and `planner/embeddings.py` imported its own package's facade. The
+name lives, and `planner/music/embeddings.py` imported its own package's facade. The
 facade stays for the CLI and the tests; nothing under planner/, gui/, player/
 or tools/, nor the GUI launcher, may import it.
 

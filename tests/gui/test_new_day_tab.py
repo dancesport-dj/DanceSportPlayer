@@ -26,7 +26,7 @@ from PySide6.QtCore import QPoint
 from PySide6.QtGui import QContextMenuEvent
 
 from dancesport_planner import MusicLibrary
-from tests.gui.test_deck_file_reveal import _RightClick, _entry
+from tests.gui.window.test_deck_file_reveal import _RightClick, _entry
 from tests.gui.test_header_save_m3u import _menu_class
 from tests.qt_test_support import reap_widget, stub_window_startup
 
@@ -57,7 +57,7 @@ class NewDayTabTest(unittest.TestCase):
         self.win._apply_deck_view()
 
     def tab_menu(self, pick=None, typed=("", False)) -> dict:
-        from gui import main_decks
+        from gui.window import main_decks
         seen = {}
         with mock.patch.object(main_decks, "QMenu", _menu_class(seen, pick)), \
                 mock.patch.object(main_decks.QInputDialog, "getText",
@@ -66,7 +66,7 @@ class NewDayTabTest(unittest.TestCase):
         return seen
 
     def header_menu(self, table, pick=None, typed=("", False)) -> dict:
-        from gui import main_decks
+        from gui.window import main_decks
         seen = {}
         with mock.patch.object(main_decks, "QMenu", _menu_class(seen, pick)),                 mock.patch.object(main_decks.QInputDialog, "getText",
                                   return_value=typed):
@@ -75,7 +75,7 @@ class NewDayTabTest(unittest.TestCase):
 
     def right_click(self, obj, pos: QPoint, pick=None,
                     typed=("", False)) -> tuple[bool, dict]:
-        from gui import main_decks
+        from gui.window import main_decks
         seen = {}
         ev = QContextMenuEvent(QContextMenuEvent.Reason.Mouse, pos, obj.mapToGlobal(pos))
         with mock.patch.object(main_decks, "QMenu", _menu_class(seen, pick)),                 mock.patch.object(main_decks.QInputDialog, "getText",

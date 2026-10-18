@@ -20,8 +20,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication
 
-from gui.playlist_table import PlaylistTable
-from tests.player.test_pitch_gap import _Desk, _entry
+from gui.table.playlist_table import PlaylistTable
+from tests.player.audio.test_pitch_gap import _Desk, _entry
 from tests.qt_test_support import reap_widget
 
 

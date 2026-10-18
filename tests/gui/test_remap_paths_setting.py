@@ -21,9 +21,9 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication
 
-from gui.dialogs import SettingsDialog
-from planner.cartwall import CartPad, Page
-from gui.main_paths import PathFixMixin
+from gui.dialogs.settings_dialog import SettingsDialog
+from planner.playing.cartwall import CartPad, Page
+from gui.window.main_paths import PathFixMixin
 from tests.qt_test_support import reap_widget
 
 

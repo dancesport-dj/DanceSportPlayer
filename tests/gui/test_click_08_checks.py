@@ -25,7 +25,7 @@ from PySide6.QtCore import QMimeData, QPoint, QPointF, Qt, QUrl
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import (QApplication, QFileDialog, QLabel, QMessageBox,
                                QTableWidget)
-from planner.db import AudioFeatures
+from planner.music.analysis import AudioFeatures
 from shared.columns import _COL_TITLE
 
 
@@ -33,7 +33,7 @@ class ChecksClickTest(ClickThrough):
     """08 / 09 Checks and similar tracks."""
 
     def test_find_similar_lists_titles_of_the_same_dance(self):
-        from gui.similar_dialog import SimilarTracksDialog
+        from gui.dialogs.similar_dialog import SimilarTracksDialog
         with self.clicking() as op:
             self.analysed()
             self.generate(rounds="1")
@@ -49,7 +49,7 @@ class ChecksClickTest(ClickThrough):
 
     def similar_window(self, op, row: int):
         """Right-click ▸ 🔎 Find similar tracks on a deck slot: its window."""
-        from gui.similar_dialog import SimilarTracksDialog
+        from gui.dialogs.similar_dialog import SimilarTracksDialog
         op.pick("🔎  Find similar tracks")
         self.right_click(op, self.win._deckset.table, row)
         [dlg] = [w for w in self._roots() if isinstance(w, SimilarTracksDialog)]
@@ -133,7 +133,7 @@ class ChecksClickTest(ClickThrough):
             dlg.close()
 
     def test_check_music_replaces_a_suspect_with_a_similar_title(self):
-        from gui.similar_dialog import SimilarTracksDialog
+        from gui.dialogs.similar_dialog import SimilarTracksDialog
         with self.clicking() as op:
             self.analysed()
             self.generate(rounds="1")
@@ -156,7 +156,7 @@ class ChecksClickTest(ClickThrough):
             report.close()
 
     def test_enter_or_a_double_click_also_picks_the_replacement(self):
-        from gui.similar_dialog import SimilarTracksDialog
+        from gui.dialogs.similar_dialog import SimilarTracksDialog
         for how in ("double-click", "enter"):
             with self.subTest(how), self.clicking() as op:
                 self.analysed()
@@ -317,7 +317,7 @@ class ChecksClickTest(ClickThrough):
         self.fail(f"no link '{href}' found under the mouse")
 
     def test_check_duplicates_opens_its_report(self):
-        from gui.duplicate_dialog import DuplicateResolveDialog
+        from gui.dialogs.duplicate_dialog import DuplicateResolveDialog
         with self.clicking() as op:
             self.generate()              # 6-3-2-1 on three titles a dance repeats
             # On its decks tab the report is application-modal: the operator
@@ -336,7 +336,7 @@ class ChecksClickTest(ClickThrough):
 
     def _open_duplicates(self, op, act):
         """🔁 Check duplicates, its window handed to `act`; returns the window."""
-        from gui.duplicate_dialog import DuplicateResolveDialog
+        from gui.dialogs.duplicate_dialog import DuplicateResolveDialog
         seen = []
 
         def take(dlg):

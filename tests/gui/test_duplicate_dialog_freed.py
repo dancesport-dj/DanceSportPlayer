@@ -18,8 +18,8 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtCore import QCoreApplication, QEvent
 from PySide6.QtWidgets import QApplication, QWidget
 
-from gui.duplicate_dialog import DuplicateResolveDialog
-from gui.main_dupes import DuplicateCheckMixin
+from gui.dialogs.duplicate_dialog import DuplicateResolveDialog
+from gui.window.main_dupes import DuplicateCheckMixin
 from tests.qt_test_support import reap_widget
 
 

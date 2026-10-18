@@ -50,7 +50,7 @@ class TimetableButtonsI18nTest(unittest.TestCase):
         """The four row buttons, as a caption -> tooltip map."""
         i18n.set_active(language)
         i18n.install_text_hook()
-        from player.timetable_dialog import TimetableDialog
+        from player.presenter.timetable_dialog import TimetableDialog
         dlg = TimetableDialog()
         self.addCleanup(dlg.deleteLater)
         # The dialog button box holds Save/Cancel; the row buttons are the

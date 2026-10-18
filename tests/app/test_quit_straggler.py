@@ -5,7 +5,7 @@ Run:  py -m unittest tests.app.test_quit_straggler -v
 
 `_stop_workers` cancels what can be cancelled and waits 5 s per worker. Most
 worker classes have no cancel at all, and some steps can't be cut even with
-one (an HTTP request on the wire, a VACUUM, one OpenL3 inference) — so a
+one (an HTTP request on the wire, a VACUUM, one MERT inference) — so a
 worker can still be running when the window goes. Qt aborts the process
 outright (0xC0000409, no traceback) when a running QThread is destroyed,
 which is what the window takes its children down with.

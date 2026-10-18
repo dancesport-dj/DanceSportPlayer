@@ -48,7 +48,7 @@ class EintanzenClickTest(ClickThrough):
         return shown[0]
 
     def dances(self, table) -> list[str]:
-        from planner.warmup import warmup_code
+        from planner.generate.warmup import warmup_code
         return [warmup_code(m.entry) for m in table._row_meta if m and m.entry]
 
     def test_eintanzen_for_a_class_runs_its_dances_round_robin(self):

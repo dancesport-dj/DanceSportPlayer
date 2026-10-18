@@ -56,7 +56,7 @@ universal wheels.
 The .dmg window holds the app, a link to Applications and, for the player, the
 macOS install guide as `README.txt`. With `create-dmg` installed
 (`brew install create-dmg`), the icons sit on a background drawn by
-`tools/dmg_background.py`: an arrow onto Applications and the way past
+`tools/assets/dmg_background.py`: an arrow onto Applications and the way past
 Gatekeeper on the first start (Privacy & Security, Open Anyway). Without it, or
 if it fails, the script makes the same .dmg without the background.
 
@@ -128,7 +128,7 @@ that tag's GitHub release (`DanceSport-Player-1.2.0-windows.zip`, `…-macos.dmg
 `…-linux-x86_64.tar.gz` and `…-linux-arm64.tar.gz` for the tag `v1.2.0`, so the
 names carry no v either), with the tagged commit's message as the release text.
 
-The version number is `VERSION` in `planner/version.py` (`1.2.2`), and a build
+The version number is `VERSION` in `planner/version.py` (`1.3.0`), and a build
 without a tag gets it. A `v*` tag overrides it, so name the tag
 `vMAJOR.MINOR.PATCH` (`v1.2.0`); the app in the release then says `1.2.0`, the
 tag without its v. Keep `VERSION` in step after a release, so desk builds carry
@@ -145,7 +145,7 @@ scipy / soundfile stack it pulls in. numpy stays.
 - playback, the ±16 % tempo fader (pitch held, Qt's ffmpeg media backend)
 - 🔊 Equalize volume — loudness measurement is ffmpeg `ebur128`, not librosa
 - Paso Doble highlight detection — the decoder is ffmpeg
-  (`shared.audio_probes.decode_pcm_mono`), the envelope and the thresholds are unchanged
+  (`shared.audio.audio_probes.decode_pcm_mono`), the envelope and the thresholds are unchanged
 - silence detection, 🎛 Cartwall, 📚 Library browser, 🗣 dance announcements
 
 **Dropped**: timbre similarity, the BPM/MFCC analysis, the chroma
@@ -198,8 +198,8 @@ with a cover naming the version, a contents page with page numbers and every
 chapter on a new page:
 
 ```powershell
-.venv\Scripts\python.exe -m tools.build_manual_pdf    # both languages, also rebuilds manual.html
-.venv\Scripts\python.exe -m tools.build_manual_html   # only the web pages
+.venv\Scripts\python.exe -m tools.docs.build_manual_pdf    # both languages, also rebuilds manual.html
+.venv\Scripts\python.exe -m tools.docs.build_manual_html   # only the web pages
 ```
 
 The printing needs Chrome, Chromium or Edge (headless), or the browser named in
@@ -273,7 +273,7 @@ from <https://www.gyan.dev/ffmpeg/builds/> and either
   (any version; with several, the newest is used), or
 - drop a bare `ffmpeg.exe` into the project root.
 
-`find_ffmpeg()` (shared/audio_probes.py) checks `PATH` first, then next to the app /
+`find_ffmpeg()` (shared/audio/audio_probes.py) checks `PATH` first, then next to the app /
 .exe, then that unpacked folder, then the macOS package-manager prefixes.
 Without it the library analysis, the loudness EQ and the silence detection stay
 disabled; everything else runs.
@@ -302,15 +302,15 @@ DANCEPLAYLIST_ERROR_DSN=https://<key>@app.glitchtip.com/<project>
 
 A source run reads it from there. `dancesport.spec` bundles it into the build
 as `error_report_dsn.txt`. A build without it offers no reports at all.
-`tests.app.test_error_reports.LiveServerTest` sends one real event (tagged
+`tests.shared.test_error_reports.LiveServerTest` sends one real event (tagged
 `test: unittest`). It runs only with `DANCEPLAYLIST_LIVE_TESTS=1` and an
 address, and skips otherwise. In CI, tick *live_tests* when starting the
 tests workflow by hand.
 
 ## What's excluded
 
-The optional OpenL3 deep-embedding backend (`tensorflow`, `torch`,
-`openl3`) are **not** bundled. Everything else — the
-librosa MFCC similarity, BPM detection, and the full GUI — works. To include the
-deep-embedding feature, remove those names from `excludes` in `dancesport.spec`
-and rebuild (expect a multi-GB result).
+The lite build leaves out the torch stack (`torch`, `transformers`,
+`demucs`), so 🎙️ Demucs vocals and the 🧠 MERT sounds-alike index are hidden
+there. Everything else — the librosa MFCC similarity, BPM detection, and the
+full GUI — works. The FULL build bundles both; MERT downloads its weights
+(~380 MB) the first time an index is built.

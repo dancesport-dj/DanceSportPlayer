@@ -21,10 +21,10 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_m3u_format_"))
 
 from planner import config as planner_config
-from planner import library as planner_library
-from planner import m3u
+from planner.music import playlist_index
+from planner.playlist import m3u
 from planner.models import MusicEntry
-from planner.playlist_text import playlist_files
+from planner.playlist.playlist_text import playlist_files
 
 _BOM = b"\xef\xbb\xbf"
 
@@ -106,7 +106,7 @@ class LearningSeesM3u8Test(unittest.TestCase):
         (root / "a.m3u").write_text("#EXTM3U\n", encoding="utf-8")
         (root / "b.m3u8").write_text("#EXTM3U\n", encoding="utf-8")
         (root / "c.m3u.bak").write_text("#EXTM3U\n", encoding="utf-8")
-        m3us, _mp3s = planner_library._playlist_tree()
+        m3us, _mp3s = playlist_index._playlist_tree()
         self.assertEqual(sorted(p.name for p, _sig in m3us), ["a.m3u", "b.m3u8"])
         self.assertEqual([p.name for p in playlist_files(root)], ["a.m3u", "b.m3u8"])
 
@@ -119,7 +119,7 @@ class SettingsComboTest(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def dialog(self, settings):
-        from gui.dialogs import SettingsDialog
+        from gui.dialogs.settings_dialog import SettingsDialog
         from tests.qt_test_support import reap_widget
         dlg = SettingsDialog(settings)
         self.addCleanup(reap_widget, dlg)

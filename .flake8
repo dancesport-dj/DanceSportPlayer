@@ -1,0 +1,10 @@
+# Read only by slop-mop's lint gate (laziness:sloppy-formatting.py); the project
+# itself lints with ruff (pyproject.toml). Mirrors ruff's exceptions: these files
+# re-export on purpose, and flake8 reports a multi-line import at its first line,
+# so the per-name "# noqa: F401" markers ruff honours don't reach it.
+[flake8]
+per-file-ignores =
+    dancesport_planner.py: F401
+    gui/window/main_global.py: F401
+    player/window/main_audio.py: F401
+    player/window/main_player.py: F401

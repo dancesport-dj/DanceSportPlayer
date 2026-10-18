@@ -16,6 +16,7 @@ happens to be named "Finale" must not be rewritten in every label of the app.
 Like the language, the setting is read once at start-up.
 """
 import re
+from typing import overload
 
 from planner import i18n
 from planner.models import DANCE_NAMES
@@ -65,7 +66,7 @@ _english_terms = False
 _german_kept = False
 
 
-def apply_settings(settings: dict) -> None:
+def apply_settings(settings: dict) -> None:  # slop-mop noqa: ambiguity-mine - the settings hook each settings-driven module has
     global _english_terms, _german_kept
     _german_kept = bool((settings or {}).get("german_dance_terms"))
     _english_terms = not _german_kept
@@ -91,6 +92,10 @@ def practice_name() -> str:
     return i18n.t("Practice") if english() else "Eintanzen"
 
 
+@overload
+def dance_name(code: str | None, default: str) -> str: ...
+@overload
+def dance_name(code: str | None, default: str | None = None) -> str | None: ...
 def dance_name(code, default=None):
     """`DANCE_NAMES.get(code, default)`, in English on an English screen."""
     if english() and code in DANCE_NAMES_EN:
@@ -113,7 +118,7 @@ def round_name(name):
     if not isinstance(name, str) or not name:
         return name
     if name in DANCE_NAMES:
-        return dance_name(name)
+        return dance_name(name, name)
     if not english():
         return name
     key = name.strip()

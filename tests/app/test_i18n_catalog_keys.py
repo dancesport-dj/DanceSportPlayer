@@ -17,7 +17,7 @@ import ast
 import unittest
 from pathlib import Path
 
-from planner.lang_de import CATALOG
+from planner.i18n.lang_de import CATALOG
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCES = ("gui", "player", "planner", "shared")
@@ -25,7 +25,7 @@ SOURCES = ("gui", "player", "planner", "shared")
 SAME_IN_GERMAN = frozenset({
     "🎚️ librosa: %s",
     "🎼 Chroma: %s",
-    "🧠 OpenL3: %s",
+    "🧠 MERT: %s",
     " (%s)",
     "Custom:",
     "Frame",
@@ -38,7 +38,7 @@ SAME_IN_GERMAN = frozenset({
 
 def _source_files():
     for folder in SOURCES:
-        yield from sorted((ROOT / folder).glob("*.py"))
+        yield from sorted((ROOT / folder).rglob("*.py"))
     yield ROOT / "dancesport_gui.py"
 
 
@@ -64,7 +64,7 @@ class CatalogKeysTest(unittest.TestCase):
                    for f in _source_files()
                    for line, key in _literal_keys(f)
                    if key not in CATALOG and key not in SAME_IN_GERMAN]
-        self.assertEqual(missing, [], "keys missing from planner/lang_de.py:\n"
+        self.assertEqual(missing, [], "keys missing from planner/i18n/lang_de.py:\n"
                          + "\n".join(missing))
 
 

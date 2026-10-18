@@ -19,7 +19,7 @@ import unittest
 from pathlib import Path
 
 from planner.models import MusicEntry
-from planner.warmup import (
+from planner.generate.warmup import (
     _WARMUP_BALLROOM,
     _WARMUP_LATIN,
     _WARMUP_MODE,
@@ -170,21 +170,21 @@ class ThreeRoundCoverageTest(unittest.TestCase):
             self.assertFalse(missing, f"{label}: rounds {i}-{i + 2} never "
                                       f"played {missing} — {win}")
 
-    def test_the_standard_rounds_cover_lw_tg_sf_qs(self):
+    def test_the_standard_rounds_cover_lw_tg_sf_qs(self):  # overconfidence:short-test-ok - asserts in the helper
         for seed in range(6):
             with self.subTest(seed=seed):
                 rounds = _section_rounds(40, _WARMUP_BALLROOM, seed=seed)
                 self._assert_covered(rounds, ("LW", "TG", "SF", "QS"),
                                      f"seed {seed}")
 
-    def test_the_latin_rounds_cover_sa_cc_rb_ji(self):
+    def test_the_latin_rounds_cover_sa_cc_rb_ji(self):  # overconfidence:short-test-ok - asserts in the helper
         for seed in range(6):
             with self.subTest(seed=seed):
                 rounds = _section_rounds(40, _WARMUP_LATIN, seed=seed)
                 self._assert_covered(rounds, ("SA", "CC", "RB", "JI"),
                                      f"seed {seed}")
 
-    def test_an_unticked_late_ww_puts_the_wiener_in_the_guarantee(self):
+    def test_an_unticked_late_ww_puts_the_wiener_in_the_guarantee(self):  # overconfidence:short-test-ok - asserts in the helper
         """"All five dances" is all five — the Wiener Walzer only sits outside
         the guarantee while the operator has asked for it late."""
         for seed in range(6):

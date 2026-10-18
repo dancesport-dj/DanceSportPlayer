@@ -10,6 +10,7 @@ MusicEntry object, and repainting is the only way the new dance or takt shows.
 """
 
 import os
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -26,8 +27,10 @@ from dancesport_planner import (
     PlaylistSuggester,
     RoundConfig,
 )
-from gui.main_music import _tag_change_summary
-from gui.playlist_table import _COL_BPM, _COL_TITLE
+from gui.window.main_tags import _tag_change_summary
+from planner.music.db import AudioCache
+from tests.db_support import use_scratch_db
+from gui.table.playlist_table import _COL_BPM, _COL_TITLE
 from tests.qt_test_support import (
     reap_widget, stub_window_startup)
 
@@ -85,6 +88,10 @@ class RetagTest(unittest.TestCase):
         cls.gui = stub_window_startup(cls)
 
     def setUp(self):
+        # The window re-reads tags only once a library and its cache are loaded.
+        tmp = Path(tempfile.mkdtemp(prefix="dp_retag_db_"))
+        self.addCleanup(shutil.rmtree, tmp, True)
+        use_scratch_db(self, tmp / "scratch.db")
         self.win = self.gui.MainWindow()
         self.win._loading_dlg.accept()   # closeEvent blocks a plain close()
         self.addCleanup(reap_widget, self.win)
@@ -95,6 +102,7 @@ class RetagTest(unittest.TestCase):
         lib = MusicLibrary()
         lib.entries.extend([self.cha, self.rum])
         self.win._library.lib = lib
+        self.win._library.cache = AudioCache()
         self.scan = _StubScan(self.win._library.cache)
         lib._scan_cache = self.scan
 
@@ -128,6 +136,15 @@ class RetagTest(unittest.TestCase):
         self.win._rescan_entry_tags(self.cha)
         self.assertIn("30", self._cell(self.cha, _COL_BPM))
         self.assertIn("Cha One", self._cell(self.cha, _COL_TITLE))
+
+    def test_the_bpm_cell_names_where_the_tempo_came_from(self):
+        row = self._row_of(self.cha)
+        # The stale 29 matches nothing the file says — no source is claimed.
+        self.assertEqual(self.table.item(row, _COL_BPM).toolTip(), "")
+        self.win._rescan_entry_tags(self.cha)
+        row = self._row_of(self.cha)
+        self.assertEqual(self.table.item(row, _COL_BPM).toolTip(),
+                         "Tempo from the file name")
 
     def test_the_other_rows_are_left_alone(self):
         before = self._cell(self.rum, _COL_TITLE)

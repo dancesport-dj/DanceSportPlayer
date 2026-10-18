@@ -10,7 +10,7 @@ carried one "# ── Tango ──" per single track: a competition draw's scaff
 wrapped around a flat running order, which is not what a party list is.
 
 A party list is flat, so it goes out flat, with its ROUNDS written in
-(planner.m3u.export_flat_m3u).
+(planner.playlist.m3u.export_flat_m3u).
 """
 
 import os
@@ -69,7 +69,7 @@ class PartyPanelExportTest(unittest.TestCase):
                                suggester=None)
 
     def save_as(self, name: str) -> Path:
-        from gui import main_export
+        from gui.window import main_export
         out = _TMP / name
         with mock.patch.object(main_export.QFileDialog, "getSaveFileName",
                                return_value=(str(out), "")), \
@@ -82,14 +82,14 @@ class PartyPanelExportTest(unittest.TestCase):
     def save_all(self, click=False) -> tuple[list[Path], str]:
         """💾 Save all: (the written .m3u files, the summary box's text).
         `click` goes through the toolbar button instead of the method."""
-        from gui import main_export
+        from gui.window import main_export
         out_dir = _TMP / "all"
         for old in out_dir.rglob("*.m3u"):
             old.unlink()
         box = mock.MagicMock()
         box.clickedButton.return_value = None
         with mock.patch.object(main_export, "OUTPUT_DIR", out_dir), \
-                mock.patch("planner.m3u.OUTPUT_DIR", out_dir), \
+                mock.patch("planner.playlist.m3u.OUTPUT_DIR", out_dir), \
                 mock.patch.object(main_export, "QMessageBox", return_value=box):
             if click:
                 self._save_all_button().click()

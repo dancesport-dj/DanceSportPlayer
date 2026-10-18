@@ -21,16 +21,21 @@ from PySide6.QtCore import QThread, Signal
 
 log = logging.getLogger("dancesport.workers")
 
-from planner.ai import openrouter_chat, openrouter_free_models
-from planner.db import AudioCache, GlobalScanCache, db_maintenance
-from planner.library import MusicLibrary
+from planner.generate.ai import openrouter_chat, openrouter_free_models
+from planner.music.db import AudioCache
+from planner.music.db_upkeep import db_maintenance
+from planner.music.scan_caches import GlobalScanCache
+from planner.music.library import MusicLibrary
 from planner.models import ScanCancelled, ALLOW_REPEAT
-from planner.warmup import build_class_warmup, build_warmup_playlist
-from planner.parsing import _detect_dance
-from planner import custom_field, event_plan, i18n, llm
-from planner.planned import path_key
-from planner.playlist_text import read_playlist_text
-from shared.audio_probes import detect_pd_highlights, detect_silences, measure_lufs
+from planner.generate.warmup import build_class_warmup, build_warmup_playlist
+from planner.music.parsing import _detect_dance
+from planner.music import custom_field
+from planner.event import event_plan
+from planner import i18n
+from planner.generate import llm
+from planner.playlist.planned import path_key
+from planner.playlist.playlist_text import read_playlist_text
+from shared.audio.audio_probes import detect_pd_highlights, detect_silences, measure_lufs
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -242,6 +247,59 @@ class CustomFieldReader(QThread):
 # ─────────────────────────────────────────────────────────────────────────────
 # Audio Analyzer (background QThread)
 # ─────────────────────────────────────────────────────────────────────────────
+def _mmss(seconds: float) -> str:
+    m, s = divmod(int(max(seconds, 0)), 60)
+    return f"{m}m{s:02d}s"
+
+
+class _RunLog:
+    """What a long run over the library tells the log: that it started, a
+    line every 5 % with the file and the time left, and how it ended. The
+    busy dialog shows the same while it runs; the log keeps it afterwards."""
+
+    def __init__(self, label: str):
+        self.label = label
+        self._step = -1
+        self.t0 = time.monotonic()
+
+    def start(self, files: int, of: int | None = None):
+        if of is None:
+            log.info("%s started\n"
+                     "files: %d", self.label, files)
+        else:
+            log.info("%s started\n"
+                     "files to do: %d\n"
+                     "already done: %d", self.label, files, of - files)
+
+    def progress(self, done: int, total: int, name: str, eta: float,
+                 errors: int | None = None):
+        step = done * 20 // total if total > 0 else 20
+        if step <= self._step:
+            return
+        self._step = step
+        extra = "" if errors is None else f"\nerrors: {errors}"
+        if eta >= 0:
+            extra += f"\nremaining: ~{_mmss(eta)}"
+        log.info("%s %d%% (%d/%d)\n"
+                 "file: %s%s", self.label, done * 100 // max(total, 1),
+                 done, total, name, extra)
+
+    def finish(self, ok: int, errors: int, skipped: int = 0,
+               reasons: dict | None = None):
+        extra = f"\nskipped: {skipped}" if skipped else ""
+        extra += "".join(f"\n{why}: {n}" for why, n in (reasons or {}).items())
+        log.info("%s finished\n"
+                 "ok: %d\n"
+                 "errors: %d\n"
+                 "time: %s%s", self.label, ok, errors,
+                 _mmss(time.monotonic() - self.t0), extra)
+
+    def stopped(self, ok: int):
+        log.info("⏹ %s stopped\n"
+                 "ok so far: %d\n"
+                 "time: %s", self.label, ok, _mmss(time.monotonic() - self.t0))
+
+
 class AudioAnalyzer(QThread):
     """Runs librosa analysis on files missing from cache; emits per-file progress.
 
@@ -281,16 +339,24 @@ class AudioAnalyzer(QThread):
                 why = str(exc)[:120] or exc.__class__.__name__
             reasons[why] = reasons.get(why, 0) + 1
 
+        runlog = _RunLog("🎵 Audio features")
+        runlog.start(len(self._entries))
+
+        def progress(done, total, errors, path, eta):
+            self.progress.emit(done, total, errors, path.name, eta)
+            runlog.progress(done, total, path.name, eta, errors)
+
         ok, errors, was_cancelled = self._cache.analyze_entries(
             self._entries,
-            progress_cb=lambda done, total, errors, path, eta:
-                self.progress.emit(done, total, errors, path.name, eta),
+            progress_cb=progress,
             should_cancel=lambda: self._cancel,
             force=self._force,
             on_error=note)
         if was_cancelled:
+            runlog.stopped(ok)
             self.cancelled.emit(ok)
         else:
+            runlog.finish(ok, errors - skipped, skipped, reasons)
             self.report.emit({"ok": ok, "errors": errors - skipped,
                               "skipped": skipped, "reasons": reasons})
             self.done.emit(ok, errors - skipped)
@@ -370,8 +436,8 @@ class AiPlaylistWorker(QThread):
 
     def cancel(self):
         """Ask the run to stop. Safe from the UI thread: a `claude -p` still
-        thinking is killed, a retry wait ends, no fallback is started. An HTTP
-        request already on the wire can't be cut; its answer is dropped."""
+        thinking is killed, a retry wait ends, no fallback is started, and a
+        request to the fallback host that waits for its answer is cut off."""
         self._cancel.set()
 
     def run(self):
@@ -502,6 +568,8 @@ class LibraryPass(QThread):
 
     save_every = 20
     fail_hint = "the measurement failed, see the log"
+    # How the pass is named in the log.
+    label = "🔬 Library pass"
     # How many tracks may be measured side by side. 1 keeps the pass strictly
     # serial (`measure`); above that the pass must split itself into `compute`
     # (expensive, cache-free, runs in the pool) and `store` (writes, always on
@@ -610,6 +678,8 @@ class LibraryPass(QThread):
         try:
             todo = self.todo()
             total = len(todo)
+            runlog = _RunLog(self.label)
+            runlog.start(total, of=len(self.paths))
             ok = errors = skipped = 0
             reasons: dict[str, int] = {}
             t0 = time.monotonic()
@@ -635,11 +705,14 @@ class LibraryPass(QThread):
                     elapsed = time.monotonic() - t0
                     eta = (elapsed / i) * (total - i) if elapsed > 0 else -1.0
                     self.progress.emit(i, total, errors, path.name, eta)
+                    runlog.progress(i, total, path.name, eta, errors)
             if self._cancel:
                 self.cache.save()
+                runlog.stopped(ok)
                 self.cancelled.emit(ok)
                 return
             self.cache.save()
+            runlog.finish(ok, errors, skipped, reasons)
             self.report.emit({"ok": ok, "errors": errors, "skipped": skipped,
                               "reasons": reasons})
             self.done.emit(ok, errors)
@@ -657,6 +730,7 @@ class AudioFpAnalyzer(LibraryPass):
     by far the cheapest pass — and after one run it has nothing left to do.
     """
     save_every = 200
+    label = "🔑 Audio fingerprints"
     fail_hint = "the file could not be read"
     # Stays serial, unlike the decoding passes: measured at 0.19 s per 120 cold
     # files, the whole library is ~6 s, and `ensure_audio_fp` interleaves its DB
@@ -683,6 +757,7 @@ class SilenceAnalyzer(LibraryPass):
     where it competes with the player for the same disk."""
 
     fail_hint = "ffmpeg could not read it"
+    label = "🔇 Silence"
 
     def __init__(self, cache: AudioCache, paths: list, ffmpeg: str, parent=None):
         super().__init__(cache, paths, parent)
@@ -696,8 +771,8 @@ class SilenceAnalyzer(LibraryPass):
     def compute(self, path: Path):
         return detect_silences(self.ffmpeg, path)
 
-    def store(self, path: Path, spans) -> bool:
-        self.cache.put_silences(path, spans)
+    def store(self, path: Path, result) -> bool:
+        self.cache.put_silences(path, result)
         return True
 
 
@@ -705,6 +780,7 @@ class LoudnessAnalyzer(LibraryPass):
     """Measures EBU R128 loudness for entries not yet in the loudness table."""
 
     fail_hint = "ffmpeg could not read it"
+    label = "📊 Loudness"
 
     def __init__(self, cache: AudioCache, paths: list, ffmpeg: str, parent=None):
         super().__init__(cache, paths, parent)
@@ -718,8 +794,8 @@ class LoudnessAnalyzer(LibraryPass):
     def compute(self, path: Path):
         return measure_lufs(self.ffmpeg, path)
 
-    def store(self, path: Path, lufs) -> bool:
-        self.cache.put_lufs(path, lufs)
+    def store(self, path: Path, result) -> bool:
+        self.cache.put_lufs(path, result)
         return True
 
 
@@ -731,17 +807,18 @@ class VocalShareAnalyzer(LibraryPass):
     loses nothing."""
     save_every = 5
     fail_hint = "the vocal separation failed, see the log"
+    label = "🎙️ Vocal share"
     # Only two: torch already spreads one separation over the cores, so the
     # measured gain is 1.5× (7.6 s → 5.1 s per track), not 8×, and every
     # separation in flight holds its own tensors. The shared htdemucs model is
-    # read-only during inference (see planner.vocals._get_demucs_model).
+    # read-only during inference (see planner.music.vocals._get_demucs_model).
     workers = 2
 
     def todo(self) -> list:
         return [p for p in self.paths if self.cache.get_vocal_share(p) is None]
 
     def compute(self, path: Path):
-        from planner.vocals import measure_vocal_share
+        from planner.music.vocals import measure_vocal_share
         try:
             return measure_vocal_share(path)
         except Exception as exc:
@@ -750,8 +827,8 @@ class VocalShareAnalyzer(LibraryPass):
                         "error: %s", path, exc)
             return None
 
-    def store(self, path: Path, share) -> bool:
-        self.cache.put_vocal_share(path, share)
+    def store(self, path: Path, result) -> bool:
+        self.cache.put_vocal_share(path, result)
         return True
 
 
@@ -763,6 +840,7 @@ class PdHighlightAnalyzer(LibraryPass):
     the detector itself changed. Hand-set 🎯 marks are never touched: they are
     the operator's ear, and no detector run should overrule it."""
     save_every = 10
+    label = "🐂 Paso Doble highlights"
 
     def __init__(self, cache: AudioCache, paths: list, parent=None,
                  force: bool = False):
@@ -794,7 +872,7 @@ class PdHighlightAnalyzer(LibraryPass):
 
 
 class EmbeddingIndexWorker(QThread):
-    """Builds a deep-embedding index (OpenL3 or Chroma) over entries; cancelable.
+    """Builds a deep-embedding index (MERT or Chroma) over entries; cancelable.
 
     Each unique audio (by content fingerprint) is embedded once and cached in the
     shared SQLite `embeddings` table. The neural model is loaded lazily on first use.
@@ -824,19 +902,43 @@ class EmbeddingIndexWorker(QThread):
         steps = done - self._done0
         eta = (elapsed / steps) * (total - done) if steps > 0 and elapsed > 0 else -1.0
         self.progress.emit(done, total, name, eta)
+        self._runlog.progress(done, total, name, eta)
+
+    def _emit_download(self, done: int, total: int):
+        # The model's first download, in MB: told apart from the analysis,
+        # and kept out of the ETA's start. Each MB once; no size yet, no bar.
+        done_mb, total_mb = done // 1_000_000, total // 1_000_000
+        if total_mb <= 0 or done_mb == self._download_mb:
+            return
+        if self._download_mb < 0:
+            log.info("⬇ Downloading the MERT model\n"
+                     "size: %d MB", total_mb)
+        if done_mb >= total_mb:
+            log.info("⬇ MERT model downloaded\n"
+                     "time: %s", _mmss(time.monotonic() - self._runlog.t0))
+        self._download_mb = done_mb
+        self.progress.emit(done_mb, total_mb,
+                           i18n.t("⬇ Downloading the MERT model (once) — MB"), -1.0)
 
     def run(self):
         try:
-            from planner import embeddings as ae
+            from planner.music import embeddings as ae
             self._t0 = None
             self._done0 = 0
+            self._download_mb = -1
+            name = {ae.MODEL_CHROMA: "Chroma"}.get(self._model, "MERT")
+            self._runlog = _RunLog(f"🧠 {name} index")
+            self._runlog.start(len(self._entries))
             computed, errors, first_error = ae.build_index(
                 self._entries, self._model, self._store,
                 progress_cb=self._emit_progress,
-                should_cancel=lambda: self._cancel)
+                should_cancel=lambda: self._cancel,
+                download_cb=self._emit_download)
             if self._cancel:
+                self._runlog.stopped(computed)
                 self.cancelled.emit(computed)
             else:
+                self._runlog.finish(computed, errors)
                 self.done.emit(computed, errors, first_error or "")
         except Exception as exc:
             self.error.emit(str(exc))

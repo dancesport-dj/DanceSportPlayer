@@ -28,6 +28,7 @@ The scripted paths through the manual are tests/gui/test_click_*.py; what
 both share is tests/gui/monkey_support.py.
 """
 
+import time
 import unittest
 
 # First: it points the app's state files at a temp folder before any app
@@ -171,10 +172,13 @@ class _StageMonkey(Monkey):
         return [t for t in super().targets(roots)
                 if t[1] is not self.win._mode_plan_btn]
 
-    def keep_playing(self):
+    def playing(self) -> bool:
         from PySide6.QtMultimedia import QMediaPlayer
+        return self.win._player.playbackState() == QMediaPlayer.PlaybackState.PlayingState
+
+    def keep_playing(self):
         win = self.win
-        if win._player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
+        if self.playing():
             self.playing_steps += 1
             return
         table = win._deckset.table
@@ -195,6 +199,14 @@ class _StageMonkey(Monkey):
         table.scrollTo(idx)
         QTest.mouseClick(table.viewport(), Qt.MouseButton.LeftButton,
                          Qt.KeyboardModifier.NoModifier, table.visualRect(idx).center())
+        # A title starts asynchronously, and under the suite's 16 workers
+        # PlayingState comes well after the click: acting at once would work a
+        # deck that is still stopped. Wait for the music, as the operator does.
+        deadline = time.monotonic() + 2
+        while not self.playing() and time.monotonic() < deadline:
+            _settle(10)
+        if self.playing():
+            self.playing_steps += 1
 
 
 class PlayingMonkeyTest(LoadedWindow):

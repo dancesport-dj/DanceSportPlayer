@@ -10,6 +10,13 @@ from PySide6.QtCore import QEventLoop, QThread
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtWidgets import QApplication
 
+from planner.models import note_class_tag_use
+
+
+def qapp():
+    """The running QApplication, created on first use."""
+    return QApplication.instance() or QApplication([])
+
 
 def reap_widget(w):
     """Destroy `w` now, rather than whenever an event loop next runs.
@@ -60,6 +67,10 @@ def reap_widget(w):
         player.stop()
     w.close()
     shiboken6.delete(w)
+    # A window's library load records whether the library uses class tags
+    # (planner.models.note_class_tag_use). That flag is process-wide: left on,
+    # it would file every untagged title of a later test as 'no_class'.
+    note_class_tag_use(())
 
 
 class StubLoader:

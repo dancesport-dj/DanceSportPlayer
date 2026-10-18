@@ -33,6 +33,16 @@ atexit.register(lambda: print("teardown ran", flush=True))
 dg.exit_app(3)
 """
 
+# A windowed build (PyInstaller console=False) has no console: both streams are None.
+_WINDOWED_SCRIPT = r"""
+import os, sys
+os.environ["QT_QPA_PLATFORM"] = "offscreen"
+import dancesport_gui as dg
+
+sys.stdout = sys.stderr = None
+dg.exit_app(4)
+"""
+
 
 class QuitFastTest(unittest.TestCase):
 
@@ -47,6 +57,13 @@ class QuitFastTest(unittest.TestCase):
             self.assertNotIn("teardown ran", proc.stdout)
             self.assertIn("last line before the exit",
                           log_path.read_text(encoding="utf-8"))
+
+    def test_exit_without_a_console(self):
+        env = dict(os.environ, PYTHONPATH=str(_ROOT), PYTHONIOENCODING="utf-8")
+        proc = subprocess.run([sys.executable, "-c", _WINDOWED_SCRIPT],
+                              cwd=_ROOT, env=env, capture_output=True, text=True,
+                              encoding="utf-8", timeout=60)
+        self.assertEqual(proc.returncode, 4, proc.stderr[-2000:])
 
 
 if __name__ == "__main__":

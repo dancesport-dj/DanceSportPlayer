@@ -32,6 +32,7 @@ import os
 import shutil
 import time
 from pathlib import Path
+from typing import Any
 
 from planner import config
 
@@ -93,7 +94,7 @@ class JsonStore:
     def exists(self) -> bool:
         return self.path.exists()
 
-    def read(self, default=None):
+    def read(self, default: Any = None) -> Any:
         """The parsed file, or `default` when it is absent or unreadable.
 
         A missing file is the normal first start and says nothing; anything

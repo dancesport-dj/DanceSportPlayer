@@ -13,7 +13,7 @@ come back unchanged — the panel switches the source back and forth.
 import unittest
 from pathlib import Path
 
-from planner.library import MusicLibrary
+from planner.music.library import MusicLibrary
 from planner.models import MusicEntry
 
 

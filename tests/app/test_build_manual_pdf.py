@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for tools/build_manual_pdf.py — which browser prints, and how.
+"""Tests for tools/docs/build_manual_pdf.py — which browser prints, and how.
 
 Run:  py -m unittest tests.app.test_build_manual_pdf -v
 
@@ -15,8 +15,8 @@ from unittest import mock
 from urllib.parse import urlparse
 from urllib.request import url2pathname
 
-from tools import build_manual_html as bm
-from tools import build_manual_pdf as bp
+from tools.docs import build_manual_html as bm
+from tools.docs import build_manual_pdf as bp
 
 
 # What Chrome writes, cut down: the catalog's /Dests maps every anchor to its

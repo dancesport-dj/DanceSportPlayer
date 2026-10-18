@@ -11,6 +11,10 @@
 | **Space** | Pause and resume the player, wherever the focus is, except in a text field. |
 | **Ctrl + ← / →** | Seek 30 s back / forward while playing. |
 | **Ctrl + Shift + ← / →** | Previous / next title, the same as ⏮ / ⏭ on the player. ⏭ also ends a running pause. |
+| **Ctrl + Shift + P / F / H** | Play / pause, fade out now, fade out and hold. |
+| **Ctrl + Shift + D / A** | Duck the music on / off, announce the next dance on / off. |
+| **Ctrl + Shift + ↑ / ↓** | Music volume up / down by 5 %. |
+| **Ctrl + Shift + X** | Stop all cartwall pads. |
 | **Ctrl + S** | Save the focused playlist or wishlist as M3U. |
 | **Ctrl + Shift + S** | Save the whole session: decks, wishlists, layout. |
 | **Ctrl + Z / Ctrl + Y** | Undo / redo. **Ctrl + Shift + Z** also redoes. |
@@ -25,8 +29,14 @@
 | **Ctrl + F** | Find a title in the focused list. Repeat to step to the next match. |
 | **T** on the 🖥 presenter | Switch between the titles and the timetable page. |
 | **Esc** on the 🖥 presenter | Close the presenter screen. |
-| **F1** | The cheat sheet. |
+| **F12** / **Ctrl + Alt + S** | Open ⚙ Settings, also under ❔ at the end of the toolbar. |
+| **F1** | The cheat sheet. It opens in a search field: typing keeps the rows whose key or description holds the text. |
 | **F11** | Fullscreen on and off, with the date and time in the status bar. |
+
+The **Ctrl + Shift** keys of the player are the *desk keys*. They can be
+changed, for example to F13 to F24 for a Stream Deck: **⌨ Keys…** in the
+F1 cheat sheet or in ⚙ Settings ▸ ⚙ General, see
+[chapter 4](04-playing.md#-desk-keys).
 
 ## Mouse
 
@@ -45,7 +55,8 @@
 | Click a star in the **★** column | Rate the title. Click the star the rating ends on to clear it. |
 | Double-click the 🖥 presenter | Leave full screen. |
 | Click or drag the 〰 waveform | Jump to that spot. A drag scrubs, and the music jumps when you let go. |
-| Click the green 📱 LIVE badge | Open the phone remote's window. |
+| Click the green 📱 Remote badge | Open the phone remote's window. |
+| Click the green 🎛 controller badge | Open the controller window. |
 
 ## Cartwall
 
@@ -54,6 +65,7 @@
 | Drop files on a pad (✏ edit on) | Assign that sample. A multi-select fills the free pads after it. An empty pad can also be clicked to browse. |
 | Click a pad | Fire it over the running music. Click again to fade it out. |
 | **Ctrl + 1 … Ctrl + 9** | Fire the first nine pads of the page on screen. This works from anywhere while the wall is shown. |
+| Right-click a pad ▸ ⌨ Shortcuts… | Learn the slot keys and pad keys, see [chapter 4](04-playing.md#-the-cartwalls-keys). |
 | Right-click a pad | 🎨 colour, or Settings… for label, volume, its own key, 🔁 endless repeat and whether it ducks the music. |
 | Drag a pad onto another | Swap the two pads. |
 | **Esc** | Stop every pad, the same as ⏹ Stop all. |

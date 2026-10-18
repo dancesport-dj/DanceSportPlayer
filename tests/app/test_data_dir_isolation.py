@@ -15,7 +15,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from planner import config, db
+from planner import config
+from planner.music import db_upkeep
 
 _ROOT = Path(__file__).resolve().parents[2]
 
@@ -27,7 +28,7 @@ class SuiteIsolationTest(unittest.TestCase):
                             (config.INSTALL_DIR / "audio_features.db").resolve())
 
     def test_backups_land_in_that_folder_too(self):
-        self.assertTrue(db._backup_dir().resolve().is_relative_to(
+        self.assertTrue(db_upkeep._backup_dir().resolve().is_relative_to(
             config._BASE_DIR.resolve()))
 
 

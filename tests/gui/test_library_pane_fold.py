@@ -23,8 +23,8 @@ from PySide6.QtWidgets import (
     QApplication, QSplitter, QTabWidget, QWidget,
 )
 
-from gui.deck_grid import DeckGrid
-from gui.main_fold import FoldMixin
+from gui.decks.deck_grid import DeckGrid
+from gui.window.main_fold import FoldMixin
 
 
 class _Win(FoldMixin):

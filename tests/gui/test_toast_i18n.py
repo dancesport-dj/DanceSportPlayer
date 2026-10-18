@@ -29,14 +29,14 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_toast_i18n_"))
 
-from gui.table_dynamic import DynamicModeMixin
+from gui.table.table_dynamic import DynamicModeMixin
 from planner import i18n
 from planner.models import MusicEntry
 
 _ROOT = Path(__file__).resolve().parents[2]
-_SOURCES = [*sorted((_ROOT / "gui").glob("*.py")),
-            *sorted((_ROOT / "player").glob("*.py")),
-            *sorted((_ROOT / "shared").glob("*.py")),
+_SOURCES = [*sorted((_ROOT / "gui").rglob("*.py")),
+            *sorted((_ROOT / "player").rglob("*.py")),
+            *sorted((_ROOT / "shared").rglob("*.py")),
             _ROOT / "dancesport_gui.py"]
 
 

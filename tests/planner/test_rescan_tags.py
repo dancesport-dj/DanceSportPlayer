@@ -11,17 +11,17 @@ object would leave every row pointing at the stale one.
 """
 import os
 import tempfile
-import threading
 import unittest
 from pathlib import Path
 
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_rescan_"))
 
-import planner.db as pdb
-from planner import config as planner_config
-from planner.library import MusicLibrary
+import planner.music.db as pdb
+import planner.music.scan_caches as scan_caches
+from planner.music.library import MusicLibrary
 from planner.models import MusicEntry
+from tests.db_support import use_scratch_db
 
 _PATH = Path(r"C:\music\Latein\Rumba RB 25.mp3")
 
@@ -121,19 +121,8 @@ class ScanCacheForgetTest(unittest.TestCase):
 
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp(prefix="dp_rescan_db_"))
-        self._saved = (planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
-        planner_config.AUDIO_DB_FILE = self.dir / "scratch.db"
-        pdb._DB_LOCAL = threading.local()
-        pdb._DB_INITIALIZED = False
-        self.addCleanup(self._restore)
-        self.scan = pdb.ScanCache(self._FpCache())
-
-    def _restore(self):
-        try:
-            pdb._DB_LOCAL.conn.close()
-        except Exception:
-            pass
-        planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = self._saved
+        use_scratch_db(self, self.dir / "scratch.db")
+        self.scan = scan_caches.ScanCache(self._FpCache())
 
     def _rows(self) -> int:
         return pdb._db().execute("SELECT COUNT(*) FROM scan_meta").fetchone()[0]

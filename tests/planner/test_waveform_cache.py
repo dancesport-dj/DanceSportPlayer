@@ -9,35 +9,23 @@ copy or a renamed file finds it too.
 """
 import os
 import tempfile
-import threading
 import unittest
 from pathlib import Path
 
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_wave_cache_"))
 
-import planner.db as pdb
-from planner import config as planner_config
+import planner.music.db as pdb
+from tests.db_support import use_scratch_db
 
 
 class WaveformCacheTest(unittest.TestCase):
 
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp(prefix="dp_wave_cache_db_"))
-        self._saved = (planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
-        planner_config.AUDIO_DB_FILE = self.dir / "scratch.db"
-        pdb._DB_LOCAL = threading.local()
-        pdb._DB_INITIALIZED = False
-        self.addCleanup(self._restore)
+        use_scratch_db(self, self.dir / "scratch.db")
         self.song = self.dir / "song.mp3"
         self.song.write_bytes(b"ID3" + bytes(range(256)) * 40)
-
-    def _restore(self):
-        try:
-            pdb._DB_LOCAL.conn.close()
-        except Exception:
-            pass
-        planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = self._saved
 
     def test_never_decoded_is_none(self):
         self.assertIsNone(pdb.AudioCache().get_waveform(self.song))

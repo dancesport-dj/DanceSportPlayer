@@ -23,7 +23,7 @@ from PySide6.QtCore import QPoint
 from PySide6.QtWidgets import QMenu
 
 from dancesport_planner import MusicLibrary
-from tests.gui.test_deck_file_reveal import _DIR, _RightClick, _entry
+from tests.gui.window.test_deck_file_reveal import _DIR, _RightClick, _entry
 from tests.qt_test_support import reap_widget, stub_window_startup
 
 
@@ -64,14 +64,14 @@ class HeaderSaveM3uTest(unittest.TestCase):
                                     "Party", play_cb=None)
 
     def header_menu(self, table, pick=None) -> dict:
-        from gui import main_decks
+        from gui.window import main_decks
         seen = {}
         with mock.patch.object(main_decks, "QMenu", _menu_class(seen, pick)):
             self.win._on_header_press(_RightClick(), table)
         return seen
 
     def tab_menu(self, page, pick=None) -> dict:
-        from gui import main_decks
+        from gui.window import main_decks
         seen = {}
         with mock.patch.object(main_decks, "QMenu", _menu_class(seen, pick)):
             self.win._group_tab_menu(page, QPoint(10, 10))
@@ -119,12 +119,12 @@ class HeaderSaveM3uTest(unittest.TestCase):
         # A saved list names its titles through the library.
         self.win._library.lib.entries = [*self.table._row_meta.entries(),
                                  *other_tracks, *wish_tracks]
-        from gui import main_export
+        from gui.window import main_export
         out_dir = _DIR / "grouptab"
         box = mock.MagicMock()
         box.clickedButton.return_value = None
         with mock.patch.object(main_export, "OUTPUT_DIR", out_dir), \
-                mock.patch("planner.m3u.OUTPUT_DIR", out_dir), \
+                mock.patch("planner.playlist.m3u.OUTPUT_DIR", out_dir), \
                 mock.patch.object(main_export, "QMessageBox", return_value=box):
             menu = self.tab_menu(page, pick="💾")
         self.assertTrue(menu["💾  Save all playlists as M3U"])

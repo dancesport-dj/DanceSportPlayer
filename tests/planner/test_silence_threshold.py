@@ -21,8 +21,8 @@ from pathlib import Path
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_sil_thr_"))
 
-import planner.db as pdb
-from planner import config as planner_config
+import planner.music.db as pdb
+from tests.db_support import use_scratch_db
 
 
 class ThresholdTest(unittest.TestCase):
@@ -33,7 +33,7 @@ class ThresholdTest(unittest.TestCase):
     def test_the_probe_asks_ffmpeg_for_that_threshold(self):
         from unittest import mock
 
-        from shared import audio_probes
+        from shared.audio import audio_probes
         seen = []
 
         def fake(cmd, *_a, **_kw):
@@ -51,19 +51,8 @@ class StaleSpansTest(unittest.TestCase):
 
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp(prefix="dp_sil_thr_db_"))
-        self._saved = (planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
-        planner_config.AUDIO_DB_FILE = self.dir / "scratch.db"
-        pdb._DB_LOCAL = threading.local()
-        pdb._DB_INITIALIZED = False
-        self.addCleanup(self._restore)
+        use_scratch_db(self, self.dir / "scratch.db")
         self.conn = pdb._db()
-
-    def _restore(self):
-        try:
-            pdb._DB_LOCAL.conn.close()
-        except Exception:
-            pass
-        planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = self._saved
 
     def _reopen(self):
         pdb._DB_LOCAL.conn.close()

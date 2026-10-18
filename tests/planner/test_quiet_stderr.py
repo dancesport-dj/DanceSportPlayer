@@ -16,7 +16,7 @@ import sys
 import tempfile
 import unittest
 
-from planner.embeddings import _quiet_native_stderr
+from planner.music.embeddings import _quiet_native_stderr
 
 
 class QuietStderrTest(unittest.TestCase):

@@ -2,17 +2,17 @@
 import datetime as dt
 import shutil
 import tempfile
-import threading
 import unittest
 from pathlib import Path
 from unittest import mock
 
 from PySide6.QtWidgets import QApplication
 
-import planner.db as pdb
-from planner import config as planner_config
-from gui import main_global
-from gui.dialogs import SettingsDialog
+import planner.music.db as pdb
+import planner.music.db_upkeep as upkeep
+from tests.db_support import use_scratch_db
+from gui.window import main_global
+from gui.dialogs.settings_dialog import SettingsDialog
 
 
 class RestoreUserDataTest(unittest.TestCase):
@@ -23,21 +23,10 @@ class RestoreUserDataTest(unittest.TestCase):
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp(prefix="dp_restore_ui_"))
         self.addCleanup(shutil.rmtree, self.dir, ignore_errors=True)
-        saved = (planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED)
-        planner_config.AUDIO_DB_FILE = self.dir / "scratch.db"
-        pdb._DB_LOCAL = threading.local()
-        pdb._DB_INITIALIZED = False
-
-        def restore():
-            try:
-                pdb._DB_LOCAL.conn.close()
-            except Exception:
-                pass
-            planner_config.AUDIO_DB_FILE, pdb._DB_LOCAL, pdb._DB_INITIALIZED = saved
-        self.addCleanup(restore)
+        use_scratch_db(self, self.dir / "scratch.db")
         conn = pdb._db()
         conn.execute("INSERT INTO tag_edits (fp, rating) VALUES ('fp1', 4)")
-        self.backup = pdb.backup_user_data(today=dt.date(2026, 10, 9))
+        self.backup = upkeep.backup_user_data(today=dt.date(2026, 10, 9))
         conn.execute("DELETE FROM tag_edits")
 
     def test_settings_has_the_restore_button(self):

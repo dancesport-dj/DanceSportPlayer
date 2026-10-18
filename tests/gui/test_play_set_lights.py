@@ -23,8 +23,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication
 
 from gui import dialogs
-from planner.play_sets import _TOURNAMENT_SET
-from gui.main_persist import layout_settings
+from planner.playing.play_sets import _TOURNAMENT_SET
+from gui.window.main_persist import layout_settings
 from tests.qt_test_support import (
     reap_widget, stub_window_startup)
 

@@ -17,7 +17,7 @@ from pathlib import Path
 from unittest import mock
 
 from dancesport_planner import MusicEntry, MusicLibrary, PlaylistSuggester
-from planner import suggester as suggester_mod
+from planner.generate import suggester as suggester_mod
 
 ANCHOR_A = object()
 ANCHOR_B = object()

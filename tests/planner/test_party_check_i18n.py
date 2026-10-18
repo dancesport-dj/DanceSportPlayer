@@ -8,7 +8,7 @@ catalog key — so the whole report stayed English in a German app, right down
 to the "row 7" the jump link is written on.
 
 The engine is where they are built, so this is where they are checked: the
-lists come from tests.planner.test_party_check, one per rule, and each is read
+lists come from tests.planner.playlist.test_party_check, one per rule, and each is read
 back in German. Nothing here asserts an English wording — that file already
 does, and the two together are what says a template was translated rather than
 rewritten.
@@ -21,8 +21,8 @@ does not switch the language cannot see a missing entry at all. Hence
 import unittest
 
 from planner import i18n
-from planner import party_check as pc
-from tests.planner.test_party_check import listing, song, texts
+from planner.playlist import party_check as pc
+from tests.planner.playlist.test_party_check import listing, song, texts
 
 
 class _German(unittest.TestCase):

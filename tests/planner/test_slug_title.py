@@ -10,7 +10,7 @@ never named by a person, and a spaced tag title is the better label.
 """
 import unittest
 
-from planner.parsing import _title_for
+from planner.music.parsing import _title_for
 
 
 class SlugTitleTest(unittest.TestCase):

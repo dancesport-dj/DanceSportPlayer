@@ -1,7 +1,7 @@
 #!/bin/sh
 # Pre-push: ruff and the WHOLE suite, whatever the commits' scope. The
 # pre-commit hook only runs the part of the suite a commit's own area can break
-# (tools/commit_scope.py); this is where a scoped commit that broke another area
+# (tools/dev/commit_scope.py); this is where a scoped commit that broke another area
 # gets caught, before it leaves the machine.
 #
 # Enabled together with pre-commit by `git config core.hooksPath .githooks`.
@@ -22,11 +22,11 @@ else
     echo "🧹 ruff not installed — skipping lint (pip install ruff)"
 fi
 
-# Across several processes (tools/parallel_suite.py): under 2 min instead of
+# Across several processes (tools/dev/parallel_suite.py): under 2 min instead of
 # ~7, and a native crash is retried once instead of refusing the push. The
 # runner prints the time it took, so this comment need not keep up with it.
 echo "🧪 whole suite, in parallel…"
-"$PY" -m tools.parallel_suite || {
+"$PY" -m tools.dev.parallel_suite || {
     echo "🛑 Suite is red — push refused."
     echo "   Fix it, or push with --no-verify if you know what you are doing."
     exit 1

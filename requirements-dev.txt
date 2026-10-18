@@ -1,0 +1,8 @@
+# ── Test runner ──────────────────────────────────────────────────────────────
+# What runs the suite, not what runs in the app. The tests are plain unittest;
+# pytest runs them unchanged, spread over every core (pytest-xdist, `-n auto`
+# in pyproject.toml), and is what CI and slop-mop's gates call. Not in the
+# locks: nothing here is bundled.
+pytest==9.1.1
+pytest-xdist==3.8.0
+pytest-cov==7.1.0

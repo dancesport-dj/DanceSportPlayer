@@ -10,8 +10,8 @@ file, or the same song by title in a dance that does not rule it out.
 """
 import unittest
 
-from planner.checks import dup_clashes
-from planner.parsing import _song_title_keys
+from planner.playlist.checks import dup_clashes
+from planner.music.parsing import _song_title_keys
 
 
 def _rec(name: str, dance: str | None = "LW", exact: str | None = None) -> dict:

@@ -5,11 +5,11 @@ Run:  py -m unittest tests.gui.test_pop_cell_i18n -v
 
 A played track shows "★3" — a number, nothing to translate. A fresh one
 shows a word instead, and the word stayed English in both tables that draw
-it: "✦new" in a deck (gui/playlist_table.py) and a bare "new" in the 🔍
-Similar-tracks dialog (gui/similar_dialog.py).
+it: "✦new" in a deck (gui/table/playlist_table.py) and a bare "new" in the 🔍
+Similar-tracks dialog (gui/dialogs/similar_dialog.py).
 
 Nothing catches these on the way out: QTableWidgetItem is deliberately not
-one of i18n's patched constructors (planner/i18n.py `_CTOR_CLASSES`), so a
+one of i18n's patched constructors (planner/i18n/__init__.py `_CTOR_CLASSES`), so a
 literal in a table CELL reaches the screen exactly as written. The headers
 above them are fine — `setHorizontalHeaderLabels` IS patched.
 
@@ -61,7 +61,7 @@ class DeckPopCellTest(_Pop):
 
     def cells(self, language):
         self.speak(language)
-        from gui.playlist_table import PlaylistTable
+        from gui.table.playlist_table import PlaylistTable
 
         win = QWidget()
         win._settings = {"app_mode": "both"}
@@ -90,7 +90,7 @@ class SimilarDialogPopCellTest(_Pop):
 
     def cells(self, language):
         self.speak(language)
-        from gui.similar_dialog import SimilarTracksDialog
+        from gui.dialogs.similar_dialog import SimilarTracksDialog
 
         source = MusicEntry(path=Path(r"C:\music\tanzcds\source.mp3"),
                             title="source", dance="LW")   # never lists itself

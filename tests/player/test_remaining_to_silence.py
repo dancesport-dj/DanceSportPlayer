@@ -18,9 +18,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_remain_"))
 
-from planner.checks import trailing_silence_secs
-from player.playback_state import PlaybackState
-from gui.deck_set import DeckSet
+from planner.playlist.checks import trailing_silence_secs
+from player.audio.playback_state import PlaybackState
+from gui.decks.deck_set import DeckSet
 
 
 class TrailingSilenceTest(unittest.TestCase):
@@ -80,10 +80,11 @@ class BigPlayerLimitTest(unittest.TestCase):
             return self._secs
 
         def play_set(self):
-            return {"secs": self._secs if self._timed else 0, "fade": 8}
+            return {"secs": self._secs if self._timed else 0, "fade": 8,
+                    "fade_inside": True}
 
     def _win(self, *, timed=False, play_secs=180, spans=None, duration=330.0):
-        from player.main_player import PlayerControlMixin
+        from player.window.main_player import PlayerControlMixin
 
         class Win(PlayerControlMixin):
             def _pd_runs_to_its_highlight(self):

@@ -100,12 +100,22 @@ class ParallelPassTest(unittest.TestCase):
         _run(p)
         self.assertGreater(p._peak, 1)
 
-    def test_it_is_faster_than_one_at_a_time(self):
-        p = _Pass(self._paths(8), delay=0.05)
-        t = time.monotonic()
-        _run(p)
-        # 8 × 50 ms serial = 400 ms; with four at a time it cannot need that.
-        self.assertLess(time.monotonic() - t, 0.35)
+    def test_four_compute_at_the_same_time(self):
+        # Not a stopwatch: next to a full suite 8 × 50 ms took up to 1.4 s with
+        # four at a time. Four computes that all wait for each other only get
+        # through if they really run at once; one at a time, the first one
+        # waits alone until the barrier breaks.
+        meet = threading.Barrier(_Pass.workers)
+
+        class _Meet(_Pass):
+            def compute(self, path):
+                meet.wait(timeout=10)
+                return super().compute(path)
+
+        p = _Meet(self._paths(8), delay=0)
+        rep = _run(p)
+        self.assertEqual(rep["ok"], 8)
+        self.assertEqual(rep["errors"], 0)
 
     def test_results_are_stored_in_the_order_of_the_list(self):
         p = _Pass(self._paths(8))

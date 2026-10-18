@@ -19,7 +19,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_aistop_"))
 
-from planner import llm
+from planner.generate import llm
 from tests.qt_test_support import reap_widget
 
 
@@ -31,7 +31,7 @@ class AiStopTest(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def _dialog(self):
-        from gui.ai_dialogs import AiTranscriptDialog
+        from gui.dialogs.ai_dialogs import AiTranscriptDialog
         dlg = AiTranscriptDialog()
         self.addCleanup(reap_widget, dlg)
         return dlg
@@ -72,13 +72,13 @@ class AiStopTest(unittest.TestCase):
                         "the worker's stop flag reaches the planner")
 
     def test_a_stopped_run_ends_quietly_in_the_window(self):
-        from gui.main_generate import GenerateMixin
+        from gui.window.main_generate import GenerateMixin
         log_dlg = mock.Mock()
         shown = []
         fake = types.SimpleNamespace(
             _ai_log=log_dlg,
             statusBar=lambda: types.SimpleNamespace(showMessage=shown.append))
-        with mock.patch("gui.main_generate.QMessageBox") as box:
+        with mock.patch("gui.window.main_ai.QMessageBox") as box:
             GenerateMixin._on_ai_playlist_cancelled(fake)
         log_dlg.finish.assert_called_once()
         self.assertIn("Stopped", log_dlg.finish.call_args.args[0])

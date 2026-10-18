@@ -28,7 +28,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication
 
-from planner.library import MusicLibrary
+from planner.music.library import MusicLibrary
 from planner.models import MusicEntry, RoundConfig
 from tests.qt_test_support import (
     reap_widget, stub_window_startup)
@@ -165,7 +165,7 @@ class DeckModeTest(_DeckModeBase):
 
     def test_a_list_of_no_known_dance_stays_free(self):
         """Nothing to build a grid from — going blank would be worse than staying."""
-        from gui.main_decks import QMessageBox
+        from gui.window.main_decks import QMessageBox
 
         self.table.load_player_list(
             [MusicEntry(path=Path(r"C:\music\x.mp3"), title="x", duration=180)],
@@ -192,7 +192,7 @@ class DeckModeTest(_DeckModeBase):
 
     def _answer_question(self, button):
         """Make the next QMessageBox.question answer `button`; record the asking."""
-        from gui.main_decks import QMessageBox
+        from gui.window.main_decks import QMessageBox
 
         asked = []
         real = QMessageBox.question
@@ -208,7 +208,7 @@ class DeckModeTest(_DeckModeBase):
     def test_the_way_back_asks_before_it_drops_a_track(self):
         """A grid has no column for a dance-less track, so building one deletes
         it — and a deletion is asked for, not reported after the fact."""
-        from gui.main_decks import QMessageBox
+        from gui.window.main_decks import QMessageBox
 
         self._free_with_a_nameless_track()
         asked = self._answer_question(QMessageBox.StandardButton.No)
@@ -219,7 +219,7 @@ class DeckModeTest(_DeckModeBase):
                          ["LW 1", "TG 2", "LW 3", "TG 4", "mystery"])
 
     def test_saying_yes_builds_the_grid_without_it(self):
-        from gui.main_decks import QMessageBox
+        from gui.window.main_decks import QMessageBox
 
         self._free_with_a_nameless_track()
         self._answer_question(QMessageBox.StandardButton.Yes)
@@ -228,7 +228,7 @@ class DeckModeTest(_DeckModeBase):
         self.assertEqual(self.songs(), ["LW 1", "TG 2", "LW 3", "TG 4"])
 
     def test_a_list_it_can_place_whole_is_not_asked_about(self):
-        from gui.main_decks import QMessageBox
+        from gui.window.main_decks import QMessageBox
 
         self.win._set_deck_mode(self.table, "free")
         asked = self._answer_question(QMessageBox.StandardButton.No)

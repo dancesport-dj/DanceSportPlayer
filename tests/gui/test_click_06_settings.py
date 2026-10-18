@@ -177,15 +177,18 @@ class SettingsClickTest(ClickThrough):
             self.assertTrue(self.wait_until(lambda: card._tempo.value() == 67),
                             card._tempo.value())
             table = win._deckset.table
-            op.pick("⏹  Stop the music")
-            self.right_click(op, table, row)
+            win._on_stop_btn()
             self.assertTrue(self.wait_until(lambda: table._current_play_row < 0),
                             "■ did not stop the pitched title")
 
     def test_clean_up_refuses_when_the_music_drive_looks_unmounted(self):
-        from planner.db import _db
+        from planner.music.db import _db
         conn = _db()
-        gone = [(f"Z:/unmounted/Song {i:03d}.mp3",) for i in range(150)]
+        # The guard wants most of the library gone, and earlier tests in the
+        # same process leave their own (present) files registered.
+        known = conn.execute("SELECT COUNT(*) FROM files").fetchone()[0]
+        gone = [(f"Z:/unmounted/Song {i:05d}.mp3",)
+                for i in range(max(150, known + 1))]
         conn.executemany("INSERT OR IGNORE INTO files (path) VALUES (?)", gone)
         conn.commit()
 
@@ -212,8 +215,8 @@ class SettingsClickTest(ClickThrough):
     def test_heavy_shows_only_with_the_ai_models(self):
         """In a built .exe: no 🐘 box without the models, one with them."""
         import planner.config
-        import planner.embeddings
-        import planner.vocals
+        import planner.music.embeddings
+        import planner.music.vocals
         seen = []
 
         def heavy_boxes(dlg):
@@ -222,9 +225,9 @@ class SettingsClickTest(ClickThrough):
         with self.clicking() as op:
             for models in (False, True):
                 with mock.patch.object(planner.config, "build_flavor", lambda: "full"), \
-                        mock.patch.object(planner.embeddings, "openl3_available",
+                        mock.patch.object(planner.music.embeddings, "mert_available",
                                           lambda m=models: m), \
-                        mock.patch.object(planner.vocals, "demucs_available",
+                        mock.patch.object(planner.music.vocals, "demucs_available",
                                           lambda m=models: m):
                     self.edit_settings(op, heavy_boxes)
         self.assertEqual(seen, [0, 1])
@@ -286,7 +289,7 @@ class SettingsClickTest(ClickThrough):
         self.addCleanup(i18n._restore_text_hook)
         self.restart()
         win = self.win
-        with self.clicking() as op:
+        with self.clicking():
             for btn, text in ((win._cfg.generate_btn, "⚡  Playlist erzeugen"),
                               (win._cfg.save_btn, "💾  M3U speichern"),
                               (win._mode_plan_btn, "📝  Planung"),
@@ -296,8 +299,7 @@ class SettingsClickTest(ClickThrough):
             self.click(win._mode_play_btn)
             row = self.song_rows()[0]
             self.play_row(row)
-            op.pick("⏹  Musik stoppen")
-            self.right_click(op, win._deckset.table, row)
+            win._on_stop_btn()
             self.assertTrue(self.wait_until(lambda: win._deckset.table._current_play_row < 0),
                             "the title kept playing")
             self.click(win._mode_plan_btn)

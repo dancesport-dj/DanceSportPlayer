@@ -30,18 +30,25 @@ Die Spalten:
 
 - **Tanz / Gruppe**: welcher Tanz und welche Gruppe die Zeile ist.
 - **▶**: spielt oder stoppt genau diesen Titel.
-- **BPM**: das Tempo in Takten pro Minute, wie es in der Datei steht
-  (`[T51]`). `[?BPM]` heißt, die Datei trägt kein Tempo.
+- **Titel**: das Titel-Tag der MP3. Eine Datei ohne zeigt ihren bereinigten
+  Dateinamen.
+- **BPM**: das Tempo in Takten pro Minute. Es wird zuerst aus dem Dateinamen
+  gelesen (`[T51]`), dann aus dem BPM-Tag der MP3, dann aus einem Tempo im
+  Titel-Tag. Ein BPM-Tag zählt Schläge, darum wird es in Takte pro Minute
+  umgerechnet, und es zählt nur, wenn es nahe am TSO-Bereich des Tanzes
+  landet. Der Tooltip der Zelle sagt, woher das Tempo kommt. `[?BPM]` heißt,
+  die Datei trägt kein Tempo.
 - **⏱**: die Länge. Sie ist **orange**, wenn der Titel kürzer ist als die
   Spieldauer oder wenn an einem Rand 5 s oder mehr Stille übersprungen werden.
 - **Pop**: `★58` heißt, der Titel steht in 58 deiner Turnier-Playlists.
   **✦neu** heißt, er steht in keiner.
 - **Klasse**: die Klassen-Tags aus dem MP3-Kommentar, zum Beispiel `[B,A,S]`.
 
-Zwei weitere Spalten sind anfangs ausgeblendet. Ein Rechtsklick auf den
-Spaltenkopf blendet sie ein: **★** bewertet einen Titel mit einem Klick, und
-**Custom** hält einen freien Text pro Titel. Beide beschreibt
-[Kapitel 5](05-tags.md).
+Drei weitere Spalten sind anfangs ausgeblendet. Ein Rechtsklick auf den
+Spaltenkopf blendet sie ein: **★** bewertet einen Titel mit einem Klick,
+**Custom** hält einen freien Text pro Titel, und **Dateiname** zeigt den
+bereinigten Dateinamen, mit dem vollen Pfad im Tooltip. ★ und Custom
+beschreibt [Kapitel 5](05-tags.md).
 
 Zeilenfarben:
 

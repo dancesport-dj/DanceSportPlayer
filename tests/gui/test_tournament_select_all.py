@@ -21,7 +21,7 @@ from PySide6.QtCore import QEvent, Qt
 from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import QApplication, QMessageBox, QToolButton
 
-from gui import tournament_tree as gt
+from gui import tournament_tiles as tiles, tournament_tree as gt
 from planner.store import JsonStore
 from tests.qt_test_support import reap_widget
 
@@ -127,7 +127,7 @@ class ListSelectAllTest(_Case):
     def test_the_marked_playlists_drag_out_together(self):
         _ctrl_a(self.pane._tree)
         dragged = []
-        with mock.patch.object(gt.QDrag, "exec",
+        with mock.patch.object(tiles.QDrag, "exec",
                                lambda drag, *a: dragged.extend(
                                    u.toLocalFile() for u in drag.mimeData().urls())):
             self.pane._tree.startDrag(Qt.DropAction.CopyAction)

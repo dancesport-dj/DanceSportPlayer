@@ -46,7 +46,7 @@ class Slow(QThread):
 """
 
 _SIMILAR = _PRELUDE + r"""
-from gui.similar_dialog import SimilarTracksDialog
+from gui.dialogs.similar_dialog import SimilarTracksDialog
 from planner.models import MusicEntry
 
 def entry(title):
@@ -68,7 +68,7 @@ dg.exit_app(0)
 """
 
 _DUPLICATES = _PRELUDE + r"""
-from gui.duplicate_dialog import DuplicateResolveDialog
+from gui.dialogs.duplicate_dialog import DuplicateResolveDialog
 
 win = QWidget()
 

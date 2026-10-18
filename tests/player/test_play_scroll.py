@@ -14,6 +14,7 @@ MainWindow.
 
 import os
 import tempfile
+import time
 import unittest
 
 # Offscreen BEFORE any QApplication exists, and state files into a temp dir (the
@@ -24,11 +25,11 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication, QTableWidgetItem
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QAbstractAnimation, QTimer
 from tests.qt_test_support import reap_widget
 
 from shared.columns import _COL_TITLE
-from gui.playlist_table import PlaylistTable, _SCROLL_MS
+from gui.table.playlist_table import PlaylistTable, _SCROLL_MS
 
 _ROW_H = 24
 _ROWS = 60
@@ -54,11 +55,22 @@ class PlayScrollTest(unittest.TestCase):
         self.addCleanup(reap_widget, self.t)
 
     def _settle(self):
-        """Run the event loop until the scroll animation has arrived."""
+        """Run the event loop until the scroll animation has arrived.
+
+        The animation's clock only starts at the first event-loop pass, which a
+        loaded machine can delay past the timer's slack: so wait for it to have
+        stopped too, not only for the time it should take."""
         done = []
         QTimer.singleShot(int(_SCROLL_MS) + 120, lambda: done.append(True))
-        while not done:
+        deadline = time.monotonic() + 10
+        while not done or self._gliding():
+            if time.monotonic() > deadline:
+                self.fail("the scroll animation never stopped")
             self.app.processEvents()
+
+    def _gliding(self) -> bool:
+        anim = self.t._scroll_anim
+        return anim is not None and anim.state() == QAbstractAnimation.State.Running
 
     def _top_of(self, row: int) -> int:
         return self.t.visualItemRect(self.t.item(row, _COL_TITLE)).top()

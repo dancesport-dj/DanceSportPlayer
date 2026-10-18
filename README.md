@@ -3,6 +3,10 @@
 A desktop music player for ballroom and Latin dance events: it runs the music of
 a dancesport tournament or a dance party from the music desk.
 
+**📖 [User manual](docs/manual/README.md)**:
+setting up, the playlists, running the evening, every setting and shortcut,
+with screenshots.
+
 - Up to four playlist decks plus wishlists, with drag and drop to other apps
   (e.g. a DJ program or Explorer).
 - Auto-advance or manual mode per list, a fixed play length per title with
@@ -11,6 +15,15 @@ a dancesport tournament or a dance party from the music desk.
   official TSO tempo of each dance.
 - Spoken dance announcements before or over the music, in AI-generated voices.
 - Cartwall with pads for jingles and fanfares.
+- A USB MIDI or HID controller runs the desk with real buttons and faders,
+  with built-in support for the Korg nanoKONTROL2: one preset maps its
+  transport row, a fader, a knob and the cartwall pads. Any other controller
+  is set up by Learn. See [A hardware controller](docs/manual/04-playing.md#-a-hardware-controller).
+- Separate outputs for the music, a 🎧 pre-listen on headphones, the cartwall,
+  the pause music and the announcements. Tested with the ESI MAYA44 USB: each
+  of its output pairs (Ch12, Ch34) takes a source of its own, it is found again
+  when Windows renumbers it after a replug, and a small 🔊 in the status bar
+  shows it is plugged in. See [Settings › Outputs](docs/manual/06-settings.md#-outputs).
 - Paso Doble highlight stops and pause music.
 - Presenter window for a second screen: the current dance and the running order,
   with themes.
@@ -31,9 +44,21 @@ tested.
 
 ![The player](docs/manual/img/main-playing.png)
 
+## Manual
+
+The [user manual](docs/manual/README.md) walks through the player the way it
+is used at a tournament or a dance evening, in English and
+[German](docs/manual/de/README.md). Every download carries it as
+`Manual.pdf` and `Handbuch.pdf`, and **❔ ▸ 📖 Manual** opens it from the app.
+
+- [Getting started](docs/manual/01-getting-started.md): folders, the first scan, a tour of the window
+- [Playing the evening](docs/manual/04-playing.md): the player card, play sets, announcements,
+  the cartwall, the presenter screen, the phone remote and a hardware controller
+- [Settings](docs/manual/06-settings.md) and [Keyboard and mouse](docs/manual/07-shortcuts.md)
+
 ## Download
 
-Ready-to-run builds are on the [Releases](../../releases/latest) page, one
+Ready-to-run builds are on the [Releases](https://github.com/dancesport-dj/DanceSportPlayer/releases/latest) page, one
 download per platform (two for Linux):
 
 - **DanceSport-Player-…-windows.zip**: unzip the folder and start
@@ -93,29 +118,38 @@ and publishes them as a release for every `v*` tag.
 ## Development
 
 ```powershell
-.venv\Scripts\python.exe -m tools.parallel_suite                     # whole suite, ~2 min
+.venv\Scripts\python.exe -m pytest                                   # whole suite as CI runs it, ~2 min
+.venv\Scripts\python.exe -m tools.dev.parallel_suite                     # whole suite, ~2 min
 .venv\Scripts\python.exe -m unittest discover -p "test_*.py"         # whole suite, serial, ~7 min
 .venv\Scripts\python.exe -m unittest tests.player.test_cartwall -v   # one module
 .venv\Scripts\python.exe -m ruff check .
-.venv\Scripts\basedpyright --pythonpath .venv\Scripts\python.exe   # planner/ types
+.venv\Scripts\basedpyright --pythonpath .venv\Scripts\python.exe   # app types
 ```
 
-The full test suite needs `requirements.txt`. Tests are plain `unittest`;
-GUI tests drive Qt through its offscreen platform, so no window opens.
-`tools.parallel_suite` runs the test modules in batches on 8 processes, each
+The full test suite needs `requirements.txt`, and pytest needs
+`requirements-dev.txt`. Tests are plain `unittest`, which pytest runs
+unchanged on every core (`-n auto` in `pyproject.toml`); CI runs pytest too,
+since the root `conftest.py` only applies under it. GUI tests drive Qt through
+its offscreen platform, so no window opens.
+`tools.dev.parallel_suite` runs the test modules in batches on 8 processes, each
 with its own data folder; a batch that ends in a native crash is run once more
 and reported as "native crash, retried". The pre-push hook uses it.
-The type check covers `planner/` and reports only errors that are not in
+The type check covers the app code (not `tests/`) and reports only errors that are not in
 `.basedpyright/baseline.json`; after fixing some, shrink the baseline with
 `--writebaseline`.
+The MainWindow and PlaylistTable mixins are checked against the host members
+declared in `gui/window/hosts.pyi`; a mixin that uses a new member of its host needs
+it declared there too.
 Enable the git hooks once per clone with `git config core.hooksPath .githooks`.
 
 | Path | Contents |
 |---|---|
 | `dancesport_gui.py` | launcher and main window, PyInstaller entry point |
-| `player/` | playback, cartwall, announcements, presenter, taskbar |
-| `gui/`, `shared/` | decks, tables, drag and drop, dialogs |
-| `planner/` | library scan, parsing, database, `.m3u`. No Qt |
+| `player/` | the evening: `window/`, `audio/`, `widgets/`, `dialogs/`, `presenter/` |
+| `gui/` | the planning desk: `window/`, `decks/`, `table/`, `dialogs/` |
+| `shared/` | used by both: `audio/`, `controllers/`, `remote/`, `appearance/` |
+| `planner/` | the logic, no Qt: `music/`, `generate/`, `playlist/`, `event/`, `playing/`, `i18n/` |
+| `tools/` | one-off scripts, `py -m tools.<package>.<name>` |
 | `speech/` | the spoken dance announcements |
 
 ## Privacy

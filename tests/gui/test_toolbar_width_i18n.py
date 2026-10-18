@@ -44,7 +44,7 @@ from PySide6.QtWidgets import QApplication
 
 from gui import dialogs
 from planner import i18n
-from gui.main_persist import layout_settings
+from gui.window.main_persist import layout_settings
 
 # How much wider than the English row a translated one may measure offscreen.
 TOLERANCE = 0.02

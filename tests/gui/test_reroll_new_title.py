@@ -62,7 +62,7 @@ class RerollNewTitleTest(unittest.TestCase):
         self.win._library.lib = lib
         self.table = self.win._deckset.tableB
         # "No alternative song found" is a modal box: answered, not waited on.
-        box = mock.patch("gui.playlist_table.QMessageBox")
+        box = mock.patch("gui.table.table_regen.QMessageBox")
         box.start()
         self.addCleanup(box.stop)
 

@@ -16,7 +16,7 @@ from pathlib import Path
 
 from PySide6.QtWidgets import QApplication, QLabel
 
-from gui.dialogs import FileDropCheckPanel
+from gui.dialogs.drop_check import FileDropCheckPanel
 from tests.qt_test_support import reap_widget
 
 _app = QApplication.instance() or QApplication([])

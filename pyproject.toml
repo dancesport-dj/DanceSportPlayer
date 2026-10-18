@@ -4,7 +4,7 @@
 # unquoted and would raise NameError at def time on anything older.
 target-version = "py314"
 line-length = 120
-extend-exclude = ["_build_shims", "build", "build_pyi", "dist"]
+extend-exclude = ["build", "build_pyi", "dist"]
 
 [tool.ruff.lint]
 # Deliberately light: pyflakes (real errors — undefined names, unused
@@ -19,11 +19,43 @@ select = ["F", "B905"]
 "dancesport_planner.py" = ["F401"]
 
 [tool.basedpyright]
-# Type checking, started small: the Qt-free core only, in pyright's basic mode
-# (basedpyright's default "recommended" is far stricter). basedpyright rather
-# than pyright for its baseline: the errors that were there when the check came
-# in sit in .basedpyright/baseline.json and are not reported, a new one fails
-# CI. Fixing one shrinks the baseline (`basedpyright --writebaseline`).
-include = ["planner"]
+# Type checking of all app code, in pyright's basic mode (basedpyright's
+# default "recommended" is far stricter). basedpyright rather than pyright for
+# its baseline: the errors that were there when a directory came in sit in
+# .basedpyright/baseline.json and are not reported, a new one fails CI. Fixing
+# one shrinks the baseline (a plain run prunes it).
+include = ["planner", "gui", "player", "shared", "speech", "tools",
+           "dancesport_gui.py", "dancesport_planner.py"]
 typeCheckingMode = "basic"
 pythonVersion = "3.14"
+# Basic mode leaves these off. On, an override that no longer matches its base
+# class or stub fails, the parameter names included.
+reportIncompatibleMethodOverride = "error"
+reportIncompatibleVariableOverride = "error"
+
+[tool.pytest.ini_options]
+# The suite is plain unittest; pytest runs it unchanged and is what slop-mop's
+# test gates call. -n auto spreads it over every core (pytest-xdist): ~2 min
+# instead of ~12. Pass -n0 to run a single test in-process for debugging.
+addopts = "-n auto"
+# pytest-cov switches this ResourceWarning on, Python's default leaves it off.
+# pytest keeps every recorded warning to the end, the warning its connection,
+# and the connection's cached statements its database file: Windows then
+# cannot delete the test temp folders.
+filterwarnings = ["ignore:unclosed database in <sqlite3.Connection object at:ResourceWarning"]
+
+[tool.coverage.run]
+# What slop-mop's coverage gates measure: the app, not its tests. Declaring a
+# source makes the gate pass a bare --cov, so this section is honoured.
+source = ["."]
+omit = [
+    "tests/*",
+    "conftest.py",
+    # Read by the dead-code gate (vulture), never imported.
+    "vulture_whitelist.py",
+    # PySide6's shiboken runs embedded modules under these names. No such file
+    # exists, so `coverage report` would stop on "No source for code".
+    "pyscript",
+    "signature_bootstrap.py",
+    "shibokensupport/*",
+]

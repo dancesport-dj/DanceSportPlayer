@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""The 🔈 announcement settings on the ▶ Playing panel, in German.
+"""The 🔈 announcement settings, on the ▶ Playing panel and in ⚙ Settings,
+in German.
 
 Run:  py -m unittest tests.player.test_announce_settings_i18n -v
 
@@ -21,7 +22,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication
 
 from planner import i18n
-from player.play_mode_panel import PlayModePanel
+from player.widgets.play_mode_panel import PlayModePanel
 from tests.qt_test_support import reap_widget
 
 
@@ -60,8 +61,12 @@ class AnnounceWhenCaptionTest(_AnnouncePanel):
     BUDGET = 320
 
     def radios(self, language):
-        p = self.panel(language, announce_next=True)
-        return [p.announce_over_radio, p.announce_wait_radio]
+        from gui.dialogs.settings_dialog import SettingsDialog
+        i18n.set_active(language)
+        i18n.install_text_hook()
+        dlg = SettingsDialog({})
+        self.addCleanup(reap_widget, dlg)
+        return [dlg._lead_over_radio, dlg._lead_wait_radio]
 
     def test_both_fit_the_panel_in_english(self):
         for r in self.radios("en"):
@@ -88,10 +93,18 @@ class AnnounceWhenCaptionTest(_AnnouncePanel):
 
 
 class VoiceComboTest(_AnnouncePanel):
-    """Which recorded voice reads the announcement."""
+    """Which recorded voice reads the announcement — picked in ⚙ Settings."""
+
+    def dialog(self, language, **settings):
+        from gui.dialogs.settings_dialog import SettingsDialog
+        i18n.set_active(language)
+        i18n.install_text_hook()
+        dlg = SettingsDialog(settings)
+        self.addCleanup(reap_widget, dlg)
+        return dlg
 
     def voices(self, language):
-        combo = self.panel(language).announce_voice_combo
+        combo = self.dialog(language)._voice_combo
         return [combo.itemText(i) for i in range(combo.count())]
 
     def test_english_is_unchanged(self):
@@ -103,9 +116,14 @@ class VoiceComboTest(_AnnouncePanel):
     def test_the_setting_is_still_stored_in_english(self):
         """The combo is read by data, so a German screen writes the same
         settings file as an English one."""
-        p = self.panel("de", announce_voice="male")
-        self.assertEqual(p.announce_voice_combo.currentText(), "Männlich")
-        self.assertEqual(p.announce_voice(), "male")
+        dlg = self.dialog("de", announce_voice="male")
+        self.assertEqual(dlg._voice_combo.currentText(), "Männlich")
+        self.assertEqual(dlg.values()["announce_voice"], "male")
+
+    def test_the_panel_names_the_choice_in_german(self):
+        p = self.panel("de", announce_next=True, announce_heat=True)
+        self.assertEqual(p.announce_style_lbl.text(),
+                         "Gemischte Stimmen · mit Gruppe · über der Musik")
 
 
 if __name__ == "__main__":

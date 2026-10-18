@@ -13,9 +13,9 @@ import random
 import unittest
 from pathlib import Path
 
-from planner.library import MusicLibrary
+from planner.music.library import MusicLibrary
 from planner.models import MusicEntry, rounds_from_pattern
-from planner.suggester import PlaylistSuggester
+from planner.generate.suggester import PlaylistSuggester
 
 
 def _library() -> MusicLibrary:

@@ -20,8 +20,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication
 from tests.qt_test_support import reap_widget
 
-from player import play_mode_panel as pmp
-from player.main_player import PlayerControlMixin
+from player.widgets import play_mode_panel as pmp
+from player.window.main_player import PlayerControlMixin
 
 _LAPTOP = ("1 · 1920×1080  (primary)", "LAPTOP")
 _BEAMER = ("2 · 1280×720", "BEAMER")

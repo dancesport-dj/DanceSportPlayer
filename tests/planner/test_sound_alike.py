@@ -14,10 +14,10 @@ from pathlib import Path
 
 import numpy as np
 
-from planner.db import AudioFeatures
-from planner.library import MusicLibrary
+from planner.music.analysis import AudioFeatures
+from planner.music.library import MusicLibrary
 from planner.models import MusicEntry
-from planner.similarity import SoundAlike
+from planner.music.similarity import SoundAlike
 
 
 def _entry(title, mean, vec, dance="WW"):
@@ -79,6 +79,26 @@ class SoundAlikeTest(unittest.TestCase):
         sound = SoundAlike(self.lib)
         self.assertEqual(set(sound.views(self.anchor, self.alike)), {"timbre", "groove"})
         self.assertIs(sound(self.anchor, n=1)[0][1], self.alike)
+
+    def test_mert_is_a_fourth_view_in_the_mean(self):
+        rng = np.random.default_rng(11)
+        own = rng.normal(size=768)
+        mert = {e.path: rng.normal(size=768) for e in self.lib.entries}
+        mert[self.anchor.path] = own
+        mert[self.twin.path] = own + 0.05 * rng.normal(size=768)
+        sound = SoundAlike(self.lib, chroma=lambda e: self.chroma.get(e.path),
+                           mert=lambda e: mert.get(e.path))
+        views = sound.views(self.anchor, self.twin)
+        self.assertEqual(set(views), {"timbre", "groove", "melody", "mert"})
+        self.assertEqual(views["mert"], 1.0)
+        self.assertAlmostEqual(sound.agreement(self.anchor, self.twin),
+                               sum(views.values()) / 4)
+
+    def test_without_mert_vectors_the_three_views_stay(self):
+        sound = SoundAlike(self.lib, chroma=lambda e: self.chroma.get(e.path),
+                           mert=lambda e: None)
+        self.assertEqual(set(sound.views(self.anchor, self.alike)),
+                         {"timbre", "groove", "melody"})
 
 
 if __name__ == "__main__":
