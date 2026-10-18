@@ -475,11 +475,14 @@ class GuestTunnelTest(unittest.TestCase):
 
     def test_a_failed_download_is_shown(self):
         fetch = lambda: self.desk.fetch_done.emit("", "connection reset")  # noqa: E731
-        with mock.patch.object(self.desk, "fetch_cloudflared", side_effect=fetch):
-            _told, warned = self._toggle_without_cloudflared(
-                remote_dialog.QMessageBox.StandardButton.Yes)
-        warned.assert_called_once()
-        self.assertIn("connection reset", warned.call_args.args[2])
+        box = remote_dialog.QMessageBox
+        texts, by_hand = [], remote_dialog._install_by_hand
+        with mock.patch.object(self.desk, "fetch_cloudflared", side_effect=fetch),                 mock.patch.object(remote_dialog, "_install_by_hand",
+                                  side_effect=lambda e: texts.append(by_hand(e)) or texts[-1]),                 mock.patch.object(box, "exec") as shown:
+            self._toggle_without_cloudflared(box.StandardButton.Yes)
+        shown.assert_called_once()
+        self.assertIn("connection reset", texts[0])
+        self.assertIn(remote_dialog.CLOUDFLARED_PAGE, texts[0])
         self.assertIsNone(self.desk.server)
 
 

@@ -5862,6 +5862,18 @@ CATALOG = {
         "Dann cloudflared selbst herunterladen von\n%s\nund neben das Programm legen, als %s in:\n%s\n\nBis dahin „Nur WLAN“ wählen.",
     "Downloading cloudflared…":
         "cloudflared wird heruntergeladen…",
+    "Download it yourself instead from <a href=\"%s\">Cloudflare's releases on GitHub</a>:":
+        "Stattdessen selbst herunterladen von <a href=\"%s\">Cloudflares Releases auf GitHub</a>:",
+    "Take <b>%s</b>, double-click it to unpack it, and put the <b>cloudflared</b> inside into:":
+        "<b>%s</b> nehmen, per Doppelklick entpacken und das enthaltene <b>cloudflared</b> legen in:",
+    "Take <b>%s</b> and save it as <b>%s</b> in:":
+        "<b>%s</b> nehmen und als <b>%s</b> speichern in:",
+    "Then make it runnable: <code>chmod +x %s</code>":
+        "Dann ausführbar machen: <code>chmod +x %s</code>",
+    "Or, with Homebrew: <code>brew install cloudflared</code>":
+        "Oder mit Homebrew: <code>brew install cloudflared</code>",
+    "Then start again. Until then choose Wi-Fi only.":
+        "Dann erneut starten. Bis dahin „Nur WLAN“ wählen.",
     "The download failed: %s":
         "Der Download ist fehlgeschlagen: %s",
     "● Open — port %d, waiting for Cloudflare…":

@@ -662,7 +662,6 @@ class PlayModeSetupMixin(PlayModePanelHost):
         glyt = QVBoxLayout(self._gear_box)
         glyt.setContentsMargins(0, 0, 0, 0)
         glyt.setSpacing(4)
-        glyt.addWidget(_hsep())
         gear_row = QHBoxLayout()
         gear_row.setContentsMargins(0, 0, 0, 0)
         gear_row.addStretch(1)

@@ -32,6 +32,7 @@ import urllib.request
 from pathlib import Path
 
 from planner import config
+from planner.tls import tls_context
 
 log = logging.getLogger("dancesport.guests")
 
@@ -99,7 +100,11 @@ def find_cloudflared(dirs: tuple[Path, ...] | None = None) -> Path | None:
     return next((c for c in _INSTALL_CANDIDATES if c.is_file()), None)
 
 
-def download(dest_dir: Path, progress=None, opener=urllib.request.urlopen) -> Path:
+def _open(url: str, timeout: float):
+    return urllib.request.urlopen(url, timeout=timeout, context=tls_context())
+
+
+def download(dest_dir: Path, progress=None, opener=_open) -> Path:
     """Fetch cloudflared from Cloudflare's GitHub releases into `dest_dir`.
 
     `progress(done, total)` hears each chunk (total 0 when unknown). Written

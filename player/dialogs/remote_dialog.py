@@ -9,7 +9,9 @@ phone shows nothing and the log stays empty too, the request never got here,
 and the firewall hint below says where to look. Away from the Wi-Fi, a
 Cloudflare tunnel gives the remote a public address (player/window/main_remote.py).
 """
+import html
 import sys
+from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QFontDatabase, QImage, QPixmap
@@ -76,6 +78,30 @@ def ask_cloudflared(parent, fetcher, then):
         % (CLOUDFLARED_PAGE, tn.binary_name(), config.INSTALL_DIR))
 
 
+def _install_by_hand(error: str) -> str:
+    """Rich text after a failed download: where to get cloudflared, which
+    file to take, and where to put it so find_cloudflared sees it."""
+    asset = tn.asset_name() or tn.binary_name()
+    lines = [html.escape(i18n.t("The download failed: %s") % error), "",
+             i18n.t("Download it yourself instead from "
+                    "<a href=\"%s\">Cloudflare's releases on GitHub</a>:") % CLOUDFLARED_PAGE]
+    if sys.platform == "darwin":
+        lines.append(i18n.t("Take <b>%s</b>, double-click it to unpack it, and put "
+                            "the <b>cloudflared</b> inside into:") % asset)
+    else:
+        lines.append(i18n.t("Take <b>%s</b> and save it as <b>%s</b> in:")
+                     % (asset, tn.binary_name()))
+    folder = Path(config.APP_DIR)
+    lines.append(html.escape(str(folder)))
+    if sys.platform.startswith("linux"):
+        lines.append(i18n.t("Then make it runnable: <code>chmod +x %s</code>")
+                     % html.escape(str(folder / tn.binary_name())))
+    if sys.platform == "darwin":
+        lines += ["", i18n.t("Or, with Homebrew: <code>brew install cloudflared</code>")]
+    lines += ["", i18n.t("Then start again. Until then choose Wi-Fi only.")]
+    return "<br>".join(lines)
+
+
 def _fetch_cloudflared(parent, fetcher, then):
     busy = QProgressDialog(i18n.t("Downloading cloudflared…"), "", 0, 0, parent)
     busy.setCancelButton(None)        # a download cannot be called back halfway
@@ -94,8 +120,10 @@ def _fetch_cloudflared(parent, fetcher, then):
         if path:
             then()
         else:
-            QMessageBox.warning(parent, "cloudflared",
-                                i18n.t("The download failed: %s") % error)
+            box = QMessageBox(QMessageBox.Icon.Warning, "cloudflared",
+                              _install_by_hand(error), parent=parent)
+            box.setTextFormat(Qt.TextFormat.RichText)
+            box.exec()
     fetcher.fetch_progress.connect(progress)
     fetcher.fetch_done.connect(finished)
     busy.show()

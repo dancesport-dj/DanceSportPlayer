@@ -11,7 +11,8 @@ from PySide6.QtWidgets import (
     QPushButton, QLabel,
     QComboBox, QCheckBox, QLineEdit, QGroupBox, QRadioButton, QButtonGroup,
     QDialog, QSpinBox, QDoubleSpinBox, QTimeEdit,
-    QFileDialog, QDialogButtonBox, QTabWidget, QPlainTextEdit,
+    QFileDialog, QDialogButtonBox, QTabWidget, QPlainTextEdit, QScrollArea,
+    QFrame,
 )
 from PySide6.QtCore import (
     Qt, QTime,
@@ -107,6 +108,7 @@ class SettingsDialog(LookTabMixin, QDialog):
         chk_idx = self._setup_checks_tab(gaps_cb, settings, tabs)
         self._setup_venue_tab(tabs)
         self._setup_tab_visibility(chk_idx, lyt, sets_idx, tabs)
+        self._scroll_the_pages(tabs)
         if open_sound:      # 🚦 Check → choose outputs: they are picked here
             tabs.setCurrentIndex(sound_idx)
 
@@ -1130,8 +1132,9 @@ class SettingsDialog(LookTabMixin, QDialog):
             row, col = i % 5, (i // 5) * 2
             grid.addWidget(QLabel(f"{dance_name(dance, dance)}:"), row, col)
             grid.addWidget(combo, row, col + 1)
-        grid.setColumnStretch(1, 1)
-        grid.setColumnStretch(3, 1)
+        # The spare width goes to an empty column on the right: a stretched
+        # combo stood 400 px wide for a length of four characters.
+        grid.setColumnStretch(4, 1)
         blyt.addLayout(grid)
 
     @staticmethod
@@ -1180,13 +1183,16 @@ class SettingsDialog(LookTabMixin, QDialog):
             combo.addItem(i18n.t("Upper — T%s") % f"{hi:g}", "upper")
             idx = combo.findData(str(stored_bands.get(dance, "mean")))
             combo.setCurrentIndex(max(0, idx))
+            # A Mac draws the popup button's frame past its size hint: at
+            # exactly the hint its right edge was cut off.
+            combo.setMinimumWidth(combo.sizeHint().width() + 10)
             self._band_combos[dance] = combo
             row, col = i % 5, (i // 5) * 2
             band_grid.addWidget(
                 QLabel(f"{dance_name(dance, dance)}:"), row, col)
             band_grid.addWidget(combo, row, col + 1)
-        band_grid.setColumnStretch(1, 1)
-        band_grid.setColumnStretch(3, 1)
+        # Spare width to an empty column, as in the per-dance lengths.
+        band_grid.setColumnStretch(4, 1)
         tlyt.addLayout(band_grid)
 
     def _setup_checks_tab(self, gaps_cb, settings, tabs):
@@ -1315,6 +1321,27 @@ class SettingsDialog(LookTabMixin, QDialog):
         bb.accepted.connect(self.accept)
         bb.rejected.connect(self.reject)
         lyt.addWidget(bb)
+
+    def _scroll_the_pages(self, tabs):
+        """Each page in a scroll area of its own: on a screen shorter than the
+        tallest page the page scrolls, and OK / Cancel below stay on screen.
+        The dialog still opens at its full size where the screen has room."""
+        full = self.sizeHint()
+        for i in range(tabs.count()):
+            text, visible = tabs.tabText(i), tabs.isTabVisible(i)
+            page = tabs.widget(i)
+            tabs.removeTab(i)
+            scroll = QScrollArea()
+            scroll.setWidgetResizable(True)
+            scroll.setFrameShape(QFrame.Shape.NoFrame)
+            scroll.setWidget(page)
+            tabs.insertTab(i, scroll, text)
+            tabs.setTabVisible(i, visible)
+        tabs.setCurrentIndex(0)
+        tabs.updateGeometry()     # the layout still holds the unwrapped pages' sizes
+        # 90 %: the title bar sits outside the dialog's own size.
+        avail = self.screen().availableGeometry().size() * 0.9
+        self.resize(full.boundedTo(avail))
 
     @staticmethod
     def _mmss_secs(edit: QTimeEdit) -> int:

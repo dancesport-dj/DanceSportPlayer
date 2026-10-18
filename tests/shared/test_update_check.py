@@ -9,6 +9,7 @@ import unittest
 from unittest import mock
 
 from shared import update_check as uc
+from tests.planner.test_tls import has_certifi_roots
 
 
 def _response(payload):
@@ -67,6 +68,12 @@ class LatestReleaseTest(unittest.TestCase):
         self.assertNotIn("1.2.0", request.full_url)
         for value in request.headers.values():
             self.assertNotIn("1.2.0", value)
+
+    def test_github_is_checked_against_certifi_too(self):
+        with mock.patch.object(uc.urllib.request, "urlopen",
+                               return_value=_response({"tag_name": "v1.3.0"})) as urlopen:
+            uc.latest_release()
+        self.assertTrue(has_certifi_roots(urlopen.call_args.kwargs["context"]))
 
     def test_no_page_falls_back_to_the_releases_list(self):
         with mock.patch.object(uc.urllib.request, "urlopen",

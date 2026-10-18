@@ -5170,6 +5170,18 @@ CATALOG = {
         "Тогда скачайте cloudflared сами отсюда:\n%s\nи положите рядом с программой, как %s в:\n%s\n\nА пока выберите «Только Wi-Fi».",
     "Downloading cloudflared…":
         "Загрузка cloudflared…",
+    "Download it yourself instead from <a href=\"%s\">Cloudflare's releases on GitHub</a>:":
+        "Скачайте его сами с <a href=\"%s\">релизов Cloudflare на GitHub</a>:",
+    "Take <b>%s</b>, double-click it to unpack it, and put the <b>cloudflared</b> inside into:":
+        "Возьмите <b>%s</b>, распакуйте двойным щелчком и положите <b>cloudflared</b> из архива в:",
+    "Take <b>%s</b> and save it as <b>%s</b> in:":
+        "Возьмите <b>%s</b> и сохраните как <b>%s</b> в:",
+    "Then make it runnable: <code>chmod +x %s</code>":
+        "Затем сделайте его исполняемым: <code>chmod +x %s</code>",
+    "Or, with Homebrew: <code>brew install cloudflared</code>":
+        "Или через Homebrew: <code>brew install cloudflared</code>",
+    "Then start again. Until then choose Wi-Fi only.":
+        "Затем запустите снова. А пока выберите «Только Wi-Fi».",
     "The download failed: %s":
         "Загрузка не удалась: %s",
     "● Open — port %d, waiting for Cloudflare…":

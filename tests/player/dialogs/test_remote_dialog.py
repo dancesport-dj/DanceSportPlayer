@@ -162,6 +162,35 @@ class RemoteDialogTest(unittest.TestCase):
         done("C:/cloudflared.exe", "")
         self.assertEqual(host.switched, [True])
 
+    def test_a_failed_download_says_how_to_install_it_by_hand(self):
+        host = _Host()
+        host.mode = "tunnel"
+        dlg = self._dlg(host)
+        box = remote_dialog.QMessageBox
+        with mock.patch.object(remote_dialog.tn, "find_cloudflared", return_value=None), \
+                mock.patch.object(box, "question", return_value=box.StandardButton.Yes), \
+                mock.patch.object(remote_dialog, "QProgressDialog"):
+            dlg._toggle_btn.click()
+        done = host.desk.fetch_done.connect.call_args.args[0]
+        for system, asset, step in (("darwin", "cloudflared-darwin-arm64.tgz", "brew install"),
+                                    ("linux", "cloudflared-linux-amd64", "chmod +x"),
+                                    ("win32", "cloudflared-windows-amd64.exe", "")):
+            with self.subTest(system), mock.patch.object(remote_dialog.sys, "platform", system), \
+                    mock.patch.object(remote_dialog.tn, "asset_name", return_value=asset), \
+                    mock.patch.object(box, "exec") as shown:
+                done("", "<urlopen error certificate verify failed>")
+                shown.assert_called_once()
+                msg = dlg.findChildren(box)[-1]
+                text = msg.text()
+                self.assertEqual(msg.textFormat(), remote_dialog.Qt.TextFormat.RichText)
+                self.assertIn("&lt;urlopen error certificate verify failed&gt;", text)
+                self.assertIn(f'href="{remote_dialog.CLOUDFLARED_PAGE}"', text)
+                self.assertIn(asset, text)
+                self.assertIn(str(remote_dialog.config.APP_DIR), text)
+                self.assertIn(step, text)
+                msg.deleteLater()
+        self.assertEqual(host.switched, [])
+
     def test_a_qr_code_is_square_whole_pixels_and_white_round_the_edge(self):
         pix = qr_pixmap("http://192.168.1.20:8765/#pin=4711", 220)
         self.assertIsNotNone(pix)

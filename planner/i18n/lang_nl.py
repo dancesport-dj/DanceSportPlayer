@@ -5169,6 +5169,18 @@ CATALOG = {
         "Download cloudflared dan zelf van\n%s\nen zet het naast het programma, als %s in:\n%s\n\nKies tot dan „Alleen wifi”.",
     "Downloading cloudflared…":
         "cloudflared wordt gedownload…",
+    "Download it yourself instead from <a href=\"%s\">Cloudflare's releases on GitHub</a>:":
+        "Download het in plaats daarvan zelf van <a href=\"%s\">de releases van Cloudflare op GitHub</a>:",
+    "Take <b>%s</b>, double-click it to unpack it, and put the <b>cloudflared</b> inside into:":
+        "Neem <b>%s</b>, dubbelklik om het uit te pakken en zet de <b>cloudflared</b> daarin in:",
+    "Take <b>%s</b> and save it as <b>%s</b> in:":
+        "Neem <b>%s</b> en sla het op als <b>%s</b> in:",
+    "Then make it runnable: <code>chmod +x %s</code>":
+        "Maak het daarna uitvoerbaar: <code>chmod +x %s</code>",
+    "Or, with Homebrew: <code>brew install cloudflared</code>":
+        "Of met Homebrew: <code>brew install cloudflared</code>",
+    "Then start again. Until then choose Wi-Fi only.":
+        "Start daarna opnieuw. Kies tot dan „Alleen wifi”.",
     "The download failed: %s":
         "Het downloaden is mislukt: %s",
     "● Open — port %d, waiting for Cloudflare…":

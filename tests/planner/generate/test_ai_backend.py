@@ -38,9 +38,10 @@ def _capture(payload):
     """Patch urlopen, remember the request it was given."""
     seen = {}
 
-    def fake(req, timeout=None):
+    def fake(req, timeout=None, context=None):
         seen["req"] = req
         seen["timeout"] = timeout
+        seen["context"] = context
         return _Resp(payload)
 
     return seen, fake

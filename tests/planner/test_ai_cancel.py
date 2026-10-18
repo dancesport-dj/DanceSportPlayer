@@ -8,6 +8,7 @@ them, and nothing could end it early: the button stayed greyed out until the
 thread gave up on its own. Stopping now kills a `claude -p` that is still
 thinking, cuts a retry wait short and never starts the fallback.
 """
+import json
 import os
 import socket
 import subprocess
@@ -21,6 +22,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_ai_cancel_"))
 
 from planner.generate import ai, llm
+from tests.planner.test_tls import has_certifi_roots
 
 
 class _Proc:
@@ -113,6 +115,33 @@ class AskCancelTest(unittest.TestCase):
         with mock.patch.object(llm, "_ask", side_effect=llm.Cancelled()):
             with self.assertRaises(llm.Cancelled):
                 llm.search_rows("rules", "task", [], cancel=cancel)
+
+
+class HttpsTrustTest(unittest.TestCase):
+    """On a Mac, Python has no CA file of its own: an https host answered
+    "certificate verify failed" until certifi's roots came along."""
+
+    def _answer(self, payload):
+        body = json.dumps(payload).encode()
+        return mock.MagicMock(__enter__=lambda s: mock.Mock(read=lambda: body),
+                              __exit__=lambda s, *a: False)
+
+    def test_the_model_list_is_fetched_with_certifi_too(self):
+        with mock.patch.object(ai.urllib.request, "urlopen",
+                               return_value=self._answer({"data": []})) as urlopen:
+            ai.openrouter_free_models(base_url="https://openrouter.ai/api/v1")
+        self.assertTrue(has_certifi_roots(urlopen.call_args.kwargs["context"]))
+
+    def test_the_chat_is_sent_with_certifi_too(self):
+        reply = {"choices": [{"message": {"content": "ok"}}]}
+        with mock.patch.object(ai.urllib.request, "urlopen",
+                               return_value=self._answer(reply)) as urlopen:
+            ai.openrouter_chat("k", "m", "s", "u", base_url="https://openrouter.ai/api/v1")
+        self.assertTrue(has_certifi_roots(urlopen.call_args.kwargs["context"]))
+
+    def test_a_stoppable_chat_is_sent_with_certifi_too(self):
+        handler = ai._KeptHttps([])
+        self.assertTrue(has_certifi_roots(handler.tls))
 
 
 class HttpCancelTest(unittest.TestCase):

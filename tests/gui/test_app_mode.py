@@ -737,6 +737,15 @@ class ModeVisibilityTest(_ModeWindowCase):
         panel = win._play_panel
         self.assertTrue(panel.settings_btn.isVisibleTo(panel))
 
+    def test_the_player_only_gear_has_no_rule_above_it(self):
+        """The stretch above already sets it apart: a ─── over a lone
+        button divides nothing."""
+        from PySide6.QtWidgets import QFrame
+        panel = self._win("player")._play_panel
+        rules = [f for f in panel._gear_box.findChildren(QFrame)
+                 if f.frameShape() == QFrame.Shape.HLine]
+        self.assertEqual(rules, [])
+
     def test_planner_only_hides_the_tournament_floor(self):
         win = self._win("planner")
         self.assertEqual(win.windowTitle(), "DanceSport Planner")

@@ -20,6 +20,7 @@ import logging
 import threading
 import urllib.request
 
+from planner.tls import tls_context
 from planner.version import DEV, app_version, numbers
 
 log = logging.getLogger("dancesport.update")
@@ -61,7 +62,8 @@ def latest_release(timeout: float = _TIMEOUT_SECS) -> tuple[str, str] | None:
         "User-Agent": "DanceSportPlayer",
     })
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as resp:  # nosec B310: fixed https URL
+        with urllib.request.urlopen(request, timeout=timeout,  # nosec B310: fixed https URL
+                                    context=tls_context()) as resp:
             data = json.load(resp)
     except (OSError, ValueError, http.client.HTTPException) as exc:
         log.info("🔔 Update check failed: %s", exc)

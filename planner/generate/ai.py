@@ -15,6 +15,7 @@ import threading
 import urllib.parse
 import urllib.request, urllib.error
 from planner.store import OPENROUTER
+from planner.tls import tls_context
 from planner.models import (  # auto-resolved
     DANCE_NAMES,
     TEMPO_RANGES,
@@ -131,11 +132,13 @@ class _KeptHttp(urllib.request.HTTPHandler):
 
 class _KeptHttps(urllib.request.HTTPSHandler):
     def __init__(self, conns: list):
-        super().__init__()
+        self.tls = tls_context()
+        super().__init__(context=self.tls)
         self.conns = conns
 
     def https_open(self, req):
-        return self.do_open(_kept(http.client.HTTPSConnection, self.conns), req)
+        return self.do_open(_kept(http.client.HTTPSConnection, self.conns), req,
+                            context=self.tls)
 
 
 def _read(req, timeout: int, cancel=None) -> bytes:
@@ -144,7 +147,8 @@ def _read(req, timeout: int, cancel=None) -> bytes:
     OSError, and the host sees the client leave instead of writing a reply
     nobody reads. Without one it is a plain urlopen."""
     if cancel is None:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310: user's endpoint
+        with urllib.request.urlopen(req, timeout=timeout,  # nosec B310: user's endpoint
+                                    context=tls_context()) as resp:
             return resp.read()
     conns: list = []
     done = threading.Event()
@@ -216,7 +220,8 @@ def openrouter_free_models(api_key: str = '', timeout: int = 30,
     req = urllib.request.Request(_keyed_endpoint(base_url, '/models'))
     if api_key:
         req.add_header('Authorization', f'Bearer {api_key}')
-    with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310: user's endpoint
+    with urllib.request.urlopen(req, timeout=timeout,  # nosec B310: user's endpoint
+                                context=tls_context()) as resp:
         data = json.loads(resp.read().decode('utf-8'))
     free_only = is_openrouter(base_url)
     free: list[str] = []

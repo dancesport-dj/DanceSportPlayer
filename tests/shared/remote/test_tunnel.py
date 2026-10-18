@@ -1,6 +1,8 @@
 """🌐 The Cloudflare quick tunnel: finding cloudflared, fetching it, reading its address."""
 import io
 import shutil
+import ssl
+import subprocess
 import sys
 import tarfile
 import tempfile
@@ -8,6 +10,8 @@ import threading
 import unittest
 from pathlib import Path
 from unittest import mock
+
+import certifi
 
 from shared.remote import tunnel
 
@@ -124,12 +128,37 @@ class DownloadTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 tunnel.download(self.dir, opener=mock.Mock())
 
+    def test_the_download_checks_github_against_certifi_too(self):
+        """A Mac without a CA file of its own failed with "certificate verify
+        failed": certifi's roots come along with the system's."""
+        with mock.patch.object(tunnel, "asset_name", return_value="cloudflared-linux-amd64"), \
+                mock.patch.object(tunnel.urllib.request, "urlopen",
+                                  return_value=_Response(b"elf")) as urlopen:
+            tunnel.download(self.dir)
+        ctx = urlopen.call_args.kwargs["context"]
+        self.assertIsInstance(ctx, ssl.SSLContext)
+        roots = {c["serialNumber"] for c in ctx.get_ca_certs()}
+        bundled = ssl.create_default_context(cafile=certifi.where()).get_ca_certs()
+        self.assertTrue(bundled)
+        self.assertLessEqual({c["serialNumber"] for c in bundled}, roots)
+
     def test_a_broken_download_leaves_no_binary(self):
         def opener(url, timeout):
             raise OSError("connection reset")
         with self.assertRaises(OSError):
             tunnel.download(self.dir, opener=opener)
         self.assertFalse((self.dir / tunnel.binary_name()).exists())
+
+
+class NoSslBuildTest(unittest.TestCase):
+    def test_the_tunnel_loads_in_a_build_without_ssl(self):
+        """A player build without error reports drops the ssl module: the
+        📨 and 📱 windows import this module, so it must load there too."""
+        code = ("import sys; sys.modules['ssl'] = None; "
+                "import shared.remote.tunnel")
+        done = subprocess.run([sys.executable, "-c", code], capture_output=True,
+                              text=True, cwd=Path(__file__).resolve().parents[3])
+        self.assertEqual(done.returncode, 0, done.stderr)
 
 
 class TunnelTest(unittest.TestCase):

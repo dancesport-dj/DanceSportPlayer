@@ -10,7 +10,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_settings_tabs_"))
 
-from PySide6.QtWidgets import QApplication, QLabel, QTabWidget
+from PySide6.QtWidgets import QApplication, QLabel, QScrollArea, QTabWidget
 
 from gui.dialogs.settings_dialog import SettingsDialog
 
@@ -67,6 +67,52 @@ class SettingsTabsTest(unittest.TestCase):
                  if "PC" in lbl.text()]
         self.assertTrue(intro)
         self.assertNotIn("\n", intro[0])
+
+    def test_every_page_scrolls(self):
+        for i in range(self.tabs.count()):
+            self.assertIsInstance(self.tabs.widget(i), QScrollArea, self.tabs.tabText(i))
+
+    def test_the_buttons_stay_on_a_small_screen(self):
+        """A laptop screen shorter than the tallest page: the page scrolls,
+        and OK / Cancel below it stay where they can be pressed."""
+        avail = self.dlg.screen().availableGeometry()
+        for hint in (self.dlg.minimumSizeHint(), self.dlg.size()):
+            self.assertLessEqual(hint.height(), avail.height())
+            self.assertLessEqual(hint.width(), avail.width())
+
+    def test_the_per_dance_lengths_keep_their_own_size(self):
+        """Marcel: "the per dance input fields are now too long make them as
+        before but make sure in the height they are visible on small
+        screens" — as wide as a length needs, however wide the dialog is,
+        and full height on a laptop screen: the page scrolls instead."""
+        self.tabs.setCurrentWidget(self.page("🎛 Play sets"))
+        for size in ((1600, 1000), (700, 450)):
+            self.dlg.resize(*size)
+            self.dlg.show()
+            QApplication.processEvents()
+            for dance, (combo, _secs) in self.dlg._dance_len_combos.items():
+                self.assertEqual(combo.width(), combo.sizeHint().width(), (size, dance))
+                self.assertGreaterEqual(combo.height(), combo.sizeHint().height(),
+                                        (size, dance))
+
+    def test_the_tso_pitch_targets_keep_their_own_size(self):
+        """Marcel: "tso pitch target also need not to be so wide" — and then
+        "a little bit wider ... I miss the last border edge of the combobox":
+        on a Mac the popup button's frame reaches past its size hint, so a
+        few pixels of room on top, not the dialog's whole width."""
+        combos = self.dlg._band_combos
+        self.tabs.setCurrentWidget(
+            next(self.tabs.widget(i) for i in range(self.tabs.count())
+                 if self.tabs.widget(i).isAncestorOf(combos["LW"])))
+        for size in ((1600, 1000), (700, 450)):
+            self.dlg.resize(*size)
+            self.dlg.show()
+            QApplication.processEvents()
+            for dance, combo in combos.items():
+                extra = combo.width() - combo.sizeHint().width()
+                self.assertTrue(6 <= extra <= 20, (size, dance, extra))
+                self.assertGreaterEqual(combo.height(), combo.sizeHint().height(),
+                                        (size, dance))
 
 
 if __name__ == "__main__":
