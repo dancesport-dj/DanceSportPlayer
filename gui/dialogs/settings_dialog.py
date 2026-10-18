@@ -514,7 +514,7 @@ class SettingsDialog(LookTabMixin, QDialog):
                 combo.addItem(name, dev_id)
             choice = saved.get(source)
             want = choice.get("id") if isinstance(choice, dict) else None
-            if want:
+            if want and isinstance(choice, dict):
                 # A card Windows numbered anew is that card, under its new id.
                 want = match_output(outputs, want, choice.get("name")) or want
             if want and combo.findData(want) < 0:
@@ -1124,7 +1124,7 @@ class SettingsDialog(LookTabMixin, QDialog):
             idx = combo.findData(secs) if secs is not None else 0
             if idx >= 0:
                 combo.setCurrentIndex(idx)
-            else:
+            elif secs is not None:
                 combo.setEditText(f"{secs // 60}:{secs % 60:02d}")
             self._dance_len_combos[dance] = (combo, secs)
             row, col = i % 5, (i // 5) * 2

@@ -349,7 +349,8 @@ class RemoteMixin(MainWindowHost):
         elif cmd == "xfade":
             self._play_panel.xfade_check.click()
         elif cmd == "jump":
-            self._play_upcoming(*arg)
+            if isinstance(arg, tuple):    # (index, title)
+                self._play_upcoming(*arg)
         elif cmd == "seek":
             if isinstance(arg, (int, float)):    # the server sends a float
                 self._seek_fraction(arg)

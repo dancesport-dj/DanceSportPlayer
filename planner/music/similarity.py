@@ -306,7 +306,7 @@ class SoundAlike:
         for view, vectors, ok in (("melody", self._chroma, HAS_LIBROSA),
                                   ("mert", self._mert, True)):
             own = vectors(anchor) if vectors and ok else None
-            if own is None:
+            if own is None or vectors is None:
                 continue
             have = [(e, v) for e in pool
                     if (v := vectors(e)) is not None and len(v) == len(own)]

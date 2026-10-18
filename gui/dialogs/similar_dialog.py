@@ -801,7 +801,10 @@ class SimilarTracksDialog(QDialog):
             store = self._get_store()
 
             def vectors(model):
-                return (lambda e: store.recorded(e.path, model)) if store else None
+                if store is None:
+                    return None
+                recorded = store.recorded
+                return lambda e: recorded(e.path, model)
             mert = vectors(ae.MODEL_MERT) if self._method == "combined_mert" else None
             self._sound[self._method] = SoundAlike(
                 self._lib, chroma=vectors(ae.MODEL_CHROMA), mert=mert)

@@ -290,7 +290,7 @@ class _MertBackend:
             hf_hub_download(_MERT_REPO, f, revision=_MERT_REVISION, tqdm_class=bar)
 
     def _ensure_model(self):
-        if self._model is None:
+        if self._model is None or self._proc is None:
             _enable_system_certs()
             # optional, heavy import on first use
             import transformers  # pyright: ignore[reportMissingImports]
@@ -307,7 +307,7 @@ class _MertBackend:
         return self._model, self._proc
 
     def embed_file(self, path: Path) -> list[float]:
-        import torch
+        import torch  # pyright: ignore[reportMissingImports]
         import librosa
         with _quiet_native_stderr():
             y, sr = librosa.load(str(path), sr=_MERT_SR, mono=True,
@@ -315,7 +315,7 @@ class _MertBackend:
         if y.size < sr:
             raise AudioTooShort("audio too short for MERT")
         model, proc = self._ensure_model()
-        inputs = proc(y, sampling_rate=sr, return_tensors="pt")
+        inputs = proc(y, sampling_rate=int(sr), return_tensors="pt")
         with torch.inference_mode():
             out = model(**inputs, output_hidden_states=True)
         layers = torch.stack(tuple(out.hidden_states[1:]))   # (12, 1, frames, 768)
