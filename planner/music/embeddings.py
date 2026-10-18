@@ -110,7 +110,7 @@ def _quiet_model_chatter() -> None:
 def _byte_bar(cb: Callable[[int, int], None]):
     """A tqdm class for hf_hub_download that draws nothing and hands
     `cb(done, total)` the bytes of all the files it was given so far."""
-    from tqdm.auto import tqdm
+    from tqdm.auto import tqdm  # pyright: ignore[reportMissingModuleSource]
     bars = []
 
     class _Bar(tqdm):
