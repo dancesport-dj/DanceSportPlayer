@@ -165,6 +165,9 @@ class SaveAppliesTest(unittest.TestCase):
         self.addCleanup(reap_widget, win)
         if win._cart_voices is None:
             self.skipTest("no Qt Multimedia")
+        from PySide6.QtMultimedia import QMediaDevices
+        if QMediaDevices.defaultAudioOutput().isNull():
+            self.skipTest("needs an audio output on this machine")
         self.assertIn("cartwall", win._audio_device._applied)
 
 

@@ -53,6 +53,9 @@ class OutputsChangedTest(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def test_a_list_change_around_the_same_default_is_logged(self):
+        from PySide6.QtMultimedia import QMediaDevices
+        if QMediaDevices.defaultAudioOutput().isNull():
+            self.skipTest("needs an audio output on this machine")
         desk = _Desk()
         with self.assertLogs("dancesport.gui.audio", level="INFO") as logs:
             desk.device.on_outputs_changed()
