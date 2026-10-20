@@ -16,6 +16,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from mutagen.id3 import ID3, TXXX
+
 from planner.music.library import MusicLibrary
 
 
@@ -73,6 +75,44 @@ class SocialGenreTagTest(unittest.TestCase):
 
     def test_a_tag_naming_nothing_leaves_the_filename_in_charge(self):
         e = _entry("Cha Chicki Salsa 2", "Pop")
+        self.assertEqual(e.dance, "CC")
+
+
+def _um_entry(name: str, genre: str | None, dancestyle: str | None):
+    """An entry whose tag carries UltraMixer's TXXX dance style."""
+    tags = ID3()
+    if dancestyle is not None:
+        tags.add(TXXX(encoding=3, desc="ultramixer_dancestyle", text=[dancestyle]))
+    with mock.patch("planner.music.library._read_tags_once", return_value=(tags, 180)):
+        return _entry(name, genre)
+
+
+class UltraMixerDanceTest(unittest.TestCase):
+    """The sample 'SW29_Children_DJ Maksy': genre 'Ballroom SW', UltraMixer
+    dance style 'SW' — and no dance at all came out of it."""
+
+    def test_a_ballroom_genre_names_its_dance(self):
+        e = _entry("Some Title", "Ballroom SW")
+        self.assertEqual(e.dance, "LW")
+
+    def test_a_latin_genre_names_its_dance(self):
+        e = _entry("Some Title", "Latin Cha Cha")
+        self.assertEqual(e.dance, "CC")
+
+    def test_the_ultramixer_dance_style_names_the_dance(self):
+        e = _um_entry("Some Title", None, "SW")
+        self.assertEqual(e.dance, "LW")
+
+    def test_the_genre_tag_wins_over_the_ultramixer_dance_style(self):
+        e = _um_entry("Some Title", "TG", "SW")
+        self.assertEqual(e.dance, "TG")
+
+    def test_the_ultramixer_dance_style_wins_over_the_filename(self):
+        e = _um_entry("Cha Chicki Salsa 2", None, "SW")
+        self.assertEqual(e.dance, "LW")
+
+    def test_an_unknown_dance_style_leaves_the_filename_in_charge(self):
+        e = _um_entry("Cha Chicki Salsa 2", None, "Disco")
         self.assertEqual(e.dance, "CC")
 
 

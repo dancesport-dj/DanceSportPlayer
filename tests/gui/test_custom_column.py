@@ -61,7 +61,7 @@ class _Cache:
 class ColumnsTest(unittest.TestCase):
 
     def test_custom_sits_in_front_of_regen(self):
-        self.assertEqual((_COL_CUSTOM, _COL_REGEN, _N_COLS), (10, 12, 13))
+        self.assertEqual((_COL_CUSTOM, _COL_REGEN, _N_COLS), (10, 13, 14))
 
 
 class CustomColumnTest(unittest.TestCase):
@@ -139,7 +139,7 @@ class CustomColumnTest(unittest.TestCase):
         def changes_for(self, entry):
             return dict(self._changes)
 
-        def raw_edits(self):
+        def raw_edits(self, entry=None):
             return None
 
         def form_changes(self):

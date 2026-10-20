@@ -101,6 +101,16 @@ class LibraryPaneMixin(MainWindowHost):
             if t.list_kind == kind and t.column_widths() != widths:
                 t.set_column_widths(cols)
 
+    def _on_column_order_changed(self, kind: str, order: list):
+        """A column was dragged elsewhere in one list of this kind — keep the
+        order, and give the other lists of the kind the same one."""
+        order = [int(c) for c in order]
+        self._settings.setdefault("column_order", {})[kind] = order
+        save_settings(self._settings)
+        for t in self._deckset.all_tables:
+            if t.list_kind == kind and t.column_order() != order:
+                t.set_column_order(order)
+
     def _on_dance_names_changed(self, kind: str, short: bool):
         """The Dance column of this kind of list was switched between
         "Langsamer Walzer" and "LW" — the other lists of the kind follow."""

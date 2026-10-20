@@ -27,6 +27,32 @@ build_exe.bat full       rem full   -> dist\DanceSport-Planner-Player-Full     (
 build_exe.bat player     rem player -> dist\DanceSport-Player   (~220 MB, see below)
 ```
 
+## Installer (Windows)
+
+`build_installer.bat [lite|full|player]` wraps a finished build into a setup
+with [Inno Setup 6](https://jrsoftware.org/isinfo.php) (`winget install
+JRSoftware.InnoSetup`). It wraps `dist\<name>` when `build_exe.bat` built it
+from the current commit (`build_commit.txt` beside the .exe) and builds it again
+first otherwise, so a setup never ships an older build under today's version; the
+setup lands in `dist\installer\<name>-<version>-setup.exe` (the player's 220 MB
+folder packs to ~66 MB). The script is `installer\dancesport.iss`.
+
+- The install folder is the user's pick. The default is *all users*,
+  `C:\Program Files\<name>`, which needs admin rights for the setup only; the
+  start offers a per-user install to `%LOCALAPPDATA%\Programs\<name>` instead.
+  Program Files takes no writes, so the app keeps its data in
+  `%LOCALAPPDATA%\DanceSport-Planner-Player` (see *Data files* below); the
+  per-user folder does, so there the data stays next to the .exe. The setup's
+  closing *Launch* starts the app without admin rights (`runasoriginaluser`):
+  as admin it would find Program Files writable and put its data there.
+- Each flavor has its own AppId: they install side by side, and an update finds
+  the folder the flavor is already in. Never change an AppId.
+- An update deletes `_internal\` first, so no library of the old version is left
+  behind; the uninstall removes only what the setup installed. The database,
+  settings and playlists survive both.
+- The files are listed one by one in the script, never `dist\<name>\*`: a
+  build folder the app has been started from holds that user's data.
+
 ## Build (macOS)
 
 **Must run on a Mac.** PyInstaller does not cross-build: it bundles the
@@ -123,12 +149,14 @@ scripts, fetches ffmpeg 9.0.2 for the Windows folder and passes the
 (the oldest glibc on offer, so the build runs on more distributions) and arm64
 on `ubuntu-24.04-arm`; each packs its tar.gz and then starts the result once
 offscreen. ffmpeg is not bundled there. The Windows folder, the macOS `.dmg` and
-the two Linux tar.gz are the run's artifacts. A `v*` tag also publishes them as
-that tag's GitHub release (`DanceSport-Player-1.2.0-windows.zip`, `…-macos.dmg`,
+the two Linux tar.gz are the run's artifacts, and so is the Windows setup
+(`build_installer.bat player`, with Inno Setup from Chocolatey when the runner
+has none). A `v*` tag also publishes them as that tag's GitHub release
+(`DanceSport-Player-1.2.0-windows.zip`, `…-windows-setup.exe`, `…-macos.dmg`,
 `…-linux-x86_64.tar.gz` and `…-linux-arm64.tar.gz` for the tag `v1.2.0`, so the
 names carry no v either), with the tagged commit's message as the release text.
 
-The version number is `VERSION` in `planner/version.py` (`1.3.3`), and a build
+The version number is `VERSION` in `planner/version.py` (`1.4.0`), and a build
 without a tag gets it. A `v*` tag overrides it, so name the tag
 `vMAJOR.MINOR.PATCH` (`v1.2.0`); the app in the release then says `1.2.0`, the
 tag without its v. Keep `VERSION` in step after a release, so desk builds carry

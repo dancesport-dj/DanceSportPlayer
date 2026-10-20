@@ -37,8 +37,9 @@ _AUDIO = b"\xff\xfb\x90\x00" + bytes(range(256)) * 40
 class _Answer:
     """A TagEditDialog after Save, without opening one."""
 
-    def __init__(self, raw=None, changes=None, form=None, mp3s=()):
+    def __init__(self, raw=None, changes=None, form=None, mp3s=(), raw_for=None):
         self._raw = raw
+        self._raw_for = raw_for     # {path: raw edits} for a selection
         self._changes = changes or {}
         self._form = form or {}
         self._mp3s = list(mp3s)
@@ -53,7 +54,9 @@ class _Answer:
     def changes_for(self, entry):
         return dict(self._changes)
 
-    def raw_edits(self):
+    def raw_edits(self, entry=None):
+        if self._raw_for is not None:
+            return self._raw_for.get(str(entry.path))
         return self._raw
 
 
@@ -269,6 +272,20 @@ class FormWriteTest(_WindowTest):
             self.assertEqual(e.tag_artist, "New Band")
         self.assertEqual(ID3(two.path)["TIT2"].text, ["Cha Two"])
         self.assertEqual(self.asked, [])
+
+    def test_each_selected_mp3_gets_its_own_table_edit(self):
+        """The Extended tab with several tracks: one field typed for all of
+        them is set where a file has it and added where it doesn't."""
+        two = self.second()
+        self.win._apply_tag_dialog([self.entry, two], _Answer(raw_for={
+            str(self.entry.path): {"sets": {"TXXX:ultramixer_meter": "3/4"},
+                                   "deletes": [], "adds": []},
+            str(two.path): {"sets": {}, "deletes": ["TXXX:ultramixer_meter"],
+                            "adds": [("TXXX", "um_dance", "CC")]}}))
+        self.assertEqual(ID3(self.path)["TXXX:ultramixer_meter"].text, ["3/4"])
+        tags = ID3(two.path)
+        self.assertNotIn("TXXX:ultramixer_meter", tags)
+        self.assertEqual(tags["TXXX:um_dance"].text, ["CC"])
 
     def test_form_table_and_app_fields_in_one_save(self):
         self.answer = True

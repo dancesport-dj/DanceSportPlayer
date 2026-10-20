@@ -64,7 +64,7 @@ if sys.platform == "win32":
 
 import planner.config
 import planner.playlist.m3u
-from planner.models import set_no_class_exclusion
+from planner.models import set_hidden_folders, set_no_class_exclusion
 # Before anything can start a child process (ffmpeg, gsettings, xdg-open).
 planner.config.restore_system_library_path()
 from planner.version import app_version
@@ -284,6 +284,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
             planner.config.set_playlist_dir(self._settings["playlist_dir"])
         planner.playlist.m3u.set_m3u_format(self._settings.get("m3u_format"))
         set_no_class_exclusion(self._settings.get("exclude_no_class"))
+        set_hidden_folders(self._settings.get("hidden_folders"))
         # Every open/add picker starts where the last one ended.
         set_browse_dir(self._settings.get("open_dir", ""),
                        self._remember_open_dir)
@@ -326,7 +327,11 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         # 🔊 Every output level, and the factors behind it — see player.audio.mix. Held
         # apart from each other so they never fight: the user's slider, the
         # per-track loudness gain, the fade-out ramp and the two ducks.
-        self._mix = OutputMix(float(self._settings.get("master_volume", 0.9)))
+        # The 🎛 cartwall's fader starts where the music fader stands until it is
+        # moved once: the pads followed that fader before they had their own.
+        master = float(self._settings.get("master_volume", 0.9))
+        self._mix = OutputMix(master,
+                              float(self._settings.get("cartwall_volume", master)))
         # The 🎛 cartwall's own voice pool, built later in _build_cartwall.
         # Assigned here because _apply_volume() below already reads it.
         self._cart_voices = None
@@ -654,6 +659,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
                 set_vol=self._set_base_volume,
                 cache_of=lambda: self._library.cache)
             self._player.playbackStateChanged.connect(self._on_playback_state)
+            self._player.playbackStateChanged.connect(self._cart_follow_deck)
             self._big_player.prevRequested.connect(lambda: self._preview_skip(-1))
             self._big_player.nextRequested.connect(self._on_player_next)
             self._big_player.extendPauseRequested.connect(self._extend_pause)

@@ -66,6 +66,7 @@ from gui.common import (
     stopwatch_header,
 )
 from shared.columns import (
+    _COL_ALBUM,
     _COL_ARTIST,
     _COL_BPM,
     _COL_CLASS,
@@ -419,7 +420,7 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         """Column captions, header tooltips, cell delegates and the column-tick state."""
         self.setHorizontalHeaderLabels(
             ["Dance", "Heat", "▶", "Artist", "Title", "BPM", "⏱", "Pop", "Class", "★",
-             "Custom", "File name", "↺"]
+             "Custom", "File name", "Album", "↺"]
         )
         stopwatch_header(self, _COL_LEN)
         set_header_tip(self, _COL_LEN,
@@ -450,6 +451,7 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         self.list_kind = "playlist"
         self._columns_cb: Callable[[str, list], None] | None = None
         self._widths_cb: Callable[[str, dict], None] | None = None
+        self._order_cb: Callable[[str, list], None] | None = None
         self._dance_cb: Callable[[str, bool], None] | None = None
         self._short_dances = False             # Dance column: "LW", not "Langsamer Walzer"
         self._col_width: dict[int, int] = {}   # width a column had when it was hidden
@@ -475,9 +477,15 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         for c, w in ((_COL_DANCE, 80), (_COL_HEAT, 56), (_COL_PLAY, 30),
                      (_COL_ARTIST, 150), (_COL_BPM, 52), (_COL_LEN, 48),
                      (_COL_POP, 50), (_COL_CLASS, 60), (_COL_RATING, 72),
-                     (_COL_CUSTOM, 90), (_COL_FILE, 220), (_COL_REGEN, 30)):
+                     (_COL_CUSTOM, 90), (_COL_FILE, 220), (_COL_ALBUM, 180),
+                     (_COL_REGEN, 30)):
             self.setColumnWidth(c, w)
         hh.sectionResized.connect(self._on_section_resized)
+        # Drag a header to reorder the columns, like the library's; the window
+        # keeps the order per KIND of list, as it does the ticks and widths.
+        self.set_column_order(self._DEFAULT_ORDER)
+        hh.setSectionsMovable(True)
+        hh.sectionMoved.connect(self._on_section_moved)
         # Right-click the header → tick the columns this KIND of list shows.
         hh.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         hh.customContextMenuRequested.connect(self._show_column_menu)
@@ -1042,10 +1050,11 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             if entry.custom:
                 custom_it.setToolTip(entry.custom)
             cell(_COL_FILE, entry.title or "").setToolTip(str(entry.path))
+            cell(_COL_ALBUM, getattr(entry, "tag_album", None) or "")
         else:
             cell(_COL_TITLE, "⚠  No song found", fg=_C_WARN_FG)
             for c in (_COL_ARTIST, _COL_BPM, _COL_LEN, _COL_POP, _COL_CLASS, _COL_RATING,
-                      _COL_CUSTOM, _COL_FILE):
+                      _COL_CUSTOM, _COL_FILE, _COL_ALBUM):
                 cell(c, "")
 
         self._fill_row_buttons(row, meta, bg, missing, marked)

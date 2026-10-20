@@ -77,9 +77,14 @@ Danach hält die Datei die Tags, und die App behält keine eigene Änderung mehr
 
 ## Der Reiter Erweiterte Tags
 
-Nur für eine einzelne MP3. Er listet jedes ID3-Frame der Datei, auch die, die
-das Formular nicht zeigt: die eigenen Text-Frames von UltraMixer, die
-Kommentare von MediaMonkey, die Windows-Bewertung.
+Er listet jedes ID3-Frame der gewählten MP3s, auch die, die das Formular
+nicht zeigt: die eigenen Text-Frames von UltraMixer, die Kommentare von
+MediaMonkey, die Windows-Bewertung. Bei mehreren Titeln steht ein Wert, in
+dem sie sich unterscheiden oder den nur einige haben, auf
+**< beibehalten >** und bleibt in jeder Datei, wie er ist, bis du ihn
+überschreibst. Ein getippter Wert geht in jede gewählte MP3, und wo einer
+Datei das Frame fehlt, wird es angelegt; ein entferntes Frame verschwindet
+aus jeder Datei, die es hat.
 
 - Bearbeite einen Wert in der Tabelle. **➖ Auswahl entfernen** löscht die
   gewählten Frames, **➕ Feld hinzufügen** fügt eins hinzu. Bilder und andere

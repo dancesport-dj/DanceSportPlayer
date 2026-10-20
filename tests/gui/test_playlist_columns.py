@@ -25,7 +25,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication, QHeaderView
 
 from shared.columns import (
-    _COL_ARTIST, _COL_BPM, _COL_DANCE, _COL_HEAT, _COL_POP, _COL_REGEN,
+    _COL_ALBUM, _COL_ARTIST, _COL_BPM, _COL_DANCE, _COL_HEAT, _COL_POP, _COL_REGEN,
     _COL_TITLE, _N_COLS,
 )
 from gui.table.playlist_table import PlaylistTable
@@ -60,7 +60,7 @@ class ResizableTest(_TableTest):
         """What Stretch was for: no empty gap on the right of the table."""
         t = self.table()
         t.show()
-        t.resize(1000, 400)
+        t.resize(1500, 400)   # every column shows in a bare table
         QApplication.processEvents()
         others = sum(t.columnWidth(c) for c in range(_N_COLS)
                      if c != _COL_TITLE and not t.isColumnHidden(c))
@@ -70,11 +70,11 @@ class ResizableTest(_TableTest):
     def test_a_narrower_table_shrinks_the_title_not_the_rest(self):
         t = self.table()
         t.show()
-        t.resize(1000, 400)
+        t.resize(1500, 400)
         QApplication.processEvents()
         artist = t.columnWidth(_COL_ARTIST)
         wide = t.columnWidth(_COL_TITLE)
-        t.resize(700, 400)
+        t.resize(1300, 400)
         QApplication.processEvents()
         self.assertEqual(t.columnWidth(_COL_ARTIST), artist)
         self.assertLess(t.columnWidth(_COL_TITLE), wide)
@@ -265,6 +265,94 @@ class ColumnMenuTest(_TableTest):
         self.assertIn("Artist", texts)
         self.assertNotIn("Title", texts)
         menu.deleteLater()
+
+
+class ColumnOrderTest(_TableTest):
+    """Columns are dragged into another order, like the library's — and Album
+    starts beside Title, so a ticked-on Album reads Artist · Title · Album."""
+
+    def visual(self, t) -> list[int]:
+        hh = t.horizontalHeader()
+        return [hh.logicalIndex(v) for v in range(hh.count())]
+
+    def test_album_starts_right_after_title(self):
+        order = self.visual(self.table())
+        self.assertEqual(order[order.index(_COL_ARTIST):order.index(_COL_ARTIST) + 3],
+                         [_COL_ARTIST, _COL_TITLE, _COL_ALBUM])
+
+    def test_the_header_sections_can_be_dragged(self):
+        self.assertTrue(self.table().horizontalHeader().sectionsMovable())
+
+    def test_the_order_reads_back(self):
+        t = self.table()
+        self.assertEqual(t.column_order(), self.visual(t))
+        self.assertEqual(sorted(t.column_order()), list(range(_N_COLS)))
+
+    def test_dragging_a_column_tells_the_window(self):
+        t = self.table(kind="wishlist")
+        seen = []
+        t.set_column_order_callback(lambda kind, order: seen.append((kind, order)))
+        hh = t.horizontalHeader()
+        hh.moveSection(hh.visualIndex(_COL_BPM), hh.visualIndex(_COL_ARTIST))
+        self.assertEqual(len(seen), 1)
+        self.assertEqual(seen[0][0], "wishlist")
+        self.assertEqual(seen[0][1], t.column_order())
+        self.assertLess(seen[0][1].index(_COL_BPM), seen[0][1].index(_COL_ARTIST))
+
+    def test_a_saved_order_is_applied_and_is_not_a_save(self):
+        t = self.table()
+        seen = []
+        t.set_column_order_callback(lambda kind, order: seen.append(order))
+        want = list(t.column_order())
+        want.remove(_COL_POP)
+        want.insert(1, _COL_POP)
+        t.set_column_order(want)
+        self.assertEqual(self.visual(t), want)
+        self.assertEqual(seen, [])
+
+    def test_json_string_entries_count(self):
+        t = self.table()
+        want = list(t.column_order())
+        want.remove(_COL_POP)
+        want.insert(1, _COL_POP)
+        t.set_column_order([str(c) for c in want])
+        self.assertEqual(self.visual(t), want)
+
+    def test_a_stale_order_is_ignored(self):
+        """Saved before a column was added: it does not name every column."""
+        t = self.table()
+        before = t.column_order()
+        t.set_column_order(list(range(_N_COLS - 1)))
+        self.assertEqual(self.visual(t), before)
+
+    def test_dance_stays_first_and_regen_last(self):
+        """A round's header row spans every column up to ↺ and keeps ↺ for
+        its regenerate button: the two edges hold whatever is dragged."""
+        t = self.table()
+        hh = t.horizontalHeader()
+        hh.moveSection(hh.visualIndex(_COL_REGEN), 3)
+        hh.moveSection(hh.visualIndex(_COL_DANCE), 5)
+        hh.moveSection(hh.visualIndex(_COL_POP), 0)
+        hh.moveSection(hh.visualIndex(_COL_BPM), _N_COLS - 1)
+        order = self.visual(t)
+        self.assertEqual(order[0], _COL_DANCE)
+        self.assertEqual(order[-1], _COL_REGEN)
+        t.set_column_order([_COL_REGEN] + [c for c in range(_N_COLS) if c != _COL_REGEN])
+        self.assertEqual(self.visual(t)[0], _COL_DANCE)
+        self.assertEqual(self.visual(t)[-1], _COL_REGEN)
+
+    def test_a_header_row_still_spans_up_to_regen(self):
+        t = self.table()
+        t.show()
+        t.resize(1500, 400)
+        t.setRowCount(1)
+        t.setSpan(0, 0, 1, _N_COLS - 1)
+        hh = t.horizontalHeader()
+        hh.moveSection(hh.visualIndex(_COL_BPM), hh.visualIndex(_COL_ARTIST))
+        QApplication.processEvents()
+        span = t.visualRect(t.model().index(0, _COL_DANCE))
+        self.assertAlmostEqual(span.right() + 1,
+                               hh.sectionViewportPosition(_COL_REGEN), delta=2)
 
 
 if __name__ == "__main__":

@@ -73,9 +73,13 @@ After that the file holds the tags, and the app keeps no separate change.
 
 ## The Extended tags tab
 
-Only for a single MP3. It lists every ID3 frame of the file, including the
-ones the form doesn't show: UltraMixer's custom text frames, MediaMonkey's
-comments, the Windows rating.
+It lists every ID3 frame of the selected MP3s, including the ones the form
+doesn't show: UltraMixer's custom text frames, MediaMonkey's comments, the
+Windows rating. With several tracks, a value they differ in, or that only
+some of them have, reads **< keep >** and stays as it is in each file
+until you type over it. A typed value goes into every selected MP3, added
+where a file doesn't have the frame yet; a removed frame goes from every
+file that has it.
 
 - Edit a value in the table. **➖ Remove selected** deletes the selected
   frames, **➕ Add field** adds one. Pictures and other binary frames can

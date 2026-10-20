@@ -46,6 +46,7 @@ sich ändern, zum Beispiel auf F13 bis F24 für ein Stream Deck:
 | Doppelklick auf einen Decktitel | Die Playlist oder Wunschliste umbenennen. |
 | Pfeil ▾ / ▸ im Kopf eines Decks | Das Deck zu einem Reiter einklappen. Ein Klick auf den Reiter öffnet es wieder. |
 | Eine Zeile ziehen | Einen Titel innerhalb der Liste verschieben, in ein anderes Deck oder eine Wunschliste, oder in den Explorer oder ein DJ-Programm ablegen. |
+| Einen Spaltenkopf zur Seite ziehen | Die Spalte verschieben, in allen Listen dieser Art. |
 | Rechtsklick ▸ 🔍 Titel suchen | Zu einem Titel über seinen Namen springen. Nochmal springt zum nächsten Treffer. |
 | Eine Datei von außen ablegen | Sie dem Deck oder der Wunschliste hinzufügen, wo sie abgelegt wurde. Eine `.m3u` auf einem Deck wird importiert. |
 | ▶ / ■ in einer Zeile | Genau diesen Titel abspielen / stoppen. |

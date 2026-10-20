@@ -71,7 +71,7 @@ LABEL_MAX = 26
 # overridable per pad, because a three-second fanfare should be gone at once
 # while a bed under the Siegerehrung wants seconds. 0 is a hard cut, which
 # clicks — allowed, but it is not the default for that reason.
-DEFAULT_FADE_MS = 400
+DEFAULT_FADE_MS = 1000
 MAX_FADE_MS = 8_000
 
 Cell = tuple[int, int]          # (row, col)
@@ -93,6 +93,11 @@ class CartPad:
     volume: float = 1.0   # 0.0–1.0 per-pad trim (a background bed at 0.25)
     loop: bool = False    # endless repeat
     duck: bool = True     # pull the deck music down while this pad runs
+    # The other way round: the pad goes silent under the deck music while a
+    # title plays and comes back up in the pauses. Never together with `duck`.
+    # (An old wall's per-pad "dip" level is passed over when it is read.)
+    background: bool = False
+    stops_others: bool = False   # starting it fades every other running pad out
     shortcut: str = ""    # "" → whatever SLOT_KEYS gives this slot
     # None → follow the wall's fade. An explicit 0 is a hard cut and is NOT the
     # same thing, which is why this cannot be a plain int with a sentinel.
@@ -456,6 +461,8 @@ def _pad_from_dict(data) -> CartPad | None:
         volume=max(0.0, min(1.0, volume)),
         loop=bool(data.get("loop", False)),
         duck=bool(data.get("duck", True)),
+        background=bool(data.get("background", False)),
+        stops_others=bool(data.get("stops_others", False)),
         shortcut=str(data.get("shortcut", "") or ""),
         fade_ms=fade)
 
@@ -473,6 +480,10 @@ def _pad_to_dict(pad: CartPad) -> dict:
         out["loop"] = True
     if not pad.duck:
         out["duck"] = False
+    if pad.background:
+        out["background"] = True
+    if pad.stops_others:
+        out["stops_others"] = True
     if pad.shortcut:
         out["shortcut"] = pad.shortcut
     if pad.fade_ms is not None:

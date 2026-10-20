@@ -182,7 +182,6 @@ class TagEditMixin(MainWindowHost):
         if lib is None or cache is None:
             return
         paths = []
-        raw = dlg.raw_edits() if len(entries) == 1 else None
         form = dlg.form_changes()
         form_to = {id(e) for e in dlg.form_mp3s()} if form else set()
         # Asked before anything is stored: a half-ticked class reads the
@@ -200,6 +199,7 @@ class TagEditMixin(MainWindowHost):
             if self._ask_write_to_mp3(len(on_disk), [_TAG_FIELD_LABELS[f] for f in fields]):
                 app = {id(e): c for e, c in on_disk}
         for e in entries:
+            raw = dlg.raw_edits(e)
             f = form if id(e) in form_to else None
             a = app.get(id(e))
             if raw or f or a:

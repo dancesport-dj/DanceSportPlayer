@@ -34,7 +34,7 @@ from planner.terms import DANCE_SHORT, dance_name  # noqa: F401 (DANCE_SHORT: re
 from planner.music.vocals import entry_is_instrumental
 from planner.generate.warmup import warmup_code
 from shared.audio.audio_files import _AUDIO_EXTS, music_browse_dir, remember_browse_dir
-from shared.columns import _COL_CUSTOM, _COL_FILE, _COL_HEAT, _COL_RATING
+from shared.columns import _COL_ALBUM, _COL_CUSTOM, _COL_FILE, _COL_HEAT, _COL_RATING
 from shared.appearance.icons import INK, icon
 from shared.widgets import _ICON_ICO, _app_icon, _show_toast
 
@@ -365,12 +365,12 @@ _C_DEFAULT   = QColor( 30,  30,  30)  # near-black
 # Columns a KIND of list starts without (header right-click ticks them back on,
 # and that choice is then saved). Heat only ever reads "Heat 2" on a deck whose
 # dance runs several heats; everywhere else it is 56 px of blank, so it starts
-# put away in every kind, decks included. ★ Rating, Custom and File name too:
-# Marcel asked for them hidden until wanted.
+# put away in every kind, decks included. ★ Rating, Custom, File name and Album
+# too: Marcel asked for them hidden until wanted.
 DEFAULT_HIDDEN_COLUMNS = {
-    "playlist": [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE],
-    "wishlist": [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE],
-    "party": [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE],
+    "playlist": [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM],
+    "wishlist": [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM],
+    "party": [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM],
 }
 
 # The Custom column's header, in the decks and the library alike.

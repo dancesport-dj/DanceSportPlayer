@@ -23,7 +23,7 @@ log = logging.getLogger("dancesport.workers")
 
 from planner.generate.ai import openrouter_chat, openrouter_free_models
 from planner.music.db import AudioCache
-from planner.music.db_upkeep import db_maintenance
+from planner.music.db_upkeep import db_maintenance, reset_database
 from planner.music.scan_caches import GlobalScanCache
 from planner.music.library import MusicLibrary
 from planner.system_info import lower_thread_priority
@@ -259,6 +259,22 @@ class DbMaintenanceWorker(QThread):
     def run(self):
         try:
             self.done.emit(db_maintenance())
+        except Exception as exc:
+            self.error.emit(str(exc))
+
+
+class DbResetWorker(QThread):
+    """Runs planner reset_database(groups) (backup, DELETEs, VACUUM) off the UI thread."""
+    done  = Signal(object)   # {table: rows removed}
+    error = Signal(str)
+
+    def __init__(self, groups, parent=None):
+        super().__init__(parent)
+        self._groups = set(groups)
+
+    def run(self):
+        try:
+            self.done.emit(reset_database(self._groups))
         except Exception as exc:
             self.error.emit(str(exc))
 

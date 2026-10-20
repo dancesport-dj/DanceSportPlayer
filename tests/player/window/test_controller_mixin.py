@@ -38,8 +38,9 @@ class _Desk(QObject, ControllerMixin):
         self._settings = dict(settings or {})
         self._on_remote_command = mock.Mock()
         self._set_base_volume = mock.Mock()
+        self._set_cart_volume = mock.Mock()
         self._set_desk_duck = mock.Mock()
-        self._mix = mock.Mock(desk=1.0)
+        self._mix = mock.Mock(desk=1.0, cart=0.5)
         self._cartwall = None
         self._big_player = mock.Mock()
         self._focus_list = mock.Mock()
@@ -259,6 +260,22 @@ class ControllerMixinTest(unittest.TestCase):
         self._press(desk, 0, 127)
         self.assertEqual(desk._set_base_volume.call_args_list,
                          [mock.call(0.0), mock.call(1.0)])
+
+    def test_nano_fader_2_sets_the_cartwall_volume(self):
+        desk = self._desk(pctl.PRESETS["Korg nanoKONTROL2"]["bindings"])
+        self._press(desk, 1, 0)
+        self._press(desk, 1, 127)
+        self.assertEqual(desk._set_cart_volume.call_args_list,
+                         [mock.call(0.0), mock.call(1.0)])
+        desk._set_base_volume.assert_not_called()
+
+    def test_cartwall_volume_buttons_step_it(self):
+        desk = self._desk({"cart_vol_up": "cc:0:64", "cart_vol_down": "cc:0:65"})
+        self._press(desk, 64)
+        self._press(desk, 65)
+        self.assertEqual(desk._set_cart_volume.call_args_list,
+                         [mock.call(0.5 + pctl.VOLUME_STEP),
+                          mock.call(0.5 - pctl.VOLUME_STEP)])
 
     def test_the_nano_knob_above_fader_1_moves_the_tempo(self):
         desk = self._desk(pctl.PRESETS["Korg nanoKONTROL2"]["bindings"])

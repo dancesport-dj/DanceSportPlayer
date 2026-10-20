@@ -32,6 +32,7 @@ from gui.common import (
     display_title,
 )
 from shared.columns import (
+    _COL_ALBUM,
     _COL_ARTIST,
     _COL_BPM,
     _COL_CLASS,
@@ -854,6 +855,8 @@ class TableActionsMixin(TableMenuMixin):
         _COL_CUSTOM: lambda e: ((getattr(e, "custom", None) or "").lower(),
                                 (e.title or "").lower()),
         _COL_FILE: lambda e: (e.title or "").lower(),
+        _COL_ALBUM: lambda e: ((getattr(e, "tag_album", None) or "").lower(),
+                               (e.title or "").lower()),
     }
 
     def _sortable_as_list(self) -> bool:

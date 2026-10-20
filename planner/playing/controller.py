@@ -41,6 +41,11 @@ ACTIONS = (
     ("volume", "🔊  Music volume (fader or knob)"),
     ("vol_up", "🔼  Music volume up"),
     ("vol_down", "🔽  Music volume down"),
+    ("cart_volume", "🎛  Cartwall volume (fader or knob)"),
+    ("cart_vol_up", "🔼  Cartwall volume up"),
+    ("cart_vol_down", "🔽  Cartwall volume down"),
+    ("cart_page_prev", "◀  Previous cartwall page"),
+    ("cart_page_next", "▶  Next cartwall page"),
     ("tempo", "🎚  Tempo / pitch (fader or knob)"),
     ("tempo_up", "⏫  Tempo up"),
     ("tempo_down", "⏬  Tempo down"),
@@ -57,7 +62,7 @@ ACTIONS = (
      ("pick_wish", "⭐  Selected title to the wishlist")) \
   + tuple((f"pad:{n}", f"🎛  Cartwall pad {n}") for n in range(1, PAD_COUNT + 1))
 ACTION_IDS = tuple(a for a, _label in ACTIONS)
-CONTINUOUS = frozenset({"volume", "tempo", "browse"})
+CONTINUOUS = frozenset({"volume", "cart_volume", "tempo", "browse"})
 
 # ⌨ The keyboard's share of the same actions, the desk keys (setting
 # "desk_keys": action → its keys in Qt's portable text, [] for none; a single
@@ -71,7 +76,9 @@ KEY_DEFAULTS = {"toggle": "Ctrl+Shift+P", "next": "Ctrl+Shift+Right",
                 "prev": "Ctrl+Shift+Left", "fade": "Ctrl+Shift+F",
                 "hold": "Ctrl+Shift+H", "duck": "Ctrl+Shift+D",
                 "announce": "Ctrl+Shift+A", "vol_up": "Ctrl+Shift+Up",
-                "vol_down": "Ctrl+Shift+Down", "tempo_up": "Ctrl+Shift+PgUp",
+                "vol_down": "Ctrl+Shift+Down", "cart_vol_up": "Ctrl+Alt+Up",
+                "cart_vol_down": "Ctrl+Alt+Down", "cart_page_prev": "Ctrl+Alt+Left",
+                "cart_page_next": "Ctrl+Alt+Right", "tempo_up": "Ctrl+Shift+PgUp",
                 "tempo_down": "Ctrl+Shift+PgDown", "tempo_reset": "Ctrl+Shift+Home",
                 "stop_pads": "Ctrl+Shift+X",
                 **{f"deck:{n}": f"Alt+{n}" for n in range(1, DECK_COUNT + 1)},
@@ -118,7 +125,7 @@ _KEY_GLYPHS = {"Left": "←", "Right": "→", "Up": "↑", "Down": "↓"}
 
 # Korg nanoKONTROL2 in its factory CC mode (global MIDI channel 1), laid out
 # as played at the desk. The transport row drives the player, fader 1 is the
-# music volume, the knob above it the tempo and S1 puts the tempo back to
+# music volume, fader 2 the cartwall's, the knob above fader 1 the tempo and S1 puts the tempo back to
 # ±0 % (the knobs have no push switch). TRACK ▶ focuses the library, the
 # MARKER buttons browse the list in focus (its knobs have end stops, so none
 # is the browse knob) and S2-S4 play the selected title or send it to the
@@ -126,7 +133,7 @@ _KEY_GLYPHS = {"Left": "←", "Right": "→", "Up": "↑", "Down": "↓"}
 # 5-8 and on M1-M4; pads 13 and 14 stay free.
 _NANO_CCS = {"toggle": 41, "fade": 42, "prev": 43, "next": 44,
              "hold": 45, "announce": 46, "duck": 58, "stop_pads": 60,
-             "volume": 0, "tempo": 16, "tempo_reset": 32,
+             "volume": 0, "cart_volume": 1, "tempo": 16, "tempo_reset": 32,
              "lib": 59, "browse_up": 61, "browse_down": 62,    # TRACK ▶, MARKER ◀ ▶
              "pick_play": 33, "pick_deck": 34, "pick_wish": 35,  # S2 S3 S4
              "pad:1": 36, "pad:2": 52, "pad:3": 68,       # S5 M5 R5

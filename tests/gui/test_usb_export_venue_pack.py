@@ -44,6 +44,7 @@ class UsbExportVenuePackTest(unittest.TestCase):
         host = mock.Mock()
         host._deckset.decks = []
         host._deckset.day_decks = []
+        host._deckset.wishlists = []
         host._grid.deck_tabs.currentIndex.return_value = 0
         ask = mock.Mock()
         ask.exec.return_value = QDialog.DialogCode.Accepted

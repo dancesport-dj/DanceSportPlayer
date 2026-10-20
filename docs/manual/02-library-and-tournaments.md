@@ -28,13 +28,13 @@ changed files, no audio analysis, and runs in the background: its progress,
 |---|---|
 | 🔍 text field | Titles whose title, artist or comment tag contains the text. Tags are markers like `vocal_f`, `classic`, `eintanzen`. |
 | All dances | One dance, or all Standard or all Latin dances. |
-| All classes | Titles suited to that start class. Titles without a class tag always show, unless 🏷 Only with a class is ticked. |
+| All classes | Titles suited to one of the ticked start classes. A click ticks or unticks a class and leaves the list open, so several can be ticked; All classes clears them, and ticking the last class switches back to All classes and closes the list. Titles without a class tag show only under All classes; social dances have no classes and stay. |
 | Vocal + instr. | Only 🎤 vocal or only 🎻 instrumental titles. |
-| All categories | 🏆 **Tournament only** hides anthems, background music, wrong-tempo files, duplicates and seasonal folders. You can also pick one of those categories, which is handy for a party. **🏷 No class** lists the competition titles whose comment carries no class tag, so you can tag them. |
+| All categories | 🏆 **Tournament only** hides anthems, background music, wrong-tempo files, duplicates and seasonal folders. You can also pick one of those categories, which is handy for a party. A title outside those folders joins a category when its comment carries the category's name as a tag, e.g. `background`, `anthems`, `wrong tempo`, `duplicates` or `seasonal`; the German names work too. **🏷 No class** lists the competition titles whose comment carries no class tag, so you can tag them. |
 | Plays: all | ✦ **Never played**, ★ **Rarely**, ★ **Proven**, or 📅 **Not since 1 y** (played, but not in any playlist of the last year). |
 | Added: all | Files created in the last 30 or 90 days, or the last 12 or 18 months. Combine it with ✦ Never played to find what you copied in but never used. |
 | 🆕 Unplanned | Only titles that are in none of the open decks. |
-| 🏷 Only with a class | Hides the competition titles without a class tag, which the class filter otherwise shows for every class. Social dances have no classes and stay. |
+| 🏷 Only with a class | Hides the competition titles without a class tag, which show when no class or every class is ticked. Social dances have no classes and stay. |
 
 - **▶** in a row plays the title on the player. **Space** does the same for
   the selected row. With a [🎧 pre-listen output](04-playing.md#-pre-listening-on-headphones)
@@ -48,9 +48,10 @@ changed files, no audio analysis, and runs in the background: its progress,
   **🏷 Edit tags…**. With several rows selected, the tag editor edits them all.
   See [chapter 5](05-tags.md).
 - **Right-click the column header** to choose the columns, or to switch to
-  short dance names (LW, SB). The **★** rating, **Custom** and **File name**
-  columns are hidden at first and can be shown here. File name is the
-  cleaned-up name of the file, with the full path in its tooltip. **Map Custom to an MP3 tag…** fills
+  short dance names (LW, SB). The **★** rating, **Custom**, **File name**
+  and **Album** columns are hidden at first and can be shown here. File name
+  is the cleaned-up name of the file, with the full path in its tooltip;
+  Album is the album tag of the MP3. **Map Custom to an MP3 tag…** fills
   Custom from a tag of your choice.
 
 ## 🏆 Tournaments

@@ -26,6 +26,7 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import (QApplication, QComboBox, QDialog,
                                QDialogButtonBox, QPushButton, QToolButton)
 
+from planner.playing import cartwall as pc
 from planner.playing import controller as pctl
 from planner import i18n
 from tests.qt_test_support import reap_widget, stub_window_startup
@@ -182,10 +183,11 @@ class WindowKeysTest(_WindowTest):
 
     def test_only_the_volume_and_tempo_steps_repeat(self):
         """A held ⏭ throws titles away; a held volume or tempo key is a glide."""
+        gliding = ("vol_up", "vol_down", "cart_vol_up", "cart_vol_down",
+                   "tempo_up", "tempo_down")
         for action, sc in self.win._desk_keys.items():
             with self.subTest(action=action):
-                self.assertEqual(sc.autoRepeat(),
-                                 action in ("vol_up", "vol_down", "tempo_up", "tempo_down"))
+                self.assertEqual(sc.autoRepeat(), action in gliding)
 
     def test_the_volume_keys_step_the_master(self):
         self.win._set_base_volume(0.5)
@@ -194,6 +196,45 @@ class WindowKeysTest(_WindowTest):
         self.win._desk_keys["vol_down"].activated.emit()
         self.win._desk_keys["vol_down"].activated.emit()
         self.assertAlmostEqual(self.win._mix.base, 0.5 - pctl.VOLUME_STEP)
+
+    def test_the_cartwall_keys_step_the_wall_and_leave_the_music(self):
+        """🎛 Ctrl+Alt+↑/↓: the wall's own fader, and its slider follows."""
+        self.win._set_base_volume(0.5)
+        self.win._set_cart_volume(0.5)
+        self.assertEqual(self.win._desk_keys["cart_vol_up"].key(),
+                         QKeySequence("Ctrl+Alt+Up"))
+        self.win._desk_keys["cart_vol_up"].activated.emit()
+        self.assertAlmostEqual(self.win._mix.cart, 0.5 + pctl.VOLUME_STEP)
+        self.assertEqual(self.win._cartwall._level.value(), 55)
+        self.win._desk_keys["cart_vol_down"].activated.emit()
+        self.win._desk_keys["cart_vol_down"].activated.emit()
+        self.assertAlmostEqual(self.win._mix.cart, 0.5 - pctl.VOLUME_STEP)
+        self.assertAlmostEqual(self.win._mix.base, 0.5)
+
+    def test_the_page_keys_turn_the_wall(self):
+        """🎛 Ctrl+Alt+←/→: the wall's ◀ ▶, which stop at the ends."""
+        wall = self.win._cartwall
+        wall.set_wall(wall.grid(), [pc.blank_page(), pc.blank_page()])
+        self.assertEqual(self.win._desk_keys["cart_page_next"].key(),
+                         QKeySequence("Ctrl+Alt+Right"))
+        self.win._desk_keys["cart_page_next"].activated.emit()
+        self.assertEqual(wall.current_page(), 1)
+        self.win._desk_keys["cart_page_next"].activated.emit()
+        self.assertEqual(wall.current_page(), 1)
+        self.win._desk_keys["cart_page_prev"].activated.emit()
+        self.assertEqual(wall.current_page(), 0)
+
+    def test_the_wall_slider_sets_the_pads_level(self):
+        self.win._cartwall._level.setValue(30)
+        self.assertAlmostEqual(self.win._mix.cart, 0.3)
+        self.assertEqual(self.win._cartwall._level_lbl.text(), "30 %")
+
+    def test_both_levels_are_kept(self):
+        self.win._set_base_volume(0.6)
+        self.win._set_cart_volume(0.4)
+        self.win._save_master_volume()
+        self.assertEqual(self.win._settings["master_volume"], 0.6)
+        self.assertEqual(self.win._settings["cartwall_volume"], 0.4)
 
     def _open(self, opener, answer=None):
         """Open the ⌨ Keys window through `opener`. `answer(dlg)` plays the

@@ -58,8 +58,9 @@ class CartPadDialog(QDialog):
         if pad_count > 1:
             # Which of these fields reach the other pads is not guessable, so it
             # is stated rather than discovered after the fact.
-            note = QLabel(i18n.t("✏  %d pads selected — colour, volume, fade, "
-                                 "🔁 and 🔈 apply to all of them.\n"
+            note = QLabel(i18n.t("✏  %d pads selected — what you change here "
+                                 "(colour, volume, fade, 🔁, 🔈, 🎶, S) "
+                                 "applies to all of them.\n"
                                  "Label and shortcut stay with this pad.") % pad_count)
             note.setWordWrap(True)
             lyt.addWidget(note)
@@ -137,11 +138,34 @@ class CartPadDialog(QDialog):
         self._loop.toggled.connect(
             lambda on: self._duck.setChecked(False) if on else None)
 
+        self._background = QCheckBox("🎶  Background: dip under the music while a title plays")
+        self._background.setChecked(pad.background)
+        self._background.setToolTip(
+            "The other way round from 🔈: this pad goes silent while the\n"
+            "main player plays and comes back up in the pauses.")
+        lyt.addWidget(self._background)
+        self._background.toggled.connect(self._on_background)
+        self._on_background(pad.background)
+
+        self._stops_others = QCheckBox("S  Stop the other pads when this one starts")
+        self._stops_others.setChecked(pad.stops_others)
+        self._stops_others.setToolTip(
+            "Every other running pad fades out as this one starts —\n"
+            "for an anthem or a winners' fanfare that needs the room.")
+        lyt.addWidget(self._stops_others)
+
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok
                                    | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         lyt.addWidget(buttons)
+
+    def _on_background(self, on: bool) -> None:
+        """A pad that dips under the music cannot pull the music down as well —
+        the two would hold each other at the bottom."""
+        if on:
+            self._duck.setChecked(False)
+        self._duck.setEnabled(not on)
 
     def _build_volume_row(self, lyt, pad):
         """The pad's volume slider with its value and ▶ to listen."""
@@ -207,6 +231,8 @@ class CartPadDialog(QDialog):
             volume=self._vol.value() / 100.0,
             loop=self._loop.isChecked(),
             duck=self._duck.isChecked(),
+            background=self._background.isChecked(),
+            stops_others=self._stops_others.isChecked(),
             shortcut=self._key.keySequence().toString(),
             fade_ms=self._fade.value() if self._fade_own.isChecked() else None)
 

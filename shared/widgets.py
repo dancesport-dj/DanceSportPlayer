@@ -67,6 +67,7 @@ class FlowLayout(QLayout):
         for item in self._items:
             hint = item.sizeHint()
             if x + hint.width() > rect.right() + 1 and line_h > 0:
+                self._centre_line(line, line_h, apply)
                 self._fill_line(line, rect.right() + 1 - (x - space), apply)
                 x = rect.x()
                 y += line_h + space
@@ -77,8 +78,20 @@ class FlowLayout(QLayout):
             line.append(item)
             x += hint.width() + space
             line_h = max(line_h, hint.height())
+        self._centre_line(line, line_h, apply)
         self._fill_line(line, rect.right() + 1 - (x - space), apply)
         return y + line_h - rect.y()
+
+    @staticmethod
+    def _centre_line(line: list, line_h: int, apply: bool) -> None:
+        """A line's controls share one middle, as in a QHBoxLayout: a button
+        beside a taller fader sits level with it, not on its top edge."""
+        if not apply:
+            return
+        for item in line:
+            box = item.geometry()
+            box.moveTop(box.y() + (line_h - box.height()) // 2)
+            item.setGeometry(box)
 
     @staticmethod
     def _fill_line(line: list, leftover: int, apply: bool) -> None:

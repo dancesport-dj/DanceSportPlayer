@@ -203,6 +203,7 @@ class ToolbarClickTest(ClickThrough):
             usb = self.out / "usb"
             usb.mkdir()
             op.answer(self.titled("🧳"), lambda dlg: self.click(dlg._ok))
+            op.answer(self.titled("🧳"), lambda dlg: self.click(dlg._create))
             with mock.patch.object(QFileDialog, "getExistingDirectory",
                                    lambda *_a, **_kw: str(usb)):
                 self.click(self.button("Export playlists as a self-contained"))

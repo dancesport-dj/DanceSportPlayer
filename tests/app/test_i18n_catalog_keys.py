@@ -27,6 +27,7 @@ SAME_IN_GERMAN = frozenset({
     "🎼 Chroma: %s",
     "🧠 MERT: %s",
     " (%s)",
+    "Album",
     "Custom:",
     "Frame",
     "Looks (*.json)",

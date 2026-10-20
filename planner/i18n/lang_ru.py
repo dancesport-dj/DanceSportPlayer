@@ -933,6 +933,18 @@ CATALOG = {
         "🔇 Нет аудиобэкенда — Cartwall не может здесь играть.",
     "🔈  Pull the music down while this pad plays":
         "🔈  Приглушать музыку, пока играет этот пэд",
+    "S  Stop the other pads when this one starts":
+        "S  Останавливать другие пэды при запуске этого",
+    "Every other running pad fades out as this one starts —\n"
+    "for an anthem or a winners' fanfare that needs the room.":
+        "Все остальные играющие пэды затухают, когда стартует этот —\n"
+        "для гимна или фанфар победителям, которым нужна тишина.",
+    "🎶  Background: dip under the music while a title plays":
+        "🎶  Фон: уходить под музыку, пока играет трек",
+    "The other way round from 🔈: this pad goes silent while the\n"
+    "main player plays and comes back up in the pauses.":
+        "Наоборот к 🔈: этот пэд замолкает, пока играет\n"
+        "основной плеер, и возвращается в паузах.",
     "🔈 No announcement recordings found for this voice.":
         "🔈 Для этого голоса не найдено записей объявлений.",
     "🖌  Wall colour": "🖌  Цвет Cartwall",
@@ -1117,7 +1129,7 @@ CATALOG = {
         "Каждый файл называется по заголовку своего дека.",
     "Export playlists as a self-contained venue bundle — asks first\n"
     "whether to take all open decks, only the 📅 tournament day, or\n"
-    "saved .m3u files dragged in (wishlists are never bundled).\n"
+    "saved .m3u files dragged in, with the ⭐ wishlists if ticked.\n"
     "One sub-folder per playlist holding its tracks copied in numbered\n"
     "play order (0_0_1 - Title WW29.mp3) plus the playlist's .m3u — each\n"
     "folder plays in order even without the M3U, from any drive,\n"
@@ -1125,7 +1137,7 @@ CATALOG = {
     "Also offers the 📦 venue pack: this desk in one file for another PC.":
         "Экспортировать плейлисты как самодостаточный пакет для площадки — сначала спрашивает,\n"
         "брать ли все открытые деки, только 📅 турнирный день или\n"
-        "перетащенные сохранённые файлы .m3u (списки пожеланий не входят никогда).\n"
+        "перетащенные сохранённые файлы .m3u (⭐ списки пожеланий — если отмечено).\n"
         "По подпапке на плейлист с треками, скопированными в пронумерованном\n"
         "порядке воспроизведения (0_0_1 - Title WW29.mp3), плюс .m3u плейлиста — каждая\n"
         "папка играет по порядку даже без M3U, с любого диска,\n"
@@ -1522,9 +1534,9 @@ CATALOG = {
         "Тема, акцент и язык читаются при запуске приложения, поэтому изменение вступает в силу после перезапуска — об этом спросят при сохранении.",
     "Keep the German dance and round names on a screen in another language (Langsamer Walzer, Vorrunde, Standardrunde 1, Eintanzen …)":
         "Оставить немецкие названия танцев и туров на экране на другом языке (Langsamer Walzer, Vorrunde, Standardrunde 1, Eintanzen …)",
-    "On: the presenter screen and the recorded announcements are German too, and a 🤸 practice list is called Eintanzen, also in its saved file.\n"
+    "On: the presenter screen and the recorded announcements are German too, a 🤸 practice list is called Eintanzen, also in its saved file, and the tempo rules are named TSO (off: WDSF CR).\n"
     "Off: Slow Waltz, Round 1, Standard round 1, Practice … — the playlists and exports keep the German dance and round names either way.":
-        "Вкл.: экран презентации и записанные объявления тоже на немецком, а 🤸 список практики называется Eintanzen, в том числе в сохранённом файле.\n"
+        "Вкл.: экран презентации и записанные объявления тоже на немецком, 🤸 список практики называется Eintanzen, в том числе в сохранённом файле, а правила темпа называются TSO (выкл.: WDSF CR).\n"
         "Выкл.: Slow Waltz, Round 1, Standard round 1, Практика … — плейлисты и экспорты в любом случае сохраняют немецкие названия танцев и туров.",
     "You can change this later under ⚙ Settings → ⚙ General.":
         "Изменить это можно позже в ⚙ Настройки → ⚙ Общие.",
@@ -1704,10 +1716,8 @@ CATALOG = {
         "Перетащите трек на дек или в список пожеланий, чтобы использовать его.\n"
         "▶ — прослушать · двойной щелчок — открыть во внешнем плеере\n"
         "· правый щелчок — больше.",
-    "Only tracks suited for this starting class\n"
-    "(tracks without a class tag are always shown)":
-        "Только треки, подходящие для этого класса\n"
-        "(треки без указания класса показываются всегда)",
+    "Only tracks suited for one of the ticked starting classes\n(tick several; tracks without a class tag show only with all classes)":
+        "Только треки, подходящие для одного из отмеченных стартовых классов\n(можно отметить несколько; треки без класса только при всех классах)",
     "Only tracks whose file was created in the library that\n"
     "recently. Combine with ✦ Never played to see what you\n"
     "copied in but have never actually used.":
@@ -3073,6 +3083,8 @@ CATALOG = {
     "👥 Duplicates / raw versions": "👥 Дубликаты / черновые версии",
     # The deck/library column with the cleaned-up file name.
     "File name": "Имя файла",
+    # …and the one with the ID3 album tag.
+    "Album": "Альбом",
     # ⚙ Settings → 🔊 Sound & player: an output per source.
     "<b>🔈 Outputs</b> — where each part of the evening is heard:":
         "<b>🔈 Выходы</b> — где звучит каждая часть вечера:",
@@ -3124,6 +3136,20 @@ CATALOG = {
         "🔼  Музыку громче",
     "🔽  Music volume down":
         "🔽  Музыку тише",
+    "🎛  Cartwall volume (fader or knob)":
+        "🎛  Громкость картволла (фейдер или регулятор)",
+    "🔼  Cartwall volume up":
+        "🔼  Картволл громче",
+    "🔽  Cartwall volume down":
+        "🔽  Картволл тише",
+    "◀  Previous cartwall page":
+        "◀  Предыдущая страница картволла",
+    "▶  Next cartwall page":
+        "▶  Следующая страница картволла",
+    "Cartwall volume — every pad, apart from the music volume.\n"
+    "Also on a controller fader and the desk keys (⌨).":
+        "Громкость картволла — все пэды, отдельно от громкости музыки.\n"
+        "Также фейдером контроллера и клавишами пульта (⌨).",
     "🎚  Tempo / pitch (fader or knob)":
         "🎚  Темп / питч (фейдер или ручка)",
     "⏫  Tempo up":
@@ -3325,7 +3351,6 @@ CATALOG = {
     "Description": "Описание",
     "Value": "Значение",
     "➕  Add field": "➕  Добавить поле",
-    "Only for one track at a time": "Только для одного трека за раз",
     "Only for an MP3 file on disk": "Только для файла MP3 на диске",
     "Couldn't read the MP3 tags: %s": "Не удалось прочитать теги MP3: %s",
     "Can only be removed, not edited here":
@@ -3683,6 +3708,46 @@ CATALOG = {
     "Removed rows: %s.": "Удалено строк: %s.",
     "none — everything is still in use": "нет — всё ещё используется",
     "Cleanup did not run:": "Очистка не выполнена:",
+    "🗑  Reset database…":
+        "🗑  Сбросить базу данных…",
+    "Empty chosen parts of the database: the tags read from the files,\nthe audio analysis, your own data. A dialog asks which; your own\ndata is backed up first, and the app restarts afterwards.":
+        "Очистить выбранные части базы данных: теги, прочитанные из файлов,\nаудиоанализ, ваши собственные данные. Диалог спросит, какие; ваши\nданные сначала сохраняются, затем приложение перезапускается.",
+    "🗑  Reset database":
+        "🗑  Сбросить базу данных",
+    "🗑 Reset database":
+        "🗑 Сбросить базу данных",
+    "🏷  Tags read from the music files":
+        "🏷  Теги, прочитанные из музыкальных файлов",
+    "🎚  Audio analysis":
+        "🎚  Аудиоанализ",
+    "✋  My own data":
+        "✋  Мои собственные данные",
+    "Dance, BPM, class and title of every file, the file list and the learned playlist index. The next library scan reads them again (minutes).":
+        "Танец, BPM, класс и название каждого файла, список файлов и изученный индекс плейлистов. Следующее сканирование библиотеки прочитает их заново (минуты).",
+    "Features, AI embeddings, loudness, silences, waveforms, vocal shares and detected PD highlights. ⚗ Analysis builds them again (hours).":
+        "Признаки, ИИ-эмбеддинги, громкость, паузы, волновые формы, доли вокала и найденные PD-хайлайты. ⚗ Анализ построит их заново (часы).",
+    "Your tag edits, hand-set PD marks and the 📜 play log. Nothing rebuilds them; only ♻ Restore user data backup brings them back.":
+        "Ваши правки тегов, вручную поставленные метки PD и 📜 журнал воспроизведения. Ничто их не восстановит; только ♻ Восстановление резервной копии своих данных вернёт их.",
+    "Empty the chosen parts of the database. Your own data is backed up first either way, and the app restarts afterwards.":
+        "Очистить выбранные части базы данных. Ваши собственные данные в любом случае сначала сохраняются, а затем приложение перезапускается.",
+    "Reset and restart":
+        "Сбросить и перезапустить",
+    "Resetting database…":
+        "Сброс базы данных…",
+    "The app still shows the old data until it restarts. Restart now?":
+        "Приложение показывает старые данные до перезапуска. Перезапустить сейчас?",
+    "Reset did not run:":
+        "Сброс не выполнен:",
+    "<b>Excluded folders</b> — titles in these folders and below stay out of the library, one folder per line:":
+        "<b>Исключённые папки</b> — треки в этих папках и ниже не попадают в библиотеку, по одной папке на строку:",
+    "Left out of ⭐ Favorites and 🌐 Whole library alike: not shown, not\nsearched, never suggested. Nothing on disk changes, and the tags\nread so far stay cached, so a folder taken off the list is back\nafter a restart.":
+        "Исключены и из ⭐ Избранного, и из 🌐 Всей библиотеки: не показываются,\nне ищутся, не предлагаются. На диске ничего не меняется, прочитанные\nтеги остаются в кэше, так что папка, убранная из списка, вернётся\nпосле перезапуска.",
+    "Hide a folder from the library":
+        "Скрыть папку из библиотеки",
+    "🙈 Excluded folders":
+        "🙈 Исключённые папки",
+    "The library is loaded when the app starts, so the excluded folders change with the next start.\n\nRestart now?":
+        "Библиотека загружается при запуске приложения, поэтому исключённые папки изменятся при следующем запуске.\n\nПерезапустить сейчас?",
     "📤  Export manual PD marks…": "📤  Экспорт ручных меток PD…",
     "📥  Import manual PD marks…": "📥  Импорт ручных меток PD…",
     "Export manual PD marks": "Экспорт ручных меток PD",
@@ -4321,9 +4386,9 @@ CATALOG = {
     "Order: %s, %s, …": "Порядок: %s, %s, …",
     "🟰  Identical files — the earlier copy is removed, the last stays (%d)":
         "🟰  Одинаковые файлы — более ранняя копия удаляется, последняя остаётся (%d)",
-    "✏  %d pads selected — colour, volume, fade, 🔁 and 🔈 apply to all of them.\n"
+    "✏  %d pads selected — what you change here (colour, volume, fade, 🔁, 🔈, 🎶, S) applies to all of them.\n"
     "Label and shortcut stay with this pad.":
-        "✏  Выбрано пэдов: %d — цвет, громкость, затухание, 🔁 и 🔈 применяются ко всем.\n"
+        "✏  Выбрано пэдов: %d — то, что вы меняете здесь (цвет, громкость, затухание, 🔁, 🔈, 🎶, S), применяется ко всем.\n"
         "Подпись и сочетание клавиш остаются у этого пэда.",
     "Empty = this slot's default (%s)":
         "Пусто = значение по умолчанию для этого слота (%s)",
@@ -5253,8 +5318,22 @@ CATALOG = {
         "поэтому выберите папку с вашей танцевальной музыкой.\n\n"
         "Найдено: %s\n\n"
         "Изменить это можно в любой момент в ⚙ Настройки → 📁 Пути.",
+    "Name the folder for the bundle on “%s”:":
+        "Имя папки для пакета на «%s»:",
+    "Make a folder named after the tournament in “%s”?":
+        "Создать в «%s» папку с названием турнира?",
+    "📁  Create folder":
+        "📁  Создать папку",
+    "Straight into “%s”":
+        "Прямо в «%s»",
     "📦 Venue pack: this desk for another PC…":
         "📦 Пакет площадки: этот пульт для другого ПК…",
+    "⭐ Include wishlists (%d)":
+        "⭐ Включить списки пожеланий (%d)",
+    "Each ⭐ wishlist with titles in it gets its own numbered\n"
+    "folder in the bundle, beside the playlists.":
+        "Каждый ⭐ список пожеланий с треками получает в пакете свою\n"
+        "пронумерованную папку рядом с плейлистами.",
     "One file with the settings, every deck and wishlist and the\n"
     "cartwall, the music they use if you want: the same as\n"
     "⚙ Settings → 📦 Venue pack → Export venue pack….":

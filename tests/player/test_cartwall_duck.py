@@ -128,18 +128,35 @@ class OutputLevelTest(unittest.TestCase):
         self.m.gain, self.m.fade, self.m.duck, self.m.desk = 0.5, 0.5, 0.5, 0.5
         self.assertAlmostEqual(self.m.deck(), 0.8 * 0.0625)
 
-    def test_the_pads_follow_the_fader_and_the_desk_duck(self):
+    def test_the_pads_follow_their_own_fader_and_the_desk_duck(self):
+        self.m.set_cart(0.6)
         self.m.desk = 0.2
-        self.assertAlmostEqual(self.m.cartwall(), 0.8 * 0.2)
+        self.assertAlmostEqual(self.m.cartwall(), 0.6 * 0.2)
+
+    def test_the_music_fader_leaves_the_pads_alone(self):
+        """Two channel strips: fader 1 is the music, fader 2 the wall."""
+        self.m.set_cart(0.7)
+        self.m.set_base(0.1)
+        self.assertAlmostEqual(self.m.cartwall(), 0.7)
+
+    def test_the_cart_fader_starts_where_it_is_given(self):
+        self.assertAlmostEqual(OutputMix(0.8, 0.5).cartwall(), 0.5)
+        self.assertAlmostEqual(OutputMix(0.8).cartwall(), 1.0)
+
+    def test_the_cart_fader_is_clamped_where_it_is_set(self):
+        self.m.set_cart(1.4)
+        self.assertEqual(self.m.cart, 1.0)
+        self.m.set_cart(-0.3)
+        self.assertEqual(self.m.cart, 0.0)
 
     def test_the_pads_ignore_the_duck_they_cause(self):
         """A pad ducking the music must not duck itself — that was the point."""
         self.m.duck = _ANNOUNCE_DUCK
-        self.assertAlmostEqual(self.m.cartwall(), 0.8)
+        self.assertAlmostEqual(self.m.cartwall(), 1.0)
 
     def test_the_pads_ignore_the_running_title_s_own_level(self):
         self.m.gain, self.m.fade = 0.3, 0.4
-        self.assertAlmostEqual(self.m.cartwall(), 0.8)
+        self.assertAlmostEqual(self.m.cartwall(), 1.0)
 
     def test_the_filler_carries_the_announcement_duck(self):
         """The announcer speaks over the filler — that is what the break is for."""

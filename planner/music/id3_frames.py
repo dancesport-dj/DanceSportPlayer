@@ -46,6 +46,7 @@ from planner.music.parsing import (
     _INSTR_WORDS,
     _WMP_POPM_EMAIL,
     _ab_classes,
+    _comment_parts,
     _get_comment_tag,
     is_marker_noise,
     stars_popm,
@@ -281,6 +282,14 @@ def _new_frame(frame_id: str, desc: str, value: str, version: int):
     return Frames[frame_id](encoding=Encoding.UTF8, text=[value])
 
 
+def added_key(frame_id: str, desc: str = "") -> str:
+    """The key a frame added through write_fields' `adds` gets: a custom text
+    or comment by its description, any other frame by its id."""
+    if frame_id in ("TXXX", "COMM"):
+        return _new_frame(frame_id, desc, "", 4).HashKey
+    return frame_id
+
+
 def write_fields(path, sets=None, deletes=(), adds=()) -> bool:
     """Write `sets` ({key: new value}), drop `deletes` (keys) and add `adds`
     ((frame id, description, value) each) into the MP3 at `path`.
@@ -354,8 +363,8 @@ def _app_comment(tags: ID3, path: Path, changes: dict) -> str:
     target = _comment_target(tags)
     for text in (_get_comment_tag(path, tags),
                  str(target.text[0]) if target is not None and target.text else ""):
-        for part in (p.strip() for p in (text or "").split(";")):
-            if part and part not in parts:
+        for part in _comment_parts(text or ""):
+            if part not in parts:
                 parts.append(part)
     kept = [p for p in parts if _comment_part_kind(p) not in changes]
     front = [c for c in _CLASS_ORDER if c in changes.get("classes_ok", ())]

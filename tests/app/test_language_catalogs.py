@@ -5,7 +5,8 @@ Run:  py -m unittest tests.app.test_language_catalogs -v
 
 The German catalog is the complete one — test_i18n_catalog_keys checks every
 literal key against it — so the others are measured against it: a key it does
-not have is stale, and a catalog that covers too little of it would leave a
+not have is stale, unless it is named in SAME_IN_GERMAN (German leaves it out
+because it reads the same, another language may still translate it), and a catalog that covers too little of it would leave a
 screen half English. The shape checks are the ones test_i18n makes for German:
 `&&`, `%s`, `%d` and `{}` survive, nothing is blank, nothing translates to
 itself (a key that reads the same is left out and falls back on its own).
@@ -16,6 +17,7 @@ import unittest
 
 from planner import i18n
 from planner.i18n.lang_de import CATALOG as GERMAN
+from tests.app.test_i18n_catalog_keys import SAME_IN_GERMAN
 
 # How much of the German catalog another language must cover. Short of 1.0
 # because a word that reads the same in that language is left out on purpose.
@@ -33,7 +35,7 @@ class LanguageCatalogTest(unittest.TestCase):
     def test_no_catalog_carries_a_key_the_app_no_longer_has(self):
         for code, catalog in _catalogs():
             with self.subTest(lang=code):
-                stale = [k for k in catalog if k not in GERMAN]
+                stale = [k for k in catalog if k not in GERMAN and k not in SAME_IN_GERMAN]
                 self.assertEqual(stale, [], f"{len(stale)} stale keys in lang_{code}")
 
     def test_each_catalog_covers_the_app(self):

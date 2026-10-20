@@ -323,7 +323,7 @@ class VoiceFadeTest(_VoiceCase):
                 break
             self.v._step_fades()
             levels.append(voice.out.volume())
-        self.assertGreater(len(levels), 4, "0.4 s at 25 ms is many steps")
+        self.assertGreater(len(levels), 4, "1 s at 25 ms is many steps")
         self.assertTrue(all(b <= a for a, b in zip(levels, levels[1:], strict=False)),
                         "the level must only ever go down")
         self.assertIsNone(voice.key)
@@ -413,6 +413,156 @@ class VoiceLevelTest(_VoiceCase):
         self.v.stop((0, 0, 0))
         self._drain_fades()
         self.assertEqual(seen, [True], "the first pad ending must not lift it")
+
+
+class BackgroundPadTest(_VoiceCase):
+    """🎶 A background pad dips under the running title instead of pulling the
+    title down — the reverse of the 🔈 duck."""
+
+    def _drain_background(self, steps=200):
+        levels = []
+        for _ in range(steps):
+            if not self.v._bg_ramp.isActive():
+                return levels
+            self.v._step_background()
+            levels.append(self._voice((0, 0, 0)).out.volume())
+        self.fail("the background ramp never settled")
+
+    def test_it_dips_while_the_music_plays(self):
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True, volume=0.5))
+        self.v.set_music_playing(True)
+        levels = self._drain_background()
+        self.assertGreater(len(levels), 2, "a dip is a ramp, never a jump")
+        self.assertTrue(all(b <= a for a, b in zip(levels, levels[1:], strict=False)))
+        # All the way down: under a title the bed is silent, not quieter.
+        self.assertAlmostEqual(self._voice((0, 0, 0)).out.volume(), 0.0)
+
+    def test_an_ordinary_pad_is_left_alone(self):
+        self.v.fire((0, 0, 0), _pad("tusch.mp3", volume=0.5))
+        self.v.set_music_playing(True)
+        self._drain_background()
+        self.assertAlmostEqual(self._voice((0, 0, 0)).out.volume(), 0.5)
+
+    def test_fired_under_a_running_title_it_starts_low(self):
+        self.v.set_music_playing(True)
+        while self.v._bg_ramp.isActive():
+            self.v._step_background()
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True))
+        self.assertAlmostEqual(self._voice((0, 0, 0)).out.volume(), 0.0)
+
+    def test_it_comes_back_only_after_a_hold(self):
+        """The deck stops for a moment at every title switch; the bed must not
+        swell up in that gap."""
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True))
+        self.v.set_music_playing(True)
+        self._drain_background()
+        self.v.set_music_playing(False)
+        self.assertTrue(self.v._bg_hold.isActive())
+        self.assertFalse(self.v._bg_ramp.isActive(), "nothing moves during the hold")
+        self.v.set_music_playing(True)          # the next title is already on
+        self.assertFalse(self.v._bg_hold.isActive())
+        self.v.set_music_playing(False)
+        self.v._lift_background()               # the hold ran out
+        levels = self._drain_background()
+        self.assertTrue(all(b >= a for a, b in zip(levels, levels[1:], strict=False)))
+        self.assertAlmostEqual(self._voice((0, 0, 0)).out.volume(), 1.0)
+
+    def test_it_fades_in_soon_after_the_music_stops(self):
+        """'lags the restart after a music finished playing. i want a fadein
+        after music stop playing': a short hold, then a fade of seconds."""
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True))
+        self.v.set_music_playing(True)
+        self._drain_background()
+        self.v.set_music_playing(False)
+        self.assertLessEqual(self.v._bg_hold.interval(), 400)
+        self.v._lift_background()
+        fade_ms = len(self._drain_background()) * self.v._bg_ramp.interval()
+        self.assertGreaterEqual(fade_ms, 1500)
+
+    def test_coming_back_is_slower_than_going_down(self):
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True))
+        self.v.set_music_playing(True)
+        down = len(self._drain_background())
+        self.v.set_music_playing(False)
+        self.v._lift_background()
+        up = len(self._drain_background())
+        self.assertGreater(up, down)
+
+    def test_it_never_pulls_the_music_down(self):
+        seen = []
+        self.v.duckChanged.connect(seen.append)
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True, duck=True))
+        self.assertEqual(seen, [])
+
+    def test_mute_still_wins(self):
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True))
+        self.v.set_muted(True)
+        self.v.set_music_playing(True)
+        self._drain_background()
+        self.assertEqual(self._voice((0, 0, 0)).out.volume(), 0.0)
+
+
+class StopsOthersPadTest(_VoiceCase):
+    """Marcel: "for a pad add an option that it stops other running pads"."""
+
+    def test_it_fades_the_other_pads_out(self):
+        self.v.fire((0, 0, 0), _pad("bed.mp3", loop=True))
+        self.v.fire((0, 0, 1), _pad("applause.mp3"))
+        self.v.fire((0, 1, 0), _pad("anthem.mp3", stops_others=True))
+        self.assertTrue(self.v.is_playing((0, 1, 0)))
+        self.assertFalse(self.v.is_playing((0, 0, 0)))
+        self.assertFalse(self.v.is_playing((0, 0, 1)))
+        self._drain_fades()
+        self.assertEqual([x.key for x in self._live()], [(0, 1, 0)])
+
+    def test_an_ordinary_pad_leaves_the_others_running(self):
+        self.v.fire((0, 0, 0), _pad("bed.mp3", loop=True))
+        self.v.fire((0, 1, 0), _pad("tusch.mp3"))
+        self._drain_fades()
+        self.assertEqual(len(self._live()), 2)
+
+    def test_a_pad_waiting_for_a_voice_does_not_start_after_it(self):
+        for i in range(4):
+            self.v.fire((0, 0, i), _pad(f"s{i}.mp3"))
+        self.v.fire((0, 1, 0), _pad("late.mp3"))       # steals, waits on the ramp
+        self.v.fire((0, 2, 0), _pad("anthem.mp3", stops_others=True))
+        self._drain_fades()
+        self.assertEqual([x.key for x in self._live()], [(0, 2, 0)])
+
+
+class BackgroundFollowsTheDeckTest(unittest.TestCase):
+    """The window tells the pool when the deck plays — and the wire moves with
+    the deck when a crossfade swaps the players."""
+
+    def test_the_deck_state_reaches_the_pool(self):
+        from types import SimpleNamespace
+        from PySide6.QtMultimedia import QMediaPlayer
+        from player.window.main_cartwall import CartwallMixin
+        seen = []
+        host = SimpleNamespace(
+            _cart_voices=SimpleNamespace(set_music_playing=seen.append))
+        CartwallMixin._cart_follow_deck(host, QMediaPlayer.PlaybackState.PlayingState)
+        CartwallMixin._cart_follow_deck(host, QMediaPlayer.PlaybackState.PausedState)
+        CartwallMixin._cart_follow_deck(host, QMediaPlayer.PlaybackState.StoppedState)
+        self.assertEqual(seen, [True, False, False])
+
+    def test_no_pool_no_harm(self):
+        from types import SimpleNamespace
+        from PySide6.QtMultimedia import QMediaPlayer
+        from player.window.main_cartwall import CartwallMixin
+        CartwallMixin._cart_follow_deck(SimpleNamespace(_cart_voices=None),
+                                        QMediaPlayer.PlaybackState.PlayingState)
+
+    def test_it_is_one_of_the_deck_slots(self):
+        from types import SimpleNamespace
+        from player.window.main_xfade import CrossfadeMixin
+        follow = object()
+        host = SimpleNamespace(
+            _on_media_status=None, _on_player_error=None,
+            _audio_device=SimpleNamespace(on_playback_state=None),
+            _on_playback_state=None, _taskbar=None, _cart_follow_deck=follow)
+        self.assertIn(("playbackStateChanged", follow),
+                      CrossfadeMixin._deck_slots(host))
 
 
 class VoiceLifecycleTest(_VoiceCase):

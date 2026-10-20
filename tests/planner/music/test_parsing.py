@@ -93,6 +93,21 @@ class DetectDanceTest(unittest.TestCase):
         # Fallback: code fused to BPM digits, e.g. (RB24)
         self.assertEqual(_detect_dance("Besame Mucho (RB24)"), 'RB')
 
+    def test_code_glued_to_bpm_before_an_underscore(self):
+        # UltraMixer / Casa Musica names: 'SW29_Children_DJ Maksy'
+        self.assertEqual(_detect_dance("LW29_Children"), 'LW')
+        self.assertEqual(_detect_dance("CC31_Some Title"), 'CC')
+
+    def test_sw_is_the_slow_waltz(self):
+        # SW = Slow Waltz, the Casa Musica / DJ ICE / Prandi code
+        self.assertEqual(_detect_dance("SW29_Children_DJ Maksy"), 'LW')
+        self.assertEqual(_detect_dance("01 - Easy (Sw28)"), 'LW')
+        self.assertEqual(_detect_dance("02 - Like A Song - sw29"), 'LW')
+
+    def test_a_bare_sw_word_is_no_dance(self):
+        # Only glued to a tempo: 'SW' alone is too short a word to trust
+        self.assertIsNone(_detect_dance("SW Radio Mix"))
+
     def test_alias_normalisation(self):
         # TA is an alias for Tango
         self.assertEqual(_detect_dance("TA 33 El Choclo"), 'TG')
@@ -488,6 +503,23 @@ class CommentMarkerTest(unittest.TestCase):
         classes, instr = _parse_class_tag("B;A;S;vocal_f;instr")
         self.assertEqual(classes, ["B", "A", "S"])
         self.assertTrue(instr)
+
+    def test_an_ultramixer_instr_comment_is_instrumental(self):
+        """UltraMixer comments read 'Instr', 'Instr AS', 'instr. AS': the
+        instr word leads, a word after it stays a marker of its own."""
+        for comment in ("Instr AS", "instr. AS"):
+            self.assertEqual(_parse_class_tag(comment), (None, True))
+            self.assertEqual(parse_comment_markers(comment), ["as"])
+        self.assertEqual(_parse_class_tag("instr."), (None, True))
+        self.assertEqual(parse_comment_markers("instr."), [])
+
+    def test_a_vocal_comment_is_left_whole(self):
+        self.assertEqual(_parse_class_tag("vocal AS"), (None, False))
+        self.assertEqual(parse_comment_markers("vocal AS"), ["vocal as"])
+
+    def test_a_word_only_starting_like_instr_is_no_instr(self):
+        self.assertEqual(_parse_class_tag("instructions"), (None, False))
+        self.assertEqual(parse_comment_markers("instructions"), ["instructions"])
 
     def test_multi_word_markers_survive_whole(self):
         self.assertEqual(

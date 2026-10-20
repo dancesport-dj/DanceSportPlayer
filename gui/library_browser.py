@@ -21,6 +21,7 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import (
     QDrag,
+    QStandardItemModel,
 )
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -34,6 +35,10 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMenu,
     QProgressBar,
+    QStyle,
+    QStyleOptionComboBox,
+    QStylePainter,
+    QStyledItemDelegate,
     QTableWidget,
     QTableWidgetItem,
     QToolButton,
@@ -43,7 +48,7 @@ from PySide6.QtWidgets import (
 )
 from pathlib import Path
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 from planner.models import DANCE_NAMES, TEMPO_RANGES, MusicEntry
 from planner.terms import dance_name, genre_name
 from planner import i18n
@@ -88,6 +93,7 @@ _LIB_COL_LEN = 5
 _LIB_COL_RATING = 10   # ★ came last: the sections are movable, a saved order is by index
 _LIB_COL_CUSTOM = 11   # …and Custom after it
 _LIB_COL_FILE = 12     # …and the cleaned-up file name after that
+_LIB_COL_ALBUM = 13    # …and the ID3 album tag last
 
 # 📚 A fill writes this many rows at once (a filtered list is all there before
 # the call returns), then the rest in chunks between turns of the event loop,
@@ -206,6 +212,110 @@ class _HdrButton(QToolButton):
 
     def minimumSizeHint(self):
         return self.sizeHint()
+
+
+class _ClassFilterCombo(QComboBox):
+    """The class filter, several classes at once: a click on a class ticks
+    it and leaves the list open for the next, "All classes" clears the ticks.
+
+    The current index stays on "All classes"; the box paints `summary()`
+    instead. Wheel and arrow keys still step through the classes one by
+    one, each step picking just that class, as the plain combo did."""
+
+    classesChanged = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.addItem("All classes", "")
+        for cls in ("D", "C", "B", "A", "S"):
+            self.addItem(i18n.t("Class %s") % cls, cls)
+            self._item(self.count() - 1).setCheckState(Qt.CheckState.Unchecked)
+        # The combo's menu delegate draws a tick as a ~20 px menu check box;
+        # an item-view one draws the style's own, as tall as the text. The rows
+        # keep the menu's height, or they shrink to the text and are fiddly.
+        self.setItemDelegate(QStyledItemDelegate(self))
+        row_h = self.fontMetrics().height() + 8
+        for i in range(self.count()):
+            self._item(i).setSizeHint(QSize(0, row_h))
+        self._pressed_in_list = False
+        self.view().viewport().installEventFilter(self)
+        self.currentIndexChanged.connect(self._on_index_changed)
+
+    def _item(self, i: int):
+        """Row i of the combo's own model, a QStandardItemModel: its items
+        carry the ticks."""
+        return cast(QStandardItemModel, self.model()).item(i)
+
+    def classes(self) -> list[str]:
+        """The ticked classes, D to S."""
+        return [self.itemData(i) for i in range(1, self.count())
+                if self._item(i).checkState() == Qt.CheckState.Checked]
+
+    def set_classes(self, classes):
+        if all(self.itemData(i) in classes for i in range(1, self.count())):
+            classes = ()    # every class ticked is "All classes"
+        for i in range(1, self.count()):
+            self._item(i).setCheckState(
+                Qt.CheckState.Checked if self.itemData(i) in classes
+                else Qt.CheckState.Unchecked)
+        self.update()
+        self.classesChanged.emit()
+
+    def summary(self) -> str:
+        picked = self.classes()
+        return i18n.t("Class %s") % " + ".join(picked) if picked else self.itemText(0)
+
+    def showPopup(self):
+        self._pressed_in_list = False
+        super().showPopup()
+
+    def eventFilter(self, obj, ev):
+        # Runs before the popup's own filter, which would close the list.
+        if ev.type() == QEvent.Type.MouseButtonPress:
+            self._pressed_in_list = True
+        elif ev.type() == QEvent.Type.MouseButtonRelease:
+            row = self.view().indexAt(ev.position().toPoint()).row()
+            # Fusion lays the list over the box, "All classes" under the
+            # mouse: the release of the click that opened it lands there.
+            if row == 0 and not self._pressed_in_list:
+                return True
+            if row > 0:
+                cls = self.itemData(row)
+                picked = self.classes()
+                if cls in picked:
+                    self.set_classes([c for c in picked if c != cls])
+                    return True
+                self.set_classes(picked + [cls])
+                if not self.classes():
+                    # The last class ticked them all, which is All classes: the
+                    # list shuts rather than flicker its ticks away under the mouse.
+                    self.hidePopup()
+                return True
+            if row == 0:
+                self.hidePopup()
+                self.set_classes(())
+                return True
+        return super().eventFilter(obj, ev)
+
+    def _on_index_changed(self, index):
+        if index > 0:
+            cls = self.itemData(index)
+            self.blockSignals(True)
+            self.setCurrentIndex(0)
+            self.blockSignals(False)
+            self.set_classes([cls])
+
+    def paintEvent(self, _ev):
+        p = QStylePainter(self)
+        opt = QStyleOptionComboBox()
+        self.initStyleOption(opt)
+        opt.currentText = self.fontMetrics().elidedText(
+            self.summary(), Qt.TextElideMode.ElideRight,
+            self.style().subControlRect(QStyle.ComplexControl.CC_ComboBox, opt,
+                                        QStyle.SubControl.SC_ComboBoxEditField,
+                                        self).width())
+        p.drawComplexControl(QStyle.ComplexControl.CC_ComboBox, opt)
+        p.drawControl(QStyle.ControlElement.CE_ComboBoxLabel, opt)
 
 
 class _LibTable(QTableWidget):
@@ -349,6 +459,7 @@ class LibraryBrowser(QWidget):
     danceNamesChanged = Signal(bool)      # Dance column written short? — persisted
     unplannedToggled = Signal(bool)       # 🆕 filter on? — MainWindow feeds it the planned set
     wholeLibraryWanted = Signal()         # 🌐 clicked — MainWindow loads the global index
+    wholeLibraryDropped = Signal()        # ⭐ clicked while 🌐 still loads — stop waiting
     wholeRescanWanted = Signal()          # 🔄 clicked — MainWindow walks the repository again
 
     # Dance codes per style (S-class = the full dance set), for the combo's group filters.
@@ -357,7 +468,7 @@ class LibraryBrowser(QWidget):
     # Narrow columns keep their width while Artist/Title share the rest — the
     # 🏆 pane's default has no Added/Last, so this list carries them.
     _FIXED_COL_W = {0: 30, 1: 90, 4: 52, 5: 52, 6: 52, 7: 70, 8: 82, 9: 52, 10: 72,
-                    11: 90, 12: 220}
+                    11: 90, 12: 220, 13: 180}
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -369,6 +480,7 @@ class LibraryBrowser(QWidget):
         self._shown: list[MusicEntry] = []          # …and in their order
         self._fill_gen = 0   # bumped per fill: a step of an older fill stops
         self._whole_shown = False
+        self._whole_loading = False   # ⏳ on the button: 🌐 asked for, not there yet
         self._folded = False
         # Paths of tracks already used in the open playlist decks; fed by
         # MainWindow so the 🆕 "Unplanned" filter can hide them.
@@ -408,7 +520,7 @@ class LibraryBrowser(QWidget):
         self._filter_edit.textChanged.connect(
             lambda _: self._filter_timer.start())
         self._dance_combo.currentIndexChanged.connect(lambda _: self._refilter())
-        self._class_combo.currentIndexChanged.connect(lambda _: self._refilter())
+        self._class_combo.classesChanged.connect(self._refilter)
         self._vocal_combo.currentIndexChanged.connect(lambda _: self._refilter())
         self._cat_combo.currentIndexChanged.connect(lambda _: self._refilter())
         self._plays_combo.currentIndexChanged.connect(lambda _: self._refilter())
@@ -487,13 +599,10 @@ class LibraryBrowser(QWidget):
         for code in DANCE_NAMES:
             self._dance_combo.addItem(dance_name(code, code), code)
         flt.addWidget(cap_filter_combo(self._dance_combo))
-        self._class_combo = QComboBox()
-        self._class_combo.addItem("All classes", "")
-        for cls in ("D", "C", "B", "A", "S"):
-            self._class_combo.addItem(i18n.t("Class %s") % cls, cls)
+        self._class_combo = _ClassFilterCombo()
         self._class_combo.setToolTip(
-            "Only tracks suited for this starting class\n"
-            "(tracks without a class tag are always shown)")
+            "Only tracks suited for one of the ticked starting classes\n"
+            "(tick several; tracks without a class tag show only with all classes)")
         flt.addWidget(cap_filter_combo(self._class_combo))
         self._vocal_combo = QComboBox()
         self._vocal_combo.addItem("Vocal + instr.", "")
@@ -563,10 +672,10 @@ class LibraryBrowser(QWidget):
 
     def _build_table(self):
         """The track table: its columns, header menu, widths and clicks."""
-        self._table = _LibTable(0, 13)
+        self._table = _LibTable(0, 14)
         self._table.setHorizontalHeaderLabels(
             ["▶", "Dance", "Artist", "Title", "BPM", "⏱", "Pop", "Class",
-             "Added", "Last", "★", "Custom", "File name"])
+             "Added", "Last", "★", "Custom", "File name", "Album"])
         set_header_tip(self._table, _LIB_COL_CUSTOM, CUSTOM_HEADER_TIP)
         set_header_tip(
             self._table, _LIB_COL_RATING,
@@ -582,7 +691,7 @@ class LibraryBrowser(QWidget):
         hh2.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         hh2.setStretchLastSection(False)
         hh2.setMinimumSectionSize(24)
-        for c, w in enumerate((30, 90, 200, 280, 52, 52, 52, 70, 82, 52, 72, 90, 220)):
+        for c, w in enumerate((30, 90, 200, 280, 52, 52, 52, 70, 82, 52, 72, 90, 220, 180)):
             self._table.setColumnWidth(c, w)
         # Until the user drags a handle (or saved widths are restored), the
         # columns stretch to fill the whole pane on every resize.
@@ -590,7 +699,8 @@ class LibraryBrowser(QWidget):
         self._filling = False
         self._col_width: dict[int, int] = {}   # width a column had when it was hidden
         self._short_dances = False             # Dance column: "LW", not "Langsamer Walzer"
-        self.set_hidden_columns([_LIB_COL_RATING, _LIB_COL_CUSTOM, _LIB_COL_FILE])   # wait until asked for
+        self.set_hidden_columns([_LIB_COL_RATING, _LIB_COL_CUSTOM, _LIB_COL_FILE,
+                                _LIB_COL_ALBUM])   # wait until asked for
         self._table.resize_cb = self._on_table_resized
         # Right-click the header to tick columns away or shorten the dance names.
         hh2.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -859,6 +969,7 @@ class LibraryBrowser(QWidget):
         """🌐 clicked while the whole library still loads in the background:
         the button and a cover over the table say so until it is there (or
         the load failed)."""
+        self._whole_loading = on
         if not on:
             self._sync_source_btn()
             self._overlay.finish(covering=True)
@@ -871,7 +982,12 @@ class LibraryBrowser(QWidget):
         self._overlay.show_loading(i18n.t("🌐 Loading the whole library…"))
 
     def _on_source_clicked(self):
-        if self._whole_shown:
+        if self._whole_loading:
+            # Back to the favorites while 🌐 still loads: asking again was
+            # the only thing a click did, and the cover never went.
+            self.show_whole_loading(False)
+            self.wholeLibraryDropped.emit()
+        elif self._whole_shown:
             self._whole_shown = False
             self._entries = self._favorites
             self._sync_source_btn()
@@ -921,7 +1037,10 @@ class LibraryBrowser(QWidget):
         Every other filter is reset, so what lands on screen is exactly what was
         asked for — a leftover category or 🎙️ vocal filter silently eating half
         the result would be read as 'the library has nothing'."""
-        combos = ((self._dance_combo, dance), (self._class_combo, cls),
+        self._class_combo.blockSignals(True)
+        self._class_combo.set_classes([cls] if cls else [])
+        self._class_combo.blockSignals(False)
+        combos = ((self._dance_combo, dance),
                   (self._plays_combo, plays), (self._added_combo, added),
                   (self._vocal_combo, ""), (self._cat_combo, ""))
         for combo, value in combos:
@@ -943,8 +1062,9 @@ class LibraryBrowser(QWidget):
     def _refilter(self):
         text = self._filter_edit.text().strip().lower()
         dance = self._dance_combo.currentData() or ""
-        cls = self._class_combo.currentData() or ""
-        vocal = self._vocal_combo.currentData() or ""
+        classes = set(self._class_combo.classes())
+        some_classes = 0 < len(classes) < self._class_combo.count() - 1
+        vocal =self._vocal_combo.currentData() or ""
         cat = self._cat_combo.currentData() or ""
         plays = self._plays_combo.currentData() or ""
         added = self._added_combo.currentData() or ""
@@ -986,9 +1106,11 @@ class LibraryBrowser(QWidget):
                 if (e.other_genre or "") != DANCE_NAMES.get(dance, dance):
                     continue
             classes_ok = getattr(e, "classes_ok", None)
-            if cls and classes_ok and cls not in classes_ok:
+            if classes and classes_ok and classes.isdisjoint(classes_ok):
                 continue
-            if class_only and not classes_ok and e.dance in TEMPO_RANGES:
+            # Untagged competition titles show only under all classes.
+            if ((class_only or some_classes) and not classes_ok
+                    and e.dance in TEMPO_RANGES):
                 continue   # social dances have no classes — they stay
             if vocal:
                 # Tag/filename marker first, then the learned audio probability
@@ -1057,6 +1179,7 @@ class LibraryBrowser(QWidget):
             _LIB_COL_RATING: lambda e: int(getattr(e, "rating", 0) or 0),
             _LIB_COL_CUSTOM: lambda e: e.custom or "",
             _LIB_COL_FILE: lambda e: e.title or "",
+            _LIB_COL_ALBUM: lambda e: getattr(e, "tag_album", None) or "",
         }[col]
 
     def _fill_step(self, gen: int, entries: list[MusicEntry], start: int, now: float, keep):
@@ -1098,11 +1221,11 @@ class LibraryBrowser(QWidget):
             gc.enable()
         if end > start:
             model.dataChanged.emit(model.index(start, 0),
-                                   model.index(end - 1, _LIB_COL_FILE))
+                                   model.index(end - 1, _LIB_COL_ALBUM))
         if selected:
             sel = QItemSelection()
             for r in selected:
-                sel.select(model.index(r, 0), model.index(r, _LIB_COL_FILE))
+                sel.select(model.index(r, 0), model.index(r, _LIB_COL_ALBUM))
             t.selectionModel().select(sel, QItemSelectionModel.SelectionFlag.Select)
         if end < len(entries):
             if time.perf_counter() - self._fill_started >= _PROGRESS_AFTER:
@@ -1156,6 +1279,7 @@ class LibraryBrowser(QWidget):
                  None if last else _C_NEW_FG)
             self._put_tag_cells(r, e)
             cell(r, _LIB_COL_FILE, e.title or "")
+            cell(r, _LIB_COL_ALBUM, getattr(e, "tag_album", None) or "")
 
     def cell_tooltip(self, row: int, col: int) -> str:
         """The hover text of one cell, built when the mouse rests on it ('' =

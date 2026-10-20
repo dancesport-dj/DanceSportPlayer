@@ -17,12 +17,14 @@ empty. Only what is actually changed reaches the tracks — ticking B on three
 tracks with different class tags adds B to each and leaves their other
 classes alone; a typed album goes into all of them.
 
-The second tab, "Extended tags", lists every ID3 frame of ONE track —
-UltraMixer's TXXX frames, MediaMonkey's comments, WMP's rating. The frames the
-form shows, and the one Custom is mapped to, are read-only there; the rest is
-edited there and written along.
+The second tab, "Extended tags", lists every ID3 frame of the selected MP3s —
+UltraMixer's TXXX frames, MediaMonkey's comments, WMP's rating — a value they
+differ in as "< keep >", like the form. The frames the form shows, and the one
+Custom is mapped to, are read-only there; the rest is edited there and written
+along, into each file on its own terms.
 """
 import re
+from dataclasses import replace
 from pathlib import Path
 
 from mutagen import MutagenError
@@ -417,25 +419,34 @@ class TagEditDialog(QDialog):
         self._raw_ok = False
         self._raw_form: dict[str, str] = {}
         self._raw_custom: str | None = None   # key of the frame Custom is mapped to
+        # path → ({key: field}, tag version) of every selected MP3 on disk
+        self._raw_files: dict[str, tuple[dict, int]] = {}
         reason = None
-        path = Path(self._entries[0].path)
-        if len(self._entries) != 1:
-            reason = i18n.t("Only for one track at a time")
-        elif path.suffix.lower() != ".mp3" or not path.is_file():
-            reason = i18n.t("Only for an MP3 file on disk")
+        mp3s = [Path(e.path) for e in self._entries
+                if Path(e.path).suffix.lower() == ".mp3" and Path(e.path).is_file()]
+        if not mp3s:
+            reason = (i18n.t("Only for an MP3 file on disk") if len(self._entries) == 1
+                      else i18n.t("Only for MP3 files on disk"))
         else:
             try:
-                fields = id3_frames.read_fields(path)
-                self._raw_version = id3_frames.tag_version(path)
+                for path in mp3s:
+                    self._raw_files[str(path)] = (
+                        {f.key: f for f in id3_frames.read_fields(path)},
+                        id3_frames.tag_version(path))
             except (OSError, ValueError, MutagenError) as exc:
                 reason = i18n.t("Couldn't read the MP3 tags: %s") % exc
         if reason:
+            self._raw_files = {}
             self._tabs.setTabEnabled(idx, False)
             self._tabs.setTabToolTip(idx, reason)
             return
         self._raw_ok = True
+        # A field ➕ adds has to suit every file's tag version.
+        self._raw_version = min(v for _f, v in self._raw_files.values())
+        fields = self._raw_merged()
         # The form's fields: shown here as the form has them, changed there.
-        self._raw_form = {f.key: field for field, f in self._form_read[0].items() if f}
+        self._raw_form = {f.key: field for form in self._form_read
+                          for field, f in form.items() if f}
         if self._custom_source:
             frame_id, desc = self._custom_source
             self._raw_custom = next(
@@ -446,6 +457,18 @@ class TagEditDialog(QDialog):
         for key, field in self._raw_form.items():
             self._form[field].editTextChanged.connect(
                 lambda text, key=key: self._raw_mirror(key, text))
+
+    def _raw_merged(self) -> list:
+        """One row per frame any of the files has, sorted by key: the value
+        they share, or "< keep >" where they differ or some lack the frame."""
+        files = [fields for fields, _v in self._raw_files.values()]
+        out = []
+        for key in sorted({k for fields in files for k in fields}):
+            have = [fields[key] for fields in files if key in fields]
+            shared = len(have) == len(files) and len({f.value for f in have}) == 1
+            out.append(replace(have[0], value=have[0].value if shared else self._keep,
+                               editable=all(f.editable for f in have)))
+        return out
 
     def _raw_fill(self, f):
         r = self._raw.rowCount()
@@ -550,11 +573,11 @@ class TagEditDialog(QDialog):
             k = self._raw_item(row, _RAW_FRAME).data(_KEY_ROLE)
             if k in (old, key) and k is not None:
                 self._raw_lock(self._raw_item(row, _RAW_VALUE), k)
-        # An untouched Custom field shows what the file says, unless a value
-        # typed in the app before still wins.
-        entry = self._entries[0]
+        # An untouched Custom field shows what the files say, unless a value
+        # typed in the app before still wins, or the files differ.
         if (self._custom.text() == self._custom_start
-                and "custom" not in (entry.tag_edits or {})):
+                and self._raw_start[key] != self._keep
+                and not any("custom" in (e.tag_edits or {}) for e in self._entries)):
             self._custom.setText(self._raw_start[key])
             self._custom_start = self._custom.text()
         self._custom_tip()
@@ -609,13 +632,19 @@ class TagEditDialog(QDialog):
                 self._raw_deleted.append(key)
             self._raw.removeRow(r)
 
-    def raw_edits(self) -> dict | None:
-        """What the "Extended tags" tab writes into the file — {"sets": {key:
-        value}, "deletes": [key], "adds": [(frame id, description, value)]} —
-        or None when nothing there was changed. A new row without a value is
-        left out: an empty frame is never written."""
+    def raw_edits(self, entry=None) -> dict | None:
+        """What the "Extended tags" tab writes into `entry`'s file (the one
+        track by default) — {"sets": {key: value}, "deletes": [key], "adds":
+        [(frame id, description, value)]} — or None when nothing changes
+        there. A value typed for the selection is set where the file has the
+        frame and added where it hasn't; a removed frame goes where it is. A
+        new row without a value is left out: an empty frame is never written."""
         if not self._raw_ok:
             return None
+        found = self._raw_files.get(str((entry or self._entries[0]).path))
+        if found is None:
+            return None
+        fields, version = found
         sets, adds = {}, []
         for r in range(self._raw.rowCount()):
             key = self._raw_item(r, _RAW_FRAME).data(_KEY_ROLE)
@@ -627,13 +656,29 @@ class TagEditDialog(QDialog):
                 fid = combo.currentData()
                 desc = self._raw_item(r, _RAW_DESC).text() if fid in _WITH_DESC else ""
                 if value:
-                    adds.append((fid, desc, value))
+                    self._raw_put(fields, version, id3_frames.added_key(fid, desc),
+                                  (fid, desc, value), sets, adds)
             elif (key not in self._raw_form and key != self._raw_custom
                   and value != self._raw_start[key]):
-                sets[key] = value
-        if not (sets or self._raw_deleted or adds):
+                fid = self._raw_item(r, _RAW_FRAME).data(_FRAME_ROLE)
+                desc = self._raw_item(r, _RAW_DESC).text() if fid in _WITH_DESC else ""
+                self._raw_put(fields, version, key, (fid, desc, value), sets, adds)
+        deletes = [k for k in self._raw_deleted if k in fields]
+        if not (sets or deletes or adds):
             return None
-        return {"sets": sets, "deletes": list(self._raw_deleted), "adds": adds}
+        return {"sets": sets, "deletes": deletes, "adds": adds}
+
+    @staticmethod
+    def _raw_put(fields: dict, version: int, key: str, add: tuple, sets: dict, adds: list):
+        """One typed value into one file: set where it has the frame (unless it
+        holds that already), added where it hasn't and the tag can take it."""
+        fid, _desc, value = add
+        have = fields.get(key)
+        if have is not None:
+            if have.editable and have.value != value:
+                sets[key] = value
+        elif fid in _WITH_DESC or fid in id3_frames.addable_frames(version):
+            adds.append(add)
 
     # ── what the tracks become ──────────────────────────────────────────────
     def toggle_marker(self, marker: str):

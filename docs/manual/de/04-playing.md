@@ -333,9 +333,16 @@ Siegerehrung.
 ![Die Cartwall rechts neben den Decks angedockt](../img/main-cartwall.png)
 
 - Ein **Klick auf ein Pad** feuert es über die laufende Musik. Noch ein Klick
-  blendet es aus.
+  blendet es aus, in 1 s. Rechtsklick auf ein Pad ▸ **⏱ Cartwall-Ausblendzeit…**
+  stellt diese Zeit für die ganze Wand ein; **Eigenes Ausblenden** in den
+  **⚙ Einstellungen…** eines Pads gibt ihm eine eigene.
 - **Strg + 1 … 9** feuern die ersten neun Pads der sichtbaren Seite.
 - **⏹ Alles stoppen** oder **Esc** blendet jedes Pad aus.
+- **🔊** daneben ist die eigene Lautstärke der Cartwall, für alle Pads. Sie
+  ist von der Musiklautstärke getrennt: wird die Musik leiser gezogen,
+  bleiben die Pads, wo sie sind. Die Lautstärke eines Pads (in seinen
+  **⚙ Einstellungen…**) gilt relativ dazu. Die Tasten
+  **Strg + Alt + ↑ / ↓** und ein Controller-Fader stellen sie auch.
 - **✏** entsperrt die Wand zum Bauen. Zieh Audiodateien auf ein Pad, um es zu
   füllen. Eine Mehrfachauswahl füllt die freien Pads danach. Zieh ein Pad auf
   ein anderes, um die beiden zu tauschen. Sperr die Wand vor dem Turnier
@@ -343,7 +350,23 @@ Siegerehrung.
 - Ein **Rechtsklick auf ein Pad** bietet seine 🎨 Farbe oder
   **⚙ Einstellungen…** für Beschriftung, Lautstärke, eigene Taste,
   🔁 endlose Wiederholung und ob es die Musik leiser macht.
-- Die Seitenpfeile schalten die Seiten um. Ein Doppelklick auf den Seitennamen
+- **🎶 Hintergrund** dreht das um: Das Pad selbst verstummt, solange ein
+  Titel läuft, und blendet sich wieder ein, sobald der Titel zu Ende ist. Das passt für eine
+  Hintergrundmusik, die den ganzen Abend läuft. Ein Hintergrund-Pad macht
+  die Musik nie leiser.
+- **S Die anderen Pads stoppen** in den **⚙ Einstellungen…** eines Pads
+  blendet alle anderen laufenden Pads aus, sobald dieses startet. Das passt
+  für eine Hymne oder eine Siegerfanfare, die den Raum braucht.
+- Die Fläche eines Pads zeigt, wie es sich verhält: 🔁 endlose Wiederholung,
+  ↓ macht die Musik leiser, ♫ Hintergrund, 🅂 stoppt die anderen Pads, dazu
+  seine Lautstärke, wenn sie unter 100 % liegt.
+- Mit **✏** wählt ein Klick ein Pad aus, statt es abzufeuern, und
+  **Strg+Klick** oder **Umschalt+Klick** nimmt weitere dazu. Ein Rechtsklick
+  auf ein ausgewähltes Pad wirkt dann auf alle: 🎨 Farbe, 🗑 Pad leeren oder
+  **⚙ Einstellungen…**. Dort geht nur, was du änderst, auf die anderen Pads
+  über, zum Beispiel 🔈 Musik leiser oder 🅂 für sechs Pads auf einmal.
+  Beschriftung und Taste bleiben bei jedem Pad.
+- Die Seitenpfeile, sichtbar ab einer zweiten Seite, schalten die Seiten um, **Strg + Alt + ← / →** ebenso. Ein Doppelklick auf den Seitennamen
   benennt die Seite um. Das Größenfeld legt das Raster fest, zum Beispiel
   2 × 7. Ein kleineres Raster verliert nie ein Pad.
 - **🗂** exportiert oder importiert die Wand oder packt alle Pads auf eine
@@ -516,6 +539,8 @@ ein Makro-Keypad braucht dafür keinen Treiber.
 | 🔉 Musik absenken an / aus | **Strg + Umschalt + D** |
 | 🔈 Nächsten Tanz ansagen an / aus | **Strg + Umschalt + A** |
 | 🔼 / 🔽 Musik lauter / leiser, 5 % pro Schritt | **Strg + Umschalt + ↑ / ↓** |
+| 🔼 / 🔽 Cartwall lauter / leiser, 5 % pro Schritt | **Strg + Alt + ↑ / ↓** |
+| ◀ / ▶ Vorherige / nächste Cartwall-Seite | **Strg + Alt + ← / →** |
 | ⏫ / ⏬ Tempo schneller / langsamer, 0,1 % pro Schritt | **Strg + Umschalt + Bild ↑ / Bild ↓** |
 | 🎯 Tempo zurück auf ±0 % | **Strg + Umschalt + Pos1** |
 | ⏹ Alle Pads stoppen | **Strg + Umschalt + X** |
@@ -563,6 +588,9 @@ Was er auslösen kann:
 - 🔉 Musik absenken an / aus, 🔈 Nächsten Tanz ansagen an / aus;
 - 🔊 Musiklautstärke, über einen Fader oder einen Regler, und 🔼 / 🔽 Musik
   lauter / leiser in 5-%-Schritten, für Tasten;
+- 🎛 Cartwall-Lautstärke, über einen Fader oder einen Regler, und 🔼 / 🔽
+  Cartwall lauter / leiser, dasselbe für die Pads; ◀ / ▶ Vorherige /
+  nächste Cartwall-Seite;
 - 🎚 Tempo / Pitch, über einen Fader oder einen Drehregler: seine Mitte ist
   ±0 %, seine Enden −16 % und +16 %. Für Tasten ⏫ / ⏬ Tempo schneller /
   langsamer in 0,1-%-Schritten und 🎯 Tempo zurück auf ±0 %. Das Tempo
@@ -602,7 +630,7 @@ Im Fenster:
    HID-Geräte zeigen, nicht nur DJ-Controller** an, wenn deiner fehlt.
 2. **Vorlagen ▾** hält ein fertiges Profil für den Korg nanoKONTROL2. Dort
    steuert die Transportreihe den Player, Fader 1 ist die Musiklautstärke,
-   der Drehregler darüber das Tempo, und **S1** setzt das Tempo zurück auf
+   Fader 2 die Cartwall-Lautstärke, der Drehregler über Fader 1 das Tempo, und **S1** setzt das Tempo zurück auf
    ±0 % (die Drehregler lassen sich nicht drücken). **TRACK ▶** fokussiert
    die Bibliothek, **MARKER ◀ / ▶** blättern in der Liste mit dem Fokus
    nach oben und unten, und **S2**, **S3**, **S4** spielen den gewählten
@@ -625,11 +653,12 @@ Im Fenster:
   leer.
 - Anlernen unterscheidet eine Taste von einem Drehregler oder Fader daran,
   wie sie sich bewegen. Eine Tasten-Aktion nimmt nur einen Druck an, ein
-  Drehregler, der dabei gedreht wird, zählt nicht. Lautstärke und Tempo
+  Drehregler, der dabei gedreht wird, zählt nicht. Lautstärken und Tempo
   nehmen nur einen Drehregler oder Fader, nie eine Taste.
 - 🔼 / 🔽 Musik lauter / leiser ohne eigene Taste zeigen in Grau
   **über den Fader — CC 0 · ch 1**: der 🔊 Fader stellt die Lautstärke schon.
-  Die Vorlage für den nanoKONTROL2 lässt sie so.
+  Die Vorlage für den nanoKONTROL2 lässt sie so, und ebenso 🔼 / 🔽 der
+  Cartwall unter ihrem Fader.
 
 Solange der Controller verbunden ist, trägt die Statusleiste ein grünes
 Abzeichen mit seinem Namen, etwa **🎛 nanoKONTROL2**. Ein Klick darauf öffnet

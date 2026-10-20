@@ -2,7 +2,8 @@
 
 A MIDI controller (Korg nanoKONTROL2, a Traktor in MIDI mode, …) or a HID one
 (a Traktor in its native mode) drives the very actions the 📱 phone remote
-does, through the same `_on_remote_command`, plus the music volume. Which
+does, through the same `_on_remote_command`, plus the music and cartwall
+volumes. Which
 knob does what is the profile in the settings (planner.playing.controller); the
 🎛 Controller window picks the device, loads a profile and learns bindings.
 
@@ -35,6 +36,9 @@ else:
 log = logging.getLogger("dancesport.gui.controller")
 
 _RETRY_MS = 3000
+# The desk keys that repeat while held: a level or tempo step is a glide.
+_GLIDING = ("vol_up", "vol_down", "cart_vol_up", "cart_vol_down",
+            "tempo_up", "tempo_down")
 
 
 class _ControllerHub(QObject):
@@ -327,6 +331,14 @@ class ControllerMixin(MainWindowHost):
         elif action in ("vol_up", "vol_down"):
             step = pctl.VOLUME_STEP if action == "vol_up" else -pctl.VOLUME_STEP
             self._set_base_volume(self._mix.base + step)
+        elif action == "cart_volume":
+            self._set_cart_volume(value)
+        elif action in ("cart_vol_up", "cart_vol_down"):
+            step = pctl.VOLUME_STEP if action == "cart_vol_up" else -pctl.VOLUME_STEP
+            self._set_cart_volume(self._mix.cart + step)
+        elif action in ("cart_page_prev", "cart_page_next"):
+            if self._cartwall is not None:
+                self._cartwall.step_page(1 if action == "cart_page_next" else -1)
         elif action.startswith("tempo"):
             player = self._big_player
             if player is None:
@@ -364,7 +376,7 @@ class ControllerMixin(MainWindowHost):
         self._desk_keys = {}
         for action in pctl.KEY_ACTIONS:
             sc = QShortcut(self)
-            sc.setAutoRepeat(action in ("vol_up", "vol_down", "tempo_up", "tempo_down"))
+            sc.setAutoRepeat(action in _GLIDING)
             sc.activated.connect(partial(self._on_desk_key, action))
             self._desk_keys[action] = sc
         self._apply_desk_keys()

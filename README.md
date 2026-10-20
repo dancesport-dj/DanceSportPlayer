@@ -61,8 +61,9 @@ is used at a tournament or a dance evening, in English and
 Ready-to-run builds are on the [Releases](https://github.com/dancesport-dj/DanceSportPlayer/releases/latest) page, one
 download per platform (two for Linux):
 
-- **DanceSport-Player-…-windows.zip**: unzip the folder and start
-  `DanceSport-Player.exe`. ffmpeg is bundled.
+- **DanceSport-Player-…-windows-setup.exe**: installs the app in a folder of
+  your choice, with a Start menu entry. Or **…-windows.zip**: unzip the folder
+  and start `DanceSport-Player.exe`. ffmpeg is bundled in both.
 - **DanceSport-Player-…-macos.dmg**: drag the app onto Applications. Signed ad
   hoc, not notarized. ffmpeg is not bundled there: `brew install ffmpeg`.
 - **DanceSport-Player-…-linux-x86_64.tar.gz** (Intel/AMD PCs) or

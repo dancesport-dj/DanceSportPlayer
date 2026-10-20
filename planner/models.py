@@ -4,6 +4,7 @@ Extracted from dancesport_planner.py (logical split): the static dance/style
 tables, the RoundConfig / MusicEntry dataclasses, the ScanCancelled signal and
 the Playlist type alias. Pure data; safe to import from any planner leaf module.
 """
+import os
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -42,7 +43,7 @@ DANCE_PATTERNS: list[tuple[str, re.Pattern]] = [
 
 # Map ID3 TCON genre tag values → dance codes (case-insensitive lookup)
 GENRE_TO_DANCE: dict[str, str] = {
-    'lw': 'LW', 'lwt': 'LW', 'slow waltz': 'LW', 'langsamer walzer': 'LW',
+    'lw': 'LW', 'lwt': 'LW', 'sw': 'LW', 'slow waltz': 'LW', 'langsamer walzer': 'LW',
     'tg': 'TG', 'ta': 'TG', 'tango': 'TG',
     'ww': 'WW', 'vw': 'WW', 'viennese waltz': 'WW', 'wiener walzer': 'WW',
     'sf': 'SF', 'sfx': 'SF', 'slowfox': 'SF', 'slow fox': 'SF', 'foxtrot': 'SF',
@@ -292,9 +293,45 @@ def set_no_class_exclusion(on) -> None:
     global _exclude_no_class
     _exclude_no_class = bool(on)
 
+
+# 🙈 Folders the operator hid (⚙ Settings → 📁 Paths, 'hidden_folders'): titles
+# below them stay out of every library, like _EXCLUDED_FOLDERS but by path.
+_hidden_folders: tuple[str, ...] = ()
+
+
+def _path_key(path) -> str:
+    return os.path.normcase(os.path.normpath(str(path).strip()))
+
+
+def set_hidden_folders(folders) -> None:
+    global _hidden_folders
+    keys = (_path_key(f) for f in folders or () if str(f).strip())
+    _hidden_folders = tuple(k if k.endswith(os.sep) else k + os.sep for k in keys)
+
+
+def is_hidden_path(path) -> bool:
+    if not _hidden_folders:
+        return False
+    return _path_key(path).startswith(_hidden_folders)
+
 # Flat lookup: lowercased folder name → category id.
 _FOLDER_CATEGORY = {f: cid for cid, (_lbl, folders) in LIBRARY_CATEGORIES.items()
                     for f in folders}
+
+# A comment marker naming a category puts the title in it, whatever folder it
+# lies in. The names are the filter's own, English and German — not the folder
+# words: 'special' and 'original' already mark tournament covers.
+_MARKER_CATEGORY = {
+    'seasonal': 'seasonal', 'christmas': 'seasonal',
+    'saison': 'seasonal', 'weihnachten': 'seasonal',
+    'anthems': 'anthems', 'hymnen': 'anthems',
+    'background': 'background', 'non-dance': 'background',
+    'hintergrund': 'background', 'kein tanz': 'background',
+    'wrong tempo': 'wrong_tempo', 'not tournament': 'wrong_tempo',
+    'falsches tempo': 'wrong_tempo', 'kein turnier': 'wrong_tempo',
+    'duplicates': 'duplicates', 'raw versions': 'duplicates',
+    'doppelte': 'duplicates', 'rohfassungen': 'duplicates',
+}
 
 
 def folder_category_of_parts(parts) -> str:
@@ -311,12 +348,17 @@ def folder_category_of_parts(parts) -> str:
 
 def library_category(entry) -> str:
     """Non-tournament category id of a library entry ('' = a normal tournament
-    track). The deepest matching folder segment of the path wins; a christmas
+    track). A comment marker naming a category comes first (_MARKER_CATEGORY),
+    then the deepest matching folder segment of the path; a christmas
     track flagged per-file (is_xmas) counts as 'seasonal' even outside a christmas
     folder. A competition title without a class tag is 'no_class' while the
     library uses class tags (note_class_tag_use); social dances have no
     classes and never are. Drives the browser filter and, through
     is_non_turnier, the generation soft-exclude."""
+    for marker in getattr(entry, 'comment_tags', None) or ():
+        cid = _MARKER_CATEGORY.get(marker)
+        if cid:
+            return cid
     cid = folder_category_of_parts(entry.path.parts[:-1])
     if cid:
         return cid

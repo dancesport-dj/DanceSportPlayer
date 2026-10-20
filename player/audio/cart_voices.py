@@ -42,6 +42,16 @@ _RAMP_MS = 25           # a level change coarser than this is an audible click
 _TICK_MS = 100          # countdown refresh — a 3 s sting needs the digit to move
 _FIRE_GAP_MS = 120      # ignore a re-tap this soon: that is a double-click
 
+# 🎶 A background pad under a running title: down as fast as a pad pulls the
+# music (player.audio.mix._CART_DUCK), all the way down: under a title the bed
+# is silent, not quieter. When the music stops it fades in, over seconds. The
+# hold is for the title switch — the deck reports Stopped for a moment between
+# two titles, and a bed swelling up in every gap is worse than one that waits;
+# 1.5 s of it read as the bed lagging behind the end of the music.
+_BG_DOWN_MS = 180
+_BG_UP_MS = 2000
+_BG_HOLD_MS = 300
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # The audio pool
@@ -106,6 +116,18 @@ class CartVoices(QObject):
         self._tick = QTimer(self)
         self._tick.setInterval(_TICK_MS)
         self._tick.timeout.connect(self._emit_tick)
+        # Followed even with no background pad running, so one fired under a
+        # title starts low instead of blaring for the first 180 ms. 1.0 is up,
+        # 0.0 is all the way down.
+        self._bg = 1.0
+        self._bg_target = 1.0
+        self._bg_ramp = QTimer(self)
+        self._bg_ramp.setInterval(_RAMP_MS)
+        self._bg_ramp.timeout.connect(self._step_background)
+        self._bg_hold = QTimer(self)
+        self._bg_hold.setSingleShot(True)
+        self._bg_hold.setInterval(_BG_HOLD_MS)
+        self._bg_hold.timeout.connect(self._lift_background)
 
     @staticmethod
     def _build_player():
@@ -133,6 +155,8 @@ class CartVoices(QObject):
         if now - self._last_fire.get(key, 0.0) < _FIRE_GAP_MS / 1000.0:
             return False        # a double-click is one tap
         self._last_fire[key] = now
+        if pad.stops_others:
+            self._stop_others(key)
 
         reviving = self._voice_for(key)
         if reviving is not None:
@@ -182,6 +206,15 @@ class CartVoices(QObject):
             if voice.pad is not None and voice.fade_step <= 0:
                 self._start_fade(voice, pc.fade_for(voice.pad, self._wall_fade))
 
+    def _stop_others(self, key) -> None:
+        """A ■ pad takes the floor: every other pad fades out, and one still
+        waiting for a voice is not started any more."""
+        for voice in self._pool:
+            if voice.then is not None and voice.then[0] != key:
+                voice.then = None
+            if voice.key != key and voice.pad is not None and voice.fade_step <= 0:
+                self._start_fade(voice, pc.fade_for(voice.pad, self._wall_fade))
+
     def playing_keys(self) -> list[object]:
         return [v.key for v in self._pool if v.busy]
 
@@ -215,6 +248,34 @@ class CartVoices(QObject):
 
     def muted(self) -> bool:
         return self._muted
+
+    def set_music_playing(self, playing: bool) -> None:
+        """The deck started or stopped: 🎶 background pads dip or come back."""
+        if playing:
+            self._bg_hold.stop()
+            self._aim_background(0.0)
+        elif self._bg_target < 1.0 and not self._bg_hold.isActive():
+            self._bg_hold.start()
+
+    def _lift_background(self) -> None:
+        self._aim_background(1.0)
+
+    def _aim_background(self, target: float) -> None:
+        self._bg_target = target
+        if self._bg != target and not self._bg_ramp.isActive():
+            self._bg_ramp.start()
+
+    def _step_background(self) -> None:
+        span = _BG_DOWN_MS if self._bg_target < self._bg else _BG_UP_MS
+        step = _RAMP_MS / span
+        if abs(self._bg_target - self._bg) <= step:
+            self._bg = self._bg_target
+            self._bg_ramp.stop()
+        else:
+            self._bg += step if self._bg_target > self._bg else -step
+        for voice in self._pool:
+            if voice.busy and voice.pad is not None and voice.pad.background:
+                self._apply(voice)
 
     def preview_volume(self, key, volume: float) -> None:
         """The pad dialog's slider, heard while it is dragged. The stored pad is
@@ -257,6 +318,8 @@ class CartVoices(QObject):
         looping bed can hold one for an hour."""
         self._ramp.stop()
         self._tick.stop()
+        self._bg_ramp.stop()
+        self._bg_hold.stop()
         for voice in self._pool:
             voice.key = None
             voice.pad = None
@@ -368,6 +431,8 @@ class CartVoices(QObject):
         if voice.pad is None:
             return
         vol = self._level * voice.pad.volume * voice.fade
+        if voice.pad.background:
+            vol *= self._bg
         if self._muted:
             vol = 0.0
         voice.out.setVolume(max(0.0, min(1.0, vol)))
@@ -418,7 +483,8 @@ class CartVoices(QObject):
 
     def _sync(self) -> None:
         active = sum(1 for v in self._pool if v.busy)
-        ducking = any(v.pad is not None and v.pad.duck for v in self._pool)
+        ducking = any(v.pad is not None and v.pad.duck and not v.pad.background
+                      for v in self._pool)
         if active != self._active:
             self._active = active
             self.activeChanged.emit(active)

@@ -1010,6 +1010,18 @@ CATALOG = {
         "🔇 Kein Audio-Backend — die Cartwall kann hier nicht abspielen.",
     "🔈  Pull the music down while this pad plays":
         "🔈  Musik absenken, solange dieses Pad läuft",
+    "S  Stop the other pads when this one starts":
+        "S  Die anderen Pads stoppen, wenn dieses startet",
+    "Every other running pad fades out as this one starts —\n"
+    "for an anthem or a winners' fanfare that needs the room.":
+        "Alle anderen laufenden Pads blenden aus, sobald dieses startet —\n"
+        "für eine Hymne oder eine Siegerfanfare, die den Raum braucht.",
+    "🎶  Background: dip under the music while a title plays":
+        "🎶  Hintergrund: unter die Musik abtauchen, solange ein Titel läuft",
+    "The other way round from 🔈: this pad goes silent while the\n"
+    "main player plays and comes back up in the pauses.":
+        "Andersherum als 🔈: Dieses Pad verstummt, solange der\n"
+        "Hauptplayer spielt, und kommt in den Pausen wieder hoch.",
     "🔈 No announcement recordings found for this voice.":
         "🔈 Für diese Stimme wurden keine Ansage-Aufnahmen gefunden.",
     "🖌  Wall colour": "🖌  Cartwall-Farbe",
@@ -1205,7 +1217,7 @@ CATALOG = {
         "Jede Datei wird nach ihrem Decktitel benannt.",
     "Export playlists as a self-contained venue bundle — asks first\n"
     "whether to take all open decks, only the 📅 tournament day, or\n"
-    "saved .m3u files dragged in (wishlists are never bundled).\n"
+    "saved .m3u files dragged in, with the ⭐ wishlists if ticked.\n"
     "One sub-folder per playlist holding its tracks copied in numbered\n"
     "play order (0_0_1 - Title WW29.mp3) plus the playlist's .m3u — each\n"
     "folder plays in order even without the M3U, from any drive,\n"
@@ -1213,8 +1225,8 @@ CATALOG = {
     "Also offers the 📦 venue pack: this desk in one file for another PC.":
         "Playlists als eigenständiges Turnierpaket exportieren — fragt\n"
         "zuerst, ob alle offenen Decks, nur der 📅 Turniertag oder\n"
-        "hineingezogene .m3u-Dateien genommen werden (Wunschlisten kommen\n"
-        "nie mit).\n"
+        "hineingezogene .m3u-Dateien genommen werden, auf Wunsch mit\n"
+        "den ⭐ Wunschlisten.\n"
         "Ein Unterordner je Playlist mit ihren Titeln, kopiert in\n"
         "nummerierter Spielreihenfolge (0_0_1 - Titel WW29.mp3), dazu die\n"
         ".m3u der Playlist — jeder Ordner spielt auch ohne die M3U in der\n"
@@ -1750,9 +1762,9 @@ CATALOG = {
         "Speichern gefragt.",
     "Keep the German dance and round names on a screen in another language (Langsamer Walzer, Vorrunde, Standardrunde 1, Eintanzen …)":
         "Deutsche Tanz- und Rundennamen auch in einer anderssprachigen Oberfläche (Langsamer Walzer, Vorrunde, Standardrunde 1, Eintanzen …)",
-    "On: the presenter screen and the recorded announcements are German too, and a 🤸 practice list is called Eintanzen, also in its saved file.\n"
+    "On: the presenter screen and the recorded announcements are German too, a 🤸 practice list is called Eintanzen, also in its saved file, and the tempo rules are named TSO (off: WDSF CR).\n"
     "Off: Slow Waltz, Round 1, Standard round 1, Practice … — the playlists and exports keep the German dance and round names either way.":
-        "An: Auch der Moderations-Bildschirm und die aufgenommenen Ansagen sind deutsch, und eine 🤸 Übungsliste heißt Eintanzen, auch in ihrer Datei.\n"
+        "An: Auch der Moderations-Bildschirm und die aufgenommenen Ansagen sind deutsch, eine 🤸 Übungsliste heißt Eintanzen, auch in ihrer Datei, und die Tempo-Regeln heißen TSO.\n"
         "Aus: Slow Waltz, Round 1, Standard round 1, Practice … — Playlists und Exporte behalten die deutschen Tanz- und Rundennamen in jedem Fall.",
     "You can change this later under ⚙ Settings → ⚙ General.":
         "Das lässt sich später unter ⚙ Einstellungen → ⚙ Allgemein ändern.",
@@ -1962,10 +1974,8 @@ CATALOG = {
         "benutzen.\n"
         "▶ zum Vorhören · Doppelklick öffnet ihn im externen Player\n"
         "· Rechtsklick für mehr.",
-    "Only tracks suited for this starting class\n"
-    "(tracks without a class tag are always shown)":
-        "Nur Titel, die zu dieser Startklasse passen\n"
-        "(Titel ohne Klassenangabe werden immer gezeigt)",
+    "Only tracks suited for one of the ticked starting classes\n(tick several; tracks without a class tag show only with all classes)":
+        "Nur Titel, die zu einer der angehakten Startklassen passen\n(mehrere möglich; Titel ohne Klassenangabe nur bei allen Klassen)",
     "Only tracks whose file was created in the library that\n"
     "recently. Combine with ✦ Never played to see what you\n"
     "copied in but have never actually used.":
@@ -3625,6 +3635,28 @@ CATALOG = {
         "🔼  Musik lauter",
     "🔽  Music volume down":
         "🔽  Musik leiser",
+    "🎛  Cartwall volume (fader or knob)":
+        "🎛  Cartwall-Lautstärke (Fader oder Regler)",
+    "🔼  Cartwall volume up":
+        "🔼  Cartwall lauter",
+    "🔽  Cartwall volume down":
+        "🔽  Cartwall leiser",
+    "◀  Previous cartwall page":
+        "◀  Vorherige Cartwall-Seite",
+    "▶  Next cartwall page":
+        "▶  Nächste Cartwall-Seite",
+    "Ctrl + Alt + ↑":
+        "Strg + Alt + ↑",
+    "Ctrl + Alt + ↓":
+        "Strg + Alt + ↓",
+    "Ctrl + Alt + ←":
+        "Strg + Alt + ←",
+    "Ctrl + Alt + →":
+        "Strg + Alt + →",
+    "Cartwall volume — every pad, apart from the music volume.\n"
+    "Also on a controller fader and the desk keys (⌨).":
+        "Cartwall-Lautstärke — alle Pads, getrennt von der Musiklautstärke.\n"
+        "Auch über einen Controller-Fader und die Pult-Tasten (⌨).",
     "🎚  Tempo / pitch (fader or knob)":
         "🎚  Tempo / Pitch (Fader oder Drehregler)",
     "⏫  Tempo up":
@@ -3901,7 +3933,6 @@ CATALOG = {
     "Description": "Beschreibung",
     "Value": "Wert",
     "➕  Add field": "➕  Feld hinzufügen",
-    "Only for one track at a time": "Nur für einen Titel auf einmal",
     "Only for an MP3 file on disk": "Nur für eine MP3-Datei auf dem Datenträger",
     "Couldn't read the MP3 tags: %s": "Die MP3-Tags konnten nicht gelesen werden: %s",
     "Can only be removed, not edited here": "Lässt sich hier nur entfernen, nicht bearbeiten",
@@ -4355,6 +4386,46 @@ CATALOG = {
         "keine — alles wird noch gebraucht",
     "Cleanup did not run:":
         "Das Aufräumen ist nicht gelaufen:",
+    "🗑  Reset database…":
+        "🗑  Datenbank zurücksetzen…",
+    "Empty chosen parts of the database: the tags read from the files,\nthe audio analysis, your own data. A dialog asks which; your own\ndata is backed up first, and the app restarts afterwards.":
+        "Gewählte Teile der Datenbank leeren: die aus den Dateien gelesenen Tags,\ndie Audio-Analyse, deine eigenen Daten. Ein Dialog fragt, welche; deine\neigenen Daten werden vorher gesichert, danach startet die App neu.",
+    "🗑  Reset database":
+        "🗑  Datenbank zurücksetzen",
+    "🗑 Reset database":
+        "🗑 Datenbank zurücksetzen",
+    "🏷  Tags read from the music files":
+        "🏷  Aus den Musikdateien gelesene Tags",
+    "🎚  Audio analysis":
+        "🎚  Audio-Analyse",
+    "✋  My own data":
+        "✋  Meine eigenen Daten",
+    "Dance, BPM, class and title of every file, the file list and the learned playlist index. The next library scan reads them again (minutes).":
+        "Tanz, BPM, Klasse und Titel jeder Datei, die Dateiliste und der gelernte Playlist-Index. Der nächste Bibliotheks-Scan liest sie neu (Minuten).",
+    "Features, AI embeddings, loudness, silences, waveforms, vocal shares and detected PD highlights. ⚗ Analysis builds them again (hours).":
+        "Features, KI-Embeddings, Lautheit, Pausen, Wellenformen, Gesangsanteile und erkannte PD-Highlights. ⚗ Analyse baut sie neu auf (Stunden).",
+    "Your tag edits, hand-set PD marks and the 📜 play log. Nothing rebuilds them; only ♻ Restore user data backup brings them back.":
+        "Deine Tag-Änderungen, von Hand gesetzte PD-Marken und das 📜 Abspielprotokoll. Nichts baut sie neu auf; nur ♻ Sicherung der eigenen Daten zurückholen bringt sie wieder.",
+    "Empty the chosen parts of the database. Your own data is backed up first either way, and the app restarts afterwards.":
+        "Die gewählten Teile der Datenbank leeren. Deine eigenen Daten werden in jedem Fall vorher gesichert, und die App startet danach neu.",
+    "Reset and restart":
+        "Zurücksetzen und neu starten",
+    "Resetting database…":
+        "Datenbank wird zurückgesetzt…",
+    "The app still shows the old data until it restarts. Restart now?":
+        "Die App zeigt die alten Daten, bis sie neu startet. Jetzt neu starten?",
+    "Reset did not run:":
+        "Das Zurücksetzen ist nicht gelaufen:",
+    "<b>Excluded folders</b> — titles in these folders and below stay out of the library, one folder per line:":
+        "<b>Ausgeschlossene Ordner</b> — Titel in diesen Ordnern und darunter bleiben aus der Bibliothek draußen, ein Ordner pro Zeile:",
+    "Left out of ⭐ Favorites and 🌐 Whole library alike: not shown, not\nsearched, never suggested. Nothing on disk changes, and the tags\nread so far stay cached, so a folder taken off the list is back\nafter a restart.":
+        "Fehlt in ⭐ Favoriten und 🌐 Ganze Bibliothek gleichermaßen: nicht angezeigt,\nnicht durchsucht, nie vorgeschlagen. Auf der Platte ändert sich nichts, und\ndie bisher gelesenen Tags bleiben gespeichert, ein Ordner, der von der Liste\nverschwindet, ist nach einem Neustart wieder da.",
+    "Hide a folder from the library":
+        "Einen Ordner in der Bibliothek ausblenden",
+    "🙈 Excluded folders":
+        "🙈 Ausgeschlossene Ordner",
+    "The library is loaded when the app starts, so the excluded folders change with the next start.\n\nRestart now?":
+        "Die Bibliothek wird beim Start der App geladen, die ausgeschlossenen Ordner ändern sich also mit dem nächsten Start.\n\nJetzt neu starten?",
     "📤  Export manual PD marks…": "📤  Manuelle PD-Marken exportieren…",
     "📥  Import manual PD marks…": "📥  Manuelle PD-Marken importieren…",
     "Export manual PD marks": "Manuelle PD-Marken exportieren",
@@ -4877,8 +4948,8 @@ CATALOG = {
         "Reihenfolge: %s, %s, …",
     "🟰  Identical files — the earlier copy is removed, the last stays (%d)":
         "🟰  Identische Dateien — die frühere Kopie wird entfernt, die letzte bleibt (%d)",
-    "✏  %d pads selected — colour, volume, fade, 🔁 and 🔈 apply to all of them.\nLabel and shortcut stay with this pad.":
-        "✏  %d Pads ausgewählt — Farbe, Lautstärke, Ausblenden, 🔁 und 🔈 gelten für alle.\nBeschriftung und Tastenkürzel bleiben bei diesem Pad.",
+    "✏  %d pads selected — what you change here (colour, volume, fade, 🔁, 🔈, 🎶, S) applies to all of them.\nLabel and shortcut stay with this pad.":
+        "✏  %d Pads ausgewählt — was du hier änderst (Farbe, Lautstärke, Ausblenden, 🔁, 🔈, 🎶, S), gilt für alle.\nBeschriftung und Tastenkürzel bleiben bei diesem Pad.",
     "Empty = this slot's default (%s)":
         "Leer = Vorgabe dieses Slots (%s)",
     "Empty = no key (this slot has no default)":
@@ -5971,8 +6042,22 @@ CATALOG = {
         "also wähle den Ordner mit deiner Tanzmusik.\n\n"
         "Gefunden: %s\n\n"
         "Das kannst du jederzeit unter ⚙ Einstellungen → 📁 Pfade ändern.",
+    "Name the folder for the bundle on “%s”:":
+        "Name des Ordners für das Paket auf „%s“:",
+    "Make a folder named after the tournament in “%s”?":
+        "Einen Ordner mit dem Namen des Turniers in „%s“ anlegen?",
+    "📁  Create folder":
+        "📁  Ordner anlegen",
+    "Straight into “%s”":
+        "Direkt in „%s“",
     "📦 Venue pack: this desk for another PC…":
         "📦 Hallenpaket: dieses Pult für einen anderen PC…",
+    "⭐ Include wishlists (%d)":
+        "⭐ Wunschlisten mitnehmen (%d)",
+    "Each ⭐ wishlist with titles in it gets its own numbered\n"
+    "folder in the bundle, beside the playlists.":
+        "Jede ⭐ Wunschliste mit Titeln bekommt im Paket ihren eigenen\n"
+        "nummerierten Ordner, neben den Playlists.",
     "One file with the settings, every deck and wishlist and the\n"
     "cartwall, the music they use if you want: the same as\n"
     "⚙ Settings → 📦 Venue pack → Export venue pack….":

@@ -85,6 +85,17 @@ def english() -> bool:
     return _english_terms and i18n.active_language() != "de"
 
 
+def rules_name(text: str, short: bool = False) -> str:
+    """🎚 `text` with the rule book the tempo ranges come from named for the
+    screen: TSO, the German federation's, where the German terms are shown;
+    the WDSF Competition Rules everywhere else — "WDSF CR", or "CR" where the
+    player card has no room. Applied after `i18n.t()`, so the catalog keys
+    and their translations keep saying TSO."""
+    if not english():
+        return text
+    return text.replace("TSO", "CR" if short else "WDSF CR")
+
+
 def practice_name() -> str:
     """What a 🤸 practice list is called, on its deck and in the file it is
     saved to: Eintanzen, like the other German terms, unless the screen names

@@ -228,12 +228,12 @@ class RawTabTest(_DlgTest):
         r = dlg._raw.rowCount() - 1
         self.assertFalse(self.open_editor(dlg, r, 1).isReadOnly())
 
-    def test_several_tracks_or_no_file_have_it_switched_off(self):
-        for entries in ([self.entry, _e("b")], [_e("gone")]):
+    def test_no_file_has_it_switched_off(self):
+        for entries in ([_e("gone")], [_e("gone"), _e("lost")]):
             dlg = self.dialog(*entries)
             self.assertFalse(dlg._tabs.isTabEnabled(1))
             self.assertTrue(dlg._tabs.tabToolTip(1))
-            self.assertIsNone(dlg.raw_edits())
+            self.assertIsNone(dlg.raw_edits(entries[0]))
 
     def test_untouched_writes_nothing(self):
         self.assertIsNone(self.dialog(self.entry).raw_edits())
@@ -303,6 +303,108 @@ class RawTabTest(_DlgTest):
         dlg._raw.selectRow(r)
         dlg._raw_remove_btn.click()
         self.assertIsNone(dlg.raw_edits())
+
+
+class SeveralRawTest(_DlgTest):
+    """Marcel: the Extended tab for a whole selection. It lists every frame
+    any of the MP3s has; a value they share shows, one they differ in (or
+    that some lack) is "< keep >". Only what is changed reaches the files,
+    each on its own terms."""
+
+    def setUp(self):
+        from mutagen.id3 import COMM, ID3, TIT2, TXXX
+        d = Path(tempfile.mkdtemp(prefix="dp_tagdlg_raws_"))
+        frames = {
+            "a": (TIT2(encoding=1, text="Cha"),
+                  TXXX(encoding=1, desc="ultramixer_meter", text="4/4"),
+                  TXXX(encoding=1, desc="um_dance", text="CC"),
+                  COMM(encoding=1, lang="eng", desc="", text="classic")),
+            "b": (TIT2(encoding=1, text="Rumba"),
+                  TXXX(encoding=1, desc="ultramixer_meter", text="4/4"),
+                  TXXX(encoding=1, desc="um_dance", text="RB"),
+                  TXXX(encoding=1, desc="only_b", text="x")),
+        }
+        self.entries = []
+        for name, fs in frames.items():
+            path = d / f"{name}.mp3"
+            path.write_bytes(b"\xff\xfb\x90\x00" + b"\x00" * 2000)
+            tags = ID3()
+            for f in fs:
+                tags.add(f)
+            tags.update_to_v23()
+            tags.save(path, v2_version=3)
+            self.entries.append(MusicEntry(path=path, title=name, dance="CC"))
+        self.a, self.b = self.entries
+
+    def row(self, dlg, key) -> int:
+        return next(r for r in range(dlg._raw.rowCount())
+                    if dlg._raw.item(r, 0).data(Qt.ItemDataRole.UserRole) == key)
+
+    def value(self, dlg, key) -> str:
+        return dlg._raw.item(self.row(dlg, key), 2).text()
+
+    def test_every_frame_of_the_selection_is_listed(self):
+        dlg = self.dialog(self.a, self.b)
+        self.assertTrue(dlg._tabs.isTabEnabled(1))
+        keys = {dlg._raw.item(r, 0).data(Qt.ItemDataRole.UserRole)
+                for r in range(dlg._raw.rowCount())}
+        self.assertEqual(keys, {"TIT2", "TXXX:ultramixer_meter", "TXXX:um_dance",
+                                "TXXX:only_b", "COMM::eng"})
+        self.assertEqual(self.value(dlg, "TXXX:ultramixer_meter"), "4/4")
+        self.assertEqual(self.value(dlg, "TXXX:um_dance"), "< keep >")
+        self.assertEqual(self.value(dlg, "TXXX:only_b"), "< keep >")
+
+    def test_untouched_writes_nothing(self):
+        dlg = self.dialog(self.a, self.b)
+        self.assertIsNone(dlg.raw_edits(self.a))
+        self.assertIsNone(dlg.raw_edits(self.b))
+
+    def test_a_typed_value_reaches_each_file(self):
+        dlg = self.dialog(self.a, self.b)
+        dlg._raw.item(self.row(dlg, "TXXX:um_dance"), 2).setText("CC")
+        dlg._raw.item(self.row(dlg, "TXXX:only_b"), 2).setText("y")
+        # a has um_dance "CC" already: nothing to write there; it lacks only_b.
+        self.assertEqual(dlg.raw_edits(self.a), {
+            "sets": {}, "deletes": [], "adds": [("TXXX", "only_b", "y")]})
+        self.assertEqual(dlg.raw_edits(self.b), {
+            "sets": {"TXXX:um_dance": "CC", "TXXX:only_b": "y"},
+            "deletes": [], "adds": []})
+
+    def test_remove_drops_it_where_it_is(self):
+        dlg = self.dialog(self.a, self.b)
+        dlg._raw.selectRow(self.row(dlg, "TXXX:only_b"))
+        dlg._raw_remove_btn.click()
+        self.assertIsNone(dlg.raw_edits(self.a))
+        self.assertEqual(dlg.raw_edits(self.b),
+                         {"sets": {}, "deletes": ["TXXX:only_b"], "adds": []})
+
+    def test_an_added_field_goes_into_each(self):
+        dlg = self.dialog(self.a, self.b)
+        dlg._raw_add_btn.click()
+        r = dlg._raw.rowCount() - 1
+        dlg._raw.item(r, 1).setText("only_b")
+        dlg._raw.item(r, 2).setText("z")
+        # b has that frame already: it gets the value instead of a second one.
+        self.assertEqual(dlg.raw_edits(self.a), {
+            "sets": {}, "deletes": [], "adds": [("TXXX", "only_b", "z")]})
+        self.assertEqual(dlg.raw_edits(self.b), {
+            "sets": {"TXXX:only_b": "z"}, "deletes": [], "adds": []})
+
+    def test_the_forms_frames_are_left_to_the_form(self):
+        dlg = self.dialog(self.a, self.b)
+        editable = Qt.ItemFlag.ItemIsEditable
+        for key in ("TIT2", "COMM::eng"):
+            self.assertFalse(dlg._raw.item(self.row(dlg, key), 2).flags() & editable)
+        dlg._form["title"].setEditText("Same")
+        self.assertIsNone(dlg.raw_edits(self.a))
+
+    def test_a_track_without_an_mp3_gets_nothing(self):
+        gone = _e("gone")
+        dlg = self.dialog(self.a, gone)
+        self.assertTrue(dlg._tabs.isTabEnabled(1))
+        dlg._raw.item(self.row(dlg, "TXXX:um_dance"), 2).setText("SA")
+        self.assertIsNone(dlg.raw_edits(gone))
+        self.assertEqual(dlg.raw_edits(self.a)["sets"], {"TXXX:um_dance": "SA"})
 
 
 def _png() -> bytes:

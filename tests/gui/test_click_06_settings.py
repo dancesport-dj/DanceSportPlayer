@@ -123,9 +123,9 @@ class SettingsClickTest(ClickThrough):
             browser = win._lib_browser
             [(dance, cls)] = picked
             self.assertEqual((browser._dance_combo.currentData(),
-                              browser._class_combo.currentData(),
+                              browser._class_combo.classes(),
                               browser._plays_combo.currentData()),
-                             (dance, cls, "never"))
+                             (dance, [cls], "never"))
             self.assertIs(win._lib_tabs.currentWidget(), browser)
 
     def test_the_play_sets_are_what_the_two_buttons_apply(self):

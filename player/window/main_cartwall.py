@@ -21,6 +21,11 @@ if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
 else:
     MainWindowHost = object
+try:
+    from PySide6.QtMultimedia import QMediaPlayer
+    HAS_MULTIMEDIA = True
+except ImportError:
+    HAS_MULTIMEDIA = False
 
 log = logging.getLogger("dancesport.gui.cartwall")
 
@@ -42,6 +47,8 @@ class CartwallMixin(MainWindowHost):
         self._cartwall.previewVolume.connect(self._on_cart_preview_volume)
         self._cartwall.previewFire.connect(self._on_cart_preview_fire)
         self._cartwall.fadeChanged.connect(self._on_cart_wall_fade)
+        self._cartwall.set_level(self._mix.cart)
+        self._cartwall.levelChanged.connect(self._set_cart_volume)
 
         # A dock rather than a tab: the wall has to sit BESIDE the playlists —
         # you fire a Tusch while looking at the running heat, not instead of it.
@@ -200,6 +207,14 @@ class CartwallMixin(MainWindowHost):
 
     def _on_cart_duck_changed(self, on: bool):
         self._set_duck_reason("cartwall", on)
+
+    def _cart_follow_deck(self, state):
+        """🎶 Hung on the deck's playbackStateChanged (see _deck_slots), so it
+        moves to the other player when a crossfade swaps them."""
+        voices = getattr(self, "_cart_voices", None)
+        if voices is not None:
+            voices.set_music_playing(
+                state == QMediaPlayer.PlaybackState.PlayingState)
 
     def _on_cart_tick(self, rows):
         for key, ms_left, frac in rows:

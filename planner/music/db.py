@@ -11,6 +11,7 @@ in db_upkeep.
 (`entry.path` / `entry.features`), so there is no circular import.
 """
 
+import contextlib
 import gc
 import hashlib
 import json
@@ -201,7 +202,9 @@ _SCHEMA_VERSION = 3   # v3: scan_meta re-keyed from file_id → content fingerpr
 #   v4 → a slug filename (Store_Download_Name_29BPM) takes the spaced ID3 title
 #   v5 → + the POPM star rating, and a Songs-DB class floor ('ab C' = C and up)
 #   v6 → + the ID3 BPM tag (TBPM), a tempo source between file name and title tag
-_DANCE_DETECT_VERSION = 6
+#   v7 → SW = Slow Waltz, 'Ballroom SW' genres, UltraMixer's TXXX dance style
+#   v8 → a comment leading with the instr word ('Instr AS') is instrumental
+_DANCE_DETECT_VERSION = 8
 
 # How quiet a stretch has to be before it counts as silence (ffmpeg
 # silencedetect). −30 dB was a fade-out still playing to the floor — “Fare Thee
@@ -698,6 +701,23 @@ def _db() -> sqlite3.Connection:
     return conn
 
 
+# Cleared while Database maintenance writes: a long write loop then commits and
+# waits at its next item. Taking the write lock back the moment it committed, it
+# left SQLite's busy wait no gap, and the cleanup gave up with 'database is locked'.
+_BULK_WRITES_FREE = threading.Event()
+_BULK_WRITES_FREE.set()
+
+
+@contextlib.contextmanager
+def bulk_writes_held():
+    """Hold every `ChunkedWrites` loop at its next item while the block runs."""
+    _BULK_WRITES_FREE.clear()
+    try:
+        yield
+    finally:
+        _BULK_WRITES_FREE.set()
+
+
 class ChunkedWrites:
     """Groups the writes of a long loop into transactions of `_COMMIT_EVERY` items.
 
@@ -720,6 +740,9 @@ class ChunkedWrites:
         self._started = time.monotonic()
 
     def step(self) -> None:
+        if not _BULK_WRITES_FREE.is_set():      # Database maintenance goes first
+            self.release()
+            _BULK_WRITES_FREE.wait()
         if not self._conn.in_transaction:      # after release()
             self._begin()
         elif (self._items >= _COMMIT_EVERY

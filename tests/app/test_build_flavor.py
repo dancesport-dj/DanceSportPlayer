@@ -132,6 +132,57 @@ class BuildNamesTest(unittest.TestCase):
                 self.assertNotIn("DancePlaylist", self._read(file))
 
 
+class InstallerTest(unittest.TestCase):
+    """The Windows setup (installer/dancesport.iss): one app per flavor, and
+    it never ships or deletes the data the app keeps beside the .exe."""
+
+    def setUp(self):
+        root = Path(config.__file__).resolve().parent.parent
+        self.iss = (root / "installer" / "dancesport.iss").read_text(encoding="utf-8")
+        self.bat = (root / "build_installer.bat").read_text(encoding="utf-8")
+
+    def test_every_flavor_is_its_own_app(self):
+        for name in BuildNamesTest.NAMES:
+            with self.subTest(name=name):
+                self.assertIn(f'#define AppName "{name}"', self.iss)
+                self.assertIn(name, self.bat)
+        guids = re.findall(r'#define AppGuid "([0-9A-F-]{36})"', self.iss)
+        self.assertEqual(len(set(guids)), len(BuildNamesTest.NAMES))
+
+    def test_an_old_build_is_built_again_first(self):
+        # Marcel: "seems the created installer installs an old version?" - the
+        # setup wrapped a dist folder from weeks before under today's version.
+        root = Path(config.__file__).resolve().parent.parent
+        exe_bat = (root / "build_exe.bat").read_text(encoding="utf-8")
+        self.assertIn("git rev-parse HEAD", exe_bat)
+        self.assertIn("build_commit.txt", exe_bat)
+        self.assertIn("git rev-parse HEAD", self.bat)
+        self.assertIn("build_commit.txt", self.bat)
+        self.assertIn('call "%~dp0build_exe.bat"', self.bat)
+
+    def test_the_build_folder_is_never_shipped_whole(self):
+        # A folder the app was started from holds that user's database.
+        self.assertNotIn('Source: "{#Source}\\*"', self.iss)
+        self.assertIn('Source: "{#Source}\\_internal\\*"', self.iss)
+
+    def test_an_update_deletes_only_the_bundled_runtime(self):
+        deletes = re.findall(r'^Type: \w+; Name: "([^"]+)"', self.iss, re.M)
+        self.assertEqual(deletes, ["{app}\\_internal"])
+        self.assertNotIn("[UninstallDelete]", self.iss)
+
+    def test_the_folder_is_the_users_pick(self):
+        self.assertIn("DisableDirPage=no", self.iss)
+        self.assertIn("PrivilegesRequired=admin", self.iss)
+        self.assertIn("PrivilegesRequiredOverridesAllowed=dialog", self.iss)
+
+    def test_the_first_start_is_not_elevated(self):
+        # Marcel: "why is the default folder for installer not programm files?"
+        # Started as admin, the app finds C:\Program Files writable and keeps
+        # its data there instead of in the user's folder.
+        run = re.search(r"^\[Run\]\s*\n(.*)$", self.iss, re.M).group(1)
+        self.assertIn("runasoriginaluser", run)
+
+
 class DmgTest(unittest.TestCase):
     """Marcel: "the .app has no drag to programm folder to install it". The
     .dmg is the bare .app unless the script puts a link to /Applications next

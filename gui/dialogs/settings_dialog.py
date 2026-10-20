@@ -20,7 +20,7 @@ from PySide6.QtCore import (
 import planner.config
 from planner.music.analysis import HAS_LIBROSA
 from planner.models import TEMPO_RANGES
-from planner.terms import dance_name
+from planner.terms import dance_name, rules_name
 from planner.playing.play_sets import (
     _LEN_MAX, _LEN_STEP, DANCE_SECS_KEY, XFADE_MAX_SECS, XFADE_MIN_SECS,
     dance_secs_of, dblclick_ask_of, parse_play_length, pd_of, play_set_of,
@@ -68,7 +68,7 @@ class SettingsDialog(LookTabMixin, QDialog):
                  venue_export_cb=None, venue_import_cb=None, remote_cb=None,
                  remote_running=None, remote_stop_cb=None, remote_changed=None,
                  guests_cb=None, controller_cb=None, desk_keys_cb=None,
-                 announce_test_cb=None, open_sound=False):
+                 announce_test_cb=None, open_sound=False, reset_cb=None):
         super().__init__(parent)
         self.setWindowTitle("⚙  Settings")
         self.setMinimumWidth(560)
@@ -78,6 +78,7 @@ class SettingsDialog(LookTabMixin, QDialog):
         self._embed_cb = embed_cb
         self._all_cb = all_cb
         self._maintenance_cb = maintenance_cb
+        self._reset_cb = reset_cb
         self._relearn_cb = relearn_cb
         self._rescan_cb = rescan_cb
         self._analyze_cb = analyze_cb
@@ -409,6 +410,29 @@ class SettingsDialog(LookTabMixin, QDialog):
         remap_row.addLayout(remap_col)
         plyt.addLayout(remap_row)
 
+        # ── Excluded folders (both libraries) ──
+        plyt.addWidget(QLabel(
+            "<b>Excluded folders</b> — titles in these folders and below stay out "
+            "of the library, one folder per line:"))
+        self._hidden_edit = QPlainTextEdit(
+            "\n".join(parse_remap_paths(settings.get("hidden_folders"))))
+        self._hidden_edit.setPlaceholderText("F:\\my music\\Party\nF:\\my music\\Hörbücher")  # i18n: data
+        self._hidden_edit.setFixedHeight(66)
+        self._hidden_edit.setToolTip(
+            "Left out of ⭐ Favorites and 🌐 Whole library alike: not shown, not\n"
+            "searched, never suggested. Nothing on disk changes, and the tags\n"
+            "read so far stay cached, so a folder taken off the list is back\n"
+            "after a restart.")
+        hidden_row = QHBoxLayout()
+        hidden_row.addWidget(self._hidden_edit, stretch=1)
+        hidden_add = QPushButton("Add…")
+        hidden_add.clicked.connect(self._add_hidden_folder)
+        hidden_col = QVBoxLayout()
+        hidden_col.addWidget(hidden_add)
+        hidden_col.addStretch(1)
+        hidden_row.addLayout(hidden_col)
+        plyt.addLayout(hidden_row)
+
         plyt.addStretch()
         tabs.addTab(paths_tab, "📁 Paths")
 
@@ -711,6 +735,15 @@ class SettingsDialog(LookTabMixin, QDialog):
         self._maint_btn.setEnabled(maintenance_cb is not None)
         alyt.addWidget(self._maint_btn)
 
+        self._reset_btn = QPushButton("🗑  Reset database…")
+        self._reset_btn.setToolTip(
+            "Empty chosen parts of the database: the tags read from the files,\n"
+            "the audio analysis, your own data. A dialog asks which; your own\n"
+            "data is backed up first, and the app restarts afterwards.")
+        self._reset_btn.clicked.connect(self._on_reset_clicked)
+        self._reset_btn.setEnabled(self._reset_cb is not None)
+        alyt.addWidget(self._reset_btn)
+
         alyt.addStretch()
         tabs.addTab(ana_tab, "⚗ Analysis")
 
@@ -927,6 +960,9 @@ class SettingsDialog(LookTabMixin, QDialog):
                  "Applied by itself as soon as you play from the 🤸 Practice / "
                  "party list, and switched back when a tournament deck takes over.")):
             self._add_play_set_box(tlyt, settings, which, caption, blurb)
+            # 🎚 The pitch target belongs to the heat: right under 🏆.
+            if which == "tournament":
+                self._add_tso_band_grid(tlyt, settings)
 
         pd_note = QLabel(
             "🐂 Each set carries its own Paso Doble values. Under 🏆 the "
@@ -937,8 +973,6 @@ class SettingsDialog(LookTabMixin, QDialog):
         pd_note.setWordWrap(True)
         pd_note.setStyleSheet("color:#666; font-size:11px;")
         tlyt.addWidget(pd_note)
-
-        self._add_tso_band_grid(tlyt, settings)
 
         tlyt.addStretch()
         sets_idx = tabs.addTab(sets_tab, "🎛 Play sets")
@@ -1111,10 +1145,11 @@ class SettingsDialog(LookTabMixin, QDialog):
                  "current round, kept inside the TSO range — what a heat is\n"
                  "danced to. Wrong for a party, where the next song is a\n"
                  "different dance at whatever tempo it was recorded at.")):
-            chk = QCheckBox(label)
+            # 🎚 TSO, or the WDSF CR outside the German terms.
+            chk = QCheckBox(rules_name(i18n.t(label)))
             chk.setChecked(bool(cur[key]))
             if tip:
-                chk.setToolTip(tip)
+                chk.setToolTip(rules_name(i18n.t(tip)))
             blyt.addWidget(chk)
             boxes[key] = chk
         return boxes
@@ -1177,7 +1212,7 @@ class SettingsDialog(LookTabMixin, QDialog):
         """🎚 Which takt of its TSO band each dance is pitched to."""
         # ── 🎚 Where in its TSO band each dance is pitched ──
         tlyt.addWidget(_hsep())
-        band_lbl = QLabel(
+        band_lbl = QLabel(rules_name(i18n.t(
             "<b>🎚 TSO pitch target</b> — which takt the 🎚 button pitches a "
             "heat to. <i>Middle of the round</i> puts the round on one takt: "
             "the takt most of its titles are on where a step of one gets the "
@@ -1186,7 +1221,7 @@ class SettingsDialog(LookTabMixin, QDialog):
             "T50+T52+T52 Quicksteps → 51). Nothing moves more than a takt. A fixed takt "
             "puts every title of that dance on the same tempo instead — worth "
             "setting on the slow dances, where one takt out of 24 is twice "
-            "the pitch shift one takt out of 50 is.")
+            "the pitch shift one takt out of 50 is.")))
         band_lbl.setWordWrap(True)
         tlyt.addWidget(band_lbl)
 
@@ -1407,6 +1442,16 @@ class SettingsDialog(LookTabMixin, QDialog):
         lines.append(chosen)
         self._remap_edit.setPlainText("\n".join(parse_remap_paths(lines)))
 
+    def _add_hidden_folder(self):
+        """Append a browsed folder to the excluded folders."""
+        chosen = QFileDialog.getExistingDirectory(
+            self, "Hide a folder from the library", music_browse_dir())
+        if not chosen:
+            return
+        lines = parse_remap_paths(self._hidden_edit.toPlainText())
+        lines.append(chosen)
+        self._hidden_edit.setPlainText("\n".join(parse_remap_paths(lines)))
+
     def _on_build_clicked(self):
         if self._build_cb:
             # Close the (modal) dialog first so the build's progress prompts aren't
@@ -1432,6 +1477,11 @@ class SettingsDialog(LookTabMixin, QDialog):
         if self._maintenance_cb:
             self.accept()
             self._maintenance_cb()
+
+    def _on_reset_clicked(self):
+        if self._reset_cb:
+            self.accept()
+            self._reset_cb()
 
     def _on_relearn_clicked(self):
         if self._relearn_cb:
@@ -1495,6 +1545,7 @@ class SettingsDialog(LookTabMixin, QDialog):
             "playlist_dir":  self._pl_edit.text().strip(),
             "reference_path": self._ref_edit.text().strip(),
             "remap_paths": parse_remap_paths(self._remap_edit.toPlainText()),
+            "hidden_folders": parse_remap_paths(self._hidden_edit.toPlainText()),
             "global_search": self._global_chk.isChecked(),
             "exclude_no_class": self._exclude_no_class_chk.isChecked(),
             "audio_outputs": self._output_values(),

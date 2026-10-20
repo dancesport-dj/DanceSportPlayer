@@ -29,7 +29,7 @@ from gui.library_browser import _LIB_COL_FILE, _LIB_COL_TITLE, LibraryBrowser
 from gui.table.playlist_table import PlaylistTable
 from gui.table.table_actions import TableActionsMixin
 from planner.models import MusicEntry
-from shared.columns import _COL_CUSTOM, _COL_FILE, _COL_REGEN, _COL_TITLE, _N_COLS
+from shared.columns import _COL_ALBUM, _COL_CUSTOM, _COL_FILE, _COL_REGEN, _COL_TITLE
 from tests.qt_test_support import reap_widget
 
 _app = QApplication.instance() or QApplication([])
@@ -69,9 +69,8 @@ class DeckColumnsTest(unittest.TestCase):
         self.row = next(r for r, m in enumerate(self.table._row_meta)
                         if m and m.entry is self.entry)
 
-    def test_file_name_sits_in_front_of_regen(self):
-        self.assertEqual((_COL_CUSTOM, _COL_FILE, _COL_REGEN, _N_COLS),
-                         (10, 11, 12, 13))
+    def test_file_name_sits_behind_custom(self):
+        self.assertEqual((_COL_CUSTOM, _COL_FILE, _COL_ALBUM), (10, 11, 12))
         self.assertEqual(self.table.horizontalHeaderItem(_COL_FILE).text(),
                          "File name")
 
@@ -121,8 +120,8 @@ class MigrationTest(unittest.TestCase):
              "column_widths": {"playlist": {"10": 90, "11": 30}}}
         migrate_column_settings(s)
         self.assertEqual(s["hidden_columns"],
-                         {"playlist": [9, 10, _COL_FILE],
-                          "wishlist": [1, _COL_FILE, _COL_REGEN]})
+                         {"playlist": [9, 10, _COL_FILE, _COL_ALBUM],
+                          "wishlist": [1, _COL_FILE, _COL_ALBUM, _COL_REGEN]})
         self.assertEqual(s["column_widths"]["playlist"],
                          {"10": 90, str(_COL_REGEN): 30})
         self.assertEqual(s["columns_version"], COLUMNS_VERSION)
@@ -132,8 +131,8 @@ class MigrationTest(unittest.TestCase):
         s = {"columns_version": 3, "library_columns": list(order),
              "library_hidden_columns": [10, 11]}
         migrate_column_settings(s)
-        self.assertEqual(s["library_columns"], order + [12])
-        self.assertEqual(s["library_hidden_columns"], [10, 11, 12])
+        self.assertEqual(s["library_columns"], order + [12, 13])
+        self.assertEqual(s["library_hidden_columns"], [10, 11, 12, 13])
 
 
 if __name__ == "__main__":

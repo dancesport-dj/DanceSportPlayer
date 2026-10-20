@@ -15,6 +15,7 @@ there must survive untouched — re-measuring them costs hours.
 
 import os
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -186,6 +187,34 @@ class MaintenanceTest(unittest.TestCase):
         self.assertGreater(res["size_before"], 0)
         self.assertGreater(res["size_after"], 0)
         self.assertIn("audio_fps", res["removed"])
+
+    # ── next to a running library scan ──────────────────────────────────────
+    def test_it_gets_the_database_while_a_library_scan_writes(self):
+        """The scan's ChunkedWrites took the write lock back the moment it
+        committed a chunk, so the cleanup's busy wait never got a turn and it
+        gave up with 'database is locked'."""
+        self._track("gone.mp3", "fp-dead", on_disk=False)
+        self.conn.execute("PRAGMA busy_timeout = 500")   # 10 s in the app
+        writing = threading.Event()
+        stop = threading.Event()
+
+        def scan():
+            with pdb.ChunkedWrites() as writes:
+                n = 0
+                while not stop.is_set():
+                    writes.step()
+                    pdb._db().execute("INSERT OR REPLACE INTO app_meta (key, value) "
+                                      "VALUES ('scan', ?)", (str(n),))
+                    n += 1
+                    writing.set()
+
+        scanner = threading.Thread(target=scan)
+        scanner.start()
+        self.addCleanup(scanner.join)
+        self.addCleanup(stop.set)
+        self.assertTrue(writing.wait(5))
+        res = upkeep.db_maintenance()
+        self.assertEqual(res["removed"]["files"], 1)
 
     # ── the orphan cleanup on its own ───────────────────────────────────────
     def test_an_orphan_cleanup_that_fails_half_way_deletes_nothing(self):

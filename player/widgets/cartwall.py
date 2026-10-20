@@ -12,6 +12,7 @@ The audio pool the pads sound on is player.audio.cart_voices, the shortcut
 panel player.widgets.cart_keys, the pad and wall-fade dialogs (with the pad
 colours) player.dialogs.cart_pad_dialog.
 """
+import html
 import logging
 import os
 from dataclasses import replace
@@ -36,7 +37,7 @@ from shared.widgets import FlowLayout
 from player.dialogs.cart_pad_dialog import (
     PAD_COLOURS, CartPadDialog, WallFadeDialog, _ClickableLabel,
 )
-from player.widgets.player_parts import _fmt_ms
+from player.widgets.player_parts import _ClickSlider, _fmt_ms
 from planner.music.parsing import _read_duration
 
 log = logging.getLogger("dancesport.gui.cartwall")
@@ -158,6 +159,8 @@ class _CartPadButton(QFrame):
         lyt.setSpacing(0)
         self._title = QLabel("")
         self._title.setWordWrap(True)
+        # Rich text for the 🅂 mark's own size; _restyle escapes the title.
+        self._title.setTextFormat(Qt.TextFormat.RichText)
         self._title.setAlignment(Qt.AlignmentFlag.AlignHCenter
                                  | Qt.AlignmentFlag.AlignTop)
         # Big and dead centre: the running time is what the operator reads from
@@ -255,7 +258,7 @@ class _CartPadButton(QFrame):
             self._restyle()
 
     def set_fading(self, fading: bool) -> None:
-        """Blink while a pad fades out, so a 0.4 s tail is still visibly a pad
+        """Blink while a pad fades out, so a 1 s tail is still visibly a pad
         on its way out rather than one that ignored the tap."""
         if fading == self._fading:
             return
@@ -305,9 +308,24 @@ class _CartPadButton(QFrame):
         marks = ""
         if self._pad.loop:
             marks += " 🔁"
+        if self._pad.duck and not self._pad.background:
+            # Not 🔈: Windows draws that as a pale grey emoji, lost on a
+            # coloured pad. The arrow takes the pad's text colour, like ♫.
+            marks += " ↓"
+        if self._pad.background:
+            # The plain note, not the purple 🎶 emoji: it takes the pad's text
+            # colour and so reads on every pad colour.
+            marks += " ♫"
+        if self._pad.stops_others:
+            # A boxed S, not ■ (reads as the pad's own stop button) and not a
+            # bare S (reads as part of the title). At the title's 11 px the
+            # box's S is too small to read; 16 px stood out, 14 px is the size
+            # asked for.
+            marks += " <span style='font-size:14px'>\U0001F142</span>"
         if self._pad.volume < 1.0:
             marks += f" {int(round(self._pad.volume * 100))}%"
-        self._title.setText(("⚠ " if self._missing else "") + title + marks)
+        self._title.setText(("⚠ " if self._missing else "")
+                            + html.escape(title, quote=False) + marks)
         if not self._playing:
             # Idle pads show how long the sample IS; a running one counts down.
             self._time.setText(_duration_text(self._pad.path))
@@ -532,6 +550,7 @@ class CartwallWidget(QWidget):
     dockRequested = Signal()               # 📌 put me back into the main window
     padsMoved = Signal(object)             # {old key: new key} — turn / reshape
     keysRequested = Signal()               # ⌨ the Keys window, on the wall's tab
+    levelChanged = Signal(float)           # 🔊 the wall's own fader, 0…1
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -590,12 +609,12 @@ class CartwallWidget(QWidget):
         self._prev_btn.setText("◀")
         self._prev_btn.setAutoRaise(True)
         self._prev_btn.setToolTip("Previous page")
-        self._prev_btn.clicked.connect(lambda: self._step_page(-1))
+        self._prev_btn.clicked.connect(lambda: self.step_page(-1))
         self._next_btn = QToolButton()
         self._next_btn.setText("▶")
         self._next_btn.setAutoRaise(True)
         self._next_btn.setToolTip("Next page")
-        self._next_btn.clicked.connect(lambda: self._step_page(1))
+        self._next_btn.clicked.connect(lambda: self.step_page(1))
         self._page_lbl = _ClickableLabel("")
         self._page_lbl.setMinimumWidth(70)
         self._page_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -664,20 +683,29 @@ class CartwallWidget(QWidget):
         self._stop_btn.setToolTip("Fade every running pad out (Esc)")
         self._stop_btn.clicked.connect(self.stopAll.emit)
         bar.addWidget(self._stop_btn)
+        bar.addWidget(self._build_level())
 
         # One button rather than two: the wall autosaves itself, so export and
         # import are the rare deliberate acts of carrying a wall to another PC.
         self._file_btn = QToolButton()
         self._file_btn.setText("🗂")
         self._file_btn.setAutoRaise(True)
+        # The ▾ takes no width of its own: the row flows, and the few pixels
+        # it adds were enough to push the button onto a second row.
+        self._file_btn.setFixedWidth(self._file_btn.sizeHint().width())
+        self._file_btn.setText("🗂▾")
         self._file_btn.setToolTip("Export or import this wall")
-        self._file_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-        menu = QMenu(self._file_btn)
-        menu.addAction("📄  All pads on one page", self._pack_one_page)
-        menu.addSeparator()
-        menu.addAction("📤  Export wall…", self._export_wall)
-        menu.addAction("📥  Import wall…", self._import_wall)
-        self._file_btn.setMenu(menu)
+        # The menu opens from the click, not from setMenu(): a button with a
+        # menu attached paints its own ⌄ in the bottom corner. The ▾ in the
+        # text sits on the 🗂's line, right of it, in the middle.
+        self._file_menu = QMenu(self._file_btn)
+        self._file_menu.addAction("📄  All pads on one page", self._pack_one_page)
+        self._file_menu.addSeparator()
+        self._file_menu.addAction("📤  Export wall…", self._export_wall)
+        self._file_menu.addAction("📥  Import wall…", self._import_wall)
+        self._file_btn.clicked.connect(
+            lambda: self._file_menu.popup(
+                self._file_btn.mapToGlobal(self._file_btn.rect().bottomLeft())))
         bar.addWidget(self._file_btn)
 
         # Only up while the wall floats. Qt's own way back is a drag or a
@@ -694,6 +722,47 @@ class CartwallWidget(QWidget):
         bar.addWidget(self._dock_btn)
         self.set_active(0)
         return bar
+
+    def _build_level(self) -> QWidget:
+        """🔊 The wall's own fader: every pad, under each pad's own trim. One
+        piece, so the flow layout never breaks the slider from its readout."""
+        box = QWidget()
+        row = QHBoxLayout(box)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(4)
+        row.addWidget(QLabel("🔊"))
+        self._level = _ClickSlider(Qt.Orientation.Horizontal)
+        self._level.setRange(0, 100)
+        self._level.setValue(100)
+        self._level.setFixedWidth(90)
+        self._level.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._level.setToolTip(
+            "Cartwall volume — every pad, apart from the music volume.\n"
+            "Also on a controller fader and the desk keys (⌨).")
+        self._level.valueChanged.connect(self._on_level)
+        row.addWidget(self._level)
+        self._level_lbl = QLabel("100 %")
+        self._level_lbl.setFixedWidth(40)
+        self._level_lbl.setAlignment(Qt.AlignmentFlag.AlignRight
+                                     | Qt.AlignmentFlag.AlignVCenter)
+        row.addWidget(self._level_lbl)
+        return box
+
+    def _on_level(self, value: int) -> None:
+        self._level_lbl.setText(f"{value} %")
+        self.levelChanged.emit(value / 100.0)
+
+    def set_level(self, level: float) -> None:
+        """Show a level set from elsewhere (controller fader, desk key) without
+        sending it back as a change."""
+        value = round(level * 100)
+        self._level.blockSignals(True)
+        self._level.setValue(value)
+        self._level.blockSignals(False)
+        self._level_lbl.setText(f"{value} %")
+
+    def level(self) -> float:
+        return self._level.value() / 100.0
 
     def set_floating(self, on: bool) -> None:
         """The wall was dragged out of the window, or put back into it.
@@ -925,6 +994,9 @@ class CartwallWidget(QWidget):
         self._page_lbl.setText(f"{name}  ({self._page + 1}/{len(self._pages)})")
         self._prev_btn.setEnabled(self._page > 0)
         self._next_btn.setEnabled(self._page + 1 < len(self._pages))
+        # One page has nowhere to go: ◀ ▶ only show once there is a second.
+        self._prev_btn.setVisible(len(self._pages) > 1)
+        self._next_btn.setVisible(len(self._pages) > 1)
         self._add_btn.setEnabled(len(self._pages) < pc.MAX_PAGES)
         self._rm_btn.setEnabled(len(self._pages) > 1)
 
@@ -985,7 +1057,7 @@ class CartwallWidget(QWidget):
         the same gate as a click."""
         self._fire(key)
 
-    def _step_page(self, delta: int) -> None:
+    def step_page(self, delta: int) -> None:
         """Turn the page. It never CREATES one — ➕ does that, and only in ✏
         mode. A nav that makes a page whenever you overshoot is how a wall grows
         pages nobody asked for."""
@@ -1303,17 +1375,19 @@ class CartwallWidget(QWidget):
         self.padRefreshed.emit(key, updated)
         # The rest of the selection takes only what a pad can SHARE: its path,
         # label and shortcut are its own, six pads cannot answer to one key.
+        # And only what this edit CHANGED: ticking 🔈 for six pads must not
+        # also copy this pad's colour and volume over theirs.
+        changed = [f for f in ("colour", "volume", "loop", "duck", "background",
+                               "stops_others", "fade_ms")
+                   if getattr(updated, f) != getattr(pad, f)]
         for target in scope:
             if target == key:
                 continue
             other = self.pad_at(target)
             if other is None:
                 continue
-            other.colour = updated.colour
-            other.volume = updated.volume
-            other.loop = updated.loop
-            other.duck = updated.duck
-            other.fade_ms = updated.fade_ms
+            for field in changed:
+                setattr(other, field, getattr(updated, field))
             self.padRefreshed.emit(target, other)
         self.refresh_missing()      # re-labels the pads and re-binds the keys
         self.changed.emit()

@@ -692,6 +692,9 @@ class _QtDesk(QObject, _Desk):
     def _on_taskbar_state(self, *_):
         self.heard.append(("taskbar", self.sender()))
 
+    def _cart_follow_deck(self, *_):
+        self.heard.append(("cart", self.sender()))
+
 
 class SwapTest(unittest.TestCase):
     """🔀 The outgoing title stays on its player; the deck changes player."""
@@ -742,7 +745,7 @@ class SwapTest(unittest.TestCase):
         new.mediaStatusChanged.emit(QMediaPlayer.MediaStatus.LoadedMedia)
         new.errorOccurred.emit(QMediaPlayer.Error.ResourceError, "x")
         self.assertEqual([who for who, _ in desk.heard],
-                         ["device", "state", "taskbar", "status", "error"])
+                         ["device", "state", "cart", "taskbar", "status", "error"])
         self.assertTrue(all(p is new for _, p in desk.heard))
 
     def test_the_card_the_overlay_and_the_device_follow(self):
@@ -764,7 +767,7 @@ class SwapTest(unittest.TestCase):
         desk.heard.clear()
         first.playbackStateChanged.emit(QMediaPlayer.PlaybackState.PlayingState)
         self.assertEqual([who for who, _ in desk.heard],
-                         ["device", "state", "taskbar"])
+                         ["device", "state", "cart", "taskbar"])
 
     def test_without_a_taskbar_there_is_nothing_of_it_to_move(self):
         desk = _Desk()
@@ -772,9 +775,11 @@ class SwapTest(unittest.TestCase):
         desk._taskbar = None
         desk._on_media_status = desk._on_player_error = print
         desk._on_playback_state = desk._on_taskbar_state = print
+        desk._cart_follow_deck = print
         self.assertEqual([name for name, _ in desk._deck_slots()],
                          ["mediaStatusChanged", "errorOccurred",
-                          "playbackStateChanged", "playbackStateChanged"])
+                          "playbackStateChanged", "playbackStateChanged",
+                          "playbackStateChanged"])
 
 
 PAUSED = QMediaPlayer.PlaybackState.PausedState

@@ -22,6 +22,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow
 
 from shared import stores
 from planner.playing import cartwall as pc
+from player.audio.mix import OutputMix
 from player.window.main_cartwall import CartwallMixin
 from tests.qt_test_support import reap_widget
 
@@ -35,6 +36,8 @@ class _Host(CartwallMixin, QMainWindow):
         QMainWindow.__init__(self)
         self._player = None
         self._cart_voices = None
+        self._mix = OutputMix()
+        self._set_cart_volume = self._mix.set_cart
         self._cartwall_shown = True
         self._build_cartwall()
 

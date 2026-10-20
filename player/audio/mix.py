@@ -46,8 +46,9 @@ class OutputMix:
 
     step_ms = _RAMP_STEP_MS
 
-    def __init__(self, base: float = 1.0):
-        self.base = _clamped(base)   # the master fader, persisted
+    def __init__(self, base: float = 1.0, cart: float = 1.0):
+        self.base = _clamped(base)   # the music fader, persisted
+        self.cart = _clamped(cart)   # 🎛 the cartwall's own fader, persisted
         self.gain = 1.0              # per-track loudness (R128) equalization
         self.fade = 1.0              # the timed fade-out of the running title
         self.duck = 1.0              # 🔈 pulled down while something speaks
@@ -83,13 +84,14 @@ class OutputMix:
                         * self.duck * self.desk)
 
     def cartwall(self) -> float:
-        """🎛 The pads follow the master fader and the 🔉 desk duck only.
+        """🎛 The pads follow their own fader and the 🔉 desk duck only.
 
-        Not the deck track's fade or loudness gain — those belong to a title the
-        pad is not part of — and not `duck`, which is the duck the pads
-        themselves cause.
+        Not the music fader — the two are separate strips, so pulling the music
+        down for a speech leaves a Tusch at its level. Not the deck track's fade
+        or loudness gain — those belong to a title the pad is not part of — and
+        not `duck`, which is the duck the pads themselves cause.
         """
-        return _clamped(self.base * self.desk)
+        return _clamped(self.cart * self.desk)
 
     def filler(self, share: float) -> float:
         """⏸ The filler between two titles, at `share` (0…1) of the master.
@@ -105,6 +107,9 @@ class OutputMix:
 
     def set_base(self, v: float):
         self.base = _clamped(v)
+
+    def set_cart(self, v: float):
+        self.cart = _clamped(v)
 
     def set_desk_duck(self, on: bool) -> float:
         """🔉 Everything audible down to _DESK_DUCK, and back. Stepped, not

@@ -20,7 +20,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtCore import QEvent, QMimeData, QPoint, QUrl, Qt
 from PySide6.QtGui import QDropEvent, QKeyEvent, QKeySequence
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QLabel
 from tests.qt_test_support import reap_widget
 
 from planner.playing import cartwall as pc
@@ -385,6 +385,56 @@ class CartPadWidgetTest(unittest.TestCase):
         self.assertIn("🔁", text)
         self.assertIn("25%", text)
 
+    def test_a_background_pad_carries_its_own_mark(self):
+        self.w.set_wall(pc.DEFAULT_GRID, [pc.Page(pads={
+            (0, 0): pc.CartPad(path="bed.mp3", background=True),
+            (0, 1): pc.CartPad(path="tusch.mp3")})])
+        self.assertIn("♫", self.w._buttons[(0, 0, 0)]._title.text())
+        self.assertNotIn("♫", self.w._buttons[(0, 0, 1)]._title.text())
+
+    def test_the_background_mark_takes_the_pads_text_colour(self):
+        """The colour emoji 🎶 is purple and drowned on a purple or green
+        pad; the plain ♫ is drawn in the pad's own text colour."""
+        self.w.set_wall(pc.DEFAULT_GRID, [pc.Page(pads={
+            (0, 0): pc.CartPad(path="bed.mp3", background=True)})])
+        self.assertNotIn("🎶", self.w._buttons[(0, 0, 0)]._title.text())
+
+
+    def test_a_pad_that_ducks_the_music_shows_it(self):
+        # Marcel: "the pull the music down icon should be shown on the
+        # cards" - "i want to see direct how it behave".
+        self.w.set_wall(pc.DEFAULT_GRID, [pc.Page(pads={
+            (0, 0): pc.CartPad(path="tusch.mp3"),
+            (0, 1): pc.CartPad(path="quiet.mp3", duck=False),
+            (1, 0): pc.CartPad(path="bed.mp3", duck=True, background=True)})])
+        self.assertIn("↓", self.w._buttons[(0, 0, 0)]._title.text())
+        self.assertNotIn("↓", self.w._buttons[(0, 0, 1)]._title.text())
+        # A background pad never ducks, whatever its old flag says. The mark is
+        # an arrow, not the pale 🔈 emoji (Marcel's pick).
+        self.assertNotIn("↓", self.w._buttons[(0, 1, 0)]._title.text())
+
+    def test_a_pad_that_stops_the_others_carries_its_own_mark(self):
+        # Marcel: "also add a logo for this to the pad".
+        self.w.set_wall(pc.DEFAULT_GRID, [pc.Page(pads={
+            (0, 0): pc.CartPad(path="anthem.mp3", stops_others=True),
+            (0, 1): pc.CartPad(path="tusch.mp3")})])
+        # Marcel: "instead of Stop Icon print a S", then "draw a rectangle
+        # around it so it is not misinterpreted as title": the squared 🅂.
+        self.assertIn("\U0001F142", self.w._buttons[(0, 0, 0)]._title.text())
+        self.assertNotIn("\U0001F142", self.w._buttons[(0, 0, 1)]._title.text())
+        self.assertNotIn("■", self.w._buttons[(0, 0, 0)]._title.text())
+        # First "make the S glyph smaller so it matches size of the other
+        # ones" (16 -> 13 px), then "make s glypth 14px in size".
+        self.assertIn("font-size:14px", self.w._buttons[(0, 0, 0)]._title.text())
+
+    def test_a_pad_title_is_shown_as_written_not_as_markup(self):
+        # The title is rich text for the bigger 🅂, so a file name with a <
+        # or an & in it must be escaped, not read as a tag.
+        self.w.set_wall(pc.DEFAULT_GRID, [pc.Page(pads={
+            (0, 0): pc.CartPad(path="<b>Rock & Roll.mp3")})])
+        label = self.w._buttons[(0, 0, 0)]._title
+        self.assertEqual(label.textFormat(), Qt.TextFormat.RichText)
+        self.assertIn("&lt;b&gt;Rock &amp; Roll", label.text())
 
 class EditLockTest(unittest.TestCase):
     """✏ off is the tournament state: pads fire, and nothing else."""
@@ -620,6 +670,42 @@ class CartPadDialogTest(unittest.TestCase):
         self.assertFalse(dlg._duck.isChecked())
         self.assertTrue(dlg.pad().loop)
 
+    def test_a_background_pad_round_trips(self):
+        pad = pc.CartPad(path="bed.mp3", loop=True, duck=False, background=True)
+        self.assertEqual(cpd.CartPadDialog(pad).pad(), pad)
+
+    def test_background_switches_the_duck_off_and_locks_it(self):
+        """A pad that dips under the music cannot also pull the music down —
+        the two would hold each other at the bottom."""
+        dlg = cpd.CartPadDialog(pc.CartPad(path="bed.mp3"))
+        self.assertTrue(dlg._duck.isEnabled())
+        dlg._background.setChecked(True)
+        self.assertFalse(dlg._duck.isChecked())
+        self.assertFalse(dlg._duck.isEnabled())
+        self.assertTrue(dlg.pad().background)
+        dlg._background.setChecked(False)
+        self.assertTrue(dlg._duck.isEnabled())
+
+    def test_a_background_pad_opens_with_the_duck_locked(self):
+        dlg = cpd.CartPadDialog(pc.CartPad(path="bed.mp3", duck=False,
+                                           background=True))
+        self.assertFalse(dlg._duck.isEnabled())
+
+    def test_there_is_no_dip_slider(self):
+        """A background pad goes all the way down under a title; there is no
+        depth left to set."""
+        dlg = cpd.CartPadDialog(pc.CartPad(path="bed.mp3", background=True))
+        self.assertFalse(hasattr(dlg, "_dip"))
+        self.assertNotIn("Dip to", [lbl.text() for lbl in dlg.findChildren(QLabel)])
+
+    def test_stopping_the_others_round_trips(self):
+        dlg = cpd.CartPadDialog(pc.CartPad(path="anthem.mp3"))
+        self.assertFalse(dlg._stops_others.isChecked())
+        dlg._stops_others.setChecked(True)
+        self.assertTrue(dlg.pad().stops_others)
+        pad = pc.CartPad(path="anthem.mp3", stops_others=True)
+        self.assertEqual(cpd.CartPadDialog(pad).pad(), pad)
+
     def test_the_fade_time_round_trips(self):
         pad = pc.CartPad(path="a.mp3", fade_ms=2500)
         self.assertEqual(cpd.CartPadDialog(pad).pad().fade_ms, 2500)
@@ -849,9 +935,9 @@ class MultiSelectTest(unittest.TestCase):
         """A selection is a set of CELLS, and after a page turn those cells hold
         something else entirely."""
         self.w._add_page()          # the wall under test has one page
-        self.w._step_page(-1)
+        self.w.step_page(-1)
         self.w._on_select((0, 0, 0), False)
-        self.w._step_page(1)
+        self.w.step_page(1)
         self.assertEqual(self.w.selection(), set())
 
     def test_a_settings_edit_shares_only_what_a_pad_can_share(self):
@@ -859,16 +945,35 @@ class MultiSelectTest(unittest.TestCase):
         self.w._on_select((0, 0, 1), True)
         edited = pc.CartPad(path=_SAMPLE, label="Tusch", colour="#7a3fbf",
                             volume=0.25, loop=True, duck=False, fade_ms=1500,
-                            shortcut="Ctrl+Shift+T")
+                            background=True, shortcut="Ctrl+Shift+T")
         with _accepted_dialog(edited):
             self.w._on_edit((0, 0, 0))
         other = self.w.pad_at((0, 0, 1))
+        self.assertTrue(other.background)
         self.assertEqual(other.colour, "#7a3fbf")
         self.assertAlmostEqual(other.volume, 0.25)
         self.assertTrue(other.loop)
         self.assertEqual(other.fade_ms, 1500)
         self.assertEqual(other.label, "")        # its own, not the anchor's
         self.assertEqual(other.shortcut, "")     # six pads cannot share one key
+
+    def test_a_settings_edit_hands_on_only_what_was_changed(self):
+        # Marcel: "allow multi select setting change f.e. to configure every
+        # selected pad as duck or solo". Ticking two boxes must not also copy
+        # the anchor's colour and volume over pads that have their own.
+        own = self.w.pad_at((0, 0, 1))
+        own.colour, own.volume, own.loop = "#f4d35e", 0.5, True
+        self.w._on_select((0, 0, 0), False)
+        self.w._on_select((0, 0, 1), True)
+        edited = pc.CartPad(path=_SAMPLE, duck=False, stops_others=True)
+        with _accepted_dialog(edited):
+            self.w._on_edit((0, 0, 0))
+        other = self.w.pad_at((0, 0, 1))
+        self.assertFalse(other.duck)
+        self.assertTrue(other.stops_others)
+        self.assertEqual(other.colour, "#f4d35e")
+        self.assertAlmostEqual(other.volume, 0.5)
+        self.assertTrue(other.loop)
 
 
 if __name__ == "__main__":

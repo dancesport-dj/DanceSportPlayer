@@ -46,6 +46,7 @@ F1 cheat sheet or in ⚙ Settings ▸ ⚙ General, see
 | Double-click a deck title | Rename the playlist or wishlist. |
 | ▾ / ▸ arrow in a deck header | Fold the deck to a header tab. Click the tab to reopen it. |
 | Drag a row | Move a title within the list, to another deck or a wishlist, or drop it into Explorer or a DJ program. |
+| Drag a column header sideways | Move the column, in every list of that kind. |
 | Right-click ▸ 🔍 Find a title | Jump to a title by name. Repeat to step to the next match. |
 | Drop a file from outside | Add it to the deck or wishlist where it was dropped. An `.m3u` dropped on a deck is imported. |
 | ▶ / ■ in a row | Play / stop exactly that title. |

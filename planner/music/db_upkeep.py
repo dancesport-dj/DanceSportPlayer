@@ -12,7 +12,7 @@ import sqlite3
 from pathlib import Path
 
 from planner.config import audio_db_file
-from planner.music.db import _db
+from planner.music.db import _db, bulk_writes_held
 from planner.music.embeddings import MODELS as EMBEDDING_MODELS
 
 log = logging.getLogger("dancesport.db")
@@ -56,8 +56,10 @@ def cleanup_orphans(prune_features: bool = False) -> dict:
     dead_ids = [fid for (fid, path) in conn.execute("SELECT id, path FROM files").fetchall()
                 if _vanished(Path(path), drives)]
     # One transaction: a crash half-way leaves the DB as it was, not half
-    # cleaned, and the deletes share one commit instead of one each.
-    conn.execute("BEGIN")
+    # cleaned, and the deletes share one commit instead of one each. IMMEDIATE:
+    # a deferred one that reads first fails at its first DELETE, without
+    # waiting, once another thread has committed in between.
+    conn.execute("BEGIN IMMEDIATE")
     try:
         removed = _delete_orphans(conn, dead_ids, prune_features)
     except BaseException:
@@ -260,6 +262,56 @@ def restore_user_data(src: Path) -> tuple[int, int, int]:
     return len(edits), len(marks), added
 
 
+# 🗑 Reset database: what each part of its dialog empties, as (table, WHERE).
+# "scan" is rebuilt by the next library scan (minutes), "analysis" by ⚗ Analysis
+# (hours), "user" by nothing - only the backup taken first brings it back.
+# app_meta keeps its settings (the Custom field mapping) under every tick.
+RESET_GROUPS: dict[str, tuple[tuple[str, str], ...]] = {
+    "scan": (("fingerprints", ""), ("global_meta", ""), ("files", ""), ("scan_meta", ""),
+             ("audio_fps", ""), ("playlist_index", ""),
+             ("app_meta", "key LIKE 'playlist_index_dance:%'")),
+    "analysis": (("features", ""), ("embeddings", ""), ("loudness", ""), ("silences", ""),
+                 ("waveforms", ""), ("vocals", ""), ("noise", ""),
+                 ("pd_highlights", "manual = 0")),
+    "user": (("tag_edits", ""), ("pd_highlights", "manual = 1"), ("play_log", "")),
+}
+
+
+def reset_database(groups) -> dict:
+    """Empty the tables of the chosen `RESET_GROUPS` and VACUUM. The user's
+    own rows are backed up first, whatever is picked; a failed backup resets
+    nothing. The app's in-memory caches still hold the old rows, so it restarts
+    afterwards. Returns {table: rows removed}."""
+    unknown = set(groups) - RESET_GROUPS.keys()
+    if unknown:
+        raise ValueError(f"unknown reset parts: {sorted(unknown)}")
+    backup_user_data(refresh=True)
+    conn = _db()
+    tables = {n for (n,) in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    removed: dict[str, int] = {}
+    with bulk_writes_held():
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            for group, parts in RESET_GROUPS.items():
+                if group not in groups:
+                    continue
+                for table, where in parts:
+                    if table in tables:
+                        sql = f"DELETE FROM {table}" + (f" WHERE {where}" if where else "")
+                        removed[table] = removed.get(table, 0) + conn.execute(sql).rowcount  # nosec B608: constant names
+        except BaseException:
+            conn.execute("ROLLBACK")
+            raise
+        conn.execute("COMMIT")
+        conn.execute("VACUUM")
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    log.info("  🗑 Database reset\n"
+             "    parts: %s\n"
+             "    removed rows: %s", ", ".join(sorted(groups)),
+             ", ".join(f"{t}={n:,}" for t, n in removed.items()))
+    return removed
+
+
 def db_maintenance() -> dict:
     """Reclaim database disk space: full orphan cleanup + VACUUM.
 
@@ -287,52 +339,54 @@ def db_maintenance() -> dict:
             f"{missing:,} of {total:,} registered files are missing — is the music "
             "drive mounted? Cleanup aborted so the cached analysis isn't wiped.")
 
-    removed = cleanup_orphans(prune_features=True)
+    # A running library scan waits meanwhile instead of keeping the write lock.
+    with bulk_writes_held():
+        removed = cleanup_orphans(prune_features=True)
 
-    # Side tables keyed by content fingerprint (embeddings has one row per
-    # fp+model; the others one per fp) — drop rows no live file points at.
-    live_fps = {fp for (fp,) in conn.execute("SELECT DISTINCT fp FROM fingerprints")}
-    for table in ("embeddings", "loudness", "pd_highlights", "silences", "waveforms",
-                  "vocals", "noise"):
-        if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
-                        (table,)).fetchone() is None:
-            removed[table] = 0
-            continue
-        dead_fps = [fp for (fp,) in conn.execute(f"SELECT DISTINCT fp FROM {table}")  # nosec B608: constant names
-                    if fp not in live_fps]
-        before = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]  # nosec B608: constant names
-        conn.executemany(f"DELETE FROM {table} WHERE fp = ?",  # nosec B608: constant names
-                         [(fp,) for fp in dead_fps])
-        if table == "embeddings":
-            # …and the vectors of a retired model, live track or not.
-            conn.execute("DELETE FROM embeddings WHERE model NOT IN "
-                         f"({', '.join('?' * len(EMBEDDING_MODELS))})",  # nosec B608: placeholders only
-                         EMBEDDING_MODELS)
-        removed[table] = before - conn.execute(
-            f"SELECT COUNT(*) FROM {table}").fetchone()[0]  # nosec B608: constant names
+        # Side tables keyed by content fingerprint (embeddings has one row per
+        # fp+model; the others one per fp) — drop rows no live file points at.
+        live_fps = {fp for (fp,) in conn.execute("SELECT DISTINCT fp FROM fingerprints")}
+        for table in ("embeddings", "loudness", "pd_highlights", "silences", "waveforms",
+                      "vocals", "noise"):
+            if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+                            (table,)).fetchone() is None:
+                removed[table] = 0
+                continue
+            dead_fps = [fp for (fp,) in conn.execute(f"SELECT DISTINCT fp FROM {table}")  # nosec B608: constant names
+                        if fp not in live_fps]
+            before = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]  # nosec B608: constant names
+            conn.executemany(f"DELETE FROM {table} WHERE fp = ?",  # nosec B608: constant names
+                             [(fp,) for fp in dead_fps])
+            if table == "embeddings":
+                # …and the vectors of a retired model, live track or not.
+                conn.execute("DELETE FROM embeddings WHERE model NOT IN "
+                             f"({', '.join('?' * len(EMBEDDING_MODELS))})",  # nosec B608: placeholders only
+                             EMBEDDING_MODELS)
+            removed[table] = before - conn.execute(
+                f"SELECT COUNT(*) FROM {table}").fetchone()[0]  # nosec B608: constant names
 
-    # The playlist index is keyed by folder, not by fingerprint, so none of the above
-    # reaches it. PlaylistIndexCache drops a vanished root only when it happens to
-    # load a DIFFERENT one, and the root's dance digest in app_meta only while that
-    # root still has index rows — so a digest whose rows were already gone could
-    # never be reached again and piled up one row per temp folder ever indexed.
-    gone_roots = [r for (r,) in conn.execute("SELECT DISTINCT root FROM playlist_index")
-                  if _vanished(Path(r))]
-    n_pl = 0
-    for root in gone_roots:
-        n_pl += conn.execute("DELETE FROM playlist_index WHERE root = ?",
-                             (root,)).rowcount
-    removed["playlist_index"] = n_pl
-    dead_keys = [k for (k,) in conn.execute(
-        "SELECT key FROM app_meta WHERE key LIKE 'playlist_index_dance:%'")
-        if _vanished(Path(k.split(":", 1)[1]))]
-    conn.executemany("DELETE FROM app_meta WHERE key = ?", [(k,) for k in dead_keys])
-    removed["app_meta"] = len(dead_keys)
-    conn.commit()
+        # The playlist index is keyed by folder, not by fingerprint, so none of the above
+        # reaches it. PlaylistIndexCache drops a vanished root only when it happens to
+        # load a DIFFERENT one, and the root's dance digest in app_meta only while that
+        # root still has index rows — so a digest whose rows were already gone could
+        # never be reached again and piled up one row per temp folder ever indexed.
+        gone_roots = [r for (r,) in conn.execute("SELECT DISTINCT root FROM playlist_index")
+                      if _vanished(Path(r))]
+        n_pl = 0
+        for root in gone_roots:
+            n_pl += conn.execute("DELETE FROM playlist_index WHERE root = ?",
+                                 (root,)).rowcount
+        removed["playlist_index"] = n_pl
+        dead_keys = [k for (k,) in conn.execute(
+            "SELECT key FROM app_meta WHERE key LIKE 'playlist_index_dance:%'")
+            if _vanished(Path(k.split(":", 1)[1]))]
+        conn.executemany("DELETE FROM app_meta WHERE key = ?", [(k,) for k in dead_keys])
+        removed["app_meta"] = len(dead_keys)
+        conn.commit()
 
-    log.info("  🧹 VACUUM %s (%.1f MB) …", audio_db_file().name, size_before / 1e6)
-    conn.execute("VACUUM")
-    conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        log.info("  🧹 VACUUM %s (%.1f MB) …", audio_db_file().name, size_before / 1e6)
+        conn.execute("VACUUM")
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
     size_after = audio_db_file().stat().st_size
     log.info("  🧹 Database maintenance done:\n"
              "    size: %.1f MB → %.1f MB\n"

@@ -44,11 +44,18 @@ Die Spalten:
   **✦neu** heißt, er steht in keiner.
 - **Klasse**: die Klassen-Tags aus dem MP3-Kommentar, zum Beispiel `[B,A,S]`.
 
-Drei weitere Spalten sind anfangs ausgeblendet. Ein Rechtsklick auf den
+Vier weitere Spalten sind anfangs ausgeblendet. Ein Rechtsklick auf den
 Spaltenkopf blendet sie ein: **★** bewertet einen Titel mit einem Klick,
-**Custom** hält einen freien Text pro Titel, und **Dateiname** zeigt den
-bereinigten Dateinamen, mit dem vollen Pfad im Tooltip. ★ und Custom
+**Custom** hält einen freien Text pro Titel, **Dateiname** zeigt den
+bereinigten Dateinamen, mit dem vollen Pfad im Tooltip, und **Album** den
+Album-Tag der MP3. ★ und Custom
 beschreibt [Kapitel 5](05-tags.md).
+
+Zieh einen Spaltenkopf zur Seite, um die Spalte zu verschieben. Die neue
+Reihenfolge gilt für alle Listen dieser Art (alle Decks, alle Wunschlisten
+oder alle Partylisten) und bleibt beim nächsten Start erhalten. **Tanz**
+bleibt vorne und **↺** hinten. Ein eingeblendetes **Album** steht anfangs
+direkt hinter **Titel**.
 
 Zeilenfarben:
 

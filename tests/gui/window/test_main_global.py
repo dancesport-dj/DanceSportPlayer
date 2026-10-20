@@ -453,6 +453,7 @@ class SettingsTest(_TestBase):
         self.saved = self.patch(mg, "save_settings")
         self.patch(planner.playlist.m3u, "set_m3u_format")
         self.patch(mg, "set_no_class_exclusion")
+        self.hidden = self.patch(mg, "set_hidden_folders")
         self.patch(mg, "error_reports")
         self.playlist_dir = self.patch(planner.config, "set_playlist_dir")
         self.win = mock.Mock()
@@ -499,6 +500,18 @@ class SettingsTest(_TestBase):
         self.open()
         self.assertEqual(self.win._offer_restart.call_args.args[0], "🎨 Look")
 
+    def test_hidden_folders_apply_and_offer_a_restart(self):
+        self.win._library.global_lib = _lib()
+        self.open(hidden_folders=["F:/m/Party"])
+        self.hidden.assert_called_with(["F:/m/Party"])
+        self.assertIsNone(self.win._library.global_lib)
+        self.assertEqual(self.win._offer_restart.call_args.args[0], "🙈 Excluded folders")
+
+    def test_unchanged_hidden_folders_offer_nothing(self):
+        self.win._settings["hidden_folders"] = ["F:/m/Party"]
+        self.open(hidden_folders=["F:/m/Party"])
+        self.win._offer_restart.assert_not_called()
+
 
 class MaintenanceTest(_TestBase):
 
@@ -539,6 +552,49 @@ class MaintenanceTest(_TestBase):
         win._on_maintenance_error("locked")
         win._busy.finish.assert_called_once()
         self.assertIn("Cleanup did not run:\n\nlocked", self.dialogs.text())
+
+
+class ResetDatabaseTest(_TestBase):
+
+    def setUp(self):
+        super().setUp()
+        self.worker = self.patch(mg, "DbResetWorker")
+        self.dlg = self.patch(mg, "ResetDatabaseDialog")
+
+    def answer(self, accepted, chosen):
+        self.dlg.return_value.exec.return_value = (
+            QDialog.DialogCode.Accepted if accepted else QDialog.DialogCode.Rejected)
+        self.dlg.return_value.chosen.return_value = chosen
+
+    def test_nothing_runs_unless_parts_are_picked_and_confirmed(self):
+        win = self.host()
+        self.answer(False, {"scan"})
+        win._reset_database()
+        self.answer(True, set())
+        win._reset_database()
+        self.worker.assert_not_called()
+        self.answer(True, {"scan", "user"})
+        win._reset_database()
+        self.worker.assert_called_once_with({"scan", "user"}, win)
+        self.worker.return_value.done.connect.assert_called_once_with(win._on_reset_done)
+        self.worker.return_value.start.assert_called_once()
+
+    def test_done_reports_the_rows_and_offers_the_restart(self):
+        win = self.host()
+        win._busy = mock.Mock()
+        win._offer_restart = mock.Mock()
+        win._on_reset_done({"files": 3, "features": 0, "tag_edits": 2})
+        win._busy.finish.assert_called_once()
+        title, question = win._offer_restart.call_args.args
+        self.assertEqual(title, "🗑 Reset database")
+        self.assertIn("Removed rows: deleted tracks 3, tag_edits 2.", question)
+        self.assertIn("Restart now?", question)
+
+    def test_a_failed_reset_is_reported(self):
+        win = self.host()
+        win._busy = mock.Mock()
+        win._on_reset_error("disk full")
+        self.assertIn("Reset did not run:\n\ndisk full", self.dialogs.text())
 
 
 class ManualPdTest(_TestBase):

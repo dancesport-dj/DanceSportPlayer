@@ -112,9 +112,11 @@ The tempo row under it:
   step it, hold them to glide. **0** or a double-click on the fader resets it.
   [Desk keys](#-desk-keys) and a knob on a
   [hardware controller](#-a-hardware-controller) move it too.
-- **TSO**: while on, every title is pitched to the average tempo of its dance
-  in this round, kept inside the TSO range. A Rumba at 23 becomes T24, a Paso
-  Doble at 57 becomes T58.
+- **CR**: while on, every title is pitched to the average tempo of its dance
+  in this round, kept inside the tempo range of the WDSF Competition Rules. A
+  Rumba at 23 becomes T24, a Paso Doble at 57 becomes T58. With the German
+  dance and round names kept (⚙ Settings → Language) the button reads
+  **TSO**, after the German rule book.
 - **📌**: pins the tempo, so the fader stays where you left it when the next
   title starts.
 - **♪**: tap along to the beat to measure the live tempo by hand. This is for
@@ -307,16 +309,35 @@ drum roll, the national anthem, a jingle for the award ceremony.
 ![The cartwall docked to the right of the decks](img/main-cartwall.png)
 
 - **Click a pad** to fire it over the running music. Click it again to fade
-  it out.
+  it out, over 1 s. Right-click a pad ▸ **⏱ Wall fade-out…** sets that time
+  for the whole wall; **Own fade-out** in a pad's **Settings…** gives one
+  pad its own.
 - **Ctrl + 1 … 9** fire the first nine pads of the page on screen.
 - **⏹ Stop all** or **Esc** fades every pad out.
+- **🔊** beside it is the cartwall's own volume, for every pad. It is apart
+  from the music volume: pulling the music down leaves the pads where they
+  are. A pad's own volume (its **Settings…**) is set relative to it. The
+  **Ctrl + Alt + ↑ / ↓** keys and a controller fader move it too.
 - **✏** unlocks the wall for building. Drop audio files on a pad to fill it.
   A multi-select fills the free pads after it. Drag one pad onto another to
   swap them. Lock the wall again before the tournament, so nothing moves by
   accident.
 - **Right-click a pad** for its 🎨 colour, or **Settings…** for its label,
   volume, own shortcut key, 🔁 endless repeat, and whether it ducks the music.
-- The page arrows switch pages. Double-click the page name to rename it. The
+- **🎶 Background** turns that round: the pad itself goes silent while a
+  title plays and fades back in once the title has ended. Use it for a bed that runs
+  through the evening. A background pad never ducks the music.
+- **S Stop the other pads** in a pad's **Settings…** fades every other
+  running pad out as this one starts, for an anthem or a winners' fanfare
+  that needs the room.
+- A pad's face shows how it behaves: 🔁 endless repeat, ↓ ducks the music,
+  ♫ background, 🅂 stops the other pads, and its volume when it is below 100 %.
+- With **✏** on, a click selects a pad instead of firing it, and **Ctrl+click**
+  or **Shift+click** adds more. A right-click on a selected pad then works on
+  all of them: 🎨 colour, 🗑 clear, or **Settings…**, where only what you
+  change reaches the other pads, for example 🔈 ducking or 🅂 for six pads at
+  once. Label and shortcut key stay with each pad.
+- The page arrows, shown once there is a second page, switch pages, and so do **Ctrl + Alt + ← / →**. Double-click the page name to rename it. The
   size box sets the grid, for example 2 × 7. A smaller grid never loses a pad.
 - **🗂** exports or imports the wall, or packs all pads onto one page.
 - Drag the wall to the left or right of the window, below the decks, or out
@@ -470,6 +491,8 @@ macro keypad needs no driver for them.
 | 🔉 Duck the music on / off | **Ctrl + Shift + D** |
 | 🔈 Announce the next dance on / off | **Ctrl + Shift + A** |
 | 🔼 / 🔽 Music volume up / down, 5 % a step | **Ctrl + Shift + ↑ / ↓** |
+| 🔼 / 🔽 Cartwall volume up / down, 5 % a step | **Ctrl + Alt + ↑ / ↓** |
+| ◀ / ▶ Previous / next cartwall page | **Ctrl + Alt + ← / →** |
 | ⏫ / ⏬ Tempo up / down, 0.1 % a step | **Ctrl + Shift + PgUp / PgDown** |
 | 🎯 Tempo back to ±0 % | **Ctrl + Shift + Home** |
 | ⏹ Stop all pads | **Ctrl + Shift + X** |
@@ -513,6 +536,8 @@ The actions it can take:
 - 🔉 Duck the music on / off, 🔈 Announce the next dance on / off;
 - 🔊 Music volume, from a fader or a knob, and 🔼 / 🔽 Music volume up /
   down in 5 % steps, for buttons;
+- 🎛 Cartwall volume, from a fader or a knob, and 🔼 / 🔽 Cartwall volume
+  up / down, the same for the pads; ◀ / ▶ Previous / next cartwall page;
 - 🎚 Tempo / pitch, from a fader or a knob: its middle is ±0 %, its ends
   −16 % and +16 %. For buttons, ⏫ / ⏬ Tempo up / down in 0.1 % steps and
   🎯 Tempo back to ±0 %. The tempo changes once the knob stops, not at every
@@ -547,8 +572,8 @@ In the window:
 1. Pick the controller under **Device**. **↻** looks for new ones. Tick
    **Show all HID devices, not only DJ controllers** if yours is not listed.
 2. **Presets ▾** holds a ready profile for the Korg nanoKONTROL2. Its
-   transport row drives the player, fader 1 is the music volume, the knob
-   above it the tempo and **S1** puts the tempo back to ±0 % (the knobs
+   transport row drives the player, fader 1 is the music volume, fader 2
+   the cartwall volume, the knob above fader 1 the tempo and **S1** puts the tempo back to ±0 % (the knobs
    have no push switch). **TRACK ▶** focuses the library, **MARKER ◀ / ▶**
    browse up and down the list in focus, and **S2**, **S3**, **S4** play
    the selected title or send it to the playlist or the wishlist. Its
@@ -567,10 +592,11 @@ In the window:
   now. Learn that row again, or leave it empty.
 - Learn tells a button from a knob or fader by how it moves. A button action
   takes only a press, so a knob turned while it waits is passed over. The
-  volume and the tempo take only a knob or fader, never a button.
+  volumes and the tempo take only a knob or fader, never a button.
 - 🔼 / 🔽 Music volume up / down without a button of their own read
   **on the fader — CC 0 · ch 1** in grey: the 🔊 fader sets the volume
-  already. The nanoKONTROL2 preset leaves them that way.
+  already. The nanoKONTROL2 preset leaves them that way, and the cartwall's
+  🔼 / 🔽 the same under its fader.
 
 While the controller is connected, the status bar carries a green
 **🎛 nanoKONTROL2** badge, with the controller's name. A click on it opens the

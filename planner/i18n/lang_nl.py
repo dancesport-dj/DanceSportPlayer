@@ -928,6 +928,18 @@ CATALOG = {
         "🔇 Geen audio-backend — de Cartwall kan hier niet afspelen.",
     "🔈  Pull the music down while this pad plays":
         "🔈  De muziek dempen zolang deze pad speelt",
+    "S  Stop the other pads when this one starts":
+        "S  De andere pads stoppen wanneer deze start",
+    "Every other running pad fades out as this one starts —\n"
+    "for an anthem or a winners' fanfare that needs the room.":
+        "Alle andere lopende pads faden uit zodra deze start —\n"
+        "voor een volkslied of een winnaarsfanfare die de ruimte nodig heeft.",
+    "🎶  Background: dip under the music while a title plays":
+        "🎶  Achtergrond: onder de muziek wegzakken zolang een titel speelt",
+    "The other way round from 🔈: this pad goes silent while the\n"
+    "main player plays and comes back up in the pauses.":
+        "Andersom dan 🔈: deze pad zwijgt zolang de\n"
+        "hoofdspeler speelt en komt in de pauzes weer omhoog.",
     "🔈 No announcement recordings found for this voice.":
         "🔈 Geen aankondigingsopnames gevonden voor deze stem.",
     "🖌  Wall colour": "🖌  Kleur van de Cartwall",
@@ -1113,7 +1125,7 @@ CATALOG = {
         "Elk bestand krijgt de naam van zijn decktitel.",
     "Export playlists as a self-contained venue bundle — asks first\n"
     "whether to take all open decks, only the 📅 tournament day, or\n"
-    "saved .m3u files dragged in (wishlists are never bundled).\n"
+    "saved .m3u files dragged in, with the ⭐ wishlists if ticked.\n"
     "One sub-folder per playlist holding its tracks copied in numbered\n"
     "play order (0_0_1 - Title WW29.mp3) plus the playlist's .m3u — each\n"
     "folder plays in order even without the M3U, from any drive,\n"
@@ -1121,7 +1133,7 @@ CATALOG = {
     "Also offers the 📦 venue pack: this desk in one file for another PC.":
         "Afspeellijsten exporteren als zelfstandig zaalpakket — vraagt eerst\n"
         "of alle open decks, alleen de 📅 toernooidag of binnengesleepte\n"
-        "opgeslagen .m3u-bestanden mee moeten (wensenlijsten gaan nooit mee).\n"
+        "opgeslagen .m3u-bestanden mee moeten (⭐ wensenlijsten als aangevinkt).\n"
         "Eén submap per afspeellijst met haar nummers gekopieerd in genummerde\n"
         "speelvolgorde (0_0_1 - Title WW29.mp3) plus de .m3u van de afspeellijst — elke\n"
         "map speelt in volgorde, ook zonder de M3U, vanaf elke schijf,\n"
@@ -1517,9 +1529,9 @@ CATALOG = {
         "Thema, accent en taal worden gelezen als de app start, dus een wijziging werkt na een herstart — dat wordt je gevraagd zodra je opslaat.",
     "Keep the German dance and round names on a screen in another language (Langsamer Walzer, Vorrunde, Standardrunde 1, Eintanzen …)":
         "De Duitse dans- en rondenamen behouden op een scherm in een andere taal (Langsamer Walzer, Vorrunde, Standardrunde 1, Eintanzen …)",
-    "On: the presenter screen and the recorded announcements are German too, and a 🤸 practice list is called Eintanzen, also in its saved file.\n"
+    "On: the presenter screen and the recorded announcements are German too, a 🤸 practice list is called Eintanzen, also in its saved file, and the tempo rules are named TSO (off: WDSF CR).\n"
     "Off: Slow Waltz, Round 1, Standard round 1, Practice … — the playlists and exports keep the German dance and round names either way.":
-        "Aan: ook het presentatiescherm en de opgenomen aankondigingen zijn in het Duits, en een 🤸 oefenlijst heet Eintanzen, ook in het opgeslagen bestand.\n"
+        "Aan: ook het presentatiescherm en de opgenomen aankondigingen zijn in het Duits, een 🤸 oefenlijst heet Eintanzen, ook in het opgeslagen bestand, en de temporegels heten TSO (uit: WDSF CR).\n"
         "Uit: Slow Waltz, Round 1, Standard round 1, Oefenen … — de afspeellijsten en exports houden in elk geval de Duitse dans- en rondenamen.",
     "You can change this later under ⚙ Settings → ⚙ General.":
         "Je kunt dit later wijzigen onder ⚙ Instellingen → ⚙ Algemeen.",
@@ -1698,10 +1710,8 @@ CATALOG = {
         "Sleep een nummer naar een deck of wensenlijst om het te gebruiken.\n"
         "▶ om voor te luisteren · dubbelklik om het in je externe speler te openen\n"
         "· rechtsklik voor meer.",
-    "Only tracks suited for this starting class\n"
-    "(tracks without a class tag are always shown)":
-        "Alleen nummers die bij deze startklasse passen\n"
-        "(nummers zonder klasse-aanduiding worden altijd getoond)",
+    "Only tracks suited for one of the ticked starting classes\n(tick several; tracks without a class tag show only with all classes)":
+        "Alleen nummers die passen bij een van de aangevinkte startklassen\n(meerdere mogelijk; nummers zonder klasse alleen bij alle klassen)",
     "Only tracks whose file was created in the library that\n"
     "recently. Combine with ✦ Never played to see what you\n"
     "copied in but have never actually used.":
@@ -3114,6 +3124,20 @@ CATALOG = {
         "🔼  Muziek harder",
     "🔽  Music volume down":
         "🔽  Muziek zachter",
+    "🎛  Cartwall volume (fader or knob)":
+        "🎛  Cartwall-volume (fader of draaiknop)",
+    "🔼  Cartwall volume up":
+        "🔼  Cartwall harder",
+    "🔽  Cartwall volume down":
+        "🔽  Cartwall zachter",
+    "◀  Previous cartwall page":
+        "◀  Vorige cartwall-pagina",
+    "▶  Next cartwall page":
+        "▶  Volgende cartwall-pagina",
+    "Cartwall volume — every pad, apart from the music volume.\n"
+    "Also on a controller fader and the desk keys (⌨).":
+        "Cartwall-volume — alle pads, los van het muziekvolume.\n"
+        "Ook via een fader van de controller en de bureautoetsen (⌨).",
     "🎚  Tempo / pitch (fader or knob)":
         "🎚  Tempo / pitch (fader of draaiknop)",
     "⏫  Tempo up":
@@ -3317,7 +3341,6 @@ CATALOG = {
     "Description": "Beschrijving",
     "Value": "Waarde",
     "➕  Add field": "➕  Veld toevoegen",
-    "Only for one track at a time": "Alleen voor één nummer tegelijk",
     "Only for an MP3 file on disk": "Alleen voor een MP3-bestand op de schijf",
     "Couldn't read the MP3 tags: %s":
         "De MP3-tags konden niet gelezen worden: %s",
@@ -3683,6 +3706,46 @@ CATALOG = {
     "Removed rows: %s.": "Verwijderde rijen: %s.",
     "none — everything is still in use": "geen — alles wordt nog gebruikt",
     "Cleanup did not run:": "Het opruimen is niet uitgevoerd:",
+    "🗑  Reset database…":
+        "🗑  Database resetten…",
+    "Empty chosen parts of the database: the tags read from the files,\nthe audio analysis, your own data. A dialog asks which; your own\ndata is backed up first, and the app restarts afterwards.":
+        "Gekozen delen van de database legen: de tags uit de bestanden, de\naudio-analyse, je eigen gegevens. Een dialoog vraagt welke; je eigen\ngegevens worden eerst geback-upt, daarna start de app opnieuw.",
+    "🗑  Reset database":
+        "🗑  Database resetten",
+    "🗑 Reset database":
+        "🗑 Database resetten",
+    "🏷  Tags read from the music files":
+        "🏷  Tags uit de muziekbestanden",
+    "🎚  Audio analysis":
+        "🎚  Audio-analyse",
+    "✋  My own data":
+        "✋  Mijn eigen gegevens",
+    "Dance, BPM, class and title of every file, the file list and the learned playlist index. The next library scan reads them again (minutes).":
+        "Dans, BPM, klasse en titel van elk bestand, de bestandslijst en de geleerde playlist-index. De volgende bibliotheekscan leest ze opnieuw (minuten).",
+    "Features, AI embeddings, loudness, silences, waveforms, vocal shares and detected PD highlights. ⚗ Analysis builds them again (hours).":
+        "Features, AI-embeddings, luidheid, stiltes, golfvormen, vocale aandelen en gevonden PD-highlights. ⚗ Analyse bouwt ze opnieuw op (uren).",
+    "Your tag edits, hand-set PD marks and the 📜 play log. Nothing rebuilds them; only ♻ Restore user data backup brings them back.":
+        "Je tagwijzigingen, met de hand gezette PD-markeringen en het 📜 afspeellogboek. Niets bouwt ze opnieuw op; alleen ♻ Back-up van eigen gegevens herstellen haalt ze terug.",
+    "Empty the chosen parts of the database. Your own data is backed up first either way, and the app restarts afterwards.":
+        "De gekozen delen van de database legen. Je eigen gegevens worden hoe dan ook eerst geback-upt, en de app start daarna opnieuw.",
+    "Reset and restart":
+        "Resetten en herstarten",
+    "Resetting database…":
+        "Database wordt gereset…",
+    "The app still shows the old data until it restarts. Restart now?":
+        "De app toont de oude gegevens tot hij opnieuw start. Nu herstarten?",
+    "Reset did not run:":
+        "Het resetten is niet uitgevoerd:",
+    "<b>Excluded folders</b> — titles in these folders and below stay out of the library, one folder per line:":
+        "<b>Uitgesloten mappen</b> — titels in deze mappen en eronder blijven buiten de bibliotheek, één map per regel:",
+    "Left out of ⭐ Favorites and 🌐 Whole library alike: not shown, not\nsearched, never suggested. Nothing on disk changes, and the tags\nread so far stay cached, so a folder taken off the list is back\nafter a restart.":
+        "Weg uit ⭐ Favorieten en 🌐 Hele bibliotheek: niet getoond, niet\ndoorzocht, nooit voorgesteld. Op de schijf verandert niets en de gelezen\ntags blijven bewaard, dus een map die van de lijst gaat is na een\nherstart terug.",
+    "Hide a folder from the library":
+        "Een map in de bibliotheek verbergen",
+    "🙈 Excluded folders":
+        "🙈 Uitgesloten mappen",
+    "The library is loaded when the app starts, so the excluded folders change with the next start.\n\nRestart now?":
+        "De bibliotheek wordt geladen als de app start, dus de uitgesloten mappen veranderen bij de volgende start.\n\nNu herstarten?",
     "📤  Export manual PD marks…": "📤  Handmatige PD-markeringen exporteren…",
     "📥  Import manual PD marks…": "📥  Handmatige PD-markeringen importeren…",
     "Export manual PD marks": "Handmatige PD-markeringen exporteren",
@@ -4327,9 +4390,9 @@ CATALOG = {
     "Order: %s, %s, …": "Volgorde: %s, %s, …",
     "🟰  Identical files — the earlier copy is removed, the last stays (%d)":
         "🟰  Identieke bestanden — de eerdere kopie wordt verwijderd, de laatste blijft (%d)",
-    "✏  %d pads selected — colour, volume, fade, 🔁 and 🔈 apply to all of them.\n"
+    "✏  %d pads selected — what you change here (colour, volume, fade, 🔁, 🔈, 🎶, S) applies to all of them.\n"
     "Label and shortcut stay with this pad.":
-        "✏  %d pads geselecteerd — kleur, volume, uitfaden, 🔁 en 🔈 gelden voor allemaal.\n"
+        "✏  %d pads geselecteerd — wat je hier wijzigt (kleur, volume, uitfaden, 🔁, 🔈, 🎶, S) geldt voor allemaal.\n"
         "Label en sneltoets blijven bij deze pad.",
     "Empty = this slot's default (%s)": "Leeg = standaard van dit slot (%s)",
     "Empty = no key (this slot has no default)":
@@ -5252,8 +5315,22 @@ CATALOG = {
         "dus kies de map met je dansmuziek.\n\n"
         "Gevonden: %s\n\n"
         "Je kunt dit altijd wijzigen onder ⚙ Instellingen → 📁 Paden.",
+    "Name the folder for the bundle on “%s”:":
+        "Naam van de map voor het pakket op ‘%s’:",
+    "Make a folder named after the tournament in “%s”?":
+        "Een map met de naam van het toernooi maken in ‘%s’?",
+    "📁  Create folder":
+        "📁  Map maken",
+    "Straight into “%s”":
+        "Rechtstreeks in ‘%s’",
     "📦 Venue pack: this desk for another PC…":
         "📦 Zaalpakket: deze tafel voor een andere pc…",
+    "⭐ Include wishlists (%d)":
+        "⭐ Wensenlijsten meenemen (%d)",
+    "Each ⭐ wishlist with titles in it gets its own numbered\n"
+    "folder in the bundle, beside the playlists.":
+        "Elke ⭐ wensenlijst met nummers krijgt een eigen genummerde\n"
+        "map in het pakket, naast de afspeellijsten.",
     "One file with the settings, every deck and wishlist and the\n"
     "cartwall, the music they use if you want: the same as\n"
     "⚙ Settings → 📦 Venue pack → Export venue pack….":

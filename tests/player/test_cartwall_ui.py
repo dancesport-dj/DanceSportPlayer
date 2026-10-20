@@ -18,7 +18,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtCore import QPointF, Qt
 from PySide6.QtGui import QMouseEvent
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import (QApplication, QStyleOptionToolButton, QToolButton,
+    QWidgetItem)
 from tests.qt_test_support import reap_widget
 
 from planner.playing import cartwall as pc
@@ -150,19 +151,19 @@ class WallGridTest(_WallCase):
         """▶ turns pages, ➕ makes them. A nav that quietly conjures a page when
         you overshoot is how a wall collects pages nobody asked for."""
         self.w.set_wall(pc.DEFAULT_GRID, [pc.blank_page()])
-        self.w._step_page(1)
+        self.w.step_page(1)
         self.assertEqual(len(self.w.pages()), 1)
         self.assertEqual(self.w.current_page(), 0)
         self.w._add_page()
         self.assertEqual(self.w.current_page(), 1)
-        self.w._step_page(-1)
+        self.w.step_page(-1)
         self.assertEqual(self.w.current_page(), 0)
 
     def test_a_fresh_wall_already_has_a_second_page(self):
         self.assertEqual(len(self.w.pages()), pc.DEFAULT_PAGES)
 
     def test_page_one_cannot_be_paged_off_the_front(self):
-        self.w._step_page(-1)
+        self.w.step_page(-1)
         self.assertEqual(self.w.current_page(), 0)
 
     # ── missing files ────────────────────────────────────────────────────────
@@ -516,9 +517,39 @@ class WallFileTest(unittest.TestCase):
         self.assertFalse(pc.read_wall(self.path + ".nope")[4])
 
     def test_the_wall_menu_offers_both(self):
-        actions = [a.text() for a in self.w._file_btn.menu().actions()]
+        actions = [a.text() for a in self.w._file_menu.actions()]
         self.assertTrue(any("Export" in a for a in actions), actions)
         self.assertTrue(any("Import" in a for a in actions), actions)
+
+    def test_the_folder_button_keeps_no_room_for_a_menu_arrow(self):
+        """A button with its menu attached draws a ⌄ on its right and keeps
+        room for it even when the ⌄ is styled away — the 🗂 sat left of the
+        middle of a button that itself lined up with the rest."""
+        opt = QStyleOptionToolButton()
+        self.w._file_btn.initStyleOption(opt)
+        self.assertFalse(opt.features & QStyleOptionToolButton.ToolButtonFeature.HasMenu)
+
+    def test_the_folder_button_shows_its_menu_arrow_on_the_right(self):
+        """'add the down arrow right side in the middle': a ▾ after the 🗂,
+        in the text, so it sits on the glyph's line and not in Qt's corner."""
+        self.assertEqual(self.w._file_btn.text(), "🗂▾")
+
+    def test_the_menu_arrow_costs_the_tool_row_no_width(self):
+        """Marcel: 'with the new dir icon with the arrow in the cartwall it is
+        broken in a new line'. The tool row flows, so every pixel the ▾ adds
+        can push the button onto a second row. It keeps a bare 🗂's width."""
+        bare = QToolButton()
+        bare.setText("🗂")
+        bare.setAutoRaise(True)
+        # What the flow layout sizes the button by, fixed width included.
+        self.assertLessEqual(QWidgetItem(self.w._file_btn).sizeHint().width(),
+                             bare.sizeHint().width())
+
+    def test_a_click_on_the_folder_button_opens_the_menu(self):
+        self.w.show()
+        self.addCleanup(self.w._file_menu.hide)
+        self.w._file_btn.click()
+        self.assertTrue(self.w._file_menu.isVisible())
 
 
 class WallFadeTest(unittest.TestCase):
@@ -533,6 +564,8 @@ class WallFadeTest(unittest.TestCase):
 
     def test_a_fresh_wall_has_the_standard_fade(self):
         self.assertEqual(self.w.fade_ms(), pc.DEFAULT_FADE_MS)
+        # "make cartwall default fade out 1s"
+        self.assertEqual(self.w.fade_ms(), 1000)
 
     def test_setting_it_reports_out_and_saves(self):
         heard, saved = [], []
@@ -762,7 +795,7 @@ class PageCapTest(unittest.TestCase):
         self.addCleanup(reap_widget, w)
         before = len(w.pages())
         for _ in range(6):
-            w._step_page(1)
+            w.step_page(1)
         self.assertEqual(len(w.pages()), before)
         self.assertEqual(w.current_page(), before - 1)
 
@@ -820,6 +853,26 @@ class PageCapTest(unittest.TestCase):
         w._remove_page()        # a real question here would hang the suite
         self.assertEqual(len(w.pages()), 1)
 
+    def test_one_page_shows_no_arrows(self):
+        """'if we have only one page you should not show the arrow left and
+        right from Main, only if we have more than one page'."""
+        w = gc.CartwallWidget()
+        self.addCleanup(reap_widget, w)
+        w.set_wall(pc.DEFAULT_GRID, [pc.Page(name="Main")])
+        self.assertTrue(w._prev_btn.isHidden())
+        self.assertTrue(w._next_btn.isHidden())
+
+    def test_a_second_page_brings_the_arrows_back(self):
+        w = gc.CartwallWidget()
+        self.addCleanup(reap_widget, w)
+        w.set_wall(pc.DEFAULT_GRID, [pc.Page(name="Main")])
+        w._add_page()
+        self.assertFalse(w._prev_btn.isHidden())
+        self.assertFalse(w._next_btn.isHidden())
+        w._remove_page()
+        self.assertTrue(w._prev_btn.isHidden())
+        self.assertTrue(w._next_btn.isHidden())
+
     def test_the_add_button_is_edit_mode_only(self):
         w = gc.CartwallWidget()
         self.addCleanup(reap_widget, w)
@@ -839,8 +892,8 @@ class PageCapTest(unittest.TestCase):
         self.addCleanup(reap_widget, w)
         saved = []
         w.changed.connect(lambda: saved.append(w.current_page()))
-        w._step_page(1)
-        w._step_page(-1)
+        w.step_page(1)
+        w.step_page(-1)
         self.assertEqual(saved, [1, 0])
 
     def test_a_wall_full_of_empty_pages_comes_back_as_two(self):

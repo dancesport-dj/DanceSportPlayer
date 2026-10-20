@@ -227,7 +227,7 @@ class RatingClickTest(unittest.TestCase):
         def changes_for(self, entry):
             return dict(self._changes)
 
-        def raw_edits(self):
+        def raw_edits(self, entry=None):
             return None
 
         def form_changes(self):

@@ -271,11 +271,11 @@ def audio_output_choices() -> list[tuple[str, str]]:
 
 # Bumped when a column is added to the decks or the library: the column ticks,
 # widths and the library's order are saved by column INDEX.
-COLUMNS_VERSION = 4
+COLUMNS_VERSION = 5
 
 # The column each version added: (its index in the decks, in the library).
-# v2 ★ Rating, v3 Custom, v4 File name.
-_ADDED_COLUMNS = {2: (9, 10), 3: (10, 11), 4: (11, 12)}
+# v2 ★ Rating, v3 Custom, v4 File name, v5 Album.
+_ADDED_COLUMNS = {2: (9, 10), 3: (10, 11), 4: (11, 12), 5: (12, 13)}
 
 
 def migrate_column_settings(s: dict) -> dict:
@@ -1176,12 +1176,14 @@ class _M3uDroppedList(_DroppedFilesList):
 class UsbExportDialog(QDialog):
     """🧳 choose what goes into the USB venue bundle: every open playlist deck,
     only the 📅 tournament day, or saved .m3u files dragged in (like the
-    Check-duplicates drop tab). Wishlists are never bundled. Or, instead of a
-    bundle, the 📦 venue pack (the one ⚙ Settings exports too).
-    `mode()` → 'all' | 'day' | 'dropped' | 'venue'; `dropped_paths()` → list[Path]."""
+    Check-duplicates drop tab). The ⭐ wishlists go along with the decks only
+    when their box is ticked. Or, instead of a bundle, the 📦 venue pack (the
+    one ⚙ Settings exports too).
+    `mode()` → 'all' | 'day' | 'dropped' | 'venue'; `dropped_paths()` → list[Path];
+    `include_wishlists()` → bool."""
 
     def __init__(self, parent=None, n_decks: int = 0, n_day: int = 0,
-                 day_selected: bool = False):
+                 day_selected: bool = False, n_wish: int = 0):
         super().__init__(parent)
         self.setWindowTitle("🧳 USB export")
         self.setMinimumWidth(440)
@@ -1212,6 +1214,14 @@ class UsbExportDialog(QDialog):
         else:
             self._rb_dropped.setChecked(True)
 
+        # Taken along with the open decks or the 📅 day; off by default.
+        self._n_wish = n_wish
+        self._cb_wish = QCheckBox(i18n.t("⭐ Include wishlists (%d)") % n_wish)
+        self._cb_wish.setToolTip(
+            "Each ⭐ wishlist with titles in it gets its own numbered\n"
+            "folder in the bundle, beside the playlists.")
+        lyt.addWidget(self._cb_wish)
+
         self._drop_zone = _M3uOnlyDropZone()
         self._drop_zone.filesDropped.connect(self._on_dropped)
         lyt.addWidget(self._drop_zone)
@@ -1232,6 +1242,8 @@ class UsbExportDialog(QDialog):
     def _sync_state(self, *_):
         self._ok.setEnabled(not self._rb_dropped.isChecked()
                             or bool(self._files.paths()))
+        self._cb_wish.setEnabled(self._n_wish > 0
+                                 and self.mode() in ("all", "day"))
 
     def _on_dropped(self, paths: list):
         self._files.add_paths(paths)
@@ -1253,6 +1265,56 @@ class UsbExportDialog(QDialog):
 
     def dropped_paths(self) -> list[Path]:
         return [Path(p) for p in self._files.paths()]
+
+    def include_wishlists(self) -> bool:
+        return self._cb_wish.isEnabled() and self._cb_wish.isChecked()
+
+
+class UsbBundleFolderDialog(QDialog):
+    """🧳 the folder the USB bundle goes into, inside the picked `root`, named
+    after the tournament (`guess` filled in). `at_top`: `root` is a drive's
+    top level, so a folder is always made; otherwise writing straight into
+    `root` is offered too. `name()` → the typed name; `into_root()` → bool."""
+
+    def __init__(self, parent, root: Path, guess: str, at_top: bool):
+        super().__init__(parent)
+        self.setWindowTitle("🧳 USB export")
+        self.setMinimumWidth(440)
+        self._into_root = False
+        lyt = QVBoxLayout(self)
+        lyt.addWidget(QLabel(
+            (i18n.t("Name the folder for the bundle on “%s”:") if at_top
+             else i18n.t("Make a folder named after the tournament in “%s”?"))
+            % root))
+        self._edit = QLineEdit(guess)
+        self._edit.selectAll()
+        lyt.addWidget(self._edit)
+
+        btns = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel)
+        self._create = btns.addButton("📁  Create folder",
+                                      QDialogButtonBox.ButtonRole.AcceptRole)
+        self._create.setDefault(True)
+        self._into = None
+        if not at_top:
+            self._into = btns.addButton(
+                i18n.t("Straight into “%s”") % (root.name or root),
+                QDialogButtonBox.ButtonRole.ActionRole)
+            self._into.clicked.connect(self._accept_into_root)
+        btns.accepted.connect(self.accept)
+        btns.rejected.connect(self.reject)
+        lyt.addWidget(btns)
+        self._edit.textChanged.connect(
+            lambda text: self._create.setEnabled(bool(text.strip())))
+
+    def _accept_into_root(self):
+        self._into_root = True
+        self.accept()
+
+    def name(self) -> str:
+        return self._edit.text().strip()
+
+    def into_root(self) -> bool:
+        return self._into_root
 
 
 class M3uDropDialog(QDialog):

@@ -154,6 +154,7 @@ class NanoPresetTest(unittest.TestCase):
             "hold": "cc:0:45", "announce": "cc:0:46",      # ●, CYCLE
             "duck": "cc:0:58", "stop_pads": "cc:0:60",     # TRACK ◀, SET
             "volume": "cc:0:0", "tempo": "cc:0:16",        # fader 1, knob 1
+            "cart_volume": "cc:0:1",                       # fader 2
             "tempo_reset": "cc:0:32",                      # S1
             "lib": "cc:0:59",                              # TRACK ▶
             "browse_up": "cc:0:61", "browse_down": "cc:0:62",   # MARKER ◀ ▶
@@ -165,6 +166,35 @@ class NanoPresetTest(unittest.TestCase):
             "pad:9": "cc:0:48", "pad:10": "cc:0:49", "pad:11": "cc:0:50",
             "pad:12": "cc:0:51", "pad:15": "cc:0:54", "pad:16": "cc:0:55"})
         self.assertEqual(pctl.clean_bindings(b), b)  # nothing bound twice
+
+
+class CartVolumeTest(unittest.TestCase):
+    """🎛 The cartwall's own fader, beside the music's."""
+
+    def test_the_fader_takes_every_value_and_is_no_key(self):
+        self.assertIn("cart_volume", pctl.CONTINUOUS)
+        self.assertNotIn("cart_volume", pctl.KEY_ACTIONS)
+        m = pctl.ControllerMap({"cart_volume": "cc:0:1"})
+        self.assertEqual(m.feed("cc:0:1", 0.3), [("cart_volume", 0.3)])
+
+    def test_the_steps_have_keys_of_their_own(self):
+        keys = pctl.desk_keys({})
+        self.assertEqual(keys["cart_vol_up"], ["Ctrl+Alt+Up"])
+        self.assertEqual(keys["cart_vol_down"], ["Ctrl+Alt+Down"])
+        self.assertEqual(pctl.key_clashes(keys), {})
+
+    def test_the_page_turns_have_keys_beside_the_steps(self):
+        """Ctrl+Alt is the wall's: ↑/↓ its volume, ←/→ its pages."""
+        keys = pctl.desk_keys({})
+        self.assertEqual(keys["cart_page_prev"], ["Ctrl+Alt+Left"])
+        self.assertEqual(keys["cart_page_next"], ["Ctrl+Alt+Right"])
+        self.assertEqual(pctl.key_clashes(keys), {})
+
+    def test_nano_fader_2_is_the_cartwall(self):
+        b = pctl.PRESETS["Korg nanoKONTROL2"]["bindings"]
+        self.assertEqual(b["volume"], "cc:0:0")
+        self.assertEqual(b["cart_volume"], "cc:0:1")
+        self.assertEqual(pctl.clean_bindings(b), b)
 
 
 class TempoTest(unittest.TestCase):

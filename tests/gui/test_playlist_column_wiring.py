@@ -20,7 +20,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication
 
 from shared.columns import (
-    _COL_ARTIST, _COL_CUSTOM, _COL_FILE, _COL_HEAT, _COL_POP, _COL_RATING,
+    _COL_ALBUM, _COL_ARTIST, _COL_CUSTOM, _COL_FILE, _COL_HEAT, _COL_POP, _COL_RATING,
     _COL_REGEN,
 )
 from tests.qt_test_support import (
@@ -82,7 +82,7 @@ class ColumnWiringTest(unittest.TestCase):
         win._deckset.wishlist._toggle_column(_COL_POP, False)
         # Heat, Rating and Custom were already off
         self.assertEqual(win._settings["hidden_columns"]["wishlist"],
-                         [_COL_HEAT, _COL_POP, _COL_RATING, _COL_CUSTOM, _COL_FILE])
+                         [_COL_HEAT, _COL_POP, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM])
         self.assertTrue(self.written, "nothing was saved")
 
     def test_a_saved_tick_comes_back_on_the_next_start(self):
@@ -100,7 +100,7 @@ class ColumnWiringTest(unittest.TestCase):
         and File name are off everywhere until asked for."""
         win = self.window()
         for t in win._deckset.all_tables:
-            self.assertEqual(t.hidden_columns(), [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE])
+            self.assertEqual(t.hidden_columns(), [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM])
 
     def test_a_saved_numbers_view_reaches_the_wishlists_too(self):
         """The 🔢 state is restored per table at startup, and the wishlists were
@@ -153,13 +153,34 @@ class ColumnWiringTest(unittest.TestCase):
         self.assertFalse(win._deckset.tableA.short_dances())
         self.assertFalse(win._deckset.warmup_table.short_dances())
 
+    def test_a_dragged_order_is_saved_and_shared_by_the_kind(self):
+        win = self.window()
+        t = win._deckset.wishlist2
+        hh = t.horizontalHeader()
+        hh.moveSection(hh.visualIndex(_COL_POP), hh.visualIndex(_COL_ARTIST))
+        order = t.column_order()
+        for other in win._deckset.wishlists:
+            self.assertEqual(other.column_order(), order)
+        self.assertEqual(win._settings["column_order"]["wishlist"], order)
+        self.assertTrue(self.written, "nothing was saved")
+        self.assertNotEqual(win._deckset.tableA.column_order(), order)
+
+    def test_a_saved_order_comes_back_on_the_next_start(self):
+        win_order = list(self.window()._deckset.wishlist.column_order())
+        win_order.remove(_COL_POP)
+        win_order.insert(1, _COL_POP)
+        win = self.window({"column_order": {"wishlist": win_order}})
+        for t in win._deckset.wishlists:
+            self.assertEqual(t.column_order(), win_order)
+        self.assertNotEqual(win._deckset.tableA.column_order(), win_order)
+
     def test_ticking_heat_back_on_is_remembered_over_the_default(self):
         """An empty saved list is a decision, not an absent setting."""
         win = self.window({"hidden_columns": {"wishlist": []}})
         for t in win._deckset.wishlists:
             self.assertEqual(t.hidden_columns(), [])
         self.assertEqual(win._deckset.warmup_table.hidden_columns(),
-                         [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE])
+                         [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM])
 
 
 if __name__ == "__main__":

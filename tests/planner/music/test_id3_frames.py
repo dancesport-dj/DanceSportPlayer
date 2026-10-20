@@ -20,6 +20,7 @@ from planner.music.id3_frames import (
     FORM_FIELDS,
     TagField,
     addable_frames,
+    added_key,
     sample_custom,
     read_cover,
     read_fields,
@@ -183,6 +184,15 @@ class WriteTest(_FileTest):
         self.assertEqual(f["COMM:Songs-DB_Custom2:eng"].value, "ab B")
         self.assertEqual(f["TALB"].value, "Best of")
 
+    def test_the_key_an_added_field_gets_is_known_before(self):
+        p = self.mp3(*_library_like())
+        adds = [("TXXX", "my_note", "x"), ("COMM", "Songs-DB_Custom2", "y"),
+                ("TALB", "", "z")]
+        write_fields(p, adds=adds)
+        f = self.by_key(p)
+        for fid, desc, _value in adds:
+            self.assertIn(added_key(fid, desc), f)
+
     def test_an_emptied_text_field_is_gone(self):
         p = self.mp3(*_library_like())
         write_fields(p, sets={"TXXX:ultramixer_meter": "", "TIT2": ""})
@@ -311,6 +321,13 @@ class AppFieldsTest(_FileTest):
         self.assertEqual(ID3(p)["COMM::eng"].text, ["C;B;instr;slow intro"])
         write_app_fields(p, {"is_instrumental": False})
         self.assertEqual(self.read_back(p)[1:], (["C", "B"], False, ["slow intro"]))
+
+    def test_an_ultramixer_instr_comment_keeps_its_instr_when_the_markers_change(self):
+        """'instr. AS' is instrumental plus the marker 'as'; a marker edit
+        replaces the marker only."""
+        p = self.mp3(COMM(encoding=1, lang="eng", desc="", text="instr. AS"))
+        write_app_fields(p, {"comment_tags": ["classic"]})
+        self.assertEqual(self.read_back(p)[1:], (None, True, ["classic"]))
 
     def test_other_text_in_the_comment_stays(self):
         p = self.mp3(COMM(encoding=1, lang="eng", desc="",

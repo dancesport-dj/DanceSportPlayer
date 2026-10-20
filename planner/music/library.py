@@ -53,6 +53,7 @@ from planner.models import (  # auto-resolved
     _EXCLUDED_FOLDERS,
     fold_text,
     folder_category_of_parts,
+    is_hidden_path,
     note_class_tag_use,
 )
 from planner.music.parsing import (  # auto-resolved
@@ -66,6 +67,7 @@ from planner.music.parsing import (  # auto-resolved
     is_marker_noise,
     parse_comment_markers,
     _get_raw_genre_tag,
+    _get_um_dance,
     _get_title_artist_tags,
     popm_stars,
     _is_christmas,
@@ -92,6 +94,9 @@ from planner.generate.warmup import (  # auto-resolved
 from planner.playlist.playlist_text import PlaylistEncodingError, playlist_files, read_playlist_text
 
 log = logging.getLogger("dancesport.library")
+
+# The category word some taggers put before the dance in the genre tag.
+_GENRE_CATEGORY_RE = re.compile(r'^(?:ballroom|standard|latin|latein)\s+', re.IGNORECASE)
 
 
 # Sentinel for regenerate()/anchor_similarity(): distinguishes "caller didn't pass an
@@ -493,8 +498,12 @@ class MusicLibrary(PlaylistIndexMixin):
             all_mp3 = [p for p, _ in found]
             total = len(all_mp3)
             root = str(music_dir)
+            hidden = {p for p in all_mp3 if is_hidden_path(p)}
+            if hidden:
+                log.info("  🙈 Excluded folders leave out %d files", len(hidden))
             # Every path comes from the walk of music_dir, so it is below it.
-            left_out = [_left_out(folders_below(str(p), root) or [], skip_special)
+            left_out = ['' if p in hidden
+                        else _left_out(folders_below(str(p), root) or [], skip_special)
                         for p in all_mp3]
             # Files not seen before are read ahead on a pool. Not in the whole-repo
             # scan: telling its known files apart (global_cache) costs a stat each.
@@ -534,6 +543,8 @@ class MusicLibrary(PlaylistIndexMixin):
                     if why is not None:
                         if why:
                             skipped_dirs.add(why)
+                        if mp3 in hidden and global_cache is not None:
+                            seen.add(str(mp3))   # hidden, not gone: its row stays
                         if progress_cb is not None and (idx % 25 == 0 or idx == total):
                             progress_cb(idx, total, mp3, True)
                         continue
@@ -628,6 +639,8 @@ class MusicLibrary(PlaylistIndexMixin):
         mtimes = _listed_mtimes({os.path.dirname(path_str) for path_str, _ in rows})
         cache.load_all_features()
         for path_str, meta in rows:
+            if is_hidden_path(path_str):
+                continue
             p = Path(path_str)
             entry = MusicEntry(path=p, **meta)
             # 🩹 Self-heal bpm from the name + title tag so global-cache
@@ -720,6 +733,8 @@ class MusicLibrary(PlaylistIndexMixin):
         genre_other = None
         if raw_genre:
             parts = [raw_genre] + raw_genre.split(';')
+            # 'Ballroom SW', 'Latin Cha Cha': the dance behind a category word
+            parts += [_GENRE_CATEGORY_RE.sub('', p.strip()) for p in parts]
             for part in parts:
                 result = GENRE_TO_DANCE.get(fold_text(part.strip()))
                 if result:
@@ -738,7 +753,8 @@ class MusicLibrary(PlaylistIndexMixin):
             # by its letters, but its tag says SL, and a Salsa it is.
             dance, other = None, genre_other
         else:
-            dance = genre_dance or file_dance
+            # UltraMixer's own dance style comes after the genre, before the name.
+            dance = genre_dance or _get_um_dance(tags) or file_dance
             if dance is None:
                 # Fallback layer: libraries organised by FOLDER (my music/standard/LW)
                 # instead of tags or coded filenames.

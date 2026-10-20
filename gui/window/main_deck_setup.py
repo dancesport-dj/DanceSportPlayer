@@ -123,6 +123,7 @@ class DeckSetupMixin(MainWindowHost):
         saved_cols = self._settings.get("hidden_columns") or {}
         saved_widths = self._settings.get("column_widths") or {}
         saved_short = self._settings.get("short_dances") or {}
+        saved_order = self._settings.get("column_order") or {}
         for kind, tables in (("playlist", self._deckset.decks + self._deckset.day_decks),
                              ("wishlist", self._deckset.wishlists),
                              ("party", [self._deckset.warmup_table])):
@@ -132,9 +133,12 @@ class DeckSetupMixin(MainWindowHost):
                       else DEFAULT_HIDDEN_COLUMNS.get(kind, []))
             widths = saved_widths.get(kind) or {}
             short = bool(saved_short.get(kind, False))
+            order = saved_order.get(kind)
             for t in tables:
                 t.list_kind = kind
                 t.set_short_dances(short)
+                if order:
+                    t.set_column_order(order)
                 if hidden:
                     t.set_hidden_columns(hidden)
                 if widths:
@@ -166,6 +170,7 @@ class DeckSetupMixin(MainWindowHost):
             t.dynamicChanged.connect(self._on_deck_dynamic_changed)
             t.set_columns_callback(self._on_columns_changed)
             t.set_widths_callback(self._on_column_widths_changed)
+            t.set_column_order_callback(self._on_column_order_changed)
             t.set_dance_names_callback(self._on_dance_names_changed)
             t.set_rating_callback(self._set_entry_rating)
             # ⏭/✋ in the deck's bottom-right corner — THIS deck's auto-advance
@@ -316,7 +321,7 @@ class DeckSetupMixin(MainWindowHost):
         btn_bundle.setToolTip(
             "Export playlists as a self-contained venue bundle — asks first\n"
             "whether to take all open decks, only the 📅 tournament day, or\n"
-            "saved .m3u files dragged in (wishlists are never bundled).\n"
+            "saved .m3u files dragged in, with the ⭐ wishlists if ticked.\n"
             "One sub-folder per playlist holding its tracks copied in numbered\n"
             "play order (0_0_1 - Title WW29.mp3) plus the playlist's .m3u — each\n"
             "folder plays in order even without the M3U, from any drive,\n"
@@ -675,6 +680,7 @@ class DeckSetupMixin(MainWindowHost):
         self._lib_browser.playRequested.connect(self._on_lib_play)
         self._lib_browser.unplannedToggled.connect(self._on_lib_unplanned_toggled)
         self._lib_browser.wholeLibraryWanted.connect(self._show_whole_library)
+        self._lib_browser.wholeLibraryDropped.connect(self._stop_whole_wait)
         self._lib_browser.wholeRescanWanted.connect(self._rescan_repository)
         self._lib_browser.foldToggled.connect(self._on_lib_fold_toggled)
         self._lib_browser.columnOrderChanged.connect(self._on_lib_columns_reordered)

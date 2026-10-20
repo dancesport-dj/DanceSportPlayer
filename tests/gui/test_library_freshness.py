@@ -333,7 +333,9 @@ class MainWindowJumpTest(unittest.TestCase):
         self.win = self.gui.MainWindow()
         self.win._loading_dlg.accept()
         self.addCleanup(reap_widget, self.win)
-        self.win._lib_browser.set_entries(_ALL)
+        # Tagged B: under one class an untagged title is hidden.
+        self.win._lib_browser.set_entries(
+            [_entry("brand new", age_days=10, classes_ok=["B"])] + _ALL[1:])
 
     def test_it_reveals_the_pane_and_applies_the_filter(self):
         self.win._lib_btn.setChecked(False)
@@ -342,7 +344,7 @@ class MainWindowJumpTest(unittest.TestCase):
         self.assertTrue(self.win._lib_btn.isChecked())
         self.assertIs(self.win._lib_tabs.currentWidget(), pane)
         self.assertEqual(pane._dance_combo.currentData(), "LW")
-        self.assertEqual(pane._class_combo.currentData(), "B")
+        self.assertEqual(pane._class_combo.classes(), ["B"])
         self.assertEqual(pane._plays_combo.currentData(), "never")
         self.assertEqual(
             {pane._table.item(r, _COL_TITLE).text()

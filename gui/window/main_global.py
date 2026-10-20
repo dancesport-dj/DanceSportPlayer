@@ -25,7 +25,7 @@ from collections.abc import Callable
 from planner.music.analysis import HAS_LIBROSA
 from planner.music.db import AudioCache
 from planner.music.library import MusicLibrary
-from planner.models import note_class_tag_use, set_no_class_exclusion
+from planner.models import note_class_tag_use, set_hidden_folders, set_no_class_exclusion
 from shared import error_reports
 from shared.appearance import theme
 from planner import i18n
@@ -35,6 +35,7 @@ from gui.common import (
 )
 from gui.index_summary import index_summary
 from shared.widgets import _show_toast
+from gui.dialogs.reset_db_dialog import ResetDatabaseDialog
 from gui.dialogs.settings_dialog import SettingsDialog
 from gui.dialogs import (  # auto-resolved
     SimilarTracksDialog,
@@ -50,6 +51,7 @@ from planner.music.vocals import (
 )
 from gui.workers import (  # auto-resolved
     DbMaintenanceWorker,
+    DbResetWorker,
     GlobalCacheLoader,
     GlobalLibraryLoader,
     PlaylistRelearnWorker,
@@ -414,6 +416,12 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         # Even when empty: loading again would just rescan the repository.
         self._lib_browser.set_whole_entries(lib.entries)
 
+    def _stop_whole_wait(self):
+        """⭐ clicked while 🌐 waits for the preload: the favorites stay. The
+        preload goes on and keeps the index for the next 🌐."""
+        self._library.whole_waiting = False
+        self.statusBar().clearMessage()
+
     def _rescan_repository(self, values: dict | None = None):
         """🔄 Walk the whole repository again, tags only, behind the open window.
 
@@ -720,7 +728,8 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
                              controller_cb=self.open_controller_window,
                              desk_keys_cb=self.open_desk_keys_window,
                              announce_test_cb=self._announce_test,
-                             open_sound=open_sound)
+                             open_sound=open_sound,
+                             reset_cb=self._reset_database)
         # 📊 Library gaps runs from inside this dialog and may want it out of the
         # way (see _show_library_gaps) — leave it a handle while it is open.
         self._settings_dlg = dlg
@@ -737,6 +746,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         lib_changed    = new.get("library_dir") != self._settings.get("library_dir")
         global_changed = new.get("global_dir")  != self._settings.get("global_dir")
         pl_changed     = new.get("playlist_dir") != self._settings.get("playlist_dir")
+        hidden_changed = (new.get("hidden_folders") or []) != (self._settings.get("hidden_folders") or [])
         mode_changed   = new.get("app_mode") != self._settings.get("app_mode")
         backend_changed = (media_backend_of(new)
                            != media_backend_of(self._settings))
@@ -752,6 +762,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         save_settings(new)
         planner.playlist.m3u.set_m3u_format(new.get("m3u_format"))
         set_no_class_exclusion(new.get("exclude_no_class"))
+        set_hidden_folders(new.get("hidden_folders"))
         self._audio_device.sync()   # 🔊 a changed output choice, at once
         self._sync_dance_len()      # 🏆 per-dance lengths edited: the panel shows them
         self._sync_big_player_limit()
@@ -764,7 +775,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         if mode_changed:
             # Only visibility — no restart needed, both sides stay wired up.
             self._apply_app_mode()
-        if global_changed:
+        if global_changed or hidden_changed:
             self._library.global_lib = None   # force a rebuild of the global index on next use
         if pl_changed and new.get("playlist_dir"):
             # Apply right away: repoint the learning dir, then rebuild the
@@ -794,10 +805,10 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
             bool(new.get("announce_wait", False)))
         self._refresh_library_status()   # reflect any search-mode change in the label
         self.statusBar().showMessage("Settings saved.")
-        self._offer_settings_restart(backend_changed, look_changed)
+        self._offer_settings_restart(backend_changed, look_changed, hidden_changed)
 
-    def _offer_settings_restart(self, backend_changed, look_changed):
-        """🔊/🎨 Offer the restart a startup-only setting needs, last of all."""
+    def _offer_settings_restart(self, backend_changed, look_changed, hidden_changed=False):
+        """🔊/🎨/🙈 Offer the restart a startup-only setting needs, last of all."""
         if backend_changed:
             # Last, so everything else is applied and saved before the app may
             # go down: the backend is picked at startup and nowhere else.
@@ -814,6 +825,14 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
                 "🎨 Look",
                 "The theme, the accent colour and the language are applied "
                 "while the app starts, so they take over after a restart.\n\n"
+                "Restart now?")
+        elif hidden_changed:
+            # The favorites are scanned once, at startup: the next load is
+            # what leaves the excluded folders out (or brings them back).
+            self._offer_restart(
+                "🙈 Excluded folders",
+                "The library is loaded when the app starts, so the excluded "
+                "folders change with the next start.\n\n"
                 "Restart now?")
 
     def _offer_restart(self, title: str, question: str):
@@ -884,6 +903,36 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
             self._busy.finish()
         QMessageBox.warning(self, "Clean up database",
                             i18n.t("Cleanup did not run:") + "\n\n" + msg)
+
+    def _reset_database(self):
+        """🗑 Reset database: the dialog picks the parts, a worker empties
+        them, then the app restarts - its in-memory caches still hold the rows."""
+        dlg = ResetDatabaseDialog(self)
+        if dlg.exec() != QDialog.DialogCode.Accepted or not dlg.chosen():
+            return
+        self._busy = BusyDialog(self, "Resetting database…")
+        self._busy.show_after(200)
+        self._maint_worker = DbResetWorker(dlg.chosen(), self)
+        self._maint_worker.done.connect(self._on_reset_done)
+        self._maint_worker.error.connect(self._on_reset_error)
+        self._maint_worker.start()
+
+    def _on_reset_done(self, removed: dict):
+        if self._busy:
+            self._busy.finish()
+        lines = ", ".join(f"{i18n.t(_MAINT_LABELS.get(t, t))} {c:,}"
+                          for t, c in removed.items() if c)
+        self._offer_restart(
+            "🗑 Reset database",
+            i18n.t("Removed rows: %s.") % (lines or i18n.t("none")) + "\n\n"
+            + i18n.t("The app still shows the old data until it restarts. "
+                     "Restart now?"))
+
+    def _on_reset_error(self, msg: str):
+        if self._busy:
+            self._busy.finish()
+        QMessageBox.warning(self, "🗑 Reset database",
+                            i18n.t("Reset did not run:") + "\n\n" + msg)
 
     def _export_manual_pd(self):
         """📤 The hand-set Paso Doble highlights to a JSON file for another PC."""

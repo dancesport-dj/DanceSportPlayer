@@ -112,8 +112,9 @@ class LookTabMixin(_DialogHost):
             "(Langsamer Walzer, Vorrunde, Standardrunde 1, Eintanzen …)")
         self._german_terms_chk.setToolTip(
             "On: the presenter screen and the recorded announcements are "
-            "German too, and a 🤸 practice list is called Eintanzen, also "
-            "in its saved file.\n"
+            "German too, a 🤸 practice list is called Eintanzen, also in "
+            "its saved file, and the tempo rules are named TSO (off: WDSF "
+            "CR).\n"
             "Off: Slow Waltz, Round 1, Standard round 1, Practice … — the "
             "playlists and exports keep the German dance and round names "
             "either way.")

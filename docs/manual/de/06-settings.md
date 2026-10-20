@@ -36,6 +36,13 @@ sitzt das **Playlist-Dateiformat**: *UTF-8 (.m3u)*, *UTF-8 mit BOM (.m3u)*
 oder *UTF-8 (.m3u8)*, siehe
 [Kapitel 3](03-playlists.md#das-playlist-dateiformat).
 
+**Ausgeschlossene Ordner**, einer pro Zeile (oder über **Hinzufügen…**
+gewählt), halten einen Ordner samt allem darunter aus der Bibliothek
+heraus: ⭐ Favoriten und 🌐 Ganze Bibliothek lassen diese Titel in der
+Liste, der Suche und den Vorschlägen weg. Auf der Platte ändert sich
+nichts. Eine Änderung wirkt ab dem nächsten Start, die App bietet den
+Neustart an.
+
 ## Aussehen
 
 Der Reiter **🎨 Aussehen**.
@@ -181,6 +188,14 @@ die es nicht mehr gibt, und verdichtet die Datenbank. Sie läuft nicht, wenn
 das Musiklaufwerk nicht eingebunden aussieht, damit die Analyse nicht aus
 Versehen gelöscht wird.
 
+**🗑 Datenbank zurücksetzen…** leert gewählte Teile der Datenbank und startet
+die App neu. Ein Dialog fragt, welche, und nichts ist vorab angehakt: **🏷 Aus
+den Musikdateien gelesene Tags** (der nächste Bibliotheks-Scan liest sie neu,
+Minuten), **🎚 Audio-Analyse** (⚗ Analyse baut sie neu auf, Stunden) und
+**✋ Meine eigenen Daten** (Tag-Änderungen, von Hand gesetzte PD-Marken, das
+📜 Abspielprotokoll). Deine eigenen Daten werden in jedem Fall vorher
+gesichert, **♻ Sicherung der eigenen Daten zurückholen…** holt sie zurück.
+
 ## Spiel-Sets
 
 Der Reiter **🎛 Spiel-Sets** legt fest, was die Knöpfe **🏆 Turnier-Set** und
@@ -221,8 +236,8 @@ Turnier zu schneiden, und Start nach steht auf 0 s. Das Party-Set stoppt
 nach dem 2. Highlight und wartet 3 s, damit die Paare ihre Ausgangsposition
 einnehmen können.
 
-**🎚 TSO-Zieltakt** legt pro Tanz fest, auf welches Tempo der Knopf TSO eine
-Gruppe zieht:
+**🎚 TSO-Zieltakt** steht direkt unter dem Turnier-Set. Es legt pro Tanz
+fest, auf welches Tempo der Knopf TSO eine Gruppe zieht:
 
 - **Mittelwert der Runde**: bringt die ganze Runde auf ein Tempo, dort, wo
   die meisten ihrer Titel schon liegen. Kein Titel bewegt sich um mehr als

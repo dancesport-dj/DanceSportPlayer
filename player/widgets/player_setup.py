@@ -11,6 +11,7 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QToolButton, QVBoxLayout
 
 from planner import i18n
+from planner.terms import rules_name
 from shared.appearance.icons import button as icon_button, pixmap as icon_pixmap
 from player.widgets.player_parts import (
     _ART_PX,
@@ -450,16 +451,17 @@ class BigPlayerSetupMixin(BigPlayerHost):
         info_row.addWidget(self._tempo_lbl)
         info_row.addStretch(1)
         self._tso_btn = QToolButton()
-        self._tso_btn.setText("TSO")
+        # TSO on the German terms, CR (the WDSF Competition Rules) otherwise.
+        self._tso_btn.setText(rules_name("TSO", short=True))
         self._tso_btn.setCheckable(True)
         self._tso_btn.setStyleSheet(
             "QToolButton { font-size:11px; font-weight:bold; color:#7fd4a0; }"
             "QToolButton:checked { background:#1565c0; color:#ffffff; }")
-        self._tso_btn.setToolTip(
+        self._tso_btn.setToolTip(rules_name(i18n.t(
             "Auto-equalize the heat tempo (toggle):\n"
             "while on, every title is pitched to the average tempo of its\n"
             "dance in this round, kept inside the TSO range (e.g. a Rumba\n"
-            "at 23 → T24, a Paso Doble at 57 → T58).")
+            "at 23 → T24, a Paso Doble at 57 → T58)."), short=True))
         self._tso_btn.toggled.connect(self.tsoModeChanged.emit)
         self._tso_btn.toggled.connect(self._sync_tempo_pin)
         info_row.addWidget(self._tso_btn)
@@ -475,11 +477,12 @@ class BigPlayerSetupMixin(BigPlayerHost):
         self._tempo_pin = QToolButton()
         icon_button(self._tempo_pin, "pin", 12, _CARD_INK)
         self._tempo_pin.setCheckable(True)
-        self._tempo_pin.setToolTip(
+        self._tempo_pin.setToolTip(rules_name(i18n.t(
             "📌 Pin the tempo: the fader stays where you left it when the next\n"
             "title starts.\n"
             "Off: every new title begins at ±0 %.\n"
-            "Switching TSO on takes the pin off — TSO pitches each title itself.")
+            "Switching TSO on takes the pin off — TSO pitches each title itself."),
+            short=True))
         self._tempo_pin.setStyleSheet(
             "QToolButton:checked { background:#1565c0; color:#ffffff; }")
         self._tempo_pin.toggled.connect(

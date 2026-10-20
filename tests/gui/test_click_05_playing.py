@@ -234,6 +234,22 @@ class PlayingClickTest(ClickThrough):
                             "a second tap left the pad running")
             self.assertEqual(win._deckset.table._current_play_row, row)
 
+    def test_a_background_pad_dips_under_the_first_title(self):
+        """🎶 The first deck is wired at start-up, not by a crossfade swap —
+        the bed has to hear that one too."""
+        win = self.win
+        with self.clicking():
+            self.generate(rounds="1")
+            self.click(win._mode_play_btn)
+            voices = win._cart_voices
+            self.play_row(self.song_rows()[0])
+            self.assertTrue(self.wait_until(lambda: voices._bg_target == 0.0),
+                            "the running title left background pads up")
+            win._on_stop_btn()
+            self.assertTrue(self.wait_until(lambda: voices._bg_hold.isActive()
+                                            or voices._bg_target == 1.0),
+                            "⏹ never lets background pads back up")
+
     def test_a_paso_doble_stops_on_the_highlight_marked_by_hand(self):
         from PySide6.QtMultimedia import QMediaPlayer
         state = QMediaPlayer.PlaybackState

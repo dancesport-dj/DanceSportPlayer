@@ -406,6 +406,34 @@ class DocumentTest(unittest.TestCase):
         self.assertEqual(back[0].name, "Fanfaren")
         self.assertEqual(back[0].pads[(4, 0)], pad)
 
+    def test_a_background_pad_survives_a_round_trip(self):
+        pad = CartPad(path=r"F:\fx\bed.mp3", loop=True, background=True)
+        back = load_doc(dump_doc((8, 6), [Page(pads={(0, 0): pad})], 0))[1]
+        self.assertTrue(back[0].pads[(0, 0)].background)
+
+    def test_an_ordinary_pad_does_not_write_the_background_key(self):
+        doc = dump_doc((8, 6), [Page(pads={(0, 0): _pad("a.mp3")})], 0)
+        self.assertNotIn("background", doc["pages"][0]["pads"]["0,0"])
+
+    def test_a_pad_that_stops_the_others_survives_a_round_trip(self):
+        pad = CartPad(path=r"F:xnthem.mp3", stops_others=True)
+        back = load_doc(dump_doc((8, 6), [Page(pads={(0, 0): pad})], 0))[1]
+        self.assertTrue(back[0].pads[(0, 0)].stops_others)
+        doc = dump_doc((8, 6), [Page(pads={(0, 0): _pad("a.mp3")})], 0)
+        self.assertNotIn("stops_others", doc["pages"][0]["pads"]["0,0"])
+
+    def test_a_wall_saved_with_a_dip_still_loads(self):
+        """A background pad used to carry its own "dip" level; it now always
+        goes all the way down, and an old wall's dip is simply passed over."""
+        doc = {"version": CARTWALL_VERSION, "cols": 8, "rows": 4,
+               "pages": [{"pads": {
+                   "0,0": {"path": "bed.mp3", "background": True, "dip": 0.3}}}]}
+        pad = load_doc(doc)[1][0].pads[(0, 0)]
+        self.assertTrue(pad.background)
+        self.assertFalse(hasattr(pad, "dip"))
+        again = dump_doc((8, 4), [Page(pads={(0, 0): pad})], 0)
+        self.assertNotIn("dip", again["pages"][0]["pads"]["0,0"])
+
     def test_the_wall_default_colour_survives_a_round_trip(self):
         pages = [Page(pads={(0, 0): _pad("a.mp3")})]
         doc = dump_doc((8, 4), pages, 0, "#2f8f4e")
@@ -421,8 +449,8 @@ class DocumentTest(unittest.TestCase):
         doc = {"version": CARTWALL_VERSION, "cols": 8, "rows": 6,
                "pages": [{"pads": {"0,0": {"path": "a.mp3"}}}]}
         pad = load_doc(doc)[1][0].pads[(0, 0)]
-        self.assertEqual((pad.volume, pad.loop, pad.duck, pad.label),
-                         (1.0, False, True, ""))
+        self.assertEqual((pad.volume, pad.loop, pad.duck, pad.background, pad.label),
+                         (1.0, False, True, False, ""))
 
     def test_volume_is_clamped(self):
         doc = {"version": CARTWALL_VERSION, "cols": 8, "rows": 4,

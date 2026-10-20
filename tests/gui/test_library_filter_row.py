@@ -54,7 +54,14 @@ class FilterRowTest(unittest.TestCase):
         return [getattr(self.b, name) for name in _ROW]
 
     def _lines(self) -> int:
-        return len({w.y() for w in self._row()})
+        """A line's controls share a middle, not a top: a control below
+        the bottom of every control above it starts the next line."""
+        lines, bottom = 0, None
+        for w in sorted(self._row(), key=lambda w: w.y()):
+            if bottom is None or w.y() >= bottom:
+                lines += 1
+            bottom = max(bottom or 0, w.y() + w.height())
+        return lines
 
     def _one_line_width(self) -> int:
         """What the filters ask for side by side — font-dependent, so it is
@@ -163,6 +170,20 @@ class FlowStretchTest(unittest.TestCase):
             self.flow.addWidget(QLineEdit())
         self.assertGreater(self.flow.heightForWidth(200),
                            self.flow.heightForWidth(2000))
+
+    def test_a_line_centres_its_controls(self):
+        """The cartwall's 🗂 sat on the top edge beside the taller volume
+        fader: a line's controls share one middle, not one top."""
+        tall = QWidget()
+        tall.setFixedSize(60, 30)
+        btn = QToolButton()
+        btn.setText("🗂")
+        btn.setFixedSize(24, 20)
+        self.flow.addWidget(tall)
+        self.flow.addWidget(btn)
+        self._lay(600)
+        self.assertEqual(tall.y(), 0)
+        self.assertEqual(btn.y() + btn.height() / 2, tall.y() + tall.height() / 2)
 
 
 if __name__ == "__main__":

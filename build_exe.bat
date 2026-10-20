@@ -77,6 +77,10 @@ if exist "%FFMPEG%" (
   echo       The packaged app will ask for one on first start.
 )
 
+rem The commit this build is made from: build_installer.bat builds again
+rem instead of wrapping an older folder under the current version.
+git rev-parse HEAD > "%~dp0dist\%APP_NAME%\build_commit.txt" 2>nul
+
 echo.
 echo Built dist\%APP_NAME%\%APP_NAME%.exe
 echo Data (database, settings, playlists) stays next to the .exe in that folder.

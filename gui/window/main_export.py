@@ -5,9 +5,11 @@ app as a file the desk can carry to the hall.
 """
 import logging
 
+import os
 import re
 import shutil
 import time
+from collections import Counter
 from datetime import date
 from PySide6.QtWidgets import (
     QApplication,
@@ -19,7 +21,7 @@ from PySide6.QtCore import QEventLoop, QThread, QTimer, Signal
 from pathlib import Path
 from planner import i18n
 from planner.event import venue_pack
-from planner.config import OUTPUT_DIR
+from planner.config import OUTPUT_DIR, playlist_dir
 from planner.playlist.m3u import export_flat_m3u, export_m3u, m3u_suffix, numbered_folder_m3u
 from planner.models import split_day_rounds
 from planner.music.paths import PathRemapper
@@ -35,6 +37,7 @@ from shared.widgets import (
 )
 from gui.dialogs import (  # auto-resolved
     AUTOSAVE,
+    UsbBundleFolderDialog,
     UsbExportDialog,
     _default_save_dir,
 )
@@ -91,6 +94,40 @@ def _off_reference_text(path_for: _ReferenceMapper | None) -> str:
             + "\n" + "\n".join(lines))
 
 
+def _bundle_name_guess(m3us) -> str:
+    """The 🧳 bundle folder's name: the tournament's folder, guessed from the
+    folders the exported playlists were loaded from or saved to (`m3us`, None
+    for a deck that has no file). Lists in sibling folders name the folder
+    above them; otherwise the folder most of them lie in. The app's own output
+    folders, the playlist root and a year folder name nothing, and then the
+    dated ``Turnier_<date>`` it always was."""
+    root = playlist_dir()
+    generic = {OUTPUT_DIR, OUTPUT_DIR.parent / "wishlists"}
+
+    def tells(folder: Path) -> bool:
+        return (bool(folder.name) and not folder.name.isdigit()
+                and folder not in generic
+                and folder != root and folder not in root.parents)
+
+    folders = [Path(p).parent for p in m3us if p]
+    try:
+        common = Path(os.path.commonpath(folders)) if folders else None
+    except ValueError:      # on different drives
+        common = None
+    if common is not None and tells(common):
+        return common.name
+    for folder, _n in Counter(folders).most_common():
+        if tells(folder):
+            return folder.name
+    return f"Turnier_{date.today().isoformat()}"
+
+
+def _folder_name(name: str) -> str:
+    """A typed folder name made safe on every drive: the signs Windows forbids
+    become ``_``; spaces stay, a tournament's name has them."""
+    return re.sub(r'[<>:"/\\|?*]', "_", name).strip().rstrip(". ")
+
+
 class _BundleAbort(Exception):
     """Raised inside the USB-export progress callback when the user hit Cancel."""
 
@@ -110,6 +147,7 @@ class _BundleWriter(QThread):
         self._cancelled = False
         self.aborted = False
         self.copied_files: list[Path] = []
+        self.created: list[Path] = []   # the playlist folders made, for an abort
         self.written: list[str] = []
         self.errors: list[str] = []
         self.missing_total = 0
@@ -129,7 +167,9 @@ class _BundleWriter(QThread):
             base = _sanitize_filename(title) or fallback
             uniq = base
             k = 2
-            while uniq.lower() in used_names:
+            # Never into a folder already there: in a picked folder that may
+            # be an older export the new copies would mix with.
+            while uniq.lower() in used_names or (self._bundle / uniq).exists():
                 uniq = f"{base}_{k}"
                 k += 1
             used_names.add(uniq.lower())
@@ -143,7 +183,8 @@ class _BundleWriter(QThread):
                 try:
                     uniq = _uniq_name(title, "Playlist")
                     folder = self._bundle / uniq
-                    folder.mkdir(parents=True, exist_ok=True)
+                    folder.mkdir(parents=True)
+                    self.created.append(folder)
                     out = write_fn(folder / f"{uniq}{m3u_suffix()}")
                     files, miss = numbered_folder_m3u(out, progress_cb=self._prog)
                     self.copied_files += files
@@ -488,13 +529,16 @@ class ExportMixin(MainWindowHost):
         UltraMixer at the venue, no 🧭 path fixing needed there).
 
         Asks first WHAT to bundle: all open decks, only the 📅 tournament day, or
-        saved .m3u files dragged in. Wishlists are never bundled. The 📦 venue
-        pack is offered there too, and runs `_export_venue_pack` instead."""
+        saved .m3u files dragged in. The ⭐ wishlists with titles go along with
+        the decks, each into a folder of its own, when their box is ticked. The
+        📦 venue pack is offered there too, and runs `_export_venue_pack` instead."""
         decks = [t for t in self._deckset.decks if t.rowCount() > 0]
         day = [t for t in self._deckset.day_decks if t.rowCount() > 0]
+        wishes = [t for t in self._deckset.wishlists if t.wishlist_entries()]
         ask = UsbExportDialog(
             self, n_decks=len(decks), n_day=len(day),
-            day_selected=self._grid.deck_tabs.currentIndex() == 2)
+            day_selected=self._grid.deck_tabs.currentIndex() == 2,
+            n_wish=len(wishes))
         if ask.exec() != QDialog.DialogCode.Accepted:
             return
         if ask.mode() == "venue":
@@ -506,16 +550,25 @@ class ExportMixin(MainWindowHost):
             jobs = [(p.stem, lambda out, src=p: Path(shutil.copyfile(src, out)))
                     for p in ask.dropped_paths()]
             skipped = []
+            sources = ask.dropped_paths()
         else:
             selected = day if ask.mode() == "day" else decks + day
             jobs, skipped = self._bundle_jobs_for_decks(selected)
+            if ask.include_wishlists():
+                selected = selected + wishes
+                for t in wishes:
+                    jobs.append(((self.deck(t).name or "Wishlist").replace("·", "-"),
+                                 lambda out, e=t.wishlist_entries():
+                                 Path(export_flat_m3u(e, out.stem, out_path=out))))
+            sources = [getattr(t, "_m3u_path", None) for t in selected]
         if not jobs:
             self.statusBar().showMessage("Nothing to export — all playlists are empty.")
             return
-        bundle = self._pick_bundle_dir()
-        if bundle is None:
+        picked = self._pick_bundle_dir(_bundle_name_guess(sources))
+        if picked is None:
             return
-        self._write_bundle(bundle, jobs, skipped)
+        bundle, own_folder = picked
+        self._write_bundle(bundle, jobs, skipped, own_folder=own_folder)
 
     def _bundle_jobs_for_decks(self, decks) -> tuple[list, list[str]]:
         """(title, write_fn) bundle jobs for the given decks — ``write_fn(out)``
@@ -544,16 +597,26 @@ class ExportMixin(MainWindowHost):
                              Path(export_m3u(pl, dl, out.stem, cl, out_path=out))))
         return jobs, skipped
 
-    def _pick_bundle_dir(self) -> Path | None:
-        """Pick the target drive / folder and create the dated ``Turnier_<date>``
-        bundle folder there — asking Replace / Keep both / Cancel when it already
-        exists, so nothing is ever silently overwritten."""
+    def _pick_bundle_dir(self, guess: str) -> tuple[Path, bool] | None:
+        """Pick the target drive / folder, then the bundle folder in it, named
+        after the tournament (`guess` filled in): on a drive's top level
+        always, in a sub folder only if wanted, else straight into it. A
+        folder to make that already exists asks Replace / Keep both / Cancel,
+        so nothing is ever silently overwritten.
+        → (bundle, whether the bundle folder was made for it); None: cancelled."""
         root = QFileDialog.getExistingDirectory(
             self, "USB export — pick the target drive / folder",
             str(_default_save_dir()))
         if not root:
             return None
-        bundle = Path(root) / f"Turnier_{date.today().isoformat()}"
+        root = Path(root)
+        ask = UsbBundleFolderDialog(self, root, guess, os.path.ismount(root))
+        if ask.exec() != QDialog.DialogCode.Accepted:
+            return None
+        if ask.into_root():
+            return root, False
+        name = _folder_name(ask.name()) or guess
+        bundle = root / name
         if bundle.exists():
             box = QMessageBox(self)
             box.setWindowTitle("USB export")
@@ -571,17 +634,19 @@ class ExportMixin(MainWindowHost):
             elif box.clickedButton() is keep_btn:
                 n = 2
                 while bundle.exists():
-                    bundle = Path(root) / f"Turnier_{date.today().isoformat()}_{n}"
+                    bundle = root / f"{name}_{n}"
                     n += 1
             else:
                 return None
         bundle.mkdir(parents=True)
-        return bundle
+        return bundle, True
 
-    def _write_bundle(self, bundle: Path, jobs: list, skipped: list[str]):
+    def _write_bundle(self, bundle: Path, jobs: list, skipped: list[str],
+                      own_folder: bool = True):
         """Write the (title, write_fn) jobs into the bundle — one numbered folder
         per playlist — behind an abortable progress dialog. Cancel (or ESC) stops
-        the copy and removes the incomplete bundle folder."""
+        the copy and removes the incomplete bundle folder; written into a folder
+        the user picked (`own_folder` False), only the playlist folders made."""
         dlg = BusyDialog(self, message="🧳 Exporting venue bundle…", cancelable=True)
         dlg.show_after(250)
         worker = _BundleWriter(bundle, jobs, self)
@@ -600,7 +665,8 @@ class ExportMixin(MainWindowHost):
         missing_total = worker.missing_total
         if worker.aborted:
             dlg.finish()
-            shutil.rmtree(bundle, ignore_errors=True)
+            for folder in ([bundle] if own_folder else worker.created):
+                shutil.rmtree(folder, ignore_errors=True)
             log.info("🧳 USB export aborted by the user\n"
                      "removed incomplete bundle: %s", bundle)
             self.statusBar().showMessage(

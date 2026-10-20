@@ -176,7 +176,8 @@ class ControllerDialog(QDialog):
     def _sync_table(self):
         cfg = self._cfg()
         self._profile.setText(i18n.t("Profile: %s") % (cfg["profile"] or i18n.t("own")))
-        fader = cfg["bindings"].get("volume", "")
+        faders = {"vol_up": "volume", "vol_down": "volume",
+                  "cart_vol_up": "cart_volume", "cart_vol_down": "cart_volume"}
         # A row that has a control again needs no note on where its old one went.
         self._moved = {a: b for a, b in self._moved.items()
                        if not cfg["bindings"].get(a)}
@@ -186,8 +187,8 @@ class ControllerDialog(QDialog):
             moved = not control and action in self._moved
             if moved:
                 text = i18n.t("⚠ moved to %s") % action_label(self._moved[action])
-            covered = (not control and fader
-                       and action in ("vol_up", "vol_down"))
+            fader = cfg["bindings"].get(faders.get(action, ""), "")
+            covered = not control and fader
             if covered:
                 # 🔼/🔽 are the 🔊 fader's job already: an empty cell would
                 # read as if nothing set the volume.

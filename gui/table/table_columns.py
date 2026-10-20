@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QMenu
 
 from planner.terms import dance_name
 from shared.columns import (
+    _COL_ALBUM,
     _COL_DANCE,
     _COL_LEN,
     _COL_PLAY,
@@ -40,6 +41,64 @@ class TableColumnsMixin(PlaylistTableHost):
     # wrong the first time a kind is added whose article is not "jeder".
     _KIND_HEADS = {"wishlist": "Columns in every wishlist",
                    "party": "Columns in every party list"}
+
+    # The left-to-right order a list starts with. The column numbers stay what
+    # they are (saved ticks and widths use them); only the header shows Album
+    # beside Title, so a ticked-on Album reads Artist · Title · Album.
+    _DEFAULT_ORDER = [c for c in range(_N_COLS) if c != _COL_ALBUM]
+    _DEFAULT_ORDER.insert(_DEFAULT_ORDER.index(_COL_TITLE) + 1, _COL_ALBUM)
+
+    def column_order(self) -> list[int]:
+        """The column numbers from left to right, as the header shows them."""
+        hh = self.horizontalHeader()
+        return [hh.logicalIndex(v) for v in range(hh.count())]
+
+    def set_column_order(self, order):
+        """Show the columns in a saved order. One that does not name every
+        column exactly once (saved before a column was added) is ignored.
+        JSON may hand the numbers back as strings."""
+        try:
+            order = [int(c) for c in order]
+        except (TypeError, ValueError):
+            return
+        if sorted(order) != list(range(_N_COLS)):
+            return
+        hh = self.horizontalHeader()
+        hh.blockSignals(True)       # our own doing, not a drag: don't re-save
+        try:
+            for visual, logical in enumerate(order):
+                cur = hh.visualIndex(logical)
+                if cur != visual:
+                    hh.moveSection(cur, visual)
+            self._pin_edge_columns()
+        finally:
+            hh.blockSignals(False)
+
+    def _pin_edge_columns(self):
+        """Dance stays first and ↺ last: a round's header row spans every
+        column up to ↺, writes its name in Dance and keeps ↺ for its own
+        regenerate button."""
+        hh = self.horizontalHeader()
+        if hh.visualIndex(_COL_DANCE) != 0:
+            hh.moveSection(hh.visualIndex(_COL_DANCE), 0)
+        if hh.visualIndex(_COL_REGEN) != _N_COLS - 1:
+            hh.moveSection(hh.visualIndex(_COL_REGEN), _N_COLS - 1)
+
+    def _on_section_moved(self, *_args):
+        """A header was dragged to a new place: hold the edges, then tell the
+        window, which keeps the order for every list of this kind."""
+        hh = self.horizontalHeader()
+        hh.blockSignals(True)
+        try:
+            self._pin_edge_columns()
+        finally:
+            hh.blockSignals(False)
+        if self._order_cb:
+            self._order_cb(self.list_kind, self.column_order())
+
+    def set_column_order_callback(self, cb):
+        """`cb(kind, order)` when the user has dragged a column elsewhere."""
+        self._order_cb = cb
 
     def _fill_title_column(self):
         """Give Title whatever width the other columns leave over.

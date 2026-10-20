@@ -110,8 +110,18 @@ class AudioLevelMixin(MainWindowHost):
             self._big_player.set_volume_value(self._mix.base)
         self._vol_save_timer.start()
 
+    def _set_cart_volume(self, v: float):
+        """🎛 The cartwall's own fader (its slider, a controller fader, the desk
+        keys) → the pads' level, apart from the music. Persisted the same way."""
+        self._mix.set_cart(v)
+        self._apply_volume()
+        if self._cartwall is not None:
+            self._cartwall.set_level(self._mix.cart)
+        self._vol_save_timer.start()
+
     def _save_master_volume(self):
         self._settings["master_volume"] = round(self._mix.base, 3)
+        self._settings["cartwall_volume"] = round(self._mix.cart, 3)
         save_settings(self._settings)
 
     def _loudness_gain(self, path: Path) -> float:

@@ -282,7 +282,8 @@ class CrossfadeMixin(MainWindowHost):
             ("mediaStatusChanged", self._on_media_status),
             ("errorOccurred", self._on_player_error),
             ("playbackStateChanged", self._audio_device.on_playback_state),
-            ("playbackStateChanged", self._on_playback_state)]
+            ("playbackStateChanged", self._on_playback_state),
+            ("playbackStateChanged", self._cart_follow_deck)]
         if self._taskbar is not None:
             slots.append(("playbackStateChanged", self._on_taskbar_state))
         return slots

@@ -34,6 +34,12 @@ sits the **Playlist file format**: *UTF-8 (.m3u)*, *UTF-8 with BOM (.m3u)* or
 *UTF-8 (.m3u8)*, see
 [chapter 3](03-playlists.md#the-playlist-file-format).
 
+**Excluded folders**, one per line (or picked with **Add…**), keep a folder
+and everything below it out of the library: ⭐ Favorites and 🌐 Whole
+library leave those titles out of the list, the search and the
+suggestions. Nothing on disk changes. A change takes effect with the next
+start, and the app offers to restart.
+
 ## Look
 
 The **🎨 Look** tab.
@@ -72,7 +78,7 @@ The **🎨 Look** tab.
 - **Keep the German dance and round names on a screen in another language**:
   *Langsamer Walzer*, *Vorrunde*, *Eintanzen* instead of *Slow Waltz*,
   *Round 1*, *Practice*. The presenter screen and the recorded announcements
-  are then German too.
+  are then German too, and the tempo rules are named TSO instead of WDSF CR.
 
 Theme, accent colour and language take effect after a restart.
 
@@ -166,6 +172,13 @@ choose. It can be cancelled.
 and compacts the database. It refuses to run when the music drive looks
 unmounted, so the analysis can't be wiped by accident.
 
+**🗑 Reset database…** empties chosen parts of the database and restarts the
+app. A dialog asks which, with nothing ticked: **🏷 Tags read from the music
+files** (the next library scan reads them again, minutes), **🎚 Audio
+analysis** (⚗ Analysis builds it again, hours) and **✋ My own data** (tag
+edits, hand-set PD marks, the 📜 play log). Your own data is backed up first
+whatever you pick, so **♻ Restore user data backup…** brings it back.
+
 ## Play sets
 
 The **🎛 Play sets** tab sets what the **🏆 Tournament set** and **🎉 Party
@@ -188,7 +201,7 @@ For each set:
 - **⏭ Auto-advance**, **⏸ No pause between songs**, **🔈 Announce next
   dance**, **🔊 Equalize volume**, **▶️ Double-click starts the title**,
   **❓ Ask before a double-click stops the title** and
-  **🎚 TSO pitch to the heat tempo**.
+  **🎚 WDSF CR pitch to the heat tempo**.
 
 The tournament set also has **⏱ Per dance**: one length per dance. Leave a dance
 on *— the set's length*, pick *full* or a step, or type `m:ss`. A dance with its
@@ -202,14 +215,17 @@ off, since the detection is not reliable enough to cut a competition Paso
 Doble, and Start after at 0 s. The party set stops after the 2nd highlight
 and waits 3 s, so the couples can take their position.
 
-**🎚 TSO pitch target** sets, per dance, the tempo the TSO button pitches a
-heat to:
+**🎚 WDSF CR pitch target** sits right under the tournament set. It sets,
+per dance, the tempo the CR button pitches a heat to:
 
 - **Middle of the round**: puts the whole round on one tempo, where most of
   its titles already are. No title moves more than one bar per minute.
-- **Lower / Middle / Upper**: a fixed tempo within the TSO range. This is
-  worth setting for the slow dances, where one bar per minute is a much
+- **Lower / Middle / Upper**: a fixed tempo within the WDSF CR range. This
+  is worth setting for the slow dances, where one bar per minute is a much
   bigger pitch change.
+
+With the German dance and round names kept (⚙ Settings → Language), and on a
+German screen, these read TSO instead of WDSF CR.
 
 ## Venue pack
 

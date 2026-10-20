@@ -22,7 +22,7 @@ from planner.playing.play_sets import (
     tso_of,
     XFADE_DEFAULT_SECS,
 )
-from planner.terms import dance_name
+from planner.terms import dance_name, rules_name
 from shared.stores import save_settings
 from shared.widgets import _show_toast
 
@@ -212,8 +212,9 @@ class PlayValuesMixin(MainWindowHost):
         # is playing — it follows the click only while nothing plays.
         if self._playing_row()[0] is None:
             if bool(vals["tso"]) != self._card_tso():
-                changed.append(i18n.t("TSO tempo equalize → on") if vals["tso"]
-                               else i18n.t("TSO tempo equalize → off"))
+                changed.append(rules_name(
+                    i18n.t("TSO tempo equalize → on") if vals["tso"]
+                    else i18n.t("TSO tempo equalize → off"), short=True))
             self._sync_card_tso(vals["tso"], table)
         self._refresh_set_lights()
         self._sync_dance_len()
@@ -312,8 +313,8 @@ class PlayValuesMixin(MainWindowHost):
             self._settings["tso_equalize"] = bool(want)
         if bool(was) == bool(want):
             return []
-        return [i18n.t("TSO tempo equalize → on") if want
-                else i18n.t("TSO tempo equalize → off")]
+        return [rules_name(i18n.t("TSO tempo equalize → on") if want
+                           else i18n.t("TSO tempo equalize → off"), short=True)]
 
     def _set_list_ask(self, want: bool) -> list[str]:
         """❓ Put the double-click ask into the list on the panel and report

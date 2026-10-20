@@ -31,13 +31,13 @@ wie beim Scan beim Start.
 |---|---|
 | 🔍 Textfeld | Titel, deren Titel, Interpret oder Kommentar-Tag den Text enthält. Tags sind Markierungen wie `vocal_f`, `classic`, `eintanzen`. |
 | Alle Tänze | Einen Tanz, oder alle Standard- oder alle Lateintänze. |
-| Alle Klassen | Titel, die zu dieser Startklasse passen. Titel ohne Klassen-Tag erscheinen immer, außer 🏷 Nur mit Klasse ist angehakt. |
+| Alle Klassen | Titel, die zu einer der angehakten Startklassen passen. Ein Klick hakt eine Klasse an oder ab und lässt die Liste offen, so lassen sich mehrere anhaken; Alle Klassen nimmt alle Haken weg, und wer auch die letzte Klasse anhakt, landet wieder auf Alle Klassen, und die Liste klappt zu. Titel ohne Klassen-Tag erscheinen nur unter Alle Klassen; Gesellschaftstänze haben keine Klassen und bleiben. |
 | Gesang + Instr. | Nur 🎤 Titel mit Gesang oder nur 🎻 instrumentale Titel. |
-| Alle Kategorien | 🏆 **Nur Turnier** blendet Hymnen, Hintergrundmusik, Dateien mit falschem Tempo, Duplikate und Saison-Ordner aus. Du kannst auch eine dieser Kategorien wählen, was für eine Party praktisch ist. **🏷 Kein Klassen-Tag** listet die Turniertitel, deren Kommentar kein Klassen-Tag trägt, damit du sie taggen kannst. |
+| Alle Kategorien | 🏆 **Nur Turnier** blendet Hymnen, Hintergrundmusik, Dateien mit falschem Tempo, Duplikate und Saison-Ordner aus. Du kannst auch eine dieser Kategorien wählen, was für eine Party praktisch ist. Ein Titel außerhalb dieser Ordner kommt in eine Kategorie, wenn sein Kommentar ihren Namen als Tag trägt, z. B. `Hintergrund`, `Hymnen`, `kein Turnier`, `Doppelte` oder `Weihnachten`; die englischen Namen gehen auch. **🏷 Kein Klassen-Tag** listet die Turniertitel, deren Kommentar kein Klassen-Tag trägt, damit du sie taggen kannst. |
 | Gespielt: alle | ✦ **Nie gespielt**, ★ **Selten**, ★ **Bewährt** oder 📅 **Seit 1 J. nicht** (gespielt, aber in keiner Playlist des letzten Jahres). |
 | Hinzugefügt: alle | Dateien, die in den letzten 30 oder 90 Tagen oder den letzten 12 oder 18 Monaten angelegt wurden. Kombiniert mit ✦ Nie gespielt findest du, was du hineinkopiert, aber nie benutzt hast. |
 | 🆕 Ungeplant | Nur Titel, die in keinem der offenen Decks stehen. |
-| 🏷 Nur mit Klasse | Blendet die Turniertitel ohne Klassen-Tag aus, die der Klassenfilter sonst bei jeder Klasse zeigt. Gesellschaftstänze haben keine Klassen und bleiben. |
+| 🏷 Nur mit Klasse | Blendet die Turniertitel ohne Klassen-Tag aus, die sonst erscheinen, wenn keine oder jede Klasse angehakt ist. Gesellschaftstänze haben keine Klassen und bleiben. |
 
 - **▶** in einer Zeile spielt den Titel im Player ab. Die **Leertaste** macht
   dasselbe für die markierte Zeile. Ist ein
@@ -54,10 +54,10 @@ wie beim Scan beim Start.
   Zeilen markiert, bearbeitet der Tag-Editor alle. Siehe
   [Kapitel 5](05-tags.md).
 - Ein **Rechtsklick auf den Spaltenkopf** wählt die Spalten oder schaltet auf
-  kurze Tanznamen (LW, SB) um. Die Spalten **★** (Bewertung), **Custom**
-  und **Dateiname** sind anfangs ausgeblendet und lassen sich hier
+  kurze Tanznamen (LW, SB) um. Die Spalten **★** (Bewertung), **Custom**,
+  **Dateiname** und **Album** sind anfangs ausgeblendet und lassen sich hier
   einblenden. Dateiname ist der bereinigte Name der Datei, mit dem vollen
-  Pfad im Tooltip.
+  Pfad im Tooltip; Album ist der Album-Tag der MP3.
   **Custom einem MP3-Tag zuordnen…** füllt Custom aus einem Tag deiner Wahl.
 
 ## 🏆 Turniere

@@ -49,7 +49,22 @@ class SettingsTabsTest(unittest.TestCase):
         self.assertOn("📁 Paths", self.dlg._lib_edit, self.dlg._glob_edit,
                       self.dlg._save_edit, self.dlg._m3u_format_combo,
                       self.dlg._pl_edit, self.dlg._relearn_btn,
-                      self.dlg._ref_edit, self.dlg._remap_edit)
+                      self.dlg._ref_edit, self.dlg._remap_edit,
+                      self.dlg._hidden_edit)
+
+    def test_hidden_folders_round_trip_one_per_line(self):
+        dlg = SettingsDialog({"hidden_folders": ["F:\\m\\Party", "F:\\m\\Talk"]}, None)
+        self.addCleanup(dlg.deleteLater)
+        self.assertEqual(dlg._hidden_edit.toPlainText(), "F:\\m\\Party\nF:\\m\\Talk")
+        dlg._hidden_edit.setPlainText("F:\\m\\Party\n\n  F:\\m\\party\\ \nF:\\m\\Kids")
+        self.assertEqual(dlg.values()["hidden_folders"], ["F:\\m\\Party", "F:\\m\\Kids"])
+
+    def test_the_folder_list_is_called_excluded_folders(self):
+        # Marcel asked for "Excluded folders": the titles are left out of
+        # the library, not merely hidden from view.
+        texts = [lbl.text() for lbl in self.dlg.findChildren(QLabel)]
+        self.assertTrue(any("<b>Excluded folders</b>" in t for t in texts))
+        self.assertFalse(any("Hidden folders" in t for t in texts))
 
     def test_sound_and_player(self):
         self.assertOn("🔊 Sound && player", self.dlg._backend_combo,

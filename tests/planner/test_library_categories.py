@@ -72,6 +72,46 @@ class FolderCategoryTest(unittest.TestCase):
         self.assertFalse(is_non_turnier(e))
 
 
+def _marked(*markers, folder="lateincd"):
+    return MusicEntry(path=Path("C:/lib") / folder / "Song.mp3", title="Song",
+                      dance="SA", bpm=50, comment_tags=list(markers))
+
+
+class CommentCategoryTest(unittest.TestCase):
+    """Marcel: "ergänze die kategorie erkennung: wenn ein tag mit dem namen
+    unter kommentar vergeben wurde, damit man diese ordnerunabhänig noch pflegen
+    kann" - a comment marker naming a category puts the title in it, whatever
+    folder it lies in."""
+
+    def test_the_english_name_sets_the_category(self):
+        self.assertEqual(library_category(_marked("background")), "background")
+        self.assertEqual(library_category(_marked("wrong tempo")), "wrong_tempo")
+
+    def test_the_german_name_too(self):
+        self.assertEqual(library_category(_marked("hymnen")), "anthems")
+        self.assertEqual(library_category(_marked("hintergrund")), "background")
+        self.assertEqual(library_category(_marked("kein turnier")), "wrong_tempo")
+        self.assertEqual(library_category(_marked("weihnachten")), "seasonal")
+
+    def test_among_other_markers(self):
+        self.assertEqual(library_category(_marked("vocal_f", "doppelte")),
+                         "duplicates")
+
+    def test_it_keeps_the_title_out_of_generation(self):
+        self.assertTrue(is_non_turnier(_marked("hintergrund")))
+
+    def test_the_marker_wins_over_the_folder(self):
+        self.assertEqual(library_category(_marked("hymnen", folder="special")),
+                         "anthems")
+
+    def test_folder_words_are_no_category_names(self):
+        # 'special' and 'original' already mark tournament covers in the library.
+        self.assertEqual(library_category(_marked("special", "original")), "")
+
+    def test_no_class_cannot_be_tagged(self):
+        self.assertEqual(library_category(_marked("no_class")), "")
+
+
 def _tagged(name, dance="LW", classes_ok=None):
     return MusicEntry(path=Path("C:/lib/standardcd") / name, title=name,
                       dance=dance, bpm=29, classes_ok=classes_ok)

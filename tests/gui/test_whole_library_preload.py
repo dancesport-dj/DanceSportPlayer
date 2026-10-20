@@ -181,6 +181,17 @@ class DoneTest(_Base):
         self.assertIs(self.win._library.global_lib, repo)
         self.assertFalse(self.win._library.whole_waiting)
 
+    def test_going_back_meanwhile_keeps_the_favorites_on_screen(self):
+        loader = self.preload()
+        loader.isRunning.return_value = True
+        self.win._show_whole_library()
+        self.win._stop_whole_wait()        # ⭐ clicked again while it loads
+        self.assertFalse(self.win._library.whole_waiting)
+        repo = _lib(3)
+        self.win._on_global_preloaded(repo)
+        self.win._lib_browser.set_whole_entries.assert_not_called()
+        self.assertIs(self.win._library.global_lib, repo, "kept for the next click")
+
     def test_a_click_meanwhile_takes_a_newer_rescan(self):
         loader = self.preload()
         loader.isRunning.return_value = True

@@ -111,6 +111,21 @@ class BrowserSourceTest(unittest.TestCase):
         self.assertIn("Favorites", self.browser._source_btn.text())
         self.assertEqual(self.shown(), 2)
 
+    def test_clicking_again_while_it_loads_goes_back_to_the_favorites(self):
+        # Marcel: the pane showed nothing while the count said thousands, and
+        # the button could not be un-ticked: every click asked for 🌐 again.
+        dropped = []
+        self.browser.wholeLibraryDropped.connect(lambda: dropped.append(1))
+        self.browser._source_btn.click()
+        self.browser.show_whole_loading(True)       # MainWindow: still loading
+        self.browser._source_btn.click()
+        self.assertEqual(self.asked, [1], "the second click asks for nothing")
+        self.assertEqual(dropped, [1])
+        self.assertFalse(self.browser._source_btn.isChecked())
+        self.assertIn("Favorites", self.browser._source_btn.text())
+        self.assertFalse(self.browser._overlay.isVisible())
+        self.assertEqual(self.shown(), 2)
+
     def test_a_favorites_rescan_under_the_whole_library_waits_its_turn(self):
         self.browser.set_whole_entries(WHOLE)
         self.browser.set_entries(_entries("favs", 3))

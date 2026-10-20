@@ -207,6 +207,23 @@ _CLASS_CODES = {'D', 'C', 'B', 'A', 'S'}
 
 _INSTR_WORDS = {'instr', 'instrumental'}
 
+# UltraMixer comments lead with the instr word: 'Instr AS', 'instr. AS'.
+_LEADING_INSTR_RE = re.compile(r'(instr|instrumental)\.?(?:\s+(.*))?', re.IGNORECASE)
+
+
+def _comment_parts(comment: str) -> list[str]:
+    """The ';'-separated parts of a comment, a leading instr word split off
+    its own part ('instr. AS' → 'instr', 'AS')."""
+    parts: list[str] = []
+    for part in (p.strip() for p in comment.split(';')):
+        m = _LEADING_INSTR_RE.fullmatch(part)
+        if m:
+            parts.append(m.group(1))
+            part = (m.group(2) or '').strip()
+        if part:
+            parts.append(part)
+    return parts
+
 # Songs-DB writes a class floor, 'ab C' = class C and every class above it.
 _CLASS_ORDER = ('D', 'C', 'B', 'A', 'S')
 _AB_CLASS_RE = re.compile(r'ab\s+([dcbas])', re.IGNORECASE)
@@ -350,7 +367,7 @@ def _get_comment_tag(path: Path, tags=_UNREAD) -> str | None:
 _TAG_NOISE_RE = re.compile(
     r"""^(?:
           \d+(?:[.,]\d+)?                              # 29, 30.5
-        | (?:lw|lwt|tg|ta|ww|vw|sf|sfx|qs|qu|cc|ch|sa|sb|rb|ru|pd|ps|ji|jv)
+        | (?:lw|lwt|sw|tg|ta|ww|vw|sf|sfx|qs|qu|cc|ch|sa|sb|rb|ru|pd|ps|ji|jv)
           [\s\-]?\d*                                   # rb, QS-50
         | (?:www\.|https?://).*                        # www.mediahuman.com
         | (?:converted\s+by|made\s+with)\b.*
@@ -376,8 +393,8 @@ def parse_comment_markers(comment: str) -> list[str]:
     Class codes, instr words and the noise above are left out — those are already
     carried by `classes_ok` / `is_instrumental` / `bpm` / `dance`."""
     out: list[str] = []
-    for part in (p.strip() for p in comment.split(';')):
-        if not part or part.upper() in _CLASS_CODES or _ab_classes(part):
+    for part in _comment_parts(comment):
+        if part.upper() in _CLASS_CODES or _ab_classes(part):
             continue
         low = part.lower()
         if low in _INSTR_WORDS or is_marker_noise(low) or low in out:
@@ -394,7 +411,7 @@ def _parse_class_tag(comment: str) -> tuple[list[str] | None, bool]:
                        the comment contains no class codes at all
       is_instrumental – True when the comment contains 'instr' / 'instrumental'
     """
-    parts = [p.strip() for p in comment.split(';') if p.strip()]
+    parts = _comment_parts(comment)
     classes: list[str] = []
     for p in parts:
         for code in _ab_classes(p) or ([p.upper()] if p.upper() in _CLASS_CODES else []):
@@ -405,15 +422,16 @@ def _parse_class_tag(comment: str) -> tuple[list[str] | None, bool]:
 
 
 # ── Filename Helpers ───────────────────────────────────────────────────────────
-# Matches dance codes directly concatenated with BPM, e.g. (RB24), SF29, QS51
+# Matches dance codes directly concatenated with BPM, e.g. (RB24), SF29, QS51,
+# SW29_Children (an underscore after the tempo ends it too; \b would not).
 _CODE_BPM_PAT = re.compile(
-    r'\b(LW|LWT|TG|TA|WW|VW|SF|SFX|QS|QU|CC|CH|SA|SB|RB|RU|PD|PS|JI|JV)\d{2,3}\b',
+    r'\b(LW|LWT|SW|TG|TA|WW|VW|SF|SFX|QS|QU|CC|CH|SA|SB|RB|RU|PD|PS|JI|JV)\d{2,3}(?![A-Za-z0-9])',
     re.IGNORECASE,
 )
 
 
 _CODE_ALIAS: dict[str, str] = {
-    'LWT':'LW','TA':'TG','VW':'WW','SFX':'SF','QU':'QS',
+    'LWT':'LW','SW':'LW','TA':'TG','VW':'WW','SFX':'SF','QU':'QS',
     'CH':'CC','SB':'SA','RU':'RB','PS':'PD','JV':'JI',
 }
 
@@ -589,6 +607,17 @@ def _get_raw_genre_tag(path: Path, tags=_UNREAD) -> str | None:
     except Exception:
         log.debug("🏷 Genre tag unreadable\n"
                   "file: %s", path, exc_info=True)
+    return None
+
+
+def _get_um_dance(tags) -> str | None:
+    """The dance UltraMixer's own TXXX 'ultramixer_dancestyle' names ('SW'),
+    or None without the frame or for a style that is no competition dance."""
+    if tags is None:
+        return None
+    for frame in tags.getall('TXXX'):
+        if frame.desc.lower() == 'ultramixer_dancestyle' and frame.text:
+            return GENRE_TO_DANCE.get(fold_text(str(frame.text[0]).strip()))
     return None
 
 

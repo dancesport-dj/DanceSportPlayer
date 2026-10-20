@@ -937,7 +937,9 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         if not self._big_player or self._playback.path is None:
             if not auto:
                 self.statusBar().showMessage(
-                    "Play a title first — then TSO sets its heat tempo.", 4000)
+                    terms.rules_name(i18n.t(
+                        "Play a title first — then TSO sets its heat tempo."),
+                        short=True), 4000)
             return False
         # The deck that is actually playing (the one with a marked ▶/■ row).
         deck = next((t for t in self._deckset.all_tables
@@ -989,7 +991,8 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         src = (i18n.t("the %s %s of this round") % (takte, dance_name(dance, dance))
                if len(counts) > 1 else i18n.t("this %s") % dance_name(dance, dance))
         self.statusBar().showMessage(
-            i18n.t("🎚 TSO tempo: %s %s → T%s (target T%s from %s)")
+            terms.rules_name(i18n.t("🎚 TSO tempo: %s %s → T%s (target T%s from %s)"),
+                             short=True)
             % (dance, ent.bpm, _takt_text(played_at), _takt_text(target), src), 6000)
         return True
 
