@@ -825,8 +825,8 @@ CATALOG = {
         "Esc schließt  ·  Doppelklick verlässt den Vollbildmodus",
     "Pick a length or type one: m:ss, seconds, or 'full'":
         "Länge wählen oder eingeben: m:ss, Sekunden oder 'komplett'",
-    "🏆 %s — its own length":
-        "🏆 %s — eigene Länge",
+    "%s — its own length":
+        "%s — eigene Länge",
     "This dance has its own play length in the 🏆 tournament set\n(⚙ Settings → 🎛 Play sets). − / + and typing change it there.":
         "Dieser Tanz hat im 🏆 Turnier-Set eine eigene Spiellänge\n(⚙ Einstellungen → 🎛 Spiel-Sets). − / + und Eintippen ändern sie dort.",
     "<b>⏱ Per dance</b> — a dance given a length of its own is cut there instead, as long as a list stands on this set. The ▶ Playing panel names the dance under its length.":

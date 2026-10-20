@@ -754,7 +754,7 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         dance = self._dance_len
         self.len_dance_lbl.setVisible(dance is not None)
         if dance is not None:
-            self.len_dance_lbl.setText(i18n.t("🏆 %s — its own length") % dance[1])
+            self.len_dance_lbl.setText(i18n.t("%s — its own length") % dance[1])
 
     # ── Values read by MainWindow's playback engine ──
 

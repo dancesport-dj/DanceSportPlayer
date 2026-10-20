@@ -87,6 +87,22 @@ class PlayerListHeatsTest(unittest.TestCase):
         self.assertEqual(heats["Dropped-LW"], "Heat 2")
         self.assertEqual(heats["Vorrunde-LW2"], "Heat 3")
 
+    def test_one_paso_in_every_round_stays_in_each_round(self):
+        """A Paso Doble may be played again (ALLOW_REPEAT), and a draw often
+        runs the same one in every round. The sections are keyed by path, so
+        all its copies took the LAST round's name: the Vorrunde's two PD heats
+        moved under the Finale strip, and the Vorrunde showed no Paso."""
+        paso = _e("Espana Cani", "PD")
+        rounds = ([("Vorrunde", _e(f"Vorrunde-SA{h}", "SA")) for h in (1, 2)]
+                  + [("Vorrunde", paso), ("Vorrunde", paso)]
+                  + [("Finale", _e("Finale-SA1", "SA")), ("Finale", paso)])
+        t = self.table(rounds)
+        rows = t._row_meta.numbered()
+        self.assertEqual(t._player_section_labels([m.entry for _, m in rows]),
+                         [name for name, _ in rounds])
+        self.assertEqual([t.item(r, _COL_HEAT).text() for r, _ in rows],
+                         ["Heat 1", "Heat 2", "Heat 1", "Heat 2", "", ""])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -739,7 +739,7 @@ class DeckSetupMixin(MainWindowHost):
         self._grid.wish_box2.setVisible(False)
         self._grid.wish_box3.setVisible(False)
         self._grid.wish_box4.setVisible(False)
-        self._apply_deck_view()   # hides decks B/C/D + wishlist area for _deck_count == 1
+        self._apply_deck_view()   # hides decks B/C/D for _deck_count == 1
         self._focused_table = self._deckset.tableA   # Ctrl+S target, updated on focus
         # The list whose own play values the panel shows and edits.
         self._panel_table = self._focused_table

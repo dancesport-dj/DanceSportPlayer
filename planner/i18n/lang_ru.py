@@ -747,8 +747,8 @@ CATALOG = {
         "Esc закрывает  ·  двойной щелчок выходит из полноэкранного режима",
     "Pick a length or type one: m:ss, seconds, or 'full'":
         "Выберите длительность или введите: м:сс, секунды или 'полностью'",
-    "🏆 %s — its own length":
-        "🏆 %s — своя длительность",
+    "%s — its own length":
+        "%s — своя длительность",
     "This dance has its own play length in the 🏆 tournament set\n(⚙ Settings → 🎛 Play sets). − / + and typing change it there.":
         "У этого танца своя длительность в 🏆 турнирном наборе\n(⚙ Настройки → 🎛 Наборы воспроизведения). − / + и ввод меняют её там.",
     "<b>⏱ Per dance</b> — a dance given a length of its own is cut there instead, as long as a list stands on this set. The ▶ Playing panel names the dance under its length.":

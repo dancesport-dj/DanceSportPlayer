@@ -25,6 +25,9 @@ from PySide6.QtMultimedia import QMediaPlayer
 from dancesport_planner import MusicLibrary, PlaylistSuggester, RoundConfig
 from planner.music import tag_edits
 from planner.music.db import AudioCache
+from planner.models import MusicEntry
+from planner.terms import dance_name
+from shared.columns import _COL_DANCE, _COL_HEAT, _COL_TITLE
 from tests.db_support import use_scratch_db
 from tests.qt_test_support import reap_widget, stub_window_startup
 
@@ -287,6 +290,69 @@ class FormWriteTest(_WindowTest):
         self.assertEqual(ID3(self.path)["POPM:Windows Media Player 9 Series"].rating, 64)
         self.assertEqual(tag_edits.load(self.win._library.cache.fingerprint(self.path)),
                          {"rating": 5})
+
+
+class FlatListRepaintTest(_WindowTest):
+    """A wishlist row takes its dance from the title, not from a heat: a tag
+    that makes the Cha a Rumba must show there, and the new title with it."""
+
+    def setUp(self):
+        super().setUp()
+        self.wl = self.win._deckset.wishlist
+        self.wl.load_wishlist([self.entry], play_cb=self.win._play_or_stop,
+                              suggester=None)
+
+    def cell(self, col):
+        return self.wl.item(0, col).text()
+
+    def test_a_new_genre_dance_shows_in_the_wishlist(self):
+        self.assertEqual(self.cell(_COL_DANCE), self.wl._dance_label("CC"))
+        self.win._apply_tag_dialog([self.entry], _Answer(
+            form={"title": "Rumba One", "genre": "Rumba"}, mp3s=[self.entry]))
+        self.assertEqual(self.entry.dance, "RB")
+        self.assertEqual(self.cell(_COL_DANCE), self.wl._dance_label("RB"))
+        self.assertIn("Rumba One", self.cell(_COL_TITLE))
+
+
+class RunningOrderRepaintTest(_WindowTest):
+    """A free running order takes its dance, its ─── strips and its "Heat n"
+    from the titles in it, so a tag that makes the Cha a Rumba re-cuts them."""
+
+    def setUp(self):
+        super().setUp()
+        self.t = self.win._deckset.tableB
+        self.rumba = MusicEntry(path=self.path.with_name("Rumba Two (RB 25).mp3"),
+                                title="Rumba Two", dance="RB")
+
+    def rows(self):
+        return [(r, m) for r, m in self.t._row_meta.numbered()]
+
+    def strips(self):
+        return [self.t.item(r, 0).text() for r in sorted(self.t._round_hdr_rows)]
+
+    def test_the_heats_of_a_round_follow_the_new_dance(self):
+        sections = {str(self.entry.path): "Finale", str(self.rumba.path): "Finale"}
+        self.t.load_player_list([self.entry, self.rumba], "🏁 Order",
+                                play_cb=self.win._play_or_stop, sections=sections)
+        self.assertEqual([self.t.item(r, _COL_HEAT).text() for r, _ in self.rows()],
+                         ["", ""])
+        self.win._apply_tag_dialog([self.entry], _Answer(
+            form={"title": "Rumba One", "genre": "Rumba"}, mp3s=[self.entry]))
+        self.assertEqual(self.entry.dance, "RB")
+        cells = [(self.t.item(r, _COL_DANCE).text(), self.t.item(r, _COL_HEAT).text())
+                 for r, _ in self.rows()]
+        rb = self.t._dance_label("RB")
+        self.assertEqual(cells, [(rb, "Heat 1"), (rb, "Heat 2")])
+
+    def test_a_strip_named_after_the_dance_is_renamed(self):
+        self.t.load_player_list([self.entry], "🏁 Order",
+                                play_cb=self.win._play_or_stop)
+        self.assertIn(dance_name("CC"), self.strips()[0])
+        self.win._apply_tag_dialog([self.entry], _Answer(
+            form={"title": "Rumba One", "genre": "Rumba"}, mp3s=[self.entry]))
+        self.assertIn(dance_name("RB"), self.strips()[0])
+        self.assertEqual(self.t.item(self.rows()[0][0], _COL_DANCE).text(),
+                         self.t._dance_label("RB"))
 
 
 if __name__ == "__main__":

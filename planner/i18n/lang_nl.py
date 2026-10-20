@@ -737,8 +737,8 @@ CATALOG = {
         "Esc sluit  ·  dubbelklik verlaat volledig scherm",
     "Pick a length or type one: m:ss, seconds, or 'full'":
         "Kies een lengte of typ er een: m:ss, seconden of 'volledig'",
-    "🏆 %s — its own length":
-        "🏆 %s — eigen lengte",
+    "%s — its own length":
+        "%s — eigen lengte",
     "This dance has its own play length in the 🏆 tournament set\n(⚙ Settings → 🎛 Play sets). − / + and typing change it there.":
         "Deze dans heeft een eigen speellengte in de 🏆 toernooiset\n(⚙ Instellingen → 🎛 Speelsets). − / + en typen wijzigen hem daar.",
     "<b>⏱ Per dance</b> — a dance given a length of its own is cut there instead, as long as a list stands on this set. The ▶ Playing panel names the dance under its length.":

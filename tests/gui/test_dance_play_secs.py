@@ -123,6 +123,8 @@ class PanelTest(_WindowCase):
         self.assertEqual(self.panel.len_lbl.text(), "1:30")
         self.assertFalse(self.panel.len_dance_lbl.isHidden())
         self.assertIn(dance_name("WW", "WW"), self.panel.len_dance_lbl.text())
+        # No 🏆: on a Mac the wide glyph ran over the −/+ above it.
+        self.assertNotIn("🏆", self.panel.len_dance_lbl.text())
 
     def test_a_dance_without_its_own_shows_the_lists_length(self):
         self.play(self.b, "LW")

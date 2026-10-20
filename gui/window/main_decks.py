@@ -1250,8 +1250,7 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
         ("wish") comes on screen and becomes the active list. A playlist past
         what this build shows (a player stops at four) does nothing.
 
-        Wishlists open up to n if fewer are shown; the one-deck view hides a
-        lone wishlist (see _update_wish_area), so there it opens two.
+        Wishlists open up to n if fewer are shown.
 
         The list takes the keyboard too: Space plays the selection of the
         list that has it, and lighting one up alone left Space on the old one."""
@@ -1269,9 +1268,8 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
     def _show_wishlist(self, wl: PlaylistTable) -> None:
         """Wishlist `wl` on screen and unfolded: the area opens up to it."""
         n = self._deckset.wishlists.index(wl) + 1
-        need = max(n, 2) if self._deckset.deck_count == 1 else n
-        if self._wish_state < need:
-            self._set_wish_state(need)
+        if self._wish_state < n:
+            self._set_wish_state(n)
         if self.deck(wl).folded:
             self._toggle_deck_fold(wl, folded=False)
 

@@ -801,7 +801,8 @@ class TableActionsMixin(TableMenuMixin):
                           if any(m.entry is en for en in to_add)])
         return len(to_add)
 
-    def _reload_warmup(self, entries: list[MusicEntry] | None = None):
+    def _reload_warmup(self, entries: list[MusicEntry] | None = None,
+                       rebuild: bool = False):
         """Re-render the warm-up / ETDS party list (default: from its current
         tracks) — the ─── headers are derived during the load, so any change of
         order or of the grouping view has to go through here.
@@ -812,7 +813,8 @@ class TableActionsMixin(TableMenuMixin):
 
         An edit that only adds or drops tracks doesn't get that far — see
         `_warmup_edit_in_place`, which moves the rows under it instead of
-        building the list again."""
+        building the list again. `rebuild` skips that: a 🏷 re-tag changes the
+        dance of a title already in the list, which no row move shows."""
         if entries is None:
             entries = self._row_meta.entries()
         placed = self._row_meta.placements()
@@ -821,7 +823,7 @@ class TableActionsMixin(TableMenuMixin):
         # edit moves rows: give every one of them its own colour back FIRST,
         # while those numbers still mean the rows they were taken from.
         self._ungrey_played_rows()
-        if not self._warmup_edit_in_place(entries):
+        if rebuild or not self._warmup_edit_in_place(entries):
             self.load_warmup(entries, self._warmup_label, self._warmup_style,
                              self._warmup_class, self._warmup_relax,
                              self._play_cb, self._suggester,

@@ -42,6 +42,7 @@ from planner.music.db import AudioCache
 from planner.models import MusicEntry, RoundConfig
 from planner.terms import dance_name
 from planner.generate.suggester import PlaylistSuggester
+from planner.generate.warmup import warmup_code
 from planner.playlist.checks import FLAG_EDGE_SILENCE, is_final_round
 from planner.playing.play_sets import dblclick_ask_of
 from planner.music.parsing import _fmt_bpm
@@ -742,12 +743,29 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         wanted = {str(p) for p in paths}
         if not wanted:
             return 0
-        done = 0
+        # A warm-up / running-order row takes its dance from the title, and so
+        # do the ─── strips and "Heat n" around it: a re-tag to another dance
+        # re-cuts the whole list.
+        moved = [m for _r, m in self._row_meta.numbered()
+                 if m.warmup and m.path_str in wanted
+                 and m.dance != (warmup_code(m.entry) or m.entry.dance or "")]
+        if moved:
+            self._reload_warmup(rebuild=True)
+            return len(moved)
+        done = flat = 0
         for r, m in self._row_meta.numbered():
             p = m.path_str
-            if not p or m.theme or p not in wanted:
+            if m.theme:
+                flat += 1
+            if not p or p not in wanted:
                 continue
-            bg = _C_ROW_EVEN if (m.h_idx or 0) % 2 == 0 else _C_ROW_ODD
+            if m.theme:
+                # A wishlist / theme row: its dance is the title's own, not a
+                # heat's, so a re-tag to another dance shows there.
+                m.dance = m.entry.dance or ""
+                bg = _C_ROW_EVEN if (flat - 1) % 2 == 0 else _C_ROW_ODD
+            else:
+                bg = _C_ROW_EVEN if (m.h_idx or 0) % 2 == 0 else _C_ROW_ODD
             self._fill_song_row(r, m, bg)
             if r == self._current_play_row:
                 self.sync_play_glyph()   # a fresh fill says ▶

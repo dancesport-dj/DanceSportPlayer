@@ -748,8 +748,8 @@ CATALOG = {
         "Esc cierra  ·  doble clic sale de pantalla completa",
     "Pick a length or type one: m:ss, seconds, or 'full'":
         "Elige una duración o escríbela: m:ss, segundos o 'completo'",
-    "🏆 %s — its own length":
-        "🏆 %s — duración propia",
+    "%s — its own length":
+        "%s — duración propia",
     "This dance has its own play length in the 🏆 tournament set\n(⚙ Settings → 🎛 Play sets). − / + and typing change it there.":
         "Este baile tiene su propia duración en el set 🏆 de torneo\n(⚙ Ajustes → 🎛 Sets de reproducción). − / + y escribir la cambian allí.",
     "<b>⏱ Per dance</b> — a dance given a length of its own is cut there instead, as long as a list stands on this set. The ▶ Playing panel names the dance under its length.":

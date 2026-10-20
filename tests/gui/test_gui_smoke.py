@@ -262,12 +262,13 @@ class MainWindowSmokeTest(unittest.TestCase):
         self.assertTrue(self.win._grid.wish_box3.isVisibleTo(self.win))
 
     def test_focusing_the_one_wishlist_in_the_one_deck_view_shows_it(self):
-        """State 1 hides the single wishlist in the one-deck view; a focus
-        button pressed there must not light up a list nobody can see."""
+        """A focus button pressed with the wishlists off must not light up a
+        list nobody can see — and opens no more wishlists than the one asked."""
         self.win._deckset.deck_count = 1
         self.win._apply_deck_view()
-        self.win._set_wish_state(1)
+        self.win._set_wish_state(0)
         self.win._focus_list("wish", 1)
+        self.assertEqual(self.win._wish_state, 1)
         self.assertTrue(self.win._grid.wish_box.isVisibleTo(self.win))
         self.assertTrue(self.win.deck(self.win._deckset.wishlists[0]).active)
 
@@ -580,14 +581,20 @@ class MainWindowSmokeTest(unittest.TestCase):
         self.assertFalse(self.win._cart_dock.isHidden())
         self.win._cart_btn.setChecked(False)
 
-    def test_one_wishlist_shows_in_the_no_playlist_view(self):
-        """A single wishlist steps aside only for the ONE-deck view. With the decks
-        hidden entirely (party list, no normal playlists) it must show — that view
-        exists precisely so the wishlist / Eintanzen / library panes take over."""
+    def test_one_wishlist_shows_in_the_one_deck_view(self):
+        """⭐ 1 shows one wishlist under a single playlist too. It used to step
+        aside there, so ⭐ 1 looked like ⭐ off while ⭐ 2 showed two."""
         self.win._set_wish_state(1)
         self.win._deckset.deck_count = 1
         self.win._apply_deck_view()
-        self.assertFalse(self.win._grid.wish_split.isVisibleTo(self.win))
+        self.assertTrue(self.win._grid.wish_split.isVisibleTo(self.win))
+        self.assertTrue(self.win._grid.wish_box.isVisibleTo(self.win))
+        self.assertFalse(self.win._grid.wish_box2.isVisibleTo(self.win))
+
+    def test_one_wishlist_shows_in_the_no_playlist_view(self):
+        """With the decks hidden entirely (party list, no normal playlists) the
+        wishlist / Eintanzen / library panes take over."""
+        self.win._set_wish_state(1)
         self.win._deckset.deck_count = 0
         self.win._apply_deck_view()
         self.assertTrue(self.win._grid.wish_split.isVisibleTo(self.win))

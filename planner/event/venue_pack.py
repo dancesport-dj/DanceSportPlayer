@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePath, PureWindowsPath
 
 from planner.config import write_json_atomic
+from planner.music.paths import PathRemapper, home_search_roots
 
 log = logging.getLogger("dancesport.venue_pack")
 
@@ -111,6 +112,34 @@ def remap(obj, mapping: dict):
     if isinstance(obj, str):
         return mapping.get(obj, obj)
     return obj
+
+
+def _exists(path: str) -> bool:
+    try:
+        return Path(path).is_file()
+    except OSError:
+        return False
+
+
+def relink(docs: dict, settings: dict) -> tuple[dict, int]:
+    """`docs` with every track this machine lacks re-rooted to the copy its own
+    folders hold — the 🧭 Fix paths search: Reference path, search folders, the
+    library and, away from Windows, the home folder. A path is only rewritten
+    to a file that exists. Returns the documents and how many paths moved."""
+    roots = [settings.get("reference_path") or ""]
+    roots += settings.get("remap_paths") or []
+    roots += [settings.get("library_dir") or "", settings.get("global_dir") or ""]
+    remapper = PathRemapper([*roots, *home_search_roots()])
+    mapping = {}
+    if remapper:
+        for t in track_paths(*docs.values()):
+            if not _exists(t):
+                hit = remapper.remap(t)
+                if hit is not None:
+                    mapping[t] = str(hit)
+    if not mapping:
+        return docs, 0
+    return {name: remap(obj, mapping) for name, obj in docs.items()}, len(mapping)
 
 
 def merge_settings(local: dict, imported: dict) -> dict:
@@ -272,39 +301,42 @@ def stage_import(src: Path, state_dir: Path, music_dir: Path | None,
 
 def apply_pending(state_dir: Path) -> list[str]:
     """Put a staged import in place: the live files are copied aside first, the
-    settings are merged so this machine keeps its own folders. Returns the
-    file names replaced ([] when nothing was staged)."""
+    settings are merged so this machine keeps its own folders, and the tracks
+    this machine lacks are looked up under those folders (`relink`). Returns
+    the file names replaced ([] when nothing was staged)."""
     state_dir = Path(state_dir)
     stage = state_dir / STAGE_DIR
     if not stage.is_dir():
         return []
-    staged = sorted(p for p in stage.iterdir() if p.suffix == ".json")
-    backup = state_dir / (BACKUP_PREFIX + time.strftime("%Y%m%d-%H%M%S"))
-    backup.mkdir(exist_ok=True)
-    applied = []
-    for src in staged:
-        live = state_dir / src.name
+    docs = {}
+    for src in sorted(p for p in stage.iterdir() if p.suffix == ".json"):
         try:
-            obj = json.loads(src.read_text(encoding="utf-8"))
+            docs[src.name] = json.loads(src.read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:
             log.warning("⚠️ Venue import entry skipped\n"
                         "file: %s\n"
                         "error: %s", src.name, exc)
-            continue
+    live_settings = state_dir / SETTINGS_FILE
+    try:
+        local = json.loads(live_settings.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        local = {}
+    local = local if isinstance(local, dict) else {}
+    if SETTINGS_FILE in docs:
+        docs[SETTINGS_FILE] = merge_settings(local, docs[SETTINGS_FILE])
+    docs, relinked = relink(docs, docs.get(SETTINGS_FILE, local))
+    backup = state_dir / (BACKUP_PREFIX + time.strftime("%Y%m%d-%H%M%S"))
+    backup.mkdir(exist_ok=True)
+    applied = []
+    for name, obj in docs.items():
+        live = state_dir / name
         if live.exists():
-            shutil.copy2(live, backup / src.name)
-            if src.name == SETTINGS_FILE:
-                try:
-                    local = json.loads(live.read_text(encoding="utf-8"))
-                except (OSError, ValueError):
-                    local = {}
-                obj = merge_settings(local if isinstance(local, dict) else {}, obj)
-        elif src.name == SETTINGS_FILE:
-            obj = merge_settings({}, obj)
+            shutil.copy2(live, backup / name)
         write_json_atomic(live, obj)
-        applied.append(src.name)
+        applied.append(name)
     shutil.rmtree(stage, ignore_errors=True)
     log.info("📥 Venue pack applied\n"
              "files: %s\n"
-             "backup: %s", ", ".join(applied) or "none", backup.name)
+             "paths relinked: %d\n"
+             "backup: %s", ", ".join(applied) or "none", relinked, backup.name)
     return applied

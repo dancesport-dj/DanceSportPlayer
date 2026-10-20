@@ -193,6 +193,35 @@ class StagedImportTest(unittest.TestCase):
         self.assertTrue(Path(rows[0]).is_relative_to(music))
         self.assertTrue(Path(rows[0]).exists())
 
+    def test_without_music_the_paths_find_this_machines_copies(self):
+        """The pack names the other PC's paths. Left as they were, the 🎛 pads
+        and decks pointed at files this machine does not have; this machine's
+        own folders (Reference path, search folders, library) hold them."""
+        here = self.root / "here" / "my music"
+        moon = _mp3(here / "standardcd" / "LW" / "Moon (LW 29).mp3")
+        tusch = _mp3(self.root / "jingles" / "Tusch.mp3")
+        far_moon = r"F:\my music\standardcd\LW\Moon (LW 29).mp3"
+        far_tusch = r"D:\Dropbox\jingles\Tusch.mp3"
+        gone = r"F:\my music\standardcd\LW\Gone.mp3"
+        docs = {"gui_settings.json": {"library_dir": r"F:\my music", "zoom": 3,
+                                      "per_title": {far_moon: 5}},
+                "autosave_playlist.json": {"rows": [far_moon, gone, self.a]},
+                "cartwall.json": {"pads": [{"path": far_tusch}, {"path": far_moon}]}}
+        pack = self.root / "far.dpvenue"
+        vp.write_pack(pack, docs, include_music=False)
+        (self.state / "gui_settings.json").write_text(json.dumps(
+            {"library_dir": str(here), "remap_paths": [str(self.root / "jingles")]}),
+            encoding="utf-8")
+        vp.stage_import(pack, self.state, music_dir=None)
+        vp.apply_pending(self.state)
+        self.assertEqual(self._read("cartwall.json")["pads"],
+                         [{"path": tusch}, {"path": moon}])
+        self.assertEqual(self._read("autosave_playlist.json")["rows"],
+                         [moon, gone, self.a])     # no copy: left as it was
+        s = self._read("gui_settings.json")
+        self.assertEqual(s["per_title"], {moon: 5})
+        self.assertEqual(s["library_dir"], str(here))
+
     def test_nothing_pending_applies_nothing(self):
         self.assertEqual(vp.apply_pending(self.state), [])
         self.assertEqual(list(self.state.glob("before-venue-import-*")), [])

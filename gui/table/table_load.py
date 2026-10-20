@@ -491,13 +491,17 @@ class TableLoadMixin(PlaylistTableHost):
         The round it is played in when the caller could work that out, the dance
         otherwise. A track dropped in later belongs to no round of its own — it
         takes the one it landed in, so the strips stay whole instead of tearing
-        open around every wish."""
+        open around every wish. So does a title the order holds more than once
+        (one Paso Doble in every round): the sections are keyed by path and know
+        only one of its rounds."""
         if not self._player_sections:
             return [warmup_code(e) or e.dance or "" for e in entries]
+        times = Counter(str(e.path) for e in entries)
         out: list[str] = []
         last = ""
         for e in entries:
-            last = self._player_sections.get(str(e.path)) or last
+            p = str(e.path)
+            last = (self._player_sections.get(p) if times[p] == 1 else None) or last
             out.append(last)
         # Anything dropped ahead of the first known track joins that first round.
         first = next((lbl for lbl in out if lbl), "")

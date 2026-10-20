@@ -195,13 +195,10 @@ class WishlistMixin(MainWindowHost):
 
     def _update_wish_area(self):
         """The wishlist area follows the cycle (_wish_state): 0 off · 1..4 show that many
-        wishlists. State 0 hides it entirely (even with multiple decks); state 1 hides the
-        single wishlist only in the ONE-deck view, where that deck should own the height
-        (the old auto-reveal) — in the no-playlist view it shows, since that view exists so
-        the wishlist / Eintanzen / library panes take over; states 2-4 always show that
-        many. With 4 wishlists and _wish_grid on they stack 2×2 instead of in a row."""
+        wishlists, in every deck view. State 0 hides it entirely (even with multiple
+        decks). With 4 wishlists and _wish_grid on they stack 2×2 instead of in a row."""
         state = self._wish_state
-        show_area = state >= 1 and (self._deckset.deck_count != 1 or state >= 2)
+        show_area = state >= 1
         self._grid.wish_split.setVisible(show_area)
         boxes = (self._grid.wish_box, self._grid.wish_box2, self._grid.wish_box3, self._grid.wish_box4)
         for i, box in enumerate(boxes):

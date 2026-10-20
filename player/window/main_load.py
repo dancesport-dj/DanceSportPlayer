@@ -197,7 +197,12 @@ class TrackLoadMixin(MainWindowHost):
         # warmup_code, not .dance: a social title (Discofox, Salsa, …) has
         # no competition code, and with an empty dance it was never
         # announced and showed a blank dance on the card.
-        self._playback.dance = (planner.generate.warmup.warmup_code(ent) or "") if ent is not None else ""
+        # 🐂 The row it was started from names it first: a grid slot keeps its
+        # dance whatever the title is tagged, and a path the library does not
+        # hold verbatim (a Mac copy) comes back named by its file name alone —
+        # a Paso Doble row then played no Paso Doble, and the stop never ran.
+        self._playback.dance = self._row_dance(path) or (
+            (planner.generate.warmup.warmup_code(ent) or "") if ent is not None else "")
         self._playback.path = path
         self._played_marked = False   # fresh track — re-arm the 10 s rule
         self._playback.offset_ms = 0      # …and no silence skipped on it yet
@@ -211,6 +216,16 @@ class TrackLoadMixin(MainWindowHost):
         # of a heat, and the caption would keep naming the previous one.
         self._sync_taskbar_title()
         return ent
+
+    def _row_dance(self, path) -> str:
+        """The dance of the deck row playing `path`, or "" — no row is marked,
+        or the marked one still holds the title before (a drop onto the card
+        cues without marking one)."""
+        table, row = self._playing_row()
+        meta = table._row_meta.at(row) if table is not None else None
+        if meta is None or meta.path_str != str(path):
+            return ""
+        return meta.dance
 
     def _pitch_before_play(self, ent, start):
         """Takt, fader and TSO pitch into the stopped track; True once pitched."""
