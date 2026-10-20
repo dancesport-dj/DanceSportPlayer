@@ -26,6 +26,7 @@ from planner.music.db import AudioCache
 from planner.music.db_upkeep import db_maintenance
 from planner.music.scan_caches import GlobalScanCache
 from planner.music.library import MusicLibrary
+from planner.system_info import lower_thread_priority
 from planner.models import ScanCancelled, ALLOW_REPEAT
 from planner.generate.warmup import build_class_warmup, build_warmup_playlist
 from planner.music.parsing import _detect_dance
@@ -72,8 +73,15 @@ class LibraryLoader(QThread):
     """Loads the favorites MusicLibrary in a background thread.
     Runs the scan non-interactively (no stdin prompt; analysis is deferred to
     the explicit AudioAnalyzer worker).
+
+    Two halves: the audio cache first, handed over as `cache_ready`, then the
+    scan — which waits for `go()`. The window restores the last session and
+    opens in between, and that restore writes fingerprints: started at once,
+    the scan's back-to-back write transactions would starve it.
     """
     status      = Signal(str)
+    cache_ready = Signal(object)           # AudioCache, before the scan
+    progress    = Signal(int, int)         # (files done, total); total 0 = listing
     finished_ok = Signal(object, object)   # (MusicLibrary, AudioCache)
     error       = Signal(str)
 
@@ -81,6 +89,23 @@ class LibraryLoader(QThread):
         super().__init__(parent)
         self._music_dir = Path(music_dir) if music_dir else None
         self._cancel = False
+        self._paused = False
+        self._stop = False
+        self._go = threading.Event()
+
+    def go(self):
+        """Start the scan: the window is open and the session is back."""
+        self._go.set()
+
+    def pause(self, on: bool):
+        """Hold the scan (the status bar's pause button). It lets go of the
+        database's write lock while it waits."""
+        self._paused = bool(on)
+
+    def stop(self):
+        """End the scan early (the status bar's stop button). The titles read
+        so far become the library; the next start scans the rest."""
+        self._stop = True
 
     def cancel(self):
         """Give up the scan — the window is closing before it finished.
@@ -91,16 +116,25 @@ class LibraryLoader(QThread):
         worker here, so quitting on the splash costs a file rather than the
         five-second wait _stop_workers would otherwise sit through."""
         self._cancel = True
+        self._go.set()   # a loader still waiting for go() is let out to quit
 
     def run(self):
+        # The window is open while it scans: the GUI and the player go first.
+        lower_thread_priority()
         try:
             self.status.emit("Loading audio cache…")
             cache = AudioCache()
+            self.cache_ready.emit(cache)
+            self._go.wait()
+            if self._cancel:
+                return
             self.status.emit("Scanning music files…")
             lib = MusicLibrary()
             lib.scan(cache, music_dir=self._music_dir, interactive=False,
                      progress_cb=self._report,
-                     should_cancel=lambda: self._cancel)
+                     should_cancel=lambda: self._cancel,
+                     should_pause=lambda: self._paused,
+                     should_stop=lambda: self._stop)
             self.finished_ok.emit(lib, cache)
         except ScanCancelled:
             pass          # the window is going; there is nobody to tell
@@ -112,6 +146,7 @@ class LibraryLoader(QThread):
         used to sit on one unchanging line the whole time, which is
         indistinguishable from a hang. The library already throttles this to
         every 25th file."""
+        self.progress.emit(done, total)
         if not total:            # the "listing the folder" phase, before the count
             self.status.emit("Scanning music files…\nlisting the library folder")
             return
@@ -119,6 +154,15 @@ class LibraryLoader(QThread):
         if len(name) > 46:       # the splash is a fixed 420 px wide
             name = name[:45] + "…"
         self.status.emit(f"Scanning music files… {done:,} / {total:,}\n{name}")
+
+
+def _adopt_playlist_index(lib: MusicLibrary, favorites: MusicLibrary | None) -> None:
+    """Give the repository the favorites' playlist popularity, here in the loader
+    thread: every title is matched against the playlist index by regex, ~8 s for
+    46k titles, and on the GUI thread that froze the window with nothing on
+    screen. The window's own `share_playlist_index_from` then finds it adopted."""
+    if favorites is not None:
+        lib.share_playlist_index_from(favorites)
 
 
 class GlobalLibraryLoader(QThread):
@@ -133,16 +177,30 @@ class GlobalLibraryLoader(QThread):
     cancelled = Signal()
     progress  = Signal(int, int, str, bool)   # done, total, current filename, reused
 
-    def __init__(self, cache, music_dir, parent=None):
+    def __init__(self, cache, music_dir, parent=None, share_from=None):
         super().__init__(parent)
         self._cache = cache
         self._dir   = Path(music_dir)
+        self._share_from = share_from
         self._cancel = False
+        self._paused = False
+        self._stop = False
 
     def cancel(self):
         self._cancel = True
 
+    def pause(self, on: bool):
+        """Hold the walk (🔄's status-bar pause button), like LibraryLoader.pause."""
+        self._paused = bool(on)
+
+    def stop(self):
+        """End the walk early: the titles read so far become the index, and
+        the next walk reuses them."""
+        self._stop = True
+
     def run(self):
+        # 🔄 walks behind the open window: the GUI and the player go first.
+        lower_thread_priority()
         try:
             lib = MusicLibrary()
             lib.scan(self._cache, music_dir=self._dir,
@@ -151,7 +209,10 @@ class GlobalLibraryLoader(QThread):
                      progress_cb=lambda done, total, path, reused:
                          self.progress.emit(done, total, path.name, reused),
                      should_cancel=lambda: self._cancel,
-                     interactive=False)
+                     interactive=False,
+                     should_pause=lambda: self._paused,
+                     should_stop=lambda: self._stop)
+            _adopt_playlist_index(lib, self._share_from)
             self.done.emit(lib)
         except ScanCancelled:
             self.cancelled.emit()
@@ -170,14 +231,18 @@ class GlobalCacheLoader(QThread):
     done  = Signal(object)   # MusicLibrary
     error = Signal(str)
 
-    def __init__(self, cache, parent=None):
+    def __init__(self, cache, parent=None, share_from=None):
         super().__init__(parent)
         self._cache = cache
+        self._share_from = share_from
 
     def run(self):
+        # Mostly loaded after startup, behind the open window: the GUI and the player go first.
+        lower_thread_priority()
         try:
             lib = MusicLibrary()
             lib.load_from_global_cache(self._cache, GlobalScanCache())
+            _adopt_playlist_index(lib, self._share_from)
             self.done.emit(lib)
         except Exception as exc:
             self.error.emit(str(exc))

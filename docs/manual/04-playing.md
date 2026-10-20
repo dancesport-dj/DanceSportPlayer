@@ -38,10 +38,17 @@ structure.
 
 - **▶** in a row plays exactly that title. **■** stops it.
 - **Space** pauses and resumes the player, wherever the focus is, except in a
-  text field.
+  text field, and in another list with a title selected, where it starts
+  that title.
+- **Enter** starts the title selected in the list in focus, also in the
+  list that is playing.
 - **Double-click** a row either starts it at once, or only *cues* it: it is
   loaded and shown, silent, and ⏯ starts it. The switch for this is
   **▶️ Double-click starts the title** in the Playing panel, see below.
+  While a title is playing, the double-click asks first (**Stop the playing
+  title?**), and **No** keeps the music on. Whether it asks is set per play
+  set, with **❓ Ask before a double-click stops the title** in
+  [⚙ Settings ▸ 🎛 Play sets](06-settings.md#play-sets); on in both.
 - **Ctrl + Shift + ← / →** jumps to the previous or next title, and
   **Ctrl + ← / →** seeks 30 s.
 
@@ -237,6 +244,10 @@ Two buttons switch the whole panel over in one go:
   after 3 s. It is applied by itself when you play
   from the 🤸 Party panel, and switched back when a tournament deck takes
   over.
+
+Click a lit set again to switch it off: the list goes back to the values it
+stood on before you pressed it. With nothing to go back to, for example after
+the app was restarted, the set stays on and a note says so.
 
 What each set contains is yours to change, in
 [⚙ Settings ▸ 🎛 Play sets](06-settings.md#play-sets).
@@ -462,6 +473,13 @@ macro keypad needs no driver for them.
 | ⏫ / ⏬ Tempo up / down, 0.1 % a step | **Ctrl + Shift + PgUp / PgDown** |
 | 🎯 Tempo back to ±0 % | **Ctrl + Shift + Home** |
 | ⏹ Stop all pads | **Ctrl + Shift + X** |
+| 🎯 Focus playlist 1–8 | **Alt + 1** … **Alt + 8** |
+| 🎯 Focus wishlist 1–4 | **Alt + Q**, **W**, **E**, **R** |
+| 📚 Focus the library | **Alt + L** |
+| ⬆ / ⬇ Browse up / down | **Alt + ↑ / ↓** |
+| ▶ Play the selected title | **Alt + P** |
+| ➕ Selected title to the playlist | **Alt + A** |
+| ⭐ Selected title to the wishlist | **Alt + D** |
 
 To change them, open **⌨ Keys…** in ⚙ Settings ▸ ⚙ General ▸
 🎛 Controller, or from the **F1** cheat sheet, which lists the keys as they
@@ -499,6 +517,26 @@ The actions it can take:
   −16 % and +16 %. For buttons, ⏫ / ⏬ Tempo up / down in 0.1 % steps and
   🎯 Tempo back to ±0 %. The tempo changes once the knob stops, not at every
   step, so the music does not break up while you turn it;
+- 🎯 Focus playlist 1–8 and 🎯 Focus wishlist 1–4: one button per list
+  brings it on screen and makes it the active list. The view widens if that
+  playlist is hidden, and more wishlists open if fewer are shown. The player
+  build shows four playlists, so there 5–8 do nothing. They have
+  [desk keys](#-desk-keys) too;
+- 📚 Focus the library brings the library pane on screen and makes it
+  the active list;
+- 🔄 Browse the list, from an endless knob, and ⬆ / ⬇ Browse up / down,
+  for buttons, move the selection in the list in focus, as the arrow
+  keys do. Browse the list takes a MIDI knob that sends steps (1, 2, …
+  one way and 127, 126, … the other, or 65, 66, … and 63, 62, …); a
+  knob with a start and an end cannot browse;
+- ▶ Play the selected title plays it, as **Enter** does in that list;
+- ➕ Selected title to the playlist and ⭐ Selected title to the
+  wishlist put it at the end of the active playlist, or of the wishlist
+  focused last (wishlist 1 if none was), as if it were dragged there.
+  The list it came from keeps it. A planned draw takes a title only
+  onto a slot, so
+  there ➕ says so and adds nothing. These have
+  [desk keys](#-desk-keys) too;
 - ⏹ Stop all pads, and sixteen cartwall pads: pad *n* is the *n*-th pad of
   the page on screen, as with **Ctrl + *n***.
 
@@ -511,8 +549,11 @@ In the window:
 2. **Presets ▾** holds a ready profile for the Korg nanoKONTROL2. Its
    transport row drives the player, fader 1 is the music volume, the knob
    above it the tempo and **S1** puts the tempo back to ±0 % (the knobs
-   have no push switch). The cartwall pads sit on the S, M and R buttons of
-   strips 5–8 and on M1–M4.
+   have no push switch). **TRACK ▶** focuses the library, **MARKER ◀ / ▶**
+   browse up and down the list in focus, and **S2**, **S3**, **S4** play
+   the selected title or send it to the playlist or the wishlist. Its
+   knobs have end stops, so none of them is the browse knob. The cartwall
+   pads sit on the S, M and R buttons of strips 5–8 and on M1–M4.
 3. For any other controller, click **Learn** next to an action and press the
    button, or move the fader, it should answer to. While it waits, the
    button reads **Cancel**: click it again, or **✕**, to stop and keep what
@@ -552,7 +593,7 @@ new one, so a party past midnight stays one evening.
 
 - Click an evening to see its titles and how long each one ran.
 - **💾 Save as CSV…** saves the evening as a table for Excel, for example
-  for a GEMA report: date, start, artist, title, dance, list and duration.
+  for a GEMA report: date, start, artist, title, composer, dance, list and duration.
 - **🗑 Delete evening** removes it from the log after asking.
 
 Next: [Tags](05-tags.md)

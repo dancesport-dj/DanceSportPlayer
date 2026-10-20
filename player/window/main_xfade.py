@@ -46,6 +46,10 @@ log = logging.getLogger("dancesport.gui.xfade")
 
 # The ramp is stepped as often as the other level ramps (see player.audio.mix).
 _STEP_MS = 25
+# ⏩ How long before the ramp the spare player opens the incoming title: the
+# WMF backend takes a noticeable moment for that, which must not fall into
+# the ramp.
+_PRELOAD_SECS = 10.0
 
 
 class CrossfadeMixin(MainWindowHost):
@@ -133,10 +137,25 @@ class CrossfadeMixin(MainWindowHost):
                 mark = (now - xf.t0) / xf.length
             else:
                 xf.after_until = None
-        elif (left is not None and left <= secs + lead_secs(secs)
+        elif (left is not None and left <= secs + _PRELOAD_SECS
                 and self._crossfade_coming()):
-            mark = (secs - left) / secs
+            self._preload_incoming()
+            if left <= secs + lead_secs(secs):
+                mark = (secs - left) / secs
         self._show_mark(mark)
+
+    def _preload_incoming(self):
+        """⏩ Hand the title the crossfade will bring in to the spare player
+        now, so the swap is a bare play() instead of a file open — the head
+        start the pause before a dance gives too (see _queue_auto_advance).
+        A ⏭ or 📱 jump to another title simply loads that one at the swap."""
+        nxt = self._crossfade_target()
+        spare = self._spare_deck()
+        if nxt is None or spare is None:
+            return
+        url = QUrl.fromLocalFile(str(nxt[2]))
+        if spare.source() != url:
+            spare.setSource(url)
 
     def _show_mark(self, t: float | None):
         """Put the picture's marker at `t` ramp lengths, None = away."""

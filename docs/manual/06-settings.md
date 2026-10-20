@@ -153,7 +153,10 @@ The hand-set PD marks, the tag edits made in the app and the log of
 [played titles](04-playing.md#-played-titles) are the only data no analysis
 can find again, so the app backs them up by itself: on the first
 start of each day it writes a small file to the `backups` folder next to its
-database, brings it up to date when the app closes, and keeps the last seven. **♻ Restore user data backup…** merges one
+database, brings it up to date when the app closes, and keeps the last seven.
+**Backup folder** sends them elsewhere instead, for example a Dropbox folder,
+so they live off this PC; each PC writes into a subfolder named after it.
+**♻ Restore user data backup…** merges one
 of them back in; it takes effect after a restart.
 
 **🧱 Build ALL caches…** runs every analysis in turn, for a library you
@@ -183,7 +186,8 @@ For each set:
   Playing panel. Off in both sets out of the box, at 4 s with equal power
   once switched on.
 - **⏭ Auto-advance**, **⏸ No pause between songs**, **🔈 Announce next
-  dance**, **🔊 Equalize volume**, **▶️ Double-click starts the title** and
+  dance**, **🔊 Equalize volume**, **▶️ Double-click starts the title**,
+  **❓ Ask before a double-click stops the title** and
   **🎚 TSO pitch to the heat tempo**.
 
 The tournament set also has **⏱ Per dance**: one length per dance. Leave a dance
@@ -214,7 +218,8 @@ settings, every deck and wishlist, and the 🎛 cartwall with its pads and
 keys. If you want, the music they use goes in too.
 
 - **📦 Export venue pack…** writes the file. A progress window shows how far
-  it is and can cancel it.
+  it is and can cancel it. The suggested name is `venue-<date>.dpvenue`, or
+  `venue-<date>-with-music.dpvenue` when the music goes in.
 - **📥 Import venue pack…** on the other PC loads it. It takes over the
   settings, decks and cartwall at the next start; what it replaces is kept in
   a `before-venue-import` folder next to them. Music in the pack is unpacked

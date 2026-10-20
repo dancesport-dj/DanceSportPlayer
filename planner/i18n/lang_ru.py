@@ -937,7 +937,7 @@ CATALOG = {
         "🔈 Для этого голоса не найдено записей объявлений.",
     "🖌  Wall colour": "🖌  Цвет Cartwall",
     "🖥  Presenter": "🖥  Презентация",
-    "🖥  Presenter — DancePlaylist": "🖥  Презентация — DancePlaylist",
+    "🖥  Presenter — DanceSport Player": "🖥  Презентация — DanceSport Player",
     "🕒 Timetable — presenter screen": "🕒 Расписание — экран презентации",
     "✖  Remove": "✖  Удалить",
     "🖨  Print": "🖨  Печать",
@@ -1121,14 +1121,16 @@ CATALOG = {
     "One sub-folder per playlist holding its tracks copied in numbered\n"
     "play order (0_0_1 - Title WW29.mp3) plus the playlist's .m3u — each\n"
     "folder plays in order even without the M3U, from any drive,\n"
-    "laptop or UltraMixer at the venue (no path fixing needed there).":
+    "laptop or UltraMixer at the venue (no path fixing needed there).\n"
+    "Also offers the 📦 venue pack: this desk in one file for another PC.":
         "Экспортировать плейлисты как самодостаточный пакет для площадки — сначала спрашивает,\n"
         "брать ли все открытые деки, только 📅 турнирный день или\n"
         "перетащенные сохранённые файлы .m3u (списки пожеланий не входят никогда).\n"
         "По подпапке на плейлист с треками, скопированными в пронумерованном\n"
         "порядке воспроизведения (0_0_1 - Title WW29.mp3), плюс .m3u плейлиста — каждая\n"
         "папка играет по порядку даже без M3U, с любого диска,\n"
-        "ноутбука или UltraMixer на площадке (исправлять пути там не нужно).",
+        "ноутбука или UltraMixer на площадке (исправлять пути там не нужно).\n"
+        "Также предлагает 📦 пакет площадки: этот пульт в одном файле для другого ПК.",
     "Export the focused playlist as a printable PDF\n"
     "(rounds, heats, titles, lengths) into the playlist folder.":
         "Экспортировать активный плейлист в PDF для печати\n"
@@ -2272,14 +2274,20 @@ CATALOG = {
     "\n"
     "Lit gold while the panel stands on those values, the way 🎉 is lit\n"
     "purple during a party. Switches the 🎉 party set off. What exactly\n"
-    "it sets is yours to change: ⚙ Settings → 🎛 Play sets.":
+    "it sets is yours to change: ⚙ Settings → 🎛 Play sets.\n"
+    "\n"
+    "Clicked while lit, it switches itself off: the list goes back to\n"
+    "the values it had before the set was pressed.":
         "Одним действием вернуть панель к соревновательным значениям:\n"
         "заданное время звучания, без пауз между треками, без автоперехода\n"
         "и без голосового объявления — настройки, с которыми идёт заход.\n"
         "\n"
         "Горит золотым, пока панель стоит на этих значениях, так же как 🎉\n"
         "горит фиолетовым во время вечеринки. Выключает набор 🎉 вечеринка. Что именно\n"
-        "он задаёт, можно изменить: ⚙ Настройки → 🎛 Наборы воспроизведения.",
+        "он задаёт, можно изменить: ⚙ Настройки → 🎛 Наборы воспроизведения.\n"
+        "\n"
+        "Если кнопка горит, щелчок выключает набор: список возвращается\n"
+        "к значениям, которые были до его включения.",
     "Say the next dance out loud shortly before the pause ends\n"
     "(\"Nächster Tanz: Langsamer Walzer\"). Without a pause the dance\n"
     "is named as the title starts instead (\"Langsamer Walzer\") —\n"
@@ -2337,7 +2345,10 @@ CATALOG = {
     "Applied by itself as soon as you play from the 🤸 Practice /\n"
     "party list, and switched back when a tournament deck takes over —\n"
     "a toast says what changed either way. What exactly it sets is\n"
-    "yours to change: ⚙ Settings → 🎛 Play sets.":
+    "yours to change: ⚙ Settings → 🎛 Play sets.\n"
+    "\n"
+    "Clicked while lit, it switches itself off: the list goes back to\n"
+    "the values it had before the set was pressed.":
         "Одним действием переключить турнирные настройки на режим вечеринки:\n"
         "каждый трек целиком, автопереход к следующему, без\n"
         "паузы (а значит, без музыки паузы) между ними и без голосового объявления.\n"
@@ -2345,7 +2356,10 @@ CATALOG = {
         "Включается само, как только вы играете из списка 🤸 практики /\n"
         "вечеринки, и выключается, когда управление берёт турнирный дек, —\n"
         "в обоих случаях уведомление сообщает, что изменилось. Что именно он задаёт,\n"
-        "можно изменить: ⚙ Настройки → 🎛 Наборы воспроизведения.",
+        "можно изменить: ⚙ Настройки → 🎛 Наборы воспроизведения.\n"
+        "\n"
+        "Если кнопка горит, щелчок выключает набор: список возвращается\n"
+        "к значениям, которые были до его включения.",
     "The colours of the presenter screen. 'Default' is the black hall\n"
     "display; 'Light' is creme paper with warm brown type and rose\n"
     "gold for the next dance — made for a lit room, where black on a\n"
@@ -3531,7 +3545,6 @@ CATALOG = {
     "🏆  Tournament set — %s": "🏆  Турнирный набор — %s",
     "🎚  Own settings — %s": "🎚  Свои настройки — %s",
     "🎉  Party set applied": "🎉  Набор для вечеринки применён",
-    "🏆  Tournament set back": "🏆  Снова турнирный набор",
     "🏆  Tournament set applied": "🏆  Турнирный набор применён",
     "nothing to change": "менять нечего",
     ", running at %s": ", часы показывают %s",
@@ -3700,6 +3713,8 @@ CATALOG = {
         "📥 Импортировано вручную поставленных кульминаций пасодобля: %d — из них %d относятся к трекам, которые этот ПК уже знает.\n"
         "\n"
         "Остальные сохраняются и применятся, как только эта музыка появится здесь.",
+    "<b>Backup folder</b> — where the daily backup of your own data goes (e.g. D:\\Dropbox\\DanceSportPlayer). Empty: next to the database.":
+        "<b>Папка резервных копий</b> — куда идёт ежедневная резервная копия своих данных (напр. D:\\Dropbox\\DanceSportPlayer). Пусто: рядом с базой данных.",
     "♻  Restore user data backup…":
         "♻  Восстановить резервную копию своих данных…",
     "Restore user data backup": "Восстановить резервную копию своих данных",
@@ -3727,9 +3742,9 @@ CATALOG = {
         "когда проиграет 10 секунд, — в тот момент, когда его строка становится серой.",
     "💾  Save as CSV…": "💾  Сохранить как CSV…",
     "Save this evening as a table for Excel: date, start, artist, title,\n"
-    "dance, list and how long each title ran — e.g. for a GEMA report.":
+    "composer, dance, list and how long each title ran — e.g. for a GEMA report.":
         "Сохраняет этот вечер таблицей для Excel: дата, начало, исполнитель, название,\n"
-        "танец, список и сколько звучал каждый трек — напр. для отчёта в авторское общество.",
+        "композитор, танец, список и сколько звучал каждый трек — напр. для отчёта в авторское общество.",
     "🗑  Delete evening": "🗑  Удалить вечер",
     "Delete evening": "Удалить вечер",
     "%d title(s)": "Треков: %d",
@@ -4906,7 +4921,7 @@ CATALOG = {
     "⛔ %(ip)s refused — not on the local network":
         "⛔ %(ip)s отклонён — не в локальной сети",
     "⚠ Could not start: %(detail)s": "⚠ Не удалось запустить: %(detail)s",
-    "DancePlaylist remote": "Пульт DancePlaylist",
+    "DanceSport Player remote": "Пульт DanceSport Player",
     "Connect": "Подключиться",
     "Wrong PIN": "Неверный PIN",
     "Too many wrong PINs — wait a minute":
@@ -5218,4 +5233,136 @@ CATALOG = {
         "Пока приём заявок открыт, экран ведущего показывает код\nв углу — гости сканируют его с танцпола.",
     "refused":
         "отклонено",
+    "Music folder":
+        "Папка с музыкой",
+    "Where is your dance music?":
+        "Где лежит ваша танцевальная музыка?",
+    "Use this folder":
+        "Использовать эту папку",
+    "Choose another folder…":
+        "Выбрать другую папку…",
+    "Every start reads the MP3 files in this folder and in all\n"
+    "folders below it. The first start reads each file once,\n"
+    "which takes long on a whole drive or an external disk,\n"
+    "so pick the folder that holds your dance music.\n\n"
+    "Found: %s\n\n"
+    "You can change it at any time under ⚙ Settings → 📁 Paths.":
+        "При каждом запуске читаются MP3-файлы в этой папке и во всех\n"
+        "вложенных папках. Первый запуск читает каждый файл один раз,\n"
+        "что долго на целом диске или внешнем диске,\n"
+        "поэтому выберите папку с вашей танцевальной музыкой.\n\n"
+        "Найдено: %s\n\n"
+        "Изменить это можно в любой момент в ⚙ Настройки → 📁 Пути.",
+    "📦 Venue pack: this desk for another PC…":
+        "📦 Пакет площадки: этот пульт для другого ПК…",
+    "One file with the settings, every deck and wishlist and the\n"
+    "cartwall, the music they use if you want: the same as\n"
+    "⚙ Settings → 📦 Venue pack → Export venue pack….":
+        "Один файл с настройками, всеми деками и списками пожеланий и\n"
+        "Cartwall, по желанию с музыкой, которую они используют: то же, что\n"
+        "⚙ Настройки → 📦 Пакет площадки → Экспорт пакета площадки….",
+    "📚 Listing the library folder…":
+        "📚 Чтение папки с музыкой…",
+    "📚 Library: %s / %s files":
+        "📚 Библиотека: %s / %s файлов",
+    "📚 The library is still loading — this works once it is done.":
+        "📚 Библиотека ещё загружается — это заработает, когда она будет готова.",
+    "🎯  Focus playlist 1":
+        "🎯  Фокус на плейлист 1",
+    "🎯  Focus playlist 2":
+        "🎯  Фокус на плейлист 2",
+    "🎯  Focus playlist 3":
+        "🎯  Фокус на плейлист 3",
+    "🎯  Focus playlist 4":
+        "🎯  Фокус на плейлист 4",
+    "🎯  Focus playlist 5":
+        "🎯  Фокус на плейлист 5",
+    "🎯  Focus playlist 6":
+        "🎯  Фокус на плейлист 6",
+    "🎯  Focus playlist 7":
+        "🎯  Фокус на плейлист 7",
+    "🎯  Focus playlist 8":
+        "🎯  Фокус на плейлист 8",
+    "🎯  Focus wishlist 1":
+        "🎯  Фокус на список пожеланий 1",
+    "🎯  Focus wishlist 2":
+        "🎯  Фокус на список пожеланий 2",
+    "🎯  Focus wishlist 3":
+        "🎯  Фокус на список пожеланий 3",
+    "🎯  Focus wishlist 4":
+        "🎯  Фокус на список пожеланий 4",
+    "📚  Focus the library":
+        "📚  Фокус на библиотеку",
+    "🔄  Browse the list (endless knob)":
+        "🔄  Листать список (бесконечный энкодер)",
+    "⬆  Browse up":
+        "⬆  Листать вверх",
+    "⬇  Browse down":
+        "⬇  Листать вниз",
+    "▶  Play the selected title":
+        "▶  Воспроизвести выбранный трек",
+    "➕  Selected title to the playlist":
+        "➕  Выбранный трек в плейлист",
+    "⭐  Selected title to the wishlist":
+        "⭐  Выбранный трек в список пожеланий",
+    "➕  This playlist takes a title only dragged onto a slot.":
+        "➕  Этот плейлист принимает трек, только перетащенный на позицию.",
+    "Warm-up list: swap the two selected titles of one dance":
+        "Список разминки: поменять местами два выбранных трека одного танца",
+    "Play / stop the selected song — in Playing mode also in the list playing, where Space pauses the player":
+        "Воспроизвести / остановить выбранный трек — в режиме воспроизведения и в играющем списке, где Пробел ставит плеер на паузу",
+    "⏸ Library scan paused: %s / %s files":
+        "⏸ Сканирование библиотеки на паузе: %s / %s файлов",
+    "⏹ Stopping the library scan…":
+        "⏹ Сканирование библиотеки останавливается…",
+    "Pause the library scan":
+        "Приостановить сканирование библиотеки",
+    "Go on with the library scan":
+        "Продолжить сканирование библиотеки",
+    "Stop the library scan and use the titles read so far; the next start scans the rest":
+        "Остановить сканирование библиотеки и использовать уже прочитанные треки; следующий запуск просканирует остальное",
+    "⭐ Favorites":
+        "⭐ Избранное",
+    "🌐 Whole library":
+        "🌐 Вся библиотека",
+    "⏳ Whole library…":
+        "⏳ Вся библиотека…",
+    "The whole library is still loading in the background.\nIt is listed here when it is there; keep working meanwhile.":
+        "Вся библиотека ещё загружается в фоне.\nОна появится здесь, как только будет готова; пока можно продолжать работу.",
+    "🌐 The whole library is still loading — it is listed when it is there.":
+        "🌐 Вся библиотека ещё загружается — она появится, как только будет готова.",
+    "🌐 Loading the whole library…":
+        "🌐 Загружается вся библиотека…",
+    "🌐 Listing the whole library: %s / %s titles":
+        "🌐 Вся библиотека выводится в список: %s / %s треков",
+    "📚 Listing the library: %s / %s titles":
+        "📚 Библиотека выводится в список: %s / %s треков",
+    "Listing the whole music repository.\nClick to go back to the favorites library.":
+        "Показан весь музыкальный архив.\nНажмите, чтобы вернуться к библиотеке избранного.",
+    "Listing the favorites library.\nClick to list the whole music repository instead.":
+        "Показана библиотека избранного.\nНажмите, чтобы показать весь музыкальный архив.",
+    '🔄  Scan repository for new titles':
+        '🔄  Искать новые треки в фонотеке',
+    'Walk the whole music repository folder and read the tags of new and\nchanged files, so 🌐 Whole library in the library pane and the global\nsearch know every title. No audio analysis; the scan runs in the\nbackground, its progress in the status bar.':
+        'Обойти всю папку фонотеки и прочитать теги новых и изменённых\nфайлов, чтобы 🌐 Вся библиотека в панели библиотеки и глобальный\nпоиск знали каждый трек. Без анализа аудио; сканирование идёт в\nфоне, его ход виден в строке состояния.',
+    'Scan the whole music repository again for new and changed titles.\nReads the tags only, no audio analysis; the progress shows in the\nstatus bar.':
+        'Заново просканировать всю фонотеку на новые и изменённые треки.\nЧитает только теги, без анализа аудио; ход виден в\nстроке состояния.',
+    '🌐 Repository: %s / %s files':
+        '🌐 Фонотека: %s / %s файлов',
+    'Go on with the repository scan':
+        'Продолжить сканирование фонотеки',
+    'Pause the repository scan':
+        'Приостановить сканирование фонотеки',
+    'Stop the repository scan and use the titles read so far; the next scan reads the rest':
+        'Остановить сканирование фонотеки и использовать уже прочитанные треки; следующее сканирование прочитает остальное',
+    '⏹ Stopping the repository scan…':
+        '⏹ Сканирование фонотеки останавливается…',
+    '⏸ Repository scan paused: %s / %s files':
+        '⏸ Сканирование фонотеки приостановлено: %s / %s файлов',
+    '🌐 Listing the repository folder…':
+        '🌐 Составляется список папки фонотеки…',
+    '🌐 The repository is being scanned already.':
+        '🌐 Фонотека уже сканируется.',
+    'Scan repository':
+        'Сканировать фонотеку',
 }

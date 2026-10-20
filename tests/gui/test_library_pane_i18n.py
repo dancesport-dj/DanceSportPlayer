@@ -121,14 +121,15 @@ class ColumnMenuTest(_GermanPane):
 
 
 class CellTooltipTest(_GermanPane):
-    """Tooltips set on a QTableWidgetItem — unpatched, every one of them."""
+    """The cells' hover texts (built on hover since the fill got faster) —
+    unpatched, every one of them."""
 
     def setUp(self):
         super().setUp()
         self.b.set_entries([TAGGED, FRESH, UNDATED])
 
     def tip(self, row, col):
-        return self.b._table.item(row, col).toolTip()
+        return self.b.cell_tooltip(row, col)
 
     def test_the_play_cell(self):
         self.assertEqual("Diesen Titel abspielen / stoppen", self.tip(0, 0))

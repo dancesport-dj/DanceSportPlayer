@@ -26,6 +26,9 @@ from tests.qt_test_support import reap_widget
 class _Win(QWidget, DuplicateCheckMixin):
     _library = SimpleNamespace(lib=object())
 
+    def _library_still_loading(self):
+        return False   # the library scan is done
+
     def _deck_dup_report(self):
         return {"within": [], "cross": []}
 

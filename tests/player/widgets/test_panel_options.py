@@ -80,6 +80,17 @@ class DoubleClickOptionTest(_PanelTest):
         self.assertEqual(seen, [True])
 
 
+class NoDoubleClickAskSwitchTest(_PanelTest):
+    """❓ 'Ask before a double-click stops the playing title' has no switch on
+    the panel: it is set per play set in ⚙ Settings → 🎛 Play sets only."""
+
+    def test_the_panel_has_no_switch_for_it(self):
+        self.assertFalse(hasattr(self.panel(), "dblclick_ask_check"))
+
+    def test_it_is_not_a_panel_play_value(self):
+        self.assertNotIn("dblclick_ask", self.panel().play_set())
+
+
 class PdStartDelayTest(_PanelTest):
     """🐂 'Start after: x s', in the Paso Doble block."""
 

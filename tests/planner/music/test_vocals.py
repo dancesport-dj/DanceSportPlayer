@@ -87,7 +87,7 @@ class ApplySharesTest(unittest.TestCase):
         unmeasured = _entry("unmeasured")
         shares = {str(measured.path): 0.02}
         cache = SimpleNamespace(
-            get_vocal_share=lambda p: shares.get(str(p)))
+            get_vocal_share=lambda p, touch_disk=True: shares.get(str(p)))
         self.assertEqual(apply_vocal_shares([measured, unmeasured], cache), 1)
         self.assertEqual(measured.vocal_share, 0.02)
         self.assertIsNone(unmeasured.vocal_share)

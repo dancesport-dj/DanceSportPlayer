@@ -187,6 +187,73 @@ class DoubleClickCuesTest(_Table):
         self.assertEqual(self.cued, [])
 
 
+class DoubleClickAskTest(_Table):
+    """❓ A double-click on another title while one is on the speakers stops
+    that one — so it asks first, unless the list's play values say not to.
+
+    The table is its own window() here: `_is_player_running` and the cue
+    route hang off it, the question is answered by `answers`."""
+
+    def setUp(self):
+        super().setUp()
+        self.t.set_play_highlight_enabled(True)
+        self.t._is_player_running = lambda: True
+        self.cued = []
+        self.t._on_player_drop = self.cued.append
+        self.asked = []
+        self.answers = []
+
+        def ask(title):
+            self.asked.append(title)
+            return self.answers.pop(0)
+        self.t._ask_stop_playing = ask
+
+    def test_no_keeps_the_playing_title(self):
+        self.answers = [False]
+        self.t._on_row_double_clicked(1, 0)
+        self.assertEqual(self.asked, ["second"])
+        self.assertEqual(self.played, [])
+
+    def test_yes_plays_the_clicked_title(self):
+        self.answers = [True]
+        self.t._on_row_double_clicked(1, 0)
+        self.assertEqual(self.played, [Path(r"C:\music\second.mp3")])
+
+    def test_a_cue_asks_too(self):
+        """Loading the next title stops the running one just the same."""
+        self.t._settings["dblclick_plays"] = False
+        self.answers = [False]
+        self.t._on_row_double_clicked(1, 0)
+        self.assertEqual(self.asked, ["second"])
+        self.assertEqual(self.cued, [])
+
+    def test_switched_off_it_plays_without_asking(self):
+        self.t._settings["tournament_set"] = {"dblclick_ask": False}
+        self.t._on_row_double_clicked(1, 0)
+        self.assertEqual(self.asked, [])
+        self.assertEqual(self.played, [Path(r"C:\music\second.mp3")])
+
+    def test_the_list_values_decide(self):
+        """It is a play value: the list's own answer beats the desk's."""
+        self.t._settings["tournament_set"] = {"dblclick_ask": True}
+        self.t._list_vals = lambda _t: {"dblclick": True, "dblclick_ask": False}
+        self.t._on_row_double_clicked(1, 0)
+        self.assertEqual(self.asked, [])
+        self.assertEqual(self.played, [Path(r"C:\music\second.mp3")])
+
+    def test_a_list_saved_before_it_existed_asks(self):
+        self.t._list_vals = lambda _t: {"dblclick": True}
+        self.answers = [False]
+        self.t._on_row_double_clicked(1, 0)
+        self.assertEqual(self.asked, ["second"])
+
+    def test_nothing_playing_asks_nothing(self):
+        self.t._is_player_running = lambda: False
+        self.t._on_row_double_clicked(1, 0)
+        self.assertEqual(self.asked, [])
+        self.assertEqual(self.played, [Path(r"C:\music\second.mp3")])
+
+
 class DoubleClickEventTest(_Table):
     """The click has to ARRIVE, too.
 

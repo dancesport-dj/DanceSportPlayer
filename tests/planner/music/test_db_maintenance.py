@@ -55,7 +55,7 @@ class MaintenanceTest(unittest.TestCase):
         self.conn.execute("INSERT INTO audio_fps (fp, afp) VALUES (?, ?)",
                           (fp, f"audio-of-{fp}"))
         self.conn.execute("INSERT INTO embeddings (fp, model, vec) VALUES (?, ?, ?)",
-                          (fp, "chroma", b"\x00" * 16))
+                          (fp, "chroma2dftm", b"\x00" * 16))
         return str(path)
 
     def _playlist_root(self, name: str, on_disk: bool) -> str:
@@ -98,6 +98,18 @@ class MaintenanceTest(unittest.TestCase):
         for table in ("features", "loudness", "embeddings", "audio_fps",
                       "fingerprints", "files"):
             self.assertEqual(len(self._rows(table)), 1, f"{table} lost a live row")
+
+    def test_the_vectors_of_a_retired_model_go_even_for_a_live_track(self):
+        """MERT replaced OpenL3, and the CLAP text search is gone: nothing reads
+        their vectors any more, yet every analysed title still carried them."""
+        self._track("here.mp3", "fp-live")
+        for model in ("openl3", "clap_audio", "mert"):
+            self.conn.execute("INSERT INTO embeddings (fp, model, vec) VALUES (?, ?, ?)",
+                              ("fp-live", model, b"\x00" * 16))
+        res = upkeep.db_maintenance()
+        self.assertEqual(sorted(m for (m,) in self.conn.execute(
+            "SELECT model FROM embeddings")), ["chroma2dftm", "mert"])
+        self.assertEqual(res["removed"]["embeddings"], 2)
 
     # ── playlist index ──────────────────────────────────────────────────────
     def test_a_playlist_folder_that_is_gone_loses_its_index(self):

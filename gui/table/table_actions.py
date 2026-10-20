@@ -314,7 +314,7 @@ class TableActionsMixin(TableMenuMixin):
         _show_toast(self, "🔁  Cleared all replacement marks")
 
     def keyPressEvent(self, event):
-        """Space: play/stop the selected song.  Ctrl+←/→: seek ∓30 s.
+        """Space / Enter: play/stop the selected song.  Ctrl+←/→: seek ∓30 s.
         Ctrl+F: find a title in this list.
         Ctrl+R / Ctrl+N: re-roll (regenerate) the selected song.
         Alt+S: swap the two selected titles (Eintanzen list).
@@ -338,7 +338,12 @@ class TableActionsMixin(TableMenuMixin):
             self._search_title()
             event.accept()
             return
-        if key == Qt.Key.Key_Space and mods == Qt.KeyboardModifier.NoModifier:
+        # Enter too: in Playing mode the window keeps Space for the player's
+        # play / pause in the list playing, and Enter still starts the selection.
+        if ((key == Qt.Key.Key_Space and mods == Qt.KeyboardModifier.NoModifier)
+                or (key in (Qt.Key.Key_Return, Qt.Key.Key_Enter)
+                    and mods in (Qt.KeyboardModifier.NoModifier,
+                                 Qt.KeyboardModifier.KeypadModifier))):
             row, path = self._selected_song_row()
             if row >= 0:
                 # A double tap is one press: the second would stop the title

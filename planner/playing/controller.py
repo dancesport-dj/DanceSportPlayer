@@ -24,6 +24,8 @@ from pathlib import Path
 
 PROFILE_VERSION = 1
 PAD_COUNT = 16
+DECK_COUNT = 8
+WISH_COUNT = 4
 
 # (id, label) in the order the 🎛 Controller dialog lists them. The ids are
 # the phone remote's commands wherever one exists, so both drive the desk
@@ -44,14 +46,25 @@ ACTIONS = (
     ("tempo_down", "⏬  Tempo down"),
     ("tempo_reset", "🎯  Tempo back to ±0 %"),
     ("stop_pads", "⏹  Stop all pads"),
-) + tuple((f"pad:{n}", f"🎛  Cartwall pad {n}") for n in range(1, PAD_COUNT + 1))
+) + tuple((f"deck:{n}", f"🎯  Focus playlist {n}") for n in range(1, DECK_COUNT + 1)) \
+  + tuple((f"wish:{n}", f"🎯  Focus wishlist {n}") for n in range(1, WISH_COUNT + 1)) \
+  + (("lib", "📚  Focus the library"),
+     ("browse", "🔄  Browse the list (endless knob)"),
+     ("browse_up", "⬆  Browse up"),
+     ("browse_down", "⬇  Browse down"),
+     ("pick_play", "▶  Play the selected title"),
+     ("pick_deck", "➕  Selected title to the playlist"),
+     ("pick_wish", "⭐  Selected title to the wishlist")) \
+  + tuple((f"pad:{n}", f"🎛  Cartwall pad {n}") for n in range(1, PAD_COUNT + 1))
 ACTION_IDS = tuple(a for a, _label in ACTIONS)
-CONTINUOUS = frozenset({"volume", "tempo"})
+CONTINUOUS = frozenset({"volume", "tempo", "browse"})
 
 # ⌨ The keyboard's share of the same actions, the desk keys (setting
 # "desk_keys": action → its keys in Qt's portable text, [] for none; a single
 # string from before an action could have several still reads). A fader is
-# no key, and the pads have their own keys on the 🎛 wall.
+# no key, and the pads have their own keys on the 🎛 wall. The 🎯 focus keys
+# are Alt+1…8 and Alt+Q W E R, the row below: Ctrl+1…9 fire the wall's pads,
+# and Shift would turn a digit into a symbol on most layouts.
 KEY_ACTIONS = tuple(a for a in ACTION_IDS
                     if a not in CONTINUOUS and not a.startswith("pad:"))
 KEY_DEFAULTS = {"toggle": "Ctrl+Shift+P", "next": "Ctrl+Shift+Right",
@@ -60,7 +73,11 @@ KEY_DEFAULTS = {"toggle": "Ctrl+Shift+P", "next": "Ctrl+Shift+Right",
                 "announce": "Ctrl+Shift+A", "vol_up": "Ctrl+Shift+Up",
                 "vol_down": "Ctrl+Shift+Down", "tempo_up": "Ctrl+Shift+PgUp",
                 "tempo_down": "Ctrl+Shift+PgDown", "tempo_reset": "Ctrl+Shift+Home",
-                "stop_pads": "Ctrl+Shift+X"}
+                "stop_pads": "Ctrl+Shift+X",
+                **{f"deck:{n}": f"Alt+{n}" for n in range(1, DECK_COUNT + 1)},
+                **{f"wish:{n}": f"Alt+{k}" for n, k in enumerate("QWER", 1)},
+                "lib": "Alt+L", "browse_up": "Alt+Up", "browse_down": "Alt+Down",
+                "pick_play": "Alt+P", "pick_deck": "Alt+A", "pick_wish": "Alt+D"}
 VOLUME_STEP = 0.05
 
 # The keys the app answers to already, in the F1 cheat sheet's words. A desk
@@ -68,6 +85,10 @@ VOLUME_STEP = 0.05
 _CART_KEYS = {f"Ctrl+{n}": "🎛  Cartwall" for n in range(1, 10)}
 RESERVED_KEYS = {
     "Space": "Play / stop the selected song",
+    "Return": "Play / stop the selected song — in Playing mode also in the "
+              "list playing, where Space pauses the player",
+    "Enter": "Play / stop the selected song — in Playing mode also in the "
+             "list playing, where Space pauses the player",
     "Ctrl+Left": "Seek 30 s back / forward while playing",
     "Ctrl+Right": "Seek 30 s back / forward while playing",
     "Ctrl+R": "Re-roll (regenerate) the selected song",
@@ -85,6 +106,7 @@ RESERVED_KEYS = {
                       "wherever the cursor is",
     "Ctrl+F": "Find a title in the focused list (repeat to step to the next "
               "match)",
+    "Alt+S": "Warm-up list: swap the two selected titles of one dance",
     "F1": "This cheat sheet",
     "F11": "Fullscreen on / off — with date and time in the status bar",
     "F12": "Open ⚙ Settings",
@@ -97,11 +119,16 @@ _KEY_GLYPHS = {"Left": "←", "Right": "→", "Up": "↑", "Down": "↓"}
 # Korg nanoKONTROL2 in its factory CC mode (global MIDI channel 1), laid out
 # as played at the desk. The transport row drives the player, fader 1 is the
 # music volume, the knob above it the tempo and S1 puts the tempo back to
-# ±0 % (the knobs have no push switch). The cartwall pads sit on the S/M/R
-# buttons of strips 5-8 and on M1-M4; pads 13 and 14 and S2-S4 stay free.
+# ±0 % (the knobs have no push switch). TRACK ▶ focuses the library, the
+# MARKER buttons browse the list in focus (its knobs have end stops, so none
+# is the browse knob) and S2-S4 play the selected title or send it to the
+# playlist / wishlist. The cartwall pads sit on the S/M/R buttons of strips
+# 5-8 and on M1-M4; pads 13 and 14 stay free.
 _NANO_CCS = {"toggle": 41, "fade": 42, "prev": 43, "next": 44,
              "hold": 45, "announce": 46, "duck": 58, "stop_pads": 60,
              "volume": 0, "tempo": 16, "tempo_reset": 32,
+             "lib": 59, "browse_up": 61, "browse_down": 62,    # TRACK ▶, MARKER ◀ ▶
+             "pick_play": 33, "pick_deck": 34, "pick_wish": 35,  # S2 S3 S4
              "pad:1": 36, "pad:2": 52, "pad:3": 68,       # S5 M5 R5
              "pad:4": 37, "pad:5": 53, "pad:6": 69,       # S6 M6 R6
              "pad:7": 38, "pad:8": 39,                    # S7 S8
@@ -138,6 +165,19 @@ def knob_offset(value: float) -> float:
     return 0.0 if abs(offset) <= 1.5 / 127 else offset
 
 
+def encoder_steps(value: float) -> int:
+    """An endless knob's reading as steps, + clockwise. Such a knob sends how
+    far it was turned, not where it stands, in one of two codes: 1, 2, …
+    right and 127, 126, … left, or 65, 66, … right and 63, 62, … left. A
+    reading is rarely more than a few steps, so where it lies tells which."""
+    v = round(value * 127)
+    if v < 32:
+        return v
+    if v > 96:
+        return v - 128
+    return v - 64
+
+
 def hid_controls(prev: bytes, cur: bytes) -> list:
     """What changed between two HID input reports of the same id, as
     (control, value) pairs. Each changed byte yields a value control and
@@ -163,10 +203,13 @@ def hid_controls(prev: bytes, cur: bytes) -> list:
 def learnable(action: str, control: str) -> bool:
     """Whether a control may be learned for an action: a HID byte only for
     the volume, a single HID bit only for a button; a MIDI key only for a
-    button, a pitch bend only for the volume. A MIDI CC fits either, and
-    `learn_takes` tells which it is by how it moves."""
+    button, a pitch bend only for the volume; the browse knob only a MIDI
+    CC. A MIDI CC fits either, and `learn_takes` tells which it is by how it
+    moves."""
     if control.startswith("note:"):
         return action not in CONTINUOUS
+    if action == "browse":
+        return control.startswith("cc:")   # encoder_steps reads MIDI's 7 bits
     if control.startswith("pb:"):
         return action in CONTINUOUS
     if not control.startswith("hid:"):

@@ -118,7 +118,7 @@ class _Server(ThreadingHTTPServer):
 
 
 class _Handler(BaseHTTPRequestHandler):
-    server_version = "DancePlaylistRemote"
+    server_version = "DanceSportPlayerRemote"
     sys_version = ""
     timeout = _IDLE_SECS        # a client that never speaks frees its thread
 

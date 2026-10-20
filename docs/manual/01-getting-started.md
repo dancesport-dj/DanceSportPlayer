@@ -33,8 +33,13 @@ it.
 
 ## Point the app at your music
 
-Open ⚙ **Settings**. The button is at the bottom of the Playing panel. The
-first tab holds the folders:
+The first start asks for your music folder, with the one it found
+preselected. Pick the folder that holds your dance music, not a whole drive:
+every start reads the MP3 files below it, and the first start reads each one
+once, which takes long on an external disk.
+
+To change it later, open ⚙ **Settings**. The button is at the bottom of the
+Playing panel. The first tab holds the folders:
 
 ![Settings, Paths & search tab](img/settings-paths.png)
 
@@ -50,9 +55,14 @@ The rest of this tab is covered in [Settings](06-settings.md).
 
 ## The first scan and the analysis
 
-On start the app scans the Favorites library and shows a loading dialog.
-Titles and tags are cached, so only the first scan of a large library takes
-long.
+On start the app brings back your last session and opens, then scans the
+Favorites library behind it. The status bar shows how far the scan is
+(📚 Library: files done / all files). Your decks play right away; the
+library browser and the 🏆 tournament list stay grey until the scan is done,
+and the analyses say the library is still loading. ⏸ next to the bar pauses the scan and ▶ lets it go on; ⏹ stops it and
+uses the titles read so far as the library, and the next start scans the
+rest. Titles and tags are
+cached, so only the first scan of a large library takes long.
 
 Three features need a short analysis once per track:
 

@@ -46,6 +46,9 @@ def _waltz(name: str) -> MusicEntry:
 class _Win(QWidget, DuplicateCheckMixin):
     """The main window as far as the duplicate check reaches: one deck."""
 
+    def _library_still_loading(self):
+        return False   # the library scan is done
+
     def __init__(self, songs):
         super().__init__()
         self._settings = {"app_mode": "full"}

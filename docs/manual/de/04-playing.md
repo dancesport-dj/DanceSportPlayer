@@ -39,11 +39,19 @@ Zeile 🎵 Musikprüfung für Tempo, Länge und den Aufbau der Runden.
 
 - **▶** in einer Zeile spielt genau diesen Titel. **■** stoppt ihn.
 - Die **Leertaste** pausiert den Player und setzt ihn fort, egal wo der Fokus
-  ist, außer in einem Textfeld.
+  ist, außer in einem Textfeld und in einer anderen Liste mit einem gewählten
+  Titel: dort startet sie diesen Titel.
+- **Eingabe** startet den in der Liste im Fokus gewählten Titel, auch in der
+  Liste, die gerade spielt.
 - Ein **Doppelklick** auf eine Zeile startet sie entweder sofort oder legt sie
   nur *bereit*: sie wird geladen und angezeigt, stumm, und ⏯ startet sie. Der
   Schalter dafür ist **▶️ Doppelklick startet den Titel** im
   Wiedergabe-Bereich, siehe unten.
+  Während ein Titel läuft, fragt der Doppelklick erst nach (**Laufenden Titel
+  anhalten?**), und **Nein** lässt die Musik an. Ob er fragt, legt jedes
+  Spiel-Set fest, mit **❓ Fragen, bevor ein Doppelklick den Titel anhält**
+  unter [⚙ Einstellungen ▸ 🎛 Spiel-Sets](06-settings.md#spiel-sets); in
+  beiden an.
 - **Strg + Umschalt + ← / →** springt zum vorigen oder nächsten Titel, und
   **Strg + ← / →** springt 30 s.
 
@@ -254,6 +262,11 @@ Zwei Knöpfe stellen den ganzen Bereich auf einmal um:
   Der 🐂 Paso Doble stoppt nach seinem 2. Highlight und startet nach 3 s.
   Es wird von selbst angewandt, wenn du aus dem 🤸 Party-Bereich spielst, und
   zurückgeschaltet, wenn ein Turnier-Deck übernimmt.
+
+Ein leuchtendes Set schaltest du mit einem zweiten Klick wieder aus: die
+Liste kehrt zu den Werten zurück, auf denen sie vorher stand. Gibt es nichts
+zum Zurückkehren, etwa nach einem Neustart der App, bleibt das Set an, und ein
+Hinweis sagt das.
 
 Was jedes Set enthält, legst du selbst fest, unter
 [⚙ Einstellungen ▸ 🎛 Spiel-Sets](06-settings.md#spiel-sets).
@@ -506,6 +519,13 @@ ein Makro-Keypad braucht dafür keinen Treiber.
 | ⏫ / ⏬ Tempo schneller / langsamer, 0,1 % pro Schritt | **Strg + Umschalt + Bild ↑ / Bild ↓** |
 | 🎯 Tempo zurück auf ±0 % | **Strg + Umschalt + Pos1** |
 | ⏹ Alle Pads stoppen | **Strg + Umschalt + X** |
+| 🎯 Playlist 1–8 fokussieren | **Alt + 1** … **Alt + 8** |
+| 🎯 Wunschliste 1–4 fokussieren | **Alt + Q**, **W**, **E**, **R** |
+| 📚 Bibliothek fokussieren | **Alt + L** |
+| ⬆ / ⬇ Nach oben / unten blättern | **Alt + ↑ / ↓** |
+| ▶ Gewählten Titel abspielen | **Alt + P** |
+| ➕ Gewählten Titel in die Playlist | **Alt + A** |
+| ⭐ Gewählten Titel in die Wunschliste | **Alt + D** |
 
 Ändern kannst du sie über **⌨ Tasten…** in ⚙ Einstellungen ▸
 ⚙ Allgemein ▸ 🎛 DJ-Controller oder in der Übersicht unter **F1**, die die
@@ -548,6 +568,29 @@ Was er auslösen kann:
   langsamer in 0,1-%-Schritten und 🎯 Tempo zurück auf ±0 %. Das Tempo
   ändert sich, sobald der Regler stillsteht, nicht bei jedem Schritt: so
   stockt die Musik nicht, während du drehst;
+- 🎯 Playlist 1–8 fokussieren und 🎯 Wunschliste 1–4 fokussieren: eine
+  Taste pro Liste holt sie auf den Schirm und macht sie zur aktiven Liste.
+  Die Ansicht wird breiter, wenn diese Playlist verborgen ist, und es gehen
+  mehr Wunschlisten auf, wenn weniger zu sehen sind. Der Player-Build zeigt
+  vier Playlists, dort tun 5–8 nichts. Sie haben auch
+  [Pult-Tasten](#-pult-tasten);
+- 📚 Bibliothek fokussieren holt den Bibliotheksbereich auf den Schirm und
+  macht ihn zur aktiven Liste;
+- 🔄 Durch die Liste blättern, über einen Endlosregler, und ⬆ / ⬇ Nach oben
+  / unten blättern, für Tasten, bewegen die Auswahl in der Liste mit dem
+  Fokus, wie die Pfeiltasten. Durch die Liste blättern nimmt einen
+  MIDI-Regler, der Schritte sendet (1, 2, … in die eine Richtung und 127,
+  126, … in die andere, oder 65, 66, … und 63, 62, …); ein Regler mit
+  Anfang und Ende kann nicht blättern;
+- ▶ Gewählten Titel abspielen spielt ihn ab, wie **Eingabe** in dieser
+  Liste;
+- ➕ Gewählten Titel in die Playlist und ⭐ Gewählten Titel in die
+  Wunschliste hängen ihn ans Ende der aktiven Playlist oder der zuletzt
+  fokussierten Wunschliste (Wunschliste 1, wenn noch keine fokussiert war),
+  als wäre er dorthin gezogen. Die Liste, aus der er kommt, behält ihn. Eine
+  geplante Auslosung nimmt einen Titel nur auf einen Platz, darum sagt ➕
+  dort das und fügt nichts hinzu. Auch diese haben
+  [Pult-Tasten](#-pult-tasten);
 - ⏹ Alle Pads stoppen, und sechzehn Cartwall-Pads: Pad *n* ist das *n*-te
   Pad der sichtbaren Seite, wie bei **Strg + *n***.
 
@@ -560,8 +603,13 @@ Im Fenster:
 2. **Vorlagen ▾** hält ein fertiges Profil für den Korg nanoKONTROL2. Dort
    steuert die Transportreihe den Player, Fader 1 ist die Musiklautstärke,
    der Drehregler darüber das Tempo, und **S1** setzt das Tempo zurück auf
-   ±0 % (die Drehregler lassen sich nicht drücken). Die Cartwall-Pads
-   liegen auf den Tasten S, M und R der Kanäle 5–8 und auf M1–M4.
+   ±0 % (die Drehregler lassen sich nicht drücken). **TRACK ▶** fokussiert
+   die Bibliothek, **MARKER ◀ / ▶** blättern in der Liste mit dem Fokus
+   nach oben und unten, und **S2**, **S3**, **S4** spielen den gewählten
+   Titel ab oder schicken ihn in die Playlist oder die Wunschliste. Seine
+   Drehregler haben Anschläge, darum blättert keiner davon. Die
+   Cartwall-Pads liegen auf den Tasten S, M und R der Kanäle 5–8 und auf
+   M1–M4.
 3. Für jeden anderen Controller klickst du **Anlernen** neben einer Aktion
    und drückst die Taste oder bewegst den Fader, auf die sie hören soll.
    Solange es wartet, heißt der Knopf **Abbrechen**: noch ein Klick darauf,
@@ -605,7 +653,7 @@ Party über Mitternacht ein Abend bleibt.
 
 - Klick auf einen Abend, um seine Titel zu sehen und wie lange jeder lief.
 - **💾 Als CSV speichern…** speichert den Abend als Tabelle für Excel, zum
-  Beispiel für eine GEMA-Meldung: Datum, Start, Interpret, Titel, Tanz, Liste
+  Beispiel für eine GEMA-Meldung: Datum, Start, Interpret, Titel, Komponist, Tanz, Liste
   und Dauer.
 - **🗑 Abend löschen** entfernt ihn nach einer Rückfrage aus dem Protokoll.
 

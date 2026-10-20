@@ -28,6 +28,8 @@ def shortcut_rows(desk_keys=None):
     return (
         ("⌨  Keyboard", ""),
         ("Space", "Play / stop the selected song"),
+        ("Enter", "Play / stop the selected song — in Playing mode also in "
+                  "the list playing, where Space pauses the player"),
         ("Ctrl + ← / →", "Seek 30 s back / forward while playing"),
         *_desk_key_rows(desk_keys),
         ("Ctrl + R  or  Ctrl + N", "Re-roll (regenerate) the selected song"),
@@ -49,6 +51,7 @@ def shortcut_rows(desk_keys=None):
                      "selected song(s) for potential replace (❗ orange). "
                      "Ctrl + 1 does the same, but only while the 🎛 cartwall "
                      "is hidden — the wall claims that key for its first pad"),
+        ("Alt + S", "Warm-up list: swap the two selected titles of one dance"),
         ("F2  in the 📅 tournament tree", "Rename the entry under the cursor "
                                           "(Del removes it)"),
         ("Ctrl + A  in 🏆 Tournaments", "Mark every slot of the folder, or "

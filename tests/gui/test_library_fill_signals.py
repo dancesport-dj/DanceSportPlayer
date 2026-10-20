@@ -22,6 +22,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_libfill_"))
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 from planner.models import MusicEntry
@@ -76,10 +77,10 @@ class LibraryFillSignalsTest(unittest.TestCase):
         self.assertEqual(t.rowHeight(3), 22)
 
     def test_sorting_still_reads_the_rows_it_was_not_told_about(self):
-        """The sort keys live in UserRole and are set while the model is quiet."""
+        """The rows were written while the model was quiet."""
         self.lb._populate(self.entries(30))
         t = self.lb._table
-        t.sortItems(3)
+        t.horizontalHeader().setSortIndicator(3, Qt.SortOrder.AscendingOrder)
         self.assertEqual(t.item(0, 3).text(), "Track 0")
         self.assertEqual(t.item(1, 3).text(), "Track 1")
 

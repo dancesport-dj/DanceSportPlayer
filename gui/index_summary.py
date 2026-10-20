@@ -62,7 +62,7 @@ def index_summary(cache, store, favorites, repository) -> dict:
             have_chroma = store.fps(ae.MODEL_CHROMA)
             mert = chroma = 0
             for e in lib.entries:
-                fp = cache.known_fingerprint(e.path)
+                fp = cache.recorded_fingerprint(e.path)   # no stat per file
                 if not fp:
                     continue
                 if fp in have_mert:

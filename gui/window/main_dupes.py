@@ -189,6 +189,8 @@ class DuplicateCheckMixin(MainWindowHost):
         list, 🔀 shared between two)
         with a Keep / Replace control per occurrence. Reports both 🟰 exact copies
         (identical audio) and ≈ similar songs (same title, a different recording)."""
+        if self._library_still_loading():
+            return
         if not self._library.lib:
             QMessageBox.information(self, "Check duplicates",
                                     "Load the music library first.")

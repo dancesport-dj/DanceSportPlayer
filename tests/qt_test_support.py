@@ -83,12 +83,23 @@ class StubLoader:
 
     def __init__(self, *_a, **_kw):
         self.status = self._Sig()
+        self.cache_ready = self._Sig()
+        self.progress = self._Sig()
         self.finished_ok = self._Sig()
         self.error = self._Sig()
         self.started = False
 
     def start(self):
         self.started = True
+
+    def go(self):
+        pass
+
+    def pause(self, _on):
+        pass
+
+    def stop(self):
+        pass
 
     def isRunning(self):
         return False

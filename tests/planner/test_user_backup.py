@@ -124,6 +124,27 @@ class UserBackupTest(unittest.TestCase):
         pdb._db().execute("DELETE FROM play_log WHERE title = 'a'")
         self.assertEqual(upkeep.restore_user_data(out), (0, 0, 1))
 
+    def test_the_composer_goes_into_the_backup_and_back(self):
+        from planner.playing import play_log
+        play_log.record(dt.datetime(2026, 10, 3, 20, 0), "C:/m/a.mp3", "A", "a", "LW",
+                        "Deck A", 180.0, composer="Gade")
+        out = upkeep.backup_user_data(today=dt.date(2026, 10, 9))
+        pdb._db().execute("DELETE FROM play_log")
+        self.assertEqual(upkeep.restore_user_data(out), (0, 0, 1))
+        got = [p.composer for e in play_log.evenings() for p in play_log.plays(e)]
+        self.assertEqual(got, ["Gade"])
+
+    def test_restore_reads_a_backup_from_before_the_composer(self):
+        from planner.playing import play_log
+        play_log.record(dt.datetime(2026, 10, 3, 20, 0), "C:/m/a.mp3", "A", "a", "LW",
+                        "Deck A", 180.0)
+        out = upkeep.backup_user_data(today=dt.date(2026, 10, 9))
+        with contextlib.closing(sqlite3.connect(out)) as c:
+            c.execute("ALTER TABLE play_log DROP COLUMN composer")
+            c.commit()
+        pdb._db().execute("DELETE FROM play_log")
+        self.assertEqual(upkeep.restore_user_data(out), (0, 0, 1))
+
     def test_restore_reads_a_backup_from_before_the_play_log(self):
         self.fill()
         out = upkeep.backup_user_data(today=dt.date(2026, 10, 9))
@@ -137,6 +158,48 @@ class UserBackupTest(unittest.TestCase):
         bad.write_text("not a database")
         with self.assertRaises(ValueError):
             upkeep.restore_user_data(bad)
+
+
+class BackupFolderTest(unittest.TestCase):
+    """Settings can send the backups to a folder of one's own - a Dropbox
+    folder, so they live off this PC."""
+
+    setUp = UserBackupTest.setUp
+    fill = UserBackupTest.fill
+
+    def configure(self, folder):
+        self.addCleanup(upkeep.apply_settings, {})
+        upkeep.apply_settings({"backup_dir": str(folder)})
+
+    def test_a_configured_folder_takes_the_backups(self):
+        dropbox = self.dir / "Dropbox" / "DancePlaylist"
+        self.configure(dropbox)
+        self.fill()
+        with mock.patch.object(upkeep.platform, "node", return_value="LAPTOP"):
+            out = upkeep.backup_user_data(today=dt.date(2026, 10, 9))
+        self.assertEqual(out, dropbox / "LAPTOP" / "user-data-2026-10-09.db")
+        self.assertFalse(self.backups.exists())
+
+    def test_two_pcs_sharing_the_folder_keep_their_own(self):
+        """Dropbox syncs the folder to every PC: one PC's backup of the day must
+        not overwrite another's, nor its rotation delete them."""
+        dropbox = self.dir / "Dropbox"
+        self.configure(dropbox)
+        self.fill()
+        with mock.patch.object(upkeep.platform, "node", return_value="DESKTOP"):
+            theirs = upkeep.backup_user_data(today=dt.date(2026, 10, 9))
+        with mock.patch.object(upkeep.platform, "node", return_value="LAPTOP"):
+            for day in range(9, 20):
+                upkeep.backup_user_data(today=dt.date(2026, 10, day))
+        self.assertTrue(theirs.exists())
+        self.assertEqual(len(list((dropbox / "LAPTOP").glob("user-data-*.db"))),
+                         upkeep.BACKUPS_KEPT)
+
+    def test_an_empty_setting_keeps_them_next_to_the_database(self):
+        self.configure("  ")
+        self.fill()
+        out = upkeep.backup_user_data(today=dt.date(2026, 10, 9))
+        self.assertEqual(out, self.backups / "user-data-2026-10-09.db")
 
 
 if __name__ == "__main__":

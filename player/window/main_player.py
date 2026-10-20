@@ -573,7 +573,9 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         # pause is a bare play() instead of a full open-and-probe of the file
         # (the WMF backend takes a noticeable moment for that).
         if self._player:
-            self._player.setSource(QUrl.fromLocalFile(str(nxt[2])))
+            url = QUrl.fromLocalFile(str(nxt[2]))
+            if self._player.source() != url:   # 🔀 a crossfade opened it already
+                self._player.setSource(url)
         # …and measure its loudness in the same breath, if nobody ever did: the
         # pause is exactly the room for that decode, so the advance itself never
         # has to hold the next title back to get its level right.
@@ -917,7 +919,7 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
                 (ent.tag_artist or "") if ent else "",
                 ent.title if ent else Path(path).stem,
                 self._playback.dance, self.deck(deck).title if deck else "",
-                ent.duration if ent else 0)
+                ent.duration if ent else 0, composer=play_log.composer_of(path))
         except sqlite3.Error as exc:
             log.warning("📜 Play not logged\n"
                         "file: %s\n"
@@ -1196,6 +1198,17 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         if dur > 0:
             pos = min(pos, dur)
         self._player.setPosition(pos)
+
+    def _seek_preloaded(self):
+        """A title opened ahead — by the pause before a dance or a 🔀
+        crossfade — had its LoadedMedia before the load asked for the ↩
+        resume seek; do what that status would have done, now."""
+        if self._player is None:
+            return
+        status = self._player.mediaStatus()
+        if status in (QMediaPlayer.MediaStatus.LoadedMedia,
+                      QMediaPlayer.MediaStatus.BufferedMedia):
+            self._on_media_status(status)
 
     def _on_media_status(self, status):
         """Reset play buttons when a song finishes playing naturally."""

@@ -526,7 +526,10 @@ class PlayModeSetupMixin(PlayModePanelHost):
             "and no spoken announcement — the settings a heat is run with.\n\n"
             "Lit gold while the panel stands on those values, the way 🎉 is lit\n"
             "purple during a party. Switches the 🎉 party set off. What exactly\n"
-            "it sets is yours to change: ⚙ Settings → 🎛 Play sets.")
+            "it sets is yours to change: ⚙ Settings → 🎛 Play sets.\n"
+            "\n"
+            "Clicked while lit, it switches itself off: the list goes back to\n"
+            "the values it had before the set was pressed.")
         self.tournament_btn.setStyleSheet(
             "QPushButton:checked { background:#b8860b; color:white;"
             " font-weight:bold; border-radius:3px; }")
@@ -545,7 +548,10 @@ class PlayModeSetupMixin(PlayModePanelHost):
             "Applied by itself as soon as you play from the 🤸 Practice /\n"
             "party list, and switched back when a tournament deck takes over —\n"
             "a toast says what changed either way. What exactly it sets is\n"
-            "yours to change: ⚙ Settings → 🎛 Play sets.")
+            "yours to change: ⚙ Settings → 🎛 Play sets.\n"
+            "\n"
+            "Clicked while lit, it switches itself off: the list goes back to\n"
+            "the values it had before the set was pressed.")
         self.party_btn.setStyleSheet(
             "QPushButton:checked { background:#7b1fa2; color:white;"
             " font-weight:bold; border-radius:3px; }")

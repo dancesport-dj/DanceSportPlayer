@@ -11,6 +11,10 @@ had finished. They now run behind the open window, one per turn of the event
 loop, reporting themselves in the status bar. Two things therefore have to
 hold: the window must come up before any of them, and every one of them must
 still actually run.
+
+The window now opens even earlier, on the audio cache and before the library
+scan (_on_cache_ready); tests/gui/test_background_library_scan.py has that
+half. Here the load runs both halves in a row.
 """
 
 import os
@@ -72,10 +76,32 @@ class _Track:
     path = "song.mp3"
 
 
+class _LoadBar:
+    """The scan's status-bar progress (gui.library_load_bar), and the loader
+    it waits on."""
+
+    def __init__(self, log):
+        self._log = log
+        self.running = False
+
+    def start(self, _root):
+        self.running = True
+        self._log.append("scan progress shown")
+
+    def finish(self):
+        self.running = False
+        self._log.append("scan progress hidden")
+
+    def go(self):
+        self._log.append("scan started")
+
+
 class _Win:
     """A MainWindow reduced to the load path, recording what happens in order."""
 
+    _on_cache_ready = gmg.GlobalIndexMixin._on_cache_ready
     _on_library_loaded = gmg.GlobalIndexMixin._on_library_loaded
+    _hand_over_library = gmg.GlobalIndexMixin._hand_over_library
     _finish_library_load = gmg.GlobalIndexMixin._finish_library_load
 
     def __init__(self):
@@ -86,13 +112,18 @@ class _Win:
         self._lib_browser = _Entries(self.log, "browser")
         self._tourney_tree = _Entries(self.log, "tree")
         self._bar = _Bar(self.log)
-        self._library = SimpleNamespace(lib=None, cache=None)
+        self._suggester = None
+        bar = _LoadBar(self.log)
+        self._library = SimpleNamespace(lib=None, cache=None, load_bar=bar, loader=bar)
 
     def statusBar(self):
         return self._bar
 
     def show(self):
         self.log.append("WINDOW SHOWN")
+
+    def _preload_global_lib(self):
+        pass   # the background repository load has its own test
 
     def _restore_playlist(self):
         self.log.append("restore")
@@ -126,7 +157,9 @@ class _StartupCase(unittest.TestCase):
         self.win = _Win()
 
     def _load(self):
-        self.win._on_library_loaded(_Lib(), object())
+        cache = object()
+        self.win._on_cache_ready(cache)
+        self.win._on_library_loaded(_Lib(), cache)
         self._settle()
         return self.win.log
 
@@ -175,9 +208,10 @@ class DeferredStartupTest(_StartupCase):
         self.assertEqual(log[-1], "status: Library loaded — 3 MP3 files, "
                                   "3 favorites songs, 0 audio cached.")
 
-    def test_the_library_is_reachable_the_moment_the_window_is_up(self):
+    def test_the_library_is_reachable_the_moment_the_scan_is_done(self):
         """Deferring the tail must not defer the library itself: everything the
         open window offers to do reads self._lib."""
+        self.win._on_cache_ready("the cache")
         self.win._on_library_loaded(_Lib(), "the cache")
         self.assertEqual(len(self.win._library.lib.entries), 3)
         self.assertEqual(self.win._library.cache, "the cache")

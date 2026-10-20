@@ -103,11 +103,12 @@ class TournamentButtonTest(unittest.TestCase):
         self.assertEqual(self.panel.pd_highlight_n(), 3)
         self.assertEqual(self.panel.pd_start_delay(), 9)
 
-    def test_switching_the_party_off_brings_the_tournament_values_back(self):
+    def test_switching_the_party_off_brings_the_earlier_values_back(self):
+        self.panel.pd_delay_spin.setValue(5)
         self.desk._set_party_mode(True)
         self.desk._set_party_mode(False)
         self.assertFalse(self.panel.pd_highlight_stop())
-        self.assertEqual(self.panel.pd_start_delay(), 0)
+        self.assertEqual(self.panel.pd_start_delay(), 5)
 
     def test_it_says_which_highlight_it_set(self):
         self.assertTrue([s for s in self.panel.set_pd_highlight_n(3)

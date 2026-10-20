@@ -155,6 +155,10 @@ class NanoPresetTest(unittest.TestCase):
             "duck": "cc:0:58", "stop_pads": "cc:0:60",     # TRACK ◀, SET
             "volume": "cc:0:0", "tempo": "cc:0:16",        # fader 1, knob 1
             "tempo_reset": "cc:0:32",                      # S1
+            "lib": "cc:0:59",                              # TRACK ▶
+            "browse_up": "cc:0:61", "browse_down": "cc:0:62",   # MARKER ◀ ▶
+            "pick_play": "cc:0:33", "pick_deck": "cc:0:34",     # S2, S3
+            "pick_wish": "cc:0:35",                        # S4
             "pad:1": "cc:0:36", "pad:2": "cc:0:52", "pad:3": "cc:0:68",
             "pad:4": "cc:0:37", "pad:5": "cc:0:53", "pad:6": "cc:0:69",
             "pad:7": "cc:0:38", "pad:8": "cc:0:39",
@@ -200,6 +204,59 @@ class TempoTest(unittest.TestCase):
         self.assertEqual(pctl.knob_offset(127 / 255), 0.0)
         self.assertEqual(pctl.knob_offset(128 / 255), 0.0)
         self.assertEqual(pctl.knob_offset(8192 / 16383), 0.0)
+
+
+class FocusTest(unittest.TestCase):
+    """🎯 A button per playlist and per wishlist, to bring it in front."""
+
+    def test_every_playlist_and_wishlist_has_a_focus_action(self):
+        for n in range(1, 9):
+            self.assertIn(f"deck:{n}", pctl.ACTION_IDS)
+        for n in range(1, 5):
+            self.assertIn(f"wish:{n}", pctl.ACTION_IDS)
+
+    def test_a_focus_action_has_a_desk_key_too(self):
+        """Ctrl+1…9 already belong to the 🎛 wall: Alt+1…8 for the playlists,
+        Alt+Q W E R, the row below, for the wishlists. No Shift, so no
+        keyboard layout turns the digit into a symbol."""
+        keys = pctl.desk_keys({})
+        self.assertEqual([keys[f"deck:{n}"] for n in range(1, 9)],
+                         [[f"Alt+{n}"] for n in range(1, 9)])
+        self.assertEqual([keys[f"wish:{n}"] for n in range(1, 5)],
+                         [["Alt+Q"], ["Alt+W"], ["Alt+E"], ["Alt+R"]])
+        self.assertEqual(pctl.key_clashes(keys), {})
+
+
+class BrowseTest(unittest.TestCase):
+    """🔄 Scrolling through a list from the controller and picking a title."""
+
+    def test_the_browse_buttons_and_picks_are_actions_with_keys(self):
+        keys = pctl.desk_keys({})
+        self.assertEqual({a: keys[a] for a in ("lib", "browse_up", "browse_down",
+                                               "pick_play", "pick_deck",
+                                               "pick_wish")},
+                         {"lib": ["Alt+L"], "browse_up": ["Alt+Up"],
+                          "browse_down": ["Alt+Down"], "pick_play": ["Alt+P"],
+                          "pick_deck": ["Alt+A"], "pick_wish": ["Alt+D"]})
+
+    def test_the_browse_knob_is_no_key_and_takes_every_reading(self):
+        self.assertIn("browse", pctl.CONTINUOUS)
+        self.assertNotIn("browse", pctl.KEY_ACTIONS)
+        m = pctl.ControllerMap({"browse": "cc:0:20"})
+        self.assertEqual(m.feed("cc:0:20", 1 / 127), [("browse", 1 / 127)])
+        self.assertEqual(m.feed("cc:0:20", 1 / 127), [("browse", 1 / 127)])
+
+    def test_only_a_midi_cc_can_be_the_browse_knob(self):
+        self.assertTrue(pctl.learnable("browse", "cc:0:20"))
+        for control in ("hid:1:3", "hid:1:3:0", "note:0:60", "pb:0"):
+            self.assertFalse(pctl.learnable("browse", control), control)
+
+    def test_an_endless_knob_counts_steps_in_either_code(self):
+        """1, 2, … right and 127, 126, … left; or 65, 66, … right and
+        63, 62, … left."""
+        for raw, steps in ((1, 1), (3, 3), (127, -1), (125, -3),
+                           (65, 1), (67, 3), (63, -1), (61, -3), (64, 0)):
+            self.assertEqual(pctl.encoder_steps(raw / 127), steps, raw)
 
 
 if __name__ == "__main__":

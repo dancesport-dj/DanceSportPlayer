@@ -122,6 +122,8 @@ class TrackLoadMixin(MainWindowHost):
             url = QUrl.fromLocalFile(str(path))
             if self._player.source() != url:
                 self._player.setSource(url)
+            else:
+                self._seek_preloaded()
             pitched = self._pitch_before_play(ent, start)
             # 🐂 A Paso Doble may be held back a few seconds after the dance is
             # called, so the couples stand before the first bar. Everything up

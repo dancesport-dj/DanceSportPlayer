@@ -33,8 +33,13 @@ verlassen hast.
 
 ## Der App deine Musik zeigen
 
-Öffne ⚙ **Einstellungen**. Der Knopf sitzt unten im Wiedergabe-Bereich. Der
-Reiter **📁 Pfade** hält die Ordner:
+Der erste Start fragt nach deinem Musikordner und schlägt den vor, den er
+gefunden hat. Wähle den Ordner mit deiner Tanzmusik, nicht ein ganzes
+Laufwerk: Jeder Start liest die MP3-Dateien darunter, und der erste Start
+liest jede einmal, was auf einer externen Platte lange dauert.
+
+Um ihn später zu ändern, öffne ⚙ **Einstellungen**. Der Knopf sitzt unten im
+Wiedergabe-Bereich. Der Reiter **📁 Pfade** hält die Ordner:
 
 ![Einstellungen, Reiter Pfade](../img/settings-paths.png)
 
@@ -50,9 +55,15 @@ Der Rest dieses Reiters steht unter [Einstellungen](06-settings.md).
 
 ## Der erste Scan und die Analyse
 
-Beim Start liest die App die Favoriten-Bibliothek ein und zeigt dabei einen
-Ladedialog. Titel und Tags werden zwischengespeichert, nur der erste Scan
-einer großen Bibliothek dauert also lange.
+Beim Start holt die App deine letzte Sitzung zurück, öffnet sich und liest
+danach die Favoriten-Bibliothek ein. Die Statusleiste zeigt, wie weit der
+Scan ist (📚 Bibliothek: gelesene / alle Dateien). Deine Decks spielen
+sofort; der Bibliotheks-Browser und die 🏆 Turnierliste bleiben grau, bis
+der Scan fertig ist. ⏸ neben dem Balken pausiert den Scan, ▶ setzt ihn
+fort; ⏹ beendet ihn und verwendet die bisher gelesenen Titel als
+Bibliothek, der nächste Start liest den Rest. Titel und Tags werden
+zwischengespeichert, nur der erste Scan einer großen Bibliothek dauert
+also lange.
 
 Drei Funktionen brauchen pro Titel einmal eine kurze Analyse:
 

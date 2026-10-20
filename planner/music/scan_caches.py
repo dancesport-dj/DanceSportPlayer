@@ -106,6 +106,11 @@ class ScanCache:
         ckey = self._ckey(path)
         return self._data.get(ckey) if ckey else None
 
+    def has_row(self, fp: str, path: Path) -> bool:
+        """Whether a row exists for this content under this file name. Reads no
+        file and no database (the scan's read-ahead pool asks it)."""
+        return f"{fp}::{path.stem}" in self._data
+
     def put(self, path: Path, data: dict) -> None:
         ckey = self._ckey(path)
         if ckey is None:

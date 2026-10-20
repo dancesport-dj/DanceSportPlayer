@@ -51,7 +51,12 @@ def _title_key(name: str) -> str:
     punctuation stripped, alphanumeric-normalised). Lets a renamed file match an
     old playlist entry whose filename approximated the song title. Returns '' if
     nothing meaningful remains (callers must ignore empty keys)."""
-    stem = _DANCE_BPM_PREFIX.sub('', Path(name).stem)
+    return _title_key_of_stem(Path(name).stem)
+
+
+def _title_key_of_stem(stem: str) -> str:
+    """`_title_key` of an already-split file name (no folder, no extension)."""
+    stem = _DANCE_BPM_PREFIX.sub('', stem)
     key = _norm_title(_clean_title(stem))
     return key if len(key) >= 3 else ''
 
@@ -116,7 +121,11 @@ def _song_title_key(name: str) -> str:
     normalised title if nothing meaningful survives (so distinct songs whose whole
     title looks like a tag, e.g. 'DJ Got Us Fallin In Love', stay distinct).
     Used by the Similar-window 'hide duplicate copies' filter."""
-    raw = Path(name).stem
+    return _song_title_key_of_stem(Path(name).stem)
+
+
+def _song_title_key_of_stem(raw: str) -> str:
+    """`_song_title_key` of an already-split file name (no folder, no extension)."""
     s = _PAREN_CODE.sub(' ', raw)
     dj = _DJ_TAG.search(s)
     # Only a TRAILING tag: in 'S50  DJ Eiffel. Dancando Na Rua' the DJ is the artist

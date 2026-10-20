@@ -1187,6 +1187,8 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
     def _show_library_gaps(self):
         """📊 (Settings → 🎵 Checks): per dance × class pool statistics — where
         does the library run thin for a real competition?"""
+        if self._library_still_loading():
+            return
         if not self._library.lib or not self._library.lib.entries:
             QMessageBox.information(
                 self, "Library gaps",

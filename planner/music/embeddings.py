@@ -46,6 +46,10 @@ class AudioTooShort(ValueError):
 # Model identifiers used as the `model` column / dict key.
 MODEL_MERT = "mert"
 MODEL_CHROMA = "chroma2dftm"         # librosa-only chroma cover/remix matcher (melody, not timbre)
+# Every model the app still computes and reads. 🧹 Database maintenance drops
+# the vectors of any other (OpenL3, the CLAP audio tower), so a new model must
+# be added here.
+MODELS = (MODEL_MERT, MODEL_CHROMA)
 
 _MERT_REPO = "m-a-p/MERT-v1-95M"
 # The model runs code from its own repo (trust_remote_code). Pinned, so a later

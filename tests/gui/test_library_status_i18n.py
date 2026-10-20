@@ -66,7 +66,7 @@ class _Cache:
     def audio_fp_keys(self):
         return set()
 
-    def known_fingerprint(self, path):
+    def recorded_fingerprint(self, path):
         return f"FP:{Path(path).name}"
 
     def vocal_share_count(self):

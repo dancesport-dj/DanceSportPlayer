@@ -102,7 +102,7 @@ def _load():  # slop-mop noqa: ambiguity-mine - the MIDI backend interface, one 
     return _lib
 
 
-def _open(name: bytes = b"DancePlaylist"):
+def _open(name: bytes = b"DanceSport Player"):
     lib = _load()
     seq = ctypes.c_void_p()
     err = lib.snd_seq_open(ctypes.byref(seq), b"default", _OPEN_INPUT, 0)

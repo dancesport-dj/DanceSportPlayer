@@ -24,7 +24,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_xfade_"))
 
-from PySide6.QtCore import QObject
+from PySide6.QtCore import QObject, QUrl
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtWidgets import QApplication
 from tests.qt_test_support import reap_widget
@@ -233,6 +233,21 @@ class _Player:
         return "song-a"
 
 
+class _Spare:
+    """The second player, as far as a preload touches it."""
+
+    def __init__(self):
+        self.src = QUrl()
+        self.loads = []
+
+    def source(self):
+        return self.src
+
+    def setSource(self, url):
+        self.src = url
+        self.loads.append(url)
+
+
 class _Desk(CrossfadeMixin):
     """The window around the crossfade, reduced to what it asks."""
 
@@ -259,6 +274,9 @@ class _Desk(CrossfadeMixin):
         self.calls = []
 
     # What the mixin reads of its host.
+    def _spare_deck(self):
+        return self._between.xfade.player   # never built here: no Qt parent
+
     def _engine_list(self):
         return self.table
 
@@ -588,6 +606,36 @@ class MarkerTest(unittest.TestCase):
             desk._maybe_crossfade()
         self.assertIsNone(shown(desk))
 
+class PreloadTest(unittest.TestCase):
+    """⏩ The spare player opens the incoming title before the crossfade, so
+    the swap is a bare play() and not a file open under a running ramp."""
+
+    def desk(self):
+        desk = _Desk()                              # 4 s ramp
+        desk._between.xfade.player = _Spare()
+        return desk
+
+    def test_the_next_title_is_opened_ahead(self):
+        desk = self.desk()
+        at(desk, 185_000)                           # 15 s left: early yet
+        desk._maybe_crossfade()
+        self.assertEqual(desk._between.xfade.player.loads, [])
+        at(desk, 187_000)                           # 13 s: ramp 4 + 10 ahead
+        desk._maybe_crossfade()
+        at(desk, 188_000)
+        desk._maybe_crossfade()
+        self.assertEqual(desk._between.xfade.player.loads,
+                         [QUrl.fromLocalFile("b.mp3")])   # once, not every tick
+        self.assertIsNone(shown(desk))              # the marker keeps its time
+
+    def test_nothing_is_opened_where_no_crossfade_is_coming(self):
+        desk = self.desk()
+        desk.pause = 15
+        at(desk, 194_000)
+        desk._maybe_crossfade()
+        self.assertEqual(desk._between.xfade.player.loads, [])
+
+
 class _Device(QObject):
     """The output device: says which player it heard, and who it follows."""
 
@@ -617,6 +665,8 @@ class _Follower:
 
 class _QtDesk(QObject, _Desk):
     """The desk on real players, wired the way MainWindow wires its deck."""
+
+    _spare_deck = CrossfadeMixin._spare_deck   # a QObject can parent the real one
 
     def __init__(self):
         QObject.__init__(self)

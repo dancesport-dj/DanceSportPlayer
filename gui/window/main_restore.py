@@ -48,6 +48,15 @@ class RestoreMixin(MainWindowHost):
         (`deck_modes`). An undo step is the whole truth about one moment, so a
         missing wishlist view there means "one wishlist" (`wish_default`), not
         "keep whatever is on screen"."""
+        # The Eintanzen panel and the wishlists name a deck's titles again, and
+        # a title outside the library is rebuilt from its file on every resolve.
+        self._library.restore_memo = {}
+        try:
+            self._restore_env_body(data, deck_modes, wish_default)
+        finally:
+            self._library.restore_memo = None
+
+    def _restore_env_body(self, data: dict, deck_modes: bool, wish_default: bool):
         for key, table in zip(ALL_DECK_KEYS, self._deckset.decks + self._deckset.day_decks, strict=True):
             if data.get(key):
                 self._restore_into_deck(table, data[key])
@@ -125,10 +134,17 @@ class RestoreMixin(MainWindowHost):
 
     def _resolve_entry(self, path: str) -> MusicEntry | None:
         """Find a saved path in the library, else rebuild it as an external entry,
-        else None (file gone)."""
-        if not self._library.lib:
+        else None (file gone). Asked twice within one restore, it answers once."""
+        lib = self._library.resolver()
+        if lib is None:
             return None
-        return self._library.lib.entry_for(path, self._library.cache, require_file=True)
+        memo = self._library.restore_memo
+        if memo is not None and path in memo:
+            return memo[path]
+        entry = lib.entry_for(path, self._library.cache, require_file=True)
+        if memo is not None:
+            memo[path] = entry
+        return entry
 
     def _resolve_paths(self, paths: list[str], progress_cb=None) -> list:
         """`_resolve_entry` over a flat list, reporting as it goes and dropping
@@ -150,7 +166,7 @@ class RestoreMixin(MainWindowHost):
         for t in self._deckset.all_tables:
             t.reset_played_marks()
         data = load_autosave()
-        if not data or not self._library.lib:
+        if not data or self._library.resolver() is None:
             return
         # Guard the whole restore: each table.load() fires the change-callback
         # autosave, which would otherwise re-save the file with the still-default

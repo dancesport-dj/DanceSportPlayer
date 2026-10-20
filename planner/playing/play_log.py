@@ -13,15 +13,20 @@ from __future__ import annotations
 
 import csv
 import datetime as dt
+import logging
 from dataclasses import dataclass
 from pathlib import Path
+
+from mutagen import File as MutagenFile
 
 from planner import i18n
 from planner.music.db import _db
 from planner.terms import dance_name
 
 GAP_HOURS = 4
-_COLS = "started_at, path, artist, title, dance, list_name, length"
+_COLS = "started_at, path, artist, title, dance, list_name, length, composer"
+
+log = logging.getLogger("dancesport.play_log")
 
 
 @dataclass(frozen=True)
@@ -33,6 +38,7 @@ class Play:
     dance: str
     list_name: str
     length: float
+    composer: str = ""
 
 
 @dataclass(frozen=True)
@@ -47,11 +53,25 @@ def _stamp(when: dt.datetime) -> str:
 
 
 def record(started_at: dt.datetime, path, artist: str, title: str, dance: str,
-           list_name: str, length: float) -> None:
+           list_name: str, length: float, composer: str = "") -> None:
     """Log one play. The same file at the same second is logged once."""
-    _db().execute(f"INSERT OR IGNORE INTO play_log ({_COLS}) VALUES (?,?,?,?,?,?,?)",
+    _db().execute(f"INSERT OR IGNORE INTO play_log ({_COLS}) VALUES (?,?,?,?,?,?,?,?)",
                   (_stamp(started_at), str(path), artist or "", title or "",
-                   dance or "", list_name or "", float(length or 0)))
+                   dance or "", list_name or "", float(length or 0), composer or ""))
+
+
+def composer_of(path) -> str:
+    """The composer tag of the file (TCOM, or its FLAC/M4A twin), "" without
+    one. No library row carries it, so the play reads it from the file."""
+    try:
+        audio = MutagenFile(path, easy=True)
+    except Exception:
+        log.debug("📜 No composer read\n"
+                  "file: %s", path, exc_info=True)
+        return ""
+    if audio is None or audio.tags is None:
+        return ""
+    return "; ".join(audio.tags.get("composer", []))
 
 
 def evenings(gap_hours: float = GAP_HOURS) -> list[Evening]:
@@ -78,7 +98,8 @@ def plays(evening: Evening) -> list[Play]:
     rows = _db().execute(
         f"SELECT {_COLS} FROM play_log WHERE started_at BETWEEN ? AND ? "  # nosec B608: constant names
         "ORDER BY started_at", (_stamp(evening.start), _stamp(evening.end)))
-    return [Play(dt.datetime.fromisoformat(r[0]), r[1], r[2], r[3], r[4], r[5], r[6] or 0.0) for r in rows]
+    return [Play(dt.datetime.fromisoformat(r[0]), r[1], r[2], r[3], r[4], r[5], r[6] or 0.0,
+                 r[7] or "") for r in rows]
 
 
 def delete(evening: Evening) -> None:
@@ -109,9 +130,10 @@ def to_csv(plays_: list[Play], file: Path) -> None:
     with Path(file).open("w", encoding="utf-8-sig", newline="") as f:
         w = csv.writer(f, delimiter=";")
         w.writerow([i18n.t(c) for c in
-                    ("Date", "Start", "Artist", "Title", "Dance", "List", "Duration")])
+                    ("Date", "Start", "Artist", "Title", "Composer", "Dance", "List",
+                     "Duration")])
         for p, secs in zip(plays_, durations(plays_), strict=True):
             w.writerow([p.started_at.date().isoformat(),
                         p.started_at.time().isoformat("seconds"),
-                        p.artist, p.title, dance_name(p.dance, p.dance) or "",
+                        p.artist, p.title, p.composer, dance_name(p.dance, p.dance) or "",
                         p.list_name, _mss(secs)])

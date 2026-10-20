@@ -168,7 +168,7 @@ class LibraryColumnTest(unittest.TestCase):
     def test_a_never_played_track_says_so(self):
         it = self._cell("brand new", _COL_LAST)
         self.assertEqual(it.text(), "—")
-        self.assertEqual(it.toolTip(), "Never played")
+        self.assertEqual(self.pane.cell_tooltip(it.row(), _COL_LAST), "Never played")
 
     def test_a_played_but_undated_track_is_a_question_mark(self):
         self.pane.set_entries([_entry("undated", popularity=3)])
@@ -176,7 +176,7 @@ class LibraryColumnTest(unittest.TestCase):
 
     def test_the_columns_sort_by_value_not_by_text(self):
         t = self.pane._table
-        t.sortItems(_COL_LAST, Qt.SortOrder.DescendingOrder)
+        t.horizontalHeader().setSortIndicator(_COL_LAST, Qt.SortOrder.DescendingOrder)
         years = [t.item(r, _COL_LAST).data(Qt.ItemDataRole.UserRole)
                  for r in range(t.rowCount())]
         self.assertEqual(years, sorted(years, reverse=True))

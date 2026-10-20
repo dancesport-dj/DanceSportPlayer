@@ -42,6 +42,7 @@ class _Desk(QObject, ControllerMixin):
         self._mix = mock.Mock(desk=1.0)
         self._cartwall = None
         self._big_player = mock.Mock()
+        self._focus_list = mock.Mock()
 
 
 class ControllerMixinTest(unittest.TestCase):
@@ -305,6 +306,14 @@ class ControllerMixinTest(unittest.TestCase):
         wall.play_pad.assert_called_once_with((1, 0, 1))
         self._press(desk, 34)           # (1, 0): an empty cell stays a hole
         wall.play_pad.assert_called_once()
+
+    def test_a_focus_button_brings_its_list_in_front(self):
+        desk = self._desk({"deck:2": "cc:0:41", "wish:3": "cc:0:42"})
+        self._press(desk, 41)
+        desk._focus_list.assert_called_once_with("deck", 2)
+        self._press(desk, 42)
+        desk._focus_list.assert_called_with("wish", 3)
+        desk._on_remote_command.assert_not_called()
 
     def test_a_listener_takes_the_readings_instead_of_the_desk(self):
         desk = self._desk({"next": "cc:0:44"})

@@ -106,7 +106,7 @@ def _client_ref() -> int:
     global _client
     if _client is None:
         midi, cf = _load()
-        name = _cfstr(cf, "DancePlaylist")
+        name = _cfstr(cf, "DanceSport Player")
         ref = ctypes.c_uint32()
         err = midi.MIDIClientCreate(name, None, None, ctypes.byref(ref))
         cf.CFRelease(name)

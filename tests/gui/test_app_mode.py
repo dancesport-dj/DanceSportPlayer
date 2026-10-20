@@ -559,6 +559,8 @@ class PlaySetsTabTest(_Qt):
                                   ("party_set", _PARTY_SET, _PARTY_PD)):
             got = dict(vals[key])
             got.pop("tso")          # its own default — see below
+            # ❓ Kept beside the set like the pitch, on by default in both.
+            self.assertIs(got.pop("dblclick_ask"), True)
             # 🐂 Each set's Paso Doble, kept beside the set's dict.
             self.assertEqual({k: got.pop(k) for k in pd}, pd)
             self.assertEqual(got, built_in)
@@ -575,7 +577,7 @@ class PlaySetsTabTest(_Qt):
         mine = {"secs": 105, "fade": 2.5, "fade_inside": False, "advance": True,
                 "pause_off": False,
                 "announce": True, "loudness": False, "dblclick": True,
-                "xfade": 2.5, "xfade_on": True, "xfade_curve": "scurve",
+                "dblclick_ask": False, "xfade": 2.5, "xfade_on": True, "xfade_curve": "scurve",
                 "tso": False, "pd_stop": True, "pd_n": 3, "pd_delay": 5}
         self.assertEqual(self._dlg({"tournament_set": mine}).values()["tournament_set"],
                          mine)
@@ -588,6 +590,15 @@ class PlaySetsTabTest(_Qt):
         got = dlg.values()["party_set"]
         self.assertEqual(got["secs"], 45)
         self.assertIs(got["advance"], False)
+
+    def test_both_sets_offer_the_double_click_ask(self):
+        """❓ Selectable per set, and on in both until switched off."""
+        dlg = self._dlg({})
+        for which in ("party", "tournament"):
+            box = dlg._set_widgets[which]["boxes"]["dblclick_ask"]
+            self.assertTrue(box.isChecked())
+            box.setChecked(False)
+            self.assertIs(dlg.values()[f"{which}_set"]["dblclick_ask"], False)
 
     def test_changing_the_tso_pitch_is_what_gets_saved(self):
         dlg = self._dlg({})

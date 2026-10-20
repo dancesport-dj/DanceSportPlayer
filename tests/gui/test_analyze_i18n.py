@@ -198,6 +198,9 @@ class _Win(QWidget):
     _analyze_vocals = man.AnalysisMixin._analyze_vocals
     _analyze_pd_highlights = man.AnalysisMixin._analyze_pd_highlights
 
+    def _library_still_loading(self):
+        return False   # the library scan is done
+
     def __init__(self, entries=None, dance="SA"):
         super().__init__()
         self._library = SimpleNamespace(

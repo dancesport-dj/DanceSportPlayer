@@ -237,5 +237,42 @@ class IncompleteRestoreTest(_WindowCase):
         self.assertEqual(self.kept.read_bytes(), self.before)
 
 
+class _CountingLibrary:
+    """Answers every path, and counts how often each one was asked for."""
+
+    def __init__(self):
+        self.asked: list[str] = []
+
+    def entry_for(self, path, cache=None, *, require_file=False):
+        self.asked.append(str(path))
+        return _found_unless_gone(str(path))
+
+
+class ResolveOnceTest(_WindowCase):
+    """A title outside the library is rebuilt from its file — tags, edits,
+    popularity, cached features — every time it is resolved. The Eintanzen
+    panel and a wishlist name the titles of a deck again, so a startup built
+    339 of them for 229 different files, in front of the splash."""
+
+    def test_a_path_named_twice_in_one_env_is_resolved_once(self):
+        win = self._win()
+        lib = _CountingLibrary()
+        win._library.lib = lib
+        win._restore_env({"wishlist": [HERE, GONE], "wishlist2": [HERE, GONE],
+                          "warmup": {"paths": [HERE]}})
+        self.assertEqual(sorted(lib.asked), sorted([HERE, GONE]))
+
+    def test_the_next_restore_asks_again(self):
+        """Only within one restore: a file re-tagged in between must show it."""
+        win = self._win()
+        lib = _CountingLibrary()
+        win._library.lib = lib
+        win._restore_env({"wishlist": [HERE]})
+        win._restore_env({"wishlist": [HERE]})
+        self.assertEqual(lib.asked, [HERE, HERE])
+        win._resolve_entry(HERE)
+        self.assertEqual(lib.asked, [HERE, HERE, HERE])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

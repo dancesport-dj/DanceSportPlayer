@@ -185,6 +185,11 @@ _FP_TABLES = {
 _DB_LOCAL = threading.local()
 _DB_INIT_LOCK = threading.Lock()
 _DB_INITIALIZED: str | bool = False   # the file whose migrations ran (str), False before
+# A long run of writes (the library scan) commits every this many items, or
+# after this many seconds: a commit per row costs more than the row, and one
+# transaction for all of it would hold the write lock past busy_timeout.
+_COMMIT_EVERY = 250
+_COMMIT_SECONDS = 2.0
 _SCHEMA_VERSION = 3   # v3: scan_meta re-keyed from file_id → content fingerprint (+ stem)
 # Bump when dance/BPM/metadata DETECTION logic changes, to invalidate the cached
 # scan_meta/global_meta dance values (which carry no per-row version of their own).
@@ -351,7 +356,7 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
         "CREATE TABLE IF NOT EXISTS play_log ("
         "  id INTEGER PRIMARY KEY, started_at TEXT NOT NULL, path TEXT NOT NULL,"
         "  artist TEXT, title TEXT, dance TEXT, list_name TEXT, length REAL,"
-        "  UNIQUE (started_at, path));"
+        "  composer TEXT, UNIQUE (started_at, path));"
     )
     for statement in script.split(";"):
         if statement.strip():
@@ -395,6 +400,17 @@ def _migrate_playlist_index_finals(conn: sqlite3.Connection) -> None:
             conn.execute(f"ALTER TABLE playlist_index ADD COLUMN {col} TEXT")
             log.info("  ♻️  playlist_index: added %s column "
                      "(the late rounds are re-derived on the next start)", col)
+
+
+def _migrate_play_log_composer(conn: sqlite3.Connection) -> None:
+    """Append the `composer` column to a pre-existing play_log table.
+
+    The GEMA report names who wrote each title; the plays logged before the
+    column came keep an empty one."""
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(play_log)").fetchall()]
+    if cols and 'composer' not in cols:
+        conn.execute("ALTER TABLE play_log ADD COLUMN composer TEXT")
+        log.info("  ♻️  play_log: added composer column")
 
 
 def _migrate_meta_album(conn: sqlite3.Connection) -> None:
@@ -682,6 +698,47 @@ def _db() -> sqlite3.Connection:
     return conn
 
 
+class ChunkedWrites:
+    """Groups the writes of a long loop into transactions of `_COMMIT_EVERY` items.
+
+    Call `step()` before each item. BEGIN IMMEDIATE takes the write lock up
+    front: a deferred transaction that reads first (`_file_id` does) fails
+    with 'database is locked', without waiting, once another thread commits
+    before it writes. A chunk also ends after `_COMMIT_SECONDS`, so a slow
+    disk does not keep the other threads waiting. On a cancel or an error the
+    rows written so far are committed, not rolled back: each is a valid cache
+    row, as it was under plain autocommit."""
+
+    def __enter__(self):
+        self._conn = _db()
+        self._begin()
+        return self
+
+    def _begin(self) -> None:
+        self._conn.execute("BEGIN IMMEDIATE")
+        self._items = 0
+        self._started = time.monotonic()
+
+    def step(self) -> None:
+        if not self._conn.in_transaction:      # after release()
+            self._begin()
+        elif (self._items >= _COMMIT_EVERY
+                or time.monotonic() - self._started >= _COMMIT_SECONDS):
+            self._conn.commit()
+            self._begin()
+        self._items += 1
+
+    def release(self) -> None:
+        """Commit now and hold no lock until the next `step()` — for a loop
+        that waits (a paused scan)."""
+        if self._conn.in_transaction:
+            self._conn.commit()
+
+    def __exit__(self, *exc) -> None:
+        if self._conn.in_transaction:
+            self._conn.commit()
+
+
 def _init_db(conn: sqlite3.Connection) -> None:
     """Run the one-time migrations on the first connection of the process."""
     global _DB_INITIALIZED
@@ -705,6 +762,7 @@ def _init_db(conn: sqlite3.Connection) -> None:
                 _migrate_meta_tag_bpm(conn)             # add tag_bpm col (after custom)
                 _migrate_pd_manual(conn)                # add manual flag to pd_highlights
                 _migrate_playlist_index_finals(conn)    # add fkeys col to playlist_index
+                _migrate_play_log_composer(conn)        # add composer col to play_log
                 if legacy:
                     _insert_legacy(conn, legacy)
                 _migrate_scan_meta_v3(conn)             # v2→v3: scan_meta → content-addressed
@@ -757,6 +815,10 @@ class AudioCache:
         # str(path) → mtime from a folder listing, used by `_key` instead of a stat
         # while a library scan runs (MusicLibrary.scan sets and clears it).
         self.listed_mtimes: dict[str, int] = {}
+        # str(path) → (fp, afp) hashed by the scan's read-ahead pool, taken by
+        # `fingerprint` instead of reading the file again (set and cleared like
+        # listed_mtimes).
+        self.read_ahead: dict[str, tuple[str, str]] = {}
         # path → its newest 'path::mtime' key: what `recorded_fingerprint` reads
         # without a stat.
         self._path_key: dict[str, str] = {}
@@ -899,8 +961,9 @@ class AudioCache:
             _db().commit()
             self._dirty = False
 
-    def _key(self, path: Path) -> str:
-        mtime = self.listed_mtimes.get(str(path))
+    def _key(self, path: Path, mtime: int | None = None) -> str:
+        if mtime is None:
+            mtime = self.listed_mtimes.get(str(path))
         if mtime is None:
             try:
                 mtime = int(path.stat().st_mtime)
@@ -911,12 +974,13 @@ class AudioCache:
     def fingerprint(self, path: Path) -> str | None:
         """Content fingerprint for a file, hashed once per (path, mtime) then cached."""
         k = self._key(path)
+        read = self.read_ahead.pop(str(path), None)
         fp = self._fp.get(k)
         if fp is not None:
             self._path_key[str(path)] = k
             return fp
         try:
-            fp, afp = _fingerprints(path)
+            fp, afp = read or _fingerprints(path)
         except OSError:
             return None
         self._fp[k] = fp
@@ -1082,10 +1146,11 @@ class AudioCache:
         """How many of `paths` have an audio fingerprint / loudness / silence /
         PD-highlight result.
 
-        Resolved from the in-memory mirrors through `known_fingerprint`, so a
+        Resolved from the in-memory mirrors through `recorded_fingerprint`, so a
         coverage summary costs no disk I/O even over the whole repository —
         files never fingerprinted simply count as not analyzed, which is what
-        they are. The one exception is the audio-fingerprint set, which has no
+        they are (`known_fingerprint` stats each file: 10 s over 54k on the GUI
+        thread). The one exception is the audio-fingerprint set, which has no
         mirror: pass `audio_fps` from `audio_fp_keys()` when several calls share
         one summary, and one query fetches it otherwise.
         """
@@ -1093,7 +1158,7 @@ class AudioCache:
             audio_fps = self.audio_fp_keys()
         out = {"audiofp": 0, "loudness": 0, "silences": 0, "pd": 0}
         for p in paths:
-            fp = self.known_fingerprint(p)
+            fp = self.recorded_fingerprint(p)
             if not fp:
                 continue
             if fp in audio_fps:
@@ -1271,10 +1336,11 @@ class AudioCache:
 
     # ── Vocal-stem share (content-addressed, measured via optional Demucs) ──
 
-    def get_vocal_share(self, path: Path) -> float | None:
+    def get_vocal_share(self, path: Path, touch_disk: bool = True) -> float | None:
         """Measured vocal-stem energy share (0..1) of a track, or None when
-        Demucs never analyzed it."""
-        fp = self.fingerprint(path)
+        Demucs never analyzed it.
+        `touch_disk=False` goes by `recorded_fingerprint` only — no stat, no hash."""
+        fp = self.fingerprint(path) if touch_disk else self.recorded_fingerprint(path)
         if fp is None:
             return None
         return self._vocal_share.get(fp)
@@ -1323,17 +1389,29 @@ class AudioCache:
                 d = self._data[fp] = self._feat_dict(row)
         return d
 
-    def get(self, path: Path, hash_if_missing: bool = True) -> AudioFeatures | None:
+    def load_all_features(self) -> None:
+        """Unpack every features row not in memory yet, in one pass over the table.
+
+        For the whole repository, which asks for nearly every row: one SELECT
+        per title was 1.2 s of its 54 000-title load, the one pass ~0.5 s."""
+        for fp, *row in _db().execute(
+                "SELECT fp, bpm, centroid, rms, mfcc, mfcc_mean, mfcc_cov FROM features"):
+            if fp not in self._data:
+                self._data[fp] = self._feat_dict(row)
+
+    def get(self, path: Path, hash_if_missing: bool = True,
+            mtime: int | None = None) -> AudioFeatures | None:
         """Return cached features for a file via its content fingerprint.
 
         hash_if_missing=False resolves only from already-known fingerprints (no file
         read) — used when attaching features to the huge global repo, so a warm load
-        stays instant instead of re-hashing 25k files.
+        stays instant instead of re-hashing 25k files. `mtime`, when the caller
+        already has it from a folder listing, saves the stat behind the key.
         """
         if hash_if_missing:
             fp = self.fingerprint(path)
         else:
-            fp = self._fp.get(self._key(path))
+            fp = self._fp.get(self._key(path, mtime))
         if fp is None:
             return None
         d = self._features(fp)

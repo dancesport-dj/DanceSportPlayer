@@ -69,7 +69,7 @@ from planner.models import set_no_class_exclusion
 planner.config.restore_system_library_path()
 from planner.version import app_version
 from planner.dances import BEATS_PER_BAR
-from planner.music.db_upkeep import backup_safely
+from planner.music.db_upkeep import apply_settings as apply_backup_folder, backup_safely
 from planner.generate.suggester import PlaylistSuggester
 
 log = logging.getLogger("dancesport.gui")
@@ -107,6 +107,7 @@ def exit_app(code: int):
 # Background workers and all dialogs/shared widgets live in their own modules;
 # the names are re-imported here so the rest of this file keeps using them
 # unchanged.
+from gui.library_load_bar import LibraryLoadBar
 from gui.workers import (
     LibraryLoader, AudioAnalyzer,
     SimilarFromFileWorker,
@@ -120,7 +121,7 @@ from shared.audio.playback import (plain_output_name, prime_disconnect_notify,
                                    quiet_ffmpeg_log)
 from shared import error_reports
 from shared.appearance import look_icons, theme, user_looks
-from planner import i18n, terms
+from planner import i18n, system_info, terms
 from planner.event import venue_pack
 from planner.store import state_dir
 from gui.decks.deck import DeckContext, DeckField
@@ -146,6 +147,7 @@ from gui.dialogs import (  # auto-resolved
     app_title,
     ensure_app_mode,
     ensure_error_reports_choice,
+    ensure_library_dir,
     ensure_update_check_choice,
     warmup_name,
     PLAYER_FIRST_START,
@@ -887,6 +889,27 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         self._library.loader = LibraryLoader(music_dir=self._settings.get("library_dir"),
                                              parent=self)
         self._library.loader.status.connect(self._loading_dlg.set_status)
+        # The window opens on the cache, before the scan; the scan's progress
+        # then shows in the status bar (gui.library_load_bar).
+        self._library.load_bar = LibraryLoadBar()
+        self.statusBar().addPermanentWidget(self._library.load_bar)
+        self._library.loader.cache_ready.connect(self._on_cache_ready)
+        self._library.loader.progress.connect(self._library.load_bar.set_progress)
+        self._library.load_bar.paused.connect(self._library.loader.pause)
+        self._library.load_bar.stop_requested.connect(self._library.loader.stop)
+        # 🔄 The repository walk's bar: visible only while that walk runs, so
+        # the loader its buttons reach is the one running.
+        self._library.repo_bar = LibraryLoadBar(repository=True)
+        self.statusBar().addPermanentWidget(self._library.repo_bar)
+        def pause_walk(on: bool):
+            if self._library.global_loader is not None:
+                self._library.global_loader.pause(on)
+
+        def stop_walk():
+            if self._library.global_loader is not None:
+                self._library.global_loader.stop()
+        self._library.repo_bar.paused.connect(pause_walk)
+        self._library.repo_bar.stop_requested.connect(stop_walk)
         self._library.loader.finished_ok.connect(self._on_library_loaded)
         self._library.loader.error.connect(self._on_library_error)
         self._library.loader.start()
@@ -1395,14 +1418,24 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         if event.type() == QEvent.Type.KeyPress:
             # Space (Playing mode): global play/pause of the big player, whatever has
             # focus — so it works without first selecting the playing row. Skips text
-            # fields (and the search box) so typing a space still works there.
+            # fields (and the search box) so typing a space still works there, and a
+            # list other than the one playing with a title selected: a 🎯 focus key
+            # went there to start that title, and its own Space does.
             if (event.key() == Qt.Key.Key_Space
                     and event.modifiers() == Qt.KeyboardModifier.NoModifier
                     and not event.isAutoRepeat()
                     and self._is_playing_mode() and self._big_player
                     and QApplication.activeWindow() is self):
                 fw = QApplication.focusWidget()
-                if not isinstance(fw, (QLineEdit, QPlainTextEdit, QSpinBox)):
+                lib_table = self._lib_browser._table
+                if fw is lib_table:
+                    picked = lib_table.currentRow() >= 0
+                else:
+                    picked = (isinstance(fw, PlaylistTable)
+                              and fw in self._deckset.all_tables
+                              and fw._selected_song_row()[0] >= 0)
+                if (not isinstance(fw, (QLineEdit, QPlainTextEdit, QSpinBox))
+                        and not (picked and fw is not self._engine_list())):
                     # A double tap is one press, not play-then-pause; the
                     # swallowed tap still must not reach the focused widget.
                     now = time.monotonic()
@@ -1584,11 +1617,15 @@ def run_gui():
     # 🐞 Opt-in error reports. After sys.excepthook is set above: the client
     # wraps the hook it finds, so crash.log keeps getting the traceback too.
     error_reports.apply_settings(load_settings())
+    # 💾 The backup folder before the first database open: that open is what
+    # writes the day's backup.
+    apply_backup_folder(load_settings())
     log.info("🚀 Session start\n"
              "version: %s\n"
              "python: %s\n"
-             "media backend: %s", app_version(), sys.version.split()[0],
-             os.environ.get("QT_MEDIA_BACKEND", "default"))
+             "media backend: %s\n"
+             "%s", app_version(), sys.version.split()[0],
+             os.environ.get("QT_MEDIA_BACKEND", "default"), system_info.machine_lines())
     _set_taskbar_identity()
 
     app = QApplication(sys.argv)
@@ -1625,6 +1662,8 @@ def run_gui():
     # First start only: planner, player or both. Asked before the window exists,
     # so MainWindow simply reads the answer out of the settings like any other.
     ensure_app_mode()
+    # 📂 …and where the music is, before the scan that reads every file in it.
+    ensure_library_dir()
     # 🐞 Asked once too, right after it; a yes starts the client now rather
     # than on the next start.
     if ensure_error_reports_choice():

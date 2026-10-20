@@ -50,7 +50,8 @@ class _Host(QMainWindow, GlobalIndexMixin):
     def __init__(self, lib=None, global_lib=None, cache=None, settings=None):
         super().__init__()
         self._library = SimpleNamespace(lib=lib, global_lib=global_lib, cache=cache,
-                                        cache_loader=None, global_loader=None)
+                                        cache_loader=None, global_loader=None,
+                                        load_bar=None, preloader=None, preload_busy=None)
         self._settings = dict(settings or {})
         self._busy = None
         self._sim_worker = None
@@ -271,7 +272,8 @@ class GlobalLibraryTest(_TestBase):
         gdir = self.folder()
         win = self.host(cache=mock.Mock(), settings={"global_dir": gdir})
         win._ensure_global_lib(then_drop="C:/a.mp3")
-        self.scanner.assert_called_once_with(win._library.cache, gdir, win)
+        self.scanner.assert_called_once_with(win._library.cache, gdir, win,
+                                             share_from=win._library.lib)
         scan = self.scanner.return_value
         self.busy.return_value.cancel_requested.connect.assert_called_once_with(scan.cancel)
         scan.done.connect.assert_called_once_with(win._on_global_ready)
@@ -380,7 +382,8 @@ class BuildIndexTest(_TestBase):
         win = self.build_host("both", cache=mock.Mock())
         win._build_global_index({"global_dir": gdir})
         self.assertEqual(win._librosa_scope, "both")
-        self.scanner.assert_called_once_with(win._library.cache, gdir, win)
+        self.scanner.assert_called_once_with(win._library.cache, gdir, win,
+                                             share_from=win._library.lib)
         scan = self.scanner.return_value
         scan.done.connect.assert_called_once_with(win._on_global_index_scanned)
         scan.progress.connect.assert_called_once_with(win._on_global_scan_progress)

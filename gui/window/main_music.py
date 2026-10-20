@@ -6,6 +6,7 @@ from a finding back into the deck it came from. Reading and writing a title's
 tags is a mixin of its own, in gui/window/main_tags.py.
 """
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
 import planner.music.analysis
 import planner.music.db
@@ -69,6 +70,10 @@ else:
     MainWindowHost = object
 
 log = logging.getLogger("dancesport.gui.music")
+
+# ffmpeg probes a Check-music pass runs side by side: each is one
+# decode-bound process, so they spread over the cores instead of queueing.
+_PROBE_WORKERS = 8
 
 class _MusicCheckAbort(Exception):
     """Raised from the 🎵 Check-Music progress callback to really stop the scan
@@ -185,6 +190,62 @@ class MusicCheckMixin(TagEditMixin):
                     self._library.cache.put_silences(p, spans)
                     self._library.cache.save()
         return sum(end - start for start, end in (spans or []))
+
+    def _submit_probes(self, pool, entries) -> dict:
+        """Start on `pool` every uncached ffmpeg probe `_track_issues` would run
+        inline for `entries` — the noise floor with 🔇 on, the silences of the
+        borderline-short ones — so a long check decodes several files at once.
+        Returns {path: [(cache put, future), …]} for `_collect_probes`."""
+        cache = self._library.cache
+        noise = getattr(self, "_check_noise", False)
+        ffmpeg = None
+        jobs: dict[str, list] = {}
+        if cache is None:
+            return jobs
+        for e in entries:
+            dur = int(getattr(e, "duration", 0) or 0)
+            want_noise = noise
+            want_silence = dur > 0 and dur < self._check_min_secs() + 60
+            if not (want_noise or want_silence):
+                continue
+            p = Path(e.path)
+            if str(p) in jobs:
+                continue
+            ffmpeg = ffmpeg or find_ffmpeg()
+            if not ffmpeg:
+                return jobs
+            todo = []
+            try:
+                if want_noise and cache.get_noise_floor(p) is None:
+                    todo.append((cache.put_noise_floor,
+                                 pool.submit(measure_noise_floor, ffmpeg, p)))
+                if want_silence and cache.get_silences(p) is None:
+                    todo.append((cache.put_silences,
+                                 pool.submit(detect_silences, ffmpeg, p)))
+            except Exception:
+                pass
+            if todo:
+                jobs[str(p)] = todo
+        return jobs
+
+    def _collect_probes(self, jobs: dict, e, tick) -> None:
+        """Wait for the probes `_submit_probes` started for `e` and cache what
+        they found, calling `tick()` every 100 ms meanwhile so the panel keeps
+        redrawing and hears Cancel."""
+        if not jobs:
+            return
+        todo = jobs.pop(str(Path(e.path)), ())
+        for put, fut in todo:
+            while True:
+                try:
+                    res = fut.result(timeout=0.1)
+                    break
+                except TimeoutError:
+                    tick()
+            if res is not None:
+                put(Path(e.path), res)
+        if todo and self._library.cache is not None:
+            self._library.cache.save()
 
     def _track_play_secs(self, e) -> int | None:
         """Seconds a track will really PLAY — its length minus the stillness at
@@ -303,33 +364,44 @@ class MusicCheckMixin(TagEditMixin):
         by_path: dict[tuple, int] = {}   # slot → index in `suspects` (merge cross-deck dupes)
         checked = skipped = 0
         seen = set()
-        for table in self._checkable_deck_tables():
-            pname = self.deck(table).name or "Playlist"
-            for meta in table._row_meta.songs():
-                e = meta.entry
-                key = _slot(meta)
-                if key in seen:
-                    # Same track in more than one open playlist — just record the
-                    # extra playlist on the existing suspect (if it was flagged).
-                    idx = by_path.get(key)
-                    if idx is not None and pname not in suspects[idx][5]:
-                        suspects[idx][5].append(pname)
-                    continue
-                seen.add(key)
-                if progress_cb:
-                    progress_cb(len(seen), total, e.title)
-                bpb = self._BEATS_PER_BAR.get(e.dance or "")
-                measured = float(getattr(e.features, "bpm", 0) or 0) if e.features else 0.0
-                dur = int(getattr(e, "duration", 0) or 0)
-                # Nothing to test: no label / unknown dance / not analyzed / no length.
-                if not e.bpm and not (measured > 0 and bpb) and not dur:
-                    skipped += 1
-                    continue
-                checked += 1
-                issues = self._track_issues(e, in_final=key[1])
-                if issues:
-                    by_path[key] = len(suspects)
-                    suspects.append((e, bpb, measured, dur, issues, [pname]))
+        pool = ThreadPoolExecutor(max_workers=_PROBE_WORKERS)
+        try:
+            jobs = (self._submit_probes(pool, [m.entry for table in self._checkable_deck_tables()
+                                               for m in table._row_meta.songs()])
+                    if self._library.cache is not None else {})
+            for table in self._checkable_deck_tables():
+                pname = self.deck(table).name or "Playlist"
+                for meta in table._row_meta.songs():
+                    e = meta.entry
+                    key = _slot(meta)
+                    if key in seen:
+                        # Same track in more than one open playlist — just record the
+                        # extra playlist on the existing suspect (if it was flagged).
+                        idx = by_path.get(key)
+                        if idx is not None and pname not in suspects[idx][5]:
+                            suspects[idx][5].append(pname)
+                        continue
+                    seen.add(key)
+                    if progress_cb:
+                        progress_cb(len(seen), total, e.title)
+                    bpb = self._BEATS_PER_BAR.get(e.dance or "")
+                    measured = float(getattr(e.features, "bpm", 0) or 0) if e.features else 0.0
+                    dur = int(getattr(e, "duration", 0) or 0)
+                    # Nothing to test: no label / unknown dance / not analyzed / no length.
+                    if not e.bpm and not (measured > 0 and bpb) and not dur:
+                        skipped += 1
+                        continue
+                    checked += 1
+                    self._collect_probes(
+                        jobs, e, lambda n=len(seen), t=e.title:
+                        progress_cb and progress_cb(n, total, t))
+                    issues = self._track_issues(e, in_final=key[1])
+                    if issues:
+                        by_path[key] = len(suspects)
+                        suspects.append((e, bpb, measured, dur, issues, [pname]))
+        finally:
+            # A Cancel leaves the probes already running to finish on their own.
+            pool.shutdown(wait=False, cancel_futures=True)
         # Playlist-level round-structure warnings, per deck (findings carry the
         # deck table so the report can render jump links into it).
         structure = []
@@ -975,13 +1047,20 @@ class MusicCheckMixin(TagEditMixin):
             else:
                 file_tracks.append((p.name, [p]))
         total = sum(len(ts) for _, ts in file_tracks)
-        done = checked = skipped = 0
-        suspects: list[tuple] = []          # (entry, issues, playlist_name)
+        resolved: list[tuple] = []          # (playlist_name, entry or None)
         for name, tracks in file_tracks:
             for t in tracks:
-                e = self._external_entry(t)
+                resolved.append((name, self._external_entry(t)))
+                if progress_cb and len(resolved) % 25 == 0:
+                    progress_cb(0, total)
+        done = checked = skipped = 0
+        suspects: list[tuple] = []          # (entry, issues, playlist_name)
+        pool = ThreadPoolExecutor(max_workers=_PROBE_WORKERS)
+        try:
+            jobs = self._submit_probes(pool, [e for _, e in resolved if e is not None])
+            for name, e in resolved:
                 done += 1
-                # Every track: with 🔇 on each one may cost a seconds-long noise
+                # Every track: with 🔇 on each one may wait on a seconds-long noise
                 # probe, and the tick is where the panel redraws and hears Cancel.
                 if progress_cb:
                     progress_cb(done, total)
@@ -989,9 +1068,14 @@ class MusicCheckMixin(TagEditMixin):
                     skipped += 1
                     continue
                 checked += 1
+                self._collect_probes(
+                    jobs, e, lambda d=done: progress_cb and progress_cb(d, total))
                 issues = self._track_issues(e)
                 if issues:
                     suspects.append((e, issues, name))
+        finally:
+            # A Cancel leaves the probes already running to finish on their own.
+            pool.shutdown(wait=False, cancel_futures=True)
         return checked, skipped, suspects
 
     def _dropped_structure_issues(self, paths, lib, cache):

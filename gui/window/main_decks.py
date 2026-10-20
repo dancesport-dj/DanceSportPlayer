@@ -1245,6 +1245,36 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
             self._toggle_deck_fold(table, folded=False)
         self._set_active_table(table)
 
+    def _focus_list(self, kind: str, n: int) -> None:
+        """🎯 A controller's focus button: playlist n ("deck") or wishlist n
+        ("wish") comes on screen and becomes the active list. A playlist past
+        what this build shows (a player stops at four) does nothing.
+
+        Wishlists open up to n if fewer are shown; the one-deck view hides a
+        lone wishlist (see _update_wish_area), so there it opens two.
+
+        The list takes the keyboard too: Space plays the selection of the
+        list that has it, and lighting one up alone left Space on the old one."""
+        if kind == "deck":
+            if n <= self._max_decks():
+                table = self._deckset.decks[n - 1]
+                self._reveal_deck(table)
+                table.setFocus(Qt.FocusReason.ShortcutFocusReason)
+            return
+        wl = self._deckset.wishlists[n - 1]
+        self._show_wishlist(wl)
+        self._set_active_table(wl)
+        wl.setFocus(Qt.FocusReason.ShortcutFocusReason)
+
+    def _show_wishlist(self, wl: PlaylistTable) -> None:
+        """Wishlist `wl` on screen and unfolded: the area opens up to it."""
+        n = self._deckset.wishlists.index(wl) + 1
+        need = max(n, 2) if self._deckset.deck_count == 1 else n
+        if self._wish_state < need:
+            self._set_wish_state(need)
+        if self.deck(wl).folded:
+            self._toggle_deck_fold(wl, folded=False)
+
     def _cycle_compact(self):
         """🗜 toolbar button: full headers → compact → no grouping → numbers → full."""
         self._set_compact_state((self._compact_state + 1) % 4)

@@ -105,6 +105,20 @@ class VenuePackUiTest(unittest.TestCase):
         with zipfile.ZipFile(dest) as z:
             self.assertIn("music/LW/Moon (LW 29).mp3", z.namelist())
 
+    def _suggested_name(self, answer) -> str:
+        with mock.patch.object(main_export.QMessageBox, "question",
+                               return_value=answer), \
+                mock.patch.object(main_export.QFileDialog, "getSaveFileName",
+                                  return_value=("", "")) as ask:
+            main_export.ExportMixin._export_venue_pack(_host())
+        return Path(ask.call_args.args[2]).name
+
+    def test_the_suggested_name_marks_a_pack_with_music(self):
+        self.assertRegex(self._suggested_name(_YES),
+                         r"^venue-\d{4}-\d\d-\d\d-with-music\.dpvenue$")
+        self.assertRegex(self._suggested_name(_NO),
+                         r"^venue-\d{4}-\d\d-\d\d\.dpvenue$")
+
     def test_cancel_at_the_question_writes_nothing(self):
         with mock.patch.object(main_export.QMessageBox, "question",
                                return_value=_CANCEL), \

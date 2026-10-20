@@ -33,8 +33,10 @@ from planner.music.parsing import (  # auto-resolved
     _norm_title,
     _playlist_class_of,
     _song_title_key,
+    _song_title_key_of_stem,
     _stem_key,
     _title_key,
+    _title_key_of_stem,
 )
 from planner.event.competition import (  # auto-resolved
     _is_superseded_playlist,
@@ -486,13 +488,14 @@ class PlaylistIndexMixin:
         RB) can't borrow its popularity — mirroring `_line_keys` on the
         learn side. The bare filename stem key stays plain (it already carries the dance)."""
         d = entry.dance
-        keys = {_stem_key(str(entry.path))}
-        tkey = _title_key(str(entry.path))
+        stem = entry.path.stem   # once: three keys of 46k titles each split it again
+        keys = {stem.lower().strip()}   # = _stem_key
+        tkey = _title_key_of_stem(stem)
         if tkey:
             keys.add(_dq(d, tkey))
         # Same aggressive key the learn side indexes — matches renamed / moved /
         # re-encoded copies (different path, same song) to their playlist history.
-        skey = _song_title_key(str(entry.path))
+        skey = _song_title_key_of_stem(stem)
         if len(skey) >= 3:
             keys.add(_dq(d, skey))
         if entry.tag_title:
@@ -517,6 +520,8 @@ class PlaylistIndexMixin:
         """
         if other is self or not getattr(other, "_track_playlists", None):
             return
+        if self._track_playlists is other._track_playlists:
+            return   # adopted already (by the loader thread); a relearn swaps the dict
         self._track_playlists = other._track_playlists
         self._playlist_cls = getattr(other, "_playlist_cls", {})
         self._track_finals = getattr(other, "_track_finals", {})

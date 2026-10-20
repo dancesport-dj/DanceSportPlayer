@@ -231,9 +231,11 @@ class ExportMixin(MainWindowHost):
         if ans not in (QMessageBox.StandardButton.Yes, QMessageBox.StandardButton.No):
             return
         with_music = ans == QMessageBox.StandardButton.Yes
+        # The name tells a pack with music apart on the stick, before anyone opens it.
+        mark = "-with-music" if with_music else ""
         chosen, _ = QFileDialog.getSaveFileName(
             self, title,
-            str(Path.home() / f"venue-{date.today().isoformat()}{venue_pack.SUFFIX}"),
+            str(Path.home() / f"venue-{date.today().isoformat()}{mark}{venue_pack.SUFFIX}"),
             i18n.t("Venue packs") + f" (*{venue_pack.SUFFIX});;"
             + i18n.t("All files") + " (*)")
         if not chosen:
@@ -486,13 +488,17 @@ class ExportMixin(MainWindowHost):
         UltraMixer at the venue, no 🧭 path fixing needed there).
 
         Asks first WHAT to bundle: all open decks, only the 📅 tournament day, or
-        saved .m3u files dragged in. Wishlists are never bundled."""
+        saved .m3u files dragged in. Wishlists are never bundled. The 📦 venue
+        pack is offered there too, and runs `_export_venue_pack` instead."""
         decks = [t for t in self._deckset.decks if t.rowCount() > 0]
         day = [t for t in self._deckset.day_decks if t.rowCount() > 0]
         ask = UsbExportDialog(
             self, n_decks=len(decks), n_day=len(day),
             day_selected=self._grid.deck_tabs.currentIndex() == 2)
         if ask.exec() != QDialog.DialogCode.Accepted:
+            return
+        if ask.mode() == "venue":
+            self._export_venue_pack()
             return
         if ask.mode() == "dropped":
             # Pre-saved playlists: each dropped .m3u is copied into its folder

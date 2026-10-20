@@ -119,6 +119,8 @@ class AnalysisMixin(MainWindowHost):
         worker.start()
 
     def _analyze_audio(self, force: bool = False):
+        if self._library_still_loading():
+            return
         if not self._library.lib or not self._library.cache:
             return
         missing = [e for e in self._library.lib.entries if e.features is None]
@@ -266,6 +268,8 @@ class AnalysisMixin(MainWindowHost):
     def _analyze_vocals(self):
         """🎙️ in ⚙ Settings: measure the Demucs vocal-stem share of every
         library track not yet in the vocals table (optional demucs install)."""
+        if self._library_still_loading():
+            return
         if not self._library.cache:
             return
         if not demucs_available():
@@ -313,6 +317,8 @@ class AnalysisMixin(MainWindowHost):
     def _analyze_pd_highlights(self):
         """🐂 in the Playing panel: detect the highlights of every Paso Doble
         of the library that has none stored yet → instant arming on playback."""
+        if self._library_still_loading():
+            return
         if not self._library.cache:
             return
         lib = self._library.lib

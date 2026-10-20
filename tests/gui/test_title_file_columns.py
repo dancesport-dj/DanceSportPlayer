@@ -103,7 +103,7 @@ class LibraryColumnsTest(unittest.TestCase):
         self.assertEqual(_LIB_COL_FILE, 12)
         self.assertEqual(t.horizontalHeaderItem(_LIB_COL_FILE).text(), "File name")
         self.assertEqual(t.item(0, _LIB_COL_FILE).text(), "Moon River remaster")
-        self.assertEqual(t.item(0, _LIB_COL_FILE).toolTip(), str(_PATH))
+        self.assertEqual(self.pane.cell_tooltip(0, _LIB_COL_FILE), str(_PATH))
 
     def test_it_starts_hidden_and_can_be_ticked_on(self):
         self.assertIn(_LIB_COL_FILE, self.pane.hidden_columns())

@@ -103,6 +103,9 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         self.setMinimumWidth(250)
         self.setMaximumWidth(640)
         self.setObjectName("PlayModePanel")   # see _STRIP_QSS
+        # What the panel stood on before 🎉/🏆 was pressed, on a desk with no
+        # lists — the way back when the lit set is clicked off (`_leave_set`).
+        self._before_set: dict | None = None
         lyt = self._lyt = QVBoxLayout(self)
         lyt.setContentsMargins(8, 8, 8, 8)
         lyt.setSpacing(6)

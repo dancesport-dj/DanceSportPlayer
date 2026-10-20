@@ -76,6 +76,10 @@ class ControllerDialogTest(unittest.TestCase):
         self.assertEqual(dlg._table.rowCount(), len(pctl.ACTIONS))
         self.assertEqual(dlg._table.item(self._row("pad:16"), 0).text(),
                          "🎛  Cartwall pad 16")
+        self.assertEqual(dlg._table.item(self._row("deck:3"), 0).text(),
+                         "🎯  Focus playlist 3")
+        self.assertEqual(dlg._table.item(self._row("wish:2"), 0).text(),
+                         "🎯  Focus wishlist 2")
 
     def test_choosing_a_device_applies_it(self):
         host = _Host()

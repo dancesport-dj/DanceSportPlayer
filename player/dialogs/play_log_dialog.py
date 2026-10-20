@@ -47,9 +47,9 @@ class PlayLogDialog(QDialog):
         self.evening_list = QListWidget()
         self.evening_list.currentRowChanged.connect(self._show_evening)
         split.addWidget(self.evening_list)
-        self.plays_table = QTableWidget(0, 6)
+        self.plays_table = QTableWidget(0, 7)
         self.plays_table.setHorizontalHeaderLabels(
-            ["Start", "Artist", "Title", "Dance", "List", "Duration"])
+            ["Start", "Artist", "Title", "Composer", "Dance", "List", "Duration"])
         self.plays_table.verticalHeader().setVisible(False)
         self.plays_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.plays_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -66,7 +66,7 @@ class PlayLogDialog(QDialog):
         self.save_btn = QPushButton("💾  Save as CSV…")
         self.save_btn.setToolTip(
             "Save this evening as a table for Excel: date, start, artist, title,\n"
-            "dance, list and how long each title ran — e.g. for a GEMA report.")
+            "composer, dance, list and how long each title ran — e.g. for a GEMA report.")
         self.save_btn.clicked.connect(self._save_csv)
         row.addWidget(self.save_btn)
         self.delete_btn = QPushButton("🗑  Delete evening")
@@ -107,7 +107,7 @@ class PlayLogDialog(QDialog):
         self.plays_table.setRowCount(len(plays))
         for r, (p, secs) in enumerate(zip(plays, play_log.durations(plays), strict=True)):
             s = int(round(secs))
-            cells = (f"{p.started_at:%H:%M:%S}", p.artist, p.title,
+            cells = (f"{p.started_at:%H:%M:%S}", p.artist, p.title, p.composer,
                      dance_name(p.dance, p.dance) or "", p.list_name,
                      f"{s // 60}:{s % 60:02d}")
             for c, text in enumerate(cells):

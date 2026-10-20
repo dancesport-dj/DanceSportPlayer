@@ -938,7 +938,7 @@ CATALOG = {
         "🔈 No se encontraron grabaciones de anuncios para esta voz.",
     "🖌  Wall colour": "🖌  Color de la Cartwall",
     "🖥  Presenter": "🖥  Presentación",
-    "🖥  Presenter — DancePlaylist": "🖥  Presentación — DancePlaylist",
+    "🖥  Presenter — DanceSport Player": "🖥  Presentación — DanceSport Player",
     "🕒 Timetable — presenter screen": "🕒 Horario — pantalla de presentación",
     "✖  Remove": "✖  Quitar",
     "🖨  Print": "🖨  Imprimir",
@@ -1124,14 +1124,16 @@ CATALOG = {
     "One sub-folder per playlist holding its tracks copied in numbered\n"
     "play order (0_0_1 - Title WW29.mp3) plus the playlist's .m3u — each\n"
     "folder plays in order even without the M3U, from any drive,\n"
-    "laptop or UltraMixer at the venue (no path fixing needed there).":
+    "laptop or UltraMixer at the venue (no path fixing needed there).\n"
+    "Also offers the 📦 venue pack: this desk in one file for another PC.":
         "Exportar las listas como un paquete autónomo para el local — pregunta primero\n"
         "si tomar todos los decks abiertos, solo el 📅 día de torneo o\n"
         "los archivos .m3u guardados que arrastres (las listas de deseos nunca se incluyen).\n"
         "Una subcarpeta por lista con sus temas copiados en orden de\n"
         "reproducción numerado (0_0_1 - Title WW29.mp3) más el .m3u de la lista — cada\n"
         "carpeta suena en orden incluso sin el M3U, desde cualquier unidad,\n"
-        "portátil o UltraMixer en el local (allí no hace falta corregir rutas).",
+        "portátil o UltraMixer en el local (allí no hace falta corregir rutas).\n"
+        "También ofrece el 📦 paquete de sala: esta mesa en un archivo para otro PC.",
     "Export the focused playlist as a printable PDF\n"
     "(rounds, heats, titles, lengths) into the playlist folder.":
         "Exportar la lista activa como PDF imprimible\n"
@@ -2275,14 +2277,20 @@ CATALOG = {
     "\n"
     "Lit gold while the panel stands on those values, the way 🎉 is lit\n"
     "purple during a party. Switches the 🎉 party set off. What exactly\n"
-    "it sets is yours to change: ⚙ Settings → 🎛 Play sets.":
+    "it sets is yours to change: ⚙ Settings → 🎛 Play sets.\n"
+    "\n"
+    "Clicked while lit, it switches itself off: the list goes back to\n"
+    "the values it had before the set was pressed.":
         "Devolver el panel a los valores de competición de una vez: la\n"
         "duración de reproducción configurada, sin pausa entre canciones, sin avance automático\n"
         "y sin anuncio hablado — los ajustes con los que se lleva un grupo.\n"
         "\n"
         "Se ilumina en dorado mientras el panel está en esos valores, igual que 🎉 se ilumina\n"
         "en morado durante una fiesta. Desactiva el conjunto 🎉 fiesta. Lo que pone\n"
-        "exactamente lo decides tú: ⚙ Ajustes → 🎛 Conjuntos de reproducción.",
+        "exactamente lo decides tú: ⚙ Ajustes → 🎛 Conjuntos de reproducción.\n"
+        "\n"
+        "Si está encendido, un clic lo apaga: la lista vuelve a los\n"
+        "valores que tenía antes de pulsar el conjunto.",
     "Say the next dance out loud shortly before the pause ends\n"
     "(\"Nächster Tanz: Langsamer Walzer\"). Without a pause the dance\n"
     "is named as the title starts instead (\"Langsamer Walzer\") —\n"
@@ -2340,7 +2348,10 @@ CATALOG = {
     "Applied by itself as soon as you play from the 🤸 Practice /\n"
     "party list, and switched back when a tournament deck takes over —\n"
     "a toast says what changed either way. What exactly it sets is\n"
-    "yours to change: ⚙ Settings → 🎛 Play sets.":
+    "yours to change: ⚙ Settings → 🎛 Play sets.\n"
+    "\n"
+    "Clicked while lit, it switches itself off: the list goes back to\n"
+    "the values it had before the set was pressed.":
         "Cambiar los ajustes de torneo a modo fiesta de una vez:\n"
         "cada título a su duración completa, avance automático al siguiente, sin\n"
         "pausa (y por tanto sin música de pausa) entre medias y sin anuncio hablado.\n"
@@ -2348,7 +2359,10 @@ CATALOG = {
         "Se aplica solo en cuanto reproduces desde la lista 🤸 Práctica /\n"
         "fiesta, y se revierte cuando un deck de torneo toma el relevo —\n"
         "un aviso dice qué cambió en ambos casos. Lo que pone exactamente\n"
-        "lo decides tú: ⚙ Ajustes → 🎛 Conjuntos de reproducción.",
+        "lo decides tú: ⚙ Ajustes → 🎛 Conjuntos de reproducción.\n"
+        "\n"
+        "Si está encendido, un clic lo apaga: la lista vuelve a los\n"
+        "valores que tenía antes de pulsar el conjunto.",
     "The colours of the presenter screen. 'Default' is the black hall\n"
     "display; 'Light' is creme paper with warm brown type and rose\n"
     "gold for the next dance — made for a lit room, where black on a\n"
@@ -3574,7 +3588,6 @@ CATALOG = {
     "🏆  Tournament set — %s": "🏆  Ajuste de torneo — %s",
     "🎚  Own settings — %s": "🎚  Ajustes propios — %s",
     "🎉  Party set applied": "🎉  Ajuste de fiesta aplicado",
-    "🏆  Tournament set back": "🏆  De vuelta al ajuste de torneo",
     "🏆  Tournament set applied": "🏆  Ajuste de torneo aplicado",
     "nothing to change": "nada que cambiar",
     ", running at %s": ", reloj en %s",
@@ -3745,6 +3758,8 @@ CATALOG = {
         "📥 %d momento(s) culminante(s) del Paso Doble puesto(s) a mano importado(s) — %d de ellos pertenecen a un tema que este PC ya conoce.\n"
         "\n"
         "Los demás se guardan y se aplican en cuanto esa música aparezca aquí.",
+    "<b>Backup folder</b> — where the daily backup of your own data goes (e.g. D:\\Dropbox\\DanceSportPlayer). Empty: next to the database.":
+        "<b>Carpeta de copias</b> — dónde va la copia diaria de los datos propios (p. ej. D:\\Dropbox\\DanceSportPlayer). Vacío: junto a la base de datos.",
     "♻  Restore user data backup…": "♻  Restaurar copia de los datos propios…",
     "Restore user data backup": "Restaurar copia de los datos propios",
     "Merge a daily backup of your tag edits, hand-set Paso Doble\n"
@@ -3772,9 +3787,9 @@ CATALOG = {
         "en cuanto lleva 10 segundos sonando, el momento en que su fila se vuelve gris.",
     "💾  Save as CSV…": "💾  Guardar como CSV…",
     "Save this evening as a table for Excel: date, start, artist, title,\n"
-    "dance, list and how long each title ran — e.g. for a GEMA report.":
+    "composer, dance, list and how long each title ran — e.g. for a GEMA report.":
         "Guarda esta noche como tabla para Excel: fecha, inicio, artista, título,\n"
-        "baile, lista y cuánto sonó cada título — p. ej. para un informe a la entidad de derechos.",
+        "compositor, baile, lista y cuánto sonó cada título — p. ej. para un informe a la entidad de derechos.",
     "🗑  Delete evening": "🗑  Borrar noche",
     "Delete evening": "Borrar noche",
     "%d title(s)": "%d título(s)",
@@ -4958,7 +4973,7 @@ CATALOG = {
     "⛔ %(ip)s refused — not on the local network":
         "⛔ %(ip)s rechazado — no está en la red local",
     "⚠ Could not start: %(detail)s": "⚠ No se pudo iniciar: %(detail)s",
-    "DancePlaylist remote": "Mando de DancePlaylist",
+    "DanceSport Player remote": "Mando de DanceSport Player",
     "Connect": "Conectar",
     "Wrong PIN": "PIN incorrecto",
     "Too many wrong PINs — wait a minute":
@@ -5267,4 +5282,138 @@ CATALOG = {
         "Mientras las peticiones están abiertas, la pantalla del presentador\nmuestra el código en su esquina — los invitados lo escanean desde la pista.",
     "refused":
         "rechazado",
+    "Music folder":
+        "Carpeta de música",
+    "Where is your dance music?":
+        "¿Dónde está tu música de baile?",
+    "Use this folder":
+        "Usar esta carpeta",
+    "Choose another folder…":
+        "Elegir otra carpeta…",
+    "Every start reads the MP3 files in this folder and in all\n"
+    "folders below it. The first start reads each file once,\n"
+    "which takes long on a whole drive or an external disk,\n"
+    "so pick the folder that holds your dance music.\n\n"
+    "Found: %s\n\n"
+    "You can change it at any time under ⚙ Settings → 📁 Paths.":
+        "Cada inicio lee los archivos MP3 de esta carpeta y de todas\n"
+        "las carpetas que contiene. El primer inicio lee cada archivo una vez,\n"
+        "lo que tarda mucho en una unidad entera o un disco externo,\n"
+        "así que elige la carpeta que contiene tu música de baile.\n\n"
+        "Encontrada: %s\n\n"
+        "Puedes cambiarlo en cualquier momento en ⚙ Ajustes → 📁 Rutas.",
+    "📦 Venue pack: this desk for another PC…":
+        "📦 Paquete de sala: esta mesa para otro PC…",
+    "One file with the settings, every deck and wishlist and the\n"
+    "cartwall, the music they use if you want: the same as\n"
+    "⚙ Settings → 📦 Venue pack → Export venue pack….":
+        "Un archivo con los ajustes, cada deck y lista de deseos y la\n"
+        "Cartwall, con la música que usan si quieres: lo mismo que\n"
+        "⚙ Ajustes → 📦 Paquete de sala → Exportar paquete de sala….",
+    "📚 Listing the library folder…":
+        "📚 Leyendo la carpeta de música…",
+    "📚 Library: %s / %s files":
+        "📚 Biblioteca: %s / %s archivos",
+    "📚 The library is still loading — this works once it is done.":
+        "📚 La biblioteca aún se está cargando; esto funciona cuando termine.",
+    "🎯  Focus playlist 1":
+        "🎯  Enfocar la lista de reproducción 1",
+    "🎯  Focus playlist 2":
+        "🎯  Enfocar la lista de reproducción 2",
+    "🎯  Focus playlist 3":
+        "🎯  Enfocar la lista de reproducción 3",
+    "🎯  Focus playlist 4":
+        "🎯  Enfocar la lista de reproducción 4",
+    "🎯  Focus playlist 5":
+        "🎯  Enfocar la lista de reproducción 5",
+    "🎯  Focus playlist 6":
+        "🎯  Enfocar la lista de reproducción 6",
+    "🎯  Focus playlist 7":
+        "🎯  Enfocar la lista de reproducción 7",
+    "🎯  Focus playlist 8":
+        "🎯  Enfocar la lista de reproducción 8",
+    "🎯  Focus wishlist 1":
+        "🎯  Enfocar la lista de deseos 1",
+    "🎯  Focus wishlist 2":
+        "🎯  Enfocar la lista de deseos 2",
+    "🎯  Focus wishlist 3":
+        "🎯  Enfocar la lista de deseos 3",
+    "🎯  Focus wishlist 4":
+        "🎯  Enfocar la lista de deseos 4",
+    "📚  Focus the library":
+        "📚  Enfocar la biblioteca",
+    "🔄  Browse the list (endless knob)":
+        "🔄  Recorrer la lista (mando sin fin)",
+    "⬆  Browse up":
+        "⬆  Subir en la lista",
+    "⬇  Browse down":
+        "⬇  Bajar en la lista",
+    "▶  Play the selected title":
+        "▶  Reproducir el título seleccionado",
+    "➕  Selected title to the playlist":
+        "➕  Título seleccionado a la lista de reproducción",
+    "⭐  Selected title to the wishlist":
+        "⭐  Título seleccionado a la lista de deseos",
+    "➕  This playlist takes a title only dragged onto a slot.":
+        "➕  Esta lista solo acepta un título arrastrado a una posición.",
+    "Warm-up list: swap the two selected titles of one dance":
+        "Lista de calentamiento: intercambiar los dos títulos seleccionados de un baile",
+    "Enter":
+        "Intro",
+    "Play / stop the selected song — in Playing mode also in the list playing, where Space pauses the player":
+        "Reproducir / detener el tema seleccionado — en modo Reproducción también en la lista que suena, donde Espacio pausa el reproductor",
+    "⏸ Library scan paused: %s / %s files":
+        "⏸ Escaneo de la biblioteca en pausa: %s / %s archivos",
+    "⏹ Stopping the library scan…":
+        "⏹ Deteniendo el escaneo de la biblioteca…",
+    "Pause the library scan":
+        "Pausar el escaneo de la biblioteca",
+    "Go on with the library scan":
+        "Continuar el escaneo de la biblioteca",
+    "Stop the library scan and use the titles read so far; the next start scans the rest":
+        "Detener el escaneo de la biblioteca y usar los temas leídos hasta ahora; el próximo inicio escanea el resto",
+    "⭐ Favorites":
+        "⭐ Favoritos",
+    "🌐 Whole library":
+        "🌐 Toda la biblioteca",
+    "⏳ Whole library…":
+        "⏳ Toda la biblioteca…",
+    "The whole library is still loading in the background.\nIt is listed here when it is there; keep working meanwhile.":
+        "Toda la biblioteca aún se está cargando en segundo plano.\nAparecerá aquí en cuanto esté lista; mientras tanto puedes seguir trabajando.",
+    "🌐 The whole library is still loading — it is listed when it is there.":
+        "🌐 Toda la biblioteca aún se está cargando — aparecerá en cuanto esté lista.",
+    "🌐 Loading the whole library…":
+        "🌐 Cargando toda la biblioteca…",
+    "🌐 Listing the whole library: %s / %s titles":
+        "🌐 Listando toda la biblioteca: %s / %s títulos",
+    "📚 Listing the library: %s / %s titles":
+        "📚 Listando la biblioteca: %s / %s títulos",
+    "Listing the whole music repository.\nClick to go back to the favorites library.":
+        "Muestra todo el repositorio de música.\nHaz clic para volver a la biblioteca de favoritos.",
+    "Listing the favorites library.\nClick to list the whole music repository instead.":
+        "Muestra la biblioteca de favoritos.\nHaz clic para mostrar todo el repositorio de música.",
+    '🔄  Scan repository for new titles':
+        '🔄  Buscar títulos nuevos en el repositorio',
+    'Walk the whole music repository folder and read the tags of new and\nchanged files, so 🌐 Whole library in the library pane and the global\nsearch know every title. No audio analysis; the scan runs in the\nbackground, its progress in the status bar.':
+        'Recorrer toda la carpeta del repositorio musical y leer las etiquetas de los\narchivos nuevos y modificados, para que 🌐 Toda la biblioteca en el panel de\nla biblioteca y la búsqueda global conozcan todos los títulos. Sin análisis\nde audio; el escaneo se ejecuta en segundo plano, su progreso en la barra de estado.',
+    'Scan the whole music repository again for new and changed titles.\nReads the tags only, no audio analysis; the progress shows in the\nstatus bar.':
+        'Volver a escanear todo el repositorio musical en busca de títulos nuevos y modificados.\nSolo lee las etiquetas, sin análisis de audio; el progreso aparece en la\nbarra de estado.',
+    '🌐 Repository: %s / %s files':
+        '🌐 Repositorio: %s / %s archivos',
+    'Go on with the repository scan':
+        'Continuar el escaneo del repositorio',
+    'Pause the repository scan':
+        'Pausar el escaneo del repositorio',
+    'Stop the repository scan and use the titles read so far; the next scan reads the rest':
+        'Detener el escaneo del repositorio y usar los títulos leídos hasta ahora; el próximo escaneo lee el resto',
+    '⏹ Stopping the repository scan…':
+        '⏹ Deteniendo el escaneo del repositorio…',
+    '⏸ Repository scan paused: %s / %s files':
+        '⏸ Escaneo del repositorio en pausa: %s / %s archivos',
+    '🌐 Listing the repository folder…':
+        '🌐 Listando la carpeta del repositorio…',
+    '🌐 The repository is being scanned already.':
+        '🌐 El repositorio ya se está escaneando.',
+    'Scan repository':
+        'Escanear repositorio',
 }

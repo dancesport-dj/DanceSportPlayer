@@ -34,6 +34,7 @@ from gui.common import (
     apply_taskbar_icon,
 )
 from gui.index_summary import index_summary
+from shared.widgets import _show_toast
 from gui.dialogs.settings_dialog import SettingsDialog
 from gui.dialogs import (  # auto-resolved
     SimilarTracksDialog,
@@ -84,22 +85,18 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
     MainWindow keeps importing this one name.
     """
 
-    def _on_library_loaded(self, lib: MusicLibrary, cache: AudioCache):
-        self._library.lib   = lib
+    def _on_cache_ready(self, cache: AudioCache):
+        """The audio cache is open, the library scan not yet started: bring the
+        last session back and open the window, then let the scan run.
+
+        A first start on a big ~/Music used to sit behind the splash for the
+        whole scan. Only what the window is unusable without happens in front
+        of it now: the playlist the last session was left on, each title read
+        from its own file (LibraryService.resolver). The scan follows behind
+        the open window, its progress in the status bar."""
         self._library.cache = cache
-        note_class_tag_use(lib.entries)   # 🏷 'No class' only where classes are used
         for t in self._deckset.all_tables:
             t._cache = cache   # enable chained drops in the similar-tracks dialog
-        n          = len(lib.entries)
-        comp       = sum(1 for e in lib.entries if e.dance is not None)
-        cached     = sum(1 for e in lib.entries if e.features is not None)
-
-        # Only what the window is unusable without happens in front of the
-        # splash: the playlist the last session was left on. Everything else —
-        # the browser list, the vocal learning, the counting of what is
-        # analyzed — used to run here too, and every second of it was a second
-        # of staring at a splash screen. It now runs behind the open window and
-        # says where it is in the status bar.
         self._loading_dlg.set_status("♻️  Restoring your last session…")
         QApplication.processEvents()   # keep the modal splash's bar pulsing
         self._restore_playlist()
@@ -112,11 +109,65 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         # HWND exists only now → push the app icon to the taskbar button so it
         # doesn't fall back to the generic Python icon after the splash closes.
         apply_taskbar_icon(self)
+        if self._library.load_bar is not None:
+            self._library.load_bar.start(self)
+        # Only now: the restore above writes fingerprints, and the scan's
+        # write transactions would have kept it waiting.
+        if self._library.loader is not None:
+            self._library.loader.go()
+
+    def _on_library_loaded(self, lib: MusicLibrary, cache: AudioCache):
+        self._library.lib   = lib
+        self._library.cache = cache
+        note_class_tag_use(lib.entries)   # 🏷 'No class' only where classes are used
+        n          = len(lib.entries)
+        comp       = sum(1 for e in lib.entries if e.dance is not None)
+        cached     = sum(1 for e in lib.entries if e.features is not None)
+        self._hand_over_library(lib)
+        if self._library.load_bar is not None:
+            self._library.load_bar.finish()
+        # The browser list, the vocal learning, the counting of what is
+        # analyzed: none of it needed to look at the playlist, so it runs
+        # step by step in the open window and says where it is.
         # An f-string is never a catalog key, so the hook on showMessage had
         # nothing to match and a German screen ended its startup in English.
         self._finish_library_load(
             lib, i18n.t("Library loaded — %s MP3 files, %s favorites songs, "
                         "%s audio cached.") % (n, comp, cached))
+
+    def _hand_over_library(self, lib: MusicLibrary):
+        """The decks were restored before the scan was done: their tracks get
+        what the library knows about them, and their suggesters, built on no
+        library at all, get this one."""
+        for t in self._deckset.all_tables:
+            entries = t._row_meta.entries()
+            for e in entries:
+                lib.adopt(e)
+            t.refresh_paths([e.path for e in entries])
+            if t._suggester is not None and t._suggester.lib is None:
+                t._suggester.lib = lib
+        # A wishlist shown, or a warm-up armed, during the scan got no
+        # suggester at all (both wire one only with a library), and a file
+        # dropped on it was "Couldn't read … as an audio track".
+        for t in self._deckset.all_tables:
+            if t._suggester is not None:
+                continue
+            if t in self._deckset.wishlists:
+                self._wire_wishlist(t)
+            else:
+                self._ensure_deck_ready(t)
+        if self._suggester is not None and self._suggester.lib is None:
+            self._suggester.lib = lib
+
+    def _library_still_loading(self) -> bool:
+        """True, and a toast saying so, while the library scan still runs —
+        for an action that works on the library."""
+        bar = self._library.load_bar
+        if bar is None or not bar.running:
+            return False
+        _show_toast(self, i18n.t("📚 The library is still loading — "
+                                 "this works once it is done."), 2500)
+        return True
 
     def _finish_library_load(self, lib: MusicLibrary, ready_msg: str):
         """The tail of the load, run in the open window instead of before it.
@@ -150,6 +201,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         def run(i: int = 0):
             if i >= len(steps):
                 self.statusBar().showMessage(ready_msg)
+                self._preload_global_lib()
                 return
             msg, fn = steps[i]
             self.statusBar().showMessage(msg)
@@ -214,14 +266,19 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         return i18n.t("🌐 Global index: not built (⚙ Settings to build)")
 
     def _on_library_error(self, msg: str):
-        self._loading_dlg.accept()   # accept() bypasses closeEvent
-        self.show()
-        apply_taskbar_icon(self)
+        if self._library.load_bar is not None and self._library.load_bar.running:
+            self._library.load_bar.finish()   # the window is open already
+        else:
+            self._loading_dlg.accept()   # accept() bypasses closeEvent
+            self.show()
+            apply_taskbar_icon(self)
         self._cfg.set_library_status(f"Error loading library:\n{msg}")
         self.statusBar().showMessage(i18n.t("Library error: %s") % msg)
         QMessageBox.critical(self, "Library Load Error", msg)
 
     def _on_file_dropped(self, path: str):
+        if self._library_still_loading():
+            return
         if not self._library.lib or not self._library.cache:
             return
         if not HAS_LIBROSA:
@@ -320,16 +377,104 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         # behind a small load window. (New / changed files need a ⚙ Settings rebuild.)
         if self._library.cache is not None and planner.music.scan_caches.global_index_count() > 0:
             if self._library.cache_loader and self._library.cache_loader.isRunning():
+                if (self._library.cache_loader is self._library.preloader
+                        and self._library.preload_busy is None):
+                    # The startup preload is at it: wait for that one, not a second.
+                    self._pending_drop = then_drop
+                    self._library.preload_busy = BusyDialog(
+                        self, "Loading repository from cache…")
+                    self._library.preload_busy.show_after(200)
                 return
             self._pending_drop = then_drop
             self._busy = BusyDialog(self, "Loading repository from cache…")
             self._busy.show_after(200)
-            self._library.cache_loader = GlobalCacheLoader(self._library.cache, self)
+            self._library.cache_loader = GlobalCacheLoader(self._library.cache, self,
+                                                           share_from=self._library.lib)
             self._library.cache_loader.done.connect(self._on_global_cache_loaded)
             self._library.cache_loader.error.connect(self._on_global_error)
             self._library.cache_loader.start()
             return
         self._start_global_scan(then_drop)
+
+    def _show_whole_library(self):
+        """🌐 in the library browser: list the global index, loading it first."""
+        lib = self._library.global_lib
+        if lib is None:
+            pre = self._library.preloader
+            if pre is not None and pre is self._library.cache_loader and pre.isRunning():
+                # The startup preload is at it: wait for that one without a
+                # dialog, the window stays usable (_on_global_preloaded lists it).
+                self._library.whole_waiting = True
+                self._lib_browser.show_whole_loading(True)
+                self.statusBar().showMessage(
+                    "🌐 The whole library is still loading — it is listed when it is there.")
+                return
+            self._ensure_global_lib(then_build=self._show_whole_library)
+            return
+        # Even when empty: loading again would just rescan the repository.
+        self._lib_browser.set_whole_entries(lib.entries)
+
+    def _rescan_repository(self, values: dict | None = None):
+        """🔄 Walk the whole repository again, tags only, behind the open window.
+
+        The cached index (`_ensure_global_lib`'s fast path) never walks the
+        folder, so what came to the repository since the last walk was missing
+        from 🌐 — 3.8k of 54k files. This is that walk without the librosa
+        pass, and like the startup scan its progress, pause and stop sit in the
+        status bar instead of a modal dialog: unchanged files are reused, but a
+        first walk reads tens of thousands of tags. `values`: ⚙ Settings'
+        current ones, which may name a folder not saved yet."""
+        if values is not None:
+            save_settings(values)
+            self._settings = values
+        if self._library_still_loading():
+            return
+        loader = self._library.global_loader
+        if loader is not None and loader.isRunning():
+            _show_toast(self, i18n.t("🌐 The repository is being scanned already."), 2500)
+            return
+        gdir = self._settings.get("global_dir")
+        if not gdir or not Path(gdir).exists():
+            QMessageBox.warning(
+                self, "Scan repository",
+                "Set a valid music repository folder in ⚙ Settings first.")
+            return
+        loader = GlobalLibraryLoader(self._library.cache, gdir, self,
+                                     share_from=self._library.lib)
+        self._library.global_loader = loader
+        loader.progress.connect(self._on_repository_scan_progress)
+        loader.done.connect(self._on_repository_rescanned)
+        loader.error.connect(self._on_repository_rescan_error)
+        bar = self._library.repo_bar
+        if bar is not None:
+            loader.cancelled.connect(bar.finish)
+            bar.start()
+        loader.start()
+
+    def _on_repository_scan_progress(self, done: int, total: int, _name: str, _reused: bool):
+        if self._library.repo_bar is not None:
+            self._library.repo_bar.set_progress(done, total)
+
+    def _on_repository_rescanned(self, lib: MusicLibrary):
+        if self._library.repo_bar is not None:
+            self._library.repo_bar.finish()
+        if self._library.lib is not None:
+            lib.share_playlist_index_from(self._library.lib)
+        self._library.global_lib = lib
+        # The favorites on screen stay there; 🌐 shows the new index next time.
+        if self._lib_browser.whole_shown:
+            self._lib_browser.set_whole_entries(lib.entries)
+        self._refresh_library_status()
+        n = len(lib.entries)
+        cached = sum(1 for e in lib.entries if e.features is not None)
+        self.statusBar().showMessage(
+            i18n.t("Global index: %s files, %s analyzed.") % (f"{n:,}", f"{cached:,}"))
+
+    def _on_repository_rescan_error(self, msg: str):
+        if self._library.repo_bar is not None:
+            self._library.repo_bar.finish()
+        self.statusBar().showMessage("Global index failed.")
+        QMessageBox.critical(self, "Global Index Error", msg)
 
     def _start_global_scan(self, then_drop: str | None = None):
         """Full repository walk (cold cache or explicit rebuild) with progress."""
@@ -340,7 +485,8 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         if self._library.global_loader and self._library.global_loader.isRunning():
             return
         self._busy = BusyDialog(self, "Indexing whole repository…", cancelable=True)
-        self._library.global_loader = GlobalLibraryLoader(self._library.cache, gdir, self)
+        self._library.global_loader = GlobalLibraryLoader(self._library.cache, gdir, self,
+                                                          share_from=self._library.lib)
         self._busy.cancel_requested.connect(self._library.global_loader.cancel)
         self._busy.show_after(300)
         self._library.global_loader.progress.connect(self._on_global_scan_progress)
@@ -349,9 +495,71 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         self._library.global_loader.cancelled.connect(self._on_global_cancelled)
         self._library.global_loader.start()
 
+    def _preload_global_lib(self):
+        """🌐 After startup: load the whole library from the cache in the
+        background, so the first 🌐 / global search finds it ready instead of
+        waiting 12-15 s behind a dialog (46k titles). A repository never
+        walked is left alone: that walk is minutes, and stays a click."""
+        lib = self._library
+        if lib.global_lib is not None or lib.cache is None or lib.lib is None:
+            return
+        if any(t is not None and t.isRunning() for t in (lib.cache_loader, lib.global_loader)):
+            return
+        gdir = self._settings.get("global_dir")
+        if not gdir or not Path(gdir).exists():
+            return
+        if planner.music.scan_caches.global_index_count() == 0:
+            return
+        self._pending_drop = None   # no load runs, so nothing waits yet
+        self._pending_after_global = None
+        loader = GlobalCacheLoader(lib.cache, self, share_from=lib.lib)
+        lib.cache_loader = lib.preloader = loader
+        loader.done.connect(self._on_global_preloaded)
+        loader.error.connect(self._on_global_preload_error)
+        loader.start()
+
+    def _on_global_preloaded(self, lib: MusicLibrary):
+        busy, self._library.preload_busy = self._library.preload_busy, None
+        whole, self._library.whole_waiting = self._library.whole_waiting, False
+        if whole:
+            self._lib_browser.show_whole_loading(False)
+        if busy is not None:
+            busy.finish()   # someone asked meanwhile: theirs, as if they had loaded it
+        elif not lib.entries and whole and self._library.global_lib is None:
+            # 🌐 waited for an empty index: walk, as its click would have.
+            self._pending_after_global = self._show_whole_library
+            self._start_global_scan()
+            return
+        elif not lib.entries or self._library.global_lib is not None:
+            # No walk unasked, and a 🔄 finished first is newer.
+            if whole and self._library.global_lib is not None:
+                self._lib_browser.set_whole_entries(self._library.global_lib.entries)
+            return
+        self._use_cached_global(lib)
+        if whole and self._library.global_lib is not None:
+            self._lib_browser.set_whole_entries(self._library.global_lib.entries)
+
+    def _on_global_preload_error(self, msg: str):
+        log.warning("🌐 Loading the whole library in the background failed:\n%s", msg)
+        busy, self._library.preload_busy = self._library.preload_busy, None
+        whole, self._library.whole_waiting = self._library.whole_waiting, False
+        if whole:
+            self._lib_browser.show_whole_loading(False)
+        if busy is None and not whole:
+            return   # nobody waited for it; the next 🌐 loads it again
+        if busy is not None:
+            busy.finish()
+        self._pending_drop = None
+        self._pending_after_global = None
+        self.statusBar().showMessage("Global index failed.")
+        QMessageBox.critical(self, "Global Index Error", msg)
+
     def _on_global_cache_loaded(self, lib: MusicLibrary):
         if self._busy:
             self._busy.finish()
+        self._use_cached_global(lib)
+
+    def _use_cached_global(self, lib: MusicLibrary):
         # Cold / empty cache → fall back to a full scan.
         if not lib.entries:
             self._start_global_scan(self._pending_drop)
@@ -436,7 +644,8 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         if self._library.global_loader and self._library.global_loader.isRunning():
             return
         self._busy = BusyDialog(self, "Scanning repository…", cancelable=True)
-        self._library.global_loader = GlobalLibraryLoader(self._library.cache, gdir, self)
+        self._library.global_loader = GlobalLibraryLoader(self._library.cache, gdir, self,
+                                                          share_from=self._library.lib)
         self._busy.cancel_requested.connect(self._library.global_loader.cancel)
         self._busy.show_after(300)
         self._library.global_loader.progress.connect(self._on_global_scan_progress)
@@ -490,6 +699,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
                              all_cb=self._build_all_caches,
                              maintenance_cb=self._run_db_maintenance,
                              relearn_cb=self._relearn_playlists,
+                             rescan_cb=self._rescan_repository,
                              analyze_cb=self._analyze_audio,
                              loudness_cb=self._analyze_loudness,
                              silence_cb=self._analyze_silences,
@@ -550,6 +760,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         if "presenter_theme" in edited:   # 🖥 an open presenter repaints at once
             self._theme_presenter(edited["presenter_theme"])
         error_reports.apply_settings(new)   # 🐞 on or off at once, no restart
+        planner.music.db_upkeep.apply_settings(new)   # 💾 the next backup goes there
         if mode_changed:
             # Only visibility — no restart needed, both sides stay wired up.
             self._apply_app_mode()
@@ -752,6 +963,8 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
 
     def _relearn_playlists(self):
         """📜 Rebuild playlist popularity from the M3U folder — no library rescan."""
+        if self._library_still_loading():
+            return
         if self._library.lib is None:
             QMessageBox.information(self, "Re-learn playlists",
                                     "The library is still loading — try again in a moment.")

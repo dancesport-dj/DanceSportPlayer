@@ -10,6 +10,18 @@ in the toolbar. Drag the splitter above it to give it more room.
 The whole Favorites library as one sortable table. Filter it, then drag
 titles into a deck, the Party panel or a wishlist.
 
+**⭐ Favorites** in the header switches the table to **🌐 Whole library**:
+every file in the *Whole music repository* folder from ⚙ Settings. The
+first switch loads that index, which can take a moment: the table shows
+**🌐 Loading the whole library…** meanwhile, and then counts the titles at
+its foot while it lists them. Click it again to go back.
+
+That index is only as fresh as the last walk of the folder. When titles are
+missing, **🔄** next to 🌐 (or **🔄 Scan repository for new titles** under
+⚙ Settings → 📁 Paths) walks it again. It reads only the tags of new and
+changed files, no audio analysis, and runs in the background: its progress,
+⏸ pause and ⏹ stop sit in the status bar, like the scan on start.
+
 ![The library browser](img/library.png)
 
 | Filter | Shows |

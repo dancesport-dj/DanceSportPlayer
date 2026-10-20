@@ -10,7 +10,7 @@ import re
 from shared.appearance.iconset import SVG
 
 DEFAULT_LABELS = {
-    "title": "DancePlaylist remote",
+    "title": "DanceSport Player remote",
     "pin": "PIN",
     "enter": "Connect",
     "wrong": "Wrong PIN",

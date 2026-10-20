@@ -21,6 +21,7 @@ import planner.music.db as pdb
 from gui.window.main_analyze import AnalysisMixin
 from gui.window.main_decks import DeckLayoutMixin
 from gui.window.main_music import MusicCheckMixin
+from planner.music.vocals import apply_vocal_shares
 from tests.db_support import use_scratch_db
 
 
@@ -121,6 +122,20 @@ class EditHooksTest(_ScratchCache):
         calls = self.stats()
         DeckLayoutMixin._refresh_library_planned_filter(win)
         win._lib_browser.set_planned_paths.assert_called_once_with(set())
+        self.assertEqual(calls, [])
+
+
+class StartupVocalSharesTest(_ScratchCache):
+    """The first step behind the freshly opened window hands every library
+    track its measured vocal share — a stat per track (3,655 of them, 0.19 s
+    of a frozen window) for files the scan fingerprinted a moment earlier."""
+
+    def test_the_vocal_shares_are_applied_without_a_stat(self):
+        self.cache.put_vocal_share(self.tracks[0], 0.02)
+        entries = [SimpleNamespace(path=p, vocal_share=None) for p in self.tracks]
+        calls = self.stats()
+        self.assertEqual(apply_vocal_shares(entries, self.cache), 1)
+        self.assertEqual([e.vocal_share for e in entries], [0.02, None])
         self.assertEqual(calls, [])
 
 

@@ -260,6 +260,27 @@ class ResumeMarkTest(unittest.TestCase):
         w._resume.at[str(TRACK)] = 63_000
         self.assertIsNone(w._resume_mark_for(TRACK))
 
+    def test_a_preloaded_title_is_picked_up_at_once(self):
+        """⏩ A pause or a 🔀 crossfade opens the next title ahead: its
+        LoadedMedia came before the load asked for the seek, so the load does
+        the seek itself — else it would land on the title after."""
+        from PySide6.QtMultimedia import QMediaPlayer
+        w = self.Win()
+        w._player.mediaStatus = lambda: QMediaPlayer.MediaStatus.LoadedMedia
+        w._resume_seek_ms = 63_000
+        w._seek_preloaded()
+        self.assertEqual(w._player.seeks, [63_000])
+        self.assertIsNone(w._resume_seek_ms)
+
+    def test_a_title_still_opening_waits_for_its_status(self):
+        from PySide6.QtMultimedia import QMediaPlayer
+        w = self.Win()
+        w._player.mediaStatus = lambda: QMediaPlayer.MediaStatus.LoadingMedia
+        w._resume_seek_ms = 63_000
+        w._seek_preloaded()
+        self.assertEqual(w._player.seeks, [])
+        self.assertEqual(w._resume_seek_ms, 63_000)
+
     def test_loading_a_title_leaves_its_badge_alone(self):
         """A double-click only loads: the playhead parks on the mark, and
         looking at a title must not cost the place in it."""

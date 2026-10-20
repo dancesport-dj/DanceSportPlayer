@@ -34,7 +34,7 @@ class _Cache:
         self._pd_hl = {"FC": 42.0}
         self.queries = 0
 
-    def known_fingerprint(self, path):
+    def recorded_fingerprint(self, path):
         return self._fp.get(Path(path).name)
 
     def audio_fp_keys(self):
@@ -67,6 +67,60 @@ class CoverageCountsTest(unittest.TestCase):
                                     {"FB"})
         self.assertEqual(got["audiofp"], 1)
         self.assertEqual(cache.queries, 0)
+
+
+class NoStatTest(unittest.TestCase):
+    """The real cache counts without asking the disk.
+
+    `known_fingerprint` builds its key from the file's mtime, a stat each: the
+    status refresh after the whole library had loaded stat'ed 54 368 files
+    twice on the GUI thread, a 10 s freeze right when 🌐 was clicked.
+    """
+
+    def setUp(self):
+        cache = AudioCache.__new__(AudioCache)
+        cache.listed_mtimes = {}
+        cache._fp = {}
+        cache._path_key = {}
+        for name, fp in (("a", "FA"), ("b", "FB")):
+            key = f"{Path('x', name + '.mp3')}::123"
+            cache._fp[key] = fp
+            cache._path_key[str(Path("x", name + ".mp3"))] = key
+        cache._lufs = {"FA": -14.0}
+        cache._silences = {"FB": []}
+        cache._pd_hl = {}
+        self.cache = cache
+        self.paths = [Path("x/a.mp3"), Path("x/b.mp3"), Path("x/never_seen.mp3")]
+        self.stats = []
+        real_stat = Path.stat
+
+        def counting_stat(path, *a, **kw):
+            self.stats.append(path)
+            return real_stat(path, *a, **kw)
+        patcher = mock.patch.object(Path, "stat", counting_stat)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_coverage_counts_stat_no_file(self):
+        got = self.cache.coverage_counts(self.paths, {"FA", "FB"})
+        self.assertEqual(got, {"audiofp": 2, "loudness": 1, "silences": 1, "pd": 0})
+        self.assertEqual(self.stats, [])
+
+    def test_the_status_summary_stats_no_file(self):
+        from gui.index_summary import index_summary
+
+        class _Lib:
+            entries = [types.SimpleNamespace(path=p, features=None, dance="SA")
+                       for p in self.paths]
+
+        store = types.SimpleNamespace(fps=lambda model: {"FA"})
+        cache = self.cache
+        cache.audio_fp_keys = lambda: {"FA"}
+        with mock.patch.object(ae, "mert_available", return_value=True), \
+                mock.patch.object(ae, "chroma_available", return_value=True):
+            summ = index_summary(cache, store, None, _Lib())
+        self.assertIn("1/3", summ["mert"])
+        self.assertEqual(self.stats, [])
 
 
 class EmbeddingFpsTest(unittest.TestCase):

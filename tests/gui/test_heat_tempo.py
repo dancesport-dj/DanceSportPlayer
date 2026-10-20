@@ -164,6 +164,8 @@ class SuspectProgressTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         class Win(_FakeWindow, _import_mixin()):
+            _library = SimpleNamespace(cache=None)   # no probes to start
+
             def __init__(self, tables):
                 self._tables = tables
 

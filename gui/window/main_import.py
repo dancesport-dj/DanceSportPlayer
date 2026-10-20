@@ -89,6 +89,8 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
     def _import_dropped_playlist(self, table: PlaylistTable, path):
         """A .m3u dropped onto a deck → focus that deck, then import the file into it
         (same detection as the 📂 Import M3U button, which targets the focused deck)."""
+        if self._library_still_loading():
+            return
         if not self._library.lib:
             QMessageBox.information(self, "Import M3U",
                                    "Load the music library first.")
@@ -316,6 +318,8 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
 
         `report=False` holds the 🧭 path report back for the caller to show once
         (see `_import_m3u_multi`), instead of a dialog per file."""
+        if self._library_still_loading():
+            return
         if not self._library.lib:
             return
         self._stash_active_replay()   # preserve any worked competition grid first

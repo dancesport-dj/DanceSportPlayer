@@ -62,6 +62,12 @@ _DANCE_SECS = {"LW": 90, "TG": 97, "WW": 90, "SF": 97, "QS": 90,
 # cannot ride along in `apply_play_set` — it IS stored in the same set, though.
 _SET_TSO = {"party": False, "tournament": True}
 
+# ❓ …and whether a double-click on another title asks before it stops the one
+# playing: on in both, a stray click cuts the floor at a party as at a heat.
+# Kept out of the dicts above like the TSO pitch: Marcel wants no switch for it
+# on the panel, so `apply_play_set` has no place for it. Stored in the same set.
+_SET_ASK = {"party": True, "tournament": True}
+
 # 🐂 …and the Paso Doble of a heat: no stop at the highlight — Marcel: "it can
 # be buggy", and a heat stopped in the wrong bar is danced twice — after the
 # 2nd once switched on, and no 'Start after' wait, the chairman's call being
@@ -222,6 +228,14 @@ def tso_of(settings: dict, which: str) -> bool:
     stored = settings.get(_SET_KEYS[which][0])
     stored = stored if isinstance(stored, dict) else {}
     return bool(stored.get("tso", _SET_TSO[which]))
+
+
+def dblclick_ask_of(settings: dict, which: str) -> bool:
+    """❓ Whether the set asks before a double-click stops the playing title —
+    ⚙ Settings → 🎛 Play sets. Read apart from `play_set_of`, like `tso_of`."""
+    stored = settings.get(_SET_KEYS[which][0])
+    stored = stored if isinstance(stored, dict) else {}
+    return bool(stored.get("dblclick_ask", _SET_ASK[which]))
 
 
 def pd_of(settings: dict, which: str = "tournament") -> dict:

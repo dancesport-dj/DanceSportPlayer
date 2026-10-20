@@ -167,6 +167,9 @@ einzigen Daten, die keine Analyse wiederfindet, deshalb sichert die App sie
 selbst: beim ersten Start jedes Tages schreibt sie eine kleine Datei in den
 Ordner `backups` neben ihrer Datenbank, bringt sie beim Beenden auf den
 neuesten Stand und hebt die letzten sieben auf.
+**Sicherungsordner** legt sie stattdessen woanders ab, etwa in einem
+Dropbox-Ordner, damit sie nicht nur auf diesem PC liegen; jeder PC schreibt in
+einen eigenen Unterordner mit seinem Namen.
 **♻ Sicherung der eigenen Daten zurückholen…** spielt eine davon wieder ein;
 sie wirkt nach einem Neustart.
 
@@ -201,7 +204,8 @@ Für jedes Set:
   eingeschaltet mit 4 s und gleicher Leistung.
 - **⏭ Automatisch zum nächsten Titel**,
   **⏸ Keine Pause zwischen den Titeln**, **🔈 Nächsten Tanz ansagen**,
-  **🔊 Lautstärke angleichen**, **▶️ Doppelklick startet den Titel** und
+  **🔊 Lautstärke angleichen**, **▶️ Doppelklick startet den Titel**,
+  **❓ Fragen, bevor ein Doppelklick den Titel anhält** und
   **🎚 TSO: auf den Takt der Gruppe ziehen**.
 
 Das Turnier-Set hat außerdem **⏱ Pro Tanz**: eine Dauer je Tanz. Lass einen Tanz
@@ -235,7 +239,9 @@ ihren Pads und Tasten. Wenn du willst, kommt auch die Musik mit, die sie
 benutzen.
 
 - **📦 Hallenpaket exportieren…** schreibt die Datei. Ein Fortschrittsfenster
-  zeigt, wie weit es ist, und kann abbrechen.
+  zeigt, wie weit es ist, und kann abbrechen. Vorgeschlagen wird
+  `venue-<Datum>.dpvenue`, oder `venue-<Datum>-with-music.dpvenue`, wenn die
+  Musik mit hineinkommt.
 - **📥 Hallenpaket importieren…** lädt es auf dem anderen PC. Es übernimmt
   Einstellungen, Decks und Cartwall beim nächsten Start; was es ersetzt, wird
   in einem Ordner `before-venue-import` daneben aufgehoben. Musik im Paket

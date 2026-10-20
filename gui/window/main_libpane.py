@@ -7,6 +7,8 @@ names) for every list of that kind, plus the tempo-reset and TSO toggles.
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from PySide6.QtCore import Qt
+
 from planner import i18n
 from planner.playlist.planned import is_planned
 from planner.terms import dance_name
@@ -44,6 +46,16 @@ class LibraryPaneMixin(MainWindowHost):
             % (dance_name(dance, dance) or i18n.t("all dances"))
             + (i18n.t(" · class %s") % cls if cls else "")
             + (i18n.t(" · never played") if plays == "never" else ""))
+
+    def _focus_library(self):
+        """📚 A controller's focus button: the library pane comes on screen,
+        unfolded, and takes the keyboard, so browsing and Space work in it."""
+        if not self._lib_btn.isChecked():
+            self._lib_btn.setChecked(True)   # fires _on_library_pane_toggled
+        self._lib_tabs.setCurrentWidget(self._lib_browser)
+        if self._lib_browser.is_folded():
+            self._lib_browser.set_folded(False)
+        self._lib_browser._table.setFocus(Qt.FocusReason.ShortcutFocusReason)
 
     def _on_lib_columns_reordered(self, order: list):
         self._settings["library_columns"] = list(order)

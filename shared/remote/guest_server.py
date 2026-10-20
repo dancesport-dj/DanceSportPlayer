@@ -105,7 +105,7 @@ class _Server(ThreadingHTTPServer):
 
 
 class _Handler(BaseHTTPRequestHandler):
-    server_version = "DancePlaylistGuests"
+    server_version = "DanceSportPlayerGuests"
     sys_version = ""
     timeout = _IDLE_SECS
 

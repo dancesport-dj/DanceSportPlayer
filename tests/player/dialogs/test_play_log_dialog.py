@@ -34,7 +34,8 @@ class PlayLogDialogTest(unittest.TestCase):
 
     def fill(self):
         for when, title in ((at(3, 20, 0), "a"), (at(3, 20, 3), "b"), (at(5, 19, 0), "c")):
-            play_log.record(when, rf"C:\m\{title}.mp3", "Artist", title, "LW", "Deck A", 180)
+            play_log.record(when, rf"C:\m\{title}.mp3", "Artist", title, "LW", "Deck A", 180,
+                            composer="Composer " + title)
 
     def dialog(self):
         dlg = PlayLogDialog()
@@ -49,7 +50,8 @@ class PlayLogDialogTest(unittest.TestCase):
         dlg.evening_list.setCurrentRow(1)
         titles = [dlg.plays_table.item(r, 2).text() for r in range(dlg.plays_table.rowCount())]
         self.assertEqual(titles, ["a", "b"])
-        self.assertEqual(dlg.plays_table.item(0, 5).text(), "3:00")
+        self.assertEqual(dlg.plays_table.item(0, 3).text(), "Composer a")
+        self.assertEqual(dlg.plays_table.item(0, 6).text(), "3:00")
 
     def test_save_as_csv_writes_the_selected_evening(self):
         self.fill()

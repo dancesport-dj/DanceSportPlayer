@@ -61,6 +61,16 @@ class RegistryTest(unittest.TestCase):
         self.assertEqual(pctl.key_clashes(keys), {},
                          "no default takes a key the app answers to")
 
+    def test_the_warm_up_lists_swap_key_is_the_apps(self):
+        """Alt+S swaps two titles in the warm-up list; a desk key on it would
+        take it from the list (⭐ to the wishlist had it at first)."""
+        self.assertIn("Alt+S", pctl.RESERVED_KEYS)
+
+    def test_enter_plays_the_selection_in_the_lists(self):
+        """Both Enter keys: the main one and the keypad's."""
+        self.assertIn("Return", pctl.RESERVED_KEYS)
+        self.assertIn("Enter", pctl.RESERVED_KEYS)
+
     def test_a_saved_key_wins_and_an_empty_one_unbinds(self):
         keys = pctl.desk_keys({"fade": "F13", "next": ""})
         self.assertEqual(keys["fade"], ["F13"])
@@ -164,6 +174,12 @@ class WindowKeysTest(_WindowTest):
         self.win._desk_keys["fade"].activated.emit()
         self.assertEqual(done, ["fade"])
 
+    def test_a_focus_key_brings_its_list_in_front(self):
+        self.assertEqual(self.win._desk_keys["deck:3"].key(), QKeySequence("Alt+3"))
+        self.win._focus_list = mock.Mock()
+        self.win._desk_keys["wish:2"].activated.emit()
+        self.win._focus_list.assert_called_once_with("wish", 2)
+
     def test_only_the_volume_and_tempo_steps_repeat(self):
         """A held ⏭ throws titles away; a held volume or tempo key is a glide."""
         for action, sc in self.win._desk_keys.items():
@@ -260,6 +276,11 @@ class DialogTest(unittest.TestCase):
 
     def test_a_row_per_action(self):
         self.assertEqual(set(self._dialog({})._pickers), set(pctl.KEY_ACTIONS))
+
+    def test_the_list_scrolls_rather_than_outgrow_a_laptop_screen(self):
+        """Twenty-five rows would ask for ~800 px before the tabs and the
+        buttons; a 768 px screen has to hold the whole window."""
+        self.assertLessEqual(self._dialog({}).minimumSizeHint().height(), 520)
 
     def test_restore_defaults(self):
         dlg = self._dialog({"fade": "F13", "next": ""})

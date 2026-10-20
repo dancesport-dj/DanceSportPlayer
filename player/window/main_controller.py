@@ -15,14 +15,16 @@ import logging
 import threading
 from functools import partial
 
-from PySide6.QtCore import QObject, Qt, QTimer, Signal
-from PySide6.QtGui import QKeySequence, QShortcut
-from PySide6.QtWidgets import QDialog, QPushButton
+from PySide6.QtCore import QEvent, QMimeData, QObject, QPointF, Qt, QTimer, QUrl, Signal
+from PySide6.QtGui import QDropEvent, QKeyEvent, QKeySequence, QShortcut
+from PySide6.QtWidgets import QApplication, QDialog, QPushButton
 
+from planner import i18n
 from planner.playing import cartwall as pc
 from planner.playing import controller as pctl
 from shared.controllers import hid_input, midi_input
 from shared.stores import save_settings
+from shared.widgets import _show_toast
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -339,6 +341,13 @@ class ControllerMixin(MainWindowHost):
             self._set_desk_duck(self._mix.desk == 1.0)
         elif action.startswith("pad:"):
             self._fire_controller_pad(int(action[4:]) - 1)
+        elif action.startswith(("deck:", "wish:")):
+            kind, n = action.split(":")
+            self._focus_list(kind, int(n))
+        elif action == "lib":
+            self._focus_library()
+        elif action.startswith(("browse", "pick_")):
+            self._browse_action(action, value)
         else:
             self._on_remote_command(action, None)
 
@@ -404,3 +413,71 @@ class ControllerMixin(MainWindowHost):
             return
         if cells[slot] in pages[page].pads:
             wall.play_pad((page, *cells[slot]))
+
+    # ── 🔄 Browsing a list ───────────────────────────────────────────────────
+
+    def _browse_action(self, action: str, value: float):
+        """⬆ ⬇ and the endless knob move the selection and ▶ plays it: the
+        arrow keys and Enter, sent to the list, so each list does what the
+        keyboard does there. Not Space: in Playing mode the window keeps it
+        for play / pause in the list playing. ➕ and ⭐ put the selected title
+        at the end of the active playlist or the wishlist, as if it were
+        dragged there."""
+        t = self._browse_list()
+        if action == "pick_play":
+            self._send_key(t, Qt.Key.Key_Return)
+        elif action.startswith("pick_"):
+            self._pick_to(t, wish=action == "pick_wish")
+        else:
+            steps = (pctl.encoder_steps(value) if action == "browse"
+                     else -1 if action == "browse_up" else 1)
+            key = Qt.Key.Key_Down if steps > 0 else Qt.Key.Key_Up
+            for _ in range(abs(steps)):
+                self._send_key(t, key)
+
+    def _browse_list(self):
+        """The list holding the keyboard (a deck, a wishlist, the 📚 library),
+        else the active one, which takes the keyboard now."""
+        w = self.focusWidget()
+        if w is self._lib_browser._table or w in self._deckset.all_tables:
+            return w
+        t = self._focused_table
+        t.setFocus(Qt.FocusReason.ShortcutFocusReason)
+        return t
+
+    @staticmethod
+    def _send_key(widget, key):
+        QApplication.sendEvent(widget, QKeyEvent(QEvent.Type.KeyPress, key,
+                                                 Qt.KeyboardModifier.NoModifier))
+
+    def _pick_to(self, source, wish: bool):
+        """The title selected in `source` dropped at the end of the active
+        playlist, or of the wishlist focused last (the first if none was)."""
+        if source is self._lib_browser._table:
+            path = self._lib_browser._row_path(source.currentRow())
+        else:
+            _row, path = source._selected_song_row()
+        if path is None:
+            return
+        if wish:
+            last = self._focused_table
+            target = last if last in self._deckset.wishlists else self._deckset.wishlists[0]
+            self._show_wishlist(target)
+        else:
+            target = self._deckset.table
+        if target is source:
+            return
+        log.info("🎛 Picked title\n"
+                 "title: %s\n"
+                 "to: %s", path, self.deck(target).default_name)
+        mime = QMimeData()
+        mime.setUrls([QUrl.fromLocalFile(str(path))])
+        # Below the last row: the end of the list.
+        drop = QDropEvent(QPointF(5, target.viewport().height() + 10_000),
+                          Qt.DropAction.CopyAction, mime,
+                          Qt.MouseButton.NoButton, Qt.KeyboardModifier.NoModifier)
+        target.dropEvent(drop)
+        if not drop.isAccepted():
+            # A planned draw takes a title only into a slot of its dance.
+            _show_toast(self, i18n.t("➕  This playlist takes a title only "
+                                     "dragged onto a slot."), 3000)

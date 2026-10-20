@@ -3,12 +3,17 @@
 Extracted from dancesport_gui.py (view split): LibraryBrowser plus its small
 table/item subclasses (_LibTable, _LibSortItem, _LibPlayItem).
 """
+import gc
 import logging
 import time
 from datetime import date
 
 from PySide6.QtCore import (
+    QEvent,
+    QItemSelection,
+    QItemSelectionModel,
     QMimeData,
+    QSize,
     QTimer,
     QUrl,
     Qt,
@@ -22,19 +27,23 @@ from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QComboBox,
+    QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
     QLineEdit,
     QMenu,
+    QProgressBar,
     QTableWidget,
     QTableWidgetItem,
     QToolButton,
+    QToolTip,
     QVBoxLayout,
     QWidget,
 )
 from pathlib import Path
 from collections.abc import Callable
+from typing import Any
 from planner.models import DANCE_NAMES, TEMPO_RANGES, MusicEntry
 from planner.terms import dance_name, genre_name
 from planner import i18n
@@ -80,6 +89,21 @@ _LIB_COL_RATING = 10   # ★ came last: the sections are movable, a saved order 
 _LIB_COL_CUSTOM = 11   # …and Custom after it
 _LIB_COL_FILE = 12     # …and the cleaned-up file name after that
 
+# 📚 A fill writes this many rows at once (a filtered list is all there before
+# the call returns), then the rest in chunks between turns of the event loop,
+# as many per turn as fit in the budget (seconds).
+_FILL_FIRST = 500
+_FILL_CHUNK = 250
+_FILL_BUDGET = 0.025
+# A fill still running after this long shows its count at the table's foot;
+# a short one (the favorites) never flashes it.
+_PROGRESS_AFTER = 0.3
+
+
+def _classes_label(e: MusicEntry) -> str:
+    classes = getattr(e, "classes_ok", None) or []
+    return f"[{','.join(classes)}]" if classes else ""
+
 
 class _LibSortItem(QTableWidgetItem):
     """Sorts by the numeric UserRole payload (text comparison as fallback)."""
@@ -102,6 +126,88 @@ class _LibPlayItem(QTableWidgetItem):
         return str(a or "") < str(b or "")
 
 
+class _LoadOverlay(QFrame):
+    """What the browser is loading, on top of its table.
+
+    While the whole library loads it covers the table: the favorites under it
+    are not what was asked for. While the rows are written it is a strip at
+    the table's foot, and clicks go through to the rows above. Either way the
+    rest of the window keeps working."""
+
+    def __init__(self, table: QTableWidget):
+        super().__init__(table)
+        self._view = table
+        self.setObjectName("LibLoadOverlay")
+        self.setAutoFillBackground(True)
+        self.setStyleSheet("QFrame#LibLoadOverlay { background: palette(base);"
+                           " border-top: 1px solid palette(mid); }")
+        self.label = QLabel(self)
+        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.bar = QProgressBar(self)
+        self.bar.setTextVisible(False)
+        self.bar.setMaximumHeight(12)
+        # The stretches centre the two in the cover and take no room in the strip.
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(12, 4, 12, 6)
+        lay.addStretch(1)
+        lay.addWidget(self.label)
+        lay.addWidget(self.bar, 0, Qt.AlignmentFlag.AlignHCenter)
+        lay.addStretch(1)
+        self.covering = False
+        self.hide()
+
+    def show_loading(self, text: str):
+        """Cover the table, with a busy bar: the loader tells no count."""
+        self.covering = True
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
+        self.label.setText(text)
+        self.bar.setRange(0, 0)
+        self.bar.setFixedWidth(260)
+        self.place()
+        self.show()
+        self.raise_()
+
+    def show_progress(self, text: str, done: int, total: int):
+        """The strip at the foot, unless the table is covered."""
+        if self.covering:
+            return
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.label.setText(text)
+        self.bar.setRange(0, total)
+        self.bar.setValue(done)
+        self.place()
+        self.show()
+        self.raise_()
+
+    def finish(self, covering: bool):
+        """Hide the cover (`covering`) or the strip, whichever is up."""
+        if covering == self.covering:
+            self.covering = False
+            self.hide()
+
+    def place(self):
+        vp = self._view.viewport().geometry()
+        if self.covering:
+            self.setGeometry(vp)
+            return
+        self.bar.setFixedWidth(max(60, vp.width() - 24))
+        h = self.sizeHint().height()
+        self.setGeometry(vp.x(), vp.y() + vp.height() - h, vp.width(), h)
+
+
+class _HdrButton(QToolButton):
+    """A header button as wide as its text plus the QSS padding: QToolButton's
+    own size hint adds ~12 px of air on top, too wide next to the title."""
+
+    def sizeHint(self):
+        # 4 px padding + 1 px border per side, +1 so a glyph's overhang isn't clipped
+        return QSize(self.fontMetrics().horizontalAdvance(self.text()) + 11,
+                     super().sizeHint().height())
+
+    def minimumSizeHint(self):
+        return self.sizeHint()
+
+
 class _LibTable(QTableWidget):
     """Read-only library list whose rows drag out as file URLs — dropping one
     on a deck/wishlist behaves exactly like a file dragged in from Explorer."""
@@ -110,11 +216,25 @@ class _LibTable(QTableWidget):
     seek_cb: Callable[[int], None] | None = None    # set by MainWindow
     context_menu_cb: Callable | None = None         # set by LibraryBrowser
     resize_cb: Callable | None = None               # set by LibraryBrowser
+    tooltip_cb: Callable[[int, int], str] | None = None   # set by LibraryBrowser
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
         if self.resize_cb is not None:
             self.resize_cb()
+
+    def viewportEvent(self, event):
+        # A cell's hover text is built when the mouse rests on it, not stored on
+        # every item at fill time: that was ~9 s of a 54 000-title fill. A cell
+        # without one falls through to Qt, which shows the table's own help.
+        if event.type() == QEvent.Type.ToolTip and self.tooltip_cb is not None:
+            index = self.indexAt(event.pos())
+            text = self.tooltip_cb(index.row(), index.column()) if index.isValid() else ""
+            if text:
+                QToolTip.showText(event.globalPos(), text, self.viewport(),
+                                  self.visualRect(index))
+                return True
+        return super().viewportEvent(event)
 
     def contextMenuEvent(self, event):
         # Override the widget event directly — a viewport
@@ -126,11 +246,12 @@ class _LibTable(QTableWidget):
             super().contextMenuEvent(event)
 
     def keyPressEvent(self, event):
-        """Space: play/stop the selected library row; Ctrl+←/→: seek ∓30 s —
-        same shortcuts as in the decks."""
+        """Space / Enter: play/stop the selected library row; Ctrl+←/→: seek
+        ∓30 s — same shortcuts as in the decks."""
         key = event.key()
-        if (key == Qt.Key.Key_Space
-                and event.modifiers() == Qt.KeyboardModifier.NoModifier
+        if (key in (Qt.Key.Key_Space, Qt.Key.Key_Return, Qt.Key.Key_Enter)
+                and event.modifiers() in (Qt.KeyboardModifier.NoModifier,
+                                          Qt.KeyboardModifier.KeypadModifier)
                 and self.space_cb is not None):
             row = self.currentRow()
             if row >= 0:
@@ -227,6 +348,8 @@ class LibraryBrowser(QWidget):
     columnsChanged = Signal(list)         # columns ticked away — persisted
     danceNamesChanged = Signal(bool)      # Dance column written short? — persisted
     unplannedToggled = Signal(bool)       # 🆕 filter on? — MainWindow feeds it the planned set
+    wholeLibraryWanted = Signal()         # 🌐 clicked — MainWindow loads the global index
+    wholeRescanWanted = Signal()          # 🔄 clicked — MainWindow walks the repository again
 
     # Dance codes per style (S-class = the full dance set), for the combo's group filters.
     _STYLE_DANCES = {style: set(DEFAULT_DANCES[style]["S"])
@@ -239,6 +362,13 @@ class LibraryBrowser(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._entries: list[MusicEntry] = []
+        # ⭐ The favorites library; _entries is whichever list is shown, which
+        # is the global index instead while 🌐 is on.
+        self._favorites: list[MusicEntry] = []
+        self._by_path: dict[str, MusicEntry] = {}   # the rows on screen, by path
+        self._shown: list[MusicEntry] = []          # …and in their order
+        self._fill_gen = 0   # bumped per fill: a step of an older fill stops
+        self._whole_shown = False
         self._folded = False
         # Paths of tracks already used in the open playlist decks; fed by
         # MainWindow so the 🆕 "Unplanned" filter can hide them.
@@ -287,7 +417,7 @@ class LibraryBrowser(QWidget):
         self._class_only_chk.toggled.connect(lambda _: self._refilter())
 
     def _build_header(self):
-        """The header strip: ▾ fold, the title and the count."""
+        """The header strip: ▾ fold, the title, the ⭐/🌐 switch and the count."""
         self._hdr = QWidget()
         self._hdr.setStyleSheet("background:#e8edf6; border-radius:3px;")
         hh = QHBoxLayout(self._hdr)
@@ -302,6 +432,36 @@ class LibraryBrowser(QWidget):
         title = QLabel("📚  Library")
         title.setStyleSheet("font-weight:bold; color:#2c3e60;")
         hh.addWidget(title)
+        # The header's flat background cascades onto its children, so without a
+        # frame of their own the ⭐/🌐 switch and 🔄 read like the title. A thin
+        # outline in the header's blues, no white fill: a white one broke the strip.
+        hdr_btn_qss = (
+            "QToolButton { background:transparent; color:#2c3e60; border:1px solid #b9c5dd;"
+            " border-radius:4px; padding:0px 4px; }"
+            "QToolButton:hover { background:#f4f7fc; border-color:#4a6fa5; }"
+            "QToolButton:pressed { background:#c3d4f0; }"
+            "QToolButton:checked { background:#d3e1f7; border-color:#8ea6cf; }")
+        self._source_btn = _HdrButton()
+        self._source_btn.setCheckable(True)
+        self._source_btn.setStyleSheet(hdr_btn_qss)
+        self._source_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._source_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._source_btn.clicked.connect(self._on_source_clicked)
+        # 🔄 Under 🌐 only: the global index comes from the database, and a
+        # title added to the repository since its last walk is not in it.
+        self._rescan_btn = _HdrButton()
+        self._rescan_btn.setText("🔄")
+        self._rescan_btn.setToolTip(
+            "Scan the whole music repository again for new and changed titles.\n"
+            "Reads the tags only, no audio analysis; the progress shows in the\n"
+            "status bar.")
+        self._rescan_btn.setStyleSheet(hdr_btn_qss)
+        self._rescan_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._rescan_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._rescan_btn.clicked.connect(self.wholeRescanWanted)
+        self._sync_source_btn()
+        hh.addWidget(self._source_btn)
+        hh.addWidget(self._rescan_btn)
         self._count_lbl = QLabel("")
         self._count_lbl.setStyleSheet("color:#666;")
         hh.addWidget(self._count_lbl)
@@ -447,13 +607,21 @@ class LibraryBrowser(QWidget):
             lambda: self.columnWidthsChanged.emit(self.column_widths()))
         hh2.sectionResized.connect(self._on_section_resized)
         self._table.verticalHeader().setVisible(False)
+        # One height for every row, instead of a setRowHeight per row (2.4 s
+        # of a 54 000-title fill).
+        self._table.verticalHeader().setMinimumSectionSize(22)
+        self._table.verticalHeader().setDefaultSectionSize(22)
+        self._table.tooltip_cb = self.cell_tooltip
         self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self._table.setDragEnabled(True)
-        self._table.setSortingEnabled(True)
-        # No initial sort indicator — it defaults to column 0, which would
-        # re-sort the whole table whenever a ▶ marker flips to ■.
+        # A header click sorts the list in Python and fills it again (see
+        # _populate): Qt's own sort compares the shown text of the plain items
+        # the fill writes, "9" after "30". No initial sort indicator.
+        hh2.setSectionsClickable(True)
+        hh2.setSortIndicatorShown(True)
         hh2.setSortIndicator(-1, Qt.SortOrder.AscendingOrder)
+        hh2.sortIndicatorChanged.connect(self._on_sort_changed)
         self._table.setToolTip(
             "Drag a track onto a deck or wishlist to use it.\n"
             "▶ to preview · double-click to open in your external player\n"
@@ -462,6 +630,8 @@ class LibraryBrowser(QWidget):
         self._table.cellDoubleClicked.connect(self._on_double_click)
         self._table.space_cb = lambda row: self._on_cell_clicked(row, 0)
         self._table.context_menu_cb = self._on_context_menu
+        self._overlay = _LoadOverlay(self._table)
+        self._fill_started = 0.0
 
     # ── Fold to header strip ──
 
@@ -529,6 +699,8 @@ class LibraryBrowser(QWidget):
     def _on_table_resized(self):
         if self._auto_fill:
             self._fill_columns()
+        if self._overlay.isVisible():
+            self._overlay.place()
 
     def _on_section_resized(self, *_):
         # User dragged a handle: freeze the layout and persist it. (Programmatic
@@ -670,8 +842,62 @@ class LibraryBrowser(QWidget):
     # ── Data ──
 
     def set_entries(self, entries: list[MusicEntry]):
+        """The ⭐ favorites library. Under 🌐 it is kept for the way back."""
+        self._favorites = list(entries)
+        if not self._whole_shown:
+            self._entries = self._favorites
+            self._refilter()
+
+    def set_whole_entries(self, entries: list[MusicEntry]):
+        """🌐 The global index, once MainWindow has it loaded."""
+        self._whole_shown = True
         self._entries = list(entries)
+        self._sync_source_btn()
         self._refilter()
+
+    def show_whole_loading(self, on: bool):
+        """🌐 clicked while the whole library still loads in the background:
+        the button and a cover over the table say so until it is there (or
+        the load failed)."""
+        if not on:
+            self._sync_source_btn()
+            self._overlay.finish(covering=True)
+            return
+        btn = self._source_btn
+        btn.setChecked(True)
+        btn.setText("⏳ Whole library…")
+        btn.setToolTip("The whole library is still loading in the background.\n"
+                       "It is listed here when it is there; keep working meanwhile.")
+        self._overlay.show_loading(i18n.t("🌐 Loading the whole library…"))
+
+    def _on_source_clicked(self):
+        if self._whole_shown:
+            self._whole_shown = False
+            self._entries = self._favorites
+            self._sync_source_btn()
+            self._refilter()
+        else:
+            # The click already ticked it; it switches once the index is here.
+            self._sync_source_btn()
+            self.wholeLibraryWanted.emit()
+
+    @property
+    def whole_shown(self) -> bool:
+        """🌐 Is the global index on screen, rather than the favorites?"""
+        return self._whole_shown
+
+    def _sync_source_btn(self):
+        btn = self._source_btn
+        btn.setChecked(self._whole_shown)
+        self._rescan_btn.setVisible(self._whole_shown)
+        if self._whole_shown:
+            btn.setText("🌐 Whole library")
+            btn.setToolTip("Listing the whole music repository.\n"
+                           "Click to go back to the favorites library.")
+        else:
+            btn.setText("⭐ Favorites")
+            btn.setToolTip("Listing the favorites library.\n"
+                           "Click to list the whole music repository instead.")
 
     def _on_unplanned_toggled(self, on: bool):
         # Ask MainWindow to (re)build the planned-path set, then refilter.
@@ -782,108 +1008,191 @@ class LibraryBrowser(QWidget):
             i18n.t("(%d/%d tracks)") % (len(rows), len(self._entries))
             if self._entries else "")
 
-    def _populate(self, entries: list[MusicEntry]):
+    def _populate(self, entries: list[MusicEntry], keep=(frozenset(), None)):
+        """Show `entries`: the first _FILL_FIRST rows at once, the rest in steps.
+
+        The whole repository (54 000 titles) takes ~5 s to write, so it is
+        written between turns of the event loop: the rows appear as they come,
+        the window keeps working, and a newer fill (the next filter) drops this
+        one. Only written rows exist, so whatever reads the table never meets
+        an empty one. A sorted header orders the list before it is written;
+        `keep` = (selected paths, playing path) to select and mark ■ again."""
         t = self._table
-        t.setSortingEnabled(False)
-        t.setRowCount(len(entries))
-        now = time.time()
-        # Ten cells per track, and every setItem on a QTableWidget emits
-        # dataChanged — 36 380 of them for this library, in one synchronous
-        # burst. On macOS each one walks the Cocoa accessibility bridge, which
-        # allocates an Objective-C element per cell, and the app beachballs.
-        # The rows are written in one go, so the table is told once, below.
-        # setRowCount above stays outside: rowsInserted must reach the view or
-        # its own row bookkeeping goes stale.
+        self._fill_gen += 1
+        hh = t.horizontalHeader()
+        col = hh.sortIndicatorSection()
+        if 0 <= col < t.columnCount():
+            entries = sorted(entries, key=self._sort_key(col),
+                             reverse=hh.sortIndicatorOrder() == Qt.SortOrder.DescendingOrder)
+        # Emptying the table deletes plain C++ items, no Python wrappers
+        # (those made a 54 000-row table take 1.2 s to clear).
+        t.setRowCount(0)
+        self._shown = entries
+        self._by_path = {str(e.path): e for e in entries}   # for cell_tooltip
+        self._fill_started = time.perf_counter()
+        self._fill_step(self._fill_gen, entries, 0, time.time(), keep)
+
+    def _on_sort_changed(self, *_):
+        """A header click: the same rows again, in the new order, keeping the
+        selection and the ■ marker that Qt's own sort used to carry along."""
+        selected = {str(self._row_path(i.row()))
+                    for i in self._table.selectionModel().selectedRows()}
+        row = self.current_play_row()
+        self._populate(self._shown, (selected, str(self._row_path(row)) if row >= 0 else None))
+
+    def _sort_key(self, col: int) -> Callable[[MusicEntry], Any]:
+        """What column `col` sorts by: the text it shows, or for the number
+        columns the number behind the text (▶ by path, not by its marker)."""
+        return {
+            0: lambda e: str(e.path),
+            1: self._dance_label,
+            2: lambda e: getattr(e, "tag_artist", None) or "",
+            3: display_title,
+            4: lambda e: e.bpm or -1,
+            5: lambda e: int(getattr(e, "duration", 0) or 0),
+            6: lambda e: e.popularity or 0,
+            7: _classes_label,
+            8: lambda e: getattr(e, "added", None) or 0,
+            9: lambda e: getattr(e, "last_played", None) or 0,
+            _LIB_COL_RATING: lambda e: int(getattr(e, "rating", 0) or 0),
+            _LIB_COL_CUSTOM: lambda e: e.custom or "",
+            _LIB_COL_FILE: lambda e: e.title or "",
+        }[col]
+
+    def _fill_step(self, gen: int, entries: list[MusicEntry], start: int, now: float, keep):
+        if gen != self._fill_gen:
+            return   # a newer fill took over
+        t = self._table
         model = t.model()
-        model.blockSignals(True)
+        end = start
+        began = time.perf_counter()
+        kept, playing = keep
+        selected: list[int] = []
+        # No cyclic GC pass inside a step: a gen-2 one is a 0.5 s stall.
+        gc.disable()
         try:
-            self._fill_rows(entries, now)
+            while end < len(entries):
+                stop = min(len(entries), end + (_FILL_FIRST if end == 0 else _FILL_CHUNK))
+                # setRowCount stays outside the quiet model: rowsInserted must
+                # reach the view or its own row bookkeeping goes stale.
+                t.setRowCount(stop)
+                # Every setData emits dataChanged, ~30 per track; on macOS
+                # each one walks the Cocoa accessibility bridge and the app
+                # beachballs. The step's rows are told once, below.
+                model.blockSignals(True)
+                try:
+                    self._fill_rows(entries[end:stop], end, now)
+                    if kept or playing:
+                        for r, e in enumerate(entries[end:stop], end):
+                            path = str(e.path)
+                            if path in kept:
+                                selected.append(r)
+                            if path == playing:
+                                model.setData(model.index(r, 0), "■")
+                finally:
+                    model.blockSignals(False)
+                end = stop
+                if time.perf_counter() - began >= _FILL_BUDGET:
+                    break
         finally:
-            model.blockSignals(False)
-        if entries:
-            model.dataChanged.emit(model.index(0, 0),
-                                   model.index(len(entries) - 1, _LIB_COL_FILE))
-        t.setSortingEnabled(True)
+            gc.enable()
+        if end > start:
+            model.dataChanged.emit(model.index(start, 0),
+                                   model.index(end - 1, _LIB_COL_FILE))
+        if selected:
+            sel = QItemSelection()
+            for r in selected:
+                sel.select(model.index(r, 0), model.index(r, _LIB_COL_FILE))
+            t.selectionModel().select(sel, QItemSelectionModel.SelectionFlag.Select)
+        if end < len(entries):
+            if time.perf_counter() - self._fill_started >= _PROGRESS_AFTER:
+                self._overlay.show_progress(
+                    (i18n.t("🌐 Listing the whole library: %s / %s titles")
+                     if self._whole_shown else
+                     i18n.t("📚 Listing the library: %s / %s titles"))
+                    % (f"{end:,}", f"{len(entries):,}"), end, len(entries))
+            QTimer.singleShot(0, self, lambda: self._fill_step(gen, entries, end, now, keep))
+        else:
+            self._overlay.finish(covering=False)
 
-    def _fill_rows(self, entries: list[MusicEntry], now: float):
-        t = self._table
-        for r, e in enumerate(entries):
-            play_it = _LibPlayItem("▶")
-            play_it.setData(Qt.ItemDataRole.UserRole, e.path)
-            play_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            play_it.setToolTip(i18n.t("Play / stop this track"))
-            t.setItem(r, 0, play_it)
-            dance_it = QTableWidgetItem(self._dance_label(e))
-            t.setItem(r, 1, dance_it)
-            artist_it = QTableWidgetItem(getattr(e, "tag_artist", None) or "")
-            artist_it.setToolTip(_entry_tooltip(e))
-            t.setItem(r, 2, artist_it)   # Artist sits LEFT of Title
-            title_it = QTableWidgetItem(display_title(e))
-            title_it.setToolTip(_entry_tooltip(e))
-            t.setItem(r, 3, title_it)
-            bpm_it = _LibSortItem(str(e.bpm) if e.bpm else "")
-            bpm_it.setData(Qt.ItemDataRole.UserRole, e.bpm or -1)
-            bpm_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            bpm_it.setToolTip(bpm_tooltip(e))
-            t.setItem(r, 4, bpm_it)
+    def _fill_rows(self, entries: list[MusicEntry], first_row: int, now: float):
+        """Write the rows through the model, as plain C++ items: an item handed
+        to setItem keeps a Python wrapper alive per cell."""
+        model = self._table.model()
+        idx, put = model.index, model.setData
+        display, user = Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.UserRole
+        align, fg = Qt.ItemDataRole.TextAlignmentRole, Qt.ItemDataRole.ForegroundRole
+        center = int(Qt.AlignmentFlag.AlignCenter)
+
+        def cell(r, c, text, value=None, color=None):
+            i = idx(r, c)
+            put(i, text, display)
+            if value is not None:
+                put(i, value, user)
+                put(i, center, align)
+            if color is not None:
+                put(i, color, fg)
+
+        for r, e in enumerate(entries, first_row):
+            i = idx(r, 0)
+            put(i, "▶", display)
+            put(i, e.path, user)
+            put(i, center, align)
+            cell(r, 1, self._dance_label(e))
+            cell(r, 2, getattr(e, "tag_artist", None) or "")   # Artist sits LEFT of Title
+            cell(r, 3, display_title(e))
+            cell(r, 4, str(e.bpm) if e.bpm else "", e.bpm or -1)
             secs = int(getattr(e, "duration", 0) or 0)
-            len_it = _LibSortItem(_fmt_track_secs(secs) if secs else "")
-            len_it.setData(Qt.ItemDataRole.UserRole, secs)
-            len_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            t.setItem(r, 5, len_it)
+            cell(r, 5, _fmt_track_secs(secs) if secs else "", secs)
             pop = e.popularity or 0
-            pop_it = _LibSortItem(f"★{pop}" if pop else "✦")
-            pop_it.setData(Qt.ItemDataRole.UserRole, pop)
-            pop_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            pop_it.setForeground(_C_POP_FG if pop else _C_NEW_FG)
-            t.setItem(r, 6, pop_it)
-            classes = getattr(e, "classes_ok", None) or []
-            cls_it = QTableWidgetItem(f"[{','.join(classes)}]" if classes else "")
-            cls_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            cls_it.setToolTip(i18n.t("Class tags from the MP3 comment field")
-                              if classes else "")
-            t.setItem(r, 7, cls_it)
+            cell(r, 6, f"★{pop}" if pop else "✦", pop, _C_POP_FG if pop else _C_NEW_FG)
+            cell(r, 7, _classes_label(e))
+            put(idx(r, 7), center, align)
             ts = getattr(e, "added", None) or 0
-            add_it = _LibSortItem(
-                date.fromtimestamp(ts).isoformat() if ts else "")
-            add_it.setData(Qt.ItemDataRole.UserRole, ts)
-            add_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            add_it.setToolTip(
-                i18n.t("When this file was created in the library"))
-            if ts and ts >= now - 90 * 86400:
-                add_it.setForeground(_C_NEW_FG)   # arrived in the last 3 months
-            t.setItem(r, 8, add_it)
+            cell(r, 8, date.fromtimestamp(ts).isoformat() if ts else "", ts,
+                 _C_NEW_FG if ts and ts >= now - 90 * 86400 else None)   # new: last 3 months
             last = getattr(e, "last_played", None)
-            last_it = _LibSortItem(str(last) if last else ("—" if not pop else "?"))
-            last_it.setData(Qt.ItemDataRole.UserRole, last or 0)
-            last_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            last_it.setToolTip(i18n.t(
-                "Newest playlist carrying this track" if last
-                else "Never played" if not pop
-                else "Played, but none of those playlists is dated"))
-            if not last:
-                last_it.setForeground(_C_NEW_FG)
-            t.setItem(r, 9, last_it)
-            t.setItem(r, _LIB_COL_RATING, self._rating_item(e))
-            t.setItem(r, _LIB_COL_CUSTOM, self._custom_item(e))
-            file_it = QTableWidgetItem(e.title or "")
-            file_it.setToolTip(str(e.path))
-            t.setItem(r, _LIB_COL_FILE, file_it)
-            t.setRowHeight(r, 22)
+            cell(r, 9, str(last) if last else ("—" if not pop else "?"), last or 0,
+                 None if last else _C_NEW_FG)
+            self._put_tag_cells(r, e)
+            cell(r, _LIB_COL_FILE, e.title or "")
 
-    @staticmethod
-    def _rating_item(e: MusicEntry) -> QTableWidgetItem:
+    def cell_tooltip(self, row: int, col: int) -> str:
+        """The hover text of one cell, built when the mouse rests on it ('' =
+        none, Qt then shows the table's own help)."""
+        e = self._by_path.get(str(self._row_path(row))) if 0 <= row < self._table.rowCount() else None
+        if e is None:
+            return ""
+        if col == 0:
+            return i18n.t("Play / stop this track")
+        if col in (2, 3):
+            return _entry_tooltip(e)
+        if col == 4:
+            return bpm_tooltip(e)
+        if col == 7:
+            return (i18n.t("Class tags from the MP3 comment field")
+                    if getattr(e, "classes_ok", None) else "")
+        if col == 8:
+            return i18n.t("When this file was created in the library")
+        if col == 9:
+            return i18n.t(
+                "Newest playlist carrying this track" if getattr(e, "last_played", None)
+                else "Never played" if not (e.popularity or 0)
+                else "Played, but none of those playlists is dated")
+        if col == _LIB_COL_CUSTOM:
+            return e.custom or ""
+        if col == _LIB_COL_FILE:
+            return str(e.path)
+        return ""
+
+    def _put_tag_cells(self, row: int, e: MusicEntry):
+        """The ★ and Custom cells of one row (the ★ delegate paints RATING_ROLE)."""
+        model = self._table.model()
         stars = int(getattr(e, "rating", 0) or 0)
-        it = _LibSortItem("")
-        it.setData(Qt.ItemDataRole.UserRole, stars)
-        it.setData(RATING_ROLE, stars)
-        return it
-
-    @staticmethod
-    def _custom_item(e: MusicEntry) -> QTableWidgetItem:
-        it = QTableWidgetItem(e.custom or "")
-        it.setToolTip(e.custom or "")
-        return it
+        i = model.index(row, _LIB_COL_RATING)
+        model.setData(i, stars, Qt.ItemDataRole.UserRole)
+        model.setData(i, stars, RATING_ROLE)
+        model.setData(model.index(row, _LIB_COL_CUSTOM), e.custom or "")
 
     def _on_star_clicked(self, index, stars: int):
         """★ clicked: MainWindow owns the library and the cache and stores the
@@ -903,15 +1212,10 @@ class LibraryBrowser(QWidget):
         by_path = {str(e.path): e for e in self._entries if str(e.path) in wanted}
         if not by_path:
             return
-        t = self._table
-        sorting = t.isSortingEnabled()
-        t.setSortingEnabled(False)   # a re-sort mid-loop would move the rows under it
-        for r in range(t.rowCount()):
+        for r in range(self._table.rowCount()):
             e = by_path.get(str(self._row_path(r)))
             if e is not None:
-                t.setItem(r, _LIB_COL_RATING, self._rating_item(e))
-                t.setItem(r, _LIB_COL_CUSTOM, self._custom_item(e))
-        t.setSortingEnabled(sorting)
+                self._put_tag_cells(r, e)
 
     def _on_cell_clicked(self, row: int, col: int):
         """Single click on the ▶ column toggles preview playback of that row."""
@@ -1019,12 +1323,11 @@ class LibraryBrowser(QWidget):
 
     def current_play_row(self) -> int:
         """Visual row currently marked ■ (playing), -1 when none."""
-        t = self._table
-        for r in range(t.rowCount()):
-            it = t.item(r, 0)
-            if it is not None and it.text() == "■":
-                return r
-        return -1
+        model = self._table.model()
+        # Qt's own search: a Python item() per row is 0.14 s over 54 000 rows.
+        hit = model.match(model.index(0, 0), Qt.ItemDataRole.DisplayRole, "■", 1,
+                          Qt.MatchFlag.MatchExactly)
+        return hit[0].row() if hit else -1
 
     def skip(self, step: int) -> bool:
         """⏮/⏭ while previewing from the library: play the previous / next

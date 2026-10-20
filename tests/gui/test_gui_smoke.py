@@ -24,6 +24,7 @@ import pathlib
 import tempfile
 import unittest
 from collections import defaultdict
+from unittest import mock
 
 # Offscreen BEFORE any QApplication exists, and state files into a temp dir (the
 # gui modules resolve those at import time — see test_drop_check.py).
@@ -241,6 +242,267 @@ class MainWindowSmokeTest(unittest.TestCase):
         self.win._toggle_deck_fold(self.win._deckset.tableB, True)
         self.win._reveal_deck(self.win._deckset.tableB)
         self.assertFalse(self.win.deck(self.win._deckset.tableB).folded)
+
+    def test_focusing_a_playlist_widens_the_view_and_makes_it_active(self):
+        """🎯 The controller's focus button for playlist 2, from the one-deck view."""
+        self.win._deckset.deck_count = 1
+        self.win._apply_deck_view()
+        self.win._focus_list("deck", 2)
+        self.assertGreaterEqual(self.win._deckset.deck_count, 2)
+        self.assertIs(self.win._deckset.table, self.win._deckset.tableB)
+
+    def test_focusing_a_wishlist_opens_enough_wishlists(self):
+        self.win._deckset.deck_count = 2
+        self.win._apply_deck_view()
+        self.win._set_wish_state(1)
+        wl = self.win._deckset.wishlists[2]
+        self.win._focus_list("wish", 3)
+        self.assertGreaterEqual(self.win._wish_state, 3)
+        self.assertTrue(self.win.deck(wl).active)
+        self.assertTrue(self.win._grid.wish_box3.isVisibleTo(self.win))
+
+    def test_focusing_the_one_wishlist_in_the_one_deck_view_shows_it(self):
+        """State 1 hides the single wishlist in the one-deck view; a focus
+        button pressed there must not light up a list nobody can see."""
+        self.win._deckset.deck_count = 1
+        self.win._apply_deck_view()
+        self.win._set_wish_state(1)
+        self.win._focus_list("wish", 1)
+        self.assertTrue(self.win._grid.wish_box.isVisibleTo(self.win))
+        self.assertTrue(self.win.deck(self.win._deckset.wishlists[0]).active)
+
+    def test_a_focused_list_takes_the_keyboard(self):
+        """Space plays the selection of the list with the keyboard focus: a
+        focus button that only lit the list up left Space on the old one."""
+        self.win._deckset.deck_count = 2
+        self.win._apply_deck_view()
+        self.win.show()
+        self.win._deckset.tableA.setFocus()
+        self.win._focus_list("deck", 2)
+        self.assertIs(self.win.focusWidget(), self.win._deckset.tableB)
+        self.win._focus_list("wish", 1)
+        self.assertIs(self.win.focusWidget(), self.win._deckset.wishlists[0])
+
+    def test_alt_s_still_swaps_in_the_warm_up_list(self):
+        """The warm-up list's own Alt+S (⇅ swap) — a desk key on it would
+        take the key before the list sees it."""
+        from PySide6.QtCore import Qt
+        from PySide6.QtTest import QTest
+        t = self.win._deckset.tableA
+        self.win.show()
+        self.win.activateWindow()
+        self.assertTrue(QTest.qWaitForWindowActive(self.win))
+        t._warmup, t._player_list = True, False
+        with mock.patch.object(t, "_swap_selected") as swap:
+            t.setFocus()
+            QTest.keyClick(t, Qt.Key.Key_S, Qt.KeyboardModifier.AltModifier)
+        swap.assert_called_once_with()
+
+    def _playing_desk(self, engine):
+        """The window active and in Playing mode, `engine` the list playing,
+        and the big player's card a mock. Space is the card's play / pause
+        there; this is where it must still reach another list."""
+        from PySide6.QtTest import QTest
+        self.win.show()
+        self.win.activateWindow()
+        self.assertTrue(QTest.qWaitForWindowActive(self.win))
+        card = mock.Mock()
+        for name, value in (("_is_playing_mode", mock.Mock(return_value=True)),
+                            ("_big_player", card),
+                            ("_engine_list", mock.Mock(return_value=engine))):
+            patcher = mock.patch.object(self.win, name, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        return card
+
+    def test_space_in_another_playlist_plays_its_title_while_one_plays(self):
+        """Marcel: "when i switch from playlist 1 to 2 i still cant use
+        leertaste to start playing the focused item in this playlist"."""
+        from PySide6.QtCore import Qt
+        from PySide6.QtTest import QTest
+        self.win._deckset.deck_count = 2
+        self.win._apply_deck_view()
+        a, b = self.win._deckset.tableA, self.win._deckset.tableB
+        card = self._playing_desk(engine=a)
+        path = pathlib.Path("C:/m/Waltz LW 29.mp3")
+        with mock.patch.object(b, "_selected_song_row", return_value=(3, path)), \
+                mock.patch.object(b, "_on_play_click") as play_b:
+            self.win._focus_list("deck", 2)
+            QTest.keyClick(self.win.focusWidget(), Qt.Key.Key_Space)
+        play_b.assert_called_once_with(3, path)
+        card.toggle_play.assert_not_called()
+
+    def test_space_stays_play_pause_in_the_list_playing(self):
+        from PySide6.QtCore import Qt
+        from PySide6.QtTest import QTest
+        a = self.win._deckset.tableA
+        card = self._playing_desk(engine=a)
+        path = pathlib.Path("C:/m/Waltz LW 29.mp3")
+        with mock.patch.object(a, "_selected_song_row", return_value=(3, path)), \
+                mock.patch.object(a, "_on_play_click") as play_a:
+            self.win._focus_list("deck", 1)
+            QTest.keyClick(self.win.focusWidget(), Qt.Key.Key_Space)
+        card.toggle_play.assert_called_once_with()
+        play_a.assert_not_called()
+
+    def test_space_with_nothing_selected_stays_play_pause(self):
+        from PySide6.QtCore import Qt
+        from PySide6.QtTest import QTest
+        self.win._deckset.deck_count = 2
+        self.win._apply_deck_view()
+        card = self._playing_desk(engine=self.win._deckset.tableA)
+        self.win._focus_list("deck", 2)      # an empty playlist
+        QTest.keyClick(self.win.focusWidget(), Qt.Key.Key_Space)
+        card.toggle_play.assert_called_once_with()
+
+    def _library_of(self, n):
+        """The 📚 pane and the window's library holding `n` titles."""
+        from planner.models import MusicEntry
+        from planner.music.library import MusicLibrary
+        folder = pathlib.Path(tempfile.mkdtemp(prefix="dp_smoke_lib_"))
+        entries = []
+        for i in range(n):
+            path = folder / f"Waltz {i} LW 29.mp3"
+            path.write_bytes(b"")      # a drop takes only files that exist
+            entries.append(MusicEntry(path=path, title=f"Waltz {i}", dance="LW"))
+        self.win._library.lib = MusicLibrary()
+        self.win._library.lib.entries = entries
+        self.win._lib_browser.set_entries(entries)
+        return entries
+
+    def test_the_library_focus_takes_the_keyboard(self):
+        self.win.show()
+        self.win._lib_btn.setChecked(False)
+        self.win._run_controller_action("lib", 1.0)
+        self.assertTrue(self.win._lib_tabs.isVisible())
+        self.assertIs(self.win.focusWidget(), self.win._lib_browser._table)
+
+    def test_browsing_moves_the_selection_of_the_focused_list(self):
+        """⬆ ⬇ and the endless knob are the arrow keys of the list in focus."""
+        self._library_of(6)
+        self.win.show()
+        lib = self.win._lib_browser._table
+        self.win._run_controller_action("lib", 1.0)
+        lib.setCurrentCell(0, 2)
+        self.win._run_controller_action("browse_down", 1.0)
+        self.assertEqual(lib.currentRow(), 1)
+        self.win._run_controller_action("browse", 3 / 127)      # 3 steps right
+        self.assertEqual(lib.currentRow(), 4)
+        self.win._run_controller_action("browse", 63 / 127)     # 1 step left
+        self.assertEqual(lib.currentRow(), 3)
+        self.win._run_controller_action("browse_up", 1.0)
+        self.assertEqual(lib.currentRow(), 2)
+        self.assertEqual({ix.row() for ix in lib.selectedIndexes()}, {2})
+
+    def test_play_selected_is_space_in_the_focused_list(self):
+        self._library_of(3)
+        self.win.show()
+        lib = self.win._lib_browser._table
+        lib.space_cb = mock.Mock()
+        self.win._run_controller_action("lib", 1.0)
+        lib.setCurrentCell(1, 2)
+        self.win._run_controller_action("pick_play", 1.0)
+        lib.space_cb.assert_called_once_with(1)
+
+    def test_play_selected_plays_the_library_title_while_one_plays(self):
+        self._library_of(3)
+        card = self._playing_desk(engine=self.win._deckset.tableA)
+        lib = self.win._lib_browser._table
+        lib.space_cb = mock.Mock()
+        self.win._run_controller_action("lib", 1.0)
+        lib.setCurrentCell(1, 2)
+        self.win._run_controller_action("pick_play", 1.0)
+        lib.space_cb.assert_called_once_with(1)
+        card.toggle_play.assert_not_called()
+
+    def test_play_selected_plays_the_selected_title_of_the_list_playing(self):
+        """Marcel: "alt+p for play selected title playes not the selected but
+        the one selected before" — Space there is the card's play / pause."""
+        a = self.win._deckset.tableA
+        card = self._playing_desk(engine=a)
+        path = pathlib.Path("C:/m/Waltz LW 29.mp3")
+        with mock.patch.object(a, "_selected_song_row", return_value=(3, path)), \
+                mock.patch.object(a, "_on_play_click") as play_a:
+            self.win._focus_list("deck", 1)
+            self.win._run_controller_action("pick_play", 1.0)
+        play_a.assert_called_once_with(3, path)
+        card.toggle_play.assert_not_called()
+
+    def test_enter_plays_the_selected_title_of_the_list_playing(self):
+        """Enter starts the selection, Space stays the card's play / pause."""
+        from PySide6.QtCore import Qt
+        from PySide6.QtTest import QTest
+        a = self.win._deckset.tableA
+        card = self._playing_desk(engine=a)
+        path = pathlib.Path("C:/m/Waltz LW 29.mp3")
+        for key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            with mock.patch.object(a, "_selected_song_row", return_value=(3, path)), \
+                    mock.patch.object(a, "_on_play_click") as play_a:
+                self.win._focus_list("deck", 1)
+                a._space_at = 0.0       # not a double tap of the last key
+                QTest.keyClick(self.win.focusWidget(), key)
+            play_a.assert_called_once_with(3, path)
+        card.toggle_play.assert_not_called()
+
+    def test_enter_plays_the_selected_library_row(self):
+        from PySide6.QtCore import Qt
+        from PySide6.QtTest import QTest
+        self._library_of(3)
+        self._playing_desk(engine=self.win._deckset.tableA)
+        lib = self.win._lib_browser._table
+        lib.space_cb = mock.Mock()
+        self.win._run_controller_action("lib", 1.0)
+        lib.setCurrentCell(1, 2)
+        QTest.keyClick(lib, Qt.Key.Key_Return)
+        lib.space_cb.assert_called_once_with(1)
+
+    def test_a_picked_title_goes_to_the_end_of_the_wishlist(self):
+        entries = self._library_of(3)
+        self.win.show()
+        self.win._deckset.deck_count = 2
+        self.win._apply_deck_view()
+        self.win._set_wish_state(0)
+        wl = self.win._deckset.wishlists[0]
+        lib = self.win._lib_browser._table
+        self.win._run_controller_action("lib", 1.0)
+        for row in (2, 0):
+            lib.setCurrentCell(row, 2)
+            self.win._run_controller_action("pick_wish", 1.0)
+        self.assertGreaterEqual(self.win._wish_state, 1)   # shown for it
+        self.assertEqual([str(e.path) for e in wl._row_meta.entries()],
+                         [str(self.win._lib_browser._row_path(r)) for r in (2, 0)])
+        self.assertTrue({str(e.path) for e in entries}
+                        >= {str(e.path) for e in wl._row_meta.entries()})
+        self.assertIs(self.win.focusWidget(), lib)   # browsing goes on there
+
+    def test_a_picked_title_goes_to_the_active_playlist(self):
+        self._library_of(2)
+        self.win.show()
+        deck = self.win._deckset.table
+        lib = self.win._lib_browser._table
+        self.win._run_controller_action("lib", 1.0)
+        lib.setCurrentCell(1, 2)
+        seen = []
+
+        def drop(event):     # the event dies with the call: read it in there
+            seen.append(([u.toLocalFile() for u in event.mimeData().urls()],
+                         deck.rowAt(int(event.position().y())), event.source()))
+
+        with mock.patch.object(deck, "dropEvent", side_effect=drop):
+            self.win._run_controller_action("pick_deck", 1.0)
+        self.assertEqual(seen, [(
+            [pathlib.Path(self.win._lib_browser._row_path(1)).as_posix()],
+            -1,       # below the rows: the end of the list
+            None)])   # no drag source: a copy, the library keeps it
+
+    def test_a_player_build_ignores_playlists_past_four(self):
+        self.win._deckset.deck_count = 1
+        self.win._apply_deck_view()
+        before = self.win._deckset.table
+        with mock.patch("gui.window.main_decks.player_build", return_value=True):
+            self.win._focus_list("deck", 6)
+        self.assertEqual(self.win._deckset.deck_count, 1)
+        self.assertIs(self.win._deckset.table, before)
 
     def test_the_cartwall_is_a_dock_beside_the_decks_not_a_tab(self):
         from PySide6.QtCore import Qt

@@ -7,11 +7,13 @@ import contextlib
 import datetime
 import logging
 import os
+import platform
 import sqlite3
 from pathlib import Path
 
 from planner.config import audio_db_file
 from planner.music.db import _db
+from planner.music.embeddings import MODELS as EMBEDDING_MODELS
 
 log = logging.getLogger("dancesport.db")
 
@@ -113,8 +115,25 @@ def _delete_orphans(conn: sqlite3.Connection, dead_ids: list[int],
 
 BACKUPS_KEPT = 7
 
+# ⚙ Settings → Analysis can name a folder of the operator's own (a Dropbox
+# folder, so the backups live off this PC). None: next to the database.
+_backup_folder: Path | None = None
+
+
+def apply_settings(settings: dict) -> None:
+    """The settings hook: where `backup_user_data` writes from now on."""
+    global _backup_folder
+    folder = str(settings.get("backup_dir") or "").strip()
+    _backup_folder = Path(folder) if folder else None
+
 
 def _backup_dir() -> Path:
+    """Where the backups go. A configured folder is shared - Dropbox syncs it
+    to every PC - so each PC writes into a subfolder named after itself: a
+    file per day under the same name would overwrite another PC's backup of
+    that day, and the rotation would delete theirs."""
+    if _backup_folder is not None:
+        return _backup_folder / (platform.node() or "this-pc")
     return audio_db_file().parent / "backups"
 
 
@@ -197,10 +216,13 @@ def restore_user_data(src: Path) -> tuple[int, int, int]:
             edits = cur.fetchall()
             marks = bak.execute("SELECT fp, times FROM pd_highlights").fetchall()
             afps = dict(bak.execute("SELECT fp, afp FROM audio_fps").fetchall())
-            # A backup from before the play log has none.
+            # A backup from before the play log has none, one from before the
+            # composer column has no composers.
+            bak_play_cols = {r[1] for r in bak.execute("PRAGMA table_info(play_log)")}
+            if "composer" in bak_play_cols:
+                play_cols += ", composer"
             plays = (bak.execute(f"SELECT {play_cols} FROM play_log").fetchall()  # nosec B608: constant names
-                     if bak.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' "
-                                    "AND name = 'play_log'").fetchone() else [])
+                     if bak_play_cols else [])
     except sqlite3.DatabaseError as exc:
         raise ValueError(f"{src} is no user data backup: {exc}") from exc
     conn = _db()
@@ -230,7 +252,7 @@ def restore_user_data(src: Path) -> tuple[int, int, int]:
         added = 0
         for row in plays:
             added += conn.execute(f"INSERT OR IGNORE INTO play_log ({play_cols}) "
-                                  "VALUES (?,?,?,?,?,?,?)", row).rowcount
+                                  f"VALUES ({', '.join('?' * len(row))})", row).rowcount
     except BaseException:
         conn.execute("ROLLBACK")
         raise
@@ -281,6 +303,11 @@ def db_maintenance() -> dict:
         before = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]  # nosec B608: constant names
         conn.executemany(f"DELETE FROM {table} WHERE fp = ?",  # nosec B608: constant names
                          [(fp,) for fp in dead_fps])
+        if table == "embeddings":
+            # …and the vectors of a retired model, live track or not.
+            conn.execute("DELETE FROM embeddings WHERE model NOT IN "
+                         f"({', '.join('?' * len(EMBEDDING_MODELS))})",  # nosec B608: placeholders only
+                         EMBEDDING_MODELS)
         removed[table] = before - conn.execute(
             f"SELECT COUNT(*) FROM {table}").fetchone()[0]  # nosec B608: constant names
 

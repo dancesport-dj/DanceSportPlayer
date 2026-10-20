@@ -11,6 +11,20 @@ um ihm mehr Platz zu geben.
 Die ganze Favoriten-Bibliothek als eine sortierbare Tabelle. Filtere sie und
 zieh dann Titel in ein Deck, den Party-Bereich oder eine Wunschliste.
 
+**⭐ Favoriten** im Kopf schaltet die Tabelle auf **🌐 Ganze Bibliothek** um:
+alle Dateien im Ordner *Gesamter Musikbestand* aus ⚙ Einstellungen. Beim
+ersten Umschalten wird dieser Index geladen, das kann einen Moment dauern: die
+Tabelle zeigt solange **🌐 Die ganze Bibliothek wird geladen…** und zählt dann
+an ihrem Fuß die Titel mit, während sie sie auflistet. Ein weiterer Klick
+schaltet zurück.
+
+Dieser Index ist nur so aktuell wie der letzte Durchlauf durch den Ordner.
+Fehlen Titel, geht **🔄** neben 🌐 (oder **🔄 Musikbestand nach neuen Titeln
+durchsuchen** unter ⚙ Einstellungen → 📁 Pfade) ihn erneut durch. Gelesen
+werden nur die Tags neuer und geänderter Dateien, ohne Audio-Analyse, und das
+im Hintergrund: Fortschritt, ⏸ Pause und ⏹ Stopp stehen in der Statusleiste,
+wie beim Scan beim Start.
+
 ![Der Bibliotheksbrowser](../img/library.png)
 
 | Filter | Zeigt |

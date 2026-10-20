@@ -28,6 +28,7 @@ from shared.appearance.icons import counted_emoji
 from gui.common import DEFAULT_HIDDEN_COLUMNS
 from gui.dialogs import TOURNAMENTS
 from gui.library_browser import LibraryBrowser
+from gui.library_load_bar import NEEDS_LIBRARY
 from gui.table.playlist_table import PlaylistTable
 from gui.tournament_tree import TournamentTree
 
@@ -319,7 +320,8 @@ class DeckSetupMixin(MainWindowHost):
             "One sub-folder per playlist holding its tracks copied in numbered\n"
             "play order (0_0_1 - Title WW29.mp3) plus the playlist's .m3u — each\n"
             "folder plays in order even without the M3U, from any drive,\n"
-            "laptop or UltraMixer at the venue (no path fixing needed there).")
+            "laptop or UltraMixer at the venue (no path fixing needed there).\n"
+            "Also offers the 📦 venue pack: this desk in one file for another PC.")
         self._save_state_btn = QPushButton("📌  Save state")
         self._save_state_btn.setToolTip(
             "Save the whole working session right now — every deck, wishlist and the\n"
@@ -356,6 +358,9 @@ class DeckSetupMixin(MainWindowHost):
             "• Party — alternating 3-dance rounds across all dances.\n"
             "Draw from your ⭐ Favorites (unused tracks), the open wishlists\n"
             "or a chosen .m3u file.")
+        # 📚 Both draw from the library: greyed out while its scan still runs.
+        for btn in (btn_day, btn_warmup):
+            btn.setProperty(NEEDS_LIBRARY, True)
         btn_print = QPushButton("🖨  Print")
         btn_print.setToolTip(
             "Export the focused playlist as a printable PDF\n"
@@ -666,8 +671,11 @@ class DeckSetupMixin(MainWindowHost):
         # Library browser docked under the wishlists — foldable to its header,
         # fully hideable via the 📚 toolbar toggle.
         self._lib_browser = LibraryBrowser()
+        self._lib_browser.setProperty(NEEDS_LIBRARY, True)   # empty until the scan is done
         self._lib_browser.playRequested.connect(self._on_lib_play)
         self._lib_browser.unplannedToggled.connect(self._on_lib_unplanned_toggled)
+        self._lib_browser.wholeLibraryWanted.connect(self._show_whole_library)
+        self._lib_browser.wholeRescanWanted.connect(self._rescan_repository)
         self._lib_browser.foldToggled.connect(self._on_lib_fold_toggled)
         self._lib_browser.columnOrderChanged.connect(self._on_lib_columns_reordered)
         self._lib_browser.columnWidthsChanged.connect(self._on_lib_column_widths)
@@ -689,6 +697,7 @@ class DeckSetupMixin(MainWindowHost):
         # of finding music to drag onto a deck, and the desk has the vertical
         # space for one of them, not two.
         self._tourney_tree = TournamentTree(TOURNAMENTS)
+        self._tourney_tree.setProperty(NEEDS_LIBRARY, True)
         self._tourney_tree.playRequested.connect(
             lambda path, row: self._on_lib_play(path, row, self._tourney_tree))
         self._tourney_tree.loadRequested.connect(self._load_tournament_m3u)

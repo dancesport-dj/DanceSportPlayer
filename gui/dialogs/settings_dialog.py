@@ -23,7 +23,8 @@ from planner.models import TEMPO_RANGES
 from planner.terms import dance_name
 from planner.playing.play_sets import (
     _LEN_MAX, _LEN_STEP, DANCE_SECS_KEY, XFADE_MAX_SECS, XFADE_MIN_SECS,
-    dance_secs_of, parse_play_length, pd_of, play_set_of, tso_of)
+    dance_secs_of, dblclick_ask_of, parse_play_length, pd_of, play_set_of,
+    tso_of)
 from shared.audio.audio_files import (
     music_browse_dir,
 )
@@ -60,6 +61,7 @@ class SettingsDialog(LookTabMixin, QDialog):
 
     def __init__(self, settings: dict, parent=None, build_cb=None, embed_cb=None,
                  index_summary=None, all_cb=None, maintenance_cb=None, relearn_cb=None,
+                 rescan_cb=None,
                  analyze_cb=None, loudness_cb=None, silence_cb=None, pd_cb=None,
                  vocals_cb=None, gaps_cb=None, n_unanalyzed: int = 0,
                  pd_export_cb=None, pd_import_cb=None, backup_restore_cb=None,
@@ -77,6 +79,7 @@ class SettingsDialog(LookTabMixin, QDialog):
         self._all_cb = all_cb
         self._maintenance_cb = maintenance_cb
         self._relearn_cb = relearn_cb
+        self._rescan_cb = rescan_cb
         self._analyze_cb = analyze_cb
         self._loudness_cb = loudness_cb
         self._silence_cb = silence_cb
@@ -326,6 +329,15 @@ class SettingsDialog(LookTabMixin, QDialog):
             "<b>Whole music repository</b> — used by global search (e.g. F:\\my music):"))
         self._glob_edit = QLineEdit(settings.get("global_dir", ""))
         plyt.addLayout(self._path_row(self._glob_edit))
+        self._rescan_btn = QPushButton("🔄  Scan repository for new titles")
+        self._rescan_btn.setToolTip(
+            "Walk the whole music repository folder and read the tags of new and\n"
+            "changed files, so 🌐 Whole library in the library pane and the global\n"
+            "search know every title. No audio analysis; the scan runs in the\n"
+            "background, its progress in the status bar.")
+        self._rescan_btn.clicked.connect(self._on_rescan_clicked)
+        self._rescan_btn.setEnabled(self._rescan_cb is not None)
+        plyt.addWidget(self._rescan_btn)
 
         # ── Save-as default folder ──
         plyt.addWidget(QLabel(
@@ -815,7 +827,14 @@ class SettingsDialog(LookTabMixin, QDialog):
         mrow.addWidget(self._pd_import_btn)
         llyt.addLayout(mrow)
         # The same marks and the in-app tag edits go into a dated backup at
-        # every first start of a day (backups/ next to the database).
+        # every first start of a day: backups/ next to the database, or the
+        # folder set here (one subfolder per PC, so a shared Dropbox folder
+        # keeps every PC's own).
+        llyt.addWidget(QLabel(
+            "<b>Backup folder</b> — where the daily backup of your own data goes"
+            " (e.g. D:\\Dropbox\\DanceSportPlayer). Empty: next to the database."))
+        self._backup_edit = QLineEdit(self._settings_in.get("backup_dir", ""))
+        llyt.addLayout(self._path_row(self._backup_edit))
         brow = QHBoxLayout()
         self._backup_restore_btn = QPushButton("♻  Restore user data backup…")
         self._backup_restore_btn.setToolTip(
@@ -927,7 +946,8 @@ class SettingsDialog(LookTabMixin, QDialog):
 
     def _add_play_set_box(self, tlyt, settings, which, caption, blurb):
         """🏆/🎉 One play set's box: length, fades, crossfade and switches."""
-        cur = dict(play_set_of(settings, which), tso=tso_of(settings, which))
+        cur = dict(play_set_of(settings, which), tso=tso_of(settings, which),
+                   dblclick_ask=dblclick_ask_of(settings, which))
         box = QGroupBox(caption)
         blyt = QVBoxLayout(box)
         hint = QLabel(blurb)
@@ -1070,7 +1090,7 @@ class SettingsDialog(LookTabMixin, QDialog):
         return xfade_on, xfade, curves
 
     def _add_play_set_checks(self, blyt, cur):
-        """A play set's switches (⏭ ⏸ 🔈 🔊 ▶️ 🎚), keyed by setting."""
+        """A play set's switches (⏭ ⏸ 🔈 🔊 ▶️ ❓ 🎚), keyed by setting."""
         boxes = {}
         for key, label, tip in (
                 ("advance", "⏭  Auto-advance to next song", ""),
@@ -1082,6 +1102,10 @@ class SettingsDialog(LookTabMixin, QDialog):
                  "Off: it is only cued on the player (loaded, shown,\n"
                  "silent) and ⏯ starts it — the heat begins when the\n"
                  "couples stand."),
+                ("dblclick_ask", "❓  Ask before a double-click stops the title",
+                 "On: a double-click on another title while one is playing\n"
+                 "asks first — No keeps the music on the floor.\n"
+                 "Off: the new title takes over at once."),
                 ("tso", "🎚  TSO pitch to the heat tempo",
                  "Pitch every title to the mean tempo of its dance in the\n"
                  "current round, kept inside the TSO range — what a heat is\n"
@@ -1414,6 +1438,12 @@ class SettingsDialog(LookTabMixin, QDialog):
             self.accept()
             self._relearn_cb()
 
+    def _on_rescan_clicked(self):
+        if self._rescan_cb:
+            vals = self.values()
+            self.accept()
+            self._rescan_cb(vals)
+
     def _on_embed_model_clicked(self, model: str):
         if self._embed_cb:
             vals = self.values()
@@ -1460,6 +1490,7 @@ class SettingsDialog(LookTabMixin, QDialog):
             "library_dir":   self._lib_edit.text().strip(),
             "global_dir":    self._glob_edit.text().strip(),
             "save_dir":      self._save_edit.text().strip(),
+            "backup_dir": self._backup_edit.text().strip(),
             "m3u_format": self._m3u_format_combo.currentData(),
             "playlist_dir":  self._pl_edit.text().strip(),
             "reference_path": self._ref_edit.text().strip(),

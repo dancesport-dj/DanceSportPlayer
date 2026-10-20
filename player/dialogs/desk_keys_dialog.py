@@ -115,7 +115,9 @@ class DeskKeysPanel(QWidget):
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setMinimumWidth(body.sizeHint().width()
                                + scroll.verticalScrollBar().sizeHint().width())
-        scroll.setMinimumHeight(body.sizeHint().height())
+        # As tall as the rows, up to what a 768 px screen leaves the list
+        # under the tabs and over the buttons: the 🎯 focus rows doubled it.
+        scroll.setMinimumHeight(min(body.sizeHint().height(), 400))
         lyt.addWidget(scroll, 1)
 
         tip = QLabel(

@@ -75,7 +75,7 @@ class LibraryBpmTooltipTest(_LibTest):
         e = MusicEntry(path=Path(r"C:\music\Moon River.mp3"), title="Moon River",
                        dance="LW", bpm=29, tag_bpm=87.0)
         lb = self.browser([e])
-        self.assertEqual(lb._table.item(0, _COL_BPM).toolTip(),
+        self.assertEqual(lb.cell_tooltip(0, _COL_BPM),
                          "Tempo from the BPM tag (87 bpm)")
 
 

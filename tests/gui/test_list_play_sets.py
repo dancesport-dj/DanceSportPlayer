@@ -30,7 +30,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication
 
 from gui.decks.running_order import Row
-from planner.playing.play_sets import play_set_of, tso_of
+from planner.playing.play_sets import dblclick_ask_of, play_set_of, tso_of
+from player.window.main_play_values import OFF_PANEL_KEYS
 from tests.qt_test_support import (
     reap_widget, stub_window_startup)
 
@@ -93,7 +94,7 @@ class BindingTest(_WindowCase):
         not something to overwrite with a set."""
         shown = self.panel.play_set()
         self.assertEqual({k: v for k, v in self.vals(self.a).items()
-                          if k != "tso"}, shown)
+                          if k not in OFF_PANEL_KEYS}, shown)
 
     def test_a_list_seen_for_the_first_time_gets_the_set_of_its_kind(self):
         self.win._settings["tournament_set"] = dict(
@@ -124,6 +125,15 @@ class BindingTest(_WindowCase):
                       tso_of(self.win._settings, "party"))
         self.assertIs(self.vals(self.b)["tso"],
                       tso_of(self.win._settings, "tournament"))
+
+    def test_the_double_click_ask_is_seeded_with_the_set_too(self):
+        """❓ Like the TSO pitch it has no panel control: ⚙ Settings → 🎛 Play
+        sets decides it per set, and the list takes it from its kind."""
+        self.win._settings["party_set"] = dict(
+            self.set_of("party"), dblclick_ask=False)
+        self.assertIs(self.vals(self.party)["dblclick_ask"], False)
+        self.assertIs(self.vals(self.b)["dblclick_ask"],
+                      dblclick_ask_of(self.win._settings, "tournament"))
 
     def test_a_click_shows_the_lists_own_values(self):
         self.vals(self.b)["secs"] = 115
@@ -334,7 +344,8 @@ class SetButtonTest(_WindowCase):
         self.click(self.b)
         before_a = dict(self.vals(self.a))
         self.win._set_party_mode(True)
-        got = {k: v for k, v in self.vals(self.b).items() if k != "tso"}
+        got = {k: v for k, v in self.vals(self.b).items()
+               if k not in OFF_PANEL_KEYS}
         self.assertEqual(got, self.set_of("party"))
         self.assertEqual(self.vals(self.a), before_a)
 
@@ -342,7 +353,8 @@ class SetButtonTest(_WindowCase):
         self.click(self.party)
         before_b = dict(self.vals(self.b))
         self.win._apply_tournament_set()
-        got = {k: v for k, v in self.vals(self.party).items() if k != "tso"}
+        got = {k: v for k, v in self.vals(self.party).items()
+               if k not in OFF_PANEL_KEYS}
         self.assertEqual(got, self.set_of("tournament"))
         self.assertEqual(self.vals(self.b), before_b)
 
@@ -351,6 +363,41 @@ class SetButtonTest(_WindowCase):
         self.win._set_party_mode(True)
         self.assertIs(self.vals(self.b)["tso"],
                       tso_of(self.win._settings, "party"))
+
+    def test_the_sets_double_click_ask_goes_into_the_clicked_list(self):
+        self.win._settings["party_set"] = dict(
+            self.set_of("party"), dblclick_ask=False)
+        self.click(self.b)
+        before_a = self.vals(self.a)["dblclick_ask"]
+        self.win._set_party_mode(True)
+        self.assertIs(self.vals(self.b)["dblclick_ask"], False)
+        self.assertIs(self.vals(self.a)["dblclick_ask"], before_a)
+
+    def test_the_tournament_button_brings_its_ask_back(self):
+        self.win._settings["party_set"] = dict(
+            self.set_of("party"), dblclick_ask=False)
+        self.click(self.b)
+        self.win._set_party_mode(True)
+        self.win._apply_tournament_set()
+        self.assertIs(self.vals(self.b)["dblclick_ask"], True)
+
+    def test_switching_a_set_off_takes_that_list_back_only(self):
+        """The way back is remembered per list: 🎉 pressed on A in between
+        does not change what B returns to."""
+        self.win._settings["party_set"] = dict(
+            self.set_of("party"), dblclick_ask=False)
+        self.click(self.b)
+        self.panel.fade_spin.setValue(4.0)
+        before_b = dict(self.vals(self.b))
+        self.win._set_party_mode(True)
+        self.click(self.a)
+        self.win._set_party_mode(True)
+        after_a = dict(self.vals(self.a))
+        self.click(self.b)
+        self.win._set_party_mode(False)
+        self.assertEqual(self.vals(self.b), before_b)
+        self.assertEqual(self.panel.fade_secs(), 4.0)
+        self.assertEqual(self.vals(self.a), after_a)
 
 
 class CornerSwitchTest(_WindowCase):

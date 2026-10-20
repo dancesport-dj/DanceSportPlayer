@@ -323,6 +323,9 @@ DEFAULT_APP_MODE = "both"
 # One-shot settings key: set when the first start picked player-only, consumed
 # by MainWindow._apply_player_first_start.
 PLAYER_FIRST_START = "player_first_start"
+# One-shot settings key: set by the first start's app mode, consumed by
+# ensure_library_dir right after it.
+ASK_LIBRARY_DIR = "ask_library_dir"
 
 # (key, caption, what it means) — shared by the first-start dialog and the
 # ⚙ Settings combo so the two can never describe a mode differently.
@@ -595,6 +598,7 @@ def ensure_app_mode() -> str:
             return "player"
         settings["app_mode"] = "player"
         settings[PLAYER_FIRST_START] = True
+        settings[ASK_LIBRARY_DIR] = True
         save_settings(settings)
         log.info("🎚️ Player-only build — app mode fixed: player")
         warn_if_ffmpeg_missing()
@@ -611,6 +615,7 @@ def ensure_app_mode() -> str:
         # the 🎉 party set and the panes need the live widgets, so MainWindow
         # applies them once and consumes the flag.
         settings[PLAYER_FIRST_START] = True
+    settings[ASK_LIBRARY_DIR] = True
     save_settings(settings)
     log.info("🎚️ App mode chosen on first start\n"
              "mode: %s", mode)
@@ -618,6 +623,59 @@ def ensure_app_mode() -> str:
     # now, which is the one moment a missing ffmpeg is cheap to fix.
     warn_if_ffmpeg_missing()
     return mode
+
+
+class LibraryDirQuestion(QMessageBox):
+    """📂 The first start's question where the music is, with the guessed
+    folder preselected: closing the box keeps it."""
+
+    def __init__(self, guess: str, parent=None):
+        super().__init__(parent)
+        self._guess = guess
+        self.setWindowTitle("Music folder")
+        self.setIcon(QMessageBox.Icon.Question)
+        self.setText("Where is your dance music?")
+        self.setInformativeText(i18n.t(
+            "Every start reads the MP3 files in this folder and in all\n"
+            "folders below it. The first start reads each file once,\n"
+            "which takes long on a whole drive or an external disk,\n"
+            "so pick the folder that holds your dance music.\n\n"
+            "Found: %s\n\n"
+            "You can change it at any time under ⚙ Settings → 📁 Paths.") % guess)
+        self.keep_btn = self.addButton("Use this folder",
+                                       QMessageBox.ButtonRole.AcceptRole)
+        self.pick_btn = self.addButton("Choose another folder…",
+                                       QMessageBox.ButtonRole.ActionRole)
+        self.setDefaultButton(self.keep_btn)
+        self.setEscapeButton(self.keep_btn)
+
+    def ask(self) -> str:
+        self.exec()
+        if self.clickedButton() is self.pick_btn:
+            folder = QFileDialog.getExistingDirectory(self, "Music folder", self._guess)
+            if folder:
+                return os.path.normpath(folder)
+        return self._guess
+
+
+def ensure_library_dir() -> str:
+    """The favorites library folder, asked once on the very first start.
+
+    Otherwise it is guessed, and a guess can land on a whole external drive: a
+    tester's first start sat at 17,500 of 34,000 files before the window
+    opened. Only the start ensure_app_mode() armed asks; an install that
+    already has a folder keeps it. Called from run_gui() right after
+    ensure_app_mode()."""
+    settings = load_settings()
+    guess = settings.get("library_dir") or str(_default_library_dir())
+    if not settings.pop(ASK_LIBRARY_DIR, False):
+        return guess
+    folder = LibraryDirQuestion(guess).ask()
+    settings["library_dir"] = folder
+    save_settings(settings)
+    log.info("📂 Music folder chosen on first start\n"
+             "folder: %s", folder)
+    return folder
 
 
 # The 🔔 update check's opt-in: the checkbox under the error reports question,
@@ -1118,8 +1176,9 @@ class _M3uDroppedList(_DroppedFilesList):
 class UsbExportDialog(QDialog):
     """🧳 choose what goes into the USB venue bundle: every open playlist deck,
     only the 📅 tournament day, or saved .m3u files dragged in (like the
-    Check-duplicates drop tab). Wishlists are never bundled.
-    `mode()` → 'all' | 'day' | 'dropped'; `dropped_paths()` → list[Path]."""
+    Check-duplicates drop tab). Wishlists are never bundled. Or, instead of a
+    bundle, the 📦 venue pack (the one ⚙ Settings exports too).
+    `mode()` → 'all' | 'day' | 'dropped' | 'venue'; `dropped_paths()` → list[Path]."""
 
     def __init__(self, parent=None, n_decks: int = 0, n_day: int = 0,
                  day_selected: bool = False):
@@ -1136,7 +1195,12 @@ class UsbExportDialog(QDialog):
         self._rb_day = QRadioButton((i18n.t("📅 Tournament day only (%d playlist)") if n_day == 1
                                      else i18n.t("📅 Tournament day only (%d playlists)")) % n_day)
         self._rb_dropped = QRadioButton("Saved playlists dragged in (.m3u)…")
-        for rb in (self._rb_all, self._rb_day, self._rb_dropped):
+        self._rb_venue = QRadioButton("📦 Venue pack: this desk for another PC…")
+        self._rb_venue.setToolTip(
+            "One file with the settings, every deck and wishlist and the\n"
+            "cartwall, the music they use if you want: the same as\n"
+            "⚙ Settings → 📦 Venue pack → Export venue pack….")
+        for rb in (self._rb_all, self._rb_day, self._rb_dropped, self._rb_venue):
             self._grp.addButton(rb)
             lyt.addWidget(rb)
         self._rb_all.setEnabled(n_all > 0)
@@ -1183,6 +1247,8 @@ class UsbExportDialog(QDialog):
             return "day"
         if self._rb_dropped.isChecked():
             return "dropped"
+        if self._rb_venue.isChecked():
+            return "venue"
         return "all"
 
     def dropped_paths(self) -> list[Path]:

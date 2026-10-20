@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
+from mutagen.id3 import ID3, TCOM, TIT2
 from PySide6.QtMultimedia import QMediaPlayer
 
 from planner.playing import play_log
@@ -17,6 +18,18 @@ from player.audio.playback_state import PlaybackState
 from gui.decks.deck_set import DeckSet
 
 PLAYING = QMediaPlayer.PlaybackState.PlayingState
+# One MPEG-1 Layer III frame header (128 kbit/s, 44.1 kHz): 417 bytes a frame.
+_FRAME = b"\xff\xfb\x90\x64" + b"\x00" * 413
+
+
+def _tagged_mp3(path: Path, composer: str = "") -> Path:
+    path.write_bytes(_FRAME * 100)
+    tags = ID3()
+    tags.add(TIT2(encoding=3, text="Moon River"))
+    if composer:
+        tags.add(TCOM(encoding=3, text=composer))
+    tags.save(path)
+    return path
 
 
 class _Media:
@@ -101,6 +114,25 @@ class PlayLogHookTest(unittest.TestCase):
         # It started when the music did, not when it greyed.
         ago = (dt.datetime.now() - p.started_at).total_seconds()
         self.assertTrue(11 <= ago <= 14, ago)
+
+    def test_the_composer_comes_from_the_file(self):
+        """No deck row knows the composer: the tag of the file that played does."""
+        song = _tagged_mp3(self.dir / "Moon River.mp3", composer="Henry Mancini")
+        desk = _Desk()
+        desk.entry.path = song
+        desk._log_play(song)
+        self.assertEqual(self.logged()[0].composer, "Henry Mancini")
+
+    def test_a_file_without_a_composer_logs_none(self):
+        song = _tagged_mp3(self.dir / "Moon River.mp3")
+        desk = _Desk()
+        desk.entry.path = song
+        desk._log_play(song)
+        self.assertEqual(self.logged()[0].composer, "")
+
+    def test_a_missing_file_still_logs_the_play(self):
+        _Desk()._log_play(Path(r"C:\music\Moon River.mp3"))
+        self.assertEqual([p.composer for p in self.logged()], [""])
 
     def test_planning_mode_logs_nothing(self):
         _Desk(playing=False)._log_play(Path(r"C:\music\Moon River.mp3"))

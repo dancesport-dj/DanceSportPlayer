@@ -203,10 +203,14 @@ def measure_vocal_share(path: Path) -> float:
 
 def apply_vocal_shares(entries: list[MusicEntry], cache) -> int:
     """Annotate entries with their cached Demucs vocal share (`vocal_share`
-    stays None for unmeasured tracks). Returns how many got a measurement."""
+    stays None for unmeasured tracks). Returns how many got a measurement.
+
+    By the recorded fingerprint: this walks the whole library right behind the
+    scan (or the 🎙️ analysis) that just fingerprinted it, and a stat per track
+    froze the freshly opened window for a fifth of a second."""
     applied = 0
     for e in entries:
-        share = cache.get_vocal_share(e.path)
+        share = cache.get_vocal_share(e.path, touch_disk=False)
         if share is not None:
             e.vocal_share = float(share)
             applied += 1

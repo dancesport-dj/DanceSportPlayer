@@ -688,7 +688,7 @@ class PresenterWindow(QWidget):
         self._base_family = self.font().family()
         self._styled = []   # (_ScrollLabel, theme field, css)
         self._plain = []    # (widget, theme field, css template with {c})
-        self.setWindowTitle("🖥  Presenter — DancePlaylist")
+        self.setWindowTitle("🖥  Presenter — DanceSport Player")
         # An explicit minimum, small: without one the window inherits the
         # layout's, and a block switched on could then force it wider than the
         # monitor it is shown on. The sizing pass below keeps the content

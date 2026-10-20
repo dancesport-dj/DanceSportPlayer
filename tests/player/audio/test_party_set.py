@@ -36,7 +36,7 @@ from player.audio.fade_now import FadeNow
 from player.audio.mix import OutputMix
 from player.window.main_player import PlayerControlMixin
 from planner.playing.play_sets import (
-    _PARTY_SET, _TOURNAMENT_SET, play_set_of, tso_of,
+    _PARTY_SET, _TOURNAMENT_SET, dblclick_ask_of, play_set_of, tso_of,
 )
 from player.widgets.play_mode_panel import PlayModePanel
 from player.audio.playback_state import PlaybackState
@@ -93,6 +93,15 @@ class _Panel:
         changed = [k for k, v in new.items() if self._set.get(k) != v]
         self._set.update(new)
         return changed
+
+    def pd_highlight_stop(self) -> bool:
+        return self.pd_stop
+
+    def pd_highlight_n(self) -> int:
+        return 2
+
+    def pd_start_delay(self) -> int:
+        return 0
 
     def set_pd_highlight_stop(self, on: bool) -> list:
         was, self.pd_stop = self.pd_stop, bool(on)
@@ -165,6 +174,12 @@ class PartySetTsoTest(unittest.TestCase):
         operator picks the next title out of the deck."""
         self.assertIs(_TOURNAMENT_SET["dblclick"], False)
 
+    def test_both_sets_ask_before_a_double_click_stops_a_title(self):
+        """❓ On by default in both: a stray double-click must not cut the
+        title on the floor. ⚙ Settings → 🎛 Play sets can switch it off."""
+        self.assertIs(dblclick_ask_of({}, "party"), True)
+        self.assertIs(dblclick_ask_of({}, "tournament"), True)
+
     def test_the_two_sets_switch_it_over(self):
         self.desk._set_party_mode(True)
         self.assertIs(self.desk._play_panel.play_set()["dblclick"], True)
@@ -182,20 +197,20 @@ class PartySetTsoTest(unittest.TestCase):
         self.assertTrue(self.desk._big_player.tso_mode())
         self.assertIs(self.desk._settings["tso_equalize"], True)
 
-    def test_the_tournament_set_owns_the_pitch_coming_back(self):
-        """Not the toggle's position before the party: a deck taking over is a
-        round starting, and a heat is danced to the dance's mean tempo."""
+    def test_the_tournament_set_owns_the_pitch_after_a_party(self):
+        """🏆 pressed after the party: a heat is danced to the dance's mean
+        tempo, whatever the toggle was before the party."""
         desk = _Desk(tso=False)
         self.addCleanup(reap_widget, desk)
         desk._set_party_mode(True)
-        desk._set_party_mode(False)
+        desk._apply_tournament_set()
         self.assertTrue(desk._big_player.tso_mode())
 
     def test_the_operator_can_configure_that_pitch_away(self):
         """⚙ Settings → 🎛 Play sets → 🏆 → 🎚 TSO."""
         self.desk._settings["tournament_set"] = dict(_TOURNAMENT_SET, tso=False)
         self.desk._set_party_mode(True)
-        self.desk._set_party_mode(False)
+        self.desk._apply_tournament_set()
         self.assertFalse(self.desk._big_player.tso_mode())
 
     def test_tso_never_reaches_the_play_panel(self):
@@ -207,7 +222,7 @@ class PartySetTsoTest(unittest.TestCase):
     def test_the_two_sets_take_turns(self):
         self.desk._set_party_mode(True)
         self.assertEqual(self.desk._play_panel.play_set(), _PARTY_SET)
-        self.desk._set_party_mode(False)
+        self.desk._apply_tournament_set()
         self.assertEqual(self.desk._play_panel.play_set(), _TOURNAMENT_SET)
 
     def test_a_party_can_be_configured_to_keep_the_pitch(self):
@@ -222,15 +237,15 @@ class PartySetTsoTest(unittest.TestCase):
         self.addCleanup(reap_widget, desk)
         desk._set_party_mode(True)
         desk._set_party_mode(False)
-        self.assertEqual(desk._play_panel.play_set(), _TOURNAMENT_SET)
+        self.assertEqual(desk._play_panel.play_set(), _HAND_PICKED)
 
 
 class TournamentSetTest(unittest.TestCase):
     """🏆 Tournament set: the competition values in one press.
 
-    Not a toggle — there is nothing to restore afterwards, these ARE the values
-    a heat is run with. So it also switches the 🎉 party set off and drops the
-    values that set was standing on."""
+    Pressed while it is not lit, it puts these values on and switches the 🎉
+    party set off; pressed while lit it switches itself off again (see
+    SetOffGoesBackTest)."""
 
     @classmethod
     def setUpClass(cls):
@@ -345,65 +360,102 @@ class TournamentSetTest(unittest.TestCase):
         self.assertFalse(self.desk._play_panel.tournament_on())
 
 
-class PartyOffIsTheTournamentSetTest(unittest.TestCase):
-    """🎉 clicked off puts the 🏆 set on — not a snapshot.
+class SetOffGoesBackTest(unittest.TestCase):
+    """A lit 🎉 or 🏆 clicked switches that set OFF: the list goes back to the
+    values it had before the set was pressed — pitch, ❓ ask and 🐂 included.
 
-    The two sets are a pair, and the way out of one is the other. It used to
-    restore whatever the panel happened to hold when the party began, and that
-    snapshot re-made itself on every switch — so a panel that was once on
-    hand-picked values could never find its way back to the set.
-    """
+    The memory is taken at the press and spent on the way back, and it is not
+    saved: a snapshot that outlived the evening is how secs 15 with
+    announcements once came back onto the panel at the start of every round.
+    With nothing to go back to the set stays on and a toast says so; the
+    other button is always a way out."""
 
     @classmethod
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
     def setUp(self):
+        from unittest import mock
         self.desk = _Desk()
         self.addCleanup(reap_widget, self.desk)
+        self.toasts = []
+        patcher = mock.patch("player.window.main_play_values._show_toast",
+                             lambda _w, text, *_a: self.toasts.append(text))
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
-    def test_clicking_the_party_off_applies_the_tournament_set(self):
+    def lights(self):
+        p = self.desk._play_panel
+        return p.party_on, p.tournament_on()
+
+    def test_clicking_the_party_off_brings_the_earlier_values_back(self):
         self.desk._set_party_mode(True)
         self.desk._set_party_mode(False)
-        self.assertEqual(self.desk._play_panel.play_set(), _TOURNAMENT_SET)
+        self.assertEqual(self.desk._play_panel.play_set(), _HAND_PICKED)
+        self.assertEqual(self.lights(), (False, False))
 
-    def test_hand_picked_values_do_not_survive_the_party(self):
-        """His case: secs 15 with announcements on, from some evening long ago,
-        coming back onto the panel at the start of every round."""
-        self.desk._play_panel._set.update(secs=15, announce=True, advance=True)
+    def test_clicking_the_lit_tournament_set_brings_them_back_too(self):
+        self.desk._apply_tournament_set()
+        self.assertEqual(self.lights(), (False, True))
+        self.desk._apply_tournament_set()
+        self.assertEqual(self.desk._play_panel.play_set(), _HAND_PICKED)
+        self.assertEqual(self.lights(), (False, False))
+
+    def test_the_pitch_from_before_comes_back(self):
+        desk = _Desk(tso=False)
+        self.addCleanup(reap_widget, desk)
+        desk._apply_tournament_set()
+        self.assertTrue(desk._big_player.tso_mode())
+        desk._apply_tournament_set()
+        self.assertFalse(desk._big_player.tso_mode())
+
+    def test_the_paso_doble_stop_from_before_comes_back(self):
+        self.desk._play_panel.pd_stop = False
         self.desk._set_party_mode(True)
+        self.assertTrue(self.desk._play_panel.pd_stop)
         self.desk._set_party_mode(False)
-        self.assertEqual(self.desk._play_panel.play_set(), _TOURNAMENT_SET)
+        self.assertFalse(self.desk._play_panel.pd_stop)
+
+    def test_the_way_back_is_to_before_the_last_press(self):
+        """🎉 then 🏆: switching 🏆 off returns to the party, not further."""
+        self.desk._set_party_mode(True)
+        self.desk._apply_tournament_set()
+        self.desk._apply_tournament_set()
+        self.assertEqual(self.desk._play_panel.play_set(), _PARTY_SET)
+        self.assertEqual(self.lights(), (True, False))
 
     def test_switching_back_and_forth_cannot_drift(self):
-        """The old snapshot was a fixed point; these two are constants."""
         for _ in range(3):
             self.desk._set_party_mode(True)
             self.assertEqual(self.desk._play_panel.play_set(), _PARTY_SET)
             self.desk._set_party_mode(False)
-            self.assertEqual(self.desk._play_panel.play_set(), _TOURNAMENT_SET)
+            self.assertEqual(self.desk._play_panel.play_set(), _HAND_PICKED)
 
-    def test_a_configured_tournament_set_is_what_comes_back(self):
-        """⚙ Settings → 🎛 Play sets, not the built-in default."""
-        self.desk._settings["tournament_set"] = dict(_TOURNAMENT_SET, secs=120)
+    def test_the_toast_says_the_set_is_off(self):
         self.desk._set_party_mode(True)
         self.desk._set_party_mode(False)
-        self.assertEqual(self.desk._play_panel.play_set()["secs"], 120)
+        head = self.toasts[-1].split("\n")[0]
+        self.assertIn("Party set off", head)
+        self.assertIn("earlier values", head)
 
-    def test_the_tso_pitch_comes_back_with_it(self):
-        """A heat is danced to the dance's mean tempo — the tournament set's
-        own answer, not whatever the toggle was before the party."""
-        desk = _Desk(tso=False)
-        self.addCleanup(reap_widget, desk)
-        desk._set_party_mode(True)
-        desk._set_party_mode(False)
-        self.assertTrue(desk._big_player.tso_mode())
+    def test_with_nothing_to_go_back_to_the_set_stays_on(self):
+        """A panel that started out on the 🏆 values was never pressed onto
+        them: there is no 'before' to return to."""
+        self.desk._play_panel._set = dict(_TOURNAMENT_SET)
+        self.desk._refresh_set_lights()
+        self.desk._apply_tournament_set()
+        self.assertEqual(self.desk._play_panel.play_set(), _TOURNAMENT_SET)
+        self.assertEqual(self.lights(), (False, True))
+        self.assertIn("stays on", self.toasts[-1].split("\n")[0])
 
-    def test_the_light_says_so(self):
-        """🏆 reports where the panel stands, and it now always stands there."""
-        self.desk._set_party_mode(True)
-        self.desk._set_party_mode(False)
-        self.assertTrue(self.desk._play_panel.tournament_on())
+    def test_the_memory_is_spent_on_the_way_back(self):
+        self.desk._apply_tournament_set()
+        self.desk._apply_tournament_set()      # off: hand-picked again
+        self.desk._play_panel._set = dict(_TOURNAMENT_SET)
+        self.desk._refresh_set_lights()
+        self.desk._apply_tournament_set()
+        self.assertEqual(self.desk._play_panel.play_set(), _TOURNAMENT_SET)
+        self.assertIn("stays on", self.toasts[-1].split("\n")[0])
 
 
 class WhichSetIsOnTest(unittest.TestCase):

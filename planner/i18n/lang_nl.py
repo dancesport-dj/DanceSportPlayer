@@ -932,7 +932,7 @@ CATALOG = {
         "🔈 Geen aankondigingsopnames gevonden voor deze stem.",
     "🖌  Wall colour": "🖌  Kleur van de Cartwall",
     "🖥  Presenter": "🖥  Presentatie",
-    "🖥  Presenter — DancePlaylist": "🖥  Presentatie — DancePlaylist",
+    "🖥  Presenter — DanceSport Player": "🖥  Presentatie — DanceSport Player",
     "🕒 Timetable — presenter screen": "🕒 Tijdschema — presentatiescherm",
     "✖  Remove": "✖  Verwijderen",
     "🖨  Print": "🖨  Afdrukken",
@@ -1117,14 +1117,16 @@ CATALOG = {
     "One sub-folder per playlist holding its tracks copied in numbered\n"
     "play order (0_0_1 - Title WW29.mp3) plus the playlist's .m3u — each\n"
     "folder plays in order even without the M3U, from any drive,\n"
-    "laptop or UltraMixer at the venue (no path fixing needed there).":
+    "laptop or UltraMixer at the venue (no path fixing needed there).\n"
+    "Also offers the 📦 venue pack: this desk in one file for another PC.":
         "Afspeellijsten exporteren als zelfstandig zaalpakket — vraagt eerst\n"
         "of alle open decks, alleen de 📅 toernooidag of binnengesleepte\n"
         "opgeslagen .m3u-bestanden mee moeten (wensenlijsten gaan nooit mee).\n"
         "Eén submap per afspeellijst met haar nummers gekopieerd in genummerde\n"
         "speelvolgorde (0_0_1 - Title WW29.mp3) plus de .m3u van de afspeellijst — elke\n"
         "map speelt in volgorde, ook zonder de M3U, vanaf elke schijf,\n"
-        "laptop of UltraMixer in de zaal (daar hoeven geen paden te worden hersteld).",
+        "laptop of UltraMixer in de zaal (daar hoeven geen paden te worden hersteld).\n"
+        "Biedt ook het 📦 zaalpakket: deze tafel in één bestand voor een andere pc.",
     "Export the focused playlist as a printable PDF\n"
     "(rounds, heats, titles, lengths) into the playlist folder.":
         "De actieve afspeellijst als afdrukbare PDF\n"
@@ -2266,14 +2268,20 @@ CATALOG = {
     "\n"
     "Lit gold while the panel stands on those values, the way 🎉 is lit\n"
     "purple during a party. Switches the 🎉 party set off. What exactly\n"
-    "it sets is yours to change: ⚙ Settings → 🎛 Play sets.":
+    "it sets is yours to change: ⚙ Settings → 🎛 Play sets.\n"
+    "\n"
+    "Clicked while lit, it switches itself off: the list goes back to\n"
+    "the values it had before the set was pressed.":
         "Het paneel in één keer terugzetten op de wedstrijdwaarden: de\n"
         "ingestelde speelduur, geen pauze tussen nummers, geen automatisch doorgaan\n"
         "en geen gesproken aankondiging — de instellingen waarmee een heat loopt.\n"
         "\n"
         "Goud verlicht zolang het paneel op die waarden staat, zoals 🎉\n"
         "paars oplicht tijdens een feest. Zet de 🎉 feestset uit. Wat het precies\n"
-        "instelt, kun je zelf aanpassen: ⚙ Instellingen → 🎛 Speelsets.",
+        "instelt, kun je zelf aanpassen: ⚙ Instellingen → 🎛 Speelsets.\n"
+        "\n"
+        "Brandt hij, dan zet een klik hem uit: de lijst keert terug naar\n"
+        "de waarden van vóór het indrukken van de set.",
     "Say the next dance out loud shortly before the pause ends\n"
     "(\"Nächster Tanz: Langsamer Walzer\"). Without a pause the dance\n"
     "is named as the title starts instead (\"Langsamer Walzer\") —\n"
@@ -2331,7 +2339,10 @@ CATALOG = {
     "Applied by itself as soon as you play from the 🤸 Practice /\n"
     "party list, and switched back when a tournament deck takes over —\n"
     "a toast says what changed either way. What exactly it sets is\n"
-    "yours to change: ⚙ Settings → 🎛 Play sets.":
+    "yours to change: ⚙ Settings → 🎛 Play sets.\n"
+    "\n"
+    "Clicked while lit, it switches itself off: the list goes back to\n"
+    "the values it had before the set was pressed.":
         "De toernooi-instellingen in één keer omzetten naar feestgebruik:\n"
         "elk nummer op volle lengte, automatisch door naar het volgende, geen\n"
         "pauze (dus geen pauzemuziek) ertussen en geen gesproken aankondiging.\n"
@@ -2339,7 +2350,10 @@ CATALOG = {
         "Wordt vanzelf toegepast zodra je speelt uit de 🤸 oefen- /\n"
         "feestlijst, en teruggezet als een toernooideck het overneemt —\n"
         "een melding zegt in beide gevallen wat er is veranderd. Wat het precies instelt,\n"
-        "kun je zelf aanpassen: ⚙ Instellingen → 🎛 Speelsets.",
+        "kun je zelf aanpassen: ⚙ Instellingen → 🎛 Speelsets.\n"
+        "\n"
+        "Brandt hij, dan zet een klik hem uit: de lijst keert terug naar\n"
+        "de waarden van vóór het indrukken van de set.",
     "The colours of the presenter screen. 'Default' is the black hall\n"
     "display; 'Light' is creme paper with warm brown type and rose\n"
     "gold for the next dance — made for a lit room, where black on a\n"
@@ -3528,7 +3542,6 @@ CATALOG = {
     "🏆  Tournament set — %s": "🏆  Toernooi-instelling — %s",
     "🎚  Own settings — %s": "🎚  Eigen instellingen — %s",
     "🎉  Party set applied": "🎉  Feestinstelling toegepast",
-    "🏆  Tournament set back": "🏆  Terug op de toernooi-instelling",
     "🏆  Tournament set applied": "🏆  Toernooi-instelling toegepast",
     "nothing to change": "niets te wijzigen",
     ", running at %s": ", klok staat op %s",
@@ -3701,6 +3714,8 @@ CATALOG = {
         "📥 %d met de hand gezet(te) Paso Doble-hoogtepunt(en) geïmporteerd — %d daarvan horen bij een nummer dat deze pc al kent.\n"
         "\n"
         "De andere blijven bewaard en gelden zodra die muziek hier opduikt.",
+    "<b>Backup folder</b> — where the daily backup of your own data goes (e.g. D:\\Dropbox\\DanceSportPlayer). Empty: next to the database.":
+        "<b>Back-upmap</b> — waar de dagelijkse back-up van je eigen gegevens heen gaat (bijv. D:\\Dropbox\\DanceSportPlayer). Leeg: naast de database.",
     "♻  Restore user data backup…":
         "♻  Back-up van eigen gegevens terugzetten…",
     "Restore user data backup": "Back-up van eigen gegevens terugzetten",
@@ -3728,9 +3743,9 @@ CATALOG = {
         "zodra hij 10 seconden heeft gelopen, op het moment dat zijn rij grijs wordt.",
     "💾  Save as CSV…": "💾  Opslaan als CSV…",
     "Save this evening as a table for Excel: date, start, artist, title,\n"
-    "dance, list and how long each title ran — e.g. for a GEMA report.":
+    "composer, dance, list and how long each title ran — e.g. for a GEMA report.":
         "Slaat deze avond op als tabel voor Excel: datum, start, artiest, titel,\n"
-        "dans, lijst en hoe lang elke titel liep — bijv. voor een melding aan de auteursrechtenorganisatie.",
+        "componist, dans, lijst en hoe lang elke titel liep — bijv. voor een melding aan de auteursrechtenorganisatie.",
     "🗑  Delete evening": "🗑  Avond verwijderen",
     "Delete evening": "Avond verwijderen",
     "%d title(s)": "%d titel(s)",
@@ -4911,7 +4926,7 @@ CATALOG = {
     "⛔ %(ip)s refused — not on the local network":
         "⛔ %(ip)s geweigerd — niet in het lokale netwerk",
     "⚠ Could not start: %(detail)s": "⚠ Kon niet starten: %(detail)s",
-    "DancePlaylist remote": "DancePlaylist-bediening",
+    "DanceSport Player remote": "DanceSport Player-bediening",
     "Connect": "Verbinden",
     "Wrong PIN": "Verkeerde pincode",
     "Too many wrong PINs — wait a minute":
@@ -5217,4 +5232,136 @@ CATALOG = {
         "Zolang verzoeken open zijn, toont het presentatiescherm de code in\nde hoek — gasten scannen hem vanaf de dansvloer.",
     "refused":
         "geweigerd",
+    "Music folder":
+        "Muziekmap",
+    "Where is your dance music?":
+        "Waar staat je dansmuziek?",
+    "Use this folder":
+        "Deze map gebruiken",
+    "Choose another folder…":
+        "Andere map kiezen…",
+    "Every start reads the MP3 files in this folder and in all\n"
+    "folders below it. The first start reads each file once,\n"
+    "which takes long on a whole drive or an external disk,\n"
+    "so pick the folder that holds your dance music.\n\n"
+    "Found: %s\n\n"
+    "You can change it at any time under ⚙ Settings → 📁 Paths.":
+        "Elke start leest de MP3-bestanden in deze map en in alle\n"
+        "mappen daaronder. De eerste start leest elk bestand één keer,\n"
+        "wat lang duurt op een hele schijf of een externe schijf,\n"
+        "dus kies de map met je dansmuziek.\n\n"
+        "Gevonden: %s\n\n"
+        "Je kunt dit altijd wijzigen onder ⚙ Instellingen → 📁 Paden.",
+    "📦 Venue pack: this desk for another PC…":
+        "📦 Zaalpakket: deze tafel voor een andere pc…",
+    "One file with the settings, every deck and wishlist and the\n"
+    "cartwall, the music they use if you want: the same as\n"
+    "⚙ Settings → 📦 Venue pack → Export venue pack….":
+        "Eén bestand met de instellingen, elk deck en elke wensenlijst en de\n"
+        "Cartwall, als je wilt met de muziek die ze gebruiken: hetzelfde als\n"
+        "⚙ Instellingen → 📦 Zaalpakket → Zaalpakket exporteren….",
+    "📚 Listing the library folder…":
+        "📚 Muziekmap wordt gelezen…",
+    "📚 Library: %s / %s files":
+        "📚 Bibliotheek: %s / %s bestanden",
+    "📚 The library is still loading — this works once it is done.":
+        "📚 De bibliotheek laadt nog — dit werkt zodra ze klaar is.",
+    "🎯  Focus playlist 1":
+        "🎯  Afspeellijst 1 focussen",
+    "🎯  Focus playlist 2":
+        "🎯  Afspeellijst 2 focussen",
+    "🎯  Focus playlist 3":
+        "🎯  Afspeellijst 3 focussen",
+    "🎯  Focus playlist 4":
+        "🎯  Afspeellijst 4 focussen",
+    "🎯  Focus playlist 5":
+        "🎯  Afspeellijst 5 focussen",
+    "🎯  Focus playlist 6":
+        "🎯  Afspeellijst 6 focussen",
+    "🎯  Focus playlist 7":
+        "🎯  Afspeellijst 7 focussen",
+    "🎯  Focus playlist 8":
+        "🎯  Afspeellijst 8 focussen",
+    "🎯  Focus wishlist 1":
+        "🎯  Wensenlijst 1 focussen",
+    "🎯  Focus wishlist 2":
+        "🎯  Wensenlijst 2 focussen",
+    "🎯  Focus wishlist 3":
+        "🎯  Wensenlijst 3 focussen",
+    "🎯  Focus wishlist 4":
+        "🎯  Wensenlijst 4 focussen",
+    "📚  Focus the library":
+        "📚  Bibliotheek focussen",
+    "🔄  Browse the list (endless knob)":
+        "🔄  Door de lijst bladeren (eindeloze draaiknop)",
+    "⬆  Browse up":
+        "⬆  Omhoog bladeren",
+    "⬇  Browse down":
+        "⬇  Omlaag bladeren",
+    "▶  Play the selected title":
+        "▶  Geselecteerde titel afspelen",
+    "➕  Selected title to the playlist":
+        "➕  Geselecteerde titel naar de afspeellijst",
+    "⭐  Selected title to the wishlist":
+        "⭐  Geselecteerde titel naar de wensenlijst",
+    "➕  This playlist takes a title only dragged onto a slot.":
+        "➕  Deze afspeellijst neemt een titel alleen op een plek gesleept.",
+    "Warm-up list: swap the two selected titles of one dance":
+        "Warming-uplijst: de twee geselecteerde titels van één dans omwisselen",
+    "Play / stop the selected song — in Playing mode also in the list playing, where Space pauses the player":
+        "Het gekozen nummer afspelen / stoppen — in de afspeelmodus ook in de lijst die speelt, waar Spatie de speler pauzeert",
+    "⏸ Library scan paused: %s / %s files":
+        "⏸ Bibliotheekscan gepauzeerd: %s / %s bestanden",
+    "⏹ Stopping the library scan…":
+        "⏹ Bibliotheekscan wordt gestopt…",
+    "Pause the library scan":
+        "Bibliotheekscan pauzeren",
+    "Go on with the library scan":
+        "Bibliotheekscan hervatten",
+    "Stop the library scan and use the titles read so far; the next start scans the rest":
+        "Bibliotheekscan stoppen en de tot nu toe gelezen nummers gebruiken; de volgende start scant de rest",
+    "⭐ Favorites":
+        "⭐ Favorieten",
+    "🌐 Whole library":
+        "🌐 Hele bibliotheek",
+    "⏳ Whole library…":
+        "⏳ Hele bibliotheek…",
+    "The whole library is still loading in the background.\nIt is listed here when it is there; keep working meanwhile.":
+        "De hele bibliotheek wordt nog op de achtergrond geladen.\nHij verschijnt hier zodra hij er is; werk intussen gewoon verder.",
+    "🌐 The whole library is still loading — it is listed when it is there.":
+        "🌐 De hele bibliotheek wordt nog geladen — hij verschijnt zodra hij er is.",
+    "🌐 Loading the whole library…":
+        "🌐 De hele bibliotheek wordt geladen…",
+    "🌐 Listing the whole library: %s / %s titles":
+        "🌐 De hele bibliotheek wordt opgesomd: %s / %s titels",
+    "📚 Listing the library: %s / %s titles":
+        "📚 De bibliotheek wordt opgesomd: %s / %s titels",
+    "Listing the whole music repository.\nClick to go back to the favorites library.":
+        "Toont de hele muziekcollectie.\nKlik om terug te gaan naar de favorietenbibliotheek.",
+    "Listing the favorites library.\nClick to list the whole music repository instead.":
+        "Toont de favorietenbibliotheek.\nKlik om in plaats daarvan de hele muziekcollectie te tonen.",
+    '🔄  Scan repository for new titles':
+        '🔄  Muziekverzameling op nieuwe titels scannen',
+    'Walk the whole music repository folder and read the tags of new and\nchanged files, so 🌐 Whole library in the library pane and the global\nsearch know every title. No audio analysis; the scan runs in the\nbackground, its progress in the status bar.':
+        'De hele map van de muziekverzameling doorlopen en de tags van nieuwe en\ngewijzigde bestanden lezen, zodat 🌐 Hele bibliotheek in het bibliotheekpaneel\nen de globale zoekfunctie elke titel kennen. Geen audio-analyse; de scan\nloopt op de achtergrond, de voortgang in de statusbalk.',
+    'Scan the whole music repository again for new and changed titles.\nReads the tags only, no audio analysis; the progress shows in the\nstatus bar.':
+        'De hele muziekverzameling opnieuw scannen op nieuwe en gewijzigde titels.\nLeest alleen de tags, geen audio-analyse; de voortgang staat in de\nstatusbalk.',
+    '🌐 Repository: %s / %s files':
+        '🌐 Muziekverzameling: %s / %s bestanden',
+    'Go on with the repository scan':
+        'Doorgaan met de scan van de muziekverzameling',
+    'Pause the repository scan':
+        'Scan van de muziekverzameling pauzeren',
+    'Stop the repository scan and use the titles read so far; the next scan reads the rest':
+        'Scan van de muziekverzameling stoppen en de tot nu toe gelezen titels gebruiken; de volgende scan leest de rest',
+    '⏹ Stopping the repository scan…':
+        '⏹ Scan van de muziekverzameling wordt gestopt…',
+    '⏸ Repository scan paused: %s / %s files':
+        '⏸ Scan van de muziekverzameling gepauzeerd: %s / %s bestanden',
+    '🌐 Listing the repository folder…':
+        '🌐 Map van de muziekverzameling wordt opgesomd…',
+    '🌐 The repository is being scanned already.':
+        '🌐 De muziekverzameling wordt al gescand.',
+    'Scan repository':
+        'Muziekverzameling scannen',
 }

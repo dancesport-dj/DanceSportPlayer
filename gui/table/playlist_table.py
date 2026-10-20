@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QHeaderView,
     QLabel,
+    QMessageBox,
     QPushButton,
     QStyle,
     QStyledItemDelegate,
@@ -42,6 +43,7 @@ from planner.models import MusicEntry, RoundConfig
 from planner.terms import dance_name
 from planner.generate.suggester import PlaylistSuggester
 from planner.playlist.checks import FLAG_EDGE_SILENCE, is_final_round
+from planner.playing.play_sets import dblclick_ask_of
 from planner.music.parsing import _fmt_bpm
 from planner import i18n
 from gui.common import (
@@ -379,6 +381,9 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         # player, several lists: the party list runs full length and
         # hands-free while the round beside it cuts at 1:30.
         self._play_vals: dict | None = None
+        # What this list stood on before 🎉/🏆 was pressed on it: the way back
+        # when the lit set is clicked off (`_leave_set`). Never saved.
+        self._before_set: dict | None = None
         # Whether the switch is wanted — asked instead of the button's own
         # isVisible(), which is False for as long as the WINDOW is unmapped and
         # would leave a deck wired during start-up with no caption at all.
@@ -799,6 +804,28 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             return bool(vals["dblclick"])
         return bool(self.host.settings().get("dblclick_plays", False))
 
+    def dblclick_asks(self) -> bool:
+        """❓ True where a double-click on another title asks before it stops
+        the one on the speakers — part of both play sets (⚙ Settings → 🎛
+        Play sets) and on in both. A list saved before it existed asks; a
+        window that keeps no list values asks as the 🏆 set does."""
+        vals = self.host.list_vals()
+        if vals is not None:
+            return bool(vals.get("dblclick_ask", True))
+        return dblclick_ask_of(self.host.settings(), "tournament")
+
+    def _ask_stop_playing(self, title: str) -> bool:
+        """Yes/No: stop the playing title for `title`. Defaults to No, so a
+        stray Enter keeps the music on the floor."""
+        text = (i18n.t("A title is playing. Stop it and start “%s”?")
+                if self.dblclick_plays()
+                else i18n.t("A title is playing. Stop it and cue “%s”?"))
+        ans = QMessageBox.question(
+            self, i18n.t("Stop the playing title?"), text % title,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No)
+        return ans == QMessageBox.StandardButton.Yes
+
     def _on_row_double_clicked(self, row: int, _col: int):
         """Playing mode PLAYS the row (or cues it — see `dblclick_plays`);
         planning mode opens the file externally, and an EMPTY slot opens 📚 the
@@ -812,6 +839,10 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         A row that is already playing is left alone rather than toggled off. The
         ■ button is right there, and silence in the middle of a heat is not
         something a stray double-click should be able to cause.
+
+        A double-click on ANOTHER row stops the playing title just the same,
+        whether it plays or cues the new one — so while music is on it asks
+        first, unless the list's ❓ play value says not to (`dblclick_asks`).
         """
         if not (0 <= row < len(self._row_meta) and self._row_meta[row]):
             return
@@ -825,6 +856,9 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             return
         if row == self._current_play_row:
             return          # never touch the title that is on the speakers
+        if (self.host.is_player_running() and self.dblclick_asks()
+                and not self._ask_stop_playing(entry.title)):
+            return
         if self.dblclick_plays():
             self._on_play_click(row, entry.path)
             return
