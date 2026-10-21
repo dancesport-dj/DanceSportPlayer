@@ -152,7 +152,7 @@ class ScanCache:
 _ENTRY_META_KEYS = (
     "title", "dance", "bpm", "year", "other_genre", "classes_ok",
     "is_instrumental", "is_xmas", "tag_title", "tag_artist", "duration",
-    "tag_album", "comment_tags", "rating", "custom", "tag_bpm",
+    "tag_album", "comment_tags", "rating", "custom", "tag_bpm", "tag_comment",
 )
 
 

@@ -100,8 +100,10 @@ The **🔊 Sound & player** tab.
 | **🔇 Release the sound card between titles** | An onboard sound card puts a hiss on the PA while an app holds it open. This hands the device back after a few seconds of silence. The price is a soft click when the next title starts, so switch it on only if you hear the hiss. |
 | **🔕 Mute system sounds while the evening runs** | No error ding or notification chime over the speakers. The system sounds come back when you close the app. |
 | **🎧 Preview player** | A mini player (seek, skip, volume) floats over the deck when you click a ▶ in a row. |
+| **📂 Double-click opens the title in the system's music player** | Off (the default): while planning, a double-click on a deck row plays the title in the mini player, and in 📚 the library, 🏆 Tournaments and the dialogs it does nothing. On: the title opens in the program your system plays music with (on a Mac, Music). Right-click ▸ open works either way, and in Playing mode a double-click always plays or cues the title. |
 | **🖼 Show artwork** | A cover next to the title on the player card. It uses the playlist's own image (`#EXTIMG`), a cover file in the folder, or the art in the MP3. |
 | **〰 Show waveform** | The title's [waveform](04-playing.md#-the-waveform) on the player card in place of the seek bar. |
+| **🔉 Duck to** | How far 🔊 Duck pulls everything down on the player card, the mini player and the presenter screen: 20 % by default, 0 % (silence) to 90 %. A change reaches a duck that is on right now. |
 | **🎙 Announcement voice** | Who reads [🔈 Announce next dance](04-playing.md#-announce-next-dance): *Female*, *Male* or *Mixed* (the default), which alternates the two. **…with heat** adds the heat number, off by default. **🔈 Test** speaks a sample in the voice shown, before you click OK. |
 | **🗣 Dance is named** | Where the call sits when a title names its dance as it starts, with no pause: **over the first bars** (the default; the music is ducked under the voice) or **before the music starts** (the music follows the call). The ▶ Playing panel names it in short: *over the music* or *before the music*. |
 | **▶ Player position** | Where the player card stands: *beside the playlists*, at the head of the Playing panel, or *above the playlists*, as one wide strip over the decks. |
@@ -129,7 +131,8 @@ lists can be picked, on Windows, macOS and Linux.
 - A card that is not plugged in plays on the system default, with one
   message, and the sound goes back to the card when it is back. The
   pre-listen is the exception when that default is the music's output: it is
-  refused, so nothing meant for the headphones reaches the PA.
+  refused, so nothing meant for the headphones reaches the PA. With one
+  output only, there is no other to choose, and the pre-listen plays there.
 - Windows sometimes gives a replugged card a new number, so
   `2- ESI Audio Device` comes back as `3- ESI Audio Device`. The app then
   finds the card again by its name, as long as only one plugged-in card

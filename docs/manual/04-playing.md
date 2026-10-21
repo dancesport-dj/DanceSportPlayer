@@ -22,7 +22,7 @@ ready*: some titles will not play, or a sound output is not connected.
 | 🐂 Paso Doble highlights | Every Paso Doble knows its highlights. |
 | 🔁 Duplicates | No title is in two lists. |
 | 🎶 Playlists | There is something to play at all. |
-| 🔈 Sound outputs | Every output chosen in ⚙ Settings → 🔊 Sound & player is plugged in. A missing card for the music, the filler, the cartwall or the announcements is red: that source plays on the system default instead. A missing 🎧 Pre-listen card is yellow, and so is a pre-listen that would land on the music's own output, because every preview would be refused. |
+| 🔈 Sound outputs | Every output chosen in ⚙ Settings → 🔊 Sound & player is plugged in. A missing card for the music, the filler, the cartwall or the announcements is red: that source plays on the system default instead. A missing 🎧 Pre-listen card is yellow, and so is a pre-listen that would land on the music's own output, because every preview would be refused. Pre-listen left on *Same as the music* is yellow too, because the hall hears every preview. With one output only there is no other to choose, so nothing is flagged. |
 | 🎛 Controller | The chosen hardware controller is connected. Not every evening needs one, so this line is yellow at worst, and it is left out while no controller is set up. |
 | ☀ Screen and sleep | ☀ Keep the screen awake is on, so the screen, the beamer and the computer stay awake while music plays or the presenter screen is up. |
 
@@ -85,10 +85,10 @@ the time left.
 | **⏯** | Pause / resume. |
 | **🔁** | Repeats *this* title endlessly, for when the floor is still full or a speech runs long. It works with ⏭ Auto off, too. |
 | fade button (muted speaker) | Fades the title out now, over the fade time, then ends it. |
-| **☕** | Ends the title and goes straight to the pause music. |
+| **☕** | Ends the title and goes straight to the pause music. Only there while **Pause between songs** is on. |
 | extend button | Adds another pause length when the heat change takes longer. |
 | **⊗** | Panic: fades the music out and *holds* it. Nothing ends and nothing advances. **⏯** resumes at exactly that spot. |
-| **🔊** | Ducks to 20 % and back to full. The pause music comes down too. |
+| **🔊** | Ducks to 20 % and back to full. The pause music comes down too. The level is set under ⚙ Settings ▸ 🔊 Sound & player ▸ **🔉 Duck to**. |
 | volume slider | Master volume. |
 
 ### 〰 The waveform
@@ -298,8 +298,13 @@ a title while the hall hears the music. Pick that output in
 - **▶** on a deck row still starts the music for the hall.
 - A pre-listen output that is not plugged in plays on the system default
   instead. When that default is the music's own output, the pre-listen is
-  refused, with a message: a preview on the PA is worse than none.
-- Left on **Same as the music**, every ▶ plays on the one player, as before.
+  refused, with a message: a preview on the PA is worse than none. A
+  computer with one output only has no other to choose, so there the
+  pre-listen plays on it.
+- Left on **Same as the music**, ▶ in the 📚 Library and the 🏆 Tournaments
+  pane still plays in that mini player, on the music's own output and
+  alongside the music. The main player and its card are left alone. A deck's
+  ▶ stops it.
 
 ## 🎛 The cartwall
 

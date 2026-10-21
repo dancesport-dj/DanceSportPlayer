@@ -531,7 +531,8 @@ class SettingsDialog(LookTabMixin, QDialog):
             "▶ in the library pane, the 🏆 pane, the Similar window and the\n"
             "event plan plays here, with a mini player of its own, and the\n"
             "music keeps running. Refused while it is the output the music\n"
-            "plays on. \"Same as the music\": they play on the music's player.")
+            "plays on, unless it is the only output. \"Same as the music\": they\n"
+            "play on the music's player.")
         grid = QGridLayout()
         self._output_combos = {}
         # 🎧 Pre-listen right below the music: the two the desk is set up by.
@@ -588,6 +589,20 @@ class SettingsDialog(LookTabMixin, QDialog):
         self._preview_chk.setChecked(bool(settings.get("preview_player", True)))
         plyt.addWidget(self._preview_chk)
 
+        # ── 📂 A double-click hands the file to the system's music player ──
+        self._dblclick_external_chk = QCheckBox(
+            "📂  Double-click opens the title in the system's music player "
+            "(while planning, in 📚 the library and the dialogs)")
+        self._dblclick_external_chk.setToolTip(
+            "Off: a deck plays the title in the mini player, the other places\n"
+            "leave the file alone. On: it opens in the program your system\n"
+            "plays music with (on a Mac, Music).\n"
+            "Right-click → open still works either way, and in Playing mode\n"
+            "a double-click always plays or cues the title.")
+        self._dblclick_external_chk.setChecked(
+            bool(settings.get("dblclick_external", False)))
+        plyt.addWidget(self._dblclick_external_chk)
+
         # ── 🖼 Cover art on the player card ──
         self._artwork_chk = QCheckBox(
             "🖼  Show artwork — a cover next to the title on the player card")
@@ -609,6 +624,28 @@ class SettingsDialog(LookTabMixin, QDialog):
             "where the fade-out of a timed cut begins. Click it to jump.")
         self._waveform_chk.setChecked(bool(settings.get("show_waveform", True)))
         plyt.addWidget(self._waveform_chk)
+
+        # ── 🔉 How far the duck button pulls the music down ──
+        # 20 and 90 are player.audio.mix's DESK_DUCK_PCT and its cap: a duck
+        # to full would be no duck at all.
+        duck_row = QHBoxLayout()
+        duck_row.addWidget(QLabel("🔉  Duck to:"))
+        self._duck_spin = QSpinBox()
+        self._duck_spin.setRange(0, 90)
+        self._duck_spin.setSingleStep(5)
+        self._duck_spin.setSuffix(" %")
+        self._duck_spin.setToolTip(
+            "How loud everything stays while 🔉 Duck is pressed on the player\n"
+            "card, the mini player or the presenter screen: low enough to talk\n"
+            "over, loud enough to keep the floor moving. 0 % is silence.")
+        try:
+            duck_pct = int(settings.get("duck_pct", 20))
+        except (TypeError, ValueError):
+            duck_pct = 20
+        self._duck_spin.setValue(duck_pct)
+        duck_row.addWidget(self._duck_spin)
+        duck_row.addStretch(1)
+        plyt.addLayout(duck_row)
 
         # ── 🎙 How 🔈 Announce next dance sounds ──
         # Set once per venue, not on the night: the ▶ Playing panel only
@@ -1551,6 +1588,8 @@ class SettingsDialog(LookTabMixin, QDialog):
             "audio_outputs": self._output_values(),
             "clock_time_only": self._clock_time_only_chk.isChecked(),
             "preview_player": self._preview_chk.isChecked(),
+            "duck_pct": self._duck_spin.value(),
+            "dblclick_external": self._dblclick_external_chk.isChecked(),
             "show_artwork": self._artwork_chk.isChecked(),
             "show_waveform": self._waveform_chk.isChecked(),
             "player_layout": self._player_layout_combo.currentData(),

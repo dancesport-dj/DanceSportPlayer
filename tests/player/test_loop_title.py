@@ -107,6 +107,12 @@ class _CardStub:
     def set_pause_active(self, on: bool):
         self.pause_active = on
 
+    def set_fading(self, on: bool):
+        pass
+
+    def set_player(self, player):
+        pass
+
 
 class _Desk(PlayerControlMixin, QWidget):
     """The advance engine with the REAL play panel and the REAL
@@ -266,6 +272,22 @@ class LoopEngineTest(unittest.TestCase):
         self.assertIsNotNone(desk._between.pending)
         self.assertEqual(desk._between.pending[1], row)
         self.assertLessEqual(desk._between.advance_at, time.monotonic())
+
+    def test_with_auto_advance_off_the_title_really_starts_again(self):
+        """A tester armed 🔁 on a ✋ Manual list mid-title: the card said
+        "Auto-advance…" and then nothing came, because the pause's first tick
+        took the list's own switch as a reason to call it off."""
+        desk = self.deck(auto_advance=False)
+        row = self.song_rows()[0]
+        self.table._current_play_row = row
+        desk._queue_auto_advance()
+        started, cancelled = [], []
+        self.table._on_play_click = lambda r, p: started.append(r)
+        desk._stop_play_timer = lambda: cancelled.append(True)
+        desk._announcer = SimpleNamespace(speaking=False)
+        desk._between_tick(desk._player, desk._between.pending)
+        self.assertEqual(cancelled, [])
+        self.assertEqual(started, [row])
 
     def test_the_end_of_a_round_does_not_stop_a_looping_title(self):
         desk = self.deck()

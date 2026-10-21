@@ -506,16 +506,31 @@ class CommentMarkerTest(unittest.TestCase):
 
     def test_an_ultramixer_instr_comment_is_instrumental(self):
         """UltraMixer comments read 'Instr', 'Instr AS', 'instr. AS': the
-        instr word leads, a word after it stays a marker of its own."""
+        instr word leads, the classes follow it."""
         for comment in ("Instr AS", "instr. AS"):
-            self.assertEqual(_parse_class_tag(comment), (None, True))
-            self.assertEqual(parse_comment_markers(comment), ["as"])
+            self.assertEqual(_parse_class_tag(comment), (["A", "S"], True))
+            self.assertEqual(parse_comment_markers(comment), [])
         self.assertEqual(_parse_class_tag("instr."), (None, True))
         self.assertEqual(parse_comment_markers("instr."), [])
 
-    def test_a_vocal_comment_is_left_whole(self):
-        self.assertEqual(_parse_class_tag("vocal AS"), (None, False))
-        self.assertEqual(parse_comment_markers("vocal AS"), ["vocal as"])
+    def test_a_vocal_comment_carries_its_classes(self):
+        """DJ Maksy (Casa Musica) tags 'vocal AS' / 'instr. AS': the glued
+        letters are the classes the track is for."""
+        self.assertEqual(_parse_class_tag("vocal AS"), (["A", "S"], False))
+        self.assertEqual(parse_comment_markers("vocal AS"), ["vocal"])
+
+    def test_glued_class_codes_are_classes(self):
+        for comment, classes in (("BAS", ["B", "A", "S"]), ("DC", ["D", "C"]),
+                                 ("DCB", ["D", "C", "B"]),
+                                 ("vocal DCB", ["D", "C", "B"])):
+            self.assertEqual(_parse_class_tag(comment)[0], classes, comment)
+
+    def test_dance_codes_in_the_comment_are_no_classes(self):
+        """The same field holds dance codes: 'SA' 3×, 'SB' 129×, 'CC' 140× in
+        the library. Only upper case in class order (D C B A S) is a run."""
+        for comment in ("SA", "SB", "CC", "as", "vocal ab 35s"):
+            self.assertIsNone(_parse_class_tag(comment)[0], comment)
+        self.assertEqual(parse_comment_markers("vocal ab 35s"), ["vocal ab 35s"])
 
     def test_a_word_only_starting_like_instr_is_no_instr(self):
         self.assertEqual(_parse_class_tag("instructions"), (None, False))
@@ -606,7 +621,7 @@ class CachedMarkerHealTest(unittest.TestCase):
                   "other_genre": None, "classes_ok": ["B", "A", "S"],
                   "comment_tags": tags, "is_instrumental": False,
                   "is_xmas": False, "tag_title": None, "tag_artist": "",
-                  "tag_album": "", "duration": 180}
+                  "tag_album": "", "tag_comment": "", "duration": 180}
         cache = _FakeScanCache(cached)
         # Custom isn't mapped here, whatever the DB on this machine says, so
         # the row's missing custom value is not healed either.

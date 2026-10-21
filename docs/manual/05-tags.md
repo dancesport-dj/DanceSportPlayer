@@ -121,7 +121,10 @@ UltraMixer last played a title. Right-click a column header ▸ **Map Custom to
 an MP3 tag…**:
 
 - **Frame**: *In the app only* (the default), or the kind of tag, such as a
-  custom text (TXXX) or a comment.
+  custom text (TXXX) or a comment. Both ID3v2.3 and v2.4 tags are read.
+  **Comment of the old tag (ID3v1)** reads the comment of an ID3v1 tag,
+  which older files may carry alone. It is read only: Save never writes
+  into it, because it holds just 28 characters and often the classes.
 - **Description**: which custom text or comment, for example
   `ultramixer_last_played`. The list offers the descriptions that a sample of
   80 MP3s of your library really holds, the most common first. A grey line

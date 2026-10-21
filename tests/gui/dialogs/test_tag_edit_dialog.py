@@ -691,6 +691,16 @@ class CustomSourceDialogTest(_DlgTest):
         dlg._frame.setCurrentIndex(dlg._frame.findData("COMM"))
         self.assertEqual(self.offered(dlg), ["Songs-DB_Custom1"])
 
+    def test_the_old_tags_comment_needs_no_description_and_is_read_only(self):
+        from planner.music.custom_field import V1
+        dlg = self.source_dialog(samples=(40, {(V1, ""): (9, "vocal AS")}))
+        dlg._frame.setCurrentIndex(dlg._frame.findData(V1))
+        self.assertFalse(dlg._desc.isEnabled())
+        self.assertTrue(dlg._ok.isEnabled())
+        self.assertEqual(dlg.source(), (V1, ""))
+        self.assertIn("9 of 40", dlg._seen.text())
+        self.assertIn("read only", dlg._seen.text())
+
     def test_picking_one_shows_how_often_and_a_value(self):
         dlg = self.source_dialog(samples=self.SAMPLES)
         dlg._frame.setCurrentIndex(dlg._frame.findData("TXXX"))

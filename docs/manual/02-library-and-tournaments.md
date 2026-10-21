@@ -42,16 +42,17 @@ changed files, no audio analysis, and runs in the background: its progress,
 - **Title** shows the MP3's title tag; a file without one shows its
   cleaned-up file name. **BPM** is the tempo in bars per minute, see
   [chapter 3](03-playlists.md).
-- **Double-click** a row to open the file in your external audio player.
+- **Double-click** a row opens the file in your system's music player, once
+  ⚙ Settings ▸ 🔊 Sound & player ▸ **📂 Double-click opens the title in the system's music player** is on. It is off by default.
 - **Right-click** a row for **📋 Copy file path**, **📂 Show in Explorer**,
   **🎧 Open in external player**, **🏷 Re-read MP3 tags** and
   **🏷 Edit tags…**. With several rows selected, the tag editor edits them all.
   See [chapter 5](05-tags.md).
 - **Right-click the column header** to choose the columns, or to switch to
-  short dance names (LW, SB). The **★** rating, **Custom**, **File name**
-  and **Album** columns are hidden at first and can be shown here. File name
-  is the cleaned-up name of the file, with the full path in its tooltip;
-  Album is the album tag of the MP3. **Map Custom to an MP3 tag…** fills
+  short dance names (LW, SB). The **★** rating, **Custom**, **Filename**,
+  **Album** and **Comment** columns are hidden at first and can be shown here.
+  Filename is the cleaned-up name of the file, with the full path in its
+  tooltip; Album is the album tag of the MP3, Comment its comment as written. **Map Custom to an MP3 tag…** fills
   Custom from a tag of your choice.
 
 ## 🏆 Tournaments
@@ -109,7 +110,8 @@ the slots write them (VR, 1ZR, ER). Hover over one for the full name.
 ![The Tournaments tab, tracks view](img/tournaments-tracks.png)
 
 - **▶** or **Space** plays a title, on the 🎧 pre-listen output when one is
-  set. A double-click opens it in your external player.
+  set. A double-click opens it in your system's music player, if that
+  setting is on (see the 📚 library above).
 - Drag titles onto a deck, the Party panel or a wishlist.
 - The bar underneath shows the songs and total play time. Titles that the
   library doesn't know are counted, but add no time.

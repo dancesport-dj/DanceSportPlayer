@@ -35,8 +35,8 @@ from tests.qt_test_support import (
 
 _COL_PLAY, _COL_DANCE, _COL_ARTIST, _COL_TITLE, _COL_BPM = 0, 1, 2, 3, 4
 _COL_LEN, _COL_POP, _COL_CLASS, _COL_ADDED, _COL_LAST = 5, 6, 7, 8, 9
-_COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM = 10, 11, 12, 13
-_N_COLS = 14
+_COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT = 10, 11, 12, 13, 14
+_N_COLS = 15
 
 
 def _e(dance, n, other_genre=None):
@@ -86,9 +86,9 @@ class LibraryHideColumnsTest(_LibTest):
         menu = lb.build_column_menu()
         ticks = [a for a in menu.actions() if a.data() is not None]
         self.assertEqual(len(ticks), _N_COLS - 1)   # Title is not offered
-        # ★ Rating, Custom, File name and Album start put away; every other column is on.
+        # ★ Rating, Custom, File name, Album and Comment start put away; every other column is on.
         self.assertEqual([a.data() for a in ticks if not a.isChecked()],
-                         [_COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM])
+                         [_COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT])
         menu.deleteLater()
 
     def test_right_clicking_the_header_opens_it(self):
@@ -124,7 +124,7 @@ class LibraryHideColumnsTest(_LibTest):
         act.trigger()
         self.assertTrue(lb._table.isColumnHidden(_COL_CLASS))
         # ★, Custom and File name were already off
-        self.assertEqual(seen, [[_COL_CLASS, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM]])
+        self.assertEqual(seen, [[_COL_CLASS, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT]])
         menu.deleteLater()
 
     def test_what_is_hidden_reads_back(self):

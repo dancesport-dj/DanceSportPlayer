@@ -126,7 +126,7 @@ class HideColumnsTest(_TableTest):
     def test_the_leftover_width_is_re_shared_when_a_column_goes(self):
         t = self.table()
         t.show()
-        t.resize(1000, 400)
+        t.resize(1700, 400)   # every column shows in a bare table
         QApplication.processEvents()
         before = t.columnWidth(_COL_TITLE)
         t.set_hidden_columns([_COL_DANCE, _COL_HEAT, _COL_POP])

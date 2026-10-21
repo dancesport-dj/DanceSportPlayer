@@ -447,7 +447,11 @@ class PlayingClickTest(ClickThrough):
     def test_the_preview_player_closes_with_ctrl_w_and_ctrl_x(self):
         from PySide6.QtMultimedia import QMediaPlayer
         state = QMediaPlayer.PlaybackState
-        win, preview = self.win, self.win._preview
+        win = self.win
+        # 📚 plays on the 🎧 pre-listen player and its own mini player, never
+        # the main one (474ae96).
+        cue = win._cue_player()
+        preview, player = cue.view, cue.media_player
         lib = win._lib_browser._table
         win.show()
         win.activateWindow()
@@ -465,20 +469,21 @@ class PlayingClickTest(ClickThrough):
                 start()
                 self.assertTrue(self.wait_until(
                     lambda: preview.isVisible()
-                    and win._player.playbackState() == state.PlayingState),
+                    and player.playbackState() == state.PlayingState),
                     "the preview did not open playing")
                 self.key(key, Qt.KeyboardModifier.ControlModifier, widget=lib)
                 self.assertTrue(self.wait_until(lambda: not preview.isVisible()),
                                 f"Ctrl+{key.name[-1]} left the mini player open")
-                self.assertEqual(win._player.playbackState(), state.StoppedState)
+                self.assertEqual(player.playbackState(), state.StoppedState)
             self.assertTrue(win.isVisible(), "Ctrl+W closed the app")
 
     def test_a_quick_second_preview_keeps_the_mini_player(self):
-        """Loads are rate-limited: a ▶ within 250 ms of the last one plays a
-        moment later — and that late load must not take the overlay away that
-        the click has just opened for it."""
+        """A second ▶ right after the first moves the pre-listen to the
+        second title, and its mini player stays open for it."""
         from PySide6.QtMultimedia import QMediaPlayer
-        win, preview = self.win, self.win._preview
+        win = self.win
+        cue = win._cue_player()
+        preview = cue.view
         lib = win._lib_browser._table
         second = lib.item(1, 0).data(Qt.ItemDataRole.UserRole)
         win.show()
@@ -486,15 +491,16 @@ class PlayingClickTest(ClickThrough):
             self.click_cell(lib, 0, 0)
             self.click_cell(lib, 1, 0)
             self.assertTrue(self.wait_until(
-                lambda: win._playback.path == second
-                and win._player.playbackState()
+                lambda: cue.path == Path(second)
+                and cue.media_player.playbackState()
                 == QMediaPlayer.PlaybackState.PlayingState),
                 "the second title did not start")
-            QTest.qWait(300)   # the deferred load is over
+            QTest.qWait(300)
             self.assertTrue(preview.isVisible(),
                             "the mini player vanished under the second title")
             self.assertEqual(preview.title(), Path(second).stem)
-            win._on_stop_btn()
+            self.assertIsNone(win._playback.path, "📚 reached the main player")
+            cue.stop()
 
 
 if __name__ == "__main__":

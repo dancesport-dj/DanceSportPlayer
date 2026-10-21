@@ -20,7 +20,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication
 
 from shared.columns import (
-    _COL_ALBUM, _COL_ARTIST, _COL_CUSTOM, _COL_FILE, _COL_HEAT, _COL_POP, _COL_RATING,
+    _COL_ALBUM, _COL_ARTIST, _COL_COMMENT, _COL_CUSTOM, _COL_FILE, _COL_HEAT, _COL_POP, _COL_RATING,
     _COL_REGEN,
 )
 from tests.qt_test_support import (
@@ -82,7 +82,7 @@ class ColumnWiringTest(unittest.TestCase):
         win._deckset.wishlist._toggle_column(_COL_POP, False)
         # Heat, Rating and Custom were already off
         self.assertEqual(win._settings["hidden_columns"]["wishlist"],
-                         [_COL_HEAT, _COL_POP, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM])
+                         [_COL_HEAT, _COL_POP, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT])
         self.assertTrue(self.written, "nothing was saved")
 
     def test_a_saved_tick_comes_back_on_the_next_start(self):
@@ -100,7 +100,7 @@ class ColumnWiringTest(unittest.TestCase):
         and File name are off everywhere until asked for."""
         win = self.window()
         for t in win._deckset.all_tables:
-            self.assertEqual(t.hidden_columns(), [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM])
+            self.assertEqual(t.hidden_columns(), [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT])
 
     def test_a_saved_numbers_view_reaches_the_wishlists_too(self):
         """The 🔢 state is restored per table at startup, and the wishlists were
@@ -180,7 +180,7 @@ class ColumnWiringTest(unittest.TestCase):
         for t in win._deckset.wishlists:
             self.assertEqual(t.hidden_columns(), [])
         self.assertEqual(win._deckset.warmup_table.hidden_columns(),
-                         [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM])
+                         [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT])
 
 
 if __name__ == "__main__":

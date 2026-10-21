@@ -24,6 +24,8 @@ from player.audio.mix import (
     _DESK_DUCK,  # noqa: F401
     _DUCK_DOWN_MS,  # noqa: F401
     _DUCK_UP_MS,  # noqa: F401
+    desk_duck_level,
+    desk_duck_pct,
 )
 from typing import TYPE_CHECKING
 
@@ -62,7 +64,7 @@ class AudioLevelMixin(MainWindowHost):
         audible down and back. A factor of its own, so it survives a fade-out
         ramp or an announcement happening at the same time — and the filler
         music picks it up on its next tick."""
-        self._mix.set_desk_duck(on)
+        self._mix.set_desk_duck(on, desk_duck_level(self._settings))
         self._apply_volume()
         if self._big_player:
             self._big_player.set_ducked(on)
@@ -72,6 +74,16 @@ class AudioLevelMixin(MainWindowHost):
             self._presenter.set_ducked(on)
         log.info("🔉 Desk duck %s\n"
                  "factor: %.2f", "on" if on else "off", self._mix.desk)
+
+    def apply_duck_level(self):
+        """🔉 The duck level from ⚙ Settings: every duck button names it, and
+        a duck that is on right now moves to it. One that is off stays off."""
+        pct = desk_duck_pct(self._settings)
+        for w in (self._big_player, self._preview, self._presenter):
+            if w is not None:
+                w.set_duck_level(pct)
+        if self._mix.desk != 1.0:
+            self._set_desk_duck(True)
 
     def _set_duck_reason(self, reason: str, on: bool):
         """Ref-counted duck: the announcer and the 🎛 cartwall both pull the

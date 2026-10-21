@@ -54,6 +54,7 @@ from gui.common import (  # noqa: F401  (shared primitives)
     _fmt_track_secs,
     _entry_tooltip,
     _open_in_default_player,
+    dblclick_opens_external,
     _open_folder,
     reveal_in_explorer,
     _DragTable,
@@ -596,7 +597,7 @@ class SimilarTracksDialog(QDialog):
         if not (0 <= row < len(self._paths)):
             return
         path = self._paths[row]
-        if not path:
+        if not path or not dblclick_opens_external():
             return
         _open_in_default_player(Path(path), self)
 

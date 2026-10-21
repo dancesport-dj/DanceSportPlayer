@@ -132,12 +132,15 @@ _SOURCE_NAMES = {"music": "🎵  Music:", "filler": "⏸  Filler music:",
                  "cue": "🎧  Pre-listen:"}
 
 
-def outputs_finding(unplugged: list[tuple[str, str]], cue_on_music: bool) -> Finding:
+def outputs_finding(unplugged: list[tuple[str, str]], cue_on_music: bool,
+                    cue_shared: bool = False) -> Finding:
     """🔈 The chosen sound outputs: `unplugged` is (source, card name) per chosen
     card that is not plugged in, `cue_on_music` whether a 🎧 preview would be
-    refused for landing on the music's output. A missing card for anything the
-    hall hears is red — it plays on the system default instead; a missing
-    pre-listen card is yellow, as is a preview that would be refused."""
+    refused for landing on the music's output, `cue_shared` whether previews
+    play there because no pre-listen output is chosen. A missing card for
+    anything the hall hears is red — it plays on the system default instead; a
+    missing pre-listen card is yellow, as is a preview that would be refused or
+    heard in the hall."""
     title = i18n.t("🔈  Sound outputs")
     lines, level = [], OK
     for source, name in unplugged:
@@ -147,6 +150,9 @@ def outputs_finding(unplugged: list[tuple[str, str]], cue_on_music: bool) -> Fin
     if cue_on_music:
         lines.append(i18n.t("🎧 Pre-listen is on the music's own output — every "
                             "preview is refused."))
+        level = max(level, WARN)
+    if cue_shared:
+        lines.append(i18n.t("🎧 Pre-listen is on the same output as the music — the hall hears every preview."))
         level = max(level, WARN)
     if level == OK:
         return Finding("outputs", OK, title, i18n.t("Every chosen output is plugged in."))

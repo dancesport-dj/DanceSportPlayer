@@ -63,6 +63,7 @@ from gui.common import (
     _entry_tooltip,
     _fmt_track_secs,
     _open_in_default_player,
+    dblclick_opens_external,
     stopwatch_header,
 )
 
@@ -880,7 +881,7 @@ class TournamentTree(QWidget):
         if col == 0:   # the click handler above already toggled this row
             return
         path = self._row_path(row)
-        if path and Path(path).is_file():
+        if path and dblclick_opens_external() and Path(path).is_file():
             _open_in_default_player(Path(path), self)
 
     # ── Editing the tree ──

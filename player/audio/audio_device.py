@@ -208,15 +208,29 @@ class AudioDevice:
         dev = self._chosen_device(want, choice.get("name"))
         return None if dev is None else dev.description()
 
+    def single_output(self) -> bool:
+        """Whether this machine has one audio output at most — then there is
+        no other card for 🎧 pre-listen, and the music's is its default."""
+        return len(self._devices.audioOutputs()) <= 1
+
     def cue_on_music(self) -> bool:
         """Whether a 🎧 pre-listen would be refused right now: its output, or
-        the default it falls back to, is the one the music plays on."""
-        if not self._player or not self._choice("cue").get("id"):
+        the default it falls back to, is the one the music plays on — and
+        another one exists to choose."""
+        if (not self._player or not self._choice("cue").get("id")
+                or self.single_output()):
             return False
         cue, music = self._lookup("cue"), self._lookup("music")
         if cue is None or music is None:
             return False
         return device_id(cue) == device_id(music)
+
+    def cue_shares_music(self) -> bool:
+        """Whether 🎧 pre-listen is left on "Same as the music" while another
+        output exists to choose: then every preview is heard where the music
+        is, 📚 and 🏆 on the pre-listen player, the rest on the deck's."""
+        return (bool(self._player) and not self._choice("cue").get("id")
+                and not self.single_output())
 
     def missing(self, source: str) -> bool:
         """Whether `source`'s chosen output was not plugged in when last

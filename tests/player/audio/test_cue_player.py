@@ -150,6 +150,8 @@ class RoutingTest(unittest.TestCase):
         dev = self.win._audio_device
         mock.patch.object(dev, "cue_device", lambda: self.phones).start()
         mock.patch.object(dev, "target", lambda source: self.music).start()
+        # A desk with a second card, whatever this machine has.
+        mock.patch.object(dev, "single_output", lambda: False).start()
         self.play = mock.patch.object(self.win._audio_device.cue, "play").start()
         self.deck = mock.patch.object(self.win, "_play_or_stop").start()
 
@@ -175,6 +177,16 @@ class RoutingTest(unittest.TestCase):
         self.play.assert_not_called()
         self.deck.assert_not_called()
         self.assertIn("🎧", self.win._toast_lbl.text())
+
+    def test_the_only_output_pre_listens_there(self):
+        """One output and no other to choose: the music's own is the
+        default, so the preview plays there instead of being refused."""
+        self.phones = self.music
+        mock.patch.object(self.win._audio_device, "single_output",
+                          lambda: True).start()
+        self.win._prehear(_SONG)
+        self.play.assert_called_once_with(_SONG, self.music)
+        self.deck.assert_not_called()
 
     def test_a_card_not_plugged_in_pre_listens_on_the_system_default(self):
         self.phones = _Fake(b"default")
@@ -297,9 +309,48 @@ class RoutingTest(unittest.TestCase):
         """🔉 ducks the hall's music: nothing a headphone preview should do."""
         self.assertTrue(self.win._audio_device.cue.view._duck_btn.isHidden())
 
-    def test_no_pre_listen_output_plays_on_the_deck_as_before(self):
+    def test_no_pre_listen_output_plays_on_the_music_output(self):
+        """Marcel: "when i play a title from library i want the mini player,
+        do not put it into main player"."""
         self.win._settings["audio_outputs"] = {}
         self.win._on_lib_play(_SONG, 0)
+        self.play.assert_called_once_with(_SONG, self.music)
+        self.deck.assert_not_called()
+
+    def test_without_one_the_mini_player_shows_not_the_card(self):
+        cue = self._playing()
+        self.win._settings["audio_outputs"] = {}
+        with mock.patch.object(self.win, "_show_big_now") as card:
+            self.win._on_lib_play(_SONG, 0)
+        card.assert_not_called()
+        self.assertFalse(cue.view.isHidden())
+        self.assertTrue(self.win._preview.isHidden())
+
+    def test_without_one_in_planning_mode_too(self):
+        self.win._settings["audio_outputs"] = {}
+        self.win._set_play_mode(False)
+        self.win._on_lib_play(_SONG, 0)
+        self.play.assert_called_once_with(_SONG, self.music)
+        self.deck.assert_not_called()
+
+    def test_a_deck_starting_stops_it_on_the_shared_output(self):
+        """One title at a time on one pair of speakers: a deck's ▶ took
+        the library's title over before, and still does."""
+        cue = self._playing()
+        self.win._settings["audio_outputs"] = {}
+        self.win._on_lib_play(_SONG, 0)
+        self.win._on_deck_play(self.win._deckset.all_tables[0])
+        self.assertIsNone(cue.path)
+
+    def test_but_not_on_its_own_output(self):
+        cue = self._playing()
+        self.win._on_lib_play(_SONG, 0)
+        self.win._on_deck_play(self.win._deckset.all_tables[0])
+        self.assertEqual(cue.path, _SONG)
+
+    def test_the_preview_windows_still_play_on_the_deck_without_one(self):
+        self.win._settings["audio_outputs"] = {}
+        self.win._prehear(_SONG)
         self.play.assert_not_called()
         self.deck.assert_called_once_with(_SONG)
 

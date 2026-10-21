@@ -732,6 +732,12 @@ CATALOG = {
     "Export or import this wall":
         "Экспортировать или импортировать этот Cartwall",
     "Duck to 20 % / back to full": "Приглушить до 20 % / вернуть на полную",
+    "Duck to %d %% / back to full": "Приглушить до %d %% / вернуть на полную",
+    "Duck to %d %% / back to full — the filler music comes down too":
+        "Приглушить до %d %% / вернуть полную громкость — фоновая музыка тоже стихает",
+    "🔉  Duck to:": "🔉  Приглушать до:",
+    "How loud everything stays while 🔉 Duck is pressed on the player\ncard, the mini player or the presenter screen: low enough to talk\nover, loud enough to keep the floor moving. 0 % is silence.":
+        "Насколько громко всё звучит, пока нажата 🔉 на карточке плеера,\nв мини-плеере или на экране презентации: достаточно тихо, чтобы\nговорить поверх, и достаточно громко, чтобы зал продолжал танцевать.\n0 % — тишина.",
     "Reset the tempo to ±0 % (or double-click the fader)":
         "Сбросить темп на ±0 % (или двойной щелчок по фейдеру)",
     "Volume adjustment of this track by Equalize volume (R128)":
@@ -2930,8 +2936,12 @@ CATALOG = {
     "Preview that track in the mini player":
         "Прослушать этот трек в мини-плеере",
     "Double-click a 📚 library row": "Двойной щелчок по строке 📚 библиотеки",
-    "Open the track in your external audio player":
-        "Открыть трек во внешнем аудиоплеере",
+    "Open the track in your external audio player — when ⚙ Settings → 🔊 Sound & player allow it":
+        "Открыть трек во внешнем аудиоплеере — если это разрешено в ⚙ Настройки → 🔊 Звук & плеер",
+    "📂  Double-click opens the title in the system's music player (while planning, in 📚 the library and the dialogs)":
+        "📂  Двойной щелчок открывает трек в музыкальном плеере системы (при планировании, в 📚 библиотеке и в диалогах)",
+    "Off: a deck plays the title in the mini player, the other places\nleave the file alone. On: it opens in the program your system\nplays music with (on a Mac, Music).\nRight-click → open still works either way, and in Playing mode\na double-click always plays or cues the title.":
+        "Выкл.: дек играет трек в мини-плеере, остальные места не трогают\nфайл. Вкл.: он открывается в программе, которой система\nвоспроизводит музыку (на Mac — «Музыка»).\nПравый щелчок → открыть работает в обоих случаях, а в режиме воспроизведения\nдвойной щелчок всегда запускает или загружает трек.",
     "▶ / ■ in a row": "▶ / ■ в строке",
     "Play / stop exactly that song":
         "Воспроизвести / остановить именно этот трек",
@@ -3082,7 +3092,7 @@ CATALOG = {
     "⏱️ Wrong tempo / not tournament": "⏱️ Неверный темп / не для турнира",
     "👥 Duplicates / raw versions": "👥 Дубликаты / черновые версии",
     # The deck/library column with the cleaned-up file name.
-    "File name": "Имя файла",
+    "Filename": "Имя файла",
     # …and the one with the ID3 album tag.
     "Album": "Альбом",
     # ⚙ Settings → 🔊 Sound & player: an output per source.
@@ -3122,10 +3132,12 @@ CATALOG = {
     "▶ in the library pane, the 🏆 pane, the Similar window and the\n"
     "event plan plays here, with a mini player of its own, and the\n"
     "music keeps running. Refused while it is the output the music\n"
-    "plays on. \"Same as the music\": they play on the music's player.":
+    "plays on, unless it is the only output. \"Same as the music\": they\n"
+    "play on the music's player.":
         "▶ в панели библиотеки, панели 🏆, окне похожих треков и плане\n"
         "мероприятия звучит здесь, со своим мини-плеером, а музыка играет\n"
-        "дальше. Отклоняется, пока это выход музыки.\n"
+        "дальше. Отклоняется, пока это выход музыки,\n"
+        "если он не единственный.\n"
         "«Как у музыки»: они звучат в плеере музыки.",
     "🎧 The pre-listen output is not connected, and the system default is the music's own output.":
         "🎧 Выход предпрослушивания не подключён, а системный выход по умолчанию — тот же, что у музыки.",
@@ -3314,6 +3326,8 @@ CATALOG = {
     "🏷  Custom field": "🏷  Поле Custom",
     "🏷  Fill Custom from this tag": "🏷  Заполнить Custom из этого тега",
     "In none of the %d sampled MP3s": "Ни в одном из проверенных MP3 (%d)",
+    "The old tag's comment is read only: a value typed in the app stays in the app.":
+        "Комментарий старого тега только для чтения: значение, введённое в приложении, остаётся в приложении.",
     "In %d of %d sampled MP3s, e.g. “%s”":
         "В %d из %d проверенных MP3, напр. «%s»",
     "The Custom column shows this tag of each MP3. A value typed in the 🏷 editor wins over it, and on Save it can be written into it.":
@@ -3397,6 +3411,7 @@ CATALOG = {
     "Encoder settings": "Настройки кодировщика",
     "Media type": "Тип носителя",
     "Grouping (iTunes)": "Группировка (iTunes)",
+    "Comment of the old tag": "Комментарий старого тега",
     "🏷  %s: tags unchanged": "🏷  %s: теги не изменены",
     "⚠  Track no longer in any open deck":
         "⚠  Трека больше нет ни в одном открытом деке",
@@ -4642,10 +4657,6 @@ CATALOG = {
     "⏹ The next title was removed during the pause — nothing was started.":
         "⏹ Следующий трек удалён во время паузы — ничего не запущено.",
     "✔  Done editing": "✔  Завершить правку",
-    "No pause to jump to — tick 'Pause between songs' (and ⏭\n"
-    "auto-advance) in the Playing-mode panel first.":
-        "Нет паузы, к которой перейти — сначала включите «Пауза между треками» (и ⏭\n"
-        "автопереход) в панели режима воспроизведения.",
     "duck": "тише",
     "instrumental (🎙️ Demucs-measured)": "инструментал (🎙️ измерено Demucs)",
     "instrumental (🎙️ audio-detected)":
@@ -5099,6 +5110,8 @@ CATALOG = {
         "%s %s не подключён — звук идёт на системное устройство по умолчанию.",
     "🎧 Pre-listen is on the music's own output — every preview is refused.":
         "🎧 Предпрослушивание на выходе музыки — каждое предпрослушивание отклоняется.",
+    "🎧 Pre-listen is on the same output as the music — the hall hears every preview.":
+        "🎧 Предпрослушивание на том же выходе, что и музыка — зал слышит каждое предпрослушивание.",
     "Every chosen output is plugged in.":
         "Каждый выбранный выход подключён.",
     "%s is connected.":

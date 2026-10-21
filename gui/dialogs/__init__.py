@@ -222,6 +222,9 @@ def load_settings() -> dict:
         # A double-click CUES the title by default — the desk is a tournament
         # until a party list says otherwise, and there the music starts on ⏯.
         "dblclick_plays": False,
+        # 📂 …and never hands the file to the OS player unless asked to: on a
+        # Mac that starts Apple's Music app (see gui.common, dblclick_external).
+        "dblclick_external": False,
         # ↩ Pick a title up where it was left. Off by default: a heat is danced
         # from the top, so the one player starting a title in its middle is a
         # surprise nobody asked for until they ask for it.
@@ -271,11 +274,11 @@ def audio_output_choices() -> list[tuple[str, str]]:
 
 # Bumped when a column is added to the decks or the library: the column ticks,
 # widths and the library's order are saved by column INDEX.
-COLUMNS_VERSION = 5
+COLUMNS_VERSION = 6
 
 # The column each version added: (its index in the decks, in the library).
-# v2 ★ Rating, v3 Custom, v4 File name, v5 Album.
-_ADDED_COLUMNS = {2: (9, 10), 3: (10, 11), 4: (11, 12), 5: (12, 13)}
+# v2 ★ Rating, v3 Custom, v4 File name, v5 Album, v6 Comment.
+_ADDED_COLUMNS = {2: (9, 10), 3: (10, 11), 4: (11, 12), 5: (12, 13), 6: (13, 14)}
 
 
 def migrate_column_settings(s: dict) -> dict:
@@ -308,6 +311,14 @@ def _add_column(s: dict, added: int, lib_added: int) -> None:
     if isinstance(widths, dict):
         s["column_widths"] = {kind: {str(shift(c)): w for c, w in (ws or {}).items()}
                               for kind, ws in widths.items()}
+    # A dragged deck order names every column once (one that doesn't is
+    # ignored), so the new column goes in front of ↺, which stays last.
+    orders = s.get("column_order")
+    if isinstance(orders, dict):
+        s["column_order"] = {kind: [shift(c) for c in order][:-1] + [added, added + 1]
+                             if isinstance(order, list) and len(order) == added + 1
+                             else order
+                             for kind, order in orders.items()}
     lib_hidden = [int(c) for c in s.get("library_hidden_columns") or []]
     s["library_hidden_columns"] = sorted(set(lib_hidden) | {lib_added})
     order = s.get("library_columns")

@@ -187,6 +187,13 @@ class DeskFindingsTest(unittest.TestCase):
         self.assertEqual((f.level, f.count, f.fix), (WARN, 1, "outputs"))
         self.assertIn("refused", f.detail)
 
+    def test_pre_listen_sharing_the_music_output_is_yellow_not_red(self):
+        """Marcel: warn, "orange level not red": the hall hears every
+        preview, but the evening still plays."""
+        f = readiness.outputs_finding([], False, cue_shared=True)
+        self.assertEqual((f.level, f.count, f.fix), (WARN, 1, "outputs"))
+        self.assertIn("same output as the music", f.detail)
+
     def test_both_problems_are_listed_and_the_worst_wins(self):
         f = readiness.outputs_finding([("cartwall", "Out 3/4")], True)
         self.assertEqual((f.level, f.count), (FAIL, 2))

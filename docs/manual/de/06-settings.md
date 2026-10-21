@@ -108,8 +108,10 @@ Der Reiter **🔊 Ton & Player**.
 | **🔇 Die Soundkarte zwischen den Titeln freigeben** | Eine Onboard-Soundkarte legt ein Rauschen auf die Anlage, solange eine App sie offen hält. Diese Einstellung gibt das Gerät nach ein paar Sekunden Stille zurück. Der Preis ist ein leises Klicken, wenn der nächste Titel startet, schalte sie also nur ein, wenn du das Rauschen hörst. |
 | **🔕 Systemklänge stummschalten, solange der Abend läuft** | Kein Fehler-Ding und kein Benachrichtigungston über die Lautsprecher. Die Systemklänge kommen zurück, wenn du die App schließt. |
 | **🎧 Vorhör-Player** | Ein Mini-Player (Spulen, Springen, Lautstärke) schwebt über dem Deck, wenn du auf ein ▶ in einer Zeile klickst. |
+| **📂 Doppelklick öffnet den Titel im Musikprogramm des Systems** | Aus (ab Werk): Beim Planen spielt ein Doppelklick auf eine Deckzeile den Titel im Mini-Player, in der 📚 Bibliothek, unter 🏆 Turniere und in den Dialogen tut er nichts. An: Der Titel öffnet sich im Programm, mit dem dein System Musik abspielt (auf dem Mac: Musik). Rechtsklick ▸ Öffnen geht immer, und im Abspielmodus spielt oder legt ein Doppelklick den Titel immer bereit. |
 | **🖼 Cover anzeigen** | Ein Cover neben dem Titel auf der Player-Karte. Es nimmt das eigene Bild der Playlist (`#EXTIMG`), eine Cover-Datei im Ordner oder das Bild in der MP3. |
 | **〰 Wellenform anzeigen** | Die [Wellenform](04-playing.md#-die-wellenform) des Titels auf der Player-Karte anstelle des Suchbalkens. |
+| **🔉 Absenken auf** | Wie weit 🔊 Absenken alles leiser macht, auf der Player-Karte, im Mini-Player und auf dem Präsentationsbildschirm: 20 % ab Werk, 0 % (Stille) bis 90 %. Eine Änderung gilt auch für ein Absenken, das gerade an ist. |
 | **🎙 Ansagestimme** | Wer [🔈 Nächsten Tanz ansagen](04-playing.md#-nächsten-tanz-ansagen) spricht: *Weiblich*, *Männlich* oder *Gemischt* (die Vorgabe), was die beiden abwechselt. **…mit Gruppe** fügt die Nummer der Gruppe hinzu, standardmäßig aus. **🔈 Test** spricht ein Beispiel in der gezeigten Stimme, noch vor OK. |
 | **🗣 Tanz wird angesagt** | Wo die Ansage sitzt, wenn ein Titel ohne Pause seinen Tanz beim Start nennt: **über den ersten Takten** (die Vorgabe; die Musik wird unter der Stimme leiser) oder **vor dem Musikstart** (die Musik folgt der Ansage). Das ▶ Abspielen-Panel nennt die Wahl kurz: *über der Musik* oder *vor der Musik*. |
 | **▶ Player-Position** | Wo die Player-Karte steht: *neben den Playlists*, am Kopf des Wiedergabe-Bereichs, oder *über den Playlists*, als ein breiter Streifen über den Decks. |
@@ -140,7 +142,8 @@ Betriebssystem listet, lässt sich wählen, unter Windows, macOS und Linux.
   Systemstandard, und der Ton geht zurück auf die Karte, sobald sie wieder da
   ist. Das Vorhören ist die Ausnahme, wenn dieser Standard der Ausgang der
   Musik ist: es wird abgelehnt, damit nichts, was für die Kopfhörer gedacht
-  ist, über die Anlage geht.
+  ist, über die Anlage geht. Mit nur einem Ausgang gibt es keinen anderen zur
+  Wahl, und das Vorhören spielt dort.
 - Windows gibt einer neu angesteckten Karte manchmal eine neue Nummer, aus
   `2- ESI Audio Device` wird `3- ESI Audio Device`. Die App findet die Karte
   dann an ihrem Namen wieder, solange nur eine angeschlossene Karte so

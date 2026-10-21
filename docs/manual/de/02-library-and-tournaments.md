@@ -46,8 +46,8 @@ wie beim Scan beim Start.
 - **Titel** zeigt das Titel-Tag der MP3; eine Datei ohne zeigt ihren
   bereinigten Dateinamen. **BPM** ist das Tempo in Takten pro Minute, siehe
   [Kapitel 3](03-playlists.md).
-- Ein **Doppelklick** auf eine Zeile öffnet die Datei in deinem externen
-  Audioplayer.
+- Ein **Doppelklick** auf eine Zeile öffnet die Datei im Musikprogramm deines
+  Systems, sobald ⚙ Einstellungen ▸ 🔊 Ton & Player ▸ **📂 Doppelklick öffnet den Titel im Musikprogramm des Systems** an ist. Ab Werk ist es aus.
 - Ein **Rechtsklick** auf eine Zeile bietet **📋 Dateipfad kopieren**,
   **📂 Im Explorer zeigen**, **🎧 In externem Player öffnen**,
   **🏷 MP3-Tags neu einlesen** und **🏷 Tags bearbeiten…**. Sind mehrere
@@ -55,9 +55,10 @@ wie beim Scan beim Start.
   [Kapitel 5](05-tags.md).
 - Ein **Rechtsklick auf den Spaltenkopf** wählt die Spalten oder schaltet auf
   kurze Tanznamen (LW, SB) um. Die Spalten **★** (Bewertung), **Custom**,
-  **Dateiname** und **Album** sind anfangs ausgeblendet und lassen sich hier
+  **Dateiname**, **Album** und **Kommentar** sind anfangs ausgeblendet und lassen sich hier
   einblenden. Dateiname ist der bereinigte Name der Datei, mit dem vollen
-  Pfad im Tooltip; Album ist der Album-Tag der MP3.
+  Pfad im Tooltip; Album ist der Album-Tag der MP3, Kommentar ihr
+  Kommentar, wie er drinsteht.
   **Custom einem MP3-Tag zuordnen…** füllt Custom aus einem Tag deiner Wahl.
 
 ## 🏆 Turniere
@@ -120,8 +121,8 @@ Namen.
 ![Der Reiter Turniere, Titel-Ansicht](../img/tournaments-tracks.png)
 
 - **▶** oder die **Leertaste** spielt einen Titel ab, auf dem 🎧 Vorhör-Ausgang,
-  wenn einer gewählt ist. Ein Doppelklick öffnet ihn in deinem externen
-  Player.
+  wenn einer gewählt ist. Ein Doppelklick öffnet ihn im Musikprogramm deines
+  Systems, wenn diese Einstellung an ist (siehe die 📚 Bibliothek oben).
 - Zieh Titel auf ein Deck, den Party-Bereich oder eine Wunschliste.
 - Die Leiste darunter zeigt die Zahl der Titel und die gesamte Spielzeit.
   Titel, die die Bibliothek nicht kennt, werden mitgezählt, bringen aber keine

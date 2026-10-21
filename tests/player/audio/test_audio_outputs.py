@@ -352,6 +352,33 @@ class ReadinessLookTest(_Test):
         desk = _Desk()
         self.assertFalse(desk.device.cue_on_music())
 
+    def test_pre_listen_same_as_the_music_shares_its_output(self):
+        """Marcel: "ready check should warn when pre player is same output
+        as main". Nothing chosen: 📚 and 🏆 previews play on the music's
+        output, the other panes on the deck's player."""
+        desk = _Desk()
+        self.assertTrue(desk.device.cue_shares_music())
+        desk.choose("cue", USB34)
+        self.assertFalse(desk.device.cue_shares_music())
+        self.assertEqual(desk.warnings, [])
+
+    def test_with_one_output_sharing_it_is_no_warning(self):
+        desk = _Desk()
+        desk.devices.outputs[:] = [SPEAKERS]
+        self.assertFalse(desk.device.cue_shares_music())
+
+    def test_with_one_output_there_is_nothing_to_refuse(self):
+        """A laptop with only its speakers: there is no other card to
+        choose, so pre-listen plays there and Ready? has nothing to say."""
+        desk = _Desk()
+        desk.devices.outputs[:] = [SPEAKERS]
+        desk.choose("cue", SYSTEM_DEFAULT)
+        self.assertTrue(desk.device.single_output())
+        self.assertFalse(desk.device.cue_on_music())
+
+    def test_several_outputs_are_not_one(self):
+        self.assertFalse(_Desk().device.single_output())
+
 
 class AnnouncerDeviceTest(_Test):
     """The recorded announcements' player is built on first use."""

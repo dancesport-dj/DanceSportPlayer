@@ -131,7 +131,11 @@ dem UltraMixer einen Titel zuletzt gespielt hat. Rechtsklick auf einen
 Spaltenkopf ▸ **Custom einem MP3-Tag zuordnen…**:
 
 - **Feld**: *Nur in der App* (die Vorgabe) oder die Art des Tags, etwa ein
-  eigener Text (TXXX) oder ein Kommentar.
+  eigener Text (TXXX) oder ein Kommentar. Gelesen werden Tags in ID3v2.3 und
+  v2.4. **Kommentar des alten Tags (ID3v1)** liest den Kommentar eines
+  ID3v1-Tags, den ältere Dateien manchmal als einzigen tragen. Er wird nur
+  gelesen: Speichern schreibt nie hinein, denn er fasst nur 28 Zeichen und
+  oft die Klassen.
 - **Beschreibung**: welcher eigene Text oder Kommentar, zum Beispiel
   `ultramixer_last_played`. Die Liste bietet die Beschreibungen an, die eine
   Stichprobe von 80 MP3s deiner Bibliothek wirklich enthält, die häufigste

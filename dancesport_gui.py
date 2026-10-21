@@ -132,6 +132,7 @@ from gui.dialogs.update_notice import UpdateNotice
 from gui.common import (
     BusyDialog,
     LoadingDialog,
+    set_dblclick_opens_external,
     install_plain_title_hook,
 )
 from shared.audio.audio_files import (
@@ -201,7 +202,7 @@ from gui.tournament_tree import (  # noqa: F401  (facade re-export)
     save_tree,
 )
 
-from player.audio.mix import OutputMix
+from player.audio.mix import OutputMix, desk_duck_pct
 from player.audio.audio_device import AudioDevice
 from player.audio.cue_player import CuePlayer
 from player.audio.playback_state import PlaybackState
@@ -284,6 +285,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
             planner.config.set_playlist_dir(self._settings["playlist_dir"])
         planner.playlist.m3u.set_m3u_format(self._settings.get("m3u_format"))
         set_no_class_exclusion(self._settings.get("exclude_no_class"))
+        set_dblclick_opens_external(self._settings.get("dblclick_external"))
         set_hidden_folders(self._settings.get("hidden_folders"))
         # Every open/add picker starts where the last one ended.
         set_browse_dir(self._settings.get("open_dir", ""),
@@ -551,6 +553,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
             self._preview.prevRequested.connect(lambda: self._preview_skip(-1))
             self._preview.nextRequested.connect(lambda: self._preview_skip(+1))
             self._preview.duckToggled.connect(self._set_desk_duck)
+            self._preview.set_duck_level(desk_duck_pct(self._settings))
 
     def _setup_left_panel(self):
         """📝/▶ The left side: config panel, mode switch and the Playing panel."""
@@ -667,6 +670,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
             self._big_player.fadeOutRequested.connect(self._fade_out_now)
             self._big_player.panicRequested.connect(self._fade_and_hold)
             self._big_player.duckToggled.connect(self._set_desk_duck)
+            self._big_player.set_duck_level(desk_duck_pct(self._settings))
             self._big_player.fileDropped.connect(self._on_player_drop)
             self._big_player.resume_cb = self._resume_tap
             self._big_player.set_pause_available(

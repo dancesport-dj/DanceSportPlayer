@@ -25,6 +25,7 @@ from PySide6.QtCore import QMimeData, QPoint, QPointF, Qt, QUrl
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import (QApplication, QFileDialog, QLabel, QMessageBox,
                                QTableWidget)
+from gui import common
 from planner.music.analysis import AudioFeatures
 from shared.columns import _COL_TITLE
 
@@ -109,7 +110,14 @@ class ChecksClickTest(ClickThrough):
             self.assertEqual(dlg._cur_row, -1)
             self.assertTrue(self.wait_until(lambda: pb.path is None),
                             "Space again did not stop it")
+            # Only when ⚙ Settings say so: off out of the box (fa78a6a).
             opened = []
+            with mock.patch("os.startfile", opened.append, create=True):
+                self.click_cell(t, r, 3, double=True)
+            self.assertEqual(opened, [])
+            self.addCleanup(common.set_dblclick_opens_external,
+                            common.dblclick_opens_external())
+            common.set_dblclick_opens_external(True)
             with mock.patch("os.startfile", opened.append, create=True):
                 self.click_cell(t, r, 3, double=True)
             self.assertEqual(opened, [str(path)])

@@ -54,6 +54,7 @@ from PySide6.QtWidgets import (
 
 from planner import i18n
 from planner.music import id3_frames
+from planner.music.custom_field import V1
 
 CLASSES = ("D", "C", "B", "A", "S")
 _KEEP = -1          # the stars combo's "keep each track's own"
@@ -798,18 +799,22 @@ class CustomSourceDialog(QDialog):
         self._show_seen()
 
     def _show_seen(self):
-        """How many of the sampled MP3s hold the chosen tag, and one value."""
+        """How many of the sampled MP3s hold the chosen tag, and one value —
+        and, for the old ID3v1 comment, that Save won't write into it."""
         fid, desc = self.source()
-        if fid is None or not self._read or (fid in _WITH_DESC and not desc):
-            self._seen.setText("")
-            return
-        hit = next(((n, ex) for (f, d), (n, ex) in self._samples.items()
-                    if f == fid and d.lower() == desc.lower()), None)
-        if hit is None:
-            self._seen.setText(i18n.t("In none of the %d sampled MP3s") % self._read)
-        else:
-            self._seen.setText(i18n.t("In %d of %d sampled MP3s, e.g. “%s”")
-                               % (hit[0], self._read, hit[1]))
+        lines = []
+        if fid is not None and self._read and not (fid in _WITH_DESC and not desc):
+            hit = next(((n, ex) for (f, d), (n, ex) in self._samples.items()
+                        if f == fid and d.lower() == desc.lower()), None)
+            if hit is None:
+                lines.append(i18n.t("In none of the %d sampled MP3s") % self._read)
+            else:
+                lines.append(i18n.t("In %d of %d sampled MP3s, e.g. “%s”")
+                             % (hit[0], self._read, hit[1]))
+        if fid == V1:
+            lines.append(i18n.t("The old tag's comment is read only: a value typed "
+                                "in the app stays in the app."))
+        self._seen.setText("\n".join(lines))
 
     def source(self) -> tuple:
         fid = self._frame.currentData()

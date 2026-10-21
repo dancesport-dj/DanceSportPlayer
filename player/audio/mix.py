@@ -15,7 +15,9 @@ _ANNOUNCE_DUCK = 0.3     # filler volume factor while the announcement runs
 _CART_DUCK = 0.1          # …and while a 🎛 cartwall pad plays: ≈ −20 dB, not −10
 _DUCK_DOWN_MS = 180       # how long the music takes to get out of the way…
 _DUCK_UP_MS = 600         # …and how long it takes to come back, unhurried
-_DESK_DUCK = 0.2          # 🔉 what the desk's duck button pulls everything to
+DESK_DUCK_PCT = 20        # 🔉 what the desk's duck button pulls everything to…
+_DESK_DUCK = DESK_DUCK_PCT / 100
+_DESK_DUCK_MAX_PCT = 90   # …at most: a duck to full is no duck, and "full" means "not ducked"
 
 _GAIN_RAMP_MS = 500       # a late loudness correction is a swell, not a step
 
@@ -35,6 +37,21 @@ def _clamped(v: float) -> float:
     """A level Qt will accept. Five factors multiplied can leave the range only
     through a broken measurement, and a blast is worse than a wrong level."""
     return max(0.0, min(1.0, v))
+
+
+def desk_duck_pct(settings: dict) -> int:
+    """🔉 The duck level set under ⚙ Settings ▸ Sound & player, in percent.
+    A broken value falls back to the default rather than to silence."""
+    try:
+        pct = int(settings.get("duck_pct", DESK_DUCK_PCT))
+    except (TypeError, ValueError):
+        return DESK_DUCK_PCT
+    return max(0, min(_DESK_DUCK_MAX_PCT, pct))
+
+
+def desk_duck_level(settings: dict) -> float:
+    """The same level as a volume factor."""
+    return desk_duck_pct(settings) / 100
 
 
 class OutputMix:
@@ -111,10 +128,10 @@ class OutputMix:
     def set_cart(self, v: float):
         self.cart = _clamped(v)
 
-    def set_desk_duck(self, on: bool) -> float:
-        """🔉 Everything audible down to _DESK_DUCK, and back. Stepped, not
+    def set_desk_duck(self, on: bool, level: float = _DESK_DUCK) -> float:
+        """🔉 Everything audible down to `level`, and back. Stepped, not
         ramped: it is a deliberate operator action, and it must be immediate."""
-        self.desk = _DESK_DUCK if on else 1.0
+        self.desk = level if on else 1.0
         return self.desk
 
     def duck_reason(self, reason: str, on: bool):

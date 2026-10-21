@@ -29,7 +29,7 @@ from gui.library_browser import _LIB_COL_FILE, _LIB_COL_TITLE, LibraryBrowser
 from gui.table.playlist_table import PlaylistTable
 from gui.table.table_actions import TableActionsMixin
 from planner.models import MusicEntry
-from shared.columns import _COL_ALBUM, _COL_CUSTOM, _COL_FILE, _COL_REGEN, _COL_TITLE
+from shared.columns import _COL_ALBUM, _COL_COMMENT, _COL_CUSTOM, _COL_FILE, _COL_REGEN, _COL_TITLE
 from tests.qt_test_support import reap_widget
 
 _app = QApplication.instance() or QApplication([])
@@ -72,7 +72,7 @@ class DeckColumnsTest(unittest.TestCase):
     def test_file_name_sits_behind_custom(self):
         self.assertEqual((_COL_CUSTOM, _COL_FILE, _COL_ALBUM), (10, 11, 12))
         self.assertEqual(self.table.horizontalHeaderItem(_COL_FILE).text(),
-                         "File name")
+                         "Filename")
 
     def test_the_cells(self):
         self.assertEqual(self.table.item(self.row, _COL_TITLE).text(), "Moon River")
@@ -100,7 +100,7 @@ class LibraryColumnsTest(unittest.TestCase):
         t = self.pane._table
         self.assertEqual(t.item(0, _LIB_COL_TITLE).text(), "Moon River")
         self.assertEqual(_LIB_COL_FILE, 12)
-        self.assertEqual(t.horizontalHeaderItem(_LIB_COL_FILE).text(), "File name")
+        self.assertEqual(t.horizontalHeaderItem(_LIB_COL_FILE).text(), "Filename")
         self.assertEqual(t.item(0, _LIB_COL_FILE).text(), "Moon River remaster")
         self.assertEqual(self.pane.cell_tooltip(0, _LIB_COL_FILE), str(_PATH))
 
@@ -120,8 +120,8 @@ class MigrationTest(unittest.TestCase):
              "column_widths": {"playlist": {"10": 90, "11": 30}}}
         migrate_column_settings(s)
         self.assertEqual(s["hidden_columns"],
-                         {"playlist": [9, 10, _COL_FILE, _COL_ALBUM],
-                          "wishlist": [1, _COL_FILE, _COL_ALBUM, _COL_REGEN]})
+                         {"playlist": [9, 10, _COL_FILE, _COL_ALBUM, _COL_COMMENT],
+                          "wishlist": [1, _COL_FILE, _COL_ALBUM, _COL_COMMENT, _COL_REGEN]})
         self.assertEqual(s["column_widths"]["playlist"],
                          {"10": 90, str(_COL_REGEN): 30})
         self.assertEqual(s["columns_version"], COLUMNS_VERSION)
@@ -131,8 +131,8 @@ class MigrationTest(unittest.TestCase):
         s = {"columns_version": 3, "library_columns": list(order),
              "library_hidden_columns": [10, 11]}
         migrate_column_settings(s)
-        self.assertEqual(s["library_columns"], order + [12, 13])
-        self.assertEqual(s["library_hidden_columns"], [10, 11, 12, 13])
+        self.assertEqual(s["library_columns"], order + [12, 13, 14])
+        self.assertEqual(s["library_hidden_columns"], [10, 11, 12, 13, 14])
 
 
 if __name__ == "__main__":

@@ -52,7 +52,7 @@ sich ändern, zum Beispiel auf F13 bis F24 für ein Stream Deck:
 | ▶ / ■ in einer Zeile | Genau diesen Titel abspielen / stoppen. |
 | Doppelklick auf eine Deckzeile | Sie abspielen oder nur bereitlegen, je nach *▶️ Doppelklick startet den Titel*. |
 | ▶ in einer Zeile der 📚 Bibliothek | Den Titel abspielen. |
-| Doppelklick auf eine Zeile der 📚 Bibliothek | Den Titel in deinem externen Player öffnen. |
+| Doppelklick auf eine Zeile der 📚 Bibliothek | Den Titel im Musikprogramm deines Systems öffnen, wenn die ⚙ Einstellungen es so wollen. |
 | Klick auf einen Stern in der Spalte **★** | Den Titel bewerten. Ein Klick auf den Stern, auf dem die Bewertung endet, löscht sie. |
 | Doppelklick auf die 🖥 Präsentation | Den Vollbildmodus verlassen. |
 | Klick oder Ziehen auf der 〰 Wellenform | An diese Stelle springen. Ziehen spult, und die Musik springt beim Loslassen. |

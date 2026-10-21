@@ -492,7 +492,8 @@ class MusicCheckMixin(TagEditMixin):
         """🔈 🎛 ☀ The desk around the music: the chosen sound outputs, the
         hardware controller (left out while none is set up) and keep-awake."""
         dev = self._audio_device
-        out = [readiness.outputs_finding(dev.unplugged(), dev.cue_on_music())]
+        out = [readiness.outputs_finding(dev.unplugged(), dev.cue_on_music(),
+                                         dev.cue_shares_music())]
         connected, _shown = self.controller_status()
         ctl = readiness.controller_finding(self.controller_config()["device"], connected)
         if ctl is not None:

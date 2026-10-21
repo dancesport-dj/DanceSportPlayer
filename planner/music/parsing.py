@@ -210,16 +210,34 @@ _INSTR_WORDS = {'instr', 'instrumental'}
 # UltraMixer comments lead with the instr word: 'Instr AS', 'instr. AS'.
 _LEADING_INSTR_RE = re.compile(r'(instr|instrumental)\.?(?:\s+(.*))?', re.IGNORECASE)
 
+# DJ Maksy (Casa Musica) glues the classes into one word after 'vocal'/'instr.':
+# 'vocal AS', 'BAS', 'DC', 'DCB'. Upper case and in class order only, so the
+# dance codes the same field carries ('SA', 'SB', 'CC') never read as classes.
+_GLUED_CLASS_RE = re.compile(r'D?C?B?A?S?')
+_LEADING_VOCAL_RE = re.compile(r'(vocal)\s+(\S+)', re.IGNORECASE)
+
+
+def _glued_classes(part: str) -> list[str] | None:
+    """'BAS' → ['B', 'A', 'S']; None when `part` is no glued class run."""
+    if len(part) < 2 or not _GLUED_CLASS_RE.fullmatch(part):
+        return None
+    return list(part)
+
 
 def _comment_parts(comment: str) -> list[str]:
     """The ';'-separated parts of a comment, a leading instr word split off
-    its own part ('instr. AS' → 'instr', 'AS')."""
+    its own part ('instr. AS' → 'instr', 'AS'), and 'vocal' off the classes
+    glued after it ('vocal AS' → 'vocal', 'AS')."""
     parts: list[str] = []
     for part in (p.strip() for p in comment.split(';')):
         m = _LEADING_INSTR_RE.fullmatch(part)
         if m:
             parts.append(m.group(1))
             part = (m.group(2) or '').strip()
+        m = _LEADING_VOCAL_RE.fullmatch(part)
+        if m and _glued_classes(m.group(2)):
+            parts.append(m.group(1))
+            part = m.group(2)
         if part:
             parts.append(part)
     return parts
@@ -235,6 +253,13 @@ def _ab_classes(part: str) -> list[str] | None:
     if not m:
         return None
     return list(_CLASS_ORDER[_CLASS_ORDER.index(m.group(1).upper()):])
+
+
+def part_classes(part: str) -> list[str] | None:
+    """The class codes one comment part names — 'B', 'ab C', 'BAS' — or None."""
+    if part.upper() in _CLASS_CODES:
+        return [part.upper()]
+    return _ab_classes(part) or _glued_classes(part)
 
 # Filename/title marker for instrumentals: '(Instr.)', '… Instrumental', '(inst)'.
 # Word-bounded so 'instant'/'einst' never match.
@@ -394,7 +419,7 @@ def parse_comment_markers(comment: str) -> list[str]:
     carried by `classes_ok` / `is_instrumental` / `bpm` / `dance`."""
     out: list[str] = []
     for part in _comment_parts(comment):
-        if part.upper() in _CLASS_CODES or _ab_classes(part):
+        if part_classes(part):
             continue
         low = part.lower()
         if low in _INSTR_WORDS or is_marker_noise(low) or low in out:
@@ -414,7 +439,7 @@ def _parse_class_tag(comment: str) -> tuple[list[str] | None, bool]:
     parts = _comment_parts(comment)
     classes: list[str] = []
     for p in parts:
-        for code in _ab_classes(p) or ([p.upper()] if p.upper() in _CLASS_CODES else []):
+        for code in part_classes(p) or []:
             if code not in classes:
                 classes.append(code)
     is_instr  = any(p.lower() in _INSTR_WORDS for p in parts)

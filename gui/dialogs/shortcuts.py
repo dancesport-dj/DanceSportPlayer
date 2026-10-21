@@ -80,7 +80,8 @@ def shortcut_rows(desk_keys=None):
         ("▶ or Space on a 📚 library row", "Preview that track in the "
                                           "mini player"),
         ("Double-click a 📚 library row", "Open the track in your external "
-                                          "audio player"),
+                                          "audio player — when ⚙ Settings → "
+                                          "🔊 Sound & player allow it"),
         ("▶ / ■ in a row", "Play / stop exactly that song"),
         ("Click a star in the ★ column", "Rate the title; click the star the "
                                          "rating ends on to clear it"),

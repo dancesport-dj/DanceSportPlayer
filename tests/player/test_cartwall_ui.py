@@ -240,6 +240,28 @@ class WallRunningTest(_WallCase):
         self.w.set_playing((0, 0, 0), False)
         self.assertFalse(button._blink.isActive())
 
+    def test_a_fading_pad_pulses_softly_instead_of_flickering(self):
+        """A tester found the hard 160 ms flip flickery: the pad's colour now
+        swells in and out over a breath, in small steps, without restyling."""
+        self.w.set_wall(pc.DEFAULT_GRID, [pc.Page(pads={
+            (0, 0): pc.CartPad(path=_SAMPLE, colour="#b23b3b")})])
+        button = self._pad_widget(0, 0)
+        self.w.set_playing((0, 0, 0), True)
+        self.w.set_fading((0, 0, 0), True)
+        sheet = button.styleSheet()
+        alphas = [button._pulse_alpha()]
+        for _ in range(gc._PULSE_MS // button._blink.interval()):
+            button._flash()
+            alphas.append(button._pulse_alpha())
+            self.assertEqual(button.styleSheet(), sheet)
+        steps = [abs(a - b) for a, b in zip(alphas, alphas[1:], strict=False)]
+        self.assertGreaterEqual(len(steps), 20)   # 500 ms in 25 ms steps
+        self.assertLess(max(steps), 70)
+        self.assertGreater(max(alphas), 150)
+        self.assertEqual(alphas[0], 0)
+        self.w.set_fading((0, 0, 0), False)
+        self.assertEqual(button._pulse_alpha(), 0)
+
 
 class WallColourTest(_WallCase):
     """Pad colours: picked, defaulted, and readable either way."""

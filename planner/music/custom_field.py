@@ -6,6 +6,9 @@ files already carry — UltraMixer's TXXX "ultramixer_last_played", a MediaMonke
 comment, the grouping — and then the frame fills it: what the scan reads from
 there is the file's value, and a value typed in the app wins over it.
 
+ID3v1 has no frames to map, only a comment; V1 names that one. It is read
+only: 28 Latin-1 characters, and where many older files keep their classes.
+
 The mapping is one per database, in app_meta, as "TXXX:description" or a bare
 frame id. The scan cache keeps the mapped frame's value per file (scan_meta
 `custom`), so a new mapping clears that column: NULL there is "not read under
@@ -17,8 +20,10 @@ from mutagen import MutagenError
 from mutagen.id3 import ID3
 
 from planner.music.db import _db
+from planner.music.parsing import _read_id3v1_comment
 
 _KEY = "custom_source"
+V1 = "ID3v1"    # the old tag's comment, in the last 128 bytes of the file
 _WITH_DESC = ("TXXX", "COMM")
 _SEP = "; "
 
@@ -35,6 +40,13 @@ def source() -> tuple[str, str] | None:
         return None
     frame, _, desc = value.partition(":")
     return frame, desc
+
+
+def writable() -> bool:
+    """Whether a value typed in the app can go into the file on Save: into
+    any mapped frame of the ID3v2 tag, never into the old tag's comment."""
+    src = source()
+    return src is not None and src[0] != V1
 
 
 def set_source(frame: str | None, desc: str = "") -> bool:
@@ -72,9 +84,13 @@ def find(tags, src: tuple[str, str] | None = None):
     return None
 
 
-def value_of(tags) -> str:
-    """The mapped frame's text in `tags`; '' without a mapping or the frame."""
-    frame = find(tags)
+def value_of(tags, path=None) -> str:
+    """The mapped frame's text in `tags`; '' without a mapping or the frame.
+    The old tag's comment is not in `tags`: it is read from `path`."""
+    src = source()
+    if src is not None and src[0] == V1:
+        return (_read_id3v1_comment(Path(path)) or "") if path is not None else ""
+    frame = find(tags, src)
     if frame is None:
         return ""
     return _SEP.join(str(t) for t in getattr(frame, "text", ()))
@@ -84,8 +100,11 @@ def read_file(path) -> str:
     """The mapped frame's text in the MP3 at `path`; '' when there is no
     mapping, no such frame or no readable tag. Opens the file only when
     something is mapped."""
-    if source() is None:
+    src = source()
+    if src is None:
         return ""
+    if src[0] == V1:
+        return _read_id3v1_comment(Path(path)) or ""
     try:
         tags = ID3(Path(path))
     except (MutagenError, OSError, ValueError):     # no tag, not an MP3, gone

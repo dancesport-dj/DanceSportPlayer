@@ -32,6 +32,7 @@ from planner import i18n
 from gui.common import (
     BusyDialog,
     apply_taskbar_icon,
+    set_dblclick_opens_external,
 )
 from gui.index_summary import index_summary
 from shared.widgets import _show_toast
@@ -762,12 +763,14 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         save_settings(new)
         planner.playlist.m3u.set_m3u_format(new.get("m3u_format"))
         set_no_class_exclusion(new.get("exclude_no_class"))
+        set_dblclick_opens_external(new.get("dblclick_external"))
         set_hidden_folders(new.get("hidden_folders"))
         self._audio_device.sync()   # 🔊 a changed output choice, at once
         self._sync_dance_len()      # 🏆 per-dance lengths edited: the panel shows them
         self._sync_big_player_limit()
         self._set_artwork_shown(bool(new.get("show_artwork", True)))
         self._set_waveform_shown(bool(new.get("show_waveform", True)))
+        self.apply_duck_level()     # 🔉 the buttons name it; a held duck moves to it
         if "presenter_theme" in edited:   # 🖥 an open presenter repaints at once
             self._theme_presenter(edited["presenter_theme"])
         error_reports.apply_settings(new)   # 🐞 on or off at once, no restart

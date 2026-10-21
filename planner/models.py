@@ -494,6 +494,7 @@ class MusicEntry:
     tag_title: str | None = None  # ID3 TIT2 title (for renamed-file playlist matching)
     tag_artist: str | None = None  # ID3 TPE1 artist (for renamed-file playlist matching)
     tag_album: str | None = None  # ID3 TALB album (shown in hover info)
+    tag_comment: str | None = None  # the COMM text as written ('vocal AS'), '' = none
     tag_bpm: float | None = None  # ID3 TBPM as written (usually beats/min), None = no tag
     is_instrumental: bool = False  # True when COMM tag or filename marks 'instr'
     audio_instr_prob: float | None = None  # learned from audio (planner.music.vocals), None = unknown

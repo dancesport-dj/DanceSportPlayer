@@ -62,6 +62,7 @@ from gui.common import (
     _entry_tooltip,
     _fmt_track_secs,
     _open_in_default_player,
+    dblclick_opens_external,
     set_header_tip,
     stopwatch_header,
 )
@@ -70,6 +71,7 @@ from shared.columns import (
     _COL_ARTIST,
     _COL_BPM,
     _COL_CLASS,
+    _COL_COMMENT,
     _COL_CUSTOM,
     _COL_DANCE,
     _COL_FILE,
@@ -420,7 +422,7 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         """Column captions, header tooltips, cell delegates and the column-tick state."""
         self.setHorizontalHeaderLabels(
             ["Dance", "Heat", "▶", "Artist", "Title", "BPM", "⏱", "Pop", "Class", "★",
-             "Custom", "File name", "Album", "↺"]
+             "Custom", "Filename", "Album", "Comment", "↺"]
         )
         stopwatch_header(self, _COL_LEN)
         set_header_tip(self, _COL_LEN,
@@ -478,6 +480,7 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
                      (_COL_ARTIST, 150), (_COL_BPM, 52), (_COL_LEN, 48),
                      (_COL_POP, 50), (_COL_CLASS, 60), (_COL_RATING, 72),
                      (_COL_CUSTOM, 90), (_COL_FILE, 220), (_COL_ALBUM, 180),
+                     (_COL_COMMENT, 180),
                      (_COL_REGEN, 30)):
             self.setColumnWidth(c, w)
         hh.sectionResized.connect(self._on_section_resized)
@@ -523,9 +526,9 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         self.setAlternatingRowColors(False)
         self.setShowGrid(False)
         self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
-        # Double-click a row → play it (Playing mode) or open the file in the
-        # system's default music player. Handled in mouseDoubleClickEvent, NOT
-        # via cellDoubleClicked — see there.
+        # Double-click a row → play it, or — while planning, ⚙ setting, off by
+        # default — open the file in the system's default music player.
+        # Handled in mouseDoubleClickEvent, NOT via cellDoubleClicked — see there.
         # Single-click a round / dance header → collapse or expand it.
         self.cellClicked.connect(self._on_header_click)
         # Double-click a column header → sort by that column: the Wishlist and a
@@ -854,13 +857,16 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
 
     def _on_row_double_clicked(self, row: int, _col: int):
         """Playing mode PLAYS the row (or cues it — see `dblclick_plays`);
-        planning mode opens the file externally, and an EMPTY slot opens 📚 the
-        library on the dance that belongs in it.
+        planning mode plays it here like its ▶ (mini player and all) — or opens
+        the file externally when ⚙ Settings say so (`dblclick_opens_external`,
+        off by default) — and an EMPTY slot opens 📚 the library on the dance
+        that belongs in it.
 
         At the desk a double-click on a title has to put it on the speakers —
         handing the file to whatever the OS calls a music player, mid-tournament,
-        is the one thing it must not do. While planning, opening the file is the
-        point: that is how you audition a track you are unsure about.
+        is the one thing it must not do. While planning a double-click auditions
+        a track you are unsure about: in the mini player, or in the OS player for
+        whoever asked for that (on a Mac it starts Apple's Music app).
 
         A row that is already playing is left alone rather than toggled off. The
         ■ button is right there, and silence in the middle of a heat is not
@@ -878,7 +884,10 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             self._browse_for_empty_slot(meta)
             return
         if not self._play_hl_enabled:
-            _open_in_default_player(Path(entry.path), self)
+            if dblclick_opens_external():
+                _open_in_default_player(Path(entry.path), self)
+            elif row != self._current_play_row:   # ▶ would toggle it off
+                self._on_play_click(row, entry.path)
             return
         if row == self._current_play_row:
             return          # never touch the title that is on the speakers
@@ -1051,10 +1060,12 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
                 custom_it.setToolTip(entry.custom)
             cell(_COL_FILE, entry.title or "").setToolTip(str(entry.path))
             cell(_COL_ALBUM, getattr(entry, "tag_album", None) or "")
+            comment = getattr(entry, "tag_comment", None) or ""
+            cell(_COL_COMMENT, comment).setToolTip(comment)
         else:
             cell(_COL_TITLE, "⚠  No song found", fg=_C_WARN_FG)
             for c in (_COL_ARTIST, _COL_BPM, _COL_LEN, _COL_POP, _COL_CLASS, _COL_RATING,
-                      _COL_CUSTOM, _COL_FILE, _COL_ALBUM):
+                      _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT):
                 cell(c, "")
 
         self._fill_row_buttons(row, meta, bg, missing, marked)

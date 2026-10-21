@@ -34,7 +34,8 @@ from planner.terms import DANCE_SHORT, dance_name  # noqa: F401 (DANCE_SHORT: re
 from planner.music.vocals import entry_is_instrumental
 from planner.generate.warmup import warmup_code
 from shared.audio.audio_files import _AUDIO_EXTS, music_browse_dir, remember_browse_dir
-from shared.columns import _COL_ALBUM, _COL_CUSTOM, _COL_FILE, _COL_HEAT, _COL_RATING
+from shared.columns import (_COL_ALBUM, _COL_COMMENT, _COL_CUSTOM, _COL_FILE, _COL_HEAT,
+                            _COL_RATING)
 from shared.appearance.icons import INK, icon
 from shared.widgets import _ICON_ICO, _app_icon, _show_toast
 
@@ -365,12 +366,12 @@ _C_DEFAULT   = QColor( 30,  30,  30)  # near-black
 # Columns a KIND of list starts without (header right-click ticks them back on,
 # and that choice is then saved). Heat only ever reads "Heat 2" on a deck whose
 # dance runs several heats; everywhere else it is 56 px of blank, so it starts
-# put away in every kind, decks included. ★ Rating, Custom, File name and Album
-# too: Marcel asked for them hidden until wanted.
+# put away in every kind, decks included. ★ Rating, Custom, File name, Album
+# and Comment too: Marcel asked for them hidden until wanted.
 DEFAULT_HIDDEN_COLUMNS = {
-    "playlist": [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM],
-    "wishlist": [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM],
-    "party": [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM],
+    "playlist": [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT],
+    "wishlist": [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT],
+    "party": [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT],
 }
 
 # The Custom column's header, in the decks and the library alike.
@@ -473,6 +474,22 @@ def _entry_tooltip(e, sim=None, sim_label: str = "Match", tags=None) -> str:
             rows.append(f"<span style='color:#888'>{esc(e.source_info)}</span>")
     rows.append(f"<span style='color:#888; font-size:10px'>{esc(e.path)}</span>")
     return "<div>" + "<br>".join(rows) + "</div>"
+
+
+# 📂 Whether a DOUBLE-click hands the file to the OS player (while planning, in
+# 📚 the library, the 🏆 tree, the Similar dialog). Off by default: on a Mac that
+# starts Apple's Music app, which nobody asked for (⚙ Settings → 🔊 Sound,
+# 'dblclick_external'). The right-click "open" entries are not affected.
+_dblclick_external = False
+
+
+def set_dblclick_opens_external(on) -> None:
+    global _dblclick_external
+    _dblclick_external = bool(on)
+
+
+def dblclick_opens_external() -> bool:
+    return _dblclick_external
 
 
 def _open_in_default_player(path: Path, parent: QWidget | None = None) -> None:

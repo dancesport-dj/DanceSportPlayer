@@ -40,7 +40,7 @@ _TAG_FIELD_LABELS = {
     "is_instrumental": "instrumental", "is_xmas": "christmas",
     "tag_title": "ID3 title", "tag_artist": "artist", "duration": "length",
     "tag_album": "album", "comment_tags": "markers", "rating": "stars",
-    "custom": "custom",
+    "custom": "custom", "tag_comment": "comment",
 }
 # The app's own tag fields, in the order the "write into the MP3?" question
 # names them. Custom only while it is mapped to a frame (planner.music.custom_field).
@@ -188,7 +188,7 @@ class TagEditMixin(MainWindowHost):
         # track's own classes, which a write changes.
         todo = [] if dlg.reset_requested else [
             (e, c) for e in entries if (c := dlg.changes_for(e))]
-        mapped = custom_field.source() is not None
+        mapped = custom_field.writable()   # the old ID3v1 comment is read only
         writable = [f for f in _APP_TAG_FIELDS if mapped or f != "custom"]
         on_disk = [(e, mp3) for e, c in todo
                    if Path(e.path).suffix.lower() == ".mp3" and Path(e.path).is_file()

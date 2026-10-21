@@ -12,6 +12,7 @@ from PySide6.QtWidgets import QDialog
 
 from planner import i18n
 from planner.terms import dance_name
+from player.audio.mix import desk_duck_pct
 from shared.audio.playback import audible_played_secs
 from shared.stores import save_settings
 from shared.widgets import _show_toast
@@ -72,6 +73,7 @@ class PresenterMixin(MainWindowHost):
             self._presenter.set_timetable(load_timetable())
             self._presenter.set_now_offset(self._now_offset)
             self._presenter.set_ducked(self._mix.desk != 1.0)
+            self._presenter.set_duck_level(desk_duck_pct(self._settings))
             guests = getattr(self, "_guests", None)
             if guests is not None:   # 📨 open guest requests show their code
                 guests.sync_presenter()

@@ -41,14 +41,14 @@ from mutagen.id3 import (
 )
 
 from planner.music.parsing import (
-    _CLASS_CODES,
     _CLASS_ORDER,
     _INSTR_WORDS,
     _WMP_POPM_EMAIL,
-    _ab_classes,
     _comment_parts,
     _get_comment_tag,
+    _read_id3v1_comment,
     is_marker_noise,
+    part_classes,
     stars_popm,
 )
 from planner.music import custom_field
@@ -104,6 +104,7 @@ FRAME_NAMES = {
     "TSSE": "Encoder settings",
     "TMED": "Media type",
     "GRP1": "Grouping (iTunes)",
+    custom_field.V1: "Comment of the old tag",
 }
 
 
@@ -194,9 +195,10 @@ def addable_frames(version: int, present=()) -> list[str]:
 def custom_frames() -> list[str]:
     """The frame ids the Custom field can be mapped to: the custom ones, then
     the standard text frames the form doesn't show — one mapped to Title
-    would be edited in two places."""
+    would be edited in two places — and last the ID3v1 tag's comment."""
     form = set(_FORM_FRAMES.values()) | {"TYER", "TDRC"}
-    return ["TXXX", "COMM"] + [f for f in _STANDARD if f not in form]
+    return (["TXXX", "COMM"] + [f for f in _STANDARD if f not in form]
+            + [custom_field.V1])
 
 
 def sample_custom(paths, limit: int = _SAMPLE) -> tuple[int, dict]:
@@ -205,7 +207,8 @@ def sample_custom(paths, limit: int = _SAMPLE) -> tuple[int, dict]:
     descriptions the archive really has: (files read, {(frame id,
     description): (files holding it, one value)}). A description is matched
     in any case, keeping the first spelling met; a comment without one is
-    the plain comment and can't be mapped."""
+    the plain comment and can't be mapped. The ID3v1 comment is counted as
+    (V1, ''); mutagen's copy of it in the v2 tag is left out."""
     paths = list(paths)
     step = max(1, len(paths) // limit) if limit else 1
     mappable = set(custom_frames())
@@ -213,12 +216,20 @@ def sample_custom(paths, limit: int = _SAMPLE) -> tuple[int, dict]:
     found: dict[tuple[str, str], tuple[str, int, str]] = {}
     for path in paths[::step][:limit]:
         try:
-            tags = ID3(Path(path))
-        except Exception:       # no tag, not an MP3, gone: just not counted
+            tags = ID3(Path(path), load_v1=False)
+        except ID3NoHeaderError:
+            tags = None
+        except Exception:       # not an MP3, gone: just not counted
+            continue
+        v1 = _read_id3v1_comment(Path(path))
+        if tags is None and v1 is None:     # no tag at all
             continue
         read += 1
         here = set()
-        for frame in tags.values():
+        if v1:
+            name, count, _example = found.get((custom_field.V1, ""), ("", 0, ""))
+            found[(custom_field.V1, "")] = (name, count + 1, _example or v1)
+        for frame in (tags.values() if tags is not None else ()):
             fid = frame.FrameID
             desc = frame.desc if fid in custom_field._WITH_DESC else ""
             key = (fid, desc.lower())
@@ -339,7 +350,7 @@ def _apply_fields(tags: ID3, version: int, sets: dict, deletes: list, adds: list
 
 def _comment_part_kind(part: str) -> str:
     """Which app field a part of a ';'-separated comment belongs to."""
-    if part.upper() in _CLASS_CODES or _ab_classes(part):
+    if part_classes(part):
         return "classes_ok"
     if part.lower() in _INSTR_WORDS:
         return "is_instrumental"
@@ -396,8 +407,9 @@ def _check_app(changes: dict) -> None:
     bad = set(changes.get("classes_ok", ())) - set(_CLASS_ORDER)
     if bad:
         raise ValueError(f"not a class: {sorted(bad)}")
-    if "custom" in changes and custom_field.source() is None:
-        raise ValueError("the Custom field is not mapped to an MP3 tag")
+    if "custom" in changes and not custom_field.writable():
+        raise ValueError("the Custom field is not mapped to an MP3 tag it can "
+                         "be written into")
 
 
 def _apply_app(tags: ID3, path: Path, version: int, changes: dict) -> None:

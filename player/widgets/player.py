@@ -30,6 +30,7 @@ from PySide6.QtWidgets import (
 )
 from pathlib import Path
 from collections.abc import Callable
+from planner import i18n
 from player.widgets.artwork import cover
 from shared.appearance.icons import (
     WARN,
@@ -345,6 +346,10 @@ class PreviewOverlay(QFrame):
         self._duck_btn.setIcon(icon("volume_low" if self._ducked else "volume",
                                     12, _OVERLAY_INK))
         self._duck_btn.setChecked(self._ducked)
+
+    def set_duck_level(self, pct: int):
+        """🔉 The level from ⚙ Settings, named on the button."""
+        self._duck_btn.setToolTip(i18n.t("Duck to %d %% / back to full") % pct)
 
     def _gear_menu(self, anchor: QToolButton):
         menu = QMenu(self)
@@ -670,15 +675,9 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
         """⏸♪ only works when there IS a between-songs pause to jump into.
 
         With 'Pause between songs' unticked the button would end the song and
-        then report that nothing happened — greyed out it says so before the
-        press instead of after it."""
-        self._topause_btn.setEnabled(bool(on))
-        self._topause_btn.setToolTip(
-            "Jump straight to the pause music — end this song now and start\n"
-            "the between-songs pause (e.g. the dancers are already leaving)."
-            if on else
-            "No pause to jump to — tick 'Pause between songs' (and ⏭\n"
-            "auto-advance) in the Playing-mode panel first.")
+        then report that nothing happened — so it is not shown at all."""
+        self._pause_avail = bool(on)
+        self._refresh_aux_buttons()
 
     def set_artwork_enabled(self, on: bool):
         """🖼 Show the cover next to the title, or give the width back."""
@@ -789,7 +788,7 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
     def _refresh_aux_buttons(self):
         playing = self._has_song and not self._is_paused
         self._extend_btn.setVisible(self._is_paused)
-        self._topause_btn.setVisible(playing)
+        self._topause_btn.setVisible(playing and self._pause_avail)
         self._fade_btn.setVisible(playing)
         # …and the row with them — its space stays (see _build_aux_row).
         self._aux_box.setVisible(playing or self._is_paused)
@@ -1019,6 +1018,12 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
                                     16, _CARD_INK))
         self._duck_btn.setChecked(self._ducked)
         self._refresh_vol_lbl()
+
+    def set_duck_level(self, pct: int):
+        """🔉 The level from ⚙ Settings, named on the button."""
+        self._duck_btn.setToolTip(
+            i18n.t("Duck to %d %% / back to full — the filler music comes down too")
+            % pct)
 
     def set_volume_value(self, vol: float):
         """Show a volume set elsewhere (settings restore, preview overlay slider)

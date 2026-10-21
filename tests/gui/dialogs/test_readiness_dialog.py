@@ -48,6 +48,12 @@ class _ReadyBase(unittest.TestCase):
         self.dir = Path(tempfile.mkdtemp(prefix="dp_ready_music_"))
         self.addCleanup(shutil.rmtree, self.dir, True)
         self.win._library.cache = None   # no measurements known: only files + duplicates
+        # A machine with several outputs and no pre-listen card chosen would
+        # make every evening yellow here; the line has its own test below.
+        shared = mock.patch.object(self.win._audio_device, "cue_shares_music",
+                                   return_value=False)
+        shared.start()
+        self.addCleanup(shared.stop)
 
     def entry(self, name, dance="LW", exists=True) -> MusicEntry:
         path = self.dir / f"{name}.mp3"
@@ -181,6 +187,14 @@ class DeskLinesTest(_ReadyBase):
         with mock.patch.object(self.win, "_open_settings") as settings:
             dlg.fix_buttons["outputs"].click()
         settings.assert_called_once()
+
+    def test_pre_listen_sharing_the_music_output_is_only_yellow(self):
+        self.load(self.entry("Valse"))
+        with mock.patch.object(self.win._audio_device, "cue_shares_music",
+                               return_value=True):
+            dlg = self.open_dialog()
+        self.assertEqual(dlg.level, WARN)
+        self.assertIn("outputs", dlg.fix_buttons)
 
     def test_choosing_the_outputs_opens_settings_on_the_sound_tab(self):
         """The outputs are picked on 🔊 Sound & player — the fix lands there,

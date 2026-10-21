@@ -721,6 +721,12 @@ CATALOG = {
         "Terug naar de standaardtoets van deze plek",
     "Export or import this wall": "Deze Cartwall exporteren of importeren",
     "Duck to 20 % / back to full": "Dempen naar 20 % / terug naar vol",
+    "Duck to %d %% / back to full": "Dempen naar %d %% / terug naar vol",
+    "Duck to %d %% / back to full — the filler music comes down too":
+        "Dempen tot %d %% / terug naar vol — de vulmuziek gaat mee omlaag",
+    "🔉  Duck to:": "🔉  Dempen naar:",
+    "How loud everything stays while 🔉 Duck is pressed on the player\ncard, the mini player or the presenter screen: low enough to talk\nover, loud enough to keep the floor moving. 0 % is silence.":
+        "Hoe luid alles blijft terwijl 🔉 Dempen is ingedrukt op de spelerkaart,\nde minispeler of het presentatiescherm: zacht genoeg om eroverheen te\npraten, luid genoeg om de vloer te laten dansen. 0 % is stilte.",
     "Reset the tempo to ±0 % (or double-click the fader)":
         "Tempo terugzetten op ±0 % (of dubbelklik op de fader)",
     "Volume adjustment of this track by Equalize volume (R128)":
@@ -2921,8 +2927,12 @@ CATALOG = {
         "Dat nummer voorbeluisteren in de minispeler",
     "Double-click a 📚 library row":
         "Dubbelklik op een rij van de 📚 bibliotheek",
-    "Open the track in your external audio player":
-        "Het nummer openen in je externe audiospeler",
+    "Open the track in your external audio player — when ⚙ Settings → 🔊 Sound & player allow it":
+        "Het nummer openen in je externe audiospeler — als ⚙ Instellingen → 🔊 Geluid & speler het toestaan",
+    "📂  Double-click opens the title in the system's music player (while planning, in 📚 the library and the dialogs)":
+        "📂  Dubbelklik opent het nummer in de muziekspeler van het systeem (tijdens het plannen, in 📚 de bibliotheek en de dialogen)",
+    "Off: a deck plays the title in the mini player, the other places\nleave the file alone. On: it opens in the program your system\nplays music with (on a Mac, Music).\nRight-click → open still works either way, and in Playing mode\na double-click always plays or cues the title.":
+        "Uit: een deck speelt het nummer in de minispeler, de andere plekken\nlaten het bestand met rust. Aan: het opent in het programma waarmee\nje systeem muziek afspeelt (op een Mac: Muziek).\nRechtsklik → openen werkt in beide gevallen, en in de afspeelmodus\nspeelt of laadt een dubbelklik het nummer altijd.",
     "▶ / ■ in a row": "▶ / ■ in een rij",
     "Play / stop exactly that song": "Precies dat nummer afspelen / stoppen",
     "↺ in a row / header": "↺ in een rij / kop",
@@ -3072,7 +3082,7 @@ CATALOG = {
     "⏱️ Wrong tempo / not tournament": "⏱️ Verkeerd tempo / geen toernooi",
     "👥 Duplicates / raw versions": "👥 Dubbele / ruwe versies",
     # The deck/library column with the cleaned-up file name.
-    "File name": "Bestandsnaam",
+    "Filename": "Bestandsnaam",
     # ⚙ Settings → 🔊 Sound & player: an output per source.
     "<b>🔈 Outputs</b> — where each part of the evening is heard:":
         "<b>🔈 Uitgangen</b> — waar elk deel van de avond te horen is:",
@@ -3110,10 +3120,12 @@ CATALOG = {
     "▶ in the library pane, the 🏆 pane, the Similar window and the\n"
     "event plan plays here, with a mini player of its own, and the\n"
     "music keeps running. Refused while it is the output the music\n"
-    "plays on. \"Same as the music\": they play on the music's player.":
+    "plays on, unless it is the only output. \"Same as the music\": they\n"
+    "play on the music's player.":
         "▶ in het bibliotheekpaneel, het 🏆-paneel, het venster Vergelijkbare\n"
         "nummers en het evenementplan speelt hier, met een eigen minispeler, en de\n"
-        "muziek loopt door. Geweigerd zolang het de uitgang van de muziek is.\n"
+        "muziek loopt door. Geweigerd zolang het de uitgang van de muziek is,\n"
+        "tenzij het de enige is.\n"
         "‘Zelfde als de muziek’: ze spelen op de speler van de muziek.",
     "🎧 The pre-listen output is not connected, and the system default is the music's own output.":
         "🎧 De voorbeluister-uitgang is niet aangesloten en de systeemstandaard is de uitgang van de muziek.",
@@ -3305,6 +3317,8 @@ CATALOG = {
     "🏷  Custom field": "🏷  Veld Custom",
     "🏷  Fill Custom from this tag": "🏷  Custom uit deze tag vullen",
     "In none of the %d sampled MP3s": "In geen van de %d bekeken MP3’s",
+    "The old tag's comment is read only: a value typed in the app stays in the app.":
+        "De opmerking van de oude tag is alleen-lezen: een waarde die in de app is getypt, blijft in de app.",
     "In %d of %d sampled MP3s, e.g. “%s”":
         "In %d van %d bekeken MP3’s, bijv. ‘%s’",
     "The Custom column shows this tag of each MP3. A value typed in the 🏷 editor wins over it, and on Save it can be written into it.":
@@ -3389,6 +3403,7 @@ CATALOG = {
     "Encoder settings": "Encoderinstellingen",
     "Media type": "Mediatype",
     "Grouping (iTunes)": "Groepering (iTunes)",
+    "Comment of the old tag": "Opmerking van de oude tag",
     "🏷  %s: tags unchanged": "🏷  %s: tags ongewijzigd",
     "⚠  Track no longer in any open deck":
         "⚠  Het nummer staat in geen enkel open deck meer",
@@ -4642,10 +4657,6 @@ CATALOG = {
     "⏹ The next title was removed during the pause — nothing was started.":
         "⏹ De volgende titel is tijdens de pauze verwijderd — er is niets gestart.",
     "✔  Done editing": "✔  Klaar met bewerken",
-    "No pause to jump to — tick 'Pause between songs' (and ⏭\n"
-    "auto-advance) in the Playing-mode panel first.":
-        "Geen pauze om naar te springen — vink eerst ‘Pauze tussen nummers’ (en ⏭\n"
-        "automatisch doorgaan) aan in het afspeelmoduspaneel.",
     "duck": "zachter",
     "instrumental (🎙️ Demucs-measured)":
         "instrumentaal (🎙️ gemeten met Demucs)",
@@ -5098,6 +5109,8 @@ CATALOG = {
         "%s %s is niet aangesloten — het speelt op de systeemstandaard.",
     "🎧 Pre-listen is on the music's own output — every preview is refused.":
         "🎧 Voorbeluisteren staat op de uitgang van de muziek — elk voorbeluisteren wordt geweigerd.",
+    "🎧 Pre-listen is on the same output as the music — the hall hears every preview.":
+        "🎧 Voorbeluisteren staat op dezelfde uitgang als de muziek — de zaal hoort elk voorbeluisteren.",
     "Every chosen output is plugged in.":
         "Elke gekozen uitgang is aangesloten.",
     "%s is connected.":

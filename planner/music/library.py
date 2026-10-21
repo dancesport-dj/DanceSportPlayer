@@ -316,6 +316,26 @@ class _ReadAhead:
 
 
 # ── Music Library ──────────────────────────────────────────────────────────────
+def _set_file_value(entry: MusicEntry, field: str, value) -> None:
+    """Set what the file says for `field`; an in-app edit of it stays on top."""
+    if entry.tag_edits and field in entry.tag_edits:
+        entry.tag_edits[field] = value
+    else:
+        setattr(entry, field, value)
+
+
+def _custom_classes(entry: MusicEntry) -> None:
+    """🏷 A file whose comment names no classes takes them from the Custom
+    field's mapped frame ('BAS', 'vocal AS' — DJ Maksy). Laid on after the scan
+    caches were written, so those keep the comment's own and a new mapping
+    starts over from them. A value typed in the app sets no classes."""
+    if tag_edits.file_value(entry, 'classes_ok') is not None:
+        return
+    classes, _ = _parse_class_tag(tag_edits.file_value(entry, 'custom') or '')
+    if classes:
+        _set_file_value(entry, 'classes_ok', classes)
+
+
 def _heal_cached(path, cached, scan_cache):
     """🩹 A cached row with every lazily healed field brought up to date."""
     # 🩹 Re-derive bpm from the filename on every cache hit: it's a pure
@@ -381,6 +401,11 @@ def _heal_cached(path, cached, scan_cache):
     if cached.get('tag_album') is None:
         _, _, album = _get_title_artist_tags(path)
         cached = {**cached, 'tag_album': album or ''}
+        scan_cache.put(path, cached)
+    # 🩹 The comment text heals the same way: None = cached before the
+    # Comment column existed, '' = read, the file has none.
+    if cached.get('tag_comment') is None:
+        cached = {**cached, 'tag_comment': _get_comment_tag(path) or ''}
         scan_cache.put(path, cached)
     # 🩹 The Custom field heals lazily: None is "not read under the
     # current mapping" (a new mapping clears the column), '' is read.
@@ -665,6 +690,7 @@ class MusicLibrary(PlaylistIndexMixin):
         cannot have been edited."""
         edits = tag_edits.load_all()
         for e in self.entries:
+            _custom_classes(e)
             fp = cache.recorded_fingerprint(e.path)
             tag_edits.apply(e, edits.get(fp) if fp else None)
 
@@ -786,12 +812,13 @@ class MusicLibrary(PlaylistIndexMixin):
             'classes_ok':     classes_ok,
             'comment_tags':   comment_tags,
             'rating':         popm_stars(tags),
-            'custom':         custom_field.value_of(tags),
+            'custom':         custom_field.value_of(tags, path),
             'is_instrumental': is_instr,
             'is_xmas':        is_xmas,
             'tag_title':      tag_title,
             'tag_artist':     tag_artist,
             'tag_album':      tag_album,
+            'tag_comment':    comment or '',
             'tag_bpm':        tag_bpm,
             'duration':       duration,
         }
@@ -821,6 +848,7 @@ class MusicLibrary(PlaylistIndexMixin):
         scan_cache.forget(path)
         fresh = self._make_entry(path, scan_cache)
         scan_cache.save()
+        _custom_classes(fresh)
         fp = cache.recorded_fingerprint(path) if cache is not None else None
         tag_edits.apply(fresh, tag_edits.load(fp) if fp else None)
 
@@ -867,14 +895,28 @@ class MusicLibrary(PlaylistIndexMixin):
                 scan_cache.put(path, {**cached, 'custom': value})
             shown = False
             for e in same:
+                before = e.classes_ok
+                # The comment's own classes: the scan cache keeps them; without
+                # a row, classes equal to the old frame's came from that frame.
+                if cached is not None:
+                    own = cached.get('classes_ok')
+                else:
+                    own = tag_edits.file_value(e, 'classes_ok')
+                    old, _ = _parse_class_tag(tag_edits.file_value(e, 'custom') or '')
+                    if old and own == old:
+                        own = None
+                _set_file_value(e, 'classes_ok', own)
                 if e.tag_edits and 'custom' in e.tag_edits:
                     e.tag_edits['custom'] = value
                 elif e.custom != value:
                     e.custom = value
                     shown = True
+                _custom_classes(e)
+                shown = shown or e.classes_ok != before
             if shown:
                 changed.append(path)
         scan_cache.save()
+        note_class_tag_use(self.entries)
         return changed
 
     def make_external_entry(self, path: Path, cache: AudioCache) -> MusicEntry:
@@ -886,6 +928,7 @@ class MusicLibrary(PlaylistIndexMixin):
         drop is instant; the ≈ similarity stays blank until analysis is run). The
         entry is NOT added to self.entries — it just lives in the playlist slot."""
         entry = self._make_entry(path, self._get_scan_cache(cache))
+        _custom_classes(entry)
         fp = cache.recorded_fingerprint(path)
         tag_edits.apply(entry, tag_edits.load(fp) if fp else None)
         # The playlist index is keyed by filename and title, not by path, so an

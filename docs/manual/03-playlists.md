@@ -42,10 +42,11 @@ The columns:
   **✦ new** means it is in none.
 - **Class**: the class tags from the MP3 comment, for example `[B,A,S]`.
 
-Four more columns are hidden at first. Right-click the column header to
+Five more columns are hidden at first. Right-click the column header to
 show them: **★** rates a title with a click, **Custom** holds a free text per
-title, **File name** shows the cleaned-up file name, with the full path
-in its tooltip, and **Album** shows the album tag of the MP3. ★ and Custom are described in [chapter 5](05-tags.md).
+title, **Filename** shows the cleaned-up file name, with the full path
+in its tooltip, **Album** shows the album tag of the MP3, and **Comment**
+its comment as written (e.g. "vocal AS"). ★ and Custom are described in [chapter 5](05-tags.md).
 
 Drag a column header sideways to move the column. The new order holds
 for every list of that kind (all decks, all wishlists or all party lists)

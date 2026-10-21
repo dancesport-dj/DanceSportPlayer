@@ -23,7 +23,7 @@ ist nicht angeschlossen.
 | 🐂 Paso-Doble-Highlights | Jeder Paso Doble kennt seine Höhepunkte. |
 | 🔁 Doppelte | Kein Titel steht in zwei Listen. |
 | 🎶 Playlisten | Es gibt überhaupt etwas zu spielen. |
-| 🔈 Audioausgänge | Jeder Ausgang, der in ⚙ Einstellungen → 🔊 Ton & Player gewählt ist, ist angeschlossen. Fehlt die Karte für die Musik, die Pausenmusik, die Cartwall oder die Ansagen, ist die Zeile rot: Diese Quelle spielt dann auf dem Systemstandard. Fehlt die Karte fürs 🎧 Vorhören, ist sie gelb, ebenso wenn das Vorhören auf dem Ausgang der Musik läge, denn dann würde jedes Vorhören abgelehnt. |
+| 🔈 Audioausgänge | Jeder Ausgang, der in ⚙ Einstellungen → 🔊 Ton & Player gewählt ist, ist angeschlossen. Fehlt die Karte für die Musik, die Pausenmusik, die Cartwall oder die Ansagen, ist die Zeile rot: Diese Quelle spielt dann auf dem Systemstandard. Fehlt die Karte fürs 🎧 Vorhören, ist sie gelb, ebenso wenn das Vorhören auf dem Ausgang der Musik läge, denn dann würde jedes Vorhören abgelehnt. Steht das Vorhören auf *Wie die Musik*, ist sie auch gelb, denn der Saal hört jedes Vorhören mit. Mit nur einem Ausgang gibt es keinen anderen zur Wahl, dann meldet die Zeile nichts. |
 | 🎛 Controller | Der gewählte Hardware-Controller ist verbunden. Nicht jeder Abend braucht einen, darum ist diese Zeile höchstens gelb, und sie fehlt, solange kein Controller eingerichtet ist. |
 | ☀ Bildschirm und Ruhezustand | ☀ Bildschirm wach halten ist an, also bleiben Bildschirm, Beamer und Computer wach, solange Musik läuft oder der Präsentationsbildschirm offen ist. |
 
@@ -90,10 +90,10 @@ die Restzeit.
 | **⏯** | Pause / weiter. |
 | **🔁** | Wiederholt *diesen* Titel endlos, wenn die Fläche noch voll ist oder eine Rede länger dauert. Das geht auch mit ausgeschaltetem ⏭ Auto. |
 | Ausblend-Knopf (durchgestrichener Lautsprecher) | Blendet den Titel jetzt über die Ausblendzeit aus und beendet ihn dann. |
-| **☕** | Beendet den Titel und geht direkt zur Pausenmusik. |
+| **☕** | Beendet den Titel und geht direkt zur Pausenmusik. Nur da, solange **Pause zwischen den Titeln** an ist. |
 | Verlängern-Knopf | Hängt eine weitere Pausenlänge an, wenn der Gruppenwechsel länger dauert. |
 | **⊗** | Notfall: blendet die Musik aus und *hält* sie an. Nichts endet und nichts geht weiter. **⏯** setzt genau an dieser Stelle fort. |
-| **🔊** | Senkt auf 20 % und wieder auf voll. Die Pausenmusik geht mit herunter. |
+| **🔊** | Senkt auf 20 % und wieder auf voll. Die Pausenmusik geht mit herunter. Wie weit, stellst du unter ⚙ Einstellungen ▸ 🔊 Ton & Player ▸ **🔉 Absenken auf** ein. |
 | Lautstärkeregler | Gesamtlautstärke. |
 
 ### 〰 Die Wellenform
@@ -320,9 +320,12 @@ Titel vor, während der Saal die Musik hört. Wähl diesen Ausgang unter
 - Ist der Vorhör-Ausgang nicht angeschlossen, spielt er auf dem
   Systemstandard. Ist dieser Standard der Ausgang der Musik, wird das
   Vorhören mit einer Meldung abgelehnt: ein Vorhören über die Anlage ist
-  schlimmer als keins.
-- Steht er auf **Wie die Musik**, spielt jedes ▶ wie bisher auf dem einen
-  Player.
+  schlimmer als keins. Ein Computer mit nur einem Ausgang hat keinen
+  anderen zur Wahl, dort spielt das Vorhören auf ihm.
+- Steht er auf **Wie die Musik**, spielt ▶ in der 📚 Bibliothek und im Bereich
+  🏆 Turniere trotzdem in diesem Mini-Player, auf dem Ausgang der Musik und
+  neben ihr. Der Haupt-Player und seine Karte bleiben, wie sie sind. Ein ▶ im
+  Deck stoppt es.
 
 ## 🎛 Die Cartwall
 

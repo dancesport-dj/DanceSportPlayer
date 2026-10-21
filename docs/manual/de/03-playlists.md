@@ -44,11 +44,12 @@ Die Spalten:
   **✦neu** heißt, er steht in keiner.
 - **Klasse**: die Klassen-Tags aus dem MP3-Kommentar, zum Beispiel `[B,A,S]`.
 
-Vier weitere Spalten sind anfangs ausgeblendet. Ein Rechtsklick auf den
+Fünf weitere Spalten sind anfangs ausgeblendet. Ein Rechtsklick auf den
 Spaltenkopf blendet sie ein: **★** bewertet einen Titel mit einem Klick,
 **Custom** hält einen freien Text pro Titel, **Dateiname** zeigt den
-bereinigten Dateinamen, mit dem vollen Pfad im Tooltip, und **Album** den
-Album-Tag der MP3. ★ und Custom
+bereinigten Dateinamen, mit dem vollen Pfad im Tooltip, **Album** den
+Album-Tag der MP3 und **Kommentar** ihren Kommentar, wie er drinsteht (etwa
+„vocal AS“). ★ und Custom
 beschreibt [Kapitel 5](05-tags.md).
 
 Zieh einen Spaltenkopf zur Seite, um die Spalte zu verschieben. Die neue

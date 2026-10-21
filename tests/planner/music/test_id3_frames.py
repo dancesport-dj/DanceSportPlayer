@@ -30,7 +30,9 @@ from planner.music.id3_frames import (
     write_fields,
     write_tags,
 )
+from planner.music import custom_field
 from planner.music.parsing import _get_comment_tag, _parse_class_tag, parse_comment_markers, popm_stars
+from tests.planner.music.test_custom_field import v1_tail
 
 _AUDIO = b"\xff\xfb\x90\x00" + b"\x00" * 4000
 
@@ -323,11 +325,16 @@ class AppFieldsTest(_FileTest):
         self.assertEqual(self.read_back(p)[1:], (["C", "B"], False, ["slow intro"]))
 
     def test_an_ultramixer_instr_comment_keeps_its_instr_when_the_markers_change(self):
-        """'instr. AS' is instrumental plus the marker 'as'; a marker edit
-        replaces the marker only."""
+        """'instr. AS' is instrumental for classes A and S; a marker edit
+        adds the marker only."""
         p = self.mp3(COMM(encoding=1, lang="eng", desc="", text="instr. AS"))
         write_app_fields(p, {"comment_tags": ["classic"]})
-        self.assertEqual(self.read_back(p)[1:], (None, True, ["classic"]))
+        self.assertEqual(self.read_back(p)[1:], (["A", "S"], True, ["classic"]))
+
+    def test_a_class_edit_replaces_glued_class_codes(self):
+        p = self.mp3(COMM(encoding=1, lang="eng", desc="", text="vocal AS"))
+        write_app_fields(p, {"classes_ok": ["D", "C"]})
+        self.assertEqual(self.read_back(p)[1:], (["D", "C"], False, ["vocal"]))
 
     def test_other_text_in_the_comment_stays(self):
         p = self.mp3(COMM(encoding=1, lang="eng", desc="",
@@ -494,6 +501,18 @@ class SampleCustomTest(_FileTest):
     def test_a_file_without_a_tag_is_not_counted(self):
         read, found = sample_custom([self.mp3(name="bare.mp3"), self.dir / "gone.mp3"])
         self.assertEqual((read, found), (0, {}))
+
+    def test_the_old_tags_comment_is_offered(self):
+        """…as the old tag's own entry, and mutagen's copy of it inside the
+        new tag ('COMM:ID3v1 Comment') is not: no such frame is in the file."""
+        a = self.mp3(name="a.mp3")
+        with open(a, "ab") as fh:
+            fh.write(v1_tail(b"vocal AS"))
+        b = self.mp3(TXXX(encoding=1, desc="x", text="y"), name="b.mp3")
+        read, found = sample_custom([a, b])
+        self.assertEqual(read, 2)
+        self.assertEqual(found[(custom_field.V1, "")], (1, "vocal AS"))
+        self.assertNotIn(("COMM", "ID3v1 Comment"), found)
 
     def test_it_looks_into_at_most_the_limit_spread_over_all(self):
         paths = [self.mp3(TXXX(encoding=1, desc=f"d{i}", text="x"), name=f"{i}.mp3")

@@ -146,25 +146,15 @@ class LibraryPaneMixin(MainWindowHost):
             self._lib_browser.set_folded(False)
 
     def _on_lib_play(self, path: Path | None, row: int, pane=None):
-        """▶ / double-click in the library — or the tournament — pane: preview
-        via the shared player, with the mini overlay anchored to the clicked
-        row. `pane` is which of the two asked for it."""
+        """▶ / double-click in the library — or the tournament — pane: heard
+        on the 🎧 pre-listen player, with its mini player anchored to the
+        clicked row. Never the main player: the deck and the card stay as
+        they are. `pane` is which of the two asked for it."""
         pane = pane if pane is not None else self._lib_browser
-        if self._cue_wanted():
-            # 🎧 To the pre-listen output: the deck plays on, untouched.
-            self._reset_aux_play_markers(keep=pane)
-            self._prehear(path)
-            if path is not None:
-                self._show_cue_view(pane._table, row, Path(path).stem)
-            return
-        for t in self._deckset.all_tables:
-            t.on_playback_stopped()
         self._reset_aux_play_markers(keep=pane)
-        self._play_or_stop(path)
-        if (path is not None and row >= 0 and self._preview
-                and self._settings.get("preview_player", True)
-                and not self._is_playing_mode()):
-            self._preview.show_for(pane._table, row, Path(path).stem)
+        self._prehear(path, always=True)
+        if path is not None:
+            self._show_cue_view(pane._table, row, Path(path).stem)
 
     def _on_lib_unplanned_toggled(self, on: bool):
         """🆕 filter switched in the library pane — feed it the planned set."""

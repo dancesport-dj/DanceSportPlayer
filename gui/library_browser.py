@@ -69,6 +69,7 @@ from gui.common import (
     _entry_tooltip,
     _fmt_track_secs,
     _open_in_default_player,
+    dblclick_opens_external,
     add_custom_mapping_action,
     bpm_tooltip,
     display_title,
@@ -93,7 +94,8 @@ _LIB_COL_LEN = 5
 _LIB_COL_RATING = 10   # ★ came last: the sections are movable, a saved order is by index
 _LIB_COL_CUSTOM = 11   # …and Custom after it
 _LIB_COL_FILE = 12     # …and the cleaned-up file name after that
-_LIB_COL_ALBUM = 13    # …and the ID3 album tag last
+_LIB_COL_ALBUM = 13    # …and the ID3 album tag
+_LIB_COL_COMMENT = 14  # …and the comment as the file has it, last
 
 # 📚 A fill writes this many rows at once (a filtered list is all there before
 # the call returns), then the rest in chunks between turns of the event loop,
@@ -468,7 +470,7 @@ class LibraryBrowser(QWidget):
     # Narrow columns keep their width while Artist/Title share the rest — the
     # 🏆 pane's default has no Added/Last, so this list carries them.
     _FIXED_COL_W = {0: 30, 1: 90, 4: 52, 5: 52, 6: 52, 7: 70, 8: 82, 9: 52, 10: 72,
-                    11: 90, 12: 220, 13: 180}
+                    11: 90, 12: 220, 13: 180, 14: 180}
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -672,10 +674,10 @@ class LibraryBrowser(QWidget):
 
     def _build_table(self):
         """The track table: its columns, header menu, widths and clicks."""
-        self._table = _LibTable(0, 14)
+        self._table = _LibTable(0, 15)
         self._table.setHorizontalHeaderLabels(
             ["▶", "Dance", "Artist", "Title", "BPM", "⏱", "Pop", "Class",
-             "Added", "Last", "★", "Custom", "File name", "Album"])
+             "Added", "Last", "★", "Custom", "Filename", "Album", "Comment"])
         set_header_tip(self._table, _LIB_COL_CUSTOM, CUSTOM_HEADER_TIP)
         set_header_tip(
             self._table, _LIB_COL_RATING,
@@ -691,7 +693,7 @@ class LibraryBrowser(QWidget):
         hh2.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         hh2.setStretchLastSection(False)
         hh2.setMinimumSectionSize(24)
-        for c, w in enumerate((30, 90, 200, 280, 52, 52, 52, 70, 82, 52, 72, 90, 220, 180)):
+        for c, w in enumerate((30, 90, 200, 280, 52, 52, 52, 70, 82, 52, 72, 90, 220, 180, 180)):
             self._table.setColumnWidth(c, w)
         # Until the user drags a handle (or saved widths are restored), the
         # columns stretch to fill the whole pane on every resize.
@@ -700,7 +702,7 @@ class LibraryBrowser(QWidget):
         self._col_width: dict[int, int] = {}   # width a column had when it was hidden
         self._short_dances = False             # Dance column: "LW", not "Langsamer Walzer"
         self.set_hidden_columns([_LIB_COL_RATING, _LIB_COL_CUSTOM, _LIB_COL_FILE,
-                                _LIB_COL_ALBUM])   # wait until asked for
+                                _LIB_COL_ALBUM, _LIB_COL_COMMENT])   # wait until asked for
         self._table.resize_cb = self._on_table_resized
         # Right-click the header to tick columns away or shorten the dance names.
         hh2.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -1180,6 +1182,7 @@ class LibraryBrowser(QWidget):
             _LIB_COL_CUSTOM: lambda e: e.custom or "",
             _LIB_COL_FILE: lambda e: e.title or "",
             _LIB_COL_ALBUM: lambda e: getattr(e, "tag_album", None) or "",
+            _LIB_COL_COMMENT: lambda e: (getattr(e, "tag_comment", None) or "").lower(),
         }[col]
 
     def _fill_step(self, gen: int, entries: list[MusicEntry], start: int, now: float, keep):
@@ -1221,11 +1224,11 @@ class LibraryBrowser(QWidget):
             gc.enable()
         if end > start:
             model.dataChanged.emit(model.index(start, 0),
-                                   model.index(end - 1, _LIB_COL_ALBUM))
+                                   model.index(end - 1, _LIB_COL_COMMENT))
         if selected:
             sel = QItemSelection()
             for r in selected:
-                sel.select(model.index(r, 0), model.index(r, _LIB_COL_ALBUM))
+                sel.select(model.index(r, 0), model.index(r, _LIB_COL_COMMENT))
             t.selectionModel().select(sel, QItemSelectionModel.SelectionFlag.Select)
         if end < len(entries):
             if time.perf_counter() - self._fill_started >= _PROGRESS_AFTER:
@@ -1280,6 +1283,7 @@ class LibraryBrowser(QWidget):
             self._put_tag_cells(r, e)
             cell(r, _LIB_COL_FILE, e.title or "")
             cell(r, _LIB_COL_ALBUM, getattr(e, "tag_album", None) or "")
+            cell(r, _LIB_COL_COMMENT, getattr(e, "tag_comment", None) or "")
 
     def cell_tooltip(self, row: int, col: int) -> str:
         """The hover text of one cell, built when the mouse rests on it ('' =
@@ -1307,6 +1311,8 @@ class LibraryBrowser(QWidget):
             return e.custom or ""
         if col == _LIB_COL_FILE:
             return str(e.path)
+        if col == _LIB_COL_COMMENT:
+            return getattr(e, "tag_comment", None) or ""
         return ""
 
     def _put_tag_cells(self, row: int, e: MusicEntry):
@@ -1360,7 +1366,7 @@ class LibraryBrowser(QWidget):
         if col == _LIB_COL_RATING:   # two quick star clicks, not "open the file"
             return
         path = self._row_path(row)
-        if path:
+        if path and dblclick_opens_external():
             self._open_external(path)
 
     def _row_path(self, row: int) -> Path | None:

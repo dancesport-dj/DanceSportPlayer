@@ -52,7 +52,7 @@ F1 cheat sheet or in ⚙ Settings ▸ ⚙ General, see
 | ▶ / ■ in a row | Play / stop exactly that title. |
 | Double-click a deck row | Play it, or only cue it, depending on *▶️ Double-click starts the title*. |
 | ▶ in a 📚 library row | Play the title. |
-| Double-click a 📚 library row | Open the title in your external player. |
+| Double-click a 📚 library row | Open the title in your system's music player, if ⚙ Settings say so. |
 | Click a star in the **★** column | Rate the title. Click the star the rating ends on to clear it. |
 | Double-click the 🖥 presenter | Leave full screen. |
 | Click or drag the 〰 waveform | Jump to that spot. A drag scrubs, and the music jumps when you let go. |

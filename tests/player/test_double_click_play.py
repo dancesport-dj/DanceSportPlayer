@@ -27,6 +27,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication
 from tests.qt_test_support import reap_widget
 
+from gui import common
 from gui.table import playlist_table as gpt
 from dancesport_planner import MusicEntry
 from player.window.main_player import PlayerControlMixin
@@ -104,6 +105,11 @@ class _Table(unittest.TestCase):
         real_open = gpt._open_in_default_player
         gpt._open_in_default_player = lambda p, parent=None: self.opened.append(p)
         self.addCleanup(setattr, gpt, "_open_in_default_player", real_open)
+        # 📂 Handing the file to the OS player is a ⚙ setting, off by default;
+        # these cases are about what happens when it is on.
+        self.addCleanup(common.set_dblclick_opens_external,
+                        common.dblclick_opens_external())
+        common.set_dblclick_opens_external(True)
         self.addCleanup(reap_widget, self.t)
 
 
@@ -114,6 +120,24 @@ class DoubleClickTest(_Table):
         self.t._on_row_double_clicked(1, 0)
         self.assertEqual(self.opened, [Path(r"C:\music\second.mp3")])
         self.assertEqual(self.played, [])
+
+    def test_planning_mode_plays_in_the_app_by_default(self):
+        """⚙ 📂 off — the default: a Mac tester's double-click kept starting
+        Apple's Music app with nothing in the settings to stop it. The title
+        plays here instead, the way its ▶ would (mini player and all)."""
+        common.set_dblclick_opens_external(False)
+        self.t._on_row_double_clicked(1, 0)
+        self.assertEqual(self.opened, [])
+        self.assertEqual(self.played, [Path(r"C:\music\second.mp3")])
+        self.assertEqual(self.t._current_play_row, 1)
+
+    def test_planning_mode_does_not_stop_the_playing_title(self):
+        """Like ▶ it plays — unlike ▶ it never toggles the title off again."""
+        common.set_dblclick_opens_external(False)
+        self.t._on_row_double_clicked(1, 0)
+        self.t._on_row_double_clicked(1, 0)
+        self.assertEqual(self.played, [Path(r"C:\music\second.mp3")])
+        self.assertEqual(self.t._current_play_row, 1)
 
     def test_playing_mode_plays_the_row(self):
         self.t.set_play_highlight_enabled(True)

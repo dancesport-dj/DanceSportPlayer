@@ -1232,6 +1232,10 @@ class PresenterWindow(QWidget):
         self.duck_btn.setChecked(self._ducked)
         self.duckToggled.emit(not self._ducked)
 
+    def set_duck_level(self, pct: int):
+        """🔉 The level from ⚙ Settings, named on the button."""
+        self.duck_btn.setToolTip(i18n.t("Duck to %d %% / back to full") % pct)
+
     def set_ducked(self, on: bool):
         """The desk's duck state, mirrored onto this screen's button."""
         self._ducked = bool(on)

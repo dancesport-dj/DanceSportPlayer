@@ -13,6 +13,7 @@ panel player.widgets.cart_keys, the pad and wall-fade dialogs (with the pad
 colours) player.dialogs.cart_pad_dialog.
 """
 import html
+import math
 import logging
 import os
 from dataclasses import replace
@@ -58,7 +59,12 @@ _EDIT_ACCENT = "#c8871a"
 # on purpose: solid enough to read as the darker blue, open enough that the pad's
 # own dark caption still survives on top of it.
 _PLAYED_BAND = (45, 108, 223, 120)
-_BLINK_MS = 160
+# A fading pad breathes its own colour in and out twice a second, in 25 ms
+# steps: a hard 160 ms flip read as flicker, a whole second as too slow, and
+# 250 ms as too hectic.
+_PULSE_MS = 500
+_PULSE_STEP_MS = 25
+_PULSE_MAX = 200   # never fully opaque, so the caption stays legible
 
 _SWATCH = 14             # edge of the colour square in the 🎨 menus
 _PAD_MIN_W = 44
@@ -145,9 +151,9 @@ class _CartPadButton(QFrame):
         self._selected = False           # part of a multi-pad edit
         self._sel_count = 0              # how many pads that edit would hit
         self._fading = False
-        self._blink_on = False
+        self._pulse_t = 0                # ms into the current breath
         self._blink = QTimer(self)
-        self._blink.setInterval(_BLINK_MS)
+        self._blink.setInterval(_PULSE_STEP_MS)
         self._blink.timeout.connect(self._flash)
         # Small enough that a whole 8-wide wall still fits a side dock the user
         # can narrow; the size policy is what makes pads big on a wide wall.
@@ -258,21 +264,30 @@ class _CartPadButton(QFrame):
             self._restyle()
 
     def set_fading(self, fading: bool) -> None:
-        """Blink while a pad fades out, so a 1 s tail is still visibly a pad
+        """Pulse while a pad fades out, so a 1 s tail is still visibly a pad
         on its way out rather than one that ignored the tap."""
         if fading == self._fading:
             return
         self._fading = fading
-        self._blink_on = False
+        self._pulse_t = 0
         if fading:
             self._blink.start()
         else:
             self._blink.stop()
-        self._restyle()
+        self.update()
 
     def _flash(self) -> None:
-        self._blink_on = not self._blink_on
-        self._restyle()
+        # Only a repaint: a restyle per step would relayout the pad.
+        self._pulse_t = (self._pulse_t + _PULSE_STEP_MS) % _PULSE_MS
+        self.update()
+
+    def _pulse_alpha(self) -> int:
+        """How strongly the pad's own colour shows over the running blue right
+        now: 0 at the start of a breath, _PULSE_MAX at its middle."""
+        if not self._fading:
+            return 0
+        swell = (1 - math.cos(2 * math.pi * self._pulse_t / _PULSE_MS)) / 2
+        return int(round(_PULSE_MAX * swell))
 
     def set_remaining(self, ms_left: int, frac: float) -> None:
         if self._pad is None:
@@ -338,11 +353,6 @@ class _CartPadButton(QFrame):
         if self._missing:
             bg, border = _GONE_BG, "#c9ced6"
             fg = "#8a8f98"
-        elif self._fading and self._blink_on:
-            # Half of the blink shows the pad's own colour again, so the eye
-            # reads "this one is letting go", not "this one changed".
-            bg = self._pad.colour or self._default_bg
-            border, fg = _LIGHT_BORDER, _text_on(bg)
         elif self._playing:
             # Light blue for "this one is up", so the deep-blue progress band
             # painted over it in paintEvent stays legible against it.
@@ -371,13 +381,23 @@ class _CartPadButton(QFrame):
             " background: rgba(0, 0, 0, 0.12); border-radius: 3px; }")
 
     def paintEvent(self, e):
-        """Draw the stylesheet background first, then wash the played part of
-        the sample over it left to right."""
+        """Draw the stylesheet background first, then a fading pad's pulse,
+        then wash the played part of the sample over it left to right."""
         opt = QStyleOption()
         opt.initFrom(self)
         painter = QPainter(self)
         self.style().drawPrimitive(
             QStyle.PrimitiveElement.PE_Widget, opt, painter, self)
+        alpha = self._pulse_alpha()
+        if alpha and self._pad is not None:
+            # The pad's own colour again, so the eye reads "this one is
+            # letting go", not "this one changed".
+            own = QColor(self._pad.colour or self._default_bg)
+            own.setAlpha(alpha)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(own)
+            painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), 5, 5)
         if not self._playing or self._frac <= 0.0:
             return
         width = int(round(self.width() * self._frac))

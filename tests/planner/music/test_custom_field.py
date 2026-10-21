@@ -52,6 +52,15 @@ def _ultramixer(value="-1"):
     return TXXX(encoding=1, desc="ultramixer_last_played", text=value)
 
 
+def v1_tail(comment=b"vocal AS", title=b"T") -> bytes:
+    """An ID3v1.1 tag: 128 bytes at the end of the file, track number 1."""
+    tag = (b"TAG" + title.ljust(30, b"\0") + b"A".ljust(30, b"\0")
+           + b"Al".ljust(30, b"\0") + b"2000" + comment.ljust(28, b"\0")
+           + b"\0\x01" + b"\xff")
+    assert len(tag) == 128
+    return tag
+
+
 class SourceTest(_ScratchDb):
 
     def test_nothing_is_mapped_at_first(self):
@@ -125,6 +134,59 @@ class ReadTest(_ScratchDb):
         custom_field.set_source("TXXX", "ultramixer_last_played")
         self.assertEqual(custom_field.read_file(p), "")
         self.assertEqual(custom_field.read_file(self.dir / "gone.mp3"), "")
+
+
+class Id3v1Test(_ScratchDb):
+    """Marcel: "for the custom fields mapping make sure you support v1 and v2
+    of mp3tags". ID3v1 has no custom fields; its comment is what can fill
+    Custom. Read only: 28 Latin-1 characters, and where the classes of many
+    older files live."""
+
+    def v1(self, *frames, comment=b"vocal AS", name="v1.mp3") -> Path:
+        p = self.mp3(*frames, name=name)
+        with open(p, "ab") as fh:
+            fh.write(v1_tail(comment))
+        return p
+
+    def test_it_can_be_named(self):
+        self.assertIn(custom_field.V1, id3_frames.custom_frames())
+        custom_field.set_source(custom_field.V1, "ignored")
+        self.assertEqual(custom_field.source(), (custom_field.V1, ""))
+
+    def test_a_file_with_only_the_old_tag(self):
+        custom_field.set_source(custom_field.V1)
+        self.assertEqual(custom_field.read_file(self.v1()), "vocal AS")
+
+    def test_the_old_tag_beside_a_new_one(self):
+        """The v1 comment, not the v2 one."""
+        custom_field.set_source(custom_field.V1)
+        p = self.v1(COMM(encoding=1, lang="eng", desc="", text="C;B"))
+        self.assertEqual(custom_field.read_file(p), "vocal AS")
+
+    def test_blank_without_the_old_tag(self):
+        custom_field.set_source(custom_field.V1)
+        self.assertEqual(custom_field.read_file(self.mp3(TIT2(encoding=1, text="x"))), "")
+        self.assertEqual(custom_field.read_file(self.dir / "gone.mp3"), "")
+
+    def test_a_scan_reads_it_with_the_path(self):
+        custom_field.set_source(custom_field.V1)
+        p = self.v1(TIT2(encoding=1, text="x"))
+        self.assertEqual(custom_field.value_of(ID3(p), p), "vocal AS")
+
+    def test_only_a_frame_of_the_new_tag_is_written(self):
+        self.assertFalse(custom_field.writable())
+        custom_field.set_source("TXXX", "ultramixer_last_played")
+        self.assertTrue(custom_field.writable())
+        custom_field.set_source(custom_field.V1)
+        self.assertFalse(custom_field.writable())
+
+    def test_a_write_into_it_is_refused(self):
+        custom_field.set_source(custom_field.V1)
+        p = self.v1(TIT2(encoding=1, text="x"))
+        before = p.read_bytes()
+        with self.assertRaises(ValueError):
+            id3_frames.write_tags(p, app={"custom": "Gala"})
+        self.assertEqual(p.read_bytes(), before)
 
 
 class _StubScan:
@@ -278,6 +340,95 @@ class ReadAgainTest(_ScratchDb):
         custom_field.set_source("TIT1", "")
         self.lib.read_custom([], scan._cache)
         self.assertEqual(self.lib._make_entry(self.p, scan).custom, "Gala")
+
+
+class ClassesTest(_ScratchDb):
+    """DJ Maksy's class codes ('BAS', 'vocal AS') can sit in the mapped frame
+    instead of the comment. They count when the comment names no classes."""
+
+    def setUp(self):
+        super().setUp()
+        custom_field.set_source("TXXX", "grp")
+        self.lib = MusicLibrary()
+        self.cache = _Cache({})
+
+    def entry(self, **kw):
+        e = MusicEntry(path=self.dir / "x.mp3", title="x", **kw)
+        self.lib.entries = [e]
+        self.lib.apply_tag_edits(self.cache)
+        return e
+
+    def test_the_mapped_frame_gives_the_classes(self):
+        self.assertEqual(self.entry(custom="vocal BAS").classes_ok, ["B", "A", "S"])
+
+    def test_the_comment_wins(self):
+        self.assertEqual(self.entry(classes_ok=["D"], custom="AS").classes_ok, ["D"])
+
+    def test_a_custom_text_without_classes_gives_none(self):
+        self.assertIsNone(self.entry(custom="Hochzeit").classes_ok)
+
+    def test_the_scan_cache_keeps_the_comments_own(self):
+        """So a new mapping can start over from what the comment says."""
+        p = self.mp3(TIT2(encoding=1, text="x"), TXXX(encoding=1, desc="grp", text="DCB"))
+        scan = _StubScan()
+        e = self.lib._make_entry(p, scan)
+        self.lib.entries = [e]
+        self.lib.apply_tag_edits(self.cache)
+        self.assertEqual(e.classes_ok, ["D", "C", "B"])
+        self.assertIsNone(scan.store[str(p)]["classes_ok"])
+
+    def test_a_typed_custom_value_sets_no_classes(self):
+        tag_edits.apply(e := self.entry(), {"custom": "AS"})
+        self.lib.apply_tag_edits(self.cache)
+        self.assertIsNone(e.classes_ok)
+
+    def remapped(self, cached_classes, custom="AS", new="Gala"):
+        p = self.mp3(TIT2(encoding=1, text="x"), TIT1(encoding=1, text=new))
+        e = MusicEntry(path=p, title="x", classes_ok=cached_classes, custom=custom)
+        self.lib.entries = [e]
+        self.lib.apply_tag_edits(self.cache)
+        self.lib._scan_cache = _StubScan({str(p): {"title": "x", "custom": custom,
+                                                    "classes_ok": cached_classes}})
+        self.lib._scan_cache._cache = self.cache
+        custom_field.set_source("TIT1", "")
+        return e, self.lib.read_custom([e], self.cache)
+
+    def test_a_new_mapping_drops_the_old_frames_classes(self):
+        e, changed = self.remapped(None)
+        self.assertIsNone(e.classes_ok)
+        self.assertEqual(changed, [e.path])
+
+    def test_a_new_mapping_takes_the_new_frames_classes(self):
+        e, _ = self.remapped(None, new="vocal BAS")
+        self.assertEqual(e.classes_ok, ["B", "A", "S"])
+
+    def test_a_new_mapping_keeps_the_comments_classes(self):
+        e, _ = self.remapped(["A", "S"])
+        self.assertEqual(e.classes_ok, ["A", "S"])
+
+    def test_without_a_cached_row_the_old_frames_classes_still_go(self):
+        p = self.mp3(TIT2(encoding=1, text="x"), TIT1(encoding=1, text="Gala"))
+        e = self.entry(custom="AS")
+        e.path = p
+        self.lib._scan_cache = _StubScan()
+        self.lib._scan_cache._cache = self.cache
+        custom_field.set_source("TIT1", "")
+        self.lib.read_custom([e], self.cache)
+        self.assertIsNone(e.classes_ok)
+
+    def test_a_new_mapping_leaves_an_app_class_edit_on_top(self):
+        p = self.mp3(TIT2(encoding=1, text="x"), TIT1(encoding=1, text="BAS"))
+        e = MusicEntry(path=p, title="x", custom="DC")
+        self.lib.entries = [e]
+        self.lib.apply_tag_edits(self.cache)
+        tag_edits.apply(e, {"classes_ok": ["S"]})
+        self.lib._scan_cache = _StubScan({str(p): {"title": "x", "custom": "DC",
+                                                    "classes_ok": None}})
+        self.lib._scan_cache._cache = self.cache
+        custom_field.set_source("TIT1", "")
+        self.lib.read_custom([e], self.cache)
+        self.assertEqual(e.classes_ok, ["S"])
+        self.assertEqual(e.tag_edits["classes_ok"], ["B", "A", "S"])
 
 
 class WriteTest(_ScratchDb):

@@ -1309,6 +1309,9 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
         for t in self._deckset.all_tables:
             if t is not source:
                 t.on_playback_stopped()
+        cue = self._cue_player()
+        if cue is not None and not self._cue_wanted():
+            cue.stop()   # a pane's title on the music's own output: one at a time
         self._reset_aux_play_markers()
         self._on_list_play(source)   # its own TSO / pause, never re-applied
 

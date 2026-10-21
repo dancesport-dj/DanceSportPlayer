@@ -810,6 +810,12 @@ CATALOG = {
     "Back to this slot's default key": "Zurück zur Standardtaste dieses Platzes",
     "Export or import this wall": "Diese Cartwall exportieren oder importieren",
     "Duck to 20 % / back to full": "Auf 20 % absenken / zurück auf voll",
+    "Duck to %d %% / back to full": "Auf %d %% absenken / zurück auf voll",
+    "Duck to %d %% / back to full — the filler music comes down too":
+        "Auf %d %% absenken / zurück auf voll — die Pausenmusik geht mit herunter",
+    "🔉  Duck to:": "🔉  Absenken auf:",
+    "How loud everything stays while 🔉 Duck is pressed on the player\ncard, the mini player or the presenter screen: low enough to talk\nover, loud enough to keep the floor moving. 0 % is silence.":
+        "Wie laut alles bleibt, während 🔉 Absenken auf der Player-Karte,\ndem Mini-Player oder dem Präsentationsbildschirm gedrückt ist: leise\ngenug zum Drüberreden, laut genug, dass die Fläche weitertanzt. 0 % ist Stille.",
     "Reset the tempo to ±0 % (or double-click the fader)":
         "Tempo auf ±0 % zurücksetzen (oder Doppelklick auf den Fader)",
     "Volume adjustment of this track by Equalize volume (R128)":
@@ -3374,8 +3380,12 @@ CATALOG = {
         "Diesen Titel im Miniplayer vorhören",
     "Double-click a 📚 library row":
         "Doppelklick in 📚 Bibliothek",
-    "Open the track in your external audio player":
-        "Den Titel im externen Audioplayer öffnen",
+    "Open the track in your external audio player — when ⚙ Settings → 🔊 Sound & player allow it":
+        "Den Titel im externen Audioplayer öffnen — wenn ⚙ Einstellungen → 🔊 Ton & Player es erlauben",
+    "📂  Double-click opens the title in the system's music player (while planning, in 📚 the library and the dialogs)":
+        "📂  Doppelklick öffnet den Titel im Musikprogramm des Systems (beim Planen, in 📚 der Bibliothek und den Dialogen)",
+    "Off: a deck plays the title in the mini player, the other places\nleave the file alone. On: it opens in the program your system\nplays music with (on a Mac, Music).\nRight-click → open still works either way, and in Playing mode\na double-click always plays or cues the title.":
+        "Aus: Ein Deck spielt den Titel im Mini-Player, die anderen Stellen\nlassen die Datei in Ruhe. An: Sie öffnet sich in dem Programm, mit dem\ndein System Musik abspielt (auf dem Mac: Musik).\nRechtsklick → Öffnen geht in beiden Fällen, und im Abspielmodus\nspielt oder lädt ein Doppelklick den Titel immer.",
     "▶ / ■ in a row": "▶ / ■ in einer Zeile",
     "Play / stop exactly that song": "Genau diesen Titel abspielen / stoppen",
     "↺ in a row / header": "↺ in einer Zeile / Überschrift",
@@ -3583,7 +3593,7 @@ CATALOG = {
     "👥 Duplicates / raw versions":
         "👥 Doppelte / Rohfassungen",
     # The deck/library column with the cleaned-up file name.
-    "File name": "Dateiname",
+    "Filename": "Dateiname",
     # ⚙ Settings → 🔊 Sound & player: an output per source.
     "<b>🔈 Outputs</b> — where each part of the evening is heard:":
         "<b>🔈 Ausgänge</b> — wo welcher Teil des Abends zu hören ist:",
@@ -3621,10 +3631,12 @@ CATALOG = {
     "▶ in the library pane, the 🏆 pane, the Similar window and the\n"
     "event plan plays here, with a mini player of its own, and the\n"
     "music keeps running. Refused while it is the output the music\n"
-    "plays on. \"Same as the music\": they play on the music's player.":
+    "plays on, unless it is the only output. \"Same as the music\": they\n"
+    "play on the music's player.":
         "▶ im Bibliotheksbereich, im 🏆-Bereich, im Fenster Ähnliche Titel und\n"
         "im Veranstaltungsplan spielt hier, mit einem eigenen Mini-Player, und die\n"
-        "Musik läuft weiter. Abgelehnt, solange es der Ausgang der Musik ist.\n"
+        "Musik läuft weiter. Abgelehnt, solange es der Ausgang der Musik ist,\n"
+        "außer es ist der einzige.\n"
         "„Wie die Musik“: sie spielen auf dem Player der Musik.",
     "🎧 The pre-listen output is not connected, and the system default is the music's own output.":
         "🎧 Der Vorhör-Ausgang ist nicht angeschlossen, und der Systemstandard ist der Ausgang der Musik.",
@@ -3892,6 +3904,8 @@ CATALOG = {
     "🏷  Custom field": "🏷  Feld Custom",
     "🏷  Fill Custom from this tag": "🏷  Custom aus diesem Tag füllen",
     "In none of the %d sampled MP3s": "In keiner der %d geprüften MP3s",
+    "The old tag's comment is read only: a value typed in the app stays in the app.":
+        "Der Kommentar des alten Tags kann nur gelesen werden: ein in der App eingetippter Wert bleibt in der App.",
     "In %d of %d sampled MP3s, e.g. “%s”": "In %d von %d geprüften MP3s, z. B. „%s“",
     "The Custom column shows this tag of each MP3. A value typed in the "
     "🏷 editor wins over it, and on Save it can be written into it.":
@@ -3983,6 +3997,7 @@ CATALOG = {
     "Encoder settings": "Encoder-Einstellungen",
     "Media type": "Medientyp",
     "Grouping (iTunes)": "Gruppierung (iTunes)",
+    "Comment of the old tag": "Kommentar des alten Tags",
     "🏷  %s: tags unchanged":
         "🏷  %s: Tags unverändert",
     "⚠  Track no longer in any open deck":
@@ -5250,8 +5265,6 @@ CATALOG = {
         "⏹ Der nächste Titel wurde während der Pause entfernt — nichts wurde gestartet.",
     "✔  Done editing":
         "✔  Bearbeitung beenden",
-    "No pause to jump to — tick 'Pause between songs' (and ⏭\nauto-advance) in the Playing-mode panel first.":
-        "Keine Pause zum Anspringen — setz zuerst im Wiedergabe-Modus den Haken bei\n„Pause zwischen den Titeln“ (und ⏭ Auto-Weiter).",
     "duck":
         "leise",
     "instrumental (🎙️ Demucs-measured)":
@@ -5823,6 +5836,8 @@ CATALOG = {
         "%s %s ist nicht angeschlossen — es spielt auf dem Systemstandard.",
     "🎧 Pre-listen is on the music's own output — every preview is refused.":
         "🎧 Vorhören liegt auf dem Ausgang der Musik — jedes Vorhören wird abgelehnt.",
+    "🎧 Pre-listen is on the same output as the music — the hall hears every preview.":
+        "🎧 Vorhören liegt auf demselben Ausgang wie die Musik — der Saal hört jedes Vorhören.",
     "Every chosen output is plugged in.":
         "Jeder gewählte Ausgang ist angeschlossen.",
     "%s is connected.":

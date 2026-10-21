@@ -210,6 +210,7 @@ class BigPlayerSetupMixin(BigPlayerHost):
         # Card state for the context-dependent aux buttons (play vs. pause).
         self._is_paused = False
         self._has_song = False
+        self._pause_avail = True         # ☕ shows only with a pause to jump to
 
     def _build_time(self):
         """Elapsed time, remaining time and the adjusted-length readout."""

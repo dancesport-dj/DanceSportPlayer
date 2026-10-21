@@ -36,6 +36,7 @@ from shared.columns import (
     _COL_ARTIST,
     _COL_BPM,
     _COL_CLASS,
+    _COL_COMMENT,
     _COL_CUSTOM,
     _COL_DANCE,
     _COL_FILE,
@@ -857,6 +858,8 @@ class TableActionsMixin(TableMenuMixin):
         _COL_FILE: lambda e: (e.title or "").lower(),
         _COL_ALBUM: lambda e: ((getattr(e, "tag_album", None) or "").lower(),
                                (e.title or "").lower()),
+        _COL_COMMENT: lambda e: ((getattr(e, "tag_comment", None) or "").lower(),
+                                 (e.title or "").lower()),
     }
 
     def _sortable_as_list(self) -> bool:

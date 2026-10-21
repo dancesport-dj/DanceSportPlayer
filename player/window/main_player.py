@@ -134,12 +134,20 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         else:
             self._seek(delta_ms)
 
-    def _prehear(self, path: Path | None):
+    def _prehear(self, path: Path | None, always: bool = False):
         """Play (None: stop) a title from the library pane, the 🏆 pane, the
         Similar window or the event plan. With a pre-listen output it goes
         there and the music keeps running; else on the deck's player, as it
-        always did."""
+        always did — unless `always`: the two panes keep to the pre-listen
+        player and its mini player even then, on the music's output, so
+        the main player and its card stay with the deck."""
         cue = self._cue_player()
+        if cue is not None and always and not self._cue_wanted():
+            if path is None:
+                cue.stop()
+            else:
+                cue.play(path, self._audio_device.target("music"))
+            return
         if cue is None or not self._cue_wanted():
             if cue is not None:
                 cue.stop()
@@ -152,7 +160,9 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         if dev is None:
             return   # not reached: _cue_wanted means an output is chosen
         music = self._audio_device.target("music")
-        if music is None or device_id(dev) != device_id(music):
+        if (music is None or device_id(dev) != device_id(music)
+                or self._audio_device.single_output()):
+            # With one output there is no other to choose: it is the default.
             cue.play(path, dev)
             return
         # The music's own output: the preview would go out on the PA.
@@ -814,9 +824,11 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
     def _between_tick(self, player, pending):
         """⏸ The pause between two songs: its countdown, fade and advance."""
         # The deck the pause is running for, not the panel: its own switch
-        # is what armed this, so its own switch is what can call it off.
+        # is what armed this, so its own switch is what can call it off —
+        # unless 🔁 armed it, which never asked that switch (see
+        # _queue_auto_advance).
         if (not self._is_playing_mode()
-                or not self._deck_advance(pending[0])):
+                or not (self._deck_advance(pending[0]) or self._looping())):
             self._stop_play_timer()   # turned off during the pause → cancel
             player.setSource(QUrl())   # release the preloaded file
             return
