@@ -209,8 +209,8 @@ class CartwallMixin(MainWindowHost):
 
     def apply_cart_settings(self):
         """⚙ Settings ▸ 🎛 Cartwall, as far as the wall's audio follows it:
-        how far a pad ducks the music, and whether a starting title pauses 🎶
-        background pads or only mutes them."""
+        how far a pad ducks the music, whether a starting title pauses 🎶
+        background pads or only mutes them, and how fast they dip and come back."""
         self._mix.set_cart_duck(cart_duck_level(self._settings))
         if "cartwall" in self._mix.duck_reasons:
             self._set_duck_reason("cartwall", True)   # a pad ducking now moves to it
@@ -218,6 +218,10 @@ class CartwallMixin(MainWindowHost):
         voices = getattr(self, "_cart_voices", None)
         if voices is not None:
             voices.set_background_pauses(pauses)
+            voices.set_background_fade_in(pc.background_fade_in_ms(self._settings))
+            voices.set_background_fade_out(pc.background_fade_out_ms(self._settings))
+            voices.set_background_fire_fade(pc.background_fire_fade_ms(self._settings))
+            voices.set_background_hold(pc.background_hold_ms(self._settings))
         wall = getattr(self, "_cartwall", None)
         if wall is not None:
             wall.set_background_pauses(pauses)   # the pad dialog's 🎶 wording

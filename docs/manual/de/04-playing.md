@@ -362,7 +362,7 @@ Siegerehrung.
 
 - Ein **Klick auf ein Pad** feuert es über die laufende Musik. Noch ein Klick
   blendet es aus, in 1 s. ⚙ Einstellungen ▸ 🎛 Cartwall ▸
-  **⏱ Pads blenden aus über** stellt diese Zeit für die ganze Wand ein; **Eigenes Ausblenden** in den
+  **⏱ Erneut angetippt oder ⏹ — ausblenden über** stellt diese Zeit für die ganze Wand ein; **Eigenes Ausblenden** in den
   **⚙ Einstellungen…** eines Pads gibt ihm eine eigene.
 - **Strg + 1 … 9** feuern die ersten neun Pads der sichtbaren Seite.
 - **⏹ Alles stoppen** oder **Esc** blendet jedes Pad aus.
@@ -384,8 +384,9 @@ Siegerehrung.
 - **🎶 Hintergrund** dreht das um: Das Pad selbst verstummt, solange ein
   Titel läuft, und blendet sich wieder ein, sobald der Titel zu Ende ist. Das passt für eine
   Hintergrundmusik, die den ganzen Abend läuft. Ein Hintergrund-Pad macht
-  die Musik nie leiser. Soll es stattdessen pausieren, siehe ⚙ Einstellungen ▸
-  🎛 Cartwall ▸ **🎶 Hintergrund-Pads, wenn ein Titel startet**.
+  die Musik nie leiser. Soll es stattdessen pausieren, oder soll es schneller oder langsamer
+  ab- und wieder auftauchen, siehe ⚙ Einstellungen ▸ 🎛 Cartwall ▸
+  **🎶 Pads mit 🎶 Hintergrund**.
 - **S Die anderen Pads stoppen** in den **⚙ Einstellungen…** eines Pads
   blendet alle anderen laufenden Pads aus, sobald dieses startet. Das passt
   für eine Hymne oder eine Siegerfanfare, die den Raum braucht.

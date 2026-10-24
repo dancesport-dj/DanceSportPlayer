@@ -101,8 +101,16 @@ jobs:
           DANCEPLAYLIST_VERSION: ${{ inputs.version }}
         run: |
           .\build_exe.bat full
-          if (-not (Test-Path "dist/DanceSport-Planner-Player-Full/Manual.pdf")) { throw "no Manual.pdf in the build" }
-          if (-not (Test-Path "dist/DanceSport-Planner-Player-Full/Handbuch.pdf")) { throw "no Handbuch.pdf in the build" }
+          # The FULL flavor is not a "player" download, so build_exe.bat does not
+          # copy the manuals beside the .exe: the spec bundles them into
+          # _internal\docs\manual, which is where the app opens them from
+          # (❔ ▸ 📖 Manual). The uploaded folder carries _internal, so both
+          # PDFs travel with the zip - check them where they actually land.
+          foreach ($pdf in "docs/manual/manual.pdf", "docs/manual/de/manual.pdf") {
+            if (-not (Test-Path "dist/DanceSport-Planner-Player-Full/_internal/$pdf")) {
+              throw "no $pdf in the build"
+            }
+          }
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

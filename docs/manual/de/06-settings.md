@@ -165,12 +165,26 @@ Eigenes bekommen hat. Der Modus *Nur Planer* blendet ihn aus.
 
 ![Einstellungen, Reiter Cartwall](../img/settings-cartwall.png)
 
+**🎛 Alle Pads**
+
 | Einstellung | Macht |
 |---|---|
-| **🎛 Ein Pad senkt die Musik ab auf** | Wie laut die Musik bleibt, solange ein Cartwall-Pad läuft, das die Musik leiser macht: 10 % ab Werk (etwa −20 dB, eine Fanfare setzt sich durch), 0 % (Stille) bis 90 %. Wie 🔉 Absenken auf im Reiter 🔊 Ton & Player ist es ein Anteil an der Lautstärke der Musik, nicht an ihrer Lautheit; der Dialog zeigt die dB daneben. |
-| **🎶 Hintergrund-Pads, wenn ein Titel startet** | Was ein 🎶 Hintergrund-Pad tut, sobald die Musik startet: **Stumm weiterlaufen** (ab Werk; es läuft leise weiter und blendet sich wieder ein, wenn die Musik endet) oder **Pausieren** (es hält an seiner Stelle an und läuft von dort weiter, wenn die Musik endet). |
-| **⏱ Pads blenden aus über** | Wie lange ein Pad zum Ausklingen braucht, wenn es noch einmal angeklickt wird oder ⏹ Alles stoppen die Wand ausblendet: 1 s ab Werk, *harter Schnitt* bis 8 s. **Eigenes Ausblenden** in den **⚙ Einstellungen…** eines Pads überschreibt es für dieses Pad. |
+| **🔈 Während ein 🔈-Pad spielt, wird die Musik abgesenkt auf** | Wie laut die Musik bleibt, solange ein Cartwall-Pad läuft, das die Musik leiser macht: 10 % ab Werk (etwa −20 dB, eine Fanfare setzt sich durch), 0 % (Stille) bis 90 %. Wie 🔉 Absenken auf im Reiter 🔊 Ton & Player ist es ein Anteil an der Lautstärke der Musik, nicht an ihrer Lautheit; der Dialog zeigt die dB daneben. |
+| **⏱ Erneut angetippt oder ⏹ — ausblenden über** | Wie lange ein Pad zum Ausklingen braucht, wenn es noch einmal angeklickt wird oder ⏹ Alles stoppen die Wand ausblendet: 1,0 s ab Werk, 0 s (es stoppt sofort) bis 8 s. Auch ein 🎶 Hintergrund-Pad folgt dem. **Eigenes Ausblenden** in den **⚙ Einstellungen…** eines Pads überschreibt es für dieses Pad. |
 | **🖌 Standardfarbe der Cartwall** | Die Farbe jedes Pads, das auf 🎨 Farbe ▸ **Cartwall-Standard** steht: ab Werk weiß. Ein Pad mit eigener Farbe behält sie. |
+
+**🎶 Pads mit 🎶 Hintergrund**, in der Reihenfolge, in der ein Hintergrund-Pad sie erlebt:
+
+| Einstellung | Macht |
+|---|---|
+| **▶ Beim Abfeuern — einblenden über** | Wie lange das Pad braucht, um aus der Stille hochzukommen, wenn es abgefeuert wird: 0,2 s ab Werk. 0 s startet es gleich mit voller Lautstärke. |
+| **🎵 Wenn ein Titel startet** | Was das Pad tut, sobald die Musik startet: **Stumm weiterlaufen** (ab Werk; es läuft leise weiter und blendet sich wieder ein, wenn die Musik endet) oder **Pausieren** (es hält an seiner Stelle an und läuft von dort weiter, wenn die Musik endet). |
+| **🌙 …und blendet dabei aus über** | Wie schnell es Platz macht, wenn ein Titel startet: 0,2 s ab Werk. Auch ein Pad auf **Pausieren** blendet erst aus und hält dann an. Hier gibt es nie eine Wartezeit, damit der Teppich nicht über die ersten Töne des Titels spielt. |
+| **⏳ Wenn die Musik stoppt — warten** | Wie lange die Musik gestoppt sein muss, bevor das Pad zurückkommt: 0,3 s ab Werk. Zwischen zwei Titeln stoppt das Deck kurz; die Wartezeit verhindert, dass der Teppich in jeder solchen Lücke anschwillt und gleich wieder abtaucht. Startet während der Wartezeit ein Titel, bleibt der Teppich unten. 0 s holt ihn zurück, sobald die Musik stoppt, auch in den Lücken; viel länger als ab Werk wirkt, als hinke der Teppich hinterher. |
+| **🌅 …dann wieder einblenden über** | Wie lange es danach braucht, bis es wieder voll da ist: 2,0 s ab Werk. |
+
+Jede Zeit auf diesem Reiter reicht von 0 s bis 8 s in Schritten von 0,1 s;
+0 s heißt sofort, ohne Blende.
 
 Ausblendzeit und Farbe gehören zur Wand, nicht zum PC: eine Cartwall, die
 in einem [Hallenpaket](#hallenpaket) auf einen anderen PC geht, nimmt sie

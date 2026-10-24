@@ -468,6 +468,20 @@ class TesterBuildTest(unittest.TestCase):
         self.assertIn(r".\build_exe.bat full", self._job("windows"))
         self.assertIn("./build_app.sh full dmg", self._job("macos"))
 
+    def test_the_windows_build_checks_the_manual_where_the_bundle_puts_it(self):
+        """build_exe.bat copies Manual.pdf/Handbuch.pdf beside the .exe for the
+        "player" flavor only; the FULL flavor's manuals live in the bundle
+        (_internal/docs/manual), which is what the app opens. A check for the
+        top-level name failed the tester build on every run."""
+        windows = self._job("windows")
+        # The loop's two paths, and the folder it prefixes them with.
+        self.assertIn('"docs/manual/manual.pdf", "docs/manual/de/manual.pdf"', windows)
+        self.assertIn('Test-Path "dist/DanceSport-Planner-Player-Full/_internal/$pdf"', windows)
+        # The beside-the-.exe copies belong to the player download; a FULL
+        # build has none, so the check must not ask for one.
+        self.assertNotIn('Test-Path "dist/DanceSport-Planner-Player-Full/Manual.pdf"', windows)
+        self.assertNotIn('Test-Path "dist/DanceSport-Planner-Player-Full/Handbuch.pdf"', windows)
+
 
 class TesterRequirementsGuardTest(unittest.TestCase):
     """A FULL venv without torch still "builds full" - PyInstaller just emits

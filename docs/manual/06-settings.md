@@ -153,12 +153,26 @@ own. *Planner only* mode hides it.
 
 ![Settings, Cartwall tab](img/settings-cartwall.png)
 
+**🎛 All pads**
+
 | Setting | Does |
 |---|---|
-| **🎛 A pad ducks the music to** | How loud the music stays while a cartwall pad that pulls the music down plays: 10 % by default (about −20 dB, so a fanfare cuts through), 0 % (silence) to 90 %. Like 🔉 Duck to on the 🔊 Sound & player tab, it is a share of the music's volume, not of its loudness; the dialog shows the dB next to it. |
-| **🎶 Background pads when a title starts** | What a 🎶 Background pad does once the music starts: **Mute and keep playing** (the default; it runs on silently and fades back in when the music stops) or **Pause** (it holds where it was and carries on from there when the music stops). |
-| **⏱ Pads fade out over** | How long a pad takes to let go when it is clicked again or ⏹ Stop all fades the wall: 1 s by default, *cut* up to 8 s. **Own fade-out** in a pad's **Settings…** overrides it for that pad. |
+| **🔈 While a 🔈 pad plays, the music ducks to** | How loud the music stays while a cartwall pad that pulls the music down plays: 10 % by default (about −20 dB, so a fanfare cuts through), 0 % (silence) to 90 %. Like 🔉 Duck to on the 🔊 Sound & player tab, it is a share of the music's volume, not of its loudness; the dialog shows the dB next to it. |
+| **⏱ Tapped again or ⏹ — fade out over** | How long a pad takes to let go when it is clicked again or ⏹ Stop all fades the wall: 1.0 s by default, 0 s (it stops at once) up to 8 s. A 🎶 Background pad follows it too. **Own fade-out** in a pad's **Settings…** overrides it for that pad. |
 | **🖌 Default wall colour** | The colour of every pad left on 🎨 Colour ▸ **Wall default**: white by default. A pad given a colour of its own keeps it. |
+
+**🎶 Pads set to 🎶 Background**, in the order a background pad meets them:
+
+| Setting | Does |
+|---|---|
+| **▶ When fired — fade in over** | How long the pad takes to come up from silence when it is fired: 0.2 s by default. 0 s starts it at full volume. |
+| **🎵 When a title starts** | What the pad does once the music starts: **Mute and keep playing** (the default; it runs on silently and fades back in when the music stops) or **Pause** (it holds where it was and carries on from there when the music stops). |
+| **🌙 …fading out over** | How fast it gets out of the way when a title starts: 0.2 s by default. A pad set to **Pause** fades out too, then holds. There is never a wait here, so the bed does not play over the title's first notes. |
+| **⏳ When the music stops — wait** | How long the music has to stay stopped before the pad comes back: 0.3 s by default. The deck stops for a moment between two titles; the wait keeps the bed from swelling up in every such gap and dipping again a moment later. A title that starts during the wait keeps the bed down. 0 s brings it back the moment the music stops, gaps included; much longer than the default feels as if the bed lags behind. |
+| **🌅 …then fade back in over** | How long it then takes to come back to full volume: 2.0 s by default. |
+
+Every time on this tab runs from 0 s to 8 s in steps of 0.1 s; 0 s means
+straight away, without a fade.
 
 The fade-out and the colour belong to the wall rather than to the PC, so a
 cartwall carried to another PC in a [venue pack](#venue-pack) brings them

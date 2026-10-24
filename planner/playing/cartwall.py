@@ -79,6 +79,54 @@ def background_pauses(settings: dict) -> bool:
     reads as the default, which keeps it running."""
     return settings.get("cart_bg_mode") in ("pause", "stop")
 
+
+# How long a 🎶 background pad takes to come back up once the music stops, and
+# to dip to silence when a title starts, under ⚙ Settings ▸ 🎛 Cartwall.
+# Seconds to come back, not a snap: the bed swells back in. The dip is about as
+# fast as a pad pulls the music down (player.audio.mix._CART_DUCK), and on the
+# dialog's one-decimal grid.
+DEFAULT_BG_FADE_IN_MS = 2000
+DEFAULT_BG_FADE_OUT_MS = 200
+# …and to come up when it is fired: as fast as it dips, so it never clicks in.
+DEFAULT_BG_FIRE_FADE_MS = 200
+# How long the music has to stay stopped before the bed comes back: the deck
+# reports Stopped for a moment between two titles, and a bed swelling up in
+# every gap is worse than one that waits; 1.5 s of it read as the bed lagging
+# behind the end of the music.
+DEFAULT_BG_HOLD_MS = 300
+
+
+def _bg_fade_ms(settings: dict, key: str, default: int) -> int:
+    try:
+        ms = int(settings.get(key, default))
+    except (TypeError, ValueError):
+        return default
+    return max(0, min(MAX_FADE_MS, ms))
+
+
+def background_fade_in_ms(settings: dict) -> int:
+    """The 'cart_bg_fade_in_ms' setting, bounded like a pad's fade-out. A broken
+    value reads as the default; 0 brings the bed back at once."""
+    return _bg_fade_ms(settings, "cart_bg_fade_in_ms", DEFAULT_BG_FADE_IN_MS)
+
+
+def background_fade_out_ms(settings: dict) -> int:
+    """The 'cart_bg_fade_out_ms' setting, the dip under a starting title, read
+    like background_fade_in_ms; 0 cuts the bed off at once."""
+    return _bg_fade_ms(settings, "cart_bg_fade_out_ms", DEFAULT_BG_FADE_OUT_MS)
+
+
+def background_fire_fade_ms(settings: dict) -> int:
+    """The 'cart_bg_fire_fade_ms' setting, the fade-in of a background pad that
+    is fired, read like background_fade_in_ms; 0 starts it at full volume."""
+    return _bg_fade_ms(settings, "cart_bg_fire_fade_ms", DEFAULT_BG_FIRE_FADE_MS)
+
+
+def background_hold_ms(settings: dict) -> int:
+    """The 'cart_bg_hold_ms' setting, the wait before a background pad comes
+    back once the music stops, read like background_fade_in_ms; 0 = no wait."""
+    return _bg_fade_ms(settings, "cart_bg_hold_ms", DEFAULT_BG_HOLD_MS)
+
 # Keys that fire the first nine slots of the page on screen. Slot-based, not
 # pad-based, so the same finger hits the same corner of the wall on every page;
 # a pad that wants a key of its own carries it in CartPad.shortcut and keeps it

@@ -730,14 +730,36 @@ CATALOG = {
     "🔉  Duck to:": "🔉  Dempen naar:",
     "How loud everything stays while 🔉 Duck is pressed on the player\ncard, the mini player or the presenter screen: low enough to talk\nover, loud enough to keep the floor moving. 0 % is silence.":
         "Hoe luid alles blijft terwijl 🔉 Dempen is ingedrukt op de spelerkaart,\nde minispeler of het presentatiescherm: zacht genoeg om eroverheen te\npraten, luid genoeg om de vloer te laten dansen. 0 % is stilte.",
-    "🎶  Background pads when a title starts:":
-        "🎶  Achtergrondpads als een nummer start:",
+    "🎵  When a title starts:":
+        "🎵  Als een nummer start:",
     "<b>🎛 Cartwall</b> — what the pads do to the music, and what every pad follows unless it was given its own.":
         "<b>🎛 Cartwall</b> — wat de pads met de muziek doen, en wat elke pad volgt tenzij hij een eigen instelling heeft.",
-    "⏱  Pads fade out over:":
-        "⏱  Pads faden uit in:",
+    "🎛  All pads":
+        "🎛  Alle pads",
+    "🎶  Pads set to 🎶 Background":
+        "🎶  Pads op 🎶 Achtergrond",
+    "Tapped again or ⏹, a background pad fades out like every other pad (⏱ above).":
+        "Opnieuw aangetikt of met ⏹ fadet een achtergrondpad uit zoals elk ander pad (⏱ hierboven).",
+    "⏱  Tapped again or ⏹ — fade out over:":
+        "⏱  Opnieuw aangetikt of ⏹ — uitfaden in:",
     "How long a pad takes to let go when it is tapped again or ⏹\nstops the wall. A pad can override this in its own settings.":
         "Hoe lang een pad nodig heeft om los te laten als hij opnieuw wordt aangetikt of ⏹\nde cartwall stopt. Een pad kan dit in zijn eigen instellingen overschrijven.",
+    "▶  When fired — fade in over:":
+        "▶  Bij afvuren — infaden in:",
+    "How long a 🎛 cartwall pad set to 🎶 Background takes to come\nup from silence when it is fired. 0 s starts it at full volume.":
+        "Hoe lang een 🎛 cartwall-pad met 🎶 Achtergrond nodig heeft om\nbij afvuren uit de stilte op te komen. 0 s start hem op vol volume.",
+    "🌙  …fading out over:":
+        "🌙  …en fadet uit in:",
+    "How long a 🎛 cartwall pad set to 🎶 Background takes to go\nsilent once a title starts.":
+        "Hoe lang een 🎛 cartwall-pad met 🎶 Achtergrond nodig heeft om\nstil te worden zodra een nummer start.",
+    "⏳  When the music stops — wait:":
+        "⏳  Als de muziek stopt — wachten:",
+    "How long the main player has to stay stopped before a 🎛 cartwall\npad set to 🎶 Background fades back in.\n\nBetween two titles the deck stops for a moment. Without a wait,\nthe bed would swell up in every such gap and dip again as soon as\nthe next title starts. A title starting during the wait keeps the\nbed down.\n\nThere is no wait when a title starts: the bed gets out of the way\nat once, so it never plays over the first notes.\n\n0 s brings it back the moment the music stops, gaps included.\nStandard 0.3 s; much longer feels as if the bed lags behind.":
+        "Hoe lang de hoofdspeler gestopt moet zijn voordat een 🎛 cartwall-pad\nmet 🎶 Achtergrond weer infadet.\n\nTussen twee nummers stopt het deck even. Zonder wachttijd zou de\nachtergrond in elk zo'n gat opzwellen en bij het volgende nummer\nmeteen weer wegzakken. Start er tijdens het wachten een nummer, dan\nblijft de achtergrond weg.\n\nBij de start van een nummer is er geen wachttijd: de achtergrond\nmaakt meteen plaats en speelt nooit over de eerste noten.\n\n0 s brengt hem terug zodra de muziek stopt, ook in de gaten.\nStandaard 0,3 s; veel langer voelt alsof de achtergrond achterloopt.",
+    "🌅  …then fade back in over:":
+        "🌅  …dan weer infaden in:",
+    "How long a 🎛 cartwall pad set to 🎶 Background takes to come\nback up to its full volume once the music stops.":
+        "Hoe lang een 🎛 cartwall-pad met 🎶 Achtergrond nodig heeft om\nweer op vol volume te komen als de muziek stopt.",
     "🖌  Default wall colour:":
         "🖌  Standaardkleur van de cartwall:",
     "The wall's default colour: every pad without a colour of its own\n(🎨 Colour ▸ Wall default) shows it. A pad given its own keeps it.":
@@ -752,8 +774,8 @@ CATALOG = {
         "🎶  Achtergrond: pauzeren zolang een titel speelt",
     "The other way round from 🔈: a title starting on the main\nplayer pauses this pad, and it carries on from where it was\nwhen the music stops.\n(⚙ Settings → 🎛 Cartwall → 🎶 Background pads)":
         "Andersom dan 🔈: start er een nummer op de hoofdspeler, dan\npauzeert deze pad en speelt hij verder waar hij was\nals de muziek stopt.\n(⚙ Instellingen → 🎛 Cartwall → 🎶 Achtergrondpads)",
-    "🎛  A pad ducks the music to:":
-        "🎛  Een pad dempt de muziek naar:",
+    "🔈  While a 🔈 pad plays, the music ducks to:":
+        "🔈  Terwijl een 🔈-pad speelt, dempt de muziek naar:",
     "How loud the music stays while a 🎛 cartwall pad set to 🔈 pull\nthe music down plays, in percent of its volume like 🔉 Duck to.\n10 % is about −20 dB: a fanfare cuts through. 30 % (about −10 dB)\nonly sits the music back. 0 % is silence.":
         "Hoe luid de muziek blijft terwijl een 🎛 cartwall-pad met 🔈 muziek\ndempen speelt, in procent van haar volume zoals bij 🔉 Dempen naar.\n10 % is ongeveer −20 dB: een fanfare komt erdoor. 30 % (ongeveer −10 dB)\nzet de muziek alleen een stap terug. 0 % is stilte.",
     "A duck, here or a pad's on the 🎛 Cartwall tab, is a percentage of the music's volume, not of its loudness: 50 % ≈ −6 dB, 30 % ≈ −10 dB (sounds about half as loud), 20 % ≈ −14 dB, 10 % ≈ −20 dB.":
@@ -4548,7 +4570,6 @@ CATALOG = {
     "Empty = this slot's default (%s)": "Leeg = standaard van dit slot (%s)",
     "Empty = no key (this slot has no default)":
         "Leeg = geen toets (dit slot heeft geen standaard)",
-    "cut": "harde knip",
     "%s (wall)": "%s (Cartwall)",
     "⚠ already used by %s": "⚠ al gebruikt door %s",
     "%d key claimed twice — the marked ones will not fire. Pad keys win over slot keys.":

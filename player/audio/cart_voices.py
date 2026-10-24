@@ -42,15 +42,11 @@ _RAMP_MS = 25           # a level change coarser than this is an audible click
 _TICK_MS = 100          # countdown refresh — a 3 s sting needs the digit to move
 _FIRE_GAP_MS = 120      # ignore a re-tap this soon: that is a double-click
 
-# 🎶 A background pad under a running title: down as fast as a pad pulls the
-# music (player.audio.mix._CART_DUCK), all the way down: under a title the bed
-# is silent, not quieter. When the music stops it fades in, over seconds. The
-# hold is for the title switch — the deck reports Stopped for a moment between
-# two titles, and a bed swelling up in every gap is worse than one that waits;
-# 1.5 s of it read as the bed lagging behind the end of the music.
-_BG_DOWN_MS = 180
-_BG_UP_MS = 2000
-_BG_HOLD_MS = 300
+# 🎶 A background pad under a running title: down fast, by default as fast as a
+# pad pulls the music (player.audio.mix._CART_DUCK), all the way down: under a
+# title the bed is silent, not quieter. When the music stops it waits a moment
+# for the title switch, then fades in, by default over seconds. All of it is
+# set under ⚙ Settings ▸ 🎛 Cartwall (planner.playing.cartwall.background_*_ms).
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -67,6 +63,8 @@ class _Voice:
         self.pad: pc.CartPad | None = None
         self.fade = 1.0
         self.fade_step = 0.0     # > 0 while fading out
+        self.rise = 1.0          # a fired 🎶 pad coming up from silence
+        self.rise_step = 0.0     # > 0 while it does
         self.then: tuple[object, pc.CartPad] | None = None  # (key, pad) to start once the fade finishes
         self.held = False        # a 🎶 pad paused under a title, to carry on later
         self.started = 0.0       # monotonic, for "steal the oldest"
@@ -109,6 +107,9 @@ class CartVoices(QObject):
         self._muted = False
         self._wall_fade = pc.DEFAULT_FADE_MS   # what a pad follows by default
         self._bg_pauses = False  # a starting title pauses 🎶 pads instead of muting them
+        self._bg_up_ms = pc.DEFAULT_BG_FADE_IN_MS  # 🎶 pads coming back once the music stops
+        self._bg_down_ms = pc.DEFAULT_BG_FADE_OUT_MS  # …and dipping when a title starts
+        self._bg_fire_ms = pc.DEFAULT_BG_FIRE_FADE_MS  # …and coming up when fired
         self._last_fire: dict[object, float] = {}
         self._active = 0
         self._ducking = False
@@ -119,7 +120,7 @@ class CartVoices(QObject):
         self._tick.setInterval(_TICK_MS)
         self._tick.timeout.connect(self._emit_tick)
         # Followed even with no background pad running, so one fired under a
-        # title starts low instead of blaring for the first 180 ms. 1.0 is up,
+        # title starts low instead of blaring for the length of the dip. 1.0 is up,
         # 0.0 is all the way down.
         self._bg = 1.0
         self._bg_target = 1.0
@@ -128,7 +129,7 @@ class CartVoices(QObject):
         self._bg_ramp.timeout.connect(self._step_background)
         self._bg_hold = QTimer(self)
         self._bg_hold.setSingleShot(True)
-        self._bg_hold.setInterval(_BG_HOLD_MS)
+        self._bg_hold.setInterval(pc.DEFAULT_BG_HOLD_MS)
         self._bg_hold.timeout.connect(self._lift_background)
 
     @staticmethod
@@ -174,6 +175,7 @@ class CartVoices(QObject):
             reviving.player.setPosition(0)
             reviving.player.play()
             reviving.held = False
+            self._arm_rise(reviving, pad)
             if pad.background and self._bg <= 0.0:
                 self._hold_background()
             self._apply(reviving)
@@ -267,6 +269,26 @@ class CartVoices(QObject):
         only dips them to silence, still running, until the music stops (False)."""
         self._bg_pauses = bool(pauses)
 
+    def set_background_fade_in(self, ms: int) -> None:
+        """🎶 How long the background pads take to come back up once the music
+        stops; 0 = at once. A swell already under way carries on at the new pace."""
+        self._bg_up_ms = max(0, min(pc.MAX_FADE_MS, int(ms)))
+
+    def set_background_fade_out(self, ms: int) -> None:
+        """🎶 How long the background pads take to dip to silence when a title
+        starts; 0 = at once."""
+        self._bg_down_ms = max(0, min(pc.MAX_FADE_MS, int(ms)))
+
+    def set_background_fire_fade(self, ms: int) -> None:
+        """🎶 How long a background pad takes to come up from silence when it
+        is fired; 0 = full volume at once. Only the next fire follows it."""
+        self._bg_fire_ms = max(0, min(pc.MAX_FADE_MS, int(ms)))
+
+    def set_background_hold(self, ms: int) -> None:
+        """🎶 How long the music has to stay stopped before the background
+        pads come back; 0 = straight away."""
+        self._bg_hold.setInterval(max(0, min(pc.MAX_FADE_MS, int(ms))))
+
     def set_music_playing(self, playing: bool) -> None:
         """The deck started or stopped: 🎶 background pads dip or come back.
         Set to pause, they hold once they are down (see _hold_background)."""
@@ -302,8 +324,8 @@ class CartVoices(QObject):
             self._bg_ramp.start()
 
     def _step_background(self) -> None:
-        span = _BG_DOWN_MS if self._bg_target < self._bg else _BG_UP_MS
-        step = _RAMP_MS / span
+        span = self._bg_down_ms if self._bg_target < self._bg else self._bg_up_ms
+        step = _RAMP_MS / span if span > 0 else 1.0
         if abs(self._bg_target - self._bg) <= step:
             self._bg = self._bg_target
             self._bg_ramp.stop()
@@ -405,6 +427,7 @@ class CartVoices(QObject):
         voice.fade = 1.0
         voice.fade_step = 0.0
         voice.started = time.monotonic()
+        self._arm_rise(voice, pad)
         self._apply(voice)
         voice.player.setPosition(0)
         voice.player.play()
@@ -414,12 +437,25 @@ class CartVoices(QObject):
             self._tick.start()
         self._sync()
 
+    def _arm_rise(self, voice: _Voice, pad: pc.CartPad) -> None:
+        """A 🎶 pad fired with a fade-in set starts silent and comes up on the
+        fade ramp; every other pad starts at its level."""
+        if pad.background and self._bg_fire_ms > 0:
+            voice.rise = 0.0
+            voice.rise_step = _RAMP_MS / float(self._bg_fire_ms)
+            if not self._ramp.isActive():
+                self._ramp.start()
+        else:
+            voice.rise = 1.0
+            voice.rise_step = 0.0
+
     def _start_fade(self, voice: _Voice, span_ms: int) -> None:
         if span_ms <= 0:
             # A hard cut, because this pad asked for one. It clicks — that is the
             # user's call to make per pad, which is why it is not the default.
             self._finish_fade(voice)
             return
+        voice.rise_step = 0.0   # a bed still coming up goes down from where it got
         voice.fade_step = max(0.001, _RAMP_MS / float(span_ms))
         if voice.key is not None:
             self.padFading.emit(voice.key, True)
@@ -429,6 +465,14 @@ class CartVoices(QObject):
     def _step_fades(self) -> None:
         fading = False
         for voice in self._pool:
+            if voice.rise_step > 0:
+                voice.rise = min(1.0, voice.rise + voice.rise_step)
+                if voice.rise >= 1.0:
+                    voice.rise_step = 0.0
+                else:
+                    fading = True
+                if voice.fade_step <= 0:
+                    self._apply(voice)
             if voice.fade_step <= 0:
                 continue
             voice.fade -= voice.fade_step
@@ -463,6 +507,8 @@ class CartVoices(QObject):
         voice.held = False
         voice.fade = 1.0
         voice.fade_step = 0.0
+        voice.rise = 1.0
+        voice.rise_step = 0.0
         voice.released = time.monotonic()
         if key is not None:
             self.padStopped.emit(key)
@@ -471,7 +517,7 @@ class CartVoices(QObject):
     def _apply(self, voice: _Voice) -> None:
         if voice.pad is None:
             return
-        vol = self._level * voice.pad.volume * voice.fade
+        vol = self._level * voice.pad.volume * voice.fade * voice.rise
         if voice.pad.background:
             vol *= self._bg
         if self._muted:

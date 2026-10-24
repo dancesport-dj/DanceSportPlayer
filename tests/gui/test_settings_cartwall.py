@@ -20,7 +20,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_settings_cartwall_"))
 
-from PySide6.QtWidgets import QApplication, QTabWidget
+from PySide6.QtWidgets import QApplication, QGroupBox, QTabWidget
 
 from gui.dialogs.settings_cartwall import CART_WALL_KEYS
 from gui.dialogs.settings_dialog import SettingsDialog
@@ -37,6 +37,11 @@ class CartwallTabTest(unittest.TestCase):
         dlg = SettingsDialog(settings or {}, None)
         self.addCleanup(reap_widget, dlg)
         return dlg, dlg.findChild(QTabWidget)
+
+    def assertReadsZero(self, spin):
+        """Marcel: "why did you write cut instead if 0 sec?" — a fade of
+        nothing reads as 0 s, in the machine's own decimal format."""
+        self.assertEqual(spin.text(), spin.textFromValue(0.0) + " s")
 
     def page(self, tabs, caption):
         captions = [tabs.tabText(i) for i in range(tabs.count())]
@@ -71,6 +76,72 @@ class CartwallTabTest(unittest.TestCase):
         self.assertEqual(dlg.values()["cart_duck_pct"], 20)
         self.assertEqual(dlg.values()["cart_bg_mode"], "mute")
 
+    def test_the_background_fade_back_in_starts_at_the_standard(self):
+        """'make the fade-in for cartwall also configurable … use current std
+        value as default'."""
+        dlg, tabs = self.open()
+        self.assertTrue(self.page(tabs, "🎛 Cartwall").isAncestorOf(
+            dlg._cart_bg_fade_spin))
+        self.assertAlmostEqual(dlg._cart_bg_fade_spin.value(),
+                               pc.DEFAULT_BG_FADE_IN_MS / 1000)
+        self.assertEqual(dlg.values()["cart_bg_fade_in_ms"], pc.DEFAULT_BG_FADE_IN_MS)
+
+    def test_the_background_fade_back_in_comes_in_and_goes_out(self):
+        dlg, _ = self.open({"cart_bg_fade_in_ms": 3500})
+        self.assertAlmostEqual(dlg._cart_bg_fade_spin.value(), 3.5)
+        dlg._cart_bg_fade_spin.setValue(0.0)
+        self.assertReadsZero(dlg._cart_bg_fade_spin)
+        self.assertEqual(dlg.values()["cart_bg_fade_in_ms"], 0)
+
+    def test_the_fire_fade_in_starts_at_the_standard_and_saves(self):
+        """'fade in and fade out should be per default both 0.2'."""
+        dlg, _ = self.open()
+        self.assertAlmostEqual(dlg._cart_bg_fire_spin.value(), 0.2)
+        self.assertEqual(dlg.values()["cart_bg_fire_fade_ms"], 200)
+        dlg._cart_bg_fire_spin.setValue(0.0)
+        self.assertReadsZero(dlg._cart_bg_fire_spin)
+        self.assertEqual(dlg.values()["cart_bg_fire_fade_ms"], 0)
+        dlg, _ = self.open({"cart_bg_fire_fade_ms": 1500})
+        self.assertAlmostEqual(dlg._cart_bg_fire_spin.value(), 1.5)
+        dlg._cart_bg_fire_spin.setValue(0.8)
+        self.assertEqual(dlg.values()["cart_bg_fire_fade_ms"], 800)
+
+    def test_the_wait_starts_at_the_standard_and_saves(self):
+        dlg, _ = self.open()
+        self.assertAlmostEqual(dlg._cart_bg_hold_spin.value(),
+                               pc.DEFAULT_BG_HOLD_MS / 1000)
+        self.assertEqual(dlg.values()["cart_bg_hold_ms"], pc.DEFAULT_BG_HOLD_MS)
+        dlg._cart_bg_hold_spin.setValue(0.6)
+        self.assertEqual(dlg.values()["cart_bg_hold_ms"], 600)
+
+    def test_the_background_dip_starts_at_the_standard(self):
+        """'make also both fade in and fade out configurable', and 'set to
+        0.2 instead of 0.18'."""
+        dlg, tabs = self.open()
+        self.assertTrue(self.page(tabs, "🎛 Cartwall").isAncestorOf(
+            dlg._cart_bg_out_spin))
+        self.assertAlmostEqual(dlg._cart_bg_out_spin.value(),
+                               pc.DEFAULT_BG_FADE_OUT_MS / 1000)
+        self.assertEqual(dlg.values()["cart_bg_fade_out_ms"], 200)
+
+    def test_every_time_takes_one_decimal(self):
+        """'i can only input one commata wich is fine, but then it should be
+        the same on fading out' — and on every other time of the tab."""
+        dlg, _ = self.open()
+        for spin in (dlg._cart_fade_spin, dlg._cart_bg_fire_spin,
+                     dlg._cart_bg_out_spin, dlg._cart_bg_hold_spin,
+                     dlg._cart_bg_fade_spin):
+            with self.subTest(spin=spin.toolTip()[:30]):
+                self.assertEqual(spin.decimals(), 1)
+
+    def test_the_background_dip_comes_in_and_goes_out(self):
+        dlg, _ = self.open({"cart_bg_fade_out_ms": 1500})
+        self.assertAlmostEqual(dlg._cart_bg_out_spin.value(), 1.5)
+        dlg._cart_bg_out_spin.setValue(0.7)
+        self.assertEqual(dlg.values()["cart_bg_fade_out_ms"], 700)
+        dlg._cart_bg_out_spin.setValue(0.0)
+        self.assertReadsZero(dlg._cart_bg_out_spin)
+
     def test_the_wall_fade_and_colour_come_in_and_go_out(self):
         dlg, _ = self.open({"cart_fade_ms": 2500, "cart_wall_colour": "#c8871a"})
         self.assertAlmostEqual(dlg._cart_fade_spin.value(), 2.5)
@@ -89,9 +160,9 @@ class CartwallTabTest(unittest.TestCase):
         self.assertEqual(dlg._cart_colour_combo.currentData(),
                          pc.DEFAULT_PAD_COLOUR)
 
-    def test_a_fade_of_nothing_reads_cut(self):
+    def test_a_fade_of_nothing_reads_0_s(self):
         dlg, _ = self.open({"cart_fade_ms": 0})
-        self.assertEqual(dlg._cart_fade_spin.text(), "cut")
+        self.assertReadsZero(dlg._cart_fade_spin)
 
     def test_the_colours_are_the_wall_menu_ones(self):
         """White stands for the standard, then every pad colour but "Wall
@@ -109,12 +180,45 @@ class CartwallTabTest(unittest.TestCase):
         self.assertTrue(dlg._cart_colour_combo.toolTip().startswith(
             "The wall's default colour"))
 
+    @staticmethod
+    def _box_of(widget):
+        while widget is not None and not isinstance(widget, QGroupBox):
+            widget = widget.parentWidget()
+        return widget
+
+    def test_the_rows_say_which_pads_they_touch(self):
+        """Marcel: "make it in settings clear when what setting is used" —
+        the rows every pad follows sit in one box, the 🎶 Background ones in
+        another, and those in the order they happen to a background pad."""
+        dlg, _ = self.open()
+        every = self._box_of(dlg._cart_duck_spin)
+        self.assertEqual(every.title(), "🎛  All pads")
+        for widget in (dlg._cart_fade_spin, dlg._cart_colour_combo):
+            self.assertIs(self._box_of(widget), every)
+        bg = self._box_of(dlg._cart_bg_combo)
+        self.assertEqual(bg.title(), "🎶  Pads set to 🎶 Background")
+        lyt = bg.layout()
+        rows = [lyt.itemAt(i) for i in range(lyt.count())]
+        firsts = [row.widget() or row.layout().itemAt(0).widget() for row in rows]
+        self.assertEqual(firsts, [
+            dlg._cart_bg_hint, dlg._cart_bg_fire_lbl, firsts[2],
+            dlg._cart_bg_out_lbl, dlg._cart_bg_hold_lbl, dlg._cart_bg_fade_lbl])
+        self.assertEqual(firsts[2].text(), "🎵  When a title starts:")
+        self.assertEqual(dlg._cart_bg_fire_lbl.text(), "▶  When fired — fade in over:")
+        self.assertEqual(dlg._cart_bg_hold_lbl.text(), "⏳  When the music stops — wait:")
+
     def test_its_text_is_translated(self):
         # "🎛 Cartwall" is the same in German, so it has no entry to look for.
         from planner.i18n.lang_de import CATALOG
         dlg, tabs = self.open()
-        texts = [dlg._cart_intro.text(), dlg._cart_fade_lbl.text(),
+        boxes = [self._box_of(dlg._cart_duck_spin), self._box_of(dlg._cart_bg_combo)]
+        texts = [box.title() for box in boxes] + [
+                 dlg._cart_bg_hint.text(), dlg._cart_intro.text(), dlg._cart_fade_lbl.text(),
                  dlg._cart_fade_spin.toolTip(), dlg._cart_colour_lbl.text(),
+                 dlg._cart_bg_fade_lbl.text(), dlg._cart_bg_fade_spin.toolTip(),
+                 dlg._cart_bg_out_lbl.text(), dlg._cart_bg_out_spin.toolTip(),
+                 dlg._cart_bg_fire_lbl.text(), dlg._cart_bg_fire_spin.toolTip(),
+                 dlg._cart_bg_hold_lbl.text(), dlg._cart_bg_hold_spin.toolTip(),
                  dlg._cart_colour_combo.toolTip()]
         for text in texts:
             with self.subTest(text=text):

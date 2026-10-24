@@ -730,12 +730,12 @@ class CartPadDialogTest(unittest.TestCase):
         pad = pc.CartPad(path="a.mp3", fade_ms=2500)
         self.assertEqual(cpd.CartPadDialog(pad).pad().fade_ms, 2500)
 
-    def test_a_zero_fade_reads_as_a_cut(self):
-        """0 is legal and it clicks — the label has to say so, or it looks like
-        a slider that simply failed to move."""
+    def test_a_zero_fade_reads_0_s(self):
+        """0 is legal and it clicks. Marcel: "why did you write cut instead
+        if 0 sec?" — the label says 0.0 s, like every other fade."""
         dlg = cpd.CartPadDialog(pc.CartPad(path="a.mp3", fade_ms=400))
         dlg._fade.setValue(0)
-        self.assertEqual(dlg._fade_lbl.text(), "cut")
+        self.assertEqual(dlg._fade_lbl.text(), "0.0 s")
         self.assertEqual(dlg.pad().fade_ms, 0)
 
     def test_a_pad_follows_the_wall_until_it_is_given_its_own_fade(self):

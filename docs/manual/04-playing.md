@@ -337,7 +337,7 @@ drum roll, the national anthem, a jingle for the award ceremony.
 ![The cartwall docked to the right of the decks](img/main-cartwall.png)
 
 - **Click a pad** to fire it over the running music. Click it again to fade
-  it out, over 1 s. ⚙ Settings ▸ 🎛 Cartwall ▸ **⏱ Pads fade out over**
+  it out, over 1 s. ⚙ Settings ▸ 🎛 Cartwall ▸ **⏱ Tapped again or ⏹ — fade out over**
   sets that time for the whole wall; **Own fade-out** in a pad's **Settings…** gives one
   pad its own.
 - **Ctrl + 1 … 9** fire the first nine pads of the page on screen.
@@ -358,8 +358,8 @@ drum roll, the national anthem, a jingle for the award ceremony.
 - **🎶 Background** turns that round: the pad itself goes silent while a
   title plays and fades back in once the title has ended. Use it for a bed that runs
   through the evening. A background pad never ducks the music. To have it
-  pause instead, see ⚙ Settings ▸ 🎛 Cartwall ▸ **🎶 Background pads when
-  a title starts**.
+  pause instead, or to change how fast it dips and comes back, see
+  ⚙ Settings ▸ 🎛 Cartwall ▸ **🎶 Pads set to 🎶 Background**.
 - **S Stop the other pads** in a pad's **Settings…** fades every other
   running pad out as this one starts, for an anthem or a winners' fanfare
   that needs the room.

@@ -208,7 +208,7 @@ class CartPadDialog(QDialog):
         super().done(result)
 
     def _show_fade(self, ms: int) -> None:
-        text = i18n.t("cut") if ms <= 0 else f"{ms / 1000:.1f} s"
+        text = f"{ms / 1000:.1f} s"
         self._fade_lbl.setText(text if self._fade_own.isChecked()
                                else i18n.t("%s (wall)") % text)
 

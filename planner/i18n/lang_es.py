@@ -742,14 +742,36 @@ CATALOG = {
     "🔉  Duck to:": "🔉  Bajar al:",
     "How loud everything stays while 🔉 Duck is pressed on the player\ncard, the mini player or the presenter screen: low enough to talk\nover, loud enough to keep the floor moving. 0 % is silence.":
         "Cuánto suena todo mientras 🔉 Bajar está pulsado en la tarjeta del\nreproductor, el minirreproductor o la pantalla de presentación: lo\nbastante bajo para hablar encima, lo bastante alto para que la pista\nsiga bailando. 0 % es silencio.",
-    "🎶  Background pads when a title starts:":
-        "🎶  Pads de fondo cuando empieza un título:",
+    "🎵  When a title starts:":
+        "🎵  Cuando empieza un título:",
     "<b>🎛 Cartwall</b> — what the pads do to the music, and what every pad follows unless it was given its own.":
         "<b>🎛 Cartwall</b> — lo que los pads hacen con la música y lo que sigue cada pad salvo que tenga su propio ajuste.",
-    "⏱  Pads fade out over:":
-        "⏱  Los pads se desvanecen en:",
+    "🎛  All pads":
+        "🎛  Todos los pads",
+    "🎶  Pads set to 🎶 Background":
+        "🎶  Pads en 🎶 Fondo",
+    "Tapped again or ⏹, a background pad fades out like every other pad (⏱ above).":
+        "Pulsado otra vez o con ⏹, un pad de fondo se desvanece como cualquier otro pad (⏱ arriba).",
+    "⏱  Tapped again or ⏹ — fade out over:":
+        "⏱  Pulsado otra vez o ⏹ — se desvanece en:",
     "How long a pad takes to let go when it is tapped again or ⏹\nstops the wall. A pad can override this in its own settings.":
         "Cuánto tarda un pad en apagarse cuando se vuelve a pulsar o ⏹\ndetiene la cartwall. Cada pad puede cambiarlo en sus propios ajustes.",
+    "▶  When fired — fade in over:":
+        "▶  Al dispararlo — entra con fundido en:",
+    "How long a 🎛 cartwall pad set to 🎶 Background takes to come\nup from silence when it is fired. 0 s starts it at full volume.":
+        "Cuánto tarda un pad del 🎛 cartwall marcado como 🎶 Fondo en\nsubir desde el silencio al dispararlo. 0 s lo inicia a volumen completo.",
+    "🌙  …fading out over:":
+        "🌙  …desvaneciéndose en:",
+    "How long a 🎛 cartwall pad set to 🎶 Background takes to go\nsilent once a title starts.":
+        "Cuánto tarda un pad del 🎛 cartwall marcado como 🎶 Fondo en\nquedar en silencio cuando empieza un título.",
+    "⏳  When the music stops — wait:":
+        "⏳  Cuando para la música — esperar:",
+    "How long the main player has to stay stopped before a 🎛 cartwall\npad set to 🎶 Background fades back in.\n\nBetween two titles the deck stops for a moment. Without a wait,\nthe bed would swell up in every such gap and dip again as soon as\nthe next title starts. A title starting during the wait keeps the\nbed down.\n\nThere is no wait when a title starts: the bed gets out of the way\nat once, so it never plays over the first notes.\n\n0 s brings it back the moment the music stops, gaps included.\nStandard 0.3 s; much longer feels as if the bed lags behind.":
+        "Cuánto tiempo debe estar parado el reproductor principal antes de que\nun pad del 🎛 cartwall marcado como 🎶 Fondo vuelva con fundido.\n\nEntre dos títulos el deck se detiene un momento. Sin espera, el fondo\nsubiría en cada hueco y volvería a bajar en cuanto empezara el\nsiguiente título. Si un título empieza durante la espera, el fondo\nse queda abajo.\n\nCuando empieza un título no hay espera: el fondo se aparta enseguida\ny nunca suena sobre las primeras notas.\n\n0 s lo trae de vuelta en cuanto para la música, también en los huecos.\nEstándar 0,3 s; mucho más parece que el fondo va con retraso.",
+    "🌅  …then fade back in over:":
+        "🌅  …y luego vuelve con fundido en:",
+    "How long a 🎛 cartwall pad set to 🎶 Background takes to come\nback up to its full volume once the music stops.":
+        "Cuánto tarda un pad del 🎛 cartwall marcado como 🎶 Fondo en\nvolver a su volumen completo cuando la música para.",
     "🖌  Default wall colour:":
         "🖌  Color por defecto de la cartwall:",
     "The wall's default colour: every pad without a colour of its own\n(🎨 Colour ▸ Wall default) shows it. A pad given its own keeps it.":
@@ -764,8 +786,8 @@ CATALOG = {
         "🎶  Fondo: pausar mientras suena un título",
     "The other way round from 🔈: a title starting on the main\nplayer pauses this pad, and it carries on from where it was\nwhen the music stops.\n(⚙ Settings → 🎛 Cartwall → 🎶 Background pads)":
         "Al revés que 🔈: cuando empieza un título en el reproductor\nprincipal, este pad se pausa y sigue desde donde estaba\ncuando la música para.\n(⚙ Ajustes → 🎛 Cartwall → 🎶 Pads de fondo)",
-    "🎛  A pad ducks the music to:":
-        "🎛  Un pad baja la música al:",
+    "🔈  While a 🔈 pad plays, the music ducks to:":
+        "🔈  Mientras suena un pad 🔈, la música baja al:",
     "How loud the music stays while a 🎛 cartwall pad set to 🔈 pull\nthe music down plays, in percent of its volume like 🔉 Duck to.\n10 % is about −20 dB: a fanfare cuts through. 30 % (about −10 dB)\nonly sits the music back. 0 % is silence.":
         "Qué volumen conserva la música mientras suena un pad del 🎛 cartwall con\n🔈 bajar la música, en porcentaje de su volumen como en 🔉 Bajar al.\n10 % son unos −20 dB: una fanfarria se abre paso. 30 % (unos −10 dB)\nsolo aparta la música. 0 % es silencio.",
     "A duck, here or a pad's on the 🎛 Cartwall tab, is a percentage of the music's volume, not of its loudness: 50 % ≈ −6 dB, 30 % ≈ −10 dB (sounds about half as loud), 20 % ≈ −14 dB, 10 % ≈ −20 dB.":
@@ -4598,7 +4620,6 @@ CATALOG = {
         "Vacío = valor predeterminado de este slot (%s)",
     "Empty = no key (this slot has no default)":
         "Vacío = sin tecla (este slot no tiene valor predeterminado)",
-    "cut": "corte seco",
     "%s (wall)": "%s (Cartwall)",
     "⚠ already used by %s": "⚠ ya usado por %s",
     "%d key claimed twice — the marked ones will not fire. Pad keys win over slot keys.":

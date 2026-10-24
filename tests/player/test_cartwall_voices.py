@@ -498,6 +498,7 @@ class BackgroundPadTest(_VoiceCase):
         """The deck stops for a moment at every title switch; the bed must not
         swell up in that gap."""
         self.v.fire((0, 0, 0), _pad("bed.mp3", background=True))
+        self._rise_levels()                     # the fire fade-in lands first
         self.v.set_music_playing(True)
         self._drain_background()
         self.v.set_music_playing(False)
@@ -531,6 +532,126 @@ class BackgroundPadTest(_VoiceCase):
         self.v._lift_background()
         up = len(self._drain_background())
         self.assertGreater(up, down)
+
+    def _fade_back_in_ms(self):
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True))
+        self._rise_levels()                     # the fire fade-in lands first
+        self.v.set_music_playing(True)
+        self._drain_background()
+        self.v.set_music_playing(False)
+        self.v._lift_background()
+        return len(self._drain_background(400)) * self.v._bg_ramp.interval()
+
+    def test_the_fade_back_in_follows_the_setting(self):
+        """'make the fade-in for cartwall also configurable … use current std
+        value as default': 2 s until ⚙ Settings says otherwise."""
+        # Within a tick: the float steps may need one more to land.
+        self.assertAlmostEqual(self._fade_back_in_ms(), pc.DEFAULT_BG_FADE_IN_MS,
+                               delta=self.v._bg_ramp.interval())
+
+    def test_a_longer_fade_back_in_takes_longer(self):
+        self.v.set_background_fade_in(5000)
+        self.assertAlmostEqual(self._fade_back_in_ms(), 5000,
+                               delta=self.v._bg_ramp.interval())
+
+    def test_no_fade_back_in_brings_it_back_at_once(self):
+        self.v.set_background_fade_in(0)
+        self.assertEqual(self._fade_back_in_ms(), self.v._bg_ramp.interval(),
+                         "one tick, no division by zero")
+        self.assertAlmostEqual(self._voice((0, 0, 0)).out.volume(), 1.0)
+
+    def _dip_ms(self):
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True))
+        self.v.set_music_playing(True)
+        return len(self._drain_background(400)) * self.v._bg_ramp.interval()
+
+    def test_the_dip_is_0_2_s_by_default(self):
+        """'set to 0.2 instead of 0.18'."""
+        self.assertEqual(pc.DEFAULT_BG_FADE_OUT_MS, 200)
+
+    def test_the_dip_follows_the_setting(self):
+        """'make also both fade in and fade out configurable': the dip keeps
+        its standard 0.2 s until ⚙ Settings says otherwise."""
+        self.assertAlmostEqual(self._dip_ms(), pc.DEFAULT_BG_FADE_OUT_MS,
+                               delta=self.v._bg_ramp.interval())
+
+    def test_a_longer_dip_takes_longer(self):
+        self.v.set_background_fade_out(3000)
+        self.assertAlmostEqual(self._dip_ms(), 3000,
+                               delta=self.v._bg_ramp.interval())
+        self.assertAlmostEqual(self._voice((0, 0, 0)).out.volume(), 0.0)
+
+    def test_no_dip_cuts_it_at_once(self):
+        self.v.set_background_fade_out(0)
+        self.assertEqual(self._dip_ms(), self.v._bg_ramp.interval())
+        self.assertAlmostEqual(self._voice((0, 0, 0)).out.volume(), 0.0)
+
+    def test_the_wait_before_it_comes_back_follows_the_setting(self):
+        """'i want everything changeable nothing fixed': the 0.3 s wait too."""
+        self.assertEqual(self.v._bg_hold.interval(), pc.DEFAULT_BG_HOLD_MS)
+        self.v.set_background_hold(1200)
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True))
+        self.v.set_music_playing(True)
+        self._drain_background()
+        self.v.set_music_playing(False)
+        self.assertTrue(self.v._bg_hold.isActive())
+        self.assertEqual(self.v._bg_hold.interval(), 1200)
+
+    def _rise_levels(self, key=(0, 0, 0), steps=400):
+        levels = []
+        for _ in range(steps):
+            if not self.v._ramp.isActive():
+                return levels
+            self.v._step_fades()
+            levels.append(self._voice(key).out.volume())
+        self.fail("the fade-in never finished")
+
+    def test_by_default_a_fired_bed_fades_in_over_0_2_s(self):
+        """'fade in and fade out should be per default both 0.2'."""
+        self.assertEqual(pc.DEFAULT_BG_FIRE_FADE_MS, 200)
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True, volume=0.5))
+        self.assertAlmostEqual(self._voice((0, 0, 0)).out.volume(), 0.0)
+        levels = self._rise_levels()
+        self.assertAlmostEqual(len(levels) * self.v._ramp.interval(), 200,
+                               delta=self.v._ramp.interval())
+        self.assertAlmostEqual(levels[-1], 0.5)
+
+    def test_no_fire_fade_in_starts_it_at_full_volume(self):
+        self.v.set_background_fire_fade(0)
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True, volume=0.5))
+        self.assertAlmostEqual(self._voice((0, 0, 0)).out.volume(), 0.5)
+        self.assertFalse(self.v._ramp.isActive())
+
+    def test_a_fired_bed_fades_in_over_the_setting(self):
+        """'add a fade in': fired, a 🎶 pad comes up from silence."""
+        self.v.set_background_fire_fade(1000)
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True, volume=0.5))
+        self.assertAlmostEqual(self._voice((0, 0, 0)).out.volume(), 0.0)
+        levels = self._rise_levels()
+        self.assertAlmostEqual(len(levels) * self.v._ramp.interval(), 1000,
+                               delta=self.v._ramp.interval())
+        self.assertTrue(all(b >= a for a, b in zip(levels, levels[1:], strict=False)))
+        self.assertAlmostEqual(levels[-1], 0.5)
+
+    def test_an_ordinary_pad_ignores_the_fade_in(self):
+        self.v.set_background_fire_fade(1000)
+        self.v.fire((0, 0, 0), _pad("tusch.mp3", volume=0.5))
+        self.assertAlmostEqual(self._voice((0, 0, 0)).out.volume(), 0.5)
+
+    def test_tapped_while_fading_in_it_fades_out_from_where_it_got(self):
+        self.v.set_background_fire_fade(2000)
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True))
+        for _ in range(20):
+            self.v._step_fades()
+        reached = self._voice((0, 0, 0)).out.volume()
+        self.assertLess(reached, 1.0)
+        self.v.stop((0, 0, 0))
+        self.v._step_fades()
+        self.assertLess(self._voice((0, 0, 0)).out.volume(), reached,
+                        "it never swells up on its way out")
+        self._drain_fades()
+        self.assertEqual(self.v.playing_keys(), [])
+        self.assertAlmostEqual(self._pool()[0].rise, 1.0, msg="reset for the next pad")
 
     def test_it_never_pulls_the_music_down(self):
         seen = []
@@ -570,6 +691,7 @@ class BackgroundPadTest(_VoiceCase):
     def test_set_to_pause_it_carries_on_from_where_it_was(self):
         self.v.set_background_pauses(True)
         self.v.fire((0, 0, 0), _pad("bed.mp3", background=True))
+        self._rise_levels()                     # the fire fade-in lands first
         voice = self._voice((0, 0, 0))
         voice.player._pos = 4200                # 4.2 s into the bed
         self.v.set_music_playing(True)
@@ -624,6 +746,40 @@ class BackgroundPadTest(_VoiceCase):
         self.assertTrue(pc.background_pauses({"cart_bg_mode": "pause"}))
         # What the old option saved: it was meant as pause all along.
         self.assertTrue(pc.background_pauses({"cart_bg_mode": "stop"}))
+
+    def test_the_fade_back_in_setting_is_bounded(self):
+        self.assertEqual(pc.background_fade_in_ms({}), pc.DEFAULT_BG_FADE_IN_MS)
+        self.assertEqual(pc.background_fade_in_ms({"cart_bg_fade_in_ms": 3500}), 3500)
+        self.assertEqual(pc.background_fade_in_ms({"cart_bg_fade_in_ms": 0}), 0)
+        self.assertEqual(pc.background_fade_in_ms({"cart_bg_fade_in_ms": -5}), 0)
+        self.assertEqual(pc.background_fade_in_ms({"cart_bg_fade_in_ms": 99_000}),
+                         pc.MAX_FADE_MS)
+        self.assertEqual(pc.background_fade_in_ms({"cart_bg_fade_in_ms": "x"}),
+                         pc.DEFAULT_BG_FADE_IN_MS)
+
+    def test_the_dip_setting_is_bounded(self):
+        self.assertEqual(pc.background_fade_out_ms({}), pc.DEFAULT_BG_FADE_OUT_MS)
+        self.assertEqual(pc.background_fade_out_ms({"cart_bg_fade_out_ms": 900}), 900)
+        self.assertEqual(pc.background_fade_out_ms({"cart_bg_fade_out_ms": -1}), 0)
+        self.assertEqual(pc.background_fade_out_ms({"cart_bg_fade_out_ms": 99_000}),
+                         pc.MAX_FADE_MS)
+        self.assertEqual(pc.background_fade_out_ms({"cart_bg_fade_out_ms": None}),
+                         pc.DEFAULT_BG_FADE_OUT_MS)
+
+    def test_the_fire_fade_in_setting_is_bounded(self):
+        self.assertEqual(pc.background_fire_fade_ms({}), pc.DEFAULT_BG_FIRE_FADE_MS)
+        self.assertEqual(pc.background_fire_fade_ms({"cart_bg_fire_fade_ms": 0}), 0)
+        self.assertEqual(pc.background_fire_fade_ms({"cart_bg_fire_fade_ms": 1500}), 1500)
+        self.assertEqual(pc.background_fire_fade_ms({"cart_bg_fire_fade_ms": 99_000}),
+                         pc.MAX_FADE_MS)
+        self.assertEqual(pc.background_fire_fade_ms({"cart_bg_fire_fade_ms": "x"}),
+                         pc.DEFAULT_BG_FIRE_FADE_MS)
+
+    def test_the_wait_setting_is_bounded(self):
+        self.assertEqual(pc.background_hold_ms({}), pc.DEFAULT_BG_HOLD_MS)
+        self.assertEqual(pc.background_hold_ms({"cart_bg_hold_ms": 0}), 0)
+        self.assertEqual(pc.background_hold_ms({"cart_bg_hold_ms": 99_000}),
+                         pc.MAX_FADE_MS)
 
 
 class StopsOthersPadTest(_VoiceCase):
@@ -808,6 +964,29 @@ class BackgroundSettingTest(unittest.TestCase):
         host._settings = {}
         CartwallMixin.apply_cart_settings(host)
         self.assertFalse(voices._bg_pauses)
+
+    def test_the_window_passes_the_fade_back_in_to_the_pool(self):
+        from types import SimpleNamespace
+        from typing import Any, cast
+
+        from player.audio.mix import OutputMix
+        from player.window.main_cartwall import CartwallMixin
+        voices = cart_voices.CartVoices(voices=1, factory=_factory)
+        self.addCleanup(voices.shutdown)
+        host = cast(Any, SimpleNamespace(
+            _settings={"cart_bg_fade_in_ms": 4500, "cart_bg_fade_out_ms": 600},
+            _cart_voices=voices, _mix=OutputMix()))
+        CartwallMixin.apply_cart_settings(host)
+        self.assertEqual(voices._bg_up_ms, 4500)
+        self.assertEqual(voices._bg_down_ms, 600)
+        host._settings = {}
+        CartwallMixin.apply_cart_settings(host)
+        self.assertEqual(voices._bg_up_ms, pc.DEFAULT_BG_FADE_IN_MS)
+        self.assertEqual(voices._bg_down_ms, pc.DEFAULT_BG_FADE_OUT_MS)
+        host._settings = {"cart_bg_fire_fade_ms": 1200, "cart_bg_hold_ms": 700}
+        CartwallMixin.apply_cart_settings(host)
+        self.assertEqual(voices._bg_fire_ms, 1200)
+        self.assertEqual(voices._bg_hold.interval(), 700)
 
 
 class CartDuckSettingDialogTest(unittest.TestCase):
