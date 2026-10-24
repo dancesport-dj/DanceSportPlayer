@@ -108,13 +108,16 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
         self._cfg.save_btn.setEnabled(False)
         self._show_hints([])
 
-    def _blank_deck(self, table: PlaylistTable):
+    def _blank_deck(self, table: PlaylistTable, keep_playing: bool = False):
         """Wipe one competition deck back to a blank/white table: clears the rows,
         drops its stored generation context, resets its title to the default, and
-        (if it's the active deck) resets the ConfigPanel combos/toggles too."""
+        (if it's the active deck) resets the ConfigPanel combos/toggles too.
+
+        `keep_playing` leaves a title playing from this deck running: an undo
+        rebuilds the deck at once and puts the marker back on it."""
         # Flush any half-typed inline rename so it can't resurrect a stale title.
         self._commit_inline_rename()
-        if table._current_play_row >= 0:
+        if table._current_play_row >= 0 and not keep_playing:
             self._play_or_stop(None)
         table.setRowCount(0)
         table._row_meta.clear()
@@ -405,8 +408,8 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
         """📅 Reveal the planned day decks and say what was built or skipped."""
         if built:
             self._apply_deck_view()   # reveal the 📅 Tournament-day tab
-            self._grid.deck_tabs.setCurrentIndex(2)
-            self._grid.day_tabs.setCurrentIndex(0)
+            self._grid.deck_tabs.setCurrentWidget(self._grid.day_tabs)
+            self._grid.day_tabs.setCurrentWidget(self._grid.day_split)
             self._set_active_table(targets[0])
             self._cfg.save_btn.setEnabled(True)
             self._autosave_playlist()
@@ -957,7 +960,9 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
             label = "Party"
 
         self._warmup_label = label
-        self._warmup_opts = opts
+        # With the dances the list is drawn from, for the 🩺 check's openers.
+        self._warmup_opts = dict(
+            opts, dances={planner.generate.warmup.warmup_code(e) for e in src})
         self._busy = BusyDialog(self, i18n.t("🤸 Building %s…") % label)  # i18n: data
         busy = self._busy
         self._warmup_worker = WarmupBuilder(src, opts["mode"], params, self)

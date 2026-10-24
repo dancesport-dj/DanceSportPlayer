@@ -9,7 +9,7 @@ import logging
 import time
 
 from pathlib import Path
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QTimer, QUrl
 from shared.audio.audio_probes import PdHighlightWorker  # auto-resolved
 from player.audio.pd_stop import pd_stop_at
 from planner import i18n
@@ -43,7 +43,7 @@ class PdStopMixin(MainWindowHost):
         ordinary title: the play length cuts it and the fade takes it out, like
         every other dance.
         """
-        return self._playback.dance == "PD" and self._play_panel.pd_highlight_stop()
+        return self._playback.dance == "PD" and self._pd_highlight()[0]
 
     # ── The wait after the call ───────────────────────────────────────────────
 
@@ -97,7 +97,7 @@ class PdStopMixin(MainWindowHost):
             self._announcer.speak(
                 "PD", now=True, heat=self._heat_of(*self._playing_row()))
         self._pd_hold = (self._playback.token, path, time.monotonic() + secs)
-        self._pd_hold_timer = QTimer()
+        self._pd_hold_timer = QTimer(self)
         self._pd_hold_timer.setInterval(_PD_HOLD_TICK_MS)
         self._pd_hold_timer.timeout.connect(self._pd_hold_tick)
         self._pd_hold_timer.start()
@@ -125,6 +125,11 @@ class PdStopMixin(MainWindowHost):
         if remaining > 0:
             r = int(remaining + 0.999)
             self._set_countdown(i18n.t("🐂  Paso Doble in %d s") % r)
+            if self._big_player:
+                takt = self._big_player.played_takt()
+                self._big_player.set_wait(
+                    i18n.t("🐂  PD %s in") % takt if takt else i18n.t("🐂  PD in"),
+                    f"{r} s")
             self._now_playing.setText(f"🐂  {r} s  —  {path.stem[:70]}")
             return
         self._end_pd_hold()
@@ -153,8 +158,11 @@ class PdStopMixin(MainWindowHost):
     def _end_pd_hold(self):
         """Drop the wait and its ticker — it has run out, or lost the player."""
         self._pd_hold = None
+        if self._big_player:
+            self._big_player.set_wait("", "")   # the title's stats come back
         if self._pd_hold_timer is not None:
             self._pd_hold_timer.stop()
+            self._pd_hold_timer.deleteLater()   # a child of the window: one per hold
             self._pd_hold_timer = None
 
     def _release_held_start(self, token: int, path: Path):
@@ -208,12 +216,12 @@ class PdStopMixin(MainWindowHost):
             # reached, heard and marked — otherwise the mark just set becomes
             # the stop and the song ends the moment it's made.
             self._pd_stop_at = None
-        elif not self._play_panel.pd_highlight_stop():
+        elif not self._pd_highlight()[0]:
             self._pd_stop_at = None
         else:
             self._pd_stop_at = pd_stop_at(
                 self._pd_highlights.get(str(path)) or [],
-                self._play_panel.pd_highlight_n(),
+                self._pd_highlight()[1],
                 manual=bool(self._library.cache and self._library.cache.is_pd_manual(path)),
                 duration=self._track_duration(path),
                 takt=self._track_takt(path),
@@ -222,9 +230,15 @@ class PdStopMixin(MainWindowHost):
 
     def _track_duration(self, path: Path) -> float:
         """Best-effort track length in seconds: the player's reported duration
-        when this is the loaded track, else the scanned entry's metadata."""
-        ms = self._player.duration() if self._player is not None else 0
-        if ms and ms > 0 and str(path) == str(self._playback.path):
+        when it holds this track, else the scanned entry's metadata.
+
+        Holds, not "is the playing title": while a title is being loaded,
+        `_playback.path` names it already but the player still has the one
+        before, and its duration is that one's."""
+        player = self._player
+        ms = player.duration() if player is not None else 0
+        if (player is not None and ms > 0 and str(path) == str(self._playback.path)
+                and player.source() == QUrl.fromLocalFile(str(path))):
             return ms / 1000.0
         ent = self._resolve_entry(str(path))
         return float(getattr(ent, "duration", 0) or 0)
@@ -284,7 +298,7 @@ class PdStopMixin(MainWindowHost):
         else:
             self.statusBar().showMessage(
                 i18n.t("🎯 PD highlight %d marked at %s (stop set to #%s)")
-                % (len(marks), mmss, self._play_panel.pd_highlight_n()), 4000)
+                % (len(marks), mmss, self._pd_highlight()[1]), 4000)
 
     def _store_pd_marks(self, path: Path, marks: list[float]):
         """Persist a hand-edited mark list, re-arm the stop and refresh the
@@ -315,12 +329,31 @@ class PdStopMixin(MainWindowHost):
             self.statusBar().showMessage(
                 "🎯 Last mark deleted — 🐂 auto-detection takes over again.", 4000)
 
+    def _known_pd_marks(self, path) -> list[float]:
+        """The highlights known for `path` — the session's copy, else the
+        database's — to show, with nothing armed and nothing detected. A
+        Paso Doble played in full never asks for a stop, so without this its
+        stored highlights would read as none. A title never analyzed is not
+        remembered as having none: a later stop still runs the detection."""
+        if path is None:
+            return []
+        key = str(path)
+        if key not in self._pd_highlights and self._library.cache:
+            stored = self._library.cache.get_pd_highlights(Path(path))
+            if stored is not None:
+                self._pd_highlights[key] = list(stored)
+        return [t for t in (self._pd_highlights.get(key) or []) if t is not None]
+
+    def _unarmed_pd_marks(self) -> list[float]:
+        """What the bar shows for a title the 🐂 stop doesn't end: a Paso
+        Doble played in full keeps its highlights in view, anything else none."""
+        if self._playback.dance != "PD":
+            return []
+        return self._known_pd_marks(self._playback.path)
+
     def _refresh_pd_chips(self):
         """Push the current track's marks onto the panel's chip row."""
-        marks = [t for t in (self._pd_highlights.get(str(self._playback.path))
-                             or []) if t is not None] \
-            if self._playback.path is not None else []
-        self._play_panel.set_pd_marks(marks)
+        self._play_panel.set_pd_marks(self._known_pd_marks(self._playback.path))
 
     def _on_pd_edit_toggled(self, on: bool):
         """✏️ Edit highlights on/off. On: the stop is suspended (see
@@ -357,7 +390,7 @@ class PdStopMixin(MainWindowHost):
         self._refresh_pd_chips()
         self.statusBar().showMessage(
             "🎯 Highlights cleared — 🐂 auto-detection will run again.", 4000)
-        if self._playback.dance == "PD" and self._play_panel.pd_highlight_stop():
+        if self._playback.dance == "PD" and self._pd_highlight()[0]:
             self._ensure_pd_highlights(path)
         self._sync_big_player_limit()
 

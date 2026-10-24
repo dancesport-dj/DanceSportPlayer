@@ -295,6 +295,9 @@ class PauseMusicMixin(MainWindowHost):
             return
         extra = max(4, self._engine_pause_secs())
         self._between.advance_at += extra
+        if self._between.held:
+            # ⏯-held: the tick pins the deadline to now + hold_remaining.
+            self._between.hold_remaining += extra
         self._between.shown = True   # 🖥 held by hand — now the hall should see it
         # Keep the fade-out ramp proportional to the (now longer) pause.
         self._filler.total += extra
@@ -341,6 +344,9 @@ class PauseMusicMixin(MainWindowHost):
     def _on_pause_media_status(self, status):
         """A filler title ran out mid-pause → rotate to the next one (a single
         title restarts from the top) and update the big-player status."""
+        if status == QMediaPlayer.MediaStatus.InvalidMedia and self._pause_player:
+            self._skip_broken_filler()
+            return
         if (status != QMediaPlayer.MediaStatus.EndOfMedia
                 or not self._pause_player or not self._filler.titles):
             return
@@ -355,6 +361,27 @@ class PauseMusicMixin(MainWindowHost):
         if self._between.pending is not None:   # pause still running
             self._pause_player.play()
             self._filler.active = True
+            self._show_pause_status()
+
+    def _skip_broken_filler(self):
+        """A filler title that cannot be decoded never reaches EndOfMedia: the
+        pause stayed silent behind its name, and every later pause started on
+        it again. Leave it out and go on with the next title."""
+        player = self._pause_player
+        if player is None:
+            return
+        log.warning("🎵 Pause music would not play\n"
+                    "error: %s\n"
+                    "file: %s", player.errorString() or "unknown",
+                    self._filler.current)
+        path = self._filler.drop_current()
+        if path is None:
+            self._filler.active = False
+        else:
+            player.setSource(QUrl.fromLocalFile(path))
+        if self._between.pending is not None:   # pause still running
+            if path is not None:
+                player.play()
             self._show_pause_status()
 
     def _show_pause_status(self):
@@ -392,8 +419,12 @@ class PauseMusicMixin(MainWindowHost):
 
         Split out of the 200 ms fade tick because the duck ramps in 25 ms steps
         — stepping the filler only every fifth of a second would leave the very
-        artefact the ramp exists to avoid."""
-        if self._pause_out is None:
+        artefact the ramp exists to avoid.
+
+        While ⏭ fades the filler out, that fade alone sets the level: a duck
+        coming back up (the announcer it stopped, a 🎛 pad ending) would
+        otherwise swell the filler between two of its steps."""
+        if self._pause_out is None or self._between.fade_end is not None:
             return
         self._pause_out.setVolume(
             self._mix.filler(self._play_panel.pause_music_vol() / 100.0))

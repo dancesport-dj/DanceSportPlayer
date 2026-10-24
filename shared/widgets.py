@@ -175,6 +175,8 @@ def _show_toast(anchor: QWidget, text: str, msec: int = 1500) -> None:
             "background:#323232; color:white; padding:7px 14px;"
             "border-radius:6px; font-size:12px;")
         lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        # Titles, file names and guests' wishes: never markup.
+        lbl.setTextFormat(Qt.TextFormat.PlainText)
         # Both parented to the window, so they go when it does.
         timer = QTimer(win)
         timer.setSingleShot(True)

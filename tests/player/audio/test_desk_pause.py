@@ -34,6 +34,7 @@ from PySide6.QtWidgets import QApplication, QWidget
 from tests.qt_test_support import reap_widget
 
 from player.audio.between_dances import BetweenDances
+from player.audio.fade_now import FadeNow
 from player.audio.mix import OutputMix
 from player.audio.playback_state import PlaybackState
 from dancesport_planner import MusicEntry
@@ -299,6 +300,7 @@ class _MixinTest(unittest.TestCase):
             _big_player = None
             _mix = OutputMix()
             _between = BetweenDances()   # no 🔀 crossfade running
+            _fade_now = FadeNow()        # no 🔉↓ fade either
             # ☀ The wake lock rides on the same state signal. Nothing here
             # wants the screen held, so it never reaches the OS.
             _play_panel = _AwakeOff()

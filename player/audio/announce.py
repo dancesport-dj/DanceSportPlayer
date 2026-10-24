@@ -577,6 +577,18 @@ class DanceAnnouncer:
         if self._clip_out is not None:
             self._clip_out.setDevice(device)
 
+    def release_outputs(self) -> None:
+        """🔇 Idle audio release (see AudioDevice.release): once built, the
+        clip player holds the card for the rest of the evening."""
+        if self._clip_player is not None:
+            self._clip_player.setAudioOutput(None)  # pyright: ignore[reportArgumentType]  # Qt takes None: no output
+
+    def restore_outputs(self) -> None:
+        """Take the device back; the window asks before an announcement starts
+        (see _on_announcer_speaking)."""
+        if self._clip_player is not None and self._clip_out is not None:
+            self._clip_player.setAudioOutput(self._clip_out)
+
     def _clips_for(self, dance_code: str, now: bool,
                    heat: int | None = None) -> list[Path]:
         """The recorded fragments for this dance, or [] when there are none."""

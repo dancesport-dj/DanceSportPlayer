@@ -51,6 +51,10 @@ class _FakeWindow:
         self._dur = dur
         self._takt = takt             # 0 = unscanned tempo
 
+    def _pd_highlight(self):
+        # No round in play: the panel's highlight stop is the one.
+        return self._play_panel.pd_highlight_stop(), self._play_panel.pd_highlight_n()
+
     def _track_duration(self, _path):
         return self._dur
 

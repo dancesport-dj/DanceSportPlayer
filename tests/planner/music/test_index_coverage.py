@@ -169,6 +169,18 @@ class EmbeddingFpsTest(unittest.TestCase):
         self.store.put("FC", "mert", [3.0, 4.0])
         self.assertEqual(self.store.fps("mert"), {"FA", "FB", "FC"})
 
+    def test_an_indexed_library_is_checked_without_unpacking(self):
+        """build_index only needs to know which fingerprints are done; when all
+        of them are, no vector leaves the database."""
+        self.store._cache = types.SimpleNamespace(
+            fingerprint=lambda p: {"a": "FA", "b": "FB"}[p.stem])
+        self.addCleanup(setattr, ae.EmbeddingStore, "_unpack",
+                        ae.EmbeddingStore._unpack)
+        ae.EmbeddingStore._unpack = staticmethod(
+            lambda blob: self.fail("a vector was unpacked to skip it"))
+        entries = [types.SimpleNamespace(path=Path(f"/m/{n}.mp3")) for n in "ab"]
+        self.assertEqual(ae.build_index(entries, "mert", self.store), (0, 0, None))
+
     def test_a_loaded_mirror_answers_instead_of_the_database(self):
         self.store._load_model("mert")
         ae._db = lambda: self.fail("the mirror was already in memory")
@@ -672,6 +684,9 @@ class _Store:
     def has(self, fp, model):
         return False
 
+    def fps(self, model):
+        return set()
+
     def save(self):
         self.saved += 1
 
@@ -835,6 +850,18 @@ class BuildAllReasonTest(unittest.TestCase):
         kind, _title, text = self.boxes.calls[-1]
         self.assertEqual(kind, "information")
         self.assertNotIn("skipped", text)
+
+    def test_a_librosa_step_that_dies_ends_the_build(self):
+        """The librosa step wired no `error`: a crash left the BusyDialog up
+        and the pipeline waiting for good (review 2026-10-22, G1)."""
+        win = _report_window(self.gmg, ["librosa"])
+        win._library = types.SimpleNamespace(cache=object())
+        win._on_index_progress = lambda *a: None
+        with mock.patch.object(self.gmg, "AudioAnalyzer") as analyzer, \
+                mock.patch.object(self.gmg, "BusyDialog"):
+            win._allcache_run_librosa([types.SimpleNamespace(features=None)])
+        analyzer.return_value.error.connect.assert_called_once_with(
+            win._allcache_embedding_error)
 
     def test_a_step_that_died_outright_leaves_the_labels_current(self):
         """The 🔊 gate follows the loudness cache — an aborted step used to

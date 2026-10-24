@@ -8,9 +8,11 @@ Audio-Backend werden beim Start gelesen: für diese fragt die App nach einem
 Neustart.
 
 Die Reiter, der Reihe nach: **⚙ Allgemein**, **📁 Pfade**, **🎨 Aussehen**,
-**🔊 Ton & Player**, **⚗ Analyse**, **🎛 Spiel-Sets** und **📦 Hallenpaket**.
-Die volle App ergänzt **🎵 Prüfungen**, die Schwellenwerte ihrer
-Musikprüfung; der Player blendet ihn aus.
+**🔊 Ton & Player**, **🎛 Cartwall**, **⚗ Analyse**, **🎛 Spiel-Sets** und
+**📦 Hallenpaket**. Die volle App ergänzt **🎵 Prüfungen**, die
+Schwellenwerte ihrer Musikprüfung; der Player blendet ihn aus. Öffnest du
+die Einstellungen wieder, stehen sie auf dem Reiter, auf dem du sie
+geschlossen hast, bis die App beendet wird.
 
 ## Allgemein
 
@@ -108,13 +110,15 @@ Der Reiter **🔊 Ton & Player**.
 | **🔇 Die Soundkarte zwischen den Titeln freigeben** | Eine Onboard-Soundkarte legt ein Rauschen auf die Anlage, solange eine App sie offen hält. Diese Einstellung gibt das Gerät nach ein paar Sekunden Stille zurück. Der Preis ist ein leises Klicken, wenn der nächste Titel startet, schalte sie also nur ein, wenn du das Rauschen hörst. |
 | **🔕 Systemklänge stummschalten, solange der Abend läuft** | Kein Fehler-Ding und kein Benachrichtigungston über die Lautsprecher. Die Systemklänge kommen zurück, wenn du die App schließt. |
 | **🎧 Vorhör-Player** | Ein Mini-Player (Spulen, Springen, Lautstärke) schwebt über dem Deck, wenn du auf ein ▶ in einer Zeile klickst. |
-| **📂 Doppelklick öffnet den Titel im Musikprogramm des Systems** | Aus (ab Werk): Beim Planen spielt ein Doppelklick auf eine Deckzeile den Titel im Mini-Player, in der 📚 Bibliothek, unter 🏆 Turniere und in den Dialogen tut er nichts. An: Der Titel öffnet sich im Programm, mit dem dein System Musik abspielt (auf dem Mac: Musik). Rechtsklick ▸ Öffnen geht immer, und im Abspielmodus spielt oder legt ein Doppelklick den Titel immer bereit. |
 | **🖼 Cover anzeigen** | Ein Cover neben dem Titel auf der Player-Karte. Es nimmt das eigene Bild der Playlist (`#EXTIMG`), eine Cover-Datei im Ordner oder das Bild in der MP3. |
 | **〰 Wellenform anzeigen** | Die [Wellenform](04-playing.md#-die-wellenform) des Titels auf der Player-Karte anstelle des Suchbalkens. |
 | **🔉 Absenken auf** | Wie weit 🔊 Absenken alles leiser macht, auf der Player-Karte, im Mini-Player und auf dem Präsentationsbildschirm: 20 % ab Werk, 0 % (Stille) bis 90 %. Eine Änderung gilt auch für ein Absenken, das gerade an ist. |
+| **🌅 Jeden Titel einblenden über** | Ab Werk aus. Der große Player startet jeden Titel in der Stille und blendet ihn über 0,5 bis 10 s Musik ein. Ein Titel, den ein 🔀 Überblenden hereinholt, behält seine eigene Rampe. Paare starten auf dem ersten Taktschlag, lass es für ein Turnier also aus. |
+| **⏩ Jeden Titel so weit drin starten** | Ab Werk aus. Der große Player überspringt die ersten 1 bis 30 s jedes Titels, und diese Sekunden zählen nicht zur Spieldauer. Ein Titel, der an seiner ↩ Marke weiterläuft, startet stattdessen dort, und ein stilles Intro wird zusätzlich übersprungen. |
 | **🎙 Ansagestimme** | Wer [🔈 Nächsten Tanz ansagen](04-playing.md#-nächsten-tanz-ansagen) spricht: *Weiblich*, *Männlich* oder *Gemischt* (die Vorgabe), was die beiden abwechselt. **…mit Gruppe** fügt die Nummer der Gruppe hinzu, standardmäßig aus. **🔈 Test** spricht ein Beispiel in der gezeigten Stimme, noch vor OK. |
 | **🗣 Tanz wird angesagt** | Wo die Ansage sitzt, wenn ein Titel ohne Pause seinen Tanz beim Start nennt: **über den ersten Takten** (die Vorgabe; die Musik wird unter der Stimme leiser) oder **vor dem Musikstart** (die Musik folgt der Ansage). Das ▶ Abspielen-Panel nennt die Wahl kurz: *über der Musik* oder *vor der Musik*. |
 | **▶ Player-Position** | Wo die Player-Karte steht: *neben den Playlists*, am Kopf des Wiedergabe-Bereichs, oder *über den Playlists*, als ein breiter Streifen über den Decks. |
+| **📂 Doppelklick auf einen Titel in 📚 der Bibliothek** | Zuletzt auf dem Reiter, unter **📚 Bibliothek**, weil es um die Bibliothek geht, nicht um den Player. Was ein Doppelklick beim Planen in 📚 der Bibliothek und in den Listen unter 🏆 Turniere tut: **Nichts** (ab Werk; ▶ spielt den Titel), **In externem Player öffnen** (das Programm, mit dem dein System Musik abspielt, auf dem Mac Musik; dann auch für eine Deckzeile beim Planen und in den Dialogen) oder **Tags bearbeiten** (der [🏷 Tags-Editor](05-tags.md#den-editor-öffnen), geöffnet auf dem Feld der Spalte, auf die du doppelgeklickt hast; dort wählst du, was Speichern in die Datei schreibt). Beim Planen spielt ein Doppelklick auf eine Deckzeile den Titel im Mini-Player, außer *In externem Player öffnen* ist gewählt. Rechtsklick bietet immer alles davon, und im Abspielmodus spielt oder legt ein Doppelklick den Titel immer bereit. |
 
 ### 🔈 Ausgänge
 
@@ -152,6 +156,25 @@ Betriebssystem listet, lässt sich wählen, unter Windows, macOS und Linux.
   Statusleiste ein kleines **🔊** mit ihrem Namen. Ein Klick darauf öffnet
   diesen Reiter.
 - Die Wahl wirkt, sobald du OK klickst, ohne Neustart.
+
+## Cartwall
+
+Der Reiter **🎛 Cartwall** hält, was jedes Pad der
+[🎛 Cartwall](04-playing.md#-die-cartwall) befolgt, solange es nichts
+Eigenes bekommen hat. Der Modus *Nur Planer* blendet ihn aus.
+
+![Einstellungen, Reiter Cartwall](../img/settings-cartwall.png)
+
+| Einstellung | Macht |
+|---|---|
+| **🎛 Ein Pad senkt die Musik ab auf** | Wie laut die Musik bleibt, solange ein Cartwall-Pad läuft, das die Musik leiser macht: 10 % ab Werk (etwa −20 dB, eine Fanfare setzt sich durch), 0 % (Stille) bis 90 %. Wie 🔉 Absenken auf im Reiter 🔊 Ton & Player ist es ein Anteil an der Lautstärke der Musik, nicht an ihrer Lautheit; der Dialog zeigt die dB daneben. |
+| **🎶 Hintergrund-Pads, wenn ein Titel startet** | Was ein 🎶 Hintergrund-Pad tut, sobald die Musik startet: **Stumm weiterlaufen** (ab Werk; es läuft leise weiter und blendet sich wieder ein, wenn die Musik endet) oder **Pausieren** (es hält an seiner Stelle an und läuft von dort weiter, wenn die Musik endet). |
+| **⏱ Pads blenden aus über** | Wie lange ein Pad zum Ausklingen braucht, wenn es noch einmal angeklickt wird oder ⏹ Alles stoppen die Wand ausblendet: 1 s ab Werk, *harter Schnitt* bis 8 s. **Eigenes Ausblenden** in den **⚙ Einstellungen…** eines Pads überschreibt es für dieses Pad. |
+| **🖌 Standardfarbe der Cartwall** | Die Farbe jedes Pads, das auf 🎨 Farbe ▸ **Cartwall-Standard** steht: ab Werk weiß. Ein Pad mit eigener Farbe behält sie. |
+
+Ausblendzeit und Farbe gehören zur Wand, nicht zum PC: eine Cartwall, die
+in einem [Hallenpaket](#hallenpaket) auf einen anderen PC geht, nimmt sie
+mit.
 
 ## Analyse
 
@@ -207,6 +230,11 @@ Der Reiter **🎛 Spiel-Sets** legt fest, was die Knöpfe **🏆 Turnier-Set** u
 
 ![Einstellungen, Reiter Spiel-Sets](../img/settings-play-sets.png)
 
+Eine Liste, die auf einem Set steht, zieht mit, wenn du das Set hier
+änderst: jeder Wert, den sie noch vom Set hat, nimmt den neuen an, und ein
+Wert, den du an der Liste von Hand geändert hast, bleibt. Die Decks folgen
+dem 🏆 Set, der 🤸 Party-Bereich dem 🎉 Set.
+
 Für jedes Set:
 
 - **Spieldauer**: wähl eine, tipp `m:ss` oder Sekunden, oder wähl
@@ -226,11 +254,36 @@ Für jedes Set:
   **❓ Fragen, bevor ein Doppelklick den Titel anhält** und
   **🎚 TSO: auf den Takt der Gruppe ziehen**.
 
-Das Turnier-Set hat außerdem **⏱ Pro Tanz**: eine Dauer je Tanz. Lass einen Tanz
-auf *— Länge des Sets*, wähl *komplett* oder eine Stufe, oder tipp `m:ss`. Ein
-Tanz mit eigener Dauer wird dort geschnitten, solange eine Liste auf dem 🏆 Set
-steht. Ab Werk: 1:30 für Langsamen Walzer, Wiener Walzer, Quickstep und Jive,
-1:37 für Tango, Slowfox, Samba, Cha-Cha-Cha und Rumba, der Paso Doble *komplett*.
+Das Turnier-Set hat außerdem eine Liste mit einer Länge je Tanz, mit einer
+Auswahl darüber, **⏱ Längen**: **Pro Tanz — der Standard** oder **Pro
+Runde — überschreibt ihn**. Nur bei pro Runde erscheint eine zweite
+Auswahl für die Art von Runde: die Vorrunde, die Zwischenrunden (eine
+Einstellung für alle), das Semifinale oder das Finale. Die Liste darunter
+zeigt die Längen dieser Wahl. Beide gelten, egal welche gerade zu sehen ist.
+
+- **Pro Tanz**: lass einen Tanz auf *— Länge des Sets*, wähl *komplett* oder
+  eine Stufe, oder tipp `m:ss`. Ein Tanz mit eigener Dauer wird dort
+  geschnitten, solange eine Liste die Dauer des 🏆 Sets spielt, egal was ihre
+  anderen Schalter sagen. Ab Werk: 1:30 für Langsamen Walzer, Wiener Walzer,
+  Quickstep und Jive, 1:37 für Tango, Slowfox, Samba, Cha-Cha-Cha und Rumba,
+  der Paso Doble *komplett*.
+- **Paso Doble**: *komplett* oder *nach Highlight 1* oder *2*. Ein
+  Schnitt nach Zeit würde ihn mitten in einer Phrase beenden, darum gibt es
+  nichts anderes, und ein 3. Highlight kommt so spät, dass es als *komplett*
+  gilt. Ein Highlight hakt **🐂 Paso Doble: Stopp nach Highlight** des
+  Turnier-Sets an und stellt ein, welches; *komplett* nimmt den Haken weg.
+  Wer den Haken setzt, zieht diese Auswahl mit. Jede Liste pro Runde hat
+  ihre eigene Paso-Doble-Auswahl: auf *— Länge des Tanzes* läuft er wie hier
+  eingestellt; *komplett* oder ein Highlight gilt stattdessen in dieser Art
+  von Runde, so kann ein Finale komplett laufen und eine Vorrunde nach dem
+  2. Highlight stoppen. Wie die Länge einer Runde zählt sie nur, solange die
+  Liste die Dauer des 🏆 Sets spielt.
+- **Pro Runde**: ein Tanz kann in dieser Art von Runde anders lang laufen,
+  in jeder ihrer Gruppen gleich. Ein Tanz auf *— Länge des Tanzes* spielt
+  seine Länge pro Tanz, und ab Werk stehen alle so. Hat eine Runde ihre
+  eigene Länge, nennt der Wiedergabe-Bereich die Runde unter den Ziffern,
+  z. B. *Wiener Walzer, Finale — eigene Länge*. Eine Liste ohne Runden,
+  etwa eine Partyliste, nimmt nur die Längen pro Tanz.
 
 Beide Sets haben auch den 🐂 Paso Doble: **Stopp nach Highlight** (und nach
 welchem) und **Start nach**. Von Haus aus ist im Turnier-Set der Stopp aus,

@@ -37,6 +37,7 @@ class CuePlayer(QObject):
         self._player.setAudioOutput(self._out)
         prime_disconnect_notify(self._player, self._out)
         self._player.mediaStatusChanged.connect(self._on_status)
+        self._player.errorOccurred.connect(self._on_error)
         self._path: Path | None = None
         # Its own mini player (a PreviewOverlay), set by the window.
         self.view: PreviewOverlay | None = None
@@ -83,5 +84,15 @@ class CuePlayer(QObject):
         self.stopped.emit()
 
     def _on_status(self, status):
-        if status == QMediaPlayer.MediaStatus.EndOfMedia:
+        # A file that cannot be decoded never reaches EndOfMedia: without the
+        # stop, ▶/■ and the mini player would stay on "playing" for good.
+        if status in (QMediaPlayer.MediaStatus.EndOfMedia,
+                      QMediaPlayer.MediaStatus.InvalidMedia):
             self.stop()
+
+    def _on_error(self, err, msg: str):
+        log.warning("🎧 Pre-listen error\n"
+                    "error: %s\n"
+                    "detail: %s\n"
+                    "title: %s", err, msg, self._path.stem if self._path else "-")
+        self.stop()

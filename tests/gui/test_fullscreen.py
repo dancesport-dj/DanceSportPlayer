@@ -69,6 +69,20 @@ class FullscreenTest(unittest.TestCase):
         self.app.processEvents()
         self.assertLess(win._remote_badge.geometry().x(), win._clock.geometry().x())
 
+    def test_a_relaunch_in_fullscreen_brings_the_clock_back(self):
+        """L22: the last session ended in fullscreen, so restoreGeometry brings
+        the window back fullscreen, past set_fullscreen and without the clock."""
+        self.win.set_fullscreen(True)
+        self.win._save_layout()
+        win = self.gui.MainWindow()
+        win._loading_dlg.accept()
+        self.addCleanup(reap_widget, win)
+        win.show()
+        self.app.processEvents()
+        self.assertTrue(win.isFullScreen())
+        self.assertFalse(win._clock.isHidden())
+        self.assertTrue(win._clock_timer.isActive())
+
     def test_the_time_only_setting_drops_the_date(self):
         # Marcel: "and a option in settings to only show 20:45:12 time".
         win = self.win

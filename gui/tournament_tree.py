@@ -54,6 +54,7 @@ from planner.models import DEFAULT_DANCES, MusicEntry
 from planner.generate.warmup import warmup_code
 from planner import terms
 from planner.terms import dance_name
+from planner.playing import play_counts
 from planner.playlist.planned import path_key
 from planner.music.parsing import _detect_dance
 from gui.common import (
@@ -63,7 +64,8 @@ from gui.common import (
     _entry_tooltip,
     _fmt_track_secs,
     _open_in_default_player,
-    dblclick_opens_external,
+    dblclick_action,
+    display_title,
     stopwatch_header,
 )
 
@@ -79,8 +81,16 @@ log = logging.getLogger("dancesport.gui.tournament_tree")
 
 # Track path on a row of the list below (what _LibTable.startDrag exports).
 _ROLE_PATH = Qt.ItemDataRole.UserRole
+_TRACK_COL_TITLE = 4
+_TRACK_COL_FILE = 9   # the cleaned-up file name, as the library's Filename column
+_TRACK_COL_PLAYS = 10  # 🔁 how often it played in the last 24 h, as in the library
+_TRACK_COLS = 11
 # Fixed widths of the narrow columns; Artist (3) and Title (4) share the rest.
-_TRACK_COL_W = {0: 30, 1: 46, 2: 90, 5: 52, 6: 52, 7: 52, 8: 70}
+_TRACK_COL_W = {0: 30, 1: 46, 2: 90, 5: 52, 6: 52, 7: 52, 8: 70, 9: 220, 10: 52}
+# Readable names for the columns whose caption is a glyph, in the header menu.
+_TRACK_COL_MENU_NAMES = {0: "▶  Play", 6: "⏱  Length"}
+# 🏷 The editor's field a double-click on a column opens on, as in 📚 the library.
+_TRACK_TAG_FIELDS = {2: "genre", 3: "artist", 4: "title", 8: "classes"}
 # A track the playlist points at but the disk no longer has.
 _C_MISS_BG = QColor(255, 224, 178)   # orange
 
@@ -181,9 +191,33 @@ def load_view(store) -> str:
     return VIEW_LIST if view == VIEW_LIST else VIEW_SLOTS
 
 
-def save_tree(store, nodes: list[dict], view: str = VIEW_SLOTS):
-    store.write({"version": 1, "tournaments": nodes,
-                 "view": VIEW_LIST if view == VIEW_LIST else VIEW_SLOTS})
+def load_columns(store) -> dict:
+    """The ▤ track list's columns as they were left: {"hidden": [...],
+    "order": [...]}. Filename and Plays wait until asked for, as in the
+    library. A layout saved before Plays came (no "count") gets it hidden and
+    at the end, so its order is not thrown away for being one short."""
+    data = store.read()
+    cols = data.get("columns") if isinstance(data, dict) else None
+    cols = cols if isinstance(cols, dict) else {}
+    hidden = cols.get("hidden", [_TRACK_COL_FILE, _TRACK_COL_PLAYS])
+    hidden = ([c for c in hidden if isinstance(c, int)] if isinstance(hidden, list)
+              else [_TRACK_COL_FILE, _TRACK_COL_PLAYS])
+    order = cols.get("order") or []
+    order = order if isinstance(order, list) else []
+    if "hidden" in cols and cols.get("count") != _TRACK_COLS:
+        hidden.append(_TRACK_COL_PLAYS)
+        if sorted(order) == list(range(_TRACK_COL_PLAYS)):
+            order = order + [_TRACK_COL_PLAYS]
+    return {"hidden": hidden, "order": order}
+
+
+def save_tree(store, nodes: list[dict], view: str = VIEW_SLOTS,
+              columns: dict | None = None):
+    data = {"version": 1, "tournaments": nodes,
+            "view": VIEW_LIST if view == VIEW_LIST else VIEW_SLOTS}
+    if columns is not None:
+        data["columns"] = columns
+    store.write(data)
 
 
 class TournamentTree(QWidget):
@@ -196,6 +230,7 @@ class TournamentTree(QWidget):
 
     playRequested = Signal(object, int)   # (Path | None, table row) — None stops
     loadRequested = Signal(str)           # .m3u to load onto the focused deck
+    playCountsResetWanted = Signal()      # 🔁 the header menu's reset
 
     # Path → MusicEntry for tracks that are NOT in the library, set by MainWindow.
     resolve_entry: Callable[[Path], MusicEntry | None] | None = None
@@ -333,19 +368,34 @@ class TournamentTree(QWidget):
 
     def _build_track_table(self):
         """The ▤ track list: one playlist's titles in playing order."""
-        self._table = _LibTable(0, 9)
+        self._table = _LibTable(0, _TRACK_COLS)
         self._table.setHorizontalHeaderLabels(
-            ["▶", "Round", "Dance", "Artist", "Title", "BPM", "⏱", "Pop", "Class"])
+            ["▶", "Round", "Dance", "Artist", "Title", "BPM", "⏱", "Pop", "Class",
+             "Filename", "Plays"])
         hh = stopwatch_header(self._table, 6)
         hh.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         hh.setStretchLastSection(False)
         hh.setMinimumSectionSize(24)
-        for c, w in enumerate((30, 46, 90, 160, 240, 52, 52, 52, 70)):
+        for c, w in enumerate((30, 46, 90, 160, 240, 52, 52, 52, 70, 220, 52)):
             self._table.setColumnWidth(c, w)
         # …and they stretch to the pane on every resize, exactly as the library's
         # do — the same track has to read the same in both lists.
-        self._table.resize_cb = lambda: fill_track_columns(
-            self._table, _TRACK_COL_W, artist_col=3, title_col=4)
+        self._table.resize_cb = self._fill_track_columns
+        # As the library's: drag a header to move it, right-click to tick
+        # columns away. Both are kept in the tree's own file.
+        cols = load_columns(self._store)
+        for c in cols["hidden"]:
+            if 0 <= c < self._table.columnCount() and c != _TRACK_COL_TITLE:
+                self._table.setColumnHidden(c, True)
+        order = cols["order"]
+        if sorted(order) == list(range(hh.count())):
+            for visual_pos, logical in enumerate(order):
+                hh.moveSection(hh.visualIndex(logical), visual_pos)
+        hh.setSectionsMovable(True)
+        hh.sectionMoved.connect(lambda *_: self._save())
+        hh.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        hh.customContextMenuRequested.connect(
+            lambda pos: self._build_column_menu().exec(hh.mapToGlobal(pos)))
         self._table.verticalHeader().setVisible(False)
         # Plain rows without cell borders, as a deck draws a playlist.
         self._table.setShowGrid(False)
@@ -357,7 +407,7 @@ class TournamentTree(QWidget):
         self._table.setToolTip(
             "The tracks of the selected playlist, in playing order.\n"
             "▶ or Space previews · drag them onto a deck or the player list ·\n"
-            "double-click to open in your external player.")
+            "a double-click opens or 🏷 edits them as ⚙ Settings say.")
         self._table.cellClicked.connect(self._on_cell_clicked)
         self._table.cellDoubleClicked.connect(self._on_track_double_click)
 
@@ -462,7 +512,46 @@ class TournamentTree(QWidget):
                 self._tree.setCurrentItem(item)
 
     def _save(self):
-        save_tree(self._store, self._nodes, self._view)
+        hh = self._table.horizontalHeader()
+        save_tree(self._store, self._nodes, self._view, {
+            "hidden": [c for c in range(self._table.columnCount())
+                       if self._table.isColumnHidden(c)],
+            "order": [hh.logicalIndex(v) for v in range(hh.count())],
+            "count": self._table.columnCount()})
+
+    # ── The track list's columns (header right-click) ──
+
+    def _fill_track_columns(self):
+        fill_track_columns(self._table, _TRACK_COL_W, artist_col=3,
+                           title_col=_TRACK_COL_TITLE)
+
+    def _build_column_menu(self) -> QMenu:
+        """The header's tick list. Title is never offered — a row without it
+        cannot be told from any other."""
+        menu = QMenu(self._table)
+        head = menu.addAction("Columns in the track list")
+        head.setEnabled(False)
+        menu.addSeparator()
+        for c in range(self._table.columnCount()):
+            if c == _TRACK_COL_TITLE:
+                continue
+            item = self._table.horizontalHeaderItem(c)
+            act = menu.addAction(_TRACK_COL_MENU_NAMES.get(
+                c, item.text() if item else str(c)))
+            act.setCheckable(True)
+            act.setChecked(not self._table.isColumnHidden(c))
+            act.setData(c)
+            act.triggered.connect(lambda on, col=c: self._toggle_column(col, on))
+        menu.addSeparator()
+        reset = menu.addAction("Reset the play counters")
+        reset.setEnabled(play_counts.any_counted())
+        reset.triggered.connect(lambda: self.playCountsResetWanted.emit())
+        return menu
+
+    def _toggle_column(self, col: int, on: bool):
+        self._table.setColumnHidden(col, not on)
+        self._fill_track_columns()
+        self._save()
 
     # ── The tracks of the selected playlist ──
 
@@ -588,8 +677,9 @@ class TournamentTree(QWidget):
                                          or entry.other_genre or "")
                          if entry is not None else "",
                 "artist": getattr(entry, "tag_artist", None) or "",
-                "title": (entry.title if entry is not None else "")
+                "title": (display_title(entry) if entry is not None else "")
                          or extinf or path.stem,
+                "file": (entry.title if entry is not None else "") or path.stem,
                 "tip": (f"⚠ Not where the playlist says it is:\n{path}" if missing
                         else _entry_tooltip(entry) if entry is not None
                         else str(path)),
@@ -832,6 +922,14 @@ class TournamentTree(QWidget):
             cls_it = QTableWidgetItem(f"[{','.join(classes)}]" if classes else "")
             cls_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             t.setItem(r, 8, cls_it)
+            file_it = QTableWidgetItem(row["file"])
+            file_it.setToolTip(str(row["path"]))
+            t.setItem(r, _TRACK_COL_FILE, file_it)
+            plays = play_counts.count(row["path"])
+            plays_it = _LibSortItem(str(plays) if plays else "")
+            plays_it.setData(Qt.ItemDataRole.UserRole, plays)
+            plays_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            t.setItem(r, _TRACK_COL_PLAYS, plays_it)
             if missing:
                 # The ⚠ alone is easy to scroll past — a whole orange row is not,
                 # and on the desk this is the one thing worth noticing early.
@@ -842,6 +940,15 @@ class TournamentTree(QWidget):
             t.setRowHeight(r, 22)
 
     # ── Previewing a track ──
+
+    def refresh_play_counts(self):
+        """Rewrite the 🔁 Plays cells after a play or a reset."""
+        for r in range(self._table.rowCount()):
+            it, path = self._table.item(r, _TRACK_COL_PLAYS), self._row_path(r)
+            if it is not None and path is not None:
+                plays = play_counts.count(path)
+                it.setText(str(plays) if plays else "")
+                it.setData(Qt.ItemDataRole.UserRole, plays)
 
     def _row_path(self, row: int) -> Path | None:
         it = self._table.item(row, 0)
@@ -881,8 +988,18 @@ class TournamentTree(QWidget):
         if col == 0:   # the click handler above already toggled this row
             return
         path = self._row_path(row)
-        if path and dblclick_opens_external() and Path(path).is_file():
+        if not path or not Path(path).is_file():
+            return
+        action = dblclick_action()
+        if action == "external":
             _open_in_default_player(Path(path), self)
+        elif action == "tags":
+            # 🏷 The window's editor, as from 📚 the library; it feeds the
+            # edited library back through `set_entries`.
+            edit_tags = getattr(self.window(), "_edit_entry_tags", None)
+            entry = self._entry_for(Path(path))
+            if edit_tags is not None and entry is not None:
+                edit_tags([entry], focus=_TRACK_TAG_FIELDS.get(col))
 
     # ── Editing the tree ──
 

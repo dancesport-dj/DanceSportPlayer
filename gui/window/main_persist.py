@@ -343,6 +343,10 @@ class PersistenceMixin(ExportMixin, UndoMixin, RestoreMixin):
                 self.restoreGeometry(geo)
             except Exception as exc:
                 log.debug("📐 Stored window geometry rejected: %s", exc)
+            # A session that ended in fullscreen comes back fullscreen, past
+            # set_fullscreen: start the clock it would have started.
+            if self.windowState() & Qt.WindowState.WindowFullScreen:
+                self.set_fullscreen(True)
         # Dock layout — which edge the 🎛 cartwall sits on, how wide it is, and
         # whether it was left floating. It also restores dock VISIBILITY, so the
         # toolbar toggle re-asserts its own setting right after.

@@ -89,6 +89,9 @@ class _Dialog:
     def running_look_touched(self):
         return False
 
+    def deleteLater(self):
+        pass
+
 
 class SaveAppliesTest(unittest.TestCase):
     """Saving ⚙ Settings no longer switches the server; Start Server does."""
@@ -162,6 +165,29 @@ class SaveAppliesTest(unittest.TestCase):
             win._remote_badge.click()
         opened.assert_called_once_with()
         self.addCleanup(setattr, win, "_remote", None)
+
+    def test_the_closed_dialog_is_deleted_after_it_was_read(self):
+        """L6: it hangs off the main window and was never deleted, so every
+        opening left one more dialog alive, still following the remote hub.
+        Not before values(): Qt runs a deferred delete as exec() returns."""
+        for code in (QDialog.DialogCode.Accepted, QDialog.DialogCode.Rejected):
+            calls = []
+
+            class _Kept(_Dialog):
+                def exec(self):
+                    return code
+
+                def values(self):
+                    calls.append("values")
+                    return super().values()
+
+                def deleteLater(self):
+                    calls.append("deleted")
+
+            with self.subTest(code=code),                     mock.patch.object(main_global, "SettingsDialog", _Kept),                     mock.patch.object(self.win, "_offer_settings_restart"):
+                self.win._open_settings()
+                self.assertEqual(calls[-1:], ["deleted"])
+                self.assertEqual(calls.count("deleted"), 1)
 
     def test_settings_learns_whether_the_server_runs(self):
         seen = {}

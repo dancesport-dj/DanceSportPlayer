@@ -71,7 +71,7 @@ _MARKER = "# i18n: data"
 # catalog may not map them to themselves, so they are listed here instead.
 _SAME_IN_GERMAN = {
     "DanceSport Planner & Player",
-    "Cartwall", "🎛  Cartwall", "Slot %d", "Pool", "TSO",
+    "Cartwall", "🎛  Cartwall", "🎛 Cartwall", "🏷  Tags", "Slot %d", "Pool", "TSO",
     "Name:", "⏭  Auto", "🔈  Test", "♪ Takt", "≈ Takt", "— Standard —",
     "🎻 Instrumental", "🎚️ librosa: %s", "🎼 Chroma: %s", "🧠 MERT: %s",
     "Social Modetänze (Discofox, Salsa, Bachata, WCS, …)", "Tags", "Frame",

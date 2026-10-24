@@ -18,6 +18,7 @@ from planner.music.db import (  # auto-resolved
 from planner.music.similarity import (  # auto-resolved
     _STRONG_TIMBRE,
     _timbre_similarity,
+    timbre_measured,
 )
 from planner.models import (  # auto-resolved
     ALLOW_REPEAT,
@@ -69,6 +70,32 @@ from planner.music.library import (  # auto-resolved
 log = logging.getLogger("dancesport.suggester")
 
 
+class _SoftUses(set):
+    """The Paso Doble soft no-repeat set, also keeping each pick in order."""
+
+    def __init__(self, paths=()):
+        super().__init__(paths)
+        self.order: list[str] = list(paths)
+
+    def add(self, path):
+        super().add(path)
+        self.order.append(path)
+
+
+def _next_cycle(bpm_ok: list[MusicEntry], soft_used) -> list[MusicEntry]:
+    """Every in-tempo Paso Doble is used: go round again. The least-used ones,
+    never the previous heat's while another is left. Without the pick order
+    (a plain set) the whole in-tempo pool is open, as before."""
+    order = getattr(soft_used, "order", None)
+    if not order or not bpm_ok:
+        return bpm_ok
+    uses = Counter(order)
+    fewest = min(uses[str(e.path)] for e in bpm_ok)
+    pool = [e for e in bpm_ok
+            if uses[str(e.path)] == fewest and str(e.path) != order[-1]]
+    return pool or [e for e in bpm_ok if str(e.path) != order[-1]] or bpm_ok
+
+
 class PlaylistSuggester:
     def __init__(self, library: MusicLibrary | None, seed: int | None = None):
         # None for a deck restored before the library scan is done, or loaded
@@ -107,7 +134,7 @@ class PlaylistSuggester:
         # (the day planner's cross-competition pool). ALLOW_REPEAT dances (PD)
         # are exempt automatically — their pools never consult `used`.
         used: set      = set(exclude or ())   # strict no-repeat (non-ALLOW_REPEAT dances)
-        pd_used: set   = set()   # soft no-repeat for PD – prefer variety, allow reuse
+        pd_used: set   = _SoftUses()   # soft no-repeat for PD – prefer variety, allow reuse
         result: Playlist = {}
 
         for ri, rc in enumerate(rounds):
@@ -182,7 +209,7 @@ class PlaylistSuggester:
         library inside `_get_pool`."""
         return self._suggest_round(
             rc, dances, dance_class, used,
-            pd_used if pd_used is not None else set(),
+            _SoftUses(pd_used or ()),
             use_timbre=use_timbre, style=style, candidates=candidates,
         )
 
@@ -216,7 +243,14 @@ class PlaylistSuggester:
 
         if dance in ALLOW_REPEAT:
             not_soft = [e for e in bpm_ok if str(e.path) not in (soft_used or set())]
-            base     = not_soft or bpm_ok or all_songs
+            # No in-tempo Paso in this pool (a round's own history may hold
+            # only slow ones): replay an in-tempo one the playlist already
+            # has. Out of tempo only when nothing in tempo has played yet.
+            played = [] if bpm_ok else [
+                e for e in self._dance_songs(dance, style, None, lo, hi)[1]
+                if str(e.path) in (soft_used or set())]
+            base = (not_soft or _next_cycle(bpm_ok, soft_used)
+                    or _next_cycle(played, soft_used) or all_songs)
             if strat in ('proven', 'top_proven'):
                 # In a final or a semifinal, having BEEN in that round comes
                 # first — see the long comment on the same step below.
@@ -386,7 +420,11 @@ class PlaylistSuggester:
         # match wins more often, yet a lower one keeps a real chance (not deterministic).
         if timbre_first and anchor:
             # A song without audio features has no similarity: it ranks below
-            # every measured one instead of passing for an average match.
+            # every measured one instead of passing for an average match. The
+            # metric gives it a neutral 0.5, so it leaves `sims` first.
+            sims = {str(e.path): sims[str(e.path)] for e in pool
+                    if timbre_measured(e)}
+
             def sim_of(e: MusicEntry) -> float:
                 return sims.get(str(e.path), float("-inf"))
 

@@ -32,11 +32,12 @@ from planner import i18n
 from gui.common import (
     BusyDialog,
     apply_taskbar_icon,
-    set_dblclick_opens_external,
+    set_dblclick_action,
 )
 from gui.index_summary import index_summary
 from shared.widgets import _show_toast
 from gui.dialogs.reset_db_dialog import ResetDatabaseDialog
+from gui.dialogs.settings_cartwall import CART_WALL_KEYS
 from gui.dialogs.settings_dialog import SettingsDialog
 from gui.dialogs import (  # auto-resolved
     SimilarTracksDialog,
@@ -112,6 +113,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         # HWND exists only now → push the app icon to the taskbar button so it
         # doesn't fall back to the generic Python icon after the splash closes.
         apply_taskbar_icon(self)
+        self._offer_crash_resume()   # 🆘 over the restored decks, not the splash
         if self._library.load_bar is not None:
             self._library.load_bar.start(self)
         # Only now: the restore above writes fingerprints, and the scan's
@@ -127,6 +129,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         comp       = sum(1 for e in lib.entries if e.dance is not None)
         cached     = sum(1 for e in lib.entries if e.features is not None)
         self._hand_over_library(lib)
+        self._load_play_counts()     # 🔁 the Plays column, now the database is there
         if self._library.load_bar is not None:
             self._library.load_bar.finish()
         # The browser list, the vocal learning, the counting of what is
@@ -208,7 +211,16 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
                 return
             msg, fn = steps[i]
             self.statusBar().showMessage(msg)
-            QTimer.singleShot(0, lambda: (fn(), run(i + 1)))
+            QTimer.singleShot(0, lambda: (guarded(msg, fn), run(i + 1)))
+
+        def guarded(msg: str, fn):
+            # One step that fails must not cost the ones after it — the
+            # chain would end in this turn of the event loop.
+            try:
+                fn()
+            except Exception:
+                log.exception("💥 Startup step failed, carrying on\n"
+                              "step: %s", msg.strip())
 
         run()
 
@@ -612,6 +624,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
     def _on_global_error(self, msg: str):
         if self._busy:
             self._busy.finish()
+        self._pending_drop = None
         self._pending_after_global = None
         self.statusBar().showMessage("Global index failed.")
         QMessageBox.critical(self, "Global Index Error", msg)
@@ -698,11 +711,12 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         self._run_librosa_analysis(entries, label)
 
     # ── ⚙ Settings, the restart offer and the maintenance jobs ──────────────────
-    def _open_settings(self, open_sound=False):
+    def _open_settings(self, open_sound=False, open_cartwall=False):
         n_unanalyzed = (sum(1 for e in self._library.lib.entries if e.features is None)
                         if self._library.lib else 0)
         given = dict(self._settings)
-        dlg = SettingsDialog(self._settings, self, build_cb=self._build_global_index,
+        dlg = SettingsDialog({**self._settings, **self.cart_wall_settings()},
+                             self, build_cb=self._build_global_index,
                              embed_cb=self._build_embedding_index,
                              index_summary=self._index_summary(),
                              all_cb=self._build_all_caches,
@@ -730,6 +744,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
                              desk_keys_cb=self.open_desk_keys_window,
                              announce_test_cb=self._announce_test,
                              open_sound=open_sound,
+                             open_cartwall=open_cartwall,
                              reset_cb=self._reset_database)
         # 📊 Library gaps runs from inside this dialog and may want it out of the
         # way (see _show_library_gaps) — leave it a handle while it is open.
@@ -737,11 +752,15 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         accepted = dlg.exec() == QDialog.DialogCode.Accepted
         self._settings_dlg = None
         if not accepted:
+            dlg.deleteLater()
             return
         # Only what the operator changed in the dialog: it hands back the whole
         # dict as it was when it opened, and the evening went on behind it —
         # the 🔕 guard's record of the devices it muted, the master fader.
-        edited = {k: v for k, v in dlg.values().items()
+        values = dlg.values()
+        # 🎛 The wall's fade-out and colour are the wall's, kept in its own file.
+        wall = {k: values.pop(k) for k in CART_WALL_KEYS if k in values}
+        edited = {k: v for k, v in values.items()
                   if k not in given or given[k] != v}
         new = {**self._settings, **edited}
         lib_changed    = new.get("library_dir") != self._settings.get("library_dir")
@@ -759,11 +778,19 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
                         # The same pick, but the running look itself edited
                         # or deleted: saved already, shown after a restart.
                         or dlg.running_look_touched())
+        # Read out: it goes now. It hangs off this window, so otherwise every
+        # opening left one more dialog alive, still following the remote hub.
+        # Not on its own `finished`: Qt runs that delete as exec() returns,
+        # before values() above.
+        dlg.deleteLater()
+        old = self._settings
         self._settings = new
         save_settings(new)
+        self._follow_play_sets(old, new)   # 🎛 lists on a set edited move with it
+        self._autosave_playlist()
         planner.playlist.m3u.set_m3u_format(new.get("m3u_format"))
         set_no_class_exclusion(new.get("exclude_no_class"))
-        set_dblclick_opens_external(new.get("dblclick_external"))
+        set_dblclick_action(new.get("dblclick_action"))
         set_hidden_folders(new.get("hidden_folders"))
         self._audio_device.sync()   # 🔊 a changed output choice, at once
         self._sync_dance_len()      # 🏆 per-dance lengths edited: the panel shows them
@@ -771,6 +798,8 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         self._set_artwork_shown(bool(new.get("show_artwork", True)))
         self._set_waveform_shown(bool(new.get("show_waveform", True)))
         self.apply_duck_level()     # 🔉 the buttons name it; a held duck moves to it
+        self.apply_cart_settings()  # 🎶 background pads: stop or mute under a title
+        self.apply_cart_wall(wall)  # ⏱ 🖌 the wall's fade-out and colour
         if "presenter_theme" in edited:   # 🖥 an open presenter repaints at once
             self._theme_presenter(edited["presenter_theme"])
         error_reports.apply_settings(new)   # 🐞 on or off at once, no restart

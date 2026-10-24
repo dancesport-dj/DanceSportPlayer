@@ -49,7 +49,10 @@ else:   # pragma: no cover - no winmm off Windows
 
 def list_inputs() -> list[str]:  # slop-mop noqa: ambiguity-mine - the MIDI backend interface, one module per OS
     """The names of the MIDI inputs plugged in now, in winmm's order (the
-    index is what `MidiInput` opens)."""
+    index is what `MidiInput` opens). Two identical units are told apart by
+    `unique_names`, as on CoreMIDI and ALSA."""
+    # Here, not at the top: midi_input imports this module while it loads.
+    from shared.controllers.midi_input import unique_names
     if _winmm is None:
         return []
     names = []
@@ -60,7 +63,7 @@ def list_inputs() -> list[str]:  # slop-mop noqa: ambiguity-mine - the MIDI back
             names.append(caps.szPname)
         else:
             names.append("")
-    return names
+    return unique_names(names)
 
 
 def unpack(packed: int) -> tuple[int, int, int]:

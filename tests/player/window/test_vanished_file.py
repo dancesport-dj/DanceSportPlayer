@@ -95,7 +95,7 @@ class VanishedFileTest(unittest.TestCase):
         from PySide6.QtMultimedia import QMediaPlayer
         back = Path(r"C:\m\back.mp3")
         w = self._win(back)
-        w._playback = mock.Mock(path=back)
+        w._playback = mock.Mock(path=back, pre_roll_ms=0)
         w._play_ready_logged = True
         w._play_t0 = None
         w._resume_seek_ms = None

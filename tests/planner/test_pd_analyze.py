@@ -4,6 +4,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 def _analyzer():
@@ -49,6 +50,19 @@ class PdAnalyzeSelectionTest(unittest.TestCase):
         # The operator's ear beats the detector — 🎯 marks are never redone.
         self.assertNotIn(_FakeCache.MANUAL,
                          self.select(self.cache, _FakeCache.ALL, True))
+
+
+class PdAnalyzeFailureTest(unittest.TestCase):
+    """A track that decoded to nothing is a failure of the pass, not a track
+    with no highlight: it stays out of the database, so the next 🐂 pass (or
+    the next play) tries it again."""
+
+    def test_a_failed_decode_is_not_stored(self):
+        cache = mock.Mock()
+        pass_ = _analyzer()(cache, [_FakeCache.NEW])
+        with mock.patch("gui.workers.detect_pd_highlights", return_value=None):
+            self.assertFalse(pass_.measure(_FakeCache.NEW))
+        cache.put_pd_highlights.assert_not_called()
 
 
 if __name__ == "__main__":

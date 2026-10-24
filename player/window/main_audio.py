@@ -14,6 +14,8 @@ from PySide6.QtCore import (
 from pathlib import Path
 from shared.audio.playback import (
     _TARGET_LUFS,
+    _TRUE_PEAK_CEILING,
+    audible_played_secs,
 )
 from shared.stores import (  # auto-resolved
     save_settings,
@@ -26,6 +28,7 @@ from player.audio.mix import (
     _DUCK_UP_MS,  # noqa: F401
     desk_duck_level,
     desk_duck_pct,
+    fade_in_secs,
 )
 from typing import TYPE_CHECKING
 
@@ -99,14 +102,19 @@ class AudioLevelMixin(MainWindowHost):
 
         Ramped, not stepped: a hard level change on running music clicks, and
         the ear reads the click as the music itself being damaged. Down fast
-        (the first word must not be buried), back up slowly."""
+        (the first word must not be buried), back up slowly.
+
+        Called before the first clip plays, so it is also where the device is
+        taken back: the clip player is none of the deck's players."""
+        if on:
+            self._audio_device.ensure()
         self._set_duck_reason("announce", on)
 
     def _step_volume_ramp(self):
         """One ramp step of the announcement duck and of a loudness gain that
         arrived after the title had already started."""
         if self._mix.step() and self._big_player:
-            self._big_player.set_gain(self._mix.gain)   # the dB readout, once
+            self._big_player.set_gain(self._mix.heard_gain())   # the dB readout, once
         if self._mix.settled:
             self._ramp_timer.stop()
         self._apply_volume()
@@ -115,11 +123,13 @@ class AudioLevelMixin(MainWindowHost):
 
     def _set_base_volume(self, v: float):
         """Volume slider (preview overlay or big player card) → user's base
-        volume factor. Keeps the other slider in sync and persists the level."""
+        volume factor. Keeps the other slider in sync and persists the level.
+        The card's dB follows too: how much of a boost is heard depends on it."""
         self._mix.set_base(v)
         self._apply_volume()
         if self._big_player:
             self._big_player.set_volume_value(self._mix.base)
+            self._big_player.set_gain(self._mix.heard_gain())
         self._vol_save_timer.start()
 
     def _set_cart_volume(self, v: float):
@@ -139,16 +149,20 @@ class AudioLevelMixin(MainWindowHost):
     def _loudness_gain(self, path: Path) -> float:
         """Per-track equalization factor: pull the track's measured EBU R128
         loudness towards the common target, clamped to −12…+9 dB so a broken
-        measurement can never blast or mute a song."""
+        measurement can never blast or mute a song. Where the true peak is on
+        record, no gain takes it past −1 dBTP."""
         if not self._pv("loudness") or not self._library.cache:
             return 1.0
         try:
             lufs = self._library.cache.get_lufs(path)
+            tp = self._library.cache.get_tp(path)
         except Exception:
             return 1.0
         if lufs is None:
             return 1.0
         gain_db = max(-12.0, min(9.0, _TARGET_LUFS - lufs))
+        if tp is not None:
+            gain_db = min(gain_db, _TRUE_PEAK_CEILING - tp)
         return 10 ** (gain_db / 20)
 
     def _refresh_loudness_gain(self):
@@ -165,21 +179,27 @@ class AudioLevelMixin(MainWindowHost):
             return
         self._apply_volume()
         if self._big_player:
-            self._big_player.set_gain(gain)
+            self._big_player.set_gain(self._mix.heard_gain())
 
     def _ensure_silences(self, path: Path):
         """Arm the 🔇 stillness skip for the (about to be) playing track: use
         the session dict or the DB cache if we can, else probe with ffmpeg in
         the background and arm once the spans land (the song plays meanwhile)."""
-        if str(path) in self._silences:
-            return
+        if self._silences.get(str(path)) is not None:
+            return      # spans known (None: one probe failed, try again)
         if self._library.cache:
             stored = self._library.cache.get_silences(path)
             if stored is not None:
                 self._silences[str(path)] = [list(s) for s in stored]
                 return
-        if self._silence_worker is not None and self._silence_worker.isRunning():
-            return   # a probe is already running — this track plays unskipped
+        running = self._silence_worker
+        if running is not None and running.isRunning():
+            if running.path == path:
+                return   # already being probed
+            # A title skipped a few seconds in: its probe gives way, or the
+            # one the hall hears now would play unskipped. It is probed again
+            # the next time it is loaded.
+            running.cancel()
         ffmpeg = find_ffmpeg()
         if not ffmpeg:
             return
@@ -212,8 +232,11 @@ class AudioLevelMixin(MainWindowHost):
                      ", ".join(f"{s:.1f}–{e:.1f}s" for s, e in spans))
 
     def _on_silence_error(self, path_str: str, _msg: str):
-        # Remember the failure so we don't re-probe on every play.
-        self._silences[path_str] = []
+        # One failure may pass (the file locked for a moment, a virus scan):
+        # the title is probed again on its next load. A second one is
+        # remembered, so a file ffmpeg cannot read isn't re-probed every play.
+        # None marks the first failure; every reader takes it as "no spans".
+        self._silences[path_str] = [] if path_str in self._silences else None
 
     def _await_loudness(self, path: Path, start: bool) -> bool:
         """Measure a track's EBU R128 loudness before the hall hears it, if
@@ -244,8 +267,11 @@ class AudioLevelMixin(MainWindowHost):
         ffmpeg = find_ffmpeg()
         if not ffmpeg:
             return False
-        if self._lufs_worker is not None and self._lufs_worker.isRunning():
-            return False    # a decode is already running — don't queue behind it
+        running = self._lufs_worker
+        if running is not None and running.isRunning():
+            if running.path == path:
+                return False    # already being measured — don't measure twice
+            running.cancel()    # a skipped title's decode gives way, as above
         log.info("📊 Loudness measurement started (background)\n"
                  "file: %s\n"
                  "playback waits: %s", path.name, "yes" if start else "no")
@@ -256,7 +282,7 @@ class AudioLevelMixin(MainWindowHost):
         if start:
             self._lufs_pending = path
             self._lufs_token = self._playback.token
-            QTimer.singleShot(_LUFS_WAIT_MS,
+            QTimer.singleShot(_LUFS_WAIT_MS, self,
                               lambda: self._resume_after_loudness(path))
         w.start()
         return start
@@ -274,12 +300,12 @@ class AudioLevelMixin(MainWindowHost):
         self._lufs_pending = None
         self._load_track(path, True)
 
-    def _on_track_lufs(self, path_str: str, lufs: float):
+    def _on_track_lufs(self, path_str: str, lufs: float, tp: float | None = None):
         """A measurement landed: store it, then either start the title that was
         waiting for it or — if that title is already running because the wait
         timed out — ramp its gain to where it should have started."""
         if self._library.cache:
-            self._library.cache.put_lufs(Path(path_str), lufs)
+            self._library.cache.put_lufs(Path(path_str), lufs, tp)
             self._library.cache.save()
         log.info("📊 Loudness measured\n"
                  "file: %s\n"
@@ -301,6 +327,41 @@ class AudioLevelMixin(MainWindowHost):
                     "reason: %s", Path(path_str).name, msg)
         if self._lufs_pending is not None and str(self._lufs_pending) == path_str:
             self._resume_after_loudness(self._lufs_pending)
+
+    def _heard_secs(self) -> float:
+        """Music the floor has heard of this title (see audible_played_secs)."""
+        if self._player is None:
+            return 0.0
+        return audible_played_secs(self._player.position(), self._playback.offset_ms,
+                                   self._player.playbackRate())
+
+    def _arm_fade_in(self, path: Path):
+        """🌅 A title being loaded starts at silence when the fade-in is on.
+        Not one a 🔀 crossfade brings in (that has its own ramp), and not in
+        the floating overlay: a pre-listen starts at full level."""
+        xf = self._between.xfade
+        if (fade_in_secs(self._settings) <= 0 or not self._is_playing_mode()
+                or (xf.state == "fading" and path == xf.incoming)):
+            self._playback.fade_in_from = None
+            self._playback.fade_in_secs = 0.0
+            return
+        self._playback.fade_in_from = 0.0
+        self._playback.fade_in_secs = fade_in_secs(self._settings)
+        self._mix.fade_in = 0.0
+
+    def _step_fade_in(self):
+        """🌅 One tick of the fade-in, counted in music heard: a pause holds
+        it, and a running 🔀 crossfade owns the level until it ends."""
+        start = self._playback.fade_in_from
+        if start is None or self._between.xfade.state is not None:
+            return
+        secs = fade_in_secs(self._settings)
+        level = (1.0 if secs <= 0
+                 else max(0.0, min(1.0, (self._heard_secs() - start) / secs)))
+        if level >= 1.0:
+            self._playback.fade_in_from = None
+        self._mix.fade_in = level
+        self._apply_volume()
 
     def _maybe_skip_silence(self) -> bool:
         """Playhead inside a ≥2 s silent stretch at the EDGES of the track:
@@ -339,6 +400,10 @@ class AudioLevelMixin(MainWindowHost):
                 # Don't let the skipped dead air eat into the play length.
                 self._playback.offset_ms += max(0, target_ms - int(pos * 1000))
                 self._player.setPosition(target_ms)
+                if self._playback.fade_in_from is not None:
+                    # 🌅 …nor into the fade-in: it starts over with the music.
+                    self._playback.fade_in_from = self._heard_secs()
+                    self._mix.fade_in = 0.0
                 self._sync_big_player_limit()   # the ⏳ cut moved back with it
             else:
                 continue   # mid-track stillness — play it as recorded

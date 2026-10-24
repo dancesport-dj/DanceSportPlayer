@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from PySide6.QtCore import QEventLoop, QTimer
+from PySide6.QtCore import QEventLoop, QObject, QTimer
 from PySide6.QtWidgets import QApplication
 
 from planner.playing import cartwall as pc
@@ -30,6 +30,20 @@ def _host(pads=None, page=0, live=()):
     host._cart_voices.is_playing.side_effect = lambda key: key in live
     host._remote_pad_keys = []
     return host
+
+
+class _QtHost(QObject):
+    """A `_host()` that is a QObject too, as the window is: the remote's
+    publish ticker is parented to it."""
+
+    def __init__(self, host):
+        super().__init__()
+        self._mock = host
+
+    def __getattr__(self, name):
+        if name == "_mock":
+            raise AttributeError(name)
+        return getattr(self._mock, name)
 
 
 class StateTest(unittest.TestCase):
@@ -140,6 +154,18 @@ class JumpTest(unittest.TestCase):
         host._crossfade_jump.assert_not_called()
         self.table._on_play_click.assert_not_called()
 
+    def test_a_title_cannot_write_lines_of_its_own_into_the_log(self):
+        """R13: the phone's title went into the log as it came, newlines and all."""
+        host = self.host()
+        with self.assertLogs(main_remote.log, "INFO") as logs:
+            RemoteMixin._play_upcoming(host, 0, "Tango\nERROR 📱 forged\r\x1b[2J")
+        self.assertEqual(len(logs.records), 1)
+        message = logs.records[0].getMessage()
+        self.assertEqual(message.count("\n"), 1)        # its own two lines
+        self.assertNotIn("\r", message)
+        self.assertNotIn("\x1b", message)
+        self.assertIn("Tango ERROR 📱 forged", message)
+
 
 class SwitchTest(unittest.TestCase):
     """🔀 Crossfade and ⏭ Auto / ✋ Manual from the phone: the play panel's
@@ -208,7 +234,7 @@ class LiveServerTest(unittest.TestCase):
         self.addCleanup(env.stop)
 
     def test_start_publish_command_stop(self):
-        host = _host()
+        host = _QtHost(_host())
         host._remote = None
         host._remote_timer = None
         host._settings = {"remote_port": 0}
@@ -228,6 +254,7 @@ class LiveServerTest(unittest.TestCase):
             RemoteMixin._apply_remote(host)
         self.addCleanup(lambda: host._remote and host._remote.stop())
         srv = host._remote
+        self.assertIs(host._remote_timer.parent(), host)   # PL9
         self.assertIsNotNone(srv)
         port = srv.port
         pin = host._settings["remote_pin"]
@@ -334,7 +361,7 @@ class TunnelTest(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def setUp(self):
-        host = _host()
+        host = _QtHost(_host())
         host._remote = None
         host._remote_timer = None
         host._remote_bridge = None
@@ -375,8 +402,12 @@ class TunnelTest(unittest.TestCase):
         self.assertEqual(tunnel.port, self.host._remote.port)
         st = self.host.remote_status()
         self.assertTrue(st["waiting"])
+        self.assertEqual(self.host._remote.tunnel_host, "")
         tunnel.on_url(self.URL)
         self.app.processEvents()
+        # The server answers to the tunnel's name, and believes its header.
+        self.assertEqual(self.host._remote.tunnel_host,
+                         "moon-river-tango-waltz.trycloudflare.com")
         st = self.host.remote_status()
         self.assertFalse(st["waiting"])
         self.assertEqual(st["urls"][0], self.URL)
@@ -404,6 +435,7 @@ class TunnelTest(unittest.TestCase):
         tunnel.on_url(self.URL)
         tunnel.on_exit(1)
         self.app.processEvents()
+        self.assertEqual(self.host._remote.tunnel_host, "")
         st = self.host.remote_status()
         self.assertEqual(st["urls"], ["http://10.0.0.5:" + str(self.host._remote.port)])
         self.assertIn("Wi-Fi only", self.host.remote_log()[-1])
@@ -423,10 +455,13 @@ class TunnelTest(unittest.TestCase):
 
     def test_a_tunnel_requested_through_cloudflare_logs_in_by_its_phone(self):
         self.host._apply_remote()
+        self.tunnels[0].on_url(self.URL)
+        self.app.processEvents()
         pin = self.host._settings["remote_pin"]
         conn = http.client.HTTPConnection("127.0.0.1", self.host._remote.port, timeout=5)
-        conn.request("GET", "/api/state", headers={rs.PIN_HEADER: pin,
-                                                   "CF-Connecting-IP": "203.0.113.7"})
+        conn.request("GET", "/api/state", headers={
+            rs.PIN_HEADER: pin, "CF-Connecting-IP": "203.0.113.7",
+            "Host": "moon-river-tango-waltz.trycloudflare.com"})
         self.assertEqual(conn.getresponse().status, 200)
         conn.close()
         loop = QEventLoop()

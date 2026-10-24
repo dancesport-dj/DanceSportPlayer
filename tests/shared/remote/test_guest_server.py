@@ -1,9 +1,11 @@
 """📨 Guest requests: the small web server guests' phones ask for titles through."""
 import http.client
 import json
+import socket
 import time
 import types
 import unittest
+from unittest import mock
 
 from shared.remote import guest_server as gs
 from shared.remote.guest_page import GUEST_CODE_HEADER, MAX_WISH, page_html
@@ -44,6 +46,12 @@ class ServerTest(unittest.TestCase):
         self.assertIn("connect-src 'self'", headers["Content-Security-Policy"])
         self.assertIn('"send": "Senden"'.encode(), body)
         self.assertNotIn(b"ABC234", body)
+
+    def test_no_other_page_may_frame_it(self):
+        """R8: a page of any site could show this one in a frame and lure taps."""
+        _s, headers, _b = self._req("GET", "/", code=None)
+        self.assertIn("frame-ancestors 'none'", headers["Content-Security-Policy"])
+        self.assertEqual(headers["X-Frame-Options"], "DENY")
 
     def test_the_title_list_needs_the_code(self):
         self.assertEqual(self._req("GET", "/api/catalog", code=None)[0], 403)
@@ -95,7 +103,43 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(len(self.requests), gs.PER_GUEST)
         self.assertIn(("too_many", "127.0.0.1", ""), self.events)
 
+    def _own_server(self, **limits):
+        """A server started under `limits` (module constants patched)."""
+        with mock.patch.multiple(gs, **limits):
+            srv = gs.GuestServer(on_request=self.requests.append, host="127.0.0.1",
+                                 port=0, code="ABC234")
+            srv.start()
+        self.addCleanup(srv.stop)
+        self.srv = srv
+
+    def test_reading_has_a_budget_of_its_own(self):
+        """R5: with the right code the title list and what is playing could be
+        asked for without end."""
+        self._own_server(READS_PER_GUEST=3)
+        for path in ("/api/catalog", "/api/now", "/api/catalog"):
+            self.assertEqual(self._req("GET", path)[0], 200, path)
+        self.assertEqual(self._req("GET", "/api/now")[0], 429)
+        self.assertEqual(self._req("POST", "/api/request", {"text": "hi"})[0], 204)
+
+    def test_connections_past_the_cap_get_no_thread(self):
+        """R5: every connection started a thread, however many were open."""
+        self._own_server(MAX_CONNECTIONS=1)
+        idle = socket.create_connection(("127.0.0.1", self.srv.port), timeout=3)
+        self.addCleanup(idle.close)
+        time.sleep(0.3)                       # accepted, its thread waits for a line
+        with self.assertRaises((ConnectionError, http.client.HTTPException)):
+            self._req("GET", "/api/now")
+        idle.close()
+        for _ in range(30):                   # its thread sees the close and ends
+            try:
+                status = self._req("GET", "/api/now")[0]
+                break
+            except (ConnectionError, http.client.HTTPException):
+                time.sleep(0.1)
+        self.assertEqual(status, 200)
+
     def test_guests_behind_the_tunnel_each_have_their_own(self):
+        self.srv.set_tunnel("https://quiet-river-1234.trycloudflare.com")
         for guest in ("203.0.113.7", "198.51.100.9"):
             hdr = {"CF-Connecting-IP": guest}
             for _ in range(gs.PER_GUEST):
@@ -139,6 +183,23 @@ class ServerTest(unittest.TestCase):
         time.sleep(0.3)
         self.assertEqual(conn.getresponse().status, 404)
 
+    def _head_only(self, code):
+        sock = socket.create_connection(("127.0.0.1", self.srv.port), timeout=3)
+        self.addCleanup(sock.close)
+        sock.sendall((f"POST /api/request HTTP/1.1\r\nHost: 127.0.0.1\r\n"
+                      f"{GUEST_CODE_HEADER}: {code}\r\nContent-Length: 100\r\n\r\n")
+                     .encode())
+        return sock
+
+    def test_a_wrong_code_is_answered_without_waiting_for_the_body(self):
+        """S7: the code is checked before the body is read."""
+        self.assertTrue(self._head_only("WRONG1").recv(64).startswith(b"HTTP/1.0 403"))
+
+    def test_a_body_that_never_comes_is_given_up(self):
+        with mock.patch.object(gs, "_BODY_SECS", 0.3):
+            self.assertEqual(self._head_only("ABC234").recv(64), b"")
+        self.assertEqual(self.requests, [])
+
     def test_a_failing_desk_never_breaks_a_request(self):
         def boom(_request):
             raise RuntimeError("desk gone")
@@ -164,9 +225,10 @@ class ServerTest(unittest.TestCase):
 class GuestAddressTest(unittest.TestCase):
     """Behind the tunnel the header names the guest; elsewhere nobody can choose."""
 
-    def _guest(self, peer, forwarded):
+    def _guest(self, peer, forwarded, tunnel="quiet-river-1234.trycloudflare.com"):
         fake = types.SimpleNamespace(client_address=(peer, 1234),
-                                     headers={"CF-Connecting-IP": forwarded})
+                                     headers={"CF-Connecting-IP": forwarded},
+                                     app=types.SimpleNamespace(tunnel_host=tunnel))
         return gs._Handler._guest(fake)  # type: ignore[arg-type]
 
     def test_the_tunnel_names_the_guest(self):
@@ -175,6 +237,21 @@ class GuestAddressTest(unittest.TestCase):
 
     def test_a_phone_on_the_wifi_cannot_pick_one(self):
         self.assertEqual(self._guest("192.168.1.5", "203.0.113.7"), "192.168.1.5")
+
+    def test_without_a_tunnel_nobody_can_pick_one(self):
+        """S6: no tunnel, so a loopback request is the PC itself (or a page
+        rebound onto it), never a guest from outside."""
+        self.assertEqual(self._guest("127.0.0.1", "203.0.113.7", tunnel=""), "127.0.0.1")
+
+    def test_a_foreign_host_is_turned_away(self):
+        srv = gs.GuestServer(on_request=lambda r: None, host="127.0.0.1", port=0,
+                             code="ABC234")
+        srv.start()
+        self.addCleanup(srv.stop)
+        conn = http.client.HTTPConnection("127.0.0.1", srv.port, timeout=5)
+        conn.request("GET", "/", headers={"Host": "evil.example"})
+        self.assertEqual(conn.getresponse().status, 403)
+        conn.close()
 
 
 class BudgetTest(unittest.TestCase):
@@ -194,6 +271,20 @@ class BudgetTest(unittest.TestCase):
         self.budget.spend("a")
         self.now = 61.0
         self.assertTrue(self.budget.spend("a"))
+
+    def test_one_ipv6_network_is_one_guest(self):
+        """A phone holds a whole /64 and may pick a new address per request:
+        each new one must not bring a fresh budget, and drain everyone's."""
+        self.assertTrue(self.budget.spend("2001:db8:1:2::a"))
+        self.assertTrue(self.budget.spend("2001:db8:1:2:ffff::b"))
+        self.assertFalse(self.budget.spend("2001:db8:1:2::c"))
+        self.assertTrue(self.budget.spend("2001:db8:1:3::a"))     # the next /64: another guest
+
+    def test_ipv4_guests_stay_one_per_address(self):
+        budget = gs.Budget(per_guest=1, all_guests=9, window=60, clock=lambda: 0.0)
+        self.assertTrue(budget.spend("192.168.1.20"))
+        self.assertTrue(budget.spend("192.168.1.21"))
+        self.assertFalse(budget.spend("::ffff:192.168.1.20"))     # the same, mapped
 
 
 class CodeTest(unittest.TestCase):
@@ -232,6 +323,14 @@ class PageTest(unittest.TestCase):
 
     def test_server_text_goes_onto_the_page_as_text(self):
         self.assertNotIn("innerHTML", page_html({}))
+
+    def test_up_next_is_a_tab_beside_the_requests(self):
+        html = page_html({"tab_request": "Wünschen", "tab_next": "Gleich danach"})
+        self.assertIn('id="tab_request"', html)
+        self.assertIn('id="tab_next"', html)
+        self.assertIn('"tab_next": "Gleich danach"', html)
+        # The list rides on the same poll as "Now playing", not a call of its own.
+        self.assertIn("now.next", html)
 
 
 if __name__ == "__main__":

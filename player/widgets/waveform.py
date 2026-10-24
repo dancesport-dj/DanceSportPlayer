@@ -39,6 +39,10 @@ _SILENCE = QColor(0, 0, 0, 110)
 _MARK = QColor("#b0762a")
 _MARK_ARMED = QColor("#ff9800")
 _FADE = QColor(216, 160, 160, 110)      # the card's fade-out colour, see-through
+# 🌅 The fade-in, the fade-out's mirror in a dawn gold, and ⏩ where the title
+# starts: a green line, the head it skips dimmed like skipped silence.
+_FADE_IN = QColor(240, 200, 110, 120)
+_START = QColor("#4caf50")
 # The final seconds: the seek bar's red end warning, on the strip too.
 _PLAYED_END = QColor("#e53935")
 _AHEAD_END = QColor("#7a3035")
@@ -150,7 +154,8 @@ class WaveformStrip(QWidget):
             "The waveform of the title — what has played is blue, all of it\n"
             "red in the final seconds. The broad orange bar is where it plays.\n"
             "Shaded: silence the player skips · thin orange: Paso Doble\n"
-            "highlights · red-tinted: the fade-out of a timed cut.\n"
+            "highlights · red-tinted: the fade-out of a timed cut · gold: the\n"
+            "fade-in · green line: where the title starts.\n"
             "Click to jump there.")
         self._peaks: list[float] | None = None
         self._span = 0          # ms the strip spans (the seek bar's maximum)
@@ -160,6 +165,8 @@ class WaveformStrip(QWidget):
         self._marks: list[int] = []
         self._armed: int | None = None
         self._fade_at: int | None = None
+        self._start_at = 0      # ms where the title starts, 0 = the top
+        self._fade_in_end: int | None = None    # ms the fade-in is through
         self._ending = False    # in the final seconds: drawn red
         self._heights: tuple | None = None     # (key, per-pixel heights)
         self._scrubbing = False     # the mouse holds the playhead
@@ -200,6 +207,14 @@ class WaveformStrip(QWidget):
 
     def set_fade_start(self, ms):
         self._fade_at = int(ms) if ms is not None else None
+        self.update()
+
+    def set_start(self, start_ms, fade_in_end_ms=None):
+        """⏩ Where the title starts (file ms, 0 = the top) and 🌅 where its
+        fade-in is through (None = no fade-in)."""
+        self._start_at = max(0, int(start_ms or 0))
+        self._fade_in_end = (int(fade_in_end_ms)
+                             if fade_in_end_ms is not None else None)
         self.update()
 
     def set_ending(self, on: bool):
@@ -303,6 +318,7 @@ class WaveformStrip(QWidget):
             grad.setColorAt(1.0, _FADE)
             p.setBrush(grad)
             p.drawRect(QRectF(xa, 0, w - xa, h))
+        self._paint_start(p, h)
         for m in self._marks:
             if not 0 <= m <= self._span:
                 continue
@@ -313,6 +329,24 @@ class WaveformStrip(QWidget):
         if self._span > 0:
             self._paint_head(p, min(max(head, 1), w - 1), h)
         p.end()
+
+    def _paint_start(self, p: QPainter, h: int):
+        """🌅 The fade-in, tinted from the start and clearing as it comes up,
+        and ⏩ the start itself: the skipped head dimmed, a green line."""
+        xs = self.x_for(self._start_at)
+        if self._fade_in_end is not None and self._fade_in_end > self._start_at:
+            xe = self.x_for(self._fade_in_end)
+            grad = QLinearGradient(xs, 0, xe, 0)
+            grad.setColorAt(0.0, _FADE_IN)
+            grad.setColorAt(1.0, QColor(_FADE_IN.red(), _FADE_IN.green(),
+                                        _FADE_IN.blue(), 0))
+            p.setBrush(grad)
+            p.drawRect(QRectF(xs, 0, xe - xs, h))
+        if self._start_at > 0 and xs > 0:
+            p.setBrush(_SILENCE)
+            p.drawRect(QRectF(0, 0, xs, h))
+            p.setBrush(_START)
+            p.drawRect(QRectF(xs - 1, 0, 2, h))
 
     def _paint_head(self, p: QPainter, x: float, h: int):
         """The playhead: an orange line the full height, capped top and bottom

@@ -134,7 +134,11 @@ def edition_lists(spec: CompetitionSpec, edition: Path) -> list[Path]:
 def _read_entries(m3u: Path, resolve) -> list:
     try:
         lines = read_playlist_text(m3u)[0].splitlines()
-    except Exception:
+    except Exception as exc:
+        # The plan goes on without it, but not without a trace of why.
+        log.warning("📜 A past list could not be read, planning without it\n"
+                    "list: %s\n"
+                    "error: %s", m3u, exc)
         return []
     out = []
     for line in lines:

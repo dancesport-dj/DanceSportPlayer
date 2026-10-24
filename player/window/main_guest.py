@@ -36,6 +36,7 @@ log = logging.getLogger("dancesport.gui.guests")
 _NOW_MS = 2000
 _FLASH_MS = 500
 _LOG_LINES = 300
+_UP_NEXT = 5  # titles on the guest page's "Up next" tab
 
 # The 📨 pill: calm blue, and the orange it flashes to while a request waits unseen.
 _BADGE_STYLE = ("background:%s; color:white; font-weight:bold; "
@@ -248,6 +249,8 @@ class GuestDesk(QObject):
     def _on_tunnel_url(self, t, url: str):
         if t is self.tunnel:
             self.public_url = url
+            if self.server is not None:
+                self.server.set_tunnel(url)
             self.picked = ""   # the public address goes first, as in the window
             self._on_event("tunnel_up", "", url)
             self.changed.emit()
@@ -257,6 +260,8 @@ class GuestDesk(QObject):
         if t is self.tunnel:
             self.tunnel = None
             self.public_url = ""
+            if self.server is not None:
+                self.server.set_tunnel("")
             self._on_event("tunnel_down", "", str(code))
             self.changed.emit()
 
@@ -295,7 +300,9 @@ class GuestDesk(QObject):
     def _publish_now(self):
         if self.server is not None:
             dance, title, *_rest = self._win._presenter_state()
-            self.server.publish_now({"dance": dance, "title": title})
+            self.server.publish_now({
+                "dance": dance, "title": title,
+                "next": [list(n) for n in self._win._presenter_upcoming(_UP_NEXT)]})
 
     def _on_event(self, kind: str, guest: str, detail: str):
         if kind == "request" and detail in self._songs:

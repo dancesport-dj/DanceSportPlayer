@@ -211,6 +211,14 @@ def _timbre_similarity(anchor: AudioFeatures,
     return _pool_similarity(anchor, entries)
 
 
+def timbre_measured(entry: MusicEntry, method: str | None = None) -> bool:
+    """True when the timbre metric can place `entry` at all. One it cannot
+    gets the neutral 0.5 from `_timbre_similarity`, a placeholder, not a match."""
+    if (method or _DEFAULT_TIMBRE_METHOD) == "gaussian_kl":
+        return _gauss_of(entry.features)[0] is not None
+    return entry.features is not None
+
+
 # ── Three views at once: timbre, groove and melody ──────────────────────────────
 SOUND_VIEWS = ("timbre", "groove", "melody")
 

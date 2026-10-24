@@ -110,6 +110,16 @@ class PlaybackTest(_WindowCase):
         self.play(self.b, "WW")
         self.assertEqual(self.win._play_limit_secs(), 115)
 
+    def test_auto_advance_and_the_pause_keep_the_dances_length(self):
+        """⏭ and the pause are how a list walks on, not how long a title
+        runs. Marcel's Vorrunde on ⏭ Auto cut every dance at the set's 1:45."""
+        self.panel.advance_check.setChecked(True)
+        self.panel.pause_check.setChecked(True)
+        self.assertTrue(self.win._list_vals(self.b)["advance"])
+        self.play(self.b, "WW")
+        self.assertEqual(self.win._play_limit_secs(), 90)
+        self.assertEqual(self.panel.len_lbl.text(), "1:30")
+
     def test_the_short_track_flag_measures_against_the_dance(self):
         self.assertEqual(self.b._short_secs_cb("WW"), 90)
         self.assertEqual(self.b._short_secs_cb("LW"), 105)
@@ -202,8 +212,10 @@ class SettingsGridTest(unittest.TestCase):
                          dance_secs_of({}))
 
     def test_a_list_emptied_before_stays_empty(self):
+        # …but for the Paso Doble, which has no "set's length" to fall back on.
         self.assertEqual(
-            self.dialog({DANCE_SECS_KEY: {}}).values()[DANCE_SECS_KEY], {})
+            self.dialog({DANCE_SECS_KEY: {}}).values()[DANCE_SECS_KEY],
+            {"PD": 0})
 
     def test_stored_lengths_come_back_as_they_were(self):
         dlg = self.dialog({DANCE_SECS_KEY: {"WW": 90, "LW": 97, "PD": 0}})
@@ -217,17 +229,90 @@ class SettingsGridTest(unittest.TestCase):
         ww = self.combo(dlg, "WW")
         ww.setCurrentIndex(ww.findData(90))
         self.combo(dlg, "LW").setEditText("1:37")
-        self.assertEqual(dlg.values()[DANCE_SECS_KEY], {"WW": 90, "LW": 97})
+        self.assertEqual(dlg.values()[DANCE_SECS_KEY],
+                         {"WW": 90, "LW": 97, "PD": 0})
 
     def test_back_to_the_sets_length_drops_the_dance(self):
         dlg = self.dialog({DANCE_SECS_KEY: {"WW": 90}})
         self.combo(dlg, "WW").setCurrentIndex(0)
-        self.assertEqual(dlg.values()[DANCE_SECS_KEY], {})
+        self.assertEqual(dlg.values()[DANCE_SECS_KEY], {"PD": 0})
 
     def test_a_typed_slip_keeps_the_length_it_opened_on(self):
         dlg = self.dialog({DANCE_SECS_KEY: {"WW": 90}})
         self.combo(dlg, "WW").setEditText("1:")
-        self.assertEqual(dlg.values()[DANCE_SECS_KEY], {"WW": 90})
+        self.assertEqual(dlg.values()[DANCE_SECS_KEY], {"WW": 90, "PD": 0})
+
+
+class PasoDobleLengthTest(unittest.TestCase):
+    """🐂 Marcel: "paso doble has only full as option i would like to
+    configure there the paso doble highlight stop 1,2,3 besides full, other
+    values makes no sense. if selected it should fill or disable the pd stop
+    after highlight checkbox"."""
+
+    setUpClass = SettingsGridTest.setUpClass
+    dialog = SettingsGridTest.dialog
+    combo = SettingsGridTest.combo
+
+    def pd(self, dlg):
+        return dlg._set_widgets["tournament"]["pd"]
+
+    def test_full_or_one_of_two_highlights(self):
+        """Marcel: "full, after highlight 1 and 2, 3 = full"."""
+        combo = self.combo(self.dialog({}), "PD")
+        self.assertEqual([combo.itemText(i) for i in range(combo.count())],
+                         ["full", "after highlight 1", "after highlight 2"])
+        self.assertFalse(combo.isEditable())
+
+    def test_a_third_highlight_in_the_set_reads_as_full(self):
+        dlg = self.dialog({"tournament_set": {"pd_stop": True, "pd_n": 3}})
+        self.assertEqual(self.combo(dlg, "PD").currentText(), "full")
+
+    def test_a_highlight_ticks_the_stop_and_picks_it(self):
+        dlg = self.dialog({})
+        self.combo(dlg, "PD").setCurrentIndex(2)
+        stop, n, _delay = self.pd(dlg)
+        self.assertTrue(stop.isChecked())
+        self.assertEqual(n.value(), 2)
+        vals = dlg.values()
+        self.assertEqual(vals["tournament_set"]["pd_stop"], True)
+        self.assertEqual(vals["tournament_set"]["pd_n"], 2)
+        # The highlight ends it, so the dance itself runs in full.
+        self.assertEqual(vals[DANCE_SECS_KEY]["PD"], 0)
+
+    def test_full_unticks_the_stop(self):
+        dlg = self.dialog({"tournament_set": {"pd_stop": True, "pd_n": 2}})
+        self.combo(dlg, "PD").setCurrentIndex(0)
+        self.assertFalse(self.pd(dlg)[0].isChecked())
+        self.assertEqual(dlg.values()["tournament_set"]["pd_stop"], False)
+
+    def test_it_opens_on_the_sets_highlight_stop(self):
+        self.assertEqual(self.combo(self.dialog({}), "PD").currentIndex(), 0)
+        dlg = self.dialog({"tournament_set": {"pd_stop": True, "pd_n": 2}})
+        self.assertEqual(self.combo(dlg, "PD").currentIndex(), 2)
+
+    def test_it_follows_the_checkbox_and_the_number(self):
+        dlg = self.dialog({})
+        stop, n, _delay = self.pd(dlg)
+        stop.setChecked(True)
+        n.setValue(1)
+        self.assertEqual(self.combo(dlg, "PD").currentIndex(), 1)
+        stop.setChecked(False)
+        self.assertEqual(self.combo(dlg, "PD").currentIndex(), 0)
+
+    def test_the_party_sets_paso_doble_is_left_alone(self):
+        dlg = self.dialog({})
+        self.combo(dlg, "PD").setCurrentIndex(2)
+        party = dlg.values()["party_set"]
+        self.assertEqual((party["pd_stop"], party["pd_n"]), (True, 2))
+        dlg._set_widgets["party"]["pd"][0].setChecked(False)
+        self.assertEqual(self.combo(dlg, "PD").currentIndex(), 2)
+
+    def test_its_text_is_translated(self):
+        from planner.i18n.lang_de import CATALOG
+        combo = self.combo(self.dialog({}), "PD")
+        for text in ("after highlight %d", combo.toolTip()):
+            with self.subTest(text=text[:20]):
+                self.assertIn(text, CATALOG)
 
 
 if __name__ == "__main__":

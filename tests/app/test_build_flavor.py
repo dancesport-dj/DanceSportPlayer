@@ -105,6 +105,21 @@ class SpecLanguagesTest(unittest.TestCase):
                                 f"planner.i18n.lang_{code} is not in dancesport.spec")
 
 
+class SpecWeddingMarksTest(unittest.TestCase):
+    """S5: assets/hochzeit holds a couple's names. It stays out of git, but a
+    build on the machine that has it bundled it into every installer, so it
+    goes in only when DANCESPORT_WEDDING_MARKS=1 asks for it."""
+
+    def test_the_wedding_marks_need_the_flag(self):
+        spec = (Path(config.__file__).resolve().parent.parent
+                / "dancesport.spec").read_text(encoding="utf-8")
+        self.assertTrue('WEDDING_MARKS = os.environ.get("DANCESPORT_WEDDING_MARKS", "")'
+                        '.strip() == "1"' in spec, "no DANCESPORT_WEDDING_MARKS flag")
+        bundling = re.search(r"\n(.*)\n\s+datas \+= \[\(os\.path\.join\(_marks", spec)
+        self.assertIsNotNone(bundling)
+        self.assertIn("WEDDING_MARKS and", bundling.group(1))
+
+
 class BuildNamesTest(unittest.TestCase):
     """The spec names the build; the scripts then copy ffmpeg into it
     (build_exe.bat) and sign it (build_app.sh) by that same name. A script
@@ -360,7 +375,11 @@ class LockFileTest(unittest.TestCase):
     ROOT = Path(config.__file__).resolve().parent.parent
     LOCKS = {"requirements.lock": ("requirements.txt", "requirements-build.txt"),
              "requirements-player.lock": ("requirements-player.txt",
-                                          "requirements-build.txt")}
+                                          "requirements-build.txt"),
+             # The tester build's FULL stack. requirements-full.txt pulls in
+             # requirements.txt itself (`-r`), and the lock pins the whole set.
+             "requirements-full.lock": ("requirements-full.txt",
+                                        "requirements-build.txt")}
 
     def test_each_lock_pins_its_sources_at_their_versions(self):
         for lock, sources in self.LOCKS.items():
@@ -387,6 +406,108 @@ class LockFileTest(unittest.TestCase):
         tests = (workflows / "tests.yml").read_text(encoding="utf-8")
         self.assertIn("pip install -r requirements.lock", tests)
         self.assertNotIn("-r requirements.txt", tests)
+
+
+class TesterBuildTest(unittest.TestCase):
+    """The FULL flavor for testers, delivered as an unpublished draft release.
+
+    Two things here are easy to undo by accident and expensive to get wrong:
+    installing the wrong lock (which silently builds the lite binary under the
+    FULL name) and publishing the release (which would put a tester build on
+    the public releases page)."""
+
+    ROOT = Path(config.__file__).resolve().parent.parent
+
+    def setUp(self):
+        self.flow = (self.ROOT / ".github" / "workflows" / "build-tester.yml").read_text(
+            encoding="utf-8")
+
+    def _job(self, name):
+        """One job's text: from its key up to the next top-level job key."""
+        start = self.flow.index(f"\n  {name}:")
+        rest = self.flow[start + 1:]
+        cut = len(rest)
+        for job in ("manual", "windows", "macos", "draft"):
+            marker = f"\n  {job}:"
+            if marker in rest:
+                cut = min(cut, rest.index(marker))
+        return rest[:cut]
+
+    def test_only_started_by_hand(self):
+        # A tag must never produce a tester build: the public release stays
+        # exactly as it was.
+        self.assertIn("workflow_dispatch:", self.flow)
+        self.assertNotIn("push:", self.flow)
+        self.assertNotIn("tags:", self.flow)
+
+    def test_the_release_is_a_draft(self):
+        draft = self._job("draft")
+        self.assertIn("--draft", draft)
+        # Built for the commit of this run: a draft has no tag, so without
+        # --target its "source code" links would not be the binaries' source.
+        self.assertIn('--target "$GITHUB_SHA"', draft)
+
+    def test_it_does_not_link_a_nonexistent_tag_page(self):
+        # A draft lives at untagged-<hash>, not at /releases/tag/<name>; a
+        # constructed tag URL would 404 for every tester it was sent to. Only
+        # the commands matter - a comment may name the wrong URL to explain it.
+        draft = self._job("draft")
+        self.assertIn("gh release view", draft)
+        for line in draft.splitlines():
+            if "/releases/tag/" in line:
+                self.assertTrue(line.lstrip().startswith("#"), line)
+
+    def test_both_builds_install_the_full_lock(self):
+        for job in ("windows", "macos"):
+            with self.subTest(job=job):
+                body = self._job(job)
+                self.assertIn("pip install -r requirements-full.lock", body)
+                self.assertNotIn("pip install -r requirements.lock", body)
+
+    def test_both_builds_build_the_full_flavor(self):
+        self.assertIn(r".\build_exe.bat full", self._job("windows"))
+        self.assertIn("./build_app.sh full dmg", self._job("macos"))
+
+
+class TesterRequirementsGuardTest(unittest.TestCase):
+    """A FULL venv without torch still "builds full" - PyInstaller just emits
+    the lite binary under the FULL name. Every build script has to refuse it."""
+
+    ROOT = Path(config.__file__).resolve().parent.parent
+
+    def test_the_windows_script_refuses_a_full_venv_without_torch(self):
+        bat = (self.ROOT / "build_exe.bat").read_text(encoding="utf-8")
+        self.assertIn("import torch, demucs, transformers", bat)
+        self.assertIn(":no_full_deps", bat)
+        self.assertIn("if /I \"%~1\"==\"full\" set LOCK=requirements-full.lock", bat)
+
+    def test_the_shell_scripts_refuse_a_full_venv_without_torch(self):
+        for name in ("build_app.sh", "build_linux.sh"):
+            with self.subTest(script=name):
+                text = (self.ROOT / name).read_text(encoding="utf-8")
+                self.assertIn('mods += ["torch", "demucs", "transformers"]', text)
+                self.assertIn('else "requirements-full.lock" if flavor == "full"', text)
+
+
+class CiPinningTest(unittest.TestCase):
+    """S10: what the release job runs with `contents: write` is fixed. A
+    tag like @v7 moves to whatever its owner pushes next, and a download
+    without a hash is whatever the server sends."""
+
+    ROOT = Path(config.__file__).resolve().parent.parent
+
+    def test_every_action_is_pinned_by_commit(self):
+        for flow in sorted((self.ROOT / ".github" / "workflows").glob("*.yml")):
+            for line in flow.read_text(encoding="utf-8").splitlines():
+                if "uses:" in line:
+                    with self.subTest(flow=flow.name, line=line.strip()):
+                        self.assertRegex(line, r"uses: [\w.-]+/[\w.-]+@[0-9a-f]{40} # v\d")
+
+    def test_the_ffmpeg_zip_is_checked_before_it_is_unpacked(self):
+        flow = (self.ROOT / ".github" / "workflows" / "build-player.yml").read_text(encoding="utf-8")
+        fetch = flow[flow.index("- name: Fetch ffmpeg"):flow.index("Expand-Archive")]
+        self.assertTrue("Get-FileHash ffmpeg.zip -Algorithm SHA256" in fetch, fetch)
+        self.assertTrue(re.search(r"\b[0-9A-F]{64}\b", fetch), fetch)
 
 
 class PlayerRequirementsTest(unittest.TestCase):

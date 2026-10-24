@@ -110,6 +110,18 @@ class LearningSeesM3u8Test(unittest.TestCase):
         self.assertEqual(sorted(p.name for p, _sig in m3us), ["a.m3u", "b.m3u8"])
         self.assertEqual([p.name for p in playlist_files(root)], ["a.m3u", "b.m3u8"])
 
+    def test_a_round_folder_of_flac_files_is_a_playlist_too(self):
+        root = Path(tempfile.mkdtemp(prefix="dp_flac_learn_"))
+        self.addCleanup(shutil.rmtree, root, True)
+        orig = planner_config.PLAYLIST_DIR
+        planner_config.set_playlist_dir(root)
+        self.addCleanup(planner_config.set_playlist_dir, orig)
+        for name in ("a.mp3", "b.flac", "c.M4A", "d.ogg", "e.opus", "f.wav", "g.jpg"):
+            (root / name).write_bytes(b"")
+        _m3us, tracks = playlist_index._playlist_tree()
+        self.assertEqual([p.name for p, _sig in tracks],
+                         ["a.mp3", "b.flac", "c.M4A", "d.ogg", "e.opus"])
+
 
 class SettingsComboTest(unittest.TestCase):
 

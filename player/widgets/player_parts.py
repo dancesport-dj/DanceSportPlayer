@@ -29,6 +29,12 @@ _CARD_PANIC = "#e58080"    # fade to silence and hold
 _CARD_DIM = "#8fa3c4"      # the fader's own small marks
 _CARD_GAIN = "#d8b35c"     # the R128 equalization readout
 
+# The card's gold countdown: the pause's own, and the 🐂 wait's, which reads
+# on from the 11 px words before it ("PD T60 in 5 s") in their font.
+_COUNTDOWN_CSS = ("font-size:13px; font-weight:bold; color:#d8b35c;"
+                  "font-family:Consolas,monospace;")
+_WAIT_COUNT_CSS = "font-size:11px; font-weight:bold; color:#d8b35c;"
+
 # One − / + click on the tempo fader, in the slider's own 0.1 % units — the
 # finest step the fader has. A takt is hit by tenths, not halves, and the far
 # side of the range is reached by holding the button rather than by clicking.

@@ -9,6 +9,7 @@ MainWindow (see tests/gui/monkey_support.py):
     docs/manual-planner/03-library-and-tournaments.md
 """
 
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -20,6 +21,8 @@ from tests.gui.monkey_support import ClickThrough, printable
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QFileDialog, QInputDialog
+from tests.db_support import use_scratch_db
+from tests.qt_test_support import reap_widget
 
 
 class LibraryClickTest(ClickThrough):
@@ -144,6 +147,50 @@ class LibraryClickTest(ClickThrough):
             self.assertEqual(
                 [(n["name"], [c.get("m3u") for c in n["children"]]) for n in tree._nodes],
                 [("Season", [str(saved)])])
+
+    def test_closed_during_the_first_scan_it_opens_whole_next_time(self):
+        # A first start on a big library: the operator closes the window while
+        # the scan still reads. The quit must not sit on the scan, nor save
+        # the evening's deck away; the next start reads the rest and keeps
+        # what was read before the close.
+        from planner.music.library import MusicLibrary
+        make = MusicLibrary._make_entry
+        cold = []
+
+        def slow(lib, path, scan_cache, *a, **kw):
+            if scan_cache.get(path) is None:
+                cold.append(path)
+                time.sleep(0.05)
+            return make(lib, path, scan_cache, *a, **kw)
+
+        files = len(list(Path(self.settings["library_dir"]).rglob("*.mp3")))
+        with self.clicking():
+            self.generate(rounds="1")
+            titles = self.titles()
+            self.win._playback.token += 1
+            self.win.close()
+            reap_widget(self.win)
+            # A cache of its own: the class's is full from the earlier starts.
+            use_scratch_db(self, self.out / "audio.db")
+            with mock.patch.object(MusicLibrary, "_make_entry", slow):
+                win = self.gui.MainWindow()
+                self.assertTrue(self.wait_until(lambda: len(cold) >= 5, 10000),
+                                "the scan never started")
+                loader = win._library.loader
+                t0 = time.monotonic()
+                win.close()
+                self.assertLess(time.monotonic() - t0, 4, "the quit waited out the scan")
+                self.assertFalse(loader.isRunning(), "the scan outlived its window")
+                reap_widget(win)
+                read_before = len(cold)
+                self.assertLess(read_before, files, "the scan finished before the close")
+                cold.clear()
+                self.win = self.gui.MainWindow()
+                self._wait_until_loaded()
+            self.assertEqual(len(self.win._library.lib.entries), files)
+            self.assertEqual(len(cold), files - read_before,
+                             "what was read before the close was read again")
+            self.assertEqual(self.titles(), titles, "the deck did not survive the close")
 
     def test_save_and_add_to_tournaments_files_the_deck_into_the_picked_folder(self):
         win, tree = self.win, self.win._tourney_tree

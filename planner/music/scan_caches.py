@@ -233,7 +233,8 @@ class GlobalScanCache:
     def get(self, path: Path) -> dict | None:
         """Return the cached entry-meta dict only if the file is unchanged (mtime match)."""
         rec = self._data.get(str(path))
-        if rec is not None and rec.get('mtime') == self._mtime(path):
+        mtime = self._mtime(path)   # 0: stat failed, so nothing proves it unchanged
+        if rec is not None and mtime and rec.get('mtime') == mtime:
             return rec.get('entry')
         return None
 

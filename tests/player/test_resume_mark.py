@@ -18,6 +18,7 @@ from pathlib import Path
 from player.audio.playback_state import PlaybackState
 from player.audio.resume_marks import ResumeMarks
 from player.audio.between_dances import BetweenDances
+from player.audio.fade_now import FadeNow
 from gui.decks.deck_set import DeckSet
 
 TRACK = Path(r"C:\music\track.mp3")
@@ -54,6 +55,9 @@ class _FakePlayer:
     def setPosition(self, ms):
         self.seeks.append(ms)
         self._pos = ms
+
+    def setSource(self, _url):
+        pass   # the end lets go of the file
 
 
 class _FakeTable:
@@ -122,6 +126,7 @@ class _FakeWindow:
         self._now_playing = _FakeLabel()
         self._between = BetweenDances()
         self._between.pending = None
+        self._fade_now = FadeNow()
         self._bar = _FakeBar()
         self.table = _FakeTable()
         self._deckset = DeckSet()
@@ -242,6 +247,20 @@ class ResumeMarkTest(unittest.TestCase):
         self.assertEqual(w._playback.offset_ms, 63_000)
         self.assertTrue(any("↩" in m for m in w._bar.msgs))
 
+    def test_the_big_players_limit_moves_with_the_pick_up(self):
+        """L5: the cut itself honoured the new offset, but the ⏳ marker, the
+        countdown and the overlay kept the one from before the seek."""
+        from PySide6.QtMultimedia import QMediaPlayer
+        synced = []
+
+        class Win(self.Win):
+            def _sync_big_player_limit(self):
+                synced.append(self._playback.offset_ms)
+        w = Win()
+        w._resume_seek_ms = 63_000
+        w._on_media_status(QMediaPlayer.MediaStatus.LoadedMedia)
+        self.assertEqual(synced, [63_000])
+
     def test_the_floating_overlay_never_picks_a_title_up(self):
         """A pre-listen starts at the top and leaves the mark where it is."""
         w = self.Win(big=False)
@@ -354,6 +373,44 @@ class ResumeMarkTest(unittest.TestCase):
         w._resume.at[str(TRACK)] = 63_000
         w._set_remember_pos(True)
         self.assertEqual(w._resume.at, {str(TRACK): 63_000})
+
+    def test_back_to_the_start_drops_the_mark(self):
+        """⏮ 0:00 starts the title over: the badge of where it stopped before
+        would pick it up there again on the next load."""
+        w = self.Win()
+        w._resume.at.update({str(TRACK): 63_000, str(OTHER): 20_000})
+        w._on_back_to_start()
+        self.assertEqual(w._resume.at, {str(OTHER): 20_000})
+        self.assertEqual(w.table.marks, {str(OTHER): 20_000})
+
+    def test_back_to_the_start_cancels_a_pick_up_still_waiting(self):
+        """Pressed while the title is still opening, the seek to the mark
+        would land after it and undo the rewind."""
+        w = self.Win()
+        w._resume.at[str(TRACK)] = 63_000
+        w._resume_seek_ms = 63_000
+        w._on_back_to_start()
+        self.assertIsNone(w._resume_seek_ms)
+
+
+class BackToStartButtonTest(unittest.TestCase):
+    """The card's ⏮ tells the window, which owns the marks."""
+
+    def test_the_button_asks_the_window_to_start_over(self):
+        from PySide6.QtCore import QUrl
+        from PySide6.QtMultimedia import QMediaPlayer
+        from PySide6.QtWidgets import QApplication
+        from player.widgets.player import BigPlayerWidget
+        from tests.qt_test_support import reap_widget
+        QApplication.instance() or QApplication([])
+        player = QMediaPlayer()
+        player.setSource(QUrl.fromLocalFile(str(TRACK)))
+        card = BigPlayerWidget(player)
+        self.addCleanup(reap_widget, card)
+        heard = []
+        card.toStartRequested.connect(lambda: heard.append(True))
+        card._cue_btn.click()
+        self.assertEqual(heard, [True])
 
 
 class ResumeMarksTest(unittest.TestCase):

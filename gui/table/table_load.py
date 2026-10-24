@@ -235,6 +235,7 @@ class TableLoadMixin(PlaylistTableHost):
         self._use_timbre  = False
         placed = self._row_meta.placements()   # to hand the ids back below
         self._row_meta    = RunningOrder()
+        self._played_saved.clear()   # rows are rebuilt with fresh colors
         self._reset_collapse_state()
         self.setRowCount(0)
 
@@ -254,6 +255,8 @@ class TableLoadMixin(PlaylistTableHost):
 
         self._row_meta.adopt(placed)   # the ■ marker follows a title still here
         self._follow_play_row()
+        self._update_play_row_hl()
+        self._grey_played_rows()   # re-apply played greys after the rebuild
         self._notify_changed()
         self.loaded.emit(self)
 
@@ -333,7 +336,23 @@ class TableLoadMixin(PlaylistTableHost):
         # competition-style "(1 heat, N songs, ~t)" summary (a warm-up round is
         # always a single heat).
         rounds = self._warmup_sections(entries)
+        try:
+            self._fill_warmup_rows(rounds)
+        finally:
+            self._loading_rounds = None
+        self._paint_player_heats()
+        self._row_meta.adopt(placed)   # the ■ marker follows a title still here
+        self._follow_play_row()
+        self._update_play_row_hl()
+        self._grey_played_rows()   # re-apply played greys after the rebuild
+        self._notify_changed()
+        self.loaded.emit(self)
 
+    def _fill_warmup_rows(self, rounds: list) -> None:
+        """load_warmup's rows, strip by strip. Each row's round is its strip's,
+        handed to `round_at` as it goes: the order is still being built, so
+        working it out from the rows so far would be wrong, and once per row."""
+        self._loading_rounds = {}
         i = 0
         for section, songs in rounds:
             # A section header counts as this list's round header, so ⊟ / ⊞ and a
@@ -354,14 +373,10 @@ class TableLoadMixin(PlaylistTableHost):
                 self.insertRow(row)
                 self._row_meta.append(meta)
                 self._row_round_hdr[row] = round_hdr
+                self._loading_rounds[row] = section
                 bg = _C_ROW_EVEN if i % 2 == 0 else _C_ROW_ODD
                 self._fill_song_row(row, meta, bg)
                 i += 1
-        self._paint_player_heats()
-        self._row_meta.adopt(placed)   # the ■ marker follows a title still here
-        self._follow_play_row()
-        self._notify_changed()
-        self.loaded.emit(self)
 
     def _warmup_plan(self, entries: list[MusicEntry]) -> list:
         """The rows load_warmup would render for `entries`: ("H", section) for a
@@ -507,6 +522,22 @@ class TableLoadMixin(PlaylistTableHost):
         first = next((lbl for lbl in out if lbl), "")
         return [lbl or first for lbl in out]
 
+    def round_at(self, row: int) -> str:
+        """The round `row` is danced in, "" where the list knows none: a grid
+        row carries it, a running order's ─── strips name it."""
+        meta = self._row_meta.at(row)
+        if meta is None:
+            return ""
+        if meta.round_name or not (self._player_list and self._player_sections):
+            return meta.round_name
+        loading = self._loading_rounds
+        if loading is not None and row in loading:
+            return loading[row]
+        rows = self._row_meta.numbered()
+        labels = self._player_section_labels([m.entry for _, m in rows])
+        return next((lbl for (i, _m), lbl in zip(rows, labels, strict=True)
+                     if i == row), "")
+
     def _paint_player_heats(self) -> None:
         """Write "Heat 2" into the Heat column of a running order: the place of
         a title among the same dance in its round. Like the strips, a pure
@@ -575,12 +606,15 @@ class TableLoadMixin(PlaylistTableHost):
         self._use_timbre  = False
         placed = self._row_meta.placements()   # to hand the ids back below
         self._row_meta    = RunningOrder()
+        self._played_saved.clear()   # rows are rebuilt with fresh colors
         self._reset_collapse_state()
         self.setRowCount(0)
         for e in entries:
             self._append_entry(e, notify=False)
         self._row_meta.adopt(placed)   # the ■ marker follows a title still here
         self._follow_play_row()
+        self._update_play_row_hl()
+        self._grey_played_rows()   # re-apply played greys after the rebuild
         self._notify_changed()
         self.loaded.emit(self)
 

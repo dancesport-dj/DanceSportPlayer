@@ -13,6 +13,7 @@ from PySide6.QtWidgets import QDockWidget
 from planner.playing import cartwall as pc
 from planner import i18n
 from player.audio.cart_voices import CartVoices
+from player.audio.mix import cart_duck_level
 from player.widgets.cartwall import CartwallWidget
 from shared.stores import load_cartwall_file, save_cartwall_file, save_settings
 from typing import TYPE_CHECKING
@@ -40,6 +41,8 @@ class CartwallMixin(MainWindowHost):
         self._cartwall = CartwallWidget()
         self._cartwall.keysRequested.connect(
             lambda: self.open_desk_keys_window(over=self._cartwall, tab=1))
+        self._cartwall.settingsRequested.connect(
+            lambda: self._open_settings(open_cartwall=True))
         self._cartwall.padClicked.connect(self._on_pad_clicked)
         self._cartwall.changed.connect(self._save_cartwall)
         self._cartwall.stopAll.connect(self._on_cart_stop_all)
@@ -73,6 +76,7 @@ class CartwallMixin(MainWindowHost):
             self._audio_device.sync()   # 🔊 the wall's own output, if one is chosen
             self._cartwall.padsMoved.connect(self._cart_voices.rekey)
             self._apply_volume()      # push the desk level into the fresh pool
+            self.apply_cart_settings()
         self._load_cartwall()
 
     # ── the dock and the toolbar toggle ──────────────────────────────────────
@@ -157,9 +161,10 @@ class CartwallMixin(MainWindowHost):
             log.warning("🎛 Pad file is gone\n"
                         "path: %s", pad.path)
             return
-        if self._cart_voices.fire(key, pad):
+        fired = self._cart_voices.fire(key, pad)
+        if fired:
             self._cartwall.set_playing(key, True)
-        else:
+        elif fired is False:   # None: a double-click's second half
             self.statusBar().showMessage(
                 "🎛 No free pad voice — every voice holds a looping pad.")
 
@@ -202,6 +207,40 @@ class CartwallMixin(MainWindowHost):
         if self._cart_voices is not None:
             self._cart_voices.set_wall_fade(ms)
 
+    def apply_cart_settings(self):
+        """⚙ Settings ▸ 🎛 Cartwall, as far as the wall's audio follows it:
+        how far a pad ducks the music, and whether a starting title pauses 🎶
+        background pads or only mutes them."""
+        self._mix.set_cart_duck(cart_duck_level(self._settings))
+        if "cartwall" in self._mix.duck_reasons:
+            self._set_duck_reason("cartwall", True)   # a pad ducking now moves to it
+        pauses = pc.background_pauses(self._settings)
+        voices = getattr(self, "_cart_voices", None)
+        if voices is not None:
+            voices.set_background_pauses(pauses)
+        wall = getattr(self, "_cartwall", None)
+        if wall is not None:
+            wall.set_background_pauses(pauses)   # the pad dialog's 🎶 wording
+
+    def cart_wall_settings(self) -> dict:
+        """The wall's fade-out and colour, for ⚙ Settings ▸ 🎛 Cartwall:
+        they are kept in cartwall.json, not with the settings."""
+        wall = getattr(self, "_cartwall", None)
+        if wall is None:
+            return {}
+        return {"cart_fade_ms": wall.fade_ms(),
+                "cart_wall_colour": wall.default_colour()}
+
+    def apply_cart_wall(self, vals: dict):
+        """…and back onto the wall, which saves them in its file."""
+        wall = getattr(self, "_cartwall", None)
+        if wall is None:
+            return
+        if "cart_fade_ms" in vals:
+            wall.set_fade_ms(vals["cart_fade_ms"])
+        if "cart_wall_colour" in vals:
+            wall.set_default_colour(vals["cart_wall_colour"])
+
     def _on_cart_active(self, count: int):
         self._cartwall.set_active(count)
 
@@ -210,11 +249,17 @@ class CartwallMixin(MainWindowHost):
 
     def _cart_follow_deck(self, state):
         """🎶 Hung on the deck's playbackStateChanged (see _deck_slots), so it
-        moves to the other player when a crossfade swaps them."""
+        moves to the other player when a crossfade swaps them — and on the
+        pause music's: that is music too, and a background pad gives way to
+        it the same way. Whichever of the two changed, both are asked."""
         voices = getattr(self, "_cart_voices", None)
-        if voices is not None:
-            voices.set_music_playing(
-                state == QMediaPlayer.PlaybackState.PlayingState)
+        if voices is None:
+            return
+        playing = QMediaPlayer.PlaybackState.PlayingState
+        voices.set_music_playing(state == playing or any(
+            p is not None and p.playbackState() == playing
+            for p in (getattr(self, "_player", None),
+                      getattr(self, "_pause_player", None))))
 
     def _on_cart_tick(self, rows):
         for key, ms_left, frac in rows:

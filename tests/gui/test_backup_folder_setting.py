@@ -35,8 +35,8 @@ class BackupFolderRowTest(unittest.TestCase):
         self.assertEqual(self._dlg({}).values()["backup_dir"], "")
 
     def test_a_stored_folder_is_shown_and_saved(self):
-        dlg = self._dlg({"backup_dir": r"D:\Dropbox\DancePlaylist"})
-        self.assertEqual(dlg._backup_edit.text(), r"D:\Dropbox\DancePlaylist")
+        dlg = self._dlg({"backup_dir": r"E:\Sync\DancePlaylist"})
+        self.assertEqual(dlg._backup_edit.text(), r"E:\Sync\DancePlaylist")
         dlg._backup_edit.setText("  E:\\Backups  ")
         self.assertEqual(dlg.values()["backup_dir"], "E:\\Backups")
 

@@ -11,6 +11,7 @@ import struct
 import tempfile
 import unittest
 import wave
+from unittest import mock
 from pathlib import Path
 
 from shared.audio import audio_probes as gw
@@ -117,8 +118,75 @@ class DetectHighlightsTest(unittest.TestCase):
         self.assertIsNone(h2)
         self.assertAlmostEqual(h3, 8.0, delta=0.2)
 
-    def test_an_unreadable_file_yields_no_highlights(self):
-        self.assertEqual(gw.detect_pd_highlights(self._tmp / "nope.mp3"), [])
+    def test_an_unreadable_file_is_not_analysed(self):
+        # None, not []: the next play or 🐂 pass must try again.
+        self.assertIsNone(gw.detect_pd_highlights(self._tmp / "nope.mp3"))
+
+
+@unittest.skipUnless(HAS_NUMPY, "needs numpy")
+class FailedDecodeTest(unittest.TestCase):
+    """No ffmpeg, a slow drive or a broken file decode to nothing. That is
+    "not analysed", which is retried, never "analysed, no highlight", which
+    is stored for good."""
+
+    def _decoding(self, samples):
+        return mock.patch.object(gw, "decode_pcm_mono", return_value=samples)
+
+    def test_nothing_decoded_is_none(self):
+        with self._decoding(np.empty(0, dtype=np.float32)):
+            self.assertIsNone(gw.detect_pd_highlights(Path("x.mp3")))
+
+    def test_decoded_silence_is_still_an_answer(self):
+        with self._decoding(np.zeros(22050 * 5, dtype=np.float32)):
+            self.assertEqual(gw.detect_pd_highlights(Path("x.mp3")), [])
+
+    def test_the_player_worker_reports_it_as_an_error(self):
+        w = gw.PdHighlightWorker(Path("x.mp3"))
+        done, error = [], []
+        w.done.connect(lambda *a: done.append(a))
+        w.error.connect(lambda *a: error.append(a))
+        with self._decoding(np.empty(0, dtype=np.float32)):
+            w.run()
+        self.assertEqual(done, [])
+        self.assertEqual(len(error), 1)
+
+
+@unittest.skipUnless(HAS_NUMPY, "needs numpy")
+class PdWorkerCancelTest(unittest.TestCase):
+    """L12: the quit's _stop_workers could not cancel the highlight worker,
+    so its whole-track ffmpeg decode ran on, orphaned, for up to 120 s."""
+
+    def _worker(self, during=None):
+        w = gw.PdHighlightWorker(Path("x.mp3"))
+        self.proc = mock.Mock()
+        self.proc.poll.return_value = None
+        emitted = []
+        w.done.connect(lambda *a: emitted.append(a))
+        w.error.connect(lambda *a: emitted.append(a))
+
+        def decode(_path, _sr=22050, on_proc=None):
+            on_proc(self.proc)
+            if during:
+                during(w)
+            return np.empty(0, dtype=np.float32)    # what a killed decode gives
+
+        patcher = mock.patch.object(gw, "decode_pcm_mono", decode)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        return w, emitted
+
+    def test_cancel_kills_the_decode_and_reports_nothing(self):
+        w, emitted = self._worker(during=lambda w: w.cancel())
+        w.run()
+        self.proc.kill.assert_called_once_with()
+        self.assertEqual(emitted, [])
+
+    def test_cancelled_before_ffmpeg_was_up(self):
+        w, emitted = self._worker()
+        w.cancel()
+        w.run()
+        self.proc.kill.assert_called_once_with()
+        self.assertEqual(emitted, [])
 
 
 class PhrasedHighlightsTest(unittest.TestCase):
@@ -139,9 +207,23 @@ class PhrasedHighlightsTest(unittest.TestCase):
 
     def test_both_missing_highlights_are_counted_back_from_the_end(self):
         h1, h2, h3 = self.fill([None, None, 137.9])
-        self.assertAlmostEqual(h2, 94.07, delta=0.3)   # his own mark
-        self.assertAlmostEqual(h1, 58.6, delta=0.3)    # where the accent hits
+        # his own mark; 43.5 bars put it 0.41 s early here, 43 had it 0.1 s
+        # late, but 43 ran 0.4-1.3 s late on five other edits
+        self.assertAlmostEqual(h2, 94.07, delta=0.45)
+        self.assertAlmostEqual(h1, 58.07, delta=0.1)   # 35 bars before it
         self.assertEqual(h3, 137.9)
+
+    def test_the_count_lands_on_the_hand_marks(self):
+        # Marcel, on 2-11: "why is it 0.8 s off". 43 bars from the final crash
+        # ran late on 6 of his 7 marked España Cañí edits; the stretch really
+        # runs ~43.5, the tempo in the name is exact. (final crash, his mark)
+        for name, h3, hand in (
+                ("2-11 Spanish Gipsy Dance (PD 60)_gepitched.mp3", 125.06, 81.26),
+                ("21-Spanish Gypsy Dance DJ Ice Ole [PD60]_gepitched.mp3", 129.4, 86.02),
+                (self.CONCERTANTE, 137.9, 94.07)):
+            with self.subTest(name=name):
+                self.assertAlmostEqual(self.fill([None, None, h3], name)[1], hand,
+                                       delta=0.45)
 
     def test_a_highlight_the_crash_search_found_is_kept(self):
         # A plain tournament edit at 60, as the detector reads it.
@@ -158,8 +240,8 @@ class PhrasedHighlightsTest(unittest.TestCase):
         h1, h2, h3 = self.fill(
             [34.4, 70.0, 123.5],
             "PD Espana Cani (_Espana Cani_ Phrasing, 3 Highlights) (Paso Doble 59).mp3")
-        self.assertAlmostEqual(h2, 79.77, delta=0.1)
-        self.assertAlmostEqual(h1, 44.18, delta=0.1)
+        self.assertAlmostEqual(h2, 79.26, delta=0.1)
+        self.assertAlmostEqual(h1, 43.67, delta=0.1)
         self.assertEqual(h3, 123.5)
 
     def test_spanish_gipsy_dance_is_the_same_phrasing_untagged(self):
@@ -167,8 +249,8 @@ class PhrasedHighlightsTest(unittest.TestCase):
         # English title of the same piece, mostly without the tag in its name.
         h1, h2, h3 = self.fill([57.03, None, 125.92],
                                "13 Spanish Gipsy Dance (PD 60).mp3")
-        self.assertAlmostEqual(h2, 82.92, delta=0.1)
-        self.assertAlmostEqual(h1, 47.92, delta=0.1)
+        self.assertAlmostEqual(h2, 82.42, delta=0.1)
+        self.assertAlmostEqual(h1, 47.42, delta=0.1)
 
     def test_a_short_spanish_gipsy_dance_is_left_alone(self):
         times = [None, None, 83.22]

@@ -10,13 +10,13 @@ card's noise floor does not come down with it: every dB of attenuation here is a
 dB of hiss the amplifier makes up for on the way to the PA.
 
 So the target is a trade, not a taste. Too low and a hissy onboard output puts
-that hiss on the PA; too high and the boost side clips, blind, because only the
-integrated loudness is stored and never a true peak.
+that hiss on the PA; too high and the boost side clips. The true peak measured
+beside the loudness caps the gain at −1 dBTP — where it is on record.
 """
 import unittest
 from types import SimpleNamespace
 
-from shared.audio.playback import _TARGET_LUFS
+from shared.audio.playback import _TARGET_LUFS, _TRUE_PEAK_CEILING
 from player.window.main_audio import AudioLevelMixin
 
 
@@ -29,10 +29,11 @@ def _db(gain: float) -> float:
 class _Desk(AudioLevelMixin):
     """The audio half of the window, reduced to what the gain is worked out from."""
 
-    def __init__(self, lufs, active: bool = True):
+    def __init__(self, lufs, active: bool = True, tp=None):
         self._loudness = active
         self._library = SimpleNamespace(
-            cache=SimpleNamespace(get_lufs=lambda _p: lufs))
+            cache=SimpleNamespace(get_lufs=lambda _p: lufs,
+                                  get_tp=lambda _p: tp))
 
     def _pv(self, key):
         # The playing list's own values — only the 📊 switch is asked here.
@@ -71,6 +72,30 @@ class LoudnessTargetTest(unittest.TestCase):
 
     def test_switched_off_nothing_is_touched(self):
         self.assertEqual(_gain(-9.9, active=False), 1.0)
+
+
+class TruePeakCapTest(unittest.TestCase):
+    """🔝 No boost past −1 dBTP, and a master already over it comes down."""
+
+    def test_the_ceiling_is_one_db_under_full_scale(self):
+        self.assertEqual(_TRUE_PEAK_CEILING, -1.0)
+
+    def test_a_boost_stops_at_the_ceiling(self):
+        """−20 LUFS wants +6 dB; a peak at −3 dBTP leaves room for 2."""
+        self.assertAlmostEqual(_db(_gain(-20.0, tp=-3.0)), 2.0, places=6)
+
+    def test_room_enough_leaves_the_boost_alone(self):
+        self.assertAlmostEqual(_db(_gain(-20.0, tp=-12.0)), 6.0, places=6)
+
+    def test_a_master_over_the_ceiling_is_pulled_down(self):
+        """On target already (0 dB), but peaking at +0.5 dBTP: −1.5 dB."""
+        self.assertAlmostEqual(_db(_gain(_TARGET_LUFS, tp=0.5)), -1.5, places=6)
+
+    def test_a_deeper_cut_is_not_lifted(self):
+        self.assertAlmostEqual(_db(_gain(-9.0, tp=-0.2)), -5.0, places=6)
+
+    def test_no_peak_on_record_caps_nothing(self):
+        self.assertAlmostEqual(_db(_gain(-20.0, tp=None)), 6.0, places=6)
 
 
 if __name__ == "__main__":

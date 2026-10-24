@@ -112,10 +112,9 @@ def _default_global_dir() -> Path:
 
 
 def _default_save_dir() -> Path:
-    """Default folder for the 'Save as M3U…' file chooser (the user's tournament
-    dropbox), used until the user picks somewhere else."""
-    p = Path(r"D:\Dropbox\Turniere")
-    return p if p.exists() else _user_docs_dir()
+    """Default folder for the 'Save as M3U…' file chooser (the user's
+    Documents), used until the user picks somewhere else."""
+    return _user_docs_dir()
 
 
 # Where each configured folder lands when it isn't there: a drive letter that
@@ -156,6 +155,17 @@ def apply_path_fallbacks(s: dict) -> dict:
         configured = str(s.get(key) or "").strip()
         remembered = str(offline.get(key) or "").strip()
         alt = fallback()
+        # Asked before "is the old one back": a pick made while the drive was
+        # away must win even when the drive is plugged in by the next start.
+        if (remembered and configured and configured != str(alt)
+                and Path(configured).is_dir()):
+            # Not the stand-in any more: picked by hand, so stop waiting.
+            log.info("📁 Folder picked by hand — forgetting the old one\n"
+                     "setting: %s\n"
+                     "now: %s\n"
+                     "forgotten: %s", key, configured, remembered)
+            offline.pop(key, None)
+            continue
         if remembered and Path(remembered).is_dir():
             log.info("📁 The folder is back — using it again\n"
                      "setting: %s\n"
@@ -165,13 +175,6 @@ def apply_path_fallbacks(s: dict) -> dict:
             offline.pop(key, None)
             continue
         if configured and Path(configured).is_dir():
-            if remembered and configured != str(alt):
-                # Not the stand-in any more: picked by hand, so stop waiting.
-                log.info("📁 Folder picked by hand — forgetting the old one\n"
-                         "setting: %s\n"
-                         "now: %s\n"
-                         "forgotten: %s", key, configured, remembered)
-                offline.pop(key, None)
             continue
         if not alt.is_dir():
             continue        # nothing better to offer — keep what is configured
@@ -222,9 +225,10 @@ def load_settings() -> dict:
         # A double-click CUES the title by default — the desk is a tournament
         # until a party list says otherwise, and there the music starts on ⏯.
         "dblclick_plays": False,
-        # 📂 …and never hands the file to the OS player unless asked to: on a
-        # Mac that starts Apple's Music app (see gui.common, dblclick_external).
-        "dblclick_external": False,
+        # 📂 …and while planning, in 📚 the library and the dialogs, does
+        # nothing until asked to (see gui.common, DBLCLICK_ACTIONS): the OS
+        # player is Apple's Music app on a Mac, which nobody asked for.
+        "dblclick_action": "nothing",
         # ↩ Pick a title up where it was left. Off by default: a heat is danced
         # from the top, so the one player starting a title in its middle is a
         # surprise nobody asked for until they ask for it.
@@ -257,6 +261,12 @@ def load_settings() -> dict:
         # toggle, library column order, …) — the defaults above only fill
         # gaps. A whitelist here used to silently drop all of those.
         s.update(data)
+        # 📂 The double-click checkbox became a choice (dblclick_action).
+        if data.get("dblclick_external") and "dblclick_action" not in data:
+            s["dblclick_action"] = "external"
+        # 🏷 Edit MP3 tag and Edit DB information became the one Edit tags.
+        if s.get("dblclick_action") in ("mp3", "db"):
+            s["dblclick_action"] = "tags"
     migrate_column_settings(s)
     migrate_play_sets(s)
     return apply_path_fallbacks(s)
@@ -274,11 +284,14 @@ def audio_output_choices() -> list[tuple[str, str]]:
 
 # Bumped when a column is added to the decks or the library: the column ticks,
 # widths and the library's order are saved by column INDEX.
-COLUMNS_VERSION = 6
+COLUMNS_VERSION = 8
 
-# The column each version added: (its index in the decks, in the library).
-# v2 ★ Rating, v3 Custom, v4 File name, v5 Album, v6 Comment.
-_ADDED_COLUMNS = {2: (9, 10), 3: (10, 11), 4: (11, 12), 5: (12, 13), 6: (13, 14)}
+# The column each version added: (its index in the decks, in the library —
+# None where that side got none).
+# v2 ★ Rating, v3 Custom, v4 File name, v5 Album, v6 Comment, v7 Plays in the
+# decks, v8 Plays in the library.
+_ADDED_COLUMNS = {2: (9, 10), 3: (10, 11), 4: (11, 12), 5: (12, 13), 6: (13, 14),
+                  7: (14, None), 8: (None, 15)}
 
 
 def migrate_column_settings(s: dict) -> dict:
@@ -290,15 +303,42 @@ def migrate_column_settings(s: dict) -> dict:
     Marcel wanted ★ and Custom out of the way until asked for. A saved library
     order lists exactly the old columns, and one that doesn't list them all
     is thrown away whole, so the new column is appended to it."""
-    version = int(s.get("columns_version") or 1)
-    for step in range(version + 1, COLUMNS_VERSION + 1):
-        _add_column(s, *_ADDED_COLUMNS[step])
+    try:
+        version = max(int(s.get("columns_version") or 1), 1)
+        for step in range(version + 1, COLUMNS_VERSION + 1):
+            _add_column(s, *_ADDED_COLUMNS[step])
+    except (TypeError, ValueError, AttributeError) as exc:
+        # A hand-edited value that names no column: the saved layout goes
+        # back to the defaults instead of the app failing to start.
+        log.warning("⚠️ Saved column layout unreadable, using the defaults\n"
+                    "error: %s", exc)
+        for key in _COLUMN_KEYS:
+            s.pop(key, None)
+        version = COLUMNS_VERSION
     s["columns_version"] = max(version, COLUMNS_VERSION)
     return s
 
 
-def _add_column(s: dict, added: int, lib_added: int) -> None:
+# The settings migrate_column_settings rewrites by column index.
+_COLUMN_KEYS = ("hidden_columns", "column_widths", "column_order",
+                "library_hidden_columns", "library_columns")
+
+
+def _add_column(s: dict, added: int | None, lib_added: int | None) -> None:
     """One step of migrate_column_settings."""
+    if added is not None:
+        _add_deck_column(s, added)
+    if lib_added is None:
+        return
+    lib_hidden = [int(c) for c in s.get("library_hidden_columns") or []]
+    s["library_hidden_columns"] = sorted(set(lib_hidden) | {lib_added})
+    order = s.get("library_columns")
+    if isinstance(order, list) and sorted(int(c) for c in order) == list(range(lib_added)):
+        s["library_columns"] = [int(c) for c in order] + [lib_added]
+
+
+def _add_deck_column(s: dict, added: int) -> None:
+    """The decks' half of a migrate_column_settings step."""
     def shift(c):
         c = int(c)                  # JSON keys of the widths come back as str
         return c + 1 if c >= added else c
@@ -319,11 +359,6 @@ def _add_column(s: dict, added: int, lib_added: int) -> None:
                              if isinstance(order, list) and len(order) == added + 1
                              else order
                              for kind, order in orders.items()}
-    lib_hidden = [int(c) for c in s.get("library_hidden_columns") or []]
-    s["library_hidden_columns"] = sorted(set(lib_hidden) | {lib_added})
-    order = s.get("library_columns")
-    if isinstance(order, list) and sorted(int(c) for c in order) == list(range(lib_added)):
-        s["library_columns"] = [int(c) for c in order] + [lib_added]
 
 
 # ─────────────────────────────────────────────────────────────────────────────

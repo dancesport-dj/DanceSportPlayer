@@ -135,6 +135,12 @@ class UnplugTest(unittest.TestCase):
         self.desk._on_screen_removed(_Screen("OTHER"))
         self.assertEqual(self.desk._play_panel.on, [])
 
+    def test_a_twin_of_its_monitor_going_away_leaves_it_standing(self):
+        """L8: on macOS a screen's name is its model name, so a second monitor
+        of the same model unplugged closed the presenter on the first."""
+        self.desk._on_screen_removed(_Screen("BEAMER"))
+        self.assertEqual(self.desk._play_panel.on, [])
+
     def test_it_comes_back_with_its_monitor(self):
         self.desk._on_screen_removed(self.beamer)
         self.desk._presenter = None             # closed, as the toggle does

@@ -1,0 +1,51 @@
+name: monkey nightly
+
+# The monkey walks in tests.yml are short (150 steps, 4 clicks per dialog) so
+# every push stays quick. Each night this runs them long and deep on four new
+# seeds, on Windows, the leg that has to pass. A red job names its seed in the
+# failure; replay it here with workflow_dispatch, or locally with
+# DANCEPLAYLIST_MONKEY_SEED=<seed> and the two settings below.
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: "Replay this one seed (empty: four from today's date)"
+        type: string
+        default: ""
+
+jobs:
+  monkey:
+    strategy:
+      fail-fast: false
+      matrix:
+        n: ${{ fromJSON(inputs.seed && '[0]' || '[1, 2, 3, 4]') }}
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.lock
+          python -m pip install -r requirements-dev.txt
+
+      - name: Monkey
+        shell: bash
+        env:
+          QT_QPA_PLATFORM: offscreen
+          PYTHONIOENCODING: utf-8
+          DANCEPLAYLIST_MONKEY_STEPS: "1000"
+          DANCEPLAYLIST_MONKEY_DIALOG_CLICKS: "15"
+          REPLAY_SEED: ${{ inputs.seed }}
+        run: |
+          export DANCEPLAYLIST_MONKEY_SEED="${REPLAY_SEED:-$(date -u +%Y%m%d)${{ matrix.n }}}"
+          echo "seed $DANCEPLAYLIST_MONKEY_SEED"
+          python -m unittest tests.gui.test_monkey -v

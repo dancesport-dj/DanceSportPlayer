@@ -143,14 +143,13 @@ class TableDragDropMixin(PlaylistTableHost):
 
         drag = QDrag(self)
         drag.setMimeData(mime)
-        # Offer Copy/Move/Link like an Explorer drag — some external apps only
-        # accept the drop if their preferred action is among the ones offered,
-        # even though we still default to Copy (never MOVE the real MP3 out of
-        # the library). Internal slot-to-slot moves are handled manually in
-        # dropEvent (keyed off e.source() is self), so no special-casing needed.
+        # Copy and Link only: with Move on offer the Windows shell picks it on a
+        # same-drive drop (or with Shift) and takes the real MP3 out of the
+        # library. Internal slot-to-slot moves are handled manually in
+        # dropEvent (keyed off e.source() is self) and never ask for a Move.
         try:
-            drag.exec(Qt.DropAction.CopyAction | Qt.DropAction.MoveAction
-                      | Qt.DropAction.LinkAction, Qt.DropAction.CopyAction)
+            drag.exec(Qt.DropAction.CopyAction | Qt.DropAction.LinkAction,
+                      Qt.DropAction.CopyAction)
         finally:
             self._drag_src_rows = []
             self._stop_autoscroll()
@@ -808,6 +807,11 @@ class TableDragDropMixin(PlaylistTableHost):
         if added and not ctrl:
             if from_wishlist:
                 moved = src_tbl._remove_rows(src_tbl._drag_src_rows, select_after=True)
+            elif from_deck and src_tbl._warmup:
+                # No grid behind a warm-up list: an emptied row would be a hole
+                # nothing fills, so the title leaves the list.
+                moved = src_tbl._drop_running_order_rows(set(src_tbl._drag_src_rows),
+                                                         select_after=True)
             elif from_deck:
                 moved = src_tbl._clear_slots_at(set(src_tbl._drag_src_rows), select_after=True)
         # Auto-clean: a wishlist shouldn't hold tracks already in an open playlist, so
@@ -903,8 +907,9 @@ class TableDragDropMixin(PlaylistTableHost):
         n = len(self._row_meta)
         order = list(range(max(0, start_row), n)) + list(range(0, max(0, start_row)))
         # Resolved in one pass so a folder's worth of tracks gets the progress
-        # dialog rather than reading tags silently in the placement loop.
-        for p, ent in zip(paths, self._entries_for_paths(paths), strict=True):
+        # dialog rather than reading tags silently in the placement loop. Not
+        # strict: a cancelled resolve comes back short and places what it found.
+        for p, ent in zip(paths, self._entries_for_paths(paths), strict=False):
             dance = getattr(ent, "dance", None) if ent else None
             for r in order:
                 m = self._row_meta[r]
@@ -1001,17 +1006,12 @@ class TableDragDropMixin(PlaylistTableHost):
                         anchor=self._effective_anchor(meta.round_name, {row}))
                     if self._use_timbre else None)
 
-            if row == self._current_play_row:
-                self._current_play_row = -1
-                if self._play_cb:
-                    self._play_cb(None)
-
-            meta.entry = new_entry
-            if self._playlist is not None and meta.round_name is not None:
-                self._playlist[meta.round_name][meta.h_idx][meta.d_idx] = new_entry
+            # A playing title keeps playing; the cursor stays on the slot.
+            self._store_pick(meta, new_entry)
 
             bg = _C_ROW_EVEN if meta.h_idx % 2 == 0 else _C_ROW_ODD
             QTimer.singleShot(0, lambda: (self._fill_song_row(row, meta, bg),
+                                          self.sync_play_glyph(),
                                           self._notify_changed()))
             return True
         except Exception as exc:

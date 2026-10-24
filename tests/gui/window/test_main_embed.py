@@ -197,6 +197,7 @@ class LibrosaAnalysisTest(_TestBase):
         self.busy.return_value.cancel_requested.connect.assert_called_once_with(worker.cancel)
         worker.done.connect.assert_called_once_with(win._on_index_done)
         worker.cancelled.connect.assert_called_once_with(win._on_index_cancelled)
+        worker.error.connect.assert_called_once_with(win._on_index_error)
         self.assertEqual(win._index_scope_label, "S")
 
 
@@ -235,6 +236,17 @@ class LibrosaOutcomeTest(_TestBase):
         win._busy.finish.assert_called_once()
         self.assertEqual(win.refreshed, 1)
         self.assertIn("7 files analyzed so far", win.statusBar().currentMessage())
+
+    def test_an_error_closes_the_dialog_and_says_why(self):
+        """A crashed analyzer left the BusyDialog up for good (review G1)."""
+        dialogs = _Dialogs(self)
+        win = self.host()
+        win._busy = mock.Mock()
+        win._on_index_error("database is locked")
+        win._busy.finish.assert_called_once()
+        self.assertEqual(win.refreshed, 1)
+        self.assertEqual(dialogs.kinds(), ["critical"])
+        self.assertIn("database is locked", dialogs.calls[0][2])
 
 
 class EmbeddingBuildTest(_TestBase):

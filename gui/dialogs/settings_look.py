@@ -275,11 +275,15 @@ class LookTabMixin(_DialogHost):
             return
         look = editor.look()
         if not user_looks.put(look):
-            QMessageBox.warning(self, "Look not saved",
-                                "The looks file could not be written. "
-                                "The log names the reason.")
+            self._not_saved()
+            return
         self._looks_touched.add(look.key)
         self._relist(look.key)
+
+    def _not_saved(self) -> None:
+        QMessageBox.warning(self, "Look not saved",
+                            "The looks file could not be written. "
+                            "The log names the reason.")
 
     def _delete_look(self) -> None:
         look = self._selected_own()
@@ -291,7 +295,9 @@ class LookTabMixin(_DialogHost):
                    "an exported file of it stays.") % look.caption)
         if answer != QMessageBox.StandardButton.Yes:
             return
-        user_looks.remove(look.key)
+        if not user_looks.remove(look.key):
+            self._not_saved()
+            return
         self._looks_touched.add(look.key)
         self._relist("light")
 
@@ -303,6 +309,9 @@ class LookTabMixin(_DialogHost):
             return
         try:
             look = user_looks.import_file(Path(path))
+        except user_looks.NotSaved:
+            self._not_saved()
+            return
         except (ValueError, OSError) as exc:
             QMessageBox.warning(self, "Look not imported",
                                 i18n.t("This file holds no look the app can use:\n%s")

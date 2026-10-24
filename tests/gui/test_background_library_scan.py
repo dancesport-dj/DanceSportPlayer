@@ -285,6 +285,9 @@ class _Win:
     def _preload_global_lib(self):
         pass   # the background repository load has its own test
 
+    def _offer_crash_resume(self):
+        pass   # the crash resume has its own test
+
     def show(self):
         self.log.append("WINDOW SHOWN")
 
@@ -293,6 +296,9 @@ class _Win:
 
     def _seed_undo_baseline(self):
         self.log.append("undo baseline")
+
+    def _load_play_counts(self):
+        pass   # 🔁 the Plays column has its own test
 
     def _refresh_library_status(self, enable_generate=False):
         self.log.append(f"library status (generate={enable_generate})")

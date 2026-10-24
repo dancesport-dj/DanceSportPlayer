@@ -24,6 +24,7 @@ from planner.models import DANCE_NAMES, MusicEntry
 from planner.terms import dance_name, genre_name
 from planner import i18n
 from planner.generate.warmup import _WARMUP_ORDER, warmup_code
+from planner.playing import play_counts
 from gui.common import (
     BusyDialog,
     _C_ROW_EVEN,
@@ -41,6 +42,7 @@ from shared.columns import (
     _COL_DANCE,
     _COL_FILE,
     _COL_LEN,
+    _COL_PLAYS,
     _COL_POP,
     _COL_RATING,
     _COL_TITLE,
@@ -496,9 +498,15 @@ class TableActionsMixin(TableMenuMixin):
         # that survives keeps its ■ marker — its id renumbers with its row.
         if self._current_play_row in rows and self._play_cb:
             self._play_cb(None)
+        # The grey of a played row is remembered by (row, column): give every
+        # row its own colour back while those numbers still mean its rows.
+        self._ungrey_played_rows()
         for r in rows:
             self.removeRow(r)
             del self._row_meta[r]
+        # The frame goes back on the playing row, and the played rows grey
+        # again where they now sit.
+        self._update_play_row_hl()
         self._notify_changed()
         if select_after and self.rowCount():
             self._focus_rows([min(gap, self.rowCount() - 1)])
@@ -723,8 +731,9 @@ class TableActionsMixin(TableMenuMixin):
                 todo.append((p, False))
         out: list[MusicEntry] = []
         unreadable: list[Path] = []
+        # Not strict: a cancelled resolve comes back short (see _entries_for_paths).
         for (p, from_m3u), ent in zip(todo, self._entries_for_paths(
-                [tp for tp, _ in todo]), strict=True):
+                [tp for tp, _ in todo]), strict=False):
             if ent is not None:
                 out.append(ent)
             elif not from_m3u:
@@ -860,6 +869,7 @@ class TableActionsMixin(TableMenuMixin):
                                (e.title or "").lower()),
         _COL_COMMENT: lambda e: ((getattr(e, "tag_comment", None) or "").lower(),
                                  (e.title or "").lower()),
+        _COL_PLAYS: lambda e: (play_counts.count(e.path), (e.title or "").lower()),
     }
 
     def _sortable_as_list(self) -> bool:
@@ -1060,8 +1070,9 @@ class TableActionsMixin(TableMenuMixin):
         return n
 
     def _ask_which_duplicates(self, identical, groups) -> set[int] | None:
-        """Show `DuplicateTitlesDialog`: `identical` (row, first row) pairs go for
-        sure, each group (rows of one title) keeps the file the user picks.
+        """Show `DuplicateTitlesDialog`: `identical` (row, first row) pairs go
+        unless the user keeps them, each group (rows of one title) keeps the
+        file the user picks.
         Returns every row to remove, or None when cancelled."""
         from gui.dialogs.duplicate_titles_dialog import DuplicateTitlesDialog
 
@@ -1074,7 +1085,8 @@ class TableActionsMixin(TableMenuMixin):
             play_cb=self._play_cb)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return None
-        return {r for r, _first in identical} | dlg.removed_rows()
+        gone = set() if dlg.keeps_identical() else {r for r, _first in identical}
+        return gone | dlg.removed_rows()
 
     def _clear_slots_at(self, row_set, select_after: bool = False) -> bool:
         """Empty the given heat slots (static: slot stays as "⚠ No song found"; dynamic:

@@ -46,7 +46,7 @@ TARGETS = [
     (r"🔁  (Unmark|Mark for)", "_toggle_mark"),
     (r"🔁  Reset all replacement marks", "_reset_all_marks"),
     (r"📌  (Unpin|Pin)", "_toggle_pin"),
-    (r"🗑  Remove from wishlist", "removeRow"),
+    (r"🗑  Remove from wishlist", "_remove_rows"),
     (r"⇅  Swap these two titles", "_swap_selected"),
     (r"➕  Add a heat", "_add_dynamic_heat"),
     (r"➕  (Insert new round|Create new round)", "_insert_dynamic_round"),

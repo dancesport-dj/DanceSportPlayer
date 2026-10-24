@@ -25,6 +25,7 @@ from gui import tournament_tiles as tiles, tournament_tree as gt
 from planner.store import JsonStore
 from planner.playlist.m3u import read_m3u_tracks
 from planner.models import MusicEntry
+from planner.playing import play_counts
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -512,6 +513,131 @@ class PaneTrackListTest(_PaneCase):
         self.assertEqual(self.pane._table.rowCount(), 0)
 
 
+class PaneTrackColumnsTest(_PaneCase):
+    """The track list's columns, as the playlist's are.
+
+    Marcel: "Tournaments Tag Titel zeigt nicht den Titel, sondern den
+    Dateinamen … same problem which we fixed in playlist, missing column
+    filename, dedicated titel from mp3 tag, also there make column moveable
+    and an context menu to disable columns like playlist has"."""
+
+    view = gt.VIEW_LIST
+
+    def pick(self, title="Waltz A", tag_title=None):
+        track = self.dir / "lw30 - Waltz A.mp3"
+        track.write_bytes(b"")
+        m3u = _m3u(self.dir, "Turnier 1", [(track, "whatever the file says")])
+        self.pane.set_entries([MusicEntry(path=track, title=title, dance="LW",
+                                          tag_title=tag_title)])
+        self.pane._on_files_dropped(None, [m3u])
+        self.pane._tree.setCurrentItem(self.pane._tree.topLevelItem(0))
+        return track
+
+    def header(self, c):
+        return self.pane._table.horizontalHeaderItem(c).text()
+
+    def test_title_shows_the_title_tag(self):
+        self.pick(tag_title="The Last Waltz")
+        self.assertEqual(self.pane._table.item(0, 4).text(), "The Last Waltz")
+
+    def test_without_a_tag_title_shows_the_file_name(self):
+        self.pick(tag_title=None)
+        self.assertEqual(self.pane._table.item(0, 4).text(), "Waltz A")
+
+    def test_the_file_name_has_a_column_of_its_own(self):
+        track = self.pick(tag_title="The Last Waltz")
+        self.assertEqual(self.header(gt._TRACK_COL_FILE), "Filename")
+        cell = self.pane._table.item(0, gt._TRACK_COL_FILE)
+        self.assertEqual(cell.text(), "Waltz A")
+        self.assertEqual(cell.toolTip(), str(track))
+
+    def test_the_file_name_waits_until_asked_for(self):
+        self.assertTrue(self.pane._table.isColumnHidden(gt._TRACK_COL_FILE))
+
+    def test_the_columns_can_be_dragged_into_another_order(self):
+        self.assertTrue(
+            self.pane._table.horizontalHeader().sectionsMovable())
+
+    def menu_ticks(self):
+        return {a.data(): a for a in self.pane._build_column_menu().actions()
+                if a.isCheckable()}
+
+    def test_the_header_menu_ticks_columns_but_never_title(self):
+        ticks = self.menu_ticks()
+        self.assertNotIn(4, ticks, "a row without its title is no row")
+        self.assertIn(gt._TRACK_COL_FILE, ticks)
+        self.assertFalse(ticks[gt._TRACK_COL_FILE].isChecked())
+        self.assertTrue(ticks[1].isChecked())
+        # The glyph headers say what they are in the menu.
+        self.assertEqual(ticks[0].text(), "▶  Play")
+        self.assertEqual(ticks[6].text(), "⏱  Length")
+
+    def test_unticking_a_column_hides_it(self):
+        self.menu_ticks()[1].trigger()
+        self.assertTrue(self.pane._table.isColumnHidden(1))
+        self.menu_ticks()[gt._TRACK_COL_FILE].trigger()
+        self.assertFalse(self.pane._table.isColumnHidden(gt._TRACK_COL_FILE))
+
+    def test_hidden_columns_and_order_survive_a_restart(self):
+        self.menu_ticks()[1].trigger()                 # Round away
+        self.menu_ticks()[gt._TRACK_COL_FILE].trigger()   # Filename on
+        self.pane._table.horizontalHeader().moveSection(4, 2)   # Title left
+        again = gt.TournamentTree(self.state)
+        self.addCleanup(reap_widget, again)
+        t = again._table
+        self.assertTrue(t.isColumnHidden(1))
+        self.assertFalse(t.isColumnHidden(gt._TRACK_COL_FILE))
+        self.assertEqual(t.horizontalHeader().visualIndex(4), 2)
+
+    def test_plays_shows_how_often_a_title_played_today(self):
+        # Marcel: "Plays Counter should aslo be available in library column
+        # and in tournament column"
+        self.addCleanup(play_counts.clear)
+        track = self.dir / "lw30 - Waltz A.mp3"
+        play_counts.bump(track)
+        play_counts.bump(track)
+        self.pick()
+        self.assertEqual(self.header(gt._TRACK_COL_PLAYS), "Plays")
+        self.assertEqual(self.pane._table.item(0, gt._TRACK_COL_PLAYS).text(), "2")
+        play_counts.bump(track)
+        self.pane.refresh_play_counts()
+        self.assertEqual(self.pane._table.item(0, gt._TRACK_COL_PLAYS).text(), "3")
+
+    def test_plays_waits_until_asked_for(self):
+        self.assertTrue(self.pane._table.isColumnHidden(gt._TRACK_COL_PLAYS))
+        self.assertIn(gt._TRACK_COL_PLAYS, self.menu_ticks())
+
+    def test_a_layout_saved_before_plays_keeps_its_order(self):
+        order = [4, 0, 1, 2, 3, 5, 6, 7, 8, 9]   # Title dragged first
+        self.state.write({"version": 1, "tournaments": [],
+                          "columns": {"hidden": [1], "order": order}})
+        again = gt.TournamentTree(self.state)
+        self.addCleanup(reap_widget, again)
+        t = again._table
+        self.assertTrue(t.isColumnHidden(1))
+        self.assertTrue(t.isColumnHidden(gt._TRACK_COL_PLAYS))
+        self.assertEqual(t.horizontalHeader().visualIndex(4), 0)
+        self.assertEqual(t.horizontalHeader().visualIndex(gt._TRACK_COL_PLAYS), 10)
+
+    def test_the_header_menu_resets_through_the_window(self):
+        self.addCleanup(play_counts.clear)
+        play_counts.bump(self.dir / "x.mp3")
+        calls = []
+        self.pane.playCountsResetWanted.connect(lambda: calls.append("reset"))
+        reset = next(a for a in self.pane._build_column_menu().actions()
+                     if a.text() == "Reset the play counters")
+        reset.trigger()
+        self.assertEqual(calls, ["reset"])
+
+    def test_the_tree_still_saves_beside_the_columns(self):
+        self.menu_ticks()[1].trigger()
+        self.pick()
+        saved = json.loads(self.state.path.read_text(encoding="utf-8"))
+        self.assertEqual(len(saved["tournaments"]), 1)
+        self.assertEqual(saved["view"], gt.VIEW_LIST)
+        self.assertIn(1, saved["columns"]["hidden"])
+
+
 class PaneBadgeTest(_PaneCase):
     """The badge: how many songs the selection is, and how long."""
 
@@ -893,7 +1019,7 @@ class HeaderLanguageTest(unittest.TestCase):
         # The ⏱ column draws its own header, so its text is blank by then.
         self.assertEqual(self.headers("en"),
                          ["▶", "Round", "Dance", "Artist", "Title",
-                          "BPM", "", "Pop", "Class"])
+                          "BPM", "", "Pop", "Class", "Filename", "Plays"])
 
     def test_german_says_runde(self):
         cols = self.headers("de")

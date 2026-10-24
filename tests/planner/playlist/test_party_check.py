@@ -221,6 +221,23 @@ class RoundStructureTest(unittest.TestCase):
                             and "Langsamer Walzer, Tango, Quickstep" in t
                             for t in found), found)
 
+    def test_an_opener_the_library_lacks_is_not_owed(self):
+        """The builder takes only the openers that have tracks and fills the
+        round from the rest — a library without a Quickstep opens LW TG SF."""
+        entries = listing('LW', 'TG', 'SF',
+                          'CC', 'RB', 'JI')
+        no_qs = {'LW', 'TG', 'WW', 'SF', 'CC', 'SA', 'RB', 'PD', 'JI'}
+        found = texts(pc.party_findings(entries, available=no_qs), pc.ROUNDS)
+        self.assertFalse(any("opens the section" in t for t in found), found)
+
+    def test_the_openers_the_library_has_are_still_owed(self):
+        entries = listing('LW', 'SF', 'WW',
+                          'CC', 'RB', 'JI')
+        no_qs = {'LW', 'TG', 'WW', 'SF', 'CC', 'SA', 'RB', 'PD', 'JI'}
+        found = texts(pc.party_findings(entries, available=no_qs), pc.ROUNDS)
+        self.assertTrue(any("opens the section" in t
+                            and t.count("Tango") == 1 for t in found), found)
+
     def test_two_rounds_of_the_same_section_may_not_touch(self):
         """A pair of Standard rounds in a row cannot show up as one long round:
         the repeated dance cuts them apart, and it is the touching pair that is

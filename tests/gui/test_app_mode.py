@@ -306,6 +306,9 @@ class FindFfmpegTest(unittest.TestCase):
         self.addCleanup(setattr, audio_probes, "_FFMPEG_CANDIDATES",
                         audio_probes._FFMPEG_CANDIDATES)
         self.addCleanup(setattr, shutil, "which", shutil.which)
+        self.addCleanup(setattr, audio_probes, "_BUNDLED_FFMPEG",
+                        audio_probes._BUNDLED_FFMPEG)
+        audio_probes._BUNDLED_FFMPEG = ()
         audio_probes._FFMPEG_CANDIDATES = (Path("/nowhere/ffmpeg"), exe)
         shutil.which = lambda *_a, **_kw: None
         self.assertEqual(audio_probes.find_ffmpeg(), str(exe))
@@ -326,6 +329,35 @@ class FindFfmpegTest(unittest.TestCase):
         self.assertEqual(found, ["ffmpeg-10.0-essentials_build",
                                  "ffmpeg-9.0.2-essentials_build",
                                  "ffmpeg-8.1.1-essentials_build"])
+
+    def test_the_bundled_copy_beats_one_on_path(self):
+        """Ours first: whatever else answers to "ffmpeg" on PATH is not the
+        build we shipped and tested."""
+        from pathlib import Path
+        from unittest import mock
+
+        from shared.audio import audio_probes
+
+        exe = Path(tempfile.mkdtemp(prefix="dp_ffmpeg_")) / "ffmpeg.exe"
+        exe.write_text("")
+        with mock.patch.object(audio_probes, "_BUNDLED_FFMPEG", (exe,)), \
+                mock.patch.object(audio_probes.shutil, "which",
+                                  return_value="C:/elsewhere/ffmpeg.exe"):
+            self.assertEqual(audio_probes.find_ffmpeg(), str(exe))
+
+    def test_an_ffmpeg_in_the_current_folder_is_not_taken(self):
+        """Windows' lookup tries the current folder before PATH, so an
+        ffmpeg.exe left in a music folder would run on every probe."""
+        from pathlib import Path
+        from unittest import mock
+
+        from shared.audio import audio_probes
+
+        planted = str(Path.cwd() / "ffmpeg.exe")
+        with mock.patch.object(audio_probes, "_BUNDLED_FFMPEG", ()), \
+                mock.patch.object(audio_probes, "_FFMPEG_CANDIDATES", ()), \
+                mock.patch.object(audio_probes.shutil, "which", return_value=planted):
+            self.assertIsNone(audio_probes.find_ffmpeg())
 
 
 class _StubDialog:

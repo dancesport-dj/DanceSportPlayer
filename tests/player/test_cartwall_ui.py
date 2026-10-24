@@ -53,28 +53,6 @@ def _typed_text(text, ok=True):
 
 
 @contextlib.contextmanager
-def _fade_dialog(ms, ok=True):
-    """Stand in for WallFadeDialog, for the same reason as _typed_text."""
-    class _Stub:
-        def __init__(self, *a, **kw):
-            pass
-
-        def exec(self):
-            return (gc.QDialog.DialogCode.Accepted if ok
-                    else gc.QDialog.DialogCode.Rejected)
-
-        def fade_ms(self):
-            return ms
-
-    real = gc.WallFadeDialog
-    gc.WallFadeDialog = _Stub
-    try:
-        yield
-    finally:
-        gc.WallFadeDialog = real
-
-
-@contextlib.contextmanager
 def _answer(yes: bool):
     """Stand in for QMessageBox.question — modal, so never let one really open."""
     real = gc.QMessageBox.question
@@ -281,7 +259,7 @@ class WallColourTest(_WallCase):
             (0, 0): pc.CartPad(path=_SAMPLE),
             (0, 1): pc.CartPad(path=_SAMPLE, colour="#2f8f4e")})])
         # Not white: white is already the standard, so it would prove nothing.
-        self.w._on_default_colour("#c8871a")
+        self.w.set_default_colour("#c8871a")
         self.assertEqual(self.w.default_colour(), "#c8871a")
         self.assertIn("#c8871a", self._pad_widget(0, 0).styleSheet())
         self.assertIn("#2f8f4e", self._pad_widget(0, 1).styleSheet())
@@ -619,26 +597,6 @@ class WallFadeTest(unittest.TestCase):
         own = pc.CartPad(path="a.mp3", fade_ms=0)
         self.assertEqual(pc.fade_for(wall, 2500), 2500)
         self.assertEqual(pc.fade_for(own, 2500), 0)   # a real cut, not "unset"
-
-    def test_a_pad_menu_can_set_the_wall_fade(self):
-        """The real path, with the modal dialog stubbed — a live exec() in a
-        test run never comes back."""
-        self.w.set_wall((2, 8), [pc.Page(pads={(0, 0): pc.CartPad(path=_SAMPLE)})])
-        with _fade_dialog(3200):
-            self.w._buttons[(0, 0, 0)].wall_fade_requested.emit()
-        self.assertEqual(self.w.fade_ms(), 3200)
-
-    def test_cancelling_leaves_the_wall_fade_alone(self):
-        with _fade_dialog(3200, ok=False):
-            self.w._on_wall_fade()
-        self.assertEqual(self.w.fade_ms(), pc.DEFAULT_FADE_MS)
-
-    def test_the_dialog_reads_back_what_was_set(self):
-        dlg = cpd.WallFadeDialog(1500)
-        self.assertEqual(dlg.fade_ms(), 1500)
-        dlg._fade.setValue(0)
-        self.assertEqual(dlg._lbl.text(), "cut")
-
 
 class EditModeClarityTest(unittest.TestCase):
     """'in edit mode stop all playback' + 'make it more clear that i can now

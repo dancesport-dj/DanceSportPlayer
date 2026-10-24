@@ -45,6 +45,9 @@ class _Store:
     def has(self, fp, model):
         return (fp, model) in self.vecs
 
+    def fps(self, model):
+        return {fp for fp, m in self.vecs if m == model}
+
     def get_by_fp(self, fp, model):
         return self.vecs.get((fp, model)) if fp else None
 

@@ -352,8 +352,9 @@ def analyze_file(path: Path, expected_bpm: float | None = None) -> AudioFeatures
         bpm = float(np.mean(tempo))
 
     feat_vec = mfcc_block + contrast_block + rhythm_block
-    assert len(feat_vec) == _AUDIO_FEAT_DIM, \
-        f"feature vector is {len(feat_vec)}, expected {_AUDIO_FEAT_DIM}"
+    if len(feat_vec) != _AUDIO_FEAT_DIM:   # not an assert: -O would strip it
+        raise RuntimeError(
+            f"feature vector is {len(feat_vec)}, expected {_AUDIO_FEAT_DIM}")
 
     mfcc_mean, mfcc_cov = _gaussian_timbre(y, sr)
 

@@ -10,6 +10,7 @@ Results are memoized, including "this one has none": the card asks again on
 every track change, and re-reading an ID3 tag mid-tournament is wasted work.
 """
 import logging
+import zlib
 from pathlib import Path
 
 from PySide6.QtCore import QRectF, Qt
@@ -106,7 +107,8 @@ def embedded_art(track: Path | None) -> bytes | None:
 def placeholder(size: int, key: str) -> QPixmap:
     """The art-less tile: a colour derived from the name, so the same title
     always gets the same one, with a ♪ on it (the iPad app's stand-in)."""
-    hue = (abs(hash(key)) % 360) / 360.0
+    # crc32, not hash(): str hashes are salted per process, the colour changed every start.
+    hue = (zlib.crc32(key.encode("utf-8")) % 360) / 360.0
     top = QColor.fromHsvF(hue, 0.55, 0.80)
     bottom = QColor.fromHsvF(hue, 0.55, 0.50)
     pm = QPixmap(size, size)

@@ -27,6 +27,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_pcheck_"))
 
+import shiboken6
 from PySide6.QtWidgets import (
     QApplication, QLabel, QToolButton, QWidget,
 )
@@ -137,6 +138,14 @@ class PartyCheckUiTest(unittest.TestCase):
             [f.text for f in host._party_findings()
              if f.category == pc.SPACING], [])
 
+    def test_the_openers_come_from_the_dances_it_was_built_from(self):
+        codes = ('LW', 'TG', 'SF', 'CC', 'RB', 'JI')
+        host, _t = self.table(codes)
+        host._warmup_opts = {"dances": {'LW', 'TG', 'SF', 'CC', 'RB', 'JI'}}
+        self.assertEqual(
+            [f.text for f in host._party_findings()
+             if "opens the section" in f.text], [])
+
     def test_a_clean_list_reports_nothing(self):
         host, _t = self.table(('LW', 'TG', 'QS', 'CC', 'RB', 'JI',
                                'TG', 'SF', 'LW', 'SA', 'RB', 'CC'))
@@ -177,6 +186,15 @@ class PartyCheckUiTest(unittest.TestCase):
         dlg = self.report(host)
         texts = " ".join(w.text() for w in dlg.findChildren(QLabel))
         self.assertIn("Nothing to report", texts)
+
+    def test_a_second_check_after_the_report_was_closed_opens_a_new_one(self):
+        """The report deletes itself on close; 🩺 asked the dead dialog
+        whether it was still showing (the monkey found it, seed 20261024)."""
+        host, _t = self.table(('LW', 'TG', 'QS', 'CC', 'RB', 'JI'))
+        first = self.report(host)
+        shiboken6.delete(first)      # what WA_DeleteOnClose does once closed
+        second = self.report(host)
+        self.assertTrue(second.isVisible())
 
     def test_every_group_with_a_finding_gets_its_own_panel(self):
         host, _t = self.table(('LW', 'SF', 'QS',                 # not LW TG QS

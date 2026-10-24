@@ -201,7 +201,7 @@ class RemoteMixin(MainWindowHost):
                 i18n.t("📱 The phone remote could not start: %s") % exc)
             return
         self._remote = srv
-        self._remote_timer = QTimer()
+        self._remote_timer = QTimer(self)
         self._remote_timer.setInterval(_PUBLISH_MS)
         self._remote_timer.timeout.connect(self._publish_remote)
         self._remote_timer.start()
@@ -217,6 +217,7 @@ class RemoteMixin(MainWindowHost):
     def _stop_remote(self):
         if self._remote_timer is not None:
             self._remote_timer.stop()
+            self._remote_timer.deleteLater()   # a child of the window
             self._remote_timer = None
         hub = self.remote_hub()
         t, hub.tunnel = hub.tunnel, None
@@ -249,6 +250,8 @@ class RemoteMixin(MainWindowHost):
         hub = self.remote_hub()
         if t is hub.tunnel:
             hub.public_url = url
+            if self._remote is not None:
+                self._remote.set_tunnel(url)
             self._on_remote_event("tunnel_up", "", url)
             hub.changed.emit()
 
@@ -258,6 +261,8 @@ class RemoteMixin(MainWindowHost):
         if t is hub.tunnel:
             hub.tunnel = None
             hub.public_url = ""
+            if self._remote is not None:
+                self._remote.set_tunnel("")
             self._on_remote_event("tunnel_down", "", str(code))
             hub.changed.emit()
 
@@ -368,8 +373,10 @@ class RemoteMixin(MainWindowHost):
         and checked by its name — a list that moved on starts nothing."""
         rows = self._upcoming_rows(index + 1) if index >= 0 else []
         if not 0 <= index < len(rows) or rows[index][2].stem != title:
+            # The phone's own text: no line breaks of its own into the log.
+            shown = "".join(ch if ch.isprintable() else " " for ch in title)
             log.info("📱 Remote: the tapped title is no longer next\n"
-                     "title: %s", title)
+                     "title: %s", shown)
             return
         table, row, path = rows[index]
         self._announcer.stop()   # it was about the title that was next

@@ -23,7 +23,7 @@ from PySide6.QtWidgets import QApplication, QMenu, QWidget
 
 from gui.table import table_menu
 from gui.dialogs.tag_edit_dialog import (
-    TagEditDialog, marker_suggestions, parse_markers)
+    CLASSES, TagEditDialog, marker_suggestions, parse_markers)
 from planner.models import MusicEntry
 from tests.qt_test_support import reap_widget
 
@@ -482,10 +482,13 @@ class FormTest(_DlgTest):
         combo.setCurrentIndex(combo.findText("Cha B"))
         self.assertEqual(combo.currentText(), "Cha B")
 
-    def test_no_mp3_on_disk_has_the_form_switched_off(self):
-        dlg = self.dialog(_e("gone"))
+    def test_unreadable_tags_have_the_form_switched_off(self):
+        a, _b = self.two()
+        with mock.patch("gui.dialogs.tag_edit_dialog.id3_frames.read_form",
+                        side_effect=OSError("locked")):
+            dlg = self.dialog(a)
         self.assertFalse(dlg._file_box.isEnabled())
-        self.assertTrue(dlg._file_box.toolTip())
+        self.assertIn("locked", dlg._file_box.toolTip())
         self.assertEqual(dlg.form_changes(), {})
 
     def test_only_the_mp3s_of_a_mixed_selection(self):
@@ -494,6 +497,72 @@ class FormTest(_DlgTest):
         self.assertTrue(dlg._file_box.isEnabled())
         self.assertEqual(dlg._form["title"].currentText(), "Cha A")
         self.assertEqual(dlg.form_mp3s(), [a])
+
+
+class NoMp3Test(_DlgTest):
+    """Marcel: "for the non mp3 one show the db part in the dialog". A FLAC,
+    an M4A … has no MP3 form to write into, so the app's own title, artist …
+    stand in its place, kept in the DB like the stars."""
+
+    def flac(self, name="x", **kw) -> MusicEntry:
+        return MusicEntry(path=Path(rf"C:\m\{name}.flac"), title=name, dance="LW", **kw)
+
+    def test_it_shows_the_apps_values_instead_of_the_mp3_form(self):
+        dlg = self.dialog(self.flac(tag_artist="Band", year=2001))
+        self.assertEqual(dlg._db["title"].currentText(), "x")
+        self.assertEqual(dlg._db["tag_artist"].currentText(), "Band")
+        self.assertEqual(dlg._db["year"].currentText(), "2001")
+        self.assertEqual(dlg._db["genre"].currentText(), "LW")
+        self.assertFalse(hasattr(dlg, "_file_box"))
+        self.assertEqual(dlg.form_changes(), {})
+        self.assertFalse(dlg._write_app.isEnabled())
+
+    def test_untouched_changes_nothing(self):
+        e = self.flac(tag_artist="Band")
+        self.assertEqual(self.dialog(e).changes_for(e), {})
+
+    def test_typed_values_are_returned(self):
+        e = self.flac(tag_artist="Band", year=2001)
+        dlg = self.dialog(e)
+        dlg._db["title"].setEditText("New Title")
+        dlg._db["tag_artist"].setEditText("New Band")
+        dlg._db["genre"].setEditText("Slowfox")
+        dlg._db["year"].setEditText(dlg._blank)
+        dlg._stars.setCurrentIndex(dlg._stars.findData(4))
+        self.assertEqual(dlg.changes_for(e),
+                         {"title": "New Title", "tag_artist": "New Band",
+                          "genre": "Slowfox", "year": 0, "rating": 4})
+
+    def test_several_tracks_differing_start_as_keep(self):
+        a, b = self.flac("a", tag_artist="A"), self.flac("b", tag_artist="B")
+        dlg = self.dialog(a, b)
+        self.assertEqual(dlg._db["tag_artist"].currentText(), dlg._keep)
+        self.assertEqual(dlg._db["genre"].currentText(), "LW")
+        self.assertEqual(dlg.changes_for(a), {})
+
+    mp3 = FormTest.mp3
+    two = FormTest.two
+
+    def test_an_mp3_on_disk_keeps_the_form(self):
+        FormTest.setUp(self)
+        a, _b = self.two()
+        dlg = self.dialog(a)
+        self.assertEqual(dlg._db, {})
+        self.assertTrue(dlg._file_box.isEnabled())
+
+    def test_a_double_click_lands_on_the_columns_field(self):
+        dlg = TagEditDialog([self.flac(tag_artist="Band")], focus="artist")
+        self.addCleanup(reap_widget, dlg)
+        combo = dlg._db["tag_artist"]
+        self.assertIs(dlg._focused, combo)
+        self.assertIn(dlg.focusWidget(), (combo, combo.lineEdit()))
+
+    def test_its_text_is_translated(self):
+        from planner.i18n.lang_de import CATALOG
+        dlg = self.dialog(self.flac())
+        for text in (dlg._db_box.title(), dlg._db_box.toolTip()):
+            with self.subTest(text=text):
+                self.assertIn(text, CATALOG)
 
 
 class CustomFieldTest(_DlgTest):
@@ -792,6 +861,115 @@ class SuggestionsTest(unittest.TestCase):
                    + [_e(comment_tags=["album\r\ncredit"])] * 3
                    + [_e(comment_tags=["once"])])
         self.assertEqual(marker_suggestions(entries), ["vocal_f", "classic"])
+
+
+class TagsDialogTest(_DlgTest):
+    """Marcel: "merge both dialogs and remove the app only option, rname the
+    other to tags. so the user can choose in this new dialog what he wants to
+    overwrite". One 🏷 Tags dialog: the MP3's form, the app's fields and the
+    Extended tab, and a tick that says whether the app's fields go into the
+    MP3 too — once a question after Save."""
+
+    setUp = FormTest.setUp
+    mp3 = FormTest.mp3
+
+    def test_it_is_called_tags(self):
+        self.assertEqual(self.dialog(_e()).windowTitle(), "🏷  Tags")
+        self.assertEqual(self.dialog(_e("a"), _e("b")).windowTitle(),
+                         "🏷  Tags of 2 tracks")
+
+    def test_there_is_no_database_mode_any_more(self):
+        with self.assertRaises(TypeError):
+            TagEditDialog([_e()], mode="db")
+        dlg = self.dialog(_e())
+        self.assertFalse(hasattr(dlg, "mode"))
+
+    def test_it_holds_the_file_the_app_and_the_extended_tab(self):
+        dlg = self.dialog(self.mp3("a"))
+        self.assertTrue(dlg._file_box.isEnabled())
+        self.assertEqual(dlg._tabs.count(), 2)
+
+    def test_the_app_fields_stay_in_the_app_unless_ticked(self):
+        dlg = self.dialog(self.mp3("a"))
+        self.assertTrue(dlg._write_app.isEnabled())
+        self.assertFalse(dlg.write_app_to_mp3())
+        dlg._write_app.setChecked(True)
+        self.assertTrue(dlg.write_app_to_mp3())
+
+    def test_the_tick_sits_in_the_app_box(self):
+        dlg = self.dialog(self.mp3("a"))
+        self.assertTrue(dlg._app_box.isAncestorOf(dlg._write_app))
+
+    def test_without_an_mp3_on_disk_there_is_nothing_to_tick(self):
+        dlg = self.dialog(_e("gone"))
+        self.assertFalse(dlg._write_app.isEnabled())
+        dlg._write_app.setChecked(True)
+        self.assertFalse(dlg.write_app_to_mp3())
+
+    def test_the_tick_says_where_custom_goes_only_while_mapped(self):
+        tip = self.dialog(self.mp3("a"))._write_app.toolTip()
+        self.assertIn("Windows rating", tip)
+        self.assertNotIn("Custom", tip)
+        dlg = TagEditDialog([self.mp3("b")], custom_source=("TXXX", "x"))
+        self.addCleanup(reap_widget, dlg)
+        self.assertIn("Custom", dlg._write_app.toolTip())
+
+    def test_its_text_is_translated(self):
+        from planner.i18n.lang_de import CATALOG
+        dlg = self.dialog(self.mp3("a"))
+        # "🏷  Tags" reads the same in German, so it has no entry.
+        for text in (dlg._write_app.text(), dlg._write_app.toolTip(),
+                     "🏷  Tags of %d tracks"):
+            with self.subTest(text=text):
+                self.assertIn(text, CATALOG)
+
+
+class FocusTest(_DlgTest):
+    """Marcel: "for the double click in library which opens edit tag: it
+    should focus the column where the user double clicked" + "and highlight it
+    with an indicator". The list names the field; the dialog gives it the
+    focus and frames it."""
+
+    setUp = FormTest.setUp
+    mp3 = FormTest.mp3
+
+    def focused(self, entry, field):
+        dlg = TagEditDialog([entry], focus=field)
+        self.addCleanup(reap_widget, dlg)
+        return dlg
+
+    def test_the_double_clicked_field_has_the_focus(self):
+        dlg = self.focused(self.mp3("a"), "artist")
+        combo = dlg._form["artist"]
+        self.assertIn(dlg.focusWidget(), (combo, combo.lineEdit()))
+
+    def test_it_is_framed_and_nothing_else_is(self):
+        dlg = self.focused(self.mp3("a"), "artist")
+        self.assertIs(dlg._focused, dlg._form["artist"])
+        self.assertIn("highlight", dlg._form["artist"].styleSheet())
+        self.assertEqual(dlg._form["title"].styleSheet(), "")
+
+    def test_an_app_field_too(self):
+        dlg = self.focused(self.mp3("a"), "custom")
+        self.assertIs(dlg.focusWidget(), dlg._custom)
+        self.assertIn("highlight", dlg._custom.styleSheet())
+
+    def test_the_classes_row_is_framed_and_its_first_box_focused(self):
+        dlg = self.focused(self.mp3("a"), "classes")
+        self.assertIs(dlg._focused, dlg._cls_row)
+        self.assertIs(dlg.focusWidget(), dlg._cls[CLASSES[0]])
+
+    def test_a_disabled_field_is_framed_but_not_focused(self):
+        with mock.patch("gui.dialogs.tag_edit_dialog.id3_frames.read_form",
+                        side_effect=OSError("locked")):
+            dlg = self.focused(self.mp3("a"), "title")
+        self.assertIs(dlg._focused, dlg._form["title"])
+        self.assertNotIn(dlg.focusWidget(), (dlg._form["title"], dlg._form["title"].lineEdit()))
+
+    def test_without_a_field_nothing_is_framed(self):
+        for field in (None, "bpm"):
+            with self.subTest(field=field):
+                self.assertIsNone(self.focused(self.mp3("a"), field)._focused)
 
 
 if __name__ == "__main__":

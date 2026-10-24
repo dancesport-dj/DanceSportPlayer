@@ -51,6 +51,34 @@ FILE_PAGE_CAP = 32
 # can point it at any colour the pad menu offers.
 DEFAULT_PAD_COLOUR = "#ffffff"
 
+# Colours a pad can be given, in the order the colour menu lists them. "" means
+# "whatever the wall's default colour is". No BLUE here on purpose: blue is how
+# the wall says "this one is running" (light) and "this much has played" (deep),
+# and a pad painted in either would lie about its state. Here and not with the
+# pad dialog, because ⚙ Settings ▸ 🎛 Cartwall offers them too.
+PAD_COLOURS = {
+    "Wall default": "",     # white unless the wall was given another one
+    "Grey": "#eceff4",
+    "Green": "#2f8f4e",
+    "Red": "#b23b3b",
+    "Olive": "#8a8a2b",
+    "Purple": "#7a3fbf",
+    "Amber": "#c8871a",
+}
+
+# What a starting title does to a running 🎶 background pad, under ⚙ Settings
+# ▸ 🎛 Cartwall: "mute" keeps it looping silently under the music, "pause"
+# holds it once it is down and carries on from there when the music stops
+# (player.audio.cart_voices plays it).
+BG_MODES = ("mute", "pause")
+
+
+def background_pauses(settings: dict) -> bool:
+    """True when the 'cart_bg_mode' setting says a title pauses a background
+    pad. "stop" is what the option saved before it became pause. Anything else
+    reads as the default, which keeps it running."""
+    return settings.get("cart_bg_mode") in ("pause", "stop")
+
 # Keys that fire the first nine slots of the page on screen. Slot-based, not
 # pad-based, so the same finger hits the same corner of the wall on every page;
 # a pad that wants a key of its own carries it in CartPad.shortcut and keeps it

@@ -5,6 +5,7 @@ player/widgets/play_mode_setup.py, its small widgets (the switch, the rows,
 the flow layout) are in player/widgets/panel_parts.py.
 """
 import logging
+from datetime import datetime
 
 from planner.playing.play_sets import (
     _LEN_MAX,
@@ -88,6 +89,7 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
     pdLearnRequested = Signal()          # 🎯 button → mark current playhead as a highlight
     pdClearRequested = Signal()          # ✖ button → forget current track's highlights
     pdEditToggled = Signal(bool)         # ✏️ Edit highlights on/off (suspends the stop)
+    roundPdPicked = Signal(int)          # the spin turned over a round's PD pick
     pdMarkDeleteRequested = Signal(float)   # ✕ on a mark chip → drop that mark
     presenterToggled = Signal(bool)      # 🖥 Presenter screen on/off
     presenterScreenChanged = Signal(int)   # another monitor picked for it
@@ -97,6 +99,7 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
     tournamentSetRequested = Signal()    # 🏆 back to the competition values
     rememberToggled = Signal(bool)       # ↩ remembering where a title stopped on/off
     settingsRequested = Signal()         # ⚙ — only shown in a player-only install
+    stopRuleChanged = Signal()           # ⏹ the stop rule was set, counted down or spent
 
     def __init__(self, settings: dict, parent=None):
         super().__init__(parent)
@@ -563,7 +566,7 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
                                  self.pdMarkDeleteRequested.emit(v))
             self.pd_marks_lyt.addWidget(chip)
         if not marks:
-            hint = QLabel("no marks — scrub to a crash and hit 🎯")
+            hint = QLabel("🎯  no marks — scrub to a crash and mark it")
             hint.setStyleSheet("color:#777; font-style:italic; font-size:11px;")
             self.pd_marks_lyt.addWidget(hint)
         self.pd_marks_lyt.addStretch(1)
@@ -738,6 +741,7 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         # Same reason, one line up: nothing runs on by itself without ⏭, so
         # neither can the list start over.
         self.repeat_check.setVisible(advancing)
+        self.stop_row_box.setVisible(advancing)
         self.pause_spin.setEnabled(pausing)
         self.pause_music_box.setEnabled(pausing)
         self.pause_vol_box.setEnabled(pausing)
@@ -839,6 +843,56 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         `pause_available` follows for the same reason)."""
         return self.auto_advance() and self.repeat_check.isChecked()
 
+    def _on_stop_rule(self):
+        """⏹ A choice in the stop row: arm the rule it shows."""
+        mode = self.stop_combo.currentData()
+        stop = self._party_stop
+        if mode == "this":
+            stop.arm_count(1)
+        elif mode == "count":
+            stop.arm_count(self.stop_count_spin.value())
+        elif mode == "time":
+            at = self.stop_time_edit.time()
+            stop.arm_time(at.hour(), at.minute(), datetime.now())
+        else:
+            stop.clear()
+        self._show_stop_rule()
+        self.stopRuleChanged.emit()
+
+    def _show_stop_rule(self):
+        """The stop row as the rule stands: a count running down to 1 becomes
+        "after this title", a spent rule goes back to "never"."""
+        stop = self._party_stop
+        mode = {"count": "this" if stop.left <= 1 else "count",
+                "time": "time"}.get(stop.kind or "", "never")
+        for w in (self.stop_combo, self.stop_count_spin):
+            w.blockSignals(True)
+        self.stop_combo.setCurrentIndex(self.stop_combo.findData(mode))
+        if mode == "count":
+            self.stop_count_spin.setValue(stop.left)
+        for w in (self.stop_combo, self.stop_count_spin):
+            w.blockSignals(False)
+        self.stop_count_spin.setVisible(mode == "count")
+        self.stop_time_edit.setVisible(mode == "time")
+
+    def stop_due(self, end: datetime) -> bool:
+        """Whether the title ending at `end` is the last one. Needs ⏭
+        auto-advance, like the row it is set in."""
+        return self.auto_advance() and self._party_stop.due(end)
+
+    def stop_title_ended(self, now: datetime, can_stop: bool = True) -> bool:
+        """A title has ended: True when the music stops here."""
+        if not self.auto_advance() or self._party_stop.kind is None:
+            return False
+        stopped = self._party_stop.title_ended(now, can_stop)
+        self._show_stop_rule()
+        self.stopRuleChanged.emit()
+        return stopped
+
+    def stop_text(self) -> str:
+        """The armed rule for the player card, "" when there is none."""
+        return self._party_stop.text() if self.auto_advance() else ""
+
     def repeat_setting_on(self) -> bool:
         """The tick as shown, kept across an auto-advance off/on toggle."""
         return self.repeat_check.isChecked()
@@ -923,15 +977,52 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
                 else i18n.t("🐂 Paso Doble highlight stop → off")]
 
     def pd_highlight_n(self) -> int:
+        if self._pd_own_n is not None:
+            return self._pd_own_n   # the spin shows a round's pick meanwhile
         return self.pd_spin.value()
 
     def set_pd_highlight_n(self, n: int) -> list[str]:
         """Set which highlight stops the dance and report it the way
         `apply_play_set` does — the 🏆 set carries its own."""
-        if int(n) == self.pd_spin.value():
+        if int(n) == self.pd_highlight_n():
             return []
-        self.pd_spin.setValue(int(n))
+        if self._pd_own_n is not None:
+            self._pd_own_n = int(n)   # shown once the round's pick lets go
+            self.settingsChanged.emit()
+        else:
+            self.pd_spin.setValue(int(n))
         return [i18n.t("🐂 Paso Doble stop after highlight → %d") % int(n)]
+
+    def _on_pd_spin(self, n: int):
+        """The spin turned by hand: over a round's pick it is the list's own
+        pick for that round, which MainWindow keeps — else the panel's own."""
+        if self._pd_own_n is not None:
+            self.roundPdPicked.emit(n)
+        self.settingsChanged.emit()
+
+    def set_round_pd_n(self, n: int | None, round_label: str = ""):
+        """🏆 Show the round's own Paso Doble pick in the spin — the one that
+        decides the stop — or, with None, the panel's own number again. A
+        round played in full reads as the 3rd highlight, the music's own end.
+        A turn of the spin meanwhile is the list's own pick (`roundPdPicked`)."""
+        spin = self.pd_spin
+        if n is None:
+            if self._pd_own_n is not None:
+                spin.blockSignals(True)
+                spin.setValue(self._pd_own_n)
+                spin.blockSignals(False)
+                self._pd_own_n = None
+            spin.setToolTip(self._pd_spin_tip)
+            return
+        if self._pd_own_n is None:
+            self._pd_own_n = spin.value()
+        spin.blockSignals(True)
+        spin.setValue(int(n) or 3)
+        spin.blockSignals(False)
+        spin.setToolTip(
+            i18n.t("The Paso Doble pick for %s in ⚙ Settings → 🎛 Play sets\n"
+                   "(played in full reads as the 3rd highlight). A change here\n"
+                   "holds for this list only.") % round_label)
 
     def pd_start_delay(self) -> int:
         """Seconds a Paso Doble waits after the call before the music starts

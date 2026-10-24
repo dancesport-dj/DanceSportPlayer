@@ -259,6 +259,7 @@ class _Desk(CrossfadeMixin):
         self.marks = []
         self._play_panel = SimpleNamespace(
             pd_editing=lambda: False,
+            stop_due=lambda _end: self.stop_due,
             play_set=lambda: {"xfade": xfade, "xfade_on": xfade > 0},
             xfade_view=SimpleNamespace(set_progress=self.marks.append))
         self._fade_now = SimpleNamespace(running=False)
@@ -269,6 +270,7 @@ class _Desk(CrossfadeMixin):
         self.advance, self.pause, self.loop, self.pd = True, 0, False, False
         self.playing_mode = True
         self.stop_ms = None
+        self.stop_due = False
         self.announce = False
         self.pd_hold = 0.0
         self.calls = []
@@ -359,6 +361,14 @@ class WhenTest(unittest.TestCase):
         desk.stop_ms = 180_000
         self.assertTrue(self.due(desk, 177_000))
 
+    def test_dead_air_from_the_first_sample_is_still_dead_air(self):
+        """PL10: a stop at 0 ms read as "no silence", so the lead time ran to
+        the file's end while the play tick cut the title at once."""
+        desk = _Desk()
+        desk.stop_ms = 0
+        desk._player.pos = 0
+        self.assertLessEqual(desk._music_left(), 0)
+
     def test_a_timed_cut_ends_it_earlier_too(self):
         desk = _Desk(limit=90)
         self.assertTrue(self.due(desk, 87_000))
@@ -381,6 +391,12 @@ class WhenTest(unittest.TestCase):
             desk = _Desk()
             setattr(desk, attr, value)
             self.assertFalse(self.due(desk, 199_000), attr)
+
+    def test_not_into_a_planned_stop(self):
+        """⏹ The title is the evening's last: nothing may fade in over it."""
+        desk = _Desk()
+        desk.stop_due = True
+        self.assertFalse(self.due(desk, 199_000))
 
     def test_not_over_a_fade_by_hand(self):
         desk = _Desk()

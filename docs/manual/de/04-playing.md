@@ -103,6 +103,13 @@ Stellen, die Stille, die übersprungen wird, die Paso-Doble-Höhepunkte und wo
 das Ausblenden eines gekürzten Titels beginnt. In den letzten Sekunden wird
 sie rot.
 
+Eine **grüne Linie** markiert, wo der Titel beginnt, wenn er nicht bei 0:00
+startet: nach einem Vorlauf, an einem Fortsetzungspunkt oder hinter einem
+übersprungenen stillen Intro. Die Strecke davor ist abgedunkelt. Mit
+🌅 Einblenden ist das Einblenden **gold** getönt, das Spiegelbild des rötlich
+getönten Ausblendens. Ein Titel, den eine 🔀 Überblendung hereinholt, hat
+keine Goldtönung, denn die Überblendung blendet ihn ein.
+
 - Ein **Klick** springt an diese Stelle. **Ziehen** spult: Abspielkopf und
   Zeiten folgen der Maus, und die Musik springt beim Loslassen. Über den
   linken Rand hinaus gezogen geht es auf 0:00.
@@ -153,6 +160,13 @@ Er stoppt an einem Höhepunkt, dem musikalischen Break, auf den die Paare
 tanzen.
 
 - **Stopp nach Highlight** wählt welchen, meist den 2.
+  Hat eine Runde in ⚙ Einstellungen → 🎛 Spiel-Sets einen eigenen Wert,
+  zeigt die Zahl diesen, solange die Liste die Länge des 🏆-Sets spielt
+  (eine Runde *ganz* zeigt 3). Wer sie dort ändert, ändert den Wert nur
+  für diese Liste; zurückgedreht, oder mit dem 🏆-Set neu gesetzt, gilt
+  wieder der Wert der Runde.
+- Die Höhepunkte stehen in der Wellenform und unter **✏️ Highlights
+  bearbeiten** auch dann, wenn der Paso Doble ganz läuft.
 - Die Höhepunkte findet die Analyse. Fehlt einer oder sitzt er falsch, klick
   während des Abspielens genau auf dem Höhepunkt auf
   **🎯 Highlight jetzt markieren**. **✖** vergisst die gelernten Marken dieses
@@ -160,7 +174,10 @@ tanzen.
 - **✏️ Highlights bearbeiten** pausiert die Musik und setzt den Stopp aus, so
   kannst du durch den ganzen Titel spulen und seine Marken setzen.
 - **Start nach** hält einen Paso Doble vor dem Musikstart zurück, damit die
-  Paare ihre Ausgangsposition einnehmen können. Ein Paso Doble, der an seiner
+  Paare ihre Ausgangsposition einnehmen können. Die Player-Karte zählt die
+  Wartezeit dort herunter, wo die Werte des Titels stehen, mit dem Takt, in dem er läuft, *🐂 PD T60 in 5 s*,
+  wie sie eine Pause herunterzählt; die Werte kommen zurück, sobald die
+  Musik startet. Ein Paso Doble, der an seiner
   ↩-Marke wieder aufgenommen wird, startet sofort: die Paare stehen noch auf
   der Fläche.
 
@@ -176,7 +193,8 @@ Mit ausgeschaltetem Schalter ist ein Paso Doble ein gewöhnlicher Titel.
   Durchatmen. Aus, folgt der nächste Titel sofort.
 - **Pausenmusik**: 📂 wählt einen oder mehrere Titel oder eine `.m3u`, die in
   der Pause laufen. ✕ entfernt sie. **Lautstärke Pausenmusik** legt fest, wie
-  laut sie spielt.
+  laut sie spielt. Ein 🎶 Hintergrund-Pad der Cartwall weicht der
+  Pausenmusik wie einem Titel.
 - **🔀 Überblenden**: die letzten Sekunden eines Titels und die ersten des
   nächsten spielen zusammen. Der alte blendet aus, während der neue einblendet,
   so hört die Fläche nie eine Lücke. Die Beschriftung ist ein Schalter: aus,
@@ -241,6 +259,11 @@ Die App sagt den nächsten Tanz laut an: „Nächster Tanz: Langsamer Walzer“.
 
 - **🔊 Lautstärke angleichen (R128)**: gleicht die Lautheit zwischen den
   Titeln an. Braucht die Lautheitsanalyse.
+  Dabei bleibt der True Peak jedes Titels bei höchstens −1 dBTP: ein
+  leiser Titel, der beim Anheben übersteuern würde, wird weniger
+  angehoben, und einer, der über die Grenze gemastert ist, wird leiser.
+  Ein Titel, den eine ältere Version gemessen hat, wird im Hintergrund
+  neu gemessen.
 - **▶️ Doppelklick startet den Titel**: an, spielt ein Doppelklick sofort. Aus,
   legt er den Titel nur bereit, und ⏯ startet ihn. Das ist es, was eine Gruppe
   braucht.
@@ -273,14 +296,16 @@ Was jedes Set enthält, legst du selbst fest, unter
 
 Das Turnier-Set kann einem Tanz auch **eine eigene Spieldauer** geben, zum
 Beispiel 1:30 für den Wiener Walzer und 1:37 für den Tango. Solange
-eine Liste auf dem 🏆 Set steht, zeigt die große Zahl die Dauer dieses Tanzes,
+eine Liste die Dauer des 🏆 Sets spielt, zeigt die große Zahl die Dauer dieses Tanzes,
 und darunter steht der Tanz in Gold. Das ist der Tanz, der gerade spielt, sonst
 die gewählte Zeile. **− / +** und Eintippen ändern dann die Dauer dieses Tanzes,
-nicht die der Liste. Änderst du die Dauer der Liste von Hand, verlässt die
-Liste das Set: ab dann gilt ihre eine Dauer für jeden Tanz. Ab Werk spielt das
+nicht die der Liste. Nur die Dauer zählt: ⏭ Auto, die Pause oder jeder andere
+Schalter darf vom Set abweichen. Änderst du die Dauer der Liste von Hand, gilt
+ab dann ihre eine Dauer für jeden Tanz. Ab Werk spielt das
 🏆 Set 1:30 für Langsamen Walzer, Wiener Walzer, Quickstep und Jive und 1:37
-für Tango, Slowfox, Samba, Cha-Cha-Cha und Rumba; der Paso Doble hat keine eigene
-Dauer.
+für Tango, Slowfox, Samba, Cha-Cha-Cha und Rumba. Der Paso Doble läuft
+komplett oder bis zu seinem Highlight, siehe
+[⚙ Einstellungen ▸ 🎛 Spiel-Sets](06-settings.md#spiel-sets).
 
 ### 🖥 Präsentation
 
@@ -336,8 +361,8 @@ Siegerehrung.
 ![Die Cartwall rechts neben den Decks angedockt](../img/main-cartwall.png)
 
 - Ein **Klick auf ein Pad** feuert es über die laufende Musik. Noch ein Klick
-  blendet es aus, in 1 s. Rechtsklick auf ein Pad ▸ **⏱ Cartwall-Ausblendzeit…**
-  stellt diese Zeit für die ganze Wand ein; **Eigenes Ausblenden** in den
+  blendet es aus, in 1 s. ⚙ Einstellungen ▸ 🎛 Cartwall ▸
+  **⏱ Pads blenden aus über** stellt diese Zeit für die ganze Wand ein; **Eigenes Ausblenden** in den
   **⚙ Einstellungen…** eines Pads gibt ihm eine eigene.
 - **Strg + 1 … 9** feuern die ersten neun Pads der sichtbaren Seite.
 - **⏹ Alles stoppen** oder **Esc** blendet jedes Pad aus.
@@ -350,13 +375,17 @@ Siegerehrung.
   füllen. Eine Mehrfachauswahl füllt die freien Pads danach. Zieh ein Pad auf
   ein anderes, um die beiden zu tauschen. Sperr die Wand vor dem Turnier
   wieder, damit nichts aus Versehen verrutscht.
-- Ein **Rechtsklick auf ein Pad** bietet seine 🎨 Farbe oder
-  **⚙ Einstellungen…** für Beschriftung, Lautstärke, eigene Taste,
-  🔁 endlose Wiederholung und ob es die Musik leiser macht.
+- Bei eingeschaltetem **✏** bietet ein **Rechtsklick auf ein Pad** seine
+  🎨 Farbe, 🗑 Leeren oder **⚙ Einstellungen…** für Beschriftung,
+  Lautstärke, eigene Taste, 🔁 endlose Wiederholung und ob es die Musik
+  leiser macht. Bei gesperrter Wand bietet der Rechtsklick
+  **⚙ Cartwall-Einstellungen…**, das die ⚙ Einstellungen auf ihrem Reiter
+  [🎛 Cartwall](06-settings.md#cartwall) öffnet, und **⌨ Tastenkürzel…**.
 - **🎶 Hintergrund** dreht das um: Das Pad selbst verstummt, solange ein
   Titel läuft, und blendet sich wieder ein, sobald der Titel zu Ende ist. Das passt für eine
   Hintergrundmusik, die den ganzen Abend läuft. Ein Hintergrund-Pad macht
-  die Musik nie leiser.
+  die Musik nie leiser. Soll es stattdessen pausieren, siehe ⚙ Einstellungen ▸
+  🎛 Cartwall ▸ **🎶 Hintergrund-Pads, wenn ein Titel startet**.
 - **S Die anderen Pads stoppen** in den **⚙ Einstellungen…** eines Pads
   blendet alle anderen laufenden Pads aus, sobald dieses startet. Das passt
   für eine Hymne oder eine Siegerfanfare, die den Raum braucht.
@@ -379,7 +408,7 @@ Siegerehrung.
 
 ### ⌨ Die Tasten der Cartwall
 
-**Rechtsklick auf ein Pad ▸ ⌨ Tastenkürzel…** öffnet das Fenster
+Bei gesperrter Wand öffnet **Rechtsklick auf ein Pad ▸ ⌨ Tastenkürzel…** das Fenster
 **⌨ Tasten** auf seinem Reiter **🎛 Cartwall**. Ist die Wand mit ✏
 entsperrt, öffnet es auch der Knopf **⌨** neben ✏. Der Reiter listet jede
 Taste, auf die die Wand hört:

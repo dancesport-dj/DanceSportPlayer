@@ -20,7 +20,7 @@ from PySide6.QtWidgets import QApplication, QDialog, QTabWidget
 
 import dancesport_gui as gui
 from gui.window import main_global
-from gui.dialogs import settings_dialog
+from gui.dialogs import settings_dialog, settings_sound
 from shared.audio.playback import OUTPUT_SOURCES, SYSTEM_DEFAULT
 from tests.qt_test_support import reap_widget
 
@@ -34,7 +34,7 @@ class PickerTest(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def _dialog(self, settings):
-        with mock.patch.object(settings_dialog, "audio_output_choices",
+        with mock.patch.object(settings_sound, "audio_output_choices",
                                return_value=list(_OUTPUTS)):
             dlg = settings_dialog.SettingsDialog(settings)
         self.addCleanup(reap_widget, dlg)
@@ -106,7 +106,7 @@ class PickerTest(unittest.TestCase):
         is that card, shown without a ⚠ and saved under its new id."""
         saved = {"music": {"id": "old", "name": "MAYA44USB Ch12 (2- ESI Audio Device)"}}
         outputs = [*_OUTPUTS, ("new", "MAYA44USB Ch12 (3- ESI Audio Device)")]
-        with mock.patch.object(settings_dialog, "audio_output_choices",
+        with mock.patch.object(settings_sound, "audio_output_choices",
                                return_value=outputs):
             dlg = settings_dialog.SettingsDialog({"audio_outputs": saved})
         self.addCleanup(reap_widget, dlg)
@@ -130,6 +130,9 @@ class _Dialog:
 
     def running_look_touched(self):
         return False
+
+    def deleteLater(self):
+        pass
 
 
 class SaveAppliesTest(unittest.TestCase):

@@ -48,6 +48,14 @@ title, **Filename** shows the cleaned-up file name, with the full path
 in its tooltip, **Album** shows the album tag of the MP3, and **Comment**
 its comment as written (e.g. "vocal AS"). ★ and Custom are described in [chapter 5](05-tags.md).
 
+**Plays** (hidden at first too) counts how often a title has played in the
+last 24 hours, from any list: "2" in every list that holds it, wherever it
+ran. A play counts once the title has been heard for 10 seconds in playing
+mode, the same rule as the 📜 play log. **Reset the play counters** in the
+column header's right-click menu sets every count back to zero; the play log
+itself keeps every title. The library and the 🏆 track list have the same
+column.
+
 Drag a column header sideways to move the column. The new order holds
 for every list of that kind (all decks, all wishlists or all party lists)
 and is kept for the next start. **Dance** stays first and **↺** last. A

@@ -3,14 +3,14 @@ index builds, playback, the look and the app mode, one tab each.
 
 Split out of gui/dialogs/__init__.py, which keeps the settings persistence
 (load_settings, the path fallbacks, the choice tables) this dialog reads.
-The 🎨 Look tab is a mixin of its own, in gui/dialogs/settings_look.py.
+The 🎨 Look tab is a mixin of its own, in gui/dialogs/settings_look.py,
+and so are 🔊 Sound & player and 🎛 Play sets, in settings_sound.py and
+settings_play_sets.py.
 """
 import logging
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
-    QPushButton, QLabel,
-    QComboBox, QCheckBox, QLineEdit, QGroupBox, QRadioButton, QButtonGroup,
-    QDialog, QSpinBox, QDoubleSpinBox, QTimeEdit,
+    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
+    QComboBox, QCheckBox, QLineEdit, QGroupBox, QDialog, QSpinBox, QTimeEdit,
     QFileDialog, QDialogButtonBox, QTabWidget, QPlainTextEdit, QScrollArea,
     QFrame,
 )
@@ -19,19 +19,8 @@ from PySide6.QtCore import (
 )
 import planner.config
 from planner.music.analysis import HAS_LIBROSA
-from planner.models import TEMPO_RANGES
-from planner.terms import dance_name, rules_name
-from planner.playing.play_sets import (
-    _LEN_MAX, _LEN_STEP, DANCE_SECS_KEY, XFADE_MAX_SECS, XFADE_MIN_SECS,
-    dance_secs_of, dblclick_ask_of, parse_play_length, pd_of, play_set_of,
-    tso_of)
 from shared.audio.audio_files import (
     music_browse_dir,
-)
-from shared.audio.playback import (
-    _AUDIO_IDLE_S,
-    SYSTEM_DEFAULT,
-    match_output,
 )
 from shared.widgets import (
     _hsep,
@@ -39,25 +28,26 @@ from shared.widgets import (
 from shared import error_reports, update_check
 from planner import i18n
 from planner.music.paths import parse_remap_paths
-from shared.stores import player_layout_of
-from shared.xfade_view import CrossfadeCurveButton, CrossfadeView
 from gui.dialogs import (
     APP_MODE_CHOICES,
     M3U_FORMAT_CHOICES,
-    MEDIA_BACKEND_CHOICES,
-    PLAYER_LAYOUT_CHOICES,
     app_mode_of,
-    audio_output_choices,
-    media_backend_of,
 )
 from gui.dialogs.settings_look import LookTabMixin
+from gui.dialogs.settings_play_sets import PlaySetsTabMixin
+from gui.dialogs.settings_sound import SoundTabMixin
+from gui.dialogs.settings_cartwall import CartwallTabMixin
 
 log = logging.getLogger("dancesport.gui")
 
 
-class SettingsDialog(LookTabMixin, QDialog):
+class SettingsDialog(LookTabMixin, SoundTabMixin, CartwallTabMixin,
+                     PlaySetsTabMixin, QDialog):
     """Configure the library paths + global search (tab 1) and run every
     analysis / index build, grouped light vs heavy (tab 2)."""
+
+    # The tab the last Settings closed on, for this run of the app only.
+    _last_tab: int | None = None
 
     def __init__(self, settings: dict, parent=None, build_cb=None, embed_cb=None,
                  index_summary=None, all_cb=None, maintenance_cb=None, relearn_cb=None,
@@ -68,7 +58,8 @@ class SettingsDialog(LookTabMixin, QDialog):
                  venue_export_cb=None, venue_import_cb=None, remote_cb=None,
                  remote_running=None, remote_stop_cb=None, remote_changed=None,
                  guests_cb=None, controller_cb=None, desk_keys_cb=None,
-                 announce_test_cb=None, open_sound=False, reset_cb=None):
+                 announce_test_cb=None, open_sound=False, reset_cb=None,
+                 open_cartwall=False):
         super().__init__(parent)
         self.setWindowTitle("⚙  Settings")
         self.setMinimumWidth(560)
@@ -104,6 +95,7 @@ class SettingsDialog(LookTabMixin, QDialog):
         self._setup_paths_tab(relearn_cb, settings, tabs)
         self._setup_look_tab(settings, tabs)
         sound_idx = self._setup_sound_tab(settings, tabs)
+        cart_idx = self._setup_cartwall_tab(settings, tabs)
         self._setup_analysis_tab(
             all_cb, analyze_cb, backup_restore_cb, build_cb, embed_cb, loudness_cb,
             maintenance_cb, n_unanalyzed, pd_cb, pd_export_cb, pd_import_cb, silence_cb,
@@ -111,10 +103,23 @@ class SettingsDialog(LookTabMixin, QDialog):
         sets_idx = self._setup_play_sets_tab(settings, tabs)
         chk_idx = self._setup_checks_tab(gaps_cb, settings, tabs)
         self._setup_venue_tab(tabs)
-        self._setup_tab_visibility(chk_idx, lyt, sets_idx, tabs)
+        self._setup_tab_visibility(chk_idx, lyt, sets_idx, cart_idx, tabs)
         self._scroll_the_pages(tabs)
+        self._tabs = tabs
+        last = SettingsDialog._last_tab
+        # The tab the last Settings closed on — unless the app mode hides it.
+        if last is not None and tabs.isTabVisible(last):
+            tabs.setCurrentIndex(last)
         if open_sound:      # 🚦 Check → choose outputs: they are picked here
             tabs.setCurrentIndex(sound_idx)
+        if open_cartwall:   # 🎛 the pad's right-click → the wall's settings
+            tabs.setCurrentIndex(cart_idx)
+
+    def done(self, result):
+        """OK, Cancel or ✕: the next Settings of this session opens on the
+        tab this one closes on."""
+        SettingsDialog._last_tab = self._tabs.currentIndex()
+        super().done(result)
 
     def _setup_general_tab(self, settings, tabs):
         """⚙ General: app mode, the 📱 phone remote, global search and error
@@ -318,7 +323,13 @@ class SettingsDialog(LookTabMixin, QDialog):
         paths_tab = QWidget()
         plyt = QVBoxLayout(paths_tab)
         plyt.setSpacing(10)
+        self._add_library_path_rows(relearn_cb, settings, plyt)
+        self._add_fix_path_rows(settings, plyt)
+        plyt.addStretch()
+        tabs.addTab(paths_tab, "📁 Paths")
 
+    def _add_library_path_rows(self, relearn_cb, settings, plyt):
+        """The folders the app reads and writes, and the playlist file format."""
         # ── Favorites library path ──
         plyt.addWidget(QLabel(
             "<b>Favorites library</b> — scanned on start (your tanzcds folder):"))
@@ -342,7 +353,7 @@ class SettingsDialog(LookTabMixin, QDialog):
 
         # ── Save-as default folder ──
         plyt.addWidget(QLabel(
-            "<b>Save-as folder</b> — where 'Save as M3U…' starts (e.g. D:\\Dropbox\\Turniere):"))
+            "<b>Save-as folder</b> — where 'Save as M3U…' starts (e.g. D:\\Playlists):"))
         self._save_edit = QLineEdit(settings.get("save_dir", ""))
         plyt.addLayout(self._path_row(self._save_edit))
 
@@ -378,6 +389,8 @@ class SettingsDialog(LookTabMixin, QDialog):
         self._relearn_btn.setEnabled(relearn_cb is not None)
         plyt.addWidget(self._relearn_btn)
 
+    def _add_fix_path_rows(self, settings, plyt):
+        """Where 🧭 Fix paths looks for a moved track, and the excluded folders."""
         # ── Reference path (Fix paths) ──
         plyt.addWidget(QLabel(
             "<b>Reference path</b> — base folder the playlist files live in on THIS PC; "
@@ -432,307 +445,6 @@ class SettingsDialog(LookTabMixin, QDialog):
         hidden_col.addStretch(1)
         hidden_row.addLayout(hidden_col)
         plyt.addLayout(hidden_row)
-
-        plyt.addStretch()
-        tabs.addTab(paths_tab, "📁 Paths")
-
-    def _setup_sound_tab(self, settings, tabs):
-        """🔊 Sound & player: the audio engine, what reaches the PA and the
-        player's own rows."""
-        sound_tab = QWidget()
-        plyt = QVBoxLayout(sound_tab)
-        plyt.setSpacing(10)
-
-        # ── Audio backend ──
-        plyt.addWidget(QLabel(
-            "<b>🔊 Audio backend</b> — the engine every title is played "
-            "through:"))
-        self._backend_combo = QComboBox()
-        for key, caption in MEDIA_BACKEND_CHOICES:
-            self._backend_combo.addItem(caption, key)
-        self._backend_combo.setCurrentIndex(
-            max(0, self._backend_combo.findData(media_backend_of(settings))))
-        self._backend_combo.setToolTip(
-            "Only change this if the sound gives you trouble: a title that\n"
-            "won't play, or the short gap a pitch change costs — the two\n"
-            "engines handle that differently. Takes effect on the next start.")
-        plyt.addWidget(self._backend_combo)
-        backend_note = QLabel(
-            "Takes effect after restarting the app. If the sound stays away "
-            "afterwards, switch back here — the setting is only read at start, "
-            "so nothing else in the app depends on it.")
-        backend_note.setWordWrap(True)
-        backend_note.setStyleSheet("color:#666; font-size:11px;")
-        plyt.addWidget(backend_note)
-
-        # ── Give the sound card back between titles ──
-        self._release_audio_chk = QCheckBox(
-            "🔇  Release the sound card between titles — takes away the hiss an "
-            "onboard output puts on the PA while the app holds it open")
-        self._release_audio_chk.setChecked(
-            bool(settings.get("release_audio_idle", False)))
-        self._release_audio_chk.setToolTip(
-            i18n.t("An onboard sound card un-mutes its output stage the moment an app\n"
-                   "opens it, and the amplifier carries that hiss across the hall — you\n"
-                   "hear it start with the app and stop when it closes, whether or not\n"
-                   "anything is playing.\n\n"
-                   "Handing the device back after %.0f s of silence takes it "
-                   "away. The cost is the soft click the card makes re-opening it\n"
-                   "for the next title, so only switch this on if you hear the hiss.")
-            % _AUDIO_IDLE_S)
-        plyt.addWidget(self._release_audio_chk)
-
-        # ── Keep the operating system's own sounds off the PA ──
-        self._mute_sys_chk = QCheckBox(
-            "🔕  Mute system sounds while the evening runs — no error ding or "
-            "notification chime over the speakers")
-        self._mute_sys_chk.setChecked(
-            bool(settings.get("mute_system_sounds", True)))
-        self._mute_sys_chk.setToolTip(
-            i18n.t("The music and the computer share the one sound card, so every\n"
-                   "sound the system makes goes out over the PA too.\n\n"
-                   "Muted all through Playing mode and whenever something plays,\n"
-                   "put back when you return to planning or close the app.\n"
-                   "Windows: the System Sounds slider of the volume mixer.\n"
-                   "macOS: the alert volume. Linux (GNOME): event sounds."))
-        plyt.addWidget(self._mute_sys_chk)
-
-        plyt.addWidget(_hsep())
-        self._add_output_rows(settings, plyt)
-
-        plyt.addWidget(_hsep())
-        self._add_player_rows(settings, plyt)
-
-        plyt.addStretch()
-        return tabs.addTab(sound_tab, "🔊 Sound && player")
-
-    def _add_output_rows(self, settings, plyt):
-        """🔈 One output per source — see shared.audio.playback.OUTPUT_SOURCES."""
-        plyt.addWidget(QLabel(
-            "<b>🔈 Outputs</b> — where each part of the evening is heard:"))
-        outputs = audio_output_choices()
-        saved = settings.get("audio_outputs") or {}
-        # Names to save with a choice: what the OS calls it, or what it was
-        # called when it was chosen, for a card that is not plugged in now.
-        self._output_names = {i: c.get("name") for c in saved.values()
-                              if isinstance(c, dict) and (i := c.get("id"))}
-        self._output_names.update(outputs)
-        captions = {"music": "🎵  Music:", "filler": "⏸  Filler music:",
-                    "cartwall": "🎛  Cartwall:", "announcer": "🔈  Announcements:",
-                    "cue": "🎧  Pre-listen:"}
-        tip = (
-            "Every output the operating system lists can be chosen. On a sound card\n"
-            "with several outputs, each pair that shows up as a device of its own\n"
-            "(\"Out 3/4\" next to \"Out 1/2\") can take a source of its own; channels\n"
-            "3/4 of ONE multichannel device cannot be picked separately.\n"
-            "\n"
-            "A card that is not plugged in plays on the system default until it is back.")
-        cue_tip = (
-            "▶ in the library pane, the 🏆 pane, the Similar window and the\n"
-            "event plan plays here, with a mini player of its own, and the\n"
-            "music keeps running. Refused while it is the output the music\n"
-            "plays on, unless it is the only output. \"Same as the music\": they\n"
-            "play on the music's player.")
-        grid = QGridLayout()
-        self._output_combos = {}
-        # 🎧 Pre-listen right below the music: the two the desk is set up by.
-        # Filler and announcements rarely need an output of their own — they
-        # come last, below a line. None is that line.
-        order = ("music", "cue", "cartwall", None, "filler", "announcer")
-        for row, source in enumerate(order):
-            if source is None:
-                grid.addWidget(_hsep(), row, 0, 1, 2)
-                continue
-            combo = QComboBox()
-            if source == "music":
-                combo.addItem("System default (follows the OS)", None)
-            else:
-                combo.addItem("Same as the music", None)
-                combo.addItem("System default (follows the OS)", SYSTEM_DEFAULT)
-            for dev_id, name in outputs:
-                combo.addItem(name, dev_id)
-            choice = saved.get(source)
-            want = choice.get("id") if isinstance(choice, dict) else None
-            if want and isinstance(choice, dict):
-                # A card Windows numbered anew is that card, under its new id.
-                want = match_output(outputs, want, choice.get("name")) or want
-            if want and combo.findData(want) < 0:
-                combo.addItem(i18n.t("⚠  %s (not connected)")
-                              % (self._output_names.get(want) or want), want)
-            combo.setCurrentIndex(max(0, combo.findData(want)) if want else 0)
-            combo.setToolTip(cue_tip if source == "cue" else tip)
-            grid.addWidget(QLabel(captions[source]), row, 0)
-            grid.addWidget(combo, row, 1)
-            self._output_combos[source] = combo
-        grid.setColumnStretch(1, 1)
-        plyt.addLayout(grid)
-
-    def _output_values(self) -> dict:
-        """The pickers as the "audio_outputs" setting: a source left on
-        follow is left out."""
-        chosen = {}
-        for source, combo in self._output_combos.items():
-            dev_id = combo.currentData()
-            if not dev_id:
-                continue
-            chosen[source] = ({"id": dev_id} if dev_id == SYSTEM_DEFAULT
-                              else {"id": dev_id, "name": self._output_names.get(dev_id)})
-        return chosen
-
-    def _add_player_rows(self, settings, plyt):
-        """The player's own rows, on the 🔊 Sound & player tab: the mini
-        player, where the master player stands and the announcement voice."""
-        # ── Preview player overlay ──
-        self._preview_chk = QCheckBox(
-            "🎧  Preview player — float a mini player (seek / skip / volume) over "
-            "the deck when a ▶ button is clicked")
-        self._preview_chk.setChecked(bool(settings.get("preview_player", True)))
-        plyt.addWidget(self._preview_chk)
-
-        # ── 📂 A double-click hands the file to the system's music player ──
-        self._dblclick_external_chk = QCheckBox(
-            "📂  Double-click opens the title in the system's music player "
-            "(while planning, in 📚 the library and the dialogs)")
-        self._dblclick_external_chk.setToolTip(
-            "Off: a deck plays the title in the mini player, the other places\n"
-            "leave the file alone. On: it opens in the program your system\n"
-            "plays music with (on a Mac, Music).\n"
-            "Right-click → open still works either way, and in Playing mode\n"
-            "a double-click always plays or cues the title.")
-        self._dblclick_external_chk.setChecked(
-            bool(settings.get("dblclick_external", False)))
-        plyt.addWidget(self._dblclick_external_chk)
-
-        # ── 🖼 Cover art on the player card ──
-        self._artwork_chk = QCheckBox(
-            "🖼  Show artwork — a cover next to the title on the player card")
-        self._artwork_chk.setToolTip(
-            "Show a cover picture next to the title on the player.\n"
-            "The playlist's own image is used when it has one (an #EXTIMG line\n"
-            "in the .m3u or a cover file beside it), otherwise the track's\n"
-            "embedded artwork, otherwise a plain ♪ tile.")
-        self._artwork_chk.setChecked(bool(settings.get("show_artwork", True)))
-        plyt.addWidget(self._artwork_chk)
-
-        # ── 〰 The title's waveform in place of the seek bar ──
-        self._waveform_chk = QCheckBox(
-            "〰  Show waveform — the title's waveform in place of the player "
-            "card's seek bar")
-        self._waveform_chk.setToolTip(
-            "Draw the playing title's waveform in place of the seek bar: quiet\n"
-            "passages, the skipped silence, the Paso Doble highlights and\n"
-            "where the fade-out of a timed cut begins. Click it to jump.")
-        self._waveform_chk.setChecked(bool(settings.get("show_waveform", True)))
-        plyt.addWidget(self._waveform_chk)
-
-        # ── 🔉 How far the duck button pulls the music down ──
-        # 20 and 90 are player.audio.mix's DESK_DUCK_PCT and its cap: a duck
-        # to full would be no duck at all.
-        duck_row = QHBoxLayout()
-        duck_row.addWidget(QLabel("🔉  Duck to:"))
-        self._duck_spin = QSpinBox()
-        self._duck_spin.setRange(0, 90)
-        self._duck_spin.setSingleStep(5)
-        self._duck_spin.setSuffix(" %")
-        self._duck_spin.setToolTip(
-            "How loud everything stays while 🔉 Duck is pressed on the player\n"
-            "card, the mini player or the presenter screen: low enough to talk\n"
-            "over, loud enough to keep the floor moving. 0 % is silence.")
-        try:
-            duck_pct = int(settings.get("duck_pct", 20))
-        except (TypeError, ValueError):
-            duck_pct = 20
-        self._duck_spin.setValue(duck_pct)
-        duck_row.addWidget(self._duck_spin)
-        duck_row.addStretch(1)
-        plyt.addLayout(duck_row)
-
-        # ── 🎙 How 🔈 Announce next dance sounds ──
-        # Set once per venue, not on the night: the ▶ Playing panel only
-        # names the choice under its 🔈 switch.
-        voice_row = QHBoxLayout()
-        voice_row.addWidget(QLabel("🎙  Announcement voice:"))
-        self._voice_combo = QComboBox()
-        self._voice_combo.setToolTip(
-            "Which recorded voice announces the dance. “Mixed” alternates them\n"
-            "— she, he, she, he — so an evening doesn't run on a single voice.\n\n"
-            "A dance that was never recorded is not announced.")
-        for label, key in (("Female", "female"), ("Male", "male"),
-                           ("Mixed", "random")):
-            self._voice_combo.addItem(label, key)
-        self._voice_combo.setCurrentIndex(max(0, self._voice_combo.findData(
-            str(settings.get("announce_voice", "random")))))
-        voice_row.addWidget(self._voice_combo)
-        self._heat_chk = QCheckBox("…with heat")
-        self._heat_chk.setToolTip(
-            "Append the heat number (\"…, Heat 3\") — the couples hear which\n"
-            "heat they are about to dance.\n\n"
-            "Only a round grid has heats: a theme list, the warm-up and a free\n"
-            "running order are announced without one. Recorded for heats 1-8;\n"
-            "beyond that the number is left out.")
-        self._heat_chk.setChecked(bool(settings.get("announce_heat", False)))
-        voice_row.addWidget(self._heat_chk)
-        self._voice_test_btn = QPushButton("🔈  Test")
-        self._voice_test_btn.setToolTip(
-            "Speak a sample announcement now — check voice and level\n"
-            "before the round, not during it.")
-        # The unsaved pick: trying a voice before OK is what the button is for.
-        self._voice_test_btn.setEnabled(self._announce_test_cb is not None)
-        self._voice_test_btn.clicked.connect(self._test_voice)
-        voice_row.addWidget(self._voice_test_btn)
-        voice_row.addStretch(1)
-        plyt.addLayout(voice_row)
-
-        # Where the spoken dance sits against the first bar, when a title
-        # names its dance as it starts. The panel names the choice in short.
-        lead_row = QHBoxLayout()
-        lead_row.addWidget(QLabel("🗣  Dance is named:"))
-        self._lead_over_radio = QRadioButton("over the first bars")
-        self._lead_wait_radio = QRadioButton("before the music starts")
-        self._lead_over_radio.setToolTip(
-            "The dance is named while the music is already running, ducked\n"
-            "under the voice — the hall hears both at once and the title\n"
-            "loses none of its first bars.\n\n"
-            "Applies where a title names its dance as it starts: 🔈 Announce\n"
-            "next dance on, and no pause between songs (a pause has a gap of\n"
-            "its own for the call).")
-        self._lead_wait_radio.setToolTip(
-            "The dance is called into silence and the music follows when the\n"
-            "voice is done — the hall hears WHICH dance before it starts, at\n"
-            "the cost of a second or two of quiet.\n\n"
-            "Applies where a title names its dance as it starts: 🔈 Announce\n"
-            "next dance on, and no pause between songs (a pause has a gap of\n"
-            "its own for the call).")
-        lead_group = QButtonGroup(self)
-        for r in (self._lead_over_radio, self._lead_wait_radio):
-            lead_group.addButton(r)
-            lead_row.addWidget(r)
-        wait = bool(settings.get("announce_wait", False))
-        self._lead_wait_radio.setChecked(wait)
-        self._lead_over_radio.setChecked(not wait)
-        lead_row.addStretch(1)
-        plyt.addLayout(lead_row)
-
-        # ── Where the master player is docked ──
-        plyt.addWidget(QLabel(
-            "<b>▶ Player position</b> — where the master player stands in "
-            "▶ Playing mode:"))
-        self._player_layout_combo = QComboBox()
-        for key, caption, blurb in PLAYER_LAYOUT_CHOICES:
-            self._player_layout_combo.addItem(caption, key)
-            self._player_layout_combo.setItemData(
-                self._player_layout_combo.count() - 1, i18n.t(blurb),
-                Qt.ItemDataRole.ToolTipRole)
-        self._player_layout_combo.setCurrentIndex(
-            max(0, self._player_layout_combo.findData(
-                player_layout_of(settings))))
-        plyt.addWidget(self._player_layout_combo)
-
-    def _test_voice(self):
-        """🔈 Test: speak a sample in the voice the dialog shows."""
-        if self._announce_test_cb is not None:
-            self._announce_test_cb(self._voice_combo.currentData(),
-                                   self._heat_chk.isChecked())
 
     def _setup_analysis_tab(self, all_cb, analyze_cb, backup_restore_cb, build_cb,
                             embed_cb, loudness_cb, maintenance_cb, n_unanalyzed, pd_cb,
@@ -902,7 +614,7 @@ class SettingsDialog(LookTabMixin, QDialog):
         # keeps every PC's own).
         llyt.addWidget(QLabel(
             "<b>Backup folder</b> — where the daily backup of your own data goes"
-            " (e.g. D:\\Dropbox\\DanceSportPlayer). Empty: next to the database."))
+            " (e.g. a Dropbox folder). Empty: next to the database."))
         self._backup_edit = QLineEdit(self._settings_in.get("backup_dir", ""))
         llyt.addLayout(self._path_row(self._backup_edit))
         brow = QHBoxLayout()
@@ -977,319 +689,6 @@ class SettingsDialog(LookTabMixin, QDialog):
                 self._vocals_btn.setEnabled(vocals_cb is not None)
                 hlyt.addWidget(self._vocals_btn)
             alyt.addWidget(heavy_box)
-
-    def _setup_play_sets_tab(self, settings, tabs):
-        """🎛 Play sets: what the two buttons on the ▶ panel apply."""
-        # ═══ Tab 4: Play sets — what the two buttons on the ▶ panel apply ═══
-        sets_tab = QWidget()
-        tlyt = QVBoxLayout(sets_tab)
-        tlyt.setSpacing(8)
-        tlyt.addWidget(QLabel(
-            "<b>🎛 Play sets</b> — the two buttons on the ▶ Playing panel put "
-            "the controls on these values in one press:"))
-
-        self._set_widgets = {}
-        for which, caption, blurb in (
-                ("tournament", "🏆  Tournament set",
-                 "The values a heat is run with — pressed to get back to them "
-                 "after a party list has pulled the panel somewhere else."),
-                ("party", "🎉  Party set",
-                 "Applied by itself as soon as you play from the 🤸 Practice / "
-                 "party list, and switched back when a tournament deck takes over.")):
-            self._add_play_set_box(tlyt, settings, which, caption, blurb)
-            # 🎚 The pitch target belongs to the heat: right under 🏆.
-            if which == "tournament":
-                self._add_tso_band_grid(tlyt, settings)
-
-        pd_note = QLabel(
-            "🐂 Each set carries its own Paso Doble values. Under 🏆 the "
-            "highlight stop is <i>off</i> by default: the detection is not good "
-            "enough yet to cut a competition Paso Doble on, and a heat stopped "
-            "in the wrong bar is danced twice. Under 🎉 it stops after the 2nd "
-            "highlight and waits 3 s, so the couples can take their position.")
-        pd_note.setWordWrap(True)
-        pd_note.setStyleSheet("color:#666; font-size:11px;")
-        tlyt.addWidget(pd_note)
-
-        tlyt.addStretch()
-        sets_idx = tabs.addTab(sets_tab, "🎛 Play sets")
-        return sets_idx
-
-    def _add_play_set_box(self, tlyt, settings, which, caption, blurb):
-        """🏆/🎉 One play set's box: length, fades, crossfade and switches."""
-        cur = dict(play_set_of(settings, which), tso=tso_of(settings, which),
-                   dblclick_ask=dblclick_ask_of(settings, which))
-        box = QGroupBox(caption)
-        blyt = QVBoxLayout(box)
-        hint = QLabel(blurb)
-        hint.setWordWrap(True)
-        hint.setStyleSheet("color:#777; font-size:11px;")
-        blyt.addWidget(hint)
-
-        row = QHBoxLayout()
-        row.addWidget(QLabel("Play length:"))
-        length = QComboBox()
-        length.addItem("full — to each title's own end", 0)
-        for s in range(_LEN_STEP, _LEN_MAX + 1, _LEN_STEP):
-            length.addItem(f"{s // 60}:{s % 60:02d}", s)
-        # Typable as well as pickable — the rungs are 15 s apart and a heat
-        # that wants 1:37 has to be able to say so here too, not only on the
-        # panel. NoInsert: a typed length is read back from the text, it
-        # must not grow the list.
-        length.setEditable(True)
-        length.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
-        length.setToolTip("Pick a length or type one: m:ss, seconds, "
-                          "or 'full'")
-        idx = length.findData(cur["secs"])
-        if idx >= 0:
-            length.setCurrentIndex(idx)
-        else:
-            # An off-ladder length typed in earlier: show it as it is, or
-            # reopening the dialog would silently snap it to a rung.
-            length.setEditText(
-                f"{cur['secs'] // 60}:{cur['secs'] % 60:02d}")
-        row.addWidget(length)
-        row.addSpacing(12)
-        row.addWidget(QLabel("Fade-out:"))
-        fade = QDoubleSpinBox()
-        fade.setRange(0, 10)
-        fade.setDecimals(1)
-        fade.setSingleStep(0.5)
-        fade.setSuffix(" s")
-        fade.setValue(float(cur["fade"]))
-        fade.setToolTip("How long the volume takes to ramp down to 0 when\n"
-                        "the play length cuts a title — half-second steps")
-        row.addWidget(fade)
-        fade_inside = QCheckBox("within the length")
-        fade_inside.setChecked(bool(cur["fade_inside"]))
-        fade_inside.setToolTip(
-            "Ticked: the fade-out ends at the play length.\n"
-            "Unticked: the title plays its full length, then fades out.")
-        row.addWidget(fade_inside)
-        row.addSpacing(12)
-        xfade_on, xfade, curves = self._add_crossfade_controls(row, cur)
-        row.addStretch(1)
-        blyt.addLayout(row)
-
-        boxes = self._add_play_set_checks(blyt, cur)
-        boxes["fade_inside"] = fade_inside
-        self._set_widgets[which] = {"length": length, "fade": fade,
-                                    "xfade": xfade, "xfade_on": xfade_on,
-                                    "xfade_curve": curves,
-                                    "boxes": boxes, "secs": cur["secs"]}
-        self._set_widgets[which]["pd"] = self._add_pd_row(blyt, settings, which)
-        if which == "tournament":
-            self._add_dance_len_grid(blyt, settings)
-        tlyt.addWidget(box)
-
-    def _add_pd_row(self, blyt, settings, which):
-        """🐂 One set's Paso Doble: the highlight stop, which highlight, and
-        the wait after the call."""
-        pd = pd_of(settings, which)
-        row = QHBoxLayout()
-        stop = QCheckBox("🐂  Paso Doble: stop after highlight")
-        stop.setChecked(pd["pd_stop"])
-        if which == "tournament":
-            stop.setToolTip("Shut the music off at the chosen highlight instead of\n"
-                            "the play length. Off by default: a highlight detected\n"
-                            "in the wrong bar cuts the heat short.")
-        else:
-            stop.setToolTip("Shut the music off at the chosen highlight instead of\n"
-                            "the play length. On by default: at a party the\n"
-                            "Paso Doble ends on its 2nd highlight.")
-        row.addWidget(stop)
-        n = QSpinBox()
-        n.setRange(1, 3)
-        n.setValue(pd["pd_n"])
-        n.setToolTip("Which highlight ends the Paso Doble — usually the 2nd,\n"
-                     "in rare cases the 3rd.")
-        row.addWidget(n)
-        row.addSpacing(12)
-        row.addWidget(QLabel("Start after:"))
-        delay = QSpinBox()
-        delay.setRange(0, 60)
-        delay.setSuffix(" s")
-        delay.setValue(pd["pd_delay"])
-        if which == "tournament":
-            delay.setToolTip("Hold a Paso Doble back this long before the music\n"
-                             "starts. 0 s = at once: at a competition the couples\n"
-                             "stand before the music, the chairman's call is the wait.")
-        else:
-            delay.setToolTip("Hold a Paso Doble back this long before the music\n"
-                             "starts, so the couples can take their position.")
-        row.addWidget(delay)
-        stop.toggled.connect(n.setEnabled)
-        n.setEnabled(stop.isChecked())
-        row.addStretch(1)
-        blyt.addLayout(row)
-        return stop, n, delay
-
-    def _add_crossfade_controls(self, row, cur):
-        """🔀 A play set's crossfade switch, seconds, curve and preview."""
-        # 🔀 Its own switch, as on the panel: off keeps the seconds.
-        xfade_on = QCheckBox("🔀  Crossfade:")
-        xfade_on.setChecked(bool(cur["xfade_on"]))
-        xfade_on.setToolTip("The next title comes in under the end of the\n"
-                            "last one — only where the list walks on with\n"
-                            "no pause. Off: one ends, the next starts.")
-        row.addWidget(xfade_on)
-        xfade = QDoubleSpinBox()
-        xfade.setRange(XFADE_MIN_SECS, XFADE_MAX_SECS)
-        xfade.setDecimals(1)
-        xfade.setSingleStep(0.5)
-        xfade.setSuffix(" s")
-        xfade.setValue(float(cur["xfade"]))
-        xfade.setToolTip(
-            "How long the two titles play together — half-second steps")
-        row.addWidget(xfade)
-        curves = CrossfadeCurveButton()
-        curves.set_curve(str(cur["xfade_curve"]))
-        row.addWidget(curves)
-        xfade_view = CrossfadeView()
-        row.addWidget(xfade_view)
-
-        def sync_xfade(*_, on=xfade_on, spin=xfade, curves=curves,
-                       view=xfade_view):
-            spin.setEnabled(on.isChecked())
-            curves.setEnabled(on.isChecked())
-            view.set_curve(curves.curve())
-            view.set_secs(spin.value() if on.isChecked() else 0.0)
-        xfade_on.toggled.connect(sync_xfade)
-        xfade.valueChanged.connect(sync_xfade)
-        curves.curveChanged.connect(sync_xfade)
-        sync_xfade()
-        return xfade_on, xfade, curves
-
-    def _add_play_set_checks(self, blyt, cur):
-        """A play set's switches (⏭ ⏸ 🔈 🔊 ▶️ ❓ 🎚), keyed by setting."""
-        boxes = {}
-        for key, label, tip in (
-                ("advance", "⏭  Auto-advance to next song", ""),
-                ("pause_off", "⏸  No pause between songs", ""),
-                ("announce", "🔈  Announce next dance", ""),
-                ("loudness", "🔊  Equalize volume (R128)", ""),
-                ("dblclick", "▶️  Double-click starts the title",
-                 "On: a double-click in a deck plays the title at once.\n"
-                 "Off: it is only cued on the player (loaded, shown,\n"
-                 "silent) and ⏯ starts it — the heat begins when the\n"
-                 "couples stand."),
-                ("dblclick_ask", "❓  Ask before a double-click stops the title",
-                 "On: a double-click on another title while one is playing\n"
-                 "asks first — No keeps the music on the floor.\n"
-                 "Off: the new title takes over at once."),
-                ("tso", "🎚  TSO pitch to the heat tempo",
-                 "Pitch every title to the mean tempo of its dance in the\n"
-                 "current round, kept inside the TSO range — what a heat is\n"
-                 "danced to. Wrong for a party, where the next song is a\n"
-                 "different dance at whatever tempo it was recorded at.")):
-            # 🎚 TSO, or the WDSF CR outside the German terms.
-            chk = QCheckBox(rules_name(i18n.t(label)))
-            chk.setChecked(bool(cur[key]))
-            if tip:
-                chk.setToolTip(rules_name(i18n.t(tip)))
-            blyt.addWidget(chk)
-            boxes[key] = chk
-        return boxes
-
-    def _add_dance_len_grid(self, blyt, settings):
-        """⏱ The 🏆 set's own play length per dance — a heat is timed per
-        dance, a Viennese Waltz shorter than a Waltz."""
-        lbl = QLabel(
-            "<b>⏱ Per dance</b> — a dance given a length of its own is cut "
-            "there instead, as long as a list stands on this set. The ▶ "
-            "Playing panel names the dance under its length.")
-        lbl.setWordWrap(True)
-        blyt.addWidget(lbl)
-        stored = dance_secs_of(settings)
-        grid = QGridLayout()
-        grid.setHorizontalSpacing(14)
-        self._dance_len_combos: dict[str, tuple[QComboBox, int | None]] = {}
-        dances = [d for d in ("LW", "TG", "WW", "SF", "QS",
-                              "SA", "CC", "RB", "PD", "JI")
-                  if d in TEMPO_RANGES]
-        for i, dance in enumerate(dances):
-            combo = QComboBox()
-            combo.addItem("— the set's length", None)
-            combo.addItem("full", 0)
-            for s in range(_LEN_STEP, _LEN_MAX + 1, _LEN_STEP):
-                combo.addItem(f"{s // 60}:{s % 60:02d}", s)
-            # Typable like the set's own length: 1:37 is not a rung.
-            combo.setEditable(True)
-            combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
-            combo.setToolTip("Pick a length or type one: m:ss, seconds, "
-                             "or 'full'")
-            secs = stored.get(dance)
-            idx = combo.findData(secs) if secs is not None else 0
-            if idx >= 0:
-                combo.setCurrentIndex(idx)
-            elif secs is not None:
-                combo.setEditText(f"{secs // 60}:{secs % 60:02d}")
-            self._dance_len_combos[dance] = (combo, secs)
-            row, col = i % 5, (i // 5) * 2
-            grid.addWidget(QLabel(f"{dance_name(dance, dance)}:"), row, col)
-            grid.addWidget(combo, row, col + 1)
-        # The spare width goes to an empty column on the right: a stretched
-        # combo stood 400 px wide for a length of four characters.
-        grid.setColumnStretch(4, 1)
-        blyt.addLayout(grid)
-
-    @staticmethod
-    def _dance_len_secs(combo: QComboBox, opened: int | None) -> int | None:
-        """One dance's length in the grid: None = the set's, 0 = full. An item
-        picked or its caption typed comes first — "— the set's length" is
-        not something the parser takes — then a typed length; anything else
-        keeps the value the dialog opened on."""
-        idx = combo.findText(combo.currentText().strip())
-        if idx >= 0:
-            return combo.itemData(idx)
-        secs = parse_play_length(combo.currentText())
-        return secs if secs is not None else opened
-
-    def _add_tso_band_grid(self, tlyt, settings):
-        """🎚 Which takt of its TSO band each dance is pitched to."""
-        # ── 🎚 Where in its TSO band each dance is pitched ──
-        tlyt.addWidget(_hsep())
-        band_lbl = QLabel(rules_name(i18n.t(
-            "<b>🎚 TSO pitch target</b> — which takt the 🎚 button pitches a "
-            "heat to. <i>Middle of the round</i> puts the round on one takt: "
-            "the takt most of its titles are on where a step of one gets the "
-            "rest there cheaply (T30+T31+T31 Cha-Chas → 31), the middle of "
-            "its takte where it does not (T24+T25+T25 Rumbas → 24.5, "
-            "T50+T52+T52 Quicksteps → 51). Nothing moves more than a takt. A fixed takt "
-            "puts every title of that dance on the same tempo instead — worth "
-            "setting on the slow dances, where one takt out of 24 is twice "
-            "the pitch shift one takt out of 50 is.")))
-        band_lbl.setWordWrap(True)
-        tlyt.addWidget(band_lbl)
-
-        stored_bands = settings.get("tso_band") or {}
-        band_grid = QGridLayout()
-        band_grid.setHorizontalSpacing(14)
-        self._band_combos: dict[str, QComboBox] = {}
-        dances = [d for d in ("LW", "TG", "WW", "SF", "QS",
-                              "SA", "CC", "RB", "PD", "JI")
-                  if d in TEMPO_RANGES]
-        for i, dance in enumerate(dances):
-            lo, hi = TEMPO_RANGES[dance]["S"]
-            combo = QComboBox()
-            combo.addItem("Middle of the round", "mean")
-            combo.addItem(i18n.t("Lower — T%s") % f"{lo:g}", "lower")
-            combo.addItem(i18n.t("Middle — T%s") % f"{(lo + hi) / 2:g}",
-                          "middle")
-            combo.addItem(i18n.t("Upper — T%s") % f"{hi:g}", "upper")
-            idx = combo.findData(str(stored_bands.get(dance, "mean")))
-            combo.setCurrentIndex(max(0, idx))
-            # A Mac draws the popup button's frame past its size hint: at
-            # exactly the hint its right edge was cut off.
-            combo.setMinimumWidth(combo.sizeHint().width() + 10)
-            self._band_combos[dance] = combo
-            row, col = i % 5, (i // 5) * 2
-            band_grid.addWidget(
-                QLabel(f"{dance_name(dance, dance)}:"), row, col)
-            band_grid.addWidget(combo, row, col + 1)
-        # Spare width to an empty column, as in the per-dance lengths.
-        band_grid.setColumnStretch(4, 1)
-        tlyt.addLayout(band_grid)
 
     def _setup_checks_tab(self, gaps_cb, settings, tabs):
         """🎵 Checks: the Check-music thresholds."""
@@ -1398,17 +797,19 @@ class SettingsDialog(LookTabMixin, QDialog):
         vlyt.addStretch()
         return tabs.addTab(venue_tab, "📦 Venue pack")
 
-    def _setup_tab_visibility(self, chk_idx, lyt, sets_idx, tabs):
+    def _setup_tab_visibility(self, chk_idx, lyt, sets_idx, cart_idx, tabs):
         """Tabs that follow the app mode, and the OK/Cancel buttons."""
         # A player-only install never runs the planning checks — and the tab
         # follows the combo above right away, so the dialog stays consistent
         # with what the user just picked.
         # …and the mirror image: a planner-only install has no Playing panel, so
-        # the two buttons the play sets configure are nowhere to be pressed.
+        # the two buttons the play sets configure are nowhere to be pressed, and
+        # there is no 🎛 cartwall either.
         def _sync_checks_tab():
             mode = self._app_mode_combo.currentData()
             tabs.setTabVisible(chk_idx, mode != "player")
             tabs.setTabVisible(sets_idx, mode != "planner")
+            tabs.setTabVisible(cart_idx, mode != "planner")
         _sync_checks_tab()
         self._app_mode_combo.currentIndexChanged.connect(_sync_checks_tab)
 
@@ -1585,25 +986,12 @@ class SettingsDialog(LookTabMixin, QDialog):
             "hidden_folders": parse_remap_paths(self._hidden_edit.toPlainText()),
             "global_search": self._global_chk.isChecked(),
             "exclude_no_class": self._exclude_no_class_chk.isChecked(),
-            "audio_outputs": self._output_values(),
             "clock_time_only": self._clock_time_only_chk.isChecked(),
-            "preview_player": self._preview_chk.isChecked(),
-            "duck_pct": self._duck_spin.value(),
-            "dblclick_external": self._dblclick_external_chk.isChecked(),
-            "show_artwork": self._artwork_chk.isChecked(),
-            "show_waveform": self._waveform_chk.isChecked(),
-            "player_layout": self._player_layout_combo.currentData(),
-            "announce_voice": self._voice_combo.currentData(),
-            "announce_heat": self._heat_chk.isChecked(),
-            "announce_wait": self._lead_wait_radio.isChecked(),
-            "media_backend": self._backend_combo.currentData(),
             "theme": self.selected_theme(),
             "presenter_theme": self.presenter_theme(),
             "accent_color": self._accent,
             "language": self._language_combo.currentData(),
             "german_dance_terms": self._german_terms_chk.isChecked(),
-            "release_audio_idle": self._release_audio_chk.isChecked(),
-            "mute_system_sounds": self._mute_sys_chk.isChecked(),
             **({"error_reports": self._error_reports_chk.isChecked()}
                if self._error_reports_chk is not None else {}),
             update_check.SETTING: self._update_check_chk.isChecked(),
@@ -1612,41 +1000,7 @@ class SettingsDialog(LookTabMixin, QDialog):
             "check_tempo_dev_pct": self._dev_spin.value(),
             "check_noise_floor_db": self._noise_spin.value(),
         })
-        # Only the dances that are NOT on the heat mean: the default is what
-        # the button does without the setting, and writing ten "mean" entries
-        # would freeze today's default into the settings file.
-        vals["tso_band"] = {d: c.currentData()
-                            for d, c in self._band_combos.items()
-                            if c.currentData() != "mean"}
-        # Only the dances given a length of their own: the rest run on the set's.
-        lens = {d: self._dance_len_secs(c, opened)
-                for d, (c, opened) in self._dance_len_combos.items()}
-        vals[DANCE_SECS_KEY] = {d: s for d, s in lens.items() if s is not None}
-        for which, w in self._set_widgets.items():
-            vals[f"{which}_set"] = dict(
-                {k: chk.isChecked() for k, chk in w["boxes"].items()},
-                secs=self._play_set_secs(w),
-                fade=w["fade"].value(),
-                xfade=w["xfade"].value(),
-                xfade_on=w["xfade_on"].isChecked(),
-                xfade_curve=w["xfade_curve"].curve())
-            if "pd" in w:
-                stop, n, delay = w["pd"]
-                vals[f"{which}_set"].update(pd_stop=stop.isChecked(),
-                                            pd_n=n.value(), pd_delay=delay.value())
+        vals.update(self._sound_values())
+        vals.update(self._cartwall_values())
+        vals.update(self._play_sets_values())
         return vals
-
-    @staticmethod
-    def _play_set_secs(w) -> int:
-        """The play length of one set: a rung picked, or a length typed in.
-
-        The text is asked first because a typed one leaves the combo on no
-        index at all; the picked item's data covers "full", whose caption
-        spells out more than the parser will take."""
-        secs = parse_play_length(w["length"].currentText())
-        if secs is not None:
-            return secs
-        data = w["length"].currentData()
-        # Neither parseable nor a rung: something was typed that is not a
-        # length, and the value the dialog opened on stands.
-        return int(data) if data is not None else int(w["secs"])

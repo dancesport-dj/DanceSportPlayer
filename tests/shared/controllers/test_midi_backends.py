@@ -4,7 +4,9 @@ needed (nor loaded) to run these."""
 import ctypes
 import struct
 import sys
+import threading
 import unittest
+from unittest import mock
 
 from shared.controllers import midi_alsa, midi_coremidi, midi_input
 from shared.controllers.midi_input import MidiStreamParser, unique_names
@@ -103,6 +105,93 @@ class AlsaEventTest(unittest.TestCase):
     def test_other_events_are_ignored(self):
         self.assertIsNone(midi_alsa.event_message(_event(11, 0, value=5)))   # program
         self.assertIsNone(midi_alsa.event_message(_event(66, 0)))           # port subscribed
+
+
+class AlsaCloseTest(unittest.TestCase):
+    """L10: close() dropped the sequencer handle before the reader stopped, so
+    a reader still in its loop handed NULL to snd_seq_event_input."""
+
+    def _input(self, alive_after_join=False):
+        inp = midi_alsa.MidiInput.__new__(midi_alsa.MidiInput)
+        inp._seq = seq = object()
+        inp._stop = threading.Event()
+        seen = []
+
+        class _Reader:
+            def join(self, _timeout):
+                seen.append(inp._seq)       # what the reader still reads from
+
+            def is_alive(self):
+                return alive_after_join
+
+        inp._thread = _Reader()
+        lib = mock.Mock()
+        patcher = mock.patch.object(midi_alsa, "_load", lambda: lib)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        return inp, seq, seen, lib
+
+    def test_the_reader_keeps_its_handle_until_it_has_stopped(self):
+        inp, seq, seen, lib = self._input()
+        inp.close()
+        self.assertEqual(seen, [seq])
+        lib.snd_seq_close.assert_called_once_with(seq)
+        self.assertIsNone(inp._seq)
+        inp.close()                                 # twice is harmless
+        lib.snd_seq_close.assert_called_once_with(seq)
+
+    def test_a_reader_that_will_not_stop_keeps_it_for_good(self):
+        inp, seq, _seen, lib = self._input(alive_after_join=True)
+        inp.close()
+        lib.snd_seq_close.assert_not_called()
+        self.assertIs(inp._seq, seq)
+
+
+class _FakeWinmm:
+    """winmm with two identical controllers plugged in."""
+
+    def __init__(self, names):
+        self.names = names
+        self.opened = []
+
+    def midiInGetNumDevs(self):
+        return len(self.names)
+
+    def midiInGetDevCapsW(self, idx, caps, _size):
+        caps._obj.szPname = self.names[idx]
+        return 0
+
+    def midiInOpen(self, handle, idx, *_args):
+        self.opened.append(idx)
+        handle._obj.value = 100 + idx
+        return 0
+
+    def midiInStart(self, _handle):
+        pass
+
+
+@unittest.skipUnless(sys.platform == "win32", "winmm is Windows only")
+class WinmmDuplicateNamesTest(unittest.TestCase):
+    """Two identical controllers: each is listed apart and opens its own unit,
+    as on CoreMIDI and ALSA."""
+
+    def setUp(self):
+        from unittest import mock
+
+        from shared.controllers import midi_winmm
+        self.backend = midi_winmm
+        self.fake = _FakeWinmm(["nanoKONTROL2", "nanoKONTROL2"])
+        patch = mock.patch.object(midi_winmm, "_winmm", self.fake)
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def test_the_second_unit_gets_its_own_name(self):
+        self.assertEqual(self.backend.list_inputs(),
+                         ["nanoKONTROL2", "nanoKONTROL2 #2"])
+
+    def test_the_second_name_opens_the_second_unit(self):
+        self.backend.MidiInput("nanoKONTROL2 #2", lambda *_m: None)
+        self.assertEqual(self.fake.opened, [1])
 
 
 class DispatchTest(unittest.TestCase):

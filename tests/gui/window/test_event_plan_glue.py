@@ -334,6 +334,7 @@ class ApplyEventTest(unittest.TestCase):
         w._cfg.get_config.return_value = ("Standard", "HGR", "S", [], "", True)
         w._grid.deck_tabs = mock.Mock()
         w._grid.day_tabs = mock.Mock()
+        w._grid.day_split = mock.Mock()
         w._event_opts = {"event": {"series_name": "DanceConvention", "year": 2026}}
         for target in ("gui.window.main_event._show_toast",
                        "gui.window.main_event.PlaylistSuggester"):
@@ -377,7 +378,8 @@ class ApplyEventTest(unittest.TestCase):
         self.assertEqual(self.loaded, [(decks[0], ["C0"]), (decks[1], ["C1"]),
                                        (decks[2], ["C2"])])
         self.win._set_day_tab_title.assert_called_once_with("DanceConvention 2026")
-        self.win._grid.deck_tabs.setCurrentIndex.assert_called_once_with(2)
+        self.win._grid.deck_tabs.setCurrentWidget.assert_called_once_with(
+            self.win._grid.day_tabs)
         self.win._set_active_table.assert_called_with(decks[0])
 
     def test_more_than_eight_share_decks(self):

@@ -70,6 +70,7 @@ from planner.music.parsing import (  # auto-resolved
     _get_um_dance,
     _get_title_artist_tags,
     popm_stars,
+    LIBRARY_EXTS,
     _is_christmas,
     _parse_class_tag,
     title_marks_instrumental,
@@ -103,10 +104,10 @@ _GENRE_CATEGORY_RE = re.compile(r'^(?:ballroom|standard|latin|latein)\s+', re.IG
 # anchor → use the round's stored one" from "caller explicitly passed None → no timbre".
 _ANCHOR_DEFAULT: Any = object()
 
-
 def _library_mp3s(root: Path,
                   mtimes: dict[str, int] | None = None) -> list[tuple[Path, float]]:
-    """Every .mp3 under `root` with the time it was created (breadth-first).
+    """Every music file (LIBRARY_EXTS) under `root` with the time it was
+    created (breadth-first).
 
     Same trick as `_playlist_tree`: a Windows directory entry already carries the
     timestamps, so `DirEntry.stat()` needs no extra syscall — the whole library
@@ -128,7 +129,7 @@ def _library_mp3s(root: Path,
             try:
                 if de.is_dir(follow_symlinks=False):
                     queue.append(de.path)
-                elif de.name.lower().endswith(".mp3"):
+                elif de.name.lower().endswith(LIBRARY_EXTS):
                     st = de.stat()
                     # st_birthtime is the real creation time (Windows/macOS);
                     # elsewhere st_ctime is the closest thing on offer.
@@ -142,7 +143,7 @@ def _library_mp3s(root: Path,
 
 
 def _listed_mtimes(folders) -> dict[str, int]:
-    """str(path) → mtime of every .mp3 directly in `folders`, one listing each.
+    """str(path) → mtime of every music file directly in `folders`, one listing each.
 
     The key to a recorded fingerprint holds the file's mtime; for the whole
     repository (54k titles) one stat per file was 4.6 s of a 14.5 s cache load,
@@ -154,7 +155,7 @@ def _listed_mtimes(folders) -> dict[str, int]:
         try:
             with os.scandir(folder) as it:
                 for de in it:
-                    if de.name.lower().endswith(".mp3"):
+                    if de.name.lower().endswith(LIBRARY_EXTS):
                         try:
                             out[de.path] = int(de.stat().st_mtime)
                         except OSError:

@@ -1,4 +1,5 @@
-"""📨 The page guests open: search the library, request a title, or write a wish.
+"""📨 The page guests open: search the library, request a title, or write a wish
+— and, on its second tab, see what plays next.
 
 One page for every way a guest gets here: the desk's own guest server on the
 Wi-Fi, or the same server behind a Cloudflare tunnel. Every address on it is
@@ -18,6 +19,9 @@ MAX_WISH = 120
 DEFAULT_LABELS = {
     "title": "Song requests",
     "now": "Now playing",
+    "tab_request": "Request a song",
+    "tab_next": "Up next",
+    "next_empty": "Nothing lined up yet",
     "search": "Search a title or artist",
     "loading": "Loading the titles…",
     "no_hits": "No matching title — write it as a wish below",
@@ -63,6 +67,9 @@ button { font:inherit; font-weight:600; color:#fff; background:var(--accent); bo
          border-radius:10px; padding:9px 14px; cursor:pointer; }
 button:disabled { opacity:.45; }
 .dim { color:var(--dim); }
+.tabs { display:flex; gap:6px; margin-bottom:12px; }
+.tabs button { flex:1; color:var(--dim); background:var(--card); }
+.tabs button.on { color:#fff; background:var(--accent); }
 .wishrow { display:flex; gap:8px; margin-top:6px; }
 #msg { position:fixed; left:16px; right:16px; bottom:16px; max-width:528px; margin:0 auto;
        padding:12px 14px; border-radius:12px; font-weight:600; display:none; }
@@ -72,6 +79,11 @@ button:disabled { opacity:.45; }
 <body><main>
 <h1 id="t"></h1>
 <div class="card" id="nowcard" hidden><h2 id="nowh"></h2><div id="now"></div></div>
+<nav class="tabs">
+  <button id="tab_request" type="button" class="on"></button>
+  <button id="tab_next" type="button"></button>
+</nav>
+<section id="pane_request">
 <div class="card">
   <input id="q" type="search" autocomplete="off" enterkeyhint="search">
   <div id="hits" class="dim"></div>
@@ -83,6 +95,10 @@ button:disabled { opacity:.45; }
     <button id="send" type="submit"></button>
   </form>
 </div>
+</section>
+<section id="pane_next" hidden>
+<div class="card"><div id="next" class="dim"></div></div>
+</section>
 <div id="msg"></div>
 </main>
 <script>
@@ -98,10 +114,14 @@ try {
 } catch (e) { /* private mode: the code stays in the address only */ }
 let songs = [];
 let msgTimer = 0;
+let nowAt = 0;
 
 document.title = L.title;
 $("t").textContent = L.title;
 $("nowh").textContent = L.now;
+$("tab_request").textContent = L.tab_request;
+$("tab_next").textContent = L.tab_next;
+$("next").textContent = L.next_empty;
 $("q").placeholder = L.search;
 $("hits").textContent = L.loading;
 $("wishh").textContent = L.wish;
@@ -197,7 +217,26 @@ async function loadSongs() {
   }
 }
 
+function renderNext(next) {
+  const box = $("next");
+  box.textContent = "";
+  if (!next.length) { box.textContent = L.next_empty; return; }
+  for (const [dance, title] of next) {
+    const row = document.createElement("div");
+    row.className = "hit";
+    const text = document.createElement("div");
+    text.textContent = title;
+    const sub = document.createElement("small");
+    sub.className = "d";
+    sub.textContent = dance;
+    text.append(sub);
+    row.append(text);
+    box.append(row);
+  }
+}
+
 async function loadNow() {
+  nowAt = Date.now();
   try {
     const r = await call("api/now");
     if (r.ok) {
@@ -210,10 +249,23 @@ async function loadNow() {
         box.append(d, now.title);
       }
       $("nowcard").hidden = !now.title;
+      renderNext(now.next || []);
     }
   } catch (e) { /* the next poll tries again */ }
 }
 
+function show(next) {
+  $("tab_request").className = next ? "" : "on";
+  $("tab_next").className = next ? "on" : "";
+  $("pane_request").hidden = next;
+  $("pane_next").hidden = !next;
+  // Fresh on the switch, but flipping back and forth must not spend the
+  // read budget the server gives each guest.
+  if (next && Date.now() - nowAt > 5000) loadNow();
+}
+
+$("tab_request").addEventListener("click", () => show(false));
+$("tab_next").addEventListener("click", () => show(true));
 $("q").addEventListener("input", render);
 $("wishform").addEventListener("submit", async (ev) => {
   ev.preventDefault();

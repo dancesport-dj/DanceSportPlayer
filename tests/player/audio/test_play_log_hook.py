@@ -9,7 +9,7 @@ from types import SimpleNamespace
 from mutagen.id3 import ID3, TCOM, TIT2
 from PySide6.QtMultimedia import QMediaPlayer
 
-from planner.playing import play_log
+from planner.playing import play_counts, play_log
 from planner.models import MusicEntry
 from tests.db_support import use_scratch_db
 from player.audio.fade_now import FadeNow
@@ -52,10 +52,16 @@ class _Desk(PlayerControlMixin):
     def __init__(self, playing=True):
         self.entry = MusicEntry(path=Path(r"C:\music\Moon River.mp3"), title="Moon River",
                                 dance="WW", duration=150, tag_artist="Henry Mancini")
-        self.table = SimpleNamespace(_current_play_row=0,
-                                     _row_meta=[SimpleNamespace(entry=self.entry)])
+        self.table = SimpleNamespace(_current_play_row=0, _played_paths=set(),
+                                     _row_meta=[SimpleNamespace(entry=self.entry)],
+                                     refresh_play_counts=lambda: None)
         self._deckset = DeckSet()
         self._deckset.all_tables = [self.table]
+        self.refreshed = []
+        self._lib_browser = SimpleNamespace(
+            refresh_play_counts=lambda: self.refreshed.append("library"))
+        self._tourney_tree = SimpleNamespace(
+            refresh_play_counts=lambda: self.refreshed.append("tournaments"))
         self._player = _Media(12_000)
         self._playback = PlaybackState(path=self.entry.path, dance="WW")
         self._library = SimpleNamespace(cache=object())
@@ -97,6 +103,7 @@ class PlayLogHookTest(unittest.TestCase):
         self.dir = Path(tempfile.mkdtemp(prefix="dp_play_hook_"))
         self.addCleanup(shutil.rmtree, self.dir, ignore_errors=True)
         use_scratch_db(self, self.dir / "scratch.db")
+        self.addCleanup(play_counts.clear)
 
     def logged(self):
         return [p for e in play_log.evenings() for p in play_log.plays(e)]
@@ -114,6 +121,20 @@ class PlayLogHookTest(unittest.TestCase):
         # It started when the music did, not when it greyed.
         ago = (dt.datetime.now() - p.started_at).total_seconds()
         self.assertTrue(11 <= ago <= 14, ago)
+
+    def test_skipped_or_resumed_ground_is_not_heard_time(self):
+        """L14: the 10 s rule read the raw position, so a ↩ resume at 1:20 or
+        a start past a long silent intro counted as played on the first tick.
+        Both land in offset_ms, which the log's own 'heard' already uses."""
+        desk = _Desk()
+        desk._player.pos_ms = 85_000
+        desk._playback.offset_ms = 80_000      # picked up at 1:20, 5 s heard
+        desk._on_play_tick()
+        self.assertEqual(desk.marked, [])
+        self.assertEqual(self.logged(), [])
+        desk._player.pos_ms = 90_500
+        desk._on_play_tick()
+        self.assertEqual(len(desk.marked), 1)
 
     def test_the_composer_comes_from_the_file(self):
         """No deck row knows the composer: the tag of the file that played does."""
@@ -133,6 +154,18 @@ class PlayLogHookTest(unittest.TestCase):
     def test_a_missing_file_still_logs_the_play(self):
         _Desk()._log_play(Path(r"C:\music\Moon River.mp3"))
         self.assertEqual([p.composer for p in self.logged()], [""])
+
+    def test_a_logged_play_counts_in_the_plays_column(self):
+        desk = _Desk()
+        desk._log_play(desk.entry.path)
+        self.assertEqual(play_counts.count(desk.entry.path), 1)
+
+    def test_a_logged_play_shows_in_the_library_and_tournaments_too(self):
+        # Marcel: "Plays Counter should aslo be available in library column
+        # and in tournament column"
+        desk = _Desk()
+        desk._log_play(desk.entry.path)
+        self.assertEqual(desk.refreshed, ["library", "tournaments"])
 
     def test_planning_mode_logs_nothing(self):
         _Desk(playing=False)._log_play(Path(r"C:\music\Moon River.mp3"))

@@ -300,7 +300,13 @@ def main() -> int:
     for path in generated:
         print(path)
     print(f"Total: {len(generated)} file(s)")
-    return 0 if generated or not pending else 5
+    failed = len(pending) - len(generated)
+    if failed:
+        print(f"Failed: {failed} of {len(pending)} - run again to retry them.",
+              file=sys.stderr)
+    # Any gap is a failure: a build or a shell loop must not read a
+    # half-made set as done.
+    return 5 if failed else 0
 
 
 if __name__ == "__main__":

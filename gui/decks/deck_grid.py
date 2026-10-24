@@ -71,3 +71,17 @@ class DeckGrid:
         self.deck_tabs: QTabWidget = _UNBUILT
         self.day_tabs: QTabWidget = _UNBUILT
         self.right_split: QSplitter = _UNBUILT
+
+    # The pages are found by their widget: a page added in front, or a
+    # reorder, must not point the window at the wrong one.
+    def group_page(self, second: bool = False) -> int:
+        """The `deck_tabs` index of Group A–D, or with `second` of E–H."""
+        return self.deck_tabs.indexOf(self.decks_split2 if second else self.decks_split)
+
+    def day_page(self) -> int:
+        """The `deck_tabs` index of the 📅 Tournament-day page."""
+        return self.deck_tabs.indexOf(self.day_tabs)
+
+    def day_group_page(self, second: bool = False) -> int:
+        """The `day_tabs` index of the day's A–D, or with `second` E–H, decks."""
+        return self.day_tabs.indexOf(self.day_split2 if second else self.day_split)

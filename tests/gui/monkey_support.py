@@ -8,8 +8,12 @@ answers every way out of the process (see LoadedWindow._sandbox). Not a test
 module itself: nothing here is collected.
 """
 
+import datetime
+import ipaddress
+import json
 import os
 import random
+import socket
 import subprocess
 import sys
 import tempfile
@@ -32,7 +36,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 import numpy as np
 import shiboken6
 from PySide6.QtCore import (
-    QAbstractListModel, QEvent, QPoint, QPointF, QProcess, Qt, QTimer)
+    QAbstractListModel, QEvent, QEventLoop, QPoint, QPointF, QProcess, Qt,
+    QTimer)
 from PySide6.QtGui import (
     QColor, QContextMenuEvent, QDesktopServices, QDrag, QDropEvent, QKeyEvent,
     QShortcut)
@@ -40,18 +45,29 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import (
     QAbstractButton, QAbstractItemView, QAbstractScrollArea, QAbstractSlider,
     QAbstractSpinBox, QApplication, QCheckBox, QColorDialog, QComboBox, QDialog,
-    QDoubleSpinBox, QFileDialog, QInputDialog, QLineEdit, QMenu, QMessageBox,
+    QDialogButtonBox, QDoubleSpinBox, QFileDialog, QInputDialog, QLineEdit, QMenu, QMessageBox,
     QScrollBar, QSpinBox, QStyle, QStyleOptionButton, QTabBar, QWidget)
 from planner.music.analysis import AudioFeatures
 from shared.columns import _COL_PLAY, _COL_TITLE
 from tests.qt_test_support import reap_widget
 
 STEPS = int(os.environ.get("DANCEPLAYLIST_MONKEY_STEPS", "150"))
-SEED = int(os.environ.get("DANCEPLAYLIST_MONKEY_SEED", "20261011"))
+# A new walk every day, the same one all day: a run that fails on a seed
+# fails again on the retry, and the next day's runs go somewhere new. The
+# failure message names the seed to replay.
+SEED = int(os.environ.get("DANCEPLAYLIST_MONKEY_SEED")
+           or datetime.date.today().strftime("%Y%m%d"))
+# The click-throughs close the dialogs and menus they did not script with a
+# random pick too, and a scenario must not change from one day to the next.
+_OPERATOR_SEED = 20261011
 TRACE = bool(os.environ.get("DANCEPLAYLIST_MONKEY_TRACE"))
 
-# Clicks a dialog gets before the monkey closes it.
-_CLICKS_PER_DIALOG = 4
+# Clicks a dialog gets before the monkey closes it. Each is a step the main
+# walk does not count (the step that opened the dialog waits in its exec()),
+# and a click can open the next dialog, which gets as many again: few keep a
+# walk's length and run time bounded, many reach the later tabs and the
+# Apply/OK paths of the bigger dialogs.
+_CLICKS_PER_DIALOG = int(os.environ.get("DANCEPLAYLIST_MONKEY_DIALOG_CLICKS", "4"))
 
 # What gets typed into a text field: the empty string, a real word, umlauts,
 # an emoji, quoting, a number, and something far too long.
@@ -78,6 +94,17 @@ def _output_dir_modules():
     import gui.window.main_print
     import planner.playlist.m3u
     return [planner.playlist.m3u, gui.window.main_export, gui.window.main_import, gui.window.main_print]
+
+
+def settle(ms: int) -> None:
+    """QTest.qWait, minus a hang: a qWait that is waiting when the player
+    reaches EndOfMedia never returns (Qt 6.11, ffmpeg backend, Windows: its
+    processEvents(WaitForMoreEvents) never wakes again). Ctrl+-> clamped to
+    the duration does exactly that. A QEventLoop rides it out, as the app's
+    own loop does."""
+    loop = QEventLoop()
+    QTimer.singleShot(ms, loop.quit)
+    loop.exec()
 
 
 def printable(text: str) -> str:
@@ -187,6 +214,7 @@ class Monkey:
 
     def targets(self, roots):
         out = []
+        drops = self._drop_targets()
         for root in roots:
             for w in [root, *root.findChildren(QWidget)]:
                 if not (w.isVisible() and w.isEnabled()):
@@ -207,23 +235,20 @@ class Monkey:
                 elif (isinstance(w, QAbstractItemView) and w.model() is not None
                       and w.model().rowCount() > 0):
                     out.append(("cell", w))
-            menubar = getattr(root, "menuBar", None)
-            if callable(menubar) and root.menuBar() is not None:
-                out.extend(("action", a) for a in self._leaf_actions(root.menuBar()))
+                    if w.dragEnabled() and drops:
+                        out.append(("drag", w))
             for sc in root.findChildren(QShortcut):
                 parent = sc.parent()
                 if sc.isEnabled() and isinstance(parent, QWidget) and parent.isVisible():
                     out.append(("shortcut", sc))
         return out
 
-    def _leaf_actions(self, owner):
-        for a in owner.actions():
-            if not (a.isEnabled() and a.isVisible()) or a.isSeparator():
-                continue
-            if a.menu() is not None:
-                yield from self._leaf_actions(a.menu())
-            else:
-                yield a
+    def _drop_targets(self):
+        """The playlists a drag can land on, in every window: a title goes
+        from the library or a dialog's list into a deck, and between decks."""
+        from gui.table.table_dnd import TableDragDropMixin
+        return [w for root in self.roots() for w in root.findChildren(TableDragDropMixin)
+                if w.isVisible() and w.acceptDrops()]
 
     def rng_target(self, roots):
         found = self.targets(roots)
@@ -278,9 +303,8 @@ class Monkey:
             QTest.keyClick(w, Qt.Key.Key_Return)
         elif kind == "cell":
             self._click_cell(w, where)
-        elif kind == "action":
-            self.note(f"menu-bar action '{printable(w.text())}'")
-            w.trigger()
+        elif kind == "drag":
+            self._drag(w, where)
         elif kind == "shortcut":
             self.note(f"shortcut {printable(w.key().toString())}")
             w.activated.emit()
@@ -311,6 +335,22 @@ class Monkey:
                       f"({idx.row()},{idx.column()}){where}")
             QTest.mouseClick(view.viewport(), Qt.MouseButton.LeftButton,
                              Qt.KeyboardModifier.NoModifier, pos)
+
+    def _drag(self, src, where):
+        """Drag a random row onto a random playlist: onto one of its rows, or
+        below the last, now and then with Ctrl held (a copy, not a move)."""
+        rng = self.rng
+        dst = rng.choice(self._drop_targets())
+        row = rng.randrange(src.model().rowCount(src.rootIndex()))
+        dst_row = (rng.randrange(dst.rowCount())
+                   if dst.rowCount() and rng.random() < 0.8 else None)
+        mods = rng.choice((Qt.KeyboardModifier.NoModifier,
+                           Qt.KeyboardModifier.ControlModifier))
+        ctrl = " with Ctrl" if mods != Qt.KeyboardModifier.NoModifier else ""
+        self.note(f"drag row {row} of {describe(src)} onto row {dst_row} of "
+                  f"{describe(dst)}{ctrl}{where}")
+        src.setCurrentIndex(src.model().index(row, 0, src.rootIndex()))
+        drag_rows(src, dst, dst_row, mods)
 
     def _context_menu(self, w, pos: QPoint, where, cell=None):
         """Right-click. QTest sends no QContextMenuEvent, and a scroll area
@@ -343,10 +383,19 @@ class ExceptionTrap:
         sys.excepthook, threading.excepthook = self._hook, self._thook
 
     def _on_exc(self, etype, value, tb):
+        self.record(printable("".join(traceback.format_exception(etype, value, tb))))
+
+    def critical(self, _parent, title, text, *_a, **_kw):
+        """Stands in for QMessageBox.critical. A handler that catches its own
+        exception shows it in a critical box: as much a failure as a
+        traceback."""
+        self.record(printable(f"critical box '{title}': {text}"))
+        return QMessageBox.StandardButton.Ok
+
+    def record(self, what: str):
+        """A failure of the walk, with the actions that led up to it."""
         trail = "\n".join(self.monkey.log)
-        self.caught.append(
-            f"step {self.monkey.step}, last actions:\n{trail}\n"
-            + printable("".join(traceback.format_exception(etype, value, tb))))
+        self.caught.append(f"step {self.monkey.step}, last actions:\n{trail}\n{what}")
         if TRACE:
             print(self.caught[-1], file=sys.stderr, flush=True)
 
@@ -383,6 +432,7 @@ class LoadedWindow(unittest.TestCase):
         import dancesport_gui
         import gui.window.main_global
         import shared.error_reports
+        import shared.remote.guest_server
         import shared.remote.remote_server
 
         def refuse(*_a, **_kw):
@@ -393,6 +443,28 @@ class LoadedWindow(unittest.TestCase):
 
         def no_sockets(_server):
             raise OSError("monkey test: no sockets")
+
+        def this_machine(address) -> bool:
+            if not isinstance(address, tuple):
+                return True             # AF_UNIX: a path on this machine
+            host = address[0]
+            if host == "localhost":
+                return True
+            try:
+                return ipaddress.ip_address(host).is_loopback
+            except ValueError:
+                return False            # a name the resolver would look up
+
+        def loopback_only(real):
+            """A socket call that refuses any address past this machine. It
+            catches every client at once: urllib's own openers (the AI's),
+            httpx (the model downloads), the tunnel's DNS probe. The address
+            is the last argument of connect, connect_ex, bind and sendto."""
+            def guarded(sock, *args):
+                if not this_machine(args[-1]):
+                    raise OSError(f"monkey test: no network ({args[-1][0]})")
+                return real(sock, *args)
+            return guarded
 
         def boxes(default):
             """A QMessageBox static: picks one of the buttons it offers."""
@@ -426,6 +498,10 @@ class LoadedWindow(unittest.TestCase):
             (subprocess, "run", refuse),
             (urllib.request, "urlopen", network_down),
             (shared.remote.remote_server.RemoteServer, "start", no_sockets),
+            # ⚙ Settings → 📨 Guest requests… binds on every interface.
+            (shared.remote.guest_server.GuestServer, "start", no_sockets),
+            *((socket.socket, name, loopback_only(getattr(socket.socket, name)))
+              for name in ("connect", "connect_ex", "bind", "sendto")),
             # Ticking 🐞 Send error reports in ⚙ Settings must not start Sentry.
             (shared.error_reports, "available", lambda: False),
         ]
@@ -459,6 +535,61 @@ class LoadedWindow(unittest.TestCase):
                     and self.win._cfg.generate_btn.isEnabled()):
                 return
         self.fail("the window never finished loading the test library")
+
+    @contextmanager
+    def walking(self, monkey: Monkey, unit: str = "steps"):
+        """A random walk: the watchdog runs, and an exception that escapes or
+        a critical box that opens fails the test with the seed and the
+        actions that led up to it. Not a box that reports what the sandbox
+        refused (no claude -p, no network): the app saying so is right."""
+        with ExceptionTrap(monkey) as trap:
+            def critical(parent, title, text, *a, **kw):
+                if "monkey test:" in str(text):
+                    monkey.note(printable(f"critical box '{title}' on a sandbox refusal"))
+                    return QMessageBox.StandardButton.Ok
+                return trap.critical(parent, title, text, *a, **kw)
+            monkey.start()
+            try:
+                with mock.patch.object(QMessageBox, "critical", critical):
+                    yield trap
+                    if not trap.caught:
+                        self._check_end(trap)
+            finally:
+                monkey.stop()
+        if trap.caught:
+            self.fail(f"seed {SEED}: the walk failed after {monkey.step + 1} "
+                      f"{unit} (replay with DANCEPLAYLIST_MONKEY_SEED={SEED})\n\n"
+                      + "\n\n".join(trap.caught))
+
+    def check_step(self, trap: ExceptionTrap):
+        """What must hold after every step: each list keeps one row record for
+        every row it shows. The edit paths walk the shorter of the two
+        (table_actions.py), so a desync does not raise; it drops rows."""
+        from gui.table.playlist_table import PlaylistTable
+        for table in self.win.findChildren(PlaylistTable):
+            rows, records = table.rowCount(), len(table._row_meta)
+            if rows != records:
+                trap.record(f"{describe(table)} shows {rows} rows but holds "
+                            f"{records} row records")
+
+    def _check_end(self, trap: ExceptionTrap):
+        """What must hold once the walk is over: every dialog and menu it
+        opened could be closed (the watchdog is still at it), and the state
+        files the app wrote still read."""
+        def on_top():
+            return QApplication.activeModalWidget() or QApplication.activePopupWidget()
+        for _ in range(500):
+            if on_top() is None:
+                break
+            settle(10)
+        else:
+            trap.record(f"{describe(on_top())} would not close")
+        from planner.store import state_dir
+        for path in sorted(state_dir().glob("*.json")):
+            try:
+                json.loads(path.read_bytes())
+            except (OSError, ValueError) as exc:
+                trap.record(printable(f"{path.name} no longer reads: {exc}"))
 
     def _reap_all(self):
         """The window first, then whatever the walk left open on screen. Not
@@ -497,6 +628,23 @@ class DropFrom(QDropEvent):
         return self._source
 
 
+def drag_rows(src, dst, dst_row: int | None, mods=Qt.KeyboardModifier.NoModifier):
+    """Drag the selected rows of `src` onto `dst_row` of `dst` (below its last
+    row when None), `mods` held at the drop. The view's own startDrag builds
+    the drag; only the drop is handed over, at the spot a real QDrag would
+    release it."""
+    if dst_row is not None:
+        dst.scrollTo(dst.model().index(dst_row, _COL_TITLE))
+
+    def release(drag, *_a, **_kw):
+        y = (dst.rowViewportPosition(dst_row) + dst.rowHeight(dst_row) // 2
+             if dst_row is not None else dst.viewport().height() - 2)
+        dst.dropEvent(DropFrom(QPointF(20, y), drag.mimeData(), drag.source(), mods))
+        return Qt.DropAction.CopyAction
+    with mock.patch.object(QDrag, "exec", release):
+        src.startDrag(Qt.DropAction.CopyAction)
+
+
 class _FirstOffered:
     """Answers every message box with the first button it offers: Yes
     before No, so a confirm goes through."""
@@ -519,7 +667,7 @@ class Operator(Monkey):
     Each script line answers one window, in any order."""
 
     def __init__(self, roots):
-        super().__init__(SEED, roots, dialog_clicks=0)
+        super().__init__(_OPERATOR_SEED, roots, dialog_clicks=0)
         self.script: list = []
         self.opened: list[str] = []
 
@@ -591,14 +739,9 @@ class ClickThrough(LoadedWindow):
     def clicking(self):
         op = Operator(self._roots)
         with ExceptionTrap(op) as trap:
-            # A handler that catches its own exception shows it in a critical
-            # box: as much a failure as a traceback.
-            def critical(_parent, title, text, *_a, **_kw):
-                trap.caught.append(printable(f"critical box '{title}': {text}"))
-                return QMessageBox.StandardButton.Ok
             op.start()
             try:
-                with mock.patch.object(QMessageBox, "critical", critical):
+                with mock.patch.object(QMessageBox, "critical", trap.critical):
                     yield op
             finally:
                 op.stop()
@@ -651,30 +794,22 @@ class ClickThrough(LoadedWindow):
 
     def drag(self, src, row: int, dst, dst_row: int | None = None,
              mods=Qt.KeyboardModifier.NoModifier):
-        """Drag `row` of `src` onto `dst_row` of `dst` (below its last row
-        when None), `mods` held at the drop. The table's own startDrag builds
-        the drag; only the drop is handed over, at the spot a real QDrag would
-        release it."""
+        """Drag `row` of `src` onto `dst_row` of `dst` (see drag_rows)."""
         src.selectRow(row)
-        if dst_row is not None:
-            dst.scrollTo(dst.model().index(dst_row, _COL_TITLE))
-
-        def release(drag, *_a, **_kw):
-            y = (dst.rowViewportPosition(dst_row) + dst.rowHeight(dst_row) // 2
-                 if dst_row is not None else dst.viewport().height() - 2)
-            dst.dropEvent(DropFrom(QPointF(20, y), drag.mimeData(), drag.source(), mods))
-            return Qt.DropAction.CopyAction
-        with mock.patch.object(QDrag, "exec", release):
-            src.startDrag(Qt.DropAction.CopyAction)
+        drag_rows(src, dst, dst_row, mods)
         QTest.qWait(5)
 
-    def restart(self):
+    def restart(self, at_start=None):
         """Quit and start again: the window closes as the operator closes
-        it, and a new one restores the session it left behind."""
+        it, and a new one restores the session it left behind. `at_start`
+        runs in between, where main() does its work before the first window
+        (it puts a staged venue pack in place there)."""
         old = self.win
         old._playback.token += 1
         old.close()
         reap_widget(old)
+        if at_start is not None:
+            at_start()
         self.win = self.gui.MainWindow()
         self._wait_until_loaded()
         self.win.resize(1500, 900)
@@ -734,6 +869,18 @@ class ClickThrough(LoadedWindow):
         """Matches the window whose title starts with `start`."""
         return lambda w: (isinstance(w, QWidget) and not isinstance(w, QMenu)
                           and w.windowTitle().startswith(start))
+
+    def edit_settings(self, op, edit, ok=True):
+        """⚙ on the Plan panel, `edit(dlg)`, then OK (unless `ok` is off:
+        the edit closed the dialog itself)."""
+        def act(dlg):
+            edit(dlg)
+            if ok:
+                self.click(dlg.findChild(QDialogButtonBox).button(
+                    QDialogButtonBox.StandardButton.Ok))
+        op.answer(self.titled("⚙  Settings"), act)
+        self.click(self.win._cfg.settings_btn)
+        self.assertTrue(self.wait_until(lambda: not op.script), op.script)
 
     def import_list(self, path: Path):
         with mock.patch.object(QFileDialog, "getOpenFileNames",

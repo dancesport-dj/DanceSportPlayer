@@ -117,11 +117,24 @@ class RestoreMixin(MainWindowHost):
     def _apply_env(self, data: dict):
         """Restore a full snapshot built by _build_env: wipe every deck + wishlist,
         then rebuild from the snapshot. Guarded so the rebuild's edit hooks don't
-        feed back into the undo timeline."""
+        feed back into the undo timeline.
+
+        An undo mid-heat must not stop the floor: the title playing from a deck
+        keeps running through the wipe, and the marker goes back onto it."""
+        decks = self._deckset.decks + self._deckset.day_decks
+        held = next((t for t in decks + self._deckset.wishlists
+                     if t._current_play_row >= 0), None)
+        if held is not None:
+            near = held._current_play_row
+            entry = held._row_meta.entry_at(near)
+            if entry is None:   # a cursor left on a header or an emptied slot
+                held = None
+            else:
+                path = entry.path
         self._restoring = True
         try:
-            for table in self._deckset.decks + self._deckset.day_decks:
-                self._blank_deck(table)
+            for table in decks:
+                self._blank_deck(table, keep_playing=True)
             for wl in self._deckset.wishlists:
                 wl.load_wishlist([], play_cb=self._play_or_stop, suggester=None)
             self._restore_env(data, wish_default=True)
@@ -129,8 +142,24 @@ class RestoreMixin(MainWindowHost):
             self.statusBar().showMessage(i18n.t("Could not apply snapshot: %s") % exc)
         finally:
             self._restoring = False
+        if held is not None:
+            self._readopt_playing(held, path, near)
         self._update_wish_counts()
         save_autosave(data)
+
+    def _readopt_playing(self, table, path, near: int):
+        """Put the marker back on the title still playing after `_apply_env`
+        rebuilt its deck: the copy of it nearest its old row. A title the
+        snapshot no longer has in that deck stops, as on any other reload."""
+        target = str(path)
+        rows = [r for r, m in table._row_meta.numbered()
+                if m.entry is not None and str(m.entry.path) == target]
+        if not rows:
+            self._play_or_stop(None)
+            return
+        table._current_play_row = min(rows, key=lambda r: abs(r - near))
+        table.sync_play_glyph()
+        table._update_play_row_hl()
 
     def _resolve_entry(self, path: str) -> MusicEntry | None:
         """Find a saved path in the library, else rebuild it as an external entry,

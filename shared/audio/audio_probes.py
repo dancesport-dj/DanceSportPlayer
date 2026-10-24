@@ -35,17 +35,20 @@ def unpacked_ffmpeg_builds(root: Path) -> list[Path]:
                   key=version, reverse=True)
 
 
-# Candidate locations for a bundled ffmpeg.exe: next to the app / .exe (where a
-# deployed build keeps it), then the full essentials build kept in the dev tree.
-# Then the package-manager prefixes a GUI launch does not have on PATH: a .app
-# started from Finder or the Dock inherits launchd's /usr/bin:/bin:/usr/sbin:/sbin,
+# Locations of a bundled ffmpeg.exe, tried before PATH: next to the app / .exe
+# (where a deployed build keeps it), then the full essentials build kept in the
+# dev tree.
+_BUNDLED_FFMPEG = (
+    INSTALL_DIR / "ffmpeg.exe",
+    *unpacked_ffmpeg_builds(INSTALL_DIR),
+    *unpacked_ffmpeg_builds(Path(__file__).parents[2]),
+)
+# After PATH, the package-manager prefixes a GUI launch does not have on PATH: a
+# .app started from Finder or the Dock inherits launchd's /usr/bin:/bin:/usr/sbin:/sbin,
 # NOT the shell's PATH, and a desktop launcher on Linux is no better — so a
 # Homebrew ffmpeg is installed and still invisible to shutil.which. A path that
 # cannot exist on the running platform simply never matches.
 _FFMPEG_CANDIDATES = (
-    INSTALL_DIR / "ffmpeg.exe",
-    *unpacked_ffmpeg_builds(INSTALL_DIR),
-    *unpacked_ffmpeg_builds(Path(__file__).parents[2]),
     Path("/opt/homebrew/bin/ffmpeg"),                 # Homebrew, Apple silicon
     Path("/usr/local/bin/ffmpeg"),                    # Homebrew, Intel
     Path("/opt/local/bin/ffmpeg"),                    # MacPorts
@@ -54,14 +57,27 @@ _FFMPEG_CANDIDATES = (
 )
 # Last "I: -xx.x LUFS" line of the ebur128 stderr output = the integrated
 # (whole-file) loudness summary; earlier I: lines are the running measurement.
-_LUFS_RE = re.compile(r"I:\s*(-?\d+(?:\.\d+)?)\s+LUFS")
+# A digitally silent track reports "-inf".
+_LUFS_RE = re.compile(r"I:\s*(-inf|-?\d+(?:\.\d+)?)\s+LUFS")
+# What "-inf" is stored as: ebur128's absolute gate, the quietest it measures.
+SILENT_LUFS = -70.0
+# 🔝 The summary's true peak (with peak=true): "Peak: -0.4 dBFS", signed when
+# a master runs over full scale. The per-frame lines say "TPK:", not "Peak:".
+# A silent track's "-inf" is stored as SILENT_LUFS too: as far under any
+# ceiling as its loudness is under any target.
+_TP_RE = re.compile(r"Peak:\s*(-inf|[-+]?\d+(?:\.\d+)?)\s+dBFS")
 
 
 def find_ffmpeg() -> str | None:
-    """ffmpeg on PATH, else the copy bundled with the project, else the usual
-    Homebrew / MacPorts prefixes, else None."""
+    """The copy bundled with the project, else ffmpeg on PATH, else the usual
+    Homebrew / MacPorts prefixes, else None. On PATH never one in the current
+    folder: Windows' lookup tries that first, so a planted ffmpeg.exe in a
+    music folder would run on every probe."""
+    for cand in _BUNDLED_FFMPEG:
+        if cand.is_file():
+            return str(cand)
     exe = shutil.which("ffmpeg")
-    if exe:
+    if exe and Path(exe).resolve().parent != Path.cwd().resolve():
         return exe
     for cand in _FFMPEG_CANDIDATES:
         if cand.is_file():
@@ -125,31 +141,46 @@ def _ffmpeg_probe(args: list, path: Path, what: str,
     return proc.returncode, err
 
 
-def measure_lufs(ffmpeg: str, path: Path, on_proc=None) -> float | None:
-    """Integrated EBU R128 loudness of one file in LUFS, or None on failure.
-
-    Decodes the file through ffmpeg's ebur128 filter (audio only, null output)
-    and parses the summary block from stderr."""
-    res = _ffmpeg_probe(
-        [ffmpeg, "-hide_banner", "-nostats", "-i", str(path),
-         "-map", "a:0", "-af", "ebur128", "-f", "null", "-"],
-        path, "📊 Loudness probe failed", on_proc)
-    if res is None:
-        return None
-    matches = _LUFS_RE.findall(res[1] or "")
+def _summary_value(regex: re.Pattern, text: str) -> float | None:
+    """The last `regex` value in ffmpeg's stderr — the summary's — with
+    "-inf" read as SILENT_LUFS, or None where there is none."""
+    matches = regex.findall(text)
     if not matches:
         return None
-    return float(matches[-1])
+    return SILENT_LUFS if matches[-1] == "-inf" else float(matches[-1])
 
 
-def decode_pcm_mono(path: Path, sr: int = 22050):
+def measure_loudness(ffmpeg: str, path: Path,
+                     on_proc=None) -> tuple[float, float | None] | None:
+    """(integrated EBU R128 loudness in LUFS, true peak in dBTP) of one
+    file, or None on failure; the peak alone is None where the summary
+    names none.
+
+    Decodes the file through ffmpeg's ebur128 filter (audio only, null output)
+    and parses the summary block from stderr. A failed decode still prints
+    one, measured over the fragment that decoded, so it counts only when
+    ffmpeg exits cleanly."""
+    res = _ffmpeg_probe(
+        [ffmpeg, "-hide_banner", "-nostats", "-i", str(path),
+         "-map", "a:0", "-af", "ebur128=peak=true", "-f", "null", "-"],
+        path, "📊 Loudness probe failed", on_proc)
+    if res is None or res[0] != 0:
+        return None
+    lufs = _summary_value(_LUFS_RE, res[1] or "")
+    if lufs is None:
+        return None
+    return lufs, _summary_value(_TP_RE, res[1] or "")
+
+
+def decode_pcm_mono(path: Path, sr: int = 22050, on_proc=None):
     """The whole file as float32 mono samples at `sr`, decoded by ffmpeg.
 
     Stands in for `librosa.load`: the player build ships no librosa (and none
     of its numba/scipy stack), and the only thing librosa was doing here was
     turning an mp3 into samples — ffmpeg already decodes every other probe in
     this module. Returns an empty array when there is no ffmpeg, no readable
-    file, or the decode failed; every caller treats that as 'no data'."""
+    file, or the decode failed; every caller treats that as 'no data'.
+    `on_proc` gets the Popen, as for `_ffmpeg_probe`."""
     import numpy as np
 
     ffmpeg = find_ffmpeg()
@@ -168,6 +199,8 @@ def decode_pcm_mono(path: Path, sr: int = 22050):
                     "file: %s\n"
                     "error: %s", path, exc)
         return np.empty(0, dtype=np.float32)
+    if on_proc is not None:
+        on_proc(proc)
     try:
         raw, _err = proc.communicate(timeout=120)
     except subprocess.TimeoutExpired as exc:
@@ -325,6 +358,10 @@ class SilenceWorker(QThread):
         self._cancel = False
         self._proc = None
 
+    @property
+    def path(self) -> Path:
+        return self._path
+
     def cancel(self):
         """Kill the ffmpeg pass. run() is a single blocking probe, so unlike
         the batch analyzers there is no per-item loop to check a flag in."""
@@ -349,7 +386,7 @@ class SilenceWorker(QThread):
 class LoudnessWorker(QThread):
     """Measures one file's EBU R128 loudness in the background, so a track that
     was never analyzed still gets levelled — a second or two into playing."""
-    done = Signal(str, float)   # (path as str, LUFS)
+    done = Signal(str, float, object)   # (path as str, LUFS, dBTP or None)
     error = Signal(str, str)    # (path as str, error message)
 
     def __init__(self, path: Path, ffmpeg: str, parent=None):
@@ -358,6 +395,10 @@ class LoudnessWorker(QThread):
         self._ffmpeg = ffmpeg
         self._cancel = False
         self._proc = None
+
+    @property
+    def path(self) -> Path:
+        return self._path
 
     def cancel(self):
         """Kill the ffmpeg pass — see SilenceWorker.cancel."""
@@ -370,23 +411,25 @@ class LoudnessWorker(QThread):
             _kill_probe(proc)
 
     def run(self):
-        lufs = measure_lufs(self._ffmpeg, self._path, on_proc=self._adopt)
+        res = measure_loudness(self._ffmpeg, self._path, on_proc=self._adopt)
         if self._cancel:
             return
-        if lufs is None:
+        if res is None:
             self.error.emit(str(self._path), "loudness probe failed")
         else:
-            self.done.emit(str(self._path), lufs)
+            self.done.emit(str(self._path), *res)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Paso Doble highlight detection
 # ─────────────────────────────────────────────────────────────────────────────
 
-def detect_pd_highlights(path: Path) -> list:
+def detect_pd_highlights(path: Path, on_proc=None) -> list | None:
     """The three choreographed highlight times (seconds) of a Paso Doble track,
     as `[h1, h2, h3]` — h1/h2 may be None when no clear candidate is found,
-    h3 falls back to the end of the track.
+    h3 falls back to the end of the track. None when nothing could be decoded
+    (no ffmpeg, an unreadable file, a timeout): that is "not analysed", to be
+    tried again, and must not be stored as the `[]` of a track without one.
 
     A PD highlight is the climax where the music crescendos and then drops away
     dramatically (the couples hit their pose on the crash). Tournament edits
@@ -401,7 +444,9 @@ def detect_pd_highlights(path: Path) -> list:
 
     sr = 22050
     hop = 512
-    y = decode_pcm_mono(path, sr)
+    y = decode_pcm_mono(path, sr, on_proc=on_proc)
+    if y.size == 0:
+        return None
     rms = _rms_envelope(y, hop_length=hop)
     if rms.size == 0:
         return []
@@ -459,8 +504,10 @@ def detect_pd_highlights(path: Path) -> list:
 
 
 # "España Cañí phrasing, 3 highlights": highlight 1 to 2 is 35 bars, 2 to the
-# final crash 43 — as the crash search measures them on the edits it does read
-# (43.65 / 78.69 / 121.67 s at 60 bars a minute).
+# final crash 43.5 — as the crash search measures them on the edits it does
+# read (43.65 / 78.69 / 121.67 s at 60 bars a minute), and as the hand marks
+# on 7 edits put it: 43 ran late on 6 of them, though the tempo in the name
+# is exact. The half bar is the arrangement, the final dip trailing the hit.
 _PHRASING_3_RE = re.compile(
     r"espa[nñ]a[\W_]*ca[nñ][ií][\W_]*phrasing[\W_]+3\s*highlights", re.IGNORECASE)
 # "Spanish Gipsy Dance" is the same piece under its English title, and its
@@ -469,7 +516,7 @@ _PHRASING_3_RE = re.compile(
 _SPANISH_GIPSY_RE = re.compile(r"spanish[\W_]+g[iy]psy", re.IGNORECASE)
 _SHORT_EDIT_RE = re.compile(r"short|2\s*highlights", re.IGNORECASE)
 _BARS_H1_TO_H2 = 35
-_BARS_H2_TO_H3 = 43
+_BARS_H2_TO_H3 = 43.5
 
 
 def fill_phrased_highlights(times: list, name: str, final_crash: bool) -> list:
@@ -523,10 +570,26 @@ class PdHighlightWorker(QThread):
     def __init__(self, path: Path, parent=None):
         super().__init__(parent)
         self._path = Path(path)
+        self._cancel = False
+        self._proc = None
+
+    def cancel(self):
+        """Kill the ffmpeg decode — see SilenceWorker.cancel."""
+        self._cancel = True
+        _kill_probe(self._proc)
+
+    def _adopt(self, proc):
+        self._proc = proc
+        if self._cancel:
+            _kill_probe(proc)
 
     def run(self):
         try:
-            times = detect_pd_highlights(self._path)
+            times = detect_pd_highlights(self._path, on_proc=self._adopt)
+            if self._cancel:
+                return
+            if times is None:
+                raise OSError("no audio decoded")
             self.done.emit(str(self._path), times)
         except Exception as exc:
             log.warning("🐂 Paso Doble highlight detection failed\n"

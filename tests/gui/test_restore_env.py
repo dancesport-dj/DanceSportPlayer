@@ -274,5 +274,82 @@ class ResolveOnceTest(_WindowCase):
         self.assertEqual(lib.asked, [HERE, HERE, HERE])
 
 
+def _song(name, dance="CC"):
+    path = rf"C:\music\{dance}\{name}.mp3"
+    return MusicEntry(path=Path(path), title=name, dance=dance, bpm=None)
+
+
+class UndoKeepsPlayingTest(_WindowCase):
+    """Ctrl+Z on another deck mid-heat: every deck is blanked and rebuilt, and
+    blanking the playing deck stopped the floor's music and cued its first
+    title instead."""
+
+    def setUp(self):
+        self.win = win = self._win()
+        win._resolve_entry = lambda p: MusicEntry(
+            path=Path(p), title=Path(p).stem, dance="CC", bpm=None)
+        self.a, self.b = win._deckset.tableA, win._deckset.tableB
+        self.a.load_player_list([_song("Cha One"), _song("Cha Two")], "Party",
+                                play_cb=None)
+        self.b.load_player_list([_song("Rumba")], "Next", play_cb=None)
+        self.env = win._build_env()
+        # Cha Two plays from deck A; then deck B gets the edit that is undone.
+        self.playing = Path(r"C:\music\CC\Cha Two.mp3")
+        win._playback.path = self.playing
+        self.a._current_play_row = self._row_of(self.a, "Cha Two")
+        self.b.load_player_list([_song("Samba", "SA")], "Next", play_cb=None)
+        self.calls = []
+        win._play_or_stop = lambda path, *a, **kw: self.calls.append(path)
+
+    @staticmethod
+    def _row_of(table, title):
+        return next(r for r, m in table._row_meta.numbered()
+                    if m.entry is not None and m.entry.title == title)
+
+    def _marked(self, table):
+        m = table._row_meta.at(table._current_play_row)
+        return m.entry.title if m is not None and m.entry else None
+
+    def test_the_music_is_not_stopped(self):
+        self.win._apply_env(self.env)
+        self.assertEqual(self.calls, [])
+
+    def test_the_marker_stays_on_the_playing_title(self):
+        self.win._apply_env(self.env)
+        self.assertEqual(self._marked(self.a), "Cha Two")
+        self.assertEqual(self._marked(self.b), None)
+
+    def test_the_undo_brought_back_the_other_deck(self):
+        self.win._apply_env(self.env)
+        self.assertEqual([m.entry.title for _, m in self.b._row_meta.numbered()
+                          if m.entry is not None], ["Rumba"])
+
+    def test_a_wishlist_keeps_its_marker_too(self):
+        win = self.win
+        wl = win._deckset.wishlists[0]
+        wl.load_wishlist([_song("Jive", "JV")], play_cb=None, suggester=None)
+        env = win._build_env()
+        self.a._current_play_row = -1
+        wl._current_play_row = self._row_of(wl, "Jive")
+        win._apply_env(env)
+        self.assertEqual(self.calls, [])
+        self.assertEqual(self._marked(wl), "Jive")
+
+    def test_a_snapshot_without_the_title_stops_it(self):
+        """The rule of every other reload: a title gone from its deck stops."""
+        env = dict(self.env, deck_a=None)
+        self.win._apply_env(env)
+        self.assertEqual(self.calls[:1], [None])
+
+    def test_a_marker_left_on_an_emptied_slot_does_not_break_the_undo(self):
+        """Del on a deck without a play callback empties the slot but keeps the
+        cursor on it: the row is there, its title is not."""
+        row = self._row_of(self.a, "Cha Two")
+        self.a._row_meta.at(row).entry = None
+        self.win._apply_env(self.env)
+        self.assertEqual([m.entry.title for _, m in self.b._row_meta.numbered()
+                          if m.entry is not None], ["Rumba"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

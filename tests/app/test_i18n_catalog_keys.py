@@ -23,17 +23,25 @@ ROOT = Path(__file__).resolve().parents[2]
 SOURCES = ("gui", "player", "planner", "shared")
 
 SAME_IN_GERMAN = frozenset({
+    "🐂  PD in",
+    "🐂  PD %s in",
     "🎚️ librosa: %s",
     "🎼 Chroma: %s",
     "🧠 MERT: %s",
     " (%s)",
     "Album",
+    "Album:",
     "Custom:",
     "Frame",
+    "Genre:",
     "Looks (*.json)",
+    "Replay Gain:",
     "Slot %d",
     "Tags",
+    "🏷  Tags",
     "Version",
+    "Pause",
+    "🎛 Cartwall",
 })
 
 
@@ -67,6 +75,14 @@ class CatalogKeysTest(unittest.TestCase):
                    if key not in CATALOG and key not in SAME_IN_GERMAN]
         self.assertEqual(missing, [], "keys missing from planner/i18n/lang_de.py:\n"
                          + "\n".join(missing))
+
+    def test_every_tag_editor_label_has_a_german_entry(self):
+        # The form's labels live in tables, not in t() calls, so the walk above
+        # never sees them; the text hook still looks each one up.
+        from gui.dialogs import tag_edit_dialog as ted
+        labels = {label for row in ted._FORM_ROWS for _field, label in row}
+        missing = sorted(k for k in labels if k not in CATALOG and k not in SAME_IN_GERMAN)
+        self.assertEqual(missing, [])
 
 
 if __name__ == "__main__":

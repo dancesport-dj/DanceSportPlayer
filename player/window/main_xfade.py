@@ -19,6 +19,7 @@ off, or a pause — keeps its gap.
 """
 import logging
 import time
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -75,9 +76,11 @@ class CrossfadeMixin(MainWindowHost):
             return None
         rate = max(0.01, self._player.playbackRate())
         pos = self._player.position()
-        end = self._silence_stop_ms() or self._player.duration()
-        if end <= 0:
-            return None
+        end = self._silence_stop_ms()   # 0 is dead air from the first sample
+        if end is None:
+            end = self._player.duration()
+            if end <= 0:
+                return None
         left = (end - pos) / 1000.0 / rate
         limit = self._play_end_secs()
         if limit > 0:
@@ -116,6 +119,10 @@ class CrossfadeMixin(MainWindowHost):
                 or self._engine_pause_secs() > 0 or self._looping()
                 or self._fade_now.running or self._pd_runs_to_its_highlight()
                 or self._play_panel.pd_editing()):
+            return False
+        # ⏹ Never fade into a planned stop: that title is the last one.
+        end = datetime.now() + timedelta(seconds=self._music_left() or 0)
+        if self._play_panel.stop_due(end):
             return False
         return self._crossfade_target() is not None
 

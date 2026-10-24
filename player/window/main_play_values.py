@@ -14,15 +14,19 @@ from typing import TYPE_CHECKING
 from planner import i18n
 from planner.playing.play_sets import (
     DANCE_SECS_KEY,
+    ROUND_DANCE_SECS_KEY,
     dance_secs_of,
     dblclick_ask_of,
     pd_of,
     play_set_of,
+    round_dance_secs_of,
+    round_kind,
+    round_pd_n_of,
     same_play_values,
     tso_of,
     XFADE_DEFAULT_SECS,
 )
-from planner.terms import dance_name, rules_name
+from planner.terms import dance_name, round_name, rules_name
 from shared.stores import save_settings
 from shared.widgets import _show_toast
 
@@ -44,9 +48,14 @@ _WISHLIST_VALS = {"secs": 0, "fade": 3.0, "fade_inside": True,
                   "dblclick_ask": True, "xfade": XFADE_DEFAULT_SECS, "xfade_on": False,
                   "xfade_curve": "equal", "tso": False}
 
+# 🐂 A list's own Paso Doble pick per kind of round, turned on the panel over
+# the round's pick in ⚙ Settings: round kind → highlight.
+ROUND_PD_OWN_KEY = "pd_round_n"
+
 # A list's values the panel has no control for: 🎚 the TSO pitch sits on the
-# player card, ❓ the double-click ask only in ⚙ Settings → 🎛 Play sets.
-OFF_PANEL_KEYS = ("tso", "dblclick_ask")
+# player card, ❓ the double-click ask only in ⚙ Settings → 🎛 Play sets, and
+# 🐂 the list's own round picks, which the spin shows only over their round.
+OFF_PANEL_KEYS = ("tso", "dblclick_ask", ROUND_PD_OWN_KEY)
 
 
 class PlayValuesMixin(MainWindowHost):
@@ -109,7 +118,9 @@ class PlayValuesMixin(MainWindowHost):
     def _play_limit_secs(self) -> int:
         """Seconds per title for the playing list, 0 = to the track's own end —
         the 🏆 set's own length for the title's dance, where it has one."""
-        own = self._dance_secs(self._engine_list(), self._playback.dance)
+        playing, row = self._playing_row()
+        rnd = playing.round_at(row) if playing is not None else ""
+        own = self._dance_secs(self._engine_list(), self._playback.dance, rnd)
         return own if own is not None else int(self._pv("secs"))
 
     def _play_end_secs(self) -> float:
@@ -121,50 +132,138 @@ class PlayValuesMixin(MainWindowHost):
             return limit + float(self._pv("fade"))
         return limit
 
-    def _on_tournament_values(self, table) -> bool:
-        """Whether `table` (None: the panel) stands on the 🏆 set — the only
-        place the set's per-dance lengths count. A length nudged by hand takes
-        a list off the set, and then its one length is every dance's."""
-        if table is None:
-            vals = self._play_panel.play_set()
-        else:
-            vals = {k: v for k, v in self._list_vals(table).items()
-                    if k not in OFF_PANEL_KEYS}
-        return same_play_values(vals, play_set_of(self._settings, "tournament"))
+    def _on_tournament_length(self, table) -> bool:
+        """Whether `table` (None: the panel) plays the 🏆 set's length — the
+        only place the set's per-dance lengths count. A length nudged by hand
+        takes a list off them, and then its one length is every dance's. ⏭,
+        the pause and the rest are how a list walks on, not how long a title
+        runs: a Vorrunde on ⏭ Auto cut every dance at the set's 1:45."""
+        vals = (self._play_panel.play_set() if table is None
+                else self._list_vals(table))
+        return vals.get("secs") == play_set_of(self._settings, "tournament")["secs"]
 
-    def _dance_secs(self, table, dance: str) -> int | None:
-        """The 🏆 set's own length for `dance` on `table` (0 = full), or None
-        where the list's one length applies."""
-        own = dance_secs_of(self._settings).get(dance) if dance else None
-        if own is None or not self._on_tournament_values(table):
+    def _round_secs(self, dance: str, round_name: str) -> int | None:
+        """The 🏆 set's length for `dance` in rounds like `round_name` (0 =
+        full), or None where that round runs on the dance's own length."""
+        kind = round_kind(round_name)
+        if kind is None:
+            return None
+        return round_dance_secs_of(self._settings).get(kind, {}).get(dance)
+
+    def _pd_highlight(self) -> tuple[bool, int]:
+        """🐂 (stop, which highlight) for the Paso Doble playing: its round's
+        pick while the list plays the 🏆 set's length, like the per-round
+        lengths — a final in full, a Vorrunde after the 2nd — else the
+        panel's highlight stop."""
+        p = self._play_panel
+        playing, row = self._playing_row()
+        n = self._round_pd(self._engine_list(),
+                           playing.round_at(row) if playing is not None else "")
+        if n is None:
+            return p.pd_highlight_stop(), p.pd_highlight_n()
+        return n > 0, n or p.pd_highlight_n()
+
+    def _round_pd(self, table, rnd: str) -> int | None:
+        """🐂 The Paso Doble pick for rounds like `rnd` on `table` while it
+        plays the 🏆 set's length: the list's own, turned on the panel, else
+        the round's in ⚙ Settings (0 = in full). None where the round has no
+        pick or the list another length — the panel's own stop decides."""
+        kind = round_kind(rnd)
+        n = round_pd_n_of(self._settings).get(kind) if kind else None
+        if n is None or not self._on_tournament_length(table):
+            return None
+        if table is not None:
+            own = self._list_vals(table).get(ROUND_PD_OWN_KEY)
+            if isinstance(own, dict) and isinstance(own.get(kind), int):
+                return own[kind]
+        return n
+
+    def _on_round_pd_picked(self, n: int) -> None:
+        """🐂 The spin turned while it showed the round's pick: the list on
+        the panel stops after highlight `n` in rounds of that kind — that list
+        alone. Marcel: "it should still be able to be overwriten". Back on
+        the round's own pick, the list follows the round again."""
+        table = self._panel_list()
+        _dance, rnd = self._slot_in_focus(table)
+        kind = round_kind(rnd)
+        pick = round_pd_n_of(self._settings).get(kind) if kind else None
+        if table is None or kind is None or pick is None:
+            return
+        vals = self._list_vals(table)
+        own = dict(vals.get(ROUND_PD_OWN_KEY) or {})
+        if int(n) == (pick or 3):
+            own.pop(kind, None)
+        else:
+            own[kind] = int(n)
+        vals[ROUND_PD_OWN_KEY] = own
+        self._autosave_playlist()
+
+    def _dance_secs(self, table, dance: str, round_name: str = "") -> int | None:
+        """The 🏆 set's own length for `dance` on `table` (0 = full) — its
+        length in `round_name`'s kind of round first — or None where the
+        list's one length applies."""
+        if not dance:
+            return None
+        own = self._round_secs(dance, round_name)
+        if own is None:
+            own = dance_secs_of(self._settings).get(dance)
+        if own is None or not self._on_tournament_length(table):
             return None
         return own
 
-    def _dance_in_focus(self, table) -> str:
-        """The dance the panel's length is about: the title playing from the
-        list on the panel, else the row picked in it — what ▶ starts next."""
-        playing, _row = self._playing_row()
+    def _slot_in_focus(self, table) -> tuple[str, str]:
+        """(dance, round) the panel's length is about: the title playing from
+        the list on the panel, else the row picked in it — what ▶ starts next."""
+        playing, row = self._playing_row()
         if self._playback.path is not None and (playing is table or table is None):
-            return self._playback.dance
+            return (self._playback.dance,
+                    playing.round_at(row) if playing is not None else "")
         if table is None:
-            return ""
-        meta = table._row_meta.at(table.currentRow())
-        return meta.dance if meta is not None else ""
+            return "", ""
+        row = table.currentRow()
+        meta = table._row_meta.at(row)
+        return (meta.dance, table.round_at(row)) if meta is not None else ("", "")
 
     def _sync_dance_len(self) -> None:
         """Show on the panel which length is valid right now: the dance's own
-        from the 🏆 set, named under the digits, or the list's one length."""
+        from the 🏆 set, named under the digits — with the round, where the
+        round has its own — or the list's one length."""
         table = self._panel_list()
-        dance = self._dance_in_focus(table)
-        own = self._dance_secs(table, dance)
+        dance, rnd = self._slot_in_focus(table)
+        own = self._dance_secs(table, dance, rnd)
+        name = dance_name(dance, dance) if own is not None else ""
+        if name and self._round_secs(dance, rnd) is not None:
+            name = f"{name}, {round_name(rnd)}"
         self._play_panel.set_dance_len(
-            dance if own is not None else "",
-            dance_name(dance, dance) if own is not None else "",
-            own)
+            dance if own is not None else "", name, own)
+        self._sync_round_pd(table, dance, rnd)
+
+    def _sync_round_pd(self, table, dance: str, rnd: str) -> None:
+        """🐂 Show on the panel the round's own Paso Doble pick, where it is
+        the one `_pd_highlight` stops on — a final in full, a Vorrunde after
+        the 2nd — else the panel's own number again."""
+        n = self._round_pd(table, rnd) if dance == "PD" else None
+        if n is None:
+            self._play_panel.set_round_pd_n(None)
+            return
+        self._play_panel.set_round_pd_n(n, round_name(rnd))
 
     def _on_dance_len_changed(self, dance: str, secs: int) -> None:
         """−/+ or a typed length on the panel while it shows a dance's own
-        length: that is the 🏆 set's value for the dance, in ⚙ Settings."""
+        length: that is the 🏆 set's value for the dance, in ⚙ Settings —
+        its value for the round in focus, where that round has one."""
+        _dance, rnd = self._slot_in_focus(self._panel_list())
+        if self._round_secs(dance, rnd) is not None:
+            rounds = round_dance_secs_of(self._settings)
+            rounds[str(round_kind(rnd))][dance] = int(secs)
+            self._settings[ROUND_DANCE_SECS_KEY] = rounds
+            save_settings(self._settings)
+            log.info("⏱️ Round dance play length set\n"
+                     "round: %s\n"
+                     "dance: %s\n"
+                     "secs: %s", rnd, dance, secs)
+            self._sync_big_player_limit()
+            return
         # From the read side, so a fresh install keeps the shipped lengths of
         # the other dances beside this one.
         stored = dance_secs_of(self._settings)
@@ -186,12 +285,13 @@ class PlayValuesMixin(MainWindowHost):
         a gap to put one in."""
         return bool(self._playing_advance() and not self._pv("pause_off"))
 
-    def _configured_play_secs(self, table=None, dance: str = "") -> int:
+    def _configured_play_secs(self, table=None, dance: str = "",
+                              round_name: str = "") -> int:
         """Play length a deck's ⏱ column flags short tracks against (0 = off)
         — that deck's own, where it is given, and the 🏆 set's for `dance`
-        while the deck stands on it."""
+        in `round_name` while the deck stands on it."""
         if table is not None:
-            own = self._dance_secs(table, dance)
+            own = self._dance_secs(table, dance, round_name)
             return own if own is not None else int(self._list_vals(table)["secs"])
         return self._play_limit_secs()
 
@@ -332,11 +432,16 @@ class PlayValuesMixin(MainWindowHost):
     def _set_set_pd(self, which: str) -> list[str]:
         """🐂 Put the panel's Paso Doble on the 🎉 party / 🏆 tournament set's
         own values (`pd_of`) and report what moved. A party stops after the
-        2nd highlight and waits 3 s by default, a heat neither."""
+        2nd highlight and waits 3 s by default, a heat neither. The list's
+        own round picks go: each round stops on its own pick again."""
         pd = pd_of(self._settings, which)
-        return (self._play_panel.set_pd_highlight_stop(pd["pd_stop"])
-                + self._play_panel.set_pd_highlight_n(pd["pd_n"])
-                + self._play_panel.set_pd_start_delay(pd["pd_delay"]))
+        table = self._panel_list()
+        dropped: list[str] = []
+        if table is not None and self._list_vals(table).pop(ROUND_PD_OWN_KEY, None):
+            dropped = [i18n.t("🐂 Paso Doble → each round's own pick")]
+        return dropped + (self._play_panel.set_pd_highlight_stop(pd["pd_stop"])
+                          + self._play_panel.set_pd_highlight_n(pd["pd_n"])
+                          + self._play_panel.set_pd_start_delay(pd["pd_delay"]))
 
     def _on_play_set(self, which: str) -> bool:
         """Is the panel standing on the 🎉 party / 🏆 tournament set right now?
@@ -370,6 +475,42 @@ class PlayValuesMixin(MainWindowHost):
         changed += self._set_list_ask(dblclick_ask_of(self._settings, which))
         changed += self._set_set_pd(which)
         return changed
+
+    def _follow_play_sets(self, old: dict, new: dict) -> None:
+        """⚙ Settings saved: every list moves along with its set — each value
+        still equal to the set's OLD one is the set's and takes the new one, a
+        value changed by hand stays. Marcel: a list played before the play
+        time was changed "still applies the old logic" — its copy kept the old
+        length, fell off the 🏆 set and so off the per-dance lengths. The
+        panel's 🐂 Paso Doble follows the set of the list it shows."""
+        def whole(settings, which):
+            return dict(play_set_of(settings, which),
+                        tso=tso_of(settings, which),
+                        dblclick_ask=dblclick_ask_of(settings, which))
+
+        warmup = self._deckset.warmup_table
+        for t in self._deckset.all_tables:
+            if t._play_vals is None or any(t is w for w in self._deckset.wishlists):
+                continue
+            which = "party" if t is warmup else "tournament"
+            before, after = whole(old, which), whole(new, which)
+            for k, v in before.items():
+                if t._play_vals.get(k) == v:
+                    t._play_vals[k] = after[k]
+            t.refresh_advance_toggle()
+        p = self._play_panel
+        which = "party" if self._panel_list() is warmup else "tournament"
+        before, after = pd_of(old, which), pd_of(new, which)
+        if p.pd_highlight_stop() == before["pd_stop"]:
+            p.set_pd_highlight_stop(after["pd_stop"])
+        if p.pd_highlight_n() == before["pd_n"]:
+            p.set_pd_highlight_n(after["pd_n"])
+        if p.pd_start_delay() == before["pd_delay"]:
+            p.set_pd_start_delay(after["pd_delay"])
+        panel_list = self._panel_list()
+        if panel_list is not None:
+            self._panel_table = None
+            self._bind_panel(panel_list)
 
     def _remember_before_set(self) -> None:
         """Keep what the list on the panel stands on right before a set is

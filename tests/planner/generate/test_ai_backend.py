@@ -8,6 +8,7 @@ import os
 import tempfile
 import subprocess
 import unittest
+import urllib.request
 from unittest import mock
 
 # Offscreen BEFORE any QApplication exists, state files into a temp dir.
@@ -116,6 +117,34 @@ class ChatTest(unittest.TestCase):
         self.assertIn("openrouter.ai", msg)
         self.assertIn("no such model", msg)
 
+    def _fails(self, reply) -> RuntimeError:
+        _seen, fake = _capture(reply)
+        with mock.patch("urllib.request.urlopen", fake):
+            with self.assertRaises(RuntimeError) as ctx:
+                ai.openrouter_chat("k", "m", "s", "u")
+        return ctx.exception
+
+    def test_an_error_inside_a_200_keeps_its_code(self):
+        """L17: a host that fails after it has started answers 200 with the
+        error in the body. It read as 'sent no answer', so a 502 packed that
+        way was never asked again."""
+        from planner.generate import llm
+        for reply in ({"error": {"code": 502, "message": "Provider returned error"}},
+                      {"choices": [{"error": {"code": 429, "message": "slow down"},
+                                    "message": {"content": None},
+                                    "finish_reason": "error"}]}):
+            exc = self._fails(reply)
+            self.assertRegex(str(exc), r"openrouter\.ai HTTP (502|429): ")
+            self.assertTrue(llm.is_transient(exc), str(exc))
+
+    def test_an_empty_answer_says_so(self):
+        """L17: content null came back as None and the planner then said 'no
+        JSON in the answer:' with nothing after it."""
+        exc = self._fails({"choices": [{"message": {"content": None},
+                                        "finish_reason": "length"}]})
+        self.assertIn("empty answer", str(exc))
+        self.assertIn("length", str(exc))
+
 
 class PlainHttpTest(unittest.TestCase):
     """The key rides in a header: over plain http anyone on the network reads
@@ -156,6 +185,30 @@ class PlainHttpTest(unittest.TestCase):
     def test_https_still_goes_out(self):
         self.assertTrue(self._sent(lambda: ai.openrouter_chat(
             "k", "m", "s", "u", base_url=MAMMOUTH)))
+
+
+class RedirectTest(unittest.TestCase):
+    """R7: urllib copies a request's ordinary headers onto the redirect,
+    whatever host it points to, so a 302 from the endpoint took the key along."""
+
+    _REPLY = {"choices": [{"message": {"content": "hi"}}], "data": []}
+
+    def _redirected(self, call):
+        seen, fake = _capture(self._REPLY)
+        with mock.patch("urllib.request.urlopen", fake):
+            call()
+        return urllib.request.HTTPRedirectHandler().redirect_request(
+            seen["req"], None, 302, "Found", {}, "https://elsewhere.example/x")
+
+    def test_the_chat_key_stays_behind(self):
+        new = self._redirected(lambda: ai.openrouter_chat(
+            "k", "m", "s", "u", base_url=MAMMOUTH))
+        self.assertIsNone(new.get_header("Authorization"))
+
+    def test_the_model_list_key_stays_behind(self):
+        new = self._redirected(lambda: ai.openrouter_free_models(
+            "k", base_url=MAMMOUTH))
+        self.assertIsNone(new.get_header("Authorization"))
 
 
 class ModelListTest(unittest.TestCase):
@@ -263,7 +316,22 @@ class TransientErrorTest(unittest.TestCase):
             self.assertTrue(self.L.is_transient(RuntimeError(msg)), msg)
 
     def test_a_broken_socket_is_transient(self):
-        self.assertTrue(self.L.is_transient(ConnectionResetError("boom")))
+        import urllib.error
+        for exc in (ConnectionResetError("boom"),
+                    urllib.error.URLError(ConnectionRefusedError(10061, "refused"))):
+            self.assertTrue(self.L.is_transient(exc), repr(exc))
+
+    def test_a_local_os_failure_is_not(self):
+        """L16: every OSError counted as a wobble, so a certificate the machine
+        cannot verify, or a CLI path that is gone, waited out 100 s of retries
+        before the fallback — and failed the same way each time."""
+        import ssl
+        import urllib.error
+        cert = ssl.SSLCertVerificationError(1, "certificate verify failed")
+        for exc in (cert, urllib.error.URLError(cert),
+                    FileNotFoundError(2, "No such file", "claude.exe"),
+                    PermissionError(13, "Access is denied")):
+            self.assertFalse(self.L.is_transient(exc), repr(exc))
 
     def test_a_timeout_is_not(self):
         """The host already had its whole timeout. Asking again three times

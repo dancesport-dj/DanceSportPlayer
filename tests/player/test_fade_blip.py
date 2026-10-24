@@ -38,6 +38,9 @@ class _LoggedMedia:
     def playbackState(self):
         return PLAYING
 
+    def position(self):
+        return 0
+
     def pause(self):
         self.log.append("pause")
 

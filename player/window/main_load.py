@@ -16,12 +16,15 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QTimer, QUrl
+from PySide6.QtWidgets import QMessageBox
 
 import planner.generate.warmup
 from planner import i18n, terms
 from planner.terms import dance_name
-from shared.stores import save_settings
+from shared.audio.playback import pre_roll_secs
+from shared.stores import ON_AIR, save_settings
 from shared.widgets import _show_toast
+from player.audio.on_air_note import NOTE
 from player.window.main_pause import _live_target
 
 if TYPE_CHECKING:
@@ -114,14 +117,21 @@ class TrackLoadMixin(MainWindowHost):
             self._unload_track(self._player)
         else:
             ent = self._adopt_track(path)
-            if self._playback.dance == "PD" and self._play_panel.pd_highlight_stop():
+            if self._playback.dance == "PD" and self._pd_highlight()[0]:
                 self._ensure_pd_highlights(path)
             self._ensure_silences(path)   # arm the 🔇 stillness skip
+            self._arm_fade_in(path)
             self._mix.load_gain(self._loudness_gain(path))
             self._apply_volume()
             url = QUrl.fromLocalFile(str(path))
             if self._player.source() != url:
+                # Errors the backend queued before this source belong to the
+                # title it replaces. The timer is posted first, so it runs
+                # after all of them and before anything about the new title.
+                QTimer.singleShot(0, lambda t=self._playback.token:
+                                  self._end_stale_errors(t))
                 self._player.setSource(url)
+                self._playback.stale_error_token = self._playback.token
             else:
                 self._seek_preloaded()
             pitched = self._pitch_before_play(ent, start)
@@ -210,6 +220,7 @@ class TrackLoadMixin(MainWindowHost):
         # ↩ Seeking here would be thrown away — the media is not open yet.
         # `_on_media_status` performs it the moment it is.
         self._resume_seek_ms = self._resume_mark_for(path)
+        self._playback.pre_roll_ms = self._pre_roll_ms_for(path)   # ⏩ …or this
         self._refresh_resume_marks(path)   # the row badges follow the deck
         # 🪟 The taskbar caption names the title, and a new one has to reach
         # it here: the state change alone does not fire between two songs
@@ -258,7 +269,7 @@ class TrackLoadMixin(MainWindowHost):
             self._big_player.set_now(path.stem, "  ·  ".join(bits))
             self._big_player.set_artwork(path, self._playing_m3u())
             self._big_player.set_waveform_track(path)
-            self._big_player.set_gain(self._mix.gain)
+            self._big_player.set_gain(self._mix.heard_gain())
             # Second try for the TSO pitch: the deck only knows which row is
             # playing once it has told us, so on some paths the early one
             # above found nothing to pitch against. Costs a gap — but a
@@ -328,9 +339,20 @@ class TrackLoadMixin(MainWindowHost):
             self._big_player.set_now("")
         self.statusBar().showMessage(message, 8000)
 
+    def _end_stale_errors(self, token: int):
+        """Every error queued before the load's setSource has been seen."""
+        if self._playback.stale_error_token == token:
+            self._playback.stale_error_token = None
+
     def _on_player_error(self, _error, error_string: str):
         """A decode/backend failure used to leave the UI 'playing' silently —
         surface it and reset, so a broken file never looks like a stuck app."""
+        if self._playback.stale_error_token is not None:
+            # Raised for the previous title: the source now names the next
+            # one, which would be marked failed and skipped for nothing.
+            log.info("🔇 Previous title's playback error ignored\n"
+                     "error: %s", error_string or "unknown")
+            return
         src = self._player.source().toLocalFile() if self._player else ""
         log.error("🔇 Playback error\n"
                   "error: %s\n"
@@ -474,6 +496,16 @@ class TrackLoadMixin(MainWindowHost):
             return None
         return self._resume.get(path)
 
+    def _pre_roll_ms_for(self, path: Path) -> int:
+        """⏩ How far into `path` the big player starts it, or 0. A ↩ mark
+        wins, a title a 🔀 crossfade brings in is running already, and the
+        floating overlay's pre-listen starts at the top."""
+        xf = self._between.xfade
+        if (self._resume_seek_ms is not None or not self._is_playing_mode()
+                or (xf.state == "fading" and path == xf.incoming)):
+            return 0
+        return 1000 * pre_roll_secs(self._settings)
+
     def _note_resume(self, path: Path, pos_ms: int, dur_ms: int):
         """Keep (or drop) the mark for `path` at `pos_ms` (ResumeMarks.note
         decides which) and repaint the badges."""
@@ -484,6 +516,13 @@ class TrackLoadMixin(MainWindowHost):
         """Forget where `path` stood — it has just been heard to the end."""
         if path is not None and self._resume.clear(path):
             self._refresh_resume_marks(path)
+
+    def _on_back_to_start(self):
+        """⏮ 0:00 on the card: the title starts over, so the ↩ mark of where
+        it stopped before goes — the next load would pick it up there again.
+        A pick-up still waiting for the media would undo the rewind, too."""
+        self._resume_seek_ms = None
+        self._clear_resume(self._playback.path)
 
     def _remember_stop_point(self):
         """Note where the running title stands, just before it is stopped.
@@ -518,3 +557,86 @@ class TrackLoadMixin(MainWindowHost):
         """
         for t in self._deckset.all_tables:
             t.set_resume_marks(self._resume.at)
+
+    # ── 🆘 Picking up after a crash ───────────────────────────────────────────
+
+    def _note_on_air(self):
+        """Say on disk which title is playing on which row — once a title, in
+        the background (NOTE). A crash leaves the note behind for the next
+        start (_offer_crash_resume); every stop takes it away (_drop_on_air)."""
+        table, row = self._playing_row()
+        if table is None or self._playback.path is None:
+            return
+        on_air = (self._deckset.all_tables.index(table), row, str(self._playback.path))
+        if on_air == self._playback.on_air:
+            return
+        self._playback.on_air = on_air
+        NOTE.write(dict(zip(("table", "row", "path"), on_air, strict=True)))
+
+    def _drop_on_air(self):
+        """The title stopped on purpose: there is nothing to pick up."""
+        if self._playback.on_air is not None:
+            self._playback.on_air = None
+            NOTE.remove()
+
+    def _on_air_row(self, note) -> tuple | None:
+        """(table, row, path) of the note's title, or None when its deck no
+        longer holds it. A row that moved is found by its file."""
+        try:
+            table = self._deckset.all_tables[int(note["table"])]
+            row, path = int(note["row"]), Path(note["path"])
+        except (TypeError, KeyError, ValueError, IndexError):
+            return None
+        rows = [r for r, m in table._row_meta.numbered()
+                if str(getattr(m.entry, "path", "")) == str(path)]
+        if not rows:
+            return None
+        return table, (row if row in rows else rows[0]), path
+
+    def _offer_crash_resume(self):
+        """The last run did not end while a title was on air: ask whether to
+        cue it again on its row, from its start. Not modal — the library scan
+        goes on behind the question.
+
+        ▶ The titles the evening had played (ResumeSessionMixin) come in the
+        same question; with no title on air, after a restart or a crash
+        between titles, they are asked about on their own."""
+        note = ON_AIR.read()
+        ON_AIR.remove()
+        hit = self._on_air_row(note) if isinstance(note, dict) else None
+        evening = self._evening_to_offer()
+        if hit is None:
+            if evening is not None:
+                self._offer_evening(evening)
+            return
+        table, row, path = hit
+        log.warning("🆘 The last run ended while a title was playing\n"
+                    "file: %s", path)
+        text = i18n.t("The last session ended while “%s” was playing.\n\n"
+                      "Cue it again?") % path.stem
+        if evening is not None:
+            text += "\n" + i18n.t("The %d titles played this evening grey out again.") % (
+                len(evening.played))
+        box = QMessageBox(
+            QMessageBox.Icon.Question, i18n.t("Pick up after a crash?"), text,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, self)
+        box.buttonClicked.connect(
+            lambda b: self._crash_answered(
+                box.standardButton(b) == QMessageBox.StandardButton.Yes,
+                table, row, path, evening))
+        box.open()
+
+    def _crash_answered(self, yes: bool, table, row: int, path: Path, evening):
+        if yes:
+            self._resume_on_air(table, row, path)
+        if evening is not None:
+            self._evening_answered(evening, yes)
+
+    def _resume_on_air(self, table, row: int, path: Path):
+        """Cue `path` on its row in Playing mode; ⏯ starts it."""
+        self._set_play_mode(True)
+        self._load_track(path, False)   # straight to the load, past the rate limit
+        for t in self._deckset.all_tables:
+            if t is not table and t._current_play_row >= 0:
+                t.on_playback_stopped()
+        table.cue_row(row)

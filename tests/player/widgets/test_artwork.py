@@ -89,6 +89,22 @@ class CoverTest(unittest.TestCase):
         self.assertNotEqual(placeholder(24, "LW1").toImage(),
                             placeholder(24, "TG2").toImage())
 
+    def test_the_tile_keeps_its_colour_from_one_start_to_the_next(self):
+        # str hash() is salted per process: a hue taken from it changed every start.
+        import subprocess
+        import sys
+        probe = ("from tests.qt_test_support import qapp; qapp(); "
+                 "from player.widgets.artwork import placeholder; "
+                 "print(placeholder(24, 'Libertango').toImage().pixelColor(12, 12).name())")
+        root = Path(__file__).resolve().parents[3]
+        colours = set()
+        for seed in ("1", "2"):
+            env = {**os.environ, "PYTHONHASHSEED": seed, "QT_QPA_PLATFORM": "offscreen"}
+            out = subprocess.run([sys.executable, "-c", probe], cwd=root, env=env,
+                                 capture_output=True, text=True, timeout=60, check=True)
+            colours.add(out.stdout.strip().splitlines()[-1])
+        self.assertEqual(len(colours), 1, colours)
+
     def test_a_file_that_is_no_audio_has_no_embedded_cover(self):
         self.assertIsNone(embedded_art(self.track))
         self.assertIsNone(embedded_art(None))

@@ -211,9 +211,12 @@ class MidiInput:
                     log.exception("🎛 MIDI message handler failed")
 
     def close(self) -> None:
-        seq, self._seq = getattr(self, "_seq", None), None
+        seq = getattr(self, "_seq", None)
         if seq:
             self._stop.set()
             self._thread.join(1.0)
+            # The reader reads self._seq until it has stopped: dropping it
+            # sooner hands it NULL, and a reader still running keeps it.
             if not self._thread.is_alive():     # never free it under a reader
+                self._seq = None
                 _load().snd_seq_close(seq)

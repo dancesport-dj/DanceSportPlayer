@@ -6,7 +6,7 @@ keeps the panel's layout, its state and the values the player reads.
 """
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTime
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -17,12 +17,14 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSizePolicy,
     QSpinBox,
+    QTimeEdit,
     QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
 from planner import i18n
+from planner.playing.party_stop import PartyStop
 from planner.playing.play_sets import (
     _LEN_MAX,
     _LEN_STEP,
@@ -94,6 +96,9 @@ class PlayModeSetupMixin(PlayModePanelHost):
         self._dance_len: tuple[str, str, int] | None = None   # code, name, secs
         self.len_dance_lbl = QLabel("")
         self.len_dance_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # Wraps: "Langsamer Walzer, 2. Zwischenrunde — …" on a 250px panel
+        # would otherwise widen the column and push −/+ aside (Mac).
+        self.len_dance_lbl.setWordWrap(True)
         self.len_dance_lbl.setStyleSheet("color:#b8860b; font-weight:bold;")
         self.len_dance_lbl.setToolTip(
             i18n.t("This dance has its own play length in the 🏆 tournament set\n"
@@ -164,6 +169,10 @@ class PlayModeSetupMixin(PlayModePanelHost):
         self.pd_spin.setToolTip(
             "Which highlight ends the Paso Doble — usually the 2nd,\n"
             "in rare cases the 3rd.")
+        self._pd_spin_tip = self.pd_spin.toolTip()
+        # 🏆 The panel's own number while a round's pick shows in the spin
+        # (`set_round_pd_n`), else None — the spin holds it itself.
+        self._pd_own_n: int | None = None
         pd_row.addWidget(self.pd_spin)
         pd_row.addStretch(1)
         self.pd_sub_box.add(_row_box(pd_row))
@@ -276,6 +285,8 @@ class PlayModeSetupMixin(PlayModePanelHost):
         self.repeat_check.setChecked(bool(settings.get("repeat_list", False)))
         lyt.addWidget(self.repeat_check)
 
+        self._add_stop_row(lyt)
+
         pause_row = QHBoxLayout()
         # The caption IS the switch — unchecked, songs run back to back and the
         # configured time stays in the box for switching back.
@@ -305,6 +316,43 @@ class PlayModeSetupMixin(PlayModePanelHost):
         self._add_xfade_row(lyt, settings)
 
         self._add_pause_music_rows(lyt, settings)
+
+    def _add_stop_row(self, lyt):
+        """⏹ When the music stops by itself. Never read from the settings:
+        it is set for one evening (see planner/playing/party_stop.py)."""
+        self._party_stop = PartyStop()
+        stop_row = QHBoxLayout()
+        stop_row.setSpacing(4)
+        stop_row.addWidget(QLabel("⏹  Stop:"))
+        self.stop_combo = QComboBox()
+        for text, key in (("Never", "never"), ("After this title", "this"),
+                          ("After … titles", "count"), ("At …", "time")):
+            self.stop_combo.addItem(text, key)
+        self.stop_combo.setToolTip(
+            "Let the music stop by itself: after the title playing now,\n"
+            "after a number of titles (the one playing now is the first),\n"
+            "or with the first title that ends at or after a time of day.\n\n"
+            "A title is never cut: it plays to its end, then the next one\n"
+            "waits on the player for ⏯. A ⏭ skip does not count as an end.\n\n"
+            "Set for this evening only — it is not saved.\n\n"
+            "Needs ⏭ auto-advance.")
+        stop_row.addWidget(self.stop_combo)
+        self.stop_count_spin = QSpinBox()
+        self.stop_count_spin.setRange(2, 99)
+        self.stop_count_spin.setValue(5)
+        self.stop_count_spin.setToolTip(
+            "Titles still to end, the one playing now included —\n"
+            "it counts down as they do.")
+        stop_row.addWidget(self.stop_count_spin)
+        self.stop_time_edit = QTimeEdit(QTime(23, 0))
+        self.stop_time_edit.setDisplayFormat("HH:mm")
+        self.stop_time_edit.setToolTip(
+            "The first title that ends at or after this time is the last.\n"
+            "A time already past today means after midnight.")
+        stop_row.addWidget(self.stop_time_edit)
+        stop_row.addStretch(1)
+        self.stop_row_box = _row_box(stop_row)
+        lyt.addWidget(self.stop_row_box)
 
     def _add_pause_music_rows(self, lyt, settings):
         """🎵 The pause music: its titles and how loud they play."""
@@ -686,7 +734,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
         self.xfade_curves.curveChanged.connect(lambda _: self.settingsChanged.emit())
         self.pd_check.toggled.connect(self._on_pd_on)
         self.pd_check.toggled.connect(lambda _: self.settingsChanged.emit())
-        self.pd_spin.valueChanged.connect(lambda _: self.settingsChanged.emit())
+        self.pd_spin.valueChanged.connect(self._on_pd_spin)
         self.pd_delay_spin.valueChanged.connect(
             lambda _: self.settingsChanged.emit())
         self.advance_check.toggled.connect(lambda _: self._sync_pause_row())
@@ -696,6 +744,10 @@ class PlayModeSetupMixin(PlayModePanelHost):
         # this box too, and those carry their own announce value.
         self.advance_check.clicked.connect(self._follow_advance_with_announce)
         self.repeat_check.toggled.connect(lambda _: self.settingsChanged.emit())
+        # Not settingsChanged: the stop rule is never saved.
+        self.stop_combo.currentIndexChanged.connect(lambda _: self._on_stop_rule())
+        self.stop_count_spin.valueChanged.connect(lambda _: self._on_stop_rule())
+        self.stop_time_edit.timeChanged.connect(lambda _: self._on_stop_rule())
         self.pause_spin.valueChanged.connect(lambda _: self.settingsChanged.emit())
         self.pause_vol_spin.valueChanged.connect(lambda _: self.settingsChanged.emit())
         self.announce_check.toggled.connect(self.announce_sub_box.setVisible)
@@ -707,5 +759,6 @@ class PlayModeSetupMixin(PlayModePanelHost):
         self.remember_check.toggled.connect(lambda _: self.settingsChanged.emit())
         self._refresh_len_lbl()
         self._sync_pause_row()
+        self._show_stop_rule()
         self.pd_sub_box.setVisible(self.pd_check.isChecked())
         self.announce_sub_box.setVisible(self.announce_check.isChecked())

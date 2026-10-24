@@ -166,21 +166,26 @@ def backup_user_data(today: datetime.date | None = None,
     dest.parent.mkdir(parents=True, exist_ok=True)
     part = dest.with_name(dest.name + ".part")
     part.unlink(missing_ok=True)
-    out = sqlite3.connect(str(part))
     try:
-        out.execute("ATTACH DATABASE ? AS src", (str(audio_db_file()),))
-        out.execute("CREATE TABLE tag_edits AS SELECT * FROM src.tag_edits")
-        out.execute("CREATE TABLE pd_highlights AS "
-                    "SELECT * FROM src.pd_highlights WHERE manual = 1")
-        out.execute("CREATE TABLE audio_fps AS SELECT * FROM src.audio_fps "
-                    "WHERE fp IN (SELECT fp FROM tag_edits "
-                    "             UNION SELECT fp FROM pd_highlights)")
-        out.execute("CREATE TABLE play_log AS SELECT * FROM src.play_log")
-        out.commit()
-        out.execute("DETACH DATABASE src")
-    finally:
-        out.close()
-    os.replace(part, dest)
+        out = sqlite3.connect(str(part))
+        try:
+            out.execute("ATTACH DATABASE ? AS src", (str(audio_db_file()),))
+            out.execute("CREATE TABLE tag_edits AS SELECT * FROM src.tag_edits")
+            out.execute("CREATE TABLE pd_highlights AS "
+                        "SELECT * FROM src.pd_highlights WHERE manual = 1")
+            out.execute("CREATE TABLE audio_fps AS SELECT * FROM src.audio_fps "
+                        "WHERE fp IN (SELECT fp FROM tag_edits "
+                        "             UNION SELECT fp FROM pd_highlights)")
+            out.execute("CREATE TABLE play_log AS SELECT * FROM src.play_log")
+            out.commit()
+            out.execute("DETACH DATABASE src")
+        finally:
+            out.close()
+        os.replace(part, dest)
+    except BaseException:
+        # A half-written copy is no backup: don't leave it beside the real ones.
+        part.unlink(missing_ok=True)
+        raise
     for old in sorted(_backup_dir().glob("user-data-*.db"))[:-BACKUPS_KEPT]:
         old.unlink(missing_ok=True)
     return dest

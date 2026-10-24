@@ -61,7 +61,7 @@ class _Cache:
 class ColumnsTest(unittest.TestCase):
 
     def test_custom_sits_in_front_of_regen(self):
-        self.assertEqual((_COL_CUSTOM, _COL_REGEN, _N_COLS), (10, 14, 15))
+        self.assertEqual((_COL_CUSTOM, _COL_REGEN, _N_COLS), (10, 15, 16))
 
 
 class CustomColumnTest(unittest.TestCase):
@@ -96,8 +96,6 @@ class CustomColumnTest(unittest.TestCase):
                                dance="CC", bpm=30, custom="-1")
         self._load(self.win._deckset.tableB, self.cha)
         self._load(self.win._deckset.tableC, self.copy)
-        self.asked = []
-        self.win._ask_write_to_mp3 = lambda n, fields: self.asked.append(fields) or False
 
     def _entry(self, name, dance, played, **kw) -> MusicEntry:
         path = self.dir / f"{name}.mp3"
@@ -132,9 +130,13 @@ class CustomColumnTest(unittest.TestCase):
     class _Answer:
         """A TagEditDialog after Save, without opening one."""
 
-        def __init__(self, changes):
+        def __init__(self, changes, write_app=False):
             self._changes = changes
+            self._write_app = write_app
             self.reset_requested = False
+
+        def write_app_to_mp3(self):
+            return self._write_app
 
         def changes_for(self, entry):
             return dict(self._changes)
@@ -189,20 +191,39 @@ class CustomColumnTest(unittest.TestCase):
         self.assertEqual(self._cell(self.win._deckset.tableC, self.copy), "Gala")
         self.assertEqual(self._lib_cell(self.cha), "Gala")
 
-    def test_without_a_mapping_it_is_not_offered_for_the_mp3(self):
-        self.win._apply_tag_dialog([self.cha], self._Answer({"custom": "Gala"}))
-        self.assertEqual(self.asked, [])
+    def test_the_editor_opens_on_the_double_clicked_field(self):
+        from unittest import mock
+        from gui.window import main_tags
+        seen = {}
 
-    def test_with_a_mapping_the_mp3_question_names_it(self):
-        custom_field.set_source("TXXX", "ultramixer_last_played")
-        self.win._apply_tag_dialog([self.cha], self._Answer({"custom": "Gala", "rating": 3}))
-        self.assertEqual(self.asked, [["stars", "custom"]])
+        class _Dlg:
+            def __init__(self, *_a, **kw):
+                seen.update(kw)
 
-    def test_without_a_mapping_only_the_others_go_into_the_mp3(self):
+            def exec(self):
+                return 0
+        with mock.patch.object(main_tags, "TagEditDialog", _Dlg):
+            self.win._edit_entry_tags([self.cha], focus="title")
+        self.assertEqual(seen["focus"], "title")
+
+    def _writes(self, changes):
+        """What the ticked editor's Save writes into the MP3, per file."""
         writes = []
         self.win._write_into_mp3 = lambda e, write, what: writes.append(what) or []
-        self.win._ask_write_to_mp3 = lambda n, fields: True
-        self.win._apply_tag_dialog([self.cha], self._Answer({"custom": "Gala", "rating": 3}))
+        self.win._apply_tag_dialog([self.cha], self._Answer(changes, write_app=True))
+        return writes
+
+    def test_without_a_mapping_it_does_not_go_into_the_mp3(self):
+        self.assertEqual(self._writes({"custom": "Gala"}), [])
+
+    def test_with_a_mapping_it_goes_into_the_mp3(self):
+        custom_field.set_source("TXXX", "ultramixer_last_played")
+        writes = self._writes({"custom": "Gala", "rating": 3})
+        self.assertEqual(len(writes), 1)
+        self.assertIn("custom", writes[0])
+
+    def test_without_a_mapping_only_the_others_go_into_the_mp3(self):
+        writes = self._writes({"custom": "Gala", "rating": 3})
         self.assertEqual(len(writes), 1)
         self.assertNotIn("custom", writes[0])
 

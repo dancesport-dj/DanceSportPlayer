@@ -194,6 +194,9 @@ class _MediaStub:
     def playbackState(self):
         return QMediaPlayer.PlaybackState.PlayingState
 
+    def position(self):
+        return 0
+
     def pause(self):
         self.paused += 1
 
@@ -321,6 +324,27 @@ class FadeIndicatorWiringTest(unittest.TestCase):
         self.desk._fade_now.end = time.monotonic() - 0.1
         self.desk._on_play_tick()
         self.assertEqual(self.desk._ended, ["fade-out finished"])
+
+    def test_a_second_press_does_not_restart_the_ramp(self):
+        """A nervous double 🔉↓: restarting the ramp put the volume back to
+        full for a fresh fade (review 2026-10-22, PL2)."""
+        self.desk._fade_out_now()
+        end = self.desk._fade_now.end
+        time.sleep(0.01)
+        self.desk._fade_out_now()
+        self.assertEqual(self.desk._fade_now.end, end)
+
+    def test_the_fade_button_during_a_panic_fade_ends_the_title(self):
+        """🔉↓ on a running 🛑 ramp: the title ends at the bottom instead of
+        holding, on the ramp already running."""
+        self.desk._fade_and_hold()
+        end = self.desk._fade_now.end
+        self.desk._fade_out_now()
+        self.assertEqual(self.desk._fade_now.end, end)
+        self.desk._fade_now.end = time.monotonic() - 0.1
+        self.desk._on_play_tick()
+        self.assertEqual(self.desk._ended, ["fade-out finished"])
+        self.assertEqual(self.desk._player.paused, 0)
 
     def test_no_card_on_the_desk_is_survived(self):
         self.desk._big_player = None

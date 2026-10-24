@@ -52,6 +52,14 @@ Album-Tag der MP3 und **Kommentar** ihren Kommentar, wie er drinsteht (etwa
 „vocal AS“). ★ und Custom
 beschreibt [Kapitel 5](05-tags.md).
 
+**Gespielt** (ebenfalls anfangs ausgeblendet) zählt, wie oft ein Titel in den
+letzten 24 Stunden gespielt wurde, aus jeder Liste: „2“ in jeder Liste, die
+ihn enthält, egal wo er lief. Ein Titel zählt, sobald er im Spielmodus 10
+Sekunden zu hören war, dieselbe Regel wie bei 📜 Gespielte Titel. **Zähler
+für Gespielt zurücksetzen** im Rechtsklick-Menü des Spaltenkopfs setzt alle
+Zähler auf null; 📜 Gespielte Titel behält trotzdem jeden Titel. Die
+Bibliothek und die 🏆 Titelliste haben dieselbe Spalte.
+
 Zieh einen Spaltenkopf zur Seite, um die Spalte zu verschieben. Die neue
 Reihenfolge gilt für alle Listen dieser Art (alle Decks, alle Wunschlisten
 oder alle Partylisten) und bleibt beim nächsten Start erhalten. **Tanz**

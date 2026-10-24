@@ -18,6 +18,7 @@ if /I "%~1"=="player" set APP_NAME=DanceSport-Player
 rem The locked install (every package pinned with hashes, PyInstaller included).
 set LOCK=requirements.lock
 if /I "%~1"=="player" set LOCK=requirements-player.lock
+if /I "%~1"=="full" set LOCK=requirements-full.lock
 
 set PY=%~dp0.venv\Scripts\python.exe
 if not exist "%PY%" goto :no_venv
@@ -30,6 +31,14 @@ rem demanding it here would refuse the very venv that flavor wants.
 set DEPS=PySide6, numpy, mutagen
 if /I not "%DANCESPORT_BUILD%"=="player" set DEPS=PySide6, librosa, numpy, mutagen
 "%PY%" -c "import %DEPS%" || goto :no_deps
+rem The FULL flavor bundles torch and Demucs, and the spec only leaves them IN
+rem when they are importable. Without this check a venv built from
+rem requirements.lock (which has neither) still "builds full" and quietly
+rem yields the lite binary under the full name - the opposite of the flavor
+rem the tester build is for. requirements-full.lock has both.
+if /I "%DANCESPORT_BUILD%"=="full" (
+  "%PY%" -c "import torch, demucs, transformers" || goto :no_full_deps
+)
 "%PY%" -c "import PyInstaller" || goto :no_pyinstaller
 
 rem The manual as a PDF, which the spec bundles (tools\build_manual_pdf, printed
@@ -96,6 +105,13 @@ goto :stop
 :no_deps
 echo ERROR: the build venv is missing one of: %DEPS%
 echo   fix: .venv\Scripts\pip install -r %LOCK%
+goto :stop
+
+:no_full_deps
+echo ERROR: the FULL build needs torch, demucs and transformers in the venv.
+echo   A venv from requirements.lock has none of them, and PyInstaller would
+echo   quietly produce the lite binary under the full name.
+echo   fix: .venv\Scripts\pip install -r requirements-full.lock
 goto :stop
 
 :no_pyinstaller

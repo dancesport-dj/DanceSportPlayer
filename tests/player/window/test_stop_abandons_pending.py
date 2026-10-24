@@ -170,6 +170,15 @@ class StopAbandonsLoudnessWaitTest(unittest.TestCase):
         self.win._pending_load = None
         self.win._lufs_pending = None
 
+    def test_the_wait_timeout_dies_with_the_window(self):
+        """PL9: without the window as its context, the timeout ran against
+        one that was already being destroyed."""
+        with mock.patch("player.window.main_audio.QTimer") as timer:
+            self._arm_wait()
+        args = timer.singleShot.call_args.args
+        self.assertIs(args[1], self.win)
+        self.win._lufs_pending = None
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

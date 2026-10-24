@@ -108,7 +108,7 @@ Hover over one for its full name.
 | 🤸 Party ▾ | Shows or hides the Party panel. |
 | 📚 Library | Shows or hides the library and tournaments pane. |
 | 🎛 Cartwall | Shows or hides the sample-pad wall. |
-| ❔ | A menu: ⌨ Keyboard shortcuts (**F1**), 📖 Manual, 📜 Played titles…, ⚙ Settings… (**F12**), ℹ About… and ⛶ Fullscreen (**F11**). |
+| ❔ | A menu: ⌨ Keyboard shortcuts (**F1**), 📖 Manual, 📜 Played titles…, ⛶ Fullscreen (**F11**), 📝 Export log… (copies the log files into a folder you pick), ⚙ Settings… (**F12**) and ℹ About… |
 
 **Middle: the decks.** Each deck is one playlist, see
 [chapter 3](03-playlists.md).
@@ -140,7 +140,12 @@ only the time** in ⚙ Settings ▸ 🎨 Look.
 
 Closing the window while music plays would stop it on the floor, so the app
 asks first: *Music is playing. Quit anyway and stop it?* **No** is the
-default and keeps everything running. Paused or stopped, the app closes at
+default and keeps everything running. **Yes** does not cut the music: the
+title fades out over its list's fade-out, and so does the music of a pause
+between two titles; every sounding 🎛 cartwall pad fades over its own, and
+the window closes when the last one is silent. Meanwhile a small window
+says *🔉 Fading out the music… The app closes in a moment.*, its bar
+filling up with the fade. A second ✕ during the fade closes at once. With nothing sounding, the app closes at
 once.
 
 ## The player build

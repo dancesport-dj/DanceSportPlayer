@@ -21,6 +21,7 @@ import shutil
 import tempfile
 import time
 import zipfile
+import zlib
 from dataclasses import dataclass, field
 from pathlib import Path, PurePath, PureWindowsPath
 
@@ -36,17 +37,26 @@ SUFFIX = ".dpvenue"
 STAGE_DIR = "venue_import"
 BACKUP_PREFIX = "before-venue-import-"
 SETTINGS_FILE = "gui_settings.json"
+# The only documents a pack may bring: the names come from the pack itself,
+# and the app folder also holds the AI key and the planner config.
+PACK_FILES = (SETTINGS_FILE, "autosave_playlist.json", "cartwall.json")
 
 # Tracks: the same list shared/audio/audio_files.py plays.
 AUDIO_EXTS = (".mp3", ".m4a", ".m4b", ".flac", ".wav", ".ogg",
               ".oga", ".opus", ".aac", ".wma", ".aiff", ".aif")
+
+# Who may reach this desk from a phone: the remote PIN and whether the remote
+# and the guest page are on. A pack never carries them, and one that does
+# (written before they were left out) cannot switch them on here.
+ACCESS_KEYS = ("remote_pin", "remote_mode", "remote_port",
+               "guest_mode", "guest_port")
 
 # Settings that describe THIS machine — its folders, its screens, its audio
 # backend — and stay as they are when another machine's settings come in.
 MACHINE_KEYS = ("library_dir", "global_dir", "save_dir", "playlist_dir",
                 "reference_path", "remap_paths", "open_dir", "import_dir",
                 "ai_claude_config_dir", "presenter_screen",
-                "presenter_screen_name", "media_backend")
+                "presenter_screen_name", "media_backend") + ACCESS_KEYS
 
 
 class VenuePackError(Exception):
@@ -171,6 +181,9 @@ def write_pack(dest: Path, docs: dict, include_music: bool,
     """Write `docs` (file name -> JSON object) and, if asked, their music to
     `dest`. The file appears only when complete; cancelling removes it."""
     dest = Path(dest)
+    if isinstance(docs.get(SETTINGS_FILE), dict):
+        docs = {**docs, SETTINGS_FILE: {k: v for k, v in docs[SETTINGS_FILE].items()
+                                        if k not in ACCESS_KEYS}}
     res = PackResult()
     music: dict[str, str] = {}
     tracks = track_paths(*docs.values()) if include_music else []
@@ -233,20 +246,53 @@ def read_pack(src: Path) -> Pack:
             m = _manifest(z)
             docs = {}
             for name in m.get("files", []):
+                if name not in PACK_FILES:
+                    log.warning("⚠️ Venue pack entry ignored\n"
+                                "file: %s", name)
+                    continue
                 try:
                     docs[name] = json.loads(z.read(name).decode("utf-8"))
                 except (KeyError, ValueError) as exc:
                     raise VenuePackError(f"damaged entry: {name}") from exc
+                if name == SETTINGS_FILE and not isinstance(docs[name], dict):
+                    raise VenuePackError(f"damaged entry: {name}")
     except (zipfile.BadZipFile, OSError) as exc:
         raise VenuePackError(str(exc)) from exc
     return Pack(docs=docs, music=dict(m.get("music") or {}),
                 created=str(m.get("created", "")))
 
 
+def _crc32(path: Path) -> int | None:
+    crc = 0
+    try:
+        with open(path, "rb") as f:
+            while chunk := f.read(1 << 20):
+                crc = zlib.crc32(chunk, crc)
+    except OSError:
+        return None
+    return crc
+
+
+def _landing(target: Path, info: zipfile.ZipInfo) -> Path:
+    """Where a packed track goes: a copy already there (same size and CRC) is
+    reused, and a different file under that name is left alone — the track
+    takes "name (2)" instead."""
+    stem, ext, n = target.stem, target.suffix, 2
+    cand = target
+    while cand.is_file():
+        if (cand.stat().st_size == info.file_size
+                and _crc32(cand) == info.CRC):
+            return cand
+        cand = target.with_name(f"{stem} ({n}){ext}")
+        n += 1
+    return cand
+
+
 def extract_music(src: Path, dest_dir: Path, progress=None, cancelled=None) -> dict:
     """Unpack the music under `dest_dir`; original path -> new path. A file
-    already there with the same size is taken as the same file, so importing a
-    pack twice copies nothing twice. Cancelling removes what this call wrote."""
+    already there with the same content is taken as the same file, so importing
+    a pack twice copies nothing twice; another file under the name is never
+    overwritten (see `_landing`). Cancelling removes what this call wrote."""
     dest_dir = Path(dest_dir)
     mapping, written = {}, []
     try:
@@ -255,12 +301,19 @@ def extract_music(src: Path, dest_dir: Path, progress=None, cancelled=None) -> d
             for i, (orig, arc) in enumerate(music.items(), 1):
                 if cancelled and cancelled():
                     raise VenuePackCancelled()
-                rel = PurePath(arc)
-                if rel.is_absolute() or ".." in rel.parts:
+                # The names come from the pack itself: a crafted one could
+                # carry "C:" (drive-relative, joins outside dest_dir), ".." or
+                # a .bat, so anything but a plain audio file name is skipped.
+                parts = PurePath(arc).parts[1:]
+                if (not parts or any(p in ("..", "") or ":" in p for p in parts)
+                        or not parts[-1].lower().endswith(AUDIO_EXTS)):
+                    continue
+                target = dest_dir.joinpath(*parts)
+                if not target.resolve().is_relative_to(dest_dir.resolve()):
                     continue                    # never write outside dest_dir
-                target = dest_dir.joinpath(*rel.parts[1:])
                 info = z.getinfo(arc)
-                if not (target.is_file() and target.stat().st_size == info.file_size):
+                target = _landing(target, info)
+                if not target.is_file():
                     target.parent.mkdir(parents=True, exist_ok=True)
                     with z.open(info) as fsrc, open(target, "wb") as fdst:
                         written.append(target)
@@ -309,13 +362,20 @@ def apply_pending(state_dir: Path) -> list[str]:
     if not stage.is_dir():
         return []
     docs = {}
-    for src in sorted(p for p in stage.iterdir() if p.suffix == ".json"):
+    for src in sorted(p for p in stage.iterdir() if p.name in PACK_FILES):
         try:
             docs[src.name] = json.loads(src.read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:
             log.warning("⚠️ Venue import entry skipped\n"
                         "file: %s\n"
                         "error: %s", src.name, exc)
+    # Settings that are no object cannot be merged. Raised from here they
+    # would leave the stage in place, and every start would fail on it again.
+    if SETTINGS_FILE in docs and not isinstance(docs[SETTINGS_FILE], dict):
+        log.warning("⚠️ Venue import entry skipped\n"
+                    "file: %s\n"
+                    "error: not a JSON object", SETTINGS_FILE)
+        del docs[SETTINGS_FILE]
     live_settings = state_dir / SETTINGS_FILE
     try:
         local = json.loads(live_settings.read_text(encoding="utf-8"))
@@ -326,17 +386,43 @@ def apply_pending(state_dir: Path) -> list[str]:
         docs[SETTINGS_FILE] = merge_settings(local, docs[SETTINGS_FILE])
     docs, relinked = relink(docs, docs.get(SETTINGS_FILE, local))
     backup = state_dir / (BACKUP_PREFIX + time.strftime("%Y%m%d-%H%M%S"))
-    backup.mkdir(exist_ok=True)
+    # All or nothing: every live file is copied aside before the first one is
+    # replaced, and a failed write puts the ones already replaced back. The
+    # stage stays, so the next start tries again (a file locked by a sync
+    # client or a virus scanner usually is not locked for long).
     applied = []
-    for name, obj in docs.items():
-        live = state_dir / name
-        if live.exists():
-            shutil.copy2(live, backup / name)
-        write_json_atomic(live, obj)
-        applied.append(name)
+    try:
+        backup.mkdir(exist_ok=True)
+        for name in docs:
+            if (state_dir / name).exists():
+                shutil.copy2(state_dir / name, backup / name)
+        for name, obj in docs.items():
+            write_json_atomic(state_dir / name, obj)
+            applied.append(name)
+    except OSError as exc:
+        _roll_back(state_dir, backup, applied)
+        log.warning("⚠️ Venue pack not applied, tried again next start\n"
+                    "error: %s", exc)
+        return []
     shutil.rmtree(stage, ignore_errors=True)
     log.info("📥 Venue pack applied\n"
              "files: %s\n"
              "paths relinked: %d\n"
              "backup: %s", ", ".join(applied) or "none", relinked, backup.name)
     return applied
+
+
+def _roll_back(state_dir: Path, backup: Path, written: list[str]) -> None:
+    """Put back the files a half-done apply_pending already replaced: the
+    backed-up copy where there was one, else the new file goes again."""
+    for name in written:
+        try:
+            if (backup / name).exists():
+                shutil.copy2(backup / name, state_dir / name)
+            else:
+                (state_dir / name).unlink()
+        except OSError as exc:
+            log.error("🗄️ Venue import roll-back failed\n"
+                      "file: %s\n"
+                      "error: %s", name, exc)
+    shutil.rmtree(backup, ignore_errors=True)

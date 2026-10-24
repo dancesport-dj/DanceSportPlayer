@@ -69,6 +69,9 @@ class _Dialog:
     def running_look_touched(self):
         return False
 
+    def deleteLater(self):
+        pass
+
 
 class SaveAppliesTest(unittest.TestCase):
 

@@ -151,7 +151,7 @@ class DeckSetupMixin(MainWindowHost):
         """Every table's callbacks and signals into this window."""
         for t in self._deckset.all_tables:
             t._seek_cb = self._seek   # Ctrl+←/→ seeks ∓30 s
-            t._short_secs_cb = lambda dance, t=t: self._configured_play_secs(t, dance)   # orange ⏱ on short tracks
+            t._short_secs_cb = lambda dance, rnd="", t=t: self._configured_play_secs(t, dance, rnd)   # orange ⏱ on short tracks
             # 🏆 The panel's length follows the picked row's dance.
             t.currentCellChanged.connect(lambda *_a: self._sync_dance_len())
             t._play_secs_cb = self._track_play_secs   # ⏱ tooltip: real play time
@@ -173,6 +173,7 @@ class DeckSetupMixin(MainWindowHost):
             t.set_column_order_callback(self._on_column_order_changed)
             t.set_dance_names_callback(self._on_dance_names_changed)
             t.set_rating_callback(self._set_entry_rating)
+            t.set_play_counts_callback(self._reset_play_counts)
             # ⏭/✋ in the deck's bottom-right corner — THIS deck's auto-advance
             # answer, within reach while a round runs. The panel's switch is
             # what it falls back to (see _deck_advance).
@@ -517,7 +518,7 @@ class DeckSetupMixin(MainWindowHost):
         self._grid.deck_tabs.addTab(self._grid.decks_split2, "Group E–H")
         self._grid.deck_tabs.addTab(self._grid.day_tabs, "📅 Tournament day")
         # The 📅 tab only shows when its view is switched on (_apply_deck_view).
-        self._grid.deck_tabs.setTabVisible(2, False)
+        self._grid.deck_tabs.setTabVisible(self._grid.day_page(), False)
         # ✕ on the 📅 tab closes the whole tournament-day view (clears the day
         # decks after a confirm); double-click on the tab renames it to the
         # competition name, e.g. "DanceComp 2026" (handled in eventFilter).
@@ -530,7 +531,7 @@ class DeckSetupMixin(MainWindowHost):
         day_close.setToolTip("Close the tournament day — clears all 📅 day decks")
         day_close.clicked.connect(self._close_day_plan)
         self._grid.deck_tabs.tabBar().setTabButton(
-            2, QTabBar.ButtonPosition.RightSide, day_close)
+            self._grid.day_page(), QTabBar.ButtonPosition.RightSide, day_close)
         # A QTabWidget normally draws a pane border + margin around its pages; strip
         # both so a single-tab (≤4-deck) view is visually identical to the old layout.
         self._grid.deck_tabs.setStyleSheet(
@@ -687,6 +688,7 @@ class DeckSetupMixin(MainWindowHost):
         self._lib_browser.columnWidthsChanged.connect(self._on_lib_column_widths)
         self._lib_browser.columnsChanged.connect(self._on_lib_columns_hidden)
         self._lib_browser.danceNamesChanged.connect(self._on_lib_dance_names)
+        self._lib_browser.playCountsResetWanted.connect(self._reset_play_counts)
         self._lib_browser._table.seek_cb = self._prehear_seek   # Ctrl+←/→ seeks ∓30 s
         saved_widths = self._settings.get("library_col_widths")
         if isinstance(saved_widths, dict):
@@ -707,6 +709,7 @@ class DeckSetupMixin(MainWindowHost):
         self._tourney_tree.playRequested.connect(
             lambda path, row: self._on_lib_play(path, row, self._tourney_tree))
         self._tourney_tree.loadRequested.connect(self._load_tournament_m3u)
+        self._tourney_tree.playCountsResetWanted.connect(self._reset_play_counts)
         self._tourney_tree._table.seek_cb = self._prehear_seek   # Ctrl+←/→ seeks ∓30 s
         # A tournament list may point outside the library (an older copy of the
         # collection, a stick) — those tracks are read off the file itself.

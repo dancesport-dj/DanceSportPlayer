@@ -352,6 +352,7 @@ class AllCacheMixin(MainWindowHost):
         self._index_analyzer.done.connect(
             lambda ok, err: self._allcache_step_done("librosa", ok, err))
         self._index_analyzer.cancelled.connect(lambda done: self._allcache_cancel("librosa", done))
+        self._index_analyzer.error.connect(self._allcache_embedding_error)
         self._index_analyzer.start()
 
     def _allcache_run_embedding(self, model: str, name: str, pool):

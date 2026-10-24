@@ -1,9 +1,11 @@
 """📦 Venue pack: the desk of one PC carried to another in one file."""
 import json
+import os
 import tempfile
 import unittest
 import zipfile
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
+from unittest import mock
 
 from planner.event import venue_pack as vp
 
@@ -61,6 +63,26 @@ class MergeSettingsTest(unittest.TestCase):
         self.assertNotIn("library_dir", out)
         self.assertEqual(out["a"], 1)
 
+    def test_remote_and_guest_access_stay_local(self):
+        """S3: an older pack still carries the other PC's PIN and modes; the
+        import must neither take them nor switch the remote on."""
+        local = {"remote_pin": "1111", "remote_mode": "off", "guest_mode": "off"}
+        imported = {"remote_pin": "9999", "remote_mode": "tunnel",
+                    "remote_port": 8765, "guest_mode": "lan", "guest_port": 8766}
+        self.assertEqual(vp.merge_settings(local, imported), local)
+
+    def test_the_pack_does_not_carry_remote_or_guest_access(self):
+        settings = {"remote_pin": "9999", "remote_mode": "tunnel",
+                    "remote_port": 8765, "guest_mode": "lan",
+                    "guest_port": 8766, "zoom": 3}
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = Path(tmp) / "v.dpvenue"
+            vp.write_pack(dest, {vp.SETTINGS_FILE: settings}, include_music=False)
+            self.assertEqual(vp.read_pack(dest).docs[vp.SETTINGS_FILE], {"zoom": 3})
+            with zipfile.ZipFile(dest) as z:
+                self.assertNotIn(b"9999", z.read(vp.SETTINGS_FILE))
+        self.assertIn("remote_pin", settings)       # the caller's dict untouched
+
 
 class PackRoundTripTest(unittest.TestCase):
     def setUp(self):
@@ -115,6 +137,24 @@ class PackRoundTripTest(unittest.TestCase):
         # A second import of the same pack reuses what is already there.
         self.assertEqual(vp.extract_music(dest, target), mapping)
 
+    def test_a_different_track_of_the_same_size_is_not_taken_for_it(self):
+        dest = self.root / "venue.dpvenue"
+        vp.write_pack(dest, self.docs, include_music=True)
+        target = self.root / "venue_music"
+        mine = _mp3(target / "LW" / "Moon.mp3", b"Z" * 100)   # same size as A
+        mapping = vp.extract_music(dest, target)
+        self.assertEqual(Path(mapping[self.a]).read_bytes(), b"A" * 100)
+        self.assertEqual(Path(mine).read_bytes(), b"Z" * 100)
+
+    def test_a_different_track_of_another_size_is_not_overwritten(self):
+        dest = self.root / "venue.dpvenue"
+        vp.write_pack(dest, self.docs, include_music=True)
+        target = self.root / "venue_music"
+        mine = _mp3(target / "LW" / "Moon.mp3", b"Z" * 7)
+        mapping = vp.extract_music(dest, target)
+        self.assertEqual(Path(mapping[self.a]).read_bytes(), b"A" * 100)
+        self.assertEqual(Path(mine).read_bytes(), b"Z" * 7)
+
     def test_cancel_leaves_no_pack_behind(self):
         dest = self.root / "venue.dpvenue"
         with self.assertRaises(vp.VenuePackCancelled):
@@ -143,6 +183,57 @@ class PackRoundTripTest(unittest.TestCase):
             vp.read_pack(dest)
 
 
+class HostileMusicNamesTest(unittest.TestCase):
+    """S1: the arc names come from the pack's own manifest, so a crafted pack
+    must not get a file written anywhere but under the chosen music folder."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name)
+        self.dest = self.root / "venue_music"
+        # A drive-relative name resolves against the drive's current folder;
+        # pointing that at the temp root keeps a failing run inside it.
+        cwd = os.getcwd()
+        os.chdir(self.root)
+        self.addCleanup(os.chdir, cwd)
+
+    def _pack(self, arcs):
+        src = self.root / "evil.dpvenue"
+        with zipfile.ZipFile(src, "w") as z:
+            for arc in arcs:
+                z.writestr(arc, b"payload")
+            z.writestr(vp.MANIFEST, json.dumps(
+                {"format": vp.FORMAT, "version": vp.VERSION, "files": [],
+                 "music": {f"F:\\orig\\{i}.mp3": arc for i, arc in enumerate(arcs)}}))
+        return src
+
+    def _written(self):
+        return sorted(str(p.relative_to(self.root)) for p in self.root.rglob("*")
+                      if p.is_file() and p.name != "evil.dpvenue")
+
+    @unittest.skipUnless(os.name == "nt", "drive letters are a Windows path form")
+    def test_a_drive_relative_name_does_not_escape(self):
+        drive = PureWindowsPath(self.root).drive
+        mapping = vp.extract_music(self._pack([f"music/x/{drive}outside/a.mp3"]),
+                                   self.dest)
+        self.assertEqual(mapping, {})
+        self.assertEqual(self._written(), [])
+
+    def test_only_audio_files_are_unpacked(self):
+        mapping = vp.extract_music(
+            self._pack(["music/x/run.bat", "music/x/song.mp3"]), self.dest)
+        self.assertEqual(list(mapping.values()), [str(self.dest / "x" / "song.mp3")])
+        self.assertEqual(self._written(), [str(Path("venue_music/x/song.mp3"))])
+
+    def test_a_name_without_a_file_part_is_skipped(self):
+        """L-VP1: `music` alone made the target the folder itself, and
+        opening a folder for writing unwound the whole import."""
+        mapping = vp.extract_music(self._pack(["music", "music/x/song.mp3"]),
+                                   self.dest)
+        self.assertEqual(list(mapping.values()), [str(self.dest / "x" / "song.mp3")])
+
+
 class StagedImportTest(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
@@ -165,6 +256,25 @@ class StagedImportTest(unittest.TestCase):
     def _read(self, name):
         return json.loads((self.state / name).read_text(encoding="utf-8"))
 
+    def test_only_the_desk_files_are_taken_from_a_pack(self):
+        """S2: the file list comes from the pack, so a crafted one could
+        overwrite any JSON in the app folder (the AI key, the planner config)."""
+        evil = self.root / "evil.dpvenue"
+        with zipfile.ZipFile(evil, "w") as z:
+            for name in ("cartwall.json", "openrouter_config.json"):
+                z.writestr(name, json.dumps({"pads": []}))
+            z.writestr(vp.MANIFEST, json.dumps(
+                {"format": vp.FORMAT, "version": vp.VERSION,
+                 "files": ["cartwall.json", "openrouter_config.json"]}))
+        pack = vp.stage_import(evil, self.state, music_dir=None)
+        self.assertEqual(list(pack.docs), ["cartwall.json"])
+        # A file that reached the stage folder some other way is not applied.
+        (self.state / vp.STAGE_DIR / "planner_config.json").write_text(
+            "{}", encoding="utf-8")
+        self.assertEqual(vp.apply_pending(self.state), ["cartwall.json"])
+        self.assertFalse((self.state / "openrouter_config.json").exists())
+        self.assertFalse((self.state / "planner_config.json").exists())
+
     def test_stage_changes_nothing_live_until_applied(self):
         vp.stage_import(self.pack, self.state, music_dir=None)
         self.assertTrue(vp.has_pending(self.state))
@@ -185,6 +295,39 @@ class StagedImportTest(unittest.TestCase):
         old = json.loads((backups[0] / "gui_settings.json").read_text("utf-8"))
         self.assertEqual(old["zoom"], 1)
 
+    def _assert_untouched(self):
+        self.assertEqual(self._read("gui_settings.json"),
+                         {"library_dir": r"C:\here", "zoom": 1})
+        self.assertEqual(self._read("autosave_playlist.json"), {})
+        self.assertFalse((self.state / "cartwall.json").exists())
+        self.assertTrue(vp.has_pending(self.state), "tried again next start")
+
+    def test_a_file_that_cannot_be_backed_up_applies_nothing(self):
+        """L-VP4: a locked live file stopped the loop half way — some docs
+        replaced, the rest old, and no backup of the ones still to come."""
+        vp.stage_import(self.pack, self.state, music_dir=None)
+        real = vp.shutil.copy2
+
+        def copy2(src, dst, *a, **k):
+            if Path(src).name == "gui_settings.json":
+                raise PermissionError("locked")
+            return real(src, dst, *a, **k)
+        with mock.patch.object(vp.shutil, "copy2", side_effect=copy2):
+            self.assertEqual(vp.apply_pending(self.state), [])
+        self._assert_untouched()
+
+    def test_a_write_that_fails_puts_the_earlier_files_back(self):
+        vp.stage_import(self.pack, self.state, music_dir=None)
+        real = vp.write_json_atomic
+
+        def write(path, obj):
+            if path.name == "gui_settings.json":
+                raise PermissionError("locked")
+            return real(path, obj)
+        with mock.patch.object(vp, "write_json_atomic", side_effect=write):
+            self.assertEqual(vp.apply_pending(self.state), [])
+        self._assert_untouched()
+
     def test_with_music_the_imported_docs_point_at_the_copies(self):
         music = self.root / "venue_music"
         vp.stage_import(self.pack, self.state, music_dir=music)
@@ -201,7 +344,7 @@ class StagedImportTest(unittest.TestCase):
         moon = _mp3(here / "standardcd" / "LW" / "Moon (LW 29).mp3")
         tusch = _mp3(self.root / "jingles" / "Tusch.mp3")
         far_moon = r"F:\my music\standardcd\LW\Moon (LW 29).mp3"
-        far_tusch = r"D:\Dropbox\jingles\Tusch.mp3"
+        far_tusch = r"E:\jingles\Tusch.mp3"
         gone = r"F:\my music\standardcd\LW\Gone.mp3"
         docs = {"gui_settings.json": {"library_dir": r"F:\my music", "zoom": 3,
                                       "per_title": {far_moon: 5}},
@@ -221,6 +364,30 @@ class StagedImportTest(unittest.TestCase):
         s = self._read("gui_settings.json")
         self.assertEqual(s["per_title"], {moon: 5})
         self.assertEqual(s["library_dir"], str(here))
+
+    def test_settings_that_are_no_object_are_skipped_not_retried(self):
+        """P11: merge_settings raised on them outside the apply's try, so the
+        stage was never cleared and every start failed on it again."""
+        vp.stage_import(self.pack, self.state, music_dir=None)
+        (self.state / vp.STAGE_DIR / "gui_settings.json").write_text(
+            "[1, 2]", encoding="utf-8")
+        with self.assertLogs(vp.log, "WARNING"):
+            applied = vp.apply_pending(self.state)
+        self.assertEqual(sorted(applied), ["autosave_playlist.json", "cartwall.json"])
+        self.assertEqual(self._read("gui_settings.json"),
+                         {"library_dir": r"C:\here", "zoom": 1})
+        self.assertFalse(vp.has_pending(self.state))
+
+    def test_a_pack_with_such_settings_is_refused_at_import(self):
+        bad = self.root / "bad.dpvenue"
+        with zipfile.ZipFile(bad, "w") as z:
+            z.writestr("gui_settings.json", "[1, 2]")
+            z.writestr(vp.MANIFEST, json.dumps(
+                {"format": vp.FORMAT, "version": vp.VERSION,
+                 "files": ["gui_settings.json"]}))
+        with self.assertRaises(vp.VenuePackError):
+            vp.stage_import(bad, self.state, music_dir=None)
+        self.assertFalse(vp.has_pending(self.state))
 
     def test_nothing_pending_applies_nothing(self):
         self.assertEqual(vp.apply_pending(self.state), [])

@@ -116,8 +116,6 @@ class RatingClickTest(unittest.TestCase):
         self.copy = _entry("Cha One (CC 30)", "CC", rating=2)
         self._load(self.win._deckset.tableB, self.cha)
         self._load(self.win._deckset.tableC, self.copy)
-        # The 🏷 editor's "also write into the MP3?" — No: these are DB edits.
-        self.win._ask_write_to_mp3 = lambda n, fields: False
 
     def _load(self, table, entry):
         table.load({"Runde 1": [[entry, self.rum]]}, ["CC", "RB"],
@@ -224,6 +222,9 @@ class RatingClickTest(unittest.TestCase):
             self._changes = changes or {}
             self.reset_requested = reset
 
+        def write_app_to_mp3(self):
+            return False   # these are DB edits
+
         def changes_for(self, entry):
             return dict(self._changes)
 
@@ -274,7 +275,7 @@ class RatingClickTest(unittest.TestCase):
         from gui import library_browser
         browser = self.win._lib_browser
         handed = []
-        self.win._edit_entry_tags = handed.append
+        self.win._edit_entry_tags = lambda entries, focus=None: handed.append(entries)
 
         class _Menu(QMenu):
             def exec(self, *_args):

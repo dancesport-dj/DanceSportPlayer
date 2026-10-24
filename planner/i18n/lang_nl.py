@@ -52,7 +52,6 @@ CATALOG = {
     "fade-out → after the length": "uitfaden → na de speelduur",
     "Fade-out:": "Uitfaden:",
     "Own fade-out": "Eigen uitfade",
-    "Wall fade-out": "Uitfade van de Cartwall",
     "Play length:": "Speelduur:",
     "Start after:": "Start na:",
     "Stop after highlight:": "Stop na hoogtepunt:",
@@ -389,6 +388,7 @@ CATALOG = {
     "Pad settings": "Padinstellingen",
     "Clear this pad": "Deze pad leegmaken",
     "Columns in the library": "Kolommen in de bibliotheek",
+    "Columns in the track list": "Kolommen in de nummerlijst",
     "Open wishlists": "Open wensenlijsten",
     "Analyze PD highlights": "PD-hoogtepunten analyseren",
     "Vocal + instr.": "Zang + instr.",
@@ -573,6 +573,9 @@ CATALOG = {
     "📖  Manual": "📖  Handleiding",
     "ℹ  About…": "ℹ  Over…",
     "About": "Over",
+    "Closing": "Afsluiten",
+    "🔉 Fading out the music…\nThe app closes in a moment.":
+        "🔉 De muziek wordt uitgefaded…\nDe app sluit zo meteen.",
     "Music is playing": "Er speelt muziek",
     "Music is playing. Quit anyway and stop it?":
         "Er speelt muziek. Toch afsluiten en de muziek stoppen?",
@@ -727,6 +730,42 @@ CATALOG = {
     "🔉  Duck to:": "🔉  Dempen naar:",
     "How loud everything stays while 🔉 Duck is pressed on the player\ncard, the mini player or the presenter screen: low enough to talk\nover, loud enough to keep the floor moving. 0 % is silence.":
         "Hoe luid alles blijft terwijl 🔉 Dempen is ingedrukt op de spelerkaart,\nde minispeler of het presentatiescherm: zacht genoeg om eroverheen te\npraten, luid genoeg om de vloer te laten dansen. 0 % is stilte.",
+    "🎶  Background pads when a title starts:":
+        "🎶  Achtergrondpads als een nummer start:",
+    "<b>🎛 Cartwall</b> — what the pads do to the music, and what every pad follows unless it was given its own.":
+        "<b>🎛 Cartwall</b> — wat de pads met de muziek doen, en wat elke pad volgt tenzij hij een eigen instelling heeft.",
+    "⏱  Pads fade out over:":
+        "⏱  Pads faden uit in:",
+    "How long a pad takes to let go when it is tapped again or ⏹\nstops the wall. A pad can override this in its own settings.":
+        "Hoe lang een pad nodig heeft om los te laten als hij opnieuw wordt aangetikt of ⏹\nde cartwall stopt. Een pad kan dit in zijn eigen instellingen overschrijven.",
+    "🖌  Default wall colour:":
+        "🖌  Standaardkleur van de cartwall:",
+    "The wall's default colour: every pad without a colour of its own\n(🎨 Colour ▸ Wall default) shows it. A pad given its own keeps it.":
+        "De standaardkleur van de cartwall: elke pad zonder eigen kleur\n(🎨 Kleur ▸ Standaard van de cartwall) toont hem. Een pad met een eigen kleur houdt die.",
+    "Mute and keep playing":
+        "Dempen en door laten spelen",
+    "Pause":
+        "Pauzeren",
+    "What a 🎛 cartwall pad set to 🎶 Background does once the music\nstarts.\n\nMute and keep playing: it runs on silently under the title and\nfades back in when the music stops.\nPause: it holds where it was and carries on from there when\nthe music stops.":
+        "Wat een 🎛 cartwall-pad met 🎶 Achtergrond doet zodra de muziek\nstart.\n\nDempen en door laten spelen: het speelt stil door onder het nummer en\nfaadt weer in als de muziek stopt.\nPauzeren: het blijft staan waar het was en speelt van daar verder\nals de muziek stopt.",
+    "🎶  Background: pause while a title plays":
+        "🎶  Achtergrond: pauzeren zolang een titel speelt",
+    "The other way round from 🔈: a title starting on the main\nplayer pauses this pad, and it carries on from where it was\nwhen the music stops.\n(⚙ Settings → 🎛 Cartwall → 🎶 Background pads)":
+        "Andersom dan 🔈: start er een nummer op de hoofdspeler, dan\npauzeert deze pad en speelt hij verder waar hij was\nals de muziek stopt.\n(⚙ Instellingen → 🎛 Cartwall → 🎶 Achtergrondpads)",
+    "🎛  A pad ducks the music to:":
+        "🎛  Een pad dempt de muziek naar:",
+    "How loud the music stays while a 🎛 cartwall pad set to 🔈 pull\nthe music down plays, in percent of its volume like 🔉 Duck to.\n10 % is about −20 dB: a fanfare cuts through. 30 % (about −10 dB)\nonly sits the music back. 0 % is silence.":
+        "Hoe luid de muziek blijft terwijl een 🎛 cartwall-pad met 🔈 muziek\ndempen speelt, in procent van haar volume zoals bij 🔉 Dempen naar.\n10 % is ongeveer −20 dB: een fanfare komt erdoor. 30 % (ongeveer −10 dB)\nzet de muziek alleen een stap terug. 0 % is stilte.",
+    "A duck, here or a pad's on the 🎛 Cartwall tab, is a percentage of the music's volume, not of its loudness: 50 % ≈ −6 dB, 30 % ≈ −10 dB (sounds about half as loud), 20 % ≈ −14 dB, 10 % ≈ −20 dB.":
+        "Een demping, hier of die van een pad op het tabblad 🎛 Cartwall, is een percentage van het volume van de muziek, niet van de luidheid: 50 % ≈ −6 dB, 30 % ≈ −10 dB (klinkt ongeveer half zo luid), 20 % ≈ −14 dB, 10 % ≈ −20 dB.",
+    "🌅  Fade each title in over:":
+        "🌅  Elk nummer laten infaden over:",
+    "The big player starts every title at silence and brings it up\nover these seconds of music. Not a title a 🔀 crossfade brings in,\nwhich has its own ramp. Couples start on the first downbeat, so\nleave it off for a competition. 0 = off.":
+        "De grote speler start elk nummer in stilte en brengt het\nomhoog over deze seconden muziek. Niet een nummer dat een\n🔀 crossfade binnenhaalt, die heeft een eigen ramp. Paren\nbeginnen op de eerste tel, dus laat het uit bij een wedstrijd.\n0 = uit.",
+    "⏩  Start each title this far in:":
+        "⏩  Elk nummer zo ver erin starten:",
+    "The big player skips the first seconds of every title. They do\nnot count against the play length. A title picked up where it\nwas left starts there instead, and a silent intro is still\nskipped on top. Cuts the same seconds from every title. 0 = off.":
+        "De grote speler slaat de eerste seconden van elk nummer over.\nZe tellen niet mee voor de speelduur. Een nummer dat wordt\nhervat waar het bleef, start daar, en een stil intro wordt\ndaarbovenop overgeslagen. Knipt bij elk nummer dezelfde\nseconden weg. 0 = uit.",
     "Reset the tempo to ±0 % (or double-click the fader)":
         "Tempo terugzetten op ±0 % (of dubbelklik op de fader)",
     "Volume adjustment of this track by Equalize volume (R128)":
@@ -747,17 +786,37 @@ CATALOG = {
         "%s — eigen lengte",
     "This dance has its own play length in the 🏆 tournament set\n(⚙ Settings → 🎛 Play sets). − / + and typing change it there.":
         "Deze dans heeft een eigen speellengte in de 🏆 toernooiset\n(⚙ Instellingen → 🎛 Speelsets). − / + en typen wijzigen hem daar.",
-    "<b>⏱ Per dance</b> — a dance given a length of its own is cut there instead, as long as a list stands on this set. The ▶ Playing panel names the dance under its length.":
-        "<b>⏱ Per dans</b> — een dans met een eigen lengte wordt daar afgekapt, zolang een lijst op deze set staat. Het ▶ Afspeelpaneel noemt de dans onder zijn lengte.",
+    "<b>⏱ Per dance</b> — a dance given a length of its own is cut there instead, as long as a list plays this set's length. The ▶ Playing panel names the dance under its length.":
+        "<b>⏱ Per dans</b> — een dans met een eigen lengte wordt daar afgekapt, zolang een lijst de lengte van deze set speelt. Het ▶ Afspeelpaneel noemt de dans onder zijn lengte.",
     "— the set's length":
         "— de lengte van de set",
+    "⏱  Lengths:":
+        "⏱  Lengtes:",
+    "Per dance — the standard":
+        "Per dans — de standaard",
+    "Per round — overrides it":
+        "Per ronde — overschrijft die",
+    "Which lengths the list below shows. The per-dance ones are the standard; a round's own lengths override them in that kind of round. Both count, whichever is on screen.":
+        "Welke lengtes de lijst hieronder toont. De lengtes per dans zijn de standaard; de eigen lengtes van een ronde overschrijven ze in die soort ronde. Beide gelden, welke er ook in beeld is.",
+    "The kind of round whose lengths the list shows. Every intermediate round shares one.":
+        "De soort ronde waarvan de lijst de lengtes toont. Alle tussenrondes delen er één.",
+    "<b>⏱ Per round</b> — the lengths of one kind of round, every heat of it alike, on top of the per-dance ones. Left on “— the dance's length”, a dance runs its per-dance length in that round. One setting covers every intermediate round.":
+        "<b>⏱ Per ronde</b> — de lengtes van één soort ronde, in elke heat ervan gelijk, bovenop die per dans. Op „— de lengte van de dans” gelaten, loopt een dans in die ronde op zijn lengte per dans. Eén instelling geldt voor elke tussenronde.",
+    "after highlight %d":
+        "na hoogtepunt %d",
+    "Full, or stop after a highlight — the same as 🐂 Paso Doble: stop after highlight above.":
+        "Volledig, of stoppen na een hoogtepunt — hetzelfde als 🐂 Paso Doble: stop na hoogtepunt hierboven.",
+    "Full, or stop after a highlight in this kind of round — a final in full, a Vorrunde after the 2nd.":
+        "Volledig of stoppen na een hoogtepunt in dit soort ronde — een finale volledig, een voorronde na het 2e.",
+    "— the dance's length":
+        "— de lengte van de dans",
     "m:ss, seconds, or 'full' — Enter to keep, Esc to abandon":
         "m:ss, seconden of 'volledig' — Enter bewaart, Esc verwerpt",
     "full — to each title's own end":
         "volledig — tot het eigen einde van elke titel",
     "full": "volledig",
-    "no marks — scrub to a crash and hit 🎯":
-        "geen markeringen — spoel naar een klap en druk op 🎯",
+    "🎯  no marks — scrub to a crash and mark it":
+        "🎯  geen markeringen — spoel naar een klap en markeer hem",
     "“Proven” = songs in any of your playlists · “New” = in none.":
         "„Beproefd” = nummers uit een van je afspeellijsten · „Nieuw” = uit geen enkele.",
     "e.g. a song title, mood, or leave blank":
@@ -793,6 +852,7 @@ CATALOG = {
     "🔊 Sound && player": "🔊 Geluid && speler",
     "📁  New folder…": "📁  Nieuwe map…",
     "⌨  Shortcuts…": "⌨  Sneltoetsen…",
+    "⚙  Cartwall settings…": "⚙  Cartwall-instellingen…",
     "❔  Shortcuts": "❔  Sneltoetsen",
     "▶  Playing": "▶  Afspelen",
     "▶  Playing mode": "▶  Afspeelmodus",
@@ -801,7 +861,6 @@ CATALOG = {
     "⊟  Collapse all": "⊟  Inklappen",
     "⏹  Stop all": "⏹  Alles stoppen",
     "⏸  Auto-advance…": "⏸  Automatisch door…",
-    "⏱  Wall fade-out…": "⏱  Uitfaden van de Cartwall…",
     "⏱ calculating…": "⏱ berekenen…",
     "⏳  Comparing…": "⏳  Vergelijken…",
     "⚡  Generate Playlist": "⚡  Afspeellijst maken",
@@ -948,7 +1007,6 @@ CATALOG = {
         "hoofdspeler speelt en komt in de pauzes weer omhoog.",
     "🔈 No announcement recordings found for this voice.":
         "🔈 Geen aankondigingsopnames gevonden voor deze stem.",
-    "🖌  Wall colour": "🖌  Kleur van de Cartwall",
     "🖥  Presenter": "🖥  Presentatie",
     "🖥  Presenter — DanceSport Player": "🖥  Presentatie — DanceSport Player",
     "🕒 Timetable — presenter screen": "🕒 Tijdschema — presentatiescherm",
@@ -1341,8 +1399,8 @@ CATALOG = {
         "<b>Favorietenbibliotheek</b> — ingelezen bij het starten (je tanzcds-map):",
     "<b>Reference path</b> — base folder the playlist files live in on THIS PC; 🧭 Fix paths re-roots broken references here (e.g. C:\\Users\\…\\my music\\tanzcds):":
         "<b>Referentiepad</b> — basismap waarin de afspeellijstbestanden op DEZE pc staan; 🧭 Paden herstellen hangt kapotte verwijzingen hier opnieuw in (bijv. C:\\Users\\…\\my music\\tanzcds):",
-    "<b>Save-as folder</b> — where 'Save as M3U…' starts (e.g. D:\\Dropbox\\Turniere):":
-        "<b>Map voor Opslaan als</b> — waar 'Opslaan als M3U…' begint (bijv. D:\\Dropbox\\Turniere):",
+    "<b>Save-as folder</b> — where 'Save as M3U…' starts (e.g. D:\\Playlists):":
+        "<b>Map voor Opslaan als</b> — waar 'Opslaan als M3U…' begint (bijv. D:\\Playlists):",
     "<b>Playlist file format</b> — what 'Save as M3U' and the exports write:":
         "<b>Bestandsformaat van afspeellijsten</b> — wat 'Opslaan als M3U' en de exports schrijven:",
     "UTF-8 (.m3u) — default": "UTF-8 (.m3u) — standaard",
@@ -1711,11 +1769,11 @@ CATALOG = {
         "die niet voor toernooien zijn (hymnes, achtergrond, verkeerd tempo,\n"
         "duplicaten, seizoensgebonden); kies een categorie om alleen die te zien (handig voor feesten).",
     "Drag a track onto a deck or wishlist to use it.\n"
-    "▶ to preview · double-click to open in your external player\n"
-    "· right-click for more.":
+    "▶ to preview · right-click for more · a double-click opens it in\n"
+    "the system's music player if ⚙ Settings say so.":
         "Sleep een nummer naar een deck of wensenlijst om het te gebruiken.\n"
-        "▶ om voor te luisteren · dubbelklik om het in je externe speler te openen\n"
-        "· rechtsklik voor meer.",
+        "▶ om voor te luisteren · rechtsklik voor meer · een dubbelklik opent het in\n"
+        "de muziekspeler van het systeem als ⚙ Instellingen dat zeggen.",
     "Only tracks suited for one of the ticked starting classes\n(tick several; tracks without a class tag show only with all classes)":
         "Alleen nummers die passen bij een van de aangevinkte startklassen\n(meerdere mogelijk; nummers zonder klasse alleen bij alle klassen)",
     "Only tracks whose file was created in the library that\n"
@@ -2062,10 +2120,10 @@ CATALOG = {
         "verwijderen of de nummers in te lezen.",
     "The tracks of the selected playlist, in playing order.\n"
     "▶ or Space previews · drag them onto a deck or the player list ·\n"
-    "double-click to open in your external player.":
+    "a double-click opens or 🏷 edits them as ⚙ Settings say.":
         "De nummers van de gekozen afspeellijst, in speelvolgorde.\n"
         "▶ of Spatie luistert voor · sleep ze op een deck of de spelerlijst ·\n"
-        "dubbelklik om ze in je externe speler te openen.",
+        "een dubbelklik opent of 🏷 bewerkt ze zoals ⚙ Instellingen dat zeggen.",
     "Your competitions, days and tournaments — folders are labels,\n"
     "the 🎵 entries point at .m3u files wherever they lie.\n"
     "\n"
@@ -2094,10 +2152,6 @@ CATALOG = {
         "Een toets die aan een pad is gegeven, volgt het waarheen het ook wordt\n"
         "verplaatst en werkt vanaf elke pagina. Leeg = het pad luistert naar de toets van zijn plek.",
     "Export cartwall": "Cartwall exporteren",
-    "How long a pad takes to let go when it is tapped again\n"
-    "or ⏹ stops the wall. A pad can override this in its own settings.":
-        "Hoe lang een pad nodig heeft om weg te faden als het opnieuw wordt aangetikt\n"
-        "of ⏹ de wand stopt. Een pad kan dit in zijn eigen instellingen overschrijven.",
     "Import cartwall": "Cartwall importeren",
     "Pads per page. Making the grid smaller never loses a pad —\n"
     "whatever no longer fits moves to the first free slot.":
@@ -2798,6 +2852,46 @@ CATALOG = {
     "before the music starts": "voordat de muziek begint",
     "⏸  No pause between songs": "⏸  Geen pauze tussen nummers",
     "🔁  Start again at the end": "🔁  Aan het einde opnieuw beginnen",
+    "⏹  Stop:":
+        "⏹  Stoppen:",
+    "Never":
+        "Nooit",
+    "After this title":
+        "Na dit nummer",
+    "After … titles":
+        "Na … nummers",
+    "At …":
+        "Om …",
+    "Let the music stop by itself: after the title playing now,\nafter a number of titles (the one playing now is the first),\nor with the first title that ends at or after a time of day.\n\nA title is never cut: it plays to its end, then the next one\nwaits on the player for ⏯. A ⏭ skip does not count as an end.\n\nSet for this evening only — it is not saved.\n\nNeeds ⏭ auto-advance.":
+        "De muziek vanzelf laten stoppen: na het nummer dat nu speelt,\nna een aantal nummers (het huidige is het eerste)\nof met het eerste nummer dat om of na een tijdstip eindigt.\n\nEen nummer wordt nooit afgekapt: het speelt tot het einde, daarna\nwacht het volgende in de speler op ⏯. Een ⏭ sprong telt niet als einde.\n\nAlleen voor deze avond — wordt niet opgeslagen.\n\nVereist ⏭ automatisch doorgaan.",
+    "Titles still to end, the one playing now included —\nit counts down as they do.":
+        "Nummers die nog moeten eindigen, het huidige meegeteld —\ntelt af bij elk einde.",
+    "The first title that ends at or after this time is the last.\nA time already past today means after midnight.":
+        "Het eerste nummer dat om of na dit tijdstip eindigt, is het laatste.\nEen tijdstip dat vandaag al voorbij is, betekent na middernacht.",
+    "⏹  Stops after this title":
+        "⏹  Stopt na dit nummer",
+    "⏹  Stops after %d titles":
+        "⏹  Stopt na %d nummers",
+    "⏹  Stops at %s":
+        "⏹  Stopt om %s",
+    "⏹  Stopped as planned":
+        "⏹  Gestopt zoals gepland",
+    "⏹ Stopped as planned — ⏯ plays the next title.":
+        "⏹ Gestopt zoals gepland — ⏯ speelt het volgende nummer.",
+    "The evening stopped %d min ago, with %d titles played.":
+        "De avond brak %d min geleden af, met %d gespeelde nummers.",
+    "Grey them out again? Nothing starts by itself.":
+        "Weer grijs maken? Niets start vanzelf.",
+    "The %d titles played this evening grey out again.":
+        "De %d vanavond gespeelde nummers worden weer grijs.",
+    "▶ Pick up the evening?":
+        "▶ De avond hervatten?",
+    "▶  Pick up":
+        "▶  Hervatten",
+    "Start fresh":
+        "Opnieuw beginnen",
+    "▶ Evening picked up — %d titles played.":
+        "▶ Avond hervat — %d nummers gespeeld.",
     "Pause between songs:": "Pauze tussen nummers:",
     "🔈  Announce next dance": "🔈  Volgende dans aankondigen",
     "…with heat": "…met heat",
@@ -2815,12 +2909,14 @@ CATALOG = {
     "The waveform of the title — what has played is blue, all of it\n"
     "red in the final seconds. The broad orange bar is where it plays.\n"
     "Shaded: silence the player skips · thin orange: Paso Doble\n"
-    "highlights · red-tinted: the fade-out of a timed cut.\n"
+    "highlights · red-tinted: the fade-out of a timed cut · gold: the\n"
+    "fade-in · green line: where the title starts.\n"
     "Click to jump there.":
         "De golfvorm van het nummer — wat al gespeeld is, is blauw, in de\n"
         "laatste seconden alles rood. De brede oranje balk is waar het speelt.\n"
         "Gearceerd: stilte die de speler overslaat · dun oranje: hoogtepunten\n"
-        "van de Paso Doble · roodachtig: de fade-out van een getimede knip.\n"
+        "van de Paso Doble · roodachtig: de fade-out van een getimede knip · goud:\n"
+        "de fade-in · groene lijn: waar het nummer begint.\n"
         "Klik om daarheen te springen.",
     "▶️  Double-click starts the title": "▶️  Dubbelklik start het nummer",
     "🎚  TSO pitch to the heat tempo": "🎚  TSO: naar het heattempo trekken",
@@ -2929,10 +3025,20 @@ CATALOG = {
         "Dubbelklik op een rij van de 📚 bibliotheek",
     "Open the track in your external audio player — when ⚙ Settings → 🔊 Sound & player allow it":
         "Het nummer openen in je externe audiospeler — als ⚙ Instellingen → 🔊 Geluid & speler het toestaan",
-    "📂  Double-click opens the title in the system's music player (while planning, in 📚 the library and the dialogs)":
-        "📂  Dubbelklik opent het nummer in de muziekspeler van het systeem (tijdens het plannen, in 📚 de bibliotheek en de dialogen)",
-    "Off: a deck plays the title in the mini player, the other places\nleave the file alone. On: it opens in the program your system\nplays music with (on a Mac, Music).\nRight-click → open still works either way, and in Playing mode\na double-click always plays or cues the title.":
-        "Uit: een deck speelt het nummer in de minispeler, de andere plekken\nlaten het bestand met rust. Aan: het opent in het programma waarmee\nje systeem muziek afspeelt (op een Mac: Muziek).\nRechtsklik → openen werkt in beide gevallen, en in de afspeelmodus\nspeelt of laadt een dubbelklik het nummer altijd.",
+    "📂  Double-click on a title in 📚 the library:":
+        "📂  Dubbelklik op een nummer in 📚 de bibliotheek:",
+    "<b>📚 Library</b>":
+        "<b>📚 Bibliotheek</b>",
+    "Only for 📚 the library and the 🏆 lists while planning. In ▶ Playing mode a double-click always plays or cues the title.":
+        "Alleen voor 📚 de bibliotheek en de 🏆 lijsten tijdens het plannen. In de modus ▶ Afspelen speelt of cuet een dubbelklik het nummer altijd.",
+    "Nothing":
+        "Niets",
+    "Open external player":
+        "In externe speler openen",
+    "What a double-click on a title does in 📚 the library and the 🏆\ntournament lists.\n\nNothing: the title stays as it is; ▶ plays it.\nOpen external player: the program your system plays music with\n(on a Mac, Music) — in the decks and the dialogs too.\nEdit tags: the 🏷 Tags editor, where you choose what Save\nwrites into the file and what stays in the app.\n\nRight-click still offers all of it, and in Playing mode a\ndouble-click always plays or cues the title.":
+        "Wat een dubbelklik op een nummer doet in 📚 de bibliotheek en de 🏆\ntoernooilijsten.\n\nNiets: het nummer blijft zoals het is; ▶ speelt het.\nIn externe speler openen: het programma waarmee je systeem muziek\nafspeelt (op een Mac: Muziek) — ook in de decks en de dialogen.\nTags bewerken: de 🏷 Tags-editor, waar je kiest wat Opslaan in het\nbestand schrijft en wat in de app blijft.\n\nRechtsklik biedt nog steeds alles aan, en in de afspeelmodus\nspeelt of laadt een dubbelklik het nummer altijd.",
+    "Edit tags":
+        "Tags bewerken",
     "▶ / ■ in a row": "▶ / ■ in een rij",
     "Play / stop exactly that song": "Precies dat nummer afspelen / stoppen",
     "↺ in a row / header": "↺ in een rij / kop",
@@ -3285,8 +3391,6 @@ CATALOG = {
         "🏷  De tags konden niet opgeslagen worden: %s",
     "🏷  Edit tags…": "🏷  Tags bewerken…",
     "🏷  Edit tags of %d tracks…": "🏷  Tags van %d nummers bewerken…",
-    "🏷  Edit tags": "🏷  Tags bewerken",
-    "🏷  Edit tags of %d tracks": "🏷  Tags van %d nummers bewerken",
     "%d tracks — a field they differ in is kept per track until you change it.":
         "%d nummers — een veld waarin ze verschillen, blijft per nummer behouden tot je het wijzigt.",
     "keep (differs per track)": "behouden (verschilt per nummer)",
@@ -3339,6 +3443,9 @@ CATALOG = {
         "Wordt gewijzigd in het formulier op de eerste tab",
     "In the MP3 file": "In het MP3-bestand",
     "In the app": "In de app",
+    "In the app's database": "In de database van de app",
+    "Kept in the app only — the file itself is not changed.":
+        "Alleen in de app bewaard — het bestand zelf verandert niet.",
     "Only for MP3 files on disk": "Alleen voor MP3-bestanden op de schijf",
     "Covers differ": "Hoezen verschillen",
     "Cover can't be shown": "Hoes kan niet getoond worden",
@@ -3348,6 +3455,7 @@ CATALOG = {
     "Title:": "Titel:",
     "Artist:": "Artiest:",
     "Year:": "Jaar:",
+    "Track:": "Nummer:",
     "Comment:": "Commentaar:",
     "Album artist:": "Albumartiest:",
     "Composer:": "Componist:",
@@ -3364,16 +3472,22 @@ CATALOG = {
         "🏷  %s staat in de speler — stop het om de MP3-tags te schrijven",
     "🏷  Couldn't write the MP3 tags: %s":
         "🏷  De MP3-tags konden niet geschreven worden: %s",
-    "🏷  Write into the MP3?": "🏷  In de MP3 schrijven?",
-    "Also write %s into the MP3 file?": "%s ook in het MP3-bestand schrijven?",
-    "Also write %s into the %d MP3 files?":
-        "%s ook in de %d MP3-bestanden schrijven?",
-    "Stars go into the Windows rating; classes, instrumental and markers into the comment, where other programs see them too. With No they stay in the app only.":
-        "Sterren gaan naar de Windows-waardering; klassen, instrumentaal en markeringen naar het commentaar, waar andere programma’s ze ook zien. Met Nee blijven ze alleen in de app.",
+    "🏷  Tags of %d tracks":
+        "🏷  Tags van %d nummers",
+    "Also write these into the MP3 file":
+        "Deze ook in het MP3-bestand schrijven",
+    "Stars go into the Windows rating; classes, instrumental and markers into the comment, where other programs see them too. Unticked, they stay in the app only.":
+        "Sterren gaan naar de Windows-waardering; klassen, instrumentaal en markeringen naar het commentaar, waar andere programma’s ze ook zien. Niet aangevinkt blijven ze alleen in de app.",
     "stars": "sterren",
     "custom": "Custom",
     "Custom text": "Eigen tekst",
     "Comment": "Commentaar",
+    "Plays": "Gespeeld",
+    "Reset the play counters": "Speeltellers op nul zetten",
+    "How often the title has played in the last 24 hours, in any list\n"
+    "Right-click the header to reset the counters":
+        "Hoe vaak het nummer de laatste 24 uur is gespeeld, uit welke lijst ook\n"
+        "Rechtsklik op de kolomkop zet de tellers op nul",
     "Custom link": "Eigen link",
     "Rating": "Waardering",
     "Picture": "Afbeelding",
@@ -3792,8 +3906,8 @@ CATALOG = {
         "📥 %d met de hand gezet(te) Paso Doble-hoogtepunt(en) geïmporteerd — %d daarvan horen bij een nummer dat deze pc al kent.\n"
         "\n"
         "De andere blijven bewaard en gelden zodra die muziek hier opduikt.",
-    "<b>Backup folder</b> — where the daily backup of your own data goes (e.g. D:\\Dropbox\\DanceSportPlayer). Empty: next to the database.":
-        "<b>Back-upmap</b> — waar de dagelijkse back-up van je eigen gegevens heen gaat (bijv. D:\\Dropbox\\DanceSportPlayer). Leeg: naast de database.",
+    "<b>Backup folder</b> — where the daily backup of your own data goes (e.g. a Dropbox folder). Empty: next to the database.":
+        "<b>Back-upmap</b> — waar de dagelijkse back-up van je eigen gegevens heen gaat (bijv. een Dropbox-map). Leeg: naast de database.",
     "♻  Restore user data backup…":
         "♻  Back-up van eigen gegevens terugzetten…",
     "Restore user data backup": "Back-up van eigen gegevens terugzetten",
@@ -3815,6 +3929,18 @@ CATALOG = {
     "Duration": "Duur",
     "📜 Played titles": "📜 Gespeelde titels",
     "📜  Played titles…": "📜  Gespeelde titels…",
+    "📝  Export log…":
+        "📝  Log exporteren…",
+    "Export log — pick a folder":
+        "Log exporteren — kies een map",
+    "Export log":
+        "Log exporteren",
+    "The log could not be exported:\n%s":
+        "Het log kon niet worden geëxporteerd:\n%s",
+    "There is no log to export yet.":
+        "Er is nog geen log om te exporteren.",
+    "Log exported to:\n%s":
+        "Log geëxporteerd naar:\n%s",
     "Nothing has been played yet. A title is logged in playing mode\n"
     "once it has run for 10 seconds, the moment its row greys out.":
         "Er is nog niets gespeeld. Een titel wordt in de speelmodus vastgelegd\n"
@@ -3868,6 +3994,15 @@ CATALOG = {
     "Replace it, or keep both?":
         "‘%s’ bestaat al in de doelmap.\n"
         "Vervangen, of beide houden?",
+    "“%s” already exists in the target folder and holds more than a USB export, "
+    "so it cannot be replaced.\nKeep both?":
+        "‘%s’ bestaat al in de doelmap en bevat meer dan een USB-export, "
+        "dus kan niet worden vervangen.\nBeide houden?",
+    "Could not remove “%s”:\n%s\n\nIt may be partly deleted; nothing was exported.":
+        "‘%s’ kon niet worden verwijderd:\n%s\n\n"
+        "Mogelijk is de map deels gewist; er is niets geëxporteerd.",
+    "Could not create “%s”:\n%s":
+        "‘%s’ kon niet worden aangemaakt:\n%s",
     "🧳 Bundle: %d playlist folder(s), %d track(s), %s MB → %s":
         "🧳 Pakket: %d afspeellijstmap(pen), %d nummer(s), %s MB → %s",
     "Bundle written to:\n"
@@ -4403,8 +4538,9 @@ CATALOG = {
         "Een %s-nummer kan alleen naar een andere %s-plek — niet naar een %s-plek.",
     "Dances (%d): %s": "Dansen (%d): %s",
     "Order: %s, %s, …": "Volgorde: %s, %s, …",
-    "🟰  Identical files — the earlier copy is removed, the last stays (%d)":
-        "🟰  Identieke bestanden — de eerdere kopie wordt verwijderd, de laatste blijft (%d)",
+    "🟰  Identical files (%d)": "🟰  Identieke bestanden (%d)",
+    "🧹  Remove the earlier copies, the last stays":
+        "🧹  De eerdere kopieën verwijderen, de laatste blijft",
     "✏  %d pads selected — what you change here (colour, volume, fade, 🔁, 🔈, 🎶, S) applies to all of them.\n"
     "Label and shortcut stay with this pad.":
         "✏  %d pads geselecteerd — wat je hier wijzigt (kleur, volume, uitfaden, 🔁, 🔈, 🎶, S) geldt voor allemaal.\n"
@@ -4579,6 +4715,8 @@ CATALOG = {
     "%d tracks are on the table.": "Er liggen %d nummers klaar.",
     "💾 Saving %s…": "💾 %s opslaan…",
     "➕  Adding %s tracks…": "➕  %s nummers toevoegen…",
+    "🐂  PD in": "🐂  PD over",
+    "🐂  PD %s in": "🐂  PD %s over",
     "🐂  Paso Doble in %d s": "🐂  Paso Doble over %d s",
     "⏸  %d s  (paused)": "⏸  %d s  (gepauzeerd)",
     "⚠ Could not play: %s": "⚠ Kon niet afspelen: %s",
@@ -4587,6 +4725,13 @@ CATALOG = {
     "did not start": "startte niet",
     "⚠ “%s” would not play — skipped to the next title.":
         "⚠ ‘%s’ wilde niet afspelen — door naar de volgende titel.",
+    "⚠ Playback stalled — “%s” reloaded at %s.":
+        "⚠ Afspelen liep vast — ‘%s’ opnieuw geladen bij %s.",
+    "stalled": "liep vast",
+    "Pick up after a crash?":
+        "Verdergaan na een crash?",
+    "The last session ended while “%s” was playing.\n\nCue it again?":
+        "De vorige sessie eindigde terwijl “%s” speelde.\n\nOpnieuw klaarzetten?",
     "🔇 would not play: %s": "🔇 wilde niet afspelen: %s",
     "▴  fold back": "▴  weer inklappen",
     "⏹  Stop": "⏹  Stoppen",
@@ -5218,6 +5363,12 @@ CATALOG = {
         "Verzoekjes",
     "Now playing":
         "Nu speelt",
+    "Request a song":
+        "Nummer aanvragen",
+    "Up next":
+        "Hierna",
+    "Nothing lined up yet":
+        "Nog niets gepland",
     "Search a title or artist":
         "Zoek een titel of artiest",
     "Loading the titles…":
@@ -5454,4 +5605,10 @@ CATALOG = {
         '🌐 De muziekverzameling wordt al gescand.',
     'Scan repository':
         'Muziekverzameling scannen',
+    'Another task (a library scan or an analysis) is writing to the database. Let it finish, then try again.':
+        'Een andere taak (een bibliotheekscan of een analyse) schrijft naar de database. Laat die eerst klaar zijn en probeer het dan opnieuw.',
+    "The Paso Doble pick for %s in ⚙ Settings → 🎛 Play sets\n(played in full reads as the 3rd highlight). A change here\nholds for this list only.":
+        "De Paso Doble-keuze voor %s in ⚙ Instellingen → 🎛 Speelsets\n(volledig gespeeld telt als het 3e hoogtepunt). Een wijziging hier\ngeldt alleen voor deze lijst.",
+    "🐂 Paso Doble → each round's own pick":
+        "🐂 Paso Doble → weer de keuze van elke ronde",
 }

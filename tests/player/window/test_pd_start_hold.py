@@ -68,6 +68,20 @@ class _Player:
         self.started += 1
 
 
+class _Card:
+    """The player card: what the wait put in place of the title's stats."""
+
+    def __init__(self):
+        self.wait = ("", "")
+        self.takt = "T60"
+
+    def set_wait(self, label, count):
+        self.wait = (label, count)
+
+    def played_takt(self):
+        return self.takt
+
+
 class _Fades:
     def __init__(self):
         self.started = 0
@@ -98,6 +112,7 @@ class _Desk(QObject, PdStopMixin):
         self._announced_start = 0
         self._pd_hold = None
         self._pd_hold_timer = None
+        self._big_player = _Card()
 
     def _is_playing_mode(self):
         return self._playing
@@ -198,6 +213,18 @@ class PdCallVoiceTest(_HoldTest):
         d = self.hold(_Desk(announce=False))
         self.assertEqual(d._announcer.said, [])
 
+
+class PdTickerTest(_HoldTest):
+
+    def test_the_ticker_is_the_windows_and_goes_with_the_wait(self):
+        """PL9: an unparented ticker outlives a window that is going away."""
+        from PySide6.QtCore import QEvent, QTimer
+        d = self.hold(_Desk())
+        self.assertIs(d._pd_hold_timer.parent(), d)
+        d._end_pd_hold()
+        QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+        self.assertEqual(d.findChildren(QTimer), [], "one ticker left per hold")
+
     def test_a_pause_that_already_announced_it_is_not_repeated(self):
         """`_maybe_announce_next` speaks into the last seconds of the pause —
         the wait then simply follows that call."""
@@ -220,12 +247,33 @@ class PdHoldDisplayTest(_HoldTest):
         d = self.hold(_Desk(), 5.0)
         self.assertIn("5 s", d._now_playing.text)
 
+    def test_the_card_shows_it_in_place_of_the_stats(self):
+        d = self.hold(_Desk(), 5.0)
+        label, count = d._big_player.wait
+        # Marcel: "write PD so we se the full PD in 5s, otherwise it is cut",
+        # then "show PD T60 and than in and the seconds".
+        self.assertEqual(label, "🐂  PD T60 in")
+        self.assertEqual(count, "5 s")
+
+    def test_without_a_takt_the_card_says_pd_in(self):
+        desk = _Desk()
+        desk._big_player = _Card()
+        desk._big_player.takt = ""
+        d = self.hold(desk, 5.0)
+        self.assertEqual(d._big_player.wait[0], "🐂  PD in")
+
+    def test_the_card_gets_its_stats_back_when_the_wait_ends(self):
+        d = self.hold(_Desk(), 0.0)
+        d._pd_hold_tick()
+        self.assertEqual(d._big_player.wait, ("", ""))
+
     def test_the_seconds_run_down(self):
         d = self.hold(_Desk(), 5.0)
         token, path, _until = d._pd_hold
         d._pd_hold = (token, path, time.monotonic() + 2.0)
         d._pd_hold_tick()
         self.assertIn("2 s", d._countdown)
+        self.assertEqual(d._big_player.wait[1], "2 s")
 
     def test_no_music_starts_before_the_wait_is_over(self):
         d = self.hold(_Desk(), 5.0)
@@ -337,6 +385,47 @@ class PdSkipTest(_HoldTest):
         d = _Desk()
         self.assertFalse(d._skip_pd_hold())
         self.assertEqual(d._player.started, 0)
+
+
+class PdHoldOnTheCardTest(unittest.TestCase):
+    """Marcel: "indicate in the main player the start after time for the pd
+    … like when pause is active" — the card mirrors the wait's countdown the
+    way it mirrors the between-songs pause, and only those two."""
+
+    class _Shown:
+        def __init__(self):
+            self.text = None
+
+        def set_countdown(self, text):
+            self.text = text
+
+    def desk(self, held, pause=False):
+        from types import SimpleNamespace
+        from player.window.main_player import PlayerControlMixin
+        d = PlayerControlMixin.__new__(PlayerControlMixin)
+        d._play_panel = self._Shown()
+        d._big_player = self._Shown()
+        d._between = SimpleNamespace(pending=object() if pause else None)
+        d._pd_hold = (7, _Desk.PATH, time.monotonic() + 5) if held else None
+        return d
+
+    def test_the_wait_is_not_doubled_beside_the_stats(self):
+        # Marcel: the long line beside the stats "cant be seen" — the card
+        # shows the wait in their place instead (`set_wait`).
+        d = self.desk(held=True)
+        d._set_countdown("🐂  Paso Doble in 5 s")
+        self.assertEqual(d._big_player.text, "")
+
+    def test_the_pause_still_shows_on_the_card(self):
+        d = self.desk(held=False, pause=True)
+        d._set_countdown("⏸ 12 s")
+        self.assertEqual(d._big_player.text, "⏸ 12 s")
+
+    def test_normal_play_keeps_it_off_the_card(self):
+        d = self.desk(held=False)
+        d._set_countdown("⏳ 1:20")
+        self.assertEqual(d._play_panel.text, "⏳ 1:20")
+        self.assertEqual(d._big_player.text, "")
 
 
 class ResumeTapTest(unittest.TestCase):

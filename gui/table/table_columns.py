@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import QPoint
 from PySide6.QtWidgets import QMenu
 
+from planner.playing import play_counts
 from planner.terms import dance_name
 from shared.columns import (
     _COL_ALBUM,
@@ -180,6 +181,10 @@ class TableColumnsMixin(PlaylistTableHost):
         if entry is not None and self._rating_cb is not None:
             self._rating_cb(entry, stars)
 
+    def set_play_counts_callback(self, cb):
+        """`cb()` when the header menu resets the 🔁 play counters."""
+        self._play_counts_cb = cb
+
     def set_widths_callback(self, cb):
         """`cb(kind, widths)` when the user has finished dragging a handle."""
         self._widths_cb = cb
@@ -252,6 +257,11 @@ class TableColumnsMixin(PlaylistTableHost):
         short.setCheckable(True)
         short.setChecked(self._short_dances)
         short.triggered.connect(self._toggle_short_dances)
+        cb = self._play_counts_cb
+        if cb is not None:
+            reset = menu.addAction("Reset the play counters")
+            reset.setEnabled(play_counts.any_counted())
+            reset.triggered.connect(lambda: cb())
         add_custom_mapping_action(menu, self)
         return menu
 

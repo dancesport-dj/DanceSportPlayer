@@ -24,6 +24,24 @@ class PlaybackState:
     # position but nobody danced to it, so the timed cut subtracts it again
     # (see audible_played_secs) — otherwise a silent intro shortens the round.
     offset_ms: int = 0
+    # 🌅 The music heard (seconds) at which this title's fade-in started;
+    # None = no fade-in running.
+    fade_in_from: float | None = None
+    # 🌅 Seconds of music this title fades in over, 0 = it starts at full
+    # level — kept for the waveform after the fade-in is through.
+    fade_in_secs: float = 0.0
+    # ⏩ The pre-roll seek still owed once the media is open (ms); 0 = none.
+    pre_roll_ms: int = 0
     # Titles that would not play this session, path → the backend's reason.
     # Their rows stay red (a live Check-Music issue) until one plays again.
     failed: dict[str, str] = field(default_factory=dict)
+    # The load whose setSource errors queued before it may still arrive for:
+    # they belong to the title it replaced. None once they are all seen.
+    stale_error_token: int | None = None
+    # 🧊 The stall watchdog: token, position and since-when it last saw the
+    # title stand, and the token of the title it has already reloaded once.
+    stall_seen: tuple = (None, 0, 0.0)
+    stall_reloaded: int | None = None
+    # 🆘 The on-air note last written (deck index, row, path); None = there is
+    # none on disk for this title.
+    on_air: tuple | None = None

@@ -130,6 +130,17 @@ class OwnLookCheckTest(_Clean):
         self.assertEqual([lk.key for lk in loaded], ["own_good"])
         self.assertIn("tokens.base", logs.output[0])
 
+    def test_a_family_of_the_wrong_type_is_left_out_too(self):
+        """L3: a list or dict there raised TypeError (unhashable) — past the
+        ValueError the import and the start-up read catch."""
+        good = self.entry(key="own_good", name="Good")
+        bad = self.entry(key="own_bad", name="Bad", family=[])
+        user_looks.STORE.write({"version": 1, "looks": [bad, good]})
+        with self.assertLogs("dancesport.looks", "WARNING") as logs:
+            loaded = user_looks.load_looks()
+        self.assertEqual([lk.key for lk in loaded], ["own_good"])
+        self.assertIn("family", logs.output[0])
+
     def test_an_unreadable_file_leaves_the_built_in_looks(self):
         user_looks.STORE.path.write_text("{ nope", encoding="utf-8")
         with self.assertLogs("dancesport.store", "WARNING"):

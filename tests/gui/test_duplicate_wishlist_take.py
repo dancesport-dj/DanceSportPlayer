@@ -69,6 +69,22 @@ class DuplicateWishlistTakeTest(unittest.TestCase):
         self.assertEqual([e.title for e in self.wish.wishlist_entries()],
                          ["Omega", "Delta"])
 
+    def test_replacing_the_playing_title_keeps_it_playing(self):
+        """Like a ↺ or a drop onto the playing row: the floor runs on, and the
+        cursor stays on the slot so the evening continues from it."""
+        self.win.fill_deck(self.deck_e, [self.c, self.a])
+        calls = []
+        self.deck_e._play_cb = calls.append
+        slot = self._slot(self.deck_e, self.a)
+        row = self.win._dup_slots[slot][1]
+        self.deck_e._current_play_row = row
+        self.deck_e.sync_play_glyph(True)
+        self.win._apply_dup_resolutions([(slot, _waltz("Omega"))])
+        self.assertEqual(self.deck_e._current_play_row, row)
+        self.assertEqual(self.deck_e._row_meta[row].entry.title, "Omega")
+        self.assertEqual(self.deck_e.play_glyph(row), "■")
+        self.assertEqual(calls, [])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

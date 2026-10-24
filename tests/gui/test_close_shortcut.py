@@ -25,7 +25,10 @@ from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
+    QDoubleSpinBox,
+    QKeySequenceEdit,
     QLineEdit,
+    QTimeEdit,
     QVBoxLayout,
 )
 
@@ -101,6 +104,52 @@ class CloseShortcutTest(unittest.TestCase):
         self.app.processEvents()
         self.assertFalse(self.win.eventFilter(edit, _ctrl(Qt.Key.Key_X)))
         self.assertTrue(dlg.isVisible())
+
+    def _focused_in_dialog(self, widget):
+        dlg = QDialog(self.win)
+        self.addCleanup(reap_widget, dlg)
+        QVBoxLayout(dlg).addWidget(widget)
+        dlg.show()
+        dlg.activateWindow()
+        widget.setFocus()
+        self.app.processEvents()
+        return dlg
+
+    def test_ctrl_x_in_a_number_or_time_field_keeps_the_dialog(self):
+        """A fade length or a start time is typed like text; Ctrl+X there is
+        the cut, not "discard every edit of the dialog"."""
+        for make in (QDoubleSpinBox, QTimeEdit):
+            with self.subTest(make.__name__):
+                field = make()
+                dlg = self._focused_in_dialog(field)
+                self.assertFalse(self.win.eventFilter(field, _ctrl(Qt.Key.Key_X)))
+                self.assertTrue(dlg.isVisible())
+
+    def test_a_key_learn_field_can_learn_ctrl_x_and_ctrl_w(self):
+        """🎛 pad keys promise any key at all."""
+        field = QKeySequenceEdit()
+        dlg = self._focused_in_dialog(field)
+        for key in (Qt.Key.Key_X, Qt.Key.Key_W):
+            self.assertFalse(self.win.eventFilter(field, _ctrl(key)))
+            self.assertTrue(dlg.isVisible())
+
+    def test_space_in_a_number_field_is_typed_not_play(self):
+        """Space toggles the big player from anywhere on the desk, but not
+        out of a field that is being typed into."""
+        from unittest import mock
+
+        field = QDoubleSpinBox(self.win)
+        self.addCleanup(reap_widget, field)
+        field.show()
+        self.win.activateWindow()
+        field.setFocus()
+        self.app.processEvents()
+        big = mock.Mock()
+        with mock.patch.object(self.win, "_is_playing_mode", return_value=True),                 mock.patch.object(self.win, "_big_player", big):
+            space = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Space,
+                              Qt.KeyboardModifier.NoModifier)
+            self.assertFalse(self.win.eventFilter(field, space))
+        big.toggle_play.assert_not_called()
 
     def test_neither_key_ever_closes_the_desk(self):
         """On the main window the shortcut is swallowed — a stray Ctrl+W in

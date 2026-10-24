@@ -14,9 +14,15 @@ SETTINGS = JsonStore("gui_settings.json")
 # an unrelated deck edit. Pads are equipment, not playlist content.
 CARTWALL = JsonStore("cartwall.json", note="starting with empty pads")
 
+# 🆘 The title on air: deck, row and position, rewritten while it plays and
+# removed by every stop and a clean quit. Found at a start, the last run
+# crashed (player.window.main_load offers to pick up there).
+ON_AIR = JsonStore("on_air.json", note="no crash resume offered")
 
-def save_settings(s: dict) -> None:
-    SETTINGS.write(s)
+
+def save_settings(s: dict) -> bool:
+    """False when the file did not land (see JsonStore.write)."""
+    return SETTINGS.write(s)
 
 
 PLAYER_LAYOUTS = ("panel", "wide")

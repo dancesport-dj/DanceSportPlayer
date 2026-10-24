@@ -202,5 +202,62 @@ class EditTagsTest(_ScratchDb):
             self.lib.edit_tags([e], self.cache, {"rating": 3})
 
 
+class DbFieldsTest(_ScratchDb):
+    """⚙ Double-click → Edit DB information: title, artist, album, year, genre
+    and comment kept in the database, the MP3 left alone."""
+
+    def test_they_are_stored_and_read_back(self):
+        edit = {"title": "Neu", "tag_artist": "A", "tag_album": "B", "year": 1999,
+                "genre": "Slowfox", "tag_comment": "c"}
+        tag_edits.save("fp1", edit)
+        self.assertEqual(tag_edits.load("fp1"), edit)
+
+    def test_a_blank_year_is_kept_as_an_explicit_blank(self):
+        tag_edits.save("fp1", {"year": 0})
+        self.assertEqual(tag_edits.load("fp1"), {"year": 0})
+
+    def test_a_dance_genre_sets_the_dance(self):
+        self.assertEqual(tag_edits.genre_parts("Slowfox"), ("SF", None))
+        self.assertEqual(tag_edits.genre_parts("SW"), ("LW", None))   # Slow Waltz
+        self.assertEqual(tag_edits.genre_parts(""), (None, None))
+        self.assertEqual(tag_edits.genre_parts("Polka"), (None, "Polka"))
+
+    def test_apply_overrides_and_restores_them(self):
+        e = _entry(tag_artist="Old", year=2001)
+        tag_edits.apply(e, {"title": "Neu", "tag_artist": "New", "year": 0,
+                            "genre": "TG"})
+        self.assertEqual((e.title, e.tag_artist, e.year, e.dance, e.other_genre),
+                         ("Neu", "New", None, "TG", None))
+        self.assertEqual(tag_edits.file_value(e, "genre"), "LW")
+        tag_edits.apply(e, None)
+        self.assertEqual((e.title, e.tag_artist, e.year, e.dance, e.other_genre),
+                         ("x", "Old", 2001, "LW", None))
+
+    def test_same_value_reads_genre_and_blanks_alike(self):
+        self.assertTrue(tag_edits.same_value("genre", "Slowfox", "SF"))
+        self.assertTrue(tag_edits.same_value("year", 0, None))
+        self.assertTrue(tag_edits.same_value("tag_comment", "", None))
+        self.assertFalse(tag_edits.same_value("title", "a", "b"))
+
+    def test_an_older_database_gets_the_columns(self):
+        import sqlite3
+        conn = sqlite3.connect(":memory:")
+        conn.execute("CREATE TABLE tag_edits (fp TEXT PRIMARY KEY, rating INTEGER)")
+        pdb._migrate_tag_edits_db_fields(conn)
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(tag_edits)")}
+        self.assertLessEqual(set(tag_edits.DB_FIELDS), cols)
+
+    def test_the_library_stores_a_db_edit(self):
+        from planner.music.library import MusicLibrary
+        lib = MusicLibrary()
+        e = _entry(tag_artist="Old")
+        lib.entries = [e]
+        lib.edit_tags([e], _HashingCache({str(e.path): "fpX"}),
+                      {"tag_artist": "New", "genre": "LW"})
+        self.assertEqual(e.tag_artist, "New")
+        # The genre is what the file says already, so only the artist is kept.
+        self.assertEqual(tag_edits.load("fpX"), {"tag_artist": "New"})
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

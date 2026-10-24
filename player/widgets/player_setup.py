@@ -25,6 +25,7 @@ from player.widgets.player_parts import (
     _CARD_PANIC,
     _CARD_PAUSE,
     _ClickSlider,
+    _COUNTDOWN_CSS,
     _TEMPO_STEP,
     _TempoSlider,
 )
@@ -117,6 +118,7 @@ class BigPlayerSetupMixin(BigPlayerHost):
         text_col.addWidget(self._title)
 
         sub_row = QHBoxLayout()
+        self._sub_row = sub_row      # set_wait pulls the seconds up to the words
         # Tight: every pixel between the bpm and the dB is one the bpm needs
         # before it has to walk.
         sub_row.setSpacing(5)
@@ -129,6 +131,10 @@ class BigPlayerSetupMixin(BigPlayerHost):
         self._sub.setSizePolicy(QSizePolicy.Policy.Ignored,
                                 QSizePolicy.Policy.Preferred)
         self._full_sub = ""
+        # 🐂 A wait before the music stands in the subtitle row; the title's
+        # stats are kept here meanwhile (see set_wait).
+        self._waiting = False
+        self._stats_sub = ""
         # State glyph in front of the subtitle (the auto-advance pause). It has
         # to be its own label: _elide_sub pushes the subtitle through plain-text
         # elision, which would chew up an inline <img>.
@@ -141,9 +147,7 @@ class BigPlayerSetupMixin(BigPlayerHost):
         # the sand clock and the card shows the adjusted time, so mirroring it
         # here too would just double the ⏳.
         self._countdown_lbl = QLabel("")
-        self._countdown_lbl.setStyleSheet(
-            "font-size:13px; font-weight:bold; color:#d8b35c;"
-            "font-family:Consolas,monospace;")
+        self._countdown_lbl.setStyleSheet(_COUNTDOWN_CSS)
         # Hidden while empty: an empty label still takes its font's width and
         # a spacing on both sides, right between the bpm and the dB.
         self._countdown_lbl.setVisible(False)

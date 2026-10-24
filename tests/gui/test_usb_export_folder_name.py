@@ -24,7 +24,7 @@ from PySide6.QtWidgets import QApplication, QDialog, QMainWindow, QMessageBox
 from gui.dialogs import UsbBundleFolderDialog
 from gui.window import main_export
 from gui.window.main_export import ExportMixin, _bundle_name_guess
-from planner.config import playlist_dir
+from planner.config import playlist_dir, set_playlist_dir
 from tests.gui.window.test_bundle_export_thread import _FakeBusy
 from tests.qt_test_support import reap_widget
 
@@ -34,6 +34,12 @@ ROOT = playlist_dir()
 
 
 class GuessTest(unittest.TestCase):
+    def setUp(self):
+        # A window built earlier in the process repoints the playlist folder
+        # from its settings and leaves it there; the guesses are about ROOT.
+        self.addCleanup(set_playlist_dir, playlist_dir())
+        set_playlist_dir(ROOT)
+
     def test_the_folder_the_playlist_lies_in(self):
         self.assertEqual(
             _bundle_name_guess([ROOT / Path("2026/Gala Hamburg/final.m3u")]),
@@ -138,6 +144,108 @@ class PickTest(unittest.TestCase):
         got, _args = self.pick(into=True)
         self.assertEqual(got, (self.dir, False))
         self.assertEqual(list(self.dir.iterdir()), [])
+
+
+class _Box:
+    """QMessageBox stand-in: records the text and buttons, clicks `click`."""
+    Icon = QMessageBox.Icon
+    ButtonRole = QMessageBox.ButtonRole
+    StandardButton = QMessageBox.StandardButton
+    click = "Replace"
+    last = None
+    errors: list = []
+
+    def __init__(self, _parent):
+        self.text = ""
+        self.buttons = {}
+        _Box.last = self
+
+    def setWindowTitle(self, _t): pass
+    def setIcon(self, _i): pass
+    def setDefaultButton(self, _b): pass
+    def exec(self): pass
+
+    def setText(self, text):
+        self.text = text
+
+    def addButton(self, label, _role=None):
+        self.buttons[label] = object()
+        return self.buttons[label]
+
+    def clickedButton(self):
+        return self.buttons.get(_Box.click)
+
+    @staticmethod
+    def critical(_parent, _title, text):
+        _Box.errors.append(text)
+
+
+class ReplaceTest(unittest.TestCase):
+    """A folder of that name already there: Replace only an older export,
+    say where it is, and a locked file ends in a message, not a crash."""
+
+    def setUp(self):
+        self.dir = Path(tempfile.mkdtemp(prefix="dp_bundle_replace_"))
+        self.addCleanup(shutil.rmtree, self.dir, ignore_errors=True)
+        self.gala = self.dir / "Gala"
+        self.gala.mkdir()
+        _Box.click = "Replace"
+        _Box.errors = []
+
+    def pick(self):
+        ask = mock.Mock()
+        ask.exec.return_value = QDialog.DialogCode.Accepted
+        ask.into_root.return_value = False
+        ask.name.return_value = "Gala"
+        with mock.patch.object(main_export.QFileDialog, "getExistingDirectory",
+                               return_value=str(self.dir)), \
+             mock.patch.object(main_export.os.path, "ismount", return_value=False), \
+             mock.patch.object(main_export, "UsbBundleFolderDialog", return_value=ask), \
+             mock.patch.object(main_export, "QMessageBox", _Box):
+            return ExportMixin._pick_bundle_dir(mock.Mock(), "Gala")
+
+    def an_older_export(self):
+        (self.gala / "Final").mkdir()
+        (self.gala / "Final" / "Final.m3u8").write_text("#EXTM3U\n", encoding="utf-8")
+        (self.gala / "Final" / "01 a.mp3").write_bytes(b"x")
+
+    def test_the_question_names_the_full_path(self):
+        self.an_older_export()
+        self.pick()
+        self.assertIn(str(self.gala), _Box.last.text)
+
+    def test_an_older_export_is_replaced(self):
+        self.an_older_export()
+        self.assertEqual(self.pick(), (self.gala, True))
+        self.assertEqual(list(self.gala.iterdir()), [])
+
+    def test_a_folder_that_is_no_export_cannot_be_replaced(self):
+        (self.gala / "taxes.xlsx").write_bytes(b"x")
+        self.assertIsNone(self.pick())
+        self.assertNotIn("Replace", _Box.last.buttons)
+        self.assertTrue((self.gala / "taxes.xlsx").exists())
+
+    def test_a_folder_that_is_no_export_can_still_be_kept_beside(self):
+        (self.gala / "Final").mkdir()
+        _Box.click = "Keep both"
+        self.assertEqual(self.pick(), (self.dir / "Gala_2", True))
+        self.assertTrue((self.gala / "Final").is_dir())
+
+    def test_a_locked_file_ends_in_a_message(self):
+        self.an_older_export()
+        with mock.patch.object(main_export.shutil, "rmtree",
+                               side_effect=PermissionError("in use")):
+            self.assertIsNone(self.pick())
+        self.assertEqual(len(_Box.errors), 1)
+        self.assertIn(str(self.gala), _Box.errors[0])
+        self.assertIn("in use", _Box.errors[0])
+
+    def test_a_folder_that_cannot_be_made_ends_in_a_message(self):
+        _Box.click = "Keep both"
+        with mock.patch.object(Path, "mkdir", side_effect=PermissionError("read-only")):
+            self.assertIsNone(self.pick())
+        self.assertEqual(len(_Box.errors), 1)
+        self.assertIn("read-only", _Box.errors[0])
 
 
 class StraightInTest(unittest.TestCase):

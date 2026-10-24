@@ -18,7 +18,7 @@ jobs:
   manual:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # The headings carry emoji; without a color emoji font they print as boxes.
       - name: Emoji font
@@ -30,7 +30,7 @@ jobs:
           DANCEPLAYLIST_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
         run: python3 -m tools.docs.build_manual_pdf
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: manual-pdf
           path: |
@@ -42,16 +42,16 @@ jobs:
     needs: manual
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Both manual PDFs from the manual job, newer than the checkout: the
       # build script copies them instead of printing again.
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: manual-pdf
           path: docs/manual
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
           cache: pip
@@ -66,11 +66,16 @@ jobs:
       # Not in the repository (see BUILD.md): the essentials build, put where
       # build_exe.bat looks for it, which copies it next to the .exe. Pinned to
       # the version the desk builds with; gyan.dev itself keeps only the
-      # latest, its GitHub mirror keeps every release.
+      # latest, its GitHub mirror keeps every release. The hash is that
+      # release's, as GitHub lists it: a new version needs its own here.
       - name: Fetch ffmpeg
         shell: pwsh
         run: |
           Invoke-WebRequest https://github.com/GyanD/codexffmpeg/releases/download/9.0.2/ffmpeg-9.0.2-essentials_build.zip -OutFile ffmpeg.zip
+          $hash = (Get-FileHash ffmpeg.zip -Algorithm SHA256).Hash
+          if ($hash -ne "60F467265B1E312373DBCD92200C2618A74850F98D3D078E94296BB3FA2047BA") {
+            throw "ffmpeg.zip is not the 9.0.2 release: SHA-256 $hash"
+          }
           Expand-Archive ffmpeg.zip -DestinationPath ffmpeg-unpacked
           $exe = Get-ChildItem ffmpeg-unpacked -Recurse -Filter ffmpeg.exe | Select-Object -First 1
           Copy-Item $exe.FullName ffmpeg.exe
@@ -89,7 +94,7 @@ jobs:
             if (-not (Test-Path "dist/DanceSport-Player/$pdf")) { throw "no $pdf in the build" }
           }
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: DanceSport-Player-windows
           path: dist/DanceSport-Player/
@@ -109,7 +114,7 @@ jobs:
           .\build_installer.bat player
           if ($LASTEXITCODE -ne 0) { throw "the installer build failed" }
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: DanceSport-Player-windows-setup
           path: dist/installer/*.exe
@@ -121,16 +126,16 @@ jobs:
     needs: manual
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Both manual PDFs from the manual job, newer than the checkout: the
       # build script copies them instead of printing again.
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: manual-pdf
           path: docs/manual
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
           cache: pip
@@ -156,7 +161,7 @@ jobs:
           test -f build/dmg-DanceSport-Player/Manual.pdf
           test -f build/dmg-DanceSport-Player/Handbuch.pdf
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: DanceSport-Player-macos
           path: dist/DanceSport-Player.dmg
@@ -176,16 +181,16 @@ jobs:
     needs: manual
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Both manual PDFs from the manual job, newer than the checkout: the
       # build script copies them instead of printing again.
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: manual-pdf
           path: docs/manual
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
           cache: pip
@@ -229,7 +234,7 @@ jobs:
           timeout 20 dist/DanceSport-Player/DanceSport-Player || status=$?
           [ "$status" -eq 124 ] || { echo "exited with $status"; exit 1; }
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: DanceSport-Player-linux-${{ matrix.arch }}
           path: dist/DanceSport-Player-linux-${{ matrix.arch }}.tar.gz
@@ -243,9 +248,9 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           path: artifacts
 

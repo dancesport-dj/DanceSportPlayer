@@ -56,10 +56,27 @@ class _Voices:
         pass
 
 
+class _Announcer:
+    """Stands in for the announcer: does its clip player still hold the device?"""
+
+    def __init__(self):
+        self.held = True
+
+    def release_outputs(self):
+        self.held = False
+
+    def restore_outputs(self):
+        self.held = True
+
+    def set_device(self, device):
+        pass
+
+
 class _Desk:
     """The window's side of it: real players and a mix, around the device."""
 
-    def __init__(self, release: bool = True, voices=None):
+    def __init__(self, release: bool = True, voices=None, announcer=None,
+                 spare=False):
         self.settings = {"release_audio_idle": release}
         self.mix = OutputMix(0.9)
         self.player = QMediaPlayer()
@@ -69,6 +86,13 @@ class _Desk:
         self.pause_out = QAudioOutput()
         self.pause_player.setAudioOutput(self.pause_out)
         self.voices = voices
+        self.announcer = announcer
+        # 🔀 The crossfade's second player, as the window builds it on first use.
+        self.spare_player = self.spare_out = None
+        if spare:
+            self.spare_player = QMediaPlayer()
+            self.spare_out = QAudioOutput()
+            self.spare_player.setAudioOutput(self.spare_out)
         self.applied = 0
         self.device = AudioDevice(
             self.player, self.audio_out, self.pause_player, self.pause_out,
@@ -77,7 +101,9 @@ class _Desk:
             cart_voices=lambda: self.voices,
             is_playing_mode=lambda: False,
             apply_volume=self.apply_volume,
-            system_sounds=SystemSoundGuard())   # a no-op under the suite
+            system_sounds=SystemSoundGuard(),   # a no-op under the suite
+            announcer=lambda: self.announcer,
+            spare_deck=lambda: (self.spare_player, self.spare_out))
 
     def apply_volume(self):
         self.applied += 1
@@ -109,6 +135,21 @@ class ReleaseTest(_IdleTest):
         self.assertFalse(self.held(desk))
         self.assertIsNone(desk.pause_player.audioOutput())
         self.assertFalse(desk.voices.held, "the wall kept the card open")
+
+    def test_the_announcer_and_the_spare_deck_let_go_too(self):
+        """PL7: both are built on first use and then held the card all
+        evening — after the first announcement or crossfade the hiss was back."""
+        desk = self.idle_out(_Desk(announcer=_Announcer(), spare=True))
+        self.assertTrue(desk.device.released)
+        self.assertFalse(desk.announcer.held, "the announcer kept the card open")
+        self.assertIsNone(desk.spare_player.audioOutput(),
+                          "the crossfade's spare deck kept the card open")
+
+    def test_a_spare_deck_not_built_yet_is_no_matter(self):
+        desk = self.idle_out(_Desk())
+        self.assertTrue(desk.device.released)
+        desk.device.ensure()
+        self.assertFalse(desk.device.released)
 
     def test_one_tick_of_silence_is_not_enough(self):
         """The gap between an announcement and the music must not close and
@@ -159,6 +200,25 @@ class TakeBackTest(_IdleTest):
         self.assertIs(desk.pause_player.audioOutput(), desk.pause_out)
         self.assertTrue(desk.voices.held)
         self.assertFalse(desk.device.released)
+
+    def test_the_announcer_and_the_spare_deck_take_it_back_too(self):
+        desk = self.idle_out(_Desk(announcer=_Announcer(), spare=True))
+        desk.device.on_playback_state(QMediaPlayer.PlaybackState.PlayingState)
+        self.assertTrue(desk.announcer.held)
+        self.assertIs(desk.spare_player.audioOutput(), desk.spare_out)
+
+    def test_an_announcement_takes_the_device_back(self):
+        """The clip player is not one of the deck's players, so its own
+        start must ask, as a cartwall pad does."""
+        from unittest import mock
+        from player.window.main_audio import AudioLevelMixin
+
+        window = mock.Mock()
+        AudioLevelMixin._on_announcer_speaking(window, True)
+        window._audio_device.ensure.assert_called_once_with()
+        window.reset_mock()
+        AudioLevelMixin._on_announcer_speaking(window, False)
+        window._audio_device.ensure.assert_not_called()
 
     def test_stopping_does_not_take_it_back(self):
         desk = self.idle_out(_Desk())
@@ -237,6 +297,26 @@ class CartwallTest(unittest.TestCase):
         v.fire(("A", 0, 0), CartPad(path=r"C:\samples\fanfare.mp3"))
         self.assertFalse(desk.device.released)
         self.assertIs(desk.player.audioOutput(), desk.audio_out)
+
+
+class AnnouncerTest(unittest.TestCase):
+    """The announcer's own half of the handover."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def test_it_lets_go_and_takes_back(self):
+        from player.audio.announce import DanceAnnouncer
+        ann = DanceAnnouncer()
+        self.addCleanup(ann.shutdown)
+        ann.release_outputs()       # nothing built yet: nothing to let go of
+        ann.restore_outputs()
+        self.assertIsNotNone(ann._clip_engine())
+        ann.release_outputs()
+        self.assertIsNone(ann._clip_player.audioOutput())
+        ann.restore_outputs()
+        self.assertIs(ann._clip_player.audioOutput(), ann._clip_out)
 
 
 if __name__ == "__main__":

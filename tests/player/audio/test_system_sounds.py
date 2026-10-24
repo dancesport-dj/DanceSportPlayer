@@ -292,5 +292,26 @@ class DeskTest(unittest.TestCase):
         self.assertEqual(save.call_count, 1)
 
 
+@mock.patch("player.audio.audio_device.save_settings", return_value=False)
+class UnrecordedMuteTest(unittest.TestCase):
+    """The OS keeps a mute after we are gone, so one the settings could not
+    record is one a crash would leave in place for good."""
+
+    def test_a_mute_that_could_not_be_saved_is_lifted(self, _save):
+        w = _FakeWin32([False])
+        desk = _Desk(w, playing=True)
+        desk.device.watch_system_sounds()
+        self.assertFalse(w.muted[1])
+        self.assertNotIn("system_sounds_muted", desk.settings)
+
+    def test_and_it_is_not_tried_again_every_tick(self, save):
+        w = _FakeWin32([False])
+        desk = _Desk(w, playing=True)
+        desk.device.watch_system_sounds()
+        desk.device.watch_system_sounds()
+        self.assertFalse(w.muted[1])
+        self.assertEqual(save.call_count, 1)
+
+
 if __name__ == "__main__":
     unittest.main()

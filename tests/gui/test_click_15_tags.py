@@ -20,7 +20,7 @@ from tests.gui.monkey_support import ClickThrough, printable
 
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QDialogButtonBox, QMessageBox
+from PySide6.QtWidgets import QApplication, QDialogButtonBox
 from shared.columns import _COL_CUSTOM, _COL_RATING, _COL_TITLE
 
 _RAW_DESC, _RAW_VALUE = 1, 2      # the Extended tab's columns (gui.dialogs.tag_edit_dialog)
@@ -100,17 +100,14 @@ class TagsClickTest(ClickThrough):
         def edit(dlg):
             dlg._form["title"].setEditText("Retitled")
             dlg._stars.setCurrentIndex(dlg._stars.findData(4))
+            self.click(dlg._write_app)   # "Also write these into the MP3 file"
             self.save(dlg)
-
-        def write_too(box):
-            self.click(box.button(QMessageBox.StandardButton.Yes))
 
         with self.clicking() as op:
             self.generate(rounds="1")
             row = self.song_rows()[0]
             entry = self.entry_at(row)
             self.keep_file(Path(entry.path))
-            op.answer(self.titled("🏷  Write into the MP3?"), write_too)
             self.edit_tags(op, row, edit)
 
             form = id3_frames.read_form(entry.path)

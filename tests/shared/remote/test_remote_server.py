@@ -16,8 +16,15 @@ class LanClientTest(unittest.TestCase):
                      "fe80::1", "::1", "::ffff:192.168.0.3"):
             self.assertTrue(rs.lan_client(addr), addr)
 
+    def test_carrier_grade_nat_networks_are_let_in(self):
+        """100.64.0.0/10 is neither private nor global to ipaddress, but venue
+        and hotel Wi-Fi (and Tailscale) hand it out to the phones."""
+        for addr in ("100.64.1.5", "100.127.255.254", "::ffff:100.80.0.9"):
+            self.assertTrue(rs.lan_client(addr), addr)
+
     def test_the_internet_is_not(self):
-        for addr in ("8.8.8.8", "2001:4860:4860::8888", "::ffff:8.8.8.8", "junk"):
+        for addr in ("8.8.8.8", "2001:4860:4860::8888", "::ffff:8.8.8.8", "junk",
+                     "100.63.255.255", "100.128.0.1"):
             self.assertFalse(rs.lan_client(addr), addr)
 
 
@@ -51,6 +58,19 @@ class ServerTest(unittest.TestCase):
         self.assertIn(b"<html", body)
         self.assertIn(b'"next": "Next"', body)
         self.assertNotIn(b"4711", body)
+
+    def test_no_other_page_may_frame_it(self):
+        """R8: a page of any site could show this one in a frame and lure taps."""
+        _s, headers, _b = self._req("GET", "/", pin=None)
+        self.assertIn("frame-ancestors 'none'", headers["Content-Security-Policy"])
+        self.assertEqual(headers["X-Frame-Options"], "DENY")
+
+    def test_a_query_string_does_not_hide_the_page(self):
+        """L11: a QR scanner or messenger appending "?utm_…" got a 404."""
+        self.assertEqual(self._req("GET", "/?from=qr", pin=None)[0], 200)
+        self.assertEqual(self._req("GET", "/api/state?t=1")[0], 200)
+        self.assertEqual(self._req("POST", "/api/cmd?t=1", {"cmd": "next"})[0], 204)
+        self.assertEqual(self._req("GET", "/nope?x=1", pin=None)[0], 404)
 
     def test_state_needs_the_pin(self):
         self.srv.publish({"title": "Moon", "dance": "Slow Waltz"})
@@ -106,6 +126,9 @@ class ServerTest(unittest.TestCase):
 
     def test_unknown_commands_and_bad_bodies_are_refused(self):
         self.assertEqual(self._req("POST", "/api/cmd", {"cmd": "quit"})[0], 400)
+        # R2: an unhashable cmd raised TypeError in the handler, not a 400.
+        for cmd in (["next"], {"next": 1}):
+            self.assertEqual(self._req("POST", "/api/cmd", {"cmd": cmd})[0], 400, cmd)
         self.assertEqual(self._req("POST", "/api/cmd", b"not json")[0], 400)
         self.assertEqual(self._req("POST", "/api/cmd", {"cmd": "next"}, pin="1")[0], 401)
         self.assertEqual(self.calls, [])
@@ -221,6 +244,13 @@ class FailureBudgetTest(unittest.TestCase):
         for i in range(rs.GLOBAL_MAX_FAILS):
             self.srv.check_pin(f"10.0.0.{i + 1}", "0000")
 
+    def test_a_request_without_a_pin_guesses_nothing_and_costs_nothing(self):
+        """R11: a probe with no PIN header spent the budget like a guess, and
+        nothing in the log said so. The page itself never asks without one."""
+        for i in range(rs.GLOBAL_MAX_FAILS):
+            self.assertEqual(self.srv.check_pin(f"10.0.0.{i + 1}", ""), 401)
+        self.assertEqual(self.srv.check_pin("10.0.0.99", "4711"), 200)
+
     def test_wrong_pins_from_many_addresses_pause_new_logins(self):
         self._flood()
         self.assertEqual(self.srv.check_pin("10.0.0.99", "4711"), 429)
@@ -244,6 +274,15 @@ class FailureBudgetTest(unittest.TestCase):
         paused = [e for e in self.events if e[0] == "locked_all"]
         self.assertEqual(paused, [("locked_all", "", str(rs._GLOBAL_WINDOW_SECS))])
 
+    def test_a_flood_through_the_tunnel_leaves_the_venue_network_in(self):
+        """R4: anyone on the internet who knows the URL could keep the
+        operator's new phone on the hall's Wi-Fi out for ten minutes."""
+        for i in range(rs.GLOBAL_MAX_FAILS):
+            self.srv.check_pin(f"203.0.113.{i + 1}", "0000", via_tunnel=True)
+        self.assertEqual(self.srv.check_pin("10.0.0.99", "4711"), 200)
+        self.assertEqual(self.srv.check_pin("198.51.100.4", "4711", via_tunnel=True),
+                         429)
+
 
 class IdleConnectionTest(unittest.TestCase):
     def test_the_default_idle_timeout_is_ten_minutes(self):
@@ -257,6 +296,38 @@ class IdleConnectionTest(unittest.TestCase):
             self.addCleanup(srv.stop)
             with socket.create_connection(("127.0.0.1", srv.port), timeout=5) as sock:
                 self.assertEqual(sock.recv(1), b"")    # closed by the server
+
+
+class SlowBodyTest(unittest.TestCase):
+    """S7: a POST that never sends its body must not hold a handler thread
+    for the ten-minute idle time. The PIN is checked before the body is read,
+    and the body has a few seconds in all, not per byte."""
+
+    def setUp(self):
+        self.calls = []
+        self.srv = rs.RemoteServer(pin="4711", on_command=lambda c, a: self.calls.append(c),
+                                   host="127.0.0.1", port=0)
+        self.srv.start()
+        self.addCleanup(self.srv.stop)
+
+    def _head_only(self, pin, length=100):
+        sock = socket.create_connection(("127.0.0.1", self.srv.port), timeout=3)
+        self.addCleanup(sock.close)
+        sock.sendall((f"POST /api/cmd HTTP/1.1\r\nHost: 127.0.0.1\r\n"
+                      f"{rs.PIN_HEADER}: {pin}\r\nContent-Length: {length}\r\n\r\n")
+                     .encode())
+        return sock
+
+    def test_a_wrong_pin_is_answered_without_waiting_for_the_body(self):
+        sock = self._head_only("0000")
+        self.assertTrue(sock.recv(64).startswith(b"HTTP/1.0 401"))
+
+    def test_a_body_that_never_comes_is_given_up(self):
+        with mock.patch.object(rs, "_BODY_SECS", 0.3):
+            sock = self._head_only("4711")
+            sock.sendall(b'{"cmd"')                  # a start, then nothing
+            self.assertEqual(sock.recv(64), b"")     # closed, no answer
+        self.assertEqual(self.calls, [])
 
 
 class PageTest(unittest.TestCase):
@@ -320,6 +391,51 @@ class PinTest(unittest.TestCase):
             self.assertTrue(p.isdigit())
 
 
+class DeskHostTest(unittest.TestCase):
+    """S6: after a DNS rebind a website's own name points at this PC, and the
+    browser then sends that name as the Host. Only names that are this desk
+    itself are answered."""
+
+    TUNNEL = "quiet-river-1234.trycloudflare.com"
+
+    def test_addresses_on_the_lan_and_localhost_are_the_desk(self):
+        for host in ("192.168.1.5:8765", "10.0.0.2", "127.0.0.1:8765",
+                     "[fe80::1]:8765", "[::1]", "localhost:8765", "LOCALHOST"):
+            self.assertTrue(rs.desk_host(host, ""), host)
+
+    def test_other_names_are_not(self):
+        for host in ("evil.example:8765", "evil.example", "8.8.8.8:8765", "",
+                     None, "192.168.1.5.evil.example", self.TUNNEL):
+            self.assertFalse(rs.desk_host(host, ""), host)
+
+    def test_the_tunnel_name_while_the_tunnel_is_up(self):
+        self.assertTrue(rs.desk_host(self.TUNNEL, self.TUNNEL))
+        self.assertTrue(rs.desk_host(self.TUNNEL.upper() + ":443", self.TUNNEL))
+        self.assertFalse(rs.desk_host("other-name-9.trycloudflare.com", self.TUNNEL))
+
+    def test_the_server_turns_a_foreign_host_away(self):
+        srv = rs.RemoteServer(pin="4711", on_command=lambda c, a: None,
+                              host="127.0.0.1", port=0)
+        srv.start()
+        self.addCleanup(srv.stop)
+
+        def status(host, path="/"):
+            conn = http.client.HTTPConnection("127.0.0.1", srv.port, timeout=5)
+            conn.request("GET", path, headers={"Host": host, rs.PIN_HEADER: "4711"})
+            out = conn.getresponse().status
+            conn.close()
+            return out
+
+        self.assertEqual(status("evil.example:%d" % srv.port), 403)
+        self.assertEqual(status("evil.example", "/api/state"), 403)
+        self.assertEqual(status(self.TUNNEL), 403)
+        self.assertEqual(status("localhost:%d" % srv.port), 200)
+        srv.set_tunnel("https://" + self.TUNNEL)
+        self.assertEqual(status(self.TUNNEL, "/api/state"), 200)
+        srv.set_tunnel("")
+        self.assertEqual(status(self.TUNNEL), 403)
+
+
 class TunnelPhoneTest(unittest.TestCase):
     """Behind the tunnel every request comes from 127.0.0.1: the phone's own
     address (CF-Connecting-IP) is what logs in and what gets locked out."""
@@ -331,6 +447,7 @@ class TunnelPhoneTest(unittest.TestCase):
                                    on_event=lambda *e: self.events.append(e))
         self.srv.start()
         self.addCleanup(self.srv.stop)
+        self.srv.set_tunnel("https://quiet-river-1234.trycloudflare.com")
 
     def _state(self, pin, phone=None):
         conn = http.client.HTTPConnection("127.0.0.1", self.srv.port, timeout=5)
@@ -348,6 +465,21 @@ class TunnelPhoneTest(unittest.TestCase):
         self.assertEqual(self._state("12345678", phone="203.0.113.7"), 429)
         self.assertEqual(self._state("12345678", phone="198.51.100.4"), 200)
         self.assertIn(("login", "198.51.100.4", ""), self.events)
+
+    def test_a_flood_through_the_tunnel_pauses_only_the_tunnel(self):
+        with mock.patch.multiple(rs, MAX_FAILS=100, GLOBAL_MAX_FAILS=3):
+            for i in range(rs.GLOBAL_MAX_FAILS):
+                self._state("00000000", phone=f"203.0.113.{i + 1}")
+            self.assertEqual(self._state("12345678", phone="198.51.100.4"), 429)
+            self.assertEqual(self._state("12345678"), 200)   # the desk's own network
+
+    def test_without_a_tunnel_the_header_is_not_believed(self):
+        """S6: with no tunnel running, a loopback request naming a new phone
+        per try would get a fresh lockout budget every time."""
+        self.srv.set_tunnel("")
+        for _ in range(rs.MAX_FAILS):
+            self._state("00000000", phone="203.0.113.7")
+        self.assertEqual(self._state("12345678", phone="198.51.100.4"), 429)
 
 
 if __name__ == "__main__":

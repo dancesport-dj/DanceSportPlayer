@@ -16,22 +16,29 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+import numpy as np
+
 from dancesport_planner import MusicEntry, MusicLibrary, PlaylistSuggester
 from planner.generate import suggester as suggester_mod
+from planner.music.analysis import AudioFeatures
 
 ANCHOR_A = object()
 ANCHOR_B = object()
+# Analysed: a timbre Gaussian the metric can place (the scores are mocked).
+FEATURES = AudioFeatures(bpm=32.0, mfcc=np.zeros(84), centroid=0.0, rms=0.0,
+                         mfcc_mean=np.zeros(20), mfcc_cov=np.eye(20).ravel())
 
 
 def _entry(name: str, features=True) -> MusicEntry:
     e = MusicEntry(path=Path(rf"C:\music\tanzcds\standardcd\TG\{name}.mp3"),
                    title=name, dance="TG", bpm=None, popularity=3)
-    e.features = object() if features else None
+    e.features = FEATURES if features else None
     return e
 
 
 def _fake_similarity(score_of):
-    """`_timbre_similarity` stand-in: analysed tracks only, like the real one."""
+    """`_timbre_similarity` stand-in for the analysed tracks; the real one
+    also scores the rest, with a neutral 0.5."""
     def similarity(anchor, entries):
         return {str(e.path): score_of(anchor, e) for e in entries if e.features}
     return similarity

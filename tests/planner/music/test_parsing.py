@@ -34,6 +34,14 @@ class DetectBpmTest(unittest.TestCase):
     def test_t_marker_with_boundary(self):
         self.assertEqual(_detect_bpm("Some Song T50"), 50)
 
+    def test_a_word_ending_in_t_is_not_a_marker(self):
+        """L2: the 'T' prefix letters matched case-insensitively, so the end
+        of an ordinary word before a number read as a takt."""
+        for name in ("Dance Hit50 Mix", "Best40 Ballads", "Part30 Intro",
+                     "Song Feat30 Remix"):
+            with self.subTest(name=name):
+                self.assertIsNone(_detect_bpm(name))
+
     def test_parenthetical_code(self):
         self.assertEqual(_detect_bpm("My Waltz (LW 29)"), 29)
         self.assertEqual(_detect_bpm("Fiesta (Samba 50)"), 50)

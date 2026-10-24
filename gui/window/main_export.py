@@ -59,6 +59,13 @@ else:
 log = logging.getLogger("dancesport.gui.export")
 
 
+def _repaint():
+    """Let a save's progress bar paint, and nothing else in. Its dialog only
+    blocks the window once it shows, 250 ms in; before that a queued click
+    (a second 💾 Save-all) would start a whole save inside this one."""
+    QApplication.processEvents(QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
+
+
 _OFF_REFERENCE_SHOWN = 15
 
 
@@ -126,6 +133,22 @@ def _folder_name(name: str) -> str:
     """A typed folder name made safe on every drive: the signs Windows forbids
     become ``_``; spaces stay, a tournament's name has them."""
     return re.sub(r'[<>:"/\\|?*]', "_", name).strip().rstrip(". ")
+
+
+def _is_bundle_dir(folder: Path) -> bool:
+    """Whether `folder` holds no more than a USB export writes — playlist
+    folders, each with its M3U — so Replace deletes nothing else. Hidden
+    entries (a Mac's ``._`` files) don't count."""
+    try:
+        for p in folder.iterdir():
+            if p.name.startswith("."):
+                continue
+            if not p.is_dir() or not any(f.suffix.lower() in (".m3u", ".m3u8")
+                                         for f in p.iterdir()):
+                return False
+    except OSError:
+        return False
+    return True
 
 
 class _BundleAbort(Exception):
@@ -406,19 +429,20 @@ class ExportMixin(MainWindowHost):
         dlg.show_after(250)
         def _uniq_name(title: str, fallback: str) -> str:
             # Two decks / competitions sharing a name would collide → suffix later ones.
+            # Case-blind: "Final" and "final" are one file on Windows and macOS.
             base = _sanitize_filename(title) or fallback
             uniq = base
             n = 2
-            while uniq in used_names:
+            while uniq.casefold() in used_names:
                 uniq = f"{base}_{n}"
                 n += 1
-            used_names.add(uniq)
+            used_names.add(uniq.casefold())
             return uniq
 
         for i, t in enumerate(decks, 1):
             title = (self.deck(t).name or "Playlist").replace("·", "-")
             dlg.set_progress(i, len(decks), title)
-            QApplication.processEvents()
+            _repaint()
             try:
                 data = self._serialize_playlist_state(t)
                 if not data:
@@ -446,7 +470,7 @@ class ExportMixin(MainWindowHost):
         if warmup is not None:
             title = (self.deck(warmup).name or practice_name()).replace("·", "-")
             dlg.set_progress(1, 1, title)
-            QApplication.processEvents()
+            _repaint()
             try:
                 out = export_flat_m3u(warmup._row_meta.entries(),
                                       _uniq_name(title, practice_name()),
@@ -504,14 +528,14 @@ class ExportMixin(MainWindowHost):
         for i, t in enumerate(wishes, 1):
             title = (self.deck(t).name or "Wishlist").replace("·", "-")
             dlg.set_progress(i, len(wishes), title)
-            QApplication.processEvents()
+            _repaint()
             basename = _sanitize_filename(title) or "Wishlist"
             uniq = basename
             n = 2
-            while uniq in wish_names:
+            while uniq.casefold() in wish_names:   # case-blind, as in save-all
                 uniq = f"{basename}_{n}"
                 n += 1
-            wish_names.add(uniq)
+            wish_names.add(uniq.casefold())
             try:
                 out = export_flat_m3u(t.wishlist_entries(), uniq, out_dir=wish_dir,
                                       path_for=path_for)
@@ -537,7 +561,7 @@ class ExportMixin(MainWindowHost):
         wishes = [t for t in self._deckset.wishlists if t.wishlist_entries()]
         ask = UsbExportDialog(
             self, n_decks=len(decks), n_day=len(day),
-            day_selected=self._grid.deck_tabs.currentIndex() == 2,
+            day_selected=self._grid.deck_tabs.currentWidget() is self._grid.day_tabs,
             n_wish=len(wishes))
         if ask.exec() != QDialog.DialogCode.Accepted:
             return
@@ -618,19 +642,38 @@ class ExportMixin(MainWindowHost):
         name = _folder_name(ask.name()) or guess
         bundle = root / name
         if bundle.exists():
+            # Only an older export can be replaced: a folder of that name
+            # with anything else in it is the user's, and stays.
+            replaceable = _is_bundle_dir(bundle)
             box = QMessageBox(self)
             box.setWindowTitle("USB export")
             box.setIcon(QMessageBox.Icon.Question)
-            box.setText(i18n.t("“%s” already exists in the target folder.\n"
-                               "Replace it, or keep both?") % bundle.name)
-            replace_btn = box.addButton("Replace",
-                                        QMessageBox.ButtonRole.DestructiveRole)
+            if replaceable:
+                box.setText(i18n.t("“%s” already exists in the target folder.\n"
+                                   "Replace it, or keep both?") % bundle)
+                replace_btn = box.addButton("Replace",
+                                            QMessageBox.ButtonRole.DestructiveRole)
+            else:
+                box.setText(i18n.t("“%s” already exists in the target folder and "
+                                   "holds more than a USB export, so it cannot be "
+                                   "replaced.\nKeep both?") % bundle)
+                replace_btn = None
             keep_btn = box.addButton("Keep both", QMessageBox.ButtonRole.ActionRole)
             box.addButton(QMessageBox.StandardButton.Cancel)
             box.setDefaultButton(keep_btn)
             box.exec()
-            if box.clickedButton() is replace_btn:
-                shutil.rmtree(bundle)
+            if replace_btn is not None and box.clickedButton() is replace_btn:
+                try:
+                    shutil.rmtree(bundle)
+                except OSError as exc:
+                    log.warning("⚠️ USB export could not remove the old bundle\n"
+                                "folder: %s\n"
+                                "error: %s", bundle, exc)
+                    QMessageBox.critical(self, "USB export", i18n.t(
+                        "Could not remove “%s”:\n%s\n\n"
+                        "It may be partly deleted; nothing was exported.")
+                        % (bundle, exc))
+                    return None
             elif box.clickedButton() is keep_btn:
                 n = 2
                 while bundle.exists():
@@ -638,7 +681,15 @@ class ExportMixin(MainWindowHost):
                     n += 1
             else:
                 return None
-        bundle.mkdir(parents=True)
+        try:
+            bundle.mkdir(parents=True)
+        except OSError as exc:
+            log.warning("⚠️ USB export could not create the bundle folder\n"
+                        "folder: %s\n"
+                        "error: %s", bundle, exc)
+            QMessageBox.critical(self, "USB export", i18n.t(
+                "Could not create “%s”:\n%s") % (bundle, exc))
+            return None
         return bundle, True
 
     def _write_bundle(self, bundle: Path, jobs: list, skipped: list[str],
@@ -739,7 +790,7 @@ class ExportMixin(MainWindowHost):
         for i, t in enumerate(decks, 1):
             title = (self.deck(t).name or "Playlist").replace("·", "-")
             dlg.set_progress(i, len(decks), title)
-            QApplication.processEvents()
+            _repaint()
             try:
                 data = self._serialize_playlist_state(t)
                 if not data:
@@ -749,10 +800,11 @@ class ExportMixin(MainWindowHost):
                         (comp or title).replace("·", "-")) or "Playlist"
                     uniq = base
                     n = 2
-                    while uniq in used_names:
+                    # The file system ignores case, so "Final" and "final" collide.
+                    while uniq.casefold() in used_names:
                         uniq = f"{base}_{n}"
                         n += 1
-                    used_names.add(uniq)
+                    used_names.add(uniq.casefold())
                     out = export_m3u(playlist, c_dances, uniq, c_cls,
                                      out_path=target / f"{uniq}{m3u_suffix()}",
                                      path_for=path_for)
@@ -809,7 +861,7 @@ class ExportMixin(MainWindowHost):
 
     def _on_table_save_requested(self, table: PlaylistTable, file_in_tree: bool = False):
         """Right-click → 'Save as M3U…' on a deck / wishlist: pick a destination file
-        (the chooser opens in the configured save folder, default D:\\Dropbox\\Turniere,
+        (the chooser opens in the configured save folder, default the Documents folder,
         and remembers wherever you last saved) and export the table's contents there.
         `file_in_tree` then files the saved playlist in 🏆 Tournaments."""
         default = (self.deck(table).name or "Playlist").replace("·", "-")
@@ -940,7 +992,7 @@ class ExportMixin(MainWindowHost):
                 return
             last = now
             dlg.set_progress(done, total, name)
-            QApplication.processEvents()
+            _repaint()
 
         try:
             return fn(_prog)

@@ -111,7 +111,7 @@ auf ihr Symbol. Fahr mit der Maus darüber, dann siehst du den vollen Namen.
 | 🤸 Party ▾ | Blendet den Party-Bereich ein oder aus. |
 | 📚 Bibliothek | Blendet den Bereich Bibliothek und Turniere ein oder aus. |
 | 🎛 Cartwall | Blendet die Wand mit den Sample-Pads ein oder aus. |
-| ❔ | Ein Menü: ⌨ Tastenkürzel (**F1**), 📖 Handbuch, 📜 Gespielte Titel…, ⚙ Einstellungen… (**F12**), ℹ Über… und ⛶ Vollbild (**F11**). |
+| ❔ | Ein Menü: ⌨ Tastenkürzel (**F1**), 📖 Handbuch, 📜 Gespielte Titel…, ⛶ Vollbild (**F11**), 📝 Log exportieren… (kopiert die Log-Dateien in einen Ordner deiner Wahl), ⚙ Einstellungen… (**F12**) und ℹ Über… |
 
 **Mitte: die Decks.** Jedes Deck ist eine Playlist, siehe
 [Kapitel 3](03-playlists.md).
@@ -147,8 +147,14 @@ Haken **⛶ Uhr im Vollbild: nur die Uhrzeit** unter ⚙ Einstellungen ▸
 
 Das Fenster zu schließen, während Musik läuft, würde sie auf der Fläche
 anhalten, deshalb fragt die App zuerst: *Es läuft Musik. Trotzdem beenden und
-sie anhalten?* **Nein** ist vorgewählt und lässt alles weiterlaufen. Pausiert
-oder gestoppt schließt die App sofort.
+sie anhalten?* **Nein** ist vorgewählt und lässt alles weiterlaufen. **Ja** schneidet die
+Musik nicht ab: der Titel blendet über das Ausblenden seiner Liste aus, ebenso
+die Musik einer Pause zwischen zwei Titeln; jedes klingende 🎛 Cartwall-Pad
+blendet über sein eigenes aus, und das Fenster schließt, wenn
+das letzte still ist. Solange sagt ein kleines Fenster *🔉 Die Musik wird
+ausgeblendet… Die App schließt gleich.*, sein Balken füllt sich mit dem
+Ausblenden. Ein zweites ✕ während des Ausblendens schließt sofort.
+Klingt nichts, schließt die App sofort.
 
 ## Der Player-Build
 

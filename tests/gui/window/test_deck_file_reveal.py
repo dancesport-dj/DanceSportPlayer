@@ -189,6 +189,36 @@ class DeckFileRevealTest(unittest.TestCase):
         self.assertTrue(wish._m3u_path.exists())
         self.assertEqual(wish._m3u_path.parent.name, "wishlists")
 
+    def save_all(self, folder):
+        from gui.window import main_export
+        out_dir = _DIR / folder
+        box = mock.MagicMock()
+        box.clickedButton.return_value = None
+        with mock.patch.object(main_export, "OUTPUT_DIR", out_dir), \
+                mock.patch("planner.playlist.m3u.OUTPUT_DIR", out_dir), \
+                mock.patch.object(main_export, "QMessageBox", return_value=box):
+            self.win._save_all_playlists()
+
+    def test_two_decks_differing_only_in_case_get_two_files(self):
+        """Windows file names ignore case: "Final" and "final" were one file,
+        and the second deck's save overwrote the first's."""
+        tracks = [_entry("c1"), _entry("r1", "RB"), _entry("c2")]
+        self.win._library.lib.entries = tracks
+        other = self.win._deckset.tableC
+        other.load_player_list(tracks[2:], "Party", play_cb=None)
+        self.win.deck(self.table).name = "Final"
+        self.win.deck(other).name = "final"
+        self.save_all("case_decks")
+        self.assertNotEqual(self.table._m3u_path.name.lower(),
+                            other._m3u_path.name.lower())
+
+    def test_two_wishlists_differing_only_in_case_get_two_files(self):
+        a, b = self.wishlist(0), self.wishlist(1, ("w3",))
+        self.win.deck(a).name = "Wunsch"
+        self.win.deck(b).name = "WUNSCH"
+        self.save_all("case_wishes")
+        self.assertNotEqual(a._m3u_path.name.lower(), b._m3u_path.name.lower())
+
     def test_emptying_a_wishlist_forgets_the_file(self):
         wish = self.wishlist()
         wish._m3u_path = self.write_m3u("Wunsch.m3u")

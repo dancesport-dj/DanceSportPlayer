@@ -1,7 +1,8 @@
 """Playback arithmetic and machine state the desk and the evening share: the
 loudness target, the idle hand-back of the sound device, the heat-equalize
-floors, how many seconds the floor has really heard, the crossfade's curve, and
-the OS wake lock that keeps the screen on through a long set.
+floors, how many seconds the floor has really heard, the crossfade's curve, a
+duck level in dB, and the OS wake lock that keeps the screen on through a long
+set.
 """
 import logging
 import math
@@ -27,9 +28,13 @@ log = logging.getLogger("dancesport.gui")
 # the typical track is attenuated 4.1 dB and 7 tracks want more boost than the
 # +9 dB clamp allows — quiet anthems and soundtrack cues, not floor titles. The
 # old −18 threw away 8.1 dB for headroom nothing was using; going further, to
-# −12, would boost a quarter of the library with no true-peak figure to clamp
-# against (only integrated LUFS is stored).
+# −12, would boost a quarter of the library: the true-peak cap below stops
+# each boost at its own peak, but only on tracks measured with one.
 _TARGET_LUFS = -14.0
+
+# 🔝 No title is sent past −1 dBTP: the gain is capped at the ceiling minus
+# the track's measured true peak, so a master already over it comes down too.
+_TRUE_PEAK_CEILING = -1.0
 
 
 # 🔇 How long everything has to stay silent before the sound device is handed
@@ -69,6 +74,20 @@ def audible_played_secs(position_ms: int, offset_ms: int, rate: float) -> float:
     return heard / max(0.01, float(rate or 1.0))
 
 
+# ⏩ The longest pre-roll: past that it cuts into the music, not the intro.
+PRE_ROLL_MAX_SECS = 30
+
+
+def pre_roll_secs(settings: dict) -> int:
+    """⏩ How far into each title the big player starts, set under ⚙ Settings
+    ▸ Sound & player; 0 = off. A broken value counts as off."""
+    try:
+        secs = int(settings.get("pre_roll_secs", 0) or 0)
+    except (TypeError, ValueError):
+        return 0
+    return max(0, min(PRE_ROLL_MAX_SECS, secs))
+
+
 def crossfade_levels(t: float, curve: str = "equal") -> tuple[float, float]:
     """🔀 (outgoing, incoming) level at fraction `t` (0…1) of a crossfade.
 
@@ -88,6 +107,17 @@ def crossfade_levels(t: float, curve: str = "equal") -> tuple[float, float]:
     if curve == "scurve":
         t = t * t * (3.0 - 2.0 * t)
     return math.cos(t * math.pi / 2), math.sin(t * math.pi / 2)
+
+
+def duck_db_text(pct: int) -> str:
+    """A duck level in percent as the dB it comes to, for beside the spin box.
+    Qt's volume is a linear amplitude factor, so the level is 20·log10 of it:
+    10 % is −20 dB, 20 % about −14 dB, half about −6 dB — not a tenth or a
+    fifth as loud to the ear."""
+    if pct <= 0:
+        return "−∞ dB"
+    db = round(20 * math.log10(pct / 100))
+    return ("≈ %d dB" % db).replace("-", "−")
 
 
 def _awake_windows(on: bool) -> bool:

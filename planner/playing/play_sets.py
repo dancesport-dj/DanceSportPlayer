@@ -54,6 +54,19 @@ _SET_KEYS = {"party": ("party_set", _PARTY_SET),
 DANCE_SECS_KEY = "tournament_dance_secs"
 _DANCE_SECS = {"LW": 90, "TG": 97, "WW": 90, "SF": 97, "QS": 90,
                "SA": 97, "CC": 97, "RB": 97, "PD": 0, "JI": 90}
+# …and, on top of those, a dance's length in one kind of round — a final
+# Waltz at 2:00 where the Vorrunde ran 1:30. Marcel: equal per dance within
+# a round, may change between rounds, "but must not": so nothing is shipped,
+# and a (round, dance) without one runs on the dance's length. See
+# `round_dance_secs_of` and `round_kind`.
+ROUND_DANCE_SECS_KEY = "tournament_round_dance_secs"
+ROUND_KINDS = ("first", "inter", "semi", "final")
+# …and the Paso Doble's pick per kind of round: 0 = full, 1 or 2 = after that
+# highlight. Marcel: "highlight3 = full for finals and 2 vor vorrunde" — a 3rd
+# highlight is the music's end, so it is no pick of its own. See
+# `round_pd_n_of`.
+ROUND_PD_KEY = "tournament_round_pd_n"
+ROUND_PD_PICKS = (0, 1, 2)
 
 # The TSO pitch, per set: on for a heat, where every title of a round is pitched
 # to the dance's mean tempo, and off for a party, where the next song is a
@@ -216,6 +229,59 @@ def dance_secs_of(settings: dict) -> dict[str, int]:
             continue
         out[str(dance)] = (0 if secs <= 0
                            else max(_LEN_TYPED_MIN, min(_LEN_TYPED_MAX, secs)))
+    return out
+
+
+def round_kind(name: str) -> str | None:
+    """Which of `ROUND_KINDS` the round `name` is, or None for a round that
+    is no tournament round (a party list's 'Standardrunde 1', a dance code).
+    Every Zwischenrunde is one kind: the per-round lengths are a column per
+    kind, not per numbered round."""
+    low = (name or "").strip().lower()
+    if "semi" in low or "halbfinal" in low:
+        return "semi"
+    if "zwischenrunde" in low or "viertelfinal" in low:
+        return "inter"
+    if low in ("finale", "final", "endrunde"):
+        return "final"
+    if low == "vorrunde":
+        return "first"
+    return None
+
+
+def round_dance_secs_of(settings: dict) -> dict[str, dict[str, int]]:
+    """🏆 The per-round overrides of `dance_secs_of`: round kind → dance code
+    → seconds, 0 = full. Read like `dance_secs_of`: an entry that is not a
+    length, or a round that is not one of `ROUND_KINDS`, is dropped; nothing
+    stored is no override at all."""
+    stored = settings.get(ROUND_DANCE_SECS_KEY)
+    if not isinstance(stored, dict):
+        return {}
+    out: dict[str, dict[str, int]] = {}
+    for kind in ROUND_KINDS:
+        # Only a dict: dance_secs_of reads anything else as the shipped lengths.
+        if isinstance(stored.get(kind), dict):
+            lens = dance_secs_of({DANCE_SECS_KEY: stored[kind]})
+            if lens:
+                out[kind] = lens
+    return out
+
+
+def round_pd_n_of(settings: dict) -> dict[str, int]:
+    """🐂 The Paso Doble's pick per kind of round: round kind → 0 (full) or
+    the highlight it stops after. Anything else stored is dropped; a round
+    without a pick follows the 🏆 set's highlight stop."""
+    stored = settings.get(ROUND_PD_KEY)
+    if not isinstance(stored, dict):
+        return {}
+    out: dict[str, int] = {}
+    for kind in ROUND_KINDS:
+        try:
+            n = int(stored[kind])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if n in ROUND_PD_PICKS:
+            out[kind] = n
     return out
 
 

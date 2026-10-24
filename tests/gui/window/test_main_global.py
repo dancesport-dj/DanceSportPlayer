@@ -330,9 +330,10 @@ class GlobalLibraryTest(_TestBase):
     def test_an_error_or_a_cancel_drops_what_was_pending(self):
         win = self.host()
         win._busy = mock.Mock()
-        win._pending_after_global = mock.Mock()
+        win._pending_drop, win._pending_after_global = "C:/a.mp3", mock.Mock()
         win._on_global_error("walk failed")
-        self.assertIsNone(win._pending_after_global)
+        # A drop kept here would run on the next, unrelated repository load.
+        self.assertEqual((win._pending_drop, win._pending_after_global), (None, None))
         self.assertEqual(self.status(win), "Global index failed.")
         self.assertEqual(self.dialogs.calls, [("critical", "Global Index Error", "walk failed")])
         win._pending_drop, win._pending_after_global = "C:/a.mp3", mock.Mock()
@@ -441,6 +442,9 @@ class _Settings:
     def running_look_touched(self):
         return _Settings.look_touched
 
+    def deleteLater(self):
+        pass
+
 
 class SettingsTest(_TestBase):
 
@@ -460,6 +464,7 @@ class SettingsTest(_TestBase):
         self.win._settings = {"app_mode": "both", "library_dir": "L", "global_dir": "G",
                               "playlist_dir": "P", "media_backend": "ffmpeg"}
         self.win._library.lib = None
+        self.win.cart_wall_settings.return_value = {}
         # The real restart offer, so its calls reach the mocked _offer_restart.
         self.win._offer_settings_restart = MethodType(
             GlobalIndexMixin._offer_settings_restart, self.win)

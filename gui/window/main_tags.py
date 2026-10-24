@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 from mutagen import MutagenError
 from PySide6.QtCore import Qt, QUrl
 from PySide6.QtMultimedia import QMediaPlayer
-from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
+from PySide6.QtWidgets import QApplication, QDialog
 
 from planner import i18n
 from planner.music import custom_field, id3_frames
@@ -42,8 +42,8 @@ _TAG_FIELD_LABELS = {
     "tag_album": "album", "comment_tags": "markers", "rating": "stars",
     "custom": "custom", "tag_comment": "comment",
 }
-# The app's own tag fields, in the order the "write into the MP3?" question
-# names them. Custom only while it is mapped to a frame (planner.music.custom_field).
+# The app's own tag fields the 🏷 editor's "Also write these into the MP3 file"
+# writes. Custom only while it is mapped to a frame (planner.music.custom_field).
 _APP_TAG_FIELDS = ("rating", "classes_ok", "is_instrumental", "comment_tags", "custom")
 
 
@@ -153,8 +153,10 @@ class TagEditMixin(MainWindowHost):
                     out.append(e)
         return out
 
-    def _edit_entry_tags(self, entries):
-        """Context-menu 🏷 'Edit tags…' for one track or every selected one."""
+    def _edit_entry_tags(self, entries, focus=None):
+        """Context-menu 🏷 'Edit tags…' for one track or every selected one —
+        or a double-click's ⚙ Edit tags, opened on the field of the column
+        double-clicked (`focus`, see TagEditDialog)."""
         seen, todo = set(), []
         for e in entries:
             if e is not None and getattr(e, "path", None) and str(e.path) not in seen:
@@ -165,19 +167,19 @@ class TagEditMixin(MainWindowHost):
             return
         dlg = TagEditDialog(todo, marker_suggestions(lib.entries), self,
                             custom_source=custom_field.source(),
-                            map_custom=self._set_custom_source)
+                            map_custom=self._set_custom_source, focus=focus)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             self._apply_tag_dialog(todo, dlg)
 
     def _apply_tag_dialog(self, entries, dlg):
         """Store what the 🏷 editor says each track becomes, then repaint every
         list showing one of them. What goes into the MP3 — the extended table,
-        the form (into every selected MP3) and, when the user says yes to the
-        question, stars, classes, instrumental, markers and, while it is mapped
-        to a frame, Custom — is written first, one save per file. The app
-        fields then go into the DB, keyed by the file's fingerprint as it is
-        after the write, which keeps only what the file can't say (edit_tags
-        drops a value equal to the file's)."""
+        the form (into every selected MP3) and, with the editor's "Also write
+        these into the MP3 file" ticked, stars, classes, instrumental, markers
+        and, while it is mapped to a frame, Custom — is written first, one save
+        per file. The app fields then go into the DB, keyed by the file's
+        fingerprint as it is after the write, which keeps only what the file
+        can't say (edit_tags drops a value equal to the file's)."""
         lib, cache = self._library.lib, self._library.cache
         if lib is None or cache is None:
             return
@@ -193,11 +195,7 @@ class TagEditMixin(MainWindowHost):
         on_disk = [(e, mp3) for e, c in todo
                    if Path(e.path).suffix.lower() == ".mp3" and Path(e.path).is_file()
                    and (mp3 := {k: v for k, v in c.items() if k in writable})]
-        app = {}
-        if on_disk:
-            fields = [f for f in writable if any(f in c for _e, c in on_disk)]
-            if self._ask_write_to_mp3(len(on_disk), [_TAG_FIELD_LABELS[f] for f in fields]):
-                app = {id(e): c for e, c in on_disk}
+        app = {id(e): c for e, c in on_disk} if dlg.write_app_to_mp3() else {}
         for e in entries:
             raw = dlg.raw_edits(e)
             f = form if id(e) in form_to else None
@@ -222,6 +220,9 @@ class TagEditMixin(MainWindowHost):
         browser = getattr(self, "_lib_browser", None)
         if browser is not None:
             browser.set_entries(lib.entries)   # a class edit may change the filter
+        tree = getattr(self, "_tourney_tree", None)
+        if tree is not None:
+            tree.set_entries(lib.entries)      # its rows hold title and artist as text
 
     def _map_custom_field(self):
         """Header right-click "Map Custom to an MP3 tag…": ask which frame
@@ -287,24 +288,6 @@ class TagEditMixin(MainWindowHost):
         browser = getattr(self, "_lib_browser", None)
         if browser is not None:
             browser.show_tag_cells(paths)
-
-    def _ask_write_to_mp3(self, count: int, fields: list) -> bool:
-        """"Also write stars, classes … into the MP3?" — No keeps them in the app."""
-        names = ", ".join(i18n.t(f) for f in fields)
-        text = (i18n.t("Also write %s into the MP3 file?") % names if count == 1
-                else i18n.t("Also write %s into the %d MP3 files?") % (names, count))
-        box = QMessageBox(QMessageBox.Icon.Question, i18n.t("🏷  Write into the MP3?"),
-                          text, QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                          self)
-        info = i18n.t(
-            "Stars go into the Windows rating; classes, instrumental and markers "
-            "into the comment, where other programs see them too. With No they "
-            "stay in the app only.")
-        if "custom" in fields:
-            info += " " + i18n.t("Custom goes into the tag it is mapped to.")
-        box.setInformativeText(info)
-        box.setDefaultButton(QMessageBox.StandardButton.No)
-        return box.exec() == QMessageBox.StandardButton.Yes
 
     def _write_into_mp3(self, entry, write, what: str) -> list:
         """Run `write(path)` on the entry's file, then read its tags again onto

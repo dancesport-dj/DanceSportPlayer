@@ -19,6 +19,7 @@ from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox
 
 import dancesport_gui as dg
+from player.audio.fade_now import FadeNow
 
 _YES = QMessageBox.StandardButton.Yes
 _NO = QMessageBox.StandardButton.No
@@ -43,6 +44,8 @@ class QuitWhilePlayingTest(unittest.TestCase):
         win._controller_shutdown = mock.Mock()
         win._audio_device = mock.Mock()
         win._stop_workers = mock.Mock()
+        win._fade_now = FadeNow()
+        win._quit_after_fade = mock.Mock(return_value=False)   # nothing to fade
         if state is not None:
             win._player = mock.Mock()
             win._player.playbackState.return_value = state
@@ -69,6 +72,20 @@ class QuitWhilePlayingTest(unittest.TestCase):
         ask.assert_called_once()
         self.assertTrue(event.isAccepted())
         win.save_on_quit.assert_called_once()
+
+    def test_music_playing_and_yes_fades_out_before_quitting(self):
+        win = self._window(QMediaPlayer.PlaybackState.PlayingState)
+        win._quit_after_fade.return_value = True
+        event, _ask = self._close(win, _YES)
+        self.assertFalse(event.isAccepted())
+        win.save_on_quit.assert_not_called()
+
+    def test_the_close_after_the_fade_does_not_ask_again(self):
+        win = self._window(QMediaPlayer.PlaybackState.PlayingState)
+        win._fade_now.quitting = True
+        event, ask = self._close(win)
+        ask.assert_not_called()
+        self.assertTrue(event.isAccepted())
 
     def test_paused_or_stopped_quits_without_asking(self):
         for state in (QMediaPlayer.PlaybackState.PausedState,

@@ -16,12 +16,17 @@ Kept small on purpose:
 
 - Only answers addresses of the local network, as the remote does; the
   tunnel arrives from loopback. Behind the tunnel the guest's own address is
-  the `CF-Connecting-IP` header — believed only from loopback, so a phone on
-  the Wi-Fi cannot pick a new one per request.
+  the `CF-Connecting-IP` header — believed only from loopback and only while
+  the tunnel is up, so a phone on the Wi-Fi cannot pick a new one per
+  request. A Host that is not this desk's own name is turned away, as there.
 - Every API call carries the event code from the QR code. A new code (each
   start, or "New code") turns every old link and photo of the QR away.
-- Each guest has a request budget, and all guests together another one;
-  wrong codes count against the guest's budget too.
+- Each guest (an IPv6 one by its /64) has a request budget, and all guests
+  together another one;
+  wrong codes count against the guest's budget too. Reading the title list
+  and what is playing has a larger budget of its own.
+- At most MAX_CONNECTIONS connections are served at once; one more is closed
+  before it gets a thread.
 - A request body is at most 1 KB, a wish at most MAX_WISH characters.
 
 Runs on daemon threads like the remote (http.server, no Qt); requests come
@@ -38,9 +43,10 @@ import unicodedata
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import cast
+from urllib.parse import urlsplit
 
 from shared.remote.guest_page import GUEST_CODE_HEADER, MAX_WISH, page_html
-from shared.remote.remote_server import lan_client
+from shared.remote.remote_server import desk_host, forwarded_client, lan_client, read_body
 
 log = logging.getLogger("dancesport.guests")
 
@@ -50,8 +56,12 @@ CODE_LENGTH = 6
 PER_GUEST = 10                # requests (and wrong codes) one guest may send…
 ALL_GUESTS = 120              # …and all guests together…
 _WINDOW_SECS = 600            # …within this long
+READS_PER_GUEST = 120        # title list and now playing: the page polls every 20 s
+ALL_READS = 3000
+MAX_CONNECTIONS = 200        # open at once, each holding a thread
 _IDLE_SECS = 60
 _MAX_BODY = 1024
+_BODY_SECS = 5                # the whole body, not each read of it
 
 
 def new_code() -> str:
@@ -65,6 +75,21 @@ def clean_wish(text) -> str:
         return ""
     kept = "".join(" " if unicodedata.category(ch).startswith("C") else ch for ch in text)
     return " ".join(kept.split())[:MAX_WISH].strip()
+
+
+def guest_key(addr: str) -> str:
+    """Whose budget a request spends: an IPv4 address as it is, an IPv6 one
+    by its /64 — a phone holds the whole network and may pick a new address
+    per request."""
+    try:
+        ip = ipaddress.ip_address(addr.split("%", 1)[0])
+    except ValueError:
+        return addr
+    if isinstance(ip, ipaddress.IPv6Address):
+        if ip.ipv4_mapped is not None:
+            return str(ip.ipv4_mapped)
+        return str(ipaddress.IPv6Network((ip, 64), strict=False))
+    return str(ip)
 
 
 class Budget:
@@ -82,6 +107,7 @@ class Budget:
 
     def spend(self, guest: str) -> bool:
         """One request from `guest`: True while both budgets allow it."""
+        guest = guest_key(guest)
         now = self._clock()
         cut = now - self._window
         with self._lock:
@@ -101,7 +127,20 @@ class Budget:
 class _Server(ThreadingHTTPServer):
     """The HTTP server, holding the GuestServer its handlers answer to."""
     guests: "GuestServer"
+    slots: threading.BoundedSemaphore
     allow_reuse_address = sys.platform != "win32"   # as the remote: never share a port
+
+    def process_request(self, request, client_address):
+        if not self.slots.acquire(blocking=False):
+            self.shutdown_request(request)
+            return
+        super().process_request(request, client_address)
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self.slots.release()
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -124,25 +163,25 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("X-Frame-Options", "DENY")   # no other page may frame it
         if ctype.startswith("text/html"):
             self.send_header("Content-Security-Policy",
                              "default-src 'none'; script-src 'unsafe-inline'; "
-                             "style-src 'unsafe-inline'; connect-src 'self'")
+                             "style-src 'unsafe-inline'; connect-src 'self'; "
+                             "frame-ancestors 'none'")
         self.end_headers()
         if body:
             self.wfile.write(body)
 
     def _guest(self) -> str:
         """Who is asking: the address, or behind the tunnel the guest's own."""
-        peer = self.client_address[0]
-        forwarded = (self.headers.get("CF-Connecting-IP") or "").strip()
-        if forwarded and ipaddress.ip_address(peer.split("%", 1)[0]).is_loopback:
-            return forwarded[:64]
-        return peer
+        return forwarded_client(self.client_address[0], self.headers,
+                                self.app.tunnel_host)
 
     def _gate(self) -> str | None:
         """The guest, when the request may go on; otherwise None, refusal sent."""
-        if not lan_client(self.client_address[0]):
+        if (not lan_client(self.client_address[0])
+                or not desk_host(self.headers.get("Host"), self.app.tunnel_host)):
             self.app.note("refused", self.client_address[0])
             self._send(403)
             return None
@@ -159,6 +198,16 @@ class _Handler(BaseHTTPRequestHandler):
             return None
         return guest
 
+    def _read_gate(self) -> bool:
+        """As `_api_gate`, for a read: it spends the guest's read budget."""
+        guest = self._api_gate()
+        if guest is None:
+            return False
+        if not self.app.spend_read(guest):
+            self._send(429)
+            return False
+        return True
+
     def do_GET(self):
         path = self.path.split("?", 1)[0]
         if path in ("/", "/index.html"):
@@ -167,10 +216,10 @@ class _Handler(BaseHTTPRequestHandler):
                 self.app.note("page", guest)
                 self._send(200, self.app.page, "text/html; charset=utf-8")
         elif path == "/api/catalog":
-            if self._api_gate() is not None:
+            if self._read_gate():
                 self._send(200, self.app.catalog_json())
         elif path == "/api/now":
-            if self._api_gate() is not None:
+            if self._read_gate():
                 self._send(200, json.dumps(self.app.now(), ensure_ascii=False).encode("utf-8"))
         else:
             self._send(404)
@@ -184,13 +233,18 @@ class _Handler(BaseHTTPRequestHandler):
         if not known or size < 0 or size > _MAX_BODY:
             # As the remote: closing on unread bytes resets the connection.
             if 0 < size <= 64 * _MAX_BODY:
-                self.rfile.read(size)
+                read_body(self, size, _BODY_SECS)
             self._send(413 if known else 404)
             self.close_connection = True
             return
-        raw = self.rfile.read(size)
+        # As the remote: the gate before the body, the body read away after.
         guest = self._api_gate()
         if guest is None:
+            read_body(self, size, _BODY_SECS)
+            self.close_connection = True
+            return
+        raw = read_body(self, size, _BODY_SECS)
+        if raw is None:
             return
         try:
             msg = json.loads(raw.decode("utf-8"))
@@ -220,6 +274,7 @@ class GuestServer:
         self._on_event = on_event
         self._host = host
         self._want_port = int(port)
+        self.tunnel_host = ""            # the tunnel's name while it is up
         self.page = page_html(labels or {}).encode("utf-8")
         self._lock = threading.Lock()
         self._code = code or new_code()
@@ -227,6 +282,7 @@ class GuestServer:
         self._catalog = b'{"songs":[]}'
         self._now: dict = {}
         self._budget = Budget()
+        self._reads = Budget(per_guest=READS_PER_GUEST, all_guests=ALL_READS)
         self._httpd: ThreadingHTTPServer | None = None
         self._thread: threading.Thread | None = None
 
@@ -243,6 +299,10 @@ class GuestServer:
         with self._lock:
             return self._code
 
+    def set_tunnel(self, url: str) -> None:
+        """The tunnel's public address once it is up; "" when it is gone."""
+        self.tunnel_host = urlsplit(url).hostname or ""
+
     def set_code(self, code: str) -> None:
         """A new event code at once: every older link is turned away."""
         with self._lock:
@@ -253,6 +313,7 @@ class GuestServer:
         httpd = _Server((self._host, self._want_port), _Handler)
         httpd.daemon_threads = True
         httpd.guests = self
+        httpd.slots = threading.BoundedSemaphore(MAX_CONNECTIONS)
         self._httpd = httpd
         self._thread = threading.Thread(target=httpd.serve_forever, args=(0.1,), daemon=True,
                                         name="guest-requests")
@@ -314,6 +375,10 @@ class GuestServer:
             return 429
         self.note("bad_code", guest)
         return 403
+
+    def spend_read(self, guest: str) -> bool:
+        """One read of the title list or what is playing: True while allowed."""
+        return self._reads.spend(guest)
 
     def take(self, guest: str, msg) -> int:
         """One request from `guest`: 204 taken, 400 malformed, 429 over budget."""

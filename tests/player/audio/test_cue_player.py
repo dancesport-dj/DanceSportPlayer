@@ -20,6 +20,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_cue_"))
 
 from PySide6.QtCore import Qt
+from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
@@ -85,6 +86,42 @@ class CuePlayerTest(unittest.TestCase):
         cue._path = _SONG
         cue.stop()
         cue.stop()
+        self.assertIsNone(cue.path)
+        self.assertEqual(seen, [1])
+
+    def test_stop_lets_go_of_the_card(self):
+        """The idle release (AudioDevice.release) leaves this player alone:
+        an empty source is what frees its card. Qt's FFmpeg backend drops
+        the playback engine, and with it the audio sink, on an empty
+        setSource (QFFmpegMediaPlayer::setMedia, Qt 6.11.2); a stop alone
+        keeps both."""
+        cue = CuePlayer()
+        song = Path(tempfile.mkdtemp(prefix="dp_cue_song_")) / "song.mp3"
+        song.write_bytes(b"x")
+        with mock.patch.object(cue._player, "play"):
+            cue.play(song, cue.audio_output.device())
+        self.assertFalse(cue.media_player.source().isEmpty())
+        cue.stop()
+        self.assertTrue(cue.media_player.source().isEmpty())
+
+    def test_a_title_that_will_not_decode_stops(self):
+        """It never reaches EndOfMedia: ▶/■ and the mini player stayed on
+        "playing" and Ctrl+←/→ kept steering the dead pre-listen."""
+        cue = CuePlayer()
+        seen = []
+        cue.stopped.connect(lambda: seen.append(1))
+        cue._path = _SONG
+        cue._player.mediaStatusChanged.emit(QMediaPlayer.MediaStatus.InvalidMedia)
+        self.assertIsNone(cue.path)
+        self.assertEqual(seen, [1])
+
+    def test_a_player_error_stops(self):
+        cue = CuePlayer()
+        seen = []
+        cue.stopped.connect(lambda: seen.append(1))
+        cue._path = _SONG
+        cue._player.errorOccurred.emit(QMediaPlayer.Error.ResourceError,
+                                       "file not found")
         self.assertIsNone(cue.path)
         self.assertEqual(seen, [1])
 

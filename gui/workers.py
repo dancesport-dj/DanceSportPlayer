@@ -12,6 +12,7 @@ import itertools
 import threading
 import time
 import logging
+import sqlite3
 from collections import deque
 from contextlib import closing
 from concurrent.futures import CancelledError, ThreadPoolExecutor
@@ -36,7 +37,7 @@ from planner import i18n
 from planner.generate import llm
 from planner.playlist.planned import path_key
 from planner.playlist.playlist_text import read_playlist_text
-from shared.audio.audio_probes import detect_pd_highlights, detect_silences, measure_lufs
+from shared.audio.audio_probes import detect_pd_highlights, detect_silences, measure_loudness
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -248,6 +249,16 @@ class GlobalCacheLoader(QThread):
             self.error.emit(str(exc))
 
 
+def _db_error_text(exc: Exception) -> str:
+    """What a maintenance worker reports: a write lock held by a running scan
+    or analysis is told apart from a real failure, since a later try works."""
+    msg = str(exc)
+    if isinstance(exc, sqlite3.OperationalError) and "locked" in msg:
+        msg += "\n\n" + i18n.t("Another task (a library scan or an analysis) is "
+                               "writing to the database. Let it finish, then try again.")
+    return msg
+
+
 class DbMaintenanceWorker(QThread):
     """Runs planner.db_maintenance() (orphan cleanup + VACUUM) off the UI thread.
 
@@ -260,7 +271,7 @@ class DbMaintenanceWorker(QThread):
         try:
             self.done.emit(db_maintenance())
         except Exception as exc:
-            self.error.emit(str(exc))
+            self.error.emit(_db_error_text(exc))
 
 
 class DbResetWorker(QThread):
@@ -276,7 +287,7 @@ class DbResetWorker(QThread):
         try:
             self.done.emit(reset_database(self._groups))
         except Exception as exc:
-            self.error.emit(str(exc))
+            self.error.emit(_db_error_text(exc))
 
 
 class PlaylistRelearnWorker(QThread):
@@ -393,6 +404,7 @@ class AudioAnalyzer(QThread):
     done      = Signal(int, int)             # (ok, errors)
     report    = Signal(dict)                 # {ok, errors, skipped, reasons}
     cancelled = Signal(int)                  # (analyzed so far)
+    error     = Signal(str)                  # died outside the per-file try
 
     def __init__(self, cache: AudioCache, entries: list, parent=None, force: bool = False):
         super().__init__(parent)
@@ -427,12 +439,19 @@ class AudioAnalyzer(QThread):
             self.progress.emit(done, total, errors, path.name, eta)
             runlog.progress(done, total, path.name, eta, errors)
 
-        ok, errors, was_cancelled = self._cache.analyze_entries(
-            self._entries,
-            progress_cb=progress,
-            should_cancel=lambda: self._cancel,
-            force=self._force,
-            on_error=note)
+        try:
+            ok, errors, was_cancelled = self._cache.analyze_entries(
+                self._entries,
+                progress_cb=progress,
+                should_cancel=lambda: self._cancel,
+                force=self._force,
+                on_error=note)
+        except Exception as exc:
+            # The per-file try leaves the DB calls and the save outside: a
+            # locked DB or a full disk ended the thread without `done`.
+            log.exception("🎵 Audio features failed")
+            self.error.emit(str(exc))
+            return
         if was_cancelled:
             runlog.stopped(ok)
             self.cancelled.emit(ok)
@@ -870,13 +889,15 @@ class LoudnessAnalyzer(LibraryPass):
     workers = 8
 
     def todo(self) -> list:
-        return [p for p in self.paths if self.cache.get_lufs(p) is None]
+        # A track measured before the true peak was read is measured again.
+        return [p for p in self.paths
+                if self.cache.get_lufs(p) is None or self.cache.get_tp(p) is None]
 
     def compute(self, path: Path):
-        return measure_lufs(self.ffmpeg, path)
+        return measure_loudness(self.ffmpeg, path)
 
     def store(self, path: Path, result) -> bool:
-        self.cache.put_lufs(path, result)
+        self.cache.put_lufs(path, *result)
         return True
 
 
@@ -943,6 +964,8 @@ class PdHighlightAnalyzer(LibraryPass):
     def measure(self, path: Path) -> bool:
         try:
             times = detect_pd_highlights(path)
+            if times is None:
+                raise OSError("no audio decoded")
             self.cache.put_pd_highlights(path, times)
         except Exception as exc:
             log.warning("🐂 Paso Doble highlight detection failed\n"

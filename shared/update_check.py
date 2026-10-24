@@ -19,6 +19,7 @@ import json
 import logging
 import threading
 import urllib.request
+from urllib.parse import urlsplit
 
 from planner.tls import tls_context
 from planner.version import DEV, app_version, numbers
@@ -54,6 +55,16 @@ def is_newer(latest: str, current: str) -> bool:
     return numbers(latest) > numbers(current)
 
 
+def _release_page(url) -> str:
+    """The page the notice may open: the answer's own, when it is an https
+    page of this repository on github.com, and otherwise the releases list."""
+    parts = urlsplit(str(url or ""))
+    if (parts.scheme == "https" and parts.hostname == "github.com"
+            and parts.path.startswith(f"/{REPO}/")):
+        return parts.geturl()
+    return RELEASES_PAGE
+
+
 def latest_release(timeout: float = _TIMEOUT_SECS) -> tuple[str, str] | None:
     """(version, release page) of the latest GitHub release, or None when
     GitHub cannot be reached or answers something else."""
@@ -73,7 +84,7 @@ def latest_release(timeout: float = _TIMEOUT_SECS) -> tuple[str, str] | None:
     tag = str(data.get("tag_name") or "").strip()
     if not tag:
         return None
-    return tag.removeprefix("v"), str(data.get("html_url") or RELEASES_PAGE)
+    return tag.removeprefix("v"), _release_page(data.get("html_url"))
 
 
 def check_in_background(settings: dict, on_newer) -> threading.Thread | None:

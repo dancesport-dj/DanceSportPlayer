@@ -75,6 +75,29 @@ class PlayLogTest(unittest.TestCase):
         self.assertEqual(rows[2][3:5], ["Señorita; live", ""])
         self.assertEqual(rows[2][7], "1:05")
 
+    def test_tags_that_look_like_formulas_stay_text_in_excel(self):
+        """A tag is whatever the file says: '=HYPERLINK(…)' as a title would
+        be a live formula when the GEMA report is opened in Excel."""
+        play_log.record(at(3, 20, 0), Path(r"C:\music\x.mp3"), "+49 Band",
+                        '=HYPERLINK("http://x","y")', "WW", "@list", 150.0,
+                        composer="-Anon")
+        self.play(at(3, 20, 3), "Plain")
+        out = self.dir / "evening.csv"
+        play_log.to_csv(play_log.plays(play_log.evenings()[0]), out)
+        with out.open(encoding="utf-8-sig", newline="") as f:
+            rows = list(csv.reader(f, delimiter=";"))
+        self.assertEqual(rows[1][2:5], ["'+49 Band", "'=HYPERLINK(\"http://x\",\"y\")", "'-Anon"])
+        self.assertEqual(rows[1][6], "'@list")
+        self.assertEqual(rows[2][2:4], ["Artist Plain", "Plain"])
+
+    def test_a_play_without_tags_exports_empty_cells(self):
+        play_log.record(at(3, 20, 0), Path(r"C:\music\x.mp3"), None, None, "WW", None, 150.0)
+        out = self.dir / "evening.csv"
+        play_log.to_csv(play_log.plays(play_log.evenings()[0]), out)
+        with out.open(encoding="utf-8-sig", newline="") as f:
+            rows = list(csv.reader(f, delimiter=";"))
+        self.assertEqual(rows[1][2:5] + rows[1][6:7], ["", "", "", ""])
+
     def test_the_composer_is_kept_with_the_play(self):
         """A GEMA report names who wrote each title, not only who played it."""
         self.play(at(3, 20, 0), "Moon River", composer="Henry Mancini")

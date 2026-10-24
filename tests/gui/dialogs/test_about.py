@@ -209,8 +209,8 @@ class HelpButtonTest(unittest.TestCase):
     def test_the_question_mark_offers_shortcuts_and_about(self):
         texts = [a.text() for a in self.win._help_menu().actions()]
         self.assertEqual(texts, ["⌨  Keyboard shortcuts  (F1)", "📜  Played titles…",
-                                 "⚙  Settings…  (F12 / Ctrl+Alt+S)", "ℹ  About…",
-                                 "⛶  Fullscreen  (F11)"])
+                                 "⛶  Fullscreen  (F11)", "📝  Export log…",
+                                 "⚙  Settings…  (F12 / Ctrl+Alt+S)", "ℹ  About…"])
 
     def test_the_entries_start_without_an_empty_gutter(self):
         """Marcel: "why are there a empty spot before the title comes" — Fusion
@@ -239,16 +239,16 @@ class HelpButtonTest(unittest.TestCase):
         pdfs(self.root, "", "de")
         texts = [a.text() for a in self.win._help_menu().actions()]
         self.assertEqual(texts, ["⌨  Keyboard shortcuts  (F1)", "📖  Manual", "📜  Played titles…",
-                                 "⚙  Settings…  (F12 / Ctrl+Alt+S)", "ℹ  About…",
-                                 "⛶  Fullscreen  (F11)"])
+                                 "⛶  Fullscreen  (F11)", "📝  Export log…",
+                                 "⚙  Settings…  (F12 / Ctrl+Alt+S)", "ℹ  About…"])
 
     def test_the_german_menu_offers_the_handbuch(self):
         pdfs(self.root, "", "de")
         self.german()
         texts = [a.text() for a in self.win._help_menu().actions()]
         self.assertEqual(texts, ["⌨  Tastenkürzel  (F1)", "📖  Handbuch", "📜  Gespielte Titel…",
-                                 "⚙  Einstellungen…  (F12 / Strg+Alt+S)", "ℹ  Über…",
-                                 "⛶  Vollbild  (F11)"])
+                                 "⛶  Vollbild  (F11)", "📝  Log exportieren…",
+                                 "⚙  Einstellungen…  (F12 / Strg+Alt+S)", "ℹ  Über…"])
 
     def test_the_manual_opens_in_the_pdf_viewer(self):
         manual = pdfs(self.root, "", "de")
@@ -263,8 +263,8 @@ class HelpButtonTest(unittest.TestCase):
         self.german()
         texts = [a.text() for a in self.win._help_menu().actions()]
         self.assertEqual(texts, ["⌨  Tastenkürzel  (F1)", "📜  Gespielte Titel…",
-                                 "⚙  Einstellungen…  (F12 / Strg+Alt+S)", "ℹ  Über…",
-                                 "⛶  Vollbild  (F11)"])
+                                 "⛶  Vollbild  (F11)", "📝  Log exportieren…",
+                                 "⚙  Einstellungen…  (F12 / Strg+Alt+S)", "ℹ  Über…"])
 
     def test_the_about_title_has_no_icon(self):
         """Marcel: the ℹ belongs to the menu entry, not the window title."""

@@ -31,8 +31,8 @@ import sys
 
 AREAS = ("planner", "gui", "player", "app", "shared")
 
-# Where a path's code lives, by prefix. tools/ and the build shims are tested
-# from tests/app.
+# Where a path's code lives, by prefix. tools/, speech/ and the build shims are
+# tested from tests/app.
 AREA_PREFIXES = {
     "planner/": "planner",
     "dancesport_planner.py": "planner",
@@ -40,6 +40,7 @@ AREA_PREFIXES = {
     "dancesport_gui.py": "gui",
     "player/": "player",
     "tools/": "app",
+    "speech/": "app",
 }
 
 FULL_TRIGGERS = (

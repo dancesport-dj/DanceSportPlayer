@@ -122,18 +122,20 @@ class PathRemapper:
         path is one long filename to `Path`, and there would be no folders to
         line up at all."""
         parts = foreign_parts(broken)
-        cands: list[Path] = []
+        tails: list[tuple[str, ...]] = []
         anchor = root.name.lower()
         idx = next((i for i in range(len(parts) - 1, -1, -1)
                     if parts[i].lower() == anchor), None)
         if idx is not None and idx + 1 < len(parts):
-            cands.append(root.joinpath(*parts[idx + 1:]))
+            tails.append(parts[idx + 1:])
         # From the whole chain down to the bare filename. The whole chain counts
         # because `foreign_parts` has already dropped the drive letter: what is
         # left of `F:\my music\…` is `my music\…`, and `~/Music/my music/…` is
         # exactly where it lands on the Mac.
         for n in range(len(parts), 0, -1):
-            cands.append(root.joinpath(*parts[-n:]))
+            tails.append(parts[-n:])
+        # A '..' could climb out of the root: such a tail is never a candidate.
+        cands = [root.joinpath(*tail) for tail in tails if ".." not in tail]
         seen: set[str] = set()
         for cand in cands:
             key = str(cand).lower()

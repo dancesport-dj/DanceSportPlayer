@@ -1,8 +1,8 @@
-"""🎛 The cartwall's pad settings: the per-pad dialog and the wall's fade dialog.
+"""🎛 The cartwall's pad settings: the per-pad dialog.
 
 CartPadDialog edits one pad (label, colour, volume, endless repeat, ducking,
-its own fade); WallFadeDialog sets the fade the whole wall uses. The colours
-a pad can be given (PAD_COLOURS) and the click-to-type labels live here too.
+its own fade); the fade the whole wall uses is in ⚙ Settings ▸ 🎛 Cartwall.
+The click-to-type labels live here too.
 The wall and its pads are in player.widgets.cartwall.
 """
 
@@ -20,20 +20,7 @@ from PySide6.QtWidgets import (
 from planner.playing import cartwall as pc
 from planner import i18n
 
-
-# Colours a pad can be given, in the order the colour menu lists them. "" means
-# "whatever the wall's default colour is". No BLUE here on purpose: blue is how
-# the wall says "this one is running" (light) and "this much has played" (deep),
-# and a pad painted in either would lie about its state.
-PAD_COLOURS = {
-    "Wall default": "",     # white unless the wall was given another one
-    "Grey": "#eceff4",
-    "Green": "#2f8f4e",
-    "Red": "#b23b3b",
-    "Olive": "#8a8a2b",
-    "Purple": "#7a3fbf",
-    "Amber": "#c8871a",
-}
+PAD_COLOURS = pc.PAD_COLOURS    # kept with the model, for ⚙ Settings too
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -48,7 +35,8 @@ class CartPadDialog(QDialog):
     previewFire = Signal(bool)      # ▶ / ⏹ inside the dialog
 
     def __init__(self, pad: pc.CartPad, parent=None, slot_key: str = "",
-                 pad_count: int = 1, wall_fade_ms: int = pc.DEFAULT_FADE_MS):
+                 pad_count: int = 1, wall_fade_ms: int = pc.DEFAULT_FADE_MS,
+                 background_pauses: bool = False):
         super().__init__(parent)
         self.setWindowTitle("Pad settings")
         self._pad = pad
@@ -138,11 +126,22 @@ class CartPadDialog(QDialog):
         self._loop.toggled.connect(
             lambda on: self._duck.setChecked(False) if on else None)
 
-        self._background = QCheckBox("🎶  Background: dip under the music while a title plays")
+        # ⚙ Settings ▸ 🎛 Cartwall decides what a title does to the pad
+        # (planner.playing.cartwall.background_pauses); the box says which.
+        if background_pauses:
+            self._background = QCheckBox("🎶  Background: pause while a title plays")
+            self._background.setToolTip(
+                "The other way round from 🔈: a title starting on the main\n"
+                "player pauses this pad, and it carries on from where it was\n"
+                "when the music stops.\n"
+                "(⚙ Settings → 🎛 Cartwall → 🎶 Background pads)")
+        else:
+            self._background = QCheckBox(
+                "🎶  Background: dip under the music while a title plays")
+            self._background.setToolTip(
+                "The other way round from 🔈: this pad goes silent while the\n"
+                "main player plays and comes back up in the pauses.")
         self._background.setChecked(pad.background)
-        self._background.setToolTip(
-            "The other way round from 🔈: this pad goes silent while the\n"
-            "main player plays and comes back up in the pauses.")
         lyt.addWidget(self._background)
         self._background.toggled.connect(self._on_background)
         self._on_background(pad.background)
@@ -315,39 +314,3 @@ class _TypedValue(_ClickableLabel):
             return
         # setValue clamps: 999 s of fade is not a fade, it is a stuck pad.
         self._slider.setValue(int(round(typed * self._per_unit)))
-
-
-class WallFadeDialog(QDialog):
-    """The fade-out every pad follows unless it was given one of its own."""
-
-    def __init__(self, fade_ms: int, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Wall fade-out")
-        lyt = QVBoxLayout(self)
-        lyt.addWidget(QLabel(
-            "How long a pad takes to let go when it is tapped again\n"
-            "or ⏹ stops the wall. A pad can override this in its own settings."))
-        self._fade = QSlider(Qt.Orientation.Horizontal)
-        self._fade.setRange(0, pc.MAX_FADE_MS)
-        self._fade.setSingleStep(100)
-        self._fade.setPageStep(500)
-        self._fade.setValue(max(0, min(pc.MAX_FADE_MS, int(fade_ms))))
-        self._lbl = _TypedValue(self._fade, 1000)
-        self._lbl.setMinimumWidth(44)
-        self._fade.valueChanged.connect(
-            lambda ms: self._lbl.setText("cut" if ms <= 0
-                                         else f"{ms / 1000:.1f} s"))
-        self._fade.valueChanged.emit(self._fade.value())
-        row = QHBoxLayout()
-        row.addWidget(QLabel("Fade out"))
-        row.addWidget(self._fade, 1)
-        row.addWidget(self._lbl)
-        lyt.addLayout(row)
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok
-                                   | QDialogButtonBox.StandardButton.Cancel)
-        buttons.accepted.connect(self.accept)
-        buttons.rejected.connect(self.reject)
-        lyt.addWidget(buttons)
-
-    def fade_ms(self) -> int:
-        return self._fade.value()

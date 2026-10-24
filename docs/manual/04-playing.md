@@ -97,6 +97,12 @@ Below the time sits the running title's **waveform**: the quiet passages,
 the silence that is skipped, the Paso Doble highlights and where the
 fade-out of a timed cut begins. In the last seconds it turns red.
 
+A **green line** marks where the title starts when it does not start at
+0:00: after a pre-roll, at a resume point or behind a skipped silent intro.
+The stretch before it is dimmed. With 🌅 fade-in on, the fade-in is tinted
+**gold**, the mirror of the red-tinted fade-out. A title brought in by a
+🔀 crossfade has no gold tint, because the crossfade does its fade-in.
+
 - **Click** it to jump to that spot. **Drag** along it to scrub: the playhead
   and the times follow the mouse, and the music jumps when you let go. A drag
   off the left edge goes to 0:00.
@@ -146,13 +152,22 @@ is skipped.
 at a highlight, the musical break the couples dance to.
 
 - **Stop after highlight** picks which one, usually the 2nd.
+  Where a round has its own pick in ⚙ Settings → 🎛 Play sets, the number
+  shows that pick while the list plays the 🏆 set's length (a round in
+  *full* reads as 3). Turning it there changes the pick for this list
+  alone; turning it back, or putting the 🏆 set on again, follows the
+  round again.
+- The highlights show on the waveform and under **✏️ Edit highlights** also
+  when the Paso Doble plays in full.
 - The highlights are detected by the analysis. When one is missing or wrong,
   click **🎯 Mark highlight now** exactly on the highlight while the title
   plays. **✖** forgets the learned marks of this title.
 - **✏️ Edit highlights** pauses the music and suspends the stop, so you can
   scrub through the whole title and set its marks.
 - **Start after** holds a Paso Doble back before the music starts, so the
-  couples can take their position. A Paso Doble picked up again at its
+  couples can take their position. The player card counts the wait down
+  where the title's stats stand, with the takt it plays at, *🐂 PD T60 in 5 s*, as it counts down
+  a pause; the stats come back when the music starts. A Paso Doble picked up again at its
   ↩ mark starts at once: the couples are still on the floor.
 
 With the switch off, a Paso Doble is an ordinary title.
@@ -167,6 +182,8 @@ With the switch off, a Paso Doble is an ordinary title.
   breath. Off, the next title follows at once.
 - **Pause music**: 📂 picks one or more titles, or an `.m3u`, that play during
   the pause. ✕ removes it. **Pause music volume** sets how loud it plays.
+  A 🎶 background pad of the cartwall gives way to the pause music as it
+  does to a title.
 - **🔀 Crossfade**: the last seconds of a title and the first of the next
   play together. The old one fades out while the new one fades in, so the
   floor never hears a gap. The caption is a switch: off, one title ends and
@@ -225,6 +242,10 @@ The app says the next dance out loud: "Nächster Tanz: Langsamer Walzer".
 
 - **🔊 Equalize volume (R128)**: levels the loudness between titles. It needs
   the loudness analysis.
+  It also keeps every title's true peak at −1 dBTP or below: a quiet
+  title that would clip when raised is raised less, and one mastered
+  over the ceiling comes down. A title measured by an older version is
+  measured again in the background.
 - **▶️ Double-click starts the title**: on, a double-click plays at once. Off,
   it only cues the title and ⏯ starts it. That is what a heat wants.
 - **↩ Remember where a title stopped**: a title you left starts again at that
@@ -255,14 +276,16 @@ What each set contains is yours to change, in
 [⚙ Settings ▸ 🎛 Play sets](06-settings.md#play-sets).
 
 The tournament set can also give a dance **its own play length**, for
-example 1:30 for the Viennese Waltz and 1:37 for the Tango. While a list is on
-the 🏆 set, the big number shows that dance's length, and the dance is named in
+example 1:30 for the Viennese Waltz and 1:37 for the Tango. While a list plays
+the 🏆 set's length, the big number shows that dance's length, and the dance is named in
 gold underneath. This is the dance that is playing, or else the row you
 picked. **− / +** and typing then change that dance's length, not the list's.
-Change the list's length by hand and the list leaves the set: from then on its
-one length applies to every dance. Out of the box the 🏆 set plays 1:30 for
+Only the length counts: ⏭ Auto, the pause or any other switch may differ
+from the set. Change the list's length by hand and from then on its one
+length applies to every dance. Out of the box the 🏆 set plays 1:30 for
 the Waltz, Viennese Waltz, Quickstep and Jive, and 1:37 for the Tango,
-Slow Foxtrot, Samba, Cha-Cha-Cha and Rumba; the Paso Doble has no length of its own.
+Slow Foxtrot, Samba, Cha-Cha-Cha and Rumba. The Paso Doble plays in full, or
+to its highlight, see [⚙ Settings ▸ 🎛 Play sets](06-settings.md#play-sets).
 
 ### 🖥 Presenter
 
@@ -314,8 +337,8 @@ drum roll, the national anthem, a jingle for the award ceremony.
 ![The cartwall docked to the right of the decks](img/main-cartwall.png)
 
 - **Click a pad** to fire it over the running music. Click it again to fade
-  it out, over 1 s. Right-click a pad ▸ **⏱ Wall fade-out…** sets that time
-  for the whole wall; **Own fade-out** in a pad's **Settings…** gives one
+  it out, over 1 s. ⚙ Settings ▸ 🎛 Cartwall ▸ **⏱ Pads fade out over**
+  sets that time for the whole wall; **Own fade-out** in a pad's **Settings…** gives one
   pad its own.
 - **Ctrl + 1 … 9** fire the first nine pads of the page on screen.
 - **⏹ Stop all** or **Esc** fades every pad out.
@@ -327,11 +350,16 @@ drum roll, the national anthem, a jingle for the award ceremony.
   A multi-select fills the free pads after it. Drag one pad onto another to
   swap them. Lock the wall again before the tournament, so nothing moves by
   accident.
-- **Right-click a pad** for its 🎨 colour, or **Settings…** for its label,
-  volume, own shortcut key, 🔁 endless repeat, and whether it ducks the music.
+- With **✏** on, **right-click a pad** for its 🎨 colour, 🗑 clear, or
+  **Settings…** for its label, volume, own shortcut key, 🔁 endless repeat,
+  and whether it ducks the music. With the wall locked, the right-click
+  offers **⚙ Cartwall settings…**, which opens ⚙ Settings on its
+  [🎛 Cartwall](06-settings.md#cartwall) tab, and **⌨ Shortcuts…**.
 - **🎶 Background** turns that round: the pad itself goes silent while a
   title plays and fades back in once the title has ended. Use it for a bed that runs
-  through the evening. A background pad never ducks the music.
+  through the evening. A background pad never ducks the music. To have it
+  pause instead, see ⚙ Settings ▸ 🎛 Cartwall ▸ **🎶 Background pads when
+  a title starts**.
 - **S Stop the other pads** in a pad's **Settings…** fades every other
   running pad out as this one starts, for an anthem or a winners' fanfare
   that needs the room.
@@ -350,7 +378,7 @@ drum roll, the national anthem, a jingle for the award ceremony.
 
 ### ⌨ The cartwall's keys
 
-**Right-click a pad ▸ ⌨ Shortcuts…** opens the **⌨ Keys** window on its
+With the wall locked, **right-click a pad ▸ ⌨ Shortcuts…** opens the **⌨ Keys** window on its
 **🎛 Cartwall** tab. While the wall is unlocked with ✏, the **⌨** button
 beside ✏ opens it too. The tab lists every key the wall answers to:
 

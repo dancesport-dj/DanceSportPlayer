@@ -351,12 +351,56 @@ class VoiceFadeTest(_VoiceCase):
         self._drain_fades()
         self.assertEqual(self._live(), [])
 
+    def test_stop_all_says_how_long_the_longest_fade_runs(self):
+        # ✕ waits that long before the window goes (_fade_out_to_quit).
+        self.v.set_wall_fade(1500)
+        self.v.fire((0, 0, 0), _pad("s0.mp3"))
+        self.v.fire((0, 0, 1), _pad("s1.mp3", fade_ms=4000))
+        self.assertEqual(self.v.stop_all(), 4000)
+        self.assertEqual(self.v.stop_all(), 0, "already fading: nothing new")
+
     # ── rate limiting ────────────────────────────────────────────────────────
     def test_a_double_click_is_one_tap(self):
         key = (0, 0, 0)
         self.assertTrue(self.v.fire(key, _pad()))
-        self.assertFalse(self.v.fire(key, _pad()))
+        # None, not False: the second half is ignored, no voice was missing.
+        self.assertIsNone(self.v.fire(key, _pad()))
         self.assertEqual(len(self._live()), 1)
+
+    def test_only_a_full_pool_answers_false(self):
+        for i in range(4):
+            self.v.fire((0, 0, i), _pad(f"bed{i}.mp3", loop=True))
+        self.assertIs(self.v.fire((0, 1, 0), _pad("late.mp3")), False)
+
+
+class PadTapMessageTest(unittest.TestCase):
+    """What the tap says when the pool did not start the pad: "no free voice"
+    only when that is true — not for a double-click's ignored second half."""
+
+    def tap(self, fired):
+        from unittest import mock
+        from player.window.main_cartwall import CartwallMixin
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
+            self.addCleanup(os.remove, f.name)
+        host = mock.Mock()
+        host._cartwall.pad_at.return_value = pc.CartPad(path=f.name)
+        host._cart_voices.is_playing.return_value = False
+        host._cart_voices.fire.return_value = fired
+        CartwallMixin._on_pad_clicked(host, (0, 0, 0))
+        return host
+
+    def test_a_double_click_says_nothing(self):
+        host = self.tap(None)
+        host.statusBar().showMessage.assert_not_called()
+        host._cartwall.set_playing.assert_not_called()
+
+    def test_a_full_pool_says_so(self):
+        host = self.tap(False)
+        self.assertIn("No free pad voice",
+                      host.statusBar().showMessage.call_args.args[0])
+
+    def test_a_started_pad_lights_up(self):
+        self.tap(True)._cartwall.set_playing.assert_called_once_with((0, 0, 0), True)
 
 
 class VoiceLevelTest(_VoiceCase):
@@ -500,6 +544,86 @@ class BackgroundPadTest(_VoiceCase):
         self.v.set_music_playing(True)
         self._drain_background()
         self.assertEqual(self._voice((0, 0, 0)).out.volume(), 0.0)
+
+    def test_by_default_it_keeps_running_under_the_title(self):
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True))
+        self.v.set_music_playing(True)
+        self._drain_fades()
+        self.assertEqual(self.v.playing_keys(), [(0, 0, 0)])
+
+    def test_set_to_pause_a_starting_title_holds_it_once_silent(self):
+        """'the pad option stop is wrong it should be pause, it should continue
+        playing when music in main player stops'."""
+        stopped = []
+        self.v.padStopped.connect(stopped.append)
+        self.v.set_background_pauses(True)
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True))
+        self.v.fire((0, 0, 1), _pad("tusch.mp3"))
+        self.v.set_music_playing(True)
+        self._drain_background()
+        self.assertEqual(self._voice((0, 0, 0)).player._state, "paused")
+        self.assertEqual(self._voice((0, 0, 1)).player._state, "playing",
+                         "only background pads pause, a one-shot plays on")
+        self.assertEqual(stopped, [])
+        self.assertIn((0, 0, 0), self.v.playing_keys(), "it keeps its voice")
+
+    def test_set_to_pause_it_carries_on_from_where_it_was(self):
+        self.v.set_background_pauses(True)
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True))
+        voice = self._voice((0, 0, 0))
+        voice.player._pos = 4200                # 4.2 s into the bed
+        self.v.set_music_playing(True)
+        self._drain_background()
+        self.v.set_music_playing(False)
+        self.v._lift_background()               # the hold ran out
+        self.assertEqual(voice.player._state, "playing")
+        self.assertEqual(voice.player.position(), 4200)
+        levels = self._drain_background()
+        self.assertTrue(all(b >= a for a, b in zip(levels, levels[1:], strict=False)),
+                        "it fades back in, it does not jump")
+        self.assertAlmostEqual(voice.out.volume(), 1.0)
+
+    def test_set_to_pause_a_bed_fired_under_a_title_waits(self):
+        self.v.set_background_pauses(True)
+        self.v.set_music_playing(True)
+        while self.v._bg_ramp.isActive():       # no pad yet for _drain_background
+            self.v._step_background()
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True))
+        voice = self._voice((0, 0, 0))
+        self.assertEqual(voice.player._state, "paused")
+        self.v.set_music_playing(False)
+        self.v._lift_background()
+        self.assertEqual(voice.player._state, "playing")
+
+    def test_a_title_starting_again_in_the_hold_keeps_it_paused(self):
+        self.v.set_background_pauses(True)
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True))
+        self.v.set_music_playing(True)
+        self._drain_background()
+        self.v.set_music_playing(False)         # the gap between two titles
+        self.v.set_music_playing(True)
+        self.assertFalse(self.v._bg_hold.isActive())
+        self.assertEqual(self._voice((0, 0, 0)).player._state, "paused")
+
+    def test_a_paused_bed_can_still_be_stopped(self):
+        stopped = []
+        self.v.padStopped.connect(stopped.append)
+        self.v.set_background_pauses(True)
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True))
+        self.v.set_music_playing(True)
+        self._drain_background()
+        self.v.stop_all()
+        self._drain_fades()
+        self.assertEqual(stopped, [(0, 0, 0)])
+        self.assertEqual(self.v.playing_keys(), [])
+
+    def test_the_setting_reads_pause_only_when_it_says_so(self):
+        self.assertFalse(pc.background_pauses({}))
+        self.assertFalse(pc.background_pauses({"cart_bg_mode": "mute"}))
+        self.assertFalse(pc.background_pauses({"cart_bg_mode": 7}))
+        self.assertTrue(pc.background_pauses({"cart_bg_mode": "pause"}))
+        # What the old option saved: it was meant as pause all along.
+        self.assertTrue(pc.background_pauses({"cart_bg_mode": "stop"}))
 
 
 class StopsOthersPadTest(_VoiceCase):
@@ -645,6 +769,100 @@ class VoiceLifecycleTest(_VoiceCase):
         self.v._emit_tick()
         self.assertEqual(seen[0][0][0], (0, 0, 0))
         self.assertEqual(seen[0][0][1], 10_000)
+
+
+class BackgroundSettingTest(unittest.TestCase):
+    """⚙ Settings ▸ 🎛 Cartwall picks mute or pause, and the window hands
+    the pick to the pool."""
+
+    def _dialog(self, settings):
+        from gui.dialogs.settings_dialog import SettingsDialog
+        from tests.qt_test_support import reap_widget
+        dlg = SettingsDialog(settings)
+        self.addCleanup(reap_widget, dlg)
+        return dlg
+
+    def test_the_dialog_starts_on_mute_and_saves_the_pick(self):
+        dlg = self._dialog({})
+        self.assertEqual(dlg._cart_bg_combo.currentData(), "mute")
+        dlg._cart_bg_combo.setCurrentIndex(dlg._cart_bg_combo.findData("pause"))
+        self.assertEqual(dlg.values()["cart_bg_mode"], "pause")
+        self.assertEqual(
+            self._dialog({"cart_bg_mode": "pause"})._cart_bg_combo.currentData(), "pause")
+        # An old "stop" opens as pause, and saving writes the new name.
+        self.assertEqual(
+            self._dialog({"cart_bg_mode": "stop"})._cart_bg_combo.currentData(), "pause")
+
+    def test_the_window_passes_it_to_the_pool(self):
+        from types import SimpleNamespace
+        from typing import Any, cast
+
+        from player.window.main_cartwall import CartwallMixin
+        voices = cart_voices.CartVoices(voices=1, factory=_factory)
+        self.addCleanup(voices.shutdown)
+        from player.audio.mix import OutputMix
+        host = cast(Any, SimpleNamespace(_settings={"cart_bg_mode": "pause"},
+                                         _cart_voices=voices, _mix=OutputMix()))
+        CartwallMixin.apply_cart_settings(host)
+        self.assertTrue(voices._bg_pauses)
+        host._settings = {}
+        CartwallMixin.apply_cart_settings(host)
+        self.assertFalse(voices._bg_pauses)
+
+
+class CartDuckSettingDialogTest(unittest.TestCase):
+    """🎛 How far a pad ducks the music: a percent spin with its dB beside it."""
+
+    def _dialog(self, settings):
+        from gui.dialogs.settings_dialog import SettingsDialog
+        from tests.qt_test_support import reap_widget
+        dlg = SettingsDialog(settings)
+        self.addCleanup(reap_widget, dlg)
+        return dlg
+
+    def test_it_starts_at_a_tenth_and_says_so_in_db(self):
+        dlg = self._dialog({})
+        self.assertEqual(dlg._cart_duck_spin.value(), 10)
+        self.assertEqual(dlg._cart_duck_db.text(), "≈ −20 dB")
+
+    def test_the_db_follows_the_spin_and_the_pick_is_saved(self):
+        dlg = self._dialog({"cart_duck_pct": 30})
+        self.assertEqual(dlg._cart_duck_db.text(), "≈ −10 dB")
+        dlg._cart_duck_spin.setValue(50)
+        self.assertEqual(dlg._cart_duck_db.text(), "≈ −6 dB")
+        self.assertEqual(dlg.values()["cart_duck_pct"], 50)
+
+    def test_the_desk_duck_shows_its_db_too(self):
+        dlg = self._dialog({})
+        self.assertEqual(dlg._duck_spin.value(), 20)
+        self.assertEqual(dlg._duck_db.text(), "≈ −14 dB")
+        dlg._duck_spin.setValue(0)
+        self.assertEqual(dlg._duck_db.text(), "−∞ dB")
+        self.assertEqual(self._dialog({"duck_pct": 50})._duck_db.text(), "≈ −6 dB")
+
+    def test_a_note_under_the_ducks_spells_out_percent_against_db(self):
+        from shared.audio.playback import duck_db_text
+        note = self._dialog({})._duck_note.text()
+        for pct in (10, 20, 30, 50):
+            with self.subTest(pct=pct):
+                self.assertIn("%d %% %s" % (pct, duck_db_text(pct)), note)
+        self.assertIn("half as loud", note)
+
+    def test_the_window_moves_a_running_pad_duck_to_it(self):
+        from types import SimpleNamespace
+        from typing import Any, cast
+
+        from player.audio.mix import OutputMix
+        from player.window.main_cartwall import CartwallMixin
+        mix = OutputMix()
+        mix.duck_reason("cartwall", True)
+        reasons = []
+        host = cast(Any, SimpleNamespace(
+            _settings={"cart_duck_pct": 40}, _mix=mix,
+            _set_duck_reason=lambda r, on: reasons.append((r, on))))
+        CartwallMixin.apply_cart_settings(host)
+        self.assertAlmostEqual(mix.duck_target, 0.4)
+        self.assertEqual(reasons, [("cartwall", True)], "the ramp has to start")
 
 
 if __name__ == "__main__":

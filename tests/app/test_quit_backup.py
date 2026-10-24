@@ -22,6 +22,7 @@ from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QApplication, QMainWindow
 
 import dancesport_gui as dg
+from player.audio.fade_now import FadeNow
 
 
 class QuitBackupTest(unittest.TestCase):
@@ -43,6 +44,8 @@ class QuitBackupTest(unittest.TestCase):
         win._controller_shutdown = mock.Mock()
         win._audio_device = mock.Mock()
         win._stop_workers = order.stop_workers
+        win._fade_now = FadeNow()
+        win._quit_after_fade = mock.Mock(return_value=False)   # nothing to fade
         with mock.patch.object(dg, "backup_safely", order.backup_safely):
             win.closeEvent(QCloseEvent())
         self.assertEqual(order.mock_calls,

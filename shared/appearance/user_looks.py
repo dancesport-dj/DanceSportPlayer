@@ -62,7 +62,7 @@ def from_dict(data: dict) -> looks.Look:
     if not name:
         raise ValueError("name")
     family = data.get("family")
-    if family not in {g for g, _label in looks.GROUPS}:
+    if not isinstance(family, str) or family not in {g for g, _label in looks.GROUPS}:
         raise ValueError(f"family: {family!r}")
     for field, allowed in (("buttons", looks.BUTTON_STYLES),
                            ("tabs", looks.TAB_STYLES),
@@ -154,20 +154,32 @@ def _save_looks() -> bool:
     return STORE.write({"version": VERSION, "looks": [to_dict(lk) for lk in mine()]})
 
 
+def _save_or_undo(before: dict) -> bool:
+    """Save; when the file cannot be written, put the registry back as it was,
+    so the looks the app shows are the ones on disk."""
+    if _save_looks():
+        return True
+    looks.LOOKS.clear()
+    looks.LOOKS.update(before)
+    return False
+
+
 def put(look: looks.Look) -> bool:
     """Add a look of your own, or replace the one with its key, and save."""
     if look.group != GROUP or not look.key.startswith(KEY_PREFIX):
         raise ValueError(f"not an own look: {look.key}")
+    before = dict(looks.LOOKS)
     looks.LOOKS[look.key] = look
-    return _save_looks()
+    return _save_or_undo(before)
 
 
 def remove(key: str) -> bool:
     look = looks.get(key)
     if look is None or look.group != GROUP:
         return False
+    before = dict(looks.LOOKS)
     del looks.LOOKS[key]
-    return _save_looks()
+    return _save_or_undo(before)
 
 
 # ── One look as a file, to pass on ──────────────────────────────────────────
@@ -179,10 +191,15 @@ def export(look: looks.Look, path: Path) -> None:
     config.write_json_atomic(Path(path), {FILE_MARK: VERSION, **to_dict(look)})
 
 
+class NotSaved(OSError):
+    """The look was fine but looks.json could not be written."""
+
+
 def import_file(path: Path) -> looks.Look:
     """Read a look exported elsewhere and add it as one of yours. A name or key
     already taken gets a number. ValueError when the file is not a look,
-    OSError when it cannot be read."""
+    OSError when it cannot be read, NotSaved (taken out again) when it
+    cannot be kept."""
     try:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
@@ -195,5 +212,6 @@ def import_file(path: Path) -> looks.Look:
     while name in taken:
         name, n = f"{look.caption} ({n})", n + 1
     look = dataclasses.replace(look, caption=name, key=new_key(name))
-    put(look)
+    if not put(look):
+        raise NotSaved(STORE.name)
     return look

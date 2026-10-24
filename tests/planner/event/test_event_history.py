@@ -223,5 +223,20 @@ class EventHistoryTest(unittest.TestCase):
         self.assertEqual(dances, {"LW", "TG", "CC", "RB"})
 
 
+class UnreadableListTest(unittest.TestCase):
+
+    def test_a_list_that_cannot_be_read_says_so(self):
+        """L20: a locked or vanished list read as empty with no trace, so the
+        plan quietly lost a year and nothing told anyone why."""
+        from unittest import mock
+        m3u = Path(r"C:\Playlists\DanceConvention 2025\HGR_S_STD.m3u")
+        with mock.patch.object(event_plan, "read_playlist_text",
+                               side_effect=PermissionError(13, "locked")), \
+                self.assertLogs("dancesport.event", "WARNING") as logs:
+            self.assertEqual(event_plan._read_entries(m3u, lambda line: None), [])
+        self.assertIn("HGR_S_STD.m3u", logs.output[0])
+        self.assertIn("locked", logs.output[0])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -122,9 +122,12 @@ if FULL:
 # A presenter theme's mark, resolved by player/presenter/presenter_theme.py relative to
 # the repo root — so it has to land in the bundle under the same folder name.
 # The wedding marks are a couple's names and stay out of git: a clone has none,
-# and the theme then simply shows no mark.
+# and the theme then simply shows no mark. Where the folder does exist, they
+# still go in only when asked (set DANCESPORT_WEDDING_MARKS=1), so an
+# installer built for anyone else never carries them.
+WEDDING_MARKS = os.environ.get("DANCESPORT_WEDDING_MARKS", "").strip() == "1"
 _marks = os.path.join(SPECPATH, "assets", "hochzeit")
-if os.path.isdir(_marks):
+if WEDDING_MARKS and os.path.isdir(_marks):
     datas += [(os.path.join(_marks, "*.png"), os.path.join("assets", "hochzeit"))]
 # The recorded dance announcements, one folder per language and voice. Missing
 # ones only cost the hall the German clip or the announcement, so an

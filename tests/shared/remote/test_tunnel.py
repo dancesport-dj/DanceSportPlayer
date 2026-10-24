@@ -1,4 +1,5 @@
 """🌐 The Cloudflare quick tunnel: finding cloudflared, fetching it, reading its address."""
+import hashlib
 import io
 import shutil
 import ssl
@@ -31,6 +32,11 @@ class _Response(io.BytesIO):
     def __init__(self, data):
         super().__init__(data)
         self.headers = {"Content-Length": str(len(data))}
+
+
+def _pinned(asset, data):
+    """The release hash of `asset` set to that of `data`, the fake download."""
+    return mock.patch.dict(tunnel._SHA256, {asset: hashlib.sha256(data).hexdigest()})
 
 
 class AssetTest(unittest.TestCase):
@@ -104,7 +110,7 @@ class DownloadTest(unittest.TestCase):
         def opener(url, timeout):
             urls.append(url)
             return _Response(data)
-        with mock.patch.object(tunnel, "asset_name", return_value="cloudflared-windows-amd64.exe"):
+        with mock.patch.object(tunnel, "asset_name", return_value="cloudflared-windows-amd64.exe"),                 _pinned("cloudflared-windows-amd64.exe", data):
             path = tunnel.download(self.dir, lambda d, t: seen.append((d, t)), opener=opener)
         self.assertEqual(urls, [tunnel.DOWNLOAD_BASE + "cloudflared-windows-amd64.exe"])
         self.assertEqual(path, self.dir / tunnel.binary_name())
@@ -119,7 +125,7 @@ class DownloadTest(unittest.TestCase):
             info = tarfile.TarInfo("cloudflared")
             info.size = 5
             tgz.addfile(info, io.BytesIO(b"macho"))
-        with mock.patch.object(tunnel, "asset_name", return_value="cloudflared-darwin-arm64.tgz"):
+        with mock.patch.object(tunnel, "asset_name", return_value="cloudflared-darwin-arm64.tgz"),                 _pinned("cloudflared-darwin-arm64.tgz", buf.getvalue()):
             path = tunnel.download(self.dir, opener=lambda url, timeout: _Response(buf.getvalue()))
         self.assertEqual(path.read_bytes(), b"macho")
 
@@ -132,6 +138,7 @@ class DownloadTest(unittest.TestCase):
         """A Mac without a CA file of its own failed with "certificate verify
         failed": certifi's roots come along with the system's."""
         with mock.patch.object(tunnel, "asset_name", return_value="cloudflared-linux-amd64"), \
+                _pinned("cloudflared-linux-amd64", b"elf"), \
                 mock.patch.object(tunnel.urllib.request, "urlopen",
                                   return_value=_Response(b"elf")) as urlopen:
             tunnel.download(self.dir)
@@ -148,6 +155,24 @@ class DownloadTest(unittest.TestCase):
         with self.assertRaises(OSError):
             tunnel.download(self.dir, opener=opener)
         self.assertFalse((self.dir / tunnel.binary_name()).exists())
+
+    def test_the_download_is_the_pinned_version(self):
+        """"latest" would run whatever the release page holds today, checked
+        against nothing."""
+        self.assertNotIn("latest", tunnel.DOWNLOAD_BASE)
+        self.assertTrue(tunnel.DOWNLOAD_BASE.endswith(f"/download/{tunnel.CLOUDFLARED_VERSION}/"))
+
+    def test_every_release_file_has_its_hash(self):
+        for plat, machine in (("win32", "AMD64"), ("darwin", "arm64"), ("darwin", "x86_64"),
+                              ("linux", "x86_64"), ("linux", "aarch64")):
+            asset = tunnel.asset_name(plat, machine)
+            self.assertRegex(tunnel._SHA256.get(asset, ""), r"^[0-9a-f]{64}$", asset)
+
+    def test_a_download_that_is_not_the_release_is_thrown_away(self):
+        with mock.patch.object(tunnel, "asset_name", return_value="cloudflared-windows-amd64.exe"),                 _pinned("cloudflared-windows-amd64.exe", b"the real one"):
+            with self.assertRaises(ValueError):
+                tunnel.download(self.dir, opener=lambda url, timeout: _Response(b"MZ planted"))
+        self.assertEqual(list(self.dir.iterdir()), [])
 
 
 class NoSslBuildTest(unittest.TestCase):

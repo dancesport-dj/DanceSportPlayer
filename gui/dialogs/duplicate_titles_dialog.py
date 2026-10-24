@@ -1,7 +1,8 @@
 """♊ Which file of a title to keep — the choice behind "Remove duplicate titles".
 
 A copy of the very same bytes can simply go: it doesn't matter which of two
-identical files stays. Another file of the same title — a tournament '_cut', a
+identical files stays. That is the default, and Keep all keeps them too: a
+list may hold a title twice on purpose. Another file of the same title — a tournament '_cut', a
 re-encode, a second release — is a different recording, so for each such title
 the user picks the one to keep, or keeps them all.
 """
@@ -28,7 +29,8 @@ def _describe(entry) -> str:
 class DuplicateTitlesDialog(QDialog):
     """`identical`: (removed entry, kept entry) pairs, shown for information only.
     `groups`: per title, the (row, entry) of every file holding it, in list order.
-    After exec, `removed_rows()` gives the group rows the user chose away.
+    After exec, `removed_rows()` gives the group rows the user chose away and
+    `keeps_identical()` whether the identical copies stay as well.
     `play_cb(path | None)` plays / stops a file: each file gets a ▶ to hear it."""
 
     def __init__(self, parent, identical, groups, play_cb=None):
@@ -40,6 +42,7 @@ class DuplicateTitlesDialog(QDialog):
         self.play_buttons: list[QPushButton] = []
         self._button_groups = []
         self._play_cb = play_cb
+        self.identical_keep: QRadioButton | None = None
         self._playing = None                         # the ▶ button now showing ■
         self.finished.connect(lambda _=0: self._stop_preview())
 
@@ -54,14 +57,20 @@ class DuplicateTitlesDialog(QDialog):
         body = QWidget()
         lyt = QVBoxLayout(body)
         if identical:
-            box = QGroupBox(
-                i18n.t("🟰  Identical files — the earlier copy is removed, the last stays (%d)")
-                % len(identical))
+            box = QGroupBox(i18n.t("🟰  Identical files (%d)") % len(identical))
             b = QVBoxLayout(box)
             for gone, _kept in identical[:8]:
                 b.addWidget(QLabel(_describe(gone)))
             if len(identical) > 8:
                 b.addWidget(QLabel(i18n.t("… and %d more") % (len(identical) - 8)))
+            bg = QButtonGroup(box)
+            drop = QRadioButton(i18n.t("🧹  Remove the earlier copies, the last stays"))
+            drop.setChecked(True)
+            self.identical_keep = QRadioButton("Keep all")
+            for rb in (drop, self.identical_keep):
+                bg.addButton(rb)
+                b.addWidget(rb)
+            self._button_groups.append(bg)
             lyt.addWidget(box)
         for group in self._groups:
             first = group[0][1]
@@ -132,6 +141,10 @@ class DuplicateTitlesDialog(QDialog):
             self._play_cb(None)
             self._playing.setText("▶")
             self._playing = None
+
+    def keeps_identical(self) -> bool:
+        """Keep all picked for the identical copies."""
+        return self.identical_keep is not None and self.identical_keep.isChecked()
 
     def removed_rows(self) -> set[int]:
         """The rows of every file not picked in a group that has a pick."""

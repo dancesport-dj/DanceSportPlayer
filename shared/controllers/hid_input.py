@@ -34,18 +34,33 @@ def _hid_id(vendor: int, product: int) -> str:
     return f"{vendor:04x}:{product:04x}"
 
 
+def _units() -> dict[str, list[dict]]:
+    """The interfaces of every HID unit plugged in now, by id. A second unit
+    of the same model (told apart by its serial number) is "vvvv:pppp #2",
+    as two identical MIDI controllers are; units without a serial can't be
+    told apart and stay one."""
+    if hid is None:
+        return {}
+    units, serials = {}, {}
+    for d in hid.enumerate():
+        ident = _hid_id(d.get("vendor_id", 0), d.get("product_id", 0))
+        seen = serials.setdefault(ident, [])
+        serial = d.get("serial_number") or ""
+        if serial not in seen:
+            seen.append(serial)
+        n = seen.index(serial) + 1
+        units.setdefault(ident if n == 1 else f"{ident} #{n}", []).append(d)
+    return units
+
+
 def list_devices(all_devices: bool = False) -> list[tuple[str, str]]:
     """(id, name) per HID device plugged in now, one entry per device however
     many interfaces it has. DJ vendors only unless `all_devices`."""
-    if hid is None:
-        return []
-    out, seen = [], set()
-    for d in hid.enumerate():
-        vid, pid = d.get("vendor_id", 0), d.get("product_id", 0)
-        ident = _hid_id(vid, pid)
-        if ident in seen or not (all_devices or vid in DJ_VENDORS):
+    out = []
+    for ident, ifaces in _units().items():
+        d = ifaces[0]
+        if not (all_devices or d.get("vendor_id", 0) in DJ_VENDORS):
             continue
-        seen.add(ident)
         name = " ".join(s for s in (d.get("manufacturer_string") or "",
                                     d.get("product_string") or "")
                         if s.strip()) or ident
@@ -56,16 +71,13 @@ def list_devices(all_devices: bool = False) -> list[tuple[str, str]]:
 def _path_for(ident: str):
     """The interface to read: the vendor-defined one (where controllers put
     their buttons), else the device's first."""
-    if hid is None:
+    ifaces = _units().get(ident)
+    if not ifaces:
         return None
-    first = None
-    for d in hid.enumerate():
-        if _hid_id(d.get("vendor_id", 0), d.get("product_id", 0)) != ident:
-            continue
+    for d in ifaces:
         if d.get("usage_page", 0) >= 0xFF00:
             return d["path"]
-        first = first or d["path"]
-    return first
+    return ifaces[0]["path"]
 
 
 class HidInput:

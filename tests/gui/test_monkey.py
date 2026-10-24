@@ -3,7 +3,9 @@
 
 Run:  py -m unittest tests.gui.test_monkey -v
 Long: set DANCEPLAYLIST_MONKEY_STEPS=2000 and DANCEPLAYLIST_MONKEY_SEED=<n>
+      (DANCEPLAYLIST_MONKEY_DIALOG_CLICKS=15 works the dialogs deeper)
       (DANCEPLAYLIST_MONKEY_TRACE=1 prints every action as it happens)
+Nightly: .github/workflows/monkey-nightly.yml walks four seeds long and deep.
 
 The unit tests drive one handler at a time, with the state that handler
 expects. Nobody drives the window the way a hurried operator does: Playing
@@ -11,32 +13,44 @@ mode with no deck, the cartwall half open, a combo changed while a dialog sits
 on top. This test does. It builds a real MainWindow on a small library of
 silent MP3s, then for a fixed number of steps picks a random visible, enabled
 control and works it — buttons, combos, tabs, sliders, spin boxes, text fields,
-table cells, context menus, menu-bar actions, shortcuts. Every modal dialog and
-popup menu that opens gets a few random clicks of its own and is then closed.
+table cells, drags onto the playlists, context menus, shortcuts.
+PlayerOnlyMonkeyTest does the same on the DanceSport Player build, with a
+Party list loaded. Every modal dialog and popup menu that opens gets a few
+random clicks of its own and is then closed.
 
 A step fails the test when an exception escapes into Qt's event loop (that is
-a traceback the operator would see in the log and an action that half ran).
+a traceback the operator would see in the log and an action that half ran),
+or when a critical message box opens (a handler that caught its own error),
+or when a list shows more or fewer rows than it keeps records for. At the end
+every dialog must have closed and every state file must still read (see
+LoadedWindow.check_step and _check_end).
 The run is seeded, so a failure names the seed and the actions that led up to
-it, and the same seed replays the same walk.
+it, and the same seed replays the same walk. The seed is the date unless
+DANCEPLAYLIST_MONKEY_SEED sets one: a new walk each day, the same all day.
 
 Nothing leaves the sandbox: file dialogs answer "cancelled", Explorer, the
 default player, URLs and child processes are refused (as if not installed),
-the phone remote cannot bind, and the network is down. Settings, layout, the
-DB and the music live in temp folders (see tests/__init__.py).
+the phone remote and the guest requests cannot bind, and no socket reaches
+past this machine (tests/gui/test_monkey_sandbox.py holds that). Settings,
+layout, the DB and the music live in temp folders (see tests/__init__.py).
 
 The scripted paths through the manual are tests/gui/test_click_*.py; what
 both share is tests/gui/monkey_support.py.
 """
 
+import shutil
+import tempfile
 import time
 import unittest
+from pathlib import Path
+from unittest import mock
 
 # First: it points the app's state files at a temp folder before any app
 # module is imported.
 from tests.gui.monkey_support import (
-    ExceptionTrap, LoadedWindow, Monkey, SEED, STEPS, describe, printable)
+    DropFrom, LoadedWindow, Monkey, SEED, STEPS, describe, printable, settle)
 
-from PySide6.QtCore import QEventLoop, Qt, QTimer
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence
 from PySide6.QtTest import QTest
 from shared.columns import _COL_PLAY
@@ -46,27 +60,19 @@ class MonkeyTest(LoadedWindow):
 
     def test_random_walk_raises_nothing(self):
         monkey = Monkey(SEED, self._roots)
-        with ExceptionTrap(monkey) as trap:
-            monkey.start()
-            try:
-                for monkey.step in range(STEPS):
-                    if not self.win.isVisible():
-                        monkey.note("main window was closed - showing it again")
-                        self.win.show()
-                    try:
-                        monkey.act_on(monkey.rng_target(self._roots()))
-                    except Exception as exc:          # raised straight out of a call
-                        trap._on_exc(type(exc), exc, exc.__traceback__)
-                    QTest.qWait(5)
-                    if trap.caught:
-                        break
-            finally:
-                monkey.stop()
-        if trap.caught:
-            self.fail(f"seed {SEED}: an exception escaped after "
-                      f"{monkey.step + 1} steps (replay with "
-                      f"DANCEPLAYLIST_MONKEY_SEED={SEED})\n\n"
-                      + "\n\n".join(trap.caught))
+        with self.walking(monkey) as trap:
+            for monkey.step in range(STEPS):
+                if not self.win.isVisible():
+                    monkey.note("main window was closed - showing it again")
+                    self.win.show()
+                try:
+                    monkey.act_on(monkey.rng_target(self._roots()))
+                except Exception as exc:          # raised straight out of a call
+                    trap._on_exc(type(exc), exc, exc.__traceback__)
+                QTest.qWait(5)
+                self.check_step(trap)
+                if trap.caught:
+                    break
 
 
 _CTRL = Qt.KeyboardModifier.ControlModifier
@@ -117,44 +123,25 @@ class _KeyMonkey(Monkey):
         QTest.keyClick(target, key, mods)
 
 
-def _settle(ms: int) -> None:
-    """QTest.qWait, minus a hang: a qWait that is waiting when the player
-    reaches EndOfMedia never returns (Qt 6.11, ffmpeg backend, Windows: its
-    processEvents(WaitForMoreEvents) never wakes again). Ctrl+-> clamped to
-    the duration does exactly that. A QEventLoop rides it out, as the app's
-    own loop does."""
-    loop = QEventLoop()
-    QTimer.singleShot(ms, loop.quit)
-    loop.exec()
-
-
 class KeyboardMonkeyTest(LoadedWindow):
 
     def test_random_shortcuts_raise_nothing(self):
         monkey = _KeyMonkey(SEED, self._roots)
         win = self.win
         QTest.mouseClick(win._cfg.generate_btn, Qt.MouseButton.LeftButton)
-        with ExceptionTrap(monkey) as trap:
-            monkey.start()
-            try:
-                for monkey.step in range(STEPS):
-                    if not win.isVisible():
-                        monkey.note("main window was closed - showing it again")
-                        win.show()
-                    try:
-                        monkey.press(win)
-                    except Exception as exc:          # raised straight out of a call
-                        trap._on_exc(type(exc), exc, exc.__traceback__)
-                    _settle(5)
-                    if trap.caught:
-                        break
-            finally:
-                monkey.stop()
-        if trap.caught:
-            self.fail(f"seed {SEED}: an exception escaped after "
-                      f"{monkey.step + 1} key presses (replay with "
-                      f"DANCEPLAYLIST_MONKEY_SEED={SEED})\n\n"
-                      + "\n\n".join(trap.caught))
+        with self.walking(monkey, "key presses") as trap:
+            for monkey.step in range(STEPS):
+                if not win.isVisible():
+                    monkey.note("main window was closed - showing it again")
+                    win.show()
+                try:
+                    monkey.press(win)
+                except Exception as exc:          # raised straight out of a call
+                    trap._on_exc(type(exc), exc, exc.__traceback__)
+                settle(5)
+                self.check_step(trap)
+                if trap.caught:
+                    break
 
 
 class _StageMonkey(Monkey):
@@ -204,7 +191,7 @@ class _StageMonkey(Monkey):
         # deck that is still stopped. Wait for the music, as the operator does.
         deadline = time.monotonic() + 2
         while not self.playing() and time.monotonic() < deadline:
-            _settle(10)
+            settle(10)
         if self.playing():
             self.playing_steps += 1
 
@@ -215,8 +202,7 @@ class PlayingMonkeyTest(LoadedWindow):
         win = self.win
         monkey = _StageMonkey(SEED, self._roots, win)
         QTest.mouseClick(win._cfg.generate_btn, Qt.MouseButton.LeftButton)
-        with ExceptionTrap(monkey) as trap:
-            monkey.start()
+        with self.walking(monkey) as trap:
             try:
                 for monkey.step in range(STEPS):
                     if not win.isVisible():
@@ -224,24 +210,75 @@ class PlayingMonkeyTest(LoadedWindow):
                         win.show()
                     try:
                         monkey.keep_playing()
-                        _settle(5)
+                        settle(5)
                         monkey.act_on(monkey.rng_target(self._roots()))
                     except Exception as exc:          # raised straight out of a call
                         trap._on_exc(type(exc), exc, exc.__traceback__)
-                    _settle(5)
+                    settle(5)
+                    self.check_step(trap)
                     if trap.caught:
                         break
             finally:
-                monkey.stop()
                 win._on_stop_btn()
-        if trap.caught:
-            self.fail(f"seed {SEED}: an exception escaped after "
-                      f"{monkey.step + 1} steps (replay with "
-                      f"DANCEPLAYLIST_MONKEY_SEED={SEED})\n\n"
-                      + "\n\n".join(trap.caught))
         # A walk the music sat out would only repeat the click monkey.
         self.assertGreater(monkey.playing_steps, STEPS // 3,
                            f"music ran in {monkey.playing_steps} of {STEPS} steps")
+
+
+class PlayerOnlyMonkeyTest(LoadedWindow):
+    """The click monkey on DanceSport Player, the build that runs the
+    evening: no decks and no planning, the Party list armed with a few titles
+    (as a venue loads its .m3u), the library open."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        import planner.config
+        from gui.dialogs import PLAYER_FIRST_START
+        # The first start, as ensure_app_mode leaves it (chapter 14).
+        cls.settings.update({"app_mode": "player", PLAYER_FIRST_START: True})
+        p = mock.patch.object(planner.config, "build_flavor", lambda: "player")
+        p.start()
+        cls.addClassCleanup(p.stop)
+
+    def test_a_random_walk_on_the_player_build_raises_nothing(self):
+        from PySide6.QtCore import QMimeData, QPointF, QUrl
+        win = self.win
+        self.assertTrue(win.windowTitle().startswith("DanceSport Player"),
+                        printable(win.windowTitle()))
+        music = sorted(Path(self.settings["library_dir"]).rglob("*.mp3"))[:6]
+        out = Path(tempfile.mkdtemp(prefix="monkey_player_"))
+        self.addCleanup(shutil.rmtree, out, True)
+        m3u = out / "Party.m3u"
+        m3u.write_text("\n".join(["#EXTM3U", *map(str, music)]) + "\n", encoding="utf-8")
+        mime = QMimeData()
+        mime.setUrls([QUrl.fromLocalFile(str(m3u))])
+        party = win._deckset.warmup_table
+        party.dropEvent(DropFrom(QPointF(20, 20), mime, None))
+
+        def loaded():
+            return sum(1 for m in party._row_meta if m and m.entry)
+        deadline = time.monotonic() + 3
+        while loaded() < len(music) and time.monotonic() < deadline:
+            settle(10)
+        self.assertEqual(loaded(), len(music), "the .m3u did not load into the Party list")
+        monkey = Monkey(SEED, self._roots)
+        with self.walking(monkey) as trap:
+            try:
+                for monkey.step in range(STEPS):
+                    if not win.isVisible():
+                        monkey.note("main window was closed - showing it again")
+                        win.show()
+                    try:
+                        monkey.act_on(monkey.rng_target(self._roots()))
+                    except Exception as exc:          # raised straight out of a call
+                        trap._on_exc(type(exc), exc, exc.__traceback__)
+                    settle(5)
+                    self.check_step(trap)
+                    if trap.caught:
+                        break
+            finally:
+                win._on_stop_btn()
 
 
 if __name__ == "__main__":

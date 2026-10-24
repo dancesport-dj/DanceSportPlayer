@@ -29,6 +29,7 @@ from planner.models import (  # auto-resolved
     MusicEntry,
 )
 from planner.music.parsing import (  # auto-resolved
+    LIBRARY_EXTS,
     _detect_dance,
     _norm_title,
     _playlist_class_of,
@@ -70,8 +71,8 @@ _TreeFile = tuple[Path, str]
 
 
 def _playlist_tree() -> tuple[list[_TreeFile], list[_TreeFile]]:
-    """One walk over PLAYLIST_DIR returning its .m3u and .mp3 files with a change
-    signature each.
+    """One walk over PLAYLIST_DIR returning its .m3u files and its music files
+    (LIBRARY_EXTS: MP3, FLAC, M4A, Ogg, Opus) with a change signature each.
 
     Both learners used to `rglob` the tree themselves (three walks in total). One
     `os.scandir` pass costs ~0.03 s for 2100 files INCLUDING the stat, because a
@@ -94,7 +95,7 @@ def _playlist_tree() -> tuple[list[_TreeFile], list[_TreeFile]]:
                     continue
                 low = de.name.lower()
                 bucket = (m3us if low.endswith((".m3u", ".m3u8"))
-                          else mp3s if low.endswith(".mp3") else None)
+                          else mp3s if low.endswith(LIBRARY_EXTS) else None)
                 if bucket is not None:
                     st = de.stat()
                     bucket.append((Path(de.path), f"{st.st_mtime_ns}:{st.st_size}"))
@@ -277,11 +278,14 @@ class PlaylistIndexMixin:
         Dance-qualified (stem + title + aggressive song-title) so 'jive(43) - Bim
         Bam', '16 Bim Bam' and 'Bim Bam' map together within a dance, while 'No
         Roots' QS vs TG stay apart — see `_line_keys` / `_dq`. Renamed / moved
-        files still match, because no key is a path."""
+        files still match, because no key is a path.
+
+        An OSError (a file locked by another program, a share briefly away) is
+        raised, not read as an empty list: the index caches what this returns
+        under the file's mtime, so an empty answer would stick until the file
+        changed. `_learn_playlists` skips the file and tries it next time."""
         try:
             raw = read_playlist_text(m3u)[0].splitlines()
-        except OSError:
-            return [], [], []
         except PlaylistEncodingError as exc:
             _warn_unreadable(m3u, exc)
             return [], [], []
@@ -352,8 +356,9 @@ class PlaylistIndexMixin:
         everyone writes .m3u files — many DJs just copy the music into one folder
         per tournament (e.g. 'H:\\DM Latein 2026\\HGR S Lat\\Finale\\…').
 
-        Every directory under PLAYLIST_DIR that directly contains MP3s acts as one
-        virtual playlist (its files are the lines), so class detection and
+        Every directory under PLAYLIST_DIR that directly contains music files
+        (MP3, FLAC, M4A, Ogg, Opus) acts as one virtual playlist (its files are
+        the lines), so class detection and
         co-occurrence work per round folder the same way they do per M3U file.
         Top-level trees that contain any .m3u are skipped — those are already
         learned from their playlists, and counting the copied files again would

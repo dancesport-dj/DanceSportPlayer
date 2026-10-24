@@ -161,8 +161,12 @@ def _rounds_with_rows(entries) -> list:
 
 # ── The rules ────────────────────────────────────────────────────────────────
 
-def round_findings(rounds) -> list:
-    """Three distinct dances per round, the openers, and the Samba spacing."""
+def round_findings(rounds, available=None) -> list:
+    """Three distinct dances per round, the openers, and the Samba spacing.
+
+    `available` is the dances the list was built from; an opener outside it
+    had no tracks, so the builder filled its slot from the rest. None reads
+    as every dance."""
     out = []
     history: dict = {}          # section → the dance codes of its past rounds
     for index, (name, songs, rows) in enumerate(rounds):
@@ -201,9 +205,11 @@ def round_findings(rounds) -> list:
                 (".", None)))
 
 
-        # The first round of a section has fixed openers.
+        # The first round of a section has fixed openers — those with tracks.
         openers = _OPENERS.get(section)
-        if openers and not past and set(codes) != set(openers):
+        if openers and available is not None:
+            openers = tuple(d for d in openers if d in available)
+        if openers and not past and not set(openers) <= set(codes):
             out.append(_finding(
                 ROUNDS,
                 (i18n.t("“%s” opens the section with %s, not %s "
@@ -414,18 +420,19 @@ def length_findings(entries, *, long_secs: int = LONG_TRACK_SECS) -> list:
 
 def party_findings(entries, *, beats_per_bar: dict | None = None,
                    late_ww: bool = True, late_pd: bool = True,
-                   long_secs: int = LONG_TRACK_SECS) -> list:
+                   long_secs: int = LONG_TRACK_SECS, available=None) -> list:
     """Every rule the loaded party list breaks, in report order.
 
     An empty result means it reads like something the generator would have
     built. `late_ww` / `late_pd` mirror the two switches it was built under —
     checking against a gate the operator turned off would be inventing a rule
-    they declined."""
+    they declined. `available` is the dances it was built from, see
+    `round_findings`."""
     entries = list(entries)
     if not entries:
         return []
     rounds = _rounds_with_rows(entries)
-    return (round_findings(rounds)
+    return (round_findings(rounds, available)
             + section_findings(rounds)
             + coverage_findings(rounds, late_ww=late_ww)
             + spacing_findings(rounds, late_ww=late_ww, late_pd=late_pd)

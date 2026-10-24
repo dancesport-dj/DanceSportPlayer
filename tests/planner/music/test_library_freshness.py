@@ -16,7 +16,7 @@ from pathlib import Path
 from unittest import mock
 
 from dancesport_planner import MusicEntry, MusicLibrary
-from planner.music.library import _library_mp3s
+from planner.music.library import _library_mp3s, _listed_mtimes
 from planner.music.playlist_index import playlist_year
 
 
@@ -53,6 +53,14 @@ class LibraryWalkTest(unittest.TestCase):
         _mp3(root / "lateincd", "cover.jpg")      # …but only mp3s
         found = {p.name for p, _ in _library_mp3s(root)}
         self.assertEqual(found, {"top.mp3", "waltz.mp3", "rumba.MP3"})
+
+    def test_finds_flac_m4a_ogg_and_opus_too(self):
+        root = _tmp()
+        for name in ("a.mp3", "b.flac", "c.M4A", "d.ogg", "e.opus", "f.wav", "g.txt"):
+            _mp3(root, name)
+        want = {"a.mp3", "b.flac", "c.M4A", "d.ogg", "e.opus"}
+        self.assertEqual({p.name for p, _ in _library_mp3s(root)}, want)
+        self.assertEqual({Path(k).name for k in _listed_mtimes([root])}, want)
 
     def test_reports_the_creation_time_of_each_file(self):
         root = _tmp()

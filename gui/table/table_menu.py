@@ -130,15 +130,9 @@ class TableMenuMixin(PlaylistTableHost):
             if self._flat_mode:
                 menu.addSeparator()
                 remove_act = menu.addAction("🗑  Remove from wishlist")
-
-                def _remove_from_wishlist():
-                    if row == self._current_play_row and self._play_cb:
-                        self._play_cb(None)
-                        self._current_play_row = -1
-                    self.removeRow(row)
-                    del self._row_meta[row]
-                    self._notify_changed()
-                handlers[remove_act] = _remove_from_wishlist
+                # The same removal as the Delete key: played rows re-grey and
+                # the play frame moves where the rows now sit.
+                handlers[remove_act] = lambda: self._remove_rows([row])
             # Eintanzen list: two selected titles of one dance change places.
             if self._two_songs_selected():
                 menu.addSeparator()

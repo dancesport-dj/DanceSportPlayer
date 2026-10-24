@@ -14,6 +14,7 @@ places its installers use. Downloading it is the user's choice, asked in the
 
 No Qt here: the callbacks run on the tunnel's reader thread.
 """
+import hashlib
 import io
 import logging
 import os
@@ -36,7 +37,19 @@ from planner.tls import tls_context
 
 log = logging.getLogger("dancesport.guests")
 
-DOWNLOAD_BASE = "https://github.com/cloudflare/cloudflared/releases/latest/download/"
+# A fixed release, and the SHA-256 of each of its files as GitHub lists them:
+# "latest" would run whatever the release page holds that day, unchecked. A
+# new version needs its hashes here too.
+CLOUDFLARED_VERSION = "2026.10.1"
+DOWNLOAD_BASE = ("https://github.com/cloudflare/cloudflared/releases/download/"
+                 f"{CLOUDFLARED_VERSION}/")
+_SHA256 = {
+    "cloudflared-windows-amd64.exe": "4d2490e74082c5d48dbfedaf92576fa5bd1702379ab88eb7faa0cfbe8dc891b6",
+    "cloudflared-darwin-arm64.tgz": "647615df99d49cd179ea5e13ef760b9bbfb33630f6ae62f87e33dfadda60adcc",
+    "cloudflared-darwin-amd64.tgz": "3b0dbaf378337e9d7fb6cd235a76d1d6a7dee434c2d8edf9281164fb6a3837ab",
+    "cloudflared-linux-amd64": "3bfc539f45d2620c71debb7a86be0efa737ed5ccbad9eb85c787116900e5c586",
+    "cloudflared-linux-arm64": "2c65dfabf616c40efc7545d107d7a57ad5e21377e2964b7e88af19a238074a46",
+}
 _URL_RE = re.compile(r"https://[a-z0-9-]+\.trycloudflare\.com")
 _CHUNK = 64 * 1024
 _STOP_SECS = 3
@@ -108,21 +121,27 @@ def download(dest_dir: Path, progress=None, opener=_open) -> Path:
     """Fetch cloudflared from Cloudflare's GitHub releases into `dest_dir`.
 
     `progress(done, total)` hears each chunk (total 0 when unknown). Written
-    to a .part file first, so a broken download never looks like a binary.
+    to a .part file first, so a broken download never looks like a binary,
+    and thrown away unless its SHA-256 is the release's.
     Raises OSError (urllib's errors are OSErrors) or ValueError."""
     asset = asset_name()
     if asset is None:
         raise ValueError(f"no cloudflared build for {sys.platform} {platform.machine()}")
     dest_dir.mkdir(parents=True, exist_ok=True)
     part = dest_dir / (binary_name() + ".part")
+    digest = hashlib.sha256()
     with opener(DOWNLOAD_BASE + asset, timeout=60) as resp, open(part, "wb") as out:
         total = int(resp.headers.get("Content-Length") or 0)
         done = 0
         while chunk := resp.read(_CHUNK):
             out.write(chunk)
+            digest.update(chunk)
             done += len(chunk)
             if progress is not None:
                 progress(done, total)
+    if digest.hexdigest() != _SHA256.get(asset):
+        part.unlink()
+        raise ValueError(f"{asset} is not the {CLOUDFLARED_VERSION} release: its SHA-256 differs")
     if asset.endswith(".tgz"):
         _unpack(part)
     target = dest_dir / binary_name()

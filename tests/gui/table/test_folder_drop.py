@@ -253,6 +253,19 @@ class ProgressTest(_FolderTest):
         self.assertTrue(got, "what had already been found was thrown away")
         self.assertTrue(all(e is not None for e in got))
 
+    def test_a_cancelled_drop_keeps_its_tracks(self):
+        """The short list is the contract; pairing it up must not raise."""
+        self.table._DROP_PROGRESS_AFTER = 0
+        _RecordingBusy.cancel_at_once = True
+        got = self.table._resolve_drop_entries(self.paths(50))
+        self.assertTrue(got, "what had already been found was thrown away")
+        self.assertLess(len(got), 50)
+
+    def test_a_cancelled_slot_drop_does_not_raise(self):
+        self.table._DROP_PROGRESS_AFTER = 0
+        _RecordingBusy.cancel_at_once = True
+        self.assertEqual(self.table._fill_empty_slots_with(self.paths(50), 0), [])
+
     def test_a_result_per_path_so_callers_can_pair_them_up(self):
         """_fill_empty_slots_with zips the two together to know which track goes
         where — a path that resolves to nothing has to hold its place."""

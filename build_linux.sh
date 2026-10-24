@@ -40,6 +40,10 @@ if sys.version_info < (3, 14):
 mods = ["PySide6", "numpy", "mutagen", "PyInstaller"]
 if os.environ.get("DANCESPORT_BUILD") != "player":
     mods.insert(1, "librosa")
+# As in build_app.sh: a FULL venv without torch builds the lite binary under
+# the full name, so refuse it instead.
+if os.environ.get("DANCESPORT_BUILD") == "full":
+    mods += ["torch", "demucs", "transformers"]
 missing = []
 for mod in mods:
     try:
@@ -47,8 +51,10 @@ for mod in mods:
     except ImportError:
         missing.append(mod)
 if missing:
-    reqs = ("requirements-player.lock"
-            if os.environ.get("DANCESPORT_BUILD") == "player" else "requirements.lock")
+    flavor = os.environ.get("DANCESPORT_BUILD")
+    reqs = ("requirements-player.lock" if flavor == "player"
+            else "requirements-full.lock" if flavor == "full"
+            else "requirements.lock")
     sys.exit(f"❌ Build venv is missing: {', '.join(missing)}\n"
              f"   interpreter: {sys.executable}\n"
              f"   fix: .venv/bin/pip install -r {reqs}")

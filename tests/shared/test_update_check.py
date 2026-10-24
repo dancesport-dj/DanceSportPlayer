@@ -80,6 +80,20 @@ class LatestReleaseTest(unittest.TestCase):
                                return_value=_response({"tag_name": "1.3.0"})):
             self.assertEqual(uc.latest_release(), ("1.3.0", uc.RELEASES_PAGE))
 
+    def test_a_page_off_the_repository_falls_back_to_the_releases_list(self):
+        """R12: the link the notice opens was taken from the answer unchecked."""
+        for page in ("http://github.com/dancesport-dj/DanceSportPlayer/releases/tag/v1.3.0",
+                     "https://evil.example/dancesport-dj/DanceSportPlayer/releases",
+                     "https://github.com.evil.example/dancesport-dj/DanceSportPlayer/",
+                     "https://github.com/someone-else/DanceSportPlayer/releases",
+                     "file:///C:/Windows/System32/calc.exe",
+                     "javascript:alert(1)"):
+            with self.subTest(page=page), \
+                    mock.patch.object(uc.urllib.request, "urlopen",
+                                      return_value=_response({"tag_name": "v1.3.0",
+                                                              "html_url": page})):
+                self.assertEqual(uc.latest_release(), ("1.3.0", uc.RELEASES_PAGE))
+
     def test_no_network_or_a_strange_answer_is_none(self):
         for effect in (OSError("offline"), None):
             with self.subTest(effect=effect):

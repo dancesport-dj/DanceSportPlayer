@@ -7,8 +7,10 @@ when you click **OK**. Theme, accent colour, language and the audio backend
 are read at start: for those the app asks for a restart.
 
 The tabs, in order: **⚙ General**, **📁 Paths**, **🎨 Look**, **🔊 Sound &
-player**, **⚗ Analysis**, **🎛 Play sets** and **📦 Venue pack**. The full app
-adds **🎵 Checks**, the thresholds of its music check; the player hides it.
+player**, **🎛 Cartwall**, **⚗ Analysis**, **🎛 Play sets** and **📦 Venue
+pack**. The full app adds **🎵 Checks**, the thresholds of its music check;
+the player hides it. Opened again, the settings come back on the tab they
+were closed on, until the app is closed.
 
 ## General
 
@@ -100,13 +102,15 @@ The **🔊 Sound & player** tab.
 | **🔇 Release the sound card between titles** | An onboard sound card puts a hiss on the PA while an app holds it open. This hands the device back after a few seconds of silence. The price is a soft click when the next title starts, so switch it on only if you hear the hiss. |
 | **🔕 Mute system sounds while the evening runs** | No error ding or notification chime over the speakers. The system sounds come back when you close the app. |
 | **🎧 Preview player** | A mini player (seek, skip, volume) floats over the deck when you click a ▶ in a row. |
-| **📂 Double-click opens the title in the system's music player** | Off (the default): while planning, a double-click on a deck row plays the title in the mini player, and in 📚 the library, 🏆 Tournaments and the dialogs it does nothing. On: the title opens in the program your system plays music with (on a Mac, Music). Right-click ▸ open works either way, and in Playing mode a double-click always plays or cues the title. |
 | **🖼 Show artwork** | A cover next to the title on the player card. It uses the playlist's own image (`#EXTIMG`), a cover file in the folder, or the art in the MP3. |
 | **〰 Show waveform** | The title's [waveform](04-playing.md#-the-waveform) on the player card in place of the seek bar. |
 | **🔉 Duck to** | How far 🔊 Duck pulls everything down on the player card, the mini player and the presenter screen: 20 % by default, 0 % (silence) to 90 %. A change reaches a duck that is on right now. |
+| **🌅 Fade each title in over** | Off by default. The main player starts every title at silence and brings it up over 0.5 to 10 s of music. A title that a 🔀 crossfade brings in keeps its own ramp. Couples start on the first downbeat, so leave it off for a competition. |
+| **⏩ Start each title this far in** | Off by default. The main player skips the first 1 to 30 s of every title, and those seconds don't count against the play length. A title picked up at its ↩ mark starts there instead, and a silent intro is still skipped on top. |
 | **🎙 Announcement voice** | Who reads [🔈 Announce next dance](04-playing.md#-announce-next-dance): *Female*, *Male* or *Mixed* (the default), which alternates the two. **…with heat** adds the heat number, off by default. **🔈 Test** speaks a sample in the voice shown, before you click OK. |
 | **🗣 Dance is named** | Where the call sits when a title names its dance as it starts, with no pause: **over the first bars** (the default; the music is ducked under the voice) or **before the music starts** (the music follows the call). The ▶ Playing panel names it in short: *over the music* or *before the music*. |
 | **▶ Player position** | Where the player card stands: *beside the playlists*, at the head of the Playing panel, or *above the playlists*, as one wide strip over the decks. |
+| **📂 Double-click on a title in 📚 the library** | Last on the tab, under **📚 Library**, since it is about the library, not the player. What a double-click does in 📚 the library and the 🏆 Tournaments lists while planning: **Nothing** (the default; ▶ plays the title), **Open external player** (the program your system plays music with, on a Mac Music; then also for a deck row while planning and in the dialogs) or **Edit tags** (the [🏷 Tags editor](05-tags.md#opening-the-editor), opened on the field of the column you double-clicked; you choose there what Save writes into the file). While planning, a double-click on a deck row plays the title in the mini player unless *Open external player* is chosen. Right-click offers all of it either way, and in Playing mode a double-click always plays or cues the title. |
 
 ### 🔈 Outputs
 
@@ -140,6 +144,25 @@ lists can be picked, on Windows, macOS and Linux.
 - While the card chosen for the 🎵 music is plugged in, the status bar
   shows a small **🔊** with its name. A click on it opens this tab.
 - The choice applies when you click OK, without a restart.
+
+## Cartwall
+
+The **🎛 Cartwall** tab holds what every pad of the
+[🎛 cartwall](04-playing.md#-the-cartwall) follows unless it was given its
+own. *Planner only* mode hides it.
+
+![Settings, Cartwall tab](img/settings-cartwall.png)
+
+| Setting | Does |
+|---|---|
+| **🎛 A pad ducks the music to** | How loud the music stays while a cartwall pad that pulls the music down plays: 10 % by default (about −20 dB, so a fanfare cuts through), 0 % (silence) to 90 %. Like 🔉 Duck to on the 🔊 Sound & player tab, it is a share of the music's volume, not of its loudness; the dialog shows the dB next to it. |
+| **🎶 Background pads when a title starts** | What a 🎶 Background pad does once the music starts: **Mute and keep playing** (the default; it runs on silently and fades back in when the music stops) or **Pause** (it holds where it was and carries on from there when the music stops). |
+| **⏱ Pads fade out over** | How long a pad takes to let go when it is clicked again or ⏹ Stop all fades the wall: 1 s by default, *cut* up to 8 s. **Own fade-out** in a pad's **Settings…** overrides it for that pad. |
+| **🖌 Default wall colour** | The colour of every pad left on 🎨 Colour ▸ **Wall default**: white by default. A pad given a colour of its own keeps it. |
+
+The fade-out and the colour belong to the wall rather than to the PC, so a
+cartwall carried to another PC in a [venue pack](#venue-pack) brings them
+along.
 
 ## Analysis
 
@@ -190,6 +213,10 @@ set** buttons of the Playing panel apply (see
 
 ![Settings, Play sets tab](img/settings-play-sets.png)
 
+A list that stands on a set follows it when you change the set here: every
+value it still has from the set takes the new one, and a value you changed by
+hand on the list stays. The decks follow the 🏆 set, the 🤸 Party panel the 🎉 set.
+
 For each set:
 
 - **Play length**: pick one, type `m:ss` or seconds, or choose *full*.
@@ -206,11 +233,35 @@ For each set:
   **❓ Ask before a double-click stops the title** and
   **🎚 WDSF CR pitch to the heat tempo**.
 
-The tournament set also has **⏱ Per dance**: one length per dance. Leave a dance
-on *— the set's length*, pick *full* or a step, or type `m:ss`. A dance with its
-own length is cut there while a list is on the 🏆 set. Out of the box: 1:30
-for the Waltz, Viennese Waltz, Quickstep and Jive, 1:37 for the Tango, Slow
-Foxtrot, Samba, Cha-Cha-Cha and Rumba, and the Paso Doble in *full*.
+The tournament set also has one list of lengths per dance, with a selector
+on top, **⏱ Lengths**: **Per dance — the standard** or **Per round —
+overrides it**. Only with per round does a second box appear, for the kind
+of round: the first round, the intermediate rounds (one setting for all of
+them), the semi-final or the final. The list below shows the lengths of that
+choice. Both count, whichever one is on screen.
+
+- **Per dance**: leave a dance on *— the set's length*, pick *full* or a
+  step, or type `m:ss`. A dance with its own length is cut there while a
+  list plays the 🏆 set's length, whatever its other switches say. Out of
+  the box: 1:30 for the Waltz, Viennese Waltz, Quickstep and Jive, 1:37 for
+  the Tango, Slow Foxtrot, Samba, Cha-Cha-Cha and Rumba, and the Paso Doble
+  in *full*.
+- **Paso Doble**: *full*, or *after highlight 1* or *2*. A timed cut
+  would end it in the middle of a phrase, so there is nothing else, and a
+  3rd highlight comes so late that it reads as *full*. A highlight ticks
+  **🐂 Paso Doble: stop after highlight** of the tournament set and sets
+  which one; *full* unticks it. Ticking the box moves this pick along.
+  Each per-round list has its own Paso Doble pick: on *— the dance's
+  length* it runs as set here; *full* or a highlight overrides that in this
+  kind of round, so a final can run in full and a first round stop after the
+  2nd highlight. Like a round's length, it counts only while the list plays
+  the 🏆 set's length.
+- **Per round**: a dance can run a different length in that kind of round,
+  every heat of it alike. A dance left on *— the dance's length* plays its
+  per-dance length, and out of the box every one is left that way. Where a
+  round has its own length, the Playing panel names the round under the
+  digits, e.g. *Viennese Waltz, Final — its own length*. A list without
+  rounds, such as a party list, only uses the per-dance lengths.
 
 Both sets also carry the 🐂 Paso Doble: **stop after highlight** (and which
 one) and **Start after**. Out of the box the tournament set has the stop

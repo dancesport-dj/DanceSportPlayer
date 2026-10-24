@@ -333,6 +333,62 @@ class SettingsOwnLooksTest(_Clean):
         warned.assert_called_once()
         self.assertEqual(user_looks.mine(), [])
 
+    def _unwritable(self):
+        patch = mock.patch.object(user_looks.STORE, "write", return_value=False)
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def test_an_import_that_cannot_be_saved_says_so(self):
+        """L4: the failed write was ignored — the look showed as imported and
+        was gone after the next start."""
+        mine = self.made(name="Gala")
+        path = Path(self._state) / "gala.json"
+        user_looks.export(mine, path)
+        dlg = self.dlg()
+        self._unwritable()
+        with mock.patch.object(settings_look.QFileDialog, "getOpenFileName",
+                               return_value=(str(path), "")), \
+                mock.patch.object(settings_look.QMessageBox, "warning") as warned:
+            dlg._import_look()
+        self.assertEqual(warned.call_args.args[1], "Look not saved")
+        self.assertEqual([lk.caption for lk in user_looks.mine()], ["Gala"])
+
+    def test_a_delete_that_cannot_be_saved_says_so(self):
+        mine = self.made()
+        dlg = self.dlg({"theme": mine.key})
+        self._unwritable()
+        with mock.patch.object(settings_look.QMessageBox, "question",
+                               return_value=QMessageBox.StandardButton.Yes), \
+                mock.patch.object(settings_look.QMessageBox, "warning") as warned:
+            dlg._delete_look()
+        self.assertEqual(warned.call_args.args[1], "Look not saved")
+
+    def test_a_delete_that_cannot_be_saved_keeps_the_look(self):
+        # It is still in the file, so it has to stay in the list too, and the
+        # running look did not change, so no restart is due.
+        mine = self.made()
+        theme.set_active(mine.key)
+        dlg = self.dlg({"theme": mine.key})
+        self._unwritable()
+        with mock.patch.object(settings_look.QMessageBox, "question",
+                               return_value=QMessageBox.StandardButton.Yes), \
+                mock.patch.object(settings_look.QMessageBox, "warning"):
+            dlg._delete_look()
+        self.assertEqual([lk.key for lk in user_looks.mine()], [mine.key])
+        self.assertFalse(dlg.running_look_touched())
+
+    def test_an_edit_that_cannot_be_saved_keeps_the_old_look(self):
+        mine = self.made(name="Gala")
+        theme.set_active(mine.key)
+        self.editor(name="Renamed")
+        dlg = self.dlg({"theme": mine.key})
+        self._unwritable()
+        with mock.patch.object(settings_look.QMessageBox, "warning") as warned:
+            dlg._edit_look()
+        self.assertEqual(warned.call_args.args[1], "Look not saved")
+        self.assertEqual([lk.caption for lk in user_looks.mine()], ["Gala"])
+        self.assertFalse(dlg.running_look_touched())
+
 
 class RestartOfferTest(_Clean):
     """Edits are saved at once, so the pick can stay the same while the look

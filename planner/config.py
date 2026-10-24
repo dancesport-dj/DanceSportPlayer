@@ -247,10 +247,9 @@ def _default_music_dir() -> Path:
 
 def _default_playlist_dir() -> Path:
     """The learned-playlists folder when nothing is configured (see
-    `_default_music_dir`). Dropbox syncs to `~/Dropbox` away from Windows."""
-    if sys.platform == "win32":
-        return Path(r"D:\Dropbox\Turniere")
-    return Path.home() / "Dropbox" / "Turniere"
+    `_default_music_dir`): Documents/Playlists under the home folder, on
+    every OS. Where the playlists really live is set in the settings."""
+    return Path.home() / "Documents" / "Playlists"
 
 
 MUSIC_DIR = _configured_dir("DANCEPLAYLIST_MUSIC_DIR", "music_dir",

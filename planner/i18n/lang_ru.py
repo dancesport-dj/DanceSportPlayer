@@ -57,7 +57,6 @@ CATALOG = {
     "fade-out → after the length": "затухание → после времени звучания",
     "Fade-out:": "Затухание:",
     "Own fade-out": "Своё затухание",
-    "Wall fade-out": "Затухание Cartwall",
     "Play length:": "Длительность:",
     "Start after:": "Старт через:",
     "Stop after highlight:": "Стоп после кульминации:",
@@ -393,6 +392,7 @@ CATALOG = {
     "Pad settings": "Настройки пэда",
     "Clear this pad": "Очистить этот пэд",
     "Columns in the library": "Столбцы библиотеки",
+    "Columns in the track list": "Столбцы списка треков",
     "Open wishlists": "Открытые списки пожеланий",
     "Analyze PD highlights": "Анализ кульминаций PD",
     "Vocal + instr.": "Вокал + инстр.",
@@ -583,6 +583,9 @@ CATALOG = {
     "ℹ  About…": "ℹ  О программе…",
     "About": "О программе",
     "Project": "Проект",
+    "Closing": "Закрытие",
+    "🔉 Fading out the music…\nThe app closes in a moment.":
+        "🔉 Музыка затихает…\nПриложение сейчас закроется.",
     "Music is playing": "Играет музыка",
     "Music is playing. Quit anyway and stop it?":
         "Играет музыка. Всё равно выйти и остановить её?",
@@ -738,6 +741,44 @@ CATALOG = {
     "🔉  Duck to:": "🔉  Приглушать до:",
     "How loud everything stays while 🔉 Duck is pressed on the player\ncard, the mini player or the presenter screen: low enough to talk\nover, loud enough to keep the floor moving. 0 % is silence.":
         "Насколько громко всё звучит, пока нажата 🔉 на карточке плеера,\nв мини-плеере или на экране презентации: достаточно тихо, чтобы\nговорить поверх, и достаточно громко, чтобы зал продолжал танцевать.\n0 % — тишина.",
+    "🎶  Background pads when a title starts:":
+        "🎶  Фоновые пэды при старте трека:",
+    "🎛 Cartwall":
+        "🎛 Картволл",
+    "<b>🎛 Cartwall</b> — what the pads do to the music, and what every pad follows unless it was given its own.":
+        "<b>🎛 Картволл</b> — что пэды делают с музыкой и что следует каждый пэд, если у него нет своей настройки.",
+    "⏱  Pads fade out over:":
+        "⏱  Пэды затухают за:",
+    "How long a pad takes to let go when it is tapped again or ⏹\nstops the wall. A pad can override this in its own settings.":
+        "Сколько затухает пэд, когда его нажимают снова или ⏹\nостанавливает картволл. Пэд может изменить это в своих настройках.",
+    "🖌  Default wall colour:":
+        "🖌  Цвет картволла по умолчанию:",
+    "The wall's default colour: every pad without a colour of its own\n(🎨 Colour ▸ Wall default) shows it. A pad given its own keeps it.":
+        "Цвет картволла по умолчанию: его показывает каждый пэд без своего цвета\n(🎨 Цвет ▸ По умолчанию картволла). Пэд со своим цветом его сохраняет.",
+    "Mute and keep playing":
+        "Приглушить и играть дальше",
+    "Pause":
+        "Пауза",
+    "What a 🎛 cartwall pad set to 🎶 Background does once the music\nstarts.\n\nMute and keep playing: it runs on silently under the title and\nfades back in when the music stops.\nPause: it holds where it was and carries on from there when\nthe music stops.":
+        "Что делает пэд 🎛 картволла с режимом 🎶 Фон, когда начинается\nмузыка.\n\nПриглушить и играть дальше: он беззвучно играет под треком и\nплавно возвращается, когда музыка стихает.\nПауза: он замирает на месте и продолжает оттуда, когда\nмузыка стихает.",
+    "🎶  Background: pause while a title plays":
+        "🎶  Фон: пауза, пока играет трек",
+    "The other way round from 🔈: a title starting on the main\nplayer pauses this pad, and it carries on from where it was\nwhen the music stops.\n(⚙ Settings → 🎛 Cartwall → 🎶 Background pads)":
+        "Наоборот к 🔈: когда в основном плеере стартует трек,\nэтот пэд встаёт на паузу и продолжает с того же места,\nкогда музыка стихает.\n(⚙ Настройки → 🎛 Картволл → 🎶 Фоновые пэды)",
+    "🎛  A pad ducks the music to:":
+        "🎛  Пэд приглушает музыку до:",
+    "How loud the music stays while a 🎛 cartwall pad set to 🔈 pull\nthe music down plays, in percent of its volume like 🔉 Duck to.\n10 % is about −20 dB: a fanfare cuts through. 30 % (about −10 dB)\nonly sits the music back. 0 % is silence.":
+        "Насколько громко звучит музыка, пока играет пэд 🎛 картволла с\n🔈 приглушением музыки, в процентах её громкости, как у 🔉 Приглушать до.\n10 % — это около −20 dB: фанфары пробиваются. 30 % (около −10 dB)\nлишь отодвигает музыку. 0 % — тишина.",
+    "A duck, here or a pad's on the 🎛 Cartwall tab, is a percentage of the music's volume, not of its loudness: 50 % ≈ −6 dB, 30 % ≈ −10 dB (sounds about half as loud), 20 % ≈ −14 dB, 10 % ≈ −20 dB.":
+        "Приглушение, здесь или у пэда на вкладке 🎛 Cartwall, — процент от громкости музыки, а не от её воспринимаемой громкости: 50 % ≈ −6 dB, 30 % ≈ −10 dB (звучит примерно вдвое тише), 20 % ≈ −14 dB, 10 % ≈ −20 dB.",
+    "🌅  Fade each title in over:":
+        "🌅  Плавно вводить каждый трек за:",
+    "The big player starts every title at silence and brings it up\nover these seconds of music. Not a title a 🔀 crossfade brings in,\nwhich has its own ramp. Couples start on the first downbeat, so\nleave it off for a competition. 0 = off.":
+        "Большой плеер начинает каждый трек с тишины и поднимает его\nза эти секунды музыки. Кроме трека, который вводит 🔀\nкроссфейд, — у него своя рампа. Пары начинают с первой доли,\nпоэтому на турнире оставьте выключенным. 0 = выкл.",
+    "⏩  Start each title this far in:":
+        "⏩  Начинать каждый трек с:",
+    "The big player skips the first seconds of every title. They do\nnot count against the play length. A title picked up where it\nwas left starts there instead, and a silent intro is still\nskipped on top. Cuts the same seconds from every title. 0 = off.":
+        "Большой плеер пропускает первые секунды каждого трека. Они не\nвходят в длительность. Трек, продолженный с места остановки,\nначинается оттуда, а тихое вступление пропускается сверх того.\nСрезает одни и те же секунды с каждого трека. 0 = выкл.",
     "Reset the tempo to ±0 % (or double-click the fader)":
         "Сбросить темп на ±0 % (или двойной щелчок по фейдеру)",
     "Volume adjustment of this track by Equalize volume (R128)":
@@ -757,17 +798,37 @@ CATALOG = {
         "%s — своя длительность",
     "This dance has its own play length in the 🏆 tournament set\n(⚙ Settings → 🎛 Play sets). − / + and typing change it there.":
         "У этого танца своя длительность в 🏆 турнирном наборе\n(⚙ Настройки → 🎛 Наборы воспроизведения). − / + и ввод меняют её там.",
-    "<b>⏱ Per dance</b> — a dance given a length of its own is cut there instead, as long as a list stands on this set. The ▶ Playing panel names the dance under its length.":
-        "<b>⏱ По танцам</b> — танец со своей длительностью обрезается на ней, пока список стоит на этом наборе. Панель ▶ Воспроизведение называет танец под его длительностью.",
+    "<b>⏱ Per dance</b> — a dance given a length of its own is cut there instead, as long as a list plays this set's length. The ▶ Playing panel names the dance under its length.":
+        "<b>⏱ По танцам</b> — танец со своей длительностью обрезается на ней, пока список играет длительность этого набора. Панель ▶ Воспроизведение называет танец под его длительностью.",
     "— the set's length":
         "— длительность набора",
+    "⏱  Lengths:":
+        "⏱  Длительности:",
+    "Per dance — the standard":
+        "По танцам — стандарт",
+    "Per round — overrides it":
+        "По раундам — заменяет его",
+    "Which lengths the list below shows. The per-dance ones are the standard; a round's own lengths override them in that kind of round. Both count, whichever is on screen.":
+        "Какие длительности показывает список ниже. Длительности по танцам — стандарт; собственные длительности раунда заменяют их в этом виде раунда. Действуют обе, какая бы ни была на экране.",
+    "The kind of round whose lengths the list shows. Every intermediate round shares one.":
+        "Вид раунда, длительности которого показывает список. Все промежуточные раунды делят одну.",
+    "<b>⏱ Per round</b> — the lengths of one kind of round, every heat of it alike, on top of the per-dance ones. Left on “— the dance's length”, a dance runs its per-dance length in that round. One setting covers every intermediate round.":
+        "<b>⏱ По раундам</b> — длительности одного вида раунда, одинаковые в каждом заходе, поверх длительностей по танцам. Оставленный на «— длительность танца», танец идёт в этом раунде со своей длительностью по танцам. Одна настройка действует для каждого промежуточного раунда.",
+    "after highlight %d":
+        "после кульминации %d",
+    "Full, or stop after a highlight — the same as 🐂 Paso Doble: stop after highlight above.":
+        "Полностью или стоп после кульминации — то же, что 🐂 Пасодобль: стоп после кульминации выше.",
+    "Full, or stop after a highlight in this kind of round — a final in full, a Vorrunde after the 2nd.":
+        "Полностью или стоп после кульминации в раундах этого типа — финал полностью, первый раунд после 2-й.",
+    "— the dance's length":
+        "— длительность танца",
     "m:ss, seconds, or 'full' — Enter to keep, Esc to abandon":
         "м:сс, секунды или 'полностью' — Enter сохраняет, Esc отменяет",
     "full — to each title's own end":
         "полностью — до собственного конца каждого трека",
     "full": "полностью",
-    "no marks — scrub to a crash and hit 🎯":
-        "нет меток — перемотайте к удару и нажмите 🎯",
+    "🎯  no marks — scrub to a crash and mark it":
+        "🎯  нет меток — перемотайте к удару и отметьте его",
     "“Proven” = songs in any of your playlists · “New” = in none.":
         "«Проверенные» = треки из любого вашего плейлиста · «Новые» = ни из одного.",
     "e.g. a song title, mood, or leave blank":
@@ -803,6 +864,7 @@ CATALOG = {
     "🔊 Sound && player": "🔊 Звук && плеер",
     "📁  New folder…": "📁  Новая папка…",
     "⌨  Shortcuts…": "⌨  Сочетания клавиш…",
+    "⚙  Cartwall settings…": "⚙  Настройки Cartwall…",
     "❔  Shortcuts": "❔  Сочетания клавиш",
     "▶  Playing": "▶  Воспроизведение",
     "▶  Playing mode": "▶  Режим воспроизведения",
@@ -811,7 +873,6 @@ CATALOG = {
     "⊟  Collapse all": "⊟  Свернуть",
     "⏹  Stop all": "⏹  Остановить всё",
     "⏸  Auto-advance…": "⏸  Автопереход…",
-    "⏱  Wall fade-out…": "⏱  Затухание Cartwall…",
     "⏱ calculating…": "⏱ вычисляется…",
     "⏳  Comparing…": "⏳  Сравнение…",
     "⚡  Generate Playlist": "⚡  Создать плейлист",
@@ -953,7 +1014,6 @@ CATALOG = {
         "основной плеер, и возвращается в паузах.",
     "🔈 No announcement recordings found for this voice.":
         "🔈 Для этого голоса не найдено записей объявлений.",
-    "🖌  Wall colour": "🖌  Цвет Cartwall",
     "🖥  Presenter": "🖥  Презентация",
     "🖥  Presenter — DanceSport Player": "🖥  Презентация — DanceSport Player",
     "🕒 Timetable — presenter screen": "🕒 Расписание — экран презентации",
@@ -1345,8 +1405,8 @@ CATALOG = {
         "<b>Избранная библиотека</b> — читается при запуске (ваша папка tanzcds):",
     "<b>Reference path</b> — base folder the playlist files live in on THIS PC; 🧭 Fix paths re-roots broken references here (e.g. C:\\Users\\…\\my music\\tanzcds):":
         "<b>Опорный путь</b> — базовая папка, где лежат файлы плейлистов на ЭТОМ ПК; 🧭 Исправить пути перенаправляет сюда битые ссылки (напр. C:\\Users\\…\\my music\\tanzcds):",
-    "<b>Save-as folder</b> — where 'Save as M3U…' starts (e.g. D:\\Dropbox\\Turniere):":
-        "<b>Папка «Сохранить как»</b> — откуда начинается «Сохранить как M3U…» (напр. D:\\Dropbox\\Turniere):",
+    "<b>Save-as folder</b> — where 'Save as M3U…' starts (e.g. D:\\Playlists):":
+        "<b>Папка «Сохранить как»</b> — откуда начинается «Сохранить как M3U…» (напр. D:\\Playlists):",
     "<b>Playlist file format</b> — what 'Save as M3U' and the exports write:":
         "<b>Формат файла плейлиста</b> — что пишут «Сохранить как M3U» и экспорты:",
     "UTF-8 (.m3u) — default": "UTF-8 (.m3u) — по умолчанию",
@@ -1717,11 +1777,11 @@ CATALOG = {
         "папки (гимны, фон, неверный темп, дубликаты, сезонное);\n"
         "выберите категорию, чтобы видеть только её (удобно для вечеринок).",
     "Drag a track onto a deck or wishlist to use it.\n"
-    "▶ to preview · double-click to open in your external player\n"
-    "· right-click for more.":
+    "▶ to preview · right-click for more · a double-click opens it in\n"
+    "the system's music player if ⚙ Settings say so.":
         "Перетащите трек на дек или в список пожеланий, чтобы использовать его.\n"
-        "▶ — прослушать · двойной щелчок — открыть во внешнем плеере\n"
-        "· правый щелчок — больше.",
+        "▶ — прослушать · правый щелчок — больше · двойной щелчок открывает трек\n"
+        "в музыкальном плеере системы, если так задано в ⚙ Настройки.",
     "Only tracks suited for one of the ticked starting classes\n(tick several; tracks without a class tag show only with all classes)":
         "Только треки, подходящие для одного из отмеченных стартовых классов\n(можно отметить несколько; треки без класса только при всех классах)",
     "Only tracks whose file was created in the library that\n"
@@ -2068,10 +2128,10 @@ CATALOG = {
         "или прочитать его треки.",
     "The tracks of the selected playlist, in playing order.\n"
     "▶ or Space previews · drag them onto a deck or the player list ·\n"
-    "double-click to open in your external player.":
+    "a double-click opens or 🏷 edits them as ⚙ Settings say.":
         "Треки выбранного плейлиста в порядке воспроизведения.\n"
         "▶ или Пробел — прослушать · перетащите их на дек или в список плеера ·\n"
-        "двойной щелчок открывает во внешнем плеере.",
+        "двойной щелчок открывает или 🏷 редактирует их, как задано в ⚙ Настройки.",
     "Your competitions, days and tournaments — folders are labels,\n"
     "the 🎵 entries point at .m3u files wherever they lie.\n"
     "\n"
@@ -2100,10 +2160,6 @@ CATALOG = {
         "Клавиша, назначенная пэду, следует за ним, куда бы его ни перенесли,\n"
         "и работает с любой страницы. Пусто = пэд отвечает на клавишу своего места.",
     "Export cartwall": "Экспорт картволла",
-    "How long a pad takes to let go when it is tapped again\n"
-    "or ⏹ stops the wall. A pad can override this in its own settings.":
-        "Сколько времени пэд затухает, когда по нему снова нажимают\n"
-        "или ⏹ останавливает стену. Пад может переопределить это в своих настройках.",
     "Import cartwall": "Импорт картволла",
     "Pads per page. Making the grid smaller never loses a pad —\n"
     "whatever no longer fits moves to the first free slot.":
@@ -2807,6 +2863,46 @@ CATALOG = {
     "before the music starts": "до начала музыки",
     "⏸  No pause between songs": "⏸  Без паузы между треками",
     "🔁  Start again at the end": "🔁  В конце начать сначала",
+    "⏹  Stop:":
+        "⏹  Стоп:",
+    "Never":
+        "Никогда",
+    "After this title":
+        "После этого трека",
+    "After … titles":
+        "После … треков",
+    "At …":
+        "В …",
+    "Let the music stop by itself: after the title playing now,\nafter a number of titles (the one playing now is the first),\nor with the first title that ends at or after a time of day.\n\nA title is never cut: it plays to its end, then the next one\nwaits on the player for ⏯. A ⏭ skip does not count as an end.\n\nSet for this evening only — it is not saved.\n\nNeeds ⏭ auto-advance.":
+        "Музыка остановится сама: после текущего трека,\nпосле нескольких треков (текущий — первый)\nили с первым треком, который закончится в заданное время или позже.\n\nТрек никогда не обрывается: он играет до конца, а следующий\nждёт в плеере нажатия ⏯. Пропуск ⏭ не считается концом.\n\nТолько на этот вечер — не сохраняется.\n\nНужен ⏭ автопереход.",
+    "Titles still to end, the one playing now included —\nit counts down as they do.":
+        "Сколько треков ещё закончится, включая текущий —\nсчёт уменьшается с каждым концом.",
+    "The first title that ends at or after this time is the last.\nA time already past today means after midnight.":
+        "Первый трек, который закончится в это время или позже, — последний.\nВремя, уже прошедшее сегодня, означает после полуночи.",
+    "⏹  Stops after this title":
+        "⏹  Остановка после этого трека",
+    "⏹  Stops after %d titles":
+        "⏹  Остановка через треков: %d",
+    "⏹  Stops at %s":
+        "⏹  Остановка в %s",
+    "⏹  Stopped as planned":
+        "⏹  Остановлено по плану",
+    "⏹ Stopped as planned — ⏯ plays the next title.":
+        "⏹ Остановлено по плану — ⏯ запускает следующий трек.",
+    "The evening stopped %d min ago, with %d titles played.":
+        "Вечер прервался %d мин назад, сыграно треков: %d.",
+    "Grey them out again? Nothing starts by itself.":
+        "Снова отметить их серым? Ничего не начнётся само.",
+    "The %d titles played this evening grey out again.":
+        "Сыгранные сегодня треки (%d) снова станут серыми.",
+    "▶ Pick up the evening?":
+        "▶ Продолжить вечер?",
+    "▶  Pick up":
+        "▶  Продолжить",
+    "Start fresh":
+        "Начать заново",
+    "▶ Evening picked up — %d titles played.":
+        "▶ Вечер продолжен — сыграно треков: %d.",
     "Pause between songs:": "Пауза между треками:",
     "🔈  Announce next dance": "🔈  Объявлять следующий танец",
     "…with heat": "…с заходом",
@@ -2824,12 +2920,14 @@ CATALOG = {
     "The waveform of the title — what has played is blue, all of it\n"
     "red in the final seconds. The broad orange bar is where it plays.\n"
     "Shaded: silence the player skips · thin orange: Paso Doble\n"
-    "highlights · red-tinted: the fade-out of a timed cut.\n"
+    "highlights · red-tinted: the fade-out of a timed cut · gold: the\n"
+    "fade-in · green line: where the title starts.\n"
     "Click to jump there.":
         "Волна трека — сыгранное окрашено синим, в последние секунды\n"
         "всё красное. Широкая оранжевая полоса — где он играет.\n"
         "Заштриховано: тишина, которую плеер пропускает · тонкий оранжевый:\n"
-        "кульминации пасодобля · красноватый: затухание обрезки по времени.\n"
+        "кульминации пасодобля · красноватый: затухание обрезки по времени ·\n"
+        "золотой: нарастание · зелёная линия: где начинается трек.\n"
         "Щёлкните, чтобы перейти туда.",
     "▶️  Double-click starts the title": "▶️  Двойной щелчок запускает трек",
     "🎚  TSO pitch to the heat tempo": "🎚  TSO: подтягивать к темпу захода",
@@ -2938,10 +3036,24 @@ CATALOG = {
     "Double-click a 📚 library row": "Двойной щелчок по строке 📚 библиотеки",
     "Open the track in your external audio player — when ⚙ Settings → 🔊 Sound & player allow it":
         "Открыть трек во внешнем аудиоплеере — если это разрешено в ⚙ Настройки → 🔊 Звук & плеер",
-    "📂  Double-click opens the title in the system's music player (while planning, in 📚 the library and the dialogs)":
-        "📂  Двойной щелчок открывает трек в музыкальном плеере системы (при планировании, в 📚 библиотеке и в диалогах)",
-    "Off: a deck plays the title in the mini player, the other places\nleave the file alone. On: it opens in the program your system\nplays music with (on a Mac, Music).\nRight-click → open still works either way, and in Playing mode\na double-click always plays or cues the title.":
-        "Выкл.: дек играет трек в мини-плеере, остальные места не трогают\nфайл. Вкл.: он открывается в программе, которой система\nвоспроизводит музыку (на Mac — «Музыка»).\nПравый щелчок → открыть работает в обоих случаях, а в режиме воспроизведения\nдвойной щелчок всегда запускает или загружает трек.",
+    "📂  Double-click on a title in 📚 the library:":
+        "📂  Двойной щелчок по треку в 📚 библиотеке:",
+    "<b>📚 Library</b>":
+        "<b>📚 Библиотека</b>",
+    "Only for 📚 the library and the 🏆 lists while planning. In ▶ Playing mode a double-click always plays or cues the title.":
+        "Только для 📚 библиотеки и списков 🏆 при планировании. В режиме ▶ Воспроизведение двойной щелчок всегда играет или ставит трек на очередь.",
+    "Nothing":
+        "Ничего",
+    "Open external player":
+        "Открыть во внешнем плеере",
+    "What a double-click on a title does in 📚 the library and the 🏆\ntournament lists.\n\nNothing: the title stays as it is; ▶ plays it.\nOpen external player: the program your system plays music with\n(on a Mac, Music) — in the decks and the dialogs too.\nEdit tags: the 🏷 Tags editor, where you choose what Save\nwrites into the file and what stays in the app.\n\nRight-click still offers all of it, and in Playing mode a\ndouble-click always plays or cues the title.":
+        "Что делает двойной щелчок по треку в 📚 библиотеке и в 🏆\nтурнирных списках.\n\nНичего: трек остаётся как есть; ▶ запускает его.\nОткрыть во внешнем плеере: программа, которой система воспроизводит\nмузыку (на Mac — «Музыка»), — также в деках и диалогах.\nИзменить теги: редактор 🏷 Теги, где вы выбираете, что Сохранить\nзапишет в файл, а что останется в приложении.\n\nПравый щелчок по-прежнему предлагает всё это, а в режиме воспроизведения\nдвойной щелчок всегда запускает или загружает трек.",
+    "Edit tags":
+        "Изменить теги",
+    "Album:":
+        "Альбом:",
+    "Genre:":
+        "Жанр:",
     "▶ / ■ in a row": "▶ / ■ в строке",
     "Play / stop exactly that song":
         "Воспроизвести / остановить именно этот трек",
@@ -3294,8 +3406,6 @@ CATALOG = {
     "🏷  Couldn't store the tags: %s": "🏷  Не удалось сохранить теги: %s",
     "🏷  Edit tags…": "🏷  Изменить теги…",
     "🏷  Edit tags of %d tracks…": "🏷  Изменить теги треков (%d)…",
-    "🏷  Edit tags": "🏷  Изменить теги",
-    "🏷  Edit tags of %d tracks": "🏷  Изменить теги треков (%d)",
     "%d tracks — a field they differ in is kept per track until you change it.":
         "Треков: %d — поле, в котором они различаются, сохраняется для каждого трека, пока вы его не измените.",
     "keep (differs per track)": "оставить (у каждого трека своё)",
@@ -3349,6 +3459,9 @@ CATALOG = {
         "Меняется в форме на первой вкладке",
     "In the MP3 file": "В файле MP3",
     "In the app": "В приложении",
+    "In the app's database": "В базе данных приложения",
+    "Kept in the app only — the file itself is not changed.":
+        "Хранится только в приложении — сам файл не меняется.",
     "Only for MP3 files on disk": "Только для файлов MP3 на диске",
     "Covers differ": "Обложки различаются",
     "Cover can't be shown": "Обложку не удаётся показать",
@@ -3358,6 +3471,7 @@ CATALOG = {
     "Title:": "Название:",
     "Artist:": "Исполнитель:",
     "Year:": "Год:",
+    "Track:": "Трек:",
     "Comment:": "Комментарий:",
     "Album artist:": "Исполнитель альбома:",
     "Composer:": "Композитор:",
@@ -3373,15 +3487,24 @@ CATALOG = {
         "🏷  %s в плеере — остановите его, чтобы записать теги MP3",
     "🏷  Couldn't write the MP3 tags: %s":
         "🏷  Не удалось записать теги MP3: %s",
-    "🏷  Write into the MP3?": "🏷  Записать в MP3?",
-    "Also write %s into the MP3 file?": "Записать %s и в файл MP3?",
-    "Also write %s into the %d MP3 files?": "Записать %s и в файлы MP3 (%d)?",
-    "Stars go into the Windows rating; classes, instrumental and markers into the comment, where other programs see them too. With No they stay in the app only.":
-        "Звёзды идут в оценку Windows; классы, инструментал и маркеры — в комментарий, где их видят и другие программы. При ответе «Нет» они остаются только в приложении.",
+    "🏷  Tags":
+        "🏷  Теги",
+    "🏷  Tags of %d tracks":
+        "🏷  Теги треков (%d)",
+    "Also write these into the MP3 file":
+        "Записать также в файл MP3",
+    "Stars go into the Windows rating; classes, instrumental and markers into the comment, where other programs see them too. Unticked, they stay in the app only.":
+        "Звёзды идут в оценку Windows; классы, инструментал и маркеры — в комментарий, где их видят и другие программы. Без галочки они остаются только в приложении.",
     "stars": "звёзды",
     "custom": "Custom",
     "Custom text": "Свой текст",
     "Comment": "Комментарий",
+    "Plays": "Сыграно",
+    "Reset the play counters": "Сбросить счётчики воспроизведений",
+    "How often the title has played in the last 24 hours, in any list\n"
+    "Right-click the header to reset the counters":
+        "Сколько раз трек звучал за последние 24 часа, из любого списка\n"
+        "Щелчок правой кнопкой по заголовку сбрасывает счётчики",
     "Custom link": "Своя ссылка",
     "Rating": "Оценка",
     "Picture": "Изображение",
@@ -3793,8 +3916,8 @@ CATALOG = {
         "📥 Импортировано вручную поставленных кульминаций пасодобля: %d — из них %d относятся к трекам, которые этот ПК уже знает.\n"
         "\n"
         "Остальные сохраняются и применятся, как только эта музыка появится здесь.",
-    "<b>Backup folder</b> — where the daily backup of your own data goes (e.g. D:\\Dropbox\\DanceSportPlayer). Empty: next to the database.":
-        "<b>Папка резервных копий</b> — куда идёт ежедневная резервная копия своих данных (напр. D:\\Dropbox\\DanceSportPlayer). Пусто: рядом с базой данных.",
+    "<b>Backup folder</b> — where the daily backup of your own data goes (e.g. a Dropbox folder). Empty: next to the database.":
+        "<b>Папка резервных копий</b> — куда идёт ежедневная резервная копия своих данных (напр. папка Dropbox). Пусто: рядом с базой данных.",
     "♻  Restore user data backup…":
         "♻  Восстановить резервную копию своих данных…",
     "Restore user data backup": "Восстановить резервную копию своих данных",
@@ -3816,6 +3939,18 @@ CATALOG = {
     "Duration": "Длительность",
     "📜 Played titles": "📜 Сыгранные треки",
     "📜  Played titles…": "📜  Сыгранные треки…",
+    "📝  Export log…":
+        "📝  Экспорт журнала…",
+    "Export log — pick a folder":
+        "Экспорт журнала — выберите папку",
+    "Export log":
+        "Экспорт журнала",
+    "The log could not be exported:\n%s":
+        "Не удалось экспортировать журнал:\n%s",
+    "There is no log to export yet.":
+        "Журнала для экспорта пока нет.",
+    "Log exported to:\n%s":
+        "Журнал экспортирован в:\n%s",
     "Nothing has been played yet. A title is logged in playing mode\n"
     "once it has run for 10 seconds, the moment its row greys out.":
         "Ещё ничего не сыграно. Трек записывается в режиме воспроизведения,\n"
@@ -3868,6 +4003,15 @@ CATALOG = {
     "Replace it, or keep both?":
         "«%s» уже есть в целевой папке.\n"
         "Заменить или оставить оба?",
+    "“%s” already exists in the target folder and holds more than a USB export, "
+    "so it cannot be replaced.\nKeep both?":
+        "«%s» уже есть в целевой папке и содержит не только USB-экспорт, "
+        "поэтому её нельзя заменить.\nОставить оба?",
+    "Could not remove “%s”:\n%s\n\nIt may be partly deleted; nothing was exported.":
+        "Не удалось удалить «%s»:\n%s\n\n"
+        "Папка, возможно, удалена частично; ничего не экспортировано.",
+    "Could not create “%s”:\n%s":
+        "Не удалось создать «%s»:\n%s",
     "🧳 Bundle: %d playlist folder(s), %d track(s), %s MB → %s":
         "🧳 Пакет: папок плейлистов %d, треков %d, %s МБ → %s",
     "Bundle written to:\n"
@@ -4399,8 +4543,9 @@ CATALOG = {
         "Трек %s можно переместить только на другое место %s — не на место %s.",
     "Dances (%d): %s": "Танцы (%d): %s",
     "Order: %s, %s, …": "Порядок: %s, %s, …",
-    "🟰  Identical files — the earlier copy is removed, the last stays (%d)":
-        "🟰  Одинаковые файлы — более ранняя копия удаляется, последняя остаётся (%d)",
+    "🟰  Identical files (%d)": "🟰  Одинаковые файлы (%d)",
+    "🧹  Remove the earlier copies, the last stays":
+        "🧹  Удалить более ранние копии, последняя остаётся",
     "✏  %d pads selected — what you change here (colour, volume, fade, 🔁, 🔈, 🎶, S) applies to all of them.\n"
     "Label and shortcut stay with this pad.":
         "✏  Выбрано пэдов: %d — то, что вы меняете здесь (цвет, громкость, затухание, 🔁, 🔈, 🎶, S), применяется ко всем.\n"
@@ -4579,6 +4724,8 @@ CATALOG = {
     "%d tracks are on the table.": "Треков на выбор: %d.",
     "💾 Saving %s…": "💾 Сохранение %s…",
     "➕  Adding %s tracks…": "➕  Добавление треков: %s…",
+    "🐂  PD in": "🐂  PD через",
+    "🐂  PD %s in": "🐂  PD %s через",
     "🐂  Paso Doble in %d s": "🐂  Paso Doble через %d с",
     "⏸  %d s  (paused)": "⏸  %d с  (пауза)",
     "⚠ Could not play: %s": "⚠ Не удалось воспроизвести: %s",
@@ -4587,6 +4734,13 @@ CATALOG = {
     "did not start": "не запустился",
     "⚠ “%s” would not play — skipped to the next title.":
         "⚠ «%s» не воспроизводится — переход к следующему треку.",
+    "⚠ Playback stalled — “%s” reloaded at %s.":
+        "⚠ Воспроизведение зависло — «%s» перезагружен с %s.",
+    "stalled": "завис",
+    "Pick up after a crash?":
+        "Продолжить после сбоя?",
+    "The last session ended while “%s” was playing.\n\nCue it again?":
+        "Прошлый сеанс оборвался, когда играло «%s».\n\nПоставить снова?",
     "🔇 would not play: %s": "🔇 не воспроизводится: %s",
     "▴  fold back": "▴  свернуть обратно",
     "⏹  Stop": "⏹  Стоп",
@@ -5221,6 +5375,12 @@ CATALOG = {
         "Заказ песен",
     "Now playing":
         "Сейчас играет",
+    "Request a song":
+        "Заказать песню",
+    "Up next":
+        "Далее",
+    "Nothing lined up yet":
+        "Пока ничего не запланировано",
     "Search a title or artist":
         "Поиск по названию или исполнителю",
     "Loading the titles…":
@@ -5457,4 +5617,10 @@ CATALOG = {
         '🌐 Фонотека уже сканируется.',
     'Scan repository':
         'Сканировать фонотеку',
+    'Another task (a library scan or an analysis) is writing to the database. Let it finish, then try again.':
+        'Другая задача (сканирование библиотеки или анализ) сейчас пишет в базу данных. Дождитесь её завершения и попробуйте снова.',
+    "The Paso Doble pick for %s in ⚙ Settings → 🎛 Play sets\n(played in full reads as the 3rd highlight). A change here\nholds for this list only.":
+        "Выбор пасодобля для %s в ⚙ Настройки → 🎛 Наборы воспроизведения\n(целиком — то же, что 3-я кульминация). Изменение здесь\nдействует только для этого списка.",
+    "🐂 Paso Doble → each round's own pick":
+        "🐂 Пасодобль → снова выбор каждого раунда",
 }

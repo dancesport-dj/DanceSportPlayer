@@ -110,6 +110,17 @@ class DeckPathReferenceTest(unittest.TestCase):
         swapped = self.table._row_meta.numbered()[1][1].entry
         self.assertEqual((swapped.title, swapped.dance), ("both", "CC"))
 
+    def test_the_swap_keeps_the_playing_title_playing(self):
+        """Only the path changes: the song on the floor is the same one."""
+        self.load(self.on_c, self.on_f, self.only_f)
+        calls = []
+        self.table._play_cb = calls.append
+        row = self.table._row_meta.numbered()[1][0]
+        self.table._current_play_row = row
+        self.win._swap_decks_to_reference()
+        self.assertEqual(self.table._current_play_row, row)
+        self.assertEqual(calls, [])
+
     def test_after_the_swap_only_the_title_without_a_copy_is_named(self):
         self.load(self.on_c, self.on_f, self.only_f)
         self.win._swap_decks_to_reference()

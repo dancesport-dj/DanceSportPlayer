@@ -118,6 +118,9 @@ class _Panel:
     def set_dance_len(self, *a):
         pass
 
+    def set_round_pd_n(self, *a):
+        pass
+
     def play_set(self) -> dict:
         # Off the 🏆 set, so the list's one length applies and no dance has
         # one of its own — the per-dance lengths have their own tests.

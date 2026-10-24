@@ -157,6 +157,33 @@ class SaveToTournamentsTest(unittest.TestCase):
         self.assertEqual(len(written), 2)
         self.filed.assert_called_once_with(written, "Samstag")
 
+    def test_names_differing_only_in_case_get_two_files(self):
+        # The file system ignores case: "Final" and "final" are one file,
+        # so the second competition would overwrite the first.
+        from gui.window import main_export
+        day = self.win._deckset.day_decks[0]
+        day.load_player_list([_entry("s1")], "Day", play_cb=None)
+        self.win._day_tab_title = "Sonntag"
+        written = []
+
+        def export(_pl, _dances, base, _cls, out_path, path_for):
+            out_path.write_text("#EXTM3U\n", encoding="utf-8")
+            written.append(out_path)
+            return str(out_path)
+
+        root = Path(tempfile.mkdtemp(prefix="dp_save_tree_case_"))
+        with mock.patch.object(main_export.QFileDialog, "getExistingDirectory",
+                               return_value=str(root)), \
+                mock.patch.object(self.win, "_serialize_playlist_state",
+                                  return_value={"rounds": []}), \
+                mock.patch.object(self.win, "_deck_export_jobs",
+                                  return_value=[("Final", {}, [], "S"),
+                                                ("final", {}, [], "S")]), \
+                mock.patch.object(main_export, "export_m3u", export), \
+                mock.patch.object(QMessageBox, "exec", return_value=0):
+            self.win._save_day_plan_m3us()
+        self.assertEqual(len({p.name.casefold() for p in written}), 2)
+
     def test_the_day_tab_menu_offers_it_beside_the_save(self):
         from gui.window import main_decks
         seen = []

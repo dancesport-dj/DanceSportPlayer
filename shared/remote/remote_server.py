@@ -11,9 +11,12 @@ Kept small on purpose, because it is a door into the desk:
   a router that forwards the port by accident still exposes nothing. From
   outside, the only way in is a Cloudflare quick tunnel the desk starts
   (shared/remote/tunnel.py): it hands requests in from 127.0.0.1, with the
-  phone's own address in `CF-Connecting-IP` — believed only from loopback,
-  so the lockouts below still count per phone. The desk then wants a longer
-  PIN (TUNNEL_PIN_DIGITS).
+  phone's own address in `CF-Connecting-IP` — believed only from loopback
+  and only while the tunnel is up, so the lockouts below still count per
+  phone. The desk then wants a longer PIN (TUNNEL_PIN_DIGITS).
+- Only answers to its own names: an address of the local network,
+  localhost, or the tunnel's. A website whose name was re-pointed at this PC
+  (DNS rebinding) sends its own name as the Host and is turned away.
 - Everything but the page itself needs the PIN in a header. A page of another
   website cannot send that header without a CORS preflight, and nothing here
   answers one, so no website the operator browses can call the desk either.
@@ -41,6 +44,7 @@ import time
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import cast
+from urllib.parse import urlsplit
 
 from shared.remote.remote_page import page_html
 
@@ -56,8 +60,12 @@ GLOBAL_MAX_FAILS = 30          # wrong PINs from all addresses together…
 _GLOBAL_WINDOW_SECS = 600      # …within this long pause new logins
 _IDLE_SECS = 600
 _MAX_BODY = 1024
+_BODY_SECS = 5                 # the whole body, not each read of it
 PIN_DIGITS = 4
 TUNNEL_PIN_DIGITS = 8   # on a public address: 30 guesses in ten minutes find no 8-digit PIN
+# Carrier-grade NAT: venue and hotel Wi-Fi (and Tailscale) use it; ipaddress
+# calls it neither private nor global.
+_CGNAT = ipaddress.ip_network("100.64.0.0/10")
 
 
 def _bar_point(value) -> bool:
@@ -83,7 +91,61 @@ def lan_client(addr: str) -> bool:
         return False
     if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
         ip = ip.ipv4_mapped
-    return ip.is_private or ip.is_loopback or ip.is_link_local
+    return (ip.is_private or ip.is_loopback or ip.is_link_local
+            or (ip.version == 4 and ip in _CGNAT))
+
+
+def desk_host(host: str | None, tunnel_host: str) -> bool:
+    """Whether a request's Host names this desk: an address of the local
+    network, localhost, or `tunnel_host` (the tunnel's name, "" when none)."""
+    name = (host or "").strip().lower()
+    if name.startswith("["):                    # [IPv6]:port
+        name = name[1:].partition("]")[0]
+    elif name.count(":") == 1:                  # name:port
+        name = name.partition(":")[0]
+    if name == "localhost" or (tunnel_host and name == tunnel_host.lower()):
+        return True
+    try:
+        ipaddress.ip_address(name)
+    except ValueError:
+        return False
+    return lan_client(name)
+
+
+def forwarded_client(peer: str, headers, tunnel_host: str) -> str:
+    """Who is asking: the peer's address, or behind the tunnel (loopback, and
+    only while one is up) the phone's own from `CF-Connecting-IP`."""
+    forwarded = (headers.get("CF-Connecting-IP") or "").strip()
+    if (tunnel_host and forwarded
+            and ipaddress.ip_address(peer.split("%", 1)[0]).is_loopback):
+        return forwarded[:64]
+    return peer
+
+
+def read_body(handler: BaseHTTPRequestHandler, size: int, secs: float) -> bytes | None:
+    """The request's `size` body bytes, all within `secs` seconds together.
+    None, and the connection closed, when they don't all come in time: the
+    handler's own timeout is per read, so one byte a minute would keep it."""
+    deadline = time.monotonic() + secs
+    sock = handler.connection
+    chunks = []
+    try:
+        while size > 0:
+            left = deadline - time.monotonic()
+            if left <= 0:
+                raise TimeoutError
+            sock.settimeout(left)
+            chunk = handler.rfile.read1(size)
+            if not chunk:
+                raise ConnectionError
+            chunks.append(chunk)
+            size -= len(chunk)
+    except OSError:
+        handler.close_connection = True
+        return None
+    finally:
+        sock.settimeout(handler.timeout)
+    return b"".join(chunks)
 
 
 def lan_addresses() -> list[str]:
@@ -137,42 +199,45 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("X-Frame-Options", "DENY")   # no other page may frame it
         if ctype.startswith("text/html"):
             self.send_header("Content-Security-Policy",
                              "default-src 'none'; script-src 'unsafe-inline'; "
-                             "style-src 'unsafe-inline'; connect-src 'self'")
+                             "style-src 'unsafe-inline'; connect-src 'self'; "
+                             "frame-ancestors 'none'")
         self.end_headers()
         if body:
             self.wfile.write(body)
 
     def _phone(self) -> str:
         """Who is asking: the address, or behind the tunnel the phone's own."""
-        peer = self.client_address[0]
-        forwarded = (self.headers.get("CF-Connecting-IP") or "").strip()
-        if forwarded and ipaddress.ip_address(peer.split("%", 1)[0]).is_loopback:
-            return forwarded[:64]
-        return peer
+        return forwarded_client(self.client_address[0], self.headers,
+                                self.app.tunnel_host)
 
     def _gate(self, need_pin: bool) -> bool:
         """True when the request may go on; otherwise the refusal is sent."""
-        if not lan_client(self.client_address[0]):
+        if (not lan_client(self.client_address[0])
+                or not desk_host(self.headers.get("Host"), self.app.tunnel_host)):
             self.app.note("refused", self.client_address[0])
             self._send(403)
             return False
         if not need_pin:
             return True
-        verdict = self.app.check_pin(self._phone(), self.headers.get(PIN_HEADER, ""))
+        phone = self._phone()
+        verdict = self.app.check_pin(phone, self.headers.get(PIN_HEADER, ""),
+                                     via_tunnel=phone != self.client_address[0])
         if verdict != 200:
             self._send(verdict)
             return False
         return True
 
     def do_GET(self):
-        if self.path in ("/", "/index.html"):
+        path = self.path.split("?", 1)[0]   # a scanner may append "?utm_..."
+        if path in ("/", "/index.html"):
             if self._gate(need_pin=False):
                 self.app.note("page", self._phone())
                 self._send(200, self.app.page, "text/html; charset=utf-8")
-        elif self.path == "/api/state":
+        elif path == "/api/state":
             if self._gate(need_pin=True):
                 self.app.logged_in(self._phone())
                 self._send(200, json.dumps(self.app.state(), ensure_ascii=False)
@@ -181,7 +246,7 @@ class _Handler(BaseHTTPRequestHandler):
             self._send(404)
 
     def do_POST(self):
-        known = self.path == "/api/cmd"
+        known = self.path.split("?", 1)[0] == "/api/cmd"
         try:
             size = int(self.headers.get("Content-Length") or 0)
         except ValueError:
@@ -190,12 +255,18 @@ class _Handler(BaseHTTPRequestHandler):
             # Read a modest one away first: closing on unread bytes resets the
             # connection, and the phone would see "no connection" instead.
             if 0 < size <= 64 * _MAX_BODY:
-                self.rfile.read(size)
+                read_body(self, size, _BODY_SECS)
             self._send(413 if known else 404)
             self.close_connection = True
             return
-        raw = self.rfile.read(size)
+        # The gate before the body: a wrong PIN costs no wait for its bytes.
+        # They are still read away after the answer, for the reason above.
         if not self._gate(need_pin=True):
+            read_body(self, size, _BODY_SECS)
+            self.close_connection = True
+            return
+        raw = read_body(self, size, _BODY_SECS)
+        if raw is None:
             return
         try:
             msg = json.loads(raw.decode("utf-8"))
@@ -205,7 +276,8 @@ class _Handler(BaseHTTPRequestHandler):
         except (ValueError, KeyError, TypeError, AttributeError):
             self._send(400)
             return
-        if (cmd not in COMMANDS or (cmd == "pad" and (type(arg) is not int or arg < 0))
+        if (not isinstance(cmd, str) or cmd not in COMMANDS
+                or (cmd == "pad" and (type(arg) is not int or arg < 0))
                 or (cmd == "seek" and not _bar_point(arg))
                 or (cmd == "jump" and not _next_pick(arg))):
             self._send(400)
@@ -239,11 +311,14 @@ class RemoteServer:
         self._seen: set[str] = set()     # addresses logged in with this PIN
         self._host = host
         self._want_port = int(port)
+        self.tunnel_host = ""            # the tunnel's name while it is up
         self.page = page_html(labels or {}).encode("utf-8")
         self._state: dict = {}
         self._lock = threading.Lock()
         self._fails: dict[str, tuple[int, float, int]] = {}
-        self._recent_fails: deque[float] = deque()   # every wrong PIN, any address
+        # Every wrong PIN, any address; the tunnel's apart, so the internet
+        # cannot pause logins on the venue's own network.
+        self._recent_fails: dict[bool, deque[float]] = {False: deque(), True: deque()}
         self._httpd: ThreadingHTTPServer | None = None
         self._thread: threading.Thread | None = None
 
@@ -296,6 +371,10 @@ class RemoteServer:
         if first:
             self.note("login", ip)
 
+    def set_tunnel(self, url: str) -> None:
+        """The tunnel's public address once it is up; "" when it is gone."""
+        self.tunnel_host = urlsplit(url).hostname or ""
+
     def set_pin(self, pin: str) -> None:
         """A new PIN at once; phones that knew the old one must log in again."""
         with self._lock:
@@ -310,22 +389,26 @@ class RemoteServer:
         with self._lock:
             return self._state
 
-    def check_pin(self, ip: str, given: str) -> int:
+    def check_pin(self, ip: str, given: str, via_tunnel: bool = False) -> int:
         """200 for the right PIN; 401 for a wrong one; 429 while `ip` is locked
         out — after MAX_FAILS wrong ones, for a minute, doubling every time —
         and, for an address not logged in yet, while the network has sent
-        GLOBAL_MAX_FAILS wrong PINs within _GLOBAL_WINDOW_SECS."""
+        GLOBAL_MAX_FAILS wrong PINs within _GLOBAL_WINDOW_SECS. The tunnel and
+        the local network each count their own. No PIN at all is a 401 that
+        counts as no guess: the page never asks without one."""
         now = time.monotonic()
         paused_all = False
         with self._lock:
             fails, until, rounds = self._fails.get(ip, (0, 0.0, 0))
             if now < until:
                 return 429
-            recent = self._recent_fails
+            recent = self._recent_fails[via_tunnel]
             while recent and recent[0] <= now - _GLOBAL_WINDOW_SECS:
                 recent.popleft()
             if len(recent) >= GLOBAL_MAX_FAILS and ip not in self._seen:
                 return 429
+            if not given:
+                return 401
             if hmac.compare_digest(given.encode("utf-8"), self._pin.encode("utf-8")):
                 self._fails.pop(ip, None)
                 return 200
@@ -350,6 +433,6 @@ class RemoteServer:
             self.note("locked_all", "", str(_GLOBAL_WINDOW_SECS))
         if locked:
             self.note("locked", ip, str(int(until - now)))
-        elif given:
+        else:
             self.note("wrong_pin", ip)
         return 401

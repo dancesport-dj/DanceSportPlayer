@@ -15,6 +15,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from planner.playlist.m3u import numbered_folder_m3u
 
@@ -131,6 +132,57 @@ class NumberedFolderM3uTest(unittest.TestCase):
         self.assertEqual(missing, 0)
         self.assertEqual(copied[9].name, "0_1_0 - Song 10 CC30.mp3")
         self.assertEqual(copied[11].name, "0_1_2 - Song 12 CC30.mp3")
+
+    def test_a_second_run_finds_the_bundle_it_wrote(self):
+        """The rewritten lines are bare names, relative to the M3U's folder —
+        not to the process working directory."""
+        a = self._mp3("cha/Song A (CC 30).mp3")
+        b = self._mp3("rumba/Song B (RB 26).mp3")
+        m3u = self._m3u("comp.m3u", ["#EXTINF:120,Song A", str(a),
+                                     "#EXTINF:110,Song B", str(b)])
+        first, _ = numbered_folder_m3u(m3u)
+        written = m3u.read_text(encoding="utf-8")
+        copied, missing = numbered_folder_m3u(m3u)
+        self.assertEqual(missing, 0)
+        self.assertEqual(copied, first)
+        self.assertEqual(m3u.read_text(encoding="utf-8"), written)
+        self.assertEqual(sorted(p.name for p in self.folder.iterdir()),
+                         ["0_0_1 - Song A CC30.mp3", "0_0_2 - Song B RB26.mp3",
+                          "comp.m3u"])
+
+    def test_an_absolute_line_into_the_bundle_becomes_a_bare_name(self):
+        """The app's own exports write absolute lines: one that already points
+        at a file in the bundle folder must not keep the drive letter, or the
+        stick finds nothing on another machine."""
+        inside = self.folder / "0_0_1 - Song A CC30.mp3"
+        inside.write_bytes(b"AAA")
+        m3u = self._m3u("comp.m3u", ["#EXTINF:120,Song A", str(inside)])
+        copied, missing = numbered_folder_m3u(m3u)
+        self.assertEqual((copied, missing), ([inside], 0))
+        self.assertEqual(m3u.read_text(encoding="utf-8").splitlines()[1],
+                         "0_0_1 - Song A CC30.mp3")
+
+    def test_a_failed_copy_skips_that_track_and_still_rewrites(self):
+        """A locked file or a full stick: the rest of the folder still gets
+        written, and the M3U still points at what is there."""
+        a = self._mp3("cha/Song A (CC 30).mp3")
+        b = self._mp3("rumba/Song B (RB 26).mp3")
+        m3u = self._m3u("comp.m3u", [str(a), str(b)])
+        real_copy = shutil.copy2
+
+        def copy2(src, dst):
+            if Path(src) == a:
+                Path(dst).write_bytes(b"half")   # a partial file, then the error
+                raise OSError(28, "No space left on device")
+            return real_copy(src, dst)
+
+        with mock.patch("shutil.copy2", copy2):
+            copied, missing = numbered_folder_m3u(m3u)
+        self.assertEqual(missing, 1)
+        self.assertEqual([p.name for p in copied], ["0_0_2 - Song B RB26.mp3"])
+        self.assertEqual(m3u.read_text(encoding="utf-8").splitlines(),
+                         [str(a), "0_0_2 - Song B RB26.mp3"])
+        self.assertFalse((self.folder / "0_0_1 - Song A CC30.mp3").exists())
 
 
 if __name__ == "__main__":

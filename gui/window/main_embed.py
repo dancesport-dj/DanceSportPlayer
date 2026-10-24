@@ -84,6 +84,7 @@ class EmbeddingIndexMixin(MainWindowHost):
         self._index_analyzer.progress.connect(self._on_index_progress)
         self._index_analyzer.done.connect(self._on_index_done)
         self._index_analyzer.cancelled.connect(self._on_index_cancelled)
+        self._index_analyzer.error.connect(self._on_index_error)
         self._index_analyzer.start()
 
     def _on_index_progress(self, done: int, total: int, errors: int, name: str, eta: float):
@@ -116,6 +117,14 @@ class EmbeddingIndexMixin(MainWindowHost):
         self.statusBar().showMessage(
             i18n.t("Audio index cancelled — %s files analyzed so far "
                    "(progress is cached).") % done_so_far)
+
+    def _on_index_error(self, msg: str):
+        """The analyzer died outright: close the dialog and say why. What it
+        analyzed before it fell over is cached, so the status is refreshed."""
+        if self._busy:
+            self._busy.finish()
+        self._refresh_library_status()
+        QMessageBox.critical(self, "Audio index", msg)
 
     # ── Index scope chooser (shared by the librosa + embedding builds) ──────────
     def _ask_index_scope(self, title: str) -> str | None:

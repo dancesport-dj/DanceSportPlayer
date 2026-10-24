@@ -153,6 +153,33 @@ class StripTest(unittest.TestCase):
         w.set_ending(False)
         self.assertEqual(w.grab().toImage().pixelColor(50, 17), blue)
 
+    def test_the_start_is_a_green_line_and_the_fade_in_a_gold_tint(self):
+        """Marcel: the 🌅 fade-in and the ⏩ start get a marker like the
+        fade-out's. The head the title skips is dimmed, the fade-in tinted
+        from the start until it is through."""
+        w = self.strip()
+        w.set_peaks([1.0] * 300)
+        w.set_position(200_000)         # the head out of the way, at x = 400
+        plain = w.grab().toImage()
+        w.set_start(30_000, 50_000)     # x = 60, fade-in through at x = 100
+        img = w.grab().toImage()
+        line = img.pixelColor(60, 17)
+        self.assertGreater(line.green(), line.red())
+        self.assertGreater(line.green(), line.blue())
+        self.assertLess(img.pixelColor(30, 17).lightness(),
+                        plain.pixelColor(30, 17).lightness())
+        self.assertGreater(img.pixelColor(64, 17).red(),
+                           plain.pixelColor(64, 17).red())
+        self.assertEqual(img.pixelColor(150, 17), plain.pixelColor(150, 17))
+
+    def test_a_title_from_the_top_has_no_start_line(self):
+        w = self.strip()
+        w.set_peaks([1.0] * 300)
+        w.set_position(200_000)
+        plain = w.grab().toImage()
+        w.set_start(0, None)
+        self.assertEqual(w.grab().toImage(), plain)
+
     def test_the_playhead_is_a_slim_orange_line_with_caps(self):
         w = self.strip()
         w.set_peaks([1.0] * 300)
@@ -224,11 +251,15 @@ class CardTest(unittest.TestCase):
     def test_stopping_clears_the_strip(self):
         self.card._wave_loader.request = lambda path: [1.0]
         self.card.set_waveform_track(self.track)
-        self.card.set_wave_overlay([(0.0, 2.0)], 170_000)
+        self.card.set_wave_overlay([(0.0, 2.0)], 170_000, 5_000, 9_000)
+        self.assertEqual(self.card._wave._start_at, 5_000)
+        self.assertEqual(self.card._wave._fade_in_end, 9_000)
         self.card.set_now("")
         self.assertIsNone(self.card._wave._peaks)
         self.assertEqual(self.card._wave._silences, [])
         self.assertIsNone(self.card._wave._fade_at)
+        self.assertEqual(self.card._wave._start_at, 0)
+        self.assertIsNone(self.card._wave._fade_in_end)
 
     def test_the_strip_sits_above_the_seek_bar(self):
         self.assertLess(self.card._wave.geometry().top(),

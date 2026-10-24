@@ -21,7 +21,16 @@ A tag lives in one of two places:
 Right-click a title in a deck, a wishlist or the 📚 library ▸
 **🏷 Edit tags…**. If several titles are selected and you click inside the
 selection, the entry reads **🏷 Edit tags of n tracks…** and edits them all
-at once.
+at once. The window is called **🏷 Tags**.
+
+A double-click on a title in 📚 the library or a 🏆 tournament list opens it
+too, when ⚙ Settings ▸ 🔊 Sound & player ▸ **📂 Double-click on a title in
+📚 the library** is set to **Edit tags**. It then opens on the field of the
+column you double-clicked, framed in the accent colour with its text
+selected, so you can type straight over it: **Title**, **Artist**,
+**Album**, **Comment**, **Genre** for the Dance column, **Classes** or
+**Custom**. A column with no field of its own, such as BPM, opens the
+editor as usual.
 
 ## The Tags tab
 
@@ -32,7 +41,13 @@ at once.
 A form like Mp3tag's: **Title, Artist, Album, Year, Track, Genre, Comment,
 Album artist, Composer, Disc number** and **Replay Gain**, plus the front
 cover (shown, not editable). A changed field is written into every selected
-MP3 on **Save**. The box is only active for MP3 files on disk.
+MP3 on **Save**. It is greyed out when the MP3's tags can't be read.
+
+A selection with no MP3 on disk, only FLAC, M4A and the like, gets
+**In the app's database** in this place instead: **Title, Artist, Album,
+Year, Genre** and **Comment**. They are kept in the app's database like the
+stars and laid over what the file says, so the file itself stays untouched.
+A double-click in 📚 the library opens on the column's field here too.
 
 With several titles, a field they differ in reads **< keep >** and stays as
 it is in each file until you change it. **< blank >**, or an emptied field,
@@ -60,9 +75,10 @@ titles and reads the MP3 again.
 
 ### Writing the app's tags into the MP3
 
-When you save changed stars, classes, instrumental or markers of MP3 files,
-the app asks **Also write … into the MP3?** The default is **No**: the change
-then stays in the app only. On **Yes**:
+The last line of the box, **Also write these into the MP3 file**, decides
+where Save puts changed stars, classes, instrumental and markers. It starts
+unticked every time the editor opens: the change then stays in the app only.
+Ticked:
 
 - the stars go into the Windows rating of the file, which Explorer and
   Windows Media Player show;
@@ -132,8 +148,8 @@ an MP3 tag…**:
 
 After **OK** the app reads that tag of every library title in the
 background and fills the column. A value typed in the 🏷 editor still wins
-over the tag. While Custom is mapped, the **Also write … into the MP3?**
-question offers it too. Without a mapping, Custom never touches the file.
+over the tag. While Custom is mapped, **Also write these into the MP3 file**
+takes it into that tag too. Without a mapping, Custom never touches the file.
 
 The quicker way: open the 🏷 editor on a title that has the tag, go to
 **Extended tags** and right-click the row ▸ **🏷 Fill Custom from this tag**.

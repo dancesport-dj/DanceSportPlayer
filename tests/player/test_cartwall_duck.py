@@ -14,15 +14,20 @@ offscreen platform, no desk stripped down to the handful of attributes the ramp
 happened to read.
 """
 
+import math
 import unittest
 
 from player.audio.mix import (
+    CART_DUCK_PCT,
     OutputMix,
     _ANNOUNCE_DUCK,
     _CART_DUCK,
     _DUCK_DOWN_MS,
     _DUCK_UP_MS,
+    cart_duck_level,
+    cart_duck_pct,
 )
+from shared.audio.playback import duck_db_text
 
 
 class DuckReasonTest(unittest.TestCase):
@@ -98,12 +103,34 @@ class DuckReasonTest(unittest.TestCase):
         self.m.duck_reason("cartwall", True)
         self.m.step()
         down = 1.0 - self.m.duck
-        self.m.duck = _ANNOUNCE_DUCK
+        self.m.duck = _CART_DUCK
         self.m.duck_reason("cartwall", False)
         self.m.step()
-        up = self.m.duck - _ANNOUNCE_DUCK
+        up = self.m.duck - _CART_DUCK
         self.assertGreater(down, up)
         self.assertAlmostEqual(down / up, _DUCK_UP_MS / _DUCK_DOWN_MS, places=3)
+
+    def steps_to_settle(self):
+        for n in range(1, 1000):
+            self.m.step()
+            if self.m.settled:
+                return n
+        self.fail("the ramp never settled")
+
+    def test_each_duck_takes_the_same_time_whatever_its_depth(self):
+        """The step was sized for the announcer's depth, so the deeper pad
+        duck took longer than _DUCK_DOWN_MS to get down, and longer up
+        (10 steps and 31 for the 8 and 24 here). One step of slack: a span
+        that divides evenly can land a step late on summed floats."""
+        down = math.ceil(_DUCK_DOWN_MS / OutputMix.step_ms)
+        up = math.ceil(_DUCK_UP_MS / OutputMix.step_ms)
+        for reason in ("announce", "cartwall"):
+            with self.subTest(reason):
+                self.m = OutputMix()
+                self.m.duck_reason(reason, True)
+                self.assertIn(self.steps_to_settle(), (down, down + 1))
+                self.m.duck_reason(reason, False)
+                self.assertIn(self.steps_to_settle(), (up, up + 1))
 
     def test_the_ramp_arrives_and_settles(self):
         """A ramp that overshot or never quite landed would keep the 25 ms timer
@@ -242,6 +269,51 @@ class GainRampTest(unittest.TestCase):
         self.m.step()
         self.assertLess(self.m.duck, 1.0)
         self.assertLess(self.m.gain, 1.0)
+
+
+class CartDuckSettingTest(unittest.TestCase):
+    """How far a pad pulls the music down is a setting, in percent of the
+    music's volume like the 🔉 desk duck; 10 % is about -20 dB."""
+
+    def test_without_the_setting_it_is_a_tenth(self):
+        self.assertEqual(cart_duck_pct({}), CART_DUCK_PCT)
+        self.assertAlmostEqual(cart_duck_level({}), _CART_DUCK)
+
+    def test_the_setting_sets_it_within_bounds(self):
+        self.assertEqual(cart_duck_pct({"cart_duck_pct": 25}), 25)
+        self.assertEqual(cart_duck_pct({"cart_duck_pct": 100}), 90)
+        self.assertEqual(cart_duck_pct({"cart_duck_pct": -5}), 0)
+        self.assertEqual(cart_duck_pct({"cart_duck_pct": "x"}), CART_DUCK_PCT)
+
+    def test_a_pad_ducks_to_the_level_set(self):
+        m = OutputMix()
+        m.set_cart_duck(0.25)
+        m.duck_reason("cartwall", True)
+        self.assertEqual(m.duck_target, 0.25)
+
+    def test_a_new_level_reaches_a_pad_that_is_ducking_now(self):
+        m = OutputMix()
+        m.duck_reason("cartwall", True)
+        m.set_cart_duck(0.4)
+        self.assertEqual(m.duck_target, 0.4)
+
+    def test_a_new_level_does_not_duck_by_itself(self):
+        m = OutputMix()
+        m.set_cart_duck(0.4)
+        self.assertEqual(m.duck_target, 1.0)
+
+    def test_the_deeper_of_pad_and_announcer_still_wins(self):
+        m = OutputMix()
+        m.set_cart_duck(0.5)
+        m.duck_reason("cartwall", True)
+        m.duck_reason("announce", True)
+        self.assertEqual(m.duck_target, _ANNOUNCE_DUCK)
+
+    def test_the_readout_names_the_level_in_db(self):
+        self.assertEqual(duck_db_text(10), "≈ −20 dB")
+        self.assertEqual(duck_db_text(20), "≈ −14 dB")
+        self.assertEqual(duck_db_text(50), "≈ −6 dB")
+        self.assertEqual(duck_db_text(0), "−∞ dB")
 
 
 if __name__ == "__main__":

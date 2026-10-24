@@ -65,6 +65,7 @@ _ASSEMBLY = (
     "player/window/main_presenter.py",
     "gui/window/main_print.py",
     "player/window/main_remote.py",
+    "player/window/main_resume.py",
     "gui/window/main_restore.py",
     "gui/window/main_tags.py",
     "gui/window/main_undo.py",

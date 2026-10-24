@@ -16,6 +16,7 @@ from planner.music.analysis import _tempo_prior
 from planner.music.parsing import _detect_bpm, _get_tag_bpm
 
 import html
+import shiboken6
 from PySide6.QtCore import (
     Qt,
 )
@@ -1153,14 +1154,17 @@ class MusicCheckMixin(TagEditMixin):
 
         The two late gates come from the options the list was last built with
         — checking against a gate the operator turned off would be inventing a
-        rule they declined."""
+        rule they declined. Likewise the openers: one the source had no
+        tracks for was never owed."""
         t = self._deckset.warmup_table
-        etds = (getattr(self, "_warmup_opts", None) or {}).get("etds") or {}
+        opts = getattr(self, "_warmup_opts", None) or {}
+        etds = opts.get("etds") or {}
         return party_check.party_findings(
             t._row_meta.entries(),
             beats_per_bar=self._BEATS_PER_BAR,
             late_ww=etds.get("late_ww", True),
-            late_pd=etds.get("late_pd", True))
+            late_pd=etds.get("late_pd", True),
+            available=opts.get("dances"))
 
     def _check_party_list(self):
         """🩺 on the 🤸 Eintanzen header: check the list in place and report."""
@@ -1188,7 +1192,8 @@ class MusicCheckMixin(TagEditMixin):
         back into the list. Non-modal on purpose — the point is to fix the
         list while reading it."""
         dlg = getattr(self, "_party_dlg", None)
-        if dlg is not None and dlg.isVisible():
+        # It deletes itself on close, so a report closed earlier is gone.
+        if dlg is not None and shiboken6.isValid(dlg) and dlg.isVisible():
             dlg.close()
         dlg = QDialog(self)
         dlg.setWindowTitle("🎉  Party check")

@@ -164,16 +164,17 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
                          d[0], d[2], d[4], d[6])
 
     def _deck_tab_index(self, table: PlaylistTable) -> int:
-        """Which top-level tab page (0 = Group A–D, 1 = Group E–H,
-        2 = 📅 Tournament day) holds this deck."""
+        """Which top-level tab page (Group A–D, Group E–H or 📅 Tournament
+        day) holds this deck."""
         if table in self._deckset.day_decks:
-            return 2
-        return 1 if table in (self._deckset.tableE, self._deckset.tableF,
-                              self._deckset.tableG, self._deckset.tableH) else 0
+            return self._grid.day_page()
+        return self._grid.group_page(table in (
+            self._deckset.tableE, self._deckset.tableF,
+            self._deckset.tableG, self._deckset.tableH))
 
     def _day_tab_index(self, table: PlaylistTable) -> int:
-        """Which 📅 sub-tab (0 = Group A–D, 1 = Group E–H) holds this day deck."""
-        return 1 if table in self._deckset.day_decks[4:] else 0
+        """Which 📅 sub-tab (Group A–D or Group E–H) holds this day deck."""
+        return self._grid.day_group_page(table in self._deckset.day_decks[4:])
 
     def _day_plan_active(self) -> bool:
         """True while any 📅 day deck holds tracks — drives the visibility of the
@@ -185,7 +186,7 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
         renamed it (persisted in the autosave env), the generic default otherwise."""
         self._day_tab_title = (title or "").strip()
         self._grid.deck_tabs.setTabText(
-            2, f"📅 {self._day_tab_title}" if self._day_tab_title
+            self._grid.day_page(), f"📅 {self._day_tab_title}" if self._day_tab_title
             else "📅 Tournament day")
 
     def _rename_day_tab(self):
@@ -271,7 +272,7 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
     def _add_new_day_action(self, menu: QMenu):
         """📅 New tournament day… — greyed out while the one 📅 tab is shown."""
         act = menu.addAction("📅  New tournament day…")
-        act.setEnabled(not self._grid.deck_tabs.isTabVisible(2))
+        act.setEnabled(not self._grid.deck_tabs.isTabVisible(self._grid.day_page()))
         return act
 
     def _tab_strip_menu(self, global_pos):
@@ -292,7 +293,7 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
         self._set_day_tab_title(title)
         self._day_tab_keep = True
         self._apply_deck_view()
-        self._grid.deck_tabs.setCurrentIndex(2)
+        self._grid.deck_tabs.setCurrentWidget(self._grid.day_tabs)
         self._autosave_playlist()
 
     def _clear_group_tab(self, page: int):
@@ -360,7 +361,7 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
         Generate / Save / ↺ target a deck you can actually see."""
         if getattr(self, "_restoring", False):
             return
-        if index == 2:
+        if index == self._grid.day_page():
             self._on_day_tab_changed(self._grid.day_tabs.currentIndex())
             return
         for t in self._deckset.decks:
@@ -372,7 +373,8 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
         """Focus the first open 📅 day deck on the sub-tab the user switched to."""
         if getattr(self, "_restoring", False):
             return
-        decks = self._deckset.day_decks[:4] if index == 0 else self._deckset.day_decks[4:]
+        decks = (self._deckset.day_decks[4:] if index == self._grid.day_group_page(True)
+                 else self._deckset.day_decks[:4])
         for t in decks:
             if not self.deck(t).folded:
                 self._set_active_table(t)
@@ -1180,12 +1182,12 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
         for b in (self._grid.deckE_box, self._grid.deckF_box, self._grid.deckG_box, self._grid.deckH_box):
             b.setVisible(True)
         day = self._day_plan_active() or getattr(self, "_day_tab_keep", False)
-        self._grid.deck_tabs.setTabVisible(0, True)
-        self._grid.deck_tabs.setTabVisible(1, eight)
-        self._grid.deck_tabs.setTabVisible(2, day)
+        self._grid.deck_tabs.setTabVisible(self._grid.group_page(), True)
+        self._grid.deck_tabs.setTabVisible(self._grid.group_page(True), eight)
+        self._grid.deck_tabs.setTabVisible(self._grid.day_page(), day)
         self._grid.deck_tabs.tabBar().setVisible(eight or day)
         if not self._grid.deck_tabs.isTabVisible(self._grid.deck_tabs.currentIndex()):
-            self._grid.deck_tabs.setCurrentIndex(0)
+            self._grid.deck_tabs.setCurrentWidget(self._grid.decks_split)
         self._dual_btn.setProperty("countText", str(n))
         self._set_toolbar_btn_text(
             self._dual_btn,

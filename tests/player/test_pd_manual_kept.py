@@ -91,6 +91,10 @@ class _Desk(PdStopMixin):
         self._pd_highlights = {}
         self._pd_stop_at = None
 
+    def _pd_highlight(self):
+        # No round in play: the panel's highlight stop is the one.
+        return self._play_panel.pd_highlight_stop(), self._play_panel.pd_highlight_n()
+
     def statusBar(self):
         return _Status()
 

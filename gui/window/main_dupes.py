@@ -491,7 +491,9 @@ class DuplicateCheckMixin(MainWindowHost):
 
     def _replace_occurrence(self, table: PlaylistTable, row: int, new_entry) -> bool:
         """Swap the song at one grid slot for `new_entry`, in both the model and the
-        rendered row. Replace keeps the grid shape, so row indices stay valid."""
+        rendered row. Replace keeps the grid shape, so row indices stay valid.
+        A playing title keeps playing, as on a ↺ or a drop-replace: the cursor
+        stays on the slot so the evening runs on from it."""
         if not (0 <= row < len(table._row_meta)):
             return False
         meta = table._row_meta[row]
@@ -517,4 +519,6 @@ class DuplicateCheckMixin(MainWindowHost):
             h = next(i for i, (r, _m) in enumerate(table._row_meta.numbered()) if r == row)
         bg = _C_ROW_EVEN if h % 2 == 0 else _C_ROW_ODD
         table._fill_song_row(row, meta, bg)
+        if row == table._current_play_row:
+            table.sync_play_glyph()
         return True

@@ -119,6 +119,9 @@ class _Win:
     def statusBar(self):
         return self._bar
 
+    def _offer_crash_resume(self):
+        pass   # the crash resume has its own test
+
     def show(self):
         self.log.append("WINDOW SHOWN")
 
@@ -130,6 +133,9 @@ class _Win:
 
     def _seed_undo_baseline(self):
         self.log.append("undo baseline")
+
+    def _load_play_counts(self):
+        pass   # 🔁 the Plays column has its own test
 
     def _refresh_library_status(self, enable_generate=False):
         self.log.append(f"library status (generate={enable_generate})")
@@ -216,6 +222,28 @@ class DeferredStartupTest(_StartupCase):
         self.assertEqual(len(self.win._library.lib.entries), 3)
         self.assertEqual(self.win._library.cache, "the cache")
         self._settle()
+
+
+class FailingStepTest(_StartupCase):
+    """One step that raises must not cost the ones after it: the chain is
+    one event-loop turn per step, so an uncaught error ended it there and
+    left the browser empty or the counts unshown, with nothing said."""
+
+    def setUp(self):
+        super().setUp()
+
+        def broken(_entries):
+            raise ValueError("bad features")
+        gmg.learn_instrumental_probs = broken
+
+    def test_the_later_steps_still_run(self):
+        with self.assertLogs(gmg.log, "ERROR") as logs:
+            log = self._load()
+        for step in ("browser: 3 entries", "tree: 3 entries",
+                     "library status (generate=True)", "loudness available"):
+            self.assertIn(step, log)
+        self.assertTrue(log[-1].startswith("status: Library loaded"))
+        self.assertIn("bad features", "\n".join(logs.output))
 
 
 class LibrarySummaryLanguageTest(_StartupCase):

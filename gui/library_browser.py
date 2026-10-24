@@ -59,6 +59,7 @@ from planner.models import (  # auto-resolved
     library_category,
 )
 from planner.music.vocals import entry_is_instrumental
+from planner.playing import play_counts
 from planner.generate.warmup import warmup_code
 from gui.common import (
     CUSTOM_HEADER_TIP,
@@ -69,7 +70,7 @@ from gui.common import (
     _entry_tooltip,
     _fmt_track_secs,
     _open_in_default_player,
-    dblclick_opens_external,
+    dblclick_action,
     add_custom_mapping_action,
     bpm_tooltip,
     display_title,
@@ -95,7 +96,13 @@ _LIB_COL_RATING = 10   # ★ came last: the sections are movable, a saved order 
 _LIB_COL_CUSTOM = 11   # …and Custom after it
 _LIB_COL_FILE = 12     # …and the cleaned-up file name after that
 _LIB_COL_ALBUM = 13    # …and the ID3 album tag
-_LIB_COL_COMMENT = 14  # …and the comment as the file has it, last
+_LIB_COL_COMMENT = 14  # …and the comment as the file has it
+_LIB_COL_PLAYS = 15    # …and 🔁 how often it played in the last 24 h, last
+# 🏷 The editor's field a double-click on a column opens on (TagEditDialog's
+# `focus`); the dance is read from the genre tag.
+_LIB_TAG_FIELDS = {_LIB_COL_DANCE: "genre", 2: "artist", _LIB_COL_TITLE: "title",
+                   7: "classes", _LIB_COL_CUSTOM: "custom", _LIB_COL_ALBUM: "album",
+                   _LIB_COL_COMMENT: "comment"}
 
 # 📚 A fill writes this many rows at once (a filtered list is all there before
 # the call returns), then the rest in chunks between turns of the event loop,
@@ -390,8 +397,9 @@ class _LibTable(QTableWidget):
         mime.setText("\n".join(str(p) for p in paths))
         drag = QDrag(self)
         drag.setMimeData(mime)
-        drag.exec(Qt.DropAction.CopyAction | Qt.DropAction.MoveAction
-                  | Qt.DropAction.LinkAction, Qt.DropAction.CopyAction)
+        # No Move: the shell would take the MP3 out of the library.
+        drag.exec(Qt.DropAction.CopyAction | Qt.DropAction.LinkAction,
+                  Qt.DropAction.CopyAction)
 
 
 def fill_track_columns(table, fixed=None, artist_col=2, title_col=3):
@@ -444,7 +452,8 @@ def cap_filter_combo(combo: QComboBox, chars: int = _FILTER_CHARS) -> QComboBox:
 
 class LibraryBrowser(QWidget):
     """Dockable library pane under the wishlists: filter by text / dance,
-    sort by any column, drag tracks into the decks, double-click to preview.
+    sort by any column, drag tracks into the decks, ▶ to preview (a
+    double-click opens the system's music player only if ⚙ Settings say so).
 
     Folds to its header strip via the ▾ arrow (like the playlist decks) and
     can be hidden entirely with the 📚 toolbar toggle."""
@@ -463,6 +472,7 @@ class LibraryBrowser(QWidget):
     wholeLibraryWanted = Signal()         # 🌐 clicked — MainWindow loads the global index
     wholeLibraryDropped = Signal()        # ⭐ clicked while 🌐 still loads — stop waiting
     wholeRescanWanted = Signal()          # 🔄 clicked — MainWindow walks the repository again
+    playCountsResetWanted = Signal()      # 🔁 the header menu's reset — MainWindow does it
 
     # Dance codes per style (S-class = the full dance set), for the combo's group filters.
     _STYLE_DANCES = {style: set(DEFAULT_DANCES[style]["S"])
@@ -470,7 +480,7 @@ class LibraryBrowser(QWidget):
     # Narrow columns keep their width while Artist/Title share the rest — the
     # 🏆 pane's default has no Added/Last, so this list carries them.
     _FIXED_COL_W = {0: 30, 1: 90, 4: 52, 5: 52, 6: 52, 7: 70, 8: 82, 9: 52, 10: 72,
-                    11: 90, 12: 220, 13: 180, 14: 180}
+                    11: 90, 12: 220, 13: 180, 14: 180, 15: 52}
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -674,10 +684,10 @@ class LibraryBrowser(QWidget):
 
     def _build_table(self):
         """The track table: its columns, header menu, widths and clicks."""
-        self._table = _LibTable(0, 15)
+        self._table = _LibTable(0, 16)
         self._table.setHorizontalHeaderLabels(
             ["▶", "Dance", "Artist", "Title", "BPM", "⏱", "Pop", "Class",
-             "Added", "Last", "★", "Custom", "Filename", "Album", "Comment"])
+             "Added", "Last", "★", "Custom", "Filename", "Album", "Comment", "Plays"])
         set_header_tip(self._table, _LIB_COL_CUSTOM, CUSTOM_HEADER_TIP)
         set_header_tip(
             self._table, _LIB_COL_RATING,
@@ -693,7 +703,8 @@ class LibraryBrowser(QWidget):
         hh2.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         hh2.setStretchLastSection(False)
         hh2.setMinimumSectionSize(24)
-        for c, w in enumerate((30, 90, 200, 280, 52, 52, 52, 70, 82, 52, 72, 90, 220, 180, 180)):
+        for c, w in enumerate((30, 90, 200, 280, 52, 52, 52, 70, 82, 52, 72, 90, 220, 180, 180,
+                               52)):
             self._table.setColumnWidth(c, w)
         # Until the user drags a handle (or saved widths are restored), the
         # columns stretch to fill the whole pane on every resize.
@@ -702,7 +713,8 @@ class LibraryBrowser(QWidget):
         self._col_width: dict[int, int] = {}   # width a column had when it was hidden
         self._short_dances = False             # Dance column: "LW", not "Langsamer Walzer"
         self.set_hidden_columns([_LIB_COL_RATING, _LIB_COL_CUSTOM, _LIB_COL_FILE,
-                                _LIB_COL_ALBUM, _LIB_COL_COMMENT])   # wait until asked for
+                                _LIB_COL_ALBUM, _LIB_COL_COMMENT,
+                                _LIB_COL_PLAYS])   # wait until asked for
         self._table.resize_cb = self._on_table_resized
         # Right-click the header to tick columns away or shorten the dance names.
         hh2.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -736,8 +748,8 @@ class LibraryBrowser(QWidget):
         hh2.sortIndicatorChanged.connect(self._on_sort_changed)
         self._table.setToolTip(
             "Drag a track onto a deck or wishlist to use it.\n"
-            "▶ to preview · double-click to open in your external player\n"
-            "· right-click for more.")
+            "▶ to preview · right-click for more · a double-click opens it in\n"
+            "the system's music player if ⚙ Settings say so.")
         self._table.cellClicked.connect(self._on_cell_clicked)
         self._table.cellDoubleClicked.connect(self._on_double_click)
         self._table.space_cb = lambda row: self._on_cell_clicked(row, 0)
@@ -931,6 +943,9 @@ class LibraryBrowser(QWidget):
         short.setCheckable(True)
         short.setChecked(self._short_dances)
         short.triggered.connect(self._toggle_short_dances)
+        reset = menu.addAction("Reset the play counters")
+        reset.setEnabled(play_counts.any_counted())
+        reset.triggered.connect(lambda: self.playCountsResetWanted.emit())
         add_custom_mapping_action(menu, self)
         return menu
 
@@ -1120,8 +1135,10 @@ class LibraryBrowser(QWidget):
                 if entry_is_instrumental(e) != (vocal == "instr"):
                     continue
             if text:
+                # The file name too: the card, the log and the deck name a
+                # title by its file, and that is what gets typed here.
                 hay = " ".join(filter(None, (
-                    e.title, getattr(e, "tag_artist", None),
+                    e.title, e.path.stem, getattr(e, "tag_artist", None),
                     getattr(e, "tag_title", None),
                     *(getattr(e, "comment_tags", None) or ())))).lower()
                 if text not in hay:
@@ -1183,6 +1200,7 @@ class LibraryBrowser(QWidget):
             _LIB_COL_FILE: lambda e: e.title or "",
             _LIB_COL_ALBUM: lambda e: getattr(e, "tag_album", None) or "",
             _LIB_COL_COMMENT: lambda e: (getattr(e, "tag_comment", None) or "").lower(),
+            _LIB_COL_PLAYS: lambda e: play_counts.count(e.path),
         }[col]
 
     def _fill_step(self, gen: int, entries: list[MusicEntry], start: int, now: float, keep):
@@ -1224,11 +1242,11 @@ class LibraryBrowser(QWidget):
             gc.enable()
         if end > start:
             model.dataChanged.emit(model.index(start, 0),
-                                   model.index(end - 1, _LIB_COL_COMMENT))
+                                   model.index(end - 1, _LIB_COL_PLAYS))
         if selected:
             sel = QItemSelection()
             for r in selected:
-                sel.select(model.index(r, 0), model.index(r, _LIB_COL_COMMENT))
+                sel.select(model.index(r, 0), model.index(r, _LIB_COL_PLAYS))
             t.selectionModel().select(sel, QItemSelectionModel.SelectionFlag.Select)
         if end < len(entries):
             if time.perf_counter() - self._fill_started >= _PROGRESS_AFTER:
@@ -1284,6 +1302,21 @@ class LibraryBrowser(QWidget):
             cell(r, _LIB_COL_FILE, e.title or "")
             cell(r, _LIB_COL_ALBUM, getattr(e, "tag_album", None) or "")
             cell(r, _LIB_COL_COMMENT, getattr(e, "tag_comment", None) or "")
+            plays = play_counts.count(e.path)
+            cell(r, _LIB_COL_PLAYS, str(plays) if plays else "", plays)
+
+    def refresh_play_counts(self):
+        """Rewrite the 🔁 Plays cells: a title has just played, or the counters
+        were reset. Only the text changes, so no row is filled again."""
+        model = self._table.model()
+        for r in range(self._table.rowCount()):
+            path = self._row_path(r)
+            if path is None:
+                continue   # a row the chunked fill has not reached yet
+            plays = play_counts.count(path)
+            i = model.index(r, _LIB_COL_PLAYS)
+            model.setData(i, str(plays) if plays else "", Qt.ItemDataRole.DisplayRole)
+            model.setData(i, plays, Qt.ItemDataRole.UserRole)
 
     def cell_tooltip(self, row: int, col: int) -> str:
         """The hover text of one cell, built when the mouse rests on it ('' =
@@ -1366,8 +1399,13 @@ class LibraryBrowser(QWidget):
         if col == _LIB_COL_RATING:   # two quick star clicks, not "open the file"
             return
         path = self._row_path(row)
-        if path and dblclick_opens_external():
+        if not path:
+            return
+        action = dblclick_action()
+        if action == "external":
             self._open_external(path)
+        elif action == "tags":
+            self._edit_tags({str(path)}, _LIB_TAG_FIELDS.get(col))
 
     def _row_path(self, row: int) -> Path | None:
         it = self._table.item(row, 0)
@@ -1425,15 +1463,16 @@ class LibraryBrowser(QWidget):
         if entry is not None:
             rescan(entry)
 
-    def _edit_tags(self, paths: set):
-        """🏷 Open the window's tag editor on these rows. The window stores the
-        edit and feeds every pane back through `set_entries`."""
+    def _edit_tags(self, paths: set, focus=None):
+        """🏷 Open the window's tag editor on these rows, on the `focus` field
+        if one is named. The window stores the edit and feeds every pane back
+        through `set_entries`."""
         edit_tags = getattr(self.window(), "_edit_entry_tags", None)
         if edit_tags is None:
             return
         entries = [e for e in self._entries if str(e.path) in paths]
         if entries:
-            edit_tags(entries)
+            edit_tags(entries, focus=focus)
 
     def _start_row(self, row: int):
         it = self._table.item(row, 0)

@@ -46,8 +46,11 @@ wie beim Scan beim Start.
 - **Titel** zeigt das Titel-Tag der MP3; eine Datei ohne zeigt ihren
   bereinigten Dateinamen. **BPM** ist das Tempo in Takten pro Minute, siehe
   [Kapitel 3](03-playlists.md).
-- Ein **Doppelklick** auf eine Zeile öffnet die Datei im Musikprogramm deines
-  Systems, sobald ⚙ Einstellungen ▸ 🔊 Ton & Player ▸ **📂 Doppelklick öffnet den Titel im Musikprogramm des Systems** an ist. Ab Werk ist es aus.
+- Ein **Doppelklick** auf eine Zeile tut, was ⚙ Einstellungen ▸ 🔊 Ton & Player ▸
+  **📂 Doppelklick auf einen Titel in 📚 der Bibliothek** sagt: nichts (ab
+  Werk), die Datei im Musikprogramm deines Systems öffnen, oder den
+  [🏷 Tags-Editor](05-tags.md#den-editor-öffnen) auf dem doppelgeklickten
+  Feld öffnen.
 - Ein **Rechtsklick** auf eine Zeile bietet **📋 Dateipfad kopieren**,
   **📂 Im Explorer zeigen**, **🎧 In externem Player öffnen**,
   **🏷 MP3-Tags neu einlesen** und **🏷 Tags bearbeiten…**. Sind mehrere
@@ -55,10 +58,13 @@ wie beim Scan beim Start.
   [Kapitel 5](05-tags.md).
 - Ein **Rechtsklick auf den Spaltenkopf** wählt die Spalten oder schaltet auf
   kurze Tanznamen (LW, SB) um. Die Spalten **★** (Bewertung), **Custom**,
-  **Dateiname**, **Album** und **Kommentar** sind anfangs ausgeblendet und lassen sich hier
-  einblenden. Dateiname ist der bereinigte Name der Datei, mit dem vollen
-  Pfad im Tooltip; Album ist der Album-Tag der MP3, Kommentar ihr
-  Kommentar, wie er drinsteht.
+  **Dateiname**, **Album**, **Kommentar** und **Gespielt** sind anfangs
+  ausgeblendet und lassen sich hier einblenden. Dateiname ist der bereinigte
+  Name der Datei, mit dem vollen Pfad im Tooltip; Album ist der Album-Tag der
+  MP3, Kommentar ihr Kommentar, wie er drinsteht, und Gespielt, wie oft der
+  Titel in den letzten 24 Stunden lief, wie in den
+  [Playlists](03-playlists.md), mit **Zähler für Gespielt zurücksetzen** im
+  selben Menü.
   **Custom einem MP3-Tag zuordnen…** füllt Custom aus einem Tag deiner Wahl.
 
 ## 🏆 Turniere
@@ -121,12 +127,20 @@ Namen.
 ![Der Reiter Turniere, Titel-Ansicht](../img/tournaments-tracks.png)
 
 - **▶** oder die **Leertaste** spielt einen Titel ab, auf dem 🎧 Vorhör-Ausgang,
-  wenn einer gewählt ist. Ein Doppelklick öffnet ihn im Musikprogramm deines
-  Systems, wenn diese Einstellung an ist (siehe die 📚 Bibliothek oben).
+  wenn einer gewählt ist. Ein Doppelklick tut dasselbe wie in
+  der 📚 Bibliothek (siehe oben).
 - Zieh Titel auf ein Deck, den Party-Bereich oder eine Wunschliste.
 - Die Leiste darunter zeigt die Zahl der Titel und die gesamte Spielzeit.
   Titel, die die Bibliothek nicht kennt, werden mitgezählt, bringen aber keine
   Zeit mit.
+- **Titel** zeigt den Titel-Tag der MP3, oder den bereinigten Dateinamen,
+  wenn der Tag leer ist. Wie in der Bibliothek blendet ein **Rechtsklick auf
+  den Spaltenkopf** Spalten ein oder aus (Titel bleibt immer), und die
+  Spaltenköpfe lassen sich in eine andere Reihenfolge ziehen. **Dateiname**
+  und **Gespielt** sind anfangs ausgeblendet: Dateiname zeigt den bereinigten
+  Namen der Datei, mit dem vollen Pfad im Tooltip, und Gespielt zählt die
+  Wiedergaben der letzten 24 Stunden wie in der Bibliothek. Der Reiter merkt
+  sich die Spalten.
 
 **▦** schaltet zurück auf die Slots.
 

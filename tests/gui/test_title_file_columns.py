@@ -29,7 +29,8 @@ from gui.library_browser import _LIB_COL_FILE, _LIB_COL_TITLE, LibraryBrowser
 from gui.table.playlist_table import PlaylistTable
 from gui.table.table_actions import TableActionsMixin
 from planner.models import MusicEntry
-from shared.columns import _COL_ALBUM, _COL_COMMENT, _COL_CUSTOM, _COL_FILE, _COL_REGEN, _COL_TITLE
+from shared.columns import (_COL_ALBUM, _COL_COMMENT, _COL_CUSTOM, _COL_FILE, _COL_PLAYS, _COL_REGEN,
+                            _COL_TITLE)
 from tests.qt_test_support import reap_widget
 
 _app = QApplication.instance() or QApplication([])
@@ -120,8 +121,8 @@ class MigrationTest(unittest.TestCase):
              "column_widths": {"playlist": {"10": 90, "11": 30}}}
         migrate_column_settings(s)
         self.assertEqual(s["hidden_columns"],
-                         {"playlist": [9, 10, _COL_FILE, _COL_ALBUM, _COL_COMMENT],
-                          "wishlist": [1, _COL_FILE, _COL_ALBUM, _COL_COMMENT, _COL_REGEN]})
+                         {"playlist": [9, 10, _COL_FILE, _COL_ALBUM, _COL_COMMENT, _COL_PLAYS],
+                          "wishlist": [1, _COL_FILE, _COL_ALBUM, _COL_COMMENT, _COL_PLAYS, _COL_REGEN]})
         self.assertEqual(s["column_widths"]["playlist"],
                          {"10": 90, str(_COL_REGEN): 30})
         self.assertEqual(s["columns_version"], COLUMNS_VERSION)
@@ -131,8 +132,8 @@ class MigrationTest(unittest.TestCase):
         s = {"columns_version": 3, "library_columns": list(order),
              "library_hidden_columns": [10, 11]}
         migrate_column_settings(s)
-        self.assertEqual(s["library_columns"], order + [12, 13, 14])
-        self.assertEqual(s["library_hidden_columns"], [10, 11, 12, 13, 14])
+        self.assertEqual(s["library_columns"], order + [12, 13, 14, 15])
+        self.assertEqual(s["library_hidden_columns"], [10, 11, 12, 13, 14, 15])
 
 
 if __name__ == "__main__":

@@ -68,6 +68,7 @@ class _Voice:
         self.fade = 1.0
         self.fade_step = 0.0     # > 0 while fading out
         self.then: tuple[object, pc.CartPad] | None = None  # (key, pad) to start once the fade finishes
+        self.held = False        # a 🎶 pad paused under a title, to carry on later
         self.started = 0.0       # monotonic, for "steal the oldest"
         self.released = 0.0      # monotonic, for "least recently used"
 
@@ -107,6 +108,7 @@ class CartVoices(QObject):
         self._level = 1.0        # master × desk, pushed in by _apply_volume
         self._muted = False
         self._wall_fade = pc.DEFAULT_FADE_MS   # what a pad follows by default
+        self._bg_pauses = False  # a starting title pauses 🎶 pads instead of muting them
         self._last_fire: dict[object, float] = {}
         self._active = 0
         self._ducking = False
@@ -145,7 +147,10 @@ class CartVoices(QObject):
         voice = self._voice_for(key)
         return voice is not None and voice.fade_step <= 0
 
-    def fire(self, key, pad: pc.CartPad) -> bool:
+    def fire(self, key, pad: pc.CartPad) -> bool | None:
+        """Start `pad` on a voice. True: it plays (or will, once a stolen
+        voice has faded); False: no voice was free; None: the second half of
+        a double-click, ignored — the first half's outcome stands."""
         # The desk first: it holds the released flag for ALL players, and a wall
         # that quietly re-attached only its own voices would leave that flag set
         # — the deck's output would then never be handed back again.
@@ -153,7 +158,7 @@ class CartVoices(QObject):
         self.restore_outputs()
         now = time.monotonic()
         if now - self._last_fire.get(key, 0.0) < _FIRE_GAP_MS / 1000.0:
-            return False        # a double-click is one tap
+            return None         # a double-click is one tap
         self._last_fire[key] = now
         if pad.stops_others:
             self._stop_others(key)
@@ -168,6 +173,9 @@ class CartVoices(QObject):
             reviving.started = now
             reviving.player.setPosition(0)
             reviving.player.play()
+            reviving.held = False
+            if pad.background and self._bg <= 0.0:
+                self._hold_background()
             self._apply(reviving)
             self.padFading.emit(key, False)   # stop the blink: it is back
             self._sync()
@@ -198,13 +206,18 @@ class CartVoices(QObject):
         if voice is not None and voice.pad is not None and voice.fade_step <= 0:
             self._start_fade(voice, pc.fade_for(voice.pad, self._wall_fade))
 
-    def stop_all(self) -> None:
+    def stop_all(self) -> int:
+        """Fade every pad out. Returns the longest fade started, in ms."""
+        longest = 0
         for voice in self._pool:
             # A voice already on its steal ramp keeps fading, but the pad that
             # was waiting for it must not start any more.
             voice.then = None
             if voice.pad is not None and voice.fade_step <= 0:
-                self._start_fade(voice, pc.fade_for(voice.pad, self._wall_fade))
+                span = pc.fade_for(voice.pad, self._wall_fade)
+                longest = max(longest, span)
+                self._start_fade(voice, span)
+        return longest
 
     def _stop_others(self, key) -> None:
         """A ■ pad takes the floor: every other pad fades out, and one still
@@ -249,8 +262,14 @@ class CartVoices(QObject):
     def muted(self) -> bool:
         return self._muted
 
+    def set_background_pauses(self, pauses: bool) -> None:
+        """🎶 Whether a starting title pauses the background pads (True) or
+        only dips them to silence, still running, until the music stops (False)."""
+        self._bg_pauses = bool(pauses)
+
     def set_music_playing(self, playing: bool) -> None:
-        """The deck started or stopped: 🎶 background pads dip or come back."""
+        """The deck started or stopped: 🎶 background pads dip or come back.
+        Set to pause, they hold once they are down (see _hold_background)."""
         if playing:
             self._bg_hold.stop()
             self._aim_background(0.0)
@@ -258,7 +277,24 @@ class CartVoices(QObject):
             self._bg_hold.start()
 
     def _lift_background(self) -> None:
+        # Whatever the setting says now: a bed held under the title never
+        # comes back otherwise.
+        for voice in self._pool:
+            if voice.held:
+                voice.held = False
+                voice.player.play()
         self._aim_background(1.0)
+
+    def _hold_background(self) -> None:
+        """Set to pause: the background pads are silent now, so stop them where
+        they are — on the dip, never before it, or the bed cuts off audibly."""
+        if not self._bg_pauses:
+            return
+        for voice in self._pool:
+            if (voice.busy and voice.pad is not None and voice.pad.background
+                    and voice.fade_step <= 0 and not voice.held):
+                voice.held = True
+                voice.player.pause()
 
     def _aim_background(self, target: float) -> None:
         self._bg_target = target
@@ -276,6 +312,8 @@ class CartVoices(QObject):
         for voice in self._pool:
             if voice.busy and voice.pad is not None and voice.pad.background:
                 self._apply(voice)
+        if self._bg <= 0.0:
+            self._hold_background()
 
     def preview_volume(self, key, volume: float) -> None:
         """The pad dialog's slider, heard while it is dragged. The stored pad is
@@ -370,6 +408,8 @@ class CartVoices(QObject):
         self._apply(voice)
         voice.player.setPosition(0)
         voice.player.play()
+        if pad.background and self._bg <= 0.0:
+            self._hold_background()   # fired under a title: it waits for the break
         if not self._tick.isActive():
             self._tick.start()
         self._sync()
@@ -420,6 +460,7 @@ class CartVoices(QObject):
         voice.out.setVolume(0.0)
         voice.key = None
         voice.pad = None
+        voice.held = False
         voice.fade = 1.0
         voice.fade_step = 0.0
         voice.released = time.monotonic()

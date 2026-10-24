@@ -1,0 +1,16 @@
+# ── Resolution overrides for requirements-full.lock ──────────────────────────
+# Not installed on its own: uv reads it with --overrides while compiling the
+# FULL lock, and it exists only because demucs's own metadata disagrees with
+# the other two pins on a platform this project does not build for.
+#
+# demucs==4.1.0 declares, for Intel macOS only (darwin + x86_64):
+#     numpy<2 ; sys_platform == "darwin" and platform_machine == "x86_64"
+#     torch>=2.1,<2.3 ; sys_platform == "darwin" and platform_machine == "x86_64"
+# A universal resolution still evaluates that split, so it fails against
+# numpy==2.5.3 (requirements.txt) and torch==2.14.0 (requirements-full.txt) —
+# although no Intel-mac build exists: the Mac build is Apple silicon only,
+# because llvmlite/numba/soundfile have no universal2 wheels (BUILD.md).
+# Overriding both pins to what the project actually uses is a no-op on every
+# platform that is built, and lets the dead split resolve.
+numpy==2.5.3
+torch==2.14.0

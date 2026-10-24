@@ -14,6 +14,7 @@ import time
 from typing import TYPE_CHECKING
 from datetime import datetime, timedelta
 from PySide6.QtCore import (
+    QTimer,
     QUrl,
 )
 from PySide6.QtGui import (
@@ -24,7 +25,7 @@ from PySide6.QtWidgets import (
 )
 from pathlib import Path
 from planner import i18n
-from planner.playing import play_log
+from planner.playing import play_counts, play_log
 from planner import terms
 from planner.terms import dance_name
 from planner.playlist.checks import trailing_silence_secs
@@ -60,7 +61,9 @@ from player.window.main_pause import PauseMusicMixin, _live_target
 from player.window.main_pd import PdStopMixin
 from player.window.main_play_values import PlayValuesMixin
 from player.window.main_presenter import PresenterMixin
+from player.window.main_resume import ResumeSessionMixin
 from player.window.main_xfade import CrossfadeMixin
+from player.widgets.quit_fade import QuitFadeDialog
 from player.widgets.taskbar import (
     TaskbarPlayer,
 )
@@ -77,9 +80,16 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("dancesport.gui.player")
 
+# 🧊 How long the position may stand still while the player says it plays
+# before _watch_stall steps in.
+_STALL_MS = 5000
+# ✕ during music: how long past the last fade's end the window waits, so the
+# ramp's final step has landed before the players go.
+_QUIT_FADE_MARGIN_MS = 200
+
 class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
                          AudioLevelMixin, PdStopMixin, PauseMusicMixin,
-                         CrossfadeMixin):
+                         CrossfadeMixin, ResumeSessionMixin):
     """Playing mode itself: the player card, the decks it plays and the clock.
 
     Levels, the Paso Doble stop, the 🖥 presenter screen, the per-list play
@@ -92,7 +102,7 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
     _level_owed = False
 
     def _is_playing_mode(self) -> bool:
-        return self._left_stack.currentIndex() == 1
+        return self._left_stack.currentWidget() is self._play_scroll
 
     # ── 🎧 Pre-listen ─────────────────────────────────────────────────────────
 
@@ -242,7 +252,7 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
     def _set_play_mode(self, playing: bool):
         self._mode_plan_btn.setChecked(not playing)
         self._mode_play_btn.setChecked(playing)
-        self._left_stack.setCurrentIndex(1 if playing else 0)
+        self._left_stack.setCurrentWidget(self._play_scroll if playing else self._cfg_scroll)
         if self._big_player and self._big_player.is_wide():
             self._big_player.setVisible(playing)
             self._dock_mode_row()
@@ -314,7 +324,7 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         save_settings(self._settings)
         # Toggling the PD options mid-song must re-arm (or disarm) the stop.
         if self._playback.dance == "PD" and self._playback.path is not None:
-            if self._play_panel.pd_highlight_stop():
+            if self._pd_highlight()[0]:
                 self._ensure_pd_highlights(self._playback.path)
             else:
                 self._pd_stop_at = None
@@ -325,6 +335,7 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         """Halt the tick engine, cancel any pending auto-advance and restore
         full volume for the next song."""
         self._fade_timer.stop()
+        self._drop_on_air()
         self._between.pending = None
         self._pd_stop_at = None
         self._fade_now.cancel()
@@ -393,7 +404,8 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
                 self._big_player.set_limit(sil_ms, "mute")
             else:
                 self._big_player.set_limit(int(end_ms))
-            self._big_player.set_pd_marks([])   # not a PD — no marks on the bar
+            # A PD played in full shows its highlights, nothing armed.
+            self._big_player.set_pd_marks(self._unarmed_pd_marks())
             # The tick fades over the last `fade` wall-clock seconds.
             fade = float(self._pv("fade"))
             if fade > 0:
@@ -404,10 +416,20 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
                 self._big_player.set_limit(sil_ms, "mute")
             else:
                 self._big_player.set_limit(None)
-            self._big_player.set_pd_marks([])
+            self._big_player.set_pd_marks(self._unarmed_pd_marks())
         spans = (self._silences.get(str(self._playback.path))
                  if self._playback.path is not None else None)
-        self._big_player.set_wave_overlay(spans or [], fade_at)
+        # ⏩ Where the title starts: what was skipped, and a pre-roll still
+        # owed until the media is open. 🌅 Its fade-in runs on from there,
+        # in music heard, so in file time it stretches with the tempo too.
+        start_ms = self._playback.offset_ms + self._playback.pre_roll_ms
+        fade_in_end = None
+        if self._playback.fade_in_secs > 0:
+            rate = self._player.playbackRate() if self._player else 1.0
+            fade_in_end = int(start_ms + self._playback.fade_in_secs
+                              * max(0.01, rate) * 1000)
+        self._big_player.set_wave_overlay(spans or [], fade_at, start_ms,
+                                          fade_in_end)
 
     def _next_song_to_advance(self) -> tuple[PlaylistTable, int, Path] | None:
         """(table, row, path) of the song AFTER the one currently playing, or
@@ -451,16 +473,23 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         🏁 once it is already over."""
         if not self._big_player:
             return
+        # ⏹ A planned stop at the end of this title is what comes next.
+        stop = self._play_panel.stop_text()
+        if stop and self._play_panel.stop_due(
+                datetime.now() + timedelta(seconds=self._music_left() or 0)):
+            self._big_player.set_next_up(i18n.t("⏹  Stops after this title"))
+            return
+        tail = f"  ·  {stop}" if stop else ""
         # During the auto-advance pause nothing is "playing", so no table can
         # resolve a follower — the armed advance IS the next song.
         nxt = self._next_song_to_advance() or _live_target(self._between.pending)
         if nxt is None:
-            self._big_player.set_next_up("")
+            self._big_player.set_next_up(stop)
             return
         t, nrow, npath = nxt
         if self._looping():
             # Nothing "comes after" a looping title — it comes again.
-            self._big_player.set_next_up(f"🔁  {npath.stem}  ·  again")
+            self._big_player.set_next_up(f"🔁  {npath.stem}  ·  again{tail}")
             return
         row = t._current_play_row
         nmeta = t._row_meta.at(nrow)
@@ -474,7 +503,7 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         code = nmeta.dance if nmeta is not None else ""
         dance = dance_name(code, code)
         self._big_player.set_next_up(
-            f"⏭  {dance}  ·  {npath.stem}" if dance else f"⏭  {npath.stem}")
+            (f"⏭  {dance}  ·  {npath.stem}" if dance else f"⏭  {npath.stem}") + tail)
 
     def _set_artwork_shown(self, on: bool):
         """🖼 in ⚙ Settings → cover on the player card."""
@@ -536,6 +565,17 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         if not self._looping() and not advancing:
             self._focus_next_song()
             return
+        # ⏹ The planned stop. A 🔀 crossfade has already brought the next
+        # title in: that end still counts, but it cannot stop anything.
+        crossfading = self._between.xfade.state == "fading"
+        if self._play_panel.stop_title_ended(datetime.now(), can_stop=not crossfading):
+            self._set_countdown(i18n.t("⏹  Stopped as planned"))
+            self.statusBar().showMessage(
+                i18n.t("⏹ Stopped as planned — ⏯ plays the next title."), 8000)
+            log.info("⏹ Stopped as planned\n"
+                     "next title cued, waiting for ⏯")
+            self._focus_next_song()
+            return
         nxt = self._next_song_to_advance()
         if nxt is None:
             return
@@ -595,8 +635,10 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
 
     def _set_countdown(self, text: str):
         """Show the countdown/status on the left Playing panel; mirror it onto
-        the big-player card ONLY during the between-songs pause. In normal play
-        the panel's sand clock + the card's adjusted-time line already cover it,
+        the big-player card ONLY during the between-songs pause — nothing
+        sounds then, and the card is where the desk looks. The 🐂 wait before
+        a Paso Doble has its own place there (`set_wait`). In normal play the
+        panel's sand clock + the card's adjusted-time line already cover it,
         so a card countdown would double the ⏳."""
         self._play_panel.set_countdown(text)
         if self._big_player:
@@ -667,6 +709,11 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
                 or self._player is None
                 or self._player.playbackState()
                 != QMediaPlayer.PlaybackState.PlayingState):
+            return
+        if self._fade_now.running:
+            # A second press must not restart the ramp: that put the volume
+            # back to full. On a 🛑 ramp it only turns the hold into an end.
+            self._fade_now.hold = False
             return
         self._fade_now.start(self._pv("fade"))
         self._set_fade_indicator(True)
@@ -755,6 +802,9 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         if (self._player.playbackState()
                 != QMediaPlayer.PlaybackState.PlayingState):
             return
+        if self._watch_stall():
+            return
+        self._step_fade_in()
         # Manual "fade out now" (🔉↓): ramp to silence, then end like a timed
         # cut. Takes priority over the normal timed/PD logic below. On either
         # side of the desk: the 📱 phone sends it whichever one is showing.
@@ -785,13 +835,19 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
             return
         if not self._is_playing_mode():
             return
-        # Grey the track once it has truly been heard for >10 s (any dance).
+        self._note_on_air()
+        # Grey the track once it has truly been heard for >10 s (any dance):
+        # not silence skipped over, nor the ground a ↩ resume jumped past.
         if (not self._played_marked
                 and self._playback.path is not None
-                and self._player.position() >= self._PLAYED_AFTER_MS):
+                and audible_played_secs(self._player.position(),
+                                        self._playback.offset_ms,
+                                        self._player.playbackRate())
+                >= self._PLAYED_AFTER_MS / 1000):
             self._played_marked = True
             self._mark_path_played(self._playback.path)
             self._log_play(self._playback.path)
+            self._note_session()   # ▶ for picking the evening up after a crash
         # 🔀 Near the end of a title the list walks straight on from, the next
         # one comes in under it. The tick goes on below: until the tail player
         # takes over, the running title keeps its own fade and cut.
@@ -821,6 +877,48 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         r = int(remaining + 0.999)
         self._set_countdown(f"⏳  {r // 60}:{r % 60:02d}")
 
+    def _watch_stall(self) -> bool:
+        """Playing, but the position has not moved for _STALL_MS — a decoder
+        hang, the output device gone. The title is reloaded where it stood and
+        the operator told; a second stall of the same title gives it up like
+        one that would not play (→ the next title of a running round). True
+        when it stepped in."""
+        player = self._player
+        if player is None:
+            return False
+        pb = self._playback
+        token, pos, now = pb.token, player.position(), time.monotonic()
+        seen_token, seen_pos, since = pb.stall_seen
+        if token != seen_token or pos != seen_pos:
+            pb.stall_seen = (token, pos, now)
+            return False
+        path = pb.path
+        if 1000 * (now - since) < _STALL_MS or path is None:
+            return False
+        pb.stall_seen = (None, 0, 0.0)
+        if pb.stall_reloaded == token:
+            log.error("🧊 Playback stalled again — giving up\n"
+                      "file: %s", path)
+            self._playback_failed(path, i18n.t("stalled"),
+                                  i18n.t("⚠ Could not play: %s") % path.name)
+            return True
+        pb.stall_reloaded = token
+        at = f"{pos // 60_000}:{pos // 1000 % 60:02d}"
+        log.warning("🧊 Playback stalled — reloading\n"
+                    "file: %s\n"
+                    "at: %s", path, at)
+        _show_toast(self, i18n.t("⚠ Playback stalled — “%s” reloaded at %s.")
+                    % (path.stem, at))
+        player.stop()
+        player.setSource(QUrl())
+        # ↩ The seek waits for the media (see _on_media_status), which books it
+        # as skipped ground. This ground was heard: the ⏳ play length goes on.
+        pb.offset_ms -= pos
+        self._resume_seek_ms = pos
+        player.setSource(QUrl.fromLocalFile(str(path)))
+        player.play()
+        return True
+
     def _between_tick(self, player, pending):
         """⏸ The pause between two songs: its countdown, fade and advance."""
         # The deck the pause is running for, not the panel: its own switch
@@ -835,6 +933,10 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         # ⏭ skip: fade the filler to silence over the fade time, then advance.
         if self._between.fade_end is not None:
             remaining = self._between.fade_end - time.monotonic()
+            if remaining <= 0 and self._fade_now.quitting:
+                if self._pause_out is not None:   # 🔉 the quit fade: no next title
+                    self._pause_out.setVolume(0.0)
+                return
             if remaining <= 0:
                 self._between.fade_end = None
                 self._fire_pending_advance()
@@ -925,9 +1027,10 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
             deck, ent = None, None
         heard = audible_played_secs(self._player.position(), self._playback.offset_ms,
                                     self._player.playbackRate())
+        started = datetime.now() - timedelta(seconds=heard)
         try:
             play_log.record(
-                datetime.now() - timedelta(seconds=heard), path,
+                started, path,
                 (ent.tag_artist or "") if ent else "",
                 ent.title if ent else Path(path).stem,
                 self._playback.dance, self.deck(deck).title if deck else "",
@@ -936,6 +1039,36 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
             log.warning("📜 Play not logged\n"
                         "file: %s\n"
                         "error: %s", path, exc)
+        else:
+            play_counts.bump(path, started)
+            self._refresh_play_counts()
+
+    def _refresh_play_counts(self):
+        """🔁 Every list's Plays column, after a play or a reset."""
+        for t in self._deckset.all_tables:
+            t.refresh_play_counts()
+        self._lib_browser.refresh_play_counts()
+        self._tourney_tree.refresh_play_counts()
+
+    def _load_play_counts(self):
+        """🔁 Count the last day's plays off the log, once the database is there."""
+        try:
+            play_counts.load()
+        except sqlite3.Error as exc:
+            log.warning("🔁 Play counts not read\n"
+                        "error: %s", exc)
+            return
+        self._refresh_play_counts()
+
+    def _reset_play_counts(self):
+        """🔁 The header menu's reset: every counter back to zero. The play
+        log, the report for the music rights society, stays as it is."""
+        try:
+            play_counts.reset()
+        except sqlite3.Error as exc:
+            log.warning("🔁 Play counter reset not saved\n"
+                        "error: %s", exc)
+        self._refresh_play_counts()
 
     def _equalize_heat_tempo(self, auto: bool = False) -> bool:
         """TSO button on the player: pitch the playing title to the average
@@ -1162,8 +1295,13 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
             # switch, and the stop paths clear the row markers themselves.
             for t in self._deckset.all_tables:
                 t.sync_play_glyph(playing)
+        if state == QMediaPlayer.PlaybackState.PausedState:
+            # 🔉↓ A fade's clock is wall time: paused, it would run out, and
+            # the first tick after ⏯ would cut the title with no ramp at all.
+            self._fade_now.freeze()
         if not playing:
             return
+        self._fade_now.thaw()
         self._cued = False   # it runs — however it was started
         # ↩ The mark is spent only now. Double-clicking a title merely loads it
         # — the playhead is parked on the mark and the badge has to survive
@@ -1177,7 +1315,7 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         if not self._fade_timer.isActive():
             self._fade_timer.start()
         if (self._playback.dance == "PD" and self._playback.path is not None
-                and self._play_panel.pd_highlight_stop()
+                and self._pd_highlight()[0]
                 and self._pd_stop_at is None):
             self._ensure_pd_highlights(self._playback.path)
 
@@ -1235,6 +1373,10 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
                 t.refresh_found(self._playback.path)
                 if failed is not None:
                     t.refresh_issue_marks()
+            # 🐂 Armed while loading from the scanned length; now the file's own
+            # length is known, which decides whether the highlight is the finale.
+            if self._playback.dance == "PD" and self._pd_highlight()[0]:
+                self._arm_pd_stop(self._playback.path)
         if (not self._play_ready_logged and self._play_t0 is not None
                 and status in (QMediaPlayer.MediaStatus.LoadedMedia,
                                QMediaPlayer.MediaStatus.BufferedMedia)):
@@ -1256,8 +1398,18 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
             self._resume_seek_ms = None
             self._playback.offset_ms += ms
             self._player.setPosition(ms)
+            self._sync_big_player_limit()   # the ⏳ marker moves on with it
             self.statusBar().showMessage(
                 i18n.t("↩ Picked up at %s.") % f"{ms // 60_000}:{ms // 1000 % 60:02d}", 4000)
+        if (self._playback.pre_roll_ms and self._player is not None
+                and status in (QMediaPlayer.MediaStatus.LoadedMedia,
+                               QMediaPlayer.MediaStatus.BufferedMedia)):
+            # ⏩ The pre-roll: the same seek, and the ⏳ cut ignores it the same.
+            ms = self._playback.pre_roll_ms
+            self._playback.pre_roll_ms = 0
+            self._playback.offset_ms += ms
+            self._player.setPosition(ms)
+            self._sync_big_player_limit()
         if status == QMediaPlayer.MediaStatus.EndOfMedia:
             if self._is_playing_mode():
                 # ↩ Heard out — no mark. Only in the big player: the overlay is
@@ -1284,6 +1436,11 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
             if self._between.pending is not None:
                 self._show_pause_status()
             else:
+                # Let go of the file: the backend holds it open as long as it
+                # is the source, so the title just heard could not be renamed
+                # or retagged. An armed advance has preloaded the next one.
+                if self._player:
+                    self._player.setSource(QUrl())
                 self._now_playing.setText("No song selected")
                 if self._big_player:
                     self._big_player.set_now("")
@@ -1316,6 +1473,58 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No)
         return answer == QMessageBox.StandardButton.Yes
+
+    def _quit_after_fade(self) -> bool:
+        """✕ with music sounding: fade it out first (`_fade_out_to_quit`) and
+        close once it is silent. True while the close waits; the window then
+        closes itself, and that close — or a second ✕ meanwhile — goes at once."""
+        if self._fade_now.quitting:
+            return False
+        ms = self._fade_out_to_quit()
+        if ms <= 0:
+            return False
+        self._fade_now.quitting = True
+        log.info("🔉 Fading out before quitting\n"
+                 "fade: %.1fs", ms / 1000)
+        QTimer.singleShot(ms + _QUIT_FADE_MARGIN_MS, self, self.close)
+        self._show_quit_fade(ms)
+        return True
+
+    def _show_quit_fade(self, ms: int):
+        """The window saying the app is closing — a child of this one, so
+        it goes with it."""
+        QuitFadeDialog(self, ms)
+
+    def _fade_out_to_quit(self) -> int:
+        """Marcel: "if i close the window and a music from cartwall or main
+        player is still playing fade it out with the configured intervall".
+        The title over its list's fade time, HELD at silence — a fade ending
+        like a timed cut would start the next title on the way out — and every
+        sounding pad over its own fade or the wall's. Returns how long the
+        longest runs, in ms; 0 when nothing sounds."""
+        ms = 0
+        if (self._player is not None and self._playback.path is not None
+                and self._player.playbackState()
+                == QMediaPlayer.PlaybackState.PlayingState):
+            if not self._fade_now.running:
+                self._fade_now.start(self._pv("fade"))
+                self._set_fade_indicator(True)
+                self._fade_timer.start()
+            self._fade_now.hold = True
+            ms = round(self._fade_now.remaining() * 1000)
+        # ⏸ The pause music between two titles, over the same ramp ⏭ uses;
+        # _between_tick keeps it silent at the end instead of advancing.
+        pause = getattr(self, "_pause_player", None)
+        if (pause is not None and pause.playbackState()
+                == QMediaPlayer.PlaybackState.PlayingState):
+            self._start_pause_skip_fade()
+            if self._between.fade_end is not None:
+                ms = max(ms, round(
+                    (self._between.fade_end - time.monotonic()) * 1000))
+        voices = getattr(self, "_cart_voices", None)
+        if voices is not None:
+            ms = max(ms, voices.stop_all())
+        return ms
 
     def _is_player_stopped(self) -> bool:
         """Stopped, not paused — a cued title the deck row shows as ▶."""

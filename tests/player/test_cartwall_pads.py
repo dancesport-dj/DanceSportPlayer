@@ -12,6 +12,7 @@ import os
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
@@ -457,13 +458,6 @@ class EditLockTest(unittest.TestCase):
         _drop(self.w._buttons[(0, 0, 0)], _url_mime("C:\\s\\a.mp3"))
         self.assertEqual(self.w.pad_at((0, 0, 0)).path, "C:\\s\\a.mp3")
 
-    def test_a_locked_pad_has_no_context_menu(self):
-        """The menu is where clearing and recolouring live — exec() would block
-        a test, so the guard returning before building one is the contract."""
-        self.w.set_wall(pc.DEFAULT_GRID,
-                        [pc.Page(pads={(0, 0): pc.CartPad(path=_SAMPLE)})])
-        self.w._buttons[(0, 0, 0)]._context_menu(QPoint(0, 0))   # must not block
-
     def test_a_locked_wall_still_fires(self):
         seen = []
         self.w.padClicked.connect(seen.append)
@@ -570,19 +564,6 @@ class ColourSwatchTest(unittest.TestCase):
         # backwards.
         self.assertLess(gc._luma(_hex(gc._PLAYED_BAND)),
                         gc._luma(gc._PLAY_BG))
-
-    def test_the_wall_colour_can_be_set_from_a_pad(self):
-        """The 🎨 header button is gone; the wall-wide fallback lives in the pad
-        menu now, so the signal behind it has to reach the wall."""
-        w = gc.CartwallWidget()
-        self.addCleanup(reap_widget, w)
-        w.set_edit(True)
-        w.set_wall(pc.DEFAULT_GRID,
-                   [pc.Page(pads={(0, 0): pc.CartPad(path=_SAMPLE)})])
-        w._buttons[(0, 0, 0)].wall_colour_requested.emit("#c8871a")
-        self.assertEqual(w.default_colour(), "#c8871a")
-        self.assertIn("#c8871a", w._buttons[(0, 0, 0)].styleSheet())
-
 
 class PadLengthTest(unittest.TestCase):
     """'as in playin cartwall show length in cart' — an idle pad says how long
@@ -697,6 +678,45 @@ class CartPadDialogTest(unittest.TestCase):
         dlg = cpd.CartPadDialog(pc.CartPad(path="bed.mp3", background=True))
         self.assertFalse(hasattr(dlg, "_dip"))
         self.assertNotIn("Dip to", [lbl.text() for lbl in dlg.findChildren(QLabel)])
+
+    def test_the_background_box_says_dip_while_titles_only_mute_it(self):
+        dlg = cpd.CartPadDialog(pc.CartPad(path="bed.mp3"))
+        self.assertIn("dip under the music", dlg._background.text())
+        self.assertIn("comes back up", dlg._background.toolTip())
+
+    def test_the_background_box_says_pause_when_titles_pause_it(self):
+        """⚙ Background pads when a title starts: Pause. The pad carries on
+        from where it was, so the box says that, not "dip"."""
+        dlg = cpd.CartPadDialog(pc.CartPad(path="bed.mp3"), background_pauses=True)
+        self.assertIn("pause while a title plays", dlg._background.text())
+        self.assertNotIn("dip", dlg._background.text())
+        self.assertIn("from where it was", dlg._background.toolTip())
+
+    def test_the_wall_hands_its_background_mode_to_the_dialog(self):
+        w = gc.CartwallWidget()
+        self.addCleanup(reap_widget, w)
+        w.set_wall(pc.DEFAULT_GRID, [pc.Page(pads={(0, 0): pc.CartPad(path="bed.mp3")})])
+        w.set_background_pauses(True)
+        with mock.patch.object(gc, "CartPadDialog") as dialog:
+            dialog.return_value.exec.return_value = 0   # Cancel
+            w._on_edit((0, 0, 0))
+        self.assertTrue(dialog.call_args.kwargs["background_pauses"])
+
+    def test_the_window_tells_the_wall(self):
+        from types import SimpleNamespace
+        from typing import Any, cast
+
+        from player.audio.mix import OutputMix
+        from player.window.main_cartwall import CartwallMixin
+        w = gc.CartwallWidget()
+        self.addCleanup(reap_widget, w)
+        host = cast(Any, SimpleNamespace(_settings={"cart_bg_mode": "pause"},
+                                         _mix=OutputMix(), _cartwall=w))
+        CartwallMixin.apply_cart_settings(host)
+        self.assertTrue(w._bg_pauses)
+        host._settings = {}
+        CartwallMixin.apply_cart_settings(host)
+        self.assertFalse(w._bg_pauses)
 
     def test_stopping_the_others_round_trips(self):
         dlg = cpd.CartPadDialog(pc.CartPad(path="anthem.mp3"))
@@ -859,12 +879,6 @@ class TypedValueTest(unittest.TestCase):
         self.assertTrue(dlg._vol_lbl._edit.isHidden())
         self.assertEqual(dlg.result(), 0)
         self.assertFalse(dlg.isHidden())
-
-    def test_the_wall_fade_takes_a_typed_value_too(self):
-        dlg = cpd.WallFadeDialog(1500)
-        self._type(dlg._lbl, "0.5")
-        self.assertEqual(dlg.fade_ms(), 500)
-
 
 class MultiSelectTest(unittest.TestCase):
     """'allow multiselect of a card in edit mode to color it or activate another

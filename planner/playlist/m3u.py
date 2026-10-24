@@ -236,7 +236,9 @@ def numbered_folder_m3u(m3u_path: Path,
         if ln.startswith("#"):
             continue
         idx += 1
-        src = Path(ln)
+        src = Path(ln.strip('"'))
+        if not src.is_absolute() and not _ROOTED_LINE_RE.match(str(src)):
+            src = folder / src     # a bare name this function wrote earlier
         raw_title = pending_title or _clean_title(src.stem) or src.stem
         pending_title = ""
         m = _BPM_TAG_RE.search(raw_title)
@@ -246,11 +248,25 @@ def numbered_folder_m3u(m3u_path: Path,
         if not src.is_file():
             missing += 1
             continue
-        bpm = (m.group(1) if m and m.group(1) else None) or _detect_bpm(src.name)
+        if src.parent == folder:
+            copied.append(src)     # already in the bundle, already numbered
+            lines[i] = src.name    # an absolute line would tie it to this drive
+            continue
+        bpm =(m.group(1) if m and m.group(1) else None) or _detect_bpm(src.name)
         dance = cur_dance or _detect_dance(src.name) or _detect_dance(title)
         tag = f" {dance or ''}{bpm or ''}" if (dance or bpm) else ""
         name = f"{_index_prefix(idx)} - {_safe_filename(title)}{tag}{src.suffix}"
-        shutil.copy2(src, folder / name)
+        try:
+            shutil.copy2(src, folder / name)
+        except OSError as exc:
+            # A locked file or a full stick: leave no half copy, keep the
+            # source line, and go on with the rest.
+            log.warning("🧳 Copy failed\n"
+                        "source: %s\n"
+                        "error: %s", src, exc)
+            (folder / name).unlink(missing_ok=True)
+            missing += 1
+            continue
         copied.append(folder / name)
         lines[i] = name
     with replacing_text(Path(m3u_path), encoding=encoding) as f:
@@ -554,8 +570,10 @@ def _segments_by_section(
     names: list[str] = []
     dances: list[str] = []
     cur = None
-    # `labels` can come from a saved session that is older than the list.
-    for (dance, entry), name in zip(seq, labels, strict=False):
+    # `labels` can come from a saved session that is older than the list: a
+    # track past the last name stays in that round instead of falling out.
+    labels = labels[:len(seq)] + labels[-1:] * (len(seq) - len(labels))
+    for (dance, entry), name in zip(seq, labels, strict=True):
         if not segments or name != cur:
             segments.append([])
             names.append(name)
@@ -727,6 +745,9 @@ def _parse_structured(lines, lib, cache, remapper, base, _tick, _note_dance,
     cur_round: dict[str, list[MusicEntry | None]] | None = None
     cur_dance: str | None = None
     pending_title = ""
+    # A header that comes back (two lists pasted into one) is a round of its
+    # own: under the same name the grid kept only the second block.
+    seen: dict[str, int] = {}
     for raw in lines:
         ln = raw.strip()
         if not ln:
@@ -734,6 +755,12 @@ def _parse_structured(lines, lib, cache, remapper, base, _tick, _note_dance,
         m = _IMPORT_ROUND_RE.match(ln)
         if m:
             name = m.group(1).strip()
+            seen[name] = seen.get(name, 0) + 1
+            if seen[name] > 1:
+                log.warning("⚠️ Round header repeated — kept as a round of its own\n"
+                            "round: %s\n"
+                            "named: %s (%d)", name, name, seen[name])
+                name = f"{name} ({seen[name]})"
             cur_round = {}
             cur_dance = None
             rounds_ord.append((name, cur_round))

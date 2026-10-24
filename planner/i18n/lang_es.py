@@ -55,7 +55,6 @@ CATALOG = {
     "fade-out → after the length": "fundido de salida → después de la duración",
     "Fade-out:": "Fundido de salida:",
     "Own fade-out": "Fundido propio",
-    "Wall fade-out": "Fundido de la Cartwall",
     "Play length:": "Duración:",
     "Start after:": "Empezar tras:",
     "Stop after highlight:": "Parar tras el clímax:",
@@ -395,6 +394,7 @@ CATALOG = {
     "Pad settings": "Ajustes del pad",
     "Clear this pad": "Vaciar este pad",
     "Columns in the library": "Columnas de la biblioteca",
+    "Columns in the track list": "Columnas de la lista de pistas",
     "Open wishlists": "Listas de deseos abiertas",
     "Analyze PD highlights": "Analizar clímax de PD",
     "Vocal + instr.": "Voz + instr.",
@@ -586,6 +586,9 @@ CATALOG = {
     "ℹ  About…": "ℹ  Acerca de…",
     "About": "Acerca de",
     "Project": "Proyecto",
+    "Closing": "Cerrando",
+    "🔉 Fading out the music…\nThe app closes in a moment.":
+        "🔉 Bajando la música…\nLa app se cierra en un momento.",
     "Music is playing": "Está sonando música",
     "Music is playing. Quit anyway and stop it?":
         "Está sonando música. ¿Salir de todos modos y detenerla?",
@@ -739,6 +742,42 @@ CATALOG = {
     "🔉  Duck to:": "🔉  Bajar al:",
     "How loud everything stays while 🔉 Duck is pressed on the player\ncard, the mini player or the presenter screen: low enough to talk\nover, loud enough to keep the floor moving. 0 % is silence.":
         "Cuánto suena todo mientras 🔉 Bajar está pulsado en la tarjeta del\nreproductor, el minirreproductor o la pantalla de presentación: lo\nbastante bajo para hablar encima, lo bastante alto para que la pista\nsiga bailando. 0 % es silencio.",
+    "🎶  Background pads when a title starts:":
+        "🎶  Pads de fondo cuando empieza un título:",
+    "<b>🎛 Cartwall</b> — what the pads do to the music, and what every pad follows unless it was given its own.":
+        "<b>🎛 Cartwall</b> — lo que los pads hacen con la música y lo que sigue cada pad salvo que tenga su propio ajuste.",
+    "⏱  Pads fade out over:":
+        "⏱  Los pads se desvanecen en:",
+    "How long a pad takes to let go when it is tapped again or ⏹\nstops the wall. A pad can override this in its own settings.":
+        "Cuánto tarda un pad en apagarse cuando se vuelve a pulsar o ⏹\ndetiene la cartwall. Cada pad puede cambiarlo en sus propios ajustes.",
+    "🖌  Default wall colour:":
+        "🖌  Color por defecto de la cartwall:",
+    "The wall's default colour: every pad without a colour of its own\n(🎨 Colour ▸ Wall default) shows it. A pad given its own keeps it.":
+        "El color por defecto de la cartwall: cada pad sin color propio\n(🎨 Color ▸ Por defecto de la cartwall) lo muestra. Un pad con color propio lo conserva.",
+    "Mute and keep playing":
+        "Silenciar y seguir sonando",
+    "Pause":
+        "Pausa",
+    "What a 🎛 cartwall pad set to 🎶 Background does once the music\nstarts.\n\nMute and keep playing: it runs on silently under the title and\nfades back in when the music stops.\nPause: it holds where it was and carries on from there when\nthe music stops.":
+        "Qué hace un pad del 🎛 cartwall marcado como 🎶 Fondo cuando empieza\nla música.\n\nSilenciar y seguir sonando: sigue en silencio bajo el título y\nvuelve a entrar con fundido cuando la música para.\nPausa: se detiene donde estaba y sigue desde ahí cuando\nla música para.",
+    "🎶  Background: pause while a title plays":
+        "🎶  Fondo: pausar mientras suena un título",
+    "The other way round from 🔈: a title starting on the main\nplayer pauses this pad, and it carries on from where it was\nwhen the music stops.\n(⚙ Settings → 🎛 Cartwall → 🎶 Background pads)":
+        "Al revés que 🔈: cuando empieza un título en el reproductor\nprincipal, este pad se pausa y sigue desde donde estaba\ncuando la música para.\n(⚙ Ajustes → 🎛 Cartwall → 🎶 Pads de fondo)",
+    "🎛  A pad ducks the music to:":
+        "🎛  Un pad baja la música al:",
+    "How loud the music stays while a 🎛 cartwall pad set to 🔈 pull\nthe music down plays, in percent of its volume like 🔉 Duck to.\n10 % is about −20 dB: a fanfare cuts through. 30 % (about −10 dB)\nonly sits the music back. 0 % is silence.":
+        "Qué volumen conserva la música mientras suena un pad del 🎛 cartwall con\n🔈 bajar la música, en porcentaje de su volumen como en 🔉 Bajar al.\n10 % son unos −20 dB: una fanfarria se abre paso. 30 % (unos −10 dB)\nsolo aparta la música. 0 % es silencio.",
+    "A duck, here or a pad's on the 🎛 Cartwall tab, is a percentage of the music's volume, not of its loudness: 50 % ≈ −6 dB, 30 % ≈ −10 dB (sounds about half as loud), 20 % ≈ −14 dB, 10 % ≈ −20 dB.":
+        "Una atenuación, aquí o la de un pad en la pestaña 🎛 Cartwall, es un porcentaje del volumen de la música, no de su sonoridad: 50 % ≈ −6 dB, 30 % ≈ −10 dB (suena más o menos la mitad de fuerte), 20 % ≈ −14 dB, 10 % ≈ −20 dB.",
+    "🌅  Fade each title in over:":
+        "🌅  Entrada gradual de cada tema en:",
+    "The big player starts every title at silence and brings it up\nover these seconds of music. Not a title a 🔀 crossfade brings in,\nwhich has its own ramp. Couples start on the first downbeat, so\nleave it off for a competition. 0 = off.":
+        "El reproductor grande empieza cada tema en silencio y lo sube\ndurante estos segundos de música. No un tema que trae un\n🔀 fundido cruzado, que tiene su propia rampa. Las parejas\nempiezan en el primer tiempo, así que déjalo apagado en una\ncompetición. 0 = apagado.",
+    "⏩  Start each title this far in:":
+        "⏩  Empezar cada tema tan adentro:",
+    "The big player skips the first seconds of every title. They do\nnot count against the play length. A title picked up where it\nwas left starts there instead, and a silent intro is still\nskipped on top. Cuts the same seconds from every title. 0 = off.":
+        "El reproductor grande salta los primeros segundos de cada tema.\nNo cuentan para la duración. Un tema retomado donde se dejó\nempieza allí, y una intro en silencio se salta además.\nCorta los mismos segundos de cada tema. 0 = apagado.",
     "Reset the tempo to ±0 % (or double-click the fader)":
         "Restablecer el tempo a ±0 % (o doble clic en el fader)",
     "Volume adjustment of this track by Equalize volume (R128)":
@@ -758,17 +797,37 @@ CATALOG = {
         "%s — duración propia",
     "This dance has its own play length in the 🏆 tournament set\n(⚙ Settings → 🎛 Play sets). − / + and typing change it there.":
         "Este baile tiene su propia duración en el set 🏆 de torneo\n(⚙ Ajustes → 🎛 Sets de reproducción). − / + y escribir la cambian allí.",
-    "<b>⏱ Per dance</b> — a dance given a length of its own is cut there instead, as long as a list stands on this set. The ▶ Playing panel names the dance under its length.":
-        "<b>⏱ Por baile</b> — un baile con duración propia se corta ahí, mientras una lista esté en este set. El panel ▶ Reproducción nombra el baile bajo su duración.",
+    "<b>⏱ Per dance</b> — a dance given a length of its own is cut there instead, as long as a list plays this set's length. The ▶ Playing panel names the dance under its length.":
+        "<b>⏱ Por baile</b> — un baile con duración propia se corta ahí, mientras una lista suene con la duración de este set. El panel ▶ Reproducción nombra el baile bajo su duración.",
     "— the set's length":
         "— la duración del set",
+    "⏱  Lengths:":
+        "⏱  Duraciones:",
+    "Per dance — the standard":
+        "Por baile — el estándar",
+    "Per round — overrides it":
+        "Por ronda — lo sustituye",
+    "Which lengths the list below shows. The per-dance ones are the standard; a round's own lengths override them in that kind of round. Both count, whichever is on screen.":
+        "Qué duraciones muestra la lista de abajo. Las de cada baile son el estándar; las propias de una ronda las sustituyen en ese tipo de ronda. Ambas cuentan, se vea la que se vea.",
+    "The kind of round whose lengths the list shows. Every intermediate round shares one.":
+        "El tipo de ronda cuyas duraciones muestra la lista. Todas las rondas intermedias comparten una.",
+    "<b>⏱ Per round</b> — the lengths of one kind of round, every heat of it alike, on top of the per-dance ones. Left on “— the dance's length”, a dance runs its per-dance length in that round. One setting covers every intermediate round.":
+        "<b>⏱ Por ronda</b> — las duraciones de un tipo de ronda, iguales en cada una de sus series, por encima de las de cada baile. Dejado en «— la duración del baile», un baile usa en esa ronda su duración por baile. Un mismo ajuste vale para cada ronda intermedia.",
+    "after highlight %d":
+        "tras el clímax %d",
+    "Full, or stop after a highlight — the same as 🐂 Paso Doble: stop after highlight above.":
+        "Completo, o parar tras un clímax — lo mismo que 🐂 Paso Doble: parar tras el clímax arriba.",
+    "Full, or stop after a highlight in this kind of round — a final in full, a Vorrunde after the 2nd.":
+        "Completo o parar tras un clímax en este tipo de ronda: una final completa, una primera ronda tras el 2.º.",
+    "— the dance's length":
+        "— la duración del baile",
     "m:ss, seconds, or 'full' — Enter to keep, Esc to abandon":
         "m:ss, segundos o 'completo' — Intro la conserva, Esc la descarta",
     "full — to each title's own end":
         "completo — hasta el final propio de cada título",
     "full": "completo",
-    "no marks — scrub to a crash and hit 🎯":
-        "sin marcas — avanza hasta un golpe y pulsa 🎯",
+    "🎯  no marks — scrub to a crash and mark it":
+        "🎯  sin marcas — avanza hasta un golpe y márcalo",
     "“Proven” = songs in any of your playlists · “New” = in none.":
         "«Probados» = temas de alguna de tus listas · «Nuevos» = de ninguna.",
     "e.g. a song title, mood, or leave blank":
@@ -803,6 +862,7 @@ CATALOG = {
     "🔊 Sound && player": "🔊 Sonido && reproductor",
     "📁  New folder…": "📁  Nueva carpeta…",
     "⌨  Shortcuts…": "⌨  Atajos…",
+    "⚙  Cartwall settings…": "⚙  Ajustes de la Cartwall…",
     "❔  Shortcuts": "❔  Atajos",
     "▶  Playing": "▶  Reproducción",
     "▶  Playing mode": "▶  Modo reproducción",
@@ -811,7 +871,6 @@ CATALOG = {
     "⊟  Collapse all": "⊟  Contraer",
     "⏹  Stop all": "⏹  Detener todo",
     "⏸  Auto-advance…": "⏸  Avance automático…",
-    "⏱  Wall fade-out…": "⏱  Fundido de la Cartwall…",
     "⏱ calculating…": "⏱ calculando…",
     "⏳  Comparing…": "⏳  Comparando…",
     "⚡  Generate Playlist": "⚡  Generar lista",
@@ -954,7 +1013,6 @@ CATALOG = {
         "reproductor principal y vuelve a subir en las pausas.",
     "🔈 No announcement recordings found for this voice.":
         "🔈 No se encontraron grabaciones de anuncios para esta voz.",
-    "🖌  Wall colour": "🖌  Color de la Cartwall",
     "🖥  Presenter": "🖥  Presentación",
     "🖥  Presenter — DanceSport Player": "🖥  Presentación — DanceSport Player",
     "🕒 Timetable — presenter screen": "🕒 Horario — pantalla de presentación",
@@ -1348,8 +1406,8 @@ CATALOG = {
         "<b>Biblioteca de favoritos</b> — se explora al iniciar (tu carpeta tanzcds):",
     "<b>Reference path</b> — base folder the playlist files live in on THIS PC; 🧭 Fix paths re-roots broken references here (e.g. C:\\Users\\…\\my music\\tanzcds):":
         "<b>Ruta de referencia</b> — carpeta base donde están los archivos de las listas en ESTE PC; 🧭 Corregir rutas vuelve a enlazar aquí las referencias rotas (p. ej. C:\\Users\\…\\my music\\tanzcds):",
-    "<b>Save-as folder</b> — where 'Save as M3U…' starts (e.g. D:\\Dropbox\\Turniere):":
-        "<b>Carpeta de Guardar como</b> — donde empieza 'Guardar como M3U…' (p. ej. D:\\Dropbox\\Turniere):",
+    "<b>Save-as folder</b> — where 'Save as M3U…' starts (e.g. D:\\Playlists):":
+        "<b>Carpeta de Guardar como</b> — donde empieza 'Guardar como M3U…' (p. ej. D:\\Playlists):",
     "<b>Playlist file format</b> — what 'Save as M3U' and the exports write:":
         "<b>Formato de archivo de lista</b> — lo que escriben 'Guardar como M3U' y las exportaciones:",
     "UTF-8 (.m3u) — default": "UTF-8 (.m3u) — predeterminado",
@@ -1720,11 +1778,11 @@ CATALOG = {
         "ajenas al torneo (himnos, fondo, tempo erróneo, duplicados, de temporada);\n"
         "elige una categoría para ver solo esa (práctico para fiestas).",
     "Drag a track onto a deck or wishlist to use it.\n"
-    "▶ to preview · double-click to open in your external player\n"
-    "· right-click for more.":
+    "▶ to preview · right-click for more · a double-click opens it in\n"
+    "the system's music player if ⚙ Settings say so.":
         "Arrastra un tema a un deck o a una lista de deseos para usarlo.\n"
-        "▶ para escuchar · doble clic para abrirlo en tu reproductor externo\n"
-        "· clic derecho para más.",
+        "▶ para escuchar · clic derecho para más · un doble clic lo abre en el\n"
+        "reproductor de música del sistema si ⚙ Ajustes lo indica.",
     "Only tracks suited for one of the ticked starting classes\n(tick several; tracks without a class tag show only with all classes)":
         "Solo pistas adecuadas para una de las clases de inicio marcadas\n(se pueden marcar varias; las pistas sin clase solo con todas las clases)",
     "Only tracks whose file was created in the library that\n"
@@ -2071,10 +2129,10 @@ CATALOG = {
         "leer sus temas.",
     "The tracks of the selected playlist, in playing order.\n"
     "▶ or Space previews · drag them onto a deck or the player list ·\n"
-    "double-click to open in your external player.":
+    "a double-click opens or 🏷 edits them as ⚙ Settings say.":
         "Los temas de la lista seleccionada, en orden de reproducción.\n"
         "▶ o Espacio para escuchar · arrástralos a un deck o a la lista del reproductor ·\n"
-        "doble clic para abrir en tu reproductor externo.",
+        "un doble clic los abre o 🏷 edita según indiquen los ⚙ Ajustes.",
     "Your competitions, days and tournaments — folders are labels,\n"
     "the 🎵 entries point at .m3u files wherever they lie.\n"
     "\n"
@@ -2103,10 +2161,6 @@ CATALOG = {
         "Una tecla asignada a un pad lo sigue allá donde se mueva y funciona\n"
         "desde cualquier página. Vacía = ese pad responde a la tecla de su hueco.",
     "Export cartwall": "Exportar cartwall",
-    "How long a pad takes to let go when it is tapped again\n"
-    "or ⏹ stops the wall. A pad can override this in its own settings.":
-        "Cuánto tarda un pad en apagarse cuando se vuelve a pulsar\n"
-        "o ⏹ detiene la pared. Un pad puede cambiarlo en sus propios ajustes.",
     "Import cartwall": "Importar cartwall",
     "Pads per page. Making the grid smaller never loses a pad —\n"
     "whatever no longer fits moves to the first free slot.":
@@ -2807,6 +2861,46 @@ CATALOG = {
     "before the music starts": "antes de que empiece la música",
     "⏸  No pause between songs": "⏸  Sin pausa entre temas",
     "🔁  Start again at the end": "🔁  Volver a empezar al final",
+    "⏹  Stop:":
+        "⏹  Parar:",
+    "Never":
+        "Nunca",
+    "After this title":
+        "Tras este título",
+    "After … titles":
+        "Tras … títulos",
+    "At …":
+        "A las …",
+    "Let the music stop by itself: after the title playing now,\nafter a number of titles (the one playing now is the first),\nor with the first title that ends at or after a time of day.\n\nA title is never cut: it plays to its end, then the next one\nwaits on the player for ⏯. A ⏭ skip does not count as an end.\n\nSet for this evening only — it is not saved.\n\nNeeds ⏭ auto-advance.":
+        "Dejar que la música se detenga sola: tras el título que suena,\ntras un número de títulos (el que suena es el primero)\no con el primer título que termine a una hora o después.\n\nUn título nunca se corta: suena hasta el final y el siguiente\nespera en el reproductor a ⏯. Saltar con ⏭ no cuenta como final.\n\nSolo para esta noche — no se guarda.\n\nNecesita ⏭ avance automático.",
+    "Titles still to end, the one playing now included —\nit counts down as they do.":
+        "Títulos que aún han de terminar, incluido el que suena —\nla cuenta baja con cada final.",
+    "The first title that ends at or after this time is the last.\nA time already past today means after midnight.":
+        "El primer título que termine a esta hora o después es el último.\nUna hora ya pasada hoy significa después de medianoche.",
+    "⏹  Stops after this title":
+        "⏹  Se detiene tras este título",
+    "⏹  Stops after %d titles":
+        "⏹  Se detiene tras %d títulos",
+    "⏹  Stops at %s":
+        "⏹  Se detiene a las %s",
+    "⏹  Stopped as planned":
+        "⏹  Detenido según lo previsto",
+    "⏹ Stopped as planned — ⏯ plays the next title.":
+        "⏹ Detenido según lo previsto — ⏯ reproduce el siguiente título.",
+    "The evening stopped %d min ago, with %d titles played.":
+        "La noche se interrumpió hace %d min, con %d títulos sonados.",
+    "Grey them out again? Nothing starts by itself.":
+        "¿Volver a mostrarlos en gris? Nada empieza solo.",
+    "The %d titles played this evening grey out again.":
+        "Los %d títulos sonados esta noche vuelven a verse en gris.",
+    "▶ Pick up the evening?":
+        "▶ ¿Retomar la noche?",
+    "▶  Pick up":
+        "▶  Retomar",
+    "Start fresh":
+        "Empezar de nuevo",
+    "▶ Evening picked up — %d titles played.":
+        "▶ Noche retomada — %d títulos sonados.",
     "Pause between songs:": "Pausa entre temas:",
     "🔈  Announce next dance": "🔈  Anunciar el siguiente baile",
     "…with heat": "…con grupo",
@@ -2824,12 +2918,14 @@ CATALOG = {
     "The waveform of the title — what has played is blue, all of it\n"
     "red in the final seconds. The broad orange bar is where it plays.\n"
     "Shaded: silence the player skips · thin orange: Paso Doble\n"
-    "highlights · red-tinted: the fade-out of a timed cut.\n"
+    "highlights · red-tinted: the fade-out of a timed cut · gold: the\n"
+    "fade-in · green line: where the title starts.\n"
     "Click to jump there.":
         "La forma de onda del tema — lo que ya ha sonado está en azul, todo\n"
         "en rojo en los últimos segundos. La barra naranja ancha marca dónde suena.\n"
         "Sombreado: silencio que el reproductor salta · naranja fino: culminaciones\n"
-        "del Paso Doble · tono rojizo: el fundido de un corte por tiempo.\n"
+        "del Paso Doble · tono rojizo: el fundido de un corte por tiempo · dorado:\n"
+        "la entrada gradual · línea verde: donde empieza el tema.\n"
         "Haz clic para saltar allí.",
     "▶️  Double-click starts the title": "▶️  El doble clic inicia el tema",
     "🎚  TSO pitch to the heat tempo": "🎚  TSO: ajustar al tempo del grupo",
@@ -2944,10 +3040,24 @@ CATALOG = {
         "Doble clic en una fila de la 📚 biblioteca",
     "Open the track in your external audio player — when ⚙ Settings → 🔊 Sound & player allow it":
         "Abrir el tema en tu reproductor de audio externo — cuando ⚙ Ajustes → 🔊 Sonido & reproductor lo permitan",
-    "📂  Double-click opens the title in the system's music player (while planning, in 📚 the library and the dialogs)":
-        "📂  Doble clic abre el tema en el reproductor de música del sistema (al planificar, en 📚 la biblioteca y los diálogos)",
-    "Off: a deck plays the title in the mini player, the other places\nleave the file alone. On: it opens in the program your system\nplays music with (on a Mac, Music).\nRight-click → open still works either way, and in Playing mode\na double-click always plays or cues the title.":
-        "Desactivado: un deck reproduce el tema en el mini reproductor, los demás\nsitios no tocan el archivo. Activado: se abre en el programa con el que\ntu sistema reproduce música (en un Mac, Música).\nClic derecho → abrir funciona en ambos casos, y en el modo de reproducción\nun doble clic siempre reproduce o prepara el tema.",
+    "📂  Double-click on a title in 📚 the library:":
+        "📂  Doble clic en un título en 📚 la biblioteca:",
+    "<b>📚 Library</b>":
+        "<b>📚 Biblioteca</b>",
+    "Only for 📚 the library and the 🏆 lists while planning. In ▶ Playing mode a double-click always plays or cues the title.":
+        "Solo para 📚 la biblioteca y las listas 🏆 al planificar. En el modo ▶ Reproducir, un doble clic siempre reproduce o prepara el título.",
+    "Nothing":
+        "Nada",
+    "Open external player":
+        "Abrir en reproductor externo",
+    "What a double-click on a title does in 📚 the library and the 🏆\ntournament lists.\n\nNothing: the title stays as it is; ▶ plays it.\nOpen external player: the program your system plays music with\n(on a Mac, Music) — in the decks and the dialogs too.\nEdit tags: the 🏷 Tags editor, where you choose what Save\nwrites into the file and what stays in the app.\n\nRight-click still offers all of it, and in Playing mode a\ndouble-click always plays or cues the title.":
+        "Lo que hace un doble clic en un título en 📚 la biblioteca y las listas\n🏆 de torneo.\n\nNada: el título se queda como está; ▶ lo reproduce.\nAbrir en reproductor externo: el programa con el que tu sistema\nreproduce música (en un Mac, Música) — también en los decks y diálogos.\nEditar etiquetas: el editor 🏷 Etiquetas, donde eliges qué escribe\nGuardar en el archivo y qué se queda en la aplicación.\n\nClic derecho sigue ofreciéndolo todo, y en el modo de reproducción\nun doble clic siempre reproduce o prepara el título.",
+    "Edit tags":
+        "Editar etiquetas",
+    "Album:":
+        "Álbum:",
+    "Genre:":
+        "Género:",
     "▶ / ■ in a row": "▶ / ■ en una fila",
     "Play / stop exactly that song":
         "Reproducir / detener exactamente ese tema",
@@ -3333,8 +3443,6 @@ CATALOG = {
         "🏷  No se pudieron guardar las etiquetas: %s",
     "🏷  Edit tags…": "🏷  Editar etiquetas…",
     "🏷  Edit tags of %d tracks…": "🏷  Editar etiquetas de %d temas…",
-    "🏷  Edit tags": "🏷  Editar etiquetas",
-    "🏷  Edit tags of %d tracks": "🏷  Editar etiquetas de %d temas",
     "%d tracks — a field they differ in is kept per track until you change it.":
         "%d temas — un campo en el que difieren se mantiene por tema hasta que lo cambies.",
     "keep (differs per track)": "mantener (distinto en cada tema)",
@@ -3388,6 +3496,9 @@ CATALOG = {
         "Se cambia en el formulario de la primera pestaña",
     "In the MP3 file": "En el archivo MP3",
     "In the app": "En la aplicación",
+    "In the app's database": "En la base de datos de la aplicación",
+    "Kept in the app only — the file itself is not changed.":
+        "Solo se guarda en la aplicación — el archivo en sí no cambia.",
     "Only for MP3 files on disk": "Solo para archivos MP3 en el disco",
     "Covers differ": "Las carátulas difieren",
     "Cover can't be shown": "La carátula no se puede mostrar",
@@ -3397,6 +3508,7 @@ CATALOG = {
     "Title:": "Título:",
     "Artist:": "Artista:",
     "Year:": "Año:",
+    "Track:": "Pista:",
     "Comment:": "Comentario:",
     "Album artist:": "Artista del álbum:",
     "Composer:": "Compositor:",
@@ -3413,17 +3525,24 @@ CATALOG = {
         "🏷  %s está en el reproductor — detenlo para escribir sus etiquetas MP3",
     "🏷  Couldn't write the MP3 tags: %s":
         "🏷  No se pudieron escribir las etiquetas MP3: %s",
-    "🏷  Write into the MP3?": "🏷  ¿Escribir en el MP3?",
-    "Also write %s into the MP3 file?":
-        "¿Escribir también %s en el archivo MP3?",
-    "Also write %s into the %d MP3 files?":
-        "¿Escribir también %s en los %d archivos MP3?",
-    "Stars go into the Windows rating; classes, instrumental and markers into the comment, where other programs see them too. With No they stay in the app only.":
-        "Las estrellas van a la valoración de Windows; las clases, instrumental y marcadores al comentario, donde otros programas también los ven. Con No se quedan solo en la aplicación.",
+    "🏷  Tags":
+        "🏷  Etiquetas",
+    "🏷  Tags of %d tracks":
+        "🏷  Etiquetas de %d temas",
+    "Also write these into the MP3 file":
+        "Escribir también en el archivo MP3",
+    "Stars go into the Windows rating; classes, instrumental and markers into the comment, where other programs see them too. Unticked, they stay in the app only.":
+        "Las estrellas van a la valoración de Windows; las clases, instrumental y marcadores al comentario, donde otros programas también los ven. Sin marcar, se quedan solo en la aplicación.",
     "stars": "estrellas",
     "custom": "Custom",
     "Custom text": "Texto propio",
     "Comment": "Comentario",
+    "Plays": "Veces",
+    "Reset the play counters": "Poner a cero los contadores de reproducción",
+    "How often the title has played in the last 24 hours, in any list\n"
+    "Right-click the header to reset the counters":
+        "Cuántas veces ha sonado el título en las últimas 24 horas, desde cualquier lista\n"
+        "Clic derecho en la cabecera para poner los contadores a cero",
     "Custom link": "Enlace propio",
     "Rating": "Valoración",
     "Picture": "Imagen",
@@ -3838,8 +3957,8 @@ CATALOG = {
         "📥 %d momento(s) culminante(s) del Paso Doble puesto(s) a mano importado(s) — %d de ellos pertenecen a un tema que este PC ya conoce.\n"
         "\n"
         "Los demás se guardan y se aplican en cuanto esa música aparezca aquí.",
-    "<b>Backup folder</b> — where the daily backup of your own data goes (e.g. D:\\Dropbox\\DanceSportPlayer). Empty: next to the database.":
-        "<b>Carpeta de copias</b> — dónde va la copia diaria de los datos propios (p. ej. D:\\Dropbox\\DanceSportPlayer). Vacío: junto a la base de datos.",
+    "<b>Backup folder</b> — where the daily backup of your own data goes (e.g. a Dropbox folder). Empty: next to the database.":
+        "<b>Carpeta de copias</b> — dónde va la copia diaria de los datos propios (p. ej. una carpeta de Dropbox). Vacío: junto a la base de datos.",
     "♻  Restore user data backup…": "♻  Restaurar copia de los datos propios…",
     "Restore user data backup": "Restaurar copia de los datos propios",
     "Merge a daily backup of your tag edits, hand-set Paso Doble\n"
@@ -3861,6 +3980,18 @@ CATALOG = {
     "Duration": "Duración",
     "📜 Played titles": "📜 Títulos tocados",
     "📜  Played titles…": "📜  Títulos tocados…",
+    "📝  Export log…":
+        "📝  Exportar registro…",
+    "Export log — pick a folder":
+        "Exportar registro — elegir una carpeta",
+    "Export log":
+        "Exportar registro",
+    "The log could not be exported:\n%s":
+        "No se pudo exportar el registro:\n%s",
+    "There is no log to export yet.":
+        "Todavía no hay ningún registro que exportar.",
+    "Log exported to:\n%s":
+        "Registro exportado a:\n%s",
     "Nothing has been played yet. A title is logged in playing mode\n"
     "once it has run for 10 seconds, the moment its row greys out.":
         "Aún no se ha tocado nada. Un título se registra en el modo de reproducción\n"
@@ -3914,6 +4045,15 @@ CATALOG = {
     "Replace it, or keep both?":
         "«%s» ya existe en la carpeta de destino.\n"
         "¿Reemplazarla o conservar ambas?",
+    "“%s” already exists in the target folder and holds more than a USB export, "
+    "so it cannot be replaced.\nKeep both?":
+        "«%s» ya existe en la carpeta de destino y contiene más que una "
+        "exportación USB, así que no se puede reemplazar.\n¿Conservar ambas?",
+    "Could not remove “%s”:\n%s\n\nIt may be partly deleted; nothing was exported.":
+        "No se pudo eliminar «%s»:\n%s\n\n"
+        "Puede que se haya borrado en parte; no se exportó nada.",
+    "Could not create “%s”:\n%s":
+        "No se pudo crear «%s»:\n%s",
     "🧳 Bundle: %d playlist folder(s), %d track(s), %s MB → %s":
         "🧳 Paquete: %d carpeta(s) de listas, %d tema(s), %s MB → %s",
     "Bundle written to:\n"
@@ -4447,8 +4587,9 @@ CATALOG = {
         "Un tema de %s solo puede moverse a otro hueco de %s — no a un hueco de %s.",
     "Dances (%d): %s": "Bailes (%d): %s",
     "Order: %s, %s, …": "Orden: %s, %s, …",
-    "🟰  Identical files — the earlier copy is removed, the last stays (%d)":
-        "🟰  Archivos idénticos — se quita la copia anterior, la última se queda (%d)",
+    "🟰  Identical files (%d)": "🟰  Archivos idénticos (%d)",
+    "🧹  Remove the earlier copies, the last stays":
+        "🧹  Quitar las copias anteriores, la última se queda",
     "✏  %d pads selected — what you change here (colour, volume, fade, 🔁, 🔈, 🎶, S) applies to all of them.\n"
     "Label and shortcut stay with this pad.":
         "✏  %d pads seleccionados — lo que cambies aquí (color, volumen, fundido, 🔁, 🔈, 🎶, S) se aplica a todos.\n"
@@ -4626,6 +4767,8 @@ CATALOG = {
     "%d tracks are on the table.": "Hay %d temas para elegir.",
     "💾 Saving %s…": "💾 Guardando %s…",
     "➕  Adding %s tracks…": "➕  Añadiendo %s temas…",
+    "🐂  PD in": "🐂  PD en",
+    "🐂  PD %s in": "🐂  PD %s en",
     "🐂  Paso Doble in %d s": "🐂  Paso Doble en %d s",
     "⏸  %d s  (paused)": "⏸  %d s  (en pausa)",
     "⚠ Could not play: %s": "⚠ No se pudo reproducir: %s",
@@ -4634,6 +4777,13 @@ CATALOG = {
     "did not start": "no arrancó",
     "⚠ “%s” would not play — skipped to the next title.":
         "⚠ «%s» no se pudo reproducir — se pasó al siguiente título.",
+    "⚠ Playback stalled — “%s” reloaded at %s.":
+        "⚠ La reproducción se atascó — «%s» recargado en %s.",
+    "stalled": "se atascó",
+    "Pick up after a crash?":
+        "¿Continuar tras un cierre inesperado?",
+    "The last session ended while “%s” was playing.\n\nCue it again?":
+        "La última sesión terminó mientras sonaba “%s”.\n\n¿Prepararla de nuevo?",
     "🔇 would not play: %s": "🔇 no se pudo reproducir: %s",
     "▴  fold back": "▴  plegar de nuevo",
     "⏹  Stop": "⏹  Detener",
@@ -5270,6 +5420,12 @@ CATALOG = {
         "Peticiones de canciones",
     "Now playing":
         "Suena ahora",
+    "Request a song":
+        "Pedir una canción",
+    "Up next":
+        "A continuación",
+    "Nothing lined up yet":
+        "Todavía no hay nada previsto",
     "Search a title or artist":
         "Busca un título o artista",
     "Loading the titles…":
@@ -5508,4 +5664,10 @@ CATALOG = {
         '🌐 El repositorio ya se está escaneando.',
     'Scan repository':
         'Escanear repositorio',
+    'Another task (a library scan or an analysis) is writing to the database. Let it finish, then try again.':
+        'Otra tarea (un escaneo de la biblioteca o un análisis) está escribiendo en la base de datos. Deja que termine y vuelve a intentarlo.',
+    "The Paso Doble pick for %s in ⚙ Settings → 🎛 Play sets\n(played in full reads as the 3rd highlight). A change here\nholds for this list only.":
+        "La elección de Paso Doble para %s en ⚙ Ajustes → 🎛 Sets de reproducción\n(completo cuenta como el 3.er highlight). Un cambio aquí\nvale solo para esta lista.",
+    "🐂 Paso Doble → each round's own pick":
+        "🐂 Paso Doble → la elección propia de cada ronda",
 }

@@ -1,15 +1,23 @@
-"""🏷 The tag editor, laid out like Mp3tag: the MP3's own fields, the app's.
+"""🏷 Tags: the tag editor, laid out like Mp3tag — the MP3's own fields, the app's.
 
-Opened from a row's context menu, for one track or every selected one. The
-dialog only says what each track should become; the window writes and stores.
+Opened from a row's context menu or a double-click (⚙ Settings → Edit tags),
+for one track or every selected one. The dialog only says what each track
+should become; the window writes and stores.
 
 "In the MP3 file" is Mp3tag's form — title, artist, album, year, …, the cover
 — for every selected MP3 on disk, written into the files themselves
 (planner.music.id3_frames). "In the app" holds stars, classes, instrumental,
 markers and the free Custom field, stored as an in-app tag edit
-(planner.music.tag_edits — the DB) and, if the user says yes when saving, written
-into the MP3 too — Custom only while it is mapped to a frame
-(planner.music.custom_field).
+(planner.music.tag_edits — the DB) and, with "Also write these into the MP3
+file" ticked, written into the MP3 too — Custom only while it is mapped to a
+frame (planner.music.custom_field). That tick is where the user chooses what
+Save overwrites; it was once a question after Save, and a second, database-only
+editor for title, artist … which Marcel had merged into this one.
+
+A selection with no MP3 on disk — a FLAC, an M4A … — has no form to write
+into: "In the app's database" stands in its place, the app's own title,
+artist, album, year, genre and comment, kept in the DB like the stars
+(planner.music.tag_edits.DB_FIELDS) and laid over what the file says.
 
 With several tracks, a field they disagree on starts as "keep": a form field
 on "< keep >", a class box half-ticked, the stars on "keep", the marker line
@@ -29,8 +37,8 @@ from pathlib import Path
 
 from mutagen import MutagenError
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QGuiApplication, QPixmap
+from PySide6.QtCore import QRegularExpression, Qt
+from PySide6.QtGui import QGuiApplication, QPixmap, QRegularExpressionValidator
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -53,8 +61,10 @@ from PySide6.QtWidgets import (
 )
 
 from planner import i18n
+from planner.models import GENRE_TO_DANCE, OTHER_GENRE_LABELS
 from planner.music import id3_frames
 from planner.music.custom_field import V1
+from planner.music.tag_edits import genre_label
 
 CLASSES = ("D", "C", "B", "A", "S")
 _KEEP = -1          # the stars combo's "keep each track's own"
@@ -77,6 +87,16 @@ _FORM_ROWS = (
     (("composer", "Composer:"),),
     (("disc", "Disc number:"), ("replaygain", "Replay Gain:")),
 )
+# The database box's rows, laid out like the form: (tag_edits field, label).
+_DB_ROWS = (
+    (("title", "Title:"),),
+    (("tag_artist", "Artist:"),),
+    (("tag_album", "Album:"),),
+    (("year", "Year:"), ("genre", "Genre:")),
+    (("tag_comment", "Comment:"),),
+)
+# A double-clicked column's form field → the database box's field.
+_DB_FIELD_OF = {"artist": "tag_artist", "album": "tag_album", "comment": "tag_comment"}
 _FORM_COLUMNS = 6           # label + field, three times
 _MAX_FORM_VALUES = 25       # a differing field's dropdown offers this many
 _COVER = 150
@@ -103,6 +123,10 @@ def marker_suggestions(entries, limit: int = _MAX_SUGGESTIONS) -> list[str]:
     usable = [m for m, n in counts.items()
               if n >= 3 and len(m) <= 20 and "\n" not in m and "\r" not in m]
     return sorted(usable, key=lambda m: (-counts[m], m))[:limit]
+
+
+def _mp3_on_disk(entry) -> bool:
+    return Path(entry.path).suffix.lower() == ".mp3" and Path(entry.path).is_file()
 
 
 def _tristate(values) -> Qt.CheckState:
@@ -147,19 +171,21 @@ class TagEditDialog(QDialog):
     the files say". `custom_source` is the (frame id, description) the Custom
     field is mapped to (planner.music.custom_field.source()), None for none.
     `map_custom(frame id, description)` maps it anew from a row of the
-    Extended tab and says whether it took; without it that isn't offered."""
+    Extended tab and says whether it took; without it that isn't offered.
+    `write_app_to_mp3()` says whether the app's fields go into the MP3 too.
+    `focus` names the field to open on (a form field, "stars", "classes",
+    "markers" or "custom") — the column a double-click came from."""
 
     def __init__(self, entries, suggestions=(), parent=None, custom_source=None,
-                 map_custom=None):
+                 map_custom=None, focus=None):
         super().__init__(parent)
         self._entries = list(entries)
         self._custom_source = custom_source
         self._map_custom = map_custom
         self.reset_requested = False
         n = len(self._entries)
-        self.setWindowTitle(
-            i18n.t("🏷  Edit tags") if n == 1
-            else i18n.t("🏷  Edit tags of %d tracks") % n)
+        self.setWindowTitle(i18n.t("🏷  Tags") if n == 1
+                            else i18n.t("🏷  Tags of %d tracks") % n)
         outer = QVBoxLayout(self)
         self._tabs = QTabWidget()
         outer.addWidget(self._tabs)
@@ -172,11 +198,16 @@ class TagEditDialog(QDialog):
                                   "per track until you change it.") % n)
         head.setWordWrap(True)
         lyt.addWidget(head)
-        self._build_file_box(lyt)
+        self._db: dict[str, QComboBox] = {}
+        self._db_start: dict[str, str] = {}
+        if any(_mp3_on_disk(e) for e in self._entries):
+            self._build_file_box(lyt)
+        else:
+            self._build_db_box(lyt)
 
-        app_box = QGroupBox(i18n.t("In the app"))
-        lyt.addWidget(app_box)
-        form = QFormLayout(app_box)
+        self._app_box = QGroupBox(i18n.t("In the app"))
+        lyt.addWidget(self._app_box)
+        form = QFormLayout(self._app_box)
 
         # ★ Stars
         self._stars = QComboBox()
@@ -206,6 +237,7 @@ class TagEditDialog(QDialog):
             self._cls_start[c] = state
             cls_lyt.addWidget(box)
         cls_lyt.addStretch(1)
+        self._cls_row = cls_row
         form.addRow(i18n.t("Classes:"), cls_row)
         hint = QLabel(i18n.t("None ticked = suits every class."))
         hint.setStyleSheet("color: #777;")
@@ -230,6 +262,7 @@ class TagEditDialog(QDialog):
         self._custom_start = self._custom.text()
         self._custom_tip()
         form.addRow(i18n.t("Custom:"), self._custom)
+        self._add_write_app_row(form)
         lyt.addStretch(1)
         self._build_raw_tab()
 
@@ -245,6 +278,49 @@ class TagEditDialog(QDialog):
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         outer.addWidget(buttons)
+        self._focus_field(focus)
+
+    def _focus_field(self, field):
+        """The field of the column double-clicked in the list: framed in the
+        highlight colour, so it is clear which one, and given the focus with
+        its text selected — unless it is greyed out (no MP3 to write into)."""
+        self._focused = self._form.get(field) or self._db.get(
+            _DB_FIELD_OF.get(field, field or "")) or {
+            "stars": self._stars, "classes": self._cls_row,
+            "markers": self._markers, "custom": self._custom}.get(field)
+        w = self._focused
+        if w is None:
+            return
+        w.setObjectName("tagFocus")
+        w.setAttribute(Qt.WidgetAttribute.WA_StyledBackground)
+        w.setStyleSheet("#tagFocus { border: 2px solid palette(highlight); border-radius: 3px; }")
+        if w is self._cls_row:
+            w = self._cls[CLASSES[0]]
+        if not w.isEnabled():
+            return
+        w.setFocus()
+        edit = w.lineEdit() if isinstance(w, QComboBox) else w
+        if isinstance(edit, QLineEdit):
+            edit.selectAll()
+
+    def _add_write_app_row(self, form):
+        """Whether Save also writes the box's fields into the MP3, or keeps
+        them in the app — unticked each time, the way the old question
+        defaulted to No. Only with an MP3 on disk to write into."""
+        self._write_app = QCheckBox(i18n.t("Also write these into the MP3 file"))
+        tip = i18n.t(
+            "Stars go into the Windows rating; classes, instrumental and markers "
+            "into the comment, where other programs see them too. Unticked, "
+            "they stay in the app only.")
+        src = self._custom_source
+        if src is not None and src[0] != V1:
+            tip += " " + i18n.t("Custom goes into the tag it is mapped to.")
+        self._write_app.setToolTip(tip)
+        self._write_app.setEnabled(bool(self._mp3s))
+        form.addRow("", self._write_app)
+
+    def write_app_to_mp3(self) -> bool:
+        return self._write_app.isEnabled() and self._write_app.isChecked()
 
     def _add_marker_rows(self, form, suggestions, n):
         """The markers field and the library's most-used markers as chips."""
@@ -301,11 +377,10 @@ class TagEditDialog(QDialog):
         self._cover.setStyleSheet("border: 1px solid palette(mid); color: #777;")
         row.addWidget(self._cover, 0, Qt.AlignmentFlag.AlignTop)
 
-        self._mp3s = [e for e in self._entries
-                      if Path(e.path).suffix.lower() == ".mp3" and Path(e.path).is_file()]
+        self._mp3s = [e for e in self._entries if _mp3_on_disk(e)]
         self._form_read: list[dict] = []
         covers = []
-        reason = None if self._mp3s else i18n.t("Only for MP3 files on disk")
+        reason = None
         try:
             for e in self._mp3s:
                 self._form_read.append(id3_frames.read_form(e.path))
@@ -344,6 +419,62 @@ class TagEditDialog(QDialog):
                 self._cover.setText(i18n.t("Cover can't be shown"))
         else:
             self._cover.setText(i18n.t("No cover"))
+
+    # ── The app's own title, artist, … (no MP3 to write into) ───────────────
+    def _build_db_box(self, lyt):
+        """Title, artist, album, year, genre and comment as the app shows
+        them, with "< keep >" where the tracks differ — stored in the DB on
+        Save and laid over what the files say; no file is written."""
+        self._keep = i18n.t("< keep >")
+        self._blank = i18n.t("< blank >")
+        self._mp3s, self._form_read, self._form, self._form_start = [], [], {}, {}
+        self._db_box = QGroupBox(i18n.t("In the app's database"))
+        self._db_box.setToolTip(i18n.t("Kept in the app only — the file itself is not changed."))
+        lyt.addWidget(self._db_box)
+        grid = QGridLayout(self._db_box)
+        shown = {
+            "title": lambda e: e.title or "",
+            "tag_artist": lambda e: e.tag_artist or "",
+            "tag_album": lambda e: e.tag_album or "",
+            "year": lambda e: str(e.year) if e.year else "",
+            "genre": lambda e: genre_label(e.dance, e.other_genre),
+            "tag_comment": lambda e: e.tag_comment or "",
+        }
+        for r, fields in enumerate(_DB_ROWS):
+            for i, (field, label) in enumerate(fields):
+                combo = self._form_combo([shown[field](e) for e in self._entries])
+                last = i == len(fields) - 1
+                grid.addWidget(QLabel(i18n.t(label)), r, 2 * i)
+                grid.addWidget(combo, r, 2 * i + 1, 1,
+                               _FORM_COLUMNS - 2 * i - 1 if last else 1)
+                self._db[field] = combo
+                self._db_start[field] = combo.currentText()
+        for c in range(1, _FORM_COLUMNS, 2):
+            grid.setColumnStretch(c, 1)
+        year = self._db["year"].lineEdit()
+        if year is not None:
+            year.setValidator(QRegularExpressionValidator(QRegularExpression(r"\d{0,4}")))
+        genre = self._db["genre"]
+        for g in [*dict.fromkeys(GENRE_TO_DANCE.values()), *OTHER_GENRE_LABELS.values()]:
+            if genre.findText(g) < 0:
+                genre.addItem(g)
+
+    def _db_changes(self) -> dict:
+        """{field: value} for every database field changed: "" (0 for the
+        year) is an explicit blank."""
+        out = {}
+        for field, combo in self._db.items():
+            text = combo.currentText()
+            if text in (self._keep, self._db_start[field]):
+                continue
+            value = "" if text == self._blank else text.strip()
+            if field == "year":
+                if value and not value.isdigit():
+                    continue
+                out[field] = int(value) if value else 0
+            else:
+                out[field] = value
+        return out
 
     def _form_combo(self, values: list) -> QComboBox:
         """An editable field: the shared value, or "< keep >" when the tracks
@@ -722,6 +853,7 @@ class TagEditDialog(QDialog):
             out["comment_tags"] = parse_markers(self._markers.text())
         if self._custom.text() != self._custom_start:
             out["custom"] = self._custom.text()
+        out.update(self._db_changes())
         return out
 
 

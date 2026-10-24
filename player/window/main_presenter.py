@@ -164,7 +164,9 @@ class PresenterMixin(MainWindowHost):
         if self._presenter is None:
             return
         on = self._presenter.screen()
-        if on is None or on.name() != screen.name():
+        # The screen itself, not its name: on macOS the name is the model, so
+        # two identical monitors share it.
+        if on is None or on is not screen:
             return
         self._play_panel.set_presenter_on(False)   # → _toggle_presenter closes it
         self._presenter_lost = screen.name()

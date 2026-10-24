@@ -27,6 +27,7 @@ import os
 import random
 import re
 import shutil
+import ssl
 import subprocess
 import tempfile
 import time
@@ -58,9 +59,11 @@ MAX_CANDIDATES = 6000
 # What a search round may cost. `_QUERY_LIMIT` rows unless the model says
 # otherwise, `_QUERY_MAX` however loudly it asks, `_ROWS_MAX` over all its
 # queries together — roughly 8k tokens, which every backend takes comfortably.
+# `_QUERIES_MAX` queries at most: the answer must not decide how much work runs.
 _QUERY_LIMIT = 60
 _QUERY_MAX = 200
 _ROWS_MAX = 600
+_QUERIES_MAX = 60
 
 # How much of the played-together appendix is worth its room: at most this many
 # rows get a line, each naming at most `_PAIRS_PER_ROW` partners, and a pair has
@@ -617,7 +620,7 @@ def parse_queries(text: str) -> list[dict]:
     queries = payload.get("queries")
     if not isinstance(queries, list):
         return []
-    return [q for q in queries if isinstance(q, dict)]
+    return [q for q in queries if isinstance(q, dict)][:_QUERIES_MAX]
 
 
 def _bpm_span(value):
@@ -729,7 +732,7 @@ def _matches(entry, query: dict, dance_class, used_paths, sound=None) -> bool:
 
 def run_queries(queries: list[dict], candidates, *, dance_class=None,
                 used_paths=(), rows_max: int = _ROWS_MAX,
-                sound=None) -> list[int]:
+                sound=None, cancel=None) -> list[int]:
     """The 1-based pool positions the queries select, in the order asked for.
 
     Every query keeps its own limit, a number already sent is never sent twice,
@@ -738,6 +741,7 @@ def run_queries(queries: list[dict], candidates, *, dance_class=None,
     picked: list[int] = []
     seen: set[int] = set()
     for query in queries:
+        _raise_if_cancelled(cancel)
         try:
             limit = int(query.get("limit") or _QUERY_LIMIT)
         except (TypeError, ValueError):
@@ -1084,7 +1088,8 @@ def parse_reply(text: str) -> dict:
         })
     if not out:
         raise RuntimeError("the answer held no usable catalog numbers")
-    return {"picks": out, "notes": str(payload.get("notes") or "")}
+    notes = " ".join(str(payload.get("notes") or "").split())[:_WHY_MAX * 2]
+    return {"picks": out, "notes": notes}
 
 
 def parse_swaps(text: str) -> dict:
@@ -1224,6 +1229,8 @@ _TRANSIENT_RE = re.compile(
         | remote\s+end\s+closed | broken\s+pipe
         )""", re.IGNORECASE | re.VERBOSE)
 
+_LOCAL_OS_ERRORS = (ssl.SSLCertVerificationError, FileNotFoundError, PermissionError)
+
 
 def is_transient(exc: BaseException) -> bool:
     """True for a failure that is the host having a moment, not the request
@@ -1241,6 +1248,10 @@ def is_transient(exc: BaseException) -> bool:
     reason = getattr(exc, "reason", None)            # URLError wraps the socket's
     if isinstance(exc, (subprocess.TimeoutExpired, TimeoutError)) \
             or isinstance(reason, TimeoutError):
+        return False
+    # A certificate this machine cannot verify, a CLI path that is gone, a
+    # denied file: OSErrors too, but the next try fails the same way.
+    if isinstance(exc, _LOCAL_OS_ERRORS) or isinstance(reason, _LOCAL_OS_ERRORS):
         return False
     if isinstance(exc, OSError):
         # URLError, ConnectionReset, socket timeout — all OSError underneath.
@@ -1388,13 +1399,14 @@ def search_rows(rules: str, task: str, candidates, *, model: str = CLAUDE_MODEL,
         queries = []
 
     numbers = run_queries(queries, candidates, dance_class=dance_class,
-                          used_paths=used_paths, sound=sound) if queries else []
+                          used_paths=used_paths, sound=sound,
+                          cancel=cancel) if queries else []
     if not numbers:
         # No queries, or only queries that match nothing. Sweep the pool, or
         # step 2 would be handed an empty catalog and could pick nothing.
         numbers = run_queries(default_queries(candidates), candidates,
                               dance_class=dance_class, used_paths=used_paths,
-                              sound=sound)
+                              sound=sound, cancel=cancel)
     log.info("🤖 search round done\n"
              "queries: %d\n"
              "rows: %d of %d in the pool", len(queries), len(numbers),

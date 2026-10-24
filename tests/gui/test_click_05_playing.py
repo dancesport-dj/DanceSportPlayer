@@ -22,8 +22,28 @@ import shiboken6
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import (
-    QAbstractButton, QApplication, QDialogButtonBox, QFileDialog, QTabWidget)
+    QAbstractButton, QApplication, QDialogButtonBox, QFileDialog, QMessageBox,
+    QTabWidget)
+from shared.audio.playback import device_id
 from shared.columns import _COL_PLAY
+
+
+class _Plug:
+    """QMediaDevices with a hand on the cable: the outputs the OS lists, less
+    `card` while it is pulled."""
+
+    def __init__(self, card):
+        self.card = card
+        self.pulled = False
+
+    def defaultAudioOutput(self):
+        from PySide6.QtMultimedia import QMediaDevices
+        return QMediaDevices.defaultAudioOutput()
+
+    def audioOutputs(self):
+        from PySide6.QtMultimedia import QMediaDevices
+        return [d for d in QMediaDevices.audioOutputs()
+                if not (self.pulled and device_id(d) == device_id(self.card))]
 
 
 class PlayingClickTest(ClickThrough):
@@ -187,6 +207,128 @@ class PlayingClickTest(ClickThrough):
                 "⏯ did not resume")
             self.assertGreaterEqual(player.position(), held)
             self.assertEqual(table._current_play_row, row)
+
+    def test_the_music_card_pulled_mid_title_plays_on_and_comes_back(self):
+        # The USB card chosen for the music comes loose while a title runs:
+        # the title goes on over the system default, the desk is told once,
+        # the 🔊 badge goes and 🚦 Ready? names the card. Plugged back in, the
+        # music returns to it. Real outputs, so it needs two of them.
+        from PySide6.QtMultimedia import QMediaDevices, QMediaPlayer
+        default = device_id(QMediaDevices.defaultAudioOutput())
+        cards = [d for d in QMediaDevices.audioOutputs() if device_id(d) != default]
+        if not cards:
+            self.skipTest("needs a second audio output next to the default")
+        card = cards[0]
+        win = self.win
+        plug = _Plug(card)
+        win._audio_device._devices = plug
+
+        def on(dev_id):
+            return device_id(win._audio_out.device()) == dev_id
+
+        def badge():
+            return win.statusBar().findChild(QAbstractButton, "soundBadge")
+
+        def choose(dlg):
+            combo = dlg._output_combos["music"]
+            combo.setCurrentIndex(combo.findData(device_id(card).hex()))
+
+        def told():
+            return [c for c in toast.call_args_list if card.description() in c.args[1]]
+
+        playing = QMediaPlayer.PlaybackState.PlayingState
+        with self.clicking() as op, mock.patch.object(self.gui, "_show_toast") as toast:
+            self.generate(rounds="1")
+            self.edit_settings(op, choose)
+            self.assertTrue(self.wait_until(lambda: on(device_id(card)), 5000),
+                            "the music never went onto the chosen card")
+            self.assertTrue(self.wait_until(lambda: badge() is not None
+                                            and badge().isVisible(), 5000))
+            self.click(win._mode_play_btn)
+            row = self.song_rows()[0]
+            self.play_row(row)
+            self.assertTrue(self.wait_until(lambda: win._player.playbackState() == playing))
+
+            plug.pulled = True
+            win._media_devices.audioOutputsChanged.emit()
+            self.assertTrue(on(default), "the music stayed on the pulled card")
+            self.assertFalse(badge().isVisible(), "the badge still shows the pulled card")
+            self.assertEqual(win._audio_device.unplugged(), [("music", card.description())])
+            self.assertEqual(len(told()), 1, toast.call_args_list)
+            pos = win._player.position()
+            self.assertTrue(self.wait_until(lambda: win._player.position() > pos),
+                            "the title stopped with the card")
+            self.assertEqual(win._deckset.table._current_play_row, row)
+            win._audio_device.watch_default()
+            self.assertEqual(len(told()), 1, "the next tick told the desk again")
+
+            plug.pulled = False
+            win._media_devices.audioOutputsChanged.emit()
+            self.assertTrue(on(device_id(card)), "the music did not come back to the card")
+            self.assertTrue(badge().isVisible())
+            self.assertEqual(win._audio_device.unplugged(), [])
+            self.assertEqual(win._player.playbackState(), playing)
+            win._on_stop_btn()
+
+    def test_after_a_crash_the_title_on_air_is_cued_again_from_its_start(self):
+        # The app dies on the second title of the evening. The next start
+        # brings the deck back from the autosave and asks once: yes cues that
+        # title on its row from its start, and the first one greys again.
+        from PySide6.QtMultimedia import QMediaPlayer
+        from player.audio.on_air_note import NOTE
+        from player.window.main_resume import EVENING
+        from shared.stores import ON_AIR
+        self.addCleanup(ON_AIR.remove)
+
+        asked = []
+
+        def yes(box):
+            asked.append(box.text())
+            self.click(box.button(QMessageBox.StandardButton.Yes))
+
+        with self.clicking() as op:
+            self.generate(rounds="1")
+            titles = self.titles()
+            self.click(self.win._mode_play_btn)
+            first, second = self.song_rows()[:2]
+            heard = str(self.entry_at(first).path)
+            self.play_row(first)
+            table = self.win._deckset.table
+            self.assertTrue(self.wait_until(
+                lambda: self.win._player.playbackState()
+                == QMediaPlayer.PlaybackState.PlayingState))
+            self.win._player.setPosition(12_000)
+            self.assertTrue(self.wait_until(lambda: heard in table._played_paths, 5000),
+                            "the first title never counted as heard")
+            self.click(self.button("Next title"))
+            self.assertTrue(self.wait_until(lambda: table._current_play_row == second))
+            on_air = self.entry_at(second).path
+            self.assertTrue(self.wait_until(lambda: ON_AIR.exists(), 5000) and NOTE.flush())
+            self.assertTrue(EVENING.flush())
+
+            op.answer(lambda w: isinstance(w, QMessageBox)
+                      and w.windowTitle() == "Pick up after a crash?", yes)
+            # The crash: the window is torn down, but neither saves on quit nor
+            # takes the note away. What is on disk is what the evening wrote
+            # as it went.
+            with (mock.patch.object(self.gui.MainWindow, "save_on_quit"),
+                  mock.patch.object(NOTE, "remove")):
+                self.restart()
+            self.assertTrue(self.wait_until(lambda: asked, 5000), "nothing was offered")
+            self.assertIn(on_air.stem, asked[0])
+            table = self.win._deckset.table
+            self.assertEqual(self.titles(), titles, "the autosave lost the deck")
+            self.assertTrue(self.win._is_playing_mode())
+            self.assertEqual(table._current_play_row, second)
+            self.assertEqual(self.win._playback.path, on_air)
+            self.assertIn(heard, table._played_paths, "the first title is not grey again")
+            self.assertFalse(ON_AIR.exists(), "the note is still there for the next start")
+            self.click(self.win._big_player._pause_btn)
+            self.assertTrue(self.wait_until(
+                lambda: self.win._player.playbackState()
+                == QMediaPlayer.PlaybackState.PlayingState), "⏯ did not start it")
+            self.assertLess(self.win._player.position(), 5_000, "not from its start")
+            self.win._on_stop_btn()
 
     def test_a_cartwall_pad_plays_over_the_running_title(self):
         from planner.playing import cartwall as pc

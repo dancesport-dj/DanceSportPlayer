@@ -11,6 +11,7 @@ MainWindow (see tests/gui/monkey_support.py):
 
 import os
 import unittest
+from pathlib import Path
 from unittest import mock
 
 # First: it points the app's state files at a temp folder before any app
@@ -38,18 +39,6 @@ class SettingsClickTest(ClickThrough):
                 QDialogButtonBox.StandardButton.Ok))
         op.answer(self.titled("⚙  Settings"), act)
         self.click(gear)
-        self.assertTrue(self.wait_until(lambda: not op.script), op.script)
-
-    def edit_settings(self, op, edit, ok=True):
-        """⚙ on the Plan panel, `edit(dlg)`, then OK (unless `ok` is off:
-        the edit closed the dialog itself)."""
-        def act(dlg):
-            edit(dlg)
-            if ok:
-                self.click(dlg.findChild(QDialogButtonBox).button(
-                    QDialogButtonBox.StandardButton.Ok))
-        op.answer(self.titled("⚙  Settings"), act)
-        self.click(self.win._cfg.settings_btn)
         self.assertTrue(self.wait_until(lambda: not op.script), op.script)
 
     def check_music(self, op):
@@ -231,6 +220,50 @@ class SettingsClickTest(ClickThrough):
                                           lambda m=models: m):
                     self.edit_settings(op, heavy_boxes)
         self.assertEqual(seen, [0, 1])
+
+    def test_a_venue_pack_takes_the_deck_and_its_music_to_another_pc(self):
+        """📦 Export with the music, 📥 import it unpacked into a folder of
+        its own, restart: the deck is back and plays from that folder."""
+        from PySide6.QtMultimedia import QMediaPlayer
+        from PySide6.QtWidgets import QFileDialog
+        from planner.event import venue_pack
+        from planner.store import state_dir
+        pack = self.out / f"venue{venue_pack.SUFFIX}"
+        music = self.out / "venue-music"
+        asked = []
+
+        def answer(_parent, title, text, *_a, **_kw):
+            asked.append(title)
+            # The music goes along and is unpacked; the test restarts itself.
+            if "Restart now?" in text:
+                return QMessageBox.StandardButton.No
+            return QMessageBox.StandardButton.Yes
+        with self.clicking() as op, mock.patch.object(QMessageBox, "question", answer):
+            self.generate()
+            planned = self.titles()
+            with mock.patch.object(QFileDialog, "getSaveFileName",
+                                   lambda *_a, **_kw: (str(pack), "")):
+                self.edit_settings(op, lambda dlg: self.click(dlg._venue_export_btn), ok=False)
+            self.assertTrue(self.wait_until(pack.is_file), "no venue pack written")
+            with mock.patch.object(QFileDialog, "getOpenFileName",
+                                   lambda *_a, **_kw: (str(pack), "")), \
+                    mock.patch.object(QFileDialog, "getExistingDirectory",
+                                      lambda *_a, **_kw: str(music)):
+                self.edit_settings(op, lambda dlg: self.click(dlg._venue_import_btn), ok=False)
+            self.assertTrue(self.wait_until(
+                lambda: venue_pack.has_pending(state_dir()) and "Import venue pack" in asked[-1:]),
+                f"nothing staged, asked {printable(asked)}")
+            self.restart(at_start=lambda: venue_pack.apply_pending(state_dir()))
+            self.assertEqual(self.titles(), planned)
+            paths = [self.entry_at(r).path for r in self.song_rows()]
+            self.assertTrue(paths and all(Path(p).is_relative_to(music) and Path(p).is_file()
+                                          for p in paths),
+                            f"not played from the unpacked music: {printable(paths[:3])}")
+            self.play_row(self.song_rows()[0])
+            self.assertTrue(self.wait_until(
+                lambda: self.win._player.playbackState()
+                == QMediaPlayer.PlaybackState.PlayingState), "the first title did not play")
+            self.win._on_stop_btn()
 
     def test_settings_switch_the_mode_at_once_and_the_language_after_a_restart(self):
         from planner import i18n

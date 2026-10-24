@@ -99,7 +99,11 @@ def _audio_fingerprint(f, size: int, head: bytes, tail: bytes, tail_off: int) ->
     outside the buffers (a cover-art tag bigger than the head sample).
     """
     front, back = _tag_offsets(head, tail)
-    audio_len = max(0, size - front - back)
+    if front + back >= size:
+        # A broken header claiming the whole file: believed, it left no audio
+        # and every such file one shared fingerprint. Unrecognised, then.
+        front = back = 0
+    audio_len = size - front - back
     want = min(_AFP_WINDOW, audio_len)
     h = hashlib.sha1(usedforsecurity=False)
     h.update(str(audio_len).encode())
@@ -148,13 +152,14 @@ def _fingerprints(path: Path) -> tuple[str, str]:
 _FP_TABLES = {
     "features": "bpm, centroid, rms, mfcc, mfcc_mean, mfcc_cov",
     "embeddings": "model, vec",
-    "loudness": "lufs",
+    "loudness": "lufs, tp",
     "pd_highlights": "times, manual",
     "silences": "spans",
     "waveforms": "peaks",
     "vocals": "vocal_share",
     "noise": "floor_db",
-    "tag_edits": "rating, classes_ok, is_instrumental, comment_tags, custom",
+    "tag_edits": "rating, classes_ok, is_instrumental, comment_tags, custom, "
+                 "title, tag_artist, tag_album, year, genre, tag_comment",
 }
 
 
@@ -205,7 +210,8 @@ _SCHEMA_VERSION = 3   # v3: scan_meta re-keyed from file_id → content fingerpr
 #   v7 → SW = Slow Waltz, 'Ballroom SW' genres, UltraMixer's TXXX dance style
 #   v8 → a comment leading with the instr word ('Instr AS') is instrumental
 #   v9 → glued class codes ('vocal AS', 'BAS', 'DCB') are classes
-_DANCE_DETECT_VERSION = 9
+#   v10 → a word ending in 't' before a number ('Hit50', 'Best40') is no takt
+_DANCE_DETECT_VERSION = 10
 
 # How quiet a stretch has to be before it counts as silence (ffmpeg
 # silencedetect). −30 dB was a fade-out still playing to the floor — “Fare Thee
@@ -286,6 +292,13 @@ def _row_to_meta(row) -> dict:
     }
 
 
+def _key_mtime(mt: str) -> int:
+    """The mtime part of a "path::mtime" key. Negative too: NTFS allows dates
+    before 1970, and the key written must read back as the key it was.
+    """
+    return int(mt) if mt.lstrip('-').isdigit() else 0
+
+
 def _file_id(path_str: str, create: bool = True) -> int | None:
     """Resolve (or create) the files.id for a path string."""
     conn = _db()
@@ -326,7 +339,9 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
         "  PRIMARY KEY (root, pl_id));"
         # EBU R128 integrated loudness, content-addressed like `features` (byte-identical
         # copies share one measurement). Filled by the GUI's ffmpeg loudness pass.
-        "CREATE TABLE IF NOT EXISTS loudness (fp TEXT PRIMARY KEY, lufs REAL);"
+        # `tp` is the true peak (dBTP) from the same run; NULL where it was
+        # measured before the column, which puts the track back on the pass.
+        "CREATE TABLE IF NOT EXISTS loudness (fp TEXT PRIMARY KEY, lufs REAL, tp REAL);"
         # Paso Doble highlight times, content-addressed too. `times` is a JSON
         # array [h1,h2,h3] in seconds; h1/h2 may be null (no clear candidate).
         # Filled by the GUI's 🐂 highlight pass / on-the-fly during playback.
@@ -352,7 +367,9 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
         # Stars / classes / markers changed in the app's tag editor; they win over
         # the file's own tags (planner.music.tag_edits). NULL = the file's value.
         "CREATE TABLE IF NOT EXISTS tag_edits (fp TEXT PRIMARY KEY, rating INTEGER, "
-        "  classes_ok TEXT, is_instrumental INTEGER, comment_tags TEXT, custom TEXT);"
+        "  classes_ok TEXT, is_instrumental INTEGER, comment_tags TEXT, custom TEXT, "
+        "  title TEXT, tag_artist TEXT, tag_album TEXT, year INTEGER, genre TEXT, "
+        "  tag_comment TEXT);"
         # The tag-independent audio fingerprint behind each content fingerprint,
         # written whenever a file is hashed. A tag editor rewrites the file and
         # with it `fp`, the key to every analysed row; this is what still matches,
@@ -397,6 +414,17 @@ def _migrate_pd_manual(conn: sqlite3.Connection) -> None:
         log.info("  ♻️  pd_highlights: added manual flag column")
 
 
+def _migrate_loudness_tp(conn: sqlite3.Connection) -> None:
+    """Append the true-peak column to a pre-existing loudness table.
+
+    Left NULL: the 📊 loudness pass measures those tracks once more, and the
+    gain cap leaves a track alone until its peak is on record."""
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(loudness)").fetchall()]
+    if cols and 'tp' not in cols:
+        conn.execute("ALTER TABLE loudness ADD COLUMN tp REAL")
+        log.info("  ♻️  loudness: added true-peak column")
+
+
 def _migrate_playlist_index_finals(conn: sqlite3.Connection) -> None:
     """Append the `fkeys` / `skeys` columns to a pre-existing playlist_index table.
 
@@ -421,6 +449,21 @@ def _migrate_play_log_composer(conn: sqlite3.Connection) -> None:
     if cols and 'composer' not in cols:
         conn.execute("ALTER TABLE play_log ADD COLUMN composer TEXT")
         log.info("  ♻️  play_log: added composer column")
+
+
+# The columns the 🏷 editor's database mode stores (planner.music.tag_edits.DB_FIELDS).
+_TAG_EDIT_DB_COLS = (("title", "TEXT"), ("tag_artist", "TEXT"), ("tag_album", "TEXT"),
+                     ("year", "INTEGER"), ("genre", "TEXT"), ("tag_comment", "TEXT"))
+
+
+def _migrate_tag_edits_db_fields(conn: sqlite3.Connection) -> None:
+    """Append the database mode's columns to a pre-existing tag_edits table;
+    the edits made before it stay as they were (NULL = the file's value)."""
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(tag_edits)").fetchall()]
+    for col, kind in _TAG_EDIT_DB_COLS:
+        if cols and col not in cols:
+            conn.execute(f"ALTER TABLE tag_edits ADD COLUMN {col} {kind}")
+            log.info("  ♻️  tag_edits: added %s column", col)
 
 
 def _migrate_meta_album(conn: sqlite3.Connection) -> None:
@@ -642,7 +685,7 @@ def _insert_legacy(conn: sqlite3.Connection, legacy: dict) -> None:
         path, _, mt = key.rpartition('::')
         path = path or key
         conn.execute("INSERT OR REPLACE INTO fingerprints (file_id, mtime, fp) VALUES (?,?,?)",
-                     (gid(path), int(mt) if mt.isdigit() else 0, fp))
+                     (gid(path), _key_mtime(mt), fp))
         n_fp += 1
     placeholders = ",".join("?" * (2 + len(_META_COLS)))   # file_id, mtime, + 10 cols
     # NOTE: legacy scan_meta (sm) is intentionally NOT migrated — the new schema is keyed
@@ -791,7 +834,10 @@ def _init_db(conn: sqlite3.Connection) -> None:
             # One transaction for all of it: the legacy tables are DROPPED before
             # their rows go back in, and scan_meta is dropped before it is re-filled.
             # Committed step by step, a crash in between lost those rows for good.
-            conn.execute("BEGIN")
+            # IMMEDIATE: it always ends in a write, and a deferred BEGIN that read
+            # first fails at once when the other app (Planner and Player starting
+            # together) commits in between; this one waits for the lock instead.
+            conn.execute("BEGIN IMMEDIATE")
             try:
                 legacy = _read_and_drop_legacy(conn)    # pull out old key/JSON tables if present
                 _ensure_schema(conn)                    # create normalized tables (no-op if exist)
@@ -803,8 +849,10 @@ def _init_db(conn: sqlite3.Connection) -> None:
                 _migrate_meta_tag_bpm(conn)             # add tag_bpm col (after custom)
                 _migrate_meta_tag_comment(conn)         # add tag_comment col (after tag_bpm)
                 _migrate_pd_manual(conn)                # add manual flag to pd_highlights
+                _migrate_loudness_tp(conn)              # add tp col to loudness
                 _migrate_playlist_index_finals(conn)    # add fkeys col to playlist_index
                 _migrate_play_log_composer(conn)        # add composer col to play_log
+                _migrate_tag_edits_db_fields(conn)      # add title … tag_comment to tag_edits
                 if legacy:
                     _insert_legacy(conn, legacy)
                 _migrate_scan_meta_v3(conn)             # v2→v3: scan_meta → content-addressed
@@ -865,6 +913,7 @@ class AudioCache:
         # without a stat.
         self._path_key: dict[str, str] = {}
         self._lufs: dict[str, float] = {}  # content fingerprint → EBU R128 integrated LUFS
+        self._tp: dict[str, float] = {}  # content fingerprint → true peak (dBTP), where known
         self._pd_hl: dict[str, list] = {}  # content fingerprint → PD highlight times [h1,h2,h3]
         self._pd_hl_manual: set = set()    # fingerprints whose highlights were learned manually
         self._silences: dict[str, list] = {}  # content fingerprint → silence spans [[start, end], …]
@@ -915,6 +964,8 @@ class AudioCache:
                 "JOIN files f ON f.id = fp.file_id").fetchall():
             self._fp[f"{path}::{mtime}"] = fp
         self._lufs = dict(conn.execute("SELECT fp, lufs FROM loudness").fetchall())
+        self._tp = dict(conn.execute(
+            "SELECT fp, tp FROM loudness WHERE tp IS NOT NULL").fetchall())
         for fp, times, manual in conn.execute(
                 "SELECT fp, times, manual FROM pd_highlights").fetchall():
             try:
@@ -936,7 +987,7 @@ class AudioCache:
         newest: dict[str, int] = {}
         for key in self._fp:
             path, _, mt = key.rpartition('::')
-            mtime = int(mt) if mt.lstrip('-').isdigit() else 0
+            mtime = _key_mtime(mt)
             if path and mtime >= newest.get(path, mtime):
                 newest[path] = mtime
                 self._path_key[path] = key
@@ -976,18 +1027,27 @@ class AudioCache:
                     kept += 1
         else:
             return
-        # Persist the imported data into SQLite.
+        # Persist the imported data into SQLite. A damaged vector is left out
+        # (analysed again when needed): one bad entry must not stop the import,
+        # or every start would meet it again.
+        rows = []
+        for fp, d in list(self._data.items()):
+            try:
+                rows.append((fp, d['bpm'], d['centroid'], d['rms'],
+                             self._pack_mfcc(d['mfcc'])))
+            except (KeyError, TypeError, ValueError):
+                del self._data[fp]
+                dropped += 1
         conn = _db()
         conn.executemany(
             "INSERT OR REPLACE INTO features (fp, bpm, centroid, rms, mfcc) VALUES (?,?,?,?,?)",
-            [(fp, d['bpm'], d['centroid'], d['rms'], self._pack_mfcc(d['mfcc']))
-             for fp, d in self._data.items()],
+            rows,
         )
         for key, fp in self._fp.items():
             path, _, mt = key.rpartition('::')
             conn.execute(
                 "INSERT OR REPLACE INTO fingerprints (file_id, mtime, fp) VALUES (?,?,?)",
-                (_file_id(path or key), int(mt) if mt.isdigit() else 0, fp))
+                (_file_id(path or key), _key_mtime(mt), fp))
         conn.commit()
         try:
             CACHE_FILE.rename(CACHE_FILE.with_suffix('.json.bak'))
@@ -995,7 +1055,7 @@ class AudioCache:
             pass
         log.info("  ♻️  Audio cache migrated JSON v%s → SQLite v%s: "
                  "%s unique vectors, %s duplicates merged, "
-                 "%s missing files dropped → %s",
+                 "%s missing or damaged entries dropped → %s",
                  ver, self.CACHE_VERSION, kept, dups, dropped, audio_db_file().name)
 
     def save(self) -> None:
@@ -1032,7 +1092,7 @@ class AudioCache:
         conn = _db()
         conn.execute(
             "INSERT OR REPLACE INTO fingerprints (file_id, mtime, fp) VALUES (?,?,?)",
-            (_file_id(key_path or k), int(mt) if mt.isdigit() else 0, fp))
+            (_file_id(key_path or k), _key_mtime(mt), fp))
         conn.execute("INSERT OR REPLACE INTO audio_fps (fp, afp) VALUES (?,?)", (fp, afp))
         self._dirty = True
         if fp not in self._feat_fps:
@@ -1094,6 +1154,7 @@ class AudioCache:
             self._data[fp] = self._feat_dict(row)
             self._feat_fps.add(fp)
         for table, col, mirror in (("loudness", "lufs", self._lufs),
+                                   ("loudness", "tp", self._tp),
                                    ("vocals", "vocal_share", self._vocal_share),
                                    ("noise", "floor_db", self._noise)):
             r = conn.execute(f"SELECT {col} FROM {table} WHERE fp = ?", (fp,)).fetchone()  # nosec B608: constant names
@@ -1223,13 +1284,25 @@ class AudioCache:
             return None
         return self._lufs.get(fp)
 
-    def put_lufs(self, path: Path, lufs: float) -> None:
+    def get_tp(self, path: Path, touch_disk: bool = True) -> float | None:
+        """True peak (dBTP) of a track, or None when not measured with it yet."""
+        fp = self.fingerprint(path) if touch_disk else self.recorded_fingerprint(path)
+        if fp is None:
+            return None
+        return self._tp.get(fp)
+
+    def put_lufs(self, path: Path, lufs: float, tp: float | None = None) -> None:
+        """Store a measurement; one without a true peak drops the old peak."""
         fp = self.fingerprint(path)
         if fp is None:
             return
         self._lufs[fp] = float(lufs)
-        _db().execute("INSERT OR REPLACE INTO loudness (fp, lufs) VALUES (?,?)",
-                      (fp, float(lufs)))
+        if tp is None:
+            self._tp.pop(fp, None)
+        else:
+            self._tp[fp] = float(tp)
+        _db().execute("INSERT OR REPLACE INTO loudness (fp, lufs, tp) VALUES (?,?,?)",
+                      (fp, float(lufs), None if tp is None else float(tp)))
         self._dirty = True
 
     def lufs_count(self) -> int:

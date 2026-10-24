@@ -12,6 +12,7 @@ list must not be added again — and a list that arrives holding such a pair
 import os
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -237,7 +238,7 @@ class CleanupTest(_ScratchDbTest):
         self.assertEqual(len(t.groups[0]), 2)
 
     def test_keeping_all_of_a_title_still_drops_the_identical_copy(self):
-        """Which identical byte copy goes doesn't matter, so it goes either way."""
+        """Which identical byte copy goes doesn't matter, so by default it goes."""
         c = self.file("C", "Moon River (LW 29)")
         f = self.file("F", "Moon River (LW 29)")
         new = self.file("C", "1-14 A New Life (TG 32)", _AUDIO[::-1])
@@ -248,6 +249,33 @@ class CleanupTest(_ScratchDbTest):
         self.ask(t, keep=lambda group: None)
         self.assertEqual(t._remove_duplicate_titles(), 1)
         self.assertEqual(self.songs(t), [str(new), str(f), str(cut)])
+
+    def test_keeping_the_identical_copies_keeps_them(self):
+        """The chooser's own Keep all for the identical copies: nothing goes."""
+        from gui.dialogs import duplicate_titles_dialog as dtd
+        c = self.file("C", "Moon River (LW 29)")
+        f = self.file("F", "Moon River (LW 29)")
+        new = self.file("C", "1-14 A New Life (TG 32)", _AUDIO[::-1])
+        cut = self.file("F", "1-14 A New Life (TG 32)_cut", _AUDIO[1:] + b"x")
+        t = self.table()
+        t.load_player_list([self.entry(c), self.entry(new, "TG"), self.entry(f),
+                            self.entry(cut, "TG")], "Order", play_cb=None)
+
+        class _Kept:
+            def __init__(self, *a, **k):
+                pass
+
+            def exec(self):
+                return dtd.QDialog.DialogCode.Accepted
+
+            def removed_rows(self):
+                return set()
+
+            def keeps_identical(self):
+                return True
+        with mock.patch.object(dtd, "DuplicateTitlesDialog", _Kept):
+            self.assertEqual(t._remove_duplicate_titles(), 0)
+        self.assertEqual(len(self.songs(t)), 4)
 
     def test_the_title_choice_offers_the_copy_that_stays(self):
         """A New Life, its _cut, then the very same _cut again: the first _cut goes
@@ -482,6 +510,16 @@ class ChoiceDialogTest(unittest.TestCase):
         dlg.radios[0][1].setChecked(True)
         dlg.radios[0][-1].setChecked(True)      # the last radio is "Keep all"
         self.assertEqual(dlg.removed_rows(), set())
+
+    def test_the_identical_copies_go_by_default(self):
+        self.assertFalse(self.dialog().keeps_identical())
+
+    def test_the_identical_copies_can_be_kept_too(self):
+        # A tester: "Wenn die erste Auswahl selektiert wird (drin lassen)
+        # werden doppelte Titel trotzdem entfernt".
+        dlg = self.dialog()
+        dlg.identical_keep.setChecked(True)
+        self.assertTrue(dlg.keeps_identical())
 
     def test_the_files_are_named_with_their_folder(self):
         from PySide6.QtWidgets import QRadioButton

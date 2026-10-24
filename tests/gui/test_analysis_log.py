@@ -10,6 +10,7 @@ a line every 5 % with the file and the time left, and a closing summary.
 The workers run on the test's own thread (`run()`, not `start()`).
 """
 
+import logging
 import os
 import tempfile
 import unittest
@@ -118,6 +119,23 @@ class AnalysisLogTest(unittest.TestCase):
         self.assertIn("files: 4", lines[0])
         self.assertIn("(4/4)", lines[-2])
         self.assertIn("ok: 4", lines[-1])
+
+    def test_a_librosa_crash_is_reported_not_swallowed(self):
+        """A locked DB or a full disk outside the per-file try killed the
+        thread without a word, and the BusyDialog waited for `done` forever
+        (review 2026-10-22, G1)."""
+        class _Lib:
+            def analyze_entries(self, *a, **kw):
+                raise OSError("database is locked")
+        worker = AudioAnalyzer(_Lib(), [object()])
+        got, done = [], []
+        worker.error.connect(got.append)
+        worker.done.connect(lambda *a: done.append(a))
+        logging.disable(logging.CRITICAL)
+        self.addCleanup(logging.disable, logging.NOTSET)
+        worker.run()
+        self.assertEqual(got, ["database is locked"])
+        self.assertEqual(done, [])
 
     def test_the_embedding_index_logs_the_download_and_the_titles(self):
         def build(entries, model, store, progress_cb, should_cancel, download_cb):

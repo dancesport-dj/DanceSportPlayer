@@ -166,6 +166,20 @@ class PathRemapperTest(unittest.TestCase):
         foreign = Path("C:/Users/me/my music/tanzcds")
         self.assertIsNone(PathRemapper([self.root / "tanzcds"]).remap(foreign))
 
+    def test_a_path_never_climbs_out_of_the_root(self):
+        """P14: '..' was joined as it stood, so a playlist line could name a
+        file outside every search folder and Fix paths wrote it back."""
+        outside = self.tmp / "secret.mp3"
+        outside.write_bytes(b"x")
+        for foreign in (r"F:\my music\..\secret.mp3",
+                        r"F:\elsewhere\tanzcds\..\..\secret.mp3"):
+            with self.subTest(foreign=foreign):
+                self.assertIsNone(PathRemapper([self.root]).remap(foreign))
+
+    def test_a_climb_early_in_the_path_still_finds_the_tail(self):
+        foreign = r"F:\x\..\tanzcds\lateincd\005 - Song (SA 50).mp3"
+        self.assertEqual(PathRemapper([self.root]).remap(foreign), self.track)
+
     def test_without_a_configured_folder_it_reads_as_empty(self):
         self.assertFalse(PathRemapper([]))
         self.assertIsNone(PathRemapper([]).remap(self.foreign))

@@ -107,9 +107,9 @@ class _Table(unittest.TestCase):
         self.addCleanup(setattr, gpt, "_open_in_default_player", real_open)
         # 📂 Handing the file to the OS player is a ⚙ setting, off by default;
         # these cases are about what happens when it is on.
-        self.addCleanup(common.set_dblclick_opens_external,
-                        common.dblclick_opens_external())
-        common.set_dblclick_opens_external(True)
+        self.addCleanup(common.set_dblclick_action,
+                        common.dblclick_action())
+        common.set_dblclick_action("external")
         self.addCleanup(reap_widget, self.t)
 
 
@@ -125,7 +125,7 @@ class DoubleClickTest(_Table):
         """⚙ 📂 off — the default: a Mac tester's double-click kept starting
         Apple's Music app with nothing in the settings to stop it. The title
         plays here instead, the way its ▶ would (mini player and all)."""
-        common.set_dblclick_opens_external(False)
+        common.set_dblclick_action("nothing")
         self.t._on_row_double_clicked(1, 0)
         self.assertEqual(self.opened, [])
         self.assertEqual(self.played, [Path(r"C:\music\second.mp3")])
@@ -133,7 +133,7 @@ class DoubleClickTest(_Table):
 
     def test_planning_mode_does_not_stop_the_playing_title(self):
         """Like ▶ it plays — unlike ▶ it never toggles the title off again."""
-        common.set_dblclick_opens_external(False)
+        common.set_dblclick_action("nothing")
         self.t._on_row_double_clicked(1, 0)
         self.t._on_row_double_clicked(1, 0)
         self.assertEqual(self.played, [Path(r"C:\music\second.mp3")])

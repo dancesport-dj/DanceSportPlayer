@@ -37,13 +37,18 @@ _AUDIO = b"\xff\xfb\x90\x00" + bytes(range(256)) * 40
 class _Answer:
     """A TagEditDialog after Save, without opening one."""
 
-    def __init__(self, raw=None, changes=None, form=None, mp3s=(), raw_for=None):
+    def __init__(self, raw=None, changes=None, form=None, mp3s=(), raw_for=None,
+                 write_app=False):
         self._raw = raw
         self._raw_for = raw_for     # {path: raw edits} for a selection
         self._changes = changes or {}
         self._form = form or {}
         self._mp3s = list(mp3s)
         self.reset_requested = False
+        self._write_app = write_app   # "Also write these into the MP3 file"
+
+    def write_app_to_mp3(self):
+        return self._write_app
 
     def form_changes(self):
         return dict(self._form)
@@ -107,11 +112,6 @@ class _WindowTest(unittest.TestCase):
                              lambda _w, text, *a, **kw: self.toasts.append(text))
         patcher.start()
         self.addCleanup(patcher.stop)
-        # "Also write into the MP3?" answered No unless a test says otherwise.
-        self.asked = []
-        self.answer = False
-        self.win._ask_write_to_mp3 = lambda n, fields: (
-            self.asked.append((n, fields)) or self.answer)
 
 
 class RawWriteTest(_WindowTest):
@@ -185,14 +185,17 @@ class RawWriteTest(_WindowTest):
 
 
 class AppFieldsWriteTest(_WindowTest):
-    """Stars, classes, instrumental and markers into the MP3 too — after asking."""
+    """Stars, classes, instrumental and markers into the MP3 too — when the
+    dialog's "Also write these into the MP3 file" is ticked."""
 
-    def test_yes_writes_them_and_the_file_is_the_truth_again(self):
-        self.answer = True
+    def test_the_window_no_longer_asks(self):
+        self.assertFalse(hasattr(self.win, "_ask_write_to_mp3"))
+
+    def test_ticked_writes_them_and_the_file_is_the_truth_again(self):
         cache = self.win._library.cache
         self.win._apply_tag_dialog([self.entry], _Answer(changes={
-            "rating": 4, "classes_ok": ["A", "S"], "comment_tags": ["vocal_f"]}))
-        self.assertEqual(self.asked, [(1, ["stars", "classes", "markers"])])
+            "rating": 4, "classes_ok": ["A", "S"], "comment_tags": ["vocal_f"]},
+            write_app=True))
         tags = ID3(self.path)
         self.assertEqual(tags["POPM:Windows Media Player 9 Series"].rating, 196)
         self.assertEqual(tags["COMM::eng"].text, ["A;S;vocal_f"])
@@ -201,10 +204,9 @@ class AppFieldsWriteTest(_WindowTest):
                          (4, ["A", "S"], ["vocal_f"]))
         self.assertEqual(tag_edits.load(cache.fingerprint(self.path)), {})
 
-    def test_no_keeps_them_in_the_app_only(self):
+    def test_unticked_keeps_them_in_the_app_only(self):
         before = self.path.read_bytes()
         self.win._apply_tag_dialog([self.entry], _Answer(changes={"rating": 4}))
-        self.assertEqual(len(self.asked), 1)
         self.assertEqual(self.path.read_bytes(), before)
         self.assertEqual(tag_edits.load(self.win._library.cache.fingerprint(self.path)),
                          {"rating": 4})
@@ -213,35 +215,30 @@ class AppFieldsWriteTest(_WindowTest):
     def test_what_the_file_cant_say_stays_in_the_app(self):
         """'(Instr.)' in a title makes a track instrumental whatever the comment
         says, so a "not instrumental" can only live in the DB."""
-        self.answer = True
         self.entry.is_instrumental = True
         with mock.patch("planner.music.library.title_marks_instrumental", return_value=True):
             self.win._apply_tag_dialog([self.entry], _Answer(changes={
-                "is_instrumental": False, "rating": 3}))
+                "is_instrumental": False, "rating": 3}, write_app=True))
             self.assertEqual(tag_edits.load(self.win._library.cache.fingerprint(self.path)),
                              {"is_instrumental": False})
         self.assertFalse(self.entry.is_instrumental)
         self.assertEqual(self.entry.rating, 3)
 
-    def test_not_asked_without_a_change_to_them(self):
-        self.win._apply_tag_dialog([self.entry], _Answer(
-            raw={"sets": {"TPE1": "New Band"}, "deletes": [], "adds": []}))
-        self.assertEqual(self.asked, [])
-
-    def test_not_asked_for_back_to_the_file(self):
-        answer = _Answer(changes={"rating": 4})
+    def test_back_to_the_file_writes_nothing_even_ticked(self):
+        before = self.path.read_bytes()
+        answer = _Answer(changes={"rating": 4}, write_app=True)
         answer.reset_requested = True
         self.win._apply_tag_dialog([self.entry], answer)
-        self.assertEqual(self.asked, [])
+        self.assertEqual(self.path.read_bytes(), before)
 
     def test_a_playing_track_keeps_the_edit_in_the_app(self):
-        self.answer = True
         before = self.path.read_bytes()
         with mock.patch.object(self.win._player, "source",
                                return_value=QUrl.fromLocalFile(str(self.path))), \
                 mock.patch.object(self.win._player, "playbackState",
                                   return_value=QMediaPlayer.PlaybackState.PlayingState):
-            self.win._apply_tag_dialog([self.entry], _Answer(changes={"rating": 4}))
+            self.win._apply_tag_dialog([self.entry], _Answer(changes={"rating": 4},
+                                                             write_app=True))
         self.assertEqual(self.path.read_bytes(), before)
         self.assertEqual(len(self.toasts), 1)
         self.assertEqual(tag_edits.load(self.win._library.cache.fingerprint(self.path)),
@@ -271,7 +268,6 @@ class FormWriteTest(_WindowTest):
             self.assertEqual((tags["TPE1"].text, tags["TALB"].text), (["New Band"], ["Latin"]))
             self.assertEqual(e.tag_artist, "New Band")
         self.assertEqual(ID3(two.path)["TIT2"].text, ["Cha Two"])
-        self.assertEqual(self.asked, [])
 
     def test_each_selected_mp3_gets_its_own_table_edit(self):
         """The Extended tab with several tracks: one field typed for all of
@@ -288,12 +284,11 @@ class FormWriteTest(_WindowTest):
         self.assertEqual(tags["TXXX:um_dance"].text, ["CC"])
 
     def test_form_table_and_app_fields_in_one_save(self):
-        self.answer = True
         cache = self.win._library.cache
         self.win._apply_tag_dialog([self.entry], _Answer(
             raw={"sets": {"TXXX:ultramixer_meter": "3/4"}, "deletes": [], "adds": []},
             form={"comment": "Erscheinungsdatum 2016"}, changes={"classes_ok": ["C"]},
-            mp3s=[self.entry]))
+            mp3s=[self.entry], write_app=True))
         tags = ID3(self.path)
         self.assertEqual(tags["COMM::eng"].text, ["C;Erscheinungsdatum 2016"])
         self.assertEqual(tags["TXXX:ultramixer_meter"].text, ["3/4"])

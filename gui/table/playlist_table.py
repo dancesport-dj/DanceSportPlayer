@@ -44,6 +44,7 @@ from planner.terms import dance_name
 from planner.generate.suggester import PlaylistSuggester
 from planner.generate.warmup import warmup_code
 from planner.playlist.checks import FLAG_EDGE_SILENCE, is_final_round
+from planner.playing import play_counts
 from planner.playing.play_sets import dblclick_ask_of
 from planner.music.parsing import _fmt_bpm
 from planner import i18n
@@ -78,6 +79,7 @@ from shared.columns import (
     _COL_HEAT,
     _COL_LEN,
     _COL_PLAY,
+    _COL_PLAYS,
     _COL_POP,
     _COL_RATING,
     _COL_REGEN,
@@ -288,6 +290,8 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         self._player_sections: dict[str, str] = {}
         # Row → "Heat 2" in such a list, derived from its order (_paint_player_heats).
         self._player_heat_text: dict[int, str] = {}
+        # Row → round while load_warmup builds a running order (its strips').
+        self._loading_rounds: dict[int, str] | None = None
         # Set by MainWindow on decks: returns the current "6-3-2-1" Rounds-field pattern,
         # used as the capacity when an empty deck turns dynamic on its first drop.
         self._capacity_provider: Callable[[], list[int]] | None = None
@@ -301,7 +305,7 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         self._seek_cb        = None   # set by MainWindow: fn(delta_ms) seeks the player
         # Set by MainWindow: fn() → configured play length in s; tracks shorter than
         # this get an orange ⏱ cell. None/0 → no flagging.
-        self._short_secs_cb: Callable[[str], int] | None = None   # dance → length
+        self._short_secs_cb: Callable[[str, str], int] | None = None   # dance, round → length
         # Set by MainWindow: fn(entry) → seconds the track will really PLAY once
         # the 🔇 stillness skip has cut the dead air off its edges, or None when
         # the track was never probed. Reported in the cell's tooltip whenever it
@@ -422,7 +426,7 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         """Column captions, header tooltips, cell delegates and the column-tick state."""
         self.setHorizontalHeaderLabels(
             ["Dance", "Heat", "▶", "Artist", "Title", "BPM", "⏱", "Pop", "Class", "★",
-             "Custom", "Filename", "Album", "Comment", "↺"]
+             "Custom", "Filename", "Album", "Comment", "Plays", "↺"]
         )
         stopwatch_header(self, _COL_LEN)
         set_header_tip(self, _COL_LEN,
@@ -445,8 +449,14 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         self.setItemDelegateForColumn(_COL_PLAY, buttons)
         self.setItemDelegateForColumn(_COL_REGEN, buttons)
         set_header_tip(self, _COL_CUSTOM, CUSTOM_HEADER_TIP)
+        set_header_tip(self, _COL_PLAYS,
+            "How often the title has played in the last 24 hours, in any list\n"
+            "Right-click the header to reset the counters"
+        )
         # `cb(entry, stars)` — the window stores the rating (see set_rating_callback).
         self._rating_cb: Callable | None = None
+        # The header menu's reset of the 🔁 play counters — the window owns them.
+        self._play_counts_cb: Callable[[], None] | None = None
         # Which kind of list this table is — "playlist" (a deck), "wishlist" or
         # "party" (the Eintanzen panel). Set by the window that builds them; the
         # column ticks are remembered per kind, not per table.
@@ -480,7 +490,7 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
                      (_COL_ARTIST, 150), (_COL_BPM, 52), (_COL_LEN, 48),
                      (_COL_POP, 50), (_COL_CLASS, 60), (_COL_RATING, 72),
                      (_COL_CUSTOM, 90), (_COL_FILE, 220), (_COL_ALBUM, 180),
-                     (_COL_COMMENT, 180),
+                     (_COL_COMMENT, 180), (_COL_PLAYS, 50),
                      (_COL_REGEN, 30)):
             self.setColumnWidth(c, w)
         hh.sectionResized.connect(self._on_section_resized)
@@ -783,6 +793,15 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             done += 1
         return done
 
+    def refresh_play_counts(self):
+        """Rewrite the 🔁 Plays cells: a title has just played, or the counters
+        were reset. Only the text changes, so no row is filled again."""
+        for r, m in self._row_meta.numbered():
+            it = self.item(r, _COL_PLAYS)
+            if it is not None and m.entry is not None:
+                plays = play_counts.count(m.entry.path)
+                it.setText(str(plays) if plays else "")
+
     def refresh_found(self, path) -> int:
         """Repaint the rows that still show `path` as missing, now it plays
         again (renamed back, drive plugged in) — a play only swaps the glyph."""
@@ -1062,10 +1081,12 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             cell(_COL_ALBUM, getattr(entry, "tag_album", None) or "")
             comment = getattr(entry, "tag_comment", None) or ""
             cell(_COL_COMMENT, comment).setToolTip(comment)
+            plays = play_counts.count(entry.path)
+            cell(_COL_PLAYS, str(plays) if plays else "", align=ctr)
         else:
             cell(_COL_TITLE, "⚠  No song found", fg=_C_WARN_FG)
             for c in (_COL_ARTIST, _COL_BPM, _COL_LEN, _COL_POP, _COL_CLASS, _COL_RATING,
-                      _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT):
+                      _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT, _COL_PLAYS):
                 cell(c, "")
 
         self._fill_row_buttons(row, meta, bg, missing, marked)
@@ -1139,7 +1160,8 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             edge = self._edge_silence_cb(entry) if self._edge_silence_cb else 0.0
             flagged = trimmed and edge >= FLAG_EDGE_SILENCE
             meta = self._row_meta.at(row)
-            limit = (self._short_secs_cb(meta.dance if meta is not None else "")
+            limit = (self._short_secs_cb(meta.dance if meta is not None else "",
+                                       self.round_at(row))
                      if self._short_secs_cb else 0)
             too_short = bool(limit) and play_secs < limit
             # Orange, not red: red in this table is a file that is MISSING,
@@ -1429,6 +1451,11 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         if not self._play_hl_enabled or not path_str:
             return
         self._played_paths.add(path_str)
+        self._grey_played_rows()
+
+    def restore_played_paths(self, paths):
+        """▶ An evening picked up after a crash: grey what it had played."""
+        self._played_paths |= set(paths)
         self._grey_played_rows()
 
     def _grey_played_rows(self):

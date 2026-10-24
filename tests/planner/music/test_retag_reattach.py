@@ -108,6 +108,15 @@ class AudioFingerprintTest(unittest.TestCase):
         two = self._write("two.mp3", _mp3(_AUDIO[::-1], front=64))
         self.assertNotEqual(_fingerprints(one)[1], _fingerprints(two)[1])
 
+    def test_a_tag_size_past_the_end_of_the_file_is_not_believed(self):
+        """L1: a broken ID3 header claiming more bytes than the file has left
+        zero audio, so every such file got the same fingerprint — and with it
+        one another's features, loudness and tag edits."""
+        broken = b"ID3\x04\x00\x00" + _synchsafe_bytes(50_000_000)
+        one = self._write("one.mp3", broken + _AUDIO)
+        two = self._write("two.mp3", broken + _AUDIO[::-1])
+        self.assertNotEqual(_fingerprints(one)[1], _fingerprints(two)[1])
+
 
 def _features(bpm: float) -> AudioFeatures:
     return AudioFeatures(bpm=bpm, mfcc=[0.5] * _AUDIO_FEAT_DIM, centroid=1.0, rms=0.25,

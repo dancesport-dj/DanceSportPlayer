@@ -110,6 +110,22 @@ class StructuredRoundTripTest(unittest.TestCase):
     def test_library_entries_are_reused(self):
         self.assertIs(self.res["playlist"]["Vorrunde"][0][0], self.lw[0])
 
+    def test_a_round_header_that_comes_back_is_kept_apart(self):
+        """A hand-merged file with the same round header twice: the second
+        block overwrote the first in the grid, so its tracks were gone while
+        the round list still named it twice (review 2026-10-22, P1)."""
+        one = Path(tempfile.mkdtemp(prefix="dp_m3u_")) / "one.m3u"
+        two = Path(tempfile.mkdtemp(prefix="dp_m3u_")) / "two.m3u"
+        export_m3u({"Finale": [[self.lw[0]]]}, ["LW"], "one", out_path=one)
+        export_m3u({"Finale": [[self.lw[1]]]}, ["LW"], "two", out_path=two)
+        merged = _write_m3u(one.read_text(encoding="utf-8").splitlines()
+                            + two.read_text(encoding="utf-8").splitlines())
+        res = import_playlist_m3u(merged, _lib(*self.lw), None)
+        self.assertEqual([r.name for r in res["rounds"]],
+                         ["Finale", "Finale (2)"])
+        self.assertIs(res["playlist"]["Finale"][0][0], self.lw[0])
+        self.assertIs(res["playlist"]["Finale (2)"][0][0], self.lw[1])
+
     def test_vanished_file_becomes_ghost_with_detected_dance(self):
         out = Path(tempfile.mkdtemp(prefix="dp_m3u_")) / "ghost.m3u"
         export_m3u({"Finale": [[self.lw[0]]]}, ["LW"], "ghost", out_path=out)
@@ -303,6 +319,17 @@ class GridFromRunningOrderTest(unittest.TestCase):
             self.order("LW", "TG", "LW", "TG"),
             ["Vorrunde", "Vorrunde", "Endrunde", "Endrunde"])
         self.assertEqual([r.name for r in res["rounds"]], ["Vorrunde", "Endrunde"])
+        self.assertEqual([e.title for e in res["playlist"]["Endrunde"][0]],
+                         ["LW 2", "TG 3"])
+
+    def test_tracks_past_the_last_name_stay_in_that_round(self):
+        """L19: names saved before the list grew were zipped against it, and
+        every track past the last name fell out of the grid — which the caller
+        then blamed on the tracks having no dance."""
+        res = grid_from_running_order(
+            self.order("LW", "TG", "LW", "TG"),
+            ["Vorrunde", "Vorrunde", "Endrunde"])
+        self.assertEqual(res["total"], 4)
         self.assertEqual([e.title for e in res["playlist"]["Endrunde"][0]],
                          ["LW 2", "TG 3"])
 

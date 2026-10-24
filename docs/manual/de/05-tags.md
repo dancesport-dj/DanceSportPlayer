@@ -21,7 +21,18 @@ Ein Tag liegt an einem von zwei Orten:
 Rechtsklick auf einen Titel in einem Deck, einer Wunschliste oder der
 📚 Bibliothek ▸ **🏷 Tags bearbeiten…**. Sind mehrere Titel markiert und
 klickst du in die Markierung, heißt der Eintrag
-**🏷 Tags von n Titeln bearbeiten…** und bearbeitet alle auf einmal.
+**🏷 Tags von n Titeln bearbeiten…** und bearbeitet alle auf einmal. Das
+Fenster heißt **🏷 Tags**.
+
+Ein Doppelklick auf einen Titel in 📚 der Bibliothek oder einer 🏆
+Turnierliste öffnet es auch, wenn ⚙ Einstellungen ▸ 🔊 Ton & Player ▸
+**📂 Doppelklick auf einen Titel in 📚 der Bibliothek** auf
+**Tags bearbeiten** steht. Es öffnet dann auf dem Feld der Spalte, auf die
+du doppelgeklickt hast, in der Akzentfarbe umrahmt und mit markiertem Text,
+sodass du gleich darüber tippen kannst: **Titel**, **Interpret**,
+**Album**, **Kommentar**, **Genre** für die Spalte Tanz, **Klassen** oder
+**Custom**. Eine Spalte ohne eigenes Feld, etwa BPM, öffnet den Editor wie
+gewohnt.
 
 ## Der Reiter Tags
 
@@ -32,8 +43,15 @@ klickst du in die Markierung, heißt der Eintrag
 Ein Formular wie bei Mp3tag: **Titel, Interpret, Album, Jahr, Track, Genre,
 Kommentar, Album-Interpret, Komponist, CD-Nummer** und **Replay Gain**, dazu
 das Cover (angezeigt, nicht bearbeitbar). Ein geändertes Feld wird beim
-**Speichern** in jede markierte MP3 geschrieben. Der Kasten ist nur für
-MP3-Dateien auf der Platte aktiv.
+**Speichern** in jede markierte MP3 geschrieben. Er ist ausgegraut, wenn
+sich die Tags der MP3 nicht lesen lassen.
+
+Eine Auswahl ohne MP3 auf der Platte, nur FLAC, M4A und dergleichen, bekommt
+an dieser Stelle stattdessen **In der Datenbank der App**: **Titel,
+Interpret, Album, Jahr, Genre** und **Kommentar**. Sie liegen wie die Sterne
+in der Datenbank der App und überdecken, was in der Datei steht; die Datei
+selbst bleibt unberührt. Ein Doppelklick in 📚 der Bibliothek öffnet auch hier
+auf dem Feld der Spalte.
 
 Bei mehreren Titeln steht in einem Feld, in dem sie sich unterscheiden,
 **< beibehalten >**, und es bleibt in jeder Datei, wie es ist, bis du es
@@ -64,9 +82,10 @@ diese Titel gemacht wurde, und liest die MP3 neu.
 
 ### Die Tags der App in die MP3 schreiben
 
-Speicherst du geänderte Sterne, Klassen, Instrumental oder Marker von
-MP3-Dateien, fragt die App **… auch in die MP3-Datei schreiben?** Die Vorgabe
-ist **Nein**: die Änderung bleibt dann nur in der App. Bei **Ja**:
+Die letzte Zeile des Kastens, **Diese auch in die MP3-Datei schreiben**,
+entscheidet, wohin Speichern geänderte Sterne, Klassen, Instrumental und
+Marker legt. Sie steht bei jedem Öffnen des Editors auf aus: die Änderung
+bleibt dann nur in der App. Angehakt:
 
 - kommen die Sterne in die Windows-Bewertung der Datei, die der Explorer und
   der Windows Media Player zeigen;
@@ -144,9 +163,9 @@ Spaltenkopf ▸ **Custom einem MP3-Tag zuordnen…**:
 
 Nach **OK** liest die App dieses Tag jedes Bibliothekstitels im Hintergrund
 und füllt die Spalte. Ein Wert, den du im 🏷 Editor tippst, gewinnt weiterhin
-gegen das Tag. Solange Custom zugeordnet ist, bietet die Frage
-**… auch in die MP3-Datei schreiben?** es ebenfalls an. Ohne Zuordnung
-berührt Custom die Datei nie.
+gegen das Tag. Solange Custom zugeordnet ist, schreibt
+**Diese auch in die MP3-Datei schreiben** es ebenfalls in dieses Tag. Ohne
+Zuordnung berührt Custom die Datei nie.
 
 Der schnellere Weg: öffne den 🏷 Editor auf einem Titel, der das Tag hat, geh
 zu **Erweiterte Tags** und klick mit rechts auf die Zeile ▸

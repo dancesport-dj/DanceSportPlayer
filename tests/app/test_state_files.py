@@ -151,6 +151,21 @@ class PathFallbackTest(unittest.TestCase):
         self.assertEqual(dialogs.apply_path_fallbacks(s)["library_dir"],
                          str(picked))
 
+    def test_a_folder_picked_by_hand_wins_when_the_drive_is_back_first(self):
+        """Picked by hand, then the drive plugged in before the next start:
+        the pick still wins over the remembered folder."""
+        real = _STATE_DIR / "tanzcds"
+        picked = _STATE_DIR / "picked"
+        picked.mkdir()
+        self.addCleanup(picked.rmdir)
+        s = dialogs.apply_path_fallbacks({"library_dir": str(real)})
+        s["library_dir"] = str(picked)               # ⚙ Settings → Browse…
+        real.mkdir()
+        self.addCleanup(real.rmdir)
+        s = dialogs.apply_path_fallbacks(s)
+        self.assertEqual(s["library_dir"], str(picked))
+        self.assertNotIn(dialogs.PATHS_OFFLINE, s)
+
     def test_it_keeps_waiting_across_a_restart(self):
         stores.save_settings(
             dialogs.apply_path_fallbacks({"library_dir": "X:\\tanzcds"}))
@@ -181,6 +196,11 @@ class UserFolderTest(unittest.TestCase):
     def test_qt_saying_nothing_lands_under_home(self):
         got = dialogs._home_dir(object(), "Music")   # not a real location enum
         self.assertEqual(got, Path.home() / "Music")
+
+    def test_save_as_starts_in_documents_even_where_dropbox_exists(self):
+        """No one machine's Dropbox folder as the M3U chooser's start."""
+        with mock.patch.object(Path, "exists", return_value=True):
+            self.assertEqual(dialogs._default_save_dir(), dialogs._user_docs_dir())
 
 
 class MediaBackendTest(unittest.TestCase):

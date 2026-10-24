@@ -25,7 +25,7 @@ from gui.library_browser import _LIB_COL_COMMENT, LibraryBrowser
 from gui.table.playlist_table import PlaylistTable
 from gui.table.table_actions import TableActionsMixin
 from planner.models import MusicEntry
-from shared.columns import _COL_ALBUM, _COL_COMMENT, _COL_REGEN, _N_COLS
+from shared.columns import _COL_ALBUM, _COL_COMMENT, _COL_PLAYS, _COL_REGEN, _N_COLS
 from tests.qt_test_support import reap_widget
 
 _app = QApplication.instance() or QApplication([])
@@ -52,8 +52,9 @@ class DeckCommentTest(unittest.TestCase):
                         if m and m.entry is self.entry)
 
     def test_comment_sits_between_album_and_regen(self):
-        self.assertEqual((_COL_ALBUM, _COL_COMMENT, _COL_REGEN, _N_COLS),
-                         (12, 13, 14, 15))
+        # 🔁 Plays came in behind it later, at 14 (↺ to 15).
+        self.assertEqual((_COL_ALBUM, _COL_COMMENT, _COL_PLAYS, _COL_REGEN, _N_COLS),
+                         (12, 13, 14, 15, 16))
         self.assertEqual(self.table.horizontalHeaderItem(_COL_COMMENT).text(), "Comment")
         self.assertEqual(self.table.horizontalHeaderItem(_COL_REGEN).text(), "↺")
 
@@ -86,7 +87,7 @@ class LibraryCommentTest(unittest.TestCase):
     def test_the_cell(self):
         t = self.pane._table
         self.assertEqual(_LIB_COL_COMMENT, 14)
-        self.assertEqual(t.columnCount(), 15)
+        self.assertEqual(t.columnCount(), 16)   # 🔁 Plays came after it
         self.assertEqual(t.horizontalHeaderItem(_LIB_COL_COMMENT).text(), "Comment")
         self.assertEqual(t.item(0, _LIB_COL_COMMENT).text(), "vocal AS")
         self.assertEqual(self.pane.cell_tooltip(0, _LIB_COL_COMMENT), "vocal AS")
@@ -108,12 +109,12 @@ class SavedLayoutTest(unittest.TestCase):
              "library_columns": list(range(14)), "library_hidden_columns": [13]}
         migrate_column_settings(s)
         self.assertEqual(s["hidden_columns"],
-                         {"playlist": [1, _COL_ALBUM, _COL_COMMENT],
-                          "wishlist": [_COL_COMMENT, _COL_REGEN]})
+                         {"playlist": [1, _COL_ALBUM, _COL_COMMENT, _COL_PLAYS],
+                          "wishlist": [_COL_COMMENT, _COL_PLAYS, _COL_REGEN]})
         self.assertEqual(s["column_widths"]["playlist"],
                          {str(_COL_ALBUM): 180, str(_COL_REGEN): 30})
-        self.assertEqual(s["library_columns"], list(range(15)))
-        self.assertEqual(s["library_hidden_columns"], [13, 14])
+        self.assertEqual(s["library_columns"], list(range(16)))
+        self.assertEqual(s["library_hidden_columns"], [13, 14, 15])
 
     def test_a_dragged_deck_order_is_kept(self):
         """A deck order names every column, so one saved before Comment would
@@ -122,7 +123,7 @@ class SavedLayoutTest(unittest.TestCase):
         s = {"columns_version": 5, "column_order": {"playlist": order}}
         migrate_column_settings(s)
         self.assertEqual(s["column_order"]["playlist"],
-                         [0, 3, 4, 12, 2, 1, 5, 6, 7, 8, 9, 10, 11, 13, 14])
+                         [0, 3, 4, 12, 2, 1, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15])
 
 
 if __name__ == "__main__":

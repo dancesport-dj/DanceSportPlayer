@@ -24,7 +24,7 @@ try:
         QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
         QSplitter, QPushButton, QLabel,
         QLineEdit, QPlainTextEdit, QMessageBox, QSizePolicy,
-        QSpinBox,
+        QAbstractSpinBox, QKeySequenceEdit,
         QToolButton,
         QStackedWidget,
         QScrollArea, QFrame, QMenu,
@@ -37,6 +37,11 @@ except ImportError as e:
     print(f"PySide6 not found: {e}")
     print("Install with:  pip install PySide6")
     sys.exit(1)
+
+# Fields a key is typed into: Space and Ctrl+X there are the field's own (a
+# space, the cut), not the desk's play toggle and dialog close. Every spin box
+# counts, the time and double ones too, and a 🎛 key-learn field takes any key.
+_TYPED_INTO = (QLineEdit, QPlainTextEdit, QAbstractSpinBox, QKeySequenceEdit)
 
 try:
     from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput, QMediaDevices
@@ -128,11 +133,12 @@ from gui.decks.deck import DeckContext, DeckField
 from gui.window.undo_timeline import UndoTimeline
 from gui.dialogs.shortcuts import show_shortcuts
 from gui.dialogs.about import manual_pdf, open_manual, show_about
+from gui.dialogs.log_export import export_log
 from gui.dialogs.update_notice import UpdateNotice
 from gui.common import (
     BusyDialog,
     LoadingDialog,
-    set_dblclick_opens_external,
+    set_dblclick_action,
     install_plain_title_hook,
 )
 from shared.audio.audio_files import (
@@ -203,6 +209,8 @@ from gui.tournament_tree import (  # noqa: F401  (facade re-export)
 )
 
 from player.audio.mix import OutputMix, desk_duck_pct
+from player.audio.on_air_note import NOTE
+from player.window.main_resume import EVENING
 from player.audio.audio_device import AudioDevice
 from player.audio.cue_player import CuePlayer
 from player.audio.playback_state import PlaybackState
@@ -285,7 +293,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
             planner.config.set_playlist_dir(self._settings["playlist_dir"])
         planner.playlist.m3u.set_m3u_format(self._settings.get("m3u_format"))
         set_no_class_exclusion(self._settings.get("exclude_no_class"))
-        set_dblclick_opens_external(self._settings.get("dblclick_external"))
+        set_dblclick_action(self._settings.get("dblclick_action"))
         set_hidden_folders(self._settings.get("hidden_folders"))
         # Every open/add picker starts where the last one ended.
         set_browse_dir(self._settings.get("open_dir", ""),
@@ -394,7 +402,9 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
             system_sounds=_system_sounds,
             announcer=lambda: getattr(self, "_announcer", None),
             warn=lambda text: _show_toast(self, text, 4000),
-            cue=cue)
+            cue=cue,
+            spare_deck=lambda: (self._between.xfade.player,
+                                self._between.xfade.out))
         if self._player is not None:
             self._follow_audio_devices(self._player)
         self._filler = PauseFiller()   # 🎵 the pause's filler titles and fade
@@ -410,6 +420,8 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         if self._pause_player is not None:
             self._pause_player.playbackStateChanged.connect(
                 self._audio_device.on_playback_state)
+            self._pause_player.playbackStateChanged.connect(
+                self._cart_follow_deck)
         # A default-constructed QAudioOutput binds to the system default device
         # at creation and does NOT follow when the user switches the Windows
         # audio device. Track QMediaDevices and re-point both outputs at the
@@ -581,6 +593,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         self._play_panel.settingsChanged.connect(self._refresh_set_lights)
         self._play_panel.settingsChanged.connect(self._sync_dance_len)
         self._play_panel.danceLenChanged.connect(self._on_dance_len_changed)
+        self._play_panel.roundPdPicked.connect(self._on_round_pd_picked)
         self._wire_advance_switch()
         self._play_panel.settingsRequested.connect(self._open_settings)
         self._setup_big_player()
@@ -625,6 +638,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         self._play_panel.partySetToggled.connect(self._set_party_mode)
         self._play_panel.tournamentSetRequested.connect(self._apply_tournament_set)
         self._play_panel.rememberToggled.connect(self._set_remember_pos)
+        self._play_panel.stopRuleChanged.connect(self._refresh_next_up)
         # 🖼 〰 Cover art and waveform on the player card, as ⚙ Settings left them.
         self._set_artwork_shown(bool(self._settings.get("show_artwork", True)))
         self._set_waveform_shown(bool(self._settings.get("show_waveform", True)))
@@ -665,6 +679,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
             self._player.playbackStateChanged.connect(self._cart_follow_deck)
             self._big_player.prevRequested.connect(lambda: self._preview_skip(-1))
             self._big_player.nextRequested.connect(self._on_player_next)
+            self._big_player.toStartRequested.connect(self._on_back_to_start)
             self._big_player.extendPauseRequested.connect(self._extend_pause)
             self._big_player.toPauseRequested.connect(self._on_to_pause)
             self._big_player.fadeOutRequested.connect(self._fade_out_now)
@@ -1237,10 +1252,16 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
 
     def closeEvent(self, event):
         """Save the working playlist and the window layout before quitting."""
-        if not self._may_quit():
+        if not self._fade_now.quitting and not self._may_quit():
+            event.ignore()
+            return
+        if self._quit_after_fade():   # 🔉 the music fades out first
             event.ignore()
             return
         self.save_on_quit()
+        NOTE.remove()   # 🆘 a clean quit: nothing to pick up next start
+        NOTE.flush()
+        EVENING.flush()   # ▶ the evening's last greyed title
         # Before the widgets go: the announcer's engine is a child of this
         # window and reports one last state change as it is torn down, and a
         # looping cartwall pad still holds its file open.
@@ -1366,11 +1387,12 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         if pdf:
             menu.addAction("📖  Manual", lambda: open_manual(pdf))
         menu.addAction("📜  Played titles…", self._show_play_log)
-        menu.addAction("⚙  Settings…  (F12 / Ctrl+Alt+S)", lambda: self._open_settings())
-        menu.addAction("ℹ  About…", self._show_about)
         menu.addAction("⛶  Exit Fullscreen  (F11)" if self.isFullScreen()
                        else "⛶  Fullscreen  (F11)",
                        lambda: self.set_fullscreen(not self.isFullScreen()))
+        menu.addAction("📝  Export log…", lambda: export_log(self))
+        menu.addAction("⚙  Settings…  (F12 / Ctrl+Alt+S)", lambda: self._open_settings())
+        menu.addAction("ℹ  About…", self._show_about)
         return menu
 
     def _show_help_menu(self):
@@ -1407,7 +1429,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         # Double-click on the 📅 tab → rename it to the competition name.
         if event.type() == QEvent.Type.MouseButtonDblClick:
             tb = self._grid.deck_tabs.tabBar()
-            if obj is tb and tb.tabAt(event.position().toPoint()) == 2:
+            if obj is tb and tb.tabAt(event.position().toPoint()) == self._grid.day_page():
                 self._rename_day_tab()
                 return True
         # Right-click on a deck tab → 📅: save-competitions / clear / rename /
@@ -1417,10 +1439,10 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
             tb = self._grid.deck_tabs.tabBar()
             if obj is tb:
                 idx = tb.tabAt(event.pos())
-                if idx == 2:
+                if idx == self._grid.day_page():
                     self._day_tab_menu(event.globalPos())
                     return True
-                if idx in (0, 1):
+                if idx in (self._grid.group_page(), self._grid.group_page(True)):
                     self._group_tab_menu(idx, event.globalPos())
                     return True
                 self._tab_strip_menu(event.globalPos())
@@ -1444,7 +1466,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
                     picked = (isinstance(fw, PlaylistTable)
                               and fw in self._deckset.all_tables
                               and fw._selected_song_row()[0] >= 0)
-                if (not isinstance(fw, (QLineEdit, QPlainTextEdit, QSpinBox))
+                if (not isinstance(fw, _TYPED_INTO)
                         and not (picked and fw is not self._engine_list())):
                     # A double tap is one press, not play-then-pause; the
                     # swallowed tap still must not reach the focused widget.
@@ -1459,10 +1481,11 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
                                                   | Qt.KeyboardModifier.AltModifier))):
                 fw = QApplication.focusWidget()
                 # Only Ctrl+X means anything in a text field (cut) — Ctrl+W
-                # closes the dialog from wherever the cursor happens to be.
-                if (event.key() == Qt.Key.Key_W
-                        or not isinstance(fw, (QLineEdit, QPlainTextEdit,
-                                               QSpinBox))):
+                # closes the dialog from wherever the cursor happens to be,
+                # except a 🎛 key-learn field, which learns any key at all.
+                if (not isinstance(fw, QKeySequenceEdit)
+                        and (event.key() == Qt.Key.Key_W
+                             or not isinstance(fw, _TYPED_INTO))):
                     win = QApplication.activeWindow()
                     if win is self:
                         cue = self._cue_player()

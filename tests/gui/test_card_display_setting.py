@@ -101,6 +101,9 @@ class WindowTest(unittest.TestCase):
             def running_look_touched(self):
                 return False
 
+            def deleteLater(self):
+                pass
+
         with mock.patch("gui.window.main_global.SettingsDialog", Dlg), \
                 mock.patch("gui.window.main_global.save_settings"):
             self.win._open_settings()

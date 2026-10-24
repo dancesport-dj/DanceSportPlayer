@@ -115,9 +115,9 @@ class ChecksClickTest(ClickThrough):
             with mock.patch("os.startfile", opened.append, create=True):
                 self.click_cell(t, r, 3, double=True)
             self.assertEqual(opened, [])
-            self.addCleanup(common.set_dblclick_opens_external,
-                            common.dblclick_opens_external())
-            common.set_dblclick_opens_external(True)
+            self.addCleanup(common.set_dblclick_action,
+                            common.dblclick_action())
+            common.set_dblclick_action("external")
             with mock.patch("os.startfile", opened.append, create=True):
                 self.click_cell(t, r, 3, double=True)
             self.assertEqual(opened, [str(path)])

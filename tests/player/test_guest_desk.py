@@ -10,7 +10,7 @@ from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import QEventLoop, QTimer
+from PySide6.QtCore import QEventLoop, Qt, QTimer
 from PySide6.QtWidgets import QApplication, QMainWindow
 
 from planner.terms import dance_name
@@ -51,6 +51,9 @@ class _Window(GuestMixin, QMainWindow):
 
     def _presenter_state(self):
         return "Slow Waltz", "Moon River", ("", "", False, 0.0), [], ("", "")
+
+    def _presenter_upcoming(self, count):
+        return [("Tango", "Hernando's Hideaway"), ("Samba", "Senorita")][:count]
 
 
 class GuestDeskTest(unittest.TestCase):
@@ -106,7 +109,9 @@ class GuestDeskTest(unittest.TestCase):
         self._start()
         rows = json.loads(self._server().catalog_json())["songs"]
         self.assertIn([song_id(self.samba), "Senorita", "Someone", dance_name("SA", "SA")], rows)
-        self.assertEqual(self._server().now(), {"dance": "Slow Waltz", "title": "Moon River"})
+        self.assertEqual(self._server().now(), {
+            "dance": "Slow Waltz", "title": "Moon River",
+            "next": [["Tango", "Hernando's Hideaway"], ["Samba", "Senorita"]]})
         st = self.desk.status()
         self.assertTrue(st["running"])
         self.assertEqual(st["code"], self._server().code)
@@ -201,6 +206,14 @@ class GuestDeskTest(unittest.TestCase):
             self.desk._on_arrived({"song": song_id(self.moon)})
         toast.assert_not_called()
         self.assertFalse(self.desk._flash.isActive())
+
+    def test_a_wish_is_shown_as_the_text_it_is(self):
+        """R6: the toast label took a guest's '<b>' or '<img>' as markup."""
+        self._start()
+        self.desk._on_arrived({"text": '<b>big</b> <img src="x.png">'})
+        lbl = getattr(self.win, "_toast_lbl")
+        self.assertEqual(lbl.textFormat(), Qt.TextFormat.PlainText)
+        self.assertIn('<b>big</b> <img src="x.png">', lbl.text())
 
     def test_stop_closes_the_server(self):
         self._start()
@@ -359,7 +372,10 @@ class GuestTunnelTest(unittest.TestCase):
         t = self._open_in_tunnel_mode()
         self.assertEqual(t.port, self.desk.status()["port"])
         self.assertTrue(self.desk.status()["waiting"])
+        self.assertEqual(self.desk.server.tunnel_host, "")
         t.on_url(self.URL)
+        self.assertEqual(self.desk.server.tunnel_host,
+                         "moon-river-tango-waltz.trycloudflare.com")
         st = self.desk.status()
         self.assertFalse(st["waiting"])
         self.assertEqual(st["public"], self.URL)
@@ -370,6 +386,7 @@ class GuestTunnelTest(unittest.TestCase):
         t = self._open_in_tunnel_mode()
         t.on_url(self.URL)
         t.on_exit(1)
+        self.assertEqual(self.desk.server.tunnel_host, "")
         st = self.desk.status()
         self.assertTrue(st["running"])          # the Wi-Fi way stays open
         self.assertEqual(st["public"], "")

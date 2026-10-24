@@ -246,8 +246,8 @@ class EventPlanMixin(MainWindowHost):
         if ev["series_name"]:
             self._set_day_tab_title(f"{ev['series_name']} {ev['year']}")
         self._apply_deck_view()   # reveal the 📅 Tournament-day tab
-        self._grid.deck_tabs.setCurrentIndex(2)
-        self._grid.day_tabs.setCurrentIndex(0)
+        self._grid.deck_tabs.setCurrentWidget(self._grid.day_tabs)
+        self._grid.day_tabs.setCurrentWidget(self._grid.day_split)
         self._set_active_table(assign[0][0])
         self._cfg.save_btn.setEnabled(True)
         self._autosave_playlist()

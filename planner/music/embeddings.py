@@ -408,12 +408,14 @@ def build_index(
     FIRST failure (e.g. model failed to load) so callers can show *why* nothing indexed
     instead of just a count — the full traceback goes to the log.
     """
-    # One entry per unique fingerprint → embed each once.
+    # One entry per unique fingerprint → embed each once. Which ones are done
+    # needs only the keys, not every vector unpacked (EmbeddingStore.fps).
     seen: set = set()
     unique: list[MusicEntry] = []
+    indexed = store.fps(model)
     for e in entries:
         fp = store.fingerprint(e.path)
-        if fp is None or fp in seen or store.has(fp, model):
+        if fp is None or fp in seen or fp in indexed:
             continue
         seen.add(fp)
         unique.append(e)

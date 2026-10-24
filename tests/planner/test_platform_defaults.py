@@ -3,8 +3,7 @@
 
 Run:  py -m unittest tests.planner.test_platform_defaults -v
 
-`C:\\Users\\…` and `D:\\Dropbox\\Turniere` name volumes of the Windows
-PC. A Mac has no drive letters at all, so a default written that way is not
+`C:\\Users\\…` or a drive letter names a volume of one Windows PC. A Mac has no drive letters at all, so a default written that way is not
 merely wrong there — it is unreachable, and every fallback built on top of it
 (the file dialogs, the library browser, the Referenzpfad) starts from a folder
 that can never exist. The same library lives under the home folder there.
@@ -50,15 +49,18 @@ class MusicDirDefaultTest(unittest.TestCase):
 
 
 class PlaylistDirDefaultTest(unittest.TestCase):
+    """Documents/Playlists everywhere: a Dropbox folder on drive D: was one
+    machine's layout, and the public build shipped it as everyone's default."""
 
-    def test_windows_keeps_the_drive_it_has(self):
+    def test_windows_reads_it_out_of_the_home_folder(self):
         with mock.patch.object(sys, "platform", "win32"):
-            self.assertEqual(_default_playlist_dir(), Path(r"D:\Dropbox\Turniere"))
+            self.assertEqual(_default_playlist_dir(),
+                             Path.home() / "Documents" / "Playlists")
 
     def test_the_mac_reads_it_out_of_the_home_folder(self):
         with mock.patch.object(sys, "platform", "darwin"):
             self.assertEqual(_default_playlist_dir(),
-                             Path.home() / "Dropbox" / "Turniere")
+                             Path.home() / "Documents" / "Playlists")
 
 
 if __name__ == "__main__":

@@ -124,6 +124,14 @@ def _mss(secs: float) -> str:
     return f"{s // 60}:{s % 60:02d}"
 
 
+def _text(value: str | None) -> str:
+    """A tag as a cell Excel shows as text: one starting like a formula
+    (=, +, -, @, tab, CR) gets a leading ' — a tag is whatever the file says.
+    The columns may be NULL; that stays an empty cell."""
+    value = value or ""
+    return "'" + value if value[:1] in ("=", "+", "-", "@", "\t", "\r") else value
+
+
 def to_csv(plays_: list[Play], file: Path) -> None:
     """The evening as a `;`-separated UTF-8 file with BOM, so Excel opens it
     with the umlauts intact on a German Windows."""
@@ -135,5 +143,6 @@ def to_csv(plays_: list[Play], file: Path) -> None:
         for p, secs in zip(plays_, durations(plays_), strict=True):
             w.writerow([p.started_at.date().isoformat(),
                         p.started_at.time().isoformat("seconds"),
-                        p.artist, p.title, p.composer, dance_name(p.dance, p.dance) or "",
-                        p.list_name, _mss(secs)])
+                        _text(p.artist), _text(p.title), _text(p.composer),
+                        _text(dance_name(p.dance, p.dance) or ""),
+                        _text(p.list_name), _mss(secs)])

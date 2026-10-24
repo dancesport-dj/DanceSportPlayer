@@ -36,7 +36,7 @@ from shared.audio.audio_files import (_AUDIO_EXTS, music_browse_dir,
                                 remember_browse_dir)
 from shared.widgets import FlowLayout
 from player.dialogs.cart_pad_dialog import (
-    PAD_COLOURS, CartPadDialog, WallFadeDialog, _ClickableLabel,
+    PAD_COLOURS, CartPadDialog, _ClickableLabel,
 )
 from player.widgets.player_parts import _ClickSlider, _fmt_ms
 from planner.music.parsing import _read_duration
@@ -132,9 +132,8 @@ class _CartPadButton(QFrame):
     edit_requested = Signal(object)
     clear_requested = Signal(object)
     colour_requested = Signal(object, str)
-    wall_colour_requested = Signal(str)  # the fallback colour of every pad
-    wall_fade_requested = Signal()       # the fade-out every pad follows
     shortcuts_requested = Signal()       # the ⌨ Keys window, on the wall's tab
+    wall_settings_requested = Signal()   # ⚙ Settings, on its 🎛 Cartwall tab
     selected_requested = Signal(object, bool)   # key, add to the selection
 
     def __init__(self, key, parent=None):
@@ -448,6 +447,14 @@ class _CartPadButton(QFrame):
 
     def _context_menu(self, pos) -> None:
         if not self._editable:
+            # Playing the wall: nothing here may change a pad, but the wall's
+            # own settings and keys are one right-click away — ✏'s ⌨ button
+            # is hidden until then.
+            menu = QMenu(self)
+            menu.addAction(i18n.t("⚙  Cartwall settings…"),
+                           self.wall_settings_requested.emit)
+            menu.addAction("⌨  Shortcuts…", self.shortcuts_requested.emit)
+            menu.exec(pos)
             return
         if self._pad is not None and not self._selected:
             # Right-clicking outside the selection works on THAT pad, the way
@@ -474,21 +481,8 @@ class _CartPadButton(QFrame):
                 act.setChecked(self._pad.colour == value)
             menu.addAction(i18n.t("🗑  Clear pad") + many,
                            lambda: self.clear_requested.emit(self._key))
-        # The wall-wide fallback colour lives here too, rather than in a header
-        # button of its own: it is the same decision as a pad colour, and the
-        # swatches are already on screen.
-        wall = menu.addMenu("🖌  Wall colour")
-        # White is not offered per pad — it is what "Wall default" already means —
-        # but it has to be here, or a wall painted green can never go back.
-        for name, value in {"White": pc.DEFAULT_PAD_COLOUR,
-                            **{n: v for n, v in PAD_COLOURS.items() if v}}.items():
-            act = wall.addAction(
-                _colour_icon(value), name,
-                lambda v=value: self.wall_colour_requested.emit(v))
-            act.setCheckable(True)
-            act.setChecked(self._default_bg == value)
-        menu.addAction("⏱  Wall fade-out…", self.wall_fade_requested.emit)
-        menu.addAction("⌨  Shortcuts…", self.shortcuts_requested.emit)
+        # No ⌨ here: building the wall, the menu is about this pad, and ⌨
+        # sits in the toolbar next to ✏.
         menu.exec(pos)
 
     def _browse(self) -> None:
@@ -570,6 +564,7 @@ class CartwallWidget(QWidget):
     dockRequested = Signal()               # 📌 put me back into the main window
     padsMoved = Signal(object)             # {old key: new key} — turn / reshape
     keysRequested = Signal()               # ⌨ the Keys window, on the wall's tab
+    settingsRequested = Signal()           # ⚙ Settings, on its 🎛 Cartwall tab
     levelChanged = Signal(float)           # 🔊 the wall's own fader, 0…1
 
     def __init__(self, parent=None):
@@ -579,6 +574,7 @@ class CartwallWidget(QWidget):
         self._page = 0
         self._default_colour = pc.DEFAULT_PAD_COLOUR
         self._fade_ms = pc.DEFAULT_FADE_MS      # every pad follows it by default
+        self._bg_pauses = False  # ⚙ a title pauses 🎶 background pads, not mutes them
         self._slot_keys = pc.SLOT_KEYS          # what each position answers to
         self._missing = set()
         self._live = set()      # keys sounding right now, kept across rebuilds
@@ -688,8 +684,8 @@ class CartwallWidget(QWidget):
         self._edit_btn.toggled.connect(self.set_edit)
         bar.addWidget(self._edit_btn)
 
-        # ⌨ only in ✏ mode, like ➕: setting keys is building the wall. The
-        # pad's right-click "⌨ Shortcuts…" opens the same window.
+        # ⌨ only in ✏ mode, like ➕: setting keys is building the wall. Out of
+        # it, the pad's right-click "⌨ Shortcuts…" opens the same window.
         self._keys_btn = QToolButton()
         self._keys_btn.setText("⌨")
         self._keys_btn.setAutoRaise(True)
@@ -925,6 +921,11 @@ class CartwallWidget(QWidget):
         self.fadeChanged.emit(ms)
         self.changed.emit()
 
+    def set_background_pauses(self, on: bool) -> None:
+        """What a starting title does to a 🎶 background pad, so the pad
+        dialog can say it (the audio follows it in CartVoices)."""
+        self._bg_pauses = on
+
     def pad_at(self, key) -> pc.CartPad | None:
         page, row, col = key
         if 0 <= page < len(self._pages):
@@ -990,9 +991,8 @@ class CartwallWidget(QWidget):
             button.edit_requested.connect(self._on_edit)
             button.clear_requested.connect(self._on_clear)
             button.colour_requested.connect(self._on_colour)
-            button.wall_colour_requested.connect(self._on_default_colour)
-            button.wall_fade_requested.connect(self._on_wall_fade)
             button.shortcuts_requested.connect(self._on_shortcuts)
+            button.wall_settings_requested.connect(self.settingsRequested.emit)
             button.selected_requested.connect(self._on_select)
             self._grid_lyt.addWidget(button, row, col)
             self._buttons[key] = button
@@ -1176,11 +1176,6 @@ class CartwallWidget(QWidget):
         self._rebuild()
         self.changed.emit()
 
-    def _on_wall_fade(self) -> None:
-        dlg = WallFadeDialog(self._fade_ms, self)
-        if dlg.exec() == QDialog.DialogCode.Accepted:
-            self.set_fade_ms(dlg.fade_ms())
-
     def _on_shortcuts(self) -> None:
         """The pad menu's ⌨ Shortcuts…: the window owns the ⌨ Keys dialog, as
         it holds the desk keys too, and answers with apply_keys()."""
@@ -1207,7 +1202,9 @@ class CartwallWidget(QWidget):
             self._rebuild_shortcuts()
             self.changed.emit()
 
-    def _on_default_colour(self, colour: str) -> None:
+    def set_default_colour(self, colour: str) -> None:
+        """The colour of every pad left on Wall default — set in ⚙ Settings
+        ▸ 🎛 Cartwall."""
         if colour == self._default_colour:
             return
         self._default_colour = colour
@@ -1378,7 +1375,8 @@ class CartwallWidget(QWidget):
         dlg = CartPadDialog(pad, self,
                             slot_key=pc.slot_key(self._grid, (row, col),
                                                  self._slot_keys),
-                            pad_count=len(scope), wall_fade_ms=self._fade_ms)
+                            pad_count=len(scope), wall_fade_ms=self._fade_ms,
+                            background_pauses=self._bg_pauses)
         dlg.previewVolume.connect(
             lambda vol, k=key: self.previewVolume.emit(k, vol))
         dlg.previewFire.connect(

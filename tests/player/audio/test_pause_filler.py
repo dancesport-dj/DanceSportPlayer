@@ -89,6 +89,33 @@ class RotateTest(_Titles):
         self.assertIsNone(PauseFiller().rotate())
 
 
+class DropTest(_Titles):
+    """A title that cannot be decoded is left out for the rest of the session."""
+
+    def test_the_next_title_takes_over(self):
+        f = PauseFiller()
+        a, b, c = self.titles("a", "b", "c")
+        f.load([a, b, c])
+        f.rotate()
+        self.assertEqual(f.drop_current(), c)
+
+    def test_later_pauses_leave_it_out(self):
+        f = PauseFiller()
+        a, b, c = self.titles("a", "b", "c")
+        f.load([a, b, c])
+        f.rotate()
+        f.drop_current()
+        self.assertEqual(f.load([a, b, c]), c)
+        self.assertEqual(f.titles, [a, c])
+
+    def test_dropping_the_last_title_leaves_none(self):
+        f = PauseFiller()
+        (a,) = self.titles("a")
+        f.load([a])
+        self.assertIsNone(f.drop_current())
+        self.assertIsNone(f.load([a]))
+
+
 class FadeTest(unittest.TestCase):
 
     def filler(self, total):

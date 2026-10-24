@@ -14,6 +14,7 @@ No network and no claude CLI: everything here exercises the pure halves.
 
 import os
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -115,6 +116,12 @@ class ParseReplyTest(unittest.TestCase):
     def test_bare_numbers_are_accepted(self):
         out = llm.parse_reply('{"playlist": [4, 9]}')
         self.assertEqual([p["n"] for p in out["picks"]], [4, 9])
+
+    def test_long_notes_are_cut_like_the_refine_notes(self):
+        """R14: the notes of a playlist answer were kept at any length."""
+        out = llm.parse_reply('{"playlist": [1], "notes": "' + "x " * 2000 + '"}')
+        self.assertLessEqual(len(out["notes"]), llm._WHY_MAX * 2)
+        self.assertTrue(out["notes"].startswith("x x"))
 
     def test_no_json_raises(self):
         with self.assertRaises(RuntimeError):
@@ -414,6 +421,11 @@ class QueryParseTest(unittest.TestCase):
         got = llm.parse_queries('{"queries": [{"dance": "SA"}, 7, null]}')
         self.assertEqual(got, [{"dance": "SA"}])
 
+    def test_the_number_of_queries_is_capped(self):
+        """R3: the answer, not the app, decided how many searches ran."""
+        text = '{"queries": [' + ", ".join(['{"dance": "SA"}'] * 5000) + "]}"
+        self.assertEqual(len(llm.parse_queries(text)), llm._QUERIES_MAX)
+
 
 class RunQueriesTest(unittest.TestCase):
     """The search itself — the half that keeps the context small."""
@@ -456,6 +468,13 @@ class RunQueriesTest(unittest.TestCase):
     def test_a_query_limit_is_capped(self):
         got = self._run([{"dance": "SA", "limit": 99999}])
         self.assertLessEqual(len(got), llm._QUERY_MAX)
+
+    def test_a_stopped_run_stops_the_search(self):
+        """R3: Cancel did not reach the loop that runs the queries."""
+        stop = threading.Event()
+        stop.set()
+        with self.assertRaises(llm.Cancelled):
+            self._run([{"dance": "SA"}], cancel=stop)
 
     def test_a_nonsense_limit_falls_back_to_the_default(self):
         got = self._run([{"dance": "SA", "limit": "lots"}])
@@ -822,6 +841,16 @@ class TwoTurnTest(unittest.TestCase):
         self.assertEqual([p["n"] for p in picks], [1])
         for code in DANCES:                            # swept, so all dances
             self.assertIn(code + " 1", self.asked[1][1])
+
+    def test_cancel_during_the_search_round_skips_the_sweep(self):
+        stop = threading.Event()
+
+        def fake(system, user, **kw):
+            stop.set()                  # Cancel pressed as the answer lands
+            return '{"queries": [{"dance": "SA"}]}', "stub"
+        llm._ask = fake
+        with self.assertRaises(llm.Cancelled):
+            llm.search_rows("r", "t", self.cand, cancel=stop)
 
     def test_queries_that_match_nothing_fall_back_to_the_sweep(self):
         self._stub('{"queries": [{"dance": "JI"}]}', '{"playlist": [1]}')

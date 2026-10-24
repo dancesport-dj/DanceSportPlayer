@@ -26,6 +26,11 @@ class FadeNow:
         self.end: float | None = None
         self.total = 0.0
         self.hold = False
+        # Seconds left when the title was paused; None = the clock runs.
+        self.left: float | None = None
+        # ✕ was pressed with music on: the window closes once the fade-out is
+        # done, and that close (or a second ✕) does not fade again.
+        self.quitting = False
 
     @property
     def running(self) -> bool:
@@ -36,12 +41,26 @@ class FadeNow:
         self.hold = hold
         self.total = max(self.MIN_SECS, float(secs))
         self.end = time.monotonic() + self.total
+        self.left = None
 
     def remaining(self) -> float:
         """Seconds left on the ramp; 0 or less once it reached the bottom."""
         if self.end is None:
             return 0.0      # no ramp running
+        if self.left is not None:
+            return self.left    # paused: the ramp waits where it was
         return self.end - time.monotonic()
+
+    def freeze(self) -> None:
+        """The title was paused: stop the ramp's clock where it stands."""
+        if self.end is not None and self.left is None:
+            self.left = self.remaining()
+
+    def thaw(self) -> None:
+        """The title runs again: the ramp goes on from where it stopped."""
+        if self.left is not None:
+            self.end = time.monotonic() + self.left
+            self.left = None
 
     def level(self, remaining: float) -> float:
         """The volume factor for `remaining` seconds left: 1 → 0 along the ramp."""
@@ -49,3 +68,4 @@ class FadeNow:
 
     def cancel(self) -> None:
         self.end = None
+        self.left = None

@@ -65,8 +65,10 @@ class BigPlayerLimitTest(unittest.TestCase):
         def set_pd_marks(self, marks, armed=None):
             self.marks = marks
 
-        def set_wave_overlay(self, silences, fade_start_ms):
+        def set_wave_overlay(self, silences, fade_start_ms, start_ms=0,
+                             fade_in_end_ms=None):
             self.overlay = (silences, fade_start_ms)
+            self.start = (start_ms, fade_in_end_ms)
 
     class _Panel:
         def __init__(self, timed, secs):
@@ -134,6 +136,25 @@ class BigPlayerLimitTest(unittest.TestCase):
         w = self._win(spans=[[0, 3]])
         w._sync_big_player_limit()
         self.assertEqual(w._big_player.overlay, ([[0, 3]], None))
+
+    def test_the_waveform_learns_where_the_title_starts_and_fades_in(self):
+        """⏩ 5 s in, then 🌅 4 s of fade-in: the strip marks both."""
+        w = self._win()
+        w._playback.offset_ms = 5_000
+        w._playback.fade_in_secs = 4.0
+        w._sync_big_player_limit()
+        self.assertEqual(w._big_player.start, (5_000, 9_000))
+
+    def test_a_pre_roll_still_owed_is_where_it_will_start(self):
+        w = self._win()
+        w._playback.pre_roll_ms = 8_000
+        w._sync_big_player_limit()
+        self.assertEqual(w._big_player.start, (8_000, None))
+
+    def test_a_title_from_the_top_without_a_fade_in_has_neither(self):
+        w = self._win()
+        w._sync_big_player_limit()
+        self.assertEqual(w._big_player.start, (0, None))
 
 
 if __name__ == "__main__":

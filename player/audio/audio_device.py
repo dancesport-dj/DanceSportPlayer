@@ -51,7 +51,8 @@ class AudioDevice:
                  announcer: Callable[[], "DanceAnnouncer | None"] = lambda: None,
                  devices=None,
                  warn: Callable[[str], None] | None = None,
-                 cue=None):
+                 cue=None,
+                 spare_deck: Callable[[], tuple] = lambda: (None, None)):
         self._player = player
         self.cue = cue
         self._audio_out = audio_out
@@ -63,7 +64,9 @@ class AudioDevice:
         self._is_playing_mode = is_playing_mode
         self._apply_volume = apply_volume
         self._system_sounds = system_sounds
+        self._system_sounds_unsaved = False
         self._announcer = announcer
+        self._spare_deck = spare_deck
         self._warn = warn
         self.released = False
         self.idle_since: float | None = None
@@ -333,6 +336,13 @@ class AudioDevice:
         voices = self._cart_voices()
         if voices is not None:
             voices.release_outputs()
+        # Both built on first use — and from then on holding the card too.
+        spare, _ = self._spare_deck()
+        if spare is not None:
+            spare.setAudioOutput(None)
+        announcer = self._announcer()
+        if announcer is not None:
+            announcer.release_outputs()
         log.info("🔇 Sound device handed back\n"
                  "after: %.0f s of silence", _AUDIO_IDLE_S)
 
@@ -351,6 +361,12 @@ class AudioDevice:
         voices = self._cart_voices()
         if voices is not None:
             voices.restore_outputs()
+        spare, spare_out = self._spare_deck()
+        if spare is not None and spare_out is not None:
+            spare.setAudioOutput(spare_out)
+        announcer = self._announcer()
+        if announcer is not None:
+            announcer.restore_outputs()
         self._apply_volume()
         self.idle_since = None
         log.info("🔊 Sound device taken back for the next title")
@@ -374,6 +390,8 @@ class AudioDevice:
         self.hold_system_sounds(want)
 
     def hold_system_sounds(self, on: bool):
+        if self._system_sounds_unsaved:
+            on = False
         if self._system_sounds.hold(on):
             # The OS keeps the change after we are gone: a crash must be able
             # to find out on the next start what is still to be put back.
@@ -383,4 +401,11 @@ class AudioDevice:
                 settings.pop("system_sounds_muted", None)
             else:
                 settings["system_sounds_muted"] = record
-            save_settings(settings)
+            if not save_settings(settings) and record is not None:
+                # Nothing on disk says what to put back, so a crash would
+                # leave the OS muted for good: lift it, and stay off.
+                log.warning("🔕 System Sounds left unmuted\n"
+                            "reason: the settings could not be saved")
+                self._system_sounds_unsaved = True
+                self._system_sounds.hold(False)
+                settings.pop("system_sounds_muted", None)

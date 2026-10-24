@@ -192,7 +192,7 @@ def openrouter_chat(api_key: str, model: str, system: str, user: str,
     host = api_host(base_url)
     req = urllib.request.Request(_keyed_endpoint(base_url, '/chat/completions'),
                                  data=body, method='POST')
-    req.add_header('Authorization', f'Bearer {api_key}')
+    req.add_unredirected_header('Authorization', f'Bearer {api_key}')
     req.add_header('Content-Type', 'application/json')
     if is_openrouter(base_url):
         req.add_header('HTTP-Referer', 'https://localhost/danceplaylist')
@@ -203,12 +203,24 @@ def openrouter_chat(api_key: str, model: str, system: str, user: str,
         detail = ex.read().decode('utf-8', 'replace')[:300]
         raise RuntimeError(f"{host} HTTP {ex.code}: {detail}") from ex
     try:
-        return data['choices'][0]['message']['content']
-    except (KeyError, IndexError, TypeError) as ex:
+        choice = data['choices'][0] if 'error' not in data else data
+        # A host that fails after it has started still answers 200, with the
+        # error in the body: report it like the HTTP error it is.
+        err = choice.get('error')
+        if isinstance(err, dict):
+            code = f"HTTP {err['code']}" if err.get('code') else "error"
+            raise RuntimeError(f"{host} {code}: {str(err.get('message', ''))[:300]}")
+        content = choice['message']['content']
+    except (KeyError, IndexError, TypeError, AttributeError) as ex:
         # A wrong base URL usually answers with something that is not a chat
         # completion at all — say so instead of dying on a KeyError.
         raise RuntimeError(f"{host} sent no answer: "
                            f"{json.dumps(data)[:300]}") from ex
+    if not content:
+        # A reply cut at the token limit, or filtered, can come back as null.
+        raise RuntimeError(f"{host} sent an empty answer (finish_reason: "
+                           f"{choice.get('finish_reason') or 'none given'})")
+    return content
 
 
 def openrouter_free_models(api_key: str = '', timeout: int = 30,
@@ -219,7 +231,7 @@ def openrouter_free_models(api_key: str = '', timeout: int = 30,
     host prices nothing in that list, so every id it names is offered."""
     req = urllib.request.Request(_keyed_endpoint(base_url, '/models'))
     if api_key:
-        req.add_header('Authorization', f'Bearer {api_key}')
+        req.add_unredirected_header('Authorization', f'Bearer {api_key}')
     with urllib.request.urlopen(req, timeout=timeout,  # nosec B310: user's endpoint
                                 context=tls_context()) as resp:
         data = json.loads(resp.read().decode('utf-8'))
@@ -269,13 +281,29 @@ def build_track_prompt(dance: str | None = None, seed_title: str | None = None,
     return system, user
 
 
+_LIST_MARK = re.compile(r'^(?:[-*•]+|\d+[.)])\s*')
+
+
+def _first_json_list(text: str):
+    """The first JSON list in the reply, read from its own '[' to its own
+    ']' — a '[note]' after it no longer spoils it. The whole text when
+    there is none, so the error names what was wrong."""
+    decoder = json.JSONDecoder()
+    for m in re.finditer(r'\[', text):
+        try:
+            data, _end = decoder.raw_decode(text, m.start())
+        except ValueError:
+            continue
+        if isinstance(data, list):
+            return data
+    return json.loads(text)
+
+
 def parse_ai_suggestions(text: str) -> list[dict[str, str]]:
     """Parse the model reply into a list of {'artist', 'title'} dicts (lenient)."""
     out: list[dict[str, str]] = []
-    m = re.search(r'\[.*\]', text, re.DOTALL)
-    raw = m.group(0) if m else text
     try:
-        data = json.loads(raw)
+        data = _first_json_list(text)
         if isinstance(data, list):
             for it in data:
                 if isinstance(it, dict):
@@ -290,7 +318,8 @@ def parse_ai_suggestions(text: str) -> list[dict[str, str]]:
                   "error: %s", e)
     # Fallback: parse "Artist - Title" lines
     for line in text.splitlines():
-        line = line.strip().lstrip('-*0123456789. \t')
+        # A bullet or a '1.' / '1)' numbering — not the digits of '10cc'.
+        line = _LIST_MARK.sub('', line.strip())
         if not line:
             continue
         if ' - ' in line:

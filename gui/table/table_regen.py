@@ -53,6 +53,25 @@ class TableRegenMixin(PlaylistTableHost):
         return (ctx.get("cls") or self._dance_class,
                 ctx.get("style") or self._style)
 
+    def _store_pick(self, meta, new_entry):
+        """Put a new title (a re-roll's pick, a drop) where the row's title
+        lives and onto the row.
+        A '↳ backup N' row carries its slot's round / heat / dance, so writing
+        it to the grid would replace the primary title: its title lives in the
+        `_dynamic_backups` overlay instead (matched by identity, else by path,
+        as _discard_backup_entry does)."""
+        old = meta.entry
+        if meta.backup:
+            backups = self._dynamic_backups.get(meta.slot()) or []
+            for i, e in enumerate(backups):
+                if e is old or (e is not None and old is not None
+                                and str(e.path) == str(old.path)):
+                    backups[i] = new_entry
+                    break
+        elif self._playlist is not None and meta.round_name is not None:
+            self._playlist[meta.round_name][meta.h_idx][meta.d_idx] = new_entry
+        meta.entry = new_entry
+
     def _regen(self, row: int):
         try:
             if row >= len(self._row_meta) or not self._row_meta[row]:
@@ -106,16 +125,9 @@ class TableRegenMixin(PlaylistTableHost):
                 QMessageBox.information(self, "Regenerate", "No alternative song found.")
                 return
 
-            # If this row was playing, remember it so we can auto-play the new pick
-            # in its place once the row is redrawn. Drop the play-row marker now (the
-            # widget it points at is about to be replaced); playback switches in _after.
-            was_playing = (row == self._current_play_row)
-            if was_playing:
-                self._current_play_row = -1
-
-            # Update metadata + live playlist
-            meta.entry = new_entry
-            self._playlist[meta.round_name][meta.h_idx][meta.d_idx] = new_entry
+            # Update metadata + live playlist. A playing title keeps playing: the
+            # cursor stays on the slot, so the evening runs on from here.
+            self._store_pick(meta, new_entry)
 
             # Defer row redraw so it happens after the clicked signal returns.
             # Replacing a cell widget while inside its signal handler can crash.
@@ -123,10 +135,8 @@ class TableRegenMixin(PlaylistTableHost):
 
             def _after():
                 self._fill_song_row(row, meta, bg)
-                # If the replaced song was playing, immediately play the new one in
-                # its place instead of leaving playback stopped.
-                if was_playing and self._play_cb:
-                    self._on_play_click(row, new_entry.path)
+                if row == self._current_play_row:
+                    self.sync_play_glyph()
                 # Keep the row selected AND the keyboard focus on the table so the
                 # Space / Ctrl+R / Ctrl+N shortcuts keep firing after a re-roll.
                 self.setCurrentCell(row, _COL_TITLE)
@@ -205,16 +215,15 @@ class TableRegenMixin(PlaylistTableHost):
             QMessageBox.information(self, "Regenerate",
                                     "No alternative Practice track found.")
             return
-        was_playing = (row == self._current_play_row)
-        if was_playing:
-            self._current_play_row = -1
         meta.entry = new_entry
-        bg = _C_ROW_EVEN if row % 2 == 0 else _C_ROW_ODD
+        # Striped by song, as load_warmup does: a section header has its own row.
+        song_idx = self._row_meta.song_rows().index(row)
+        bg = _C_ROW_EVEN if song_idx % 2 == 0 else _C_ROW_ODD
 
         def _after():
             self._fill_song_row(row, meta, bg)
-            if was_playing and self._play_cb:
-                self._on_play_click(row, new_entry.path)
+            if row == self._current_play_row:
+                self.sync_play_glyph()
             self.setCurrentCell(row, _COL_TITLE)
             self.setFocus(Qt.FocusReason.OtherFocusReason)
             self._notify_changed()
@@ -253,9 +262,6 @@ class TableRegenMixin(PlaylistTableHost):
             # the anchor dance (e.g. the first one) matches the rest of the round.
             seg_anchor = self._effective_anchor(round_name, replacing)
 
-            # Remember which row (if any) in this segment was playing so we can
-            # auto-play its replacement once the rows are redrawn.
-            playing_row = -1
             picked_any = False
             r_cls, r_style = self._round_cls_style(round_name)
             for r in target_rows:
@@ -278,14 +284,7 @@ class TableRegenMixin(PlaylistTableHost):
                 if dance not in ALLOW_REPEAT:
                     exclude |= self._exclude_with_dupes([new_entry])
 
-                # Drop the play-row marker if this row was playing — its widget is
-                # about to be replaced; playback switches to the new pick in _redraw.
-                if r == self._current_play_row:
-                    playing_row = r
-                    self._current_play_row = -1
-
-                meta.entry = new_entry
-                self._playlist[meta.round_name][meta.h_idx][meta.d_idx] = new_entry
+                self._store_pick(meta, new_entry)
 
             if not picked_any:
                 QMessageBox.information(self, "Regenerate", "No alternative song found.")
@@ -297,11 +296,9 @@ class TableRegenMixin(PlaylistTableHost):
                     meta = self._row_meta[r]
                     bg = _C_ROW_EVEN if meta.h_idx % 2 == 0 else _C_ROW_ODD
                     self._fill_song_row(r, meta, bg)
-                # If a song in this segment was playing, play its replacement now.
-                if playing_row >= 0 and self._play_cb:
-                    new_entry = self._row_meta[playing_row].entry
-                    if new_entry is not None:
-                        self._on_play_click(playing_row, new_entry.path)
+                # A playing title keeps playing; its row gets its ■ back.
+                if self._current_play_row in target_rows:
+                    self.sync_play_glyph()
                 # Keep keyboard focus on the table so shortcuts keep working.
                 self.setFocus(Qt.FocusReason.OtherFocusReason)
                 self._notify_changed()
@@ -332,7 +329,6 @@ class TableRegenMixin(PlaylistTableHost):
                 return
 
             all_rows = [r for rows in rows_by_dance.values() for r in rows]
-            playing_row = -1
             picked_any  = False
 
             # Re-roll dance by dance. `exclude` is rebuilt per dance so that
@@ -368,12 +364,7 @@ class TableRegenMixin(PlaylistTableHost):
                     if dance not in ALLOW_REPEAT:
                         exclude |= self._exclude_with_dupes([new_entry])
 
-                    if r == self._current_play_row:
-                        playing_row = r
-                        self._current_play_row = -1
-
-                    meta.entry = new_entry
-                    self._playlist[round_name][meta.h_idx][meta.d_idx] = new_entry
+                    self._store_pick(meta, new_entry)
 
             if not picked_any:
                 QMessageBox.information(self, "Regenerate", "No alternative song found.")
@@ -384,10 +375,8 @@ class TableRegenMixin(PlaylistTableHost):
                     meta = self._row_meta[r]
                     bg = _C_ROW_EVEN if meta.h_idx % 2 == 0 else _C_ROW_ODD
                     self._fill_song_row(r, meta, bg)
-                if playing_row >= 0 and self._play_cb:
-                    new_entry = self._row_meta[playing_row].entry
-                    if new_entry is not None:
-                        self._on_play_click(playing_row, new_entry.path)
+                if self._current_play_row in all_rows:
+                    self.sync_play_glyph()
                 self.setFocus(Qt.FocusReason.OtherFocusReason)
                 self._notify_changed()
             QTimer.singleShot(0, _redraw)

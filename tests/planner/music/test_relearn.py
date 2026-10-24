@@ -269,6 +269,22 @@ class PlaylistIndexCacheTest(PlaylistDirTestBase):
         self.assertEqual(self.reads, ["Turnier 2026 Hgr B TG.m3u"])
         self.assertEqual(lib.entries[0].popularity, 1)
 
+    def test_a_read_that_failed_is_tried_again(self):
+        """A playlist locked by another program for one start was cached as
+        empty under its mtime, and stayed empty until the file changed
+        (review 2026-10-22, P7)."""
+        self._write("Turnier 2026 Hgr B TG.m3u", self.LINE)
+        lib = self._lib()
+        with mock.patch("planner.music.playlist_index.read_playlist_text",
+                        side_effect=PermissionError("locked")):
+            lib.relearn_playlists()
+        self.assertEqual(lib.entries[0].popularity, 0)
+        self.reads.clear()
+
+        lib.relearn_playlists()                 # the file itself never changed
+        self.assertEqual(self.reads, ["Turnier 2026 Hgr B TG.m3u"])
+        self.assertEqual(lib.entries[0].popularity, 1)
+
     def test_only_the_new_playlist_is_read(self):
         self._write("Turnier A Hgr B TG.m3u", self.LINE)
         lib = self._lib()

@@ -14,6 +14,8 @@ from typing import cast
 try:
     from mutagen.id3 import ID3
     from mutagen import File as MutagenFile
+    from mutagen.apev2 import APEv2
+    from planner.music.foreign_tags import as_id3
     HAS_MUTAGEN = True
 except ImportError:
     HAS_MUTAGEN = False
@@ -24,6 +26,11 @@ from planner.models import (
 )
 
 log = logging.getLogger("dancesport.parsing")
+
+# What the scan takes as a title, and what a round folder of copied files is
+# made of. The player plays them all; their tags are read as ID3
+# (planner.music.foreign_tags), and only an MP3's can be edited.
+LIBRARY_EXTS = (".mp3", ".flac", ".m4a", ".ogg", ".opus")
 
 
 def _norm(p: str) -> str:
@@ -282,13 +289,33 @@ _UNREAD = object()
 
 
 def _id3_of(path: Path, tags=_UNREAD) -> ID3 | None:
-    """`tags` when handed in, else the file's own ID3 tag; None when it has none."""
+    """`tags` when handed in, else the file's own ID3 tag; None when it has none.
+    A FLAC, Ogg, Opus or M4A file's own tags come back as ID3 (foreign_tags),
+    and so does the APEv2 tag of an MP3 that has no ID3 one."""
     if tags is not _UNREAD:
         return cast("ID3 | None", tags)
     try:
         return ID3(path)
     except Exception:
         log.debug("🏷 No ID3 tag read\n"
+                  "file: %s", path, exc_info=True)
+    if path.suffix.lower() == '.mp3':
+        return _ape_of(path)
+    try:
+        audio = MutagenFile(path)
+    except Exception:
+        log.debug("🏷 Mutagen could not open the file\n"
+                  "file: %s", path, exc_info=True)
+        return None
+    return as_id3(audio.tags) if audio is not None else None
+
+
+def _ape_of(path: Path) -> ID3 | None:
+    """An MP3's APEv2 tag (foobar2000, mp3gain) as ID3; None when it has none."""
+    try:
+        return as_id3(APEv2(path))
+    except Exception:
+        log.debug("🏷 No APEv2 tag read\n"
                   "file: %s", path, exc_info=True)
         return None
 
@@ -314,7 +341,8 @@ def _read_tags_once(path: Path) -> tuple:
         secs = int(round(audio.info.length))
     if audio is not None and type(audio.tags) is ID3:
         return audio.tags, secs
-    return _id3_of(path), secs
+    foreign = as_id3(audio.tags) if audio is not None else None
+    return (foreign or _id3_of(path)), secs
 
 
 def _read_id3v1_comment(path: Path) -> str | None:
@@ -792,7 +820,9 @@ _BPM_PATTERNS = [re.compile(pat, re.IGNORECASE) for pat in [
     # — no word boundary before the T, so the '\b'-anchored pattern below misses it.
     # (?-i:...) forces an uppercase T so it never fires on a lowercase 't' in a word.
     r'(?-i:[A-Z]{0,3}T)(\d{2,3})(?:\D|$)',
-    r'\b(?:[A-Z]{0,3}[Tt])(\d{2,3})(?:[^0-9]|$)',
+    # The prefix letters are forced UPPERCASE (a code like 'SFT29'): matched
+    # case-insensitively they read 'Hit50' / 'Best40' / 'Feat30' as a takt.
+    r'\b(?-i:[A-Z]{0,3})[Tt](\d{2,3})(?:[^0-9]|$)',
     # Parenthetical "(<dance name> <bpm>)" — the name may be MULTIPLE words, so
     # '(Slow Waltz 29)' / '(Paso Doble 60)' parse like '(Samba 50)' / '(LW 29)'.
     r'\(\s*[A-Za-z][A-Za-z.\s]*?\s+(\d{2,3})\s*\)',

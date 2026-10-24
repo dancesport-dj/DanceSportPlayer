@@ -637,6 +637,20 @@ class DropOnWishlistTest(_Base):
         clear.assert_called_once_with({self.row_of(deck, "LW 1")}, select_after=True)
         self.clean.assert_not_called()
 
+    def test_from_a_warmup_list_the_title_leaves_it_without_a_hole(self):
+        """No grid stands behind a warm-up list: an emptied row there is a
+        "⚠ No song found" hole nothing fills, gone again at the next edit."""
+        t, warm = self.wishlist(), self.warmup()
+        warm._drag_src_rows = [self.row_of(warm, "TG 2")]
+        self.patch(t, "_insert_drop_files", return_value=1)
+        t.dropEvent(_Ev(source=warm, mime=_urls(self.mp3)))
+        self.assertEqual([m.entry.title for _r, m in warm._row_meta.numbered()],
+                         ["LW 1", "SF 3"])
+        self.assertTrue(all(m.entry is not None
+                            for m in warm._row_meta if m and not m.theme
+                            and m.dance), "an emptied row is left in the list")
+        self.assertIn("Moved 1 track(s)", self.toast.call_args.args[1])
+
     def test_ctrl_copies_from_another_wishlist(self):
         t, other = self.wishlist(), self.wishlist()
         other._drag_src_rows = [0]
@@ -818,7 +832,7 @@ class ReplaceRowTest(_Base):
         self.assertTrue(t._replace_row_with_path(row, self.mp3))
         self.assertEqual(t._playlist["Vorrunde"][0][0].title, "TG 9")
 
-    def test_replacing_the_playing_row_stops_it(self):
+    def test_replacing_the_playing_row_keeps_it_playing(self):
         t = self.deck()
         self.suggest(t, _e("LW", 9))
         played = []
@@ -826,8 +840,8 @@ class ReplaceRowTest(_Base):
         row = self.row_of(t, "LW 1")
         t._current_play_row = row
         self.assertTrue(t._replace_row_with_path(row, self.mp3))
-        self.assertEqual(played, [None])
-        self.assertEqual(t._current_play_row, -1)
+        self.assertEqual(played, [])
+        self.assertEqual(t._current_play_row, row)
         _app.processEvents()
         self.assertEqual(t._row_meta[row].entry.title, "LW 9")
 

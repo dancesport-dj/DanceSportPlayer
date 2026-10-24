@@ -1,0 +1,221 @@
+name: build-tester
+
+# The FULL flavor as a download for testers: the planner and the player in one
+# app, with the torch stack the public player build leaves out (Demucs vocals,
+# the 🧠 MERT sounds-alike index).
+#
+# Nothing here is published. A run creates an UNPUBLISHED draft release, so the
+# download does not appear on the repository's releases page, in the tags list
+# or in the "latest release" link; only someone holding the link you send them
+# can reach it. Copy the links out of the run summary and hand them to the
+# testers. Treat a link as unlisted rather than private: GitHub documents no
+# access control on a draft's assets, so anyone who obtains the URL can
+# download. For the handful of people this build is for, that is the point -
+# it is not a permission system.
+#
+# Started by hand only (`workflow_dispatch`), never by a tag: the public
+# release stays exactly as it was, and a tester build cannot be mistaken for
+# one. The version is the workflow input, not a tag.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version for the draft (e.g. 1.5.0-test1, without a v)"
+        required: true
+        type: string
+      note:
+        description: "What testers should look at (one line, optional)"
+        required: false
+        type: string
+
+jobs:
+  # The manual as a PDF, English and German, printed once and handed to both
+  # builds - the same job as in build-player.yml, for the same reasons.
+  manual:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The headings carry emoji; without a color emoji font they print as boxes.
+      - name: Emoji font
+        run: sudo apt-get install -y --no-install-recommends fonts-noto-color-emoji
+
+      - name: Print the manual
+        env:
+          DANCEPLAYLIST_VERSION: ${{ inputs.version }}
+        run: python3 -m tools.docs.build_manual_pdf
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: manual-pdf
+          path: |
+            docs/manual/manual.pdf
+            docs/manual/de/manual.pdf
+          if-no-files-found: error
+
+  windows:
+    needs: manual
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: manual-pdf
+          path: docs/manual
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      # The FULL lock: the lite stack plus torch/Demucs/transformers. The
+      # nvidia-* packages it lists are marker-gated to Linux and are not
+      # installed here; requirements-full.overrides.txt explains the rest.
+      - name: Build venv
+        run: |
+          python -m venv .venv
+          .venv\Scripts\python.exe -m pip install --upgrade pip
+          .venv\Scripts\python.exe -m pip install -r requirements-full.lock
+
+      # build_exe.bat copies it next to the .exe. Pinned to the version the desk
+      # builds with; gyan.dev keeps only the latest, its GitHub mirror keeps all.
+      # The hash is that release's, as GitHub lists it: a new version needs its
+      # own here.
+      - name: Fetch ffmpeg
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://github.com/GyanD/codexffmpeg/releases/download/9.0.2/ffmpeg-9.0.2-essentials_build.zip -OutFile ffmpeg.zip
+          $hash = (Get-FileHash ffmpeg.zip -Algorithm SHA256).Hash
+          if ($hash -ne "60F467265B1E312373DBCD92200C2618A74850F98D3D078E94296BB3FA2047BA") {
+            throw "ffmpeg.zip is not the 9.0.2 release: SHA-256 $hash"
+          }
+          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg-unpacked
+          $exe = Get-ChildItem ffmpeg-unpacked -Recurse -Filter ffmpeg.exe | Select-Object -First 1
+          Copy-Item $exe.FullName ffmpeg.exe
+          .\ffmpeg.exe -hide_banner -version | Select-Object -First 1
+
+      - name: Build
+        env:
+          DANCEPLAYLIST_ERROR_DSN: ${{ secrets.DANCEPLAYLIST_ERROR_DSN }}
+          DANCEPLAYLIST_VERSION: ${{ inputs.version }}
+        run: |
+          .\build_exe.bat full
+          if (-not (Test-Path "dist/DanceSport-Planner-Player-Full/Manual.pdf")) { throw "no Manual.pdf in the build" }
+          if (-not (Test-Path "dist/DanceSport-Planner-Player-Full/Handbuch.pdf")) { throw "no Handbuch.pdf in the build" }
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tester-windows
+          path: dist/DanceSport-Planner-Player-Full/
+          if-no-files-found: error
+
+  macos:
+    # Apple silicon. The Intel split is the one demucs's metadata cannot meet
+    # (numpy<2, torch<2.3) and the one no build here targets - see
+    # requirements-full.overrides.txt.
+    needs: manual
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: manual-pdf
+          path: docs/manual
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Build venv
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -r requirements-full.lock
+
+      - name: create-dmg
+        run: brew install create-dmg
+
+      # The FULL flavor is not the player, so build_app.sh refuses the ready-made
+      # macOS guide too: no README.txt in this .dmg, same as a desk FULL build.
+      - name: Build
+        env:
+          DANCEPLAYLIST_ERROR_DSN: ${{ secrets.DANCEPLAYLIST_ERROR_DSN }}
+          DANCEPLAYLIST_VERSION: ${{ inputs.version }}
+        run: |
+          ./build_app.sh full dmg
+          test -f "dist/DanceSport-Planner-Player-Full.dmg"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tester-macos
+          path: dist/DanceSport-Planner-Player-Full.dmg
+          if-no-files-found: error
+
+  draft:
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: artifacts
+
+      # --draft is the whole point: nothing is published, no tag appears in the
+      # repository, and the release stays invisible to everyone without the
+      # link. --target pins it to the commit this run built, so the draft's
+      # "source code" links match the binaries even though there is no tag.
+      - name: Draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          NOTE: ${{ inputs.note }}
+        run: |
+          mv artifacts/tester-windows artifacts/DanceSport-Planner-Player-Full
+          (cd artifacts && zip -qr "../DanceSport-Planner-Player-Full-$VERSION-windows.zip" DanceSport-Planner-Player-Full)
+          mv artifacts/tester-macos/DanceSport-Planner-Player-Full.dmg \
+             "DanceSport-Planner-Player-Full-$VERSION-macos.dmg"
+          {
+            echo "Tester build of the FULL flavor: planner and player in one app."
+            echo
+            echo "Windows: unzip the whole folder, then start"
+            echo "DanceSport-Planner-Player-Full.exe. Windows may show"
+            echo "\"Windows protected your PC\" - More info, then Run anyway."
+            echo
+            echo "macOS: open the .dmg and drag the app onto Applications. The"
+            echo "app is unsigned, so the first start needs right-click, Open."
+            echo
+            echo "The Demucs and MERT models download on first use (~80 MB and"
+            echo "~380 MB), so give the first analysis a few minutes."
+            if [ -n "$NOTE" ]; then echo; echo "## What to look at"; echo; echo "$NOTE"; fi
+            echo
+            echo "---"
+            echo
+            echo "GitHub Actions run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } > notes.md
+          gh release create "tester-$VERSION" \
+            "DanceSport-Planner-Player-Full-$VERSION-windows.zip" \
+            "DanceSport-Planner-Player-Full-$VERSION-macos.dmg" \
+            --draft --target "$GITHUB_SHA" \
+            --title "Tester build $VERSION (FULL)" --notes-file notes.md
+          # The links, into the run summary. A draft has NO /releases/tag/<tag>
+          # page - it lives at an untagged-<hash> URL until it is published, so
+          # ask the API for that URL rather than constructing one.
+          DRAFT_URL=$(gh release view "tester-$VERSION" --json url --jq .url)
+          {
+            echo "### Draft release created - not published"
+            echo
+            echo "Send this link to the testers:"
+            echo
+            echo "$DRAFT_URL"
+            echo
+            echo "It is an untagged- link: it appears nowhere on the"
+            echo "repository and works only as long as the release is a draft."
+            echo "Publishing it would make the build public, and would give it a"
+            echo "normal tag page - only do that deliberately."
+          } >> "$GITHUB_STEP_SUMMARY"

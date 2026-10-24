@@ -16,6 +16,7 @@ class PauseFiller:
         self.index = 0   # which title plays in the current pause
         self.total = 0.0   # configured pause length when the filler started
         self.active = False   # filler audible right now?
+        self.broken: set[str] = set()   # would not decode: left out this session
 
     @property
     def current(self) -> str | None:
@@ -24,7 +25,8 @@ class PauseFiller:
     def load(self, paths: list[str]) -> str | None:
         """Keep the titles that exist on disk and return the one to play: the
         rotation resumes where the last pause left off. None = none exists."""
-        self.titles = [p for p in paths if Path(p).is_file()]
+        self.titles = [p for p in paths
+                       if Path(p).is_file() and p not in self.broken]
         if not self.titles:
             return None
         self.index %= len(self.titles)
@@ -35,6 +37,16 @@ class PauseFiller:
         if not self.titles:
             return None
         self.index = (self.index + 1) % len(self.titles)
+        return self.titles[self.index]
+
+    def drop_current(self) -> str | None:
+        """The current title would not decode: leave it out from now on and
+        return the one after it. None = no title is left."""
+        self.broken.add(self.titles.pop(self.index))
+        if not self.titles:
+            self.index = 0
+            return None
+        self.index %= len(self.titles)
         return self.titles[self.index]
 
     def fade(self, remaining: float) -> float:

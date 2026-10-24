@@ -44,7 +44,7 @@ class UserBackupTest(unittest.TestCase):
         out = upkeep.backup_user_data(today=dt.date(2026, 10, 9))
         self.assertEqual(out, self.backups / "user-data-2026-10-09.db")
         got = self.tables(out)
-        self.assertEqual(got["tag_edits"], [("fp1", 5, None, None, None, None)])
+        self.assertEqual(got["tag_edits"], [("fp1", 5, *[None] * 10)])
         self.assertEqual(got["pd_highlights"], [("fp2", "[1,2,3]", 1)])
         self.assertEqual(got["audio_fps"], [("fp2", "a2")])
         self.assertNotIn("loudness", got)
@@ -72,6 +72,13 @@ class UserBackupTest(unittest.TestCase):
         self.assertEqual(again, first)
         self.assertEqual(len(self.tables(again)["play_log"]), 1)
         self.assertEqual(len(list(self.backups.glob("user-data-*"))), 1)
+
+    def test_a_failed_backup_leaves_no_part_file(self):
+        self.fill()
+        replace = mock.patch.object(upkeep.os, "replace", side_effect=OSError("locked"))
+        with replace, self.assertRaises(OSError):
+            upkeep.backup_user_data(today=dt.date(2026, 10, 9))
+        self.assertEqual(list(self.backups.glob("*.part")), [])
 
     def test_a_failed_backup_never_stops_the_app(self):
         with mock.patch.object(upkeep, "backup_user_data", side_effect=OSError("disk full")), \

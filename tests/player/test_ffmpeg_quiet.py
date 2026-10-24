@@ -42,12 +42,18 @@ QTimer.singleShot(10000, loop.quit)
 player.setSource(QUrl.fromLocalFile(sys.argv[1]))
 loop.exec()
 print(player.mediaStatus().name)
+# With its log off FFmpeg must still decode: the clock moves.
+player.positionChanged.connect(lambda ms: loop.quit() if ms > 0 else None)
+QTimer.singleShot(10000, loop.quit)
+player.play()
+loop.exec()
+print(player.position())
 """
 
 
 class FfmpegQuietTest(unittest.TestCase):
 
-    def test_opening_a_track_prints_nothing_from_ffmpeg(self):
+    def test_opening_and_playing_a_track_prints_nothing_from_ffmpeg(self):
         tmp = Path(tempfile.mkdtemp(prefix="dp_ffquiet_"))
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
         track = tmp / "Song (LW 29).mp3"
@@ -56,7 +62,9 @@ class FfmpegQuietTest(unittest.TestCase):
                    DANCEPLAYLIST_DATA_DIR=str(tmp))
         proc = subprocess.run([sys.executable, "-c", _CHILD, str(track)],
                               cwd=_REPO, env=env, capture_output=True, timeout=60)
-        self.assertEqual(proc.stdout.strip(), b"LoadedMedia", proc.stderr)
+        status, position = proc.stdout.split()
+        self.assertEqual(status, b"LoadedMedia", proc.stderr)
+        self.assertGreater(int(position), 0, "the track never played")
         self.assertNotIn(b"Input #0", proc.stderr)
         self.assertNotIn(b"Estimating duration", proc.stderr)
 

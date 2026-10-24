@@ -130,5 +130,65 @@ class SettingsTabsTest(unittest.TestCase):
                                         (size, dance))
 
 
+class LastTabTest(unittest.TestCase):
+    """Marcel: "setting screen should remeber last tab that was opened in
+    current session" — for this run of the app, not in the settings file."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.addCleanup(setattr, SettingsDialog, "_last_tab",
+                        SettingsDialog._last_tab)
+        SettingsDialog._last_tab = None
+
+    def open(self, settings=None, **kw):
+        dlg = SettingsDialog(settings or {}, None, **kw)
+        self.addCleanup(dlg.deleteLater)
+        return dlg, dlg.findChild(QTabWidget)
+
+    def caption(self, tabs):
+        return tabs.tabText(tabs.currentIndex())
+
+    def test_the_first_settings_of_a_session_open_on_general(self):
+        _, tabs = self.open()
+        self.assertEqual(self.caption(tabs), "⚙ General")
+
+    def test_it_reopens_on_the_tab_it_closed_on(self):
+        for close in ("accept", "reject"):
+            with self.subTest(close=close):
+                dlg, tabs = self.open()
+                tabs.setCurrentIndex(2)
+                getattr(dlg, close)()
+                _, tabs = self.open()
+                self.assertEqual(self.caption(tabs), "🎨 Look")
+
+    def test_choose_outputs_still_opens_on_sound(self):
+        dlg, tabs = self.open()
+        tabs.setCurrentIndex(2)
+        dlg.reject()
+        _, tabs = self.open(open_sound=True)
+        self.assertEqual(self.caption(tabs), "🔊 Sound && player")
+
+    def test_the_wall_right_click_opens_on_the_cartwall_tab(self):
+        """Marcel: the pad's right-click "should get into the relevant
+        setting part" — the wall's own, not wherever Settings last closed."""
+        dlg, tabs = self.open()
+        tabs.setCurrentIndex(2)
+        dlg.reject()
+        _, tabs = self.open(open_cartwall=True)
+        self.assertEqual(self.caption(tabs), "🎛 Cartwall")
+
+    def test_a_tab_the_app_mode_hides_falls_back_to_general(self):
+        dlg, tabs = self.open()
+        sets = next(i for i in range(tabs.count())
+                    if tabs.tabText(i) == "🎛 Play sets")
+        tabs.setCurrentIndex(sets)
+        dlg.reject()
+        _, tabs = self.open({"app_mode": "planner"})
+        self.assertEqual(self.caption(tabs), "⚙ General")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

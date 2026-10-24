@@ -43,10 +43,12 @@ from player.widgets.player_parts import (
     _ART_PX,
     _CARD_INK,
     _ClickSlider,
+    _COUNTDOWN_CSS,
     _fmt_ms,
     _OVERLAY_INK,
     _takt_text,
     _TEMPO_STEP,
+    _WAIT_COUNT_CSS,
 )
 from player.widgets.player_setup import BigPlayerSetupMixin
 
@@ -367,6 +369,7 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
 
     prevRequested = Signal()   # ⏮ → previous song row of the active deck
     nextRequested = Signal()   # ⏭ → next song row of the active deck
+    toStartRequested = Signal()   # ⏮ 0:00 → the ↩ mark of the last stop goes
     tempoResetModeChanged = Signal(bool)   # ↺ checkbox → MainWindow persists it
     tsoModeChanged = Signal(bool)          # TSO toggle → auto-equalize the heat tempo
     tempoApplied = Signal()                # rate changed → the ⏳ limit moves with it
@@ -631,6 +634,9 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
         name painted in front of the subtitle (the pause state)."""
         self._full_title = title or status or "No song selected"
         self._marquee_pos = 0
+        if self._waiting:            # another title: no wait's stats to give back
+            self._waiting = False
+            self.set_countdown("")
         # A real title means a song is playing → offer ⏸♪ jump-to-pause; an
         # empty title is idle or the pause filler (status set), so hide it.
         self._has_song = bool(title)
@@ -712,11 +718,14 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
         if key == self._wave_path:
             self._wave.set_peaks(peaks)
 
-    def set_wave_overlay(self, silences_secs, fade_start_ms):
+    def set_wave_overlay(self, silences_secs, fade_start_ms, start_ms=0,
+                         fade_in_end_ms=None):
         """The 🔇 spans the player skips and where the ⏳ fade-out begins (file
-        time, ms; None = no timed fade)."""
+        time, ms; None = no timed fade) — and ⏩ where the title starts and 🌅
+        its fade-in is through (None = no fade-in)."""
         self._wave.set_silences(silences_secs)
         self._wave.set_fade_start(fade_start_ms)
+        self._wave.set_start(start_ms, fade_in_end_ms)
 
     def set_artwork(self, track: Path | None, playlist: Path | None = None):
         """The track now playing and the playlist it came from — the picture is
@@ -775,6 +784,48 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
         only feeds it while a pause is running — see _set_countdown)."""
         self._countdown_lbl.setText(text or "")
         self._countdown_lbl.setVisible(bool(text))
+
+    def set_wait(self, label: str, count: str):
+        """🐂 The wait before the music, where the title's stats stand:
+        `label` says what is coming, `count` runs in the pause's gold — the
+        way the auto-advance pause shows. Marcel: the long line beside the
+        stats "cant be seen". '' gives the stats back."""
+        if label:
+            if not self._waiting:
+                self._waiting = True
+                self._stats_sub = self._full_sub
+                self._pull_countdown_in(True)
+            self._full_sub = label
+            self.set_countdown(count)
+        elif self._waiting:
+            self._waiting = False
+            self._full_sub = self._stats_sub
+            self.set_countdown("")
+            self._pull_countdown_in(False)
+        else:
+            return
+        self._sub_pos = 0
+        self._elide_sub()
+
+    def _pull_countdown_in(self, on: bool):
+        """During the wait the words take only their own width and the
+        seconds the slack, so they read on as one "PD T60 in 5 s" (Marcel:
+        "the PD in is now with a gap"), in the words' own font ("not complety
+        align with pd t60 in text"). Afterwards the stats get the row's
+        stretch back and the pause countdown its own font."""
+        self._countdown_lbl.setStyleSheet(_WAIT_COUNT_CSS if on else _COUNTDOWN_CSS)
+        self._sub.setSizePolicy(
+            QSizePolicy.Policy.Preferred if on else QSizePolicy.Policy.Ignored,
+            QSizePolicy.Policy.Preferred)
+        self._sub_row.setStretchFactor(self._sub, 0 if on else 1)
+        self._sub_row.setStretchFactor(self._countdown_lbl, 1 if on else 0)
+
+    def played_takt(self) -> str:
+        """The takt the track plays at, pitch included, as the tempo label
+        prints it ("T60"); '' without a filename takt."""
+        if not self._takt:
+            return ""
+        return f"T{_takt_text(self._takt * (1.0 + self._tempo.value() / 1000.0))}"
 
     def set_pause_active(self, on: bool):
         """Between-songs pause on/off: swaps the card's context buttons
@@ -1351,3 +1402,4 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
         """Rewind the playhead to 0:00, leaving play/pause state untouched."""
         if not self._player.source().isEmpty():
             self._player.setPosition(0)
+            self.toStartRequested.emit()

@@ -58,6 +58,11 @@ class _FakePlayer:
     def duration(self):
         return self._dur
 
+    def source(self):
+        # The window's one track is open in it.
+        from PySide6.QtCore import QUrl
+        return QUrl.fromLocalFile(r"C:\music\track.mp3")
+
     def setPosition(self, ms):
         self.seeks.append(ms)
         self._pos = ms
