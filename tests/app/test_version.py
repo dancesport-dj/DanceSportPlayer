@@ -146,12 +146,38 @@ class BuildWiringTest(unittest.TestCase):
             encoding="utf-8")
         self.assertIn('VERSION="${TAG#v}"', flow)
         self.assertNotIn("DanceSport-Player-$TAG-", flow)
-        self.assertIn('"DanceSport-Player-$VERSION-windows.zip"', flow)
-        self.assertIn('"DanceSport-Player-$VERSION-windows-setup.exe"', flow)
-        self.assertIn('"DanceSport-Player-$VERSION-macos.dmg"', flow)
-        self.assertIn('"DanceSport-Player-$VERSION-linux-x86_64.tar.gz"', flow)
-        self.assertIn('"DanceSport-Player-$VERSION-linux-arm64.tar.gz"', flow)
+        # The unstamped names are the prefix the hash is appended to, so the
+        # version sits before the hash: …-1.5.0-windows-<hash>.zip.
+        for name in ("DanceSport-Player-$VERSION-windows.zip",
+                     "DanceSport-Player-$VERSION-windows-setup.exe",
+                     "DanceSport-Player-$VERSION-macos.dmg",
+                     # The two Linux names come from the arch loop.
+                     "DanceSport-Player-$VERSION-linux-$ARCH.tar.gz"):
+            with self.subTest(name=name):
+                self.assertIn(name, flow)
+        self.assertIn("for ARCH in x86_64 arm64; do", flow)
         self.assertIn('--title "DanceSport Player $VERSION"', flow)
+
+    def test_every_download_carries_its_sha256(self):
+        # Marcel, after a scanner prompt on 1.5.0: an unsigned build should at
+        # least prove that what arrived is what was published. The first 12
+        # hex digits of each download's SHA-256 go into its own file name, the
+        # full hashes into SHA256SUMS and the release text.
+        flow = (ROOT / ".github" / "workflows" / "build-player.yml").read_text(
+            encoding="utf-8")
+        self.assertIn('HASH=$(sha256sum "$FILE" | cut -c1-64)', flow)
+        self.assertIn("SHORT=${HASH:0:12}", flow)
+        self.assertIn('STAMPED="$STEM-$SHORT$EXT"', flow)
+        # .tar.gz is two suffixes: the hash goes before both, not between.
+        self.assertIn('*.tar.gz) STEM="${FILE%.tar.gz}"; EXT=".tar.gz" ;;', flow)
+        self.assertIn('echo "$HASH  $STAMPED" >> SHA256SUMS', flow)
+        # The stamped names, not the unstamped ones, are what gets published.
+        self.assertIn("gh release create \"$TAG\" $ASSETS SHA256SUMS", flow)
+        self.assertNotIn('"DanceSport-Player-$VERSION-windows.zip" "DanceSport',
+                         flow.split("gh release create")[-1])
+        # And the release text says how to check them.
+        self.assertIn("## Checksums", flow)
+        self.assertIn("sha256sum -c SHA256SUMS", flow)
 
     def test_every_download_says_how_to_install_it(self):
         # Marcel: "i miss a readme or info for the user which tells him how to

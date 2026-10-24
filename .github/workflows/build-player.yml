@@ -53,7 +53,7 @@ jobs:
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.14"
+          python-version: "3.14.9"
           cache: pip
 
       # build_exe.bat builds from .venv, like on the desk.
@@ -137,7 +137,7 @@ jobs:
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.14"
+          python-version: "3.14.9"
           cache: pip
 
       - name: Build venv
@@ -192,7 +192,7 @@ jobs:
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.14"
+          python-version: "3.14.9"
           cache: pip
 
       # The X11 libraries Qt's xcb platform plugin links against, and
@@ -264,6 +264,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         # Names and title say the version without the tag's v, like the app.
+        # Every download also carries the first 12 hex digits of its own
+        # SHA-256, so the saved file's name says which bytes it is: a user can
+        # compare what arrived against the release text, and an unsigned build
+        # at least proves it is the one that was published. The full hash goes
+        # into SHA256SUMS (sha256sum's format) and into the release text.
         run: |
           VERSION="${TAG#v}"
           mv artifacts/DanceSport-Player-windows artifacts/DanceSport-Player
@@ -276,6 +281,25 @@ jobs:
             mv "artifacts/DanceSport-Player-linux-$ARCH/DanceSport-Player-linux-$ARCH.tar.gz" \
                "DanceSport-Player-$VERSION-linux-$ARCH.tar.gz"
           done
+          # Stamp each download's hash into its name and list them all.
+          : > SHA256SUMS
+          ASSETS=""
+          for FILE in DanceSport-Player-"$VERSION"-*.zip \
+                      DanceSport-Player-"$VERSION"-*.exe \
+                      DanceSport-Player-"$VERSION"-*.dmg \
+                      DanceSport-Player-"$VERSION"-*.tar.gz; do
+            [ -f "$FILE" ] || continue
+            HASH=$(sha256sum "$FILE" | cut -c1-64)
+            SHORT=${HASH:0:12}
+            case "$FILE" in
+              *.tar.gz) STEM="${FILE%.tar.gz}"; EXT=".tar.gz" ;;
+              *)        STEM="${FILE%.*}";    EXT=".${FILE##*.}" ;;
+            esac
+            STAMPED="$STEM-$SHORT$EXT"
+            mv "$FILE" "$STAMPED"
+            echo "$HASH  $STAMPED" >> SHA256SUMS
+            ASSETS="$ASSETS $STAMPED"
+          done
           git log -1 --format=%b "$TAG" | sed '/^Source: /d' > notes.md
           # Each download carries its own README.txt; the page links all three.
           GUIDES="https://github.com/$GITHUB_REPOSITORY/blob/$TAG"
@@ -286,10 +310,19 @@ jobs:
             echo "- [Windows]($GUIDES/docs/install/windows.md)"
             echo "- [macOS]($GUIDES/docs/install/macos.md)"
             echo "- [Linux]($GUIDES/docs/install/linux.md)"
+            echo
+            echo "## Checksums"
+            echo
+            echo "Each file name ends in the first 12 hex digits of its SHA-256."
+            echo "The full hashes are in \`SHA256SUMS\`:"
+            echo
+            echo '```'
+            echo "sha256sum -c SHA256SUMS"
+            echo '```'
+            echo
+            echo '```'
+            cat SHA256SUMS
+            echo '```'
           } >> notes.md
-          gh release create "$TAG" \
-            "DanceSport-Player-$VERSION-windows.zip" "DanceSport-Player-$VERSION-windows-setup.exe" \
-            "DanceSport-Player-$VERSION-macos.dmg" \
-            "DanceSport-Player-$VERSION-linux-x86_64.tar.gz" \
-            "DanceSport-Player-$VERSION-linux-arm64.tar.gz" \
+          gh release create "$TAG" $ASSETS SHA256SUMS \
             --title "DanceSport Player $VERSION" --notes-file notes.md

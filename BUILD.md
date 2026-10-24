@@ -152,9 +152,20 @@ offscreen. ffmpeg is not bundled there. The Windows folder, the macOS `.dmg` and
 the two Linux tar.gz are the run's artifacts, and so is the Windows setup
 (`build_installer.bat player`, with Inno Setup from Chocolatey when the runner
 has none). A `v*` tag also publishes them as that tag's GitHub release
-(`DanceSport-Player-1.2.0-windows.zip`, `…-windows-setup.exe`, `…-macos.dmg`,
-`…-linux-x86_64.tar.gz` and `…-linux-arm64.tar.gz` for the tag `v1.2.0`, so the
-names carry no v either), with the tagged commit's message as the release text.
+(`DanceSport-Player-1.2.0-windows-<hash>.zip`, `…-windows-setup-<hash>.exe`,
+`…-macos-<hash>.dmg`, `…-linux-x86_64-<hash>.tar.gz` and
+`…-linux-arm64-<hash>.tar.gz` for the tag `v1.2.0`, so the names carry no v
+either), with the tagged commit's message as the release text.
+
+`<hash>` is the first 12 hex digits of the file's own SHA-256, computed by the
+release job after every download is renamed: the full hashes go into a
+`SHA256SUMS` asset and a checksum block in the release text. The builds are
+unsigned, so a user's only proof that a download is the published one is its
+hash; the release notes and `docs/install/windows.md` say how to check it.
+
+The runners pin `python-version: "3.14.9"`, not `"3.14"`: a floating minor
+version makes every patch release of CPython rebuild the whole stdlib inside the
+bundle, which shows up as ~25 changed binaries in a release diff for no reason.
 
 The version number is `VERSION` in `planner/version.py` (`1.5.1`), and a build
 without a tag gets it. A `v*` tag overrides it, so name the tag

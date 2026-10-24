@@ -75,6 +75,18 @@ How to install and open each one, including the first start past SmartScreen
 and Gatekeeper: [Windows](docs/install/windows.md), [macOS](docs/install/macos.md),
 [Linux](docs/install/linux.md). Every download carries its guide as `README.txt`.
 
+Each file name ends in the first 12 hex digits of its own SHA-256
+(`…-windows-8a2ee634239b.zip`); the full hashes are in `SHA256SUMS` and in the
+release text. Check a download before running it:
+
+```sh
+sha256sum -c SHA256SUMS
+```
+
+The builds are not code-signed, so Windows and macOS warn on the first start.
+SmartScreen's *More info → Run anyway* and Gatekeeper's *Open* are the expected
+way past it; a hash that matches says the file is the one that was published.
+
 ## Running from source
 
 - **Python 3.14 or newer.** The code relies on PEP 649 lazy annotations.

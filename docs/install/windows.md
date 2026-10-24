@@ -30,6 +30,11 @@ The first start may show **"Windows protected your PC"**. The app is not signed
 with a paid certificate, so SmartScreen does not know it yet. Click
 **More info**, then **Run anyway**. This is asked only once.
 
+You do not have to take that on trust: the download's name ends in the first 12
+hex digits of its SHA-256, and the release page lists the full hashes in
+`SHA256SUMS`. If the hash of the file you got matches, it is byte for byte the
+one that was published.
+
 ffmpeg is included; nothing else needs installing.
 
 Settings and playlists are kept in the app's folder. Where
@@ -69,6 +74,11 @@ Beim ersten Start kann **"Der Computer wurde durch Windows geschützt"**
 erscheinen. Die App ist nicht mit einem kostenpflichtigen Zertifikat signiert,
 deshalb kennt SmartScreen sie noch nicht. Auf **Weitere Informationen** klicken,
 dann auf **Trotzdem ausführen**. Das wird nur einmal gefragt.
+
+Das muss man nicht glauben: Der Dateiname endet auf die ersten 12 Hex-Ziffern
+der SHA-256 des Downloads, und die Release-Seite listet die vollen Hashes in
+`SHA256SUMS`. Stimmt der Hash der heruntergeladenen Datei, ist sie Byte für Byte
+die veröffentlichte.
 
 ffmpeg ist dabei; sonst muss nichts installiert werden.
 
