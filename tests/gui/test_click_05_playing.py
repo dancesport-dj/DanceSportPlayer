@@ -303,8 +303,12 @@ class PlayingClickTest(ClickThrough):
             self.click(self.button("Next title"))
             self.assertTrue(self.wait_until(lambda: table._current_play_row == second))
             on_air = self.entry_at(second).path
-            self.assertTrue(self.wait_until(lambda: ON_AIR.exists(), 5000) and NOTE.flush())
-            self.assertTrue(EVENING.flush())
+            # The note of the FIRST title is on disk too until the second one's
+            # replaces it: wait for the one that names the title on air.
+            self.assertTrue(NOTE.flush(10) and self.wait_until(
+                lambda: (ON_AIR.read() or {}).get("path") == str(on_air), 15000),
+                "the note never named the title on air")
+            self.assertTrue(EVENING.flush(10))
 
             op.answer(lambda w: isinstance(w, QMessageBox)
                       and w.windowTitle() == "Pick up after a crash?", yes)

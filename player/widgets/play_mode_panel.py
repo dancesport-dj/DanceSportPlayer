@@ -84,9 +84,12 @@ _STRIP_QSS = (
 # the grey of a switched-off ⏻ switch there, so off reads the same across
 # the panel. Set on the tools themselves: a sheet on the panel would pull
 # every box down the side off its native look.
-_SIDE_TOOL_QSS = ("QPushButton:disabled { color:#6b6f76;"
-                  f" background:{Toggle._OFF_TRACK.name()};"
-                  " border:1px solid #b3b8c0; border-radius:3px; }")
+def _side_tool_qss() -> str:
+    # Read per panel: the theme re-shades the switch's grey in place, so a
+    # value fixed at import would stay light on a dark page.
+    return ("QPushButton:disabled { color:#6b6f76;"
+            f" background:{Toggle._OFF_TRACK.name()};"
+            " border:1px solid #b3b8c0; border-radius:3px; }")
 
 
 class PlayModePanel(PlayModeSetupMixin, QWidget):
@@ -313,7 +316,7 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         Only what a stylesheet cannot reach is set by hand: the readouts and
         the labels carry their own colours from the build."""
         self.setStyleSheet(_STRIP_QSS if self._wide else "")
-        tool = "" if self._wide else _SIDE_TOOL_QSS
+        tool = "" if self._wide else _side_tool_qss()
         self.pd_learn_btn.setStyleSheet(tool)
         self.pd_clear_btn.setStyleSheet(tool)
         self.pd_edit_btn.setStyleSheet(PD_EDIT_QSS + tool)

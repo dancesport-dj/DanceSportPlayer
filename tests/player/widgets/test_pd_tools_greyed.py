@@ -12,6 +12,7 @@ import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QApplication
 
 from player.widgets.panel_parts import Toggle
@@ -63,6 +64,15 @@ class PdToolsGreyedTest(unittest.TestCase):
         reads the same across the panel."""
         off = self.look(False, False).pixelColor(100, 13)
         self.assertEqual(off.name(), Toggle._OFF_TRACK.name())
+
+    def test_the_switches_grey_is_followed_when_the_theme_reshades_it(self):
+        """The theme edits the switch's grey in place (sync_shared_colors), so
+        the tools read it when a panel is built rather than at import."""
+        was = QColor(Toggle._OFF_TRACK)
+        self.addCleanup(Toggle._OFF_TRACK.setRgb, was.red(), was.green(), was.blue())
+        Toggle._OFF_TRACK.setRgb(0x35, 0x38, 0x3d)
+        off = self.look(False, False).pixelColor(100, 13)
+        self.assertEqual(off.name(), "#35383d")
 
 
 if __name__ == "__main__":
