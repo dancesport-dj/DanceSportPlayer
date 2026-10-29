@@ -523,6 +523,9 @@ class PlayingClickTest(ClickThrough):
             self.generate(rounds="1")
             self.click(win._mode_play_btn)
             self.click(panel.announce_check)
+            # The lead is opt-in (announce_lead, off by default); this test wants it said.
+            panel.set_announce_style(panel.announce_voice(), panel.announce_heat(),
+                                     panel.announce_wait(), lead=True)
             self.click(panel.pause_check)
             panel.pause_spin.setValue(2)
             rows = self.song_rows()

@@ -81,6 +81,9 @@ class _Backend:
         return out
 
 
+_MISSING = object()
+
+
 class _Base(unittest.TestCase):
 
     def patch(self, target, name, **kw):
@@ -90,9 +93,20 @@ class _Base(unittest.TestCase):
         return found
 
     def modules(self, **mods):
-        patcher = mock.patch.dict(sys.modules, mods)
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        # Only these entries: patch.dict(sys.modules) would, on exit, also drop
+        # whatever got imported meanwhile (numpy.fft), and numpy cannot be
+        # loaded a second time in one process.
+        for name, mod in mods.items():
+            before = sys.modules.get(name, _MISSING)
+            sys.modules[name] = mod
+            self.addCleanup(self._restoreModule, name, before)
+
+    @staticmethod
+    def _restoreModule(name, before):
+        if before is _MISSING:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = before
 
     def backend(self, vectors):
         backend = _Backend(vectors)
