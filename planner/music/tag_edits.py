@@ -14,9 +14,9 @@ A stored field means "overridden"; a missing (NULL) one means "the file's value"
 `genre` is the one field that is no attribute of the entry: it says what the
 genre tag would, and sets `dance` or `other_genre` from it (`genre_parts`).
 """
-from __future__ import annotations
 
 import json
+from typing import Any
 
 from planner.models import GENRE_TO_DANCE, OTHER_GENRE_LABELS, fold_text
 from planner.music.db import _db
@@ -26,7 +26,6 @@ EDIT_FIELDS = ("rating", "classes_ok", "is_instrumental", "comment_tags", "custo
                *DB_FIELDS)
 _LIST_FIELDS = ("classes_ok", "comment_tags")
 _TEXT_FIELDS = ("custom", "title", "tag_artist", "tag_album", "genre", "tag_comment")
-
 
 def genre_parts(text) -> tuple:
     """(dance, other_genre) a genre tag reading `text` gives: a dance
@@ -107,7 +106,7 @@ def save(fp: str, changes: dict) -> dict:
     return edit
 
 
-def file_value(entry, field: str):
+def file_value(entry, field: str) -> Any:
     """What the file itself says for `field`, edit or not."""
     edits = entry.tag_edits or {}
     if field == "genre":

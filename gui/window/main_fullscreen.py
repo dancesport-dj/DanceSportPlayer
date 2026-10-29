@@ -4,12 +4,13 @@ On the dance floor the desk is often the only screen in sight, so while the
 window fills it the status bar shows the date and time at its right end.
 A MainWindow mixin.
 """
-from PySide6.QtCore import QDateTime, QLocale, QTimer, Qt
+from typing import TYPE_CHECKING
+
+from PySide6.QtCore import QDateTime, QLocale, Qt, QTimer
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QLabel
 
 from planner import i18n
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost

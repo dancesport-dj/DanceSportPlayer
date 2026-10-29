@@ -22,8 +22,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_party_paths_"))
 
 from dancesport_planner import MusicEntry, MusicLibrary
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 _TMP = Path(tempfile.mkdtemp(prefix="dp_party_paths_files_"))
 _LIB = _TMP / "F" / "my music" / "tanzcds"          # where the music really is

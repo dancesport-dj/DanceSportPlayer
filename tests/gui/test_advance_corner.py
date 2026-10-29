@@ -28,14 +28,13 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_corner_"))
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QApplication, QHBoxLayout,
-                               QLabel, QWidget)
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QLabel, QWidget
 
+from gui.decks.deck_set import DeckSet
 from gui.table.playlist_table import PlaylistTable
 from gui.window.main_decks import DeckLayoutMixin
 from player.window.main_player import PlayerControlMixin
 from tests.qt_test_support import reap_widget
-from gui.decks.deck_set import DeckSet
 
 
 class _Setting:

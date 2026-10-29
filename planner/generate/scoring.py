@@ -6,7 +6,7 @@ table + resolver used by MusicLibrary._pick / regenerate.
 """
 import logging
 
-from planner.models import MusicEntry
+from planner.models import MusicEntry, RoundTier, Strategy
 
 log = logging.getLogger("dancesport.scoring")
 
@@ -86,7 +86,7 @@ _W_OTHER_CLASS = 0.1
 # Other-class plays can hint that a song works, but no amount of them may add up
 # to "proven here": 75 D/C plays once pushed a zero-S title over the proven
 # threshold (0.1 × 75 = 7.5). Their total contribution is capped well below it.
-_OTHER_CLASS_CAP = 2.0
+OTHER_CLASS_CAP = 2.0
 
 
 # Plays from lists whose class couldn't be parsed are attributed by the song's own
@@ -102,7 +102,7 @@ _UNKNOWN_PRIOR = 2.0
 # net on top of the name-based `_is_superseded_playlist` filter: we can't name every
 # dump / holding-bin list, so a song surfacing in only one or two of them (popularity
 # 1–4) is still treated as never-really-played rather than 'proven'.
-_PROVEN_MIN_POP = 5
+PROVEN_MIN_POP = 5
 
 
 # A final is not simply "the most-played tracks". A title can lead the library on
@@ -113,7 +113,7 @@ _PROVEN_MIN_POP = 5
 # Two, not one, so a single stray hit doesn't read as a finalist; the pool falls
 # back through one play and then the whole strategy pool, so a dance with no
 # round history at all can still be filled.
-_FINAL_MIN_PLAYS = 2
+FINAL_MIN_PLAYS = 2
 
 
 def final_plays(entry) -> int:
@@ -131,7 +131,7 @@ def late_plays(entry) -> int:
     return final_plays(entry) + semi_plays(entry)
 
 
-def prefer_late_rounds(pool: list, tier: str) -> list:
+def prefer_late_rounds(pool: list, tier: RoundTier | str) -> list:
     """Narrow a final's or a semifinal's pool to the titles that have been there.
 
     Those are the two rounds a DJ picks rather than fills: one track per dance,
@@ -144,15 +144,15 @@ def prefer_late_rounds(pool: list, tier: str) -> list:
     reached for the finalists would empty the final's shelf before it is opened.
     Only when its own history runs out does either round fall back to the other's,
     and then to the whole pool: nothing may end up blank."""
-    if tier == "final":
+    if tier == RoundTier.FINAL:
         own = final_plays
-    elif tier == "semi":
+    elif tier == RoundTier.SEMI:
         own = semi_plays
     else:
         return pool
-    return ([e for e in pool if own(e) >= _FINAL_MIN_PLAYS]
+    return ([e for e in pool if own(e) >= FINAL_MIN_PLAYS]
             or [e for e in pool if own(e) > 0]
-            or [e for e in pool if late_plays(e) >= _FINAL_MIN_PLAYS]
+            or [e for e in pool if late_plays(e) >= FINAL_MIN_PLAYS]
             or [e for e in pool if late_plays(e) > 0]
             or pool)
 
@@ -166,43 +166,48 @@ def prefer_late_rounds(pool: list, tier: str) -> list:
 #   all        – widest in-tempo pool, no proven/fresh preference at all
 # Under proven / top_proven the FINAL and the SEMIFINAL additionally prefer the
 # titles that have been in that round before — see `prefer_late_rounds`.
-STRATEGIES = ("proven", "top_proven", "fresh", "mixed", "all")
+# The five, in the order the combos list them. `Strategy.DEFAULT` ("") is not
+# one of them: it means "nothing chosen", not "a sixth pick".
+STRATEGIES = (Strategy.PROVEN, Strategy.TOP_PROVEN, Strategy.FRESH,
+              Strategy.MIXED, Strategy.ALL)
 
 
 STRATEGY_LABELS = {
-    "proven":     "Proven",
-    "top_proven": "Top Proven",
-    "fresh":      "Fresh",
-    "mixed":      "Mostly Proven",
-    "all":        "Even Mix",
+    Strategy.PROVEN: "Proven",
+    Strategy.TOP_PROVEN: "Top Proven",
+    Strategy.FRESH: "Fresh",
+    Strategy.MIXED: "Mostly Proven",
+    Strategy.ALL: "Even Mix",
 }
 
 
 STRATEGY_HELP = {
-    "proven":     "Songs you have played before (fresh as fallback).",
-    "top_proven": "Only your most-played songs.",
+    Strategy.PROVEN: "Songs you have played before (fresh as fallback).",
+    Strategy.TOP_PROVEN: "Only your most-played songs.",
     # (In a final or semifinal, both prefer what you have played in that round.)
-    "fresh":      "Unused songs first (proven as fallback).",
-    "mixed":      "Proven + fresh together, but favors songs you have played before.",
-    "all":        "Proven + fresh with no preference — equal chance, maximum variety.",
+    Strategy.FRESH: "Unused songs first (proven as fallback).",
+    Strategy.MIXED: "Proven + fresh together, but favors songs you have played before.",
+    Strategy.ALL: "Proven + fresh with no preference — equal chance, maximum variety.",
 }
 
 
-def _resolve_strategy(tier: str, prefer_fresh: bool, strategy: str | None) -> str:
+def resolve_strategy(tier: RoundTier | str, prefer_fresh: bool,
+                     strategy: Strategy | str | None) -> Strategy:
     """Effective pool strategy for a round.
 
     An explicit `strategy` wins; otherwise fall back to the tier's natural
     default (final → top_proven, semi → proven, else the legacy prefer_fresh
     flag). Keeps behaviour identical for callers that still pass only
-    prefer_fresh.
+    prefer_fresh — and for the plain spellings the tests and a restored deck
+    hand in, since `Strategy` is a StrEnum.
     """
     if strategy in STRATEGIES:
-        return strategy
-    if tier == "final":
-        return "top_proven"
-    if tier == "semi":
-        return "proven"
-    return "fresh" if prefer_fresh else "proven"
+        return Strategy(strategy)
+    if tier == RoundTier.FINAL:
+        return Strategy.TOP_PROVEN
+    if tier == RoundTier.SEMI:
+        return Strategy.PROVEN
+    return Strategy.FRESH if prefer_fresh else Strategy.PROVEN
 
 
 def class_popularity(entry: MusicEntry, dance_class: str | None) -> int:
@@ -250,4 +255,4 @@ def effective_popularity(entry: MusicEntry, dance_class: str | None) -> float:
                   / (attributed + _UNKNOWN_PRIOR))
     return (same * _W_SAME_CLASS
             + unknown * same_share
-            + min(other * _W_OTHER_CLASS, _OTHER_CLASS_CAP))
+            + min(other * _W_OTHER_CLASS, OTHER_CLASS_CAP))

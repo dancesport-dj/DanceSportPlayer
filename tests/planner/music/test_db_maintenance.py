@@ -232,9 +232,8 @@ class MaintenanceTest(unittest.TestCase):
                     raise OSError("disk full")
                 return conn.executemany(sql, rows)
 
-        with mock.patch.object(upkeep, "_db", return_value=Flaky()):
-            with self.assertRaises(OSError):
-                upkeep.cleanup_orphans()
+        with mock.patch.object(upkeep, "_db", return_value=Flaky()), self.assertRaises(OSError):
+            upkeep.cleanup_orphans()
         self.assertEqual(len(self._rows("files")), 1)
         self.assertEqual(len(self._rows("fingerprints")), 1)
 

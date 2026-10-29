@@ -8,13 +8,39 @@ The promises the wall makes to the operator:
 import unittest
 
 from planner.playing.cartwall import (
-    CARTWALL_VERSION, DEFAULT_GRID, DEFAULT_PAD_COLOUR, DEFAULT_PAGES,
-    GRID_SIZES, LABEL_MAX, SLOT_KEYS, CartPad, Page, blank_page, cell_key,
-    clean_slot_keys, clear_pad, default_label, dump_doc, fill_pads, is_portrait,
-    load_doc, missing_paths, move_pad, new_wall, pack_one_page, pad_count,
+    CARTWALL_VERSION,
+    DEFAULT_GRID,
+    DEFAULT_PAD_COLOUR,
+    DEFAULT_PAGES,
+    GRID_SIZES,
+    LABEL_MAX,
+    SLOT_KEYS,
+    CartPad,
+    Page,
+    blank_page,
+    cell_key,
+    clean_slot_keys,
+    clear_pad,
+    default_label,
+    dump_doc,
+    fill_pads,
+    is_portrait,
+    load_doc,
+    missing_paths,
+    move_pad,
+    move_to_page,
+    new_wall,
+    pack_one_page,
+    pad_count,
+    pad_title,
+    parse_cell,
     remap_pads,
-    pad_title, parse_cell, resize_grid, set_pad, slot_key, transpose,
-    trim_pages)
+    resize_grid,
+    set_pad,
+    slot_key,
+    transpose,
+    trim_pages,
+)
 
 
 def _pad(name="x.mp3", **kw):
@@ -97,6 +123,48 @@ class PadEditTest(unittest.TestCase):
     def test_move_onto_itself_changes_nothing(self):
         pages = _wall([(0, 0)])
         move_pad(pages, 0, (0, 0), 0, (0, 0))
+        self.assertEqual(list(pages[0].pads), [(0, 0)])
+
+
+class MoveToPageTest(unittest.TestCase):
+    """📄 Move to page: the pad keeps its cell where it can, and a pad that
+    is already set up on the other page is never overwritten."""
+
+    GRID = (2, 2)
+
+    def test_the_same_cell_when_it_is_free(self):
+        pages = _wall([(1, 1)]) + [blank_page()]
+        moved = move_to_page(pages, [(0, (1, 1))], 1, self.GRID)
+        self.assertEqual(moved, {(0, (1, 1)): (1, (1, 1))})
+        self.assertEqual(pages[1].pads[(1, 1)].path, "1_1.mp3")
+        self.assertEqual(pad_count(pages[:1]), 0)
+
+    def test_the_first_free_cell_when_its_own_is_taken(self):
+        pages = _wall([(0, 0)]) + _wall([(0, 0)])
+        pages[1].pads[(0, 0)] = _pad("kept.mp3")
+        moved = move_to_page(pages, [(0, (0, 0))], 1, self.GRID)
+        self.assertEqual(moved, {(0, (0, 0)): (1, (0, 1))})
+        self.assertEqual(pages[1].pads[(0, 0)].path, "kept.mp3")
+
+    def test_a_full_page_leaves_the_pad_where_it_was(self):
+        pages = _wall([(0, 0)]) + _wall([(0, 0), (0, 1), (1, 0), (1, 1)])
+        moved = move_to_page(pages, [(0, (0, 0))], 1, self.GRID)
+        self.assertEqual(moved, {})
+        self.assertEqual(pages[0].pads[(0, 0)].path, "0_0.mp3")
+        self.assertEqual(pad_count(pages), 5)
+
+    def test_a_selection_takes_what_fits(self):
+        pages = (_wall([(0, 0), (0, 1), (1, 0)])
+                 + _wall([(0, 0), (0, 1)]))
+        moved = move_to_page(pages, [(0, (0, 0)), (0, (0, 1)), (0, (1, 0))],
+                             1, self.GRID)
+        self.assertEqual(len(moved), 2)
+        self.assertEqual(pad_count(pages), 5)
+        self.assertEqual(list(pages[0].pads), [(1, 0)])   # the one that came last
+
+    def test_the_page_it_is_already_on_changes_nothing(self):
+        pages = _wall([(0, 0)]) + [blank_page()]
+        self.assertEqual(move_to_page(pages, [(0, (0, 0))], 0, self.GRID), {})
         self.assertEqual(list(pages[0].pads), [(0, 0)])
 
 

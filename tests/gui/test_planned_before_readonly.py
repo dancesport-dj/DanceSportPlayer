@@ -21,15 +21,14 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_planned_"))
 
 from PySide6.QtWidgets import QApplication, QWidget
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
 
 import gui.table.table_menu as table_menu
 from gui.table.playlist_table import PlaylistTable
 from planner import config as planner_config
-from planner.music.library import MusicLibrary
-from planner.models import MusicEntry, RoundConfig
 from planner.generate.suggester import PlaylistSuggester
+from planner.models import MusicEntry, RoundConfig
+from planner.music.library import MusicLibrary
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 _TRACK = r"C:\music\standardcd\Tango One (TG 32).mp3"
 

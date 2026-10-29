@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from mutagen.apev2 import APEv2, APEBinaryValue
+from mutagen.apev2 import APEBinaryValue, APEv2
 from mutagen.id3 import ID3, TIT2
 
 from dancesport_planner import AudioCache, MusicLibrary
@@ -75,9 +75,9 @@ class FileTest(unittest.TestCase):
     def test_an_mp3_without_id3_reads_its_ape_tag(self):
         self.ape(Title="Sway", ULTRAMIXER_DANCESTYLE="Rumba")
         self.assertEqual(_text(parsing._id3_of(self.path), "TIT2"), ["Sway"])
-        tags, secs = parsing._read_tags_once(self.path)
+        tags, secs = parsing.read_tags_once(self.path)
         self.assertEqual(secs, 180)
-        self.assertEqual(parsing._get_um_dance(tags), "RB")
+        self.assertEqual(parsing.get_um_dance(tags), "RB")
 
     def test_an_id3_tag_wins_over_the_ape_tag(self):
         self.ape(Title="from APE")

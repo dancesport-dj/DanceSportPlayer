@@ -24,12 +24,12 @@ from PySide6.QtWidgets import QApplication
 from dancesport_planner import RoundConfig
 from gui.common import DEFAULT_HIDDEN_COLUMNS
 from gui.dialogs import migrate_column_settings
-from gui.library_browser import _LIB_COL_COMMENT, _LIB_COL_PLAYS, LibraryBrowser
+from gui.library_browser import LIB_COL_COMMENT, LIB_COL_PLAYS, LibraryBrowser
 from gui.table.playlist_table import PlaylistTable
 from gui.table.table_actions import TableActionsMixin
 from planner.models import MusicEntry
 from planner.playing import play_counts
-from shared.columns import _COL_COMMENT, _COL_PLAYS, _COL_REGEN, _N_COLS
+from shared.columns import _COL_COMMENT, _COL_PLAYS, _N_COLS, COL_REGEN
 from tests.db_support import use_scratch_db
 from tests.qt_test_support import reap_widget
 
@@ -66,9 +66,9 @@ class DeckPlaysTest(unittest.TestCase):
         return self.table.item(self.row, _COL_PLAYS).text()
 
     def test_it_sits_between_comment_and_regen(self):
-        self.assertEqual((_COL_COMMENT, _COL_PLAYS, _COL_REGEN, _N_COLS), (13, 14, 15, 16))
+        self.assertEqual((_COL_COMMENT, _COL_PLAYS, COL_REGEN, _N_COLS), (13, 14, 15, 16))
         self.assertEqual(self.table.horizontalHeaderItem(_COL_PLAYS).text(), "Plays")
-        self.assertEqual(self.table.horizontalHeaderItem(_COL_REGEN).text(), "↺")
+        self.assertEqual(self.table.horizontalHeaderItem(COL_REGEN).text(), "↺")
 
     def test_the_cell_shows_the_count(self):
         # A bare number, Marcel: "for play counter remove the x"
@@ -130,9 +130,9 @@ class SavedLayoutTest(unittest.TestCase):
         migrate_column_settings(s)
         self.assertEqual(s["hidden_columns"],
                          {"playlist": [1, _COL_COMMENT, _COL_PLAYS],
-                          "wishlist": [_COL_PLAYS, _COL_REGEN]})
+                          "wishlist": [_COL_PLAYS, COL_REGEN]})
         self.assertEqual(s["column_widths"]["playlist"],
-                         {str(_COL_COMMENT): 180, str(_COL_REGEN): 30})
+                         {str(_COL_COMMENT): 180, str(COL_REGEN): 30})
         self.assertEqual(s["column_order"]["playlist"], list(range(16)))
 
     def test_the_library_gets_it_hidden_at_the_end(self):
@@ -140,7 +140,7 @@ class SavedLayoutTest(unittest.TestCase):
              "library_columns": list(range(15)), "library_hidden_columns": [14]}
         migrate_column_settings(s)
         self.assertEqual(s["library_columns"], list(range(16)))
-        self.assertEqual(s["library_hidden_columns"], [_LIB_COL_COMMENT, _LIB_COL_PLAYS])
+        self.assertEqual(s["library_hidden_columns"], [LIB_COL_COMMENT, LIB_COL_PLAYS])
 
     def test_a_layout_with_the_deck_column_only_gets_the_library_one(self):
         # columns_version 7 gave the decks Plays and the library nothing.
@@ -152,7 +152,7 @@ class SavedLayoutTest(unittest.TestCase):
         self.assertEqual(s["hidden_columns"], {"playlist": [1, _COL_PLAYS]})
         self.assertEqual(s["column_order"]["playlist"], list(range(16)))
         self.assertEqual(s["library_columns"], list(range(16)))
-        self.assertEqual(s["library_hidden_columns"], [_LIB_COL_PLAYS])
+        self.assertEqual(s["library_hidden_columns"], [LIB_COL_PLAYS])
 
 
 class LibraryPlaysTest(unittest.TestCase):
@@ -169,12 +169,12 @@ class LibraryPlaysTest(unittest.TestCase):
         t = self.pane._table
         row = next(r for r in range(t.rowCount())
                    if str(self.pane._row_path(r)) == str(path))
-        return t.item(row, _LIB_COL_PLAYS).text()
+        return t.item(row, LIB_COL_PLAYS).text()
 
     def test_it_is_the_last_column(self):
         t = self.pane._table
-        self.assertEqual((_LIB_COL_PLAYS, t.columnCount()), (15, 16))
-        self.assertEqual(t.horizontalHeaderItem(_LIB_COL_PLAYS).text(), "Plays")
+        self.assertEqual((LIB_COL_PLAYS, t.columnCount()), (15, 16))
+        self.assertEqual(t.horizontalHeaderItem(LIB_COL_PLAYS).text(), "Plays")
 
     def test_the_cell_shows_the_count(self):
         self.assertEqual(self.cell(), "2")
@@ -186,13 +186,13 @@ class LibraryPlaysTest(unittest.TestCase):
         self.assertEqual(self.cell(_OTHER), "1")
 
     def test_it_starts_hidden_and_can_be_ticked_on(self):
-        self.assertIn(_LIB_COL_PLAYS, self.pane.hidden_columns())
+        self.assertIn(LIB_COL_PLAYS, self.pane.hidden_columns())
         menu = self.pane.build_column_menu()
-        self.assertIn(_LIB_COL_PLAYS,
+        self.assertIn(LIB_COL_PLAYS,
                       [a.data() for a in menu.actions() if a.isCheckable()])
 
     def test_it_sorts_by_count(self):
-        key = self.pane._sort_key(_LIB_COL_PLAYS)
+        key = self.pane._sort_key(LIB_COL_PLAYS)
         self.assertLess(key(_entry(_OTHER, "Moon River")), key(_entry()))
 
     def test_the_header_menu_resets_through_the_window(self):

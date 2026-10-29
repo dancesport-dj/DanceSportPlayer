@@ -7,16 +7,57 @@ line-length = 120
 extend-exclude = ["build", "build_pyi", "dist"]
 
 [tool.ruff.lint]
-# Deliberately light: pyflakes (real errors — undefined names, unused
-# imports/variables) plus B905: every zip() says whether its inputs must be
-# the same length (strict=True) or may be cut short (strict=False), so a round
-# or dance list that runs short fails loudly instead of losing its tail.
-# Style rules are intentionally left off.
-select = ["F", "B905"]
+# Pyflakes (real errors — undefined names, unused imports/variables) plus B905:
+# every zip() says whether its inputs must be the same length (strict=True) or
+# may be cut short (strict=False), so a round or dance list that runs short
+# fails loudly instead of losing its tail.
+#
+# The idiom sets below are on too — none of them reformat code, they only flag
+# a construction that has a shorter equivalent: an unsorted import block, a
+# typing name that moved to collections.abc (UP035), an annotation still
+# written in quotes although PEP 649 made it lazy without them (UP037), a
+# try/except/pass that is contextlib.suppress (SIM105), a loop that appends
+# into a list (PERF401).
+#
+# C901 caps McCabe complexity as a ratchet: nothing fails at 25 today, and any
+# new function over it does. The two worst left are `_build_suspects_table`
+# (24) and `keyPressEvent` (23); the rest of the over-20 set are Qt event
+# handlers and menu builders, where the if-chain is the dispatch table and
+# flattening it to satisfy a number would read worse.
+select = ["F", "B905", "I", "UP", "SIM", "C4", "PERF", "PIE", "C901"]
+ignore = [
+    # Joins if/elif branches that share a body. On a chain of short guards it
+    # produces one long line that no longer reads as a list of cases, so the
+    # combination stays written out (see library_browser._refilter).
+    "SIM114",
+    # Would merge `with a:, with b:` into one statement with four managers.
+    # Nested `with` says which block releases what; the merged form does not.
+    "SIM117",
+    # Percent formatting: the remaining sites are one-line format strings whose
+    # only rewrite is a formatter call. Left as they read.
+    "UP031",
+    # `dict()`, `list()`, `tuple()` where a literal would do. Triggers on the
+    # `dict(row)` / `tuple(x)` conversions over sqlite rows and iterables, where
+    # the call is the conversion and the literal is not equivalent.
+    "C408",
+    # Reads the Windows environment's own misspelt 'ProgramFiles(x86)' key.
+    "SIM112",
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 25
+
+[tool.ruff.lint.isort]
+# The app's own top-level packages, so they sort under first-party rather than
+# being guessed from the directory layout.
+known-first-party = ["planner", "gui", "player", "shared", "tools"]
 
 [tool.ruff.lint.per-file-ignores]
 # The facade re-exports planner symbols on purpose.
 "dancesport_planner.py" = ["F401"]
+# The dialog package re-exports its classes the same way, from below a module
+# docstring and the Qt imports they are built on.
+"gui/dialogs/__init__.py" = ["E402"]
 
 [tool.basedpyright]
 # Type checking of all app code, in pyright's basic mode (basedpyright's

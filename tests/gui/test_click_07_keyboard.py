@@ -13,15 +13,16 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-# First: it points the app's state files at a temp folder before any app
-# module is imported.
-from tests.gui.monkey_support import ClickThrough, DropFrom
-
 from PySide6.QtCore import QMimeData, QPoint, QPointF, Qt, QUrl
 from PySide6.QtGui import QDrag
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QInputDialog
+
 from gui.dialogs import load_autosave
+
+# First: it points the app's state files at a temp folder before any app
+# module is imported.
+from tests.gui.monkey_support import ClickThrough, DropFrom
 
 
 def files(*paths) -> QMimeData:

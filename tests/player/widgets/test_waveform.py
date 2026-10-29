@@ -206,6 +206,7 @@ class CardTest(unittest.TestCase):
 
     def setUp(self):
         from PySide6.QtMultimedia import QMediaPlayer
+
         from player.widgets.player import BigPlayerWidget
         self.card = BigPlayerWidget(QMediaPlayer())
         self.addCleanup(reap_widget, self.card)
@@ -286,8 +287,8 @@ class CardTest(unittest.TestCase):
         self.card._player.setPosition = sought.append
         self.card._wave.scrubbed.emit(30_000)
         self.assertEqual(self.card._slider.value(), 30_000)
-        from player.widgets.player_parts import _fmt_ms
-        self.assertEqual(self.card._elapsed.text(), _fmt_ms(30_000))
+        from player.widgets.player_parts import fmt_ms
+        self.assertEqual(self.card._elapsed.text(), fmt_ms(30_000))
         self.card._on_position(90_000)              # a playback tick mid-drag
         self.assertEqual(self.card._slider.value(), 30_000)
         self.card._wave.seekRequested.emit(0)
@@ -313,6 +314,7 @@ class LoaderTest(unittest.TestCase):
 
     def test_peaks_come_back_through_the_signal_and_are_kept(self):
         from PySide6.QtCore import QEventLoop, QTimer
+
         from player.widgets import waveform
         loader = waveform.WaveformLoader(compute=lambda path: [0.1, 1.0])
         got = []

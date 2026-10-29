@@ -6,7 +6,7 @@ still be loading) so the notice is not the first thing a start shows.
 """
 import logging
 
-from PySide6.QtCore import QObject, QTimer, QUrl, Qt, Signal
+from PySide6.QtCore import QObject, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QMessageBox
 

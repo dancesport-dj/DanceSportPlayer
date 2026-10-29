@@ -16,6 +16,8 @@ import tempfile
 import threading
 import time
 import unittest
+from typing import Any
+from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
@@ -23,6 +25,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication
 
+from gui import workers
 from gui.workers import LibraryPass
 
 
@@ -163,6 +166,35 @@ class ParallelPassTest(unittest.TestCase):
         p.progress.connect(lambda *a: p.cancel())
         p.run()
         self.assertEqual(live_at_cancel, [0])
+
+    def test_a_cancel_landing_just_before_a_submit_is_still_a_cancel(self):
+        # The GUI thread's cancel() shuts the pool down; it may land after the
+        # pass looked at `_cancel` and before it handed the pool the next track.
+        # That submit then raised, and the pass ended in an error box without
+        # saving its last batch (BUG_REVIEW B5.7).
+        holder = {}
+        real_pool = workers.ThreadPoolExecutor
+
+        class _LatePool(real_pool):
+            calls = 0
+
+            def submit(self, *args, **kwargs):
+                _LatePool.calls += 1
+                if _LatePool.calls == _Pass.workers * 2 + 3:
+                    holder["pass"].cancel()
+                return super().submit(*args, **kwargs)
+
+        p = _Pass(self._paths(40), delay=0.01)
+        holder["pass"] = p
+        done, errors = [], []
+        p.cancelled.connect(done.append)
+        p.error.connect(errors.append)
+        with mock.patch.object(workers, "ThreadPoolExecutor", _LatePool):
+            p.run()
+        self.assertEqual(errors, [])
+        self.assertTrue(done, "the pass never reported itself cancelled")
+        cache: Any = p.cache   # the _Cache stand-in
+        self.assertGreaterEqual(cache.saves, 1)
 
 
 class SerialPassStaysSerialTest(unittest.TestCase):

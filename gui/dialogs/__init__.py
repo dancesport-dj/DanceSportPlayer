@@ -13,25 +13,44 @@ import os
 import sys
 from pathlib import Path
 
-from PySide6.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
-    QPushButton, QLabel,
-    QComboBox, QCheckBox, QLineEdit,
-    QDialog,
-    QFileDialog, QDialogButtonBox, QRadioButton, QButtonGroup,
-    QMessageBox, QTableWidget, QTableWidgetItem, QAbstractItemView, QFrame,
-    QSizePolicy,
-)
 from PySide6.QtCore import (
-    Qt, Signal, QProcess, QSize, QStandardPaths, QTimer,
+    QProcess,
+    QSize,
+    QStandardPaths,
+    Qt,
+    QTimer,
+    Signal,
 )
 from PySide6.QtGui import QColor, QPixmap
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
+    QButtonGroup,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFileDialog,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QRadioButton,
+    QSizePolicy,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 
 import planner.config
-from planner.music.gaps import gap_stats, shopping_list, GAP_MIN_POOL, GAP_MIN_PROVEN
 from planner.models import DANCE_STYLES, rounds_from_pattern
-from planner.terms import dance_name
+from planner.music.gaps import GAP_MIN_POOL, GAP_MIN_PROVEN, gap_stats, shopping_list
 from planner.playing.play_sets import migrate_play_sets
+from planner.terms import dance_name
 
 log = logging.getLogger("dancesport.gui")
 
@@ -42,27 +61,30 @@ log = logging.getLogger("dancesport.gui")
 # moved them out from under names that were already gui.dialogs'.
 # (gui.common/dialog modules never import gui.dialogs, so there is no cycle.)
 from gui.common import (
-    _DroppedFilesList,
-    _MultiFileDropZone,
+    DroppedFilesList,
+    MultiFileDropZone,
 )
-from shared.widgets import (
-    _app_icon,
-    _hsep,
+from gui.dialogs.ai_dialogs import (  # noqa: F401
+    AiPlaylistDialog,
+    AiSuggestDialog,
+    AiTranscriptDialog,
 )
-from shared import error_reports, update_check
-from shared.appearance import looks
+from gui.dialogs.duplicate_dialog import DuplicateResolveDialog  # noqa: F401
+from gui.dialogs.similar_dialog import SimilarTracksDialog  # noqa: F401
 from planner import i18n
 from planner.store import JsonStore
 from planner.version import DEV
-from shared.stores import SETTINGS, save_settings
-from gui.dialogs.similar_dialog import SimilarTracksDialog  # noqa: F401
-from gui.dialogs.duplicate_dialog import DuplicateResolveDialog  # noqa: F401
-from gui.dialogs.ai_dialogs import (  # noqa: F401
-    AiPlaylistDialog, AiSuggestDialog, AiTranscriptDialog,
-)
+from shared import error_reports, update_check
+from shared.appearance import looks
+
 # shared.audio.audio_probes pulls in nothing but the planner and QtCore, so no cycle here.
 from shared.audio.audio_probes import find_ffmpeg
-from shared.audio.playback import device_id
+from shared.audio.playback import channel_pairs, device_id
+from shared.stores import SETTINGS, save_settings
+from shared.widgets import (
+    app_icon,
+    hsep,
+)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Settings (persisted paths + global-search opt-in)
@@ -90,7 +112,7 @@ def _user_music_dir() -> Path:
     return _home_dir(QStandardPaths.StandardLocation.MusicLocation, "Music")
 
 
-def _user_docs_dir() -> Path:
+def user_docs_dir() -> Path:
     return _home_dir(QStandardPaths.StandardLocation.DocumentsLocation, "Documents")
 
 
@@ -111,10 +133,10 @@ def _default_global_dir() -> Path:
     return _user_music_dir()
 
 
-def _default_save_dir() -> Path:
+def default_save_dir() -> Path:
     """Default folder for the 'Save as M3U…' file chooser (the user's
     Documents), used until the user picks somewhere else."""
-    return _user_docs_dir()
+    return user_docs_dir()
 
 
 # Where each configured folder lands when it isn't there: a drive letter that
@@ -124,8 +146,8 @@ def _default_save_dir() -> Path:
 _PATH_FALLBACKS = {
     "library_dir": _user_music_dir,
     "global_dir": _user_music_dir,
-    "save_dir": _user_docs_dir,
-    "playlist_dir": _user_docs_dir,
+    "save_dir": user_docs_dir,
+    "playlist_dir": user_docs_dir,
     "reference_path": _user_music_dir,
 }
 
@@ -195,10 +217,10 @@ def apply_path_fallbacks(s: dict) -> dict:
 def load_settings() -> dict:
     """Read gui_settings.json, falling back to sensible per-machine defaults."""
     s = {
-        "library_dir":   str(_default_library_dir()),
-        "global_dir":    str(_default_global_dir()),
-        "save_dir":      str(_default_save_dir()),
-        "playlist_dir":  str(planner.config.PLAYLIST_DIR),
+        "library_dir": str(_default_library_dir()),
+        "global_dir": str(_default_global_dir()),
+        "save_dir": str(default_save_dir()),
+        "playlist_dir": str(planner.config.PLAYLIST_DIR),
         "reference_path": str(_default_library_dir()),
         # Extra folders 🧭 Fix paths searches when a playlist comes from
         # another PC — empty until the operator names one.
@@ -220,6 +242,8 @@ def load_settings() -> dict:
         # ⛶ The fullscreen clock without its date: "20:45:12".
         "clock_time_only": False,
         "preview_player": True,
+        # ▸ Advanced on the 🔊 Sound & player tab: left open or folded.
+        "sound_advanced_open": False,
         # Where the master player is docked — see PLAYER_LAYOUT_CHOICES.
         "player_layout": "panel",
         # A double-click CUES the title by default — the desk is a tournament
@@ -237,6 +261,10 @@ def load_settings() -> dict:
         # without the heat number until ⚙ Settings asks for it.
         "announce_voice": "random",
         "announce_heat": False,
+        # 📣 …naming the bare dance, not opening with "Nächster Tanz".
+        "announce_lead": False,
+        # 🔢 …and naming the dance, not just the heat (a practice evening).
+        "announce_heat_only": False,
         # 🗣 …named over the first bars, not into a silence before them.
         "announce_wait": False,
         # 🔇 Hand the sound device back when nothing is playing. Off by
@@ -280,6 +308,17 @@ def audio_output_choices() -> list[tuple[str, str]]:
         return []
     return [(device_id(d).hex(), d.description())
             for d in QMediaDevices.audioOutputs()]
+
+
+def audio_output_pairs() -> dict[str, int]:
+    """🔀 How many stereo pairs each output carries (hex of its id → count):
+    more than one on a card Windows lists as ONE multichannel device."""
+    try:
+        from PySide6.QtMultimedia import QMediaDevices
+    except ImportError:
+        return {}
+    return {device_id(d).hex(): channel_pairs(d)
+            for d in QMediaDevices.audioOutputs()}
 
 
 # Bumped when a column is added to the decks or the library: the column ticks,
@@ -582,6 +621,38 @@ def warmup_name(mode: str) -> str:
     return "Party" if mode == "player" else i18n.t("Practice / Party")
 
 
+def wishlist_name(n: int, lang: str | None = None) -> str:
+    """The default title of wishlist `n` (1-4), in `lang` or the app's language."""
+    word = i18n.t("Wishlist") if lang is None else i18n.translate("Wishlist", lang)
+    return f"⭐  {word}" if n == 1 else f"⭐  {word} {n}"
+
+
+def deck_name(n: int, lang: str | None = None) -> str:
+    """The default title of deck `n` (1-8), in `lang` or the app's language."""
+    word = i18n.t("Playlist") if lang is None else i18n.translate("Playlist", lang)
+    return f"{word} {n}"
+
+
+def localized_deck_name(n: int, name: str) -> str:
+    """A saved deck title that is the default title of any language, put into
+    the app's language. A title the user typed comes back as it is."""
+    for code, *_ in i18n.LANGUAGES:
+        if name == deck_name(n, code):
+            return deck_name(n)
+    return name
+
+
+def localized_wishlist_name(n: int, name: str) -> str:
+    """A saved wishlist title, with a default title of any language — or one
+    named after a loaded playlist, "⭐  Wishlist 2: Finale" — put into the
+    app's language. A title the user typed comes back as it is."""
+    for code, *_ in i18n.LANGUAGES:
+        old = wishlist_name(n, code)
+        if name == old or name.startswith(old + ": "):
+            return wishlist_name(n) + name[len(old):]
+    return name
+
+
 class AppModeDialog(QDialog):
     """First start: is this machine the planning desk, the tournament player,
     or both? The answer only hides UI — nothing is uninstalled by it, and
@@ -603,7 +674,7 @@ class AppModeDialog(QDialog):
         note.setWordWrap(True)
         note.setStyleSheet("color:#666; font-size:11px;")
         lyt.addWidget(note)
-        lyt.addWidget(_hsep())
+        lyt.addWidget(hsep())
 
         self._group = QButtonGroup(self)
         self._radios = {}
@@ -959,7 +1030,7 @@ class FfmpegMissingDialog(QDialog):
             "<li>🔇 silence detection at the start and end of a track</li></ul>")
         lost.setWordWrap(True)
         lyt.addWidget(lost)
-        lyt.addWidget(_hsep())
+        lyt.addWidget(hsep())
 
         self.rows = []
         for caption, command in ffmpeg_install_steps(platform):
@@ -1119,7 +1190,7 @@ class PrintExportDialog(QDialog):
         if deck_count <= 1:
             self._rb_all.setEnabled(False)
 
-        self._drop_zone = _MultiFileDropZone()
+        self._drop_zone = MultiFileDropZone()
         self._drop_zone.filesDropped.connect(self._on_dropped)
         lyt.addWidget(self._drop_zone)
         self._drop_lbl = QLabel("No files added yet.")
@@ -1165,7 +1236,7 @@ class PrintExportDialog(QDialog):
         return list(self._dropped)
 
 
-class _M3uOnlyDropZone(_MultiFileDropZone):
+class _M3uOnlyDropZone(MultiFileDropZone):
     """A drop zone accepting only .m3u/.m3u8 playlists — a venue folder can only
     be built from a playlist file, not from single tracks."""
     _DROP_EXTS = ('.m3u', '.m3u8')
@@ -1181,7 +1252,7 @@ class _M3uOnlyDropZone(_MultiFileDropZone):
         # Bypass _MultiFileDropZone's browse (it offers audio files too).
         if e.button() == Qt.MouseButton.LeftButton:
             paths, _ = QFileDialog.getOpenFileNames(
-                self, "Select playlists", str(_default_save_dir()),
+                self, "Select playlists", str(default_save_dir()),
                 "M3U playlists (*.m3u *.m3u8);;All files (*)",
             )
             if paths:
@@ -1189,14 +1260,14 @@ class _M3uOnlyDropZone(_MultiFileDropZone):
         QFrame.mousePressEvent(self, e)
 
 
-class _M3uDroppedList(_DroppedFilesList):
+class _M3uDroppedList(DroppedFilesList):
     """The reviewable list under the USB-export drop zone — what was added so
     far, with ➕ / ➖ / 🗑 curation — restricted to .m3u/.m3u8 (a bundle folder
     can only be built from a playlist file)."""
 
     def _browse(self):
         paths, _ = QFileDialog.getOpenFileNames(
-            self, "Select playlists", str(_default_save_dir()),
+            self, "Select playlists", str(default_save_dir()),
             "M3U playlists (*.m3u *.m3u8);;All files (*)",
         )
         if paths:
@@ -1339,7 +1410,6 @@ class UsbBundleFolderDialog(QDialog):
         btns = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel)
         self._create = btns.addButton("📁  Create folder",
                                       QDialogButtonBox.ButtonRole.AcceptRole)
-        self._create.setDefault(True)
         self._into = None
         if not at_top:
             self._into = btns.addButton(
@@ -1349,6 +1419,9 @@ class UsbBundleFolderDialog(QDialog):
         btns.accepted.connect(self.accept)
         btns.rejected.connect(self.reject)
         lyt.addWidget(btns)
+        # Only once the box is in the dialog: set before, the dialog never
+        # learns of it and Enter in the name went to Cancel.
+        self._create.setDefault(True)
         self._edit.textChanged.connect(
             lambda text: self._create.setEnabled(bool(text.strip())))
 
@@ -1418,7 +1491,7 @@ class MusicSpeedDialog(QDialog):
                  tempo_ratios=(1.0,), parent=None):
         super().__init__(parent)
         self.setWindowTitle("🎵 Music speed")
-        self.setWindowIcon(_app_icon())
+        self.setWindowIcon(app_icon())
         self.setModal(True)
         lay = QVBoxLayout(self)
 
@@ -1432,7 +1505,7 @@ class MusicSpeedDialog(QDialog):
         lay.addWidget(QLabel(
             i18n.t("Dance: %s") % dname
             + ("  ·  " + i18n.t("%s (%d beats/bar)") % (meter, bpb) if bpb else "")))
-        lay.addWidget(_hsep())
+        lay.addWidget(hsep())
 
         grid = QGridLayout()
         grid.setColumnStretch(1, 1)
@@ -1461,7 +1534,7 @@ class MusicSpeedDialog(QDialog):
             self._row(grid, 3, "🔬 Measured", "— (not measured)", "—")
 
         lay.addLayout(grid)
-        lay.addWidget(_hsep())
+        lay.addWidget(hsep())
 
         v = QLabel(self._verdict(file_takt, bpb, measured, tempo_ratios))
         v.setWordWrap(True)
@@ -1516,7 +1589,7 @@ class TournamentDayDialog(QDialog):
                  pattern="6-3-2-1", parent=None):
         super().__init__(parent)
         self.setWindowTitle("📅 Plan tournament day")
-        self.setWindowIcon(_app_icon())
+        self.setWindowIcon(app_icon())
         self.setModal(True)
         self._rows = []
 
@@ -1528,7 +1601,7 @@ class TournamentDayDialog(QDialog):
             "day (Paso Doble may repeat).")
         hint.setWordWrap(True)
         lay.addWidget(hint)
-        lay.addWidget(_hsep())
+        lay.addWidget(hsep())
 
         head = QHBoxLayout()
         for text, stretch in (("Style", 2), ("Age", 2), ("Class", 1), ("Rounds", 2)):
@@ -1545,7 +1618,7 @@ class TournamentDayDialog(QDialog):
         add_btn = QPushButton("➕ Add competition")
         add_btn.clicked.connect(lambda: self._add_row())
         lay.addWidget(add_btn)
-        lay.addWidget(_hsep())
+        lay.addWidget(hsep())
 
         bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok
                               | QDialogButtonBox.StandardButton.Cancel)
@@ -1627,7 +1700,7 @@ class LibraryGapsDialog(QDialog):
     def __init__(self, lib, parent=None):
         super().__init__(parent)
         self.setWindowTitle("📊 Library gaps")
-        self.setWindowIcon(_app_icon())
+        self.setWindowIcon(app_icon())
         self.resize(860, 560)
         self._lib = lib
         self._rows = gap_stats(lib)

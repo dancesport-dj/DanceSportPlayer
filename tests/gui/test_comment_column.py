@@ -21,11 +21,11 @@ from PySide6.QtWidgets import QApplication
 from dancesport_planner import RoundConfig
 from gui.common import DEFAULT_HIDDEN_COLUMNS
 from gui.dialogs import migrate_column_settings
-from gui.library_browser import _LIB_COL_COMMENT, LibraryBrowser
+from gui.library_browser import LIB_COL_COMMENT, LibraryBrowser
 from gui.table.playlist_table import PlaylistTable
 from gui.table.table_actions import TableActionsMixin
 from planner.models import MusicEntry
-from shared.columns import _COL_ALBUM, _COL_COMMENT, _COL_PLAYS, _COL_REGEN, _N_COLS
+from shared.columns import _COL_ALBUM, _COL_COMMENT, _COL_PLAYS, _N_COLS, COL_REGEN
 from tests.qt_test_support import reap_widget
 
 _app = QApplication.instance() or QApplication([])
@@ -53,10 +53,10 @@ class DeckCommentTest(unittest.TestCase):
 
     def test_comment_sits_between_album_and_regen(self):
         # 🔁 Plays came in behind it later, at 14 (↺ to 15).
-        self.assertEqual((_COL_ALBUM, _COL_COMMENT, _COL_PLAYS, _COL_REGEN, _N_COLS),
+        self.assertEqual((_COL_ALBUM, _COL_COMMENT, _COL_PLAYS, COL_REGEN, _N_COLS),
                          (12, 13, 14, 15, 16))
         self.assertEqual(self.table.horizontalHeaderItem(_COL_COMMENT).text(), "Comment")
-        self.assertEqual(self.table.horizontalHeaderItem(_COL_REGEN).text(), "↺")
+        self.assertEqual(self.table.horizontalHeaderItem(COL_REGEN).text(), "↺")
 
     def test_the_cell_shows_the_comment_as_written(self):
         it = self.table.item(self.row, _COL_COMMENT)
@@ -86,16 +86,16 @@ class LibraryCommentTest(unittest.TestCase):
 
     def test_the_cell(self):
         t = self.pane._table
-        self.assertEqual(_LIB_COL_COMMENT, 14)
+        self.assertEqual(LIB_COL_COMMENT, 14)
         self.assertEqual(t.columnCount(), 16)   # 🔁 Plays came after it
-        self.assertEqual(t.horizontalHeaderItem(_LIB_COL_COMMENT).text(), "Comment")
-        self.assertEqual(t.item(0, _LIB_COL_COMMENT).text(), "vocal AS")
-        self.assertEqual(self.pane.cell_tooltip(0, _LIB_COL_COMMENT), "vocal AS")
+        self.assertEqual(t.horizontalHeaderItem(LIB_COL_COMMENT).text(), "Comment")
+        self.assertEqual(t.item(0, LIB_COL_COMMENT).text(), "vocal AS")
+        self.assertEqual(self.pane.cell_tooltip(0, LIB_COL_COMMENT), "vocal AS")
 
     def test_it_starts_hidden_and_can_be_ticked_on(self):
-        self.assertIn(_LIB_COL_COMMENT, self.pane.hidden_columns())
+        self.assertIn(LIB_COL_COMMENT, self.pane.hidden_columns())
         menu = self.pane.build_column_menu()
-        self.assertIn(_LIB_COL_COMMENT,
+        self.assertIn(LIB_COL_COMMENT,
                       [a.data() for a in menu.actions() if a.isCheckable()])
 
 
@@ -110,9 +110,9 @@ class SavedLayoutTest(unittest.TestCase):
         migrate_column_settings(s)
         self.assertEqual(s["hidden_columns"],
                          {"playlist": [1, _COL_ALBUM, _COL_COMMENT, _COL_PLAYS],
-                          "wishlist": [_COL_COMMENT, _COL_PLAYS, _COL_REGEN]})
+                          "wishlist": [_COL_COMMENT, _COL_PLAYS, COL_REGEN]})
         self.assertEqual(s["column_widths"]["playlist"],
-                         {str(_COL_ALBUM): 180, str(_COL_REGEN): 30})
+                         {str(_COL_ALBUM): 180, str(COL_REGEN): 30})
         self.assertEqual(s["library_columns"], list(range(16)))
         self.assertEqual(s["library_hidden_columns"], [13, 14, 15])
 

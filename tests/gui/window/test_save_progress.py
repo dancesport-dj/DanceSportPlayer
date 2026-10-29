@@ -22,11 +22,11 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from pathlib import Path
 
 from PySide6.QtWidgets import QApplication, QWidget
-from tests.qt_test_support import reap_widget
 
 from gui.window.main_export import ExportMixin
 from gui.window.main_persist import PersistenceMixin
 from planner.models import MusicEntry
+from tests.qt_test_support import reap_widget
 
 _app = QApplication.instance() or QApplication([])
 

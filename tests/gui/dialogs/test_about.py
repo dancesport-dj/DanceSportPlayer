@@ -22,8 +22,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import QApplication, QLabel
 
-from gui.dialogs import about
 from gui.common import LoadingDialog
+from gui.dialogs import about
 from planner import i18n
 from tests.qt_test_support import reap_widget, stub_window_startup
 
@@ -73,6 +73,21 @@ class AboutTextTest(unittest.TestCase):
                      "FFmpeg (LGPL-2.1+, ffmpeg.exe GPL-3.0)",
                      "href='https://github.com/dancesport-dj/DanceSportPlayer/blob/main/"
                      "THIRD_PARTY_LICENSES.md'"):
+            self.assertIn(part, text)
+
+    def test_it_says_where_bugs_and_ideas_go(self):
+        # Marcel: "explain how to submit reports via GitHub Issues (link directly
+        # to the new-issue page). For users without an account, offer email".
+        text = about.about_html("DanceSport Player", "1.2.0")
+        for part in ("href='https://github.com/dancesport-dj/DanceSportPlayer/issues/new'",
+                     "href='mailto:dancesportplayer@t-online.de'",
+                     "dancesportplayer@t-online.de", "GitHub account"):
+            self.assertIn(part, text)
+
+    def test_the_report_text_follows_the_language(self):
+        i18n.set_active("de")
+        text = about.about_html("DanceSport Player", "1.2.0")
+        for part in ("Fehler &amp; Ideen", "GitHub-Konto"):
             self.assertIn(part, text)
 
     def test_mert_is_credited_where_it_runs(self):

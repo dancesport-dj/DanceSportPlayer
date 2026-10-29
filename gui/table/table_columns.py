@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import QPoint
 from PySide6.QtWidgets import QMenu
 
+from gui.common import DANCE_SHORT, add_custom_mapping_action
 from planner.playing import play_counts
 from planner.terms import dance_name
 from shared.columns import (
@@ -17,11 +18,10 @@ from shared.columns import (
     _COL_LEN,
     _COL_PLAY,
     _COL_RATING,
-    _COL_REGEN,
     _COL_TITLE,
     _N_COLS,
+    COL_REGEN,
 )
-from gui.common import DANCE_SHORT, add_custom_mapping_action
 
 if TYPE_CHECKING:
     from gui.window.hosts import PlaylistTableHost
@@ -35,7 +35,7 @@ class TableColumnsMixin(PlaylistTableHost):
     # Readable names for the three columns whose caption is a glyph — a tick list
     # reading "▶ / ⏱ / ↺" says nothing about what would disappear.
     _COL_MENU_NAMES = {_COL_PLAY: "▶  Play", _COL_LEN: "⏱  Length",
-                       _COL_RATING: "★  Rating", _COL_REGEN: "↺  Regenerate"}
+                       _COL_RATING: "★  Rating", COL_REGEN: "↺  Regenerate"}
 
     # Whole captions, not the bare noun: the noun on its own cannot be a
     # catalog key, and glueing one into a sentence is how the German would go
@@ -82,8 +82,8 @@ class TableColumnsMixin(PlaylistTableHost):
         hh = self.horizontalHeader()
         if hh.visualIndex(_COL_DANCE) != 0:
             hh.moveSection(hh.visualIndex(_COL_DANCE), 0)
-        if hh.visualIndex(_COL_REGEN) != _N_COLS - 1:
-            hh.moveSection(hh.visualIndex(_COL_REGEN), _N_COLS - 1)
+        if hh.visualIndex(COL_REGEN) != _N_COLS - 1:
+            hh.moveSection(hh.visualIndex(COL_REGEN), _N_COLS - 1)
 
     def _on_section_moved(self, *_args):
         """A header was dragged to a new place: hold the edges, then tell the

@@ -25,7 +25,7 @@ from collections import Counter
 from pathlib import Path
 
 from planner import i18n
-from planner.music.parsing import _clean_title
+from planner.music.parsing import clean_title
 
 # The eight planning decks 🅰–🅷, the eight 📅 day decks 🄰–🄷, the four
 # wishlists. Order matters: it is zipped against the tables in that same order.
@@ -76,7 +76,7 @@ def track_label(path: str) -> str:
     """Short, human song name for an undo/redo message, from the filename."""
     try:
         stem = Path(path).stem
-        return _clean_title(stem) or stem
+        return clean_title(stem) or stem
     except Exception:
         return str(path)
 
@@ -136,7 +136,7 @@ class SessionEnv:
             c.update(paths)
         return c
 
-    def moved_from(self, before: "SessionEnv") -> list:
+    def moved_from(self, before: SessionEnv) -> list:
         """Tracks sitting in a different slot / position than in `before` —
         asked when the multisets match, i.e. a pure move / swap / reorder."""
         moved = []
@@ -156,7 +156,7 @@ class SessionEnv:
         seen = set()
         return [p for p in moved if not (p in seen or seen.add(p))]
 
-    def describe_change_from(self, before: "SessionEnv") -> str:
+    def describe_change_from(self, before: SessionEnv) -> str:
         """Best-effort, human summary of what an undo/redo step did, for the
         toast and the ↶/↷ tooltip — so the operator sees WHICH track changed."""
         bc = before.all_paths()

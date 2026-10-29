@@ -23,10 +23,10 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtCore import QUrl
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtWidgets import QApplication
-from tests.qt_test_support import reap_widget
 
 from player.window import main_player
 from tests.player.audio.test_fade_indicator import _Desk
+from tests.qt_test_support import reap_widget
 
 PLAYING = QMediaPlayer.PlaybackState.PlayingState
 
@@ -56,6 +56,7 @@ class _StallDesk(_Desk):
     def __init__(self):
         super().__init__()
         self._player = _Media()
+        self._settings = {}
         self._resume_seek_ms = None
         self.failed = []
 
@@ -78,7 +79,7 @@ class StallWatchdogTest(unittest.TestCase):
         self.now = 100.0
         clock = mock.patch.object(main_player.time, "monotonic",
                                   side_effect=lambda: self.now)
-        toast = mock.patch.object(main_player, "_show_toast")
+        toast = mock.patch.object(main_player, "show_toast")
         clock.start()
         self.toast = toast.start()
         self.addCleanup(clock.stop)
@@ -138,6 +139,21 @@ class StallWatchdogTest(unittest.TestCase):
         self.tick_after(5.0)
         self.assertIn("play", self.desk._player.calls)
         self.assertEqual(self.desk.failed, [])
+
+    def test_a_pause_is_not_a_stall(self):
+        # BUG_REVIEW B1.1: the clock of the last move ran on through ⏯ pause,
+        # so the first tick after a pause of 5 s or more took it for a stall.
+        self.tick_after(0.2)
+        self.now += 6.0                 # ⏯ paused: the tick does not run
+        self.desk._level_owed = False
+        with mock.patch.object(self.desk, "_xfade_follow", create=True), \
+                mock.patch.object(self.desk, "_deckset", create=True), \
+                mock.patch.object(self.desk, "_refresh_wake_lock", create=True), \
+                mock.patch.object(self.desk, "_refresh_loudness_gain", create=True):
+            self.desk._on_playback_state(PLAYING)
+        self.tick_after(0.2)            # the position has not moved yet
+        self.assertEqual(self.desk._player.calls, [])
+        self.toast.assert_not_called()
 
 
 if __name__ == "__main__":

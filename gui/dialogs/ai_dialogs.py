@@ -8,66 +8,89 @@ import re
 from dataclasses import replace
 from pathlib import Path
 
-from PySide6.QtWidgets import (
-    QVBoxLayout, QHBoxLayout, QTableWidgetItem, QPushButton, QLabel,
-    QComboBox, QLineEdit, QHeaderView, QAbstractItemView, QMessageBox,
-    QDialog, QSpinBox, QPlainTextEdit, QRadioButton, QGroupBox, QButtonGroup,
-    QProgressBar, QApplication, QScrollArea, QFrame, QWidget, QSizePolicy,
-    QCheckBox, QSlider, QTableWidget,
-)
 from PySide6.QtCore import (
-    Qt, QTimer, Signal,
+    Qt,
+    QTimer,
+    Signal,
 )
 from PySide6.QtGui import (
     QFontDatabase,
 )
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
+    QButtonGroup,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QFrame,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPlainTextEdit,
+    QProgressBar,
+    QPushButton,
+    QRadioButton,
+    QScrollArea,
+    QSizePolicy,
+    QSlider,
+    QSpinBox,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 
+from gui.common import (  # noqa: F401  (shared primitives)
+    C_DANCE_BG,
+    C_DANCE_FG,
+    C_DEFAULT,
+    C_NEW_FG,
+    C_POP_FG,
+    C_ROUND_BG,
+    C_ROUND_FG,
+    C_ROW_EVEN,
+    C_ROW_ODD,
+    C_SIM_FG,
+    C_WARN_FG,
+    BusyDialog,
+    DragTable,
+    DroppedFilesList,
+    DropZone,
+    LoadingDialog,
+    MultiFileDropZone,
+    PathListWidget,
+    _lbl,
+    apply_taskbar_icon,
+    entry_tooltip,
+    fmt_duration,
+    fmt_track_secs,
+    open_folder,
+    open_in_default_player,
+    reveal_in_explorer,
+    sanitize_filename,
+)
+from gui.workers import (
+    OpenRouterChatWorker,
+    OpenRouterModelsWorker,
+)
+from planner import i18n
+from planner.event import event_plan
+from planner.event.competition import CompetitionSpec, parse_competition_schedule
+from planner.generate import llm
 from planner.generate.ai import (
     DEFAULT_API_BASE,
-    load_openrouter_config,
-    save_openrouter_config,
-    build_track_prompt,
-    parse_ai_suggestions,
-    match_suggestions_to_library,
     FREE_MODELS_FALLBACK,
+    build_track_prompt,
+    load_openrouter_config,
+    match_suggestions_to_library,
+    parse_ai_suggestions,
+    save_openrouter_config,
 )
-from planner.event import event_plan
-from planner import i18n
-from planner.event.competition import CompetitionSpec, parse_competition_schedule
 from planner.models import DANCE_NAMES, DEFAULT_DANCES
-from gui.workers import (
-    OpenRouterChatWorker, OpenRouterModelsWorker,
-)
-from planner.generate import llm
-from gui.common import (  # noqa: F401  (shared primitives)
-    _sanitize_filename,
-    apply_taskbar_icon,
-    _lbl,
-    LoadingDialog,
-    _fmt_duration,
-    BusyDialog,
-    _C_ROUND_BG,
-    _C_ROUND_FG,
-    _C_DANCE_BG,
-    _C_DANCE_FG,
-    _C_ROW_EVEN,
-    _C_ROW_ODD,
-    _C_POP_FG,
-    _C_NEW_FG,
-    _C_SIM_FG,
-    _C_WARN_FG,
-    _C_DEFAULT,
-    _fmt_track_secs,
-    _entry_tooltip,
-    _open_in_default_player,
-    _open_folder,
-    reveal_in_explorer,
-    _DragTable,
-    DropZone,
-    _PathListWidget,
-    _DroppedFilesList,
-    _MultiFileDropZone,
-)
 
 log = logging.getLogger("dancesport.gui")
 
@@ -85,14 +108,16 @@ class AiSuggestDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("AI Song Suggestions (OpenRouter)")
         self.resize(620, 520)
-        self._lib       = lib
-        self._play_cb   = play_cb
-        self._dance     = dance
-        self._theme     = theme
+        self._lib = lib
+        self._play_cb = play_cb
+        self._dance = dance
+        self._theme = theme
         self._row_paths: list[Path | None] = []
-        self._cur_row   = -1
-        self._chat: OpenRouterChatWorker | None   = None
+        self._cur_row = -1
+        self._chat: OpenRouterChatWorker | None = None
         self._models: OpenRouterModelsWorker | None = None
+        # "Close" accepts and Esc rejects; neither sends a closeEvent.
+        self.finished.connect(lambda _=0: self._stop_preview())
 
         cfg = load_openrouter_config()
         lyt = QVBoxLayout(self)
@@ -157,7 +182,7 @@ class AiSuggestDialog(QDialog):
         lyt.addLayout(grow)
 
         # Results table
-        self._table = _DragTable(self._row_paths)
+        self._table = DragTable(self._row_paths)
         self._table.setColumnCount(len(self._COLS))
         self._table.setHorizontalHeaderLabels(self._COLS)
         self._table.verticalHeader().setVisible(False)
@@ -200,7 +225,7 @@ class AiSuggestDialog(QDialog):
 
     # ── Get suggestions ──────────────────────────────────────────────────────────
     def _get(self):
-        key   = self._key_edit.text().strip()
+        key = self._key_edit.text().strip()
         model = self._model_combo.currentText().strip()
         if not key:
             QMessageBox.warning(self, "API key needed",
@@ -237,11 +262,14 @@ class AiSuggestDialog(QDialog):
         self._populate(matched)
 
     def _populate(self, matched):
+        # The playing row is gone with the old list: kept as current, the new
+        # list's ▶ in that row would stop instead of play.
+        self._stop_preview()
         self._row_paths = []
         self._table.setRowCount(len(matched))
         ctr = Qt.AlignmentFlag.AlignCenter
         for r, m in enumerate(matched):
-            s     = m["suggestion"]
+            s = m["suggestion"]
             entry = m["entry"]
             self._row_paths.append(entry.path if entry else None)
 
@@ -256,13 +284,13 @@ class AiSuggestDialog(QDialog):
 
             lib_it = QTableWidgetItem("✓" if entry else "–")
             lib_it.setTextAlignment(ctr)
-            lib_it.setForeground(_C_SIM_FG if entry else _C_DEFAULT)
+            lib_it.setForeground(C_SIM_FG if entry else C_DEFAULT)
             self._table.setItem(r, 1, lib_it)
             self._table.setItem(r, 2, QTableWidgetItem(s.get("artist", "")[:30]))
             self._table.setItem(r, 3, QTableWidgetItem(s.get("title", "")[:50]))
             match_txt = entry.title[:40] if entry else ""
             mi = QTableWidgetItem(match_txt)
-            mi.setForeground(_C_SIM_FG if entry else _C_DEFAULT)
+            mi.setForeground(C_SIM_FG if entry else C_DEFAULT)
             self._table.setItem(r, 4, mi)
         self._table._paths = self._row_paths
         self._table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
@@ -292,9 +320,13 @@ class AiSuggestDialog(QDialog):
         if isinstance(w, QPushButton):
             w.setText(text)
 
-    def closeEvent(self, event):
+    def _stop_preview(self):
         if self._cur_row >= 0 and self._play_cb:
             self._play_cb(None)
+        self._cur_row = -1
+
+    def closeEvent(self, event):
+        self._stop_preview()
         super().closeEvent(event)
 
 
@@ -722,7 +754,7 @@ class AiPlaylistDialog(QDialog):
 # ─────────────────────────────────────────────────────────────────────────────
 # AI Playlist Transcript (what actually went over the wire)
 # ─────────────────────────────────────────────────────────────────────────────
-class _Bubble(QFrame):
+class Bubble(QFrame):
     """One chat bubble: who said it, and what they said.
 
     Long turns — the catalog of rows is hundreds of lines — open with a preview
@@ -734,7 +766,7 @@ class _Bubble(QFrame):
 
     _SKIN = {
         # role: (background, border, header colour)
-        "sent":     ("#dce9fb", "#b6d0ee", "#1d4f86"),
+        "sent": ("#dce9fb", "#b6d0ee", "#1d4f86"),
         "received": ("#ffffff", "#d7dbe2", "#3a3f47"),
     }
 
@@ -802,7 +834,7 @@ class _Bubble(QFrame):
                                else "▴  fold back")
 
 
-class _ThinkingBubble(QFrame):
+class ThinkingBubble(QFrame):
     """The model's side of the thread while it is still typing.
 
     A turn takes minutes, and a still window with a finished prompt in it looks
@@ -982,11 +1014,16 @@ class AiTranscriptDialog(QDialog):
                 # Its answer — or, for a note, the question failed for good.
                 asked = turn[2]
                 self._stop_waiting(turn)
+            elif role == "note" and len(self._open) == 1 and title.startswith("⏳"):
+                # A retry after a server-side wobble: the question is still
+                # out, so the waiting goes on; the clock starts over because
+                # the attempt did.
+                self._open[0][1].findChild(ThinkingBubble).restart()
             elif role == "note" and len(self._open) == 1:
-                # A note DURING a turn — a retry after a server-side wobble,
-                # say. The question is still out, so the waiting goes on; the
-                # clock starts over because the attempt did.
-                self._open[0][1].findChild(_ThinkingBubble).restart()
+                # Any other note while the one question is out says it failed
+                # for good ("1 · The search round failed"): left open, the next
+                # turn's answer would close this bubble instead of its own.
+                self._stop_waiting(self._open[0])
             elif role == "received" and self._open:
                 turn = self._open[0]
                 asked = turn[2]
@@ -1022,7 +1059,7 @@ class AiTranscriptDialog(QDialog):
 
     def _start_waiting(self, what: str, size: int):
         """Put a live "the model is typing" bubble at the end of the thread."""
-        bubble = _ThinkingBubble(self._SPEAKER["received"], what)
+        bubble = ThinkingBubble(self._SPEAKER["received"], what)
         bubble.setMaximumWidth(self._bubble_width())
         row = QWidget()
         box = QHBoxLayout(row)
@@ -1037,7 +1074,7 @@ class AiTranscriptDialog(QDialog):
         all of them: the run is over."""
         for label, row, size in [turn] if turn is not None else list(self._open):
             self._open.remove([label, row, size])
-            for bubble in row.findChildren(_ThinkingBubble):
+            for bubble in row.findChildren(ThinkingBubble):
                 bubble.stop()
             self._thread.removeWidget(row)
             row.setParent(None)
@@ -1091,7 +1128,7 @@ class AiTranscriptDialog(QDialog):
             note.setStyleSheet("color:#6b727c; font-size:11px;")
             box.addWidget(note, stretch=1)
             return row
-        bubble = _Bubble(role, self._SPEAKER.get(role, "•"), title, text)
+        bubble = Bubble(role, self._SPEAKER.get(role, "•"), title, text)
         bubble.setMaximumWidth(self._bubble_width())
         if role == "sent":                # the planner speaks on the right
             box.addStretch(1)
@@ -1110,7 +1147,7 @@ class AiTranscriptDialog(QDialog):
         """Bubbles follow the window: the wrap width is a width, not a constant."""
         super().resizeEvent(ev)
         width = self._bubble_width()
-        for bubble in self.findChildren(_Bubble):
+        for bubble in self.findChildren(Bubble):
             bubble.setMaximumWidth(width)
 
     def _to_bottom(self):

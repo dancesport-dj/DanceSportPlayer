@@ -34,14 +34,14 @@ class AudioExtsTest(unittest.TestCase):
     def test_every_documented_format_passes_the_open_gate(self):
         for ext in DOCUMENTED:
             with self.subTest(ext=ext), mock.patch.object(common, "QMessageBox") as box:
-                common._open_in_default_player(Path(f"Z:/nowhere/track{ext}"))
+                common.open_in_default_player(Path(f"Z:/nowhere/track{ext}"))
                 text = box.warning.call_args.args[2]
                 # Past the suffix gate, a missing file is the only complaint.
                 self.assertIn("File not found", text)
 
     def test_a_script_is_still_refused(self):
         with mock.patch.object(common, "QMessageBox") as box:
-            common._open_in_default_player(Path("Z:/nowhere/run.bat"))
+            common.open_in_default_player(Path("Z:/nowhere/run.bat"))
         self.assertIn("not an audio file", box.warning.call_args.args[2])
 
     def test_the_tuple_is_defined_once(self):
@@ -51,7 +51,7 @@ class AudioExtsTest(unittest.TestCase):
                 tree = ast.parse(py.read_text(encoding="utf-8"))
                 defs += [f"{py.relative_to(REPO)}:{n.lineno}" for n in tree.body
                          if isinstance(n, ast.Assign) and any(
-                             isinstance(t, ast.Name) and t.id == "_AUDIO_EXTS"
+                             isinstance(t, ast.Name) and t.id == "AUDIO_EXTS"
                              for t in n.targets)]
         self.assertEqual(len(defs), 1, f"_AUDIO_EXTS assigned at {defs}")
 

@@ -22,15 +22,15 @@ from PySide6.QtWidgets import (
 
 import planner.config
 import planner.playlist.m3u
-from planner import i18n
-from planner.models import MusicEntry
-from shared.appearance.icons import counted_emoji
 from gui.common import DEFAULT_HIDDEN_COLUMNS
-from gui.dialogs import TOURNAMENTS
+from gui.dialogs import TOURNAMENTS, deck_name, wishlist_name
 from gui.library_browser import LibraryBrowser
 from gui.library_load_bar import NEEDS_LIBRARY
 from gui.table.playlist_table import PlaylistTable
 from gui.tournament_tree import TournamentTree
+from planner import i18n
+from planner.models import MusicEntry
+from shared.appearance.icons import counted_emoji
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -73,21 +73,21 @@ class DeckSetupMixin(MainWindowHost):
 
         # Three tables: two full playlist decks side-by-side + a flat wishlist below.
         # Controls (Generate / Save / ↺ / play / collapse) act on the focused deck.
-        self._deckset.tableA    = PlaylistTable()
-        self._deckset.tableB    = PlaylistTable()
-        self._deckset.tableC    = PlaylistTable()
-        self._deckset.tableD    = PlaylistTable()
+        self._deckset.tableA = PlaylistTable()
+        self._deckset.tableB = PlaylistTable()
+        self._deckset.tableC = PlaylistTable()
+        self._deckset.tableD = PlaylistTable()
         # Decks E–H back the 8-playlist mode: a second 2×2 grid shown on its own tab
         # ("Group E–H") so eight playlists never crowd the screen at once.
-        self._deckset.tableE    = PlaylistTable()
-        self._deckset.tableF    = PlaylistTable()
-        self._deckset.tableG    = PlaylistTable()
-        self._deckset.tableH    = PlaylistTable()
-        self._deckset.wishlist  = PlaylistTable()
+        self._deckset.tableE = PlaylistTable()
+        self._deckset.tableF = PlaylistTable()
+        self._deckset.tableG = PlaylistTable()
+        self._deckset.tableH = PlaylistTable()
+        self._deckset.wishlist = PlaylistTable()
         self._deckset.wishlist2 = PlaylistTable()
         self._deckset.wishlist3 = PlaylistTable()
         self._deckset.wishlist4 = PlaylistTable()
-        self._deckset.wishlist._flat_mode  = True
+        self._deckset.wishlist._flat_mode = True
         self._deckset.wishlist2._flat_mode = True
         self._deckset.wishlist3._flat_mode = True
         self._deckset.wishlist4._flat_mode = True
@@ -97,17 +97,17 @@ class DeckSetupMixin(MainWindowHost):
         self._deckset.warmup_table = PlaylistTable()
         # Up to eight full playlist decks (generation targets); 1/2/4/8 shown via _dual_btn
         # (8 = two tabs of four).
-        self._deckset.decks      = [self._deckset.tableA, self._deckset.tableB, self._deckset.tableC, self._deckset.tableD,
-                            self._deckset.tableE, self._deckset.tableF, self._deckset.tableG, self._deckset.tableH]
+        self._deckset.decks = [self._deckset.tableA, self._deckset.tableB, self._deckset.tableC, self._deckset.tableD,
+                               self._deckset.tableE, self._deckset.tableF, self._deckset.tableG, self._deckset.tableH]
         # Eight dedicated 📅 day decks on the third tab ("Tournament day", two
         # sub-tabs of four). Filled only by the 📅 Day-plan planner, so decks A–H
         # always stay normal working playlists; the tab shows while they hold a plan.
-        self._deckset.day_decks  = [PlaylistTable() for _ in range(8)]
-        self._deckset.wishlists  = [self._deckset.wishlist, self._deckset.wishlist2,
-                            self._deckset.wishlist3, self._deckset.wishlist4]
+        self._deckset.day_decks = [PlaylistTable() for _ in range(8)]
+        self._deckset.wishlists = [self._deckset.wishlist, self._deckset.wishlist2,
+                                   self._deckset.wishlist3, self._deckset.wishlist4]
         self._deckset.all_tables = (self._deckset.decks + self._deckset.day_decks
-                            + self._deckset.wishlists + [self._deckset.warmup_table])
-        self._deckset.table      = self._deckset.tableA                   # the focused/active deck
+                                    + self._deckset.wishlists + [self._deckset.warmup_table])
+        self._deckset.table = self._deckset.tableA                   # the focused/active deck
         self._deckset.deck_count = 1                              # visible deck count: 1, 2, 4 or 8
         # One Deck per table, holding everything this window keeps about it
         # (see gui.decks.deck); reached through self.deck(table), never directly.
@@ -487,20 +487,20 @@ class DeckSetupMixin(MainWindowHost):
         for t, letter in zip(self._deckset.day_decks,
                              ("🄰", "🄱", "🄲", "🄳", "🄴", "🄵", "🄶", "🄷"), strict=True):
             self.deck(t).letter = letter
-        deckA_box        = self._make_deck_box(self._deckset.tableA, "Playlist 1")
-        self._grid.deckB_box  = self._make_deck_box(self._deckset.tableB, "Playlist 2")
-        self._grid.deckC_box  = self._make_deck_box(self._deckset.tableC, "Playlist 3")
-        self._grid.deckD_box  = self._make_deck_box(self._deckset.tableD, "Playlist 4")
-        self._grid.deckE_box  = self._make_deck_box(self._deckset.tableE, "Playlist 5")
-        self._grid.deckF_box  = self._make_deck_box(self._deckset.tableF, "Playlist 6")
-        self._grid.deckG_box  = self._make_deck_box(self._deckset.tableG, "Playlist 7")
-        self._grid.deckH_box  = self._make_deck_box(self._deckset.tableH, "Playlist 8")
-        self._grid.day_boxes  = [self._make_deck_box(t, f"📅 Competition {i + 1}")
-                            for i, t in enumerate(self._deckset.day_decks)]
-        self._grid.wish_box   = self._make_deck_box(self._deckset.wishlist, "⭐  Wishlist")
-        self._grid.wish_box2  = self._make_deck_box(self._deckset.wishlist2, "⭐  Wishlist 2")
-        self._grid.wish_box3  = self._make_deck_box(self._deckset.wishlist3, "⭐  Wishlist 3")
-        self._grid.wish_box4  = self._make_deck_box(self._deckset.wishlist4, "⭐  Wishlist 4")
+        deckA_box = self._make_deck_box(self._deckset.tableA, deck_name(1))
+        self._grid.deckB_box = self._make_deck_box(self._deckset.tableB, deck_name(2))
+        self._grid.deckC_box = self._make_deck_box(self._deckset.tableC, deck_name(3))
+        self._grid.deckD_box = self._make_deck_box(self._deckset.tableD, deck_name(4))
+        self._grid.deckE_box = self._make_deck_box(self._deckset.tableE, deck_name(5))
+        self._grid.deckF_box = self._make_deck_box(self._deckset.tableF, deck_name(6))
+        self._grid.deckG_box = self._make_deck_box(self._deckset.tableG, deck_name(7))
+        self._grid.deckH_box = self._make_deck_box(self._deckset.tableH, deck_name(8))
+        self._grid.day_boxes = [self._make_deck_box(t, f"📅 Competition {i + 1}")
+                                for i, t in enumerate(self._deckset.day_decks)]
+        self._grid.wish_box = self._make_deck_box(self._deckset.wishlist, wishlist_name(1))
+        self._grid.wish_box2 = self._make_deck_box(self._deckset.wishlist2, wishlist_name(2))
+        self._grid.wish_box3 = self._make_deck_box(self._deckset.wishlist3, wishlist_name(3))
+        self._grid.wish_box4 = self._make_deck_box(self._deckset.wishlist4, wishlist_name(4))
         self._grid.warmup_box = self._make_deck_box(self._deckset.warmup_table,
                                                self._warmup_title(""))
 

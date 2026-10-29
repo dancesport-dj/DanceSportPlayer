@@ -9,6 +9,7 @@ databases stand in for the two PCs; the music file is the same bytes at a
 different path, as it is on a second machine.
 """
 
+import contextlib
 import os
 import tempfile
 import threading
@@ -38,12 +39,10 @@ class ManualPdTransferTest(unittest.TestCase):
         """Close a scratch PC's connection — never the one the saved state owns."""
         if pdb._DB_LOCAL is self._saved[1]:
             return
-        try:
+        with contextlib.suppress(Exception):
             pdb._DB_LOCAL.conn.close()
-        except Exception:
-            pass
 
-    def _pc(self) -> tuple[Path, "pdb.AudioCache"]:
+    def _pc(self) -> tuple[Path, pdb.AudioCache]:
         """A fresh machine: its own folder and database."""
         self._close()
         d = Path(tempfile.mkdtemp(prefix="dp_pdx_pc_"))

@@ -123,19 +123,19 @@ class FlowLayout(QLayout):
 # whenever the app was started from another folder → blank taskbar icon).
 # Prefer the multi-size .ico: Windows' taskbar wants 16/24/32/48 px frames, which
 # a single big PNG doesn't carry, so a PNG-only QIcon shows up blank in the bar.
-_ICON_DIR  = Path(__file__).resolve().parents[1]
-_ICON_ICO  = _ICON_DIR / "icon.ico"
-_ICON_PNG  = _ICON_DIR / "icon.png"
-_ICON_PATH = _ICON_ICO if _ICON_ICO.exists() else _ICON_PNG
+_ICON_DIR = Path(__file__).resolve().parents[1]
+ICON_ICO = _ICON_DIR / "icon.ico"
+_ICON_PNG = _ICON_DIR / "icon.png"
+_ICON_PATH = ICON_ICO if ICON_ICO.exists() else _ICON_PNG
 
 
-def _app_icon() -> QIcon:
+def app_icon() -> QIcon:
     """The app/window/taskbar icon — the .ico (all sizes) plus the PNG as a
     high-res fallback frame, so every context (taskbar, title bar, Alt-Tab) has
     a crisp size to pick from."""
     icon = QIcon()
-    if _ICON_ICO.exists():
-        icon.addFile(str(_ICON_ICO))
+    if ICON_ICO.exists():
+        icon.addFile(str(ICON_ICO))
     if _ICON_PNG.exists():
         icon.addFile(str(_ICON_PNG))
     if icon.isNull():
@@ -143,7 +143,7 @@ def _app_icon() -> QIcon:
     return icon
 
 
-def _hsep() -> QFrame:
+def hsep() -> QFrame:
     f = QFrame()
     f.setFrameShape(QFrame.Shape.HLine)
     f.setFrameShadow(QFrame.Shadow.Sunken)
@@ -158,8 +158,20 @@ def set_play_glyph(btn, playing: bool):
     return btn
 
 
-def _show_toast(anchor: QWidget, text: str, msec: int = 1500) -> None:
-    """Show a short, self-dismissing toast message over `anchor`'s window.
+# A toast that says something is wrong (a drive gone, a file not found) and
+# names a path: it has to stay up long enough to be read.
+WARN_TOAST_MS = 8000
+# A toast that reports an error or a refusal — something that could not be
+# done — sits on the mute red, so it is not read as one more "done".
+ERROR_TOAST_BG = "#d9534f"
+_TOAST_CSS = ("background:%s; color:white; padding:7px 14px;"
+              "border-radius:6px; font-size:12px;")
+
+
+def show_toast(anchor: QWidget, text: str, msec: int = 1500,
+               error: bool = False) -> None:
+    """Show a short, self-dismissing toast message over `anchor`'s window —
+    in red with `error`.
 
     One toast at a time per window. Mark a track and unmark it again and the
     second message arrives well inside the 1.5 s the first one lives — as two
@@ -171,9 +183,6 @@ def _show_toast(anchor: QWidget, text: str, msec: int = 1500) -> None:
     timer = getattr(win, "_toast_timer", None)
     if lbl is None or timer is None:
         lbl = QLabel(win)
-        lbl.setStyleSheet(
-            "background:#323232; color:white; padding:7px 14px;"
-            "border-radius:6px; font-size:12px;")
         lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         # Titles, file names and guests' wishes: never markup.
         lbl.setTextFormat(Qt.TextFormat.PlainText)
@@ -185,6 +194,8 @@ def _show_toast(anchor: QWidget, text: str, msec: int = 1500) -> None:
         keep = cast(Any, win)
         keep._toast_lbl = lbl
         keep._toast_timer = timer
+    # The label is shared: each message sets its own colour.
+    lbl.setStyleSheet(_TOAST_CSS % (ERROR_TOAST_BG if error else "#323232"))
     lbl.setText(text)
     lbl.adjustSize()
     rect = win.rect()

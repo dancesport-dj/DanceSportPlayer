@@ -82,7 +82,7 @@ class _Base(unittest.TestCase):
         return found
 
     def toasts(self):
-        return self.patch(dyn, "_show_toast")
+        return self.patch(dyn, "show_toast")
 
     def confirm(self, t, answer=True):
         return self.patch(t, "_confirm_delete", return_value=answer)
@@ -141,7 +141,7 @@ class GridBasicsTest(_Base):
         t = self.table()
         t._capacity_provider = None
         self.assertEqual(t._field_capacity(), [6, 3, 2, 1])
-        t._capacity_provider = lambda: []
+        t._capacity_provider = list
         self.assertEqual(t._field_capacity(), [6, 3, 2, 1])
         t._capacity_provider = mock.Mock(side_effect=ValueError("bad field"))
         self.assertEqual(t._field_capacity(), [6, 3, 2, 1])

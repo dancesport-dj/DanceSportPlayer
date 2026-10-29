@@ -11,8 +11,8 @@ import unittest
 from pathlib import Path
 
 from planner import i18n
-from planner.models import MusicEntry, RoundConfig
 from planner.generate.suggester import generate_hints, source_gap_hint
+from planner.models import MusicEntry, RoundConfig
 
 
 class _Lib:

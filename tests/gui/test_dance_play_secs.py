@@ -26,8 +26,7 @@ from pathlib import Path
 from PySide6.QtWidgets import QApplication
 
 from gui.decks.running_order import Row
-from planner.playing.play_sets import (
-    DANCE_SECS_KEY, dance_secs_of, play_set_of)
+from planner.playing.play_sets import DANCE_SECS_KEY, dance_secs_of, play_set_of
 from planner.terms import dance_name
 from tests.qt_test_support import reap_widget, stub_window_startup
 

@@ -14,7 +14,6 @@ a deck, or pick it and drag single tracks out of the list below it.
 import logging
 import re
 import threading
-
 from collections.abc import Callable
 from pathlib import Path
 
@@ -47,35 +46,32 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from planner.playlist.m3u import (m3u_marker_rounds_in_order, read_m3u_tracks,
-                         running_order_rounds)
-from planner import i18n
-from planner.models import DEFAULT_DANCES, MusicEntry
-from planner.generate.warmup import warmup_code
-from planner import terms
-from planner.terms import dance_name
-from planner.playing import play_counts
-from planner.playlist.planned import path_key
-from planner.music.parsing import _detect_dance
 from gui.common import (
+    C_NEW_FG,
+    C_POP_FG,
     BusyDialog,
-    _C_NEW_FG,
-    _C_POP_FG,
-    _entry_tooltip,
-    _fmt_track_secs,
-    _open_in_default_player,
     dblclick_action,
     display_title,
+    entry_tooltip,
+    fmt_track_secs,
+    open_in_default_player,
     stopwatch_header,
 )
-
 from gui.library_browser import (
-    _LibPlayItem,
-    _LibSortItem,
-    _LibTable,
+    LibPlayItem,
+    LibSortItem,
+    LibTable,
     fill_track_columns,
 )
-from gui.tournament_tiles import _ROLE_KEY, _TourneyTree, _SlotBoard
+from gui.tournament_tiles import ROLE_KEY, SlotBoard, TourneyTree
+from planner import i18n, terms
+from planner.generate.warmup import warmup_code
+from planner.models import DEFAULT_DANCES, MusicEntry
+from planner.music.parsing import detect_dance
+from planner.playing import play_counts
+from planner.playlist.m3u import m3u_marker_rounds_in_order, read_m3u_tracks, running_order_rounds
+from planner.playlist.planned import path_key
+from planner.terms import dance_name
 
 log = logging.getLogger("dancesport.gui.tournament_tree")
 
@@ -265,7 +261,7 @@ class TournamentTree(QWidget):
         # playlist is loaded, so the list can be read against the running order.
         self._build_track_table()
 
-        self._board = _SlotBoard()
+        self._board = SlotBoard()
         self._board.picked.connect(self._on_slot_picked)
         self._board.activated.connect(self._load_key)
         self._board.menuRequested.connect(self._on_slot_menu)
@@ -339,7 +335,7 @@ class TournamentTree(QWidget):
 
     def _build_tree(self):
         """The tree of folders and 🎵 playlists, with its drops and menu."""
-        self._tree = _TourneyTree()
+        self._tree = TourneyTree()
         self._tree.node_of = self.node_at
         self._tree.select_all_cb = self._select_all_slots
         self._tree.setHeaderHidden(True)
@@ -368,7 +364,7 @@ class TournamentTree(QWidget):
 
     def _build_track_table(self):
         """The ▤ track list: one playlist's titles in playing order."""
-        self._table = _LibTable(0, _TRACK_COLS)
+        self._table = LibTable(0, _TRACK_COLS)
         self._table.setHorizontalHeaderLabels(
             ["▶", "Round", "Dance", "Artist", "Title", "BPM", "⏱", "Pop", "Class",
              "Filename", "Plays"])
@@ -440,7 +436,7 @@ class TournamentTree(QWidget):
         """Tree widget ← node list. The node dicts are the model; the items only
         show them, so every edit works on the dict and calls back in here."""
         current = self._tree.currentItem()
-        keep = current.data(0, _ROLE_KEY) if current else None
+        keep = current.data(0, ROLE_KEY) if current else None
         self._tree.clear()
         # A playlist filed at the root has no folder to be picked under, so the
         # board would never show it. It gets one — but only while there is one,
@@ -448,7 +444,7 @@ class TournamentTree(QWidget):
         if self._view == VIEW_SLOTS and any(n.get("m3u") for n in self._nodes):
             loose = QTreeWidgetItem(self._tree.invisibleRootItem())
             loose.setText(0, "📂  (not in a folder)")
-            loose.setData(0, _ROLE_KEY, "")
+            loose.setData(0, ROLE_KEY, "")
         self._fill(self._tree.invisibleRootItem(), self._nodes, "", keep)
         n = self._leaf_count(self._nodes)
         self._count_lbl.setText((i18n.t("(%d playlist)") if n == 1
@@ -493,7 +489,7 @@ class TournamentTree(QWidget):
                 continue   # the playlists are the tiles on the board, not rows
             item = QTreeWidgetItem(parent)
             item.setText(0, ("🎵  " if leaf else "📁  ") + node["name"])
-            item.setData(0, _ROLE_KEY, key)
+            item.setData(0, ROLE_KEY, key)
             if slots:
                 # What picking this folder will lay out. Silent when it holds no
                 # playlists of its own — a "(0)" reads like something is broken.
@@ -557,7 +553,7 @@ class TournamentTree(QWidget):
 
     def _current_key(self) -> str:
         item = self._tree.currentItem()
-        return (item.data(0, _ROLE_KEY) or "") if item else ""
+        return (item.data(0, ROLE_KEY) or "") if item else ""
 
     def _current_node(self) -> dict | None:
         return self.node_at(self._current_key())
@@ -569,7 +565,7 @@ class TournamentTree(QWidget):
         if self._view == VIEW_SLOTS and self._board.selected_keys:
             keys = list(self._board.selected_keys)
         else:
-            keys = ([it.data(0, _ROLE_KEY) or "" for it in self._tree.selectedItems()]
+            keys = ([it.data(0, ROLE_KEY) or "" for it in self._tree.selectedItems()]
                     or [self._current_key()])
         keys = [k for k in keys
                 if not any(o and k.startswith(o + "/") for o in keys)]
@@ -681,11 +677,11 @@ class TournamentTree(QWidget):
                          or extinf or path.stem,
                 "file": (entry.title if entry is not None else "") or path.stem,
                 "tip": (f"⚠ Not where the playlist says it is:\n{path}" if missing
-                        else _entry_tooltip(entry) if entry is not None
+                        else entry_tooltip(entry) if entry is not None
                         else str(path)),
                 "bpm": entry.bpm if entry is not None else None,
                 "secs": secs,
-                "length": _fmt_track_secs(secs) if secs else "",
+                "length": fmt_track_secs(secs) if secs else "",
                 # None where the library has never heard of the track at all:
                 # ✦ says "never played", and that is a thing only a track we
                 # know can be.
@@ -722,7 +718,7 @@ class TournamentTree(QWidget):
         for path, extinf in tracks:
             entry = self._entries_by_path.get(path_key(path))
             entries.append(entry)
-            code = entry.dance if entry is not None else _detect_dance(path.name)
+            code = entry.dance if entry is not None else detect_dance(path.name)
             if code and code not in codes:
                 codes.append(code)
             if len(titles) < 15:
@@ -864,7 +860,7 @@ class TournamentTree(QWidget):
         it = QTreeWidgetItemIterator(self._tree)
         while it.value():
             item = it.value()
-            if item.data(0, _ROLE_KEY) == key:
+            if item.data(0, ROLE_KEY) == key:
                 self._tree.setCurrentItem(item)
                 return
             it += 1
@@ -876,7 +872,7 @@ class TournamentTree(QWidget):
         secs = sum(r["secs"] for r in rows)
         self._total_lbl.setText(
             "Σ  " + (i18n.t("%d song") if n == 1 else i18n.t("%d songs")) % n
-            + (f"  ·  ~{_fmt_track_secs(secs)}" if secs else ""))
+            + (f"  ·  ~{fmt_track_secs(secs)}" if secs else ""))
         self._total_lbl.setVisible(bool(n))
 
     def _show_tracks(self):
@@ -887,7 +883,7 @@ class TournamentTree(QWidget):
         t.setRowCount(len(rows))
         for r, row in enumerate(rows):
             missing = row["missing"]
-            play_it = _LibPlayItem("▶")
+            play_it = LibPlayItem("▶")
             play_it.setData(_ROLE_PATH, row["path"])   # what startDrag exports
             play_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             play_it.setToolTip("Play / stop this track")
@@ -907,16 +903,16 @@ class TournamentTree(QWidget):
             title_it.setToolTip(row["tip"])
             artist_it.setToolTip(row["tip"])
             t.setItem(r, 4, title_it)
-            bpm_it = _LibSortItem(str(row["bpm"]) if row["bpm"] else "")
+            bpm_it = LibSortItem(str(row["bpm"]) if row["bpm"] else "")
             bpm_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             t.setItem(r, 5, bpm_it)
-            len_it = _LibSortItem(row["length"])
+            len_it = LibSortItem(row["length"])
             len_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             t.setItem(r, 6, len_it)
             pop = row["pop"]
-            pop_it = _LibSortItem("" if pop is None else f"★{pop}" if pop else "✦")
+            pop_it = LibSortItem("" if pop is None else f"★{pop}" if pop else "✦")
             pop_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            pop_it.setForeground(_C_POP_FG if pop else _C_NEW_FG)
+            pop_it.setForeground(C_POP_FG if pop else C_NEW_FG)
             t.setItem(r, 7, pop_it)
             classes = row["classes"]
             cls_it = QTableWidgetItem(f"[{','.join(classes)}]" if classes else "")
@@ -926,7 +922,7 @@ class TournamentTree(QWidget):
             file_it.setToolTip(str(row["path"]))
             t.setItem(r, _TRACK_COL_FILE, file_it)
             plays = play_counts.count(row["path"])
-            plays_it = _LibSortItem(str(plays) if plays else "")
+            plays_it = LibSortItem(str(plays) if plays else "")
             plays_it.setData(Qt.ItemDataRole.UserRole, plays)
             plays_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             t.setItem(r, _TRACK_COL_PLAYS, plays_it)
@@ -992,7 +988,7 @@ class TournamentTree(QWidget):
             return
         action = dblclick_action()
         if action == "external":
-            _open_in_default_player(Path(path), self)
+            open_in_default_player(Path(path), self)
         elif action == "tags":
             # 🏷 The window's editor, as from 📚 the library; it feeds the
             # edited library back through `set_entries`.
@@ -1209,7 +1205,7 @@ class TournamentTree(QWidget):
     def _on_tree_double_click(self, item, _col: int):
         """Double-click on a playlist loads it — MainWindow asks first when the
         deck it would land on is not empty. A folder just folds open/shut."""
-        node = self.node_at(item.data(0, _ROLE_KEY)) if item else None
+        node = self.node_at(item.data(0, ROLE_KEY)) if item else None
         m3u = (node or {}).get("m3u")
         if not m3u:
             return

@@ -12,17 +12,17 @@ import random
 import unittest
 from pathlib import Path
 
-from planner.models import MusicEntry
 from planner.generate.warmup import (
-    _WARMUP_BALLROOM,
-    _WARMUP_LATIN,
-    _WARMUP_MODE,
-    _WARMUP_ORDER,
-    _warmup_section_round,
+    WARMUP_BALLROOM,
+    WARMUP_LATIN,
+    WARMUP_MODE,
+    WARMUP_ORDER,
     build_warmup_playlist,
     warmup_code,
     warmup_section,
+    warmup_section_round,
 )
+from planner.models import MusicEntry
 
 # Always-on core dances: these must keep coming back regardless of the
 # probability weights. WW and PD are deliberately NOT here — they stay
@@ -30,8 +30,8 @@ from planner.generate.warmup import (
 _CORE_STD = ["LW", "TG", "SF", "QS"]
 _CORE_LAT = ["SA", "CC", "RB", "JI"]
 
-_STYLE_DIR = {d: ("lateincd" if d in _WARMUP_LATIN else "standardcd")
-              for d in _WARMUP_BALLROOM + _WARMUP_LATIN}
+_STYLE_DIR = {d: ("lateincd" if d in WARMUP_LATIN else "standardcd")
+              for d in WARMUP_BALLROOM + WARMUP_LATIN}
 
 _SEEDS = range(12)
 
@@ -52,9 +52,9 @@ def _social(code: str, i: int) -> MusicEntry:
 
 
 def _pool(n=40, social=0) -> list:
-    out = [_entry(d, i) for d in _WARMUP_BALLROOM + _WARMUP_LATIN
+    out = [_entry(d, i) for d in WARMUP_BALLROOM + WARMUP_LATIN
            for i in range(n)]
-    out += [_social(c, i) for c in _WARMUP_MODE for i in range(social)]
+    out += [_social(c, i) for c in WARMUP_MODE for i in range(social)]
     return out
 
 
@@ -98,8 +98,8 @@ class WarmupCoverageTest(unittest.TestCase):
             with self.subTest(seed=seed):
                 random.seed(seed)
                 res = build_warmup_playlist(_pool())
-                for section, core in ((_WARMUP_BALLROOM, _CORE_STD),
-                                      (_WARMUP_LATIN, _CORE_LAT)):
+                for section, core in ((WARMUP_BALLROOM, _CORE_STD),
+                                      (WARMUP_LATIN, _CORE_LAT)):
                     codes = _section_codes(res, section)
                     for d in core:
                         gap = _max_return_gap(codes, d)
@@ -112,7 +112,7 @@ class WarmupCoverageTest(unittest.TestCase):
         """SF absent from the last two Standard rounds → next round must take it,
         whatever the weights say."""
         pools = {d: [_entry(d, i) for i in range(20)]
-                 for d in _WARMUP_BALLROOM}
+                 for d in WARMUP_BALLROOM}
         # Two rounds of LW/TG/QS: SF is the only core dance now overdue.
         result = [_entry(d, 90 + i)
                   for i in range(2) for d in ("LW", "TG", "QS")]
@@ -121,8 +121,8 @@ class WarmupCoverageTest(unittest.TestCase):
             with self.subTest(seed=seed):
                 random.seed(seed)
                 res = list(result)
-                took = _warmup_section_round(res, {d: list(v) for d, v in pools.items()},
-                                             _WARMUP_BALLROOM,
+                took = warmup_section_round(res, {d: list(v) for d, v in pools.items()},
+                                             WARMUP_BALLROOM,
                                              late_ww=True, late_pd=True,
                                              rounds=[list(r) for r in history],
                                              deferred=[])
@@ -135,8 +135,8 @@ class WarmupCoverageTest(unittest.TestCase):
             with self.subTest(seed=seed):
                 random.seed(seed)
                 res = build_warmup_playlist(_pool())
-                std = _section_codes(res, _WARMUP_BALLROOM)
-                lat = _section_codes(res, _WARMUP_LATIN)
+                std = _section_codes(res, WARMUP_BALLROOM)
+                lat = _section_codes(res, WARMUP_LATIN)
                 self.assertEqual(std[:3], ["LW", "TG", "QS"])
                 self.assertEqual(lat[:3], ["CC", "RB", "JI"])
 
@@ -169,19 +169,19 @@ class WarmupWienerWalzerTest(unittest.TestCase):
         """Every Standard round the builder planned, in the order it plays."""
         import planner.generate.warmup as w
         seen = []
-        real = w._warmup_section_round
+        real = w.warmup_section_round
 
         def spy(result, pools, section, **kwargs):
             took = real(result, pools, section, **kwargs)
-            if took and section is _WARMUP_BALLROOM:
+            if took and section is WARMUP_BALLROOM:
                 seen.append(list(kwargs["rounds"][-1]))
             return took
 
-        w._warmup_section_round = spy
+        w.warmup_section_round = spy
         try:
             build_warmup_playlist(_pool(), **kw)
         finally:
-            w._warmup_section_round = real
+            w.warmup_section_round = real
         return seen
 
     def test_a_wiener_walzer_never_follows_a_langsamer_walzer_in_a_round(self):
@@ -202,7 +202,7 @@ class WarmupWienerWalzerTest(unittest.TestCase):
                 random.seed(seed)
                 for rnd in self._rounds(late_ww=False):
                     self.assertEqual(
-                        rnd, sorted(rnd, key=lambda d: _WARMUP_ORDER.get(d, 99)),
+                        rnd, sorted(rnd, key=lambda d: WARMUP_ORDER.get(d, 99)),
                         f"round {rnd} is out of competition order")
 
 
@@ -231,11 +231,11 @@ class WarmupSectionOrderTest(unittest.TestCase):
                                  + ["Standardrunde"] * 3)
 
     def test_warmup_section_labels_every_warmup_dance(self):
-        for d in _WARMUP_BALLROOM:
+        for d in WARMUP_BALLROOM:
             self.assertEqual(warmup_section(_entry(d, 0)), "Standardrunde")
-        for d in _WARMUP_LATIN:
+        for d in WARMUP_LATIN:
             self.assertEqual(warmup_section(_entry(d, 0)), "Lateinrunde")
-        for c in _WARMUP_MODE:
+        for c in WARMUP_MODE:
             self.assertEqual(warmup_section(_social(c, 0)), "Socialrunde")
         self.assertIsNone(warmup_section(_entry("TANGOARG", 0)))
 
@@ -276,13 +276,13 @@ class WarmupOptionsTest(unittest.TestCase):
         random.seed(0)
         res = build_warmup_playlist(_pool(n=10))
         self.assertEqual(len(res), 100)         # 10 dances × 10 tracks
-        self.assertEqual(len(set(id(e) for e in res)), 100)   # each used once
+        self.assertEqual(len({id(e) for e in res}), 100)   # each used once
 
     def test_modetaenze_subset_restricts_the_social_dances(self):
         random.seed(0)
         res = build_warmup_playlist(_pool(social=5), include_modetaenze=True,
                                     modetaenze=["DISCOFOX", "SALSA"])
-        social = {c for c in (warmup_code(e) for e in res) if c in _WARMUP_MODE}
+        social = {c for c in (warmup_code(e) for e in res) if c in WARMUP_MODE}
         self.assertTrue(social)
         self.assertLessEqual(social, {"DISCOFOX", "SALSA"})
 
@@ -292,7 +292,7 @@ class WarmupOptionsTest(unittest.TestCase):
             random.seed(seed)
             res = build_warmup_playlist(_pool(social=5), include_modetaenze=True)
             social = [c for c in (warmup_code(e) for e in res)
-                      if c in _WARMUP_MODE]
+                      if c in WARMUP_MODE]
             self.assertTrue(social, f"seed {seed}")
             self.assertEqual(social[0], "DISCOFOX", f"seed {seed}")
 
@@ -310,7 +310,7 @@ class WarmupOptionsTest(unittest.TestCase):
         random.seed(0)
         res = build_warmup_playlist(_pool(social=5), include_modetaenze=False)
         codes = {warmup_code(e) for e in res}
-        self.assertFalse(codes & set(_WARMUP_MODE))
+        self.assertFalse(codes & set(WARMUP_MODE))
 
     def test_no_paso_drops_paso_doble(self):
         random.seed(0)
@@ -321,7 +321,7 @@ class WarmupOptionsTest(unittest.TestCase):
         random.seed(0)
         res = build_warmup_playlist(_pool(), include_latin=False)
         self.assertTrue(res)
-        self.assertFalse({warmup_code(e) for e in res} & set(_WARMUP_LATIN))
+        self.assertFalse({warmup_code(e) for e in res} & set(WARMUP_LATIN))
 
 
 class WarmupPasoSocialTest(unittest.TestCase):
@@ -340,8 +340,8 @@ class WarmupPasoSocialTest(unittest.TestCase):
     def _doubles_behind(self, codes, dance):
         """How many `dance` titles are followed by two social ones."""
         return sum(1 for i, c in enumerate(codes[:-2])
-                   if c == dance and codes[i + 1] in _WARMUP_MODE
-                   and codes[i + 2] in _WARMUP_MODE)
+                   if c == dance and codes[i + 1] in WARMUP_MODE
+                   and codes[i + 2] in WARMUP_MODE)
 
     def test_a_paso_is_never_followed_by_two_social_titles(self):
         touching = 0        # Pasos that open onto a social round at all
@@ -349,11 +349,11 @@ class WarmupPasoSocialTest(unittest.TestCase):
             with self.subTest(seed=seed):
                 codes = self._party(seed)
                 for i, c in enumerate(codes[:-2]):
-                    if c != "PD" or codes[i + 1] not in _WARMUP_MODE:
+                    if c != "PD" or codes[i + 1] not in WARMUP_MODE:
                         continue
                     touching += 1
                     self.assertNotIn(
-                        codes[i + 2], _WARMUP_MODE,
+                        codes[i + 2], WARMUP_MODE,
                         f"seed {seed}: the Paso at {i} is followed by "
                         f"{codes[i + 1]} and {codes[i + 2]}")
         # Guard against a vacuous pass: the situation has to actually occur.
@@ -382,8 +382,8 @@ class WarmupPasoSocialTest(unittest.TestCase):
             codes = self._party(seed)
             seen += sum(1 for i, c in enumerate(codes[:-3])
                         if c == "PD" and codes[i + 1] == "JI"
-                        and codes[i + 2] in _WARMUP_MODE
-                        and codes[i + 3] in _WARMUP_MODE)
+                        and codes[i + 2] in WARMUP_MODE
+                        and codes[i + 3] in WARMUP_MODE)
         self.assertTrue(seen, "a Paso followed by a Jive never kept its double")
 
 

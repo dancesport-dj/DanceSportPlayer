@@ -11,8 +11,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication, QDialog
 
 import dancesport_gui as gui
-from gui.window import main_global
 from gui.dialogs.settings_dialog import SettingsDialog
+from gui.window import main_global
 from tests.qt_test_support import reap_widget
 
 
@@ -53,8 +53,8 @@ class PhoneRemoteSettingTest(unittest.TestCase):
 
     def test_a_running_server_offers_stop_server(self):
         # Marcel: "Start Server should renamed to Stop Server if Server running".
-        from player.window.main_remote import _RemoteHub
-        hub = _RemoteHub()
+        from player.window.main_remote import RemoteHub
+        hub = RemoteHub()
         running = [True]
         start, stop = mock.Mock(), mock.Mock(side_effect=lambda: running.clear())
         dlg = SettingsDialog({}, None, remote_cb=start,

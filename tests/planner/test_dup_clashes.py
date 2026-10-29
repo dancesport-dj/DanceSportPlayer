@@ -10,12 +10,12 @@ file, or the same song by title in a dance that does not rule it out.
 """
 import unittest
 
+from planner.music.parsing import song_title_keys
 from planner.playlist.checks import dup_clashes
-from planner.music.parsing import _song_title_keys
 
 
 def _rec(name: str, dance: str | None = "LW", exact: str | None = None) -> dict:
-    return {"exact": exact or f"p:{name}", "tkeys": _song_title_keys(name),
+    return {"exact": exact or f"p:{name}", "tkeys": song_title_keys(name),
             "dance": dance}
 
 

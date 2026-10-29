@@ -129,6 +129,19 @@ class _Base(unittest.TestCase):
                         play_cb=lambda *a: None, suggester=None)
         return t
 
+    def scanning_wishlist(self, *entries):
+        t = self.table()
+        t.load_wishlist(list(entries), play_cb=lambda *a: None, suggester=None)
+        return t
+
+    def resolves_to(self, t, entry):
+        """The window's stand-in library while the scan runs (the table is its
+        own window here)."""
+        lib = mock.Mock()
+        lib.entry_for.return_value = entry
+        t._library = SimpleNamespace(resolver=lambda: lib, cache="the cache")
+        return lib
+
     def warmup(self):
         t = self.table()
         t.load_warmup([_e("LW", 1), _e("TG", 2), _e("SF", 3)], "Eintanzen",
@@ -157,7 +170,7 @@ class _Base(unittest.TestCase):
         return found
 
     def toasts(self):
-        return self.patch(dnd, "_show_toast")
+        return self.patch(dnd, "show_toast")
 
     def hdr_row(self, t, dance):
         return next(r for r, d in t._dance_hdr_dance.items() if d == dance)
@@ -359,6 +372,34 @@ class DragEnterTest(_Base):
         t.dragEnterEvent(ok)
         t.dragEnterEvent(bad)
         self.assertEqual((ok.accepted, ok.action, bad.accepted), (True, _COPY, False))
+
+
+class BackupDragTest(_Base):
+    """BUG_REVIEW B5.1: a "↳ backup" row carries its primary's slot. Swapped
+    like a heat row, it wrote into the primary, and the backup played twice."""
+
+    def backup_deck(self):
+        return self.deck({"Finale": [[_e("LW", 1), _e("TG", 2)],
+                                     [_e("LW", 3), _e("TG", 4)]]},
+                         heats=2, dynamic=True, capacity=[2],
+                         backups={("Finale", 0, 0): [_e("LW", 9)]})
+
+    def test_a_backup_row_is_no_drag_source(self):
+        t = self.backup_deck()
+        t._drag_src_rows = [self.row_of(t, "LW 9")]
+        self.assertIsNone(t._internal_drag_src())
+        ev = _Ev(source=t)
+        t.dragEnterEvent(ev)
+        self.assertFalse(ev.accepted)
+
+    def test_dropping_a_backup_on_a_heat_changes_nothing(self):
+        t = self.backup_deck()
+        t._drag_src_rows = [self.row_of(t, "LW 9")]
+        t.dropEvent(self.ev(t, self.row_of(t, "LW 3"), source=t))
+        self.assertEqual([[e.title for e in h] for h in t._playlist["Finale"]],
+                         [["LW 1", "TG 2"], ["LW 3", "TG 4"]])
+        self.assertEqual([e.title for e in t._dynamic_backups[("Finale", 0, 0)]],
+                         ["LW 9"])
 
 
 class DropMarkerTest(_Base):
@@ -600,6 +641,7 @@ class DropOnWishlistTest(_Base):
     def setUp(self):
         self.toast = self.toasts()
         self.clean = self.patch(TableHost, "clean_wishlist_against_playlists", return_value=0)
+        self.planned = self.patch(TableHost, "count_in_playlists", return_value=0)
 
     def test_nothing_droppable_is_refused(self):
         t = self.wishlist()
@@ -616,17 +658,17 @@ class DropOnWishlistTest(_Base):
         named.assert_called_once_with("Party")
         self.assertIn("Added 2 track(s)", self.toast.call_args.args[1])
 
-    def test_from_another_wishlist_is_a_move_and_the_list_is_cleaned(self):
+    def test_from_another_wishlist_is_a_move_and_nothing_is_cleaned(self):
+        """A drop no longer cleans the wishlist against the open playlists:
+        the title just dropped would vanish again. 🧹 in the menu still does."""
         t, other = self.wishlist(), self.wishlist()
         other._drag_src_rows = [0]
         remove = self.patch(other, "_remove_rows", return_value=True)
         self.patch(t, "_insert_drop_files", return_value=1)
-        self.clean.return_value = 3
         t.dropEvent(_Ev(source=other, mime=_urls(self.mp3)))
         remove.assert_called_once_with([0], select_after=True)
-        msg = self.toast.call_args.args[1]
-        self.assertIn("Moved 1 track(s)", msg)
-        self.assertIn("3 already in a playlist removed", msg)
+        self.assertIn("Moved 1 track(s)", self.toast.call_args.args[1])
+        self.clean.assert_not_called()
 
     def test_from_a_deck_its_slot_is_emptied_and_no_clean_runs(self):
         t, deck = self.wishlist(), self.deck()
@@ -661,13 +703,52 @@ class DropOnWishlistTest(_Base):
         self.assertIn("Added 1 track(s)", self.toast.call_args.args[1])
 
     def test_only_duplicates_say_so(self):
-        t = self.wishlist()
-        self.patch(t, "_insert_drop_files", return_value=0)
+        t = self.scanning_wishlist(_e("LW", 1))
+        self.resolves_to(t, _e("LW", 1))
         t.dropEvent(_Ev(mime=_urls(self.mp3)))
         self.assertIn("nothing added", self.toast.call_args.args[1])
-        self.clean.return_value = 2
+
+
+class DropDuringTheScanTest(_Base):
+    """Marcel, v1.5.1 fresh install, the library scan still running: a title
+    dropped onto the EMPTY wishlist came back "unreadable", then the toast
+    said it was already in the list — the list held nothing. A wishlist has
+    no suggester until the scan ends, and without one no dropped file
+    resolved at all."""
+
+    def setUp(self):
+        self.toast = self.toasts()
+        self.info = self.patch(QMessageBox, "information")
+
+    def test_a_drop_during_the_scan_is_built_from_the_file(self):
+        t = self.scanning_wishlist()
+        lib = self.resolves_to(t, _e("LW", 9))
         t.dropEvent(_Ev(mime=_urls(self.mp3)))
-        self.assertIn("Removed 2 track(s) already in a playlist", self.toast.call_args.args[1])
+        lib.entry_for.assert_called_once_with(self.mp3, "the cache")
+        self.assertEqual([e.title for e in t.wishlist_entries()], ["LW 9"])
+        self.assertIn("Added 1 track(s)", self.toast.call_args.args[1])
+        self.info.assert_not_called()
+
+    def test_an_unreadable_file_is_not_called_a_duplicate(self):
+        t = self.scanning_wishlist()
+        self.resolves_to(t, None)
+        t.dropEvent(_Ev(mime=_urls(self.mp3)))
+        self.info.assert_called_once()
+        self.assertFalse(any("nothing added" in str(c.args[1])
+                             for c in self.toast.call_args_list))
+
+    def test_a_title_already_in_a_playlist_is_dropped_with_a_hint(self):
+        """"If the playlist already contains the title, still allow the drop
+        and show only a toast hint"."""
+        t = self.scanning_wishlist()
+        self.resolves_to(t, _e("LW", 9))
+        planned = self.patch(TableHost, "count_in_playlists", return_value=1)
+        t.dropEvent(_Ev(mime=_urls(self.mp3)))
+        self.assertEqual([e.title for e in t.wishlist_entries()], ["LW 9"])
+        self.assertEqual([e.title for e in planned.call_args.args[0]], ["LW 9"])
+        msg = self.toast.call_args.args[1]
+        self.assertIn("Added 1 track(s)", msg)
+        self.assertIn("1 already in a playlist", msg)
 
 
 class DropOnDeckTest(_Base):

@@ -16,22 +16,21 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_takt_"))
 
-from PySide6.QtCore import QPoint
-from PySide6.QtTest import QTest
+from PySide6.QtCore import QPoint, Qt
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
-from PySide6.QtCore import Qt
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
-from tests.qt_test_support import reap_widget
 
 from player.widgets.player import BigPlayerWidget
 from player.widgets.takt_meter import (
+    BAD,
+    DIM,
+    GAIN,
     TaktMeterOverlay,
     TapTempoMeter,
     default_sollwert,
-    _BAD,
-    _DIM,
-    _GAIN,
 )
+from tests.qt_test_support import reap_widget
 
 _app = QApplication.instance() or QApplication([])
 
@@ -209,8 +208,8 @@ class TaktMeterOverlayTest(unittest.TestCase):
         self.w._refresh()
         style = self.w._korrektur_lbl.styleSheet()
         self.assertIn("font-weight:bold", style)
-        self.assertIn(_GAIN, style)
-        self.assertNotIn(_BAD, style)
+        self.assertIn(GAIN, style)
+        self.assertNotIn(BAD, style)
 
     def test_korrektur_label_turns_red_bold_past_the_warn_threshold(self):
         self._tap_at(0.0, 2.0)                        # 30 / min
@@ -218,7 +217,7 @@ class TaktMeterOverlayTest(unittest.TestCase):
         self.w._refresh()
         style = self.w._korrektur_lbl.styleSheet()
         self.assertIn("font-weight:bold", style)
-        self.assertIn(_BAD, style)
+        self.assertIn(BAD, style)
 
     def _open_in_container(self):
         """The card shown inside a stand-in app window, with a small anchor
@@ -270,7 +269,7 @@ class TaktMeterOverlayTest(unittest.TestCase):
         self.w._sollwert_spin.setValue(33.0)
         self.w._refresh()                              # no taps yet → 0.0%
         style = self.w._korrektur_lbl.styleSheet()
-        self.assertIn(_DIM, style)
+        self.assertIn(DIM, style)
         self.assertNotIn("font-weight:bold", style)
 
 

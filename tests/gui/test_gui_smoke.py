@@ -43,6 +43,7 @@ _ASSEMBLY = (
     "player/window/main_controller.py",
     "gui/window/main_deck_setup.py",
     "gui/window/main_decks.py",
+    "gui/window/main_drives.py",
     "gui/window/main_dupes.py",
     "gui/window/main_embed.py",
     "gui/window/main_event.py",
@@ -157,7 +158,7 @@ class MainWindowSmokeTest(unittest.TestCase):
         cls.gui = stub_window_startup(cls)
 
     def setUp(self):
-        from tests.qt_test_support import reap_widget   # Qt stays out of module import
+        from tests.qt_test_support import reap_widget  # Qt stays out of module import
         self.win = self.gui.MainWindow()
         self.win._loading_dlg.accept()   # closeEvent blocks a plain close()
         self.addCleanup(reap_widget, self.win)
@@ -317,6 +318,14 @@ class MainWindowSmokeTest(unittest.TestCase):
             self.addCleanup(patcher.stop)
         return card
 
+    @staticmethod
+    def _waltz_on_disk():
+        """A title whose file exists — a missing one is refused before it
+        reaches _on_play_click (see PlaylistTable._start_refused)."""
+        path = pathlib.Path(tempfile.mkdtemp(prefix="dp_smoke_play_")) / "Waltz LW 29.mp3"
+        path.write_bytes(b"")
+        return path
+
     def test_space_in_another_playlist_plays_its_title_while_one_plays(self):
         """Marcel: "when i switch from playlist 1 to 2 i still cant use
         leertaste to start playing the focused item in this playlist"."""
@@ -326,7 +335,7 @@ class MainWindowSmokeTest(unittest.TestCase):
         self.win._apply_deck_view()
         a, b = self.win._deckset.tableA, self.win._deckset.tableB
         card = self._playing_desk(engine=a)
-        path = pathlib.Path("C:/m/Waltz LW 29.mp3")
+        path = self._waltz_on_disk()
         with mock.patch.object(b, "_selected_song_row", return_value=(3, path)), \
                 mock.patch.object(b, "_on_play_click") as play_b:
             self.win._focus_list("deck", 2)
@@ -422,7 +431,7 @@ class MainWindowSmokeTest(unittest.TestCase):
         the one selected before" — Space there is the card's play / pause."""
         a = self.win._deckset.tableA
         card = self._playing_desk(engine=a)
-        path = pathlib.Path("C:/m/Waltz LW 29.mp3")
+        path = self._waltz_on_disk()
         with mock.patch.object(a, "_selected_song_row", return_value=(3, path)), \
                 mock.patch.object(a, "_on_play_click") as play_a:
             self.win._focus_list("deck", 1)
@@ -436,7 +445,7 @@ class MainWindowSmokeTest(unittest.TestCase):
         from PySide6.QtTest import QTest
         a = self.win._deckset.tableA
         card = self._playing_desk(engine=a)
-        path = pathlib.Path("C:/m/Waltz LW 29.mp3")
+        path = self._waltz_on_disk()
         for key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             with mock.patch.object(a, "_selected_song_row", return_value=(3, path)), \
                     mock.patch.object(a, "_on_play_click") as play_a:

@@ -22,9 +22,14 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication, QMessageBox, QWidget
 
 from gui import dialogs
-from gui.dialogs import settings_dialog, update_notice
-from gui.dialogs import (ErrorReportsQuestion, UpdateCheckQuestion,
-                         ensure_error_reports_choice, ensure_update_check_choice)
+from gui.dialogs import (
+    ErrorReportsQuestion,
+    UpdateCheckQuestion,
+    ensure_error_reports_choice,
+    ensure_update_check_choice,
+    settings_dialog,
+    update_notice,
+)
 from shared import error_reports, update_check
 from tests.qt_test_support import reap_widget
 

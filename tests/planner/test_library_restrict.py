@@ -13,8 +13,8 @@ come back unchanged — the panel switches the source back and forth.
 import unittest
 from pathlib import Path
 
-from planner.music.library import MusicLibrary
 from planner.models import MusicEntry
+from planner.music.library import MusicLibrary
 
 
 def _entry(name, dance="SA"):

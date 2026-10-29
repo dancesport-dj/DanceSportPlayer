@@ -31,16 +31,16 @@ report can render a jump link straight back into the offending title.
 from dataclasses import dataclass
 
 from planner import i18n
-from planner.playlist.checks import entry_takt, title_cluster_map
-from planner.models import TEMPO_RANGES
-from planner.terms import dance_name
-from planner.music.parsing import _song_title_key
 from planner.generate.warmup import (
-    _WARMUP_BALLROOM,
-    _WARMUP_LATIN,
+    WARMUP_BALLROOM,
+    WARMUP_LATIN,
     warmup_code,
     warmup_rounds,
 )
+from planner.models import TEMPO_RANGES
+from planner.music.parsing import song_title_key
+from planner.playlist.checks import entry_takt, title_cluster_map
+from planner.terms import dance_name
 
 # A party title that runs past this is a floor-clearer: the dancers have had
 # the dance twice over by then. The generator never picks on length, so this
@@ -261,8 +261,8 @@ def coverage_findings(rounds, *, late_ww=True) -> list:
     only once "late WW" is off. Measured over 200 generated evenings, holding
     the WW to the promise reported 4 of them, all correctly built."""
     out = []
-    for section, dances in (("Standardrunde", _WARMUP_BALLROOM),
-                            ("Lateinrunde", _WARMUP_LATIN)):
+    for section, dances in (("Standardrunde", WARMUP_BALLROOM),
+                            ("Lateinrunde", WARMUP_LATIN)):
         mine = [(songs, rows) for name, songs, rows in rounds
                 if _base(name) == section]
         played = [{warmup_code(e) for e in songs} for songs, _rows in mine]
@@ -351,18 +351,17 @@ def duplicate_findings(entries) -> list:
         if path:
             by_path.setdefault(path, []).append(row)
     exact = {row for rows in by_path.values() if len(rows) > 1 for row in rows}
-    for rows in sorted(by_path.values()):
-        if len(rows) > 1:
-            out.append(_finding(DUPLICATES,
-                                (i18n.t("“%s” plays %d times, "
-                                        "at ")
-                                 % (_title(entries[rows[0]]), len(rows)), None),
-                                *_row_list(rows)))
+    out.extend(_finding(DUPLICATES,
+                        (i18n.t("“%s” plays %d times, "
+                                "at ")
+                         % (_title(entries[rows[0]]), len(rows)), None),
+                        *_row_list(rows))
+               for rows in sorted(by_path.values()) if len(rows) > 1)
 
     # Near-duplicates: two different files of the same song. Only worth saying
     # when they are the same dance — a Jive "Beautiful" and a Slow Waltz
     # "Beautiful" are two songs that happen to share a name.
-    keys = [_song_title_key(_title(e)) for e in entries]
+    keys = [song_title_key(_title(e)) for e in entries]
     clusters = title_cluster_map(keys)
     grouped: dict = {}
     for row, key in enumerate(keys):

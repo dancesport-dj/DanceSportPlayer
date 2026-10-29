@@ -3,10 +3,11 @@
 OpenRouter is only the default: pointing `base_url` at another host — Mammouth,
 say — has to move the chat call, the model list and the messages with it.
 """
+import contextlib
 import json
 import os
-import tempfile
 import subprocess
+import tempfile
 import unittest
 import urllib.request
 from unittest import mock
@@ -110,18 +111,16 @@ class ChatTest(unittest.TestCase):
 
     def test_an_answer_that_is_not_a_completion_is_reported(self):
         _seen, fake = _capture({"error": {"message": "no such model"}})
-        with mock.patch("urllib.request.urlopen", fake):
-            with self.assertRaises(RuntimeError) as ctx:
-                ai.openrouter_chat("k", "openrouter/free", "s", "u")
+        with mock.patch("urllib.request.urlopen", fake), self.assertRaises(RuntimeError) as ctx:
+            ai.openrouter_chat("k", "openrouter/free", "s", "u")
         msg = str(ctx.exception)
         self.assertIn("openrouter.ai", msg)
         self.assertIn("no such model", msg)
 
     def _fails(self, reply) -> RuntimeError:
         _seen, fake = _capture(reply)
-        with mock.patch("urllib.request.urlopen", fake):
-            with self.assertRaises(RuntimeError) as ctx:
-                ai.openrouter_chat("k", "m", "s", "u")
+        with mock.patch("urllib.request.urlopen", fake), self.assertRaises(RuntimeError) as ctx:
+            ai.openrouter_chat("k", "m", "s", "u")
         return ctx.exception
 
     def test_an_error_inside_a_200_keeps_its_code(self):
@@ -155,18 +154,15 @@ class PlainHttpTest(unittest.TestCase):
     def _sent(self, call):
         seen, fake = _capture(self._REPLY)
         with mock.patch("urllib.request.urlopen", fake):
-            try:
+            with contextlib.suppress(RuntimeError):
                 call()
-            except RuntimeError:
-                pass
         return "req" in seen
 
     def test_the_chat_refuses_plain_http(self):
-        with self.assertRaises(RuntimeError) as ctx:
-            with mock.patch("urllib.request.urlopen",
-                            _capture(self._REPLY)[1]):
-                ai.openrouter_chat("k", "m", "s", "u",
-                                   base_url="http://api.mammouth.ai/v1")
+        with self.assertRaises(RuntimeError) as ctx, mock.patch("urllib.request.urlopen",
+                        _capture(self._REPLY)[1]):
+            ai.openrouter_chat("k", "m", "s", "u",
+                               base_url="http://api.mammouth.ai/v1")
         self.assertIn("https", str(ctx.exception))
         self.assertFalse(self._sent(lambda: ai.openrouter_chat(
             "k", "m", "s", "u", base_url="http://api.mammouth.ai/v1")))
@@ -291,9 +287,8 @@ class BackendLabelTest(unittest.TestCase):
              mock.patch.object(ai, "load_openrouter_config",
                                return_value=cfg), \
              mock.patch.object(ai, "openrouter_chat",
-                               side_effect=RuntimeError("401")):
-            with self.assertRaises(RuntimeError) as ctx:
-                planner_llm._ask("s", "u", model="opus", config_dir="", timeout=5)
+                               side_effect=RuntimeError("401")), self.assertRaises(RuntimeError) as ctx:
+            planner_llm._ask("s", "u", model="opus", config_dir="", timeout=5)
         msg = str(ctx.exception)
         self.assertIn("claude -p", msg)
         self.assertIn("api.mammouth.ai", msg)

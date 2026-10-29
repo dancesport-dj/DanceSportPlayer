@@ -40,18 +40,18 @@ from mutagen.id3 import (
     UrlFrame,
 )
 
+from planner.music import custom_field
 from planner.music.parsing import (
-    _CLASS_ORDER,
-    _INSTR_WORDS,
-    _WMP_POPM_EMAIL,
-    _comment_parts,
-    _get_comment_tag,
-    _read_id3v1_comment,
+    CLASS_ORDER,
+    INSTR_WORDS,
+    WMP_POPM_EMAIL,
+    comment_parts,
+    get_comment_tag,
     is_marker_noise,
     part_classes,
+    read_id3v1_comment,
     stars_popm,
 )
-from planner.music import custom_field
 
 _SEP = "; "
 _SUMMARY_LEN = 200
@@ -221,7 +221,7 @@ def sample_custom(paths, limit: int = _SAMPLE) -> tuple[int, dict]:
             tags = None
         except Exception:       # not an MP3, gone: just not counted
             continue
-        v1 = _read_id3v1_comment(Path(path))
+        v1 = read_id3v1_comment(Path(path))
         if tags is None and v1 is None:     # no tag at all
             continue
         read += 1
@@ -271,10 +271,8 @@ def _set(frame, value: str) -> None:
     if isinstance(frame, UrlFrame):
         frame.url = value
         return
-    if len(frame.text) > 1:
-        text = [v.strip() for v in value.split(";") if v.strip()]
-    else:
-        text = [value]
+    text = ([v.strip() for v in value.split(";") if v.strip()]
+            if len(frame.text) > 1 else [value])
     if frame.encoding == Encoding.LATIN1:
         try:
             "".join(text).encode("latin-1")
@@ -352,7 +350,7 @@ def _comment_part_kind(part: str) -> str:
     """Which app field a part of a ';'-separated comment belongs to."""
     if part_classes(part):
         return "classes_ok"
-    if part.lower() in _INSTR_WORDS:
+    if part.lower() in INSTR_WORDS:
         return "is_instrumental"
     if is_marker_noise(part.lower()):
         return "other"
@@ -372,13 +370,13 @@ def _app_comment(tags: ID3, path: Path, changes: dict) -> str:
     lost when the classes came from another comment or the ID3v1 tag)."""
     parts = []
     target = _comment_target(tags)
-    for text in (_get_comment_tag(path, tags),
+    for text in (get_comment_tag(path, tags),
                  str(target.text[0]) if target is not None and target.text else ""):
-        for part in _comment_parts(text or ""):
+        for part in comment_parts(text or ""):
             if part not in parts:
                 parts.append(part)
     kept = [p for p in parts if _comment_part_kind(p) not in changes]
-    front = [c for c in _CLASS_ORDER if c in changes.get("classes_ok", ())]
+    front = [c for c in CLASS_ORDER if c in changes.get("classes_ok", ())]
     back = ["instr"] if changes.get("is_instrumental") else []
     back += list(changes.get("comment_tags", ()))
     return ";".join(front + kept + back)
@@ -404,7 +402,7 @@ def _check_app(changes: dict) -> None:
         raise ValueError(f"not an app tag field: {sorted(unknown)}")
     if "rating" in changes and changes["rating"] not in range(6):
         raise ValueError(f"stars must be 0 to 5, not {changes['rating']!r}")
-    bad = set(changes.get("classes_ok", ())) - set(_CLASS_ORDER)
+    bad = set(changes.get("classes_ok", ())) - set(CLASS_ORDER)
     if bad:
         raise ValueError(f"not a class: {sorted(bad)}")
     if "custom" in changes and not custom_field.writable():
@@ -415,12 +413,12 @@ def _check_app(changes: dict) -> None:
 def _apply_app(tags: ID3, path: Path, version: int, changes: dict) -> None:
     """write_app_fields' change on the tag in memory."""
     if "rating" in changes:
-        key = f"POPM:{_WMP_POPM_EMAIL}"
+        key = f"POPM:{WMP_POPM_EMAIL}"
         stars = changes["rating"]
         if key in tags:
             tags[key].rating = stars_popm(stars) if stars else 0
         elif stars:
-            tags.add(POPM(email=_WMP_POPM_EMAIL, rating=stars_popm(stars), count=0))
+            tags.add(POPM(email=WMP_POPM_EMAIL, rating=stars_popm(stars), count=0))
     if "custom" in changes:
         frame = custom_field.find(tags)
         value = changes["custom"] or ""

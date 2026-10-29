@@ -15,8 +15,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from planner import config as planner_config
 from dancesport_planner import MusicEntry, MusicLibrary
+from planner import config as planner_config
 
 
 class PlaylistDirTestBase(unittest.TestCase):

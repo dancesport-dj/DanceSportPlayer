@@ -4,52 +4,53 @@ Split off gui/window/main_persist.py as a MainWindow mixin — everything that l
 app as a file the desk can carry to the hall.
 """
 import logging
-
 import os
 import re
 import shutil
 import time
 from collections import Counter
 from datetime import date
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+from PySide6.QtCore import QEventLoop, QThread, QTimer, Signal
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
     QFileDialog,
     QMessageBox,
 )
-from PySide6.QtCore import QEventLoop, QThread, QTimer, Signal
-from pathlib import Path
-from planner import i18n
-from planner.event import venue_pack
-from planner.config import OUTPUT_DIR, playlist_dir
-from planner.playlist.m3u import export_flat_m3u, export_m3u, m3u_suffix, numbered_folder_m3u
-from planner.models import split_day_rounds
-from planner.music.paths import PathRemapper
-from planner.store import state_dir
-from planner.terms import practice_name
+
 from gui.common import (
     BusyDialog,
-    _open_folder,
-    _sanitize_filename,
-)
-from shared.widgets import (
-    _show_toast,
+    open_folder,
+    sanitize_filename,
 )
 from gui.dialogs import (  # auto-resolved
     AUTOSAVE,
     UsbBundleFolderDialog,
     UsbExportDialog,
-    _default_save_dir,
+    default_save_dir,
 )
+from gui.table.playlist_table import (  # auto-resolved
+    PlaylistTable,
+)
+from planner import i18n
+from planner.config import OUTPUT_DIR, playlist_dir
+from planner.event import venue_pack
+from planner.models import split_day_rounds
+from planner.music.paths import PathRemapper
+from planner.playlist.m3u import export_flat_m3u, export_m3u, m3u_suffix, m3u_track_sizes, numbered_folder_m3u
+from planner.store import state_dir
+from planner.terms import practice_name
 from shared.stores import (
     CARTWALL,
     SETTINGS,
     save_settings,
 )
-from gui.table.playlist_table import (  # auto-resolved
-    PlaylistTable,
+from shared.widgets import (
+    show_toast,
 )
-from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -101,7 +102,7 @@ def _off_reference_text(path_for: _ReferenceMapper | None) -> str:
             + "\n" + "\n".join(lines))
 
 
-def _bundle_name_guess(m3us) -> str:
+def bundle_name_guess(m3us) -> str:
     """The 🧳 bundle folder's name: the tournament's folder, guessed from the
     folders the exported playlists were loaded from or saved to (`m3us`, None
     for a deck that has no file). Lists in sibling folders name the folder
@@ -151,6 +152,14 @@ def _is_bundle_dir(folder: Path) -> bool:
     return True
 
 
+def bundle_detail(name: str, moved: float, whole: float) -> str:
+    """The USB export's file line, led by how far the whole transfer is:
+    "312 / 1,204 MB · Title" (the size first, a long title is cut short)."""
+    if whole <= 0:
+        return name
+    return f"{moved / 1e6:,.0f} / {whole / 1e6:,.0f} MB · {name}"
+
+
 class _BundleAbort(Exception):
     """Raised inside the USB-export progress callback when the user hit Cancel."""
 
@@ -161,7 +170,8 @@ class _BundleWriter(QThread):
     is read from its attributes once it has finished."""
 
     message = Signal(str)
-    progress = Signal(int, int, str)
+    # (done, total, title, eta_seconds, bytes_done, bytes_total)
+    progress = Signal(int, int, str, float, float, float)
 
     def __init__(self, bundle: Path, jobs: list, parent=None):
         super().__init__(parent)
@@ -178,16 +188,24 @@ class _BundleWriter(QThread):
     def cancel(self):
         self._cancelled = True
 
-    def _prog(self, i, total, name=""):
+    def _prog(self, done: int, sizes: list[int], name: str, t0: float):
+        """Track `done` of the whole bundle's `sizes` is up next. The time
+        left runs over the whole transfer: the time per byte so far times the
+        bytes still to go, so a long title weighs as much as it takes; none
+        before the first one is through."""
         if self._cancelled:
             raise _BundleAbort()
-        self.progress.emit(i, total, name)
+        moved = float(sum(sizes[:done - 1]))
+        whole = float(sum(sizes))
+        elapsed = time.monotonic() - t0
+        eta = elapsed * (whole - moved) / moved if moved > 0 else -1.0
+        self.progress.emit(done, len(sizes), name, eta, moved, whole)
 
     def run(self):
         used_names = set()
 
         def _uniq_name(title: str, fallback: str) -> str:
-            base = _sanitize_filename(title) or fallback
+            base = sanitize_filename(title) or fallback
             uniq = base
             k = 2
             # Never into a folder already there: in a picked folder that may
@@ -199,6 +217,9 @@ class _BundleWriter(QThread):
             return uniq
 
         try:
+            # Every M3U first — quick, no music yet — so the progress and the
+            # time left can run over all the tracks of the bundle.
+            m3us = []
             for title, write_fn in self._jobs:
                 self.message.emit(title)
                 if self._cancelled:
@@ -209,7 +230,18 @@ class _BundleWriter(QThread):
                     folder.mkdir(parents=True)
                     self.created.append(folder)
                     out = write_fn(folder / f"{uniq}{m3u_suffix()}")
-                    files, miss = numbered_folder_m3u(out, progress_cb=self._prog)
+                    m3us.append((title, uniq, out, m3u_track_sizes(out)))
+                except Exception as exc:
+                    self.errors.append(f"{title}: {exc}")
+            sizes = [s for *_rest, own in m3us for s in own]
+            before = 0
+            t0 = time.monotonic()
+            for title, uniq, out, own in m3us:
+                self.message.emit(title)
+                try:
+                    files, miss = numbered_folder_m3u(
+                        out, progress_cb=lambda i, _n, name, b=before:
+                        self._prog(b + i, sizes, name, t0))
                     self.copied_files += files
                     self.missing_total += miss
                     self.written.append(uniq)
@@ -217,6 +249,7 @@ class _BundleWriter(QThread):
                     raise
                 except Exception as exc:
                     self.errors.append(f"{title}: {exc}")
+                before += len(own)
         except _BundleAbort:
             self.aborted = True
 
@@ -385,7 +418,7 @@ class ExportMixin(MainWindowHost):
             "Anything you change before that is lost.\n\n"
             "Restart now?"))
 
-    def _export_path_for(self) -> "_ReferenceMapper | None":
+    def _export_path_for(self) -> _ReferenceMapper | None:
         """The track-path mapper a saved .m3u is written through: every title
         with a copy under the Referenzpfad (Settings) is named by that copy, so
         a list gathered from the C: and the F: library leaves on one drive. A
@@ -394,7 +427,7 @@ class ExportMixin(MainWindowHost):
         root = ((getattr(self, "_settings", None) or {}).get("reference_path") or "").strip()
         return _ReferenceMapper(root) if root else None
 
-    def _warn_off_reference(self, path_for: "_ReferenceMapper | None"):
+    def _warn_off_reference(self, path_for: _ReferenceMapper | None):
         """⚠ After a single save: name the titles that are not on the Referenzpfad."""
         text = _off_reference_text(path_for)
         if text:
@@ -430,7 +463,7 @@ class ExportMixin(MainWindowHost):
         def _uniq_name(title: str, fallback: str) -> str:
             # Two decks / competitions sharing a name would collide → suffix later ones.
             # Case-blind: "Final" and "final" are one file on Windows and macOS.
-            base = _sanitize_filename(title) or fallback
+            base = sanitize_filename(title) or fallback
             uniq = base
             n = 2
             while uniq.casefold() in used_names:
@@ -517,7 +550,7 @@ class ExportMixin(MainWindowHost):
         box.addButton(QMessageBox.StandardButton.Ok)
         box.exec()
         if open_btn is not None and box.clickedButton() is open_btn:
-            _open_folder(OUTPUT_DIR, self)
+            open_folder(OUTPUT_DIR, self)
 
     def _save_wishlists(self, wishes, dlg, path_for, errors):
         """Each wishlist into its own file in the ``wishlists`` folder."""
@@ -529,7 +562,7 @@ class ExportMixin(MainWindowHost):
             title = (self.deck(t).name or "Wishlist").replace("·", "-")
             dlg.set_progress(i, len(wishes), title)
             _repaint()
-            basename = _sanitize_filename(title) or "Wishlist"
+            basename = sanitize_filename(title) or "Wishlist"
             uniq = basename
             n = 2
             while uniq.casefold() in wish_names:   # case-blind, as in save-all
@@ -588,7 +621,7 @@ class ExportMixin(MainWindowHost):
         if not jobs:
             self.statusBar().showMessage("Nothing to export — all playlists are empty.")
             return
-        picked = self._pick_bundle_dir(_bundle_name_guess(sources))
+        picked = self._pick_bundle_dir(bundle_name_guess(sources))
         if picked is None:
             return
         bundle, own_folder = picked
@@ -630,7 +663,7 @@ class ExportMixin(MainWindowHost):
         → (bundle, whether the bundle folder was made for it); None: cancelled."""
         root = QFileDialog.getExistingDirectory(
             self, "USB export — pick the target drive / folder",
-            str(_default_save_dir()))
+            str(default_save_dir()))
         if not root:
             return None
         root = Path(root)
@@ -702,7 +735,9 @@ class ExportMixin(MainWindowHost):
         dlg.show_after(250)
         worker = _BundleWriter(bundle, jobs, self)
         worker.message.connect(lambda title: dlg.set_message(f"🧳 {title}"))
-        worker.progress.connect(dlg.set_progress)
+        worker.progress.connect(
+            lambda done, total, name, eta, moved, whole: dlg.set_progress(
+                done, total, bundle_detail(name, moved, whole), eta))
         dlg.cancel_requested.connect(worker.cancel)
         # Queued from the worker's thread, so a quit posted before exec()
         # starts still ends the loop.
@@ -758,7 +793,7 @@ class ExportMixin(MainWindowHost):
         box.addButton(QMessageBox.StandardButton.Ok)
         box.exec()
         if open_btn is not None and box.clickedButton() is open_btn:
-            _open_folder(bundle, self)
+            open_folder(bundle, self)
 
     def _save_day_plan_m3us(self, file_in_tree: bool = False):
         """Right-click on the 📅 tab → save every competition held in the day
@@ -773,11 +808,11 @@ class ExportMixin(MainWindowHost):
             return
         root = QFileDialog.getExistingDirectory(
             self, "Save tournament day — pick the target folder",
-            str(_default_save_dir()))
+            str(default_save_dir()))
         if not root:
             return
         title = getattr(self, "_day_tab_title", "").strip()
-        sub = (_sanitize_filename(title) if title
+        sub = (sanitize_filename(title) if title
                else f"Tournament_day_{date.today().isoformat()}")
         target = Path(root) / sub
         target.mkdir(parents=True, exist_ok=True)
@@ -796,7 +831,7 @@ class ExportMixin(MainWindowHost):
                 if not data:
                     continue
                 for comp, playlist, c_dances, c_cls in self._deck_export_jobs(data):
-                    base = _sanitize_filename(
+                    base = sanitize_filename(
                         (comp or title).replace("·", "-")) or "Playlist"
                     uniq = base
                     n = 2
@@ -842,7 +877,7 @@ class ExportMixin(MainWindowHost):
         box.addButton(QMessageBox.StandardButton.Ok)
         box.exec()
         if open_btn is not None and box.clickedButton() is open_btn:
-            _open_folder(target, self)
+            open_folder(target, self)
 
     def _deck_export_jobs(self, data: dict) -> list[tuple[str | None, dict, list[str], str]]:
         """(label, playlist, dances, class) export jobs for one serialized deck —
@@ -865,7 +900,7 @@ class ExportMixin(MainWindowHost):
         and remembers wherever you last saved) and export the table's contents there.
         `file_in_tree` then files the saved playlist in 🏆 Tournaments."""
         default = (self.deck(table).name or "Playlist").replace("·", "-")
-        basename = _sanitize_filename(default) or "Playlist"
+        basename = sanitize_filename(default) or "Playlist"
         # Resolve the export work first, so empty decks/wishlists are caught before
         # the user picks a file.
         is_wish = table in self._deckset.wishlists
@@ -912,7 +947,7 @@ class ExportMixin(MainWindowHost):
                         progress_cb=cb, out_path=out, path_for=path_for))
 
         settings = getattr(self, "_settings", None) or {}
-        start_dir = settings.get("save_dir") or str(_default_save_dir())
+        start_dir = settings.get("save_dir") or str(default_save_dir())
         try:
             Path(start_dir).mkdir(parents=True, exist_ok=True)
         except Exception as exc:
@@ -937,7 +972,7 @@ class ExportMixin(MainWindowHost):
             return
         table._m3u_path = Path(out)
         self.statusBar().showMessage(i18n.t("Saved → %s") % out)
-        _show_toast(self, i18n.t("💾  Saved → %s") % Path(out).name)
+        show_toast(self, i18n.t("💾  Saved → %s") % Path(out).name)
         if file_in_tree:
             self._file_in_tournaments([Path(out)])
         self._warn_off_reference(path_for)
@@ -1010,12 +1045,12 @@ class ExportMixin(MainWindowHost):
                 return
             safe = re.sub(r"[^\w]+", "_", self._theme_label).strip("_") or "Theme"
             path_for = self._export_path_for()
-            out  = self._run_export(
+            out = self._run_export(
                 "💾 Saving playlist…",
                 lambda cb: export_flat_m3u(self._theme_entries, f"Theme_{safe}",
                                            progress_cb=cb, path_for=path_for))
             self.statusBar().showMessage(i18n.t("Saved → %s") % out)
-            _show_toast(self, i18n.t("💾  Saved → %s") % Path(out).name)
+            show_toast(self, i18n.t("💾  Saved → %s") % Path(out).name)
             self._warn_off_reference(path_for)
             return
 
@@ -1030,7 +1065,7 @@ class ExportMixin(MainWindowHost):
             outs = []
             path_for = self._export_path_for()
             for comp, playlist, c_dances, c_cls in self._deck_export_jobs(data or {}):
-                base = _sanitize_filename((comp or "Playlist").replace("·", "-")) or "Playlist"
+                base = sanitize_filename((comp or "Playlist").replace("·", "-")) or "Playlist"
                 out = self._run_export(
                     i18n.t("💾 Saving %s…") % comp,
                     lambda cb, pl=playlist, dl=c_dances, b=base, cl=c_cls:
@@ -1038,14 +1073,14 @@ class ExportMixin(MainWindowHost):
                 outs.append(Path(out).name)
             self.statusBar().showMessage(
                 i18n.t("Saved %d competition playlist(s) → %s") % (len(outs), OUTPUT_DIR))
-            _show_toast(self, i18n.t("💾  Saved %d competition playlist(s)") % len(outs))
+            show_toast(self, i18n.t("💾  Saved %d competition playlist(s)") % len(outs))
             self._warn_off_reference(path_for)
             return
         suffix = f"_v{self._iteration}" if self._iteration > 1 else ""
         if self._replay_label:
             # Seeded from a past competition → name the export after that class
-            dances   = self._dances
-            cls      = self._dance_class
+            dances = self._dances
+            cls = self._dance_class
             basename = f"{self._replay_label}{suffix}"
         else:
             # What the playlist was generated with, not the live checkboxes: a
@@ -1059,5 +1094,5 @@ class ExportMixin(MainWindowHost):
             lambda cb: export_m3u(grid, dances, basename, cls, progress_cb=cb,
                                   path_for=path_for))
         self.statusBar().showMessage(i18n.t("Saved → %s") % out)
-        _show_toast(self, i18n.t("💾  Saved → %s") % Path(out).name)
+        show_toast(self, i18n.t("💾  Saved → %s") % Path(out).name)
         self._warn_off_reference(path_for)

@@ -25,14 +25,12 @@ from dancesport_planner import (
     PlaylistSuggester,
     RoundConfig,
 )
-from gui.library_browser import _LIB_COL_RATING
-from gui.table.star_rating import (
-    RATING_ROLE, clicked_rating, star_at, star_rects)
+from gui.library_browser import LIB_COL_RATING
+from gui.table.star_rating import RATING_ROLE, clicked_rating, star_at, star_rects
 from planner.music import tag_edits
-from tests.db_support import use_scratch_db
 from shared.columns import _COL_RATING
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
+from tests.db_support import use_scratch_db
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 _MUSIC = Path(tempfile.mkdtemp(prefix="dp_star_music_"))
 
@@ -163,29 +161,29 @@ class RatingClickTest(unittest.TestCase):
         self.fail(f"no library row for {entry.title}")
 
     def test_the_library_starts_with_the_rating_put_away(self):
-        self.assertIn(_LIB_COL_RATING, self.win._lib_browser.hidden_columns())
+        self.assertIn(LIB_COL_RATING, self.win._lib_browser.hidden_columns())
 
     def test_the_library_shows_the_stars(self):
         browser = self.win._lib_browser
         browser.set_entries(self.win._library.lib.entries)
-        it = browser._table.item(self._lib_row(self.cha), _LIB_COL_RATING)
+        it = browser._table.item(self._lib_row(self.cha), LIB_COL_RATING)
         self.assertEqual(it.data(RATING_ROLE), 2)
 
     def test_a_click_in_the_library_rates_the_track_everywhere(self):
         browser = self.win._lib_browser
         browser.set_entries(self.win._library.lib.entries)
         row = self._lib_row(self.cha)
-        browser._on_star_clicked(browser._table.model().index(row, _LIB_COL_RATING), 3)
+        browser._on_star_clicked(browser._table.model().index(row, LIB_COL_RATING), 3)
         self.assertEqual(tag_edits.load("fpCha"), {"rating": 3})
         self.assertEqual(self._stars(self.win._deckset.tableC, self.copy), 3)
-        it = browser._table.item(self._lib_row(self.cha), _LIB_COL_RATING)
+        it = browser._table.item(self._lib_row(self.cha), LIB_COL_RATING)
         self.assertEqual(it.data(RATING_ROLE), 3)
 
     def test_a_deck_click_reaches_the_library_row(self):
         browser = self.win._lib_browser
         browser.set_entries(self.win._library.lib.entries)
         self._click(self.win._deckset.tableB, self.cha, 5)
-        it = browser._table.item(self._lib_row(self.cha), _LIB_COL_RATING)
+        it = browser._table.item(self._lib_row(self.cha), LIB_COL_RATING)
         self.assertEqual(it.data(RATING_ROLE), 5)
 
     # ----- two quick star clicks are not a double-click on the track ---------
@@ -210,7 +208,7 @@ class RatingClickTest(unittest.TestCase):
         browser.set_entries(self.win._library.lib.entries)
         opened = []
         browser._open_external = opened.append
-        browser._on_double_click(self._lib_row(self.cha), _LIB_COL_RATING)
+        browser._on_double_click(self._lib_row(self.cha), LIB_COL_RATING)
         self.assertEqual(opened, [])
 
     # ----- the 🏷 editor dialog's result, stored by the window ----------------

@@ -23,8 +23,8 @@ import io
 import logging
 import traceback
 from array import array
-from pathlib import Path
 from collections.abc import Callable
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -148,7 +148,7 @@ def _byte_bar(cb: Callable[[int, int], None]):
 
 # The decoders' stderr muting is shared with the analysis pass (planner.music.db): fd 2
 # is process-wide, so all decodes on all threads must go through one lock.
-_quiet_native_stderr = quiet_native_stderr
+quiet_native_stderr = quiet_native_stderr
 
 
 # ── availability probes (no heavy import) ────────────────────────────────────────
@@ -311,9 +311,9 @@ class _MertBackend:
         return self._model, self._proc
 
     def embed_file(self, path: Path) -> list[float]:
-        import torch  # pyright: ignore[reportMissingImports]
         import librosa
-        with _quiet_native_stderr():
+        import torch  # pyright: ignore[reportMissingImports]
+        with quiet_native_stderr():
             y, sr = librosa.load(str(path), sr=_MERT_SR, mono=True,
                                  offset=0.0, duration=_MERT_SECONDS)
         if y.size < sr:
@@ -349,9 +349,9 @@ class _ChromaBackend:
         """librosa only: no model to download."""
 
     def embed_file(self, path: Path) -> list[float]:
-        import numpy as np
         import librosa
-        with _quiet_native_stderr():
+        import numpy as np
+        with quiet_native_stderr():
             y, sr = librosa.load(str(path), sr=_CHROMA_SR, mono=True,
                                  offset=0.0, duration=_EMBED_SECONDS)
         if y.size < sr:
@@ -374,7 +374,7 @@ _mert = _MertBackend()
 _chroma = _ChromaBackend()
 
 
-def get_backend(model: str):
+def get_backend(model: str) -> _MertBackend | _ChromaBackend:
     if model == MODEL_CHROMA:
         return _chroma
     return _mert

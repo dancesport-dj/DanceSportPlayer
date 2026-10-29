@@ -5,18 +5,18 @@ thing at the desk, so every box can fold to its title — which means the splitt
 constraints have to be re-clamped in the same order the splitters nest.
 """
 import logging
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QToolButton, QWidget
 
-from shared.stores import (  # auto-resolved
-    save_settings,
-)
 from gui.table.playlist_table import (  # auto-resolved
     PlaylistTable,
 )
 from planner import i18n
-from typing import TYPE_CHECKING
+from shared.stores import (  # auto-resolved
+    save_settings,
+)
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -144,16 +144,16 @@ class FoldMixin(MainWindowHost):
                 # redistribute synchronously, and zeroing the pane instead
                 # would make its tabs vanish (the splitter drops it to its
                 # minimum, not to the strip height).
-                sizes = self._grid.right_split.sizes()
-                rt = sizes[0] + sizes[1]
+                sizes, d, w = self._deck_and_wish_sizes()
+                rt = sizes[d] + sizes[w]
                 if rt > 0:
                     strip = (self._grid.wish_split if is_wish
                              else self._grid.deck_tabs).sizeHint().height()
                     strip = min(strip, rt)
-                    # Panes beyond decks+wishlists (library browser) keep theirs.
-                    self._grid.right_split.setSizes(
-                        ([rt - strip, strip] if is_wish
-                         else [strip, rt - strip]) + sizes[2:])
+                    # The other panes (🤸 warm-up, library browser) keep theirs.
+                    sizes[d], sizes[w] = ((rt - strip, strip) if is_wish
+                                          else (strip, rt - strip))
+                    self._grid.right_split.setSizes(sizes)
         if not folded:
             # Give the freshly unfolded playlist its half of the pair back.
             total = sum(split.sizes())
@@ -162,11 +162,18 @@ class FoldMixin(MainWindowHost):
             # If its whole section (decks / wishlist area) was collapsed to tab
             # height, give the section its share of the window back too.
             if section_was_collapsed:
-                sizes = self._grid.right_split.sizes()
-                rt = sizes[0] + sizes[1]
+                sizes, d, w = self._deck_and_wish_sizes()
+                rt = sizes[d] + sizes[w]
                 if rt > 0:
-                    self._grid.right_split.setSizes(
-                        [int(rt * 0.75), rt - int(rt * 0.75)] + sizes[2:])
+                    sizes[d], sizes[w] = int(rt * 0.75), rt - int(rt * 0.75)
+                    self._grid.right_split.setSizes(sizes)
+
+    def _deck_and_wish_sizes(self) -> tuple[list[int], int, int]:
+        """The right splitter's pane heights, and where the decks and the
+        wishlist area sit in them — the 🤸 warm-up panel is between the two."""
+        split = self._grid.right_split
+        return (split.sizes(), split.indexOf(self._grid.deck_tabs),
+                split.indexOf(self._grid.wish_split))
 
     def _refresh_fold_splitters(self):
         """Re-derive every deck/wishlist splitter's max size right now."""
@@ -226,6 +233,11 @@ class FoldMixin(MainWindowHost):
                     col.setSizes([min(top, total), max(total - top, 0)])
             for t in pair:
                 self._refresh_fold_btn(t)   # arrows depend on the column state
+        # The tab widget's minimum is the tallest of ALL its pages — the hidden
+        # Group E–H and 📅 pages with their open decks too — so it held a
+        # collapsed deck section far above its tab strip.
+        tabs = self._grid.deck_tabs
+        tabs.setMinimumHeight(tabs.sizeHint().height() if all_decks_folded else 0)
         if rebalance:
             # Rebalance each grid's two columns (the hidden grids are inert).
             for grid, right_col in ((self._grid.decks_split, self._grid.decks_col2),
@@ -354,10 +366,8 @@ class FoldMixin(MainWindowHost):
         if btn is None:
             return
         if not self.deck(table).folded:
-            if table in self._deckset.wishlists:
-                top = self._wish_is_top(table)
-            else:
-                top = self._deck_is_top(table)
+            top = (self._wish_is_top(table) if table in self._deckset.wishlists
+                   else self._deck_is_top(table))
             btn.setText("▴" if top else "▾")
             btn.setToolTip("Fold this playlist to a tab —\n"
                            "the other open playlists get its space.")
@@ -467,10 +477,7 @@ class FoldMixin(MainWindowHost):
         total = sum(sizes)
         if total <= 0:
             return
-        if folded:
-            lib = min(folded_height, total)
-        else:
-            lib = max(140, int(total * 0.25))
+        lib = min(folded_height, total) if folded else max(140, int(total * 0.25))
         rest = total - lib
         # The library pane is the LAST child; scale every other pane (decks /
         # warm-up / wishlist) to fill the remaining height, keeping their ratios.

@@ -10,13 +10,13 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QMenu, QMessageBox
 
-from planner import i18n
-from planner.models import MusicEntry
-from planner.music.parsing import _song_title_key
-from planner.terms import dance_name
-from shared.widgets import _show_toast
 from gui.common import reveal_in_explorer
 from gui.dialogs import SimilarTracksDialog
+from planner import i18n
+from planner.models import MusicEntry
+from planner.music.parsing import song_title_key
+from planner.terms import dance_name
+from shared.widgets import show_toast
 
 if TYPE_CHECKING:
     from gui.window.hosts import PlaylistTableHost
@@ -30,7 +30,7 @@ def _source_stem(label: str) -> str:
     return label.split(" / ", 1)[-1]
 
 
-def _clean_deck_label(n_other: int) -> str:
+def clean_deck_label(n_other: int) -> str:
     """The 🧹 action's wording for however many OTHER playlists are in view:
     one of them is "the other playlist", more are counted."""
     return ("🧹  Remove titles the other playlist has" if n_other == 1
@@ -131,8 +131,9 @@ class TableMenuMixin(PlaylistTableHost):
                 menu.addSeparator()
                 remove_act = menu.addAction("🗑  Remove from wishlist")
                 # The same removal as the Delete key: played rows re-grey and
-                # the play frame moves where the rows now sit.
-                handlers[remove_act] = lambda: self._remove_rows([row])
+                # the play frame moves where the rows now sit. Opened inside a
+                # selection, the whole selection goes, like a deck's 🗑.
+                handlers[remove_act] = lambda: self._remove_rows(edit_rows)
             # Eintanzen list: two selected titles of one dance change places.
             if self._two_songs_selected():
                 menu.addSeparator()
@@ -160,10 +161,10 @@ class TableMenuMixin(PlaylistTableHost):
                      if 0 <= row < len(self._row_meta) else None)
             # Round-level actions work from a round/dance HEADER row too (resolved via
             # _round_of_row); heat-level ones (remove THIS heat) need an actual slot row.
-            round_name    = self._round_of_row(row)
-            on_round      = bool(round_name and round_name in (self._playlist or {}))
-            on_heat_row   = bool(rmeta and rmeta.round_name
-                                 and not rmeta.backup)
+            round_name = self._round_of_row(row)
+            on_round = bool(round_name and round_name in (self._playlist or {}))
+            on_heat_row = bool(rmeta and rmeta.round_name
+                               and not rmeta.backup)
             is_backup_row = bool(rmeta and rmeta.backup)
             # The single dance under the cursor — from a slot row's meta or a dance
             # header — so just that dance can be pulled out of this one round.
@@ -280,7 +281,7 @@ class TableMenuMixin(PlaylistTableHost):
         if entry.path:
             def _copy_path():
                 QApplication.clipboard().setText(str(entry.path))
-                _show_toast(self, "📋  Path copied to clipboard")
+                show_toast(self, "📋  Path copied to clipboard")
             handlers[copy_act] = _copy_path
             handlers[reveal_act] = lambda: reveal_in_explorer(entry.path, self)
             handlers[speed_act] = lambda: host.check_track_speed(entry)
@@ -358,7 +359,7 @@ class TableMenuMixin(PlaylistTableHost):
             if n_other:
                 if not menu.isEmpty():
                     menu.addSeparator()
-                clean_deck_act = menu.addAction(_clean_deck_label(n_other))
+                clean_deck_act = menu.addAction(clean_deck_label(n_other))
                 handlers[clean_deck_act] = host.clean_deck_against_others
 
         # Any list: the same audio twice in THIS list (a C: and an F: copy, say).
@@ -433,32 +434,31 @@ class TableMenuMixin(PlaylistTableHost):
         Returns (matched, labels_of, deck_class, deck_types): the library entries,
         each one's source-list labels by id(entry), and this deck's identity the
         callers rank by. None when the deck has no such round or no library."""
-        from planner.event.competition import (comp_type_tokens, comp_categories,
-                                         class_compatible, category_compatible)
+        from planner.event.competition import category_compatible, class_compatible, comp_categories, comp_type_tokens
         lib = self._suggester.lib if self._suggester else None
         if lib is None or not self._playlist:
             return None
         rounds_in_order = list(self._playlist.keys())
         if round_name not in rounds_in_order:
             return None
-        round_idx      = rounds_in_order.index(round_name)
+        round_idx = rounds_in_order.index(round_name)
         schedule_heats = [len(self._playlist[r]) for r in rounds_in_order]
-        num_dances     = len(self.current_dances()) or 1
+        num_dances = len(self.current_dances()) or 1
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
             _all, round_pools, _n, round_sources = lib.past_competition_round_pools(
                 None, schedule_heats, num_dances)
         finally:
             QApplication.restoreOverrideCursor()
-        pool    = round_pools[round_idx]   if 0 <= round_idx < len(round_pools)   else []
+        pool = round_pools[round_idx] if 0 <= round_idx < len(round_pools) else []
         sources = round_sources[round_idx] if 0 <= round_idx < len(round_sources) else {}
 
         # This deck's competition identity: start class (WDSF ⇒ S) + distinctive type
         # tokens (WDSF / category / level), parsed from its name and configured class.
-        deck_name  = self.host.deck_name()
+        deck_name = self.host.deck_name()
         deck_types = comp_type_tokens(deck_name)
         deck_class = "S" if "WDSF" in deck_types else (self._dance_class or None)
-        deck_cats  = comp_categories(deck_name)
+        deck_cats = comp_categories(deck_name)
 
         # Keep only this-dance tracks whose source lists FOR THIS ROUND include a
         # competition of a compatible class AND age category, with just that subset
@@ -485,7 +485,7 @@ class TableMenuMixin(PlaylistTableHost):
         hist = self._round_history(dance, round_name)
         matched = hist[0] if hist else []
         paths = {str(e.path) for e in matched if e.path}
-        keys = {_song_title_key(p) for p in paths} - {""}
+        keys = {song_title_key(p) for p in paths} - {""}
         return paths, keys
 
     def _show_planned_before(self, dance: str, round_name: str):

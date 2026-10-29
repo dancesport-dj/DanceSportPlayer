@@ -15,6 +15,7 @@ from planner import i18n
 from planner.playing.play_sets import (
     DANCE_SECS_KEY,
     ROUND_DANCE_SECS_KEY,
+    XFADE_DEFAULT_SECS,
     dance_secs_of,
     dblclick_ask_of,
     pd_of,
@@ -24,11 +25,10 @@ from planner.playing.play_sets import (
     round_pd_n_of,
     same_play_values,
     tso_of,
-    XFADE_DEFAULT_SECS,
 )
 from planner.terms import dance_name, round_name, rules_name
 from shared.stores import save_settings
-from shared.widgets import _show_toast
+from shared.widgets import show_toast
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -118,6 +118,8 @@ class PlayValuesMixin(MainWindowHost):
     def _play_limit_secs(self) -> int:
         """Seconds per title for the playing list, 0 = to the track's own end —
         the 🏆 set's own length for the title's dance, where it has one."""
+        if self._closing_on_air():
+            return 0   # 🌙 the closing song plays to its end
         playing, row = self._playing_row()
         rnd = playing.round_at(row) if playing is not None else ""
         own = self._dance_secs(self._engine_list(), self._playback.dance, rnd)
@@ -234,8 +236,13 @@ class PlayValuesMixin(MainWindowHost):
         name = dance_name(dance, dance) if own is not None else ""
         if name and self._round_secs(dance, rnd) is not None:
             name = f"{name}, {round_name(rnd)}"
+        # 🥇 Only about the title playing: what comes after its cut.
+        playing, _row = self._playing_row()
+        plays_on = (self._playback.path is not None
+                    and (playing is table or table is None)
+                    and self._celebration_due())
         self._play_panel.set_dance_len(
-            dance if own is not None else "", name, own)
+            dance if own is not None else "", name, own, plays_on)
         self._sync_round_pd(table, dance, rnd)
 
     def _sync_round_pd(self, table, dance: str, rnd: str) -> None:
@@ -321,7 +328,7 @@ class PlayValuesMixin(MainWindowHost):
         # Other values on the panel get the toast 🎉/🏆 get. Not while the
         # window is not up: start-up binds the panel too, and nobody clicked.
         if changed and self.isVisible():
-            _show_toast(self, self._list_set_head(table)
+            show_toast(self, self._list_set_head(table)
                         + "\n" + "\n".join(changed), 4000)
 
     def _list_set_head(self, table) -> str:
@@ -566,7 +573,7 @@ class PlayValuesMixin(MainWindowHost):
         """After a set button: relight, save and say what changed."""
         self._refresh_set_lights()
         self._save_play_settings()
-        _show_toast(self, head + "\n" + "\n".join(lines), 4000)
+        show_toast(self, head + "\n" + "\n".join(lines), 4000)
         log.info("%s\n"
                  "changed: %s", head, lines)
 

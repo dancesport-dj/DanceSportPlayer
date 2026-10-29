@@ -17,8 +17,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from planner.models import MusicEntry
 from planner.generate.suggester import PlaylistSuggester
+from planner.models import MusicEntry
 
 TRIALS = 300
 
@@ -36,7 +36,7 @@ def _share_of(winner: MusicEntry, sims: list[tuple[MusicEntry, float]]) -> float
     pool = [e for e, _ in sims]
     sugg = PlaylistSuggester(None, seed=1)   # the pool is mocked, the library unused
     with mock.patch.object(PlaylistSuggester, "_get_pool", return_value=pool), \
-            mock.patch("planner.generate.suggester._timbre_similarity",
+            mock.patch("planner.generate.suggester.timbre_similarity",
                        return_value={str(e.path): s for e, s in sims}):
         wins = sum(sugg._pick("TG", "D", "Final", set(), anchor=object(),
                               strategy="mixed")[0] is winner

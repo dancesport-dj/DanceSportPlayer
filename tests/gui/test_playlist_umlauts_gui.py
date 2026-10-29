@@ -57,8 +57,8 @@ class DropTest(_Base):
     """The two `_m3u_track_paths` a drop goes through: the window's and a deck's."""
 
     def _readers(self):
-        from gui.window.main_dupes import DuplicateCheckMixin
         from gui.table.table_actions import TableActionsMixin
+        from gui.window.main_dupes import DuplicateCheckMixin
         return (DuplicateCheckMixin._m3u_track_paths,
                 TableActionsMixin._m3u_track_paths)
 
@@ -70,7 +70,7 @@ class DropTest(_Base):
     def test_an_undecodable_list_is_empty_and_says_so(self):
         p = self._undecodable()
         for read in self._readers():
-            with mock.patch("gui.common._show_toast") as toast, \
+            with mock.patch("gui.common.show_toast") as toast, \
                  self.assertLogs("dancesport.gui", "WARNING"):
                 self.assertEqual(read(object(), p), [], read.__qualname__)
             self.assertIn("bad.m3u", toast.call_args.args[1])
@@ -79,16 +79,16 @@ class DropTest(_Base):
 class ReferenceCleanerTest(_Base):
 
     def test_the_reference_is_split_with_its_umlaut_paths(self):
-        from gui.workers import _parse_m3u_blocks
+        from gui.workers import parse_m3u_blocks
         p = self._cp1252("#EXTINF:90,Küss mich", str(self.track))
-        blocks = _parse_m3u_blocks(p)
+        blocks = parse_m3u_blocks(p)
         self.assertEqual([b["path"] for b in blocks], [self.track])
         self.assertEqual(blocks[0]["title"], "Küss mich")
 
     def test_an_undecodable_reference_fails_the_run(self):
-        from gui.workers import _parse_m3u_blocks
+        from gui.workers import parse_m3u_blocks
         with self.assertRaises(PlaylistEncodingError):
-            _parse_m3u_blocks(self._undecodable())
+            parse_m3u_blocks(self._undecodable())
 
     def test_the_tournament_lists_are_read_by_a_reader_that_fails_too(self):
         from gui.window.main_dupes import DuplicateCheckMixin
@@ -127,16 +127,6 @@ class PartyListTest(_Base):
 
 
 class PlayerTest(_Base):
-
-    def test_the_pause_music_list_keeps_its_umlaut_paths(self):
-        from player.widgets.play_mode_panel import PlayModePanel
-        p = self._cp1252(str(self.track))
-        self.assertEqual(PlayModePanel._read_m3u(str(p)), [str(self.track)])
-
-    def test_an_undecodable_pause_list_is_empty_and_logged(self):
-        from player.widgets.play_mode_panel import PlayModePanel
-        with self.assertLogs("dancesport", "WARNING"):
-            self.assertEqual(PlayModePanel._read_m3u(str(self._undecodable())), [])
 
     def test_the_list_cover_is_found_through_an_umlaut_path(self):
         from player.widgets.artwork import playlist_art

@@ -130,9 +130,8 @@ class DownloadTest(unittest.TestCase):
         self.assertEqual(path.read_bytes(), b"macho")
 
     def test_no_build_for_this_system(self):
-        with mock.patch.object(tunnel, "asset_name", return_value=None):
-            with self.assertRaises(ValueError):
-                tunnel.download(self.dir, opener=mock.Mock())
+        with mock.patch.object(tunnel, "asset_name", return_value=None), self.assertRaises(ValueError):
+            tunnel.download(self.dir, opener=mock.Mock())
 
     def test_the_download_checks_github_against_certifi_too(self):
         """A Mac without a CA file of its own failed with "certificate verify

@@ -17,7 +17,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from planner.config import _default_music_dir, _default_playlist_dir
+from planner.config import default_music_dir, default_playlist_dir
 
 
 class MusicDirDefaultTest(unittest.TestCase):
@@ -28,13 +28,13 @@ class MusicDirDefaultTest(unittest.TestCase):
         home = Path(r"C:\Users\someone")
         with mock.patch.object(sys, "platform", "win32"), \
              mock.patch.object(Path, "home", return_value=home):
-            self.assertEqual(_default_music_dir(),
+            self.assertEqual(default_music_dir(),
                              home / "Documents" / "datein" / "my music" / "tanzcds")
 
     def test_the_mac_reads_it_out_of_the_home_folder(self):
         """/Users/<user>/Music/my music/tanzcds — where Marcel's Mac keeps it."""
         with mock.patch.object(sys, "platform", "darwin"):
-            got = _default_music_dir()
+            got = default_music_dir()
         self.assertEqual(got, Path.home() / "Music" / "my music" / "tanzcds")
 
     def test_the_mac_default_is_built_from_the_home_folder(self):
@@ -42,7 +42,7 @@ class MusicDirDefaultTest(unittest.TestCase):
         logged in. (Run on Windows, `Path.home()` is still a C: path — the
         point is where the default comes FROM, not how it is spelled.)"""
         with mock.patch.object(sys, "platform", "darwin"):
-            got = _default_music_dir()
+            got = default_music_dir()
         self.assertTrue(got.is_absolute())
         self.assertTrue(got.is_relative_to(Path.home()))
         self.assertNotIn("Marcel", got.relative_to(Path.home()).parts)
@@ -54,12 +54,12 @@ class PlaylistDirDefaultTest(unittest.TestCase):
 
     def test_windows_reads_it_out_of_the_home_folder(self):
         with mock.patch.object(sys, "platform", "win32"):
-            self.assertEqual(_default_playlist_dir(),
+            self.assertEqual(default_playlist_dir(),
                              Path.home() / "Documents" / "Playlists")
 
     def test_the_mac_reads_it_out_of_the_home_folder(self):
         with mock.patch.object(sys, "platform", "darwin"):
-            self.assertEqual(_default_playlist_dir(),
+            self.assertEqual(default_playlist_dir(),
                              Path.home() / "Documents" / "Playlists")
 
 

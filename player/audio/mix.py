@@ -1,28 +1,31 @@
 """🔊 How loud each output is — the one place the factors get multiplied.
 
-Three things make sound at the desk: the deck playing the round, the 🎛 cartwall
-pads fired over it, and the ⏸ filler music between two titles. They hear
-different subsets of the same five factors, and those subsets used to be spelled
-out at each of the three call sites that pushed a number into Qt — so "does the
-desk duck reach the pads?" could only be answered by reading three formulas and
-hoping they agreed.
+Two things make sound at the desk: the deck playing the round and the 🎛
+cartwall pads fired over it (the 🎶 beds between two titles among them). They
+hear different subsets of the same factors, and those subsets used to be spelled
+out at each call site that pushed a number into Qt — so "does the desk duck
+reach the pads?" could only be answered by reading several formulas and hoping
+they agreed.
 
 Qt-free on purpose: what a level IS, and how it ramps towards a new one, is
 arithmetic. The mixin that owns the QAudioOutputs asks here for a number and
 pushes it.
 """
-_ANNOUNCE_DUCK = 0.3     # filler volume factor while the announcement runs
+ANNOUNCE_DUCK = 0.3     # the music and the 🎶 beds while the announcement runs
 CART_DUCK_PCT = 10        # …and while a 🎛 cartwall pad plays: ≈ −20 dB, not −10
-_CART_DUCK = CART_DUCK_PCT / 100
-_DUCK_DOWN_MS = 180       # how long the music takes to get out of the way…
-_DUCK_UP_MS = 600         # …and how long it takes to come back, unhurried
-DESK_DUCK_PCT = 20        # 🔉 what the desk's duck button pulls everything to…
-_DESK_DUCK = DESK_DUCK_PCT / 100
+CART_DUCK = CART_DUCK_PCT / 100
+DUCK_DOWN_MS = 200       # how long the music takes to get out of the way…
+DUCK_UP_MS = 600         # …and how long it takes to come back, unhurried
+_DUCK_RAMP_MAX_MS = 5000  # ⚙ either set longer is no duck, it is a fade
+DESK_DUCK_PCT = 10        # 🔉 what the desk's duck button pulls everything to…
+DESK_DUCK = DESK_DUCK_PCT / 100
 _DESK_DUCK_MAX_PCT = 90   # …at most: a duck to full is no duck, and "full" means "not ducked"
 
 _GAIN_RAMP_MS = 500       # a late loudness correction is a swell, not a step
 # 🌅 The longest fade-in a title gets: past that it is an intro nobody hears.
 FADE_IN_MAX_SECS = 10.0
+# 🔉↓ 🛑 ⏹ ✕ The longest fade by hand, as long as the playlist's own may be.
+HAND_FADE_MAX_SECS = 10.0
 
 # Level changes that ride a ramp step every this many ms. Setting a level in one
 # go is an audible click, and the ear reads the click as damage to the music;
@@ -82,6 +85,32 @@ def fade_in_secs(settings: dict) -> float:
     return max(0.0, min(FADE_IN_MAX_SECS, secs))
 
 
+def hand_fade_secs(settings: dict, list_fade: float) -> float:
+    """🔉↓ 🛑 ⏹ ✕ How long a fade started by hand runs, set under ⚙ Settings
+    ▸ Sound & player. 0 — or a broken value — is the playlist's own fade-out,
+    as before the setting existed."""
+    try:
+        secs = float(settings.get("hand_fade_secs", 0) or 0)
+    except (TypeError, ValueError):
+        return list_fade
+    if secs <= 0:
+        return list_fade
+    return min(HAND_FADE_MAX_SECS, secs)
+
+
+def duck_ramp_ms(settings: dict) -> tuple[int, int]:
+    """🔈 How long the music takes to get out of the way of a voice or a 🎛
+    pad, and to come back, set under ⚙ Settings ▸ Sound & player. At least one
+    ramp step: anything shorter is a jump. A broken value is its default."""
+    def read(key: str, default: int) -> int:
+        try:
+            ms = int(settings.get(key, default))
+        except (TypeError, ValueError):
+            return default
+        return max(_RAMP_STEP_MS, min(_DUCK_RAMP_MAX_MS, ms))
+    return read("duck_down_ms", DUCK_DOWN_MS), read("duck_up_ms", DUCK_UP_MS)
+
+
 class OutputMix:
     """The five factors behind every level, and the ramps that move them.
 
@@ -94,11 +123,12 @@ class OutputMix:
     def __init__(self, base: float = 1.0, cart: float = 1.0):
         self.base = _clamped(base)   # the music fader, persisted
         self.cart = _clamped(cart)   # 🎛 the cartwall's own fader, persisted
+        self.cart_muted = False      # 🔇 …silenced by its 🔊, the fader kept
         self.gain = 1.0              # per-track loudness (R128) equalization
         self.fade = 1.0              # the timed fade-out of the running title
         self.duck = 1.0              # 🔈 pulled down while something speaks
         self.desk = 1.0              # 🔉 the desk's own duck button
-        self.filler_fade = 1.0       # the ⏸ filler's fade in and out
+        self.desk_muted = False      # 🔇 …pressed on to mute
         # 🔀 A crossfade: the incoming title's ramp up from silence, and the
         # gain × fade the outgoing one had when it moved to the tail player.
         self.fade_in = 1.0
@@ -108,15 +138,17 @@ class OutputMix:
         self.gain_target = 1.0
         # How far the running duck ramp travels, fixed when it is aimed: each
         # one takes its span however deep it goes (see `duck_reason`).
-        self.duck_depth = 1.0 - _ANNOUNCE_DUCK
+        self.duck_depth = 1.0 - ANNOUNCE_DUCK
         self.gain_step = 0.0
         self.duck_target = 1.0
-        self.cart_duck = _CART_DUCK  # 🎛 the depth a pad pulls the music to
+        self.duck_down_ms = DUCK_DOWN_MS   # 🔈 its span down, and back up
+        self.duck_up_ms = DUCK_UP_MS
+        self.cart_duck = CART_DUCK  # 🎛 the depth a pad pulls the music to
         # Who is currently holding the music down — a set, not a counter, so an
         # unbalanced `off` cannot leave the music stuck (see duck_reason).
         self.duck_reasons: set[str] = set()
 
-    # ── The three outputs ────────────────────────────────────────────────────
+    # ── The outputs ──────────────────────────────────────────────────────────
 
     def deck(self) -> float:
         """The round's own music: every factor applies to it."""
@@ -148,17 +180,9 @@ class OutputMix:
         or loudness gain — those belong to a title the pad is not part of — and
         not `duck`, which is the duck the pads themselves cause.
         """
+        if self.cart_muted:
+            return 0.0
         return _clamped(self.cart * self.desk)
-
-    def filler(self, share: float) -> float:
-        """⏸ The filler between two titles, at `share` (0…1) of the master.
-
-        It carries the announcement duck (the announcer speaks over the filler,
-        which is the whole point of the break) but not the deck's loudness gain
-        or fade — no deck title is running.
-        """
-        return _clamped(self.base * self.desk * self.duck * share
-                        * self.filler_fade)
 
     # ── Moving them ──────────────────────────────────────────────────────────
 
@@ -168,11 +192,19 @@ class OutputMix:
     def set_cart(self, v: float):
         self.cart = _clamped(v)
 
-    def set_desk_duck(self, on: bool, level: float = _DESK_DUCK) -> float:
+    def set_desk_duck(self, on: bool, level: float = DESK_DUCK) -> float:
         """🔉 Everything audible down to `level`, and back. Stepped, not
         ramped: it is a deliberate operator action, and it must be immediate."""
         self.desk = level if on else 1.0
+        self.desk_muted = False
         return self.desk
+
+    def set_desk_mute(self, on: bool):
+        """🔇 The duck button's third press: everything audible to silence,
+        and on the next back to full. Flagged, since a duck to 0 % is just as
+        silent and still has its mute step to come."""
+        self.desk = 0.0 if on else 1.0
+        self.desk_muted = on
 
     def set_cart_duck(self, level: float):
         """🎛 The depth a pad pulls the music to. A pad ducking right now
@@ -180,6 +212,12 @@ class OutputMix:
         self.cart_duck = _clamped(level)
         if "cartwall" in self.duck_reasons:
             self.duck_reason("cartwall", True)
+
+    def set_duck_ramps(self, down_ms: int, up_ms: int):
+        """🔈 The spans from ⚙ Settings (see `duck_ramp_ms`); a duck under
+        way takes the new speed from its next step."""
+        self.duck_down_ms = down_ms
+        self.duck_up_ms = up_ms
 
     def duck_reason(self, reason: str, on: bool):
         """Ref-counted duck: the announcer and the 🎛 cartwall both pull the
@@ -196,7 +234,7 @@ class OutputMix:
         # Each reason pulls to its own depth and the deepest wins: a pad has to
         # cut through running music, a voice only needs room next to it.
         self.duck_target = min(
-            (self.cart_duck if r == "cartwall" else _ANNOUNCE_DUCK
+            (self.cart_duck if r == "cartwall" else ANNOUNCE_DUCK
              for r in self.duck_reasons), default=1.0)
         # The step is sized by this duck's own depth, not the announcer's: the
         # pad's deeper one took longer than its span down, and longer up.
@@ -241,7 +279,8 @@ class OutputMix:
         telling once, when the number stops moving.
         """
         if self.duck != self.duck_target:
-            span = _DUCK_DOWN_MS if self.duck_target < self.duck else _DUCK_UP_MS
+            span = (self.duck_down_ms if self.duck_target < self.duck
+                    else self.duck_up_ms)
             step = self.duck_depth * self.step_ms / span
             if abs(self.duck_target - self.duck) <= step:
                 self.duck = self.duck_target

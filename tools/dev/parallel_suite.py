@@ -13,6 +13,7 @@ failure fails twice, so the retry hides nothing but the crash.
 
     .venv\\Scripts\\python.exe -m tools.dev.parallel_suite
 """
+import contextlib
 import io
 import os
 import re
@@ -88,10 +89,8 @@ def run_all(work: list[list[str]]) -> int:
 def main() -> int:
     # The console is cp1252; the result lines lead with an emoji.
     if isinstance(sys.stdout, io.TextIOWrapper):
-        try:
+        with contextlib.suppress(OSError):
             sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-        except OSError:
-            pass
     return run_all(batches())
 
 

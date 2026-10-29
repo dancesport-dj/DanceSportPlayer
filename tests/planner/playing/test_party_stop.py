@@ -67,5 +67,48 @@ class TimeTest(unittest.TestCase):
         self.assertTrue(stop.title_ended(late.replace(minute=4)))
 
 
+class FadeAtTimeTest(unittest.TestCase):
+    """The "At …" stop's mode: play to the end, fade at the time, or fade
+    only a title that had played 1:30 when the time came."""
+
+    def armed(self) -> PartyStop:
+        stop = PartyStop()
+        stop.arm_time(23, 0, EVENING)
+        return stop
+
+    def at(self, seconds: int) -> datetime:
+        return datetime(2026, 10, 24, 23, 0, seconds)
+
+    def test_play_to_the_end_never_fades(self):
+        stop = self.armed()
+        self.assertFalse(stop.fade_due(self.at(5), 200.0, "end"))
+
+    def test_fade_mode_fades_once_the_time_is_reached(self):
+        stop = self.armed()
+        self.assertFalse(stop.fade_due(EVENING.replace(hour=22, minute=59),
+                                       200.0, "fade"))
+        self.assertTrue(stop.fade_due(self.at(0), 200.0, "fade"))
+
+    def test_a_title_started_after_the_time_plays_out(self):
+        stop = self.armed()
+        self.assertFalse(stop.fade_due(self.at(30), 10.0, "fade"))
+
+    def test_hybrid_fades_a_title_that_had_played_long_enough(self):
+        stop = self.armed()
+        self.assertTrue(stop.fade_due(self.at(1), 91.0, "hybrid"))
+
+    def test_hybrid_lets_a_young_title_play_out(self):
+        stop = self.armed()
+        self.assertFalse(stop.fade_due(self.at(1), 60.0, "hybrid"))
+        # still the same title, past 1:30 now — but it was young at the time
+        self.assertFalse(stop.fade_due(self.at(40), 99.0, "hybrid"))
+
+    def test_only_a_time_rule_fades(self):
+        stop = PartyStop()
+        stop.arm_count(1)
+        self.assertFalse(stop.fade_due(self.at(5), 200.0, "fade"))
+        self.assertFalse(PartyStop().fade_due(self.at(5), 200.0, "fade"))
+
+
 if __name__ == "__main__":
     unittest.main()

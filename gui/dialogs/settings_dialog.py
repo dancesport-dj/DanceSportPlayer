@@ -8,35 +8,54 @@ and so are 🔊 Sound & player and 🎛 Play sets, in settings_sound.py and
 settings_play_sets.py.
 """
 import logging
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-    QComboBox, QCheckBox, QLineEdit, QGroupBox, QDialog, QSpinBox, QTimeEdit,
-    QFileDialog, QDialogButtonBox, QTabWidget, QPlainTextEdit, QScrollArea,
-    QFrame,
-)
+import os
+
 from PySide6.QtCore import (
-    Qt, QTime,
+    Qt,
+    QTime,
 )
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFileDialog,
+    QFrame,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPlainTextEdit,
+    QPushButton,
+    QScrollArea,
+    QSpinBox,
+    QTabWidget,
+    QTimeEdit,
+    QVBoxLayout,
+    QWidget,
+)
+
 import planner.config
-from planner.music.analysis import HAS_LIBROSA
-from shared.audio.audio_files import (
-    music_browse_dir,
-)
-from shared.widgets import (
-    _hsep,
-)
-from shared import error_reports, update_check
-from planner import i18n
-from planner.music.paths import parse_remap_paths
 from gui.dialogs import (
     APP_MODE_CHOICES,
     M3U_FORMAT_CHOICES,
     app_mode_of,
 )
+from gui.dialogs.settings_cartwall import CartwallTabMixin
 from gui.dialogs.settings_look import LookTabMixin
 from gui.dialogs.settings_play_sets import PlaySetsTabMixin
 from gui.dialogs.settings_sound import SoundTabMixin
-from gui.dialogs.settings_cartwall import CartwallTabMixin
+from planner import i18n
+from planner.models import ceremony_words_of
+from planner.music.analysis import HAS_LIBROSA
+from planner.music.paths import parse_remap_paths
+from shared import error_reports, update_check
+from shared.audio.audio_files import (
+    music_browse_dir,
+)
+from shared.widgets import (
+    hsep,
+)
 
 log = logging.getLogger("dancesport.gui")
 
@@ -222,7 +241,7 @@ class SettingsDialog(LookTabMixin, SoundTabMixin, CartwallTabMixin,
             "Nothing is removed — switching back brings it all straight back.")
         plyt.addWidget(self._app_mode_combo)
         self._app_mode_combo.setVisible(not mode_locked)
-        mode_sep = _hsep()
+        mode_sep = hsep()
         plyt.addWidget(mode_sep)
         mode_sep.setVisible(not mode_locked)
 
@@ -445,6 +464,33 @@ class SettingsDialog(LookTabMixin, SoundTabMixin, CartwallTabMixin,
         hidden_col.addStretch(1)
         hidden_row.addLayout(hidden_col)
         plyt.addLayout(hidden_row)
+
+        # ── 🏅 Entrance and award music (a library category) ──
+        plyt.addWidget(QLabel(
+            "<b>🏅 Background: entrance & awards</b> — a title with one of these "
+            "words in its file or folder name, title or comment, comma-separated:"))
+        self._ceremony_words_edit = QLineEdit(", ".join(ceremony_words_of(settings)))
+        self._ceremony_words_edit.setToolTip(
+            "Upper or lower case does not matter, and a part of a word is\n"
+            "enough: 'Award' also finds '(Background Award)'. Shown under\n"
+            "🏅 in the library's category filter and kept out of generated\n"
+            "playlists. Leave it empty to go by the folders below only.")
+        plyt.addWidget(self._ceremony_words_edit)
+        plyt.addWidget(QLabel(
+            "…and every title in these folders and below, one folder per line:"))
+        self._ceremony_edit = QPlainTextEdit(
+            "\n".join(parse_remap_paths(settings.get("ceremony_folders"))))
+        self._ceremony_edit.setPlaceholderText("F:\\my music\\Einmarsch")  # i18n: data
+        self._ceremony_edit.setFixedHeight(66)
+        ceremony_row = QHBoxLayout()
+        ceremony_row.addWidget(self._ceremony_edit, stretch=1)
+        ceremony_add = QPushButton("Add…")
+        ceremony_add.clicked.connect(self._add_ceremony_folder)
+        ceremony_col = QVBoxLayout()
+        ceremony_col.addWidget(ceremony_add)
+        ceremony_col.addStretch(1)
+        ceremony_row.addLayout(ceremony_col)
+        plyt.addLayout(ceremony_row)
 
     def _setup_analysis_tab(self, all_cb, analyze_cb, backup_restore_cb, build_cb,
                             embed_cb, loudness_cb, maintenance_cb, n_unanalyzed, pd_cb,
@@ -747,7 +793,7 @@ class SettingsDialog(LookTabMixin, SoundTabMixin, CartwallTabMixin,
                  "default −50 dB. Only flagged when the 🔇 checkbox in the "
                  "Music-check window is on.")
 
-        klyt.addWidget(_hsep())
+        klyt.addWidget(hsep())
         self._gaps_btn = QPushButton("📊  Library gaps…")
         self._gaps_btn.setToolTip(
             "Library gap dashboard: per dance × class — pool size, tournament-\n"
@@ -867,7 +913,9 @@ class SettingsDialog(LookTabMixin, SoundTabMixin, CartwallTabMixin,
         start = edit.text().strip() or music_browse_dir()
         chosen = QFileDialog.getExistingDirectory(self, "Select folder", start)
         if chosen:
-            edit.setText(chosen)
+            # Qt answers with forward slashes; stored that way, the same folder
+            # picked again would compare as a change (a restart, a relearn).
+            edit.setText(os.path.normpath(chosen))
 
     def _add_remap_folder(self):
         """Append a browsed folder to the search-folder list (they are a list —
@@ -877,7 +925,7 @@ class SettingsDialog(LookTabMixin, SoundTabMixin, CartwallTabMixin,
         if not chosen:
             return
         lines = parse_remap_paths(self._remap_edit.toPlainText())
-        lines.append(chosen)
+        lines.append(os.path.normpath(chosen))
         self._remap_edit.setPlainText("\n".join(parse_remap_paths(lines)))
 
     def _add_hidden_folder(self):
@@ -887,8 +935,18 @@ class SettingsDialog(LookTabMixin, SoundTabMixin, CartwallTabMixin,
         if not chosen:
             return
         lines = parse_remap_paths(self._hidden_edit.toPlainText())
-        lines.append(chosen)
+        lines.append(os.path.normpath(chosen))
         self._hidden_edit.setPlainText("\n".join(parse_remap_paths(lines)))
+
+    def _add_ceremony_folder(self):
+        """Append a browsed folder to the 🏅 entrance and award folders."""
+        chosen = QFileDialog.getExistingDirectory(
+            self, "Entrance and award music folder", music_browse_dir())
+        if not chosen:
+            return
+        lines = parse_remap_paths(self._ceremony_edit.toPlainText())
+        lines.append(os.path.normpath(chosen))
+        self._ceremony_edit.setPlainText("\n".join(parse_remap_paths(lines)))
 
     def _on_build_clicked(self):
         if self._build_cb:
@@ -974,22 +1032,26 @@ class SettingsDialog(LookTabMixin, SoundTabMixin, CartwallTabMixin,
         # toggle, …) must ride along instead of being dropped.
         vals = dict(self._settings_in)
         vals.update({
-            "app_mode":      self._app_mode_combo.currentData(),
-            "library_dir":   self._lib_edit.text().strip(),
-            "global_dir":    self._glob_edit.text().strip(),
-            "save_dir":      self._save_edit.text().strip(),
+            "app_mode": self._app_mode_combo.currentData(),
+            "library_dir": self._lib_edit.text().strip(),
+            "global_dir": self._glob_edit.text().strip(),
+            "save_dir": self._save_edit.text().strip(),
             "backup_dir": self._backup_edit.text().strip(),
             "m3u_format": self._m3u_format_combo.currentData(),
-            "playlist_dir":  self._pl_edit.text().strip(),
+            "playlist_dir": self._pl_edit.text().strip(),
             "reference_path": self._ref_edit.text().strip(),
             "remap_paths": parse_remap_paths(self._remap_edit.toPlainText()),
             "hidden_folders": parse_remap_paths(self._hidden_edit.toPlainText()),
+            "ceremony_words": [w.strip() for w in self._ceremony_words_edit.text().split(",")
+                               if w.strip()],
+            "ceremony_folders": parse_remap_paths(self._ceremony_edit.toPlainText()),
             "global_search": self._global_chk.isChecked(),
             "exclude_no_class": self._exclude_no_class_chk.isChecked(),
             "clock_time_only": self._clock_time_only_chk.isChecked(),
             "theme": self.selected_theme(),
             "presenter_theme": self.presenter_theme(),
             "accent_color": self._accent,
+            "font_scale": self._font_scale_combo.currentData(),
             "language": self._language_combo.currentData(),
             "german_dance_terms": self._german_terms_chk.isChecked(),
             **({"error_reports": self._error_reports_chk.isChecked()}

@@ -13,8 +13,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from planner.music.library import MusicLibrary
 from planner.models import MusicEntry
+from planner.music.library import MusicLibrary
 
 _OUTSIDE = Path(r"C:\old copy\tanzcds\standardcd\007 LW Stuck On You (LW 29).mp3")
 

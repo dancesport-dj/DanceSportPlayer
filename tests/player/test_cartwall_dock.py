@@ -23,12 +23,11 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_cartdock_"))
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (
-    QApplication, QDockWidget, QMainWindow)
-from tests.qt_test_support import reap_widget
+from PySide6.QtWidgets import QApplication, QDockWidget, QMainWindow
 
 from player.widgets import cartwall as gc
 from player.window.main_cartwall import CART_DOCK, CartwallMixin
+from tests.qt_test_support import reap_widget
 
 _app = QApplication.instance() or QApplication(sys.argv)
 

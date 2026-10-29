@@ -22,6 +22,7 @@ The **⚙ General** tab.
 | **📱 Phone remote** | **📱 Start Server** starts the phone remote and opens its window on top of the settings. While it runs, the button reads **📱 Stop Server**. See [chapter 4](04-playing.md#-the-phone-remote). |
 | **🎛 Controller** | **🎛 Set up…** opens the window for a USB MIDI or HID controller. See [chapter 4](04-playing.md#-a-hardware-controller). **⌨ Keys…** puts the same actions on keys and holds the cartwall's keys too, see [chapter 4](04-playing.md#-desk-keys). |
 | **🐞 Send error reports** | Only in builds that can send them. When the app hits an error, it sends the technical details to the developer: the error, the last log lines, the system and the app version. Never your music or playlists. Off by default. |
+| **🐞 Bugs & ideas** | Not a setting: ❔ ▸ ℹ About links to a new GitHub issue for a bug or a feature you would like, and gives a mail address for those without a GitHub account. |
 | **🔔 Check for new versions** | Once per start, ask GitHub (api.github.com) whether a newer release is out, and announce it once with a link to its download page. The request carries nothing about you or your music; GitHub sees the IP address it comes from. Nothing is downloaded or installed. Off by default; the first start asks. Applies from the next start. |
 
 ## Paths
@@ -42,6 +43,17 @@ library leave those titles out of the list, the search and the
 suggestions. Nothing on disk changes. A change takes effect with the next
 start, and the app offers to restart.
 
+**🏅 Background: entrance & awards** gathers the music for the couples'
+entrance and the award ceremony into a library category of its own. A
+title joins it when one of the words, comma-separated, is in its file or
+folder name, its title or its comment: out of the box *Einmarsch,
+Siegerehrung, Entrance, Award, Ceremony*. Upper or lower case does not
+matter, and a part of a word is enough: *Award* also finds *(Background
+Award)*. Every title in the folders listed under it, one per line, joins
+too. These titles show under 🏅 in the library's category filter and are
+kept out of generated playlists. The category wins over a 🎶 background
+folder.
+
 ## Look
 
 The **🎨 Look** tab.
@@ -50,8 +62,8 @@ The **🎨 Look** tab.
 
 - **🎨 Theme**: a list of every look, each with a picture of the main window
   in it beside the list.
-  - **Standard**: the classic *Light*, the default, and *Dark* for a dim hall.
-    They keep the emoji on the buttons and take the accent colour below.
+  - **Standard**: the classic *Light*, the default, and *Dark* for a dim hall. They keep the emoji on the
+    buttons and take the accent colour below.
   - **Platform looks**: Windows 11, macOS and Linux GNOME, each light and
     dark. Every look can be picked on every system.
   - **Desk looks**: *Console*, *Carbon*, *Neon* and *Studio*, dark like a
@@ -71,6 +83,9 @@ The **🎨 Look** tab.
     saves one as a `.json` file and **Import…** adds one someone passed on.
     These buttons save at once. Changing the look the app runs in offers a
     restart when you close the settings with OK.
+- **🔠 Text size**: every text in the app, menus and tables included, at
+  100 % (the default), 105, 110, 115, 130 or 150 %. Above 115 % the buttons
+  grow with it. Read when the app starts, like the theme.
 - **🎚 Accent colour**: the blue of the buttons, sliders and the player panel,
   for *Light* and *Dark*.
   **↺ Default blue** resets it. Colours that mean something, such as red
@@ -104,13 +119,27 @@ The **🔊 Sound & player** tab.
 | **🎧 Preview player** | A mini player (seek, skip, volume) floats over the deck when you click a ▶ in a row. |
 | **🖼 Show artwork** | A cover next to the title on the player card. It uses the playlist's own image (`#EXTIMG`), a cover file in the folder, or the art in the MP3. |
 | **〰 Show waveform** | The title's [waveform](04-playing.md#-the-waveform) on the player card in place of the seek bar. |
-| **🔉 Duck to** | How far 🔊 Duck pulls everything down on the player card, the mini player and the presenter screen: 20 % by default, 0 % (silence) to 90 %. A change reaches a duck that is on right now. |
-| **🌅 Fade each title in over** | Off by default. The main player starts every title at silence and brings it up over 0.5 to 10 s of music. A title that a 🔀 crossfade brings in keeps its own ramp. Couples start on the first downbeat, so leave it off for a competition. |
-| **⏩ Start each title this far in** | Off by default. The main player skips the first 1 to 30 s of every title, and those seconds don't count against the play length. A title picked up at its ↩ mark starts there instead, and a silent intro is still skipped on top. |
+| **➕ Volume − / + buttons** | On by default. A − and a + beside the player's and the cartwall's volume slider: 2 % a click, and held they glide. Double-click the % readout to type a level. |
+| **⏱ Titles over an hour read** | How the player and the mini player show a title longer than 59 minutes, such as a long mix: **1:04:00 (hours)**, the default, or **64:00 (minutes)**. |
 | **🎙 Announcement voice** | Who reads [🔈 Announce next dance](04-playing.md#-announce-next-dance): *Female*, *Male* or *Mixed* (the default), which alternates the two. **…with heat** adds the heat number, off by default. **🔈 Test** speaks a sample in the voice shown, before you click OK. |
+| **📣 Say "Next dance" before the dance** | Off by default: the pause call names just the dance, "Rumba". On, it says "Nächster Tanz: Rumba" (German calls), "Next dance: Rumba" (English). |
+| **🔢 Only the heat** | Off by default. On, every call says just the heat, "Gruppe 1", never the dance, for a practice evening: the pause call, the start call and the Paso Doble call. **…with heat** and **📣 Say "Next dance"** are greyed meanwhile. Where there is no heat to say, the dance is called as usual. |
 | **🗣 Dance is named** | Where the call sits when a title names its dance as it starts, with no pause: **over the first bars** (the default; the music is ducked under the voice) or **before the music starts** (the music follows the call). The ▶ Playing panel names it in short: *over the music* or *before the music*. |
 | **▶ Player position** | Where the player card stands: *beside the playlists*, at the head of the Playing panel, or *above the playlists*, as one wide strip over the decks. |
 | **📂 Double-click on a title in 📚 the library** | Last on the tab, under **📚 Library**, since it is about the library, not the player. What a double-click does in 📚 the library and the 🏆 Tournaments lists while planning: **Nothing** (the default; ▶ plays the title), **Open external player** (the program your system plays music with, on a Mac Music; then also for a deck row while planning and in the dialogs) or **Edit tags** (the [🏷 Tags editor](05-tags.md#opening-the-editor), opened on the field of the column you double-clicked; you choose there what Save writes into the file). While planning, a double-click on a deck row plays the title in the mini player unless *Open external player* is chosen. Right-click offers all of it either way, and in Playing mode a double-click always plays or cues the title. |
+
+### ▸ Advanced: duck and fade times
+
+Folded away under the voice rows: most evenings run on the defaults. A
+click on **▸ Advanced: duck and fade times** opens it.
+
+| Setting | Does |
+|---|---|
+| **🔉 Duck to** | How far 🔊 Duck pulls everything down on the player card, the mini player and the presenter screen: 10 % by default (about −20 dB), 0 % (silence) to 90 %. A change reaches a duck that is on right now. |
+| **🔈 Duck under a voice or pad over … back up over** | How fast the music gets out of the way when the announcer speaks or a 🎛 cartwall pad plays, and how fast it comes back after: 0.2 s down and 0.6 s up by default, 0.1 to 5 s each. The 🔉 Duck button itself is immediate. |
+| **🌅 Fade each title in over** | Off by default. The main player starts every title at silence and brings it up over 0.5 to 10 s of music. A title that a 🔀 crossfade brings in keeps its own ramp. Couples start on the first downbeat, so leave it off for a competition. |
+| **🔉↓ Fade by hand over** | How long 🔉↓ Fade out now, 🛑 Fade out and hold, a ⏹ stop at a time and the fade before quitting take, up to 10 s. Out of the box *as the list's fade-out*. The fade at the end of the play length always keeps the list's own fade-out time. |
+| **⏩ Start each title this far in** | Off by default. The main player skips the first 1 to 30 s of every title, and those seconds don't count against the play length. A title picked up at its ↩ mark starts there instead, and a silent intro is still skipped on top. |
 
 ### 🔈 Outputs
 
@@ -124,14 +153,16 @@ lists can be picked, on Windows, macOS and Linux.
 | **🎵 Music** | The titles. *System default (follows the OS)* goes wherever Windows sends its sound. |
 | **🎧 Pre-listen** | ▶ in the 📚 Library and the 🏆 Tournaments pane, with a mini player of its own, while the music runs on. See [chapter 4](04-playing.md#-pre-listening-on-headphones). |
 | **🎛 Cartwall** | The pads. |
-| **⏸ Filler music** | The pause music. |
 | **🔈 Announcements** | The spoken calls. |
 
 - Every output except the music starts on **Same as the music**. *System
   default* pins one to the default while the music plays elsewhere.
 - On a sound card with several outputs, each pair the system shows as a
   device of its own ("Out 3/4" next to "Out 1/2") can take a source of its
-  own. Channels 3/4 of *one* multichannel device cannot be picked apart.
+  own. A card Windows lists as *one* multichannel device offers
+  "<card> — Out 3/4" for every source, the music included. On such a channel
+  pair the tempo fader shifts the pitch along with the speed, like a
+  turntable, instead of keeping it.
 - A card that is not plugged in plays on the system default, with one
   message, and the sound goes back to the card when it is back. The
   pre-listen is the exception when that default is the music's output: it is
@@ -158,18 +189,21 @@ own. *Planner only* mode hides it.
 | Setting | Does |
 |---|---|
 | **🔈 While a 🔈 pad plays, the music ducks to** | How loud the music stays while a cartwall pad that pulls the music down plays: 10 % by default (about −20 dB, so a fanfare cuts through), 0 % (silence) to 90 %. Like 🔉 Duck to on the 🔊 Sound & player tab, it is a share of the music's volume, not of its loudness; the dialog shows the dB next to it. |
-| **⏱ Tapped again or ⏹ — fade out over** | How long a pad takes to let go when it is clicked again or ⏹ Stop all fades the wall: 1.0 s by default, 0 s (it stops at once) up to 8 s. A 🎶 Background pad follows it too. **Own fade-out** in a pad's **Settings…** overrides it for that pad. |
+| **⏱ Tapped again or ⏹ — fade the pad out over** | How long a pad takes to let go when it is clicked again or ⏹ Stop all fades the wall: 1.0 s by default, 0 s (it stops at once) up to 8 s. A 🎶 Background pad follows it too. **Own fade-out** in a pad's **Settings…** overrides it for that pad. |
 | **🖌 Default wall colour** | The colour of every pad left on 🎨 Colour ▸ **Wall default**: white by default. A pad given a colour of its own keeps it. |
 
 **🎶 Pads set to 🎶 Background**, in the order a background pad meets them:
 
 | Setting | Does |
 |---|---|
-| **▶ When fired — fade in over** | How long the pad takes to come up from silence when it is fired: 0.2 s by default. 0 s starts it at full volume. |
-| **🎵 When a title starts** | What the pad does once the music starts: **Mute and keep playing** (the default; it runs on silently and fades back in when the music stops) or **Pause** (it holds where it was and carries on from there when the music stops). |
-| **🌙 …fading out over** | How fast it gets out of the way when a title starts: 0.2 s by default. A pad set to **Pause** fades out too, then holds. There is never a wait here, so the bed does not play over the title's first notes. |
-| **⏳ When the music stops — wait** | How long the music has to stay stopped before the pad comes back: 0.3 s by default. The deck stops for a moment between two titles; the wait keeps the bed from swelling up in every such gap and dipping again a moment later. A title that starts during the wait keeps the bed down. 0 s brings it back the moment the music stops, gaps included; much longer than the default feels as if the bed lags behind. |
-| **🌅 …then fade back in over** | How long it then takes to come back to full volume: 2.0 s by default. |
+| **🔉 Ticking 🎶 Background sets the pad's volume to** | The bed volume a pad gets when you tick 🎶 Background in its settings, or Ctrl+click a full-volume one into the queue: 50 % by default, as a bed at full volume is as loud as the dance music it fills in for. Only the tick sets it; a bed opened again keeps its own level. |
+| **▶ When fired — fade the pad in over** | How long the pad takes to come up from silence when it is fired: 0.2 s by default. 0 s starts it at full volume. |
+| **🎵 When the main player starts a title** | What the pad does once the music starts: **Mute and keep playing** (the default; it runs on silently and fades back in when the music stops) or **Pause** (it holds where it was and carries on from there when the music stops). |
+| **🌙 …fading the pad out over** | How fast it gets out of the way when a title starts: 0.5 s by default. A pad set to **Pause** fades out too, then holds. There is never a wait here, so the bed does not play over the title's first notes. |
+| **🎚 Start the main player's title while the background is still fading out** | Off by default: the title waits until the pad has faded out completely and then starts into silence. The wait is the fade-out time above, or less when the bed is already going down. On, the title starts at once and plays over the fade-out. |
+| **⏳ When the main player stops — wait** | How long the music has to stay stopped before the pad comes back: 0.3 s by default. The deck stops for a moment between two titles; the wait keeps the bed from swelling up in every such gap and dipping again a moment later. A title that starts during the wait keeps the bed down. 0 s brings it back the moment the music stops, gaps included; much longer than the default feels as if the bed lags behind. |
+| **🌅 …then fade the pad back in over** | How long it then takes to come back to full volume: 2.0 s by default. |
+| **🐂 Keep the pad down while a Paso Doble waits to start** | On by default. With *Start after* set for the 🐂 Paso Doble, the deck stands still between the call and the first bar while the couples walk on; the pad stays down through that wait, as if the music already played. It also stays down in the pause before a Paso Doble. Off, it comes back in the wait like after any other title. |
 
 Every time on this tab runs from 0 s to 8 s in steps of 0.1 s; 0 s means
 straight away, without a fade.
@@ -281,7 +315,25 @@ Both sets also carry the 🐂 Paso Doble: **stop after highlight** (and which
 one) and **Start after**. Out of the box the tournament set has the stop
 off, since the detection is not reliable enough to cut a competition Paso
 Doble, and Start after at 0 s. The party set stops after the 2nd highlight
-and waits 3 s, so the couples can take their position.
+and waits 1 s, so the couples can take their position.
+
+**🥇 Final: the music plays on** belongs to the tournament set. After the
+play length has faded a title of the final out, it comes back up as
+background while the couples celebrate, until 🔉↓ fades it, the next
+title starts or the file ends. Between two dances of the final it plays
+in place of the ⏸ pause music. A round is the final when it is named
+*Finale*, *Final* or *Endrunde*.
+
+| Setting | Does |
+|---|---|
+| **Off / After the last dance of the final / After every dance of the final** | Which titles of the final come back up. Off by default. |
+| **Level** | How loud it comes back, in % of the music's level: 60 % by default. |
+| **Dip to** | How low the play-length fade takes it first: 5 % by default, 0 % all the way down, at most the level it comes back at. |
+| **Hold** | How long it stays at its dip: 2.0 s by default, 0 s comes up at once. |
+| **Up over** | How long it takes to come back up: 3.0 s by default. |
+| **Down over** | How long it takes to go down at its end, by 🔉↓ or before the next dance of the final starts: 3.0 s by default. |
+
+The three times run up to 10 s.
 
 **🎚 WDSF CR pitch target** sits right under the tournament set. It sets,
 per dance, the tempo the CR button pitches a heat to:

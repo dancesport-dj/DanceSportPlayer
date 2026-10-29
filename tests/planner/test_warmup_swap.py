@@ -14,8 +14,8 @@ import random
 import unittest
 from pathlib import Path
 
-from planner.models import MusicEntry
 from planner.generate.warmup import warmup_leftover_start, warmup_swap_partner
+from planner.models import MusicEntry
 
 
 def _e(code: str, n: int) -> MusicEntry:

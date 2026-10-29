@@ -23,10 +23,9 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication
 
 from gui import dialogs
-from planner.playing.play_sets import _TOURNAMENT_SET
 from gui.window.main_persist import layout_settings
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
+from planner.playing.play_sets import TOURNAMENT_SET
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 
 class PlaySetLightsTest(unittest.TestCase):
@@ -51,15 +50,15 @@ class PlaySetLightsTest(unittest.TestCase):
     def test_a_spin_box_moved_by_hand_puts_the_gold_light_out(self):
         self.win._apply_tournament_set()
         self.assertEqual(self.lights(), (False, True))
-        self.panel.fade_spin.setValue(_TOURNAMENT_SET["fade"] + 1.0)
+        self.panel.fade_spin.setValue(TOURNAMENT_SET["fade"] + 1.0)
         self.app.processEvents()
         self.assertEqual(self.lights(), (False, False),
                          "the panel no longer stands on the tournament set")
 
     def test_putting_the_value_back_lights_it_again(self):
         self.win._apply_tournament_set()
-        self.panel.fade_spin.setValue(_TOURNAMENT_SET["fade"] + 1.0)
-        self.panel.fade_spin.setValue(_TOURNAMENT_SET["fade"])
+        self.panel.fade_spin.setValue(TOURNAMENT_SET["fade"] + 1.0)
+        self.panel.fade_spin.setValue(TOURNAMENT_SET["fade"])
         self.app.processEvents()
         self.assertEqual(self.lights(), (False, True))
 
@@ -75,7 +74,7 @@ class PlaySetLightsTest(unittest.TestCase):
         loop back into the switch it is reporting on."""
         self.win._apply_tournament_set()
         secs = self.panel.play_set()["secs"]
-        self.panel.fade_spin.setValue(_TOURNAMENT_SET["fade"] + 1.0)
+        self.panel.fade_spin.setValue(TOURNAMENT_SET["fade"] + 1.0)
         self.app.processEvents()
         self.assertEqual(self.panel.play_set()["secs"], secs)
 

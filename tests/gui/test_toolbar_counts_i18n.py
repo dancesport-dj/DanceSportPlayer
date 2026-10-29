@@ -26,10 +26,9 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication
 
 from gui import dialogs
-from planner import i18n
 from gui.window.main_persist import layout_settings
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
+from planner import i18n
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 
 class _Counts(unittest.TestCase):
@@ -79,9 +78,9 @@ class GermanTest(_Counts):
 
     def test_the_playlist_count(self):
         win = self.win("de")
-        self.assertEqual("1 Playlist", self.decks(win, 1))
-        self.assertEqual("2 Playlists", self.decks(win, 2))
-        self.assertEqual("Keine Playlist", self.decks(win, 0))
+        self.assertEqual("1 Liste", self.decks(win, 1))
+        self.assertEqual("2 Listen", self.decks(win, 2))
+        self.assertEqual("Keine Liste", self.decks(win, 0))
 
     def test_the_wishlist_count(self):
         win = self.win("de")

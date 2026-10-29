@@ -19,8 +19,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication
 
-from tests.gui.window.test_duplicate_check_scope import _Status, _Win, _waltz
 from tests.gui.test_duplicate_remove import _entries
+from tests.gui.window.test_duplicate_check_scope import _Status, _waltz, _Win
 from tests.qt_test_support import reap_widget
 
 

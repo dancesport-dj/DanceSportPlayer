@@ -6,15 +6,21 @@ check's results below, with a progress bar and a Cancel for long passes."""
 import time
 from pathlib import Path
 
+from PySide6.QtCore import QTimer, Signal
 from PySide6.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-    QScrollArea, QProgressBar,
+    QApplication,
+    QHBoxLayout,
+    QLabel,
+    QProgressBar,
+    QPushButton,
+    QScrollArea,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtCore import Signal, QTimer
 
 from gui.common import (
-    _DroppedFilesList,
-    _MultiFileDropZone,
+    DroppedFilesList,
+    MultiFileDropZone,
 )
 
 
@@ -45,9 +51,9 @@ class FileDropCheckPanel(QWidget):
     def __init__(self, info_html: str, run_fn, action_label: str = "",
                  action_fn=None, parent=None):
         super().__init__(parent)
-        self._run_fn    = run_fn
+        self._run_fn = run_fn
         self._action_fn = action_fn
-        self._busy  = False
+        self._busy = False
         self._dirty = False
         self._cancelled = False
         self._started = 0.0
@@ -57,11 +63,11 @@ class FileDropCheckPanel(QWidget):
         info.setWordWrap(True)
         lyt.addWidget(info)
 
-        self._zone = _MultiFileDropZone()
+        self._zone = MultiFileDropZone()
         self._zone.filesDropped.connect(lambda ps: self._files.add_paths(ps))
         lyt.addWidget(self._zone)
 
-        self._files = _DroppedFilesList()
+        self._files = DroppedFilesList()
         self._files.changed.connect(self._refresh)
         lyt.addWidget(self._files)
 

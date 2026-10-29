@@ -11,6 +11,7 @@ import logging
 import threading
 import time
 from collections import deque
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
 from PySide6.QtWidgets import QPushButton
@@ -22,8 +23,7 @@ from shared.remote import guest_server as gs
 from shared.remote import tunnel as tn
 from shared.remote.guest_page import DEFAULT_LABELS
 from shared.stores import save_settings
-from shared.widgets import _show_toast
-from typing import TYPE_CHECKING
+from shared.widgets import show_toast
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -102,7 +102,7 @@ class GuestDesk(QObject):
     fetch_progress = Signal(int, int)   # cloudflared download: done, total bytes
     fetch_done = Signal(str, str)       # its path, or "" and the error
 
-    def __init__(self, window: "MainWindowHost"):
+    def __init__(self, window: MainWindowHost):
         super().__init__()
         self._win = window
         self.server: gs.GuestServer | None = None
@@ -334,7 +334,7 @@ class GuestDesk(QObject):
         if self.dialog is None or not self.dialog.isVisible():
             # Out of sight: the pill flashes until the 📨 window is opened.
             self._flash.start()
-            _show_toast(self._win, (i18n.t("📨 Guest request: %s") % song_label(entry)
+            show_toast(self._win, (i18n.t("📨 Guest request: %s") % song_label(entry)
                                     if entry is not None
                                     else i18n.t("📨 Guest wish: %s") % text), 4000)
 

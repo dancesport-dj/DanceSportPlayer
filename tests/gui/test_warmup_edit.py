@@ -31,12 +31,11 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QApplication, QWidget
 
-from gui.common import _C_ROW_EVEN, _C_ROW_ODD
-from shared.columns import _COL_PLAY, _COL_TITLE
+from gui.common import C_ROW_EVEN, C_ROW_ODD
 from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry
+from shared.columns import _COL_PLAY, _COL_TITLE
 from tests.qt_test_support import reap_widget
-
 
 # Real files: a row whose file is not on disk is painted light red.
 _MUSIC = Path(tempfile.mkdtemp(prefix="dp_wedit_music_"))
@@ -136,7 +135,7 @@ class InsertTest(_EditTest):
         """The stripes count songs, so everything below an added row flips."""
         self.table._reload_warmup(self.entries[:2] + [_e("LW", 3)] + self.entries[2:])
         self.assertEqual(self.stripes(),
-                         [_C_ROW_EVEN, _C_ROW_ODD, _C_ROW_EVEN, _C_ROW_ODD, _C_ROW_EVEN])
+                         [C_ROW_EVEN, C_ROW_ODD, C_ROW_EVEN, C_ROW_ODD, C_ROW_EVEN])
 
     def test_a_track_appended_at_the_end_is_added_in_place(self):
         before = self.buttons()
@@ -188,7 +187,7 @@ class RemoveTest(_EditTest):
 
     def test_the_rows_under_it_take_the_other_shade(self):
         self.table._reload_warmup([e for e in self.entries if e.title != "LW 1"])
-        self.assertEqual(self.stripes(), [_C_ROW_EVEN, _C_ROW_ODD, _C_ROW_EVEN])
+        self.assertEqual(self.stripes(), [C_ROW_EVEN, C_ROW_ODD, C_ROW_EVEN])
 
     def test_emptying_the_list_empties_the_table(self):
         self.table._reload_warmup([])

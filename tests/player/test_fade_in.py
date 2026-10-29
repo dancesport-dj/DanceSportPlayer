@@ -187,6 +187,7 @@ class FadeInTest(unittest.TestCase):
     def test_the_play_tick_steps_it(self):
         desk = self._desk(playing_mode=False)   # …and stops before the cut
         desk._playback.fade_in_from = 0.0
+        desk._playback.fade_in_secs = 4.0   # armed as the load arms it
         desk._mix.fade_in = 0.0
         desk.media.pos = 2000
         desk._on_play_tick()

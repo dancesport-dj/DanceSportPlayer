@@ -27,13 +27,10 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtCore import QObject, QUrl
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtWidgets import QApplication
-from tests.qt_test_support import reap_widget
-from tests.player.test_fade_blip import PLAYING, _LoggedDesk, _LoggedMedia
-from tests.player.audio.test_fade_indicator import _TimerStub
 
 from planner.playing.play_sets import (
-    _PARTY_SET,
-    _TOURNAMENT_SET,
+    PARTY_SET,
+    TOURNAMENT_SET,
     XFADE_CURVES,
     crossfade_curve,
     crossfade_secs,
@@ -42,12 +39,16 @@ from planner.playing.play_sets import (
     upgrade_xfade,
 )
 from player.audio.between_dances import BetweenDances
+from player.audio.mix import OutputMix
+from player.widgets.play_mode_panel import PlayModePanel
+from player.window.main_load import TrackLoadMixin
 from player.window.main_player import PlayerControlMixin
 from player.window.main_xfade import CrossfadeMixin
-from player.audio.mix import OutputMix
 from shared.audio.playback import crossfade_levels
-from player.widgets.play_mode_panel import PlayModePanel
 from shared.xfade_view import CrossfadeCurveButton, CrossfadeView, lead_secs
+from tests.player.audio.test_fade_indicator import _TimerStub
+from tests.player.test_fade_blip import PLAYING, _LoggedDesk, _LoggedMedia
+from tests.qt_test_support import reap_widget
 
 
 class PlaySetTest(unittest.TestCase):
@@ -60,7 +61,7 @@ class PlaySetTest(unittest.TestCase):
         self.assertEqual((heat["xfade_on"], heat["xfade"]), (False, 4.0))
         self.assertEqual(crossfade_secs(party), 0.0)
         self.assertEqual(crossfade_secs(heat), 0.0)
-        for s in (_PARTY_SET, _TOURNAMENT_SET):
+        for s in (PARTY_SET, TOURNAMENT_SET):
             self.assertIn("xfade", s)
             self.assertIn("xfade_on", s)
 
@@ -187,7 +188,7 @@ class MixTest(unittest.TestCase):
         mix.tail_gain = 0.6            # …is not the old one's
         self.assertAlmostEqual(mix.tail(0.5), 0.3)
         mix.set_desk_duck(True)
-        self.assertAlmostEqual(mix.tail(1.0), 0.6 * 0.2)
+        self.assertAlmostEqual(mix.tail(1.0), 0.6 * 0.1)
 
 
 class _Meta(SimpleNamespace):
@@ -251,7 +252,10 @@ class _Spare:
 class _Desk(CrossfadeMixin):
     """The window around the crossfade, reduced to what it asks."""
 
+    _source_url = TrackLoadMixin._source_url
+
     def __init__(self, xfade=4.0, limit=0):
+        self._settings = {}
         self._mix = OutputMix(1.0)
         self._between = BetweenDances()
         self._player = _Player()

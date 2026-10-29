@@ -58,7 +58,7 @@ class DragOutOffersNoMoveTest(unittest.TestCase):
         self._check(dnd, t)
 
     def test_a_similar_tracks_or_ai_row(self):
-        t = common._DragTable([_TRACK])
+        t = common.DragTable([_TRACK])
         t.setColumnCount(1)
         t.setRowCount(1)
         t.setItem(0, 0, QTableWidgetItem("WW 1"))
@@ -66,7 +66,7 @@ class DragOutOffersNoMoveTest(unittest.TestCase):
         self._check(common, t)
 
     def test_a_library_row(self):
-        t = library_browser._LibTable(1, 1)
+        t = library_browser.LibTable(1, 1)
         it = QTableWidgetItem("WW 1")
         it.setData(Qt.ItemDataRole.UserRole, str(_TRACK))
         t.setItem(0, 0, it)

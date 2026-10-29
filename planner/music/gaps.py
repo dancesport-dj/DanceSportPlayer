@@ -15,7 +15,8 @@ There is no as-played log, so staleness is derived from what IS known:
 
 from datetime import date
 
-from planner.music.playlist_index import playlist_year
+from planner.generate.scoring import PROVEN_MIN_POP
+from planner.generate.warmup import entry_in_style
 from planner.models import (
     BELOW_TEMPO_EXT,
     DANCE_NAMES,
@@ -23,8 +24,7 @@ from planner.models import (
     TEMPO_RANGES,
     is_non_turnier,
 )
-from planner.generate.scoring import _PROVEN_MIN_POP
-from planner.generate.warmup import entry_in_style
+from planner.music.playlist_index import playlist_year
 
 # A 6-3-2-1 competition needs 12 distinct tracks per dance; below these floors
 # a dance × class combination counts as a gap worth shopping for.
@@ -72,7 +72,7 @@ def gap_stats(lib, stale_years: int = 3,
                             if e.bpm is None or (lo - ext) <= e.bpm <= hi]
                 pool = [e for e in in_tempo
                         if not e.classes_ok or cls in e.classes_ok]
-                proven = sum(1 for e in pool if e.popularity >= _PROVEN_MIN_POP)
+                proven = sum(1 for e in pool if e.popularity >= PROVEN_MIN_POP)
                 never = sum(1 for e in pool if e.popularity == 0)
                 stale = 0
                 for e in pool:

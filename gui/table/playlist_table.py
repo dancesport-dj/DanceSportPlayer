@@ -9,13 +9,15 @@ the Nb. gutter in gui.table.table_columns.
 """
 import html
 import logging
+from collections.abc import Callable
+from pathlib import Path
 
 from PySide6.QtCore import (
     QEasingCurve,
     QPoint,
     QPropertyAnimation,
-    QTimer,
     Qt,
+    QTimer,
     Signal,
 )
 from PySide6.QtGui import (
@@ -36,37 +38,47 @@ from PySide6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
 )
-from pathlib import Path
-from collections.abc import Callable
-from planner.music.db import AudioCache
-from planner.models import MusicEntry, RoundConfig
-from planner.terms import dance_name
-from planner.generate.suggester import PlaylistSuggester
-from planner.generate.warmup import warmup_code
-from planner.playlist.checks import FLAG_EDGE_SILENCE, is_final_round
-from planner.playing import play_counts
-from planner.playing.play_sets import dblclick_ask_of
-from planner.music.parsing import _fmt_bpm
-from planner import i18n
+
 from gui.common import (
+    C_DEFAULT,
+    C_LEN_WARN_FG,
+    C_NEW_FG,
+    C_POP_FG,
+    C_ROW_EVEN,
+    C_ROW_ODD,
+    C_SIM_FG,
+    C_WARN_FG,
     CUSTOM_HEADER_TIP,
-    _C_DEFAULT,
-    _C_NEW_FG,
-    _C_POP_FG,
-    _C_ROW_EVEN,
-    _C_ROW_ODD,
-    _C_SIM_FG,
-    _C_LEN_WARN_FG,
-    _C_WARN_FG,
     bpm_tooltip,
-    display_title,
-    _entry_tooltip,
-    _fmt_track_secs,
-    _open_in_default_player,
     dblclick_opens_external,
+    display_title,
+    entry_tooltip,
+    fmt_track_secs,
+    open_in_default_player,
     set_header_tip,
     stopwatch_header,
 )
+from gui.decks.running_order import Row, RunningOrder
+from gui.table import table_actions, table_dnd, table_dynamic
+from gui.table.row_buttons import BUTTON_ROLE, LOOK_ROLE, PATH_ROLE, RowButtonDelegate
+from gui.table.star_rating import RATING_ROLE, StarDelegate
+from gui.table.table_actions import TableActionsMixin
+from gui.table.table_columns import TableColumnsMixin
+from gui.table.table_dnd import TableDragDropMixin
+from gui.table.table_dynamic import DynamicModeMixin
+from gui.table.table_host import TableHost
+from gui.table.table_load import C_MISSING_BG, TableLoadMixin
+from gui.table.table_regen import TableRegenMixin
+from planner import i18n
+from planner.generate.suggester import PlaylistSuggester
+from planner.generate.warmup import warmup_code
+from planner.models import MusicEntry, RoundConfig
+from planner.music.db import AudioCache
+from planner.music.parsing import fmt_bpm
+from planner.playing import play_counts
+from planner.playing.play_sets import dblclick_ask_of
+from planner.playlist.checks import FLAG_EDGE_SILENCE, is_final_round
+from planner.terms import dance_name
 from shared.columns import (
     _COL_ALBUM,
     _COL_ARTIST,
@@ -76,29 +88,17 @@ from shared.columns import (
     _COL_CUSTOM,
     _COL_DANCE,
     _COL_FILE,
-    _COL_HEAT,
     _COL_LEN,
     _COL_PLAY,
     _COL_PLAYS,
     _COL_POP,
     _COL_RATING,
-    _COL_REGEN,
     _COL_TITLE,
     _N_COLS,
+    COL_HEAT,
+    COL_REGEN,
 )
-from gui.table.row_buttons import BUTTON_ROLE, LOOK_ROLE, PATH_ROLE, RowButtonDelegate
-from gui.decks.running_order import Row, RunningOrder
-from gui.table.star_rating import RATING_ROLE, StarDelegate
-from gui.table.table_dnd import TableDragDropMixin
-from gui.table.table_dynamic import DynamicModeMixin
-from gui.table.table_load import TableLoadMixin, _C_MISSING_BG
-from gui.table.table_regen import TableRegenMixin
-from gui.table.table_columns import TableColumnsMixin
-from gui.table.table_actions import TableActionsMixin
-from gui.table.table_host import TableHost
-from gui.table import table_dnd
-from gui.table import table_dynamic
-from gui.table import table_actions
+from shared.widgets import WARN_TOAST_MS, show_toast
 
 log = logging.getLogger("dancesport.gui.playlist_table")
 
@@ -110,8 +110,8 @@ _C_MARK_FG = QColor(216, 96, 24)
 
 # 📌 Pinned: the orange mark's look in lila. The title sits out the round's ↻
 # and the dance's ↺ re-rolls.
-_C_PIN_BG = QColor(231, 214, 247)
-_C_PIN_FG = QColor(122, 63, 176)
+C_PIN_BG = QColor(231, 214, 247)
+C_PIN_FG = QColor(122, 63, 176)
 
 # Live Check-Music mark: a row whose track (play length / takt) or round
 # (heat-tempo spread) has an issue stays RED until the issue is resolved.
@@ -120,7 +120,15 @@ _C_ISSUE_BG = QColor(255, 183, 183)
 # How long the auto-play scroll takes to glide to the new row: long enough to
 # read as a movement, short enough that the list is settled before the operator
 # looks back at it.
-_SCROLL_MS = 260
+SCROLL_MS = 260
+
+
+def _missing_tip(path) -> str:
+    """What a ❗ row says, as tooltip and on a refused start: the file, and
+    the likely reason it is gone."""
+    return (i18n.t("⚠ File not found on disk:\n%s") % path + "\n\n"
+            + i18n.t("Is the drive unplugged, or was the file moved or renamed? "
+                     "It cannot play until it is back."))
 
 
 class _MarkSelectionDelegate(QStyledItemDelegate):
@@ -192,13 +200,13 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
                     QTableWidget):
     """Shows the suggested playlist; supports drag-and-drop (file URIs)."""
 
-    focused      = Signal(object)   # emitted (self) when this table gains focus
+    focused = Signal(object)  # emitted (self) when this table gains focus
     playRequested = Signal(object)  # emitted (self) right before this deck starts playing
     saveRequested = Signal(object)  # emitted (self) when "Save as M3U…" is chosen
     saveToTournamentsRequested = Signal(object)  # … "Save and add to Tournaments…"
-    cleared       = Signal(object)  # emitted (self) when DEL on the header wipes the deck
-    loaded        = Signal(object)  # emitted (self) when a whole playlist lands in this table
-    dynamicChanged = Signal(object) # emitted (self) when the deck flips static⇄dynamic
+    cleared = Signal(object)  # emitted (self) when DEL on the header wipes the deck
+    loaded = Signal(object)  # emitted (self) when a whole playlist lands in this table
+    dynamicChanged = Signal(object)  # emitted (self) when the deck flips static⇄dynamic
 
     def __init__(self, parent=None):
         super().__init__(0, _N_COLS, parent)
@@ -276,7 +284,7 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         # Warm-up ("Eintanzen") list: a flat, own-category list whose rows carry a
         # 'warmup' tag so ↺ re-rolls a timbre-matched, TSO-conform track of the same
         # dance and a drop can replace a slot (set by load_warmup).
-        self._warmup       = False
+        self._warmup = False
         self._warmup_style = ""
         self._warmup_class = ""
         self._warmup_relax = True
@@ -296,13 +304,17 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         # used as the capacity when an empty deck turns dynamic on its first drop.
         self._capacity_provider: Callable[[], list[int]] | None = None
         self._row_meta = RunningOrder()
-        self._playlist: dict | None       = None
+        self._playlist: dict | None = None
         self._suggester: PlaylistSuggester | None = None
         self._cache: AudioCache | None = None   # set by MainWindow for chained drops
-        self._dance_class    = "C"
-        self._style          = "Latin"
-        self._play_cb        = None
-        self._seek_cb        = None   # set by MainWindow: fn(delta_ms) seeks the player
+        # The last wishlist drop: the titles it added, and how many it skipped
+        # as held already (_insert_drop_files).
+        self._drop_added: list[MusicEntry] = []
+        self._drop_held = 0
+        self._dance_class = "C"
+        self._style = "Latin"
+        self._play_cb = None
+        self._seek_cb = None   # set by MainWindow: fn(delta_ms) seeks the player
         # Set by MainWindow: fn() → configured play length in s; tracks shorter than
         # this get an orange ⏱ cell. None/0 → no flagging.
         self._short_secs_cb: Callable[[str, str], int] | None = None   # dance, round → length
@@ -447,7 +459,7 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         self.setItemDelegateForColumn(_COL_RATING, StarDelegate(self._on_star_clicked, self))
         buttons = RowButtonDelegate(self, self._on_row_button, self._is_row_marked)
         self.setItemDelegateForColumn(_COL_PLAY, buttons)
-        self.setItemDelegateForColumn(_COL_REGEN, buttons)
+        self.setItemDelegateForColumn(COL_REGEN, buttons)
         set_header_tip(self, _COL_CUSTOM, CUSTOM_HEADER_TIP)
         set_header_tip(self, _COL_PLAYS,
             "How often the title has played in the last 24 hours, in any list\n"
@@ -486,12 +498,12 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         hh.setMinimumSectionSize(24)
         for c in range(_N_COLS):
             hh.setSectionResizeMode(c, QHeaderView.ResizeMode.Interactive)
-        for c, w in ((_COL_DANCE, 80), (_COL_HEAT, 56), (_COL_PLAY, 30),
+        for c, w in ((_COL_DANCE, 80), (COL_HEAT, 56), (_COL_PLAY, 30),
                      (_COL_ARTIST, 150), (_COL_BPM, 52), (_COL_LEN, 48),
                      (_COL_POP, 50), (_COL_CLASS, 60), (_COL_RATING, 72),
                      (_COL_CUSTOM, 90), (_COL_FILE, 220), (_COL_ALBUM, 180),
                      (_COL_COMMENT, 180), (_COL_PLAYS, 50),
-                     (_COL_REGEN, 30)):
+                     (COL_REGEN, 30)):
             self.setColumnWidth(c, w)
         hh.sectionResized.connect(self._on_section_resized)
         # Drag a header to reorder the columns, like the library's; the window
@@ -730,7 +742,7 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
                 if not p or m.theme:
                     continue
                 if old.get(p) != new.get(p):
-                    bg = _C_ROW_EVEN if (m.h_idx or 0) % 2 == 0 else _C_ROW_ODD
+                    bg = C_ROW_EVEN if (m.h_idx or 0) % 2 == 0 else C_ROW_ODD
                     self._fill_song_row(r, m, bg)
                     if r == self._current_play_row:
                         self.sync_play_glyph()   # a fresh fill says ▶
@@ -750,7 +762,7 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             if not p or m.theme:
                 continue
             if old.get(p) != marks.get(p):
-                bg = _C_ROW_EVEN if (m.h_idx or 0) % 2 == 0 else _C_ROW_ODD
+                bg = C_ROW_EVEN if (m.h_idx or 0) % 2 == 0 else C_ROW_ODD
                 self._fill_song_row(r, m, bg)
                 if r == self._current_play_row:
                     self.sync_play_glyph()   # a fresh fill says ▶
@@ -784,9 +796,9 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
                 # A wishlist / theme row: its dance is the title's own, not a
                 # heat's, so a re-tag to another dance shows there.
                 m.dance = m.entry.dance or ""
-                bg = _C_ROW_EVEN if (flat - 1) % 2 == 0 else _C_ROW_ODD
+                bg = C_ROW_EVEN if (flat - 1) % 2 == 0 else C_ROW_ODD
             else:
-                bg = _C_ROW_EVEN if (m.h_idx or 0) % 2 == 0 else _C_ROW_ODD
+                bg = C_ROW_EVEN if (m.h_idx or 0) % 2 == 0 else C_ROW_ODD
             self._fill_song_row(r, m, bg)
             if r == self._current_play_row:
                 self.sync_play_glyph()   # a fresh fill says ▶
@@ -902,9 +914,11 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         if not (entry and entry.path):
             self._browse_for_empty_slot(meta)
             return
+        if self._start_refused(row, entry.path):
+            return
         if not self._play_hl_enabled:
             if dblclick_opens_external():
-                _open_in_default_player(Path(entry.path), self)
+                open_in_default_player(Path(entry.path), self)
             elif row != self._current_play_row:   # ▶ would toggle it off
                 self._on_play_click(row, entry.path)
             return
@@ -991,13 +1005,13 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         self._apply_collapse_visibility()
 
     def _fill_song_row(self, row: int, meta: Row, bg: QColor):
-        dance       = meta.dance
-        h_idx       = meta.h_idx
-        multi       = meta.multi
-        entry       = meta.entry
+        dance = meta.dance
+        h_idx = meta.h_idx
+        multi = meta.multi
+        entry = meta.entry
         dance_class = self._dance_class
 
-        def cell(col, text, fg=_C_DEFAULT,
+        def cell(col, text, fg=C_DEFAULT,
                  align=Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft):
             it = QTableWidgetItem(str(text))
             it.setBackground(bg)
@@ -1017,24 +1031,24 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
                if entry and self._suggester else None)
         missing, marked, pinned, issue_text = self._row_flags(entry)
         if missing:
-            bg = _C_MISSING_BG
+            bg = C_MISSING_BG
         elif issue_text:
             bg = _C_ISSUE_BG
         elif marked and not missing:
             bg = _C_MARK_BG
         elif pinned:
-            bg = _C_PIN_BG
+            bg = C_PIN_BG
 
         # Dance column (also holds path for drag)
         cell(_COL_DANCE, "" if is_backup else self._dance_label(dance))
 
         # Heat column
         if is_backup:
-            cell(_COL_HEAT, f"↳ backup {meta.backup_n or ''}".rstrip(), align=ctr)
+            cell(COL_HEAT, f"↳ backup {meta.backup_n or ''}".rstrip(), align=ctr)
         elif meta.warmup:
-            cell(_COL_HEAT, self._player_heat_text.get(row, ""), align=ctr)
+            cell(COL_HEAT, self._player_heat_text.get(row, ""), align=ctr)
         else:
-            cell(_COL_HEAT, f"Heat {h_idx + 1}" if multi else "", align=ctr)
+            cell(COL_HEAT, f"Heat {h_idx + 1}" if multi else "", align=ctr)
 
         if entry:
             pin = "📌 " if pinned else ""
@@ -1042,11 +1056,11 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             title_txt = ("    " + pin + shown[:61]) if is_backup else pin + shown[:65]
             resume_ms = self._resume_marks.get(str(entry.path))
             if resume_ms:
-                title_txt += f"   ↩ {_fmt_track_secs(resume_ms // 1000)}"
+                title_txt += f"   ↩ {fmt_track_secs(resume_ms // 1000)}"
             cell(_COL_TITLE, title_txt,
-                 fg=(_C_WARN_FG if missing else _C_MARK_FG if marked
-                     else _C_PIN_FG if pinned
-                     else _C_NEW_FG if is_backup else _C_DEFAULT))
+                 fg=(C_WARN_FG if missing else _C_MARK_FG if marked
+                     else C_PIN_FG if pinned
+                     else C_NEW_FG if is_backup else C_DEFAULT))
             # Hover the title → same rich track description as the Similar-Tracks window.
             title_it = self.item(row, _COL_TITLE)
             if title_it is not None:
@@ -1059,18 +1073,18 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             cell(_COL_ARTIST, getattr(entry, "tag_artist", None) or "")
             artist_it = self.item(row, _COL_ARTIST)
             if artist_it is not None:
-                artist_it.setToolTip(_entry_tooltip(entry))
+                artist_it.setToolTip(entry_tooltip(entry))
 
-            bpm_s = _fmt_bpm(entry.bpm, dance, dance_class).strip()
-            bpm_fg = QColor(200, 130, 80) if bpm_s.endswith("*") else _C_DEFAULT
+            bpm_s = fmt_bpm(entry.bpm, dance, dance_class).strip()
+            bpm_fg = QColor(200, 130, 80) if bpm_s.endswith("*") else C_DEFAULT
             cell(_COL_BPM, bpm_s, fg=bpm_fg, align=ctr).setToolTip(bpm_tooltip(entry))
 
             self._fill_length_cell(row, cell, entry, ctr)
 
             if entry.popularity:
-                cell(_COL_POP, f"★{entry.popularity}", fg=_C_POP_FG, align=ctr)
+                cell(_COL_POP, f"★{entry.popularity}", fg=C_POP_FG, align=ctr)
             else:
-                cell(_COL_POP, i18n.t("✦new"), fg=_C_NEW_FG, align=ctr)
+                cell(_COL_POP, i18n.t("✦new"), fg=C_NEW_FG, align=ctr)
 
             self._fill_class_cell(cell, entry, sim, ctr)
             cell(_COL_RATING, "").setData(RATING_ROLE, entry.rating or 0)
@@ -1084,7 +1098,7 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             plays = play_counts.count(entry.path)
             cell(_COL_PLAYS, str(plays) if plays else "", align=ctr)
         else:
-            cell(_COL_TITLE, "⚠  No song found", fg=_C_WARN_FG)
+            cell(_COL_TITLE, "⚠  No song found", fg=C_WARN_FG)
             for c in (_COL_ARTIST, _COL_BPM, _COL_LEN, _COL_POP, _COL_CLASS, _COL_RATING,
                       _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT, _COL_PLAYS):
                 cell(c, "")
@@ -1092,6 +1106,11 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         self._fill_row_buttons(row, meta, bg, missing, marked)
 
         self.setRowHeight(row, 24)
+        # Fresh items: the colours saved off the old ones are no one's now, and
+        # left in place they would keep this row from greying again.
+        for c in range(self.columnCount()):
+            self._played_saved.pop((row, c), None)
+        self._grey_row_if_played(row, meta)
 
     def _fill_class_cell(self, cell, entry, sim, ctr):
         """Class column: ≈ for a sound-alike, then the classes it suits."""
@@ -1100,14 +1119,15 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             cls_parts.append("≈")
         if entry.classes_ok:
             cls_parts.append(f"[{','.join(entry.classes_ok)}]")
-        cls_fg = _C_SIM_FG if cls_parts and cls_parts[0] == "≈" else _C_DEFAULT
+        cls_fg = C_SIM_FG if cls_parts and cls_parts[0] == "≈" else C_DEFAULT
         cell(_COL_CLASS, " ".join(cls_parts), fg=cls_fg, align=ctr)
 
     def _row_flags(self, entry):
         """What colours this title's row: missing file, replace mark, 📌 pin, open issue."""
         # Flag tracks whose file has vanished from disk since the playlist was made
         # (moved / deleted / drive offline) — red title + a red ❗ in the last column.
-        missing = bool(entry) and not Path(entry.path).exists()
+        # Found on another drive or under 🧭's search folders, it plays from there.
+        missing = bool(entry) and not self.host.file_there(entry.path)
         # "Marked for potential replace": orange row underlay + an orange title.
         # A genuinely missing file wins the styling (its red ❗ is the more urgent flag).
         marked = bool(entry is not None and getattr(entry, "path", None)
@@ -1124,11 +1144,11 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
 
     def _title_tooltip(self, entry, sim, resume_ms, marked, issue_text):
         """The title's hover text, with the resume / mark / issue notes on top."""
-        tip = _entry_tooltip(entry, sim, "Similarity")
+        tip = entry_tooltip(entry, sim, "Similarity")
         if resume_ms:
             tip = ("<div style='color:#2e9e5b'><b>"
                    + i18n.t("↩ Left at %s — starts there again")
-                   % _fmt_track_secs(resume_ms // 1000)
+                   % fmt_track_secs(resume_ms // 1000)
                    + "</b></div><hr>" + tip)
         if marked:
             # Same HTML treatment as the ⚠ issue block below — the
@@ -1167,16 +1187,16 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             # Orange, not red: red in this table is a file that is MISSING,
             # and a track that merely ends early is not that. Both length
             # warnings share the amber; the tooltip says which one fired.
-            fg = _C_LEN_WARN_FG if (flagged or too_short) else _C_DEFAULT
-            len_it = cell(_COL_LEN, _fmt_track_secs(secs), fg=fg, align=ctr)
+            fg = C_LEN_WARN_FG if (flagged or too_short) else C_DEFAULT
+            len_it = cell(_COL_LEN, fmt_track_secs(secs), fg=fg, align=ctr)
             tips = []
             if trimmed:
                 tips.append(
                     i18n.t("Plays %s — the stillness at the edges of the file is skipped")
-                    % _fmt_track_secs(play_secs))
+                    % fmt_track_secs(play_secs))
             if too_short:
                 tips.append(i18n.t("Shorter than the configured play length (%s)")
-                            % _fmt_track_secs(limit))
+                            % fmt_track_secs(limit))
             if tips:
                 len_it.setToolTip("\n".join(tips))
         else:
@@ -1199,15 +1219,14 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             self.setItem(row, col, it)
             return it
 
-        if self.cellWidget(row, _COL_REGEN) is not None:   # a header's ↺ held the cell
-            self.removeCellWidget(row, _COL_REGEN)
+        if self.cellWidget(row, COL_REGEN) is not None:   # a header's ↺ held the cell
+            self.removeCellWidget(row, COL_REGEN)
         # Playing mode hides the ↺ column — the ▶ is what stays on screen, and
         # it could not play the file anyway. One ❗ per row, so ↺ then stays ↺.
         missing_on_play = missing and bool(self._play_cb)
         if missing_on_play:
             cell_button(_COL_PLAY, "❗", "missing",
-                   i18n.t("⚠ File not found on disk:\n%s") % entry.path
-                   ).setData(PATH_ROLE, entry.path)
+                   _missing_tip(entry.path)).setData(PATH_ROLE, entry.path)
         elif entry and self._play_cb:
             cell_button(_COL_PLAY, "▶", "plain").setData(PATH_ROLE, entry.path)
         else:
@@ -1222,33 +1241,33 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             else:
                 regen_hint = i18n.t("↺ click to re-roll a replacement")
             if missing and not missing_on_play:
-                cell_button(_COL_REGEN, "❗", "missing",
+                cell_button(COL_REGEN, "❗", "missing",
                        i18n.t("⚠ File not found on disk:\n%s") % entry.path
                        + "\n\n" + regen_hint)
             elif marked:
                 # The orange row is the mark — a ❗ here read like a missing file.
-                cell_button(_COL_REGEN, "↺", "plain",
+                cell_button(COL_REGEN, "↺", "plain",
                        i18n.t("🔁 Marked for potential replace  "
                               "(Ctrl+M to toggle)") + "\n" + regen_hint)
             elif self._party_swap():
-                cell_button(_COL_REGEN, "↺", "plain",
+                cell_button(COL_REGEN, "↺", "plain",
                        i18n.t("Swap with a %s from the end of the list — a "
                               "leftover that fits no round first, else one from "
                               "the last third  (Ctrl+R / Ctrl+N)")
                        % dname)
             else:
-                cell_button(_COL_REGEN, "↺", "plain",
+                cell_button(COL_REGEN, "↺", "plain",
                        "Re-roll this song — best timbre match first  (Ctrl+R / Ctrl+N)")
         elif missing and not missing_on_play:
             # Flat list (wishlist / Eintanzen) has no ↺ button — mark the dead file
             # with a red ❗ in the last column instead.
             warn = QTableWidgetItem("❗")
             warn.setBackground(bg)
-            warn.setForeground(_C_WARN_FG)
+            warn.setForeground(C_WARN_FG)
             warn.setTextAlignment(ctr)
             warn.setToolTip(i18n.t("⚠ File not found on disk:\n%s") % entry.path)
             warn.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
-            self.setItem(row, _COL_REGEN, warn)
+            self.setItem(row, COL_REGEN, warn)
 
     # ── Play / stop toggle ────────────────────────────────────────────────────
 
@@ -1257,9 +1276,9 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         if col == _COL_PLAY:
             it = self.item(row, _COL_PLAY)
             path = it.data(PATH_ROLE) if it is not None else None
-            if path is not None:
+            if path is not None and not self._start_refused(row, path):
                 self._on_play_click(row, path)
-        elif col == _COL_REGEN:
+        elif col == COL_REGEN:
             self._regen(row)
 
     def scroll_row_into_play_view(self, row: int):
@@ -1293,11 +1312,24 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         if self._scroll_anim is None:
             self._scroll_anim = QPropertyAnimation(bar, b"value", self)
             self._scroll_anim.setEasingCurve(QEasingCurve.Type.InOutCubic)
-            self._scroll_anim.setDuration(_SCROLL_MS)
+            self._scroll_anim.setDuration(SCROLL_MS)
         self._scroll_anim.stop()
         self._scroll_anim.setStartValue(start)
         self._scroll_anim.setEndValue(target)
         self._scroll_anim.start()
+
+    def _start_refused(self, row: int, path) -> bool:
+        """A click, double-click or Enter on a title whose file is gone is
+        refused BEFORE anything stops, so the running title plays on. Checked
+        at the press, not when the row was filled: a file that came back (drive
+        plugged in again) plays, one that vanished since gets its ❗ now."""
+        if row == self._current_play_row or self.host.file_there(path):
+            return False
+        it = self.item(row, _COL_PLAY)
+        if it is None or it.data(LOOK_ROLE) != "missing":
+            self.refresh_paths([path])
+        show_toast(self, _missing_tip(path), WARN_TOAST_MS, error=True)
+        return True
 
     def _on_play_click(self, row: int, path):
         """Toggle play/stop when a row's ▶/■ button is clicked."""
@@ -1462,17 +1494,19 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         """Grey out every row holding an already-played track (any copy)."""
         if not self._play_hl_enabled or not self._played_paths:
             return
-        grey = QColor("#a8aeb8")
         for r, m in self._row_meta.numbered():
-            if m.path_str not in self._played_paths:
-                continue
-            if r == self._current_play_row:
-                continue   # the running row keeps its colors (blue marker)
-            for c in range(self.columnCount()):
-                it = self.item(r, c)
-                if it is not None and (r, c) not in self._played_saved:
-                    self._played_saved[(r, c)] = it.foreground()
-                    it.setForeground(grey)
+            self._grey_row_if_played(r, m)
+
+    def _grey_row_if_played(self, r: int, m: Row):
+        if (not self._play_hl_enabled or m.path_str not in self._played_paths
+                or r == self._current_play_row):   # the running row keeps its colors (blue marker)
+            return
+        grey = QColor("#a8aeb8")
+        for c in range(self.columnCount()):
+            it = self.item(r, c)
+            if it is not None and (r, c) not in self._played_saved:
+                self._played_saved[(r, c)] = it.foreground()
+                it.setForeground(grey)
 
     def _ungrey_played_rows(self):
         """Back to planning mode: restore the original row colors."""

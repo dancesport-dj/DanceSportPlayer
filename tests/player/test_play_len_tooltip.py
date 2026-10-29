@@ -20,9 +20,9 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtCore import QPoint
 from PySide6.QtWidgets import QApplication, QLabel, QToolTip
-from tests.qt_test_support import reap_widget
 
 from player.widgets.play_mode_panel import PlayModePanel
+from tests.qt_test_support import reap_widget
 
 
 class PlayLengthTooltipTest(unittest.TestCase):

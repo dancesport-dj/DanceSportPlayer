@@ -18,21 +18,21 @@ import random
 import unittest
 from pathlib import Path
 
-from planner.models import MusicEntry
 from planner.generate.warmup import (
-    _WARMUP_BALLROOM,
-    _WARMUP_LATIN,
-    _WARMUP_MODE,
-    _warmup_mode_round,
-    _warmup_section_round,
+    WARMUP_BALLROOM,
+    WARMUP_LATIN,
+    WARMUP_MODE,
     warmup_code,
+    warmup_mode_round,
+    warmup_section_round,
 )
+from planner.models import MusicEntry
 
 _LABEL = {"DISCOFOX": "Discofox", "SALSA": "Salsa", "BACHATA": "Bachata",
           "WCS": "West Coast Swing", "KIZOMBA": "Kizomba", "FORRO": "Forró"}
 
-_STYLE_DIR = {d: ("lateincd" if d in _WARMUP_LATIN else "standardcd")
-              for d in _WARMUP_BALLROOM + _WARMUP_LATIN}
+_STYLE_DIR = {d: ("lateincd" if d in WARMUP_LATIN else "standardcd")
+              for d in WARMUP_BALLROOM + WARMUP_LATIN}
 
 
 def _entry(dance: str, i: int) -> MusicEntry:
@@ -61,7 +61,7 @@ def _section_rounds(n: int, section, *, late_ww=True, late_pd=True,
     rounds: list[list[str]] = []
     deferred: list[str] = []
     for _ in range(n):
-        if not _warmup_section_round(result, pools, section, late_ww=late_ww,
+        if not warmup_section_round(result, pools, section, late_ww=late_ww,
                                      late_pd=late_pd, rounds=rounds,
                                      deferred=deferred):
             break
@@ -81,12 +81,12 @@ def _mode_rounds(n: int, dances=None, seed: int = 7,
     `first` asks for `n` rounds that are each the evening's FIRST social round,
     not one evening's first round followed by `n-1` later ones."""
     random.seed(seed)
-    dances = list(dances or _WARMUP_MODE)
+    dances = list(dances or WARMUP_MODE)
     out = []
     for _ in range(n):
         pools = {d: [_social(d, i) for i in range(4)] for d in dances}
         result: list = []
-        _warmup_mode_round(result, pools, dances, first=first)
+        warmup_mode_round(result, pools, dances, first=first)
         out.append([warmup_code(e) for e in result])
     return out
 
@@ -173,14 +173,14 @@ class ThreeRoundCoverageTest(unittest.TestCase):
     def test_the_standard_rounds_cover_lw_tg_sf_qs(self):  # overconfidence:short-test-ok - asserts in the helper
         for seed in range(6):
             with self.subTest(seed=seed):
-                rounds = _section_rounds(40, _WARMUP_BALLROOM, seed=seed)
+                rounds = _section_rounds(40, WARMUP_BALLROOM, seed=seed)
                 self._assert_covered(rounds, ("LW", "TG", "SF", "QS"),
                                      f"seed {seed}")
 
     def test_the_latin_rounds_cover_sa_cc_rb_ji(self):  # overconfidence:short-test-ok - asserts in the helper
         for seed in range(6):
             with self.subTest(seed=seed):
-                rounds = _section_rounds(40, _WARMUP_LATIN, seed=seed)
+                rounds = _section_rounds(40, WARMUP_LATIN, seed=seed)
                 self._assert_covered(rounds, ("SA", "CC", "RB", "JI"),
                                      f"seed {seed}")
 
@@ -189,9 +189,9 @@ class ThreeRoundCoverageTest(unittest.TestCase):
         the guarantee while the operator has asked for it late."""
         for seed in range(6):
             with self.subTest(seed=seed):
-                rounds = _section_rounds(40, _WARMUP_BALLROOM, late_ww=False,
+                rounds = _section_rounds(40, WARMUP_BALLROOM, late_ww=False,
                                          seed=seed)
-                self._assert_covered(rounds, _WARMUP_BALLROOM, f"seed {seed}")
+                self._assert_covered(rounds, WARMUP_BALLROOM, f"seed {seed}")
 
     def test_the_paso_stays_out_of_the_guarantee_either_way(self):
         """The Wiener Walzer joins the guarantee when its switch comes off; the
@@ -201,7 +201,7 @@ class ThreeRoundCoverageTest(unittest.TestCase):
         for late_pd in (True, False):
             for seed in range(6):
                 with self.subTest(late_pd=late_pd, seed=seed):
-                    rounds = _section_rounds(40, _WARMUP_LATIN,
+                    rounds = _section_rounds(40, WARMUP_LATIN,
                                              late_pd=late_pd, seed=seed)
                     self._assert_covered(rounds, ("SA", "CC", "RB", "JI"),
                                          f"seed {seed}")
@@ -213,7 +213,7 @@ class ThreeRoundCoverageTest(unittest.TestCase):
 
     def test_the_first_three_rounds_are_the_base_then_the_other_two(self):
         """LW TG QS opens; the two that were not in it come in next."""
-        rounds = _section_rounds(3, _WARMUP_BALLROOM, late_ww=False, seed=0)
+        rounds = _section_rounds(3, WARMUP_BALLROOM, late_ww=False, seed=0)
         self.assertEqual(rounds[0], ["LW", "TG", "QS"])
         self.assertTrue({"SF", "WW"} <= {d for rnd in rounds[1:] for d in rnd},
                         f"SF / WW did not follow the base round: {rounds}")
@@ -252,7 +252,7 @@ class NoRutTest(unittest.TestCase):
         for by name, and they hold below."""
         for seed in range(6):
             with self.subTest(seed=seed):
-                rounds = _section_rounds(60, _WARMUP_LATIN, seed=seed)
+                rounds = _section_rounds(60, WARMUP_LATIN, seed=seed)
                 self.assertEqual({len(r) for r in rounds}, {3},
                                  f"seed {seed}: a short round in {rounds}")
                 for d in ("SA", "PD"):
@@ -265,7 +265,7 @@ class NoRutTest(unittest.TestCase):
         with "late WW" off nothing but the lead sees a third round running."""
         for seed in range(6):
             with self.subTest(seed=seed):
-                rounds = _section_rounds(60, _WARMUP_BALLROOM, late_ww=False,
+                rounds = _section_rounds(60, WARMUP_BALLROOM, late_ww=False,
                                          seed=seed)
                 self.assertEqual({len(r) for r in rounds}, {3})
                 for d in ("TG", "WW", "SF", "QS"):
@@ -276,7 +276,7 @@ class NoRutTest(unittest.TestCase):
     def test_the_lead_dance_may_run_on(self):
         """LW is weighted at 0.40, which a third of a round cannot deliver —
         holding it to two rounds running would starve it."""
-        rounds = _section_rounds(60, _WARMUP_BALLROOM, seed=0)
+        rounds = _section_rounds(60, WARMUP_BALLROOM, seed=0)
         self.assertGreater(self._runs(rounds, "LW"), 2)
 
 
@@ -298,7 +298,7 @@ class LatePasoSpacingTest(unittest.TestCase):
         # a short one can hold a single Paso, which says nothing about spacing.
         for seed in range(6):
             with self.subTest(seed=seed):
-                rounds = _section_rounds(400, _WARMUP_LATIN, seed=seed)
+                rounds = _section_rounds(400, WARMUP_LATIN, seed=seed)
                 gaps = self._gaps(rounds)
                 self.assertTrue(gaps, f"seed {seed}: fewer than two Pasos")
                 self.assertGreaterEqual(min(gaps), 3,
@@ -315,7 +315,7 @@ class LatePasoSpacingTest(unittest.TestCase):
         0.025 into a sixth of all Latin rounds. Offered at its own weight it
         lands where the table asks: 0.025 of three slots is one round in
         thirteen."""
-        rounds = _section_rounds(400, _WARMUP_LATIN, seed=0)
+        rounds = _section_rounds(400, WARMUP_LATIN, seed=0)
         share = sum("PD" in rnd for rnd in rounds) / len(rounds)
         self.assertGreater(share, 0.01, "the Paso never played at all")
         self.assertLess(share, 0.12, f"a Paso in {share:.0%} of the Latin rounds")
@@ -324,7 +324,7 @@ class LatePasoSpacingTest(unittest.TestCase):
         """The number the operator actually reads off the finished list."""
         counts = []
         for seed in range(8):
-            rounds = _section_rounds(40, _WARMUP_LATIN, seed=seed)
+            rounds = _section_rounds(40, WARMUP_LATIN, seed=seed)
             counts.append(sum("PD" in rnd for rnd in rounds))
         mean = sum(counts) / len(counts)
         self.assertAlmostEqual(mean, 3, delta=2,
@@ -339,7 +339,7 @@ class LatePasoSpacingTest(unittest.TestCase):
         on its own percentage, still three rounds apart, and still never forced
         in by the coverage rule, because a dance weighted 0.025 has no business
         in every third round either way."""
-        rounds = _section_rounds(400, _WARMUP_LATIN, late_pd=False, seed=0)
+        rounds = _section_rounds(400, WARMUP_LATIN, late_pd=False, seed=0)
         gaps = self._gaps(rounds)
         self.assertGreaterEqual(min(gaps), 3,
                                 f"Latin rounds between two Pasos {gaps}")
@@ -349,9 +349,9 @@ class LatePasoSpacingTest(unittest.TestCase):
     def test_only_the_track_gate_tells_the_two_switch_settings_apart(self):
         """Ticked, the Paso waits for a list 40 tracks long; unticked it can
         open the evening. Over the same seeds that is the whole difference."""
-        early = [_section_rounds(14, _WARMUP_LATIN, late_pd=False, seed=s)
+        early = [_section_rounds(14, WARMUP_LATIN, late_pd=False, seed=s)
                  for s in range(12)]
-        late = [_section_rounds(14, _WARMUP_LATIN, late_pd=True, seed=s)
+        late = [_section_rounds(14, WARMUP_LATIN, late_pd=True, seed=s)
                 for s in range(12)]
         self.assertGreater(sum(any("PD" in r for r in rs) for rs in early), 0,
                            "unticked, the Paso still never came early")

@@ -27,10 +27,10 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtWidgets import QApplication
 
-from shared.audio.playback import _AUDIO_IDLE_S
 from player.audio.audio_device import AudioDevice
 from player.audio.mix import OutputMix
 from player.audio.system_sounds import SystemSoundGuard
+from shared.audio.playback import AUDIO_IDLE_S
 
 
 class _Voices:
@@ -49,10 +49,13 @@ class _Voices:
     def restore_outputs(self):
         self.held = True
 
-    def set_device(self, device):
+    def set_device(self, device, pair=0):
         pass   # 🔊 AudioDevice.sync puts the wall on its output
 
     def set_level(self, level):
+        pass
+
+    def set_bed_duck(self, duck):
         pass
 
 
@@ -68,7 +71,7 @@ class _Announcer:
     def restore_outputs(self):
         self.held = True
 
-    def set_device(self, device):
+    def set_device(self, device, pair=0):
         pass
 
 
@@ -82,9 +85,6 @@ class _Desk:
         self.player = QMediaPlayer()
         self.audio_out = QAudioOutput()
         self.player.setAudioOutput(self.audio_out)
-        self.pause_player = QMediaPlayer()
-        self.pause_out = QAudioOutput()
-        self.pause_player.setAudioOutput(self.pause_out)
         self.voices = voices
         self.announcer = announcer
         # 🔀 The crossfade's second player, as the window builds it on first use.
@@ -95,7 +95,7 @@ class _Desk:
             self.spare_player.setAudioOutput(self.spare_out)
         self.applied = 0
         self.device = AudioDevice(
-            self.player, self.audio_out, self.pause_player, self.pause_out,
+            self.player, self.audio_out,
             mix=self.mix,
             settings=lambda: self.settings,
             cart_voices=lambda: self.voices,
@@ -119,7 +119,7 @@ class _IdleTest(unittest.TestCase):
         """Let the watchdog see silence for longer than the idle window."""
         desk.device.watch_idle()                 # first tick: starts the clock
         if desk.device.idle_since is not None:
-            desk.device.idle_since -= _AUDIO_IDLE_S + 1
+            desk.device.idle_since -= AUDIO_IDLE_S + 1
         desk.device.watch_idle()                 # second tick: past the window
         return desk
 
@@ -133,7 +133,6 @@ class ReleaseTest(_IdleTest):
         desk = self.idle_out(_Desk(voices=_Voices()))
         self.assertTrue(desk.device.released)
         self.assertFalse(self.held(desk))
-        self.assertIsNone(desk.pause_player.audioOutput())
         self.assertFalse(desk.voices.held, "the wall kept the card open")
 
     def test_the_announcer_and_the_spare_deck_let_go_too(self):
@@ -197,7 +196,6 @@ class TakeBackTest(_IdleTest):
         desk.device.on_playback_state(QMediaPlayer.PlaybackState.PlayingState)
         self.assertTrue(self.held(desk))
         self.assertIs(desk.player.audioOutput(), desk.audio_out)
-        self.assertIs(desk.pause_player.audioOutput(), desk.pause_out)
         self.assertTrue(desk.voices.held)
         self.assertFalse(desk.device.released)
 
@@ -211,6 +209,7 @@ class TakeBackTest(_IdleTest):
         """The clip player is not one of the deck's players, so its own
         start must ask, as a cartwall pad does."""
         from unittest import mock
+
         from player.window.main_audio import AudioLevelMixin
 
         window = mock.Mock()
@@ -243,8 +242,8 @@ class ClockTest(_IdleTest):
     def test_the_window_is_a_few_seconds(self):
         """Long enough to sit through the gap before the next title, short
         enough that the hiss is gone before anyone notices it."""
-        self.assertGreaterEqual(_AUDIO_IDLE_S, 3.0)
-        self.assertLessEqual(_AUDIO_IDLE_S, 15.0)
+        self.assertGreaterEqual(AUDIO_IDLE_S, 3.0)
+        self.assertLessEqual(AUDIO_IDLE_S, 15.0)
 
     def test_the_clock_restarts_when_something_plays(self):
         desk = _Desk(voices=_Voices())
@@ -253,6 +252,48 @@ class ClockTest(_IdleTest):
         desk.voices.playing = ["A1"]
         desk.device.watch_idle()
         self.assertIsNone(desk.device.idle_since)
+
+
+class WakeTest(_IdleTest):
+    """No 2 s poll: the silence that starts the clock also sets it to look
+    again when the window is over."""
+
+    def test_the_clock_looks_again_when_the_window_is_over(self):
+        desk = _Desk()
+        desk.device.watch_idle()
+        timer = desk.device._idle_timer
+        self.assertTrue(timer.isActive())
+        self.assertGreater(timer.remainingTime(), AUDIO_IDLE_S * 1000 - 500)
+        desk.device.idle_since -= AUDIO_IDLE_S + 1
+        timer.timeout.emit()
+        self.assertTrue(desk.device.released)
+
+    def test_a_timer_that_fires_early_looks_again_later(self):
+        desk = _Desk()
+        desk.device.watch_idle()
+        desk.device.idle_since -= AUDIO_IDLE_S - 1
+        desk.device._idle_timer.timeout.emit()
+        self.assertFalse(desk.device.released)
+        self.assertTrue(desk.device._idle_timer.isActive())
+        self.assertLessEqual(desk.device._idle_timer.remainingTime(), 1100)
+
+    def test_something_playing_stops_the_clock(self):
+        desk = _Desk(voices=_Voices())
+        desk.device.watch_idle()
+        desk.voices.playing = ["A1"]
+        desk.device.on_activity()
+        self.assertFalse(desk.device._idle_timer.isActive())
+
+    def test_a_title_stopping_starts_the_clock(self):
+        desk = _Desk()
+        desk.device.on_playback_state(QMediaPlayer.PlaybackState.StoppedState)
+        self.assertIsNotNone(desk.device.idle_since)
+        self.assertTrue(desk.device._idle_timer.isActive())
+
+    def test_switched_off_no_clock_runs(self):
+        desk = _Desk(release=False)
+        desk.device.on_activity()
+        self.assertFalse(desk.device._idle_timer.isActive())
 
 
 class CartwallTest(unittest.TestCase):

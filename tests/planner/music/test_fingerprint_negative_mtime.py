@@ -41,7 +41,7 @@ class NegativeMtimeTest(unittest.TestCase):
 
         again = AudioCache()
         again.listed_mtimes[str(self.song)] = -5
-        with mock.patch.object(pdb, "_fingerprints",
+        with mock.patch.object(pdb, "fingerprints",
                                side_effect=AssertionError("hashed again")):
             self.assertEqual(again.fingerprint(self.song), fp)
 

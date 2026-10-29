@@ -31,8 +31,8 @@ from pathlib import Path
 from planner.generate import warmup as w
 from planner.models import MusicEntry
 
-_BAL = w._WARMUP_BALLROOM
-_LAT = w._WARMUP_LATIN
+_BAL = w.WARMUP_BALLROOM
+_LAT = w.WARMUP_LATIN
 
 # 20 lists of 240 out of 300-per-dance pools: enough samples that the shares are
 # stable to ~0.01 across seeds, and still well under a second.
@@ -60,7 +60,7 @@ class DistributionTest(unittest.TestCase):
         # One entry per build, because each build starts its own history: the
         # last round of one list and the first of the next are not neighbours.
         cls.rounds = {_BAL: [], _LAT: []}
-        real_round = w._warmup_section_round
+        real_round = w.warmup_section_round
         current: dict = {}
 
         def spy(result, pools, section, **kw):
@@ -72,7 +72,7 @@ class DistributionTest(unittest.TestCase):
         random.seed(20260823)
         counts = Counter()
         cls.lists = []
-        w._warmup_section_round = spy
+        w.warmup_section_round = spy
         try:
             for _ in range(_RUNS):
                 current.clear()
@@ -83,7 +83,7 @@ class DistributionTest(unittest.TestCase):
                 for section in (_BAL, _LAT):
                     cls.rounds[section].append(list(current[section]))
         finally:
-            w._warmup_section_round = real_round
+            w.warmup_section_round = real_round
         cls.counts = counts
         cls.share = {}
         for section in (_BAL, _LAT):
@@ -100,7 +100,7 @@ class DistributionTest(unittest.TestCase):
         return [rnd for build in self.rounds[section] for rnd in build]
 
     def test_each_section_of_the_weight_table_sums_to_one(self):
-        for section in (_BAL, _LAT, w._WARMUP_MODE):
+        for section in (_BAL, _LAT, w.WARMUP_MODE):
             self.assertAlmostEqual(sum(w._ETDS_PROB[d] for d in section), 1.0,
                                    places=3)
 

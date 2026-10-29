@@ -17,14 +17,14 @@ log = logging.getLogger("dancesport.themes")
 #   min_pop     – minimum popularity (proven-ness)
 # A track can also be force-included via themes.json → "track_themes".
 THEMES: dict[str, dict] = {
-    'Hochzeit':  {'label': 'Hochzeit (Wedding)', 'dances': ['LW', 'WW', 'SF', 'RB', 'CC'],
-                  'mood': 'slow', 'min_pop': 1},
-    'Party':     {'label': 'Party',              'dances': ['CC', 'SA', 'JI', 'QS', 'TG']},
-    'Galaball':  {'label': 'Galaball / Ballnacht', 'min_pop': 1},
-    '80er':      {'label': '80er',   'year_range': (1980, 1989)},
-    '90er':      {'label': '90er',   'year_range': (1990, 1999)},
-    '2000er':    {'label': '2000er', 'year_range': (2000, 2009)},
-    '2010er':    {'label': '2010er', 'year_range': (2010, 2019)},
+    'Hochzeit': {'label': 'Hochzeit (Wedding)', 'dances': ['LW', 'WW', 'SF', 'RB', 'CC'],
+                 'mood': 'slow', 'min_pop': 1},
+    'Party': {'label': 'Party', 'dances': ['CC', 'SA', 'JI', 'QS', 'TG']},
+    'Galaball': {'label': 'Galaball / Ballnacht', 'min_pop': 1},
+    '80er': {'label': '80er', 'year_range': (1980, 1989)},
+    '90er': {'label': '90er', 'year_range': (1990, 1999)},
+    '2000er': {'label': '2000er', 'year_range': (2000, 2009)},
+    '2010er': {'label': '2010er', 'year_range': (2010, 2019)},
 }
 
 
@@ -34,12 +34,12 @@ def load_user_themes() -> tuple[dict[str, dict], dict[str, list[str]]]:
     Expected JSON shape (all keys optional):
       {
         "custom_themes": { "Schlager": {"min_pop": 1, "mood": "slow"} },
-        "track_themes":  { "songfilename stem": ["Hochzeit", "90er"] }
+        "track_themes": { "songfilename stem": ["Hochzeit", "90er"] }
       }
     Returns (custom_themes, track_themes) with track stems lower-cased.
     """
     custom: dict[str, dict] = {}
-    track:  dict[str, list[str]] = {}
+    track: dict[str, list[str]] = {}
     data = USER_THEMES.read({})
     try:
         # The store answers for the file; this answers for its shape — it is

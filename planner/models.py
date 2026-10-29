@@ -8,20 +8,21 @@ import os
 import re
 import unicodedata
 from dataclasses import dataclass
+from enum import StrEnum
+from functools import lru_cache
 from pathlib import Path
 
 from planner.dances import TEMPO_RANGES  # noqa: F401  (re-exported)
 from planner.music.analysis import AudioFeatures
 
-
 # ── Dance Configuration ────────────────────────────────────────────────────────
 DANCE_NAMES = {
-    'LW': 'Langsamer Walzer', 'TG': 'Tango',    'WW': 'Wiener Walzer',
-    'SF': 'Slowfox',          'QS': 'Quickstep', 'CC': 'Cha-Cha',
-    'SA': 'Samba',            'RB': 'Rumba',     'PD': 'Paso Doble',
+    'LW': 'Langsamer Walzer', 'TG': 'Tango', 'WW': 'Wiener Walzer',
+    'SF': 'Slowfox', 'QS': 'Quickstep', 'CC': 'Cha-Cha',
+    'SA': 'Samba', 'RB': 'Rumba', 'PD': 'Paso Doble',
     'JI': 'Jive',
     # 'Others' (social / non-tournament) dance codes – see OTHERS_DANCES
-    'SALSA': 'Salsa',   'DISCOFOX': 'Discofox', 'BACHATA': 'Bachata',
+    'SALSA': 'Salsa', 'DISCOFOX': 'Discofox', 'BACHATA': 'Bachata',
     'WCS': 'West Coast Swing', 'KIZOMBA': 'Kizomba', 'FORRO': 'Forró',
     'TANGOARG': 'Tango Argentino',
 }
@@ -29,15 +30,15 @@ DANCE_NAMES = {
 
 DANCE_PATTERNS: list[tuple[str, re.Pattern]] = [
     ('LW', re.compile(r'\b(LW|Slow[-_\s]?Waltz|Langsamer[-_\s]?Walzer|LWT)\b', re.IGNORECASE)),
-    ('TG', re.compile(r'\b(TG|TA|Tango)\b',                                     re.IGNORECASE)),
-    ('WW', re.compile(r'\b(WW|VW|Viennese|Wiener[-_\s]?Walzer|VienneseWaltz)\b',re.IGNORECASE)),
-    ('SF', re.compile(r'\b(SF|SFX|Slowfox|Slow[-_\s]?Fox|Foxtrot)\b',           re.IGNORECASE)),
-    ('QS', re.compile(r'\b(QS|Qs|QU|Quickstep)\b',                              re.IGNORECASE)),
-    ('CC', re.compile(r'\b(CC|CH|CHA|Cha[-_\s]?Cha)\b',                         re.IGNORECASE)),
-    ('SA', re.compile(r'\b(SA|SB|Samba)\b',                                     re.IGNORECASE)),
-    ('RB', re.compile(r'\b(RB|RU|Rumba)\b',                                     re.IGNORECASE)),
-    ('PD', re.compile(r'\b(PD|PS|Paso[-_\s]?Doble|Pasodoble)\b',                re.IGNORECASE)),
-    ('JI', re.compile(r'\b(JI|JV|Jive)\b',                                      re.IGNORECASE)),
+    ('TG', re.compile(r'\b(TG|TA|Tango)\b', re.IGNORECASE)),
+    ('WW', re.compile(r'\b(WW|VW|Viennese|Wiener[-_\s]?Walzer|VienneseWaltz)\b', re.IGNORECASE)),
+    ('SF', re.compile(r'\b(SF|SFX|Slowfox|Slow[-_\s]?Fox|Foxtrot)\b', re.IGNORECASE)),
+    ('QS', re.compile(r'\b(QS|Qs|QU|Quickstep)\b', re.IGNORECASE)),
+    ('CC', re.compile(r'\b(CC|CH|CHA|Cha[-_\s]?Cha)\b', re.IGNORECASE)),
+    ('SA', re.compile(r'\b(SA|SB|Samba)\b', re.IGNORECASE)),
+    ('RB', re.compile(r'\b(RB|RU|Rumba)\b', re.IGNORECASE)),
+    ('PD', re.compile(r'\b(PD|PS|Paso[-_\s]?Doble|Pasodoble)\b', re.IGNORECASE)),
+    ('JI', re.compile(r'\b(JI|JV|Jive)\b', re.IGNORECASE)),
 ]
 
 
@@ -65,31 +66,54 @@ GENRE_TO_DANCE: dict[str, str] = {
 # Non-competition genres shown in the library overview but never used for playlists.
 # Keys are lowercase raw genre tag values.
 OTHER_GENRE_LABELS: dict[str, str] = {
-    'df':            'Discofox',
-    'bw':            'Boogie Woogie',
-    'sl':            'Salsa',
-    'bc':            'Bachata',
-    'bac':           'Bachata',
-    'wcs':           'West Coast Swing',
-    'kz':            'Kizomba',
-    'background':    'Background',
-    'special':       'Special',
-    'jingle':        'Jingle',
-    'einleitung':    'Einleitung',
-    'einmarsch':     'Einmarsch',
-    'marsch':        'Marsch',
+    'df': 'Discofox',
+    'bw': 'Boogie Woogie',
+    'sl': 'Salsa',
+    'bc': 'Bachata',
+    'bac': 'Bachata',
+    'wcs': 'West Coast Swing',
+    'kz': 'Kizomba',
+    'background': 'Background',
+    'special': 'Special',
+    'jingle': 'Jingle',
+    'einleitung': 'Einleitung',
+    'einmarsch': 'Einmarsch',
+    'marsch': 'Marsch',
     'fanfare/tusch': 'Fanfare/Tusch',
-    'tango arg.':    'Tango Argentino',
-    'forro':         'Forró',   # genre lookups are accent-folded ('Forró' → 'forro')
-    'xmas':          'Weihnachten',
-    'misc':          'Sonstiges',
-    'test':          'Test',
+    'tango arg.': 'Tango Argentino',
+    'forro': 'Forró',   # genre lookups are accent-folded ('Forró' → 'forro')
+    'xmas': 'Weihnachten',
+    'misc': 'Sonstiges',
+    'test': 'Test',
 }
 
 
 # 🎚 Where inside its TSO band the 🎚 button pitches a heat — ⚙ Settings →
 # 🎛 Play sets, one choice per dance.
-TSO_BANDS = ("mean", "lower", "middle", "upper")
+class TsoBand(StrEnum):
+    """Which takt of its TSO band a dance is pitched to.
+
+    A StrEnum, not a bare `str`: the four spellings are stored in the settings
+    file, are the combos' item data and are compared by hand in `tso_band_of`
+    and `tso_band_target`. Keeping them equal to those spellings leaves a
+    saved setting and the combos' data untouched."""
+    MEAN = "mean"
+    LOWER = "lower"
+    MIDDLE = "middle"
+    UPPER = "upper"
+
+    @classmethod
+    def of(cls, value: object) -> TsoBand:
+        """A band from a value read off the settings file. A hand-edited one
+        can hold a spelling this version does not know; the mean is what the
+        button did before the setting existed."""
+        try:
+            return cls(str(value))
+        except ValueError:
+            return cls.MEAN
+
+
+TSO_BANDS = tuple(TsoBand)
 
 
 def takt_counts(bpms) -> dict[int, int]:
@@ -157,21 +181,23 @@ def round_takt_target(counts: dict[int, int], lo: float | None = None,
     return sum(takte) / len(takte)
 
 
-def tso_band_target(lo: float, hi: float, mean: float, band: str) -> float:
+def tso_band_target(lo: float, hi: float, mean: float,
+                    band: TsoBand | str) -> float:
     """The tempo the 🎚 TSO button pitches every title of a heat to.
 
-    'mean' is what the button has always done: keep the heat's own average and
-    only pull it into the TSO band, so a round recorded at 25 is danced at 25.
-    The three fixed points put the whole dance on one takt instead — the bottom
-    of the band, its middle, or the top. Worth setting on the slow dances: one
-    takt out of 24 is twice the pitch shift one takt out of 50 is, and it is
-    heard on the voice.
+    `TsoBand.MEAN` is what the button has always done: keep the heat's own
+    average and only pull it into the TSO band, so a round recorded at 25 is
+    danced at 25. The three fixed points put the whole dance on one takt
+    instead — the bottom of the band, its middle, or the top. Worth setting on
+    the slow dances: one takt out of 24 is twice the pitch shift one takt out
+    of 50 is, and it is heard on the voice.
     """
-    if band == "lower":
+    band = TsoBand.of(band)
+    if band == TsoBand.LOWER:
         return float(lo)
-    if band == "middle":
+    if band == TsoBand.MIDDLE:
         return (lo + hi) / 2
-    if band == "upper":
+    if band == TsoBand.UPPER:
         return float(hi)
     return min(max(mean, lo), hi)
 
@@ -207,7 +233,7 @@ def style_covers_dances(style: str, dances) -> bool:
     return all(d in sset for d in (dances or []))
 
 
-def best_style_for_dances(dances):
+def best_style_for_dances(dances) -> str | None:
     """Pick the style whose S-class dance set covers the most of `dances` — used to
     keep the panel's style in step with a deck's actual dances when they disagree."""
     best, score = None, -1
@@ -227,17 +253,17 @@ def best_style_for_dances(dances):
 # under a Standard/Latin folder).
 STYLE_FOLDERS: dict[str, tuple[str, ...]] = {
     'Standard': ('standardcd',),
-    'Latin':    ('lateincd',),
+    'Latin': ('lateincd',),
 }
 
 
-_RESERVED_STYLE_FOLDERS = {f for fs in STYLE_FOLDERS.values() for f in fs}
+RESERVED_STYLE_FOLDERS = {f for fs in STYLE_FOLDERS.values() for f in fs}
 
 
 # Folder names (case-insensitive) whose tracks are never used in any pool — junk,
 # duplicates or non-danceable material that would otherwise slip into 'Others'.
 # Tracks under these folders are skipped at scan time (never enter the library).
-_EXCLUDED_FOLDERS = {'sox', 'unbearbeitet'}
+EXCLUDED_FOLDERS = {'sox', 'unbearbeitet'}
 
 
 # Non-tournament library CATEGORIES (a soft exclude, unlike _EXCLUDED_FOLDERS):
@@ -247,27 +273,30 @@ _EXCLUDED_FOLDERS = {'sox', 'unbearbeitet'}
 # label and the folder names that belong to it (matched case-insensitively as exact
 # path segments). The library browser offers these as a "category" filter.
 LIBRARY_CATEGORIES: dict[str, tuple[str, tuple[str, ...]]] = {
-    'seasonal':    ('🎄 Seasonal / Christmas',
-                    ('christmas', 'weihnachten', 'xmas')),
-    'anthems':     ('🎺 Anthems',
-                    ('hymnen', 'hymnen wdsf')),
-    'background':  ('🎶 Background / non-dance',
-                    # 'special' is the umbrella these live under: openings,
-                    # fanfares, award and Ausmarsch music. It used to be a HARD
-                    # skip, so its ~130 loose files never reached the library at
-                    # all — now they load, browsable, still out of generation.
-                    ('special', 'musikbett', 'hintergrundmusik',
-                     'background dancecomp 2025', 'happy bithday dances')),
+    'seasonal': ('🎄 Seasonal / Christmas',
+                 ('christmas', 'weihnachten', 'xmas')),
+    'anthems': ('🎺 Anthems',
+                ('hymnen', 'hymnen wdsf')),
+    'background': ('🎶 Background / non-dance',
+                   # 'special' is the umbrella these live under: openings,
+                   # fanfares, award and Ausmarsch music. It used to be a HARD
+                   # skip, so its ~130 loose files never reached the library at
+                   # all — now they load, browsable, still out of generation.
+                   ('special', 'musikbett', 'hintergrundmusik',
+                    'background dancecomp 2025', 'happy bithday dances')),
     'wrong_tempo': ('⏱️ Wrong tempo / not tournament',
                     ('nicht turnier', 'nicht tso turniertempo',
                      'gut aber kein turnier', 'gut aber nicht turnier',
                      'unangepasst', 'unagepasste versionen', 'unsicher')),
-    'duplicates':  ('👥 Duplicates / raw versions',
-                    ('doppelte musikdatein', 'doppeltvlt', 'orig', 'original',
-                     'originale', 'converted', 'einpegelung', 'sample', 'samples')),
+    'duplicates': ('👥 Duplicates / raw versions',
+                   ('doppelte musikdatein', 'doppeltvlt', 'orig', 'original',
+                    'originale', 'converted', 'einpegelung', 'sample', 'samples')),
+    # Not a folder either: entrance and award music, by the words and folders
+    # set in ⚙ Settings → 📁 Paths (is_ceremony below).
+    'ceremony': ('🏅 Background: entrance & awards', ()),
     # Not a folder: a competition title whose comment carries no class tag
     # (library_category below). No folder names, so it never matches a path.
-    'no_class':    ('🏷 No class', ()),
+    'no_class': ('🏷 No class', ()),
 }
 
 # Whether the MAIN library uses class tags at all. Without any, 'no_class' would
@@ -314,6 +343,46 @@ def is_hidden_path(path) -> bool:
         return False
     return _path_key(path).startswith(_hidden_folders)
 
+# 🏅 Entrance (Einmarsch) and award (Siegerehrung) music, ⚙ Settings → 📁 Paths:
+# one of these words in the file or folder name, the title or the comment tag,
+# or a title below one of the folders named there ('ceremony_words',
+# 'ceremony_folders').
+CEREMONY_WORDS = ('Einmarsch', 'Siegerehrung', 'Entrance', 'Award', 'Ceremony')
+_ceremony_words: tuple[str, ...] = tuple(w.lower() for w in CEREMONY_WORDS)
+_ceremony_folders: tuple[str, ...] = ()
+
+
+def ceremony_words_of(settings: dict) -> list[str]:
+    """The 🏅 words as set, the built-in ones while none were ever saved."""
+    words = (settings or {}).get('ceremony_words')
+    return list(CEREMONY_WORDS) if words is None else [str(w) for w in words]
+
+
+def set_ceremony_match(words, folders) -> None:
+    global _ceremony_words, _ceremony_folders
+    _ceremony_words = tuple(fold_text(str(w).strip()) for w in words or ()
+                            if str(w).strip())
+    keys = (_path_key(f) for f in folders or () if str(f).strip())
+    _ceremony_folders = tuple(k if k.endswith(os.sep) else k + os.sep for k in keys)
+
+
+def is_ceremony(entry) -> bool:
+    if _ceremony_folders and _path_key(entry.path).startswith(_ceremony_folders):
+        return True
+    if not _ceremony_words:
+        return False
+    text = _folded_names(str(entry.path), entry.title, getattr(entry, 'tag_title', None),
+                         getattr(entry, 'tag_comment', None))
+    return any(w in text for w in _ceremony_words)
+
+
+@lru_cache(maxsize=65536)
+def _folded_names(*names) -> str:
+    """The names to look for 🏅 words in, folded once: every generation pool
+    asks each title again."""
+    return fold_text(' '.join(filter(None, names)))
+
+
 # Flat lookup: lowercased folder name → category id.
 _FOLDER_CATEGORY = {f: cid for cid, (_lbl, folders) in LIBRARY_CATEGORIES.items()
                     for f in folders}
@@ -349,7 +418,8 @@ def folder_category_of_parts(parts) -> str:
 def library_category(entry) -> str:
     """Non-tournament category id of a library entry ('' = a normal tournament
     track). A comment marker naming a category comes first (_MARKER_CATEGORY),
-    then the deepest matching folder segment of the path; a christmas
+    then 🏅 entrance and award music (is_ceremony), then the deepest
+    matching folder segment of the path; a christmas
     track flagged per-file (is_xmas) counts as 'seasonal' even outside a christmas
     folder. A competition title without a class tag is 'no_class' while the
     library uses class tags (note_class_tag_use); social dances have no
@@ -359,6 +429,8 @@ def library_category(entry) -> str:
         cid = _MARKER_CATEGORY.get(marker)
         if cid:
             return cid
+    if is_ceremony(entry):
+        return 'ceremony'
     cid = folder_category_of_parts(entry.path.parts[:-1])
     if cid:
         return cid
@@ -385,12 +457,12 @@ def is_non_turnier(entry) -> bool:
 # match as a substring so tracks inside mixed-compilation folders
 # (e.g. SalsaDiscofoxTangoArgBachataCD) get classified by their filename.
 OTHERS_DANCES: dict[str, dict[str, tuple[str, ...]]] = {
-    'SALSA':    {'keys': ('salsa',)},
+    'SALSA': {'keys': ('salsa',)},
     'DISCOFOX': {'keys': ('discofox', 'disco fox', 'df')},
-    'BACHATA':  {'keys': ('bachata',)},
-    'WCS':      {'keys': ('wcs', 'westcoast', 'west coast')},
-    'KIZOMBA':  {'keys': ('kizomba',)},
-    'FORRO':    {'keys': ('forro',)},   # matching is accent-folded (Forro with any accent)
+    'BACHATA': {'keys': ('bachata',)},
+    'WCS': {'keys': ('wcs', 'westcoast', 'west coast')},
+    'KIZOMBA': {'keys': ('kizomba',)},
+    'FORRO': {'keys': ('forro',)},   # matching is accent-folded (Forro with any accent)
     'TANGOARG': {'keys': ('argtango', 'tangoarg', 'tango arg', 'argentino')},
 }
 
@@ -412,6 +484,21 @@ ROUND_NAMES: dict[int, list[str]] = {
     6: ['Vorrunde', '1. Zwischenrunde', '2. Zwischenrunde', '3. Zwischenrunde', 'Semifinale', 'Finale'],
     7: ['Vorrunde', '1. Zwischenrunde', '2. Zwischenrunde', '3. Zwischenrunde', '4. Zwischenrunde', 'Semifinale', 'Finale'],
 }
+
+
+def default_round_name(i: int) -> str:
+    """The name of round `i`, counted 0-based, where `ROUND_NAMES` names no
+    round for the count — a list of eight rounds, or a warm-up that is no
+    competition at all. The deck, the CLI and the m3u import all fall back to
+    these, and the name goes into the playlist, so it has to be written once."""
+    return f"Runde {i + 1}"
+
+
+def round_names(n: int) -> list[str]:
+    """The names of `n` rounds: the standard progression where there is one
+    for that count, plainly numbered past it."""
+    names = ROUND_NAMES.get(n)
+    return list(names) if names else [default_round_name(i) for i in range(n)]
 
 
 # Paso Doble is allowed to repeat across rounds (limited library)
@@ -437,13 +524,79 @@ FAST_DANCES = {'TG', 'QS', 'CC', 'SA', 'PD', 'JI'}
 
 
 # ── Data Classes ───────────────────────────────────────────────────────────────
-@dataclass
+class RoundTier(StrEnum):
+    """Where a round sits in the ladder, back from the final.
+
+    A StrEnum, not a bare `str`: it compares equal to the plain spelling, so a
+    saved session, an .m3u header or a test's `tier="final"` still match, and
+    `json.dump` writes it back out as that string."""
+    EARLY = "early"
+    PRE_SEMI = "pre_semi"
+    SEMI = "semi"
+    FINAL = "final"
+
+    @classmethod
+    def of(cls, value: object) -> RoundTier:
+        """A tier from a value read off disk. A session saved by an older
+        version can hold "" or a spelling this one dropped, and the round
+        still needs a tier — the earliest is the safe reading."""
+        try:
+            return cls(str(value))
+        except ValueError:
+            return cls.EARLY
+
+
+def tier_by_position(i: int, n: int) -> RoundTier:
+    """The tier of round `i` of `n`, counted back from the final — the one
+    ladder `rounds_from_pattern`, the m3u import and the dynamic deck all lay
+    down, so a '6-3-2-1' pattern and a six-round import agree."""
+    if i == n - 1:
+        return RoundTier.FINAL
+    if i == n - 2:
+        return RoundTier.SEMI
+    if i == n - 3:
+        return RoundTier.PRE_SEMI
+    return RoundTier.EARLY
+
+
+class Strategy(StrEnum):
+    """Which songs a round may draw from — see `planner.generate.scoring`.
+
+    The five pool strategies were spelled `'proven'` / `'top_proven'` /
+    `'fresh'` / `'mixed'` / `'all'` by hand wherever one was compared, defaulted
+    or read back off a saved deck. A StrEnum keeps every one of those spellings
+    working (it compares equal to it, hashes to it and `json.dump`s back out as
+    it), so a restored session, an .m3u header and the combo's item data all
+    stay as they were.
+
+    `DEFAULT` is the empty string and means "no strategy chosen": the round
+    takes its tier's natural pick (`resolve_strategy`). It is falsy, so the
+    `rc.strategy or None` reads that used to spot that case still spot it."""
+    DEFAULT = ""
+    PROVEN = "proven"
+    TOP_PROVEN = "top_proven"
+    FRESH = "fresh"
+    MIXED = "mixed"
+    ALL = "all"
+
+    @classmethod
+    def of(cls, value: object) -> Strategy:
+        """A strategy from a value that came from outside — a restored deck, a
+        combo's item data. A deck saved by an older version can hold "" or a
+        spelling this one dropped; no strategy chosen is the safe reading."""
+        try:
+            return cls(str(value))
+        except ValueError:
+            return cls.DEFAULT
+
+
+@dataclass(slots=True)
 class RoundConfig:
     name: str
     heats: int
-    tier: str  # 'early' | 'pre_semi' | 'semi' | 'final'
+    tier: RoundTier
     prefer_fresh: bool = False  # legacy: True = prefer unused; False = prefer proven
-    strategy: str = ""  # one of STRATEGIES; "" → derive from tier/prefer_fresh
+    strategy: Strategy = Strategy.DEFAULT  # DEFAULT → derive from tier/prefer_fresh
 
 
 def rounds_from_pattern(raw: str) -> list[RoundConfig]:
@@ -458,23 +611,18 @@ def rounds_from_pattern(raw: str) -> list[RoundConfig]:
     except ValueError:
         return []
     n = len(counts)
-    names = ROUND_NAMES.get(n, [f"Runde {i + 1}" for i in range(n)])
+    names = round_names(n)
     cfgs = []
     for i, (name, heats) in enumerate(zip(names, counts, strict=True)):
-        tier = (
-            "final"    if i == n - 1 else
-            "semi"     if i == n - 2 else
-            "pre_semi" if i == n - 3 else
-            "early"
-        )
+        tier = tier_by_position(i, n)
         cfgs.append(RoundConfig(
             name=name, heats=heats, tier=tier,
-            prefer_fresh=(tier == "pre_semi"),
+            prefer_fresh=(tier == RoundTier.PRE_SEMI),
         ))
     return cfgs
 
 
-@dataclass
+@dataclass(slots=True)
 class MusicEntry:
     path: Path
     title: str
@@ -613,6 +761,7 @@ def split_day_rounds(rounds_data: list[dict], dances: list[str]) -> list[dict]:
         for h, hcol in (r.get("grid") or {}).items():
             grid[h] = {str(remap[int(d)]): p for d, p in hcol.items()
                        if int(d) in remap}
-        cur["rounds"].append({"name": plain, "tier": r.get("tier", "early"),
+        cur["rounds"].append({"name": plain,
+                              "tier": RoundTier.of(r.get("tier")),
                               "heats": int(r.get("heats", 1)), "grid": grid})
     return groups

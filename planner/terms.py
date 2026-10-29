@@ -107,14 +107,18 @@ def practice_name() -> str:
 def dance_name(code: str | None, default: str) -> str: ...
 @overload
 def dance_name(code: str | None, default: str | None = None) -> str | None: ...
-def dance_name(code, default=None):
+def dance_name(code, default=None) -> str | None:
     """`DANCE_NAMES.get(code, default)`, in English on an English screen."""
     if english() and code in DANCE_NAMES_EN:
         return DANCE_NAMES_EN[code]
     return DANCE_NAMES.get(code, genre_name(default))
 
 
-def genre_name(label):
+@overload
+def genre_name(label: str) -> str: ...
+@overload
+def genre_name(label: None) -> None: ...
+def genre_name(label: str | None) -> str | None:
     """A track's genre label (`other_genre`) for the screen: the German ones in
     English on an English screen, anything else untouched."""
     if english() and label in _GENRE_EN:
@@ -122,7 +126,7 @@ def genre_name(label):
     return label
 
 
-def round_name(name):
+def round_name(name: str) -> str:
     """A round or section label for the screen. A bare dance code (a running
     order whose rounds could not be derived) is named as its dance; anything
     the app did not name itself passes untouched."""

@@ -14,15 +14,16 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-# First: it points the app's state files at a temp folder before any app
-# module is imported.
-from tests.gui.monkey_support import ClickThrough, _silent_mp3
-
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QDialogButtonBox, QFileDialog, QMessageBox
+
 import gui.dialogs
 from shared import stores
+
+# First: it points the app's state files at a temp folder before any app
+# module is imported.
+from tests.gui.monkey_support import ClickThrough, _silent_mp3
 
 
 class ToolbarClickTest(ClickThrough):

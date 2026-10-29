@@ -24,11 +24,11 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtCore import QObject, Qt
 from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
 
+from gui.decks.deck_set import DeckSet
 from gui.window.main_generate import GenerateMixin
 from planner import config as planner_config
 from planner.event import event_plan
 from planner.event.competition import parse_competition_schedule
-from gui.decks.deck_set import DeckSet
 
 
 class FakeWindow(GenerateMixin, QObject):
@@ -336,7 +336,7 @@ class ApplyEventTest(unittest.TestCase):
         w._grid.day_tabs = mock.Mock()
         w._grid.day_split = mock.Mock()
         w._event_opts = {"event": {"series_name": "DanceConvention", "year": 2026}}
-        for target in ("gui.window.main_event._show_toast",
+        for target in ("gui.window.main_event.show_toast",
                        "gui.window.main_event.PlaylistSuggester"):
             patcher = mock.patch(target)
             patcher.start()

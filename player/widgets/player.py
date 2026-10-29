@@ -6,18 +6,23 @@ the sliders, colours and format helpers both use are in
 player/widgets/player_parts.py.
 """
 import logging
-import shiboken6
-
 import math
+from collections.abc import Callable
+from pathlib import Path
+from typing import cast
+
+import shiboken6
 from PySide6.QtCore import (
     QEvent,
     QPoint,
-    QTimer,
+    QSize,
     Qt,
+    QTimer,
     Signal,
 )
 from PySide6.QtWidgets import (
     QApplication,
+    QBoxLayout,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -28,37 +33,48 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from pathlib import Path
-from collections.abc import Callable
+
 from planner import i18n
+from player.audio.mix import DESK_DUCK_PCT
 from player.widgets.artwork import cover
-from shared.appearance.icons import (
-    WARN,
-    button as icon_button,
-    html as icon_html,
-    icon,
-    pixmap as icon_pixmap,
-)
 from player.widgets.player_parts import (
-    _ART_PX,
-    _CARD_INK,
-    _ClickSlider,
-    _COUNTDOWN_CSS,
-    _fmt_ms,
-    _OVERLAY_INK,
-    _takt_text,
-    _TEMPO_STEP,
-    _WAIT_COUNT_CSS,
+    ART_PX,
+    CARD_INK,
+    COUNTDOWN_CSS,
+    OVERLAY_INK,
+    TEMPO_STEP,
+    WAIT_COUNT_CSS,
+    ClickSlider,
+    fmt_ms,
+    takt_text,
 )
 from player.widgets.player_setup import BigPlayerSetupMixin
+from shared.appearance.icons import (
+    WARN,
+    icon,
+)
+from shared.appearance.icons import (
+    button as icon_button,
+)
+from shared.appearance.icons import (
+    html as icon_html,
+)
+from shared.appearance.icons import (
+    pixmap as icon_pixmap,
+)
 
 try:
-    from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
+    from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
     HAS_MULTIMEDIA = True
 except ImportError:
     HAS_MULTIMEDIA = False
 
 log = logging.getLogger("dancesport.gui.player")
+
+def _duck_icon(ducked: bool, muted: bool) -> str:
+    """The duck button's icon for each of its three states."""
+    return "mute" if muted else "volume_low" if ducked else "volume"
+
 
 class PreviewOverlay(QFrame):
     """Small floating player shown right below the row whose ▶ was clicked:
@@ -71,7 +87,7 @@ class PreviewOverlay(QFrame):
     disableRequested = Signal()  # ⚙ → Disable → MainWindow persists the setting
     prevRequested = Signal()     # ⏮ → MainWindow plays the previous song row
     nextRequested = Signal()     # ⏭ → MainWindow plays the next song row
-    duckToggled = Signal(bool)   # 🔉 → MainWindow pulls everything down (_DESK_DUCK)
+    duckPressed = Signal()   # 🔉 → MainWindow: full → duck → mute → full
 
     def __init__(self, player: QMediaPlayer, audio_out: QAudioOutput,
                  get_vol: Callable[[], float] | None = None,
@@ -88,9 +104,11 @@ class PreviewOverlay(QFrame):
         self._dragging = False
         self._full_title = ""
         self._ducked = False
+        self._muted = False   # 🔇 the duck button's third state
         self._drag_off: QPoint | None = None   # press point while moving the overlay
         self._user_pos: QPoint | None = None   # sticky position after a manual drag
         self._anchor: QPoint | None = None     # where it must stay while shown
+        self._primary_btns: list[tuple[QToolButton, int]] = []  # 🔘 and their px
         self.setObjectName("PreviewOverlay")
         # Light card in the app's palette (row blue-gray + undo-button blues).
         self.setStyleSheet(
@@ -132,10 +150,11 @@ class PreviewOverlay(QFrame):
         top = QHBoxLayout()
         top.setSpacing(4)
         close_btn = QToolButton()
-        icon_button(close_btn, "close", 11, _OVERLAY_INK)
+        icon_button(close_btn, "close", 11, OVERLAY_INK)
         close_btn.setToolTip("Close the preview and stop playback  (Ctrl+X)")
         close_btn.clicked.connect(self.closeRequested.emit)
         top.addWidget(close_btn)
+        self._primary_btns.append((close_btn, 11))   # ✕ is the mini player's stop
         self._title = QLabel("")
         # A title comes from an ID3 tag or an .m3u line, i.e. from whoever made
         # the file. Under the AutoText default Qt would parse markup in it and
@@ -147,7 +166,7 @@ class PreviewOverlay(QFrame):
         self._title.setCursor(Qt.CursorShape.OpenHandCursor)
         top.addWidget(self._title, stretch=1)
         gear_btn = QToolButton()
-        icon_button(gear_btn, "gear", 12, _OVERLAY_INK)
+        icon_button(gear_btn, "gear", 12, OVERLAY_INK)
         gear_btn.setToolTip("Preview-player options")
         gear_btn.clicked.connect(lambda: self._gear_menu(gear_btn))
         top.addWidget(gear_btn)
@@ -158,7 +177,7 @@ class PreviewOverlay(QFrame):
         # ── Row 2: seek slider | ⏮ ◀◀ ▶▶ | times | 🔊 volume ──
         bot = QHBoxLayout()
         bot.setSpacing(4)
-        self._slider = _ClickSlider(Qt.Orientation.Horizontal)
+        self._slider = ClickSlider(Qt.Orientation.Horizontal)
         self._slider.setObjectName("seek")
         self._slider.setRange(0, 0)
         self._slider.sliderPressed.connect(self._on_slider_pressed)
@@ -174,10 +193,12 @@ class PreviewOverlay(QFrame):
                 ("forward", "Forward 10 s", lambda: self._skip(+10_000)),
                 ("next", "Next title", self.nextRequested.emit)):
             b = QToolButton()
-            icon_button(b, name, 12, _OVERLAY_INK)
+            icon_button(b, name, 12, OVERLAY_INK)
             b.setToolTip(tip)
             b.clicked.connect(cb)
             bot.addWidget(b)
+            if name in ("prev", "next"):
+                self._primary_btns.append((b, 12))
 
         self._time_lbl = QLabel("00:00  -00:00")
         self._time_lbl.setStyleSheet(
@@ -185,21 +206,28 @@ class PreviewOverlay(QFrame):
         bot.addWidget(self._time_lbl)
 
         self._duck_btn = QToolButton()
-        icon_button(self._duck_btn, "volume", 12, _OVERLAY_INK)
+        icon_button(self._duck_btn, "volume", 12, OVERLAY_INK)
         self._duck_btn.setCheckable(True)   # stays pressed while ducked
-        self._duck_btn.setToolTip("Duck to 20 % / back to full")
+        self.set_duck_level(DESK_DUCK_PCT)   # until ⚙ Settings says otherwise
         self._duck_btn.clicked.connect(self._toggle_duck)
         bot.addWidget(self._duck_btn)
         # 🎧 The pre-listen's mini player has none: 🔉 ducks the hall.
         if not duck:
             self._duck_btn.hide()
-        self._vol = _ClickSlider(Qt.Orientation.Horizontal)
+        self._vol = ClickSlider(Qt.Orientation.Horizontal)
         self._vol.setRange(0, 100)
         self._vol.setFixedWidth(50)
         self._vol.setToolTip("Volume")
         self._vol.valueChanged.connect(lambda v: self._set_vol(v / 100.0))
         bot.addWidget(self._vol)
         lyt.addLayout(bot)
+
+    def set_button_scale(self, pct: int):
+        """🔘 ✕ ⏮ ⏭ at the button size from ⚙ Settings → Look."""
+        for b, px in self._primary_btns:
+            size = round(px * pct / 100)
+            b.setIconSize(QSize(size, size))
+        self.adjustSize()
 
     def set_player(self, player: QMediaPlayer):
         """Follow another QMediaPlayer — a 🔀 crossfade makes the second
@@ -315,7 +343,7 @@ class PreviewOverlay(QFrame):
 
     def _update_time(self, pos: int):
         dur = self._slider.maximum()   # kept in sync by durationChanged
-        self._time_lbl.setText(f"{_fmt_ms(pos)}  -{_fmt_ms(dur - pos)}")
+        self._time_lbl.setText(f"{fmt_ms(pos)}  -{fmt_ms(dur - pos)}")
 
     # ── Controls ──
 
@@ -337,21 +365,23 @@ class PreviewOverlay(QFrame):
         self._player.setPosition(pos)
 
     def _toggle_duck(self):
-        """🔉 Down to a fifth for a word over the music. MainWindow owns the
-        factor, so this overlay and the big card always agree — and the button
-        follows that answer, not the click, so the two never drift apart."""
-        self.duckToggled.emit(not self._ducked)
+        """🔉 Down for a word over the music, then mute, then back. MainWindow
+        owns the factor, so this overlay and the big card always agree — and
+        the button follows that answer, not the click, so the two never drift
+        apart."""
+        self.duckPressed.emit()
         self._duck_btn.setChecked(self._ducked)
 
-    def set_ducked(self, on: bool):
+    def set_ducked(self, on: bool, muted: bool = False):
         self._ducked = bool(on)
-        self._duck_btn.setIcon(icon("volume_low" if self._ducked else "volume",
-                                    12, _OVERLAY_INK))
+        self._muted = bool(muted)
+        self._duck_btn.setIcon(icon(_duck_icon(self._ducked, self._muted),
+                                    12, OVERLAY_INK))
         self._duck_btn.setChecked(self._ducked)
 
     def set_duck_level(self, pct: int):
         """🔉 The level from ⚙ Settings, named on the button."""
-        self._duck_btn.setToolTip(i18n.t("Duck to %d %% / back to full") % pct)
+        self._duck_btn.setToolTip(i18n.t("Duck to %d %%, again to mute, again back to full") % pct)
 
     def _gear_menu(self, anchor: QToolButton):
         menu = QMenu(self)
@@ -377,7 +407,7 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
     toPauseRequested = Signal()            # ⏸♪ → end this song now, jump to the pause music
     fadeOutRequested = Signal()            # 🔉↓ → fade the playing song out now
     panicRequested = Signal()              # 🛑 → fade to silence and HOLD (no advance)
-    duckToggled = Signal(bool)             # 🔉 → _DESK_DUCK on everything audible
+    duckPressed = Signal()                 # 🔉 → full → duck → mute on everything audible
     fileDropped = Signal(str)              # a track dropped onto the card → play it
 
     def __init__(self, player: QMediaPlayer, audio_out=None,
@@ -395,6 +425,7 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
         self._set_vol = set_vol or (audio_out.setVolume if audio_out else (lambda _v: None))
         self._tempo_player = player   # the fader always targets the MAIN player
         self._ducked = False
+        self._muted = False   # 🔇 the duck button's third state
         self._dragging = False
         self._full_title = ""
         self._dur = 0   # the track's real duration (slider max may be a limit)
@@ -433,6 +464,7 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
         self._build_transport()
         self._build_aux_row()
         self._build_volume()
+        self.set_duck_level(DESK_DUCK_PCT)   # until ⚙ Settings says otherwise
         self._build_tempo()
 
         # The decks own Space / Ctrl+←→ shortcuts — never steal keyboard focus.
@@ -607,12 +639,11 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
 
     def set_player(self, player: QMediaPlayer):
         """Retarget the card (seek bar, times, ⏯) to another QMediaPlayer —
-        used for the pause-music filler while the between-songs pause runs,
-        so the slider drags the FILLER and not the preloaded next song."""
+        the 🔀 crossfade hands it the title coming in."""
         if player is self._player:
             return
         # Another player, another timeline — the 🐂 marks of the song that was
-        # on the bar mean nothing on the filler (or back again).
+        # on the bar mean nothing on the other one (or back again).
         self.set_pd_marks([])
         self.set_waveform_track(None)
         old = self._player
@@ -638,7 +669,7 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
             self._waiting = False
             self.set_countdown("")
         # A real title means a song is playing → offer ⏸♪ jump-to-pause; an
-        # empty title is idle or the pause filler (status set), so hide it.
+        # empty title is idle (status set), so hide it.
         self._has_song = bool(title)
         self._refresh_aux_buttons()
         if title:
@@ -703,6 +734,7 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
     def set_waveform_track(self, track: Path | None):
         """The file whose outline the strip draws; None clears the strip."""
         self._wave_path = str(track) if track is not None else None
+        self._moved_by_hand = False
         if self._wave_path is None:
             self._wave.set_peaks(None)
             self.set_wave_overlay([], None)
@@ -722,9 +754,12 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
                          fade_in_end_ms=None):
         """The 🔇 spans the player skips and where the ⏳ fade-out begins (file
         time, ms; None = no timed fade) — and ⏩ where the title starts and 🌅
-        its fade-in is through (None = no fade-in)."""
+        its fade-in is through (None = no fade-in). Once the operator has
+        moved the playhead, the start line marks nothing and stays away."""
         self._wave.set_silences(silences_secs)
         self._wave.set_fade_start(fade_start_ms)
+        if self._moved_by_hand:
+            start_ms, fade_in_end_ms = 0, None
         self._wave.set_start(start_ms, fade_in_end_ms)
 
     def set_artwork(self, track: Path | None, playlist: Path | None = None):
@@ -740,7 +775,7 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
         if self._art_track is None:
             self._art.clear()
             return
-        self._art.setPixmap(cover(self._art_track, self._art_list, _ART_PX))
+        self._art.setPixmap(cover(self._art_track, self._art_list, ART_PX))
 
     def set_gain(self, factor: float):
         """Show the R128 equalization gain of the playing track (1.0 → none)."""
@@ -813,7 +848,7 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
         "the PD in is now with a gap"), in the words' own font ("not complety
         align with pd t60 in text"). Afterwards the stats get the row's
         stretch back and the pause countdown its own font."""
-        self._countdown_lbl.setStyleSheet(_WAIT_COUNT_CSS if on else _COUNTDOWN_CSS)
+        self._countdown_lbl.setStyleSheet(WAIT_COUNT_CSS if on else COUNTDOWN_CSS)
         self._sub.setSizePolicy(
             QSizePolicy.Policy.Preferred if on else QSizePolicy.Policy.Ignored,
             QSizePolicy.Policy.Preferred)
@@ -825,7 +860,7 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
         prints it ("T60"); '' without a filename takt."""
         if not self._takt:
             return ""
-        return f"T{_takt_text(self._takt * (1.0 + self._tempo.value() / 1000.0))}"
+        return f"T{takt_text(self._takt * (1.0 + self._tempo.value() / 1000.0))}"
 
     def set_pause_active(self, on: bool):
         """Between-songs pause on/off: swaps the card's context buttons
@@ -839,8 +874,11 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
     def _refresh_aux_buttons(self):
         playing = self._has_song and not self._is_paused
         self._extend_btn.setVisible(self._is_paused)
+        self._skip_pause_btn.setVisible(self._is_paused)
         self._topause_btn.setVisible(playing and self._pause_avail)
         self._fade_btn.setVisible(playing)
+        # 🛑 acts only on a playing title; in the volume row it always shows.
+        self._panic_btn.setVisible(playing or not self._panic_up)
         # …and the row with them — its space stays (see _build_aux_row).
         self._aux_box.setVisible(playing or self._is_paused)
 
@@ -957,7 +995,7 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
 
     def step_tempo(self, up: bool):
         """⌨ / 🎛 One − / + step from a desk key or a controller button."""
-        self._nudge_tempo(_TEMPO_STEP if up else -_TEMPO_STEP)
+        self._nudge_tempo(TEMPO_STEP if up else -TEMPO_STEP)
 
     def set_tempo_from_knob(self, offset: float):
         """🎛 A controller's tempo knob, −1…+1 across the fader's whole range.
@@ -1048,33 +1086,59 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
         self._refresh_vol_lbl()
 
     def _refresh_vol_lbl(self):
-        self._vol_lbl.setText("duck" if self._ducked else f"{self._vol.value()}%")
+        text = ("mute" if self._muted else "duck" if self._ducked
+                else f"{self._vol.value()}%")
+        self._vol_lbl.setText(text)
         self._vol_lbl.setStyleSheet(
             "font-size:11px; font-family:Consolas,monospace;"
-            + ("color:#d98f3a;" if self._ducked else "color:#8fa3c4;"))
+            + ("color:#d9534f;" if self._muted else "color:#d98f3a;"
+               if self._ducked else "color:#8fa3c4;"))
 
     def toggle_duck(self):
-        """🔉 Ask for a fifth of the volume (or full again). Ducking beats
-        muting at the desk: a word over the music doesn't need a hole in the
-        round."""
-        self.duckToggled.emit(not self._ducked)
+        """🔉 Ask for the next state: full → duck → mute → full. Ducking beats
+        muting for a word over the music — no hole in the round — so the
+        duck comes first and the mute takes a second press."""
+        self.duckPressed.emit()
         self._duck_btn.setChecked(self._ducked)
 
-    def set_ducked(self, on: bool):
-        """The state MainWindow settled on — it owns the volume factor, and
-        the filler music on its own output follows the same one. The button
-        follows this, never the click, so card and overlay can't disagree."""
+    def set_ducked(self, on: bool, muted: bool = False):
+        """The state MainWindow settled on — it owns the volume factor. The
+        button follows this, never the click, so card and overlay can't disagree."""
         self._ducked = bool(on)
-        self._duck_btn.setIcon(icon("volume_low" if self._ducked else "volume",
-                                    16, _CARD_INK))
+        self._muted = bool(muted)
+        self._duck_btn.setIcon(icon(_duck_icon(self._ducked, self._muted),
+                                    16, CARD_INK))
         self._duck_btn.setChecked(self._ducked)
+        if self._duck_btn.property("muted") != self._muted:
+            self._duck_btn.setProperty("muted", self._muted)
+            self._duck_btn.style().unpolish(self._duck_btn)
+            self._duck_btn.style().polish(self._duck_btn)
         self._refresh_vol_lbl()
 
     def set_duck_level(self, pct: int):
         """🔉 The level from ⚙ Settings, named on the button."""
-        self._duck_btn.setToolTip(
-            i18n.t("Duck to %d %% / back to full — the filler music comes down too")
-            % pct)
+        self._duck_btn.setToolTip(i18n.t("Duck to %d %%, again to mute, again back to full") % pct)
+
+    def set_button_scale(self, pct: int):
+        """🔘 ⏮ ⏯ ⏭ at the button size from ⚙ Settings → Look."""
+        px = round(24 * pct / 100)
+        for b in self._primary_btns:
+            b.setIconSize(QSize(px, px))
+
+    def set_vol_buttons_shown(self, on: bool):
+        """The − / + beside the volume slider, from ⚙ Sound & player. They
+        crowd the volume row, so with them 🛑 Fade out and hold moves up
+        beside 🔉↓ Fade out now."""
+        self._vol_down_btn.setVisible(on)
+        self._vol_up_btn.setVisible(on)
+        if on != self._panic_up:
+            self._panic_up = on
+            if on:
+                aux = cast(QBoxLayout, self._aux_box.layout())
+                aux.insertWidget(aux.indexOf(self._fade_btn) + 1, self._panic_btn)
+            else:
+                cast(QBoxLayout, self._vol_box.layout()).insertWidget(0, self._panic_btn)
+            self._refresh_aux_buttons()
 
     def set_volume_value(self, vol: float):
         """Show a volume set elsewhere (settings restore, preview overlay slider)
@@ -1088,22 +1152,24 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
         v = self._tempo.value()
         txt = f"{v / 10.0:+.1f}%" if v else "±0.0%"
         if self._takt:
-            txt += f" → T{_takt_text(self._takt * (1.0 + v / 1000.0))}"
+            txt += f" → T{takt_text(self._takt * (1.0 + v / 1000.0))}"
         self._tempo_lbl.setText(txt)
         self._tempo_lbl.setStyleSheet(
             "font-size:11px; font-family:Consolas,monospace;"
             + ("color:#d8b35c;" if v else "color:#8fa3c4;"))
 
     def set_limit(self, ms: int | None, glyph: str = "hourglass",
-                  to_end: bool = False):
+                  to_end: bool = False, then: str | None = None):
         """Adjusted end of playback in ms (timed cut / PD highlight stop); None →
         playback runs to the track's natural end. `glyph` is a shared.appearance.icons name
         (the sand clock for a timed cut, the highlight marker for a PD stop);
         `to_end=True` keeps it visible (as `glyph ⟶ full`) for a stop that
         resolves to the very end — e.g. a PD whose finale highlight is the
-        song's own ending."""
+        song's own ending. `then` is drawn after an armed limit for what
+        follows it — the 🥇 trophy of a final's title that plays on."""
         self._limit_ms = int(ms) if ms else None
         self._limit_glyph = glyph
+        self._limit_then = then
         self._limit_to_end = bool(to_end) and self._limit_ms is None
         self._apply_range()
         self._update_time(self._player.position())
@@ -1123,13 +1189,15 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
 
     def _refresh_limit(self):
         if self._limit_ms and 0 < self._limit_ms < self._dur:
+            then = (f" {icon_html(self._limit_then, 11, WARN)}"
+                    if self._limit_then else "")
             self._limit_lbl.setText(
-                f"{icon_html(self._limit_glyph, 11, WARN)} {_fmt_ms(self._limit_ms)}"
-                f" / {_fmt_ms(self._dur)}")
+                f"{icon_html(self._limit_glyph, 11, WARN)} {fmt_ms(self._limit_ms)}"
+                f"{then} / {fmt_ms(self._dur)}")
         elif self._limit_to_end and self._dur > 0:
             # Stop armed but it lands on the track's own end → "plays through".
             self._limit_lbl.setText(f"{icon_html(self._limit_glyph, 11, WARN)} "
-                                    f"⟶ {_fmt_ms(self._dur)}")
+                                    f"⟶ {fmt_ms(self._dur)}")
         else:
             self._limit_lbl.setText("")
 
@@ -1259,7 +1327,7 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
         if self._pause_btn:
             halted = state != QMediaPlayer.PlaybackState.PlayingState
             self._pause_btn.setIcon(icon(
-                "play_circle" if halted else "pause_circle", 24, _CARD_INK))
+                "play_circle" if halted else "pause_circle", 24, CARD_INK))
         if state != QMediaPlayer.PlaybackState.PlayingState:
             self._stop_end_flash()   # never keep blinking once playback halts
         if (state == QMediaPlayer.PlaybackState.PlayingState
@@ -1274,8 +1342,8 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
     def _update_time(self, pos: int):
         dur = self._slider.maximum()
         remaining = max(0, dur - pos)
-        self._elapsed.setText(_fmt_ms(pos))
-        self._remaining.setText(f"-{_fmt_ms(remaining)}")
+        self._elapsed.setText(fmt_ms(pos))
+        self._remaining.setText(f"-{fmt_ms(remaining)}")
         self._update_end_flash(remaining, dur)
 
     def _update_end_flash(self, remaining: int, dur: int):
@@ -1284,8 +1352,8 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
         is actually playing toward its (possibly limited) end."""
         playing = (self._player.playbackState()
                    == QMediaPlayer.PlaybackState.PlayingState)
-        # Only the main player warns — not the pause-music filler the card is
-        # temporarily retargeted to between songs.
+        # Only the main player warns — not another player the card is
+        # temporarily retargeted to.
         warn = (playing and self._player is self._tempo_player
                 and dur > 0 and 0 < remaining <= self._END_FLASH_MS)
         if warn:
@@ -1360,7 +1428,14 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
 
     def _on_slider_released(self):
         self._dragging = False
-        self._player.setPosition(self._slider.value())
+        self._seek_by_hand(self._slider.value())
+
+    def _seek_by_hand(self, ms: int):
+        """The operator moved the playhead: the green ↩/⏩ start line no longer
+        says where this play started, so it goes until the next title loads."""
+        self._player.setPosition(ms)
+        self._moved_by_hand = True
+        self._wave.set_start(0)
 
     def _on_wave_scrubbed(self, ms: int):
         """A drag on the 〰 strip is a drag on the seek bar: the handle and
@@ -1373,14 +1448,14 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
 
     def _on_wave_released(self, ms: int):
         self._dragging = False
-        self._player.setPosition(ms)
+        self._seek_by_hand(ms)
 
     def _skip(self, delta_ms: int):
         dur = self._player.duration()
         pos = max(0, self._player.position() + delta_ms)
         if dur > 0:
             pos = min(pos, dur)
-        self._player.setPosition(pos)
+        self._seek_by_hand(pos)
 
     def _toggle_pause(self):
         st = self._player.playbackState()
@@ -1401,5 +1476,5 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
     def _seek_to_start(self):
         """Rewind the playhead to 0:00, leaving play/pause state untouched."""
         if not self._player.source().isEmpty():
-            self._player.setPosition(0)
+            self._seek_by_hand(0)
             self.toStartRequested.emit()

@@ -5,11 +5,10 @@ glued into and the dialog showing it need nothing of the window.
 """
 import html
 
-from PySide6.QtWidgets import (QDialog, QHBoxLayout, QLineEdit, QPushButton,
-                               QTextBrowser, QVBoxLayout)
+from PySide6.QtWidgets import QDialog, QHBoxLayout, QLineEdit, QPushButton, QTextBrowser, QVBoxLayout
 
-from planner.playing import controller as pctl
 from planner import i18n
+from planner.playing import controller as pctl
 
 
 def _desk_key_rows(saved) -> tuple:

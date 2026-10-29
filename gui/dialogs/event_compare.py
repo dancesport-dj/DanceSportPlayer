@@ -17,17 +17,37 @@ from pathlib import Path
 
 from PySide6.QtCore import QMimeData, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import (
-    QColor, QDrag, QFont, QKeySequence, QPainter, QPen, QShortcut,
+    QColor,
+    QDrag,
+    QFont,
+    QKeySequence,
+    QPainter,
+    QPen,
+    QShortcut,
 )
 from PySide6.QtWidgets import (
-    QAbstractItemView, QComboBox, QDialog, QDialogButtonBox, QHBoxLayout,
-    QHeaderView, QLabel, QMenu, QMessageBox, QPushButton, QStyle,
-    QTabBar, QTableWidget, QTableWidgetItem, QTabWidget, QVBoxLayout, QWidget,
+    QAbstractItemView,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QMenu,
+    QMessageBox,
+    QPushButton,
+    QStyle,
+    QTabBar,
+    QTableWidget,
+    QTableWidgetItem,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
 )
 
-from gui.common import _entry_tooltip
-from planner.event import event_plan
+from gui.common import entry_tooltip
 from planner import i18n
+from planner.event import event_plan
 
 TIER_BADGES = {"event": "🟦", "class": "🟩", "new": "🟨", "rare": "🟧",
                "library": "⬜"}
@@ -488,11 +508,10 @@ def pick_tooltip(pick, refused) -> str:
     if pick.suggestion is not None:
         lines.append(i18n.t("↻ Suggested instead: %s — %s")
                      % (pick.suggestion.entry.title, pick.suggestion.source))
-    for x in refused:
-        lines.append(i18n.t("✋ The AI wanted '%s': %s")
-                     % (x.pick.entry.title, i18n.t(x.reason)))
+    lines.extend(i18n.t("✋ The AI wanted '%s': %s")
+                 % (x.pick.entry.title, i18n.t(x.reason)) for x in refused)
     plan = "<br>".join(html.escape(line, quote=False) for line in lines)
-    return f"<div>{plan}</div><hr>" + _entry_tooltip(pick.entry)
+    return f"<div>{plan}</div><hr>" + entry_tooltip(pick.entry)
 
 
 class EventCompareDialog(QDialog):
@@ -504,6 +523,8 @@ class EventCompareDialog(QDialog):
     def __init__(self, result, cands_list, parent=None, play_cb=None, seek_cb=None):
         super().__init__(parent)
         self.setWindowTitle("🏆 Event plan")
+        # Esc rejects, and reject() sends no closeEvent.
+        self.finished.connect(lambda _=0: self._stop_own_preview())
         self.setWindowFlag(Qt.WindowType.WindowMaximizeButtonHint, True)
         self._busy = False
         self._play_cb = play_cb
@@ -832,9 +853,9 @@ class EventCompareDialog(QDialog):
         if pick is not None and pick.suggestion is not None:
             out.append(("", i18n.t("↻ Take the suggestion: %s")
                         % pick.suggestion.entry.title, pick.suggestion))
-        for x in event_plan.slot_refused(comps[i], key):
-            out.append(("", i18n.t("✋ The AI wanted: %s (%s)")
-                        % (x.pick.entry.title, i18n.t(x.reason)), x.pick))
+        out.extend(("", i18n.t("✋ The AI wanted: %s (%s)")
+                    % (x.pick.entry.title, i18n.t(x.reason)), x.pick)
+                   for x in event_plan.slot_refused(comps[i], key))
         for tier, picks in event_plan.slot_alternatives(self._cands[i], comps, key).items():
             out += [(tier, p.entry.title, p) for p in picks]
         return out

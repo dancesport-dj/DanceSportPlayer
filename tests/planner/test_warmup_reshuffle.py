@@ -13,8 +13,8 @@ import unittest
 from collections import Counter
 from pathlib import Path
 
-from planner.models import MusicEntry
 from planner.generate.warmup import reshuffle_warmup, warmup_code, warmup_rounds
+from planner.models import MusicEntry
 
 
 def _e(code: str, n: int) -> MusicEntry:

@@ -24,11 +24,18 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication, QHeaderView
 
-from shared.columns import (
-    _COL_ALBUM, _COL_ARTIST, _COL_BPM, _COL_DANCE, _COL_HEAT, _COL_POP, _COL_REGEN,
-    _COL_TITLE, _N_COLS,
-)
 from gui.table.playlist_table import PlaylistTable
+from shared.columns import (
+    _COL_ALBUM,
+    _COL_ARTIST,
+    _COL_BPM,
+    _COL_DANCE,
+    _COL_POP,
+    _COL_TITLE,
+    _N_COLS,
+    COL_HEAT,
+    COL_REGEN,
+)
 from tests.qt_test_support import reap_widget
 
 
@@ -93,15 +100,15 @@ class HideColumnsTest(_TableTest):
 
     def test_a_hidden_column_is_hidden(self):
         t = self.table()
-        t.set_hidden_columns([_COL_HEAT, _COL_POP])
-        self.assertTrue(t.isColumnHidden(_COL_HEAT))
+        t.set_hidden_columns([COL_HEAT, _COL_POP])
+        self.assertTrue(t.isColumnHidden(COL_HEAT))
         self.assertTrue(t.isColumnHidden(_COL_POP))
         self.assertFalse(t.isColumnHidden(_COL_DANCE))
 
     def test_what_is_hidden_reads_back(self):
         t = self.table()
-        t.set_hidden_columns([_COL_POP, _COL_HEAT])
-        self.assertEqual(t.hidden_columns(), [_COL_HEAT, _COL_POP])
+        t.set_hidden_columns([_COL_POP, COL_HEAT])
+        self.assertEqual(t.hidden_columns(), [COL_HEAT, _COL_POP])
 
     def test_showing_them_again_restores_the_width_they_had(self):
         """A column that comes back 0 px wide reads as still missing."""
@@ -129,7 +136,7 @@ class HideColumnsTest(_TableTest):
         t.resize(1700, 400)   # every column shows in a bare table
         QApplication.processEvents()
         before = t.columnWidth(_COL_TITLE)
-        t.set_hidden_columns([_COL_DANCE, _COL_HEAT, _COL_POP])
+        t.set_hidden_columns([_COL_DANCE, COL_HEAT, _COL_POP])
         QApplication.processEvents()
         self.assertGreater(t.columnWidth(_COL_TITLE), before)
 
@@ -238,23 +245,23 @@ class ColumnMenuTest(_TableTest):
         t.set_columns_callback(lambda kind, hidden: seen.append((kind, hidden)))
         menu = t.build_column_menu()
         act = next(a for a in menu.actions()
-                   if a.isCheckable() and a.data() == _COL_REGEN)
+                   if a.isCheckable() and a.data() == COL_REGEN)
         act.trigger()
-        self.assertTrue(t.isColumnHidden(_COL_REGEN))
-        self.assertEqual(seen, [("wishlist", [_COL_REGEN])])
+        self.assertTrue(t.isColumnHidden(COL_REGEN))
+        self.assertEqual(seen, [("wishlist", [COL_REGEN])])
         menu.deleteLater()
 
     def test_ticking_it_back_on_says_so_too(self):
         t = self.table(kind="party")
         seen = []
-        t.set_hidden_columns([_COL_REGEN])
+        t.set_hidden_columns([COL_REGEN])
         t.set_columns_callback(lambda kind, hidden: seen.append((kind, hidden)))
         menu = t.build_column_menu()
         act = next(a for a in menu.actions()
-                   if a.isCheckable() and a.data() == _COL_REGEN)
+                   if a.isCheckable() and a.data() == COL_REGEN)
         self.assertFalse(act.isChecked())
         act.trigger()
-        self.assertFalse(t.isColumnHidden(_COL_REGEN))
+        self.assertFalse(t.isColumnHidden(COL_REGEN))
         self.assertEqual(seen, [("party", [])])
         menu.deleteLater()
 
@@ -330,16 +337,16 @@ class ColumnOrderTest(_TableTest):
         its regenerate button: the two edges hold whatever is dragged."""
         t = self.table()
         hh = t.horizontalHeader()
-        hh.moveSection(hh.visualIndex(_COL_REGEN), 3)
+        hh.moveSection(hh.visualIndex(COL_REGEN), 3)
         hh.moveSection(hh.visualIndex(_COL_DANCE), 5)
         hh.moveSection(hh.visualIndex(_COL_POP), 0)
         hh.moveSection(hh.visualIndex(_COL_BPM), _N_COLS - 1)
         order = self.visual(t)
         self.assertEqual(order[0], _COL_DANCE)
-        self.assertEqual(order[-1], _COL_REGEN)
-        t.set_column_order([_COL_REGEN] + [c for c in range(_N_COLS) if c != _COL_REGEN])
+        self.assertEqual(order[-1], COL_REGEN)
+        t.set_column_order([COL_REGEN] + [c for c in range(_N_COLS) if c != COL_REGEN])
         self.assertEqual(self.visual(t)[0], _COL_DANCE)
-        self.assertEqual(self.visual(t)[-1], _COL_REGEN)
+        self.assertEqual(self.visual(t)[-1], COL_REGEN)
 
     def test_a_header_row_still_spans_up_to_regen(self):
         t = self.table()
@@ -352,7 +359,7 @@ class ColumnOrderTest(_TableTest):
         QApplication.processEvents()
         span = t.visualRect(t.model().index(0, _COL_DANCE))
         self.assertAlmostEqual(span.right() + 1,
-                               hh.sectionViewportPosition(_COL_REGEN), delta=2)
+                               hh.sectionViewportPosition(COL_REGEN), delta=2)
 
 
 if __name__ == "__main__":

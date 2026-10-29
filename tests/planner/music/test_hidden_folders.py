@@ -63,8 +63,8 @@ class HiddenScanTest(unittest.TestCase):
 
     def scan(self, whole_repo=False):
         lib = MusicLibrary()
-        with mock.patch.object(plib, "_read_duration", lambda _p: 180), \
-                mock.patch.object(plib, "_read_tags_once", lambda _p: (None, 180)):
+        with mock.patch.object(plib, "read_duration", lambda _p: 180), \
+                mock.patch.object(plib, "read_tags_once", lambda _p: (None, 180)):
             lib.scan(AudioCache(), music_dir=self.root, skip_special=False, learn=False,
                      analyze=False, interactive=False,
                      global_cache=GlobalScanCache() if whole_repo else None)

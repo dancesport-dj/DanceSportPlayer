@@ -11,38 +11,37 @@ import copy
 import hashlib
 import logging
 import os
-
-from collections import Counter
-from collections import defaultdict
-from pathlib import Path
 import re
-from typing import TYPE_CHECKING, Any, NamedTuple
+from collections import Counter, defaultdict
 from collections.abc import Callable
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, NamedTuple
+
 from planner.config import (  # auto-resolved
     folders_below,
     playlist_dir,
 )
-from planner.music.scan_caches import (
-    PlaylistIndexCache,
+from planner.event.competition import (  # auto-resolved
+    is_side_list,
+    is_superseded_playlist,
+    round_stages_in_name,
 )
 from planner.models import (  # auto-resolved
     MusicEntry,
 )
 from planner.music.parsing import (  # auto-resolved
     LIBRARY_EXTS,
-    _detect_dance,
-    _norm_title,
-    _playlist_class_of,
-    _song_title_key,
-    _song_title_key_of_stem,
-    _stem_key,
     _title_key,
-    _title_key_of_stem,
+    detect_dance,
+    norm_title,
+    playlist_class_of,
+    song_title_key,
+    song_title_key_of_stem,
+    stem_key,
+    title_key_of_stem,
 )
-from planner.event.competition import (  # auto-resolved
-    _is_superseded_playlist,
-    _round_stages_in_name,
-    is_side_list,
+from planner.music.scan_caches import (
+    PlaylistIndexCache,
 )
 from planner.playlist.playlist_text import PlaylistEncodingError, read_playlist_text
 
@@ -52,7 +51,7 @@ if TYPE_CHECKING:
 log = logging.getLogger("dancesport.library")
 
 
-def _warn_unreadable(m3u: Path, exc: PlaylistEncodingError) -> None:
+def warn_unreadable(m3u: Path, exc: PlaylistEncodingError) -> None:
     """A playlist left out of a folder walk because its text can't be decoded
     without losing characters — said out loud, not skipped in silence."""
     log.warning("⚠️ Playlist skipped, not read\n"
@@ -162,11 +161,11 @@ def _named_stage(name: str) -> int | None:
     'HGR S Lat Finale' is a final and nothing else; a name that lists several
     rounds ('VR-ZR-ER') holds all of them, so it is treated like a silent one
     and sectioned by position instead."""
-    stages = _round_stages_in_name(name)
+    stages = round_stages_in_name(name)
     return stages[0] if len(stages) == 1 else None
 
 
-def _dq(dance: str | None, key: str) -> str:
+def dq(dance: str | None, key: str) -> str:
     """Namespace a title-derived match key by its dance so same-title, different-dance
     tracks don't collapse together. `_clean_title` strips the leading dance code, so
     'QS - No Roots' and 'TG - No Roots' both reduce to 'no roots' — without this they
@@ -184,7 +183,7 @@ class LearnedPlaylistIndex(NamedTuple):
     """A playlist index built off the library (`learn_playlist_index`), waiting
     to be swapped in (`adopt_playlist_index`)."""
     playlists: int                   # playlists analyzed
-    scratch: "PlaylistIndexMixin"    # holds the new index dicts
+    scratch: PlaylistIndexMixin    # holds the new index dicts
     values: list[tuple[MusicEntry, dict[str, Any]]]   # entry → popularity fields
 
 
@@ -245,7 +244,7 @@ class PlaylistIndexMixin:
         failed = 0
         for m3u, sig in m3us:
             try:
-                if _is_superseded_playlist(m3u):
+                if is_superseded_playlist(m3u):
                     continue
                 count += 1
                 # Eintanzen playlists count for nothing — neither popularity nor
@@ -256,7 +255,7 @@ class PlaylistIndexMixin:
                 seen.add(pl_id)
                 self._index_playlist(
                     cache, pl_id, sig,
-                    lambda: (_playlist_class_of(m3u), *self._m3u_keys(m3u)))
+                    lambda: (playlist_class_of(m3u), *self._m3u_keys(m3u)))
             except Exception as exc:
                 # One bad file must not cost the others, but it leaves a trace.
                 failed += 1
@@ -287,7 +286,7 @@ class PlaylistIndexMixin:
         try:
             raw = read_playlist_text(m3u)[0].splitlines()
         except PlaylistEncodingError as exc:
-            _warn_unreadable(m3u, exc)
+            warn_unreadable(m3u, exc)
             return [], [], []
         lines = [ln.strip() for ln in raw
                  if ln.strip() and not ln.strip().startswith('#')]
@@ -389,7 +388,7 @@ class PlaylistIndexMixin:
             # signature — adding or replacing one track re-derives just that folder.
             self._index_playlist(
                 cache, pl_id, "|".join(f"{p.name}:{s}" for p, s in files),
-                lambda: (_playlist_class_of(folder),
+                lambda: (playlist_class_of(folder),
                          *self._folder_keys(folder, files)))
             count += 1
         return count
@@ -447,7 +446,7 @@ class PlaylistIndexMixin:
         """(Re)build the stem-key → calculated-dance map from the current entries, so
         `_line_keys` can qualify a playlist line by the SAME dance the library assigned
         the file (genre tag wins over the filename — see `_make_entry`)."""
-        self._stem_dance = {_stem_key(str(e.path)): e.dance for e in self.entries}
+        self._stem_dance = {stem_key(str(e.path)): e.dance for e in self.entries}
         self._line_key_memo.clear()   # the map the memoized keys were derived from
 
     def _line_dance(self, line: str) -> str | None:
@@ -455,10 +454,10 @@ class PlaylistIndexMixin:
         at (via stem key), else detected from the filename / path. This keeps the line's
         qualifier consistent with the entry's `dance` even when an ID3 genre tag overrode
         the filename guess."""
-        d = self._stem_dance.get(_stem_key(line))
+        d = self._stem_dance.get(stem_key(line))
         if d:
             return d
-        return _detect_dance(Path(line).name) or _detect_dance(line)
+        return detect_dance(Path(line).name) or detect_dance(line)
 
     def _line_keys(self, line: str) -> set[str]:
         """Dance-qualified co-occurrence keys for one playlist entry (a file path / M3U
@@ -473,13 +472,13 @@ class PlaylistIndexMixin:
         if hit is not None:
             return hit
         d = self._line_dance(line)
-        keys = {_stem_key(line)}
+        keys = {stem_key(line)}
         tkey = _title_key(line)
         if tkey:
-            keys.add(_dq(d, tkey))
-        skey = _song_title_key(line)
+            keys.add(dq(d, tkey))
+        skey = song_title_key(line)
         if len(skey) >= 3:
-            keys.add(_dq(d, skey))
+            keys.add(dq(d, skey))
         self._line_key_memo[line] = keys
         return keys
 
@@ -495,22 +494,22 @@ class PlaylistIndexMixin:
         d = entry.dance
         stem = entry.path.stem   # once: three keys of 46k titles each split it again
         keys = {stem.lower().strip()}   # = _stem_key
-        tkey = _title_key_of_stem(stem)
+        tkey = title_key_of_stem(stem)
         if tkey:
-            keys.add(_dq(d, tkey))
+            keys.add(dq(d, tkey))
         # Same aggressive key the learn side indexes — matches renamed / moved /
         # re-encoded copies (different path, same song) to their playlist history.
-        skey = _song_title_key_of_stem(stem)
+        skey = song_title_key_of_stem(stem)
         if len(skey) >= 3:
-            keys.add(_dq(d, skey))
+            keys.add(dq(d, skey))
         if entry.tag_title:
-            tt = _norm_title(entry.tag_title)
+            tt = norm_title(entry.tag_title)
             if len(tt) >= 3:
-                keys.add(_dq(d, tt))
+                keys.add(dq(d, tt))
             if entry.tag_artist:
-                at = _norm_title(f"{entry.tag_artist} {entry.tag_title}")
+                at = norm_title(f"{entry.tag_artist} {entry.tag_title}")
                 if len(at) >= 3:
-                    keys.add(_dq(d, at))
+                    keys.add(dq(d, at))
         return keys
 
     def share_playlist_index_from(self, other: MusicLibrary) -> None:

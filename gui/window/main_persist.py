@@ -2,9 +2,9 @@
 
 Extracted from dancesport_gui.py (controller split) as a MainWindow mixin.
 """
-import logging
-
+import contextlib
 import json
+import logging
 import os
 
 from PySide6.QtCore import (
@@ -14,14 +14,11 @@ from PySide6.QtCore import (
 from PySide6.QtWidgets import (
     QMessageBox,
 )
-from planner import i18n
-from planner.generate.suggester import PlaylistSuggester
+
 from gui.common import (
     CART_DOCK_SHARE,
 )
-from shared.widgets import (
-    _show_toast,
-)
+from gui.decks.deck_snapshot import playlist_from_grid, serialize_deck
 from gui.dialogs import (  # auto-resolved
     AUTOSAVE_VERSION,
     save_autosave,
@@ -29,17 +26,21 @@ from gui.dialogs import (  # auto-resolved
 from gui.table.playlist_table import (  # auto-resolved
     PlaylistTable,
 )
-from gui.window.session_env import (
-    ALL_DECK_KEYS,
-    DAY_KEYS,
-    SessionEnv,
-    WISH_KEYS,
-)
-from gui.decks.deck_snapshot import playlist_from_grid, serialize_deck
 from gui.window.main_export import ExportMixin
 from gui.window.main_restore import RestoreMixin
 from gui.window.main_undo import UndoMixin
+from gui.window.session_env import (
+    ALL_DECK_KEYS,
+    DAY_KEYS,
+    WISH_KEYS,
+    SessionEnv,
+)
+from planner import i18n
+from planner.generate.suggester import PlaylistSuggester
 from planner.store import state_dir
+from shared.widgets import (
+    show_toast,
+)
 
 log = logging.getLogger("dancesport.gui.persist")
 
@@ -101,15 +102,15 @@ class PersistenceMixin(ExportMixin, UndoMixin, RestoreMixin):
         if not grid or grid.get("mode") != "Favorites":
             return   # nothing worth keeping (empty grid / theme)
         self._replay_work[idx] = {
-            "grid":       grid,
-            "rounds":     self._replay_rounds,
-            "pools":      self._replay_pools,
+            "grid": grid,
+            "rounds": self._replay_rounds,
+            "pools": self._replay_pools,
             "use_timbre": self._replay_use_timbre,
-            "label":      self._replay_label,
-            "dances":     self._dances,
+            "label": self._replay_label,
+            "dances": self._dances,
             "dance_class": self._dance_class,
-            "style":      self._style,
-            "age":        self._age,
+            "style": self._style,
+            "age": self._age,
         }
 
     def _restore_replay_work(self, idx: int):
@@ -121,20 +122,20 @@ class PersistenceMixin(ExportMixin, UndoMixin, RestoreMixin):
         rounds = work["rounds"]
         playlist = self._playlist_from_grid(work["grid"].get("rounds") or [], len(dances))
 
-        self._suggester         = PlaylistSuggester(self._library.lib)
-        self._playlist          = playlist
-        self._mode              = "Favorites"
-        self._ui_mode           = "Past Competitions"
-        self._theme_entries     = []
-        self._replay_active     = True
-        self._replay_rounds     = rounds
-        self._replay_pools      = work["pools"]
+        self._suggester = PlaylistSuggester(self._library.lib)
+        self._playlist = playlist
+        self._mode = "Favorites"
+        self._ui_mode = "Past Competitions"
+        self._theme_entries = []
+        self._replay_active = True
+        self._replay_rounds = rounds
+        self._replay_pools = work["pools"]
         self._replay_use_timbre = work["use_timbre"]
-        self._replay_label      = work["label"]
-        self._dances            = dances
-        self._dance_class       = work["dance_class"]
-        self._style             = work["style"]
-        self._age               = work["age"]
+        self._replay_label = work["label"]
+        self._dances = dances
+        self._dance_class = work["dance_class"]
+        self._style = work["style"]
+        self._age = work["age"]
 
         self._deckset.table.load(
             playlist, dances, rounds, self._dance_class,
@@ -183,15 +184,15 @@ class PersistenceMixin(ExportMixin, UndoMixin, RestoreMixin):
         if not getattr(t, "_warmup", False) or not t._row_meta:
             return {}
         return {
-            "paths":       [str(e.path) for e in t.wishlist_entries()],
+            "paths": [str(e.path) for e in t.wishlist_entries()],
             "player_list": bool(getattr(t, "_player_list", False)),
             "player_sections": dict(getattr(t, "_player_sections", {}) or {}),
-            "style":       getattr(t, "_warmup_style", "") or "",
+            "style": getattr(t, "_warmup_style", "") or "",
             "dance_class": getattr(t, "_warmup_class", "") or "S",
-            "relax":       bool(getattr(t, "_warmup_relax", True)),
-            "label":       getattr(t, "_warmup_label", "") or self._warmup_default_name(),
-            "folded":      bool(getattr(self, "_warmup_folded", False)),
-            "closed":      bool(getattr(self, "_warmup_closed", False)),
+            "relax": bool(getattr(t, "_warmup_relax", True)),
+            "label": getattr(t, "_warmup_label", "") or self._warmup_default_name(),
+            "folded": bool(getattr(self, "_warmup_folded", False)),
+            "closed": bool(getattr(self, "_warmup_closed", False)),
         }
 
     def _build_env(self) -> dict | None:
@@ -201,34 +202,34 @@ class PersistenceMixin(ExportMixin, UndoMixin, RestoreMixin):
         """
         try:
             env = {
-                "version":    AUTOSAVE_VERSION,
+                "version": AUTOSAVE_VERSION,
                 "deck_count": self._deckset.deck_count,
-                "dual":       self._deckset.deck_count > 1,   # legacy flag (back-compat)
-                "dual_wish":  self._wish_state == 2,   # legacy flag (back-compat)
+                "dual": self._deckset.deck_count > 1,   # legacy flag (back-compat)
+                "dual_wish": self._wish_state == 2,   # legacy flag (back-compat)
                 "wish_state": self._wish_state,
-                "wish_grid":  bool(getattr(self, "_wish_grid", False)),
-                "deck_a":     self._serialize_playlist_state(self._deckset.tableA),
-                "deck_b":     self._serialize_playlist_state(self._deckset.tableB),
-                "deck_c":     self._serialize_playlist_state(self._deckset.tableC),
-                "deck_d":     self._serialize_playlist_state(self._deckset.tableD),
-                "deck_e":     self._serialize_playlist_state(self._deckset.tableE),
-                "deck_f":     self._serialize_playlist_state(self._deckset.tableF),
-                "deck_g":     self._serialize_playlist_state(self._deckset.tableG),
-                "deck_h":     self._serialize_playlist_state(self._deckset.tableH),
-                "wishlist":   [str(e.path) for e in self._deckset.wishlist.wishlist_entries()],
-                "wishlist2":  [str(e.path) for e in self._deckset.wishlist2.wishlist_entries()],
-                "wishlist3":  [str(e.path) for e in self._deckset.wishlist3.wishlist_entries()],
-                "wishlist4":  [str(e.path) for e in self._deckset.wishlist4.wishlist_entries()],
+                "wish_grid": bool(getattr(self, "_wish_grid", False)),
+                "deck_a": self._serialize_playlist_state(self._deckset.tableA),
+                "deck_b": self._serialize_playlist_state(self._deckset.tableB),
+                "deck_c": self._serialize_playlist_state(self._deckset.tableC),
+                "deck_d": self._serialize_playlist_state(self._deckset.tableD),
+                "deck_e": self._serialize_playlist_state(self._deckset.tableE),
+                "deck_f": self._serialize_playlist_state(self._deckset.tableF),
+                "deck_g": self._serialize_playlist_state(self._deckset.tableG),
+                "deck_h": self._serialize_playlist_state(self._deckset.tableH),
+                "wishlist": [str(e.path) for e in self._deckset.wishlist.wishlist_entries()],
+                "wishlist2": [str(e.path) for e in self._deckset.wishlist2.wishlist_entries()],
+                "wishlist3": [str(e.path) for e in self._deckset.wishlist3.wishlist_entries()],
+                "wishlist4": [str(e.path) for e in self._deckset.wishlist4.wishlist_entries()],
                 "names": {
-                    "deck_a":    self.deck(self._deckset.tableA).name,
-                    "deck_b":    self.deck(self._deckset.tableB).name,
-                    "deck_c":    self.deck(self._deckset.tableC).name,
-                    "deck_d":    self.deck(self._deckset.tableD).name,
-                    "deck_e":    self.deck(self._deckset.tableE).name,
-                    "deck_f":    self.deck(self._deckset.tableF).name,
-                    "deck_g":    self.deck(self._deckset.tableG).name,
-                    "deck_h":    self.deck(self._deckset.tableH).name,
-                    "wishlist":  self.deck(self._deckset.wishlist).name,
+                    "deck_a": self.deck(self._deckset.tableA).name,
+                    "deck_b": self.deck(self._deckset.tableB).name,
+                    "deck_c": self.deck(self._deckset.tableC).name,
+                    "deck_d": self.deck(self._deckset.tableD).name,
+                    "deck_e": self.deck(self._deckset.tableE).name,
+                    "deck_f": self.deck(self._deckset.tableF).name,
+                    "deck_g": self.deck(self._deckset.tableG).name,
+                    "deck_h": self.deck(self._deckset.tableH).name,
+                    "wishlist": self.deck(self._deckset.wishlist).name,
                     "wishlist2": self.deck(self._deckset.wishlist2).name,
                     "wishlist3": self.deck(self._deckset.wishlist3).name,
                     "wishlist4": self.deck(self._deckset.wishlist4).name,
@@ -318,7 +319,7 @@ class PersistenceMixin(ExportMixin, UndoMixin, RestoreMixin):
         self._save_cartwall(edit=False)
         msg = "📌 Session saved — decks, wishlists, 🎛 cartwall and layout."
         self.statusBar().showMessage(msg)
-        _show_toast(self, msg)
+        show_toast(self, msg)
 
     def save_on_quit(self):
         """Persist the working playlist + window layout one last time before quitting.
@@ -328,6 +329,11 @@ class PersistenceMixin(ExportMixin, UndoMixin, RestoreMixin):
         mixin one and nothing here would ever run."""
         self._autosave_playlist()
         self._save_layout()
+        # A fader moved in the last 600 ms is still waiting on its save, and
+        # the quit ends the process before that timer would run.
+        if self._vol_save_timer.isActive():
+            self._vol_save_timer.stop()
+            self._save_master_volume()
 
     # ── Window / splitter layout persistence ────────────────────────────────────
     def _layout_settings(self) -> QSettings:
@@ -374,11 +380,9 @@ class PersistenceMixin(ExportMixin, UndoMixin, RestoreMixin):
             self._deckset.deck_count = dc
         ws = s.value("layout/wish_state")
         if ws is not None:
-            try:
+            with contextlib.suppress(TypeError, ValueError):
                 self._wish_state = (int(ws) if int(ws) in (0, 1, 2, 3, 4)
                                     else self._wish_state)
-            except (TypeError, ValueError):
-                pass
         else:   # legacy layout key: dual_wish bool → 2 wishlists
             dw = s.value("layout/dual_wish")
             if dw is not None and not isinstance(dw, bool):

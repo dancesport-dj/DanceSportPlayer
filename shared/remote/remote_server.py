@@ -32,6 +32,7 @@ server's thread; the caller hands them to the GUI thread (a Qt signal does).
 The state the page shows is pushed in by the app with `publish()`, so a request
 never reaches into Qt.
 """
+import contextlib
 import hmac
 import ipaddress
 import json
@@ -152,17 +153,12 @@ def lan_addresses() -> list[str]:
     """This PC's IPv4 addresses on the local network — what the phone types in.
     The route-to-the-internet one first: that is the Wi-Fi the phone is on."""
     found = []
-    try:
+    with contextlib.suppress(OSError):
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.connect(("192.0.2.1", 9))     # TEST-NET: picks a route, sends nothing
             found.append(s.getsockname()[0])
-    except OSError:
-        pass
-    try:
-        for addr in socket.gethostbyname_ex(socket.gethostname())[2]:
-            found.append(addr)
-    except OSError:
-        pass
+    with contextlib.suppress(OSError):
+        found.extend(socket.gethostbyname_ex(socket.gethostname())[2])
     out = []
     for a in found:
         if a not in out and lan_client(a) and not a.startswith("127."):
@@ -172,7 +168,7 @@ def lan_addresses() -> list[str]:
 
 class _Server(ThreadingHTTPServer):
     """The HTTP server, holding the RemoteServer its handlers answer to."""
-    remote: "RemoteServer"
+    remote: RemoteServer
     # On Windows SO_REUSEADDR lets a second socket share a port that is
     # still listening, splitting the phones between the two, instead of
     # the "port taken" error. Elsewhere it only skips TIME_WAIT.
@@ -188,7 +184,7 @@ class _Handler(BaseHTTPRequestHandler):
         log.debug("📱 %s %s", self.client_address[0], format % args)
 
     @property
-    def app(self) -> "RemoteServer":
+    def app(self) -> RemoteServer:
         return cast(_Server, self.server).remote   # start() serves with a _Server
 
     def _send(self, status: int, body: bytes = b"", ctype: str = "application/json"):

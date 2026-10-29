@@ -10,14 +10,14 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QMessageBox
 
+from gui.dialogs import AiTranscriptDialog
+from gui.dialogs.event_compare import EventCompareDialog
+from gui.workers import EventPlanWorker
 from planner import i18n
 from planner.event import event_plan
 from planner.generate.suggester import PlaylistSuggester
 from planner.music.similarity import SoundAlike
-from shared.widgets import _show_toast
-from gui.dialogs import AiTranscriptDialog
-from gui.dialogs.event_compare import EventCompareDialog
-from gui.workers import EventPlanWorker
+from shared.widgets import show_toast
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -25,7 +25,7 @@ else:
     MainWindowHost = object
 
 
-def _spread_over_decks(decks: list, items: list) -> list[tuple]:
+def spread_over_decks(decks: list, items: list) -> list[tuple]:
     """(deck, items) pairs: one item per deck, or contiguous chunks of several
     when there are more items than decks — the day's order stays readable."""
     n_decks = min(len(decks), len(items))
@@ -239,7 +239,7 @@ class EventPlanMixin(MainWindowHost):
         self._replay_active = False
         self._clear_replay_sources()
         use_timbre = self._cfg.get_config()[-1]
-        assign = _spread_over_decks(self._deckset.day_decks, parts)
+        assign = spread_over_decks(self._deckset.day_decks, parts)
         for deck, deck_parts in assign:
             self._load_day_deck(deck, deck_parts, use_timbre)
         ev = self._event_opts["event"]
@@ -252,5 +252,5 @@ class EventPlanMixin(MainWindowHost):
         self._cfg.save_btn.setEnabled(True)
         self._autosave_playlist()
         names = {i18n.t(event_plan.PROFILE_NAMES.get(p, p)) for p in profiles}
-        _show_toast(self, i18n.t("🏆  %s: %d competitions into %d deck(s)")
+        show_toast(self, i18n.t("🏆  %s: %d competitions into %d deck(s)")
                     % (" + ".join(sorted(names)), len(parts), len(assign)))

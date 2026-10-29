@@ -1,6 +1,6 @@
 """🪟 The taskbar mini player: what the buttons are and what a click means.
 
-The shell itself is not here — player.widgets.taskbar_win32 is replaced by a recorder, so
+The shell itself is not here — shared.taskbar_win32 is replaced by a recorder, so
 every one of these runs on any platform and without a taskbar.
 """
 import os
@@ -13,8 +13,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication, QWidget
 
-from player.widgets import taskbar as tb
 from player.audio.playback_state import PlaybackState
+from player.widgets import taskbar as tb
 
 _app = QApplication.instance() or QApplication([])
 
@@ -23,7 +23,7 @@ _E_INVALIDARG = -2147024809
 
 
 class _FakeShell:
-    """Stands in for player.widgets.taskbar_win32 and writes down everything asked of it."""
+    """Stands in for shared.taskbar_win32 and writes down everything asked of it."""
 
     def __init__(self, *, creates=True, adds=True):
         self._creates = creates

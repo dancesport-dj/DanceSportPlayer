@@ -6,11 +6,10 @@ per output device, the "System Sounds" slider of the volume mixer. Muting that
 session silences all of them on that card while the music, which is a session
 of its own, plays on untouched.
 
-Same approach as player.widgets.taskbar_win32: no comtypes, no pycaw, so the Core Audio
+Same approach as shared.taskbar_win32: no comtypes, no pycaw, so the Core Audio
 interfaces are called through their vtables by index. Nothing here decides
 anything — player.audio.system_sounds owns the when. Importing it on a Mac raises.
 """
-from __future__ import annotations
 
 import ctypes
 import sys
@@ -18,7 +17,7 @@ import sys
 if sys.platform != "win32":   # pragma: no cover - guarded by the caller
     raise ImportError("player.audio.system_sounds_win32 is Windows-only")
 
-from player.widgets.taskbar_win32 import _GUID, _method, release
+from shared.taskbar_win32 import GUID, method, release
 
 _ole32 = ctypes.windll.ole32
 
@@ -41,24 +40,23 @@ _DEVICE_STATE_ACTIVE = 1
 _CLSCTX_ALL = 0x17
 _S_OK = 0
 
-_CLSID_MM_DEVICE_ENUMERATOR = _GUID(0xBCDE0395, 0xE52F, 0x467C,
+_CLSID_MM_DEVICE_ENUMERATOR = GUID(0xBCDE0395, 0xE52F, 0x467C,
                                     (0x8E, 0x3D, 0xC4, 0x57, 0x92, 0x91, 0x69, 0x2E))
-_IID_MM_DEVICE_ENUMERATOR = _GUID(0xA95664D2, 0x9614, 0x4F35,
+_IID_MM_DEVICE_ENUMERATOR = GUID(0xA95664D2, 0x9614, 0x4F35,
                                   (0xA7, 0x46, 0xDE, 0x8D, 0xB6, 0x36, 0x17, 0xE6))
-_IID_AUDIO_SESSION_MANAGER2 = _GUID(0x77AA99A0, 0x1BD6, 0x484F,
+_IID_AUDIO_SESSION_MANAGER2 = GUID(0x77AA99A0, 0x1BD6, 0x484F,
                                     (0x8B, 0xC7, 0x2C, 0x65, 0x4C, 0x9A, 0x9B, 0x6F))
-_IID_AUDIO_SESSION_CONTROL2 = _GUID(0xBFB7FF88, 0x7239, 0x4FC9,
+_IID_AUDIO_SESSION_CONTROL2 = GUID(0xBFB7FF88, 0x7239, 0x4FC9,
                                     (0x8F, 0xA2, 0x07, 0xC9, 0x50, 0xBE, 0x9C, 0x6D))
-_IID_SIMPLE_AUDIO_VOLUME = _GUID(0x87CE5498, 0x68D6, 0x44E5,
+_IID_SIMPLE_AUDIO_VOLUME = GUID(0x87CE5498, 0x68D6, 0x44E5,
                                  (0x92, 0x15, 0x6D, 0xA4, 0x7E, 0xF8, 0x83, 0xD8))
 
 _PTR = ctypes.POINTER(ctypes.c_void_p)
 
-
-def _query(ptr: int, iid: _GUID) -> int | None:
+def _query(ptr: int, iid: GUID) -> int | None:
     out = ctypes.c_void_p()
     try:
-        _method(ptr, _QUERY_INTERFACE, ctypes.c_void_p, _PTR)(
+        method(ptr, _QUERY_INTERFACE, ctypes.c_void_p, _PTR)(
             ptr, ctypes.byref(iid), ctypes.byref(out))
     except OSError:
         return None
@@ -68,14 +66,14 @@ def _query(ptr: int, iid: _GUID) -> int | None:
 def _system_sounds_of(device: int) -> int | None:
     """The ISimpleAudioVolume of one device's System Sounds session."""
     mgr = ctypes.c_void_p()
-    _method(device, _ACTIVATE, ctypes.c_void_p, ctypes.c_ulong, ctypes.c_void_p,
+    method(device, _ACTIVATE, ctypes.c_void_p, ctypes.c_ulong, ctypes.c_void_p,
             _PTR)(device, ctypes.byref(_IID_AUDIO_SESSION_MANAGER2),
                   _CLSCTX_ALL, None, ctypes.byref(mgr))
     if not mgr.value:
         return None
     sessions = ctypes.c_void_p()
     try:
-        _method(mgr.value, _GET_SESSION_ENUMERATOR, _PTR)(
+        method(mgr.value, _GET_SESSION_ENUMERATOR, _PTR)(
             mgr.value, ctypes.byref(sessions))
     finally:
         release(mgr.value)
@@ -84,17 +82,17 @@ def _system_sounds_of(device: int) -> int | None:
     found = None
     try:
         count = ctypes.c_int()
-        _method(sessions.value, _SESSION_COUNT, ctypes.POINTER(ctypes.c_int))(
+        method(sessions.value, _SESSION_COUNT, ctypes.POINTER(ctypes.c_int))(
             sessions.value, ctypes.byref(count))
         for i in range(count.value):
             ctl = ctypes.c_void_p()
-            _method(sessions.value, _GET_SESSION, ctypes.c_int, _PTR)(
+            method(sessions.value, _GET_SESSION, ctypes.c_int, _PTR)(
                 sessions.value, i, ctypes.byref(ctl))
             if not ctl.value:
                 continue
             ctl2 = _query(ctl.value, _IID_AUDIO_SESSION_CONTROL2)
             try:
-                if ctl2 and _method(ctl2, _IS_SYSTEM_SOUNDS)(ctl2) == _S_OK:
+                if ctl2 and method(ctl2, _IS_SYSTEM_SOUNDS)(ctl2) == _S_OK:
                     found = _query(ctl.value, _IID_SIMPLE_AUDIO_VOLUME)
             finally:
                 if ctl2:
@@ -110,7 +108,7 @@ def _system_sounds_of(device: int) -> int | None:
 def _device_id(device: int) -> str:
     """The endpoint id — stable across unplugging and plugging back in."""
     out = ctypes.c_wchar_p()
-    _method(device, _GET_ID, ctypes.POINTER(ctypes.c_wchar_p))(
+    method(device, _GET_ID, ctypes.POINTER(ctypes.c_wchar_p))(
         device, ctypes.byref(out))
     try:
         return out.value or ""
@@ -133,18 +131,18 @@ def system_sound_volumes() -> list[tuple[str, int]]:
     volumes: list[tuple[str, int]] = []
     try:
         coll = ctypes.c_void_p()
-        _method(enum.value, _ENUM_AUDIO_ENDPOINTS, ctypes.c_int, ctypes.c_ulong,
+        method(enum.value, _ENUM_AUDIO_ENDPOINTS, ctypes.c_int, ctypes.c_ulong,
                 _PTR)(enum.value, _E_RENDER, _DEVICE_STATE_ACTIVE,
                       ctypes.byref(coll))
         if not coll.value:
             return volumes
         try:
             count = ctypes.c_uint()
-            _method(coll.value, _COLLECTION_COUNT, ctypes.POINTER(ctypes.c_uint))(
+            method(coll.value, _COLLECTION_COUNT, ctypes.POINTER(ctypes.c_uint))(
                 coll.value, ctypes.byref(count))
             for i in range(count.value):
                 dev = ctypes.c_void_p()
-                _method(coll.value, _COLLECTION_ITEM, ctypes.c_uint, _PTR)(
+                method(coll.value, _COLLECTION_ITEM, ctypes.c_uint, _PTR)(
                     coll.value, i, ctypes.byref(dev))
                 if not dev.value:
                     continue
@@ -167,9 +165,9 @@ def system_sound_volumes() -> list[tuple[str, int]]:
 
 def get_mute(vol: int) -> bool:
     muted = ctypes.c_int()
-    _method(vol, _GET_MUTE, ctypes.POINTER(ctypes.c_int))(vol, ctypes.byref(muted))
+    method(vol, _GET_MUTE, ctypes.POINTER(ctypes.c_int))(vol, ctypes.byref(muted))
     return bool(muted.value)
 
 
 def set_mute(vol: int, on: bool) -> None:
-    _method(vol, _SET_MUTE, ctypes.c_int, ctypes.c_void_p)(vol, int(on), None)
+    method(vol, _SET_MUTE, ctypes.c_int, ctypes.c_void_p)(vol, int(on), None)

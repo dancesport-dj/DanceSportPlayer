@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""🔊 One output device per source: music, filler, cartwall, announcements.
+"""🔊 One output device per source: music, cartwall, announcements.
 
 Run:  .venv/Scripts/python.exe -m unittest tests.player.audio.test_audio_outputs -v
 
@@ -79,9 +79,37 @@ class _Sink:
 
     def __init__(self):
         self.dev = None
+        self.pair = 0
+        self.moves = 0
 
-    def set_device(self, dev):
-        self.dev = dev
+    def set_device(self, dev, pair=0):
+        self.dev, self.pair = dev, pair
+        self.moves += 1
+
+
+class _Player:
+    """A QMediaPlayer: the output it is attached to."""
+
+    def __init__(self, out=None):
+        self.out = out
+
+    def setAudioOutput(self, out):
+        self.out = out
+
+
+class _Route(_Sink):
+    """A PairRoute: its player, and whether it let go of the card."""
+
+    def __init__(self, player, out):
+        super().__init__()
+        self.player, self.out = player, out
+        self.released = False
+
+    def release(self):
+        self.released = True
+
+    def restore(self):
+        self.released = False
 
 
 SPEAKERS = _Dev("spk", "Speakers (Realtek)")
@@ -95,12 +123,14 @@ class _Desk:
         self.devices = _Devices(SPEAKERS, USB12, USB34)
         self.settings = {"audio_outputs": dict(outputs or {})}
         self.music = _Out(SPEAKERS)
-        self.filler = _Out(SPEAKERS)
+        self.deck = _Player(self.music)
+        self.spare = (None, None)
+        self.routes = []
         self.voices = _Sink() if voices else None
         self.announcer = _Sink() if announcer else None
         self.warnings = []
         self.device = AudioDevice(
-            object(), self.music, None, self.filler,
+            self.deck, self.music,
             mix=OutputMix(0.9),
             settings=lambda: self.settings,
             cart_voices=lambda: self.voices,
@@ -109,7 +139,14 @@ class _Desk:
             system_sounds=SystemSoundGuard(),
             announcer=lambda: self.announcer,
             devices=self.devices,
-            warn=self.warnings.append)
+            warn=self.warnings.append,
+            spare_deck=lambda: self.spare,
+            make_route=self._route)
+
+    def _route(self, player, out):
+        route = _Route(player, out)
+        self.routes.append(route)
+        return route
 
     def choose(self, source, dev):
         self.settings["audio_outputs"][source] = (
@@ -117,7 +154,7 @@ class _Desk:
             else {"id": dev.hex, "name": dev.description()})
 
     def where(self) -> dict:
-        return {"music": self.music.dev, "filler": self.filler.dev,
+        return {"music": self.music.dev,
                 "cartwall": self.voices.dev, "announcer": self.announcer.dev}
 
 
@@ -139,7 +176,7 @@ class DefaultsTest(_Test):
         would re-open the card for nothing."""
         desk = _Desk()
         desk.device.sync()
-        self.assertEqual((desk.music.moves, desk.filler.moves), (0, 0))
+        self.assertEqual(desk.music.moves, 0)
 
     def test_a_default_switch_moves_everything_that_follows_it(self):
         desk = _Desk()
@@ -163,11 +200,10 @@ class ChoiceTest(_Test):
     def test_every_source_on_its_own_output(self):
         desk = _Desk()
         desk.choose("music", USB12)
-        desk.choose("filler", USB12)
         desk.choose("cartwall", USB34)
         desk.choose("announcer", SYSTEM_DEFAULT)
         desk.device.sync()
-        self.assertEqual(desk.where(), {"music": USB12, "filler": USB12,
+        self.assertEqual(desk.where(), {"music": USB12,
                                         "cartwall": USB34, "announcer": SPEAKERS})
 
     def test_a_pinned_source_stays_when_the_default_switches(self):
@@ -176,7 +212,7 @@ class ChoiceTest(_Test):
         desk.device.sync()
         desk.devices.default = USB12
         desk.device.watch_default()
-        self.assertEqual(desk.where(), {"music": USB12, "filler": USB12,
+        self.assertEqual(desk.where(), {"music": USB12,
                                         "cartwall": USB34, "announcer": USB12})
 
     def test_the_tick_picks_up_a_changed_setting(self):
@@ -324,7 +360,7 @@ class ReadinessLookTest(_Test):
 
     def test_the_system_default_is_never_unplugged(self):
         desk = _Desk()
-        desk.choose("filler", SYSTEM_DEFAULT)
+        desk.choose("cartwall", SYSTEM_DEFAULT)
         self.assertEqual(desk.device.unplugged(), [])
 
     def test_pre_listen_on_the_music_card_would_be_refused(self):
@@ -385,6 +421,7 @@ class AnnouncerDeviceTest(_Test):
 
     def setUp(self):
         from PySide6.QtMultimedia import QMediaDevices
+
         from player.audio.announce import DanceAnnouncer
         default = bytes(QMediaDevices.defaultAudioOutput().id())
         others = [d for d in QMediaDevices.audioOutputs()
@@ -405,6 +442,114 @@ class AnnouncerDeviceTest(_Test):
         self.ann.set_device(self.dev)
         self.assertEqual(bytes(self.ann._clip_out.device().id()),
                          bytes(self.dev.id()))
+
+
+class ChannelPairTest(_Test):
+    """🔀 A source on Out 3/4 of one multichannel card."""
+
+    def choose_pair(self, desk, source, dev, pair):
+        desk.choose(source, dev)
+        desk.settings["audio_outputs"][source]["pair"] = pair
+
+    def test_the_wall_gets_its_pair(self):
+        desk = _Desk()
+        self.choose_pair(desk, "cartwall", USB12, 1)
+        desk.device.sync()
+        self.assertEqual((desk.voices.dev, desk.voices.pair), (USB12, 1))
+        self.assertEqual(desk.device.pair("cartwall"), 1)
+
+    def test_the_music_takes_its_pair_through_a_route(self):
+        desk = _Desk()
+        self.choose_pair(desk, "music", USB12, 1)
+        desk.device.sync()
+        [route] = desk.routes
+        self.assertEqual((route.player, route.out), (desk.deck, desk.music))
+        self.assertEqual((route.dev, route.pair), (USB12, 1))
+        self.assertEqual(desk.music.moves, 0, "the route moves the output")
+        self.assertEqual(desk.device.pair("music"), 1)
+
+    def test_music_on_a_whole_device_builds_no_route(self):
+        """Qt's own path, untouched, as long as no pair was ever chosen."""
+        desk = _Desk()
+        desk.choose("music", USB12)
+        desk.device.sync()
+        self.assertEqual(desk.routes, [])
+        self.assertIs(desk.music.dev, USB12)
+
+    def test_back_to_the_whole_device_goes_through_the_route(self):
+        desk = _Desk()
+        self.choose_pair(desk, "music", USB12, 1)
+        desk.device.sync()
+        desk.settings["audio_outputs"]["music"].pop("pair")
+        desk.device.sync()
+        [route] = desk.routes
+        self.assertEqual((route.dev, route.pair), (USB12, 0))
+
+    def test_the_sources_following_the_music_follow_its_pair(self):
+        desk = _Desk()
+        self.choose_pair(desk, "music", USB12, 1)
+        desk.choose("announcer", USB34)
+        desk.device.sync()
+        self.assertEqual((desk.voices.dev, desk.voices.pair), (USB12, 1))
+        self.assertEqual((desk.announcer.dev, desk.announcer.pair), (USB34, 0))
+
+    def test_a_crossfade_puts_the_other_deck_on_the_pair(self):
+        desk = _Desk()
+        self.choose_pair(desk, "music", USB12, 1)
+        desk.device.sync()
+        other, other_out = _Player(), _Out(SPEAKERS)
+        desk.device.swap_deck(other, other_out)
+        self.assertEqual(len(desk.routes), 2)
+        self.assertEqual((desk.routes[1].player, desk.routes[1].pair), (other, 1))
+        desk.device.swap_deck(desk.deck, desk.music)
+        self.assertEqual(len(desk.routes), 2, "each player keeps its route")
+
+    def test_handing_the_card_back_goes_through_the_routes(self):
+        desk = _Desk(voices=False, announcer=False)
+        self.choose_pair(desk, "music", USB12, 1)
+        desk.device.sync()
+        spare, spare_out = _Player(), _Out(SPEAKERS)
+        desk.device.swap_deck(spare, spare_out)
+        desk.spare = (desk.deck, desk.music)   # the old deck is the tail now
+        desk.device.release()
+        self.assertTrue(all(r.released for r in desk.routes))
+        desk.device.ensure()
+        self.assertFalse(any(r.released for r in desk.routes))
+        self.assertIsNone(spare.out, "a routed player never gets its output back")
+
+    def test_pre_listen_on_the_music_pair_is_refused(self):
+        desk = _Desk()
+        self.choose_pair(desk, "music", USB12, 1)
+        self.choose_pair(desk, "cue", USB12, 1)
+        self.assertTrue(desk.device.cue_on_music())
+        desk.settings["audio_outputs"]["cue"].pop("pair")
+        self.assertFalse(desk.device.cue_on_music(), "Out 1/2 is not the music's")
+
+    def test_a_missing_card_is_no_pair(self):
+        """The default it falls back to is another card: all of it."""
+        desk = _Desk()
+        self.choose_pair(desk, "announcer", USB34, 1)
+        desk.devices.outputs.remove(USB34)
+        desk.device.sync()
+        self.assertEqual((desk.announcer.dev, desk.announcer.pair), (SPEAKERS, 0))
+
+    def test_a_pair_change_on_the_same_card_is_applied(self):
+        desk = _Desk()
+        desk.choose("cartwall", USB12)
+        desk.device.sync()
+        before = desk.voices.moves
+        self.choose_pair(desk, "cartwall", USB12, 1)
+        desk.device.sync()
+        desk.device.sync()
+        self.assertEqual((desk.voices.pair, desk.voices.moves - before), (1, 1))
+
+    def test_a_pre_listen_pair_is_not_on_the_music(self):
+        desk = _Desk()
+        desk.choose("music", USB12)
+        self.choose_pair(desk, "cue", USB12, 1)
+        self.assertFalse(desk.device.cue_on_music())
+        desk.settings["audio_outputs"]["cue"].pop("pair")
+        self.assertTrue(desk.device.cue_on_music())
 
 
 if __name__ == "__main__":

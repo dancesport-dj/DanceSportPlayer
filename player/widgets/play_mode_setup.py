@@ -26,16 +26,20 @@ from PySide6.QtWidgets import (
 from planner import i18n
 from planner.playing.party_stop import PartyStop
 from planner.playing.play_sets import (
-    _LEN_MAX,
-    _LEN_STEP,
-    upgrade_xfade,
+    LEN_MAX,
+    LEN_STEP,
     XFADE_DEFAULT_SECS,
     XFADE_MAX_SECS,
     XFADE_MIN_SECS,
+    upgrade_xfade,
 )
-from shared.widgets import _hsep
+from player.widgets.panel_parts import InlineEdit, Rows, Toggle, row_box
+from shared.widgets import hsep
 from shared.xfade_view import CrossfadeCurveButton, CrossfadeView
-from player.widgets.panel_parts import _InlineEdit, _row_box, _Rows, _Toggle
+
+# ✏️ lit orange while edit mode is on.
+PD_EDIT_QSS = ("QPushButton:checked { background:#ff9800; color:white;"
+               " font-weight:bold; border-radius:3px; }")
 
 if TYPE_CHECKING:
     from gui.window.hosts import PlayModePanelHost
@@ -61,10 +65,10 @@ class PlayModeSetupMixin(PlayModePanelHost):
             b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             # Scoped by type: a bare style would size the tooltips too.
             b.setStyleSheet("QPushButton{font-size:22px; font-weight:bold;}")
-        self.len_minus.setToolTip(i18n.t("Shorter by %s s") % _LEN_STEP)
+        self.len_minus.setToolTip(i18n.t("Shorter by %s s") % LEN_STEP)
         self.len_plus.setToolTip(
             i18n.t("Longer by %s s — past %s the title plays to its end")
-            % (_LEN_STEP, f"{_LEN_MAX // 60}:{_LEN_MAX % 60:02d}"))
+            % (LEN_STEP, f"{LEN_MAX // 60}:{LEN_MAX % 60:02d}"))
         self.len_minus.clicked.connect(lambda: self._step_len(-1))
         self.len_plus.clicked.connect(lambda: self._step_len(+1))
         len_row.addWidget(self.len_minus)
@@ -83,17 +87,18 @@ class PlayModeSetupMixin(PlayModePanelHost):
                    "up to %s; one step further is\n"
                    "'full' — no cut, every title plays to its own end.\n\n"
                    "Double-click to type an exact length (e.g. 1:37).")
-            % (_LEN_STEP, f"{_LEN_MAX // 60}:{_LEN_MAX % 60:02d}"))
+            % (LEN_STEP, f"{LEN_MAX // 60}:{LEN_MAX % 60:02d}"))
         # The ladder covers the usual lengths in two taps; typing covers the
         # ones between its rungs, which −/+ can never reach.
         self.len_lbl.setCursor(Qt.CursorShape.IBeamCursor)
         self.len_lbl.mouseDoubleClickEvent = self._on_len_typed
-        self._len_edit: _InlineEdit | None = None    # built on first use
+        self._len_edit: InlineEdit | None = None    # built on first use
         len_row.addWidget(self.len_lbl, stretch=1)
         len_row.addWidget(self.len_plus)
         # 🏆 Under the digits, the dance whose own length they show — so the
         # desk sees which length counts, and that −/+ moves that dance's.
         self._dance_len: tuple[str, str, int] | None = None   # code, name, secs
+        self._plays_on = False   # 🥇 the title comes back up after its cut
         self.len_dance_lbl = QLabel("")
         self.len_dance_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         # Wraps: "Langsamer Walzer, 2. Zwischenrunde — …" on a 250px panel
@@ -108,7 +113,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
         len_col.setSpacing(0)
         len_col.addLayout(len_row)
         len_col.addWidget(self.len_dance_lbl)
-        lyt.addWidget(_row_box(len_col))
+        lyt.addWidget(row_box(len_col))
 
         fade_row = QHBoxLayout()
         fade_row.addWidget(QLabel("Fade-out:"))
@@ -131,14 +136,14 @@ class PlayModeSetupMixin(PlayModePanelHost):
             "Unticked: the title plays its full length, then fades out.")
         fade_row.addWidget(self.fade_inside_check)
         fade_row.addStretch(1)
-        lyt.addWidget(_row_box(fade_row))
+        lyt.addWidget(row_box(fade_row))
 
-        lyt.addWidget(_hsep())
+        lyt.addWidget(hsep())
 
     def _setup_paso_doble(self, lyt, settings):
         """Paso Doble: stop after a highlight, manual marks and edit mode."""
         # ── Paso Doble: stop after a highlight instead of the fade ──
-        self.pd_check = _Toggle("🐂  Stop Paso Doble after highlight")
+        self.pd_check = Toggle("🐂  Stop Paso Doble after highlight")
         self.pd_check.setToolTip(
             "A Paso Doble under this switch is never faded out and ignores\n"
             "the play length — it is danced to its choreographed highlights.\n"
@@ -158,7 +163,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
         # screenful of dead controls costs a scroll mid-round. The wait after
         # the call is NOT in here — it is about how a PD starts, not how it
         # ends, and it applies just as much with the stop switched off.
-        self.pd_sub_box = _Rows()
+        self.pd_sub_box = Rows()
         lyt.addWidget(self.pd_sub_box)
 
         pd_row = QHBoxLayout()
@@ -175,7 +180,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
         self._pd_own_n: int | None = None
         pd_row.addWidget(self.pd_spin)
         pd_row.addStretch(1)
-        self.pd_sub_box.add(_row_box(pd_row))
+        self.pd_sub_box.add(row_box(pd_row))
 
         self._add_pd_mark_tools()
 
@@ -198,9 +203,9 @@ class PlayModeSetupMixin(PlayModePanelHost):
             "runs silently — counted down on this panel either way.")
         pd_call_row.addWidget(self.pd_delay_spin)
         pd_call_row.addStretch(1)
-        lyt.addWidget(_row_box(pd_call_row))
+        lyt.addWidget(row_box(pd_call_row))
 
-        lyt.addWidget(_hsep())
+        lyt.addWidget(hsep())
 
     def _add_pd_mark_tools(self):
         """🎯 Marking a highlight, ✖ forgetting them, ✏️ edit mode and its chips."""
@@ -225,7 +230,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
             "(falls back to 🐂 auto-detection on the next play).")
         self.pd_clear_btn.clicked.connect(self.pdClearRequested.emit)
         pd_learn_row.addWidget(self.pd_clear_btn)
-        self.pd_sub_box.add(_row_box(pd_learn_row))
+        self.pd_sub_box.add(row_box(pd_learn_row))
 
         # ✏️ Edit mode: while it's on nothing cuts the Paso Doble, so a later
         # crash can actually be reached, heard and marked. Without it the very
@@ -241,9 +246,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
             "of an existing mark moves that one instead of adding a fourth.\n\n"
             "Leaving edit mode arms the stop again and PAUSES at it the next\n"
             "time it's reached, so you can hear whether the mark sits right.")
-        self.pd_edit_btn.setStyleSheet(
-            "QPushButton:checked { background:#ff9800; color:white;"
-            " font-weight:bold; border-radius:3px; }")
+        self.pd_edit_btn.setStyleSheet(PD_EDIT_QSS)
         self.pd_edit_btn.toggled.connect(self._on_pd_edit)
         self.pd_sub_box.add(self.pd_edit_btn)
 
@@ -254,11 +257,12 @@ class PlayModeSetupMixin(PlayModePanelHost):
         self.pd_marks_lyt.setSpacing(4)
         self.pd_marks_box.setVisible(False)
         self.pd_sub_box.add(self.pd_marks_box)
+        self.set_pd_loaded(False)   # nothing on the deck yet
 
     def _setup_auto_advance(self, lyt, settings):
-        """⏭ Auto-advance, repeat and the pause with its filler music."""
+        """⏭ Auto-advance, repeat and the pause between two titles."""
         # ── Auto-advance: heat flow without touching the mouse ──
-        self.advance_check = _Toggle("⏭  Auto-advance to next song")
+        self.advance_check = Toggle("⏭  Auto-advance to next song")
         self.advance_check.setToolTip(
             "When a song ends (fade-out or natural end), pause for the\n"
             "configured time, then play the next song row of the deck —\n"
@@ -274,7 +278,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
 
         # Hangs off auto-advance: without it the last title is followed by
         # nothing anyway, so there is no end to run past.
-        self.repeat_check = _Toggle("🔁  Start again at the end")
+        self.repeat_check = Toggle("🔁  Start again at the end")
         self.repeat_check.setToolTip(
             "When the LAST title of the list has finished, carry on with its\n"
             "first one instead of stopping — so a party keeps its music going\n"
@@ -285,15 +289,15 @@ class PlayModeSetupMixin(PlayModePanelHost):
         self.repeat_check.setChecked(bool(settings.get("repeat_list", False)))
         lyt.addWidget(self.repeat_check)
 
-        self._add_stop_row(lyt)
+        self._add_stop_row(lyt, settings)
 
         pause_row = QHBoxLayout()
         # The caption IS the switch — unchecked, songs run back to back and the
         # configured time stays in the box for switching back.
-        self.pause_check = _Toggle("Pause between songs:")
+        self.pause_check = Toggle("Pause between songs:")
         self.pause_check.setToolTip(
             "Off: the next song starts the moment the current one ends, with\n"
-            "no filler music and no announcement. The configured time is kept\n"
+            "no pause music and no announcement. The configured time is kept\n"
             "for switching back.\n\n"
             "Needs ⏭ auto-advance — without it the next song waits for the\n"
             "operator anyway, so there is no gap to fill.")
@@ -310,16 +314,17 @@ class PlayModeSetupMixin(PlayModePanelHost):
         pause_row.addStretch(1)
         # Kept, because the whole row leaves the panel together with the 🔁
         # tick above it when there is no auto-advance to hang a pause on.
-        self.pause_row_box = _row_box(pause_row)
+        self.pause_row_box = row_box(pause_row)
         lyt.addWidget(self.pause_row_box)
 
         self._add_xfade_row(lyt, settings)
 
         self._add_pause_music_rows(lyt, settings)
 
-    def _add_stop_row(self, lyt):
-        """⏹ When the music stops by itself. Never read from the settings:
-        it is set for one evening (see planner/playing/party_stop.py)."""
+    def _add_stop_row(self, lyt, settings):
+        """⏹ When the music stops by itself. The rule is never read from the
+        settings: it is set for one evening (see planner/playing/party_stop.py).
+        Only how an "At …" time ends the title on air is."""
         self._party_stop = PartyStop()
         stop_row = QHBoxLayout()
         stop_row.setSpacing(4)
@@ -332,8 +337,9 @@ class PlayModeSetupMixin(PlayModePanelHost):
             "Let the music stop by itself: after the title playing now,\n"
             "after a number of titles (the one playing now is the first),\n"
             "or with the first title that ends at or after a time of day.\n\n"
-            "A title is never cut: it plays to its end, then the next one\n"
-            "waits on the player for ⏯. A ⏭ skip does not count as an end.\n\n"
+            "A title is not cut: it plays to its end, then the next one\n"
+            "waits on the player for ⏯ — unless an \"At …\" time is set to\n"
+            "fade it. A ⏭ skip does not count as an end.\n\n"
             "Set for this evening only — it is not saved.\n\n"
             "Needs ⏭ auto-advance.")
         stop_row.addWidget(self.stop_combo)
@@ -341,83 +347,89 @@ class PlayModeSetupMixin(PlayModePanelHost):
         self.stop_count_spin.setRange(2, 99)
         self.stop_count_spin.setValue(5)
         self.stop_count_spin.setToolTip(
-            "Titles still to end, the one playing now included —\n"
-            "it counts down as they do.")
+            "How many titles, the one playing now included —\n"
+            "the count beside it runs down as they end.")
         stop_row.addWidget(self.stop_count_spin)
+        # In the amber and bold of the length hint above: what is still to
+        # end, while the spinner keeps the number that was set.
+        self.stop_count_lbl = QLabel("")
+        self.stop_count_lbl.setStyleSheet("color:#b8860b; font-weight:bold;")
+        self.stop_count_lbl.setToolTip(
+            "Titles still to end, the one playing now included.")
+        stop_row.addWidget(self.stop_count_lbl)
         self.stop_time_edit = QTimeEdit(QTime(23, 0))
         self.stop_time_edit.setDisplayFormat("HH:mm")
         self.stop_time_edit.setToolTip(
             "The first title that ends at or after this time is the last.\n"
             "A time already past today means after midnight.")
         stop_row.addWidget(self.stop_time_edit)
+        # How the "At …" time ends the title on air — unlike the rule this is
+        # a preference, and saved.
+        self.stop_at_mode_combo = QComboBox()
+        for text, key in (("play it to its end", "end"),
+                          ("fade out at the time", "fade"),
+                          ("hybrid: fade if ≥ 1:30 played", "hybrid")):
+            self.stop_at_mode_combo.addItem(text, key)
+        at_mode = self.stop_at_mode_combo.findData(
+            settings.get("stop_at_mode", "end"))
+        self.stop_at_mode_combo.setCurrentIndex(max(0, at_mode))
+        self.stop_at_mode_combo.setToolTip(
+            "What the title playing at the time does:\n\n"
+            "Play it to its end — the first title that ends at or after the\n"
+            "time is the last.\n"
+            "Fade out at the time — it fades out the moment the time comes.\n"
+            "Hybrid — it fades if it had played 1:30 by then, a younger\n"
+            "one plays to its end.\n\n"
+            "A title that starts after the time always plays to its end.\n"
+            "This choice is remembered.")
+        stop_row.addWidget(self.stop_at_mode_combo)
         stop_row.addStretch(1)
-        self.stop_row_box = _row_box(stop_row)
+        self.stop_row_box = row_box(stop_row)
         lyt.addWidget(self.stop_row_box)
+        self._add_closing_row(lyt, settings)
+
+    def _add_closing_row(self, lyt, settings):
+        """🌙 The title that plays once the planned stop has ended the music —
+        a saved preference, like how an "At …" time ends the title."""
+        self._closing_song = str(settings.get("closing_song", "") or "")
+        closing_row = QHBoxLayout()
+        closing_row.setSpacing(4)
+        closing_row.addWidget(QLabel("🌙  Then:"))
+        self.closing_lbl = QLabel("")
+        self.closing_lbl.setStyleSheet("color:#555; font-style:italic;")
+        self.closing_lbl.setSizePolicy(
+            QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        closing_row.addWidget(self.closing_lbl, stretch=1)
+        pick = QToolButton()
+        pick.setText("📂")
+        pick.setToolTip(
+            "A closing song that plays once the stop has ended the music —\n"
+            "\"Who moved the clock today\". It plays at the music's volume to\n"
+            "its end (🔉↓ fades it); then the next title waits for ⏯.\n"
+            "Only after the planned stop, never after ⏹ by hand.")
+        pick.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        pick.clicked.connect(self._pick_closing_song)
+        closing_row.addWidget(pick)
+        clear = QToolButton()
+        clear.setText("✕")
+        clear.setToolTip("No closing song")
+        clear.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        clear.clicked.connect(lambda: self._set_closing_song(""))
+        closing_row.addWidget(clear)
+        self.closing_box = row_box(closing_row)
+        lyt.addWidget(self.closing_box)
+        self._refresh_closing_lbl()
 
     def _add_pause_music_rows(self, lyt, settings):
-        """🎵 The pause music: its titles and how loud they play."""
-        # Optional filler music during the pause, faded in and out. Stored as
-        # a list of titles (rotated pause after pause); legacy settings hold
-        # a single path string.
-        raw = settings.get("pause_music", "") or []
-        if isinstance(raw, str):
-            raw = [raw] if raw else []
-        self._pause_music = [str(p) for p in raw]
-        # In their own boxes so the whole row greys out with the pause, labels
-        # and all — Qt disables children with their parent.
-        # Both boxes live in one folder so the pair disappears together when
-        # there is no pause to fill.
-        self.pause_sub_box = _Rows()
+        """🎶 Where the pause music lives now: the cartwall's ▶ queue."""
+        # In a folder of its own, so it leaves the panel with the pause.
+        self.pause_sub_box = Rows()
         lyt.addWidget(self.pause_sub_box)
-
-        self.pause_music_box = QWidget()
-        pm_row = QHBoxLayout(self.pause_music_box)
-        pm_row.setContentsMargins(0, 0, 0, 0)
-        pm_row.setSpacing(4)
-        pm_row.addWidget(QLabel("Pause music:"))
-        self.pause_music_lbl = QLabel("")
-        self.pause_music_lbl.setStyleSheet("color:#555; font-style:italic;")
-        self.pause_music_lbl.setSizePolicy(
-            QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
-        pm_row.addWidget(self.pause_music_lbl, stretch=1)
-        pm_pick = QToolButton()
-        pm_pick.setText("📂")
-        pm_pick.setToolTip(
-            "Choose one or more titles — or an .m3u playlist — that play\n"
-            "softly during the pause between songs, faded in at the start\n"
-            "and out before the next song. Several titles rotate: a title\n"
-            "keeps playing pause after pause until it ends, then the next\n"
-            "one takes over.")
-        pm_pick.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        pm_pick.clicked.connect(self._pick_pause_music)
-        pm_row.addWidget(pm_pick)
-        pm_clear = QToolButton()
-        pm_clear.setText("✕")
-        pm_clear.setToolTip("No pause music")
-        pm_clear.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        pm_clear.clicked.connect(lambda: self._set_pause_music([]))
-        pm_row.addWidget(pm_clear)
-        self.pause_sub_box.add(self.pause_music_box)
-        self._refresh_pause_music_lbl()
-
-        # Filler plays quieter than the dance music — it's background, not
-        # program. Percentage of the normal playback volume.
-        self.pause_vol_box = QWidget()
-        pv_row = QHBoxLayout(self.pause_vol_box)
-        pv_row.setContentsMargins(0, 0, 0, 0)
-        pv_row.addWidget(QLabel("Pause music volume:"))
-        self.pause_vol_spin = QSpinBox()
-        self.pause_vol_spin.setRange(10, 100)
-        self.pause_vol_spin.setSingleStep(5)
-        self.pause_vol_spin.setSuffix(" %")
-        self.pause_vol_spin.setValue(
-            max(10, min(100, int(settings.get("pause_music_vol", 10)))))
-        self.pause_vol_spin.setToolTip(
-            "How loud the pause music plays, relative to the normal\n"
-            "playback volume — kept lower so it stays in the background.")
-        pv_row.addWidget(self.pause_vol_spin)
-        pv_row.addStretch(1)
-        self.pause_sub_box.add(self.pause_vol_box)
+        self.pause_hint_lbl = QLabel(i18n.t(
+            "🎶 Pause music: the cartwall's ▶ queue plays its 🎶 Background pads."))
+        self.pause_hint_lbl.setStyleSheet("color:#555; font-style:italic;")
+        self.pause_hint_lbl.setWordWrap(True)
+        self.pause_sub_box.add(self.pause_hint_lbl)
 
     def _add_xfade_row(self, lyt, settings):
         """🔀 The crossfade switch, its seconds, curve and picture."""
@@ -427,7 +439,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
         # caption IS the switch, as on the pause row: off, the seconds stay in
         # the box, so switching it on comes back on a length worth hearing.
         xf_row = QHBoxLayout()
-        self.xfade_check = _Toggle("🔀  Crossfade:")
+        self.xfade_check = Toggle("🔀  Crossfade:")
         self.xfade_check.setToolTip(
             "The last seconds of a title and the first of the next play\n"
             "together: the old one fades out while the new one fades in,\n"
@@ -468,14 +480,14 @@ class PlayModeSetupMixin(PlayModePanelHost):
         xf_lines.setSpacing(2)
         xf_lines.addLayout(xf_row)
         xf_lines.addLayout(curve_row)
-        self.xfade_row_box = _row_box(xf_lines)
+        self.xfade_row_box = row_box(xf_lines)
         lyt.addWidget(self.xfade_row_box)
 
     def _setup_announce(self, lyt, settings):
         """🗣 The spoken cue for the couples: the switch, its timing and the
         voice chosen in ⚙ Settings."""
         # Spoken cue for the couples, timed to land just before the pause ends.
-        self.announce_check = _Toggle("🔈  Announce next dance")
+        self.announce_check = Toggle("🔈  Announce next dance")
         self.announce_check.setToolTip(
             "Say the next dance out loud shortly before the pause ends\n"
             "(\"Nächster Tanz: Langsamer Walzer\"). Without a pause the dance\n"
@@ -491,7 +503,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
 
         # What goes with the call: none of it is worth a line when nothing is
         # announced.
-        self.announce_sub_box = _Rows()
+        self.announce_sub_box = Rows()
         lyt.addWidget(self.announce_sub_box)
 
         # Voice, heat and where the call sits against the first bar are set
@@ -500,6 +512,8 @@ class PlayModeSetupMixin(PlayModePanelHost):
         self._announce_voice = str(settings.get("announce_voice", "random"))
         self._announce_heat = bool(settings.get("announce_heat", False))
         self._announce_wait = bool(settings.get("announce_wait", False))
+        self._announce_lead = bool(settings.get("announce_lead", False))
+        self._announce_heat_only = bool(settings.get("announce_heat_only", False))
         self.announce_style_lbl = QLabel("")
         # Under the first word of the switch's caption, past its 🔈 — not
         # centred across the column.
@@ -514,12 +528,12 @@ class PlayModeSetupMixin(PlayModePanelHost):
         self.announce_sub_box.add(self.announce_style_lbl)
         self._refresh_announce_style()
 
-        lyt.addWidget(_hsep())
+        lyt.addWidget(hsep())
 
     def _setup_play_options(self, lyt, settings):
         """Loudness, cover art, double-click and pick-up-where-left."""
         # ── Loudness equalization (EBU R128) ──
-        self.loudness_check = _Toggle("🔊  Equalize volume (R128)")
+        self.loudness_check = Toggle("🔊  Equalize volume (R128)")
         self.loudness_check.setToolTip(
             "Compensate loudness differences between tracks on playback:\n"
             "each song's measured EBU R128 loudness is pulled towards a common\n"
@@ -533,7 +547,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
         lyt.addWidget(self.loudness_check)
 
         # ── ▶️ What a double-click on a title in the deck does ──
-        self.dblclick_check = _Toggle("▶️  Double-click starts the title")
+        self.dblclick_check = Toggle("▶️  Double-click starts the title")
         self.dblclick_check.setToolTip(
             "On: a double-click in a deck puts the title on the speakers at\n"
             "once — what a party wants.\n"
@@ -545,7 +559,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
         lyt.addWidget(self.dblclick_check)
 
         # ── ↩ Pick a title up where it was left ──
-        self.remember_check = _Toggle("↩  Remember where a title stopped")
+        self.remember_check = Toggle("↩  Remember where a title stopped")
         self.remember_check.setToolTip(
             "There is one player for every deck, so leaving a title to hear\n"
             "another one loses your place in it. On: the spot a title stopped\n"
@@ -556,7 +570,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
         self.remember_check.setChecked(bool(settings.get("remember_pos", False)))
         lyt.addWidget(self.remember_check)
 
-        lyt.addWidget(_hsep())
+        lyt.addWidget(hsep())
 
     def _setup_play_set_buttons(self, lyt):
         """🏆/🎉 The tournament and party play-set buttons."""
@@ -643,7 +657,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
             "to it, and it can fade between the two pages by itself.")
         self.timetable_btn.clicked.connect(self.timetableRequested.emit)
         pres_row.addWidget(self.timetable_btn)
-        lyt.addWidget(_row_box(pres_row))
+        lyt.addWidget(row_box(pres_row))
 
         # 📱 The phone remote: its server, its QR code, its log.
         self.remote_btn = QPushButton("📱  Phone remote…")
@@ -676,7 +690,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
     def _setup_awake_and_countdown(self, lyt, settings):
         """☀ The screensaver hold and the live countdown."""
         # ── ☀ Hold the screensaver off while the desk is working ──
-        self.awake_check = _Toggle("☀  Keep the screen awake")
+        self.awake_check = Toggle("☀  Keep the screen awake")
         self.awake_check.setToolTip(
             "Keep the screensaver and the display timeout off while music is\n"
             "playing or the presenter screen is open.\n\n"
@@ -687,7 +701,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
         self.awake_check.setChecked(bool(settings.get("keep_awake", True)))
         lyt.addWidget(self.awake_check)
 
-        lyt.addWidget(_hsep())
+        lyt.addWidget(hsep())
 
         # ── Live countdown of the current song ──
         self.countdown_lbl = QLabel("")
@@ -748,8 +762,9 @@ class PlayModeSetupMixin(PlayModePanelHost):
         self.stop_combo.currentIndexChanged.connect(lambda _: self._on_stop_rule())
         self.stop_count_spin.valueChanged.connect(lambda _: self._on_stop_rule())
         self.stop_time_edit.timeChanged.connect(lambda _: self._on_stop_rule())
+        self.stop_at_mode_combo.currentIndexChanged.connect(
+            lambda _: self.settingsChanged.emit())
         self.pause_spin.valueChanged.connect(lambda _: self.settingsChanged.emit())
-        self.pause_vol_spin.valueChanged.connect(lambda _: self.settingsChanged.emit())
         self.announce_check.toggled.connect(self.announce_sub_box.setVisible)
         self.announce_check.toggled.connect(lambda _: self.settingsChanged.emit())
         self.loudness_check.toggled.connect(lambda _: self.settingsChanged.emit())

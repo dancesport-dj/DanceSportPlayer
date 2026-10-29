@@ -8,13 +8,16 @@ starts over whenever the hours or the dialog's options change.
 from PySide6.QtCore import QThread, QTimer, Signal
 from PySide6.QtWidgets import QDoubleSpinBox, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
-from planner.terms import dance_name
 from planner.generate.warmup import (
-    _WARMUP_BALLROOM, _WARMUP_LATIN, _WARMUP_MODE, estimate_warmup_counts,
+    WARMUP_BALLROOM,
+    WARMUP_LATIN,
+    WARMUP_MODE,
+    estimate_warmup_counts,
 )
+from planner.terms import dance_name
 
-_SECTIONS = (("Standard", _WARMUP_BALLROOM), ("Latin", _WARMUP_LATIN),
-             ("Social", _WARMUP_MODE))
+_SECTIONS = (("Standard", WARMUP_BALLROOM), ("Latin", WARMUP_LATIN),
+             ("Social", WARMUP_MODE))
 
 
 def estimate_text(counts, total, hours) -> str:
@@ -23,7 +26,7 @@ def estimate_text(counts, total, hours) -> str:
     lines = [f"⏱ {hours:g} h: about {round(total[0])} songs "
              f"(have {total[1]} ready)"]
     for name, codes in _SECTIONS:
-        cells = [f"{dance_name(c, c) if c in _WARMUP_MODE else c} {counts[c][1]}"
+        cells = [f"{dance_name(c, c) if c in WARMUP_MODE else c} {counts[c][1]}"
                  for c in codes if c in counts]
         if cells:
             lines.append(f"{name}: " + " · ".join(cells))

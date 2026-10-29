@@ -32,9 +32,9 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication
 
-from player.window.main_player import PlayerControlMixin
-from player.widgets.play_mode_panel import PlayModePanel
 from gui.decks.deck_set import DeckSet
+from player.widgets.play_mode_panel import PlayModePanel
+from player.window.main_player import PlayerControlMixin
 
 
 class _Table:

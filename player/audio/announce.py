@@ -21,13 +21,13 @@ as a different speaker taking over mid-sentence, and Marcel wants one voice on
 the microphone, as far as the recordings go: a clip that was never recorded in
 English is played from the German set.
 """
+import contextlib
 import logging
 import random
 import re
 import subprocess
 import sys
 import threading
-
 from pathlib import Path
 
 from PySide6.QtCore import QTimer, QUrl
@@ -83,8 +83,9 @@ _CLIP_FALLBACK = "german"
 # operator asks for a voice that isn't installed.
 _CLIP_GENDERS = ("female", "male")
 _CLIP_LEAD = "next_dance"
-# "Heat" and the spoken number that follows it, filed under the number itself
-# ("3.mp3" says "drei"). Only 1-8 were recorded — see `heat_clips`.
+# "Heat" ("Gruppe" in German) and the spoken number that follows it, filed
+# under the number itself ("3.mp3" says "drei"). Only 1-8 were recorded — see
+# `heat_clips`.
 _CLIP_HEAT = "heat"
 # The clips are named by the code the desk shows (terms.DANCE_SHORT: Samba SB,
 # Jive JV); the social dances the app spells out are filed short (the
@@ -95,10 +96,12 @@ _CLIP_CODE = {
     'KIZOMBA': 'KZ', 'FORRO': 'FO',
 }
 # A breath between "Nächster Tanz" and the dance. Back to back they run into
-# one word; much longer and it sounds like the announcer lost their place. Short
-# because it is now the WHOLE gap — the studio silence around each word is
-# trimmed off (see below), where it used to be added on top of this.
-_CLIP_GAP_MS = 180
+# one word; much longer and it sounds like the announcer lost their place. The
+# studio silence around each word is trimmed off (see below), so what is heard
+# between two words is this plus the pre-roll ahead of the next one and the
+# decay kept after the last: 0 + 210 + 30, the breath it always was. The
+# pre-roll grew out of this gap until nothing was left of it.
+_CLIP_GAP_MS = 0
 
 # ── Trimming the recorded silence off the clips ───────────────────────────────
 # Every clip carries studio silence around the word: a beat before the voice
@@ -113,6 +116,17 @@ _TRIM_NOISE_DB = -45      # quieter than anything the voice does
 _TRIM_MIN_SECS = 0.05     # shorter than any pause inside a spoken word
 _TRIM_PAD_MS = 30         # keep a hair of attack and decay — a hard cut clicks
 _TRIM_MIN_KEEP_MS = 150   # below this the probe found nonsense; play it whole
+# The silence kept AHEAD of the word, which is more than the hair kept after it.
+# Qt's FFmpeg backend drops up to ~30 ms of audio somewhere in the first 80 ms
+# after every start and every seek (measured on the loopback; plain WASAPI plays
+# the same PCM clean). Seeking right up to the word put that hole into its first
+# syllable: "e-eins". A clip started after a few seconds of quiet — the first
+# word of a call — gets one more hole, ~2 ms, 150-178 ms after its start (9
+# calls in 96). 210 ms of silence ahead gives both somewhere to fall: 0 in 72.
+# The clips carry exactly this much (tools/audio/announce_eq.py pads or cuts
+# them to it), so the seek past the head stays a few ms deep: seeking ~185 ms
+# into a clip put the same 2 ms hole ~130 ms after the seek (23 calls in 72).
+_PREROLL_MS = 210
 # What an UNMEASURED clip is worth when the announcement is being timed (see
 # `clip_secs`). No recorded clip of either voice is longer — the longest is
 # "West Coast Swing" at 1.567 s — so this over-states rather than cuts short,
@@ -140,8 +154,8 @@ def spoken_fragment(text: str) -> str:
 # The sentence in each language the hall can be in (terms.hall_language): the
 # lead-in and the word for a missing dance.
 _SENTENCE = {
-    "de": {"next": "Nächster Tanz", "dance": "Tanz"},
-    "en": {"next": "Next dance", "dance": "Dance"},
+    "de": {"next": "Nächster Tanz", "dance": "Tanz", "heat": "Gruppe"},
+    "en": {"next": "Next dance", "dance": "Dance", "heat": "Heat"},
 }
 
 
@@ -168,19 +182,23 @@ def spoken_name(dance_code: str) -> tuple:
     return name, "de"
 
 
-def announce_text(dance_code: str, now: bool = False, heat: int | None = None) -> str:
+def announce_text(dance_code: str, now: bool = False, heat: int | None = None,
+                  heat_only: bool = False) -> str:
     """The whole sentence as one string — what gets logged.
 
     `heat` (the heat number) is appended only when the operator asked for it —
     it tells the couples which round they are in.
     `now=True` drops the "Nächster Tanz" framing: spoken over the first bars of
     the music, the dance isn't next any more, it is running.
+    `heat_only=True` (a practice evening) says the heat alone, "Gruppe 1".
     """
     name, lang = spoken_name(dance_code)
     words = _SENTENCE[lang]
+    if heat_only and heat:
+        return f"{words['heat']} {int(heat)}"
     text = name if now else f"{words['next']}: {name}"
     if heat:
-        text += f", Heat {int(heat)}"
+        text += f", {words['heat']} {int(heat)}"
     return text
 
 
@@ -258,15 +276,20 @@ def heat_clips(folders, heat: int | None = None) -> list[Path]:
 
 def announce_clips(dance_code: str, gender: str, now: bool = False,
                    root: Path | None = None, heat: int | None = None,
-                   language: str | None = None) -> list[Path]:
+                   language: str | None = None,
+                   heat_only: bool = False) -> list[Path]:
     """The recorded fragments of this announcement, in the order they play.
 
     Empty when the dance was never recorded — it is then not announced.
     `now=True` (spoken over the first bars) drops the "Nächster Tanz" lead in,
-    exactly as the spoken sentence does. Each fragment comes from `language`
-    when it was recorded there, from German otherwise.
+    exactly as the spoken sentence does. `heat_only=True` says just "Gruppe
+    1" — unless the heat cannot be said (none, or past the recorded 8), when
+    the dance is called as usual rather than nothing. Each fragment comes from
+    `language` when it was recorded there, from German otherwise.
     """
     folders = clip_folders(gender, root, language)
+    if heat_only and heat_clips(folders, heat):
+        return heat_clips(folders, heat)
     code = (dance_code or "").upper()
     name = find_clip(folders, _CLIP_CODE.get(code, code))
     if name is None:
@@ -307,16 +330,32 @@ def parse_bounds(stderr: str) -> tuple | None:
         return None
     h, mi, s = m.groups()
     total = int(round((int(h) * 3600 + int(mi) * 60 + float(s)) * 1000))
-    start, end = 0, total
+    start, end = lead_silence_ms(stderr), total
     for span_start, span_end in parse_silences(stderr):
         head, tail = int(span_start * 1000), int(span_end * 1000)
-        if head <= _TRIM_PAD_MS:
-            start = max(start, tail)
         if tail >= total - _TRIM_PAD_MS:
             end = min(end, head)
-    start = max(0, start - _TRIM_PAD_MS)
-    end = min(total, end + _TRIM_PAD_MS)
-    return (start, end) if end - start >= _TRIM_MIN_KEEP_MS else (0, total)
+    # Judged on the word with a hair either side, as before the pre-roll grew:
+    # the silence kept ahead of it is not evidence that there is a word.
+    if end - start + 2 * _TRIM_PAD_MS < _TRIM_MIN_KEEP_MS:
+        return (0, total)
+    return max(0, start - _PREROLL_MS), min(total, end + _TRIM_PAD_MS)
+
+
+def lead_silence_ms(stderr: str) -> int:
+    """How long a clip is silent before its word, from silencedetect stderr.
+
+    0 when the word starts at once — a silence shorter than `_TRIM_MIN_SECS`
+    is not reported at all — or the probe said nothing. A click shorter than
+    `_TRIM_PAD_MS` splits the silence in two without ending it.
+    """
+    from shared.audio.audio_probes import parse_silences  # local: keeps import order free
+    lead = 0
+    for start, end in sorted(parse_silences(stderr)):
+        if start * 1000 > lead + _TRIM_PAD_MS:
+            break
+        lead = max(lead, int(round(end * 1000)))
+    return lead
 
 
 def clip_bounds(path: Path) -> tuple:
@@ -345,7 +384,8 @@ def clip_secs(clips) -> float:
 
 
 def announce_secs(dance_code: str, now: bool = False, heat: int | None = None,
-                  root: Path | None = None, language: str | None = None) -> float:
+                  root: Path | None = None, language: str | None = None,
+                  heat_only: bool = False) -> float:
     """How long this announcement will run, or 0.0 when that cannot be known.
 
     The pause needs this to start the voice early enough to be finished before
@@ -358,7 +398,7 @@ def announce_secs(dance_code: str, now: bool = False, heat: int | None = None,
     """
     language = language or clip_language()
     return max((clip_secs(announce_clips(dance_code, gender, now, root, heat,
-                                         language))
+                                         language, heat_only))
                 for gender in clip_genders(root, language)), default=0.0)
 
 def prime_clip_bounds(folder: Path):
@@ -442,6 +482,8 @@ class DanceAnnouncer:
         self._clip_player = None
         self._clip_out = None
         self._device = None     # 🔊 the output chosen for announcements, if any
+        self._pair = 0          # 🔀 …and its channel pair, 0 for all of it
+        self._clip_route = None
         self._clip_end = None   # QMediaPlayer.MediaStatus.EndOfMedia, once built
         self._clip_ready = ()   # …the statuses at which a seek sticks
         self._clip_loaded = None   # …and LoadedMedia alone (see _on_clip_status)
@@ -483,8 +525,8 @@ class DanceAnnouncer:
         if self._tts is not None or self._failed:
             return self._tts
         try:
-            from PySide6.QtTextToSpeech import QTextToSpeech, QVoice
             from PySide6.QtCore import QLocale
+            from PySide6.QtTextToSpeech import QTextToSpeech, QVoice
         except ImportError as exc:
             self._failed = True
             log.warning("🔈 No text-to-speech module available: %s", exc)
@@ -550,14 +592,17 @@ class DanceAnnouncer:
             return self._clip_player
         try:
             from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
+
+            from player.audio.pair_route import PairRoute
             from shared.audio.playback import prime_disconnect_notify, quiet_ffmpeg_log
             quiet_ffmpeg_log()
             player = QMediaPlayer(self._parent)
             out = QAudioOutput(self._parent)
             prime_disconnect_notify(player, out)
-            if self._device is not None:
-                out.setDevice(self._device)
             player.setAudioOutput(out)
+            route = PairRoute(player, out, self._parent)
+            if self._device is not None:
+                route.set_device(self._device, self._pair)
             player.mediaStatusChanged.connect(self._on_clip_status)
             player.errorOccurred.connect(self._on_clip_error)
             self._clip_end = QMediaPlayer.MediaStatus.EndOfMedia
@@ -565,32 +610,34 @@ class DanceAnnouncer:
             self._clip_ready = (QMediaPlayer.MediaStatus.LoadedMedia,
                                 QMediaPlayer.MediaStatus.BufferedMedia)
             self._clip_player, self._clip_out = player, out
+            self._clip_route = route
         except Exception as exc:          # multimedia is platform-dependent
             self._clips_failed = True
             log.warning("🔈 Recorded announcements unavailable: %s", exc)
         return self._clip_player
 
-    def set_device(self, device) -> None:
-        """🔊 The output the recorded clips play on (see AudioDevice.sync).
-        Kept for the player that is only built on first use."""
-        self._device = device
-        if self._clip_out is not None:
-            self._clip_out.setDevice(device)
+    def set_device(self, device, pair: int = 0) -> None:
+        """🔊 The output the recorded clips play on, or its channel pair
+        `pair` (see AudioDevice.sync). Kept for the player that is only
+        built on first use."""
+        self._device, self._pair = device, pair
+        if self._clip_route is not None:
+            self._clip_route.set_device(device, pair)
 
     def release_outputs(self) -> None:
         """🔇 Idle audio release (see AudioDevice.release): once built, the
         clip player holds the card for the rest of the evening."""
-        if self._clip_player is not None:
-            self._clip_player.setAudioOutput(None)  # pyright: ignore[reportArgumentType]  # Qt takes None: no output
+        if self._clip_route is not None:
+            self._clip_route.release()
 
     def restore_outputs(self) -> None:
         """Take the device back; the window asks before an announcement starts
         (see _on_announcer_speaking)."""
-        if self._clip_player is not None and self._clip_out is not None:
-            self._clip_player.setAudioOutput(self._clip_out)
+        if self._clip_route is not None:
+            self._clip_route.restore()
 
-    def _clips_for(self, dance_code: str, now: bool,
-                   heat: int | None = None) -> list[Path]:
+    def _clips_for(self, dance_code: str, now: bool, heat: int | None = None,
+                   heat_only: bool = False) -> list[Path]:
         """The recorded fragments for this dance, or [] when there are none."""
         if self._clips_failed:
             return []
@@ -603,7 +650,7 @@ class DanceAnnouncer:
         for folder in clip_folders(gender, None, language):
             prime_clip_bounds(folder)   # so the NEXT one is trimmed
         return announce_clips(dance_code, gender, now, heat=heat,
-                              language=language)
+                              language=language, heat_only=heat_only)
 
     def _start_clip(self, path: Path):
         self._token += 1
@@ -745,16 +792,17 @@ class DanceAnnouncer:
         self.stop()
 
     def speak(self, dance_code: str, now: bool = False,
-              heat: int | None = None) -> bool:
+              heat: int | None = None, heat_only: bool = False) -> bool:
         """Say the dance from the recordings. Returns False when nothing was
-        spoken — a dance without a clip is not read by the synthesiser."""
-        clips = self._clips_for(dance_code, now, heat)
+        spoken — a dance without a clip is not read by the synthesiser.
+        `heat_only`: just "Gruppe 1", for a practice evening."""
+        clips = self._clips_for(dance_code, now, heat, heat_only)
         if clips:
             log.info("🔈 Announcing dance from the recordings\n"
                      "text: %s\n"
                      "clips: %s\n"
                      "over the music: %s",
-                     announce_text(dance_code, now, heat),
+                     announce_text(dance_code, now, heat, heat_only),
                      ", ".join(c.stem for c in clips), now)
             return self._play_clips(clips)
         log.info("🔈 Dance not announced\n"
@@ -784,7 +832,6 @@ class DanceAnnouncer:
         self.speaking = False
         for engine in (self._tts, self._clip_player):
             if engine is not None:
-                try:
+                # RuntimeError: already deleted — nothing left to silence.
+                with contextlib.suppress(RuntimeError):
                     engine.stop()
-                except RuntimeError:
-                    pass      # already deleted — nothing left to silence

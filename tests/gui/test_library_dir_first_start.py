@@ -22,7 +22,10 @@ from PySide6.QtWidgets import QApplication, QFileDialog
 
 from gui import dialogs
 from gui.dialogs import (
-    ASK_LIBRARY_DIR, LibraryDirQuestion, ensure_app_mode, ensure_library_dir,
+    ASK_LIBRARY_DIR,
+    LibraryDirQuestion,
+    ensure_app_mode,
+    ensure_library_dir,
 )
 from planner import config
 from tests.qt_test_support import reap_widget

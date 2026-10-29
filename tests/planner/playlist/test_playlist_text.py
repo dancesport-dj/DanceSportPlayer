@@ -25,7 +25,7 @@ class ReadPlaylistTextTest(unittest.TestCase):
         return read_playlist_text(self.path)
 
     def test_utf8(self):
-        self.assertEqual(self._read("Grüße\n".encode("utf-8")),
+        self.assertEqual(self._read("Grüße\n".encode()),
                          ("Grüße\n", "utf-8"))
 
     def test_utf8_with_a_bom(self):

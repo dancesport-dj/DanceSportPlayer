@@ -14,10 +14,10 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
+from gui.decks.running_order import Row, RunningOrder
+from gui.print_sheet import deck_print_html
 from gui.window.main_persist import PersistenceMixin
 from gui.window.main_print import PrintMixin
-from gui.print_sheet import deck_print_html
-from gui.decks.running_order import Row, RunningOrder
 
 
 def _entry(name, bpm=58):

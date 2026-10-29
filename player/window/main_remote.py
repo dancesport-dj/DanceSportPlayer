@@ -14,17 +14,17 @@ start, and a PIN of TUNNEL_PIN_DIGITS — the QR code types it.
 import logging
 import time
 from collections import deque
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
 from PySide6.QtWidgets import QPushButton
 
-from planner.playing import cartwall as pc
 from planner import i18n
+from planner.playing import cartwall as pc
 from shared.remote import remote_server as rs
 from shared.remote import tunnel as tn
 from shared.remote.remote_page import DEFAULT_LABELS
 from shared.stores import save_settings
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -60,7 +60,7 @@ _EVENT_TEXT = {
 }
 
 
-class _RemoteHub(QObject):
+class RemoteHub(QObject):
     """Lives as long as the window: carries the server's commands and events
     from its thread onto the GUI thread, and tells the 📱 window news."""
 
@@ -81,10 +81,10 @@ class _RemoteHub(QObject):
 class RemoteMixin(MainWindowHost):
     """📱 The phone remote — off unless switched on."""
 
-    def remote_hub(self) -> _RemoteHub:
+    def remote_hub(self) -> RemoteHub:
         hub = getattr(self, "_remote_bridge", None)
         if hub is None:
-            hub = _RemoteHub()
+            hub = RemoteHub()
             hub.command.connect(lambda cmd, arg: self._on_remote_command(cmd, arg))
             hub.remote_event.connect(self._on_remote_event)
             hub.tunnel_url.connect(lambda t, url: self._on_remote_tunnel_url(t, url))

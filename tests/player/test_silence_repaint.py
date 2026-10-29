@@ -14,9 +14,10 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from player.audio.playback_state import PlaybackState
 from types import SimpleNamespace
+
 from gui.decks.deck_set import DeckSet
+from player.audio.playback_state import PlaybackState
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",

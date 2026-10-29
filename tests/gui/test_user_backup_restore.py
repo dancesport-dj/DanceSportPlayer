@@ -10,9 +10,9 @@ from PySide6.QtWidgets import QApplication
 
 import planner.music.db as pdb
 import planner.music.db_upkeep as upkeep
-from tests.db_support import use_scratch_db
-from gui.window import main_global
 from gui.dialogs.settings_dialog import SettingsDialog
+from gui.window import main_global
+from tests.db_support import use_scratch_db
 
 
 class RestoreUserDataTest(unittest.TestCase):

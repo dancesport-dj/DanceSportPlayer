@@ -22,7 +22,7 @@ ready*: some titles will not play, or a sound output is not connected.
 | 🐂 Paso Doble highlights | Every Paso Doble knows its highlights. |
 | 🔁 Duplicates | No title is in two lists. |
 | 🎶 Playlists | There is something to play at all. |
-| 🔈 Sound outputs | Every output chosen in ⚙ Settings → 🔊 Sound & player is plugged in. A missing card for the music, the filler, the cartwall or the announcements is red: that source plays on the system default instead. A missing 🎧 Pre-listen card is yellow, and so is a pre-listen that would land on the music's own output, because every preview would be refused. Pre-listen left on *Same as the music* is yellow too, because the hall hears every preview. With one output only there is no other to choose, so nothing is flagged. |
+| 🔈 Sound outputs | Every output chosen in ⚙ Settings → 🔊 Sound & player is plugged in. A missing card for the music, the cartwall or the announcements is red: that source plays on the system default instead. A missing 🎧 Pre-listen card is yellow, and so is a pre-listen that would land on the music's own output, because every preview would be refused. Pre-listen left on *Same as the music* is yellow too, because the hall hears every preview. With one output only there is no other to choose, so nothing is flagged. |
 | 🎛 Controller | The chosen hardware controller is connected. Not every evening needs one, so this line is yellow at worst, and it is left out while no controller is set up. |
 | ☀ Screen and sleep | ☀ Keep the screen awake is on, so the screen, the beamer and the computer stay awake while music plays or the presenter screen is up. |
 
@@ -72,6 +72,24 @@ reason in the tooltip, and starts the next title of the same round. At the
 end of a round it stops, as it would after any last title. The mark goes as
 soon as the file plays again.
 
+The app also watches the music drive while it runs:
+
+- A USB stick pulled out turns its titles red at once, and a red message
+  says so: *🔌 Drive F: is gone: USB stick unplugged? 12 titles can't play
+  until it is back.* A gone title can't be started, and the title on air
+  plays on from what is already loaded.
+- When it is back, *🔌 12 titles are back and can play again*, and the red
+  goes.
+- Windows often gives a stick plugged in again the next free letter. The app
+  then finds the same path on the other drive and plays from there: *🔌 12
+  titles are no longer on F:: found on G:, they play from there.* Nothing
+  is rewritten, so next evening the stick may be F: again.
+- Cartwall pads, wishlists and decks restored at start find a moved file the
+  way [🧭 Fix paths](03-playlists.md) does: under the Reference path and the
+  search folders.
+
+Messages that report an error or a refusal are red; the others are plain.
+
 ## The player card
 
 The card at the top of the side panel shows the running title, its dance and
@@ -85,11 +103,17 @@ the time left.
 | **⏯** | Pause / resume. |
 | **🔁** | Repeats *this* title endlessly, for when the floor is still full or a speech runs long. It works with ⏭ Auto off, too. |
 | fade button (muted speaker) | Fades the title out now, over the fade time, then ends it. |
-| **☕** | Ends the title and goes straight to the pause music. Only there while **Pause between songs** is on. |
+| **☕** | Fades the title out over the 🔉↓ ramp, the card blinking orange meanwhile, then starts the pause. A title held with ⏯ goes straight in. Only there while **Pause between songs** is on. |
 | extend button | Adds another pause length when the heat change takes longer. |
-| **⊗** | Panic: fades the music out and *holds* it. Nothing ends and nothing advances. **⏯** resumes at exactly that spot. |
-| **🔊** | Ducks to 20 % and back to full. The pause music comes down too. The level is set under ⚙ Settings ▸ 🔊 Sound & player ▸ **🔉 Duck to**. |
+| **⏭ Next dance** | Only during the pause. Cuts the wait short but keeps the call: the pause music fades out (the card blinks orange meanwhile), the dance is called, then the title starts. Once the call has been spoken, with announcements off, under ✋ Manual or with the pause held by ⏯, it goes on at once. |
+| **⊗** | Panic: fades the music out and *holds* it. Nothing ends and nothing advances. **⏯** resumes at exactly that spot. With the volume − / + buttons on, it moves up beside the fade button and shows only while a title plays. |
+| **🔊** | Three steps: the first click ducks to 10 %, the second mutes, the third brings the music back to full. The icon follows each step, and the readout under the slider says **mute** in red while muted. The pause music comes down too. The duck level is set under ⚙ Settings ▸ 🔊 Sound & player ▸ ▸ Advanced ▸ **🔉 Duck to**, and the button's tooltip names it. |
 | volume slider | Master volume. |
+| **− / +** beside it | Step the volume by 2 % a click; held, they glide. Double-click the % under the slider to type a level. On by default; ⚙ Settings ▸ 🔊 Sound & player ▸ **➕ Volume − / + buttons** hides them. |
+
+The time readouts of a title longer than an hour, such as a long mix, read
+**1:04:00** or **64:00**, as ⚙ Settings ▸ 🔊 Sound & player ▸ **⏱ Titles over
+an hour read** says.
 
 ### 〰 The waveform
 
@@ -101,7 +125,9 @@ A **green line** marks where the title starts when it does not start at
 0:00: after a pre-roll, at a resume point or behind a skipped silent intro.
 The stretch before it is dimmed. With 🌅 fade-in on, the fade-in is tinted
 **gold**, the mirror of the red-tinted fade-out. A title brought in by a
-🔀 crossfade has no gold tint, because the crossfade does its fade-in.
+🔀 crossfade has no gold tint, because the crossfade does its fade-in. A
+click or drag on the waveform by hand takes the green line away: the
+title no longer starts where it marked.
 
 - **Click** it to jump to that spot. **Drag** along it to scrub: the playhead
   and the times follow the mouse, and the music jumps when you let go. A drag
@@ -163,12 +189,22 @@ at a highlight, the musical break the couples dance to.
   click **🎯 Mark highlight now** exactly on the highlight while the title
   plays. **✖** forgets the learned marks of this title.
 - **✏️ Edit highlights** pauses the music and suspends the stop, so you can
-  scrub through the whole title and set its marks.
+  scrub through the whole title and set its marks. Each mark reads to the
+  tenth of a second, *0:44.3*, and the **− / +** beside it move that mark
+  0.1 s earlier or later, for a tap that landed a little early or late.
+- 🎯, ✖ and ✏️ work on the title on the deck: with anything but a Paso Doble
+  there they are greyed out.
 - **Start after** holds a Paso Doble back before the music starts, so the
   couples can take their position. The player card counts the wait down
   where the title's stats stand, with the takt it plays at, *🐂 PD T60 in 5 s*, as it counts down
   a pause; the stats come back when the music starts. A Paso Doble picked up again at its
-  ↩ mark starts at once: the couples are still on the floor.
+  ↩ mark starts at once: the couples are still on the floor. With a
+  🎶 background pad on the cartwall, the bed goes down first and the wait
+  runs in silence after it, so the couples hear that the music is coming.
+  Whether the bed stays down for the wait at all is
+  ⚙ Settings ▸ 🎛 Cartwall ▸ **🐂 Keep the pad down while a Paso Doble waits
+  to start** (on by default); it stays down in a pause before a Paso Doble
+  too.
 
 With the switch off, a Paso Doble is an ordinary title.
 
@@ -178,12 +214,35 @@ With the switch off, a Paso Doble is an ordinary title.
   last clicked.
 - **🔁 Start again at the end**: after the last title, the list starts over.
   Needs auto-advance.
+- **⏹ Stop**: lets the music stop by itself, for the end of a party or the
+  last bus home. Needs auto-advance.
+  - **Never**: the list runs on, the default.
+  - **After this title**: the title on air is the last.
+  - **After … titles**: 2 to 99 titles, the one on air counted as the first.
+    The amber *3 left* beside it counts down as they end.
+  - **At …**: a time of day, `HH:mm`. A time already past today means after
+    midnight. The box beside it says what the title on air at that time
+    does: **play it to its end** (the first title that ends at or after the
+    time is the last), **fade out at the time**, or **hybrid: fade if ≥ 1:30
+    played** (a title that has just begun plays to its end). This choice is
+    remembered.
+
+  A title is never cut, unless an *At …* time is set to fade it: it plays to
+  its end, then the next one waits on the player for ⏯. A ⏭ skip does not
+  count as an end. The stop is set for this evening only and is not saved.
+- **🌙 Then**: a closing song for after the planned stop, *Who moved the
+  clock today* or the like. **📂** picks it, **✕** removes it. It plays at
+  the music's volume to its end (🔉↓ fades it); then the next title waits for
+  ⏯. It only follows the ⏹ Stop above, never a ⏹ by hand. The song is
+  remembered.
 - **Pause between songs**: time for the couples to change or catch their
   breath. Off, the next title follows at once.
-- **Pause music**: 📂 picks one or more titles, or an `.m3u`, that play during
-  the pause. ✕ removes it. **Pause music volume** sets how loud it plays.
-  A 🎶 background pad of the cartwall gives way to the pause music as it
-  does to a title.
+- **🎶 Pause music**: a one-line hint under the pause switch. The pause music
+  is the cartwall's [▶ queue](#-a-queue-of-pads): a pause starts it from its
+  first 🎶 background pad, unless a queue run is going already. Pads that are
+  not 🎶 are skipped, because they would play on over the title. The 🎶 pads
+  dip under the spoken call like the music does, and step back when the
+  next title starts. To change the pause music, change the queue.
 - **🔀 Crossfade**: the last seconds of a title and the first of the next
   play together. The old one fades out while the new one fades in, so the
   floor never hears a gap. The caption is a switch: off, one title ends and
@@ -219,7 +278,11 @@ With the switch off, a Paso Doble is an ordinary title.
 
 ### 🔈 Announce next dance
 
-The app says the next dance out loud: "Nächster Tanz: Langsamer Walzer".
+The app says the next dance out loud. Out of the box it names just the
+dance, "Langsamer Walzer"; **📣 Say "Next dance" before the dance** in
+⚙ Settings ▸ 🔊 Sound & player puts the lead-in back, "Nächster Tanz:
+Langsamer Walzer". **🔢 Only the heat** says just "Gruppe 1" instead, for a
+practice evening.
 
 - With a pause, the call comes shortly before the pause ends.
 - Without a pause, the dance is named as the title starts: **over the first
@@ -235,7 +298,7 @@ The app says the next dance out loud: "Nächster Tanz: Langsamer Walzer".
   left out. A dance that was never recorded is not announced.
 - The call is in German on a German screen, and on an English one with
   **Keep the German dance and round names** ticked. Otherwise it is English
-  ("Next dance: Slow Waltz"); a clip missing from the English recordings is
+  ("Next dance: Slow Waltz" with the lead-in on); a clip missing from the English recordings is
   played from the German ones.
 
 ### Sound and display
@@ -264,7 +327,7 @@ Two buttons switch the whole panel over in one go:
 - **🎉 Party set**: every title at full length with a 3 s fade-out within it,
   no 🔀 crossfade, auto-advance, no pause, no announcement and equalized
   volume. The 🐂 Paso Doble stops after its 2nd highlight and starts
-  after 3 s. It is applied by itself when you play
+  after 1 s. It is applied by itself when you play
   from the 🤸 Party panel, and switched back when a tournament deck takes
   over.
 
@@ -286,6 +349,18 @@ length applies to every dance. Out of the box the 🏆 set plays 1:30 for
 the Waltz, Viennese Waltz, Quickstep and Jive, and 1:37 for the Tango,
 Slow Foxtrot, Samba, Cha-Cha-Cha and Rumba. The Paso Doble plays in full, or
 to its highlight, see [⚙ Settings ▸ 🎛 Play sets](06-settings.md#play-sets).
+
+**🥇 Final: the music plays on.** In the final the couples like to dance
+on, or to celebrate, after the play length is up. With this switched on in
+the 🏆 set (⚙ Settings ▸ 🎛 Play sets), a title of the final fades out at
+its play length as always, dips to 5 % and comes back up at 60 % as
+background, until **🔉↓** fades it, the next title starts or the file ends.
+Pick **After the last dance of the final** or **After every dance of the
+final**; it is **Off** out of the box. Between two dances of the final it
+plays in place of the ⏸ pause music. A round counts as the final when it is
+named *Finale*, *Final* or *Endrunde*. The Playing panel then reads
+*its own length, then plays on*. Level, dip, hold and the times up and down
+are set beside the switch.
 
 ### 🖥 Presenter
 
@@ -336,8 +411,10 @@ drum roll, the national anthem, a jingle for the award ceremony.
 
 ![The cartwall docked to the right of the decks](img/main-cartwall.png)
 
-- **Click a pad** to fire it over the running music. Click it again to fade
-  it out, over 1 s. ⚙ Settings ▸ 🎛 Cartwall ▸ **⏱ Tapped again or ⏹ — fade out over**
+- **Click a pad** to fire it over the running music. Press a running pad and
+  drag along it to jump to that spot: the played band follows the mouse and
+  the pad jumps when you let go, forward or back. Click it again to fade
+  it out, over 1 s. ⚙ Settings ▸ 🎛 Cartwall ▸ **⏱ Tapped again or ⏹ — fade the pad out over**
   sets that time for the whole wall; **Own fade-out** in a pad's **Settings…** gives one
   pad its own.
 - **Ctrl + 1 … 9** fire the first nine pads of the page on screen.
@@ -345,29 +422,43 @@ drum roll, the national anthem, a jingle for the award ceremony.
 - **🔊** beside it is the cartwall's own volume, for every pad. It is apart
   from the music volume: pulling the music down leaves the pads where they
   are. A pad's own volume (its **Settings…**) is set relative to it. The
-  **Ctrl + Alt + ↑ / ↓** keys and a controller fader move it too.
+  **Ctrl + Alt + ↑ / ↓** keys, the **− / +** beside the fader and a
+  controller fader move it too. A click on **🔊** mutes the wall (🔊 turns
+  🔇 and its level reads a red *mute*); a second click brings it back. The
+  mute is not kept over a restart.
 - **✏** unlocks the wall for building. Drop audio files on a pad to fill it.
   A multi-select fills the free pads after it. Drag one pad onto another to
   swap them. Lock the wall again before the tournament, so nothing moves by
   accident.
-- With **✏** on, **right-click a pad** for its 🎨 colour, 🗑 clear, or
-  **Settings…** for its label, volume, own shortcut key, 🔁 endless repeat,
-  and whether it ducks the music. With the wall locked, the right-click
+- With **✏** on, **right-click a pad** for its 🎨 colour, 🗑 clear,
+  **📄 Move to page**, or **Settings…** for its label, volume, own shortcut
+  key, 🔁 endless repeat, and whether it ducks the music. *Move to page*
+  puts the pad on the same spot of the other page when that is free, or
+  else on its first free pad; a full page takes what fits and says how
+  many were moved. With the wall locked, the right-click
   offers **⚙ Cartwall settings…**, which opens ⚙ Settings on its
   [🎛 Cartwall](06-settings.md#cartwall) tab, and **⌨ Shortcuts…**.
 - **🎶 Background** turns that round: the pad itself goes silent while a
   title plays and fades back in once the title has ended. Use it for a bed that runs
-  through the evening. A background pad never ducks the music. To have it
-  pause instead, or to change how fast it dips and comes back, see
-  ⚙ Settings ▸ 🎛 Cartwall ▸ **🎶 Pads set to 🎶 Background**.
+  through the evening. Ticking it sets the pad to the bed volume, 50 % by
+  default (⚙ Settings ▸ 🎛 Cartwall). A background pad never ducks the music,
+  but it ducks under the announcer's call, like the music does. With pads
+  set to *Pause*, a pad that stands still under a title shows **⏸**, with its
+  queue number beside it when it has one. A title
+  waits until the bed has faded out and then starts into silence; to have
+  it start at once over the fade-out, to have the pad pause instead, or to
+  change how fast it dips and comes back, see
+  ⚙ Settings ▸ 🎛 Cartwall ▸ **🎶 Pads set to 🎶 Background**. The bed
+  also stays down while a 🐂 Paso Doble waits to start.
 - **S Stop the other pads** in a pad's **Settings…** fades every other
   running pad out as this one starts, for an anthem or a winners' fanfare
   that needs the room.
 - A pad's face shows how it behaves: 🔁 endless repeat, ↓ ducks the music,
   ♫ background, 🅂 stops the other pads, and its volume when it is below 100 %.
 - With **✏** on, a click selects a pad instead of firing it, and **Ctrl+click**
-  or **Shift+click** adds more. A right-click on a selected pad then works on
-  all of them: 🎨 colour, 🗑 clear, or **Settings…**, where only what you
+  or **Shift+click** adds more. A selected pad wears an amber outline. A
+  right-click on a selected pad then works on
+  all of them: 🎨 colour, 🗑 clear, 📄 move to page, or **Settings…**, where only what you
   change reaches the other pads, for example 🔈 ducking or 🅂 for six pads at
   once. Label and shortcut key stay with each pad.
 - The page arrows, shown once there is a second page, switch pages, and so do **Ctrl + Alt + ← / →**. Double-click the page name to rename it. The
@@ -375,6 +466,38 @@ drum roll, the national anthem, a jingle for the award ceremony.
 - **🗂** exports or imports the wall, or packs all pads onto one page.
 - Drag the wall to the left or right of the window, below the decks, or out
   as its own window. **📌** snaps a floating wall back.
+
+### ▶ A queue of pads
+
+For a run of jingles, or walk-on music for one couple after the other, the
+wall can play pads one after the other by itself.
+
+![Three queued pads, the first running, and a bed paused under a title](img/cartwall-queue.png)
+
+The first pad runs (**▶ 1**), the next two wait (**≡ 2**, **≡ 3**), and the pad
+below is a 🎶 bed paused under a title: its time is grey behind the pause bars.
+
+- With the wall locked, **Ctrl+click** a pad to put it in the queue. The
+  order you click in is the order they play. A 🎶 pad still at full volume
+  joins at the bed volume; a level set by hand stays. A small **≡ 1**, **≡ 2** … on
+  the pad and a dark blue edge, deeper than the blue of a running pad, show
+  its place. Ctrl+click it again to take it
+  out.
+- **Click any queued pad** to start the queue there. When the pad ends, the
+  next one starts; after the last it begins again with the first. A queue of
+  one pad plays it over and over.
+- The pad playing shows **▶** instead of **≡**.
+- Inside the queue a pad's own 🔁 endless repeat is not used, or the queue
+  would never move on: its 🔁 is struck through in red, and the pad counts
+  down like any other. Everything else (volume, ducking, 🎶 background, its
+  fade-out) stays as set on the pad.
+- A pad whose file is missing is skipped, with a note in the status bar. When
+  none of them are found, the queue stops.
+- **Click the playing pad**, **⏹ Stop all**, **Esc**, unlocking with **✏**,
+  or a pad set to **S Stop the other pads** stops the queue. Firing an
+  ordinary pad on top leaves it running.
+- The queue is saved with the wall. After a restart it is still there, but
+  nothing plays until you click one of its pads.
 
 ### ⌨ The cartwall's keys
 
@@ -536,6 +659,7 @@ macro keypad needs no driver for them.
 | ▶ Play the selected title | **Alt + P** |
 | ➕ Selected title to the playlist | **Alt + A** |
 | ⭐ Selected title to the wishlist | **Alt + D** |
+| ♪ Takt meter open / close | **Ctrl + Shift + T** |
 
 To change them, open **⌨ Keys…** in ⚙ Settings ▸ ⚙ General ▸
 🎛 Controller, or from the **F1** cheat sheet, which lists the keys as they

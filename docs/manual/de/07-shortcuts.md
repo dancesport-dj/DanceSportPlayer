@@ -15,13 +15,13 @@
 | **Strg + Umschalt + D / A** | Musik absenken an / aus, nächsten Tanz ansagen an / aus. |
 | **Strg + Umschalt + ↑ / ↓** | Musik um 5 % lauter / leiser. |
 | **Strg + Umschalt + X** | Alle Cartwall-Pads stoppen. |
-| **Strg + S** | Die aktive Playlist oder Wunschliste als M3U speichern. |
+| **Strg + S** | Die aktive Wiedergabeliste oder Wunschliste als M3U speichern. |
 | **Strg + Umschalt + S** | Die ganze Sitzung speichern: Decks, Wunschlisten, Layout. |
 | **Strg + Z / Strg + Y** | Rückgängig / Wiederholen. **Strg + Umschalt + Z** wiederholt auch. |
 | **Strg + X** oder **Strg + W** | Den aktiven Dialog schließen. |
 | **Entf** | Die markierten Titel nach einer Rückfrage aus einem Deck oder einer Wunschliste entfernen. |
-| **Entf** ohne Markierung | Die ganze Playlist oder Wunschliste nach einer Rückfrage leeren. Genauso, wenn jeder Titel markiert ist. |
-| **Strg + Umschalt + Entf** | Die aktive Playlist oder Wunschliste nach einer Rückfrage leeren, egal wo der Cursor steht. |
+| **Entf** ohne Markierung | Die ganze Wiedergabeliste oder Wunschliste nach einer Rückfrage leeren. Genauso, wenn jeder Titel markiert ist. |
+| **Strg + Umschalt + Entf** | Die aktive Wiedergabeliste oder Wunschliste nach einer Rückfrage leeren, egal wo der Cursor steht. |
 | **Strg + M** | Die markierten Titel kennzeichnen oder die Kennzeichnung entfernen (orange Zeile), zum Beispiel als Titel, die später getauscht werden sollen. **Strg + 1** macht dasselbe, solange die Cartwall ausgeblendet ist. |
 | **Alt + S** | Die zwei markierten Titel desselben Tanzes im Party-Bereich tauschen. |
 | **F2** im Baum 🏆 Turniere | Den Eintrag umbenennen. **Entf** entfernt ihn aus dem Baum. |
@@ -43,7 +43,7 @@ sich ändern, zum Beispiel auf F13 bis F24 für ein Stream Deck:
 | Aktion | Macht |
 |---|---|
 | Klick auf einen Runden- oder Tanzkopf | Diesen Abschnitt zu- oder aufklappen. |
-| Doppelklick auf einen Decktitel | Die Playlist oder Wunschliste umbenennen. |
+| Doppelklick auf einen Decktitel | Die Wiedergabeliste oder Wunschliste umbenennen. |
 | Pfeil ▾ / ▸ im Kopf eines Decks | Das Deck zu einem Reiter einklappen. Ein Klick auf den Reiter öffnet es wieder. |
 | Eine Zeile ziehen | Einen Titel innerhalb der Liste verschieben, in ein anderes Deck oder eine Wunschliste, oder in den Explorer oder ein DJ-Programm ablegen. |
 | Einen Spaltenkopf zur Seite ziehen | Die Spalte verschieben, in allen Listen dieser Art. |

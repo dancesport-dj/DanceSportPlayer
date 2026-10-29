@@ -13,16 +13,16 @@ from PySide6.QtWidgets import QDialog
 from planner import i18n
 from planner.terms import dance_name
 from player.audio.mix import desk_duck_pct
-from shared.audio.playback import audible_played_secs
-from shared.stores import save_settings
-from shared.widgets import _show_toast
 from player.presenter.presenter import PAUSE_TEXT, PresenterWindow
 from player.presenter.timetable import load_timetable, save_timetable
-from player.window.main_pause import _live_target
+from player.window.main_pause import live_target
+from shared.audio.playback import audible_played_secs
+from shared.stores import save_settings
+from shared.widgets import show_toast
 
 if TYPE_CHECKING:
-    from gui.window.hosts import MainWindowHost
     from gui.table.playlist_table import PlaylistTable
+    from gui.window.hosts import MainWindowHost
 else:
     MainWindowHost = object
 
@@ -61,7 +61,7 @@ class PresenterMixin(MainWindowHost):
             self._presenter.playPauseRequested.connect(self._presenter_play_pause)
             self._presenter.nextRequested.connect(self._on_player_next)
             self._presenter.breakRequested.connect(self._on_to_pause)
-            self._presenter.duckToggled.connect(self._set_desk_duck)
+            self._presenter.duckPressed.connect(self._cycle_desk_duck)
             self._presenter.controlsToggled.connect(self._on_presenter_controls)
             self._presenter.lastToggled.connect(self._on_presenter_last)
             self._presenter.set_controls_shown(
@@ -72,7 +72,7 @@ class PresenterMixin(MainWindowHost):
             self._presenter.timetableRequested.connect(self._edit_timetable)
             self._presenter.set_timetable(load_timetable())
             self._presenter.set_now_offset(self._now_offset)
-            self._presenter.set_ducked(self._mix.desk != 1.0)
+            self._presenter.set_ducked(self._mix.desk != 1.0, self._mix.desk_muted)
             self._presenter.set_duck_level(desk_duck_pct(self._settings))
             guests = getattr(self, "_guests", None)
             if guests is not None:   # 📨 open guest requests show their code
@@ -125,7 +125,7 @@ class PresenterMixin(MainWindowHost):
         if self._now_offset is not None:
             at = datetime.now() + self._now_offset
             shifted = i18n.t(", running at %s") % at.strftime("%H:%M")
-        _show_toast(self, i18n.t("🕒  Timetable saved — %d entries") % len(table.entries)
+        show_toast(self, i18n.t("🕒  Timetable saved — %d entries") % len(table.entries)
                     + (i18n.t(", fading every %ss") % table.rotate_secs
                        if table.rotate else "") + shifted)
 
@@ -218,7 +218,7 @@ class PresenterMixin(MainWindowHost):
                 table, row = t, t._current_play_row
                 break
         if table is None:
-            nxt = _live_target(self._between.pending)
+            nxt = live_target(self._between.pending)
             if nxt is None:
                 return out
             table, row, path = nxt
@@ -240,10 +240,10 @@ class PresenterMixin(MainWindowHost):
         nothing is sounding — a break, or the moment between two songs where
         the hero already names the one about to start — the title that just
         ended is the last played, and that one is still the loaded one."""
-        if self._pause_on_screen() or self._between.pending is not None:
-            if self._playback.path is not None:
-                return (dance_name(self._playback.dance, self._playback.dance),
-                        self._playback.path.stem)
+        if ((self._pause_on_screen() or self._between.pending is not None)
+                and self._playback.path is not None):
+            return (dance_name(self._playback.dance, self._playback.dance),
+                    self._playback.path.stem)
         return self._last_played or ("", "")
 
     def _presenter_times(self) -> tuple[str, str, bool, float]:
@@ -306,7 +306,7 @@ class PresenterMixin(MainWindowHost):
         last played)."""
         if self._pause_on_screen():
             now = (PAUSE_TEXT, "")
-        elif (target := _live_target(self._between.pending)) is not None:
+        elif (target := live_target(self._between.pending)) is not None:
             # No pause configured — show what is about to start instead of the
             # break mark: the advance fires within a refresh or two, and a ⏸
             # blinking on and off between every two titles reads as a fault.

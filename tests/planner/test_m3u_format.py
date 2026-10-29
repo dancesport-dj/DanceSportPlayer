@@ -21,9 +21,9 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_m3u_format_"))
 
 from planner import config as planner_config
+from planner.models import MusicEntry
 from planner.music import playlist_index
 from planner.playlist import m3u
-from planner.models import MusicEntry
 from planner.playlist.playlist_text import playlist_files
 
 _BOM = b"\xef\xbb\xbf"
@@ -52,7 +52,7 @@ class ExportFormatTest(_Base):
         self.assertEqual(out.suffix, ".m3u")
         raw = out.read_bytes()
         self.assertFalse(raw.startswith(_BOM))
-        self.assertIn("Küss mich".encode("utf-8"), raw)
+        self.assertIn("Küss mich".encode(), raw)
 
     def test_utf8_with_a_bom(self):
         out = self.export("utf-8-sig")

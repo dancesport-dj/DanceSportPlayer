@@ -80,9 +80,9 @@ class DeckCleanTest(unittest.TestCase):
 
     def setUp(self):
         self.toasts = []
-        real = self.md._show_toast
-        self.md._show_toast = lambda _w, text, **kw: self.toasts.append(text)
-        self.addCleanup(setattr, self.md, "_show_toast", real)
+        real = self.md.show_toast
+        self.md.show_toast = lambda _w, text, **kw: self.toasts.append(text)
+        self.addCleanup(setattr, self.md, "show_toast", real)
 
     def _win(self, *tables):
         return self.Win(tables)
@@ -193,8 +193,8 @@ class MenuLabelTest(unittest.TestCase):
     def setUpClass(cls):
         os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                              tempfile.mkdtemp(prefix="dp_dedup_"))
-        from gui.table.table_menu import _clean_deck_label
-        cls.label = staticmethod(_clean_deck_label)
+        from gui.table.table_menu import clean_deck_label
+        cls.label = staticmethod(clean_deck_label)
 
     def test_a_single_other_playlist_is_not_counted(self):
         self.assertEqual(self.label(1),

@@ -3,17 +3,17 @@ popularity weighting used for proven-gating and ranking."""
 import unittest
 from pathlib import Path
 
-from planner.models import MusicEntry
 from planner.generate.scoring import (
-    _FINAL_MIN_PLAYS,
-    _OTHER_CLASS_CAP,
-    _resolve_strategy,
+    FINAL_MIN_PLAYS,
+    OTHER_CLASS_CAP,
     class_dilutes,
     class_focused,
     class_popularity,
     effective_popularity,
     prefer_late_rounds,
+    resolve_strategy,
 )
+from planner.models import MusicEntry
 
 
 def _e(popularity=0, class_plays=None, final_plays=0, semi_plays=0):
@@ -25,17 +25,17 @@ def _e(popularity=0, class_plays=None, final_plays=0, semi_plays=0):
 class ResolveStrategyTest(unittest.TestCase):
 
     def test_explicit_strategy_wins(self):
-        self.assertEqual(_resolve_strategy("final", False, "fresh"), "fresh")
-        self.assertEqual(_resolve_strategy("early", True, "all"), "all")
+        self.assertEqual(resolve_strategy("final", False, "fresh"), "fresh")
+        self.assertEqual(resolve_strategy("early", True, "all"), "all")
 
     def test_unknown_strategy_falls_back_to_tier(self):
-        self.assertEqual(_resolve_strategy("final", False, "banana"), "top_proven")
-        self.assertEqual(_resolve_strategy("final", False, None), "top_proven")
-        self.assertEqual(_resolve_strategy("semi", False, None), "proven")
+        self.assertEqual(resolve_strategy("final", False, "banana"), "top_proven")
+        self.assertEqual(resolve_strategy("final", False, None), "top_proven")
+        self.assertEqual(resolve_strategy("semi", False, None), "proven")
 
     def test_early_tier_uses_prefer_fresh_flag(self):
-        self.assertEqual(_resolve_strategy("early", True, None), "fresh")
-        self.assertEqual(_resolve_strategy("early", False, None), "proven")
+        self.assertEqual(resolve_strategy("early", True, None), "fresh")
+        self.assertEqual(resolve_strategy("early", False, None), "proven")
 
 
 class PreferLateRoundsTest(unittest.TestCase):
@@ -47,8 +47,8 @@ class PreferLateRoundsTest(unittest.TestCase):
     def setUp(self):
         self.warhorse = _e(popularity=40)                  # never a late round
         self.once = _e(popularity=6, final_plays=1)
-        self.finalist = _e(popularity=8, final_plays=_FINAL_MIN_PLAYS)
-        self.semifinalist = _e(popularity=7, semi_plays=_FINAL_MIN_PLAYS)
+        self.finalist = _e(popularity=8, final_plays=FINAL_MIN_PLAYS)
+        self.semifinalist = _e(popularity=7, semi_plays=FINAL_MIN_PLAYS)
         self.pool = [self.warhorse, self.once, self.finalist, self.semifinalist]
 
     def test_the_final_keeps_only_the_proven_finalists(self):
@@ -117,7 +117,7 @@ class EffectivePopularityTest(unittest.TestCase):
         e = _e(popularity=75, class_plays={"D": 75})
         eff = effective_popularity(e, "S")
         same_share = (0 + 0.5 * 2.0) / (75 + 2.0)   # no S plays → tiny share
-        self.assertAlmostEqual(eff, 0 + 0 * same_share + _OTHER_CLASS_CAP)
+        self.assertAlmostEqual(eff, 0 + 0 * same_share + OTHER_CLASS_CAP)
         self.assertLess(eff, 5)   # stays below _PROVEN_MIN_POP
 
     def test_unknown_plays_follow_the_songs_own_class_mix(self):
@@ -125,7 +125,7 @@ class EffectivePopularityTest(unittest.TestCase):
         # so they add ≈3.5 — not ≈28.5 as under a flat 0.5 weight.
         e = _e(popularity=88, class_plays={"D": 30, "S": 1})
         same_share = (1 + 0.5 * 2.0) / (31 + 2.0)
-        expected = 1 * 1.0 + 57 * same_share + min(30 * 0.1, _OTHER_CLASS_CAP)
+        expected = 1 * 1.0 + 57 * same_share + min(30 * 0.1, OTHER_CLASS_CAP)
         self.assertAlmostEqual(effective_popularity(e, "S"), expected)
 
     def test_no_classified_plays_keeps_neutral_half_weight(self):

@@ -22,12 +22,12 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_sim_decks_"))
 
 from PySide6.QtWidgets import QApplication, QWidget
-from tests.qt_test_support import reap_widget
 
-from gui.window.main_decks import DeckLayoutMixin
-from gui.dialogs.similar_dialog import SimilarTracksDialog
-from planner.models import MusicEntry
 from gui.decks.deck_set import DeckSet
+from gui.dialogs.similar_dialog import SimilarTracksDialog
+from gui.window.main_decks import DeckLayoutMixin
+from planner.models import MusicEntry
+from tests.qt_test_support import reap_widget
 
 _app = QApplication.instance() or QApplication(sys.argv)
 

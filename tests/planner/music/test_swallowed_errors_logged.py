@@ -16,8 +16,8 @@ from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-import planner.music.scan_caches as scan_caches
 import planner.music.parsing as parsing
+import planner.music.scan_caches as scan_caches
 
 SONG = Path(r"C:\music\tanzcds\standardcd\TG\Tanguera (TG 32).mp3")
 
@@ -38,7 +38,7 @@ class SwallowedErrorsLoggedTest(unittest.TestCase):
         with mock.patch.object(parsing, "MutagenFile", _boom):
             self.assertLoggedWithTraceback(
                 "dancesport.parsing",
-                lambda: self.assertEqual(parsing._read_duration(SONG), 0))
+                lambda: self.assertEqual(parsing.read_duration(SONG), 0))
 
     def test_reading_the_tag(self):
         with mock.patch.object(parsing, "ID3", _boom):
@@ -51,7 +51,7 @@ class SwallowedErrorsLoggedTest(unittest.TestCase):
         tags.__contains__.side_effect = _boom
         self.assertLoggedWithTraceback(
             "dancesport.parsing",
-            lambda: self.assertEqual(parsing._detect_year("Tanguera 2019", SONG, tags), 2019))
+            lambda: self.assertEqual(parsing.detect_year("Tanguera 2019", SONG, tags), 2019))
 
     def test_counting_the_global_index(self):
         with mock.patch.object(scan_caches, "_db", _boom):

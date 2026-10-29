@@ -64,9 +64,8 @@ class MigrationAtomicTest(unittest.TestCase):
         raw.close()
 
         with mock.patch.object(pdb, "_insert_legacy",
-                               side_effect=OSError("disk full")):
-            with self.assertRaises(OSError):
-                pdb._db()
+                               side_effect=OSError("disk full")), self.assertRaises(OSError):
+            pdb._db()
         self._close()
 
         self.assertIn("key", self._cols("fingerprints"))
@@ -94,9 +93,8 @@ class MigrationAtomicTest(unittest.TestCase):
         raw.close()
 
         with mock.patch.object(pdb, "_migrate_features_gauss",
-                               side_effect=OSError("disk full")):
-            with self.assertRaises(OSError):
-                pdb._db()
+                               side_effect=OSError("disk full")), self.assertRaises(OSError):
+            pdb._db()
         self._close()
 
         self.assertIn("file_id", self._cols("scan_meta"))
@@ -108,9 +106,8 @@ class MigrationAtomicTest(unittest.TestCase):
         # The connection was cached before the migration ran, so the next
         # _db() on that thread handed it back with the schema never built.
         with mock.patch.object(pdb, "_ensure_schema",
-                               side_effect=OSError("disk full")):
-            with self.assertRaises(OSError):
-                pdb._db()
+                               side_effect=OSError("disk full")), self.assertRaises(OSError):
+            pdb._db()
 
         conn = pdb._db()
         self.assertTrue(pdb._DB_INITIALIZED)

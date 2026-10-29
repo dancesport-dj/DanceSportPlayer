@@ -9,36 +9,35 @@ Pure logic + signals only, no widgets.
 """
 
 import itertools
-import threading
-import time
 import logging
 import sqlite3
+import threading
+import time
 from collections import deque
-from contextlib import closing
 from concurrent.futures import CancelledError, ThreadPoolExecutor
+from contextlib import closing
 from pathlib import Path
 
 from PySide6.QtCore import QThread, Signal
 
 log = logging.getLogger("dancesport.workers")
 
+from planner import i18n
+from planner.event import event_plan
+from planner.generate import llm
 from planner.generate.ai import openrouter_chat, openrouter_free_models
+from planner.generate.warmup import build_class_warmup, build_warmup_playlist
+from planner.models import ALLOW_REPEAT, ScanCancelled
+from planner.music import custom_field
 from planner.music.db import AudioCache
 from planner.music.db_upkeep import db_maintenance, reset_database
-from planner.music.scan_caches import GlobalScanCache
 from planner.music.library import MusicLibrary
-from planner.system_info import lower_thread_priority
-from planner.models import ScanCancelled, ALLOW_REPEAT
-from planner.generate.warmup import build_class_warmup, build_warmup_playlist
-from planner.music.parsing import _detect_dance
-from planner.music import custom_field
-from planner.event import event_plan
-from planner import i18n
-from planner.generate import llm
+from planner.music.parsing import detect_dance
+from planner.music.scan_caches import GlobalScanCache
 from planner.playlist.planned import path_key
 from planner.playlist.playlist_text import read_playlist_text
+from planner.system_info import lower_thread_priority
 from shared.audio.audio_probes import detect_pd_highlights, detect_silences, measure_loudness
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Orphaned workers
@@ -80,11 +79,11 @@ class LibraryLoader(QThread):
     opens in between, and that restore writes fingerprints: started at once,
     the scan's back-to-back write transactions would starve it.
     """
-    status      = Signal(str)
+    status = Signal(str)
     cache_ready = Signal(object)           # AudioCache, before the scan
-    progress    = Signal(int, int)         # (files done, total); total 0 = listing
+    progress = Signal(int, int)            # (files done, total); total 0 = listing
     finished_ok = Signal(object, object)   # (MusicLibrary, AudioCache)
-    error       = Signal(str)
+    error = Signal(str)
 
     def __init__(self, music_dir=None, parent=None):
         super().__init__(parent)
@@ -173,15 +172,15 @@ class GlobalLibraryLoader(QThread):
     just the widest read-only index, so a dropped file can be matched against
     everything. Files without cached features are simply skipped at ranking time.
     """
-    done      = Signal(object)        # MusicLibrary
-    error     = Signal(str)
+    done = Signal(object)        # MusicLibrary
+    error = Signal(str)
     cancelled = Signal()
-    progress  = Signal(int, int, str, bool)   # done, total, current filename, reused
+    progress = Signal(int, int, str, bool)   # done, total, current filename, reused
 
     def __init__(self, cache, music_dir, parent=None, share_from=None):
         super().__init__(parent)
         self._cache = cache
-        self._dir   = Path(music_dir)
+        self._dir = Path(music_dir)
         self._share_from = share_from
         self._cancel = False
         self._paused = False
@@ -229,7 +228,7 @@ class GlobalCacheLoader(QThread):
     'Loading from cache…' window. Emits an empty library when the cache is cold so
     the caller can fall back to a full scan.
     """
-    done  = Signal(object)   # MusicLibrary
+    done = Signal(object)   # MusicLibrary
     error = Signal(str)
 
     def __init__(self, cache, parent=None, share_from=None):
@@ -264,7 +263,7 @@ class DbMaintenanceWorker(QThread):
 
     VACUUM rewrites the whole DB file (hundreds of MB), so this can take a while.
     """
-    done  = Signal(object)   # result dict {"removed": …, "size_before": …, "size_after": …}
+    done = Signal(object)   # result dict {"removed": …, "size_before": …, "size_after": …}
     error = Signal(str)
 
     def run(self):
@@ -276,7 +275,7 @@ class DbMaintenanceWorker(QThread):
 
 class DbResetWorker(QThread):
     """Runs planner reset_database(groups) (backup, DELETEs, VACUUM) off the UI thread."""
-    done  = Signal(object)   # {table: rows removed}
+    done = Signal(object)   # {table: rows removed}
     error = Signal(str)
 
     def __init__(self, groups, parent=None):
@@ -298,7 +297,7 @@ class PlaylistRelearnWorker(QThread):
     (MusicLibrary.learn_playlist_index). The library itself is untouched until
     the GUI thread swaps the result in with adopt_playlist_index.
     """
-    done  = Signal(object)   # LearnedPlaylistIndex
+    done = Signal(object)   # LearnedPlaylistIndex
     error = Signal(str)
 
     def __init__(self, lib: MusicLibrary, parent=None):
@@ -398,20 +397,20 @@ class AudioAnalyzer(QThread):
     Byte-identical duplicates are analyzed once (shared MFCC bucket), and the run
     can be cancelled cooperatively via cancel().
     """
-    progress  = Signal(int, int, int, str, float)  # (done, total, errors, name, eta_seconds)
+    progress = Signal(int, int, int, str, float)  # (done, total, errors, name, eta_seconds)
     # NOT named `finished`: QThread already has a built-in `finished` signal and
     # shadowing it breaks native thread-lifecycle connections (e.g. deleteLater).
-    done      = Signal(int, int)             # (ok, errors)
-    report    = Signal(dict)                 # {ok, errors, skipped, reasons}
-    cancelled = Signal(int)                  # (analyzed so far)
-    error     = Signal(str)                  # died outside the per-file try
+    done = Signal(int, int)             # (ok, errors)
+    report = Signal(dict)               # {ok, errors, skipped, reasons}
+    cancelled = Signal(int)             # (analyzed so far)
+    error = Signal(str)                 # died outside the per-file try
 
     def __init__(self, cache: AudioCache, entries: list, parent=None, force: bool = False):
         super().__init__(parent)
-        self._cache   = cache
+        self._cache = cache
         self._entries = entries
-        self._cancel  = False
-        self._force   = force
+        self._cancel = False
+        self._force = force
 
     def cancel(self):
         self._cancel = True
@@ -474,14 +473,14 @@ class WarmupBuilder(QThread):
     (alternating 3-dance party rounds). Emits per-track progress for a BusyDialog.
     """
     progress = Signal(int, int)        # (done, total)
-    done     = Signal(object)          # list[MusicEntry]
-    error    = Signal(str)
+    done = Signal(object)              # list[MusicEntry]
+    error = Signal(str)
 
     def __init__(self, entries, mode, params, parent=None):
         super().__init__(parent)
         self._entries = list(entries)
-        self._mode    = mode
-        self._params  = dict(params)
+        self._mode = mode
+        self._params = dict(params)
 
     def run(self):
         try:
@@ -511,9 +510,9 @@ class AiPlaylistWorker(QThread):
 
     Emits the raw picks (catalog numbers); turning those back into MusicEntry
     rows is the window's job, since only it knows the round structure."""
-    done  = Signal(object, str, str)   # (picks, notes, backend)
+    done = Signal(object, str, str)   # (picks, notes, backend)
     error = Signal(str)
-    step  = Signal(str, str, str)      # (role, title, text) — the live transcript
+    step = Signal(str, str, str)      # (role, title, text) — the live transcript
     cancelled = Signal()               # ⏹ — stopped on request, nothing to show
 
     def __init__(self, rules, task, candidates, model, config_dir, parent=None,
@@ -737,12 +736,25 @@ class LibraryPass(QThread):
         pool = ThreadPoolExecutor(max_workers=self.workers,
                                   thread_name_prefix="pass")
         self._pool = pool
+
+        def submit(path) -> bool:
+            # cancel() shuts the pool down from the GUI thread, and it may land
+            # after `_cancel` was looked at: the refused submit is that cancel.
+            try:
+                pending.append((path, pool.submit(self.compute, path)))
+            except RuntimeError:
+                if not self._cancel:
+                    raise
+                return False
+            return True
+
         try:
             pending = deque()
             nxt = iter(todo)
             # Keep one full window in flight ahead of what is being stored.
             for path in itertools.islice(nxt, self.workers * 2):
-                pending.append((path, pool.submit(self.compute, path)))
+                if not submit(path):
+                    return
             while pending:
                 path, fut = pending.popleft()
                 if self._cancel:
@@ -754,8 +766,8 @@ class LibraryPass(QThread):
                 yield path, (self.store(path, result)
                              if result is not None else False)
                 follow = next(nxt, None)
-                if follow is not None and not self._cancel:
-                    pending.append((follow, pool.submit(self.compute, follow)))
+                if follow is not None and not self._cancel and not submit(follow):
+                    return
         finally:
             self._pool = None
             # Wait for the decodes already running: a pass that has returned
@@ -981,10 +993,10 @@ class EmbeddingIndexWorker(QThread):
     Each unique audio (by content fingerprint) is embedded once and cached in the
     shared SQLite `embeddings` table. The neural model is loaded lazily on first use.
     """
-    progress  = Signal(int, int, str, float)   # (done, total, current filename, eta_seconds)
-    done      = Signal(int, int, str)          # (computed, errors, first_error or "")
-    cancelled = Signal(int)                     # (computed so far)
-    error     = Signal(str)
+    progress = Signal(int, int, str, float)   # (done, total, current filename, eta_seconds)
+    done = Signal(int, int, str)              # (computed, errors, first_error or "")
+    cancelled = Signal(int)                   # (computed so far)
+    error = Signal(str)
 
     def __init__(self, store, model: str, entries: list, parent=None):
         super().__init__(parent)
@@ -1052,7 +1064,7 @@ class EmbeddingRankWorker(QThread):
     """Runs a deep-embedding ranking (similar-tracks) off the UI
     thread. `fn` is a no-arg callable returning (label, results). The first call also
     loads the model, which is why this must not block the UI."""
-    done  = Signal(object, object)   # (source-or-prompt, results)
+    done = Signal(object, object)   # (source-or-prompt, results)
     error = Signal(str)
 
     def __init__(self, fn, parent=None):
@@ -1069,7 +1081,7 @@ class EmbeddingRankWorker(QThread):
 
 class SimilarFromFileWorker(QThread):
     """Analyzes a dropped file (librosa) then finds similar library tracks."""
-    done  = Signal(object, object)   # (source MusicEntry, results list)
+    done = Signal(object, object)    # (source MusicEntry, results list)
     error = Signal(str)
 
     def __init__(self, lib, cache, path: str, n: int = 12, min_display: float = 0.0, parent=None):
@@ -1089,7 +1101,7 @@ class SimilarFromFileWorker(QThread):
 class OpenRouterChatWorker(QThread):
     """Runs one chat completion off the UI thread (OpenRouter, or whichever
     OpenAI-compatible host `base_url` names)."""
-    done  = Signal(str)
+    done = Signal(str)
     error = Signal(str)
 
     def __init__(self, api_key, model, system, user, parent=None, base_url=""):
@@ -1108,7 +1120,7 @@ class OpenRouterChatWorker(QThread):
 class OpenRouterModelsWorker(QThread):
     """Fetches the host's model list off the UI thread (free ones only when the
     host is OpenRouter — nobody else prices that list)."""
-    done  = Signal(object)
+    done = Signal(object)
     error = Signal(str)
 
     def __init__(self, api_key, parent=None, base_url=""):
@@ -1127,7 +1139,7 @@ class OpenRouterModelsWorker(QThread):
 # ─────────────────────────────────────────────────────────────────────────────
 # Reference-base cleaner (Referenzbasis → export unused)
 # ─────────────────────────────────────────────────────────────────────────────
-def _parse_m3u_blocks(m3u: Path) -> list:
+def parse_m3u_blocks(m3u: Path) -> list:
     """Split an .m3u into one block per track: {'raw': [original lines incl. the
     #EXTINF header and the path line], 'path': absolute Path, 'title': str|None}.
     A leading '#EXTM3U' is dropped from the blocks (re-emitted once on write).
@@ -1171,16 +1183,16 @@ class ReferenceCleanWorker(QThread):
     ref_total, pd_kept.
     """
     progress = Signal(int, int)        # done, total
-    done     = Signal(dict)            # result
-    failed   = Signal(str)
+    done = Signal(dict)                # result
+    failed = Signal(str)
 
     def __init__(self, ref_path, tournament_paths, cache, parse_m3u, parent=None):
         super().__init__(parent)
-        self._ref      = Path(ref_path)
-        self._tours    = [Path(p) for p in tournament_paths]
-        self._cache    = cache
+        self._ref = Path(ref_path)
+        self._tours = [Path(p) for p in tournament_paths]
+        self._cache = cache
         self._parse_m3u = parse_m3u    # Callable[[Path], List[Path]]
-        self._cancel   = False
+        self._cancel = False
 
     def cancel(self):
         """Stop at the next track — the dialog that asked is closing."""
@@ -1190,7 +1202,7 @@ class ReferenceCleanWorker(QThread):
     def _is_pd(path: Path) -> bool:
         # '_' is a word char, so the \bPD\b detector misses 'PD_58_Espana' — treat
         # underscores as separators (only widens word boundaries, never hides a token).
-        return _detect_dance(path.name.replace("_", " ")) in ALLOW_REPEAT
+        return detect_dance(path.name.replace("_", " ")) in ALLOW_REPEAT
 
     def _hard_key(self, path: Path) -> str:
         """Content fingerprint (byte-identical / re-encoded copies collapse), else
@@ -1210,12 +1222,12 @@ class ReferenceCleanWorker(QThread):
 
     def run(self):
         try:
-            ref_blocks = _parse_m3u_blocks(self._ref)
+            ref_blocks = parse_m3u_blocks(self._ref)
             tour_tracks: list = []
             for t in self._tours:
                 tour_tracks.extend(self._tracks_of(t))
             total = len(tour_tracks) + len(ref_blocks)
-            done  = 0
+            done = 0
 
             # Hard keys of every tournament track (PD skipped — never checked).
             tour_keys = set()
@@ -1253,11 +1265,11 @@ class ReferenceCleanWorker(QThread):
                     self.progress.emit(done, total)
 
             self.done.emit({
-                "ref_path":    self._ref,
+                "ref_path": self._ref,
                 "kept_blocks": kept_blocks,
-                "removed":     removed,
-                "ref_total":   len(ref_blocks),
-                "pd_kept":     pd_kept,
+                "removed": removed,
+                "ref_total": len(ref_blocks),
+                "pd_kept": pd_kept,
             })
         except Exception as exc:
             self.failed.emit(str(exc))

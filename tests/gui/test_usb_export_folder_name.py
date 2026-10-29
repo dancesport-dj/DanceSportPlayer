@@ -18,12 +18,13 @@ from datetime import date
 from pathlib import Path
 from unittest import mock
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QDialog, QMainWindow, QMessageBox
 
 from gui.dialogs import UsbBundleFolderDialog
 from gui.window import main_export
-from gui.window.main_export import ExportMixin, _bundle_name_guess
+from gui.window.main_export import ExportMixin, bundle_name_guess
 from planner.config import playlist_dir, set_playlist_dir
 from tests.gui.window.test_bundle_export_thread import _FakeBusy
 from tests.qt_test_support import reap_widget
@@ -42,37 +43,37 @@ class GuessTest(unittest.TestCase):
 
     def test_the_folder_the_playlist_lies_in(self):
         self.assertEqual(
-            _bundle_name_guess([ROOT / Path("2026/Gala Hamburg/final.m3u")]),
+            bundle_name_guess([ROOT / Path("2026/Gala Hamburg/final.m3u")]),
             "Gala Hamburg")
 
     def test_sibling_folders_name_the_one_above_them(self):
-        self.assertEqual(_bundle_name_guess([
+        self.assertEqual(bundle_name_guess([
             ROOT / Path("2026/Gala Hamburg/Sen/a.m3u"),
             ROOT / Path("2026/Gala Hamburg/Hgr/b.m3u")]), "Gala Hamburg")
 
     def test_unrelated_folders_take_the_one_most_lists_lie_in(self):
-        self.assertEqual(_bundle_name_guess([
+        self.assertEqual(bundle_name_guess([
             ROOT / Path("2026/Gala/a.m3u"),
             ROOT / Path("2025/Cup/b.m3u"),
             ROOT / Path("2025/Cup/c.m3u")]), "Cup")
 
     def test_the_apps_own_output_folders_name_nothing(self):
         out = main_export.OUTPUT_DIR
-        self.assertEqual(_bundle_name_guess([out / "a.m3u"]), DATED)
-        self.assertEqual(_bundle_name_guess([out.parent / "wishlists" / "w.m3u"]),
+        self.assertEqual(bundle_name_guess([out / "a.m3u"]), DATED)
+        self.assertEqual(bundle_name_guess([out.parent / "wishlists" / "w.m3u"]),
                          DATED)
 
     def test_a_year_folder_names_nothing(self):
-        self.assertEqual(_bundle_name_guess([
+        self.assertEqual(bundle_name_guess([
             ROOT / Path("2026/Gala/a.m3u"),
             ROOT / Path("2026/Cup/b.m3u")]), "Gala")
 
     def test_the_playlist_root_itself_names_nothing(self):
-        self.assertEqual(_bundle_name_guess([ROOT / "a.m3u"]), DATED)
+        self.assertEqual(bundle_name_guess([ROOT / "a.m3u"]), DATED)
 
     def test_no_file_at_all_is_the_dated_name(self):
-        self.assertEqual(_bundle_name_guess([None]), DATED)
-        self.assertEqual(_bundle_name_guess([Path("E:/a.m3u")]), DATED)
+        self.assertEqual(bundle_name_guess([None]), DATED)
+        self.assertEqual(bundle_name_guess([Path("E:/a.m3u")]), DATED)
 
 
 class DialogTest(unittest.TestCase):
@@ -97,6 +98,16 @@ class DialogTest(unittest.TestCase):
         dlg = self.dialog(False)
         dlg._create.click()
         self.assertFalse(dlg.into_root())
+
+    def test_enter_in_the_name_creates_the_folder(self):
+        # Marcel: typed the name, hit Enter, and the export was cancelled.
+        for at_top in (True, False):
+            dlg = self.dialog(at_top)
+            dlg.show()
+            dlg._edit.setFocus()
+            QTest.keyClick(dlg._edit, Qt.Key.Key_Return)
+            self.assertEqual(dlg.result(), QDialog.DialogCode.Accepted)
+            self.assertFalse(dlg.into_root())
 
     def test_no_name_no_folder(self):
         dlg = self.dialog(True)

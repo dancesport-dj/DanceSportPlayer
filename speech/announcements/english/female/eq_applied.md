@@ -1,7 +1,7 @@
 # female: announcement clips with an EQ baked in
 
 - Preset: **clear**
-- Applied: 2026-10-05 12:15
+- Applied: 2026-10-29 12:10
 - Clips treated: 26
 - The untouched recordings are in `original/`, and every run reads from there — applying again cannot stack a second EQ.
 

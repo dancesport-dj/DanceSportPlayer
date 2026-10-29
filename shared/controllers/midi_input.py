@@ -16,7 +16,6 @@ library is missing there are simply no inputs.
 
 Nothing Qt lives here.
 """
-from __future__ import annotations
 
 import sys
 
@@ -25,7 +24,6 @@ __all__ = ["MidiInput", "MidiStreamParser", "list_inputs", "unique_names"]
 # Data bytes after a channel status: note off/on, poly pressure, control
 # change, program change, channel pressure, pitch bend.
 _DATA_BYTES = {0x80: 2, 0x90: 2, 0xA0: 2, 0xB0: 2, 0xC0: 1, 0xD0: 1, 0xE0: 2}
-
 
 class MidiStreamParser:
     """Raw MIDI bytes → (status, data1, data2) channel messages.

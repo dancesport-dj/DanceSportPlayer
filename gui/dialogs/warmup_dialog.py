@@ -5,7 +5,6 @@ needs the library's titles (for the party-length estimate) and the folder to
 browse from, not the window. So it is a function of those here, tested without
 one; the window binds its library and settings to it.
 """
-import planner.models
 from PySide6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
@@ -24,11 +23,13 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+import planner.models
 from gui.dialogs import M3uDropDialog
 from gui.dialogs.warmup_estimate import WarmupEstimateBox
 from planner import i18n
+from planner.generate.warmup import WARMUP_MODE, warmup_lengths
 from planner.terms import dance_name
-from planner.generate.warmup import _WARMUP_MODE, warmup_lengths
 
 
 def _add_mode_box(dlg, lyt):
@@ -132,7 +133,7 @@ def _build_etds_page(entries):
     mode_box.setSpacing(2)
     mode_checks = {}
     _mode_default_on = {"DISCOFOX", "SALSA"}
-    for code in _WARMUP_MODE:
+    for code in WARMUP_MODE:
         cb = QCheckBox(dance_name(code, code))
         cb.setChecked(code in _mode_default_on)
         mode_box.addWidget(cb)

@@ -198,7 +198,7 @@ class MertBackendTest(_Base):
         self.transformers.AutoModel.from_pretrained.return_value = self.model
         self.transformers.Wav2Vec2FeatureExtractor.from_pretrained.return_value = self.proc
         self.modules(transformers=self.transformers, librosa=self.librosa)
-        self.patch(ae, "_quiet_native_stderr", new=contextlib.nullcontext)
+        self.patch(ae, "quiet_native_stderr", new=contextlib.nullcontext)
         self.certs = self.patch(ae, "_enable_system_certs")
         self.quiet = self.patch(ae, "_quiet_model_chatter")
 
@@ -350,7 +350,7 @@ class ChromaBackendTest(_Base):
         self.librosa = mock.Mock()
         self.librosa.load.return_value = (np.zeros(2 * ae._CHROMA_SR), ae._CHROMA_SR)
         self.modules(librosa=self.librosa)
-        self.patch(ae, "_quiet_native_stderr", new=contextlib.nullcontext)
+        self.patch(ae, "quiet_native_stderr", new=contextlib.nullcontext)
 
     def test_there_is_no_model_to_fetch(self):
         cb = mock.Mock()

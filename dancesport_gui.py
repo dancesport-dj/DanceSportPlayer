@@ -6,12 +6,13 @@ Run:  py dancesport_gui.py
 CLI:  py dancesport_planner.py
 """
 import io
+import logging
 import os
+import signal
 import sys
 import time
-import logging
-from pathlib import Path
 from collections.abc import Callable
+from pathlib import Path
 
 # The log goes to stdout with emoji in it. A Windows console is cp1252, so switch
 # it to UTF-8; a windowed build has no stdout at all (sys.stdout is None).
@@ -20,19 +21,36 @@ if (isinstance(sys.stdout, io.TextIOWrapper) and sys.stdout.encoding
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 try:
-    from PySide6.QtWidgets import (
-        QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-        QSplitter, QPushButton, QLabel,
-        QLineEdit, QPlainTextEdit, QMessageBox, QSizePolicy,
-        QAbstractSpinBox, QKeySequenceEdit,
-        QToolButton,
-        QStackedWidget,
-        QScrollArea, QFrame, QMenu,
-    )
     from PySide6.QtCore import (
-        Qt, QTimer, QEvent, QThread, QtMsgType, qInstallMessageHandler,
+        QEvent,
+        Qt,
+        QThread,
+        QTimer,
+        QtMsgType,
+        qInstallMessageHandler,
     )
-    from PySide6.QtGui import QShortcut, QKeySequence
+    from PySide6.QtGui import QKeySequence, QShortcut
+    from PySide6.QtWidgets import (
+        QAbstractSpinBox,
+        QApplication,
+        QFrame,
+        QHBoxLayout,
+        QKeySequenceEdit,
+        QLabel,
+        QLineEdit,
+        QMainWindow,
+        QMenu,
+        QMessageBox,
+        QPlainTextEdit,
+        QPushButton,
+        QScrollArea,
+        QSizePolicy,
+        QSplitter,
+        QStackedWidget,
+        QToolButton,
+        QVBoxLayout,
+        QWidget,
+    )
 except ImportError as e:
     print(f"PySide6 not found: {e}")
     print("Install with:  pip install PySide6")
@@ -44,7 +62,7 @@ except ImportError as e:
 _TYPED_INTO = (QLineEdit, QPlainTextEdit, QAbstractSpinBox, QKeySequenceEdit)
 
 try:
-    from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput, QMediaDevices
+    from PySide6.QtMultimedia import QAudioOutput, QMediaDevices, QMediaPlayer
     HAS_MULTIMEDIA = True
 except ImportError:
     HAS_MULTIMEDIA = False
@@ -69,13 +87,20 @@ if sys.platform == "win32":
 
 import planner.config
 import planner.playlist.m3u
-from planner.models import set_hidden_folders, set_no_class_exclusion
+from planner.models import (
+    ceremony_words_of,
+    set_ceremony_match,
+    set_hidden_folders,
+    set_no_class_exclusion,
+)
+
 # Before anything can start a child process (ffmpeg, gsettings, xdg-open).
 planner.config.restore_system_library_path()
-from planner.version import app_version
 from planner.dances import BEATS_PER_BAR
-from planner.music.db_upkeep import apply_settings as apply_backup_folder, backup_safely
 from planner.generate.suggester import PlaylistSuggester
+from planner.music.db_upkeep import apply_settings as apply_backup_folder
+from planner.music.db_upkeep import backup_safely
+from planner.version import app_version
 
 log = logging.getLogger("dancesport.gui")
 
@@ -112,148 +137,140 @@ def exit_app(code: int):
 # Background workers and all dialogs/shared widgets live in their own modules;
 # the names are re-imported here so the rest of this file keeps using them
 # unchanged.
-from gui.library_load_bar import LibraryLoadBar
-from gui.workers import (
-    LibraryLoader, AudioAnalyzer,
-    SimilarFromFileWorker,
-    LoudnessAnalyzer, PdHighlightAnalyzer,
-    SilenceAnalyzer, VocalShareAnalyzer,
-    adopt_running,
-)
-from shared.audio.audio_probes import LoudnessWorker, PdHighlightWorker, SilenceWorker
-from shared.appearance.icons import counted_emoji
-from shared.audio.playback import (plain_output_name, prime_disconnect_notify,
-                                   quiet_ffmpeg_log)
-from shared import error_reports
-from shared.appearance import look_icons, theme, user_looks
-from planner import i18n, system_info, terms
-from planner.event import venue_pack
-from planner.store import state_dir
-from gui.decks.deck import DeckContext, DeckField
-from gui.window.undo_timeline import UndoTimeline
-from gui.dialogs.shortcuts import show_shortcuts
-from gui.dialogs.about import manual_pdf, open_manual, show_about
-from gui.dialogs.log_export import export_log
-from gui.dialogs.update_notice import UpdateNotice
 from gui.common import (
+    APP_USER_MODEL_ID,
     BusyDialog,
     LoadingDialog,
-    set_dblclick_action,
     install_plain_title_hook,
+    set_dblclick_action,
 )
-from shared.audio.audio_files import (
-    set_browse_dir,
+from gui.config_panel import (  # facade re-export
+    ConfigPanel,
 )
-from shared.widgets import (
-    _app_icon,
-    _show_toast,
-)
+from gui.decks.deck import DeckContext, DeckField
+from gui.decks.deck_grid import DeckGrid
+from gui.decks.deck_set import DeckSet
 from gui.dialogs import (  # auto-resolved
-    load_settings,
+    PLAYER_FIRST_START,
     app_mode_of,
     app_title,
+    apply_media_backend,
     ensure_app_mode,
     ensure_error_reports_choice,
     ensure_library_dir,
     ensure_update_check_choice,
+    load_settings,
     warmup_name,
-    PLAYER_FIRST_START,
-    apply_media_backend,
 )
-from shared.stores import (
-    save_settings,
+from gui.dialogs.about import manual_pdf, open_manual, show_about
+from gui.dialogs.log_export import export_log
+from gui.dialogs.shortcuts import show_shortcuts
+from gui.dialogs.update_notice import UpdateNotice
+from gui.library_browser import (  # noqa: F401  (facade re-export)
+    LibPlayItem,
+    LibraryBrowser,
+    LibSortItem,
+    LibTable,
 )
+from gui.library_load_bar import LibraryLoadBar
 
 # ── View widgets (light split) ───────────────────────────────────────────────
 # Each standalone widget class lives in its own gui_* module; the names are
 # re-imported here so MainWindow and the smoke scripts keep using them unchanged.
 # === split re-exports ===
-
 from gui.table.playlist_table import (  # facade re-export
     PlaylistTable,
 )
-
-from gui.config_panel import (  # facade re-export
-    ConfigPanel,
-)
-
-from player.widgets.play_mode_panel import (  # facade re-export
-    PlayModePanel,
-)
-
-from player.presenter.presenter import (  # facade re-export
-    PresenterWindow,
-)
-
-from player.widgets.taskbar import (  # facade re-export
-    TaskbarPlayer,
-)
-
-from player.audio.announce import (  # noqa: F401  (facade re-export)
-    DanceAnnouncer,
-    announce_text,
-)
-
-from gui.library_browser import (  # noqa: F401  (facade re-export)
-    _LibSortItem,
-    _LibPlayItem,
-    _LibTable,
-    LibraryBrowser,
-)
-
 from gui.tournament_tree import (  # noqa: F401  (facade re-export)
     TournamentTree,
     load_tree,
     normalize_nodes,
     save_tree,
 )
-
-from player.audio.mix import OutputMix, desk_duck_pct
-from player.audio.on_air_note import NOTE
-from player.window.main_resume import EVENING
-from player.audio.audio_device import AudioDevice
-from player.audio.cue_player import CuePlayer
-from player.audio.playback_state import PlaybackState
-from player.audio.fade_now import FadeNow
-from player.audio.resume_marks import ResumeMarks
-from gui.decks.deck_grid import DeckGrid
-from gui.decks.deck_set import DeckSet
 from gui.window.library_service import LibraryService
-from player.audio.between_dances import BetweenDances
-from player.audio.pause_filler import PauseFiller
-from player.dialogs.play_log_dialog import PlayLogDialog
-from player.audio.system_sounds import SystemSoundGuard
-
-from player.widgets.player_parts import (  # noqa: F401  (facade re-export)
-    _fmt_ms,
-    _round_half_up,
-    _ClickSlider,
-)
-from player.widgets.player import (  # noqa: F401  (facade re-export)
-    PreviewOverlay,
-    BigPlayerWidget,
-)
-
+from gui.window.main_deck_setup import DeckSetupMixin
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Main Window
 # ─────────────────────────────────────────────────────────────────────────────
 # MainWindow is assembled from concern mixins (see gui_main_*):
 from gui.window.main_decks import DeckLayoutMixin
+from gui.window.main_drives import DriveWatchMixin
+from gui.window.main_fullscreen import FullscreenMixin
 from gui.window.main_generate import GenerateMixin
+from gui.window.main_global import GlobalIndexMixin
 from gui.window.main_import import ImportMixin
 from gui.window.main_persist import PersistenceMixin
-from player.window.main_player import PlayerControlMixin
-from gui.window.main_global import GlobalIndexMixin
+from gui.window.undo_timeline import UndoTimeline
+from gui.workers import (
+    AudioAnalyzer,
+    LibraryLoader,
+    LoudnessAnalyzer,
+    PdHighlightAnalyzer,
+    SilenceAnalyzer,
+    SimilarFromFileWorker,
+    VocalShareAnalyzer,
+    adopt_running,
+)
+from planner import i18n, system_info, terms
+from planner.event import venue_pack
+from planner.store import state_dir
+from player.audio.announce import (  # noqa: F401  (facade re-export)
+    DanceAnnouncer,
+    announce_text,
+)
+from player.audio.audio_device import AudioDevice
+from player.audio.between_dances import BetweenDances
+from player.audio.cue_player import CuePlayer
+from player.audio.fade_now import FadeNow
+from player.audio.mix import OutputMix, desk_duck_pct, duck_ramp_ms
+from player.audio.on_air_note import NOTE
+from player.audio.playback_state import PlaybackState
+from player.audio.resume_marks import ResumeMarks
+from player.audio.system_sounds import SystemSoundGuard
+from player.dialogs.play_log_dialog import PlayLogDialog
+from player.presenter.presenter import (  # facade re-export
+    PresenterWindow,
+)
+from player.widgets.play_mode_panel import (  # facade re-export
+    PlayModePanel,
+)
+from player.widgets.player import (  # noqa: F401  (facade re-export)
+    BigPlayerWidget,
+    PreviewOverlay,
+)
+from player.widgets.player_parts import (  # noqa: F401  (facade re-export)
+    ClickSlider,
+    _round_half_up,
+    fmt_ms,
+)
+from player.widgets.taskbar import (  # facade re-export
+    TaskbarPlayer,
+)
 from player.window.main_cartwall import CartwallMixin
 from player.window.main_controller import ControllerMixin
-from player.window.main_remote import RemoteMixin
 from player.window.main_guest import GuestMixin
-from gui.window.main_fullscreen import FullscreenMixin
-from gui.window.main_deck_setup import DeckSetupMixin
+from player.window.main_player import PlayerControlMixin
+from player.window.main_remote import RemoteMixin
+from player.window.main_resume import EVENING
+from shared import error_reports
+from shared.appearance import look_icons, theme, user_looks
+from shared.appearance.icons import counted_emoji
+from shared.audio.audio_files import (
+    set_browse_dir,
+)
+from shared.audio.audio_probes import LoudnessWorker, PdHighlightWorker, SilenceWorker
+from shared.audio.playback import plain_output_name, prime_disconnect_notify, quiet_ffmpeg_log
+from shared.stores import (
+    save_settings,
+)
+from shared.widgets import (
+    app_icon,
+    show_toast,
+)
 
 
-class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, PersistenceMixin, PlayerControlMixin, GlobalIndexMixin, CartwallMixin, RemoteMixin, GuestMixin, ControllerMixin, FullscreenMixin, QMainWindow):
+class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, PersistenceMixin, PlayerControlMixin, GlobalIndexMixin, CartwallMixin, RemoteMixin, GuestMixin, ControllerMixin, FullscreenMixin, DriveWatchMixin, QMainWindow):
     _space_at = 0.0   # when Space last toggled the big player — see eventFilter
 
     def __init__(self):
@@ -268,7 +285,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
 
         # Undo/redo: snapshot-based timeline of full-UI env dicts (see _build_env).
         self._undo_timeline = UndoTimeline(limit=50)
-        self._restoring     = False             # guards edit hooks during _apply_env
+        self._restoring = False             # guards edit hooks during _apply_env
 
         # 📚 The libraries and the threads loading them (gui.window.library_service).
         self._library = LibraryService()
@@ -276,14 +293,14 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         self._grid = DeckGrid()
         # 🎛 The decks, day decks, wishlists and their Decks (gui.decks.deck_set).
         self._deckset = DeckSet()
-        self._suggester:  PlaylistSuggester | None  = None
+        self._suggester: PlaylistSuggester | None = None
         # Deck A's generation context, read and written through the DeckFields
         # (_style, _playlist …) until the decks exist to hold it.
         self._boot_ctx = DeckContext()
-        self._iteration   = 0
+        self._iteration = 0
         # Per-competition worked playlists, so switching the competition combo keeps
         # each one's edits. Keyed by combo index; reset when a new schedule is parsed.
-        self._replay_work: dict[int, dict]   = {}
+        self._replay_work: dict[int, dict] = {}
 
         # Settings + lazily-built whole-repo library (for global search)
         self._settings = load_settings()
@@ -295,12 +312,14 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         set_no_class_exclusion(self._settings.get("exclude_no_class"))
         set_dblclick_action(self._settings.get("dblclick_action"))
         set_hidden_folders(self._settings.get("hidden_folders"))
+        set_ceremony_match(ceremony_words_of(self._settings),
+                           self._settings.get("ceremony_folders"))
         # Every open/add picker starts where the last one ended.
         set_browse_dir(self._settings.get("open_dir", ""),
                        self._remember_open_dir)
-        self._pending_drop:  str | None              = None
+        self._pending_drop: str | None = None
         self._pending_after_global: Callable[[], None] | None = None
-        self._index_analyzer: AudioAnalyzer | None   = None
+        self._index_analyzer: AudioAnalyzer | None = None
         self._emb_idx_worker = None
         self._allcache = None
         self._allcache_worker = None   # the probe step running inside it
@@ -308,7 +327,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         # The scan needs nothing the window builds, so it runs while the window
         # is built instead of after it.
         self._setup_library_load()
-        self.setWindowIcon(_app_icon())
+        self.setWindowIcon(app_icon())
         self._setup_media_player()
         self._setup_timed_play()
         splitter = self._setup_left_panel()
@@ -323,6 +342,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         self._ctl_hub.changed.connect(self._sync_controller_badge)
         self._sync_controller_badge()
         self._sync_sound_badge()
+        self._init_drive_watch()   # 🔌 a stick pulled mid-evening is noticed
 
     def _setup_media_player(self):
         """🎵 The media player, its voices and the volume around them."""
@@ -330,10 +350,6 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         # 🎵 The loaded title, its dance, the load token and the silence skipped
         # on it — read across the player, pause, Paso Doble and loudness parts.
         self._playback = PlaybackState()
-        # ⏱ Start-up latency of the running play request: when the ▶ was handled
-        # and whether the "media ready" line has already been logged for it.
-        self._play_t0: float | None = None
-        self._play_ready_logged = False
         # 🔊 Every output level, and the factors behind it — see player.audio.mix. Held
         # apart from each other so they never fight: the user's slider, the
         # per-track loudness gain, the fade-out ramp and the two ducks.
@@ -342,6 +358,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         master = float(self._settings.get("master_volume", 0.9))
         self._mix = OutputMix(master,
                               float(self._settings.get("cartwall_volume", master)))
+        self._mix.set_duck_ramps(*duck_ramp_ms(self._settings))
         # The 🎛 cartwall's own voice pool, built later in _build_cartwall.
         # Assigned here because _apply_volume() below already reads it.
         self._cart_voices = None
@@ -355,30 +372,16 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
             save_settings(self._settings)
         if HAS_MULTIMEDIA:
             quiet_ffmpeg_log()
-            self._player     = QMediaPlayer(self)
-            self._audio_out  = QAudioOutput(self)
+            self._player = QMediaPlayer(self)
+            self._audio_out = QAudioOutput(self)
             self._player.setAudioOutput(self._audio_out)
             prime_disconnect_notify(self._player, self._audio_out)
             self._apply_volume()
             self._player.mediaStatusChanged.connect(self._on_media_status)
             self._player.errorOccurred.connect(self._on_player_error)
-            # Second, independent player for the optional pause/filler music —
-            # the MAIN player holds the preloaded next song during the pause
-            # (latency!), so the filler needs its own pipeline. When a filler
-            # title runs out, _on_pause_media_status rotates to the next one
-            # (a single title simply restarts — the old Loops.Infinite).
-            self._pause_player = QMediaPlayer(self)
-            self._pause_out = QAudioOutput(self)
-            self._pause_player.setAudioOutput(self._pause_out)
-            prime_disconnect_notify(self._pause_player, self._pause_out)
-            self._pause_player.mediaStatusChanged.connect(
-                self._on_pause_media_status)
-            self._pause_out.setVolume(0.0)
         else:
             self._player = None
             self._audio_out = None
-            self._pause_player = None
-            self._pause_out = None
         # 🎧 Pre-listen on an output of its own (_prehear), with a mini
         # player of its own: the shared one runs the hall's music.
         cue = CuePlayer(self) if self._player is not None else None
@@ -393,7 +396,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         # 🔊 The sound card: follows the Windows default, is handed back while
         # nothing plays, keeps the OS's own sounds off the PA.
         self._audio_device = AudioDevice(
-            self._player, self._audio_out, self._pause_player, self._pause_out,
+            self._player, self._audio_out,
             mix=self._mix,
             settings=lambda: self._settings,
             cart_voices=lambda: self._cart_voices,
@@ -401,48 +404,41 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
             apply_volume=self._apply_volume,
             system_sounds=_system_sounds,
             announcer=lambda: getattr(self, "_announcer", None),
-            warn=lambda text: _show_toast(self, text, 4000),
+            warn=lambda text: show_toast(self, text, 4000, error=True),
             cue=cue,
             spare_deck=lambda: (self._between.xfade.player,
                                 self._between.xfade.out))
         if self._player is not None:
             self._follow_audio_devices(self._player)
-        self._filler = PauseFiller()   # 🎵 the pause's filler titles and fade
 
     def _follow_audio_devices(self, player):
-        """🔊 Wire the sound card's watchers to both players and the OS."""
-        # 🔇 Idle audio release (setting "release_audio_idle"): both
-        # pipelines report back so the sound device is taken again before a
+        """🔊 Wire the sound card's watchers to the player and the OS."""
+        # 🔇 Idle audio release (setting "release_audio_idle"): the player
+        # reports back so the sound device is taken again before a
         # title is heard, whichever of the many play paths started it —
         # see player.audio.audio_device.ensure.
         player.playbackStateChanged.connect(
             self._audio_device.on_playback_state)
-        if self._pause_player is not None:
-            self._pause_player.playbackStateChanged.connect(
-                self._audio_device.on_playback_state)
-            self._pause_player.playbackStateChanged.connect(
-                self._cart_follow_deck)
         # A default-constructed QAudioOutput binds to the system default device
         # at creation and does NOT follow when the user switches the Windows
-        # audio device. Track QMediaDevices and re-point both outputs at the
+        # audio device. Track QMediaDevices and re-point the outputs at the
         # new default so playback follows the active device live.
         self._media_devices = QMediaDevices(self)
         self._media_devices.audioOutputsChanged.connect(
             self._audio_device.on_outputs_changed)
-        # …but that signal only fires when a device appears or disappears.
-        # Switching the default between two headsets that are both plugged in
-        # changes nothing about the list, so it has to be watched for.
-        self._device_watch = QTimer(self)
-        self._device_watch.setInterval(2000)
-        self._device_watch.timeout.connect(self._audio_device.watch_default)
-        self._device_watch.timeout.connect(self._audio_device.watch_idle)
-        self._device_watch.timeout.connect(
-            self._audio_device.watch_system_sounds)
-        # 🔊 The badge follows the card on the same tick, which also picks up
-        # a card chosen in ⚙ Settings.
+        # On Windows that signal also fires when the default is switched
+        # between two headsets that are both plugged in (measured 2026-10-27,
+        # Qt 6.11), so nothing is polled there. Elsewhere that is unverified:
+        # a 2 s look at the default stays.
+        if sys.platform != "win32":
+            self._device_watch = QTimer(self)
+            self._device_watch.setInterval(2000)
+            self._device_watch.timeout.connect(self._audio_device.watch_default)
+            self._device_watch.start()
+        # 🔊 The badge follows the card; one chosen in ⚙ Settings, on OK.
         self._media_devices.audioOutputsChanged.connect(self._sync_sound_badge)
-        self._device_watch.timeout.connect(self._sync_sound_badge)
-        self._device_watch.start()
+        # 🔇 The silence after the start counts too, once the window stands.
+        QTimer.singleShot(0, self, self._audio_device.on_activity)
 
     def _sync_sound_badge(self):
         """🔊 A small indicator at the right of the status bar while the card
@@ -564,7 +560,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
             self._preview.disableRequested.connect(self._disable_preview)
             self._preview.prevRequested.connect(lambda: self._preview_skip(-1))
             self._preview.nextRequested.connect(lambda: self._preview_skip(+1))
-            self._preview.duckToggled.connect(self._set_desk_duck)
+            self._preview.duckPressed.connect(self._cycle_desk_duck)
             self._preview.set_duck_level(desk_duck_pct(self._settings))
 
     def _setup_left_panel(self):
@@ -603,6 +599,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         self._play_panel.pdClearRequested.connect(self._clear_pd_highlight)
         self._play_panel.pdEditToggled.connect(self._on_pd_edit_toggled)
         self._play_panel.pdMarkDeleteRequested.connect(self._delete_pd_mark)
+        self._play_panel.pdMarkNudgeRequested.connect(self._nudge_pd_mark)
         # 🖥 Presenter screen — created on first use, closed with the app.
         self._presenter: PresenterWindow | None = None
         # 🕒 How far the running order's clock is set from this machine's, when
@@ -642,6 +639,9 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         # 🖼 〰 Cover art and waveform on the player card, as ⚙ Settings left them.
         self._set_artwork_shown(bool(self._settings.get("show_artwork", True)))
         self._set_waveform_shown(bool(self._settings.get("show_waveform", True)))
+        self._set_time_format(self._settings.get("time_format"))
+        self._set_vol_buttons_shown(self._settings.get("vol_buttons", True) is not False)
+        self._set_button_scale(theme.button_scale())
         self._pd_analyzer: PdHighlightAnalyzer | None = None
         splitter.addWidget(self._build_left_column())
         return splitter
@@ -656,8 +656,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         self._cfg.ai_playlist_requested.connect(self._generate_ai_playlist)
         self._cfg.ai_log_requested.connect(self._show_ai_log)
         self._cfg.settings_requested.connect(self._open_settings)
-        self._cfg.build_all_requested.connect(
-            lambda: self._build_all_caches(self._settings))
+        self._cfg.build_all_requested.connect(self._build_all_caches)
         self._cfg.m3u_source_requested.connect(self._browse_source_m3u)
         self._cfg.round_strategy_changed.connect(self._on_strategy_changed)
         self._cfg.replay_competition_changed.connect(self._on_replay_competition_changed)
@@ -684,7 +683,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
             self._big_player.toPauseRequested.connect(self._on_to_pause)
             self._big_player.fadeOutRequested.connect(self._fade_out_now)
             self._big_player.panicRequested.connect(self._fade_and_hold)
-            self._big_player.duckToggled.connect(self._set_desk_duck)
+            self._big_player.duckPressed.connect(self._cycle_desk_duck)
             self._big_player.set_duck_level(desk_duck_pct(self._settings))
             self._big_player.fileDropped.connect(self._on_player_drop)
             self._big_player.resume_cb = self._resume_tap
@@ -873,14 +872,14 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         # user's layout (wishlist height, deck column widths, config-panel width, …)
         # comes back exactly as they left it. Restored at the end of construction.
         self._persist_splitters = {
-            "main":  self._main_splitter,
+            "main": self._main_splitter,
             "right": self._grid.right_split,
-            "cols":  self._grid.decks_split,
-            "col1":  self._grid.decks_col1,
-            "col2":  self._grid.decks_col2,
+            "cols": self._grid.decks_split,
+            "col1": self._grid.decks_col1,
+            "col2": self._grid.decks_col2,
             "cols2": self._grid.decks_split2,
-            "col3":  self._grid.decks_col3,
-            "col4":  self._grid.decks_col4,
+            "col3": self._grid.decks_col3,
+            "col4": self._grid.decks_col4,
             # NOTE: _wish_split is NOT here — its layout is persisted per wish-state
             # via _wish_sizes (layout/wish_sizes), replayed by _update_wish_area.
         }
@@ -1034,8 +1033,8 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
 
     # ── Multi-deck layout (two playlists + wishlist) ────────────────────────────
 
-    _DECK_HDR_IDLE   = ("background:#eceff4; color:#555; border:1px solid #d4d9e0;"
-                        "border-radius:4px; padding:2px 8px; font-size:11px; font-weight:bold;")
+    _DECK_HDR_IDLE = ("background:#eceff4; color:#555; border:1px solid #d4d9e0;"
+                      "border-radius:4px; padding:2px 8px; font-size:11px; font-weight:bold;")
     _DECK_HDR_ACTIVE = ("background:#2d6cdf; color:#fff; border:1px solid #2456b8;"
                         "border-radius:4px; padding:2px 8px; font-size:11px; font-weight:bold;")
 
@@ -1275,12 +1274,14 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         self._stop_remote()
         self._guest_shutdown()
         self._controller_shutdown()
+        self._drive_watch_shutdown()
         self._audio_device.hold_system_sounds(False)
         self._stop_workers()
         # The start's backup is from before this session: write today's again,
         # with the evening's plays, once nothing else is writing to the DB.
         backup_safely(refresh=True)
         super().closeEvent(event)
+        self._restart_if_asked()   # ⚙ a setting that needs a fresh start
 
     def _stop_workers(self):
         """Let every background worker finish before this window takes its
@@ -1524,7 +1525,9 @@ def _install_crash_log():
     except Exception as exc:
         log.debug("💥 Could not read the previous crash.log: %s", exc)
     try:
-        _crash_log = open(crash_path, "w", encoding="utf-8")
+        # Deliberately not a `with`: faulthandler holds this handle for the whole
+        # run, so it must outlive this function.
+        _crash_log = open(crash_path, "w", encoding="utf-8")  # noqa: SIM115
         faulthandler.enable(file=_crash_log)
     except Exception:
         _crash_log = None
@@ -1594,12 +1597,22 @@ def _set_taskbar_identity():
     if sys.platform == "win32":
         try:
             import ctypes
-            # Bump the suffix to bust Windows' per-AppUserModelID taskbar icon
-            # cache when the icon changes (it pins the icon to this string).
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
-                "danceplaylist.ai.planner.v3")
+                APP_USER_MODEL_ID)
         except Exception as exc:
             log.debug("🪟 Could not set the taskbar AppUserModelID: %s", exc)
+
+
+def _quit_on_ctrl_c(window):
+    """⌨ Ctrl+C in the console closes the window the way ✕ does."""
+    # Python's own handler raises KeyboardInterrupt in the next Python code
+    # that runs — under Qt a native event filter or a slot, where PySide only
+    # prints it: the window stayed open and crash.log flagged a crash. The
+    # close waits for the event loop, out of whatever the handler broke into.
+    def ask_to_close(_signum, _frame):
+        log.info("⌨ Ctrl+C in the console: closing")
+        QTimer.singleShot(0, window.close)
+    signal.signal(signal.SIGINT, ask_to_close)
 
 
 def _show_previous_crash(window, prev_crash, prev_session):
@@ -1664,7 +1677,7 @@ def run_gui():
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     # App-wide icon → every window + the taskbar button use it.
-    app.setWindowIcon(_app_icon())
+    app.setWindowIcon(app_icon())
     # The title bar already shows that icon: "⚙  Settings" would be two.
     install_plain_title_hook()
 
@@ -1679,6 +1692,7 @@ def run_gui():
     theme.install_stylesheet_hook()
     theme.sync_shared_colors()
     theme.install_titlebar_hook()
+    theme.install_button_scale_hook()
     theme.apply_app(app)
     # Under a 🎨 look the chrome's emoji become one icon set; the classic
     # themes keep them. Before i18n, so it splits the translated caption.
@@ -1705,6 +1719,7 @@ def run_gui():
     ensure_update_check_choice()
 
     window = MainWindow()  # kept until app.exec() returns; shows itself after library loads
+    _quit_on_ctrl_c(window)
     update_notice = UpdateNotice(window)
     update_notice.start(load_settings())
 

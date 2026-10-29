@@ -9,14 +9,13 @@ state, this module only carries it across to the shell. Importing it on a Mac
 raises, so the caller checks sys.platform first; that is the whole reason it is
 a separate file.
 """
-from __future__ import annotations
 
 import ctypes
 import sys
 from ctypes import wintypes
 
 if sys.platform != "win32":   # pragma: no cover - guarded by the caller
-    raise ImportError("player.widgets.taskbar_win32 is Windows-only")
+    raise ImportError("shared.taskbar_win32 is Windows-only")
 
 _ole32 = ctypes.windll.ole32
 _user32 = ctypes.windll.user32
@@ -44,15 +43,14 @@ _CLSCTX_INPROC_SERVER = 1
 _DIB_RGB_COLORS = 0
 _SM_CXSMICON = 49
 
-
-class _GUID(ctypes.Structure):
+class GUID(ctypes.Structure):
     _fields_ = [("Data1", wintypes.DWORD), ("Data2", wintypes.WORD),
                 ("Data3", wintypes.WORD), ("Data4", ctypes.c_ubyte * 8)]
 
 
-_CLSID_TASKBAR_LIST = _GUID(0x56FDF344, 0xFD6D, 0x11D0,
+_CLSID_TASKBAR_LIST = GUID(0x56FDF344, 0xFD6D, 0x11D0,
                             (0x95, 0x8A, 0x00, 0x60, 0x97, 0xC9, 0xA0, 0x90))
-_IID_TASKBAR_LIST3 = _GUID(0xEA1AFB91, 0x9E28, 0x4B86,
+_IID_TASKBAR_LIST3 = GUID(0xEA1AFB91, 0x9E28, 0x4B86,
                            (0x90, 0xE9, 0x9E, 0x9F, 0x8A, 0x5E, 0xEF, 0xAF))
 
 
@@ -91,7 +89,7 @@ class _MSG(ctypes.Structure):
                 ("pt_y", wintypes.LONG)]
 
 
-def _method(ptr: int, slot: int, *argtypes):
+def method(ptr: int, slot: int, *argtypes):
     """The function at `slot` of the COM object's vtable, ready to call."""
     vtbl = ctypes.cast(ptr, ctypes.POINTER(ctypes.c_void_p))[0]
     fn = ctypes.cast(vtbl, ctypes.POINTER(ctypes.c_void_p))[slot]
@@ -136,7 +134,7 @@ def create() -> int | None:
     if hr < 0 or not ptr.value:
         return None
     try:
-        _method(ptr.value, _HR_INIT)(ptr.value)
+        method(ptr.value, _HR_INIT)(ptr.value)
     except OSError:   # pragma: no cover - shell refused
         release(ptr.value)
         return None
@@ -238,5 +236,89 @@ def set_thumbnail_tooltip(tb: int, hwnd: int, text: str) -> int:
     proto = ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p,
                                ctypes.c_void_p, wintypes.LPCWSTR)
     return proto(fn)(tb, ctypes.c_void_p(hwnd), text or None)
+
+
+# ── 📌 Relaunch properties: what a taskbar pin of the window starts ───────────
+# PKEY_AppUserModel_* (propkey.h), all under one format id. The relaunch keys
+# count only on a window that carries the ID key as well.
+_FMTID_APP_USER_MODEL = GUID(0x9F4C2855, 0x9F79, 0x4B39,
+                              (0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3))
+PID_RELAUNCH_COMMAND = 2
+PID_RELAUNCH_ICON = 3
+PID_RELAUNCH_NAME = 4
+PID_ID = 5
+
+_IID_PROPERTY_STORE = GUID(0x886D8EEB, 0x8CF2, 0x4446,
+                            (0x8D, 0x02, 0xCD, 0xBA, 0x1D, 0xBD, 0xCF, 0x99))
+# IPropertyStore vtable slots, after IUnknown's three.
+_PS_GET_VALUE = 5
+_PS_SET_VALUE = 6
+_PS_COMMIT = 7
+_VT_LPWSTR = 31
+
+
+class _PROPERTYKEY(ctypes.Structure):
+    _fields_ = [("fmtid", GUID), ("pid", wintypes.DWORD)]
+
+
+class _PROPVARIANT(ctypes.Structure):
+    """Just the string arm of the union, padded to the full 16 bytes."""
+    _fields_ = [("vt", wintypes.USHORT), ("r1", wintypes.WORD),
+                ("r2", wintypes.WORD), ("r3", wintypes.WORD),
+                ("pwszVal", ctypes.c_void_p), ("pad", ctypes.c_void_p)]
+
+
+def _window_store(hwnd: int) -> int | None:
+    ptr = ctypes.c_void_p()
+    hr = ctypes.windll.shell32.SHGetPropertyStoreForWindow(
+        ctypes.c_void_p(hwnd), ctypes.byref(_IID_PROPERTY_STORE), ctypes.byref(ptr))
+    return ptr.value if hr >= 0 and ptr.value else None
+
+
+def set_relaunch_properties(hwnd: int, app_id: str, command: str, icon: str,
+                            name: str) -> bool:
+    """Tell the shell how to start the app again from a pin of `hwnd`.
+
+    Under an explicit AppUserModelID the shell pins neither the running exe
+    nor its icon: without a shortcut of the same ID, or these keys, the pin
+    comes out as a white box. The ID goes on last — it is what makes the
+    shell read the other three."""
+    store = _window_store(hwnd)
+    if store is None:
+        return False
+    set_value = method(store, _PS_SET_VALUE, ctypes.POINTER(_PROPERTYKEY),
+                        ctypes.POINTER(_PROPVARIANT))
+    try:
+        for pid, text in ((PID_RELAUNCH_COMMAND, command), (PID_RELAUNCH_ICON, icon),
+                          (PID_RELAUNCH_NAME, name), (PID_ID, app_id)):
+            buf = ctypes.create_unicode_buffer(text)   # SetValue copies it
+            value = _PROPVARIANT(vt=_VT_LPWSTR, pwszVal=ctypes.addressof(buf))
+            set_value(store, _PROPERTYKEY(_FMTID_APP_USER_MODEL, pid), value)
+        method(store, _PS_COMMIT)(store)
+    except OSError:   # a failed HRESULT
+        return False
+    finally:
+        release(store)
+    return True
+
+
+def window_property(hwnd: int, pid: int) -> str | None:
+    """One PKEY_AppUserModel_* string as the shell now holds it for `hwnd`."""
+    store = _window_store(hwnd)
+    if store is None:
+        return None
+    value = _PROPVARIANT()
+    try:
+        method(store, _PS_GET_VALUE, ctypes.POINTER(_PROPERTYKEY),
+                ctypes.POINTER(_PROPVARIANT))(
+            store, _PROPERTYKEY(_FMTID_APP_USER_MODEL, pid), value)
+        if value.vt != _VT_LPWSTR:
+            return None
+        return ctypes.wstring_at(value.pwszVal)
+    except OSError:
+        return None
+    finally:
+        _ole32.PropVariantClear(ctypes.byref(value))
+        release(store)
 
 

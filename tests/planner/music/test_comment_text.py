@@ -22,7 +22,7 @@ from mutagen.id3 import COMM, ID3, TIT2
 
 import planner.music.db as pdb
 from planner.music.library import MusicLibrary
-from planner.music.scan_caches import _ENTRY_META_KEYS
+from planner.music.scan_caches import ENTRY_META_KEYS
 from tests.db_support import use_scratch_db
 
 _AUDIO = b"\xff\xfb\x90\x00" + b"\x00" * 4000
@@ -90,23 +90,23 @@ class CommentTextTest(unittest.TestCase):
         self.assertEqual(self.lib._make_entry(p, scan).tag_comment, "")
 
     def test_the_database_row_keeps_it(self):
-        row = pdb._meta_to_row({"title": "x", "tag_comment": "vocal AS"})
-        self.assertEqual(pdb._row_to_meta(row)["tag_comment"], "vocal AS")
-        self.assertIsNone(pdb._row_to_meta(pdb._meta_to_row({"title": "x"}))["tag_comment"])
+        row = pdb.meta_to_row({"title": "x", "tag_comment": "vocal AS"})
+        self.assertEqual(pdb.row_to_meta(row)["tag_comment"], "vocal AS")
+        self.assertIsNone(pdb.row_to_meta(pdb.meta_to_row({"title": "x"}))["tag_comment"])
 
     def test_the_global_cache_keeps_it(self):
-        self.assertIn("tag_comment", _ENTRY_META_KEYS)
+        self.assertIn("tag_comment", ENTRY_META_KEYS)
 
     def test_an_older_database_gets_the_column(self):
         conn = sqlite3.connect(":memory:")
-        cols = [c for c in pdb._META_COLS if c != "tag_comment"]
+        cols = [c for c in pdb.META_COLS if c != "tag_comment"]
         conn.execute(f"CREATE TABLE scan_meta (ckey TEXT PRIMARY KEY, {', '.join(cols)})")
         conn.execute(f"CREATE TABLE global_meta (file_id INTEGER, {', '.join(cols)})")
         pdb._migrate_meta_tag_comment(conn)
         for table in ("scan_meta", "global_meta"):
             have = [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
             self.assertEqual(have[-1], "tag_comment", table)
-        self.assertEqual(pdb._META_COLS[-1], "tag_comment")
+        self.assertEqual(pdb.META_COLS[-1], "tag_comment")
 
 
 if __name__ == "__main__":

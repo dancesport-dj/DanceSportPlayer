@@ -6,63 +6,75 @@ import logging
 from datetime import date
 from pathlib import Path
 
-from PySide6.QtWidgets import (
-    QApplication, QVBoxLayout, QHBoxLayout, QTableWidgetItem, QPushButton, QLabel,
-    QComboBox, QCheckBox, QHeaderView, QAbstractItemView, QMessageBox,
-    QDialog,
-)
 from PySide6.QtCore import (
-    Qt, QThread,
+    Qt,
+    QThread,
 )
 from PySide6.QtGui import (
-    QShortcut, QKeySequence,
+    QKeySequence,
+    QShortcut,
+)
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QMessageBox,
+    QPushButton,
+    QTableWidgetItem,
+    QVBoxLayout,
 )
 
 import planner.config
-
-from planner.music.parsing import _song_title_key
-from planner.music.analysis import HAS_LIBROSA
-from planner.models import MusicEntry
-from planner.terms import dance_name
-from planner.music.vocals import entry_is_instrumental
-from planner import i18n
-from planner.event.event_plan import sounds_alike_text
+from gui.common import (  # noqa: F401  (shared primitives)
+    C_DANCE_BG,
+    C_DANCE_FG,
+    C_DEFAULT,
+    C_NEW_FG,
+    C_POP_FG,
+    C_ROUND_BG,
+    C_ROUND_FG,
+    C_ROW_EVEN,
+    C_ROW_ODD,
+    C_SIM_FG,
+    C_WARN_FG,
+    PROVEN_MIN_PLAYS,
+    BusyDialog,
+    DragTable,
+    DroppedFilesList,
+    DropZone,
+    LoadingDialog,
+    MultiFileDropZone,
+    PathListWidget,
+    _lbl,
+    apply_taskbar_icon,
+    dblclick_opens_external,
+    entry_tooltip,
+    fmt_duration,
+    fmt_track_secs,
+    open_folder,
+    open_in_default_player,
+    reveal_in_explorer,
+    sanitize_filename,
+    stopwatch_header,
+)
 from gui.workers import (
-    EmbeddingIndexWorker, EmbeddingRankWorker, SimilarFromFileWorker,
+    EmbeddingIndexWorker,
+    EmbeddingRankWorker,
+    SimilarFromFileWorker,
     adopt_running,
 )
-from gui.common import (  # noqa: F401  (shared primitives)
-    stopwatch_header,
-    _PROVEN_MIN_PLAYS,
-    _sanitize_filename,
-    apply_taskbar_icon,
-    _lbl,
-    LoadingDialog,
-    _fmt_duration,
-    BusyDialog,
-    _C_ROUND_BG,
-    _C_ROUND_FG,
-    _C_DANCE_BG,
-    _C_DANCE_FG,
-    _C_ROW_EVEN,
-    _C_ROW_ODD,
-    _C_POP_FG,
-    _C_NEW_FG,
-    _C_SIM_FG,
-    _C_WARN_FG,
-    _C_DEFAULT,
-    _fmt_track_secs,
-    _entry_tooltip,
-    _open_in_default_player,
-    dblclick_opens_external,
-    _open_folder,
-    reveal_in_explorer,
-    _DragTable,
-    DropZone,
-    _PathListWidget,
-    _DroppedFilesList,
-    _MultiFileDropZone,
-)
+from planner import i18n
+from planner.event.event_plan import sounds_alike_text
+from planner.models import MusicEntry
+from planner.music.analysis import HAS_LIBROSA
+from planner.music.parsing import song_title_key
+from planner.music.vocals import entry_is_instrumental
+from planner.terms import dance_name
 
 log = logging.getLogger("dancesport.gui")
 
@@ -92,6 +104,9 @@ class SimilarTracksDialog(QDialog):
                  history_title=None, fresh_only=False, round_history_cb=None,
                  round_name=None, hide_fn=None):
         super().__init__(parent)
+        # Close and Esc end the window through accept() / reject(), which send
+        # no closeEvent — and it still deletes itself on close.
+        self.finished.connect(self._shut_down)
         # Tall by default so a long result list (up to 100 rows) is mostly visible without
         # scrolling — capped to ~90% of the screen so it still fits on smaller displays.
         screen = self.screen() or QApplication.primaryScreen()
@@ -164,10 +179,10 @@ class SimilarTracksDialog(QDialog):
         # DIFFERENT file copy of a wishlisted song still counts as "in the wishlist".
         self._wishlist_paths = {str(p) for p in (wishlist_paths or [])}
         self._wishlist_keys = set()
-        self._wishlist_fps  = set()
+        self._wishlist_fps = set()
         for p in self._wishlist_paths:
             try:
-                k = _song_title_key(p)
+                k = song_title_key(p)
                 if k:
                     self._wishlist_keys.add(k)
             except Exception as exc:
@@ -344,7 +359,7 @@ class SimilarTracksDialog(QDialog):
         self._fresh_combo.addItem("🌱  Freshness: all tracks", "")
         self._fresh_combo.addItem("✦  Only never played", "never")
         self._fresh_combo.addItem(
-            i18n.t("★  Only rarely played (1–%d playlists)") % (_PROVEN_MIN_PLAYS - 1), "rare")
+            i18n.t("★  Only rarely played (1–%d playlists)") % (PROVEN_MIN_PLAYS - 1), "rare")
         self._fresh_combo.addItem("📅  Only not since 1 y", "stale1")
         self._fresh_combo.setToolTip(
             i18n.t("The same three picks as 📚 the library's ★ Plays selector.\n"
@@ -353,7 +368,7 @@ class SimilarTracksDialog(QDialog):
                    "'Not since 1 y': it is played, but the newest playlist carrying\n"
                    "it is from an earlier year — the year comes from the playlist's\n"
                    "path, so lists without a date never count as old.")
-            % (_PROVEN_MIN_PLAYS - 1, _PROVEN_MIN_PLAYS))
+            % (PROVEN_MIN_PLAYS - 1, PROVEN_MIN_PLAYS))
         if fresh_only:
             self._fresh_combo.setCurrentIndex(1)
         self._fresh_combo.currentIndexChanged.connect(self._on_fresh_changed)
@@ -361,7 +376,7 @@ class SimilarTracksDialog(QDialog):
 
     def _build_table(self, lyt, history_title, seek_cb):
         """The draggable result table with its play and seek keys."""
-        self._table = _DragTable(self._paths)
+        self._table = DragTable(self._paths)
         table = self._table
         table.setColumnCount(len(self._COLS))
         table.setHorizontalHeaderLabels(self._COLS)
@@ -463,7 +478,7 @@ class SimilarTracksDialog(QDialog):
         seen = set()
         out = []
         for sim, e in results:
-            key = _song_title_key(str(e.path) if e.path else (e.title or ""))
+            key = song_title_key(str(e.path) if e.path else (e.title or ""))
             if key in seen:
                 continue
             seen.add(key)
@@ -478,10 +493,10 @@ class SimilarTracksDialog(QDialog):
         if self._history_title is not None or source is None or not source.path:
             return list(results)
         own = str(source.path)
-        key = _song_title_key(own)
+        key = song_title_key(own)
         return [(sim, e) for sim, e in results
                 if not (e.path and str(e.path) == own)
-                and not (key and _song_title_key(
+                and not (key and song_title_key(
                     str(e.path) if e.path else (e.title or "")) == key)]
 
     def _on_dedup_toggled(self, _checked: bool):
@@ -496,7 +511,7 @@ class SimilarTracksDialog(QDialog):
         if e.path and str(e.path) in self._wishlist_paths:
             return True
         try:
-            key = _song_title_key(str(e.path) if e.path else (e.title or ""))
+            key = song_title_key(str(e.path) if e.path else (e.title or ""))
         except Exception:
             key = ""
         if key and key in self._wishlist_keys:
@@ -542,7 +557,7 @@ class SimilarTracksDialog(QDialog):
         def keep(e) -> bool:
             if e.path and str(e.path) in paths:
                 return True
-            key = _song_title_key(str(e.path) if e.path else (e.title or ""))
+            key = song_title_key(str(e.path) if e.path else (e.title or ""))
             return bool(key) and key in keys
 
         out = [(sim, e) for (sim, e) in results if keep(e)]
@@ -580,7 +595,7 @@ class SimilarTracksDialog(QDialog):
                 return bool(pop) and bool(last) and last <= cutoff
             if mode == "never":
                 return not pop
-            return 1 <= pop < _PROVEN_MIN_PLAYS
+            return 1 <= pop < PROVEN_MIN_PLAYS
 
         out = [(sim, e) for (sim, e) in results if keep(e)]
         return out, len(results) - len(out)
@@ -599,7 +614,7 @@ class SimilarTracksDialog(QDialog):
         path = self._paths[row]
         if not path or not dblclick_opens_external():
             return
-        _open_in_default_player(Path(path), self)
+        open_in_default_player(Path(path), self)
 
     # ── Populate / refresh ──────────────────────────────────────────────────────
     def _populate(self, source: MusicEntry | None, results):
@@ -649,7 +664,7 @@ class SimilarTracksDialog(QDialog):
         ctr = Qt.AlignmentFlag.AlignCenter
         sim_label = "Played together" if behavior else "Match"
         for r, (sim, e) in enumerate(results):
-            tip = _entry_tooltip(e, None if self._history_title is not None else sim,
+            tip = entry_tooltip(e, None if self._history_title is not None else sim,
                                  sim_label)
             sound = self._sound.get(self._method)
             if not behavior and self._method in self._COMBINED and sound is not None:
@@ -671,7 +686,7 @@ class SimilarTracksDialog(QDialog):
             else:
                 sim_it = QTableWidgetItem(f"{sim * 100:.2f}%")
             sim_it.setTextAlignment(ctr)
-            sim_it.setForeground(_C_SIM_FG)
+            sim_it.setForeground(C_SIM_FG)
             table.setItem(r, 1, sim_it)
             d_it = QTableWidgetItem(dance_name(e.dance, e.dance or ""))
             d_it.setTextAlignment(ctr)
@@ -681,7 +696,7 @@ class SimilarTracksDialog(QDialog):
             bpm_it.setTextAlignment(ctr)
             table.setItem(r, 4, bpm_it)
             secs = int(getattr(e, "duration", 0) or 0)
-            len_it = QTableWidgetItem(_fmt_track_secs(secs) if secs else "")
+            len_it = QTableWidgetItem(fmt_track_secs(secs) if secs else "")
             len_it.setTextAlignment(ctr)
             table.setItem(r, 5, len_it)
             pop_it = QTableWidgetItem(f"★{e.popularity}" if e.popularity
@@ -929,8 +944,8 @@ class SimilarTracksDialog(QDialog):
             self._set_method("librosa"); self._recompute()
             return
         self._status.setText(
-            (i18n.t("🧠 %s index ready (%d embedded, %d failed).") % (name, computed, errors)
-             if errors else i18n.t("🧠 %s index ready (%d embedded).") % (name, computed)))
+            i18n.t("🧠 %s index ready (%d embedded, %d failed).") % (name, computed, errors)
+             if errors else i18n.t("🧠 %s index ready (%d embedded).") % (name, computed))
         self._run_embedding_rank()
 
     def _on_embedding_index_cancelled(self, computed: int):
@@ -1081,12 +1096,15 @@ class SimilarTracksDialog(QDialog):
         if isinstance(w, QPushButton):
             w.setText(text)
 
-    def closeEvent(self, event):
+    def _shut_down(self, _result=0):
         self._stop_own_preview()                       # stop preview on close
         # The window deletes itself on close, and a rank / index / drop worker
         # still running would go down with it.
         for worker in self.findChildren(QThread):
             adopt_running(worker)
+
+    def closeEvent(self, event):
+        self._shut_down()
         super().closeEvent(event)
 
 

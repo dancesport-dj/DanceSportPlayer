@@ -19,8 +19,8 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_pd_kept_"))
 
-from player.window.main_pd import PdStopMixin
 from player.audio.playback_state import PlaybackState
+from player.window.main_pd import PdStopMixin
 
 PATH = Path(r"C:\music\espana.mp3")
 

@@ -18,7 +18,6 @@ from urllib.request import url2pathname
 from tools.docs import build_manual_html as bm
 from tools.docs import build_manual_pdf as bp
 
-
 # What Chrome writes, cut down: the catalog's /Dests maps every anchor to its
 # page object, and the page tree nests. Names escape non-ASCII bytes as #xx,
 # and Chrome percent-encodes the anchor first, so an umlaut comes as #25C3#25B6.

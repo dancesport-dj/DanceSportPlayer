@@ -17,10 +17,10 @@ this mapping yet", and _make_entry reads it on the next look.
 from pathlib import Path
 
 from mutagen import MutagenError
-from mutagen.id3 import ID3
+from mutagen.id3 import ID3, Frame
 
 from planner.music.db import _db
-from planner.music.parsing import _read_id3v1_comment
+from planner.music.parsing import read_id3v1_comment
 
 _KEY = "custom_source"
 V1 = "ID3v1"    # the old tag's comment, in the last 128 bytes of the file
@@ -69,7 +69,7 @@ def set_source(frame: str | None, desc: str = "") -> bool:
     return True
 
 
-def find(tags, src: tuple[str, str] | None = None):
+def find(tags, src: tuple[str, str] | None = None) -> Frame | None:
     """The frame of `tags` the mapping names, or None. A description matches
     in any case: taggers disagree on it, the frame is the same."""
     src = src or source()
@@ -89,7 +89,7 @@ def value_of(tags, path=None) -> str:
     The old tag's comment is not in `tags`: it is read from `path`."""
     src = source()
     if src is not None and src[0] == V1:
-        return (_read_id3v1_comment(Path(path)) or "") if path is not None else ""
+        return (read_id3v1_comment(Path(path)) or "") if path is not None else ""
     frame = find(tags, src)
     if frame is None:
         return ""
@@ -104,7 +104,7 @@ def read_file(path) -> str:
     if src is None:
         return ""
     if src[0] == V1:
-        return _read_id3v1_comment(Path(path)) or ""
+        return read_id3v1_comment(Path(path)) or ""
     try:
         tags = ID3(Path(path))
     except (MutagenError, OSError, ValueError):     # no tag, not an MP3, gone

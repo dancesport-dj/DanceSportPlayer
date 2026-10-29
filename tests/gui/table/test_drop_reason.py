@@ -22,11 +22,11 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_reason_"))
 
 from PySide6.QtWidgets import QApplication, QWidget
-from tests.qt_test_support import reap_widget
 
 import gui.table.table_dynamic as table_dynamic
 from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry, RoundConfig
+from tests.qt_test_support import reap_widget
 
 
 def _planned(dance, n):
@@ -77,13 +77,13 @@ class DropReasonTest(unittest.TestCase):
     def drop(self, table, entries):
         """Drop `entries` on the first row and report every toast, in order."""
         seen = []
-        real = table_dynamic._show_toast
-        table_dynamic._show_toast = lambda anchor, text, *a, **kw: seen.append(text)
+        real = table_dynamic.show_toast
+        table_dynamic.show_toast = lambda anchor, text, *a, **kw: seen.append(text)
         table._collect_drop_entries = lambda e: list(entries)
         try:
             table._dynamic_drop(None, 0)
         finally:
-            table_dynamic._show_toast = real
+            table_dynamic.show_toast = real
         return seen
 
     def test_a_dance_written_in_the_file_name_is_read(self):

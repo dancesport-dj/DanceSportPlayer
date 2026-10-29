@@ -5,6 +5,7 @@ candidates, not a draw — it has its own layout beside the decks, its own
 drag-to-swap header and its own housekeeping against the planned playlists.
 """
 import logging
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import (
     QMimeData,
@@ -16,20 +17,20 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import (
     QApplication,
 )
-from planner.models import ALLOW_REPEAT
-from planner.playlist.planned import is_planned
-from planner.generate.suggester import PlaylistSuggester
-from shared.widgets import (
-    _show_toast,
-)
-from shared.stores import (  # auto-resolved
-    save_settings,
-)
+
 from gui.table.playlist_table import (  # auto-resolved
     PlaylistTable,
 )
 from planner import i18n
-from typing import TYPE_CHECKING
+from planner.generate.suggester import PlaylistSuggester
+from planner.models import ALLOW_REPEAT
+from planner.playlist.planned import is_planned
+from shared.stores import (  # auto-resolved
+    save_settings,
+)
+from shared.widgets import (
+    show_toast,
+)
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -281,6 +282,26 @@ class WishlistMixin(MainWindowHost):
                    4: "⭐ 4 wishlists shown"}[self._wish_state]
         self.statusBar().showMessage(msg)
 
+    def _planned_test(self):
+        """entry → True when an open playlist deck already plans it — matched by
+        full path OR content fingerprint (so renamed copies count too).
+        ALLOW_REPEAT dances (PD) never are: they may play again in another round."""
+        paths, fps = self._deck_dedup_index()
+        # hashed on demand
+        fingerprint = self._library.cache.fingerprint if self._library.cache is not None else None
+
+        def planned(e) -> bool:
+            if not (paths or fps) or (getattr(e, "dance", None) or "") in ALLOW_REPEAT:
+                return False
+            return is_planned(getattr(e, "path", None), paths, fps, fingerprint)
+        return planned
+
+    def _count_in_playlists(self, entries) -> int:
+        """How many of `entries` an open playlist deck already plans — the
+        "duplicate" hint of a wishlist drop."""
+        planned = self._planned_test()
+        return sum(1 for e in entries if planned(e))
+
     def _clean_wishlist_against_playlists(self, wishlist: PlaylistTable,
                                           announce: bool = True) -> int:
         """Remove from `wishlist` every track that's already in an open playlist deck —
@@ -289,24 +310,15 @@ class WishlistMixin(MainWindowHost):
         so the wishlist copy stays useful. Returns how many tracks were removed."""
         if wishlist is None or not getattr(wishlist, "_flat_mode", False):
             return 0
-        paths, fps = self._deck_dedup_index()
-        # hashed on demand
-        fingerprint = self._library.cache.fingerprint if self._library.cache is not None else None
-        rows = []
-        if paths or fps:
-            for r, m in wishlist._row_meta.numbered():
-                e = m.entry
-                if (getattr(e, "dance", None) or "") in ALLOW_REPEAT:
-                    continue
-                if is_planned(getattr(e, "path", None), paths, fps, fingerprint):
-                    rows.append(r)
+        planned = self._planned_test()
+        rows = [r for r, m in wishlist._row_meta.numbered() if planned(m.entry)]
         n = len(rows)
         if n:
             wishlist._remove_rows(rows)
             if announce:
-                _show_toast(self, i18n.t("🧹  Removed %d track(s) already in a playlist") % n)
+                show_toast(self, i18n.t("🧹  Removed %d track(s) already in a playlist") % n)
         elif announce:
-            _show_toast(self, "✅  No wishlist tracks are in an open playlist")
+            show_toast(self, "✅  No wishlist tracks are in an open playlist")
         return n
 
     def _update_wish_counts(self):

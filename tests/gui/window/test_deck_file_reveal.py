@@ -23,8 +23,7 @@ from PySide6.QtCore import QPointF, Qt
 from PySide6.QtWidgets import QMenu
 
 from dancesport_planner import MusicEntry, MusicLibrary
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 _DIR = Path(tempfile.mkdtemp(prefix="dp_deck_reveal_files_"))
 

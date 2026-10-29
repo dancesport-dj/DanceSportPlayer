@@ -6,14 +6,7 @@ the flow layout) are in player/widgets/panel_parts.py.
 """
 import logging
 from datetime import datetime
-
-from planner.playing.play_sets import (
-    _LEN_MAX,
-    _LEN_STEP,
-    _LEN_TYPED_MAX,
-    _LEN_TYPED_MIN,
-    parse_play_length,
-)
+from pathlib import Path
 
 from PySide6.QtCore import (
     QSize,
@@ -34,17 +27,23 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from pathlib import Path
-from shared.widgets import (
-    _hsep,
+
+from planner import i18n
+from planner.playing.play_sets import (
+    LEN_MAX,
+    LEN_STEP,
+    LEN_TYPED_MAX,
+    LEN_TYPED_MIN,
+    parse_play_length,
 )
 from player.presenter.presenter import (  # auto-resolved
     screen_choices,
 )
-from planner import i18n
-from planner.playlist.playlist_text import PlaylistEncodingError, read_playlist_text
-from player.widgets.panel_parts import _FlowLayout, _InlineEdit, _Rows, _Toggle
-from player.widgets.play_mode_setup import PlayModeSetupMixin
+from player.widgets.panel_parts import FlowLayout, InlineEdit, Rows, Toggle
+from player.widgets.play_mode_setup import PD_EDIT_QSS, PlayModeSetupMixin
+from shared.widgets import (
+    hsep,
+)
 
 log = logging.getLogger("dancesport.gui.play_mode")
 
@@ -71,9 +70,23 @@ _STRIP_QSS = (
     " border-radius:5px; padding:2px 8px; }"
     "QPushButton:hover { background:#3a4a68; }"
     "QPushButton:pressed { background:#1565c0; }"
+    # Grey off, without which a disabled 🎯 looked just as live — and darker
+    # than the live navy, so the tools that do nothing sink back instead of
+    # standing out, the way a switched-off switch dims.
+    "QPushButton:disabled { color:#6e737b; background:#25272b;"
+    " border-color:#34373d; }"
     "QToolButton { color:#cfe0f5; background:#2a3346; border:none;"
     " border-radius:4px; padding:2px 5px; }"
     "QToolButton:hover { background:#3a4a68; }")
+
+# Down the side the system's disabled grey is barely off its live white, so
+# 🎯 ✖ ✏️ looked the same with or without a Paso Doble on the deck. Off is
+# the grey of a switched-off ⏻ switch there, so off reads the same across
+# the panel. Set on the tools themselves: a sheet on the panel would pull
+# every box down the side off its native look.
+_SIDE_TOOL_QSS = ("QPushButton:disabled { color:#6b6f76;"
+                  f" background:{Toggle._OFF_TRACK.name()};"
+                  " border:1px solid #b3b8c0; border-radius:3px; }")
 
 
 class PlayModePanel(PlayModeSetupMixin, QWidget):
@@ -91,6 +104,7 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
     pdEditToggled = Signal(bool)         # ✏️ Edit highlights on/off (suspends the stop)
     roundPdPicked = Signal(int)          # the spin turned over a round's PD pick
     pdMarkDeleteRequested = Signal(float)   # ✕ on a mark chip → drop that mark
+    pdMarkNudgeRequested = Signal(float, float)   # −/+ beside a chip: mark, ±0.1 s
     presenterToggled = Signal(bool)      # 🖥 Presenter screen on/off
     presenterScreenChanged = Signal(int)   # another monitor picked for it
     timetableRequested = Signal()          # 🕒 edit the evening's running order
@@ -116,7 +130,7 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         self._title_row = QLabel("▶  Playing mode")
         self._title_row.setStyleSheet("font-weight:bold; font-size:14px;")
         lyt.addWidget(self._title_row)
-        lyt.addWidget(_hsep())
+        lyt.addWidget(hsep())
         self._setup_length_row(lyt, settings)
         self._setup_paso_doble(lyt, settings)
         self._setup_auto_advance(lyt, settings)
@@ -215,14 +229,14 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         added, so nothing is rebuilt — only the shape they stand in."""
         # The sub-groups lie down with the panel: a Paso Doble block four rows
         # deep would set the height of the whole strip on its own.
-        for group in self.findChildren(_Rows):
+        for group in self.findChildren(Rows):
             group.set_wide(self._wide)
         # Built with its parent from the start: a parentless widget shown is a
         # window of its own on the desktop.
         body = QWidget(self)
         dealt = set()
         if self._wide:
-            lyt = _FlowLayout(body)
+            lyt = FlowLayout(body)
             lyt.setContentsMargins(0, 0, 0, 0)
             # Row by row, not group by group. Kept whole, a group is one word
             # in the paragraph — but the widest of them is half the strip on
@@ -299,13 +313,18 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         Only what a stylesheet cannot reach is set by hand: the readouts and
         the labels carry their own colours from the build."""
         self.setStyleSheet(_STRIP_QSS if self._wide else "")
+        tool = "" if self._wide else _SIDE_TOOL_QSS
+        self.pd_learn_btn.setStyleSheet(tool)
+        self.pd_clear_btn.setStyleSheet(tool)
+        self.pd_edit_btn.setStyleSheet(PD_EDIT_QSS + tool)
         ink = "#7fb2f0" if self._wide else "#1565c0"
         self.len_lbl.setStyleSheet(
             "QLabel#playLen{font-size:34px; font-weight:bold;"
             f"font-family:Consolas,monospace; color:{ink};}}")
-        self.pause_music_lbl.setStyleSheet(
-            f"color:{'#9fb0c8' if self._wide else '#555'}; font-style:italic;")
-        for pill in self.findChildren(_Toggle):
+        for lbl in (self.pause_hint_lbl, self.closing_lbl):
+            lbl.setStyleSheet(
+                f"color:{'#9fb0c8' if self._wide else '#555'}; font-style:italic;")
+        for pill in self.findChildren(Toggle):
             pill.set_ink(QColor("#dfe8f6") if self._wide else None)
 
     def _all_rows(self):
@@ -320,11 +339,16 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         return {self._title_row, self.countdown_lbl}
 
 
-    def set_announce_style(self, voice: str, heat: bool, wait: bool):
-        """🎙 The voice, the heat number and the lead as ⚙ Settings saved them."""
+    def set_announce_style(self, voice: str, heat: bool, wait: bool,
+                           lead: bool = False, heat_only: bool = False):
+        """🎙 The voice, the heat number, the lead, 📣 whether "Nächster
+        Tanz" is said and 🔢 whether only the heat is, as ⚙ Settings saved
+        them."""
         self._announce_voice = voice
         self._announce_heat = bool(heat)
         self._announce_wait = bool(wait)
+        self._announce_lead = bool(lead)
+        self._announce_heat_only = bool(heat_only)
         self._refresh_announce_style()
 
     def _refresh_announce_style(self):
@@ -334,12 +358,22 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         text = {"female": i18n.t("Female voice"),
                 "male": i18n.t("Male voice")}.get(self._announce_voice,
                                                   i18n.t("Mixed voices"))
-        if self._announce_heat:
-            text += " · " + i18n.t("with heat")
+        if self._announce_heat_only:
+            text += " · " + i18n.t("heat only")
+        else:
+            if self._announce_lead:
+                text += " · " + i18n.t("Next dance")
+            if self._announce_heat:
+                text += " · " + i18n.t("with heat")
         if not self._crossfade_runs():
             text += " · " + i18n.t("before the music" if self._announce_wait
                                    else "over the music")
         self.announce_style_lbl.setText(text)
+
+    def set_button_scale(self, pct: int):
+        """🔘 The on/off switches at the button size from ⚙ Settings → Look."""
+        for pill in self.findChildren(Toggle):
+            pill.set_scale(pct)
 
     def set_settings_visible(self, on: bool):
         """Show the ⚙ gear — only a player-only install needs its own."""
@@ -349,65 +383,37 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         """Dock the big master player on top of the panel (UltraMixer-style)."""
         self._lyt.insertWidget(0, w)
 
-    def _pick_pause_music(self):
-        start = (str(Path(self._pause_music[0]).parent)
-                 if self._pause_music else "")
-        paths, _ = QFileDialog.getOpenFileNames(
-            self, "Choose pause music", start,
-            "Audio / playlist (*.mp3 *.wav *.flac *.m4a *.ogg *.m3u *.m3u8);;"
-            "All files (*)")
-        if not paths:
-            return
-        files: list[str] = []
-        for p in paths:
-            if p.lower().endswith((".m3u", ".m3u8")):
-                files.extend(self._read_m3u(p))
-            else:
-                files.append(p)
-        if files:
-            self._set_pause_music(files)
+    def _pick_closing_song(self):
+        start = str(Path(self._closing_song).parent) if self._closing_song else ""
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Choose the closing song", start,
+            "Audio (*.mp3 *.wav *.flac *.m4a *.ogg);;All files (*)")
+        if path:
+            self._set_closing_song(path)
 
-    @staticmethod
-    def _read_m3u(path: str) -> list[str]:
-        """Every non-comment line of the playlist is a file path; relative
-        ones resolve against the playlist's own folder."""
-        try:
-            lines = read_playlist_text(path)[0].splitlines()
-        except (OSError, PlaylistEncodingError) as exc:
-            log.warning("🎵 Could not read pause playlist\n"
-                        "file: %s\n"
-                        "error: %s", path, exc)
-            return []
-        base = Path(path).parent
-        out: list[str] = []
-        for ln in lines:
-            ln = ln.strip()
-            if not ln or ln.startswith("#"):
-                continue
-            p = Path(ln)
-            if not p.is_absolute():
-                p = base / p
-            out.append(str(p))
-        return out
-
-    def _set_pause_music(self, paths: list[str]):
-        self._pause_music = list(paths)
-        self._refresh_pause_music_lbl()
+    def _set_closing_song(self, path: str):
+        self._closing_song = path
+        self._refresh_closing_lbl()
         self.settingsChanged.emit()
 
-    def _refresh_pause_music_lbl(self):
-        if self._pause_music:
-            fm = self.pause_music_lbl.fontMetrics()
-            first = Path(self._pause_music[0]).stem
-            n = len(self._pause_music)
-            text = first if n == 1 else f"{n} titles · {first}…"
-            self.pause_music_lbl.setText(
-                fm.elidedText(text, Qt.TextElideMode.ElideRight, 160))
-            self.pause_music_lbl.setToolTip(
-                "\n".join(Path(p).stem for p in self._pause_music))
+    def _refresh_closing_lbl(self):
+        if self._closing_song:
+            fm = self.closing_lbl.fontMetrics()
+            self.closing_lbl.setText(fm.elidedText(
+                Path(self._closing_song).stem, Qt.TextElideMode.ElideRight, 160))
+            self.closing_lbl.setToolTip(self._closing_song)
         else:
-            self.pause_music_lbl.setText("none")
-            self.pause_music_lbl.setToolTip("")
+            self.closing_lbl.setText("none")
+            self.closing_lbl.setToolTip("")
+
+    def closing_song(self) -> str:
+        """🌙 The closing song's stored path, "" = none."""
+        return self._closing_song
+
+    def _sync_closing_row(self):
+        """🌙 Only with a stop to follow: ⏭ on and a rule armed."""
+        self.closing_box.setVisible(
+            self.advance_check.isChecked() and self._party_stop.kind is not None)
 
     @staticmethod
     def _load_secs(settings: dict) -> int:
@@ -423,7 +429,7 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         secs = int(settings.get("play_secs", 105))
         if secs <= 0:
             return 0
-        return max(_LEN_TYPED_MIN, min(_LEN_TYPED_MAX, secs))
+        return max(LEN_TYPED_MIN, min(LEN_TYPED_MAX, secs))
 
     def _step_len(self, direction: int):
         """One rung up or down. Up from 2:30 lands on 'full'; down from 'full'
@@ -431,11 +437,11 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         a mis-tap must never jump from full length to 15 s."""
         secs = self._shown_secs()
         if direction > 0:
-            secs = 0 if secs == 0 or secs >= _LEN_MAX else secs + _LEN_STEP
+            secs = 0 if secs == 0 or secs >= LEN_MAX else secs + LEN_STEP
         elif secs == 0:
-            secs = _LEN_MAX
+            secs = LEN_MAX
         else:
-            secs = max(_LEN_STEP, secs - _LEN_STEP)
+            secs = max(LEN_STEP, secs - LEN_STEP)
         self._set_len(secs)
 
     def _shown_secs(self) -> int:
@@ -456,10 +462,13 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         self._refresh_len_lbl()
         self.settingsChanged.emit()
 
-    def set_dance_len(self, code: str, name: str, secs: int | None):
+    def set_dance_len(self, code: str, name: str, secs: int | None,
+                      plays_on: bool = False):
         """Show the 🏆 set's own length of dance `code` (named `name`), or —
-        with no `secs` — the list's one length again."""
+        with no `secs` — the list's one length again. `plays_on`: the title
+        is a final's that comes back up after its cut (🥇)."""
         self._dance_len = (code, name, int(secs)) if code and secs is not None else None
+        self._plays_on = bool(plays_on)
         self._refresh_len_lbl()
 
     def _on_len_typed(self, _event=None):
@@ -470,7 +479,7 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         modal dialog over the panel mid-heat is one thing too many to dismiss.
         The editor is made once and then reused."""
         if self._len_edit is None:
-            self._len_edit = _InlineEdit(self.len_lbl)
+            self._len_edit = InlineEdit(self.len_lbl)
             self._len_edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
             # The label's own type, so the digits do not jump on the switch.
             # Transparent, so the panel background shows through whatever the
@@ -547,6 +556,12 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         highlight stop isn't left suspended)."""
         self.pd_edit_btn.setChecked(on)
 
+    def set_pd_loaded(self, on: bool):
+        """The marking tools work on the Paso Doble on the deck: with another
+        title on it, or none, they are greyed out."""
+        for w in (self.pd_learn_btn, self.pd_clear_btn, self.pd_edit_btn):
+            w.setEnabled(on)
+
     def set_pd_marks(self, marks: list[float]):
         """Rebuild the deletable mark chips. Only visible while editing."""
         while self.pd_marks_lyt.count():
@@ -555,8 +570,12 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
             if w is not None:
                 w.deleteLater()
         for t in marks:
+            # −/+ move the mark by a tenth: a 🎯 tap lands a little early or late.
+            minus = self._pd_nudge_button("−", t, -0.1,
+                                          i18n.t("Move this highlight 0.1 s earlier"))
+            self.pd_marks_lyt.addWidget(minus)
             chip = QToolButton()
-            chip.setText(f"{int(t) // 60}:{int(t) % 60:02d}  ✕")
+            chip.setText(f"{int(t) // 60}:{t % 60:04.1f}  ✕")
             chip.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             chip.setToolTip(i18n.t("Delete the highlight at %s s") % f"{t:.1f}")
             chip.setStyleSheet(
@@ -565,11 +584,24 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
             chip.clicked.connect(lambda _=False, v=float(t):
                                  self.pdMarkDeleteRequested.emit(v))
             self.pd_marks_lyt.addWidget(chip)
+            self.pd_marks_lyt.addWidget(self._pd_nudge_button(
+                "+", t, 0.1, i18n.t("Move this highlight 0.1 s later")))
         if not marks:
             hint = QLabel("🎯  no marks — scrub to a crash and mark it")
             hint.setStyleSheet("color:#777; font-style:italic; font-size:11px;")
             self.pd_marks_lyt.addWidget(hint)
         self.pd_marks_lyt.addStretch(1)
+
+    def _pd_nudge_button(self, text: str, secs: float, delta: float,
+                         tip: str) -> QToolButton:
+        btn = QToolButton()
+        btn.setText(text)
+        btn.setFixedWidth(18)
+        btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        btn.setToolTip(tip)
+        btn.clicked.connect(lambda _=False, v=float(secs):
+                            self.pdMarkNudgeRequested.emit(v, delta))
+        return btn
 
     def _fill_screens(self, select: int | None = None):
         """(Re)list the connected monitors. The wanted one is found by name
@@ -728,7 +760,7 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         no gap between two songs and no end to run past, so the pause row and
         the 🔁 tick are not dead options — they are no options at all, and they
         leave the panel entirely. With the pause itself switched off, its
-        seconds and the filler music only grey out, because that switch is
+        seconds only grey out, because that switch is
         right there to click again. Nothing is forgotten either way — the
         values stay where they are and come back with the checkbox."""
         advancing = self.advance_check.isChecked()
@@ -742,11 +774,10 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         # neither can the list start over.
         self.repeat_check.setVisible(advancing)
         self.stop_row_box.setVisible(advancing)
+        self._sync_closing_row()
         self.pause_spin.setEnabled(pausing)
-        self.pause_music_box.setEnabled(pausing)
-        self.pause_vol_box.setEnabled(pausing)
-        # No pause means no gap to fill — take the filler controls off the
-        # panel rather than leave two dead rows in the way.
+        # No pause means no gap to fill — take the pause music's hint off
+        # the panel rather than leave a dead row in the way.
         self.pause_sub_box.setVisible(pausing)
         self._sync_announce_when()
 
@@ -756,9 +787,13 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
                              else f"{secs // 60}:{secs % 60:02d}")
         self.len_plus.setEnabled(secs != 0)
         dance = self._dance_len
-        self.len_dance_lbl.setVisible(dance is not None)
+        self.len_dance_lbl.setVisible(dance is not None or self._plays_on)
         if dance is not None:
-            self.len_dance_lbl.setText(i18n.t("%s — its own length") % dance[1])
+            self.len_dance_lbl.setText(
+                i18n.t("%s — its own length, then plays on" if self._plays_on
+                       else "%s — its own length") % dance[1])
+        elif self._plays_on:
+            self.len_dance_lbl.setText(i18n.t("Plays on after its length"))
 
     # ── Values read by MainWindow's playback engine ──
 
@@ -860,25 +895,37 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         self.stopRuleChanged.emit()
 
     def _show_stop_rule(self):
-        """The stop row as the rule stands: a count running down to 1 becomes
-        "after this title", a spent rule goes back to "never"."""
+        """The stop row as the rule stands: a count running down beside its
+        spinner, at 1 "after this title", a spent rule back on "never"."""
         stop = self._party_stop
         mode = {"count": "this" if stop.left <= 1 else "count",
                 "time": "time"}.get(stop.kind or "", "never")
         for w in (self.stop_combo, self.stop_count_spin):
             w.blockSignals(True)
         self.stop_combo.setCurrentIndex(self.stop_combo.findData(mode))
-        if mode == "count":
-            self.stop_count_spin.setValue(stop.left)
         for w in (self.stop_combo, self.stop_count_spin):
             w.blockSignals(False)
         self.stop_count_spin.setVisible(mode == "count")
+        self.stop_count_lbl.setText(i18n.t("%d left") % stop.left)
+        self.stop_count_lbl.setVisible(mode == "count")
         self.stop_time_edit.setVisible(mode == "time")
+        self.stop_at_mode_combo.setVisible(mode == "time")
+        self._sync_closing_row()
 
     def stop_due(self, end: datetime) -> bool:
         """Whether the title ending at `end` is the last one. Needs ⏭
         auto-advance, like the row it is set in."""
         return self.auto_advance() and self._party_stop.due(end)
+
+    def stop_at_mode(self) -> str:
+        """How an "At …" time ends the title on air: "end", "fade", "hybrid"."""
+        return self.stop_at_mode_combo.currentData()
+
+    def stop_fade_due(self, now: datetime, played_secs: float) -> bool:
+        """Whether the title on air fades out now because the "At …" time
+        has come (see PartyStop.fade_due)."""
+        return self.auto_advance() and self._party_stop.fade_due(
+            now, played_secs, self.stop_at_mode())
 
     def stop_title_ended(self, now: datetime, can_stop: bool = True) -> bool:
         """A title has ended: True when the music stops here."""
@@ -934,6 +981,14 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
 
     def announce_heat(self) -> bool:
         return self._announce_heat
+
+    def announce_lead(self) -> bool:
+        """📣 Whether the pause call opens with "Nächster Tanz"."""
+        return self._announce_lead
+
+    def announce_heat_only(self) -> bool:
+        """🔢 Whether every call says just "Gruppe 1" (a practice evening)."""
+        return self._announce_heat_only
 
     def announce_voice(self) -> str:
         """'female', 'male' or 'random' — which recorded voice to announce in."""
@@ -1036,13 +1091,6 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
             return []
         self.pd_delay_spin.setValue(int(secs))
         return [i18n.t("🐂 Paso Doble start after → %s s") % int(secs)]
-
-    def pause_music(self) -> list[str]:
-        return list(self._pause_music)
-
-    def pause_music_vol(self) -> int:
-        """Filler loudness in percent of the normal playback volume."""
-        return self.pause_vol_spin.value()
 
     def set_loudness_available(self, available: bool, missing: int = 0):
         """Equalize-volume is only offerable when every playlist track has a

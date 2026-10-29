@@ -93,6 +93,24 @@ class ThemeReloadGreysTest(unittest.TestCase):
                         play_cb=lambda *a: None, suggester=None)
         self.assertEqual(self.greyed(), {"CC 2"})
 
+    def test_a_refilled_row_greys_by_its_title(self):
+        """A pin or mark re-fills one row in place: a played title showed in
+        normal colours, its old saved colours keeping it from greying again,
+        and a new title there would get them back on leaving Playing mode
+        (BUG_REVIEW B5.5)."""
+        t = self.table
+        t.mark_path_played(str(self.entries[1].path))
+        row = next(r for r, m in t._row_meta.numbered() if m.entry is self.entries[1])
+        meta = t._row_meta.at(row)
+        t._refill_row(row, meta)
+        self.assertEqual(self.greyed(), {"CC 2"})
+        meta.entry = self.entries[2]           # a re-roll: an unplayed title
+        t._refill_row(row, meta)
+        self.assertEqual(self.greyed(), set())
+        t.mark_path_played(str(self.entries[0].path))
+        t.set_play_highlight_enabled(False)    # back to planning: nothing grey
+        self.assertEqual(self.greyed(), set())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -16,8 +16,7 @@ from gui.decks.running_order import Row, RunningOrder
 def _import_gui():
     os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                           tempfile.mkdtemp(prefix="dp_drop_"))
-    from gui.table import playlist_table
-    from gui.table import table_dnd
+    from gui.table import playlist_table, table_dnd
     return playlist_table, table_dnd
 
 
@@ -162,12 +161,12 @@ class MarkDropIssuesToastTest(unittest.TestCase):
     def _toast(self, canned, rows):
         t = self.Table(canned)
         toasts = []
-        orig = self.dnd._show_toast
-        self.dnd._show_toast = lambda anchor, text, msec=0: toasts.append(text)
+        orig = self.dnd.show_toast
+        self.dnd.show_toast = lambda anchor, text, msec=0, error=False: toasts.append(text)
         try:
             t._mark_drop_issues(rows)
         finally:
-            self.dnd._show_toast = orig
+            self.dnd.show_toast = orig
         return t, toasts
 
     def test_spread_message_is_deduplicated(self):

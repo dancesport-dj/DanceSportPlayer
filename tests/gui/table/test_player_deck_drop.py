@@ -24,10 +24,10 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtCore import QMimeData, QPointF, Qt, QUrl
 from PySide6.QtGui import QDropEvent
 from PySide6.QtWidgets import QApplication, QWidget
-from tests.qt_test_support import reap_widget
 
 from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry, RoundConfig
+from tests.qt_test_support import reap_widget
 
 
 def _e(dance, n):

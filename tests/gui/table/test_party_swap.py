@@ -24,11 +24,10 @@ from PySide6.QtCore import QEvent, QItemSelectionModel, Qt
 from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import QApplication, QWidget
 
-from shared.columns import _COL_REGEN
 from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry
+from shared.columns import COL_REGEN
 from tests.qt_test_support import reap_widget
-
 
 _DIR = Path(tempfile.mkdtemp(prefix="dp_pswap_m_"))
 
@@ -100,12 +99,12 @@ class PartySwapTest(_PartyBase):
 
     def test_regen_button_says_it_swaps(self):
         t = self.table()
-        tip = t.item(self.row_of(t, "LW 1"), _COL_REGEN).toolTip()
+        tip = t.item(self.row_of(t, "LW 1"), COL_REGEN).toolTip()
         self.assertIn("Swap", tip)
 
     def test_class_warmup_keeps_the_library_reroll(self):
         t = self.table(style="Latin")
-        self.assertNotIn("Swap", t.item(self.row_of(t, "LW 1"), _COL_REGEN).toolTip())
+        self.assertNotIn("Swap", t.item(self.row_of(t, "LW 1"), COL_REGEN).toolTip())
         with mock.patch.object(t, "_regen_warmup") as reroll:
             t._regen(self.row_of(t, "LW 1"))
         reroll.assert_called_once()

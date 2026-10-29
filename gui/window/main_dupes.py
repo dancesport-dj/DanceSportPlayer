@@ -3,25 +3,21 @@
 Split off gui/window/main_import.py as a MainWindow mixin. Covers the decks' own check,
 the one run over dropped .m3u files and the resolve dialog's aftermath.
 """
+import contextlib
 import logging
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 import shiboken6
-
-from planner.music.parsing import _song_title_keys
-
 from PySide6.QtWidgets import (
     QDialog,
     QMessageBox,
 )
-from pathlib import Path
-from planner.models import ALLOW_REPEAT, MusicEntry
+
 from gui.common import (
-    _C_ROW_EVEN,
-    _C_ROW_ODD,
-    _unreadable_playlist,
-)
-from shared.widgets import (
-    _show_toast,
+    C_ROW_EVEN,
+    C_ROW_ODD,
+    unreadable_playlist,
 )
 from gui.dialogs import (  # auto-resolved
     DuplicateResolveDialog,
@@ -31,10 +27,14 @@ from gui.table.playlist_table import (  # auto-resolved
     PlaylistTable,
 )
 from planner import i18n
+from planner.models import ALLOW_REPEAT, MusicEntry
+from planner.music.parsing import song_title_keys
 from planner.playlist.checks import build_dropped_dup_report, dup_clashes
 from planner.playlist.planned import is_planned, path_key
 from planner.playlist.playlist_text import PlaylistEncodingError, read_playlist_text
-from typing import TYPE_CHECKING
+from shared.widgets import (
+    show_toast,
+)
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -98,7 +98,7 @@ class DuplicateCheckMixin(MainWindowHost):
         if not src:
             return []
         try:
-            return _song_title_keys(src)
+            return song_title_keys(src)
         except Exception:
             return []
 
@@ -149,7 +149,7 @@ class DuplicateCheckMixin(MainWindowHost):
         others = [t for t in self._visible_deck_tables()
                   if t is not table and t._row_meta.has_songs()]
         if not others:
-            _show_toast(self, "✅  No other open playlist to compare against")
+            show_toast(self, "✅  No other open playlist to compare against")
             return 0
         paths, fps = self._deck_dedup_index(exclude=table)
         # hashed on demand
@@ -164,7 +164,7 @@ class DuplicateCheckMixin(MainWindowHost):
         here = self._deck_report_name(table)
         against = ", ".join(self._deck_report_name(t) for t in others)
         if not rows:
-            _show_toast(self, "✅  Nothing here is in another open playlist")
+            show_toast(self, "✅  Nothing here is in another open playlist")
             return 0
         n = len(rows)
         if not table._confirm_delete(
@@ -178,7 +178,7 @@ class DuplicateCheckMixin(MainWindowHost):
                  "deck: %s\n"
                  "removed: %d\n"
                  "compared against: %s", here, n, against)
-        _show_toast(self, (
+        show_toast(self, (
             i18n.t("🧹  Removed %d title already in another playlist") if n == 1
             else i18n.t("🧹  Removed %d titles already in another playlist")) % n)
         return n
@@ -258,10 +258,8 @@ class DuplicateCheckMixin(MainWindowHost):
         files: list[tuple] = []
         for table in self._dup_check_tables():
             recs: list[dict] = []
-            pos = 0
-            for row, m in table._row_meta.numbered():
+            for pos, (row, m) in enumerate(table._row_meta.numbered(), 1):
                 e = m.entry
-                pos += 1
                 self._dup_slots.append((table, row, e))
                 recs.append({"idx": pos, "title": e.title or "?",
                              "path": str(e.path) if getattr(e, "path", None) else "",
@@ -277,7 +275,7 @@ class DuplicateCheckMixin(MainWindowHost):
         try:
             return m3u_track_paths(m3u)
         except PlaylistEncodingError as exc:
-            _unreadable_playlist(self, m3u, exc)
+            unreadable_playlist(self, m3u, exc)
             return []
 
     def _make_reference_clean_worker(self, ref_path, tournament_paths):
@@ -331,7 +329,7 @@ class DuplicateCheckMixin(MainWindowHost):
                 tkeys = self._title_keys(entry) if entry is not None else []
                 if not tkeys:
                     try:
-                        tkeys = _song_title_keys(str(t))
+                        tkeys = song_title_keys(str(t))
                     except Exception:
                         tkeys = []
                 recs.append({"idx": i, "title": title, "path": str(t),
@@ -426,19 +424,19 @@ class DuplicateCheckMixin(MainWindowHost):
             msg = (i18n.t("🔁  Replaced %d duplicate") if n == 1
                    else i18n.t("🔁  Replaced %d duplicates")) % n
             self.statusBar().showMessage(msg)
-            _show_toast(self, msg)
+            show_toast(self, msg)
         if removed:
             msg = (i18n.t("🗑  Removed %d duplicate") if removed == 1
                    else i18n.t("🗑  Removed %d duplicates")) % removed
             self.statusBar().showMessage(msg)
-            _show_toast(self, msg)
+            show_toast(self, msg)
         if gone:
             msg = (i18n.t("⚠  %d duplicate was no longer in its playlist — left as it is")
                    if gone == 1 else
                    i18n.t("⚠  %d duplicates were no longer in their playlist — left as they are")
                    ) % gone
             self.statusBar().showMessage(msg, 8000)
-            _show_toast(self, msg)
+            show_toast(self, msg, error=True)
 
     def _take_out_of_wishlists(self, entries: list):
         """A replacement taken from a wishlist MOVES out of it, as a title dragged
@@ -509,15 +507,13 @@ class DuplicateCheckMixin(MainWindowHost):
             if lst is not None and 0 <= bn < len(lst):
                 lst[bn] = new_entry
         elif isinstance(playlist, dict) and rn in playlist:
-            try:
+            with contextlib.suppress(IndexError, KeyError, TypeError):
                 playlist[rn][h][d] = new_entry
-            except (IndexError, KeyError, TypeError):
-                pass
         meta.entry = new_entry
         if meta.theme or meta.warmup:
             # A flat list has no heats; its stripes count songs (_restripe_song_rows).
             h = next(i for i, (r, _m) in enumerate(table._row_meta.numbered()) if r == row)
-        bg = _C_ROW_EVEN if h % 2 == 0 else _C_ROW_ODD
+        bg = C_ROW_EVEN if h % 2 == 0 else C_ROW_ODD
         table._fill_song_row(row, meta, bg)
         if row == table._current_play_row:
             table.sync_play_glyph()

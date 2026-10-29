@@ -20,7 +20,7 @@ from pathlib import Path
 from unittest import mock
 
 import planner.music.db as pdb
-from planner.music.analysis import _AUDIO_FEAT_DIM
+from planner.music.analysis import AUDIO_FEAT_DIM
 from planner.music.library import MusicLibrary
 from tests.db_support import use_scratch_db
 
@@ -53,7 +53,7 @@ class ListingTest(unittest.TestCase):
             conn.execute(
                 "INSERT INTO features (fp, bpm, centroid, rms, mfcc, mfcc_mean, mfcc_cov) "
                 "VALUES (?,?,?,?,?,?,?)",
-                (f"fp{i}", 29.0 + i, 1500.0, 0.1, pack([0.5] * _AUDIO_FEAT_DIM),
+                (f"fp{i}", 29.0 + i, 1500.0, 0.1, pack([0.5] * AUDIO_FEAT_DIM),
                  pack([0.1] * 20), pack([0.2] * 400)))
         conn.commit()
         self.cache = pdb.AudioCache()

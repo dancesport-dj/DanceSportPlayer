@@ -20,10 +20,9 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication
 
-from planner.music.library import MusicLibrary
 from planner.models import MusicEntry
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
+from planner.music.library import MusicLibrary
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 FOREIGN = "Q:\\my music\\tanzcds\\lateincd\\{0}\\{1}"
 TRACKS = [("SB", "Senorita (SB 50).mp3", "SA"),

@@ -30,18 +30,18 @@ log = logging.getLogger("dancesport.gui")
 # old −18 threw away 8.1 dB for headroom nothing was using; going further, to
 # −12, would boost a quarter of the library: the true-peak cap below stops
 # each boost at its own peak, but only on tracks measured with one.
-_TARGET_LUFS = -14.0
+TARGET_LUFS = -14.0
 
 # 🔝 No title is sent past −1 dBTP: the gain is capped at the ceiling minus
 # the track's measured true peak, so a master already over it comes down too.
-_TRUE_PEAK_CEILING = -1.0
+TRUE_PEAK_CEILING = -1.0
 
 
 # 🔇 How long everything has to stay silent before the sound device is handed
 # back (setting "release_audio_idle"). Long enough that the two-second gap
 # between an announcement and the music does not close and re-open the card,
 # short enough that the hiss is gone before anyone in the hall notices it.
-_AUDIO_IDLE_S = 5.0
+AUDIO_IDLE_S = 5.0
 
 
 # 🔊 The sources that can each play on an output of their own (setting
@@ -49,13 +49,48 @@ _AUDIO_IDLE_S = 5.0
 # description}). A source left out follows: the music the system default,
 # every other source the music. SYSTEM_DEFAULT pins a source to the system
 # default even while the music plays elsewhere.
-OUTPUT_SOURCES = ("music", "filler", "cartwall", "announcer")
+OUTPUT_SOURCES = ("music", "cartwall", "announcer")
 SYSTEM_DEFAULT = "system"
+
+# 🔀 A choice may name a channel pair of a multichannel card as well ("pair":
+# 1 is its outputs 3/4, see player.audio.pair_route); left out, the source
+# plays on the whole device. In a picker the two travel as one key,
+# "<id>#<pair>". Never for the music: see pair_route.
+_PAIR_SEP = "#"
+
+
+def channel_pairs(device: QAudioDevice) -> int:
+    """How many stereo pairs `device` carries: 1 for a stereo output, 2 for
+    a four-channel card that Windows lists as ONE device (a UMC404HD)."""
+    return max(1, device.preferredFormat().channelCount() // 2)
+
+
+def pair_label(pair: int) -> str:
+    """Pair 1 → "Out 3/4", the way the back of the card names it."""
+    return "Out %d/%d" % (2 * pair + 1, 2 * pair + 2)
+
+
+def choice_pair(choice: dict) -> int:
+    """The channel pair an "audio_outputs" choice names; 0 (the whole
+    device) when it names none, or something that is not one."""
+    pair = choice.get("pair")
+    return pair if isinstance(pair, int) and pair > 0 else 0
+
+
+def output_key(dev_id: str, pair: int) -> str:
+    """A picker's data for `dev_id`, or for its channel pair `pair`."""
+    return "%s%s%d" % (dev_id, _PAIR_SEP, pair) if pair else dev_id
+
+
+def split_output_key(key: str) -> tuple[str, int]:
+    """output_key's other way round: (device id, pair)."""
+    dev_id, _, pair = key.partition(_PAIR_SEP)
+    return dev_id, int(pair) if pair.isdigit() else 0
 
 
 # TSO floor overrides for the heat-equalize clamp. Empty since the Rumba
 # minimum moved down to T24 (the old 24.5 practice-floor covered the T25 era).
-_TSO_FLOOR_OVERRIDE: dict[str, float] = {}
+TSO_FLOOR_OVERRIDE: dict[str, float] = {}
 
 
 def audible_played_secs(position_ms: int, offset_ms: int, rate: float) -> float:

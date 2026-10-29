@@ -28,9 +28,21 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 import PySide6.QtCore as qtcore
 from PySide6.QtGui import QAction, QFontMetrics
 from PySide6.QtWidgets import (
-    QApplication, QCheckBox, QComboBox, QDialogButtonBox, QDoubleSpinBox,
-    QGroupBox, QLabel, QLineEdit, QMenu, QMessageBox, QPushButton, QSpinBox,
-    QTableWidget, QTabWidget, QWidget,
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QDialogButtonBox,
+    QDoubleSpinBox,
+    QGroupBox,
+    QLabel,
+    QLineEdit,
+    QMenu,
+    QMessageBox,
+    QPushButton,
+    QSpinBox,
+    QTableWidget,
+    QTabWidget,
+    QWidget,
 )
 
 from planner import i18n
@@ -151,9 +163,8 @@ class LanguageSettingTest(unittest.TestCase):
 
     def test_verbatim_puts_the_catalog_back_even_after_a_raise(self):
         i18n.set_active("de")
-        with self.assertRaises(ValueError):
-            with i18n.verbatim():
-                raise ValueError
+        with self.assertRaises(ValueError), i18n.verbatim():
+            raise ValueError
         self.assertNotEqual(i18n.t("Cancel"), "Cancel")
 
 
@@ -321,11 +332,11 @@ class TextHookTest(unittest.TestCase):
         library: one track is called "Time" and another "Action", and both are
         column headers elsewhere in the app. The presenter screen is what the
         hall reads the song name off, so a title must never be translated."""
-        from player.presenter.presenter import _ScrollLabel
+        from player.presenter.presenter import ScrollLabel
 
         i18n.set_active("de")
         i18n.install_text_hook()
-        lbl = _ScrollLabel("#ffffff")
+        lbl = ScrollLabel("#ffffff")
         self.addCleanup(lbl.deleteLater)
         lbl.set_full_text("Cancel")
         self.assertEqual(lbl.text(), "Cancel")

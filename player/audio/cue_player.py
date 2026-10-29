@@ -8,14 +8,14 @@ player instead — the operator's headphones on a second card (or the second
 output pair of one) — and the music keeps running.
 """
 import logging
-
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, QUrl, Signal
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 
-from shared.audio.playback import device_id, prime_disconnect_notify, quiet_ffmpeg_log
+from player.audio.pair_route import PairRoute
+from shared.audio.playback import device_id, pair_label, prime_disconnect_notify, quiet_ffmpeg_log
 
 if TYPE_CHECKING:
     from player.widgets.player import PreviewOverlay
@@ -36,6 +36,7 @@ class CuePlayer(QObject):
         self._out = QAudioOutput(self)
         self._player.setAudioOutput(self._out)
         prime_disconnect_notify(self._player, self._out)
+        self._route = PairRoute(self._player, self._out, self)
         self._player.mediaStatusChanged.connect(self._on_status)
         self._player.errorOccurred.connect(self._on_error)
         self._path: Path | None = None
@@ -55,16 +56,21 @@ class CuePlayer(QObject):
     def audio_output(self) -> QAudioOutput:
         return self._out
 
-    def play(self, path: Path, device) -> None:
-        """Play `path` on `device` (a QAudioDevice), from the top."""
-        if device_id(self._out.device()) != device_id(device):
-            self._out.setDevice(device)   # only on a change: it re-opens the card
+    def play(self, path: Path, device, pair: int = 0) -> None:
+        """Play `path` on `device` (a QAudioDevice), or on its channel pair
+        `pair` (player.audio.pair_route), from the top."""
+        if (pair or self._route.pair
+                or device_id(self._out.device()) != device_id(device)):
+            # only on a change: it re-opens the card
+            self._route.set_device(device, pair)
         self._path = Path(path)
         self._player.setSource(QUrl.fromLocalFile(str(path)))
         self._player.play()
         log.info("🎧 Pre-listen\n"
                  "title: %s\n"
-                 "output: %s", self._path.stem, device.description())
+                 "output: %s\n"
+                 "channels: %s", self._path.stem, device.description(),
+                 pair_label(pair) if pair else "the whole device")
 
     def seek(self, delta_ms: int) -> None:
         """Ctrl+←/→: move by delta_ms, kept inside the title."""

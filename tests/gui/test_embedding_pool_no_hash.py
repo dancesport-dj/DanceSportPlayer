@@ -15,8 +15,8 @@ from types import SimpleNamespace
 from unittest import mock
 
 import planner.music.db as pdb
-from planner.music import embeddings as ae
 from gui.dialogs.similar_dialog import SimilarTracksDialog
+from planner.music import embeddings as ae
 from tests.gui.window.test_edit_no_stat import _ScratchCache
 
 
@@ -35,7 +35,7 @@ class EmbeddingPoolCountTest(_ScratchCache):
             _get_store=lambda: store, _emb_pool=lambda: pool,
             _run_embedding_rank=mock.Mock())
         calls = self.stats()
-        with mock.patch.object(pdb, "_fingerprints", wraps=pdb._fingerprints) as hashing:
+        with mock.patch.object(pdb, "fingerprints", wraps=pdb.fingerprints) as hashing:
             SimilarTracksDialog._rank_embedding(dlg)
         dlg._run_embedding_rank.assert_called_once_with()
         hashing.assert_not_called()

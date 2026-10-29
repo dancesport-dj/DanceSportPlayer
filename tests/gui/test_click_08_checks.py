@@ -15,19 +15,19 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-# First: it points the app's state files at a temp folder before any app
-# module is imported.
-from tests.gui.monkey_support import ClickThrough, DropFrom, printable
-
 import numpy as np
 import shiboken6
 from PySide6.QtCore import QMimeData, QPoint, QPointF, Qt, QUrl
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import (QApplication, QFileDialog, QLabel, QMessageBox,
-                               QTableWidget)
+from PySide6.QtWidgets import QApplication, QFileDialog, QLabel, QMessageBox, QTableWidget
+
 from gui import common
 from planner.music.analysis import AudioFeatures
 from shared.columns import _COL_TITLE
+
+# First: it points the app's state files at a temp folder before any app
+# module is imported.
+from tests.gui.monkey_support import ClickThrough, DropFrom, printable
 
 
 class ChecksClickTest(ClickThrough):
@@ -199,6 +199,16 @@ class ChecksClickTest(ClickThrough):
         self.assertTrue(report.isVisible())
         [suspects] = report.findChildren(QTableWidget)
         return report, suspects
+
+    def test_a_report_without_suspects_survives_a_deck_play(self):
+        # Monkey crash: an all-clear report has no suspects table, so its
+        # ▶ marker reset was never set, and the next deck ▶ hit an AttributeError.
+        with self.clicking():
+            self.win._show_music_report([], 3, 0)
+            report = self.win._bpm_dlg
+            self.assertTrue(report.isVisible())
+            self.win._reset_aux_play_markers()
+            report.close()
 
     def test_check_music_plays_a_suspect_and_ctrl_arrow_seeks(self):
         with self.clicking() as op:

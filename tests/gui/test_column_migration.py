@@ -13,8 +13,7 @@ all in the library, whose saved columns it leaves as they were.
 import unittest
 
 from gui.dialogs import COLUMNS_VERSION, migrate_column_settings
-from shared.columns import (_COL_ALBUM, _COL_COMMENT, _COL_CUSTOM, _COL_FILE, _COL_PLAYS, _COL_RATING,
-                            _COL_REGEN)
+from shared.columns import _COL_ALBUM, _COL_COMMENT, _COL_CUSTOM, _COL_FILE, _COL_PLAYS, _COL_RATING, COL_REGEN
 
 
 class MigrateColumnSettingsTest(unittest.TestCase):
@@ -27,9 +26,9 @@ class MigrateColumnSettingsTest(unittest.TestCase):
              "library_col_widths": {"0": 30, "9": 52}}
         migrate_column_settings(s)
         self.assertEqual(s["hidden_columns"],
-                         {"wishlist": [1, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT, _COL_PLAYS, _COL_REGEN]})
+                         {"wishlist": [1, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT, _COL_PLAYS, COL_REGEN]})
         self.assertEqual(s["column_widths"]["playlist"],
-                         {"0": 119, "8": 60, str(_COL_REGEN): 30})
+                         {"0": 119, "8": 60, str(COL_REGEN): 30})
         self.assertEqual(s["library_hidden_columns"], [10, 11, 12, 13, 14, 15])
         self.assertEqual(s["library_col_widths"], {"0": 30, "9": 52})
         self.assertEqual(s["columns_version"], COLUMNS_VERSION)
@@ -39,7 +38,7 @@ class MigrateColumnSettingsTest(unittest.TestCase):
         migrate_column_settings(s)
         migrate_column_settings(s)
         self.assertEqual(s["hidden_columns"],
-                         {"wishlist": [1, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT, _COL_PLAYS, _COL_REGEN]})
+                         {"wishlist": [1, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT, _COL_PLAYS, COL_REGEN]})
 
     def test_a_kind_ticked_all_on_gets_the_rating_hidden(self):
         """A saved empty list is a decision about the OLD columns only."""
@@ -70,9 +69,9 @@ class CustomColumnMigrationTest(unittest.TestCase):
         self.assertEqual(s["hidden_columns"],
                          {"playlist": [_COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT, _COL_PLAYS],
                           "wishlist": [1, _COL_RATING, _COL_CUSTOM, _COL_FILE,
-                                       _COL_ALBUM, _COL_COMMENT, _COL_PLAYS, _COL_REGEN]})
+                                       _COL_ALBUM, _COL_COMMENT, _COL_PLAYS, COL_REGEN]})
         self.assertEqual(s["column_widths"]["playlist"],
-                         {"8": 60, str(_COL_RATING): 72, str(_COL_REGEN): 30})
+                         {"8": 60, str(_COL_RATING): 72, str(COL_REGEN): 30})
         self.assertEqual(s["columns_version"], COLUMNS_VERSION)
 
     def test_the_library_gets_it_at_the_end(self):
@@ -100,9 +99,9 @@ class CustomColumnMigrationTest(unittest.TestCase):
         migrate_column_settings(s)
         self.assertEqual(s["hidden_columns"],
                          {"playlist": [1, _COL_FILE, _COL_ALBUM, _COL_COMMENT, _COL_PLAYS],
-                          "wishlist": [_COL_ALBUM, _COL_COMMENT, _COL_PLAYS, _COL_REGEN]})
+                          "wishlist": [_COL_ALBUM, _COL_COMMENT, _COL_PLAYS, COL_REGEN]})
         self.assertEqual(s["column_widths"]["playlist"],
-                         {str(_COL_FILE): 240, str(_COL_REGEN): 30})
+                         {str(_COL_FILE): 240, str(COL_REGEN): 30})
         self.assertEqual(s["library_columns"], order + [13, 14, 15])
         self.assertEqual(s["library_hidden_columns"], [12, 13, 14, 15])
 

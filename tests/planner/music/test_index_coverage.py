@@ -14,12 +14,12 @@ import sqlite3
 import tempfile
 import types
 import unittest
-from unittest import mock
 from pathlib import Path
+from unittest import mock
 
 from planner.music import embeddings as ae
-from planner.music.embeddings import AudioTooShort
 from planner.music.db import AudioCache
+from planner.music.embeddings import AudioTooShort
 
 
 class _Cache:
@@ -369,6 +369,7 @@ class CleanupBusyTest(unittest.TestCase):
         os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                               tempfile.mkdtemp(prefix="dp_allc_"))
         from PySide6.QtWidgets import QMessageBox
+
         from gui.window import main_allcache as gmg
 
         class _Win(gmg.AllCacheMixin):
@@ -403,7 +404,7 @@ class CleanupBusyTest(unittest.TestCase):
         self.assertEqual(seen, [False])
 
     def test_the_wait_is_shown_at_once_and_closed_again(self):
-        _, log = self._build(lambda: {})
+        _, log = self._build(dict)
         self.assertEqual(log[0][0], "open")
         self.assertEqual(log[1], ("show_after", 0))
         self.assertEqual(log[-1], ("finish", None))
@@ -780,8 +781,7 @@ class PassFailureReasonTest(unittest.TestCase):
         self.assertEqual(done, (1, 0))
 
     def test_every_pass_names_its_own_likeliest_reason(self):
-        from gui.workers import (AudioFpAnalyzer, LoudnessAnalyzer,
-                                 SilenceAnalyzer, VocalShareAnalyzer)
+        from gui.workers import AudioFpAnalyzer, LoudnessAnalyzer, SilenceAnalyzer, VocalShareAnalyzer
         for cls in (AudioFpAnalyzer, LoudnessAnalyzer, SilenceAnalyzer,
                     VocalShareAnalyzer):
             with self.subTest(cls.__name__):

@@ -9,8 +9,8 @@ optional; without it there are simply no HID devices.
 Nothing Qt lives here. Reports are read on a thread of our own and handed to
 the callback from that thread; the caller moves them onto the GUI thread.
 """
-from __future__ import annotations
 
+import contextlib
 import logging
 import threading
 
@@ -28,7 +28,6 @@ DJ_VENDORS = frozenset({0x17CC, 0x2B73, 0x08E4, 0x15E4, 0x06F8, 0x200C,
                         0x0944, 0x22F0, 0x1397})
 _READ_SIZE = 256
 _READ_TIMEOUT_MS = 200
-
 
 def _hid_id(vendor: int, product: int) -> str:
     return f"{vendor:04x}:{product:04x}"
@@ -94,7 +93,7 @@ class HidInput:
         self._dev = hid.device()
         try:
             self._dev.open_path(path)
-        except (OSError, IOError) as exc:
+        except OSError as exc:
             raise OSError(f"could not open HID device {ident} — another "
                           f"program may hold it ({exc})") from exc
         self._on_report = on_report
@@ -107,7 +106,7 @@ class HidInput:
         while not self._stop.is_set():
             try:
                 data = self._dev.read(_READ_SIZE, _READ_TIMEOUT_MS)
-            except (OSError, IOError, ValueError):
+            except (OSError, ValueError):
                 log.warning("🎛 HID device %s stopped answering", self.name)
                 break
             if data:
@@ -126,7 +125,5 @@ class HidInput:
         self._stop.set()
         if self._thread.is_alive():
             self._thread.join(timeout=1.0)
-        try:
+        with contextlib.suppress(OSError):
             self._dev.close()
-        except (OSError, IOError):
-            pass

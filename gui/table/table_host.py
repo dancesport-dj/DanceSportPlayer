@@ -10,9 +10,11 @@ dialog, or in a test's bare window: a window without the member means
 "nothing to do", never an AttributeError.
 """
 import logging
+from pathlib import Path
 from typing import Any
 
 from gui.dialogs import app_mode_of
+from planner.music.paths import resolve_file
 
 log = logging.getLogger("dancesport.gui.playlist_table")
 
@@ -155,6 +157,10 @@ class TableHost:
         return self._call("_clean_wishlist_against_playlists", self._table,
                           default=0, **kwargs)
 
+    def count_in_playlists(self, entries) -> int:
+        """How many of `entries` an open playlist deck already plans."""
+        return self._call("_count_in_playlists", entries, default=0)
+
     # ── Playlists and the library ───────────────────────────────────────────
     def import_m3u_into(self):
         self._call("_import_m3u_into", self._table)
@@ -164,6 +170,26 @@ class TableHost:
 
     def player_list_m3u_loader(self):
         return getattr(self._win(), "_load_player_list_from_m3u", None)
+
+    def entry_for(self, path):
+        """The window's entry for a dropped file, for a table not wired to a
+        library yet — a wishlist while the scan still runs. None without one."""
+        service = getattr(self._win(), "_library", None)
+        if service is None:
+            return None
+        lib = service.resolver()
+        return lib.entry_for(path, service.cache) if lib is not None else None
+
+    def resolve_file(self, path) -> Path:
+        """The file behind a path written on another PC — re-rooted under the
+        Reference path and the search folders (⚙ Settings), as 🧭 Fix paths
+        does it. The path unchanged when nothing is found."""
+        return resolve_file(path, self.settings()) or Path(path)
+
+    def file_there(self, path) -> bool:
+        """The title can play here: its file, the same path on another drive
+        (the stick came back as G:), or 🧭's copy (see `resolve_file`)."""
+        return resolve_file(path, self.settings()) is not None
 
     def import_m3u_loader(self):
         return getattr(self._win(), "_import_dropped_playlist", None)

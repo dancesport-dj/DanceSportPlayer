@@ -31,16 +31,21 @@ class FadeNow:
         # ✕ was pressed with music on: the window closes once the fade-out is
         # done, and that close (or a second ✕) does not fade again.
         self.quitting = False
+        # …and the title of the ⚙ restart offer that close is for, if any:
+        # the app starts again once the window has really closed.
+        self.restart: str | None = None
 
     @property
     def running(self) -> bool:
         return self.end is not None
 
-    def start(self, secs: float, hold: bool = False) -> None:
-        """Ramp to silence over `secs` (at least MIN_SECS) from now."""
+    def start(self, secs: float, hold: bool = False, level: float = 1.0) -> None:
+        """Ramp to silence over `secs` (at least MIN_SECS) from now — from
+        `level` where a fade is already under way (the ⏳ timed one), at the
+        same slope: starting over at full put the music back up first."""
         self.hold = hold
         self.total = max(self.MIN_SECS, float(secs))
-        self.end = time.monotonic() + self.total
+        self.end = time.monotonic() + self.total * max(0.0, min(1.0, level))
         self.left = None
 
     def remaining(self) -> float:

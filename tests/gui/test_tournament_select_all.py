@@ -21,7 +21,8 @@ from PySide6.QtCore import QEvent, Qt
 from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import QApplication, QMessageBox, QToolButton
 
-from gui import tournament_tiles as tiles, tournament_tree as gt
+from gui import tournament_tiles as tiles
+from gui import tournament_tree as gt
 from planner.store import JsonStore
 from tests.qt_test_support import reap_widget
 

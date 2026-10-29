@@ -885,9 +885,8 @@ class WriteJsonAtomicTest(unittest.TestCase):
 
     def test_a_write_that_fails_leaves_no_temp_file(self):
         target = self._tmp / "out.json"
-        with mock.patch.object(config.os, "replace", side_effect=OSError("locked")):
-            with self.assertRaises(OSError):
-                config.write_json_atomic(target, {"a": 1})
+        with mock.patch.object(config.os, "replace", side_effect=OSError("locked")), self.assertRaises(OSError):
+            config.write_json_atomic(target, {"a": 1})
         self.assertEqual(list(self._tmp.iterdir()), [])
 
     def test_a_target_locked_for_a_moment_is_written_anyway(self):
@@ -914,9 +913,8 @@ class WriteJsonAtomicTest(unittest.TestCase):
         target = self._tmp / "out.json"
         with mock.patch.object(config.os, "replace",
                                side_effect=PermissionError(13, "locked")), \
-             mock.patch.object(config.time, "sleep"):
-            with self.assertRaises(PermissionError):
-                config.write_json_atomic(target, {"a": 1})
+             mock.patch.object(config.time, "sleep"), self.assertRaises(PermissionError):
+            config.write_json_atomic(target, {"a": 1})
         self.assertEqual(list(self._tmp.iterdir()), [])
 
 

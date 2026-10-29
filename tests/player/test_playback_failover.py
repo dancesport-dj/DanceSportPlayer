@@ -65,7 +65,7 @@ class FailoverTest(_Fixture):
         return desk, rows, path
 
     def break_play(self, desk):
-        with mock.patch("player.window.main_load._show_toast") as toast:
+        with mock.patch("player.window.main_load.show_toast") as toast:
             desk._on_player_error(None, "Could not decode the file")
             QApplication.processEvents()
         return toast
@@ -104,8 +104,7 @@ class FailoverTest(_Fixture):
         desk, _rows, broken = self.failing_desk(0)
         self.break_play(desk)
         desk._playback.path = broken
-        desk._play_ready_logged = True
-        desk._play_t0 = None
+        desk._playback.ready_logged = True
         desk._resume_seek_ms = None
         desk._on_media_status(QMediaPlayer.MediaStatus.LoadedMedia)
         self.assertNotIn(str(broken), desk._playback.failed)

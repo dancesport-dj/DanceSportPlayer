@@ -23,8 +23,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_ai_"))
 
 from planner.generate import llm
-from planner.music import sound as planner_sound
 from planner.models import MusicEntry, RoundConfig
+from planner.music import sound as planner_sound
 
 DANCES = ["SA", "CC", "RB"]
 _BPM = {"SA": 51, "CC": 31, "RB": 25}

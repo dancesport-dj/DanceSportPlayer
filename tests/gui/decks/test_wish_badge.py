@@ -28,10 +28,10 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication, QLabel
 
 from gui.decks.deck import Deck
+from gui.decks.deck_set import DeckSet
 from gui.window.main_wish import WishlistMixin
 from planner import i18n
 from tests.qt_test_support import reap_widget
-from gui.decks.deck_set import DeckSet
 
 
 class _Entry:

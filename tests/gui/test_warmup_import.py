@@ -25,10 +25,9 @@ from PySide6.QtCore import QMimeData, QPointF, Qt, QUrl
 from PySide6.QtGui import QDropEvent
 from PySide6.QtWidgets import QApplication
 
-from planner.music.library import MusicLibrary
 from planner.models import MusicEntry
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
+from planner.music.library import MusicLibrary
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 _STD = ("LW", "TG", "WW", "SF", "QS")
 

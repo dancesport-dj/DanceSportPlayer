@@ -165,10 +165,10 @@ class ReadFromAFileTest(unittest.TestCase):
         flac.save()
 
     def test_the_one_parse_scan_reads_tags_and_length(self):
-        tags, secs = parsing._read_tags_once(self.path)
+        tags, secs = parsing.read_tags_once(self.path)
         self.assertEqual(secs, 180)
         self.assertEqual(_text(tags, "TIT2"), ["Sway"])
-        self.assertEqual(parsing._get_um_dance(tags), "RB")
+        self.assertEqual(parsing.get_um_dance(tags), "RB")
 
     def test_the_single_readers_see_them_too(self):
         self.assertEqual(_text(parsing._id3_of(self.path), "TIT2"), ["Sway"])

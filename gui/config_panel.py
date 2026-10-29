@@ -24,27 +24,28 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from planner.event.competition import CompetitionSpec, parse_competition_schedule
-from planner.models import (
-    DANCE_STYLES,
-    DEFAULT_DANCES,
-    RoundConfig,
-    best_style_for_dances,
-    rounds_from_pattern,
-    style_covers_dances,
-)
-from planner import terms
-from planner.terms import dance_name
-from planner.generate.scoring import STRATEGIES, STRATEGY_HELP, STRATEGY_LABELS
-from planner.themes import all_themes
-from planner import i18n
-from planner.generate.scoring import _resolve_strategy
+
 from gui.common import (
     DropZone,
     _lbl,
 )
+from planner import i18n, terms
+from planner.event.competition import CompetitionSpec, parse_competition_schedule
+from planner.generate.scoring import STRATEGIES, STRATEGY_HELP, STRATEGY_LABELS, resolve_strategy
+from planner.models import (
+    DANCE_STYLES,
+    DEFAULT_DANCES,
+    RoundConfig,
+    RoundTier,
+    Strategy,
+    best_style_for_dances,
+    rounds_from_pattern,
+    style_covers_dances,
+)
+from planner.terms import dance_name
+from planner.themes import all_themes
 from shared.widgets import (
-    _hsep,
+    hsep,
 )
 
 log = logging.getLogger("dancesport.gui.config_panel")
@@ -76,16 +77,16 @@ def mark_index_gaps(msg: str) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 class ConfigPanel(QWidget):
     generate_requested = Signal()
-    import_requested   = Signal()
-    ai_requested       = Signal()
+    import_requested = Signal()
+    ai_requested = Signal()
     ai_playlist_requested = Signal()
-    ai_log_requested   = Signal()
+    ai_log_requested = Signal()
     settings_requested = Signal()
     build_all_requested = Signal()       # 🧱 next to the status counts
     m3u_source_requested = Signal()      # 'Browse…' next to the .m3u source
     round_strategy_changed = Signal(str, str)   # (round_name, strategy_key)
     replay_competition_changed = Signal(int)    # selected competition index
-    schedule_parsed            = Signal()        # a fresh schedule was parsed
+    schedule_parsed = Signal()        # a fresh schedule was parsed
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -115,7 +116,7 @@ class ConfigPanel(QWidget):
         for _mode in ("Favorites", "Theme", "Past Competitions"):
             self.mode_combo.addItem(_mode, _mode)
         layout.addWidget(self.mode_combo)
-        layout.addWidget(_hsep())
+        layout.addWidget(hsep())
 
         self._build_favorites_box(layout)
         self._build_rounds_box()
@@ -126,7 +127,7 @@ class ConfigPanel(QWidget):
 
         self._build_theme_box(layout)
 
-        layout.addWidget(_hsep())
+        layout.addWidget(hsep())
 
         self._build_actions(layout)
 
@@ -135,7 +136,7 @@ class ConfigPanel(QWidget):
         layout.addWidget(self.drop_zone)
 
         layout.addStretch()
-        layout.addWidget(_hsep())
+        layout.addWidget(hsep())
 
         self._build_status_row(layout)
 
@@ -213,7 +214,7 @@ class ConfigPanel(QWidget):
         self.class_combo.setCurrentText("S")
         clyt.addWidget(self.class_combo)
 
-        clyt.addWidget(_hsep())
+        clyt.addWidget(hsep())
 
         # ── Dances ──
         clyt.addWidget(_lbl("Dances:"))
@@ -222,7 +223,7 @@ class ConfigPanel(QWidget):
         self.dances_layout.setContentsMargins(4, 0, 4, 0)
         self.dances_layout.setSpacing(1)
         clyt.addWidget(self.dances_box)
-        clyt.addWidget(_hsep())
+        clyt.addWidget(hsep())
 
     def _build_rounds_box(self):
         """Rounds, round strategy, auto re-roll and timbre (Favorites + Past Competitions)."""
@@ -272,7 +273,7 @@ class ConfigPanel(QWidget):
         )
         rlyt.addWidget(self.auto_reroll_check)
 
-        rlyt.addWidget(_hsep())
+        rlyt.addWidget(hsep())
 
         # ── Options ──
         self.timbre_check = QCheckBox("Use Timbre Similarity")
@@ -312,7 +313,7 @@ class ConfigPanel(QWidget):
             "Seeds the grid from songs you played at this\n"
             "class before (matching per-class M3U files)."
         ))
-        plyt.addWidget(_hsep())
+        plyt.addWidget(hsep())
         self._replay_specs: list[CompetitionSpec] = []
         self._replay_box.setVisible(False)
 
@@ -432,7 +433,7 @@ class ConfigPanel(QWidget):
 
     def _on_mode_changed(self, _index=None):
         mode = self.mode_combo.currentData()
-        is_theme  = (mode == "Theme")
+        is_theme = (mode == "Theme")
         is_replay = (mode == "Past Competitions")
         # style/age/class/dances only make sense in Favorites mode
         self._comp.setVisible(not is_theme and not is_replay)
@@ -493,15 +494,15 @@ class ConfigPanel(QWidget):
         Walzer in Standard, no Paso Doble in Latin). Switching either combo
         starts from those defaults again -- a hand-picked subset belongs to the
         style it was picked in, not to the one being switched to."""
-        style    = self.style_combo.currentText()
-        cls      = self.class_combo.currentText()
+        style = self.style_combo.currentText()
+        cls = self.class_combo.currentText()
         defaults = DEFAULT_DANCES.get(style, {}).get(cls, [])
-        all_d    = list(DEFAULT_DANCES.get(style, {}).get("S", []))
+        all_d = list(DEFAULT_DANCES.get(style, {}).get("S", []))
 
         # Clear existing checkboxes
         while self.dances_layout.count():
             item = self.dances_layout.takeAt(0)
-            w    = item.widget() if item is not None else None
+            w = item.widget() if item is not None else None
             if w:
                 w.setParent(None)
         self.dance_checks.clear()
@@ -525,7 +526,7 @@ class ConfigPanel(QWidget):
         # Rebuild strategy UI
         while self.strategy_lyt.count():
             item = self.strategy_lyt.takeAt(0)
-            w    = item.widget() if item is not None else None
+            w = item.widget() if item is not None else None
             if w:
                 w.setParent(None)
         self._strategy_combos.clear()
@@ -539,11 +540,12 @@ class ConfigPanel(QWidget):
         # it draws from all your playlists.
         is_replay = (self.mode_combo.currentData() == "Past Competitions")
 
-        def _replay_default(i: int, tier: str) -> str:
-            return "top_proven" if tier in ("final", "semi") else "proven"
+        def _replay_default(i: int, tier: RoundTier) -> Strategy:
+            return (Strategy.TOP_PROVEN if tier in (RoundTier.FINAL, RoundTier.SEMI)
+                    else Strategy.PROVEN)
 
         for i, rc in enumerate(cfgs):
-            rw  = QWidget()
+            rw = QWidget()
             rhl = QHBoxLayout(rw)
             rhl.setContentsMargins(0, 0, 0, 0)
             rhl.setSpacing(4)
@@ -566,13 +568,13 @@ class ConfigPanel(QWidget):
                 default = _replay_default(i, rc.tier)
             elif rc.strategy:
                 # An explicit (restored / user-picked) strategy always wins.
-                default = _resolve_strategy(rc.tier, rc.prefer_fresh, rc.strategy)
+                default = resolve_strategy(rc.tier, rc.prefer_fresh, rc.strategy)
             elif i == 0:
-                default = "all"      # 1st round → Even Mix (maximum variety)
+                default = Strategy.ALL    # 1st round → Even Mix (maximum variety)
             elif i == 1:
-                default = "mixed"    # 2nd round → Mostly Proven
+                default = Strategy.MIXED  # 2nd round → Mostly Proven
             else:
-                default = _resolve_strategy(rc.tier, rc.prefer_fresh, None)
+                default = resolve_strategy(rc.tier, rc.prefer_fresh, None)
             combo.setCurrentIndex(STRATEGIES.index(default))
             combo.setToolTip(STRATEGY_HELP[default])
             # Connect AFTER setCurrentIndex so the initial build doesn't fire a
@@ -634,16 +636,16 @@ class ConfigPanel(QWidget):
 
     def get_config(self) -> tuple[str, str, str, list[str], list[RoundConfig], bool]:
         self._parse_rounds()   # ensure rounds reflect any unsaved edits
-        style  = self.style_combo.currentText()
-        age    = self.age_combo.currentText()
-        cls    = self.class_combo.currentText()
+        style = self.style_combo.currentText()
+        age = self.age_combo.currentText()
+        cls = self.class_combo.currentText()
         dances = [d for d, cb in self.dance_checks.items() if cb.isChecked()]
         # Apply user-chosen strategies
         for rc in self._round_cfgs:
             combo = self._strategy_combos.get(rc.name)
             if combo:
-                rc.strategy     = combo.currentData()
-                rc.prefer_fresh = (rc.strategy == "fresh")   # keep legacy flag in sync
+                rc.strategy = Strategy.of(combo.currentData())
+                rc.prefer_fresh = (rc.strategy == Strategy.FRESH)   # keep legacy flag in sync
         use_timbre = self.timbre_check.isChecked()
         return style, age, cls, dances, self._round_cfgs, use_timbre
 
@@ -763,8 +765,8 @@ class ConfigPanel(QWidget):
         for rc in self._round_cfgs:
             combo = self._strategy_combos.get(rc.name)
             if combo:
-                rc.strategy     = combo.currentData()
-                rc.prefer_fresh = (rc.strategy == "fresh")
+                rc.strategy = Strategy.of(combo.currentData())
+                rc.prefer_fresh = (rc.strategy == Strategy.FRESH)
         return spec, self._round_cfgs, self.timbre_check.isChecked()
 
     def set_library_status(self, msg: str, enable_generate: bool = False,

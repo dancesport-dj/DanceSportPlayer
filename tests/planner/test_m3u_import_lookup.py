@@ -15,7 +15,7 @@ from pathlib import Path
 from unittest import mock
 
 from dancesport_planner import MusicEntry, MusicLibrary
-from planner.playlist.m3u import _resolve_import_path
+from planner.playlist.m3u import resolve_import_path
 
 TANGO = r"C:\music\tanzcds\standardcd\TG\Tanguera (TG 32).mp3"
 
@@ -40,7 +40,7 @@ class M3uImportLookupTest(unittest.TestCase):
         lib.entry_for(TANGO)                      # builds the index
         lib._entries = _Loud(lib.entries)         # under the setter, as in test_entry_for
 
-        entry, found, _ = _resolve_import_path(TANGO, lib, None, "Tanguera")
+        entry, found, _ = resolve_import_path(TANGO, lib, None, "Tanguera")
 
         self.assertIs(entry, tango)
         self.assertTrue(found)
@@ -48,12 +48,12 @@ class M3uImportLookupTest(unittest.TestCase):
     def test_an_exact_path_wins_over_a_case_folded_one(self):
         lower = TANGO.lower()
         lib = _library(lower, TANGO)
-        entry, _, _ = _resolve_import_path(TANGO, lib, None, "Tanguera")
+        entry, _, _ = resolve_import_path(TANGO, lib, None, "Tanguera")
         self.assertEqual(str(entry.path), TANGO)
 
     def test_a_line_in_another_case_still_finds_the_track(self):
         lib = _library(TANGO)
-        entry, found, _ = _resolve_import_path(TANGO.upper(), lib, None, "Tanguera")
+        entry, found, _ = resolve_import_path(TANGO.upper(), lib, None, "Tanguera")
         self.assertIs(entry, lib.entries[0])
         self.assertTrue(found)
 
@@ -68,7 +68,7 @@ class M3uImportLookupTest(unittest.TestCase):
                                    side_effect=RuntimeError("bad tags")), \
                     self.assertLogs("dancesport.m3u", "DEBUG") as logs:
                 # Any cache: without one an outside file is never read at all.
-                entry, found, _ = _resolve_import_path(str(song), lib, mock.Mock(),
+                entry, found, _ = resolve_import_path(str(song), lib, mock.Mock(),
                                                        "Tanguera")
         self.assertFalse(found)
         self.assertEqual(entry.title, "Tanguera")

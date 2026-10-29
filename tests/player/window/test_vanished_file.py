@@ -22,8 +22,9 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtCore import QUrl
 
-from player.audio.playback_state import PlaybackState
 from gui.decks.deck_set import DeckSet
+from player.audio.playback_state import PlaybackState
+from shared.widgets import WARN_TOAST_MS
 
 
 class _Table:
@@ -72,19 +73,21 @@ class VanishedFileTest(unittest.TestCase):
     def test_a_vanished_file_gets_its_rows_repainted_and_a_toast(self):
         gone = Path(tempfile.mkdtemp(prefix="dp_vanished_m_")) / "070 - Treat You Better (JV 43).mp3"
         w = self._win(gone)
-        with mock.patch("player.window.main_load._show_toast") as toast:
+        with mock.patch("player.window.main_load.show_toast") as toast:
             w._on_player_error(None, "Could not open file")
         self.assertEqual(w.table.asked, [[str(gone)]])
         self.assertEqual(len(w.reset), 1)
         toast.assert_called_once()
         self.assertIn(str(gone), toast.call_args.args[1])
+        # Marcel: as long as the drive-unplugged one, long enough to read it.
+        self.assertEqual(toast.call_args.args[2], WARN_TOAST_MS)
 
     def test_a_file_that_is_there_is_no_missing_file(self):
         fd, name = tempfile.mkstemp(suffix=".mp3")
         os.close(fd)
         self.addCleanup(os.remove, name)
         w = self._win(Path(name))
-        with mock.patch("player.window.main_load._show_toast") as toast:
+        with mock.patch("player.window.main_load.show_toast") as toast:
             w._on_player_error(None, "Could not decode")
         self.assertEqual(w.table.asked, [])
         toast.assert_not_called()
@@ -95,9 +98,7 @@ class VanishedFileTest(unittest.TestCase):
         from PySide6.QtMultimedia import QMediaPlayer
         back = Path(r"C:\m\back.mp3")
         w = self._win(back)
-        w._playback = mock.Mock(path=back, pre_roll_ms=0)
-        w._play_ready_logged = True
-        w._play_t0 = None
+        w._playback = mock.Mock(path=back, pre_roll_ms=0, ready_logged=True)
         w._resume_seek_ms = None
         w._on_media_status(QMediaPlayer.MediaStatus.BufferedMedia)
         self.assertEqual(w.table.asked, [])

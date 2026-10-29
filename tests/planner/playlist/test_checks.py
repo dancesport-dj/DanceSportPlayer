@@ -10,8 +10,8 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-from planner.playlist.checks import entry_takt, is_final_round, track_issues
 from planner.models import MusicEntry
+from planner.playlist.checks import entry_takt, is_final_round, track_issues
 
 # The GUI's defaults (dancesport_gui) — the rules take them as parameters.
 _BEATS_PER_BAR = {"LW": 3, "TG": 2, "WW": 3, "SF": 4, "QS": 4}

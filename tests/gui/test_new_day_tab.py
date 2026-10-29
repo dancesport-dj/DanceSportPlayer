@@ -26,8 +26,8 @@ from PySide6.QtCore import QPoint
 from PySide6.QtGui import QContextMenuEvent
 
 from dancesport_planner import MusicLibrary
-from tests.gui.window.test_deck_file_reveal import _RightClick, _entry
 from tests.gui.test_header_save_m3u import _menu_class
+from tests.gui.window.test_deck_file_reveal import _entry, _RightClick
 from tests.qt_test_support import reap_widget, stub_window_startup
 
 _NEW = "📅  New tournament day…"

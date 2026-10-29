@@ -15,8 +15,16 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
-    QApplication, QCheckBox, QGroupBox, QLabel, QMenu, QPushButton, QTabWidget,
-    QToolButton, QWidget)
+    QApplication,
+    QCheckBox,
+    QGroupBox,
+    QLabel,
+    QMenu,
+    QPushButton,
+    QTabWidget,
+    QToolButton,
+    QWidget,
+)
 
 from planner import i18n
 from shared.appearance import icons, look_icons, looks, theme
@@ -167,7 +175,7 @@ class GermanIsTranslatedFirst(_Base):
         self.assertEqual(btn.text(), "Einstellungen")
         self.assertFalse(btn.icon().isNull())
         act = self.keep(QMenu()).addAction("🧹  Empty this playlist")
-        self.assertEqual(act.text(), "Diese Playlist leeren")
+        self.assertEqual(act.text(), "Diese Wiedergabeliste leeren")
 
 
 class TheWindowsBuild(_Base):

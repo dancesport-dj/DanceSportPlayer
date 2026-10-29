@@ -19,10 +19,9 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication
 
-from planner.music.library import MusicLibrary
 from planner.models import MusicEntry
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
+from planner.music.library import MusicLibrary
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 LATIN = [("Senorita (SB 50).mp3", "SA"), ("Havana (CC 31).mp3", "CC")]
 SOCIAL = [("Fox One.mp3", "DISCOFOX"), ("Salsa One.mp3", "SALSA")]

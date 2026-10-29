@@ -76,7 +76,7 @@ class RecordedLookupTest(_ScratchCache):
         fresh = self.dir / "fresh.mp3"
         fresh.write_bytes(b"never seen")
         calls = self.stats()
-        with mock.patch.object(pdb, "_fingerprints") as hashing:
+        with mock.patch.object(pdb, "fingerprints") as hashing:
             self.assertIsNone(self.cache.get_lufs(fresh, touch_disk=False))
             self.assertIsNone(self.cache.recorded_fingerprint(fresh))
         hashing.assert_not_called()
@@ -94,7 +94,8 @@ class EditHooksTest(_ScratchCache):
         browser.unplanned_active.return_value = True
         win = SimpleNamespace(
             _library=SimpleNamespace(cache=self.cache,
-                                     lib=SimpleNamespace(entries=entries)),
+                                     lib=SimpleNamespace(entries=entries),
+                                     global_lib=SimpleNamespace(entries=entries)),
             _play_panel=panel, _lib_browser=browser, _check_noise=True,
             _visible_deck_tables=lambda: [table],
             _deck_dedup_index=lambda: (set(), {"some other fp"}),

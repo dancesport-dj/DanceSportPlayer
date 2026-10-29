@@ -34,7 +34,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication
 
-from gui.common import _PROVEN_MIN_PLAYS
+from gui.common import PROVEN_MIN_PLAYS
 from gui.library_browser import LibraryBrowser
 from planner import i18n
 from planner.models import LIBRARY_CATEGORIES, MusicEntry
@@ -83,8 +83,8 @@ class FilterComboTest(_GermanPane):
 
     def test_the_plays_filter(self):
         said = self.items(self.b._plays_combo)
-        self.assertIn("★ Selten (1–%d)" % (_PROVEN_MIN_PLAYS - 1), said, said)
-        self.assertIn("★ Bewährt (≥%d)" % _PROVEN_MIN_PLAYS, said, said)
+        self.assertIn("★ Selten (1–%d)" % (PROVEN_MIN_PLAYS - 1), said, said)
+        self.assertIn("★ Bewährt (≥%d)" % PROVEN_MIN_PLAYS, said, said)
 
     def test_the_plays_filter_tooltip(self):
         tip = self.b._plays_combo.toolTip()
@@ -143,13 +143,13 @@ class CellTooltipTest(_GermanPane):
                          self.tip(0, 8))
 
     def test_the_last_cell_of_a_played_track(self):
-        self.assertEqual("Neueste Playlist mit diesem Titel", self.tip(0, 9))
+        self.assertEqual("Neueste Wiedergabeliste mit diesem Titel", self.tip(0, 9))
 
     def test_the_last_cell_of_a_fresh_track(self):
         self.assertEqual("Nie gelaufen", self.tip(1, 9))
 
     def test_the_last_cell_of_an_undated_track(self):
-        self.assertEqual("Gelaufen, aber keine dieser Playlists ist datiert",
+        self.assertEqual("Gelaufen, aber keine dieser Wiedergabelisten ist datiert",
                          self.tip(2, 9))
 
 
@@ -167,8 +167,8 @@ class EnglishIsUnchangedTest(unittest.TestCase):
         self.assertIn("Class D", said, said)
         said = [self.b._plays_combo.itemText(i)
                 for i in range(self.b._plays_combo.count())]
-        self.assertIn("★ Rarely (1–%d)" % (_PROVEN_MIN_PLAYS - 1), said, said)
-        self.assertIn("★ Proven (≥%d)" % _PROVEN_MIN_PLAYS, said, said)
+        self.assertIn("★ Rarely (1–%d)" % (PROVEN_MIN_PLAYS - 1), said, said)
+        self.assertIn("★ Proven (≥%d)" % PROVEN_MIN_PLAYS, said, said)
         self.b.set_entries([TAGGED, FRESH])
         self.assertEqual("(2/2 tracks)", self.b._count_lbl.text())
 

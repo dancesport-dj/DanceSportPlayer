@@ -4,17 +4,24 @@ recorded clips it is made from."""
 import random
 import tempfile
 import unittest
-from unittest import mock
 from pathlib import Path
+from unittest import mock
 
-from player.audio import announce
-from shared.audio.playback import audible_played_secs
-from player.audio.announce import (DanceAnnouncer, announce_clips,
-                          announce_text, clip_bounds, clip_genders,
-                          clip_language, parse_bounds, pick_clip_gender)
-from planner import i18n, terms
-from player.window.main_pause import PauseMusicMixin
 from gui.decks.running_order import Row, RunningOrder
+from planner import i18n, terms
+from player.audio import announce
+from player.audio.announce import (
+    DanceAnnouncer,
+    announce_clips,
+    announce_text,
+    clip_bounds,
+    clip_genders,
+    clip_language,
+    parse_bounds,
+    pick_clip_gender,
+)
+from player.window.main_pause import PauseMusicMixin
+from shared.audio.playback import audible_played_secs
 
 
 class AudiblePlayedSecsTest(unittest.TestCase):
@@ -92,12 +99,22 @@ class AnnounceTextTest(_HallLanguage):
         self.assertEqual(announce_text("WW", now=True), "Wiener Walzer")
 
     def test_the_heat_follows_the_dance(self):
+        # German calls the heat "Gruppe", like the screen and the clip.
         self.assertEqual(announce_text("LW", heat=3),
-                         "Nächster Tanz: Langsamer Walzer, Heat 3")
+                         "Nächster Tanz: Langsamer Walzer, Gruppe 3")
 
     def test_heat_suffix_only_when_asked(self):
         self.assertEqual(announce_text("WW"), "Nächster Tanz: Wiener Walzer")
         self.assertEqual(announce_text("WW", heat=0), "Nächster Tanz: Wiener Walzer")
+
+    def test_a_practice_evening_hears_only_the_heat(self):
+        self.assertEqual(announce_text("LW", heat=1, heat_only=True), "Gruppe 1")
+        self.assertEqual(announce_text("LW", now=True, heat=2, heat_only=True),
+                         "Gruppe 2")
+
+    def test_heat_only_without_a_heat_names_the_dance(self):
+        self.assertEqual(announce_text("LW", heat_only=True),
+                         "Nächster Tanz: Langsamer Walzer")
 
     def test_unknown_code_falls_back_to_the_code(self):
         self.assertEqual(announce_text("XX"), "Nächster Tanz: XX")
@@ -196,6 +213,24 @@ class AnnounceClipsTest(_HallLanguage):
 
     def test_no_heat_asked_for_means_no_heat_called(self):
         self.assertEqual(self.names("LW", "female"),
+                         ["next_dance.mp3", "LW.mp3"])
+
+    def test_heat_only_plays_just_the_heat(self):
+        # Marcel: "it only says Gruppe 1 not the dance for practice".
+        self.assertEqual(self.names("LW", "female", heat=1, heat_only=True),
+                         ["heat.mp3", "1.mp3"])
+        self.assertEqual(self.names("LW", "female", now=True, heat=3,
+                                    heat_only=True),
+                         ["heat.mp3", "3.mp3"])
+
+    def test_heat_only_needs_no_clip_of_the_dance(self):
+        self.assertEqual(self.names("QS", "female", heat=2, heat_only=True),
+                         ["heat.mp3", "2.mp3"])
+
+    def test_heat_only_without_a_heat_to_say_calls_the_dance(self):
+        self.assertEqual(self.names("LW", "female", heat_only=True),
+                         ["next_dance.mp3", "LW.mp3"])
+        self.assertEqual(self.names("LW", "female", heat=9, heat_only=True),
                          ["next_dance.mp3", "LW.mp3"])
 
     def test_a_heat_beyond_the_recorded_numbers_keeps_the_dance(self):
@@ -334,6 +369,9 @@ class _Panel:
     def announce_heat(self):
         return self._on
 
+    def announce_heat_only(self):
+        return False
+
 
 class HeatOfRowTest(unittest.TestCase):
     """Which heat the announcement calls. A generated grid states it; every
@@ -388,18 +426,55 @@ class ClipTrimTest(unittest.TestCase):
     """Where a clip's spoken word really starts and ends (parse_bounds), so the
     announcement doesn't sit through the studio silence around every fragment."""
 
-    def bounds(self, duration: str, *spans):
-        text = f"  Duration: {duration}\n" + "".join(
+    def probe(self, duration: str, *spans) -> str:
+        return f"  Duration: {duration}\n" + "".join(
             f"[silencedetect] silence_start: {s}\n"
             + (f"[silencedetect] silence_end: {e} | silence_duration: 1\n"
                if e is not None else "")
             for s, e in spans)
-        return parse_bounds(text)
+
+    def bounds(self, duration: str, *spans):
+        return parse_bounds(self.probe(duration, *spans))
 
     def test_the_silence_around_the_word_is_cut_off(self):
-        # 0.0-0.4 silence, word, 1.5-2.0 silence. ±30 ms of padding kept.
+        # 0.0-0.4 silence, word, 1.5-2.0 silence. The pre-roll is kept ahead of
+        # the word, 30 ms of decay after it.
         self.assertEqual(self.bounds("00:00:02.00", (0.0, 0.4), (1.5, 2.0)),
-                         (370, 1530))
+                         (400 - announce._PREROLL_MS, 1530))
+
+    def test_the_word_keeps_silence_ahead_for_the_backend_to_start_in(self):
+        """Qt's FFmpeg backend drops up to ~30 ms of audio somewhere in the
+        first 80 ms after a start or a seek. Seeking right up to the word put
+        that hole into its first syllable — the "e-eins" stutter."""
+        start, _ = self.bounds("00:00:02.00", (0.0, 0.4), (1.5, 2.0))
+        self.assertGreaterEqual(400 - start, 100)
+
+    def test_the_lead_outlasts_the_hole_at_a_call_start(self):
+        """A clip started after a few seconds of quiet gets one more hole, ~2
+        ms, 150-178 ms after its start (9 calls in 96 on the loopback)."""
+        self.assertGreater(announce._PREROLL_MS, 178)
+
+    def test_the_breath_between_words_stays_as_it_was(self):
+        """Heard between two words: the gap, the lead ahead of the next one and
+        the decay after the last. A longer lead is taken out of the gap."""
+        self.assertEqual(announce._CLIP_GAP_MS + announce._PREROLL_MS
+                         + announce._TRIM_PAD_MS, 240)
+
+    def test_the_lead_silence_is_measured_from_the_head(self):
+        self.assertEqual(announce.lead_silence_ms(
+            self.probe("00:00:02.00", (0.0, 0.4), (1.5, 2.0))), 400)
+
+    def test_a_click_inside_the_lead_does_not_end_it(self):
+        # A lone sample above the floor splits the silence in two (seen on the
+        # treated female "sechs"); the word still starts at the second's end.
+        text = self.probe("00:00:01.00", (0.0, 0.066), (0.0668, 0.12))
+        self.assertEqual(announce.lead_silence_ms(text), 120)
+        self.assertEqual(parse_bounds(text)[0], max(0, 120 - announce._PREROLL_MS))
+
+    def test_a_word_from_the_first_sample_has_no_lead(self):
+        self.assertEqual(announce.lead_silence_ms(
+            self.probe("00:00:02.00", (0.8, 0.9))), 0)
+        self.assertEqual(announce.lead_silence_ms(""), 0)
 
     def test_a_clip_that_ends_silent_is_still_cut(self):
         # ffmpeg leaves the last silence_start unclosed on such a file.

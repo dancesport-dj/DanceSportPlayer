@@ -14,12 +14,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_presenter_"))
 
+from gui.decks.deck_set import DeckSet
 from planner.models import MusicEntry, RoundConfig
+from player.audio.between_dances import BetweenDances
+from player.audio.playback_state import PlaybackState
 from player.presenter.presenter import PAUSE_TEXT
 from tests.qt_test_support import qapp, reap_widget
-from player.audio.playback_state import PlaybackState
-from player.audio.between_dances import BetweenDances
-from gui.decks.deck_set import DeckSet
 
 
 def _e(dance, n):
@@ -32,7 +32,7 @@ def _deck():
     from gui.table.playlist_table import PlaylistTable
     t = PlaylistTable()
     playlist = {"Vorrunde": [[_e("LW", 1), _e("TG", 2)]],
-                "Finale":   [[_e("LW", 3), _e("TG", 4)]]}
+                "Finale": [[_e("LW", 3), _e("TG", 4)]]}
     rounds = [RoundConfig(name="Vorrunde", heats=1, tier="early"),
               RoundConfig(name="Finale", heats=1, tier="final")]
     t.load(playlist, ["LW", "TG"], rounds, "S",
@@ -537,8 +537,8 @@ class PresenterWindowTest(unittest.TestCase):
         displayed second changes 0.8 s after one boundary and 1.2 s after the
         next, which reads as a stopwatch running unevenly beside the player's
         own."""
-        from player.presenter.presenter import _REFRESH_MS
-        self.assertLessEqual(_REFRESH_MS, 100)
+        from player.presenter.presenter import REFRESH_MS
+        self.assertLessEqual(REFRESH_MS, 100)
 
     def test_a_tick_that_only_moves_the_clock_skips_the_fitting_pass(self):
         """What pays for the fast poll: the fitting pass measures the dance,
@@ -722,9 +722,11 @@ class ContextMenuPlaybackTest(unittest.TestCase):
         Swapping the module's QMenu for a subclass does work, because the code
         builds its menu through that global name."""
         from unittest import mock
+
         from PySide6.QtCore import QPoint
         from PySide6.QtGui import QContextMenuEvent
         from PySide6.QtWidgets import QMenu, QWidget
+
         from gui.table import table_menu
 
         opened = []

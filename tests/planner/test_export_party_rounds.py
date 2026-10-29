@@ -17,8 +17,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from planner.playlist.m3u import export_flat_m3u
 from planner.models import MusicEntry
+from planner.playlist.m3u import export_flat_m3u
 
 _DIR = Path(tempfile.mkdtemp(prefix="dp_export_party_"))
 

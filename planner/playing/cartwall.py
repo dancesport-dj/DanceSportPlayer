@@ -13,6 +13,7 @@ and never drops one.
 import json
 import os
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, NamedTuple
@@ -82,13 +83,18 @@ def background_pauses(settings: dict) -> bool:
 
 # How long a 🎶 background pad takes to come back up once the music stops, and
 # to dip to silence when a title starts, under ⚙ Settings ▸ 🎛 Cartwall.
-# Seconds to come back, not a snap: the bed swells back in. The dip is about as
-# fast as a pad pulls the music down (player.audio.mix._CART_DUCK), and on the
-# dialog's one-decimal grid.
+# Seconds to come back, not a snap: the bed swells back in. The dip was once as
+# fast as a pad pulls the music down (player.audio.mix._CART_DUCK); Marcel:
+# "for fading out over use 0.5s". On the dialog's one-decimal grid.
 DEFAULT_BG_FADE_IN_MS = 2000
-DEFAULT_BG_FADE_OUT_MS = 200
-# …and to come up when it is fired: as fast as it dips, so it never clicks in.
+DEFAULT_BG_FADE_OUT_MS = 500
+# …and to come up when it is fired: quick, but never a click; Marcel kept it
+# at 0.2 s when the dip went to 0.5 s.
 DEFAULT_BG_FIRE_FADE_MS = 200
+# 🎶 The volume a pad gets when it is ticked as Background: a bed at full level
+# is as loud as the dance music it fills in for. Marcel: "tick backgroud setts
+# volume to 50% in the pad … make ist configurable … in the settings".
+DEFAULT_BG_VOLUME_PCT = 50
 # How long the music has to stay stopped before the bed comes back: the deck
 # reports Stopped for a moment between two titles, and a bed swelling up in
 # every gap is worse than one that waits; 1.5 s of it read as the bed lagging
@@ -122,10 +128,43 @@ def background_fire_fade_ms(settings: dict) -> int:
     return _bg_fade_ms(settings, "cart_bg_fire_fade_ms", DEFAULT_BG_FIRE_FADE_MS)
 
 
+def background_volume(settings: dict) -> float:
+    """The 'cart_bg_volume_pct' setting as 0..1: what the pad dialog sets the
+    volume to when 🎶 Background is ticked. A broken value reads as the default."""
+    try:
+        pct = int(settings.get("cart_bg_volume_pct", DEFAULT_BG_VOLUME_PCT))
+    except (TypeError, ValueError):
+        pct = DEFAULT_BG_VOLUME_PCT
+    return max(0, min(100, pct)) / 100
+
+
 def background_hold_ms(settings: dict) -> int:
     """The 'cart_bg_hold_ms' setting, the wait before a background pad comes
     back once the music stops, read like background_fade_in_ms; 0 = no wait."""
     return _bg_fade_ms(settings, "cart_bg_hold_ms", DEFAULT_BG_HOLD_MS)
+
+
+def background_quiet_in_pd_wait(settings: dict) -> bool:
+    """The 'cart_bg_pd_quiet' setting: a 🎶 background pad stays down while a
+    Paso Doble waits for its 'Start after' seconds, as if the music already
+    played. On unless switched off — the bed would swell up over the call."""
+    return settings.get("cart_bg_pd_quiet", True) is not False
+
+
+def background_quiet_before_pd(settings: dict) -> bool:
+    """Whether a 🎶 background pad stays down between the dance before and a
+    Paso Doble (the pause into it, or the PD cued for ⏯). Only with a 'Start
+    after' of 0 s: with a wait, that silent wait is the couples' sign and the
+    bed dips out for it, so it may come back up in between."""
+    return (background_quiet_in_pd_wait(settings)
+            and not settings.get("pd_start_delay", 0))
+
+
+def background_overlaps(settings: dict) -> bool:
+    """The 'cart_bg_overlap' setting: a starting title plays over a 🎶
+    background pad's fade-out. Off unless switched on — the title waits until
+    the bed is down, so its first bar is never under the tail of it."""
+    return settings.get("cart_bg_overlap") is True
 
 # Keys that fire the first nine slots of the page on screen. Slot-based, not
 # pad-based, so the same finger hits the same corner of the wall on every page;
@@ -178,6 +217,10 @@ class CartPad:
     # None → follow the wall's fade. An explicit 0 is a hard cut and is NOT the
     # same thing, which is why this cannot be a plain int with a sentinel.
     fade_ms: int | None = None
+    # ▶ Place in the wall's pad queue: 0 = not queued, a higher number plays
+    # later. On the pad rather than in a list of cells, so every move, swap and
+    # turn of the wall carries it along. Only the order counts, not the value.
+    queue: int = 0
 
 
 def fade_for(pad: CartPad, wall_fade: int = DEFAULT_FADE_MS) -> int:
@@ -228,7 +271,7 @@ def parse_cell(key) -> Cell | None:
     return (row, col) if row >= 0 and col >= 0 else None
 
 
-def cells_in_order(grid: Grid):
+def cells_in_order(grid: Grid) -> Iterator[Cell]:
     """Every cell of the grid in reading order — the order free slots are filled."""
     cols, rows = grid
     for row in range(rows):
@@ -327,6 +370,75 @@ def move_pad(pages: list[Page], src_page: int, src_cell: Cell,
     pages[dst_page].pads[dst_cell] = src
     if victim is not None:
         pages[src_page].pads[src_cell] = victim
+
+
+def move_to_page(pages: list[Page], cells: list[tuple[int, Cell]], dst: int,
+                 grid: Grid) -> dict[tuple[int, Cell], tuple[int, Cell]]:
+    """Move pads onto another page: each into the same cell there when it is
+    free, else into the first free one in reading order. A full page takes
+    what fits and the rest stay where they were — nothing is overwritten.
+    Returns {(page, cell): (dst, cell)} for the pads that moved."""
+    moved: dict[tuple[int, Cell], tuple[int, Cell]] = {}
+    target = pages[dst]
+    for page, cell in cells:
+        pad = pages[page].pads.get(cell)
+        if page == dst or pad is None:
+            continue
+        spot = cell if cell not in target.pads else next(
+            (c for c in cells_in_order(grid) if c not in target.pads), None)
+        if spot is None:
+            continue
+        del pages[page].pads[cell]
+        target.pads[spot] = pad
+        moved[(page, cell)] = (dst, spot)
+    return moved
+
+
+# ── The ▶ queue ──────────────────────────────────────────────────────────────
+def queued(pages: list[Page]) -> list[tuple[int, Cell, CartPad]]:
+    """Every queued pad as (page, cell, pad), in the order it plays."""
+    found = [(idx, cell, pad) for idx, page in enumerate(pages)
+             for cell, pad in page.pads.items() if pad.queue > 0]
+    return sorted(found, key=lambda hit: (hit[2].queue, hit[0], hit[1]))
+
+
+def queue_ranks(pages: list[Page]) -> dict[tuple[int, Cell], int]:
+    """{(page, cell): 1, 2, …} — the number the pad's ≡ badge shows."""
+    return {(idx, cell): n
+            for n, (idx, cell, _pad) in enumerate(queued(pages), start=1)}
+
+
+def toggle_queue(pages: list[Page], page: int, cell: Cell,
+                 bed_volume: float | None = None) -> bool:
+    """Ctrl+click: put the pad at the end of the queue, or take it out.
+    Returns whether it is queued now; an empty cell never is.
+
+    A 🎶 pad joining at full volume drops to `bed_volume`, like a tick of
+    🎶 Background does (Marcel: "if i have 3 backgroudn items in list queue and
+    add a 4 it doent get the 50% value"); a level set by hand stays."""
+    pad = pages[page].pads.get(cell)
+    if pad is None:
+        return False
+    if pad.queue:
+        pad.queue = 0
+        return False
+    pad.queue = 1 + max((p.queue for pg in pages for p in pg.pads.values()),
+                        default=0)
+    if bed_volume is not None and pad.background and pad.volume >= 1.0:
+        pad.volume = bed_volume
+    return True
+
+
+def queue_next(pages: list[Page],
+               after: int) -> tuple[int, Cell, CartPad] | None:
+    """The pad that plays after queue position `after`, wrapping round to the
+    first. Keyed on the position, not the cell, so a running pad that was
+    moved, taken out or cleared still hands on to the one that followed it.
+    A lone queued pad follows itself; nothing queued is None."""
+    order = queued(pages)
+    if not order:
+        return None
+    return next((hit for hit in order if hit[2].queue > after), order[0])
 
 
 def fill_pads(pages: list[Page], page: int, cell: Cell,
@@ -530,6 +642,9 @@ def _pad_from_dict(data) -> CartPad | None:
             fade = max(0, min(MAX_FADE_MS, int(fade)))
         except (TypeError, ValueError):
             fade = None     # unreadable → follow the wall, not a silent 0
+    queue = data.get("queue", 0)
+    if not isinstance(queue, int) or isinstance(queue, bool) or queue < 0:
+        queue = 0
     return CartPad(
         path=path,
         label=str(data.get("label", "") or ""),
@@ -540,7 +655,8 @@ def _pad_from_dict(data) -> CartPad | None:
         background=bool(data.get("background", False)),
         stops_others=bool(data.get("stops_others", False)),
         shortcut=str(data.get("shortcut", "") or ""),
-        fade_ms=fade)
+        fade_ms=fade,
+        queue=queue)
 
 
 def _pad_to_dict(pad: CartPad) -> dict:
@@ -564,6 +680,8 @@ def _pad_to_dict(pad: CartPad) -> dict:
         out["shortcut"] = pad.shortcut
     if pad.fade_ms is not None:
         out["fade_ms"] = int(pad.fade_ms)
+    if pad.queue:
+        out["queue"] = pad.queue
     return out
 
 

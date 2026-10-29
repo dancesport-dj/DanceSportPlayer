@@ -10,6 +10,7 @@ silence-probe issue), and a decode is not worth that risk. A daemon thread
 dies with the process instead, and hands its peaks back through a signal,
 which Qt queues onto the GUI thread.
 """
+import contextlib
 import logging
 import threading
 from collections.abc import Callable
@@ -68,7 +69,7 @@ class WaveformLoader(QObject):
     ready = Signal(str, object)     # path, peaks ([] = could not decode)
 
     def __init__(self, parent=None, compute=compute_peaks,
-                 cache_of: Callable[[], "AudioCache | None"] | None = None):
+                 cache_of: Callable[[], AudioCache | None] | None = None):
         super().__init__(parent)
         self._compute = compute
         # The window's AudioCache, looked up late: it arrives with the library.
@@ -101,10 +102,9 @@ class WaveformLoader(QObject):
                         "file: %s\n"
                         "error: %s", key, exc)
             peaks = []
-        try:
+        # RuntimeError: the card went away while it decoded.
+        with contextlib.suppress(RuntimeError):
             self.ready.emit(key, peaks)
-        except RuntimeError:            # the card went away while it decoded
-            pass
 
     def _stored(self, path: Path) -> list[float] | None:
         db = self._cache_of()

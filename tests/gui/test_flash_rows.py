@@ -22,9 +22,9 @@ import shiboken6
 from PySide6.QtGui import QColor
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QTableWidgetItem
-from tests.qt_test_support import reap_widget
 
 from gui.table.playlist_table import PlaylistTable
+from tests.qt_test_support import reap_widget
 
 _FLASH = QColor(255, 236, 160)
 

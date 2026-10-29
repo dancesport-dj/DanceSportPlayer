@@ -17,10 +17,28 @@ from functools import partial
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import (
-    QAbstractItemView, QApplication, QCheckBox, QColorDialog, QComboBox,
-    QDialog, QDialogButtonBox, QFontComboBox, QFrame, QGridLayout,
-    QHBoxLayout, QLabel, QLineEdit, QPushButton, QScrollArea, QSlider,
-    QSpinBox, QTabBar, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
+    QAbstractItemView,
+    QApplication,
+    QCheckBox,
+    QColorDialog,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFontComboBox,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QScrollArea,
+    QSlider,
+    QSpinBox,
+    QTabBar,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
 )
 
 from planner import i18n
@@ -231,8 +249,8 @@ class LookPreview(QFrame):
         theme.set_stylesheet_unthemed(self._strip_off, parts["deck_idle"])
         theme.set_stylesheet_unthemed(self._dim, f"color:{t.text_dim};")
         colors = looks.shared_colors(look)
-        for row, (ground, ink) in ((0, ("_C_ROUND_BG", "_C_ROUND_FG")),
-                                   (1, ("_C_DANCE_BG", "_C_DANCE_FG"))):
+        for row, (ground, ink) in ((0, ("C_ROUND_BG", "C_ROUND_FG")),
+                                   (1, ("C_DANCE_BG", "C_DANCE_FG"))):
             item = self._table.item(row, 0)
             if item is None:
                 continue

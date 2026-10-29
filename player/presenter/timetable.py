@@ -91,7 +91,7 @@ class Entry:
                 "until": self.until}
 
     @classmethod
-    def from_dict(cls, d) -> "Entry":
+    def from_dict(cls, d) -> Entry:
         if not isinstance(d, dict):
             return cls()
         return cls(time=str(d.get("time", "")), what=str(d.get("what", "")),
@@ -137,7 +137,7 @@ class Timetable:
                 "entries": [e.as_dict() for e in self.entries]}
 
     @classmethod
-    def from_dict(cls, d) -> "Timetable":
+    def from_dict(cls, d) -> Timetable:
         """Anything unreadable becomes an empty timetable rather than an error:
         this is decoration on a screen, never a reason to lose the evening."""
         if not isinstance(d, dict):
@@ -248,7 +248,7 @@ class Timetable:
             if start is not None:
                 if start <= minutes:
                     spent.add(i)
-            elif 0 <= cur and i < cur:
+            elif cur >= 0 and i < cur:
                 spent.add(i)
         return cur, spent
 

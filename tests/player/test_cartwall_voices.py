@@ -379,6 +379,7 @@ class PadTapMessageTest(unittest.TestCase):
 
     def tap(self, fired):
         from unittest import mock
+
         from player.window.main_cartwall import CartwallMixin
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
             self.addCleanup(os.remove, f.name)
@@ -565,13 +566,14 @@ class BackgroundPadTest(_VoiceCase):
         self.v.set_music_playing(True)
         return len(self._drain_background(400)) * self.v._bg_ramp.interval()
 
-    def test_the_dip_is_0_2_s_by_default(self):
-        """'set to 0.2 instead of 0.18'."""
-        self.assertEqual(pc.DEFAULT_BG_FADE_OUT_MS, 200)
+    def test_the_dip_is_0_5_s_by_default(self):
+        """'set to 0.2 instead of 0.18', then 'for fading out over use
+        0.5s' while the fired fade-in keeps its 0.2 s."""
+        self.assertEqual(pc.DEFAULT_BG_FADE_OUT_MS, 500)
 
     def test_the_dip_follows_the_setting(self):
         """'make also both fade in and fade out configurable': the dip keeps
-        its standard 0.2 s until ⚙ Settings says otherwise."""
+        its standard 0.5 s until ⚙ Settings says otherwise."""
         self.assertAlmostEqual(self._dip_ms(), pc.DEFAULT_BG_FADE_OUT_MS,
                                delta=self.v._bg_ramp.interval())
 
@@ -727,6 +729,58 @@ class BackgroundPadTest(_VoiceCase):
         self.assertFalse(self.v._bg_hold.isActive())
         self.assertEqual(self._voice((0, 0, 0)).player._state, "paused")
 
+    def test_the_spoken_call_pulls_the_bed_down(self):
+        """The ⏸ pause music the 🎶 pads now are takes the duck the filler
+        took: the announcer speaks over it, not against it."""
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True))
+        self.v.fire((0, 0, 1), _pad("tusch.mp3"))
+        self._rise_levels()
+        self.v.set_bed_duck(0.3)
+        self.assertAlmostEqual(self._voice((0, 0, 0)).out.volume(), 0.3)
+        self.assertAlmostEqual(self._voice((0, 0, 1)).out.volume(), 1.0,
+                               msg="a one-shot pad is no bed")
+        self.v.set_bed_duck(1.0)
+        self.assertAlmostEqual(self._voice((0, 0, 0)).out.volume(), 1.0)
+
+    def test_the_window_hands_the_music_duck_to_the_bed(self):
+        from types import SimpleNamespace
+
+        from player.audio.mix import ANNOUNCE_DUCK, OutputMix
+        from player.window.main_audio import AudioLevelMixin
+        desk = SimpleNamespace(_player=None, _audio_out=None,
+                               _cart_voices=self.v, _mix=OutputMix())
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True))
+        self._rise_levels()
+        desk._mix.duck = ANNOUNCE_DUCK      # the ramp under the call landed
+        AudioLevelMixin._apply_volume(desk)
+        self.assertAlmostEqual(self._voice((0, 0, 0)).out.volume(),
+                               ANNOUNCE_DUCK)
+
+    def test_holding_and_lifting_tell_the_wall(self):
+        """Marcel: "when a pad is pause while main player runs can you show a
+        pasue mark in it?" — the wall hears when a bed holds and goes on."""
+        seen = []
+        self.v.padHeld.connect(lambda key, on: seen.append((key, on)))
+        self.v.set_background_pauses(True)
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True))
+        self.v.set_music_playing(True)
+        self._drain_background()
+        self.assertEqual(seen, [((0, 0, 0), True)])
+        self.v.set_music_playing(False)
+        self.v._lift_background()
+        self.assertEqual(seen, [((0, 0, 0), True), ((0, 0, 0), False)])
+
+    def test_a_held_bed_that_stops_is_no_longer_held(self):
+        seen = []
+        self.v.padHeld.connect(lambda key, on: seen.append((key, on)))
+        self.v.set_background_pauses(True)
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True))
+        self.v.set_music_playing(True)
+        self._drain_background()
+        self.v.stop_all()
+        self._drain_fades()
+        self.assertEqual(seen[-1], ((0, 0, 0), False))
+
     def test_a_paused_bed_can_still_be_stopped(self):
         stopped = []
         self.v.padStopped.connect(stopped.append)
@@ -816,7 +870,9 @@ class BackgroundFollowsTheDeckTest(unittest.TestCase):
 
     def test_the_deck_state_reaches_the_pool(self):
         from types import SimpleNamespace
+
         from PySide6.QtMultimedia import QMediaPlayer
+
         from player.window.main_cartwall import CartwallMixin
         seen = []
         host = SimpleNamespace(
@@ -828,13 +884,16 @@ class BackgroundFollowsTheDeckTest(unittest.TestCase):
 
     def test_no_pool_no_harm(self):
         from types import SimpleNamespace
+
         from PySide6.QtMultimedia import QMediaPlayer
+
         from player.window.main_cartwall import CartwallMixin
         CartwallMixin._cart_follow_deck(SimpleNamespace(_cart_voices=None),
                                         QMediaPlayer.PlaybackState.PlayingState)
 
     def test_it_is_one_of_the_deck_slots(self):
         from types import SimpleNamespace
+
         from player.window.main_xfade import CrossfadeMixin
         follow = object()
         host = SimpleNamespace(
@@ -949,6 +1008,21 @@ class BackgroundSettingTest(unittest.TestCase):
         self.assertEqual(
             self._dialog({"cart_bg_mode": "stop"})._cart_bg_combo.currentData(), "pause")
 
+    def test_the_bed_volume_is_set_here_and_saved(self):
+        dlg = self._dialog({})
+        self.assertEqual(dlg._cart_bg_vol_spin.value(), pc.DEFAULT_BG_VOLUME_PCT)
+        dlg._cart_bg_vol_spin.setValue(40)
+        self.assertEqual(dlg.values()["cart_bg_volume_pct"], 40)
+        self.assertEqual(
+            self._dialog({"cart_bg_volume_pct": 70})._cart_bg_vol_spin.value(), 70)
+
+    def test_the_bed_volume_setting_is_bounded(self):
+        self.assertEqual(pc.background_volume({}), 0.5)
+        self.assertEqual(pc.background_volume({"cart_bg_volume_pct": 25}), 0.25)
+        self.assertEqual(pc.background_volume({"cart_bg_volume_pct": 150}), 1.0)
+        self.assertEqual(pc.background_volume({"cart_bg_volume_pct": -3}), 0.0)
+        self.assertEqual(pc.background_volume({"cart_bg_volume_pct": "x"}), 0.5)
+
     def test_the_window_passes_it_to_the_pool(self):
         from types import SimpleNamespace
         from typing import Any, cast
@@ -1013,8 +1087,8 @@ class CartDuckSettingDialogTest(unittest.TestCase):
 
     def test_the_desk_duck_shows_its_db_too(self):
         dlg = self._dialog({})
-        self.assertEqual(dlg._duck_spin.value(), 20)
-        self.assertEqual(dlg._duck_db.text(), "≈ −14 dB")
+        self.assertEqual(dlg._duck_spin.value(), 10)
+        self.assertEqual(dlg._duck_db.text(), "≈ −20 dB")
         dlg._duck_spin.setValue(0)
         self.assertEqual(dlg._duck_db.text(), "−∞ dB")
         self.assertEqual(self._dialog({"duck_pct": 50})._duck_db.text(), "≈ −6 dB")

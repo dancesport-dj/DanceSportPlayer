@@ -20,10 +20,10 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QMainWindow
 
-from shared import stores
 from planner.playing import cartwall as pc
 from player.audio.mix import OutputMix
 from player.window.main_cartwall import CartwallMixin
+from shared import stores
 from tests.qt_test_support import reap_widget
 
 NEWER = {"version": pc.CARTWALL_VERSION + 1, "pages": [{"name": "from the future"}]}
@@ -38,6 +38,8 @@ class _Host(CartwallMixin, QMainWindow):
         self._cart_voices = None
         self._mix = OutputMix()
         self._set_cart_volume = self._mix.set_cart
+        self._set_cart_muted = lambda on: None
+        self._settings = {}
         self._cartwall_shown = True
         self._build_cartwall()
 

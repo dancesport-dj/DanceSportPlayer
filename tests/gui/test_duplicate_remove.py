@@ -22,7 +22,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication, QComboBox, QMessageBox
 
 from gui.dialogs.duplicate_dialog import DuplicateResolveDialog
-from tests.gui.window.test_duplicate_check_scope import _Status, _Win, _waltz
+from tests.gui.window.test_duplicate_check_scope import _Status, _waltz, _Win
 from tests.qt_test_support import reap_widget
 
 

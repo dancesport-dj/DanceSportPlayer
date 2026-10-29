@@ -28,17 +28,17 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtWidgets import QApplication, QWidget
-from tests.qt_test_support import reap_widget
 
-from player.audio.fade_now import FadeNow
-from player.window.main_player import PlayerControlMixin
-from player.widgets.play_mode_panel import PlayModePanel
-from player.widgets.player import BigPlayerWidget
+from gui.decks.deck_set import DeckSet
 from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry, RoundConfig
 from player.audio.between_dances import BetweenDances
-from player.audio.pause_filler import PauseFiller
-from gui.decks.deck_set import DeckSet
+from player.audio.fade_now import FadeNow
+from player.audio.playback_state import PlaybackState
+from player.widgets.play_mode_panel import PlayModePanel
+from player.widgets.player import BigPlayerWidget
+from player.window.main_player import PlayerControlMixin
+from tests.qt_test_support import reap_widget
 
 
 def _song(dance: str, i: int) -> MusicEntry:
@@ -128,17 +128,13 @@ class _Desk(PlayerControlMixin, QWidget):
         self._deckset.all_tables = [table]
         self._big_player = card
         self._player = _MediaStub()
-        self._pause_player = _MediaStub()
-        self._pause_out = _MediaStub()
         self._library = SimpleNamespace(cache=None)  # → _await_loudness has nothing to measure
-        self._filler = PauseFiller()
         self._between = BetweenDances()
+        self._playback = PlaybackState()
         self._between.pending = None
         self._between.round_start = None
         self._between.advance_at = 0.0
         self._between.announced = False
-        self._between.held = False
-        self._between.fade_end = None
         self._fade_now = FadeNow()
         self._announcer = None
         self._fade_timer = _TimerStub()

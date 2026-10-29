@@ -15,7 +15,6 @@ and a MIDIPacket is `UInt64 timeStamp` at 0, `UInt16 length` at 8 and the data
 from 10. MIDIPacketNext steps to right after the data on Intel, but on ARM
 rounds that address up to a multiple of 4.
 """
-from __future__ import annotations
 
 import ctypes
 import logging
@@ -35,7 +34,6 @@ _ReadProc = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_vo
 
 _api = None                 # (CoreMIDI, CoreFoundation), loaded on first use
 _client = None
-
 
 def packet_aligned() -> bool:
     """Whether MIDIPacketNext rounds up to 4 bytes: on ARM (Apple silicon),

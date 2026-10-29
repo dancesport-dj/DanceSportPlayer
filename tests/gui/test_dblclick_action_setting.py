@@ -59,6 +59,7 @@ class SoundTabTest(unittest.TestCase):
         since it is only for library, make it clearer"."""
         from PySide6.QtCore import QPoint
         from PySide6.QtWidgets import QTabWidget
+
         from planner.i18n.lang_de import CATALOG
         dlg = self._dlg({})
         tabs = dlg.findChild(QTabWidget)
@@ -144,9 +145,9 @@ class LibraryBrowserTest(unittest.TestCase):
         self.assertEqual(self.opened, [])
 
     def test_the_editor_is_told_which_column_was_double_clicked(self):
-        from gui.library_browser import _LIB_COL_CUSTOM, _LIB_COL_LEN, _LIB_COL_TITLE
+        from gui.library_browser import LIB_COL_CUSTOM, LIB_COL_LEN, LIB_COL_TITLE
         _action(self, "tags")
-        for col in (_LIB_COL_TITLE, 2, _LIB_COL_CUSTOM, _LIB_COL_LEN):
+        for col in (LIB_COL_TITLE, 2, LIB_COL_CUSTOM, LIB_COL_LEN):
             self.browser._on_double_click(0, col)
         self.assertEqual([f for _p, f in self.edited], ["title", "artist", "custom", None])
 
@@ -172,7 +173,7 @@ class TournamentTreeTest(unittest.TestCase):
         # Without a parent the pane is its own window().
         self.pane._edit_entry_tags = lambda entries, focus=None: self.edited.append((entries, focus))
         self.opened = []
-        patcher = mock.patch.object(gt, "_open_in_default_player",
+        patcher = mock.patch.object(gt, "open_in_default_player",
                                     lambda p, _parent=None: self.opened.append(p))
         patcher.start()
         self.addCleanup(patcher.stop)

@@ -329,6 +329,8 @@ class UndoKeepsPlayingTest(_WindowCase):
         wl = win._deckset.wishlists[0]
         wl.load_wishlist([_song("Jive", "JV")], play_cb=None, suggester=None)
         env = win._build_env()
+        # Jive now plays from the wishlist: the player is on it, deck A is idle.
+        win._playback.path = Path(r"C:\music\JV\Jive.mp3")
         self.a._current_play_row = -1
         wl._current_play_row = self._row_of(wl, "Jive")
         win._apply_env(env)

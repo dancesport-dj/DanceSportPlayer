@@ -44,13 +44,13 @@ class ScanReadAheadTest(unittest.TestCase):
                 return real(path)
             return read
 
-        real_fingerprints = pdb._fingerprints
+        real_fingerprints = pdb.fingerprints
         for module in (pdb, library):
-            if hasattr(module, "_fingerprints"):
-                self.patch(module, "_fingerprints",
+            if hasattr(module, "fingerprints"):
+                self.patch(module, "fingerprints",
                            spy("fp", real_fingerprints))
-        self.patch(library, "_read_tags_once",
-                   spy("tags", library._read_tags_once))
+        self.patch(library, "read_tags_once",
+                   spy("tags", library.read_tags_once))
 
     def patch(self, module, name, value):
         patcher = mock.patch.object(module, name, value)

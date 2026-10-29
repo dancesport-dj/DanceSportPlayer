@@ -1,7 +1,7 @@
 # DanceSport Player — Benutzerhandbuch
 
 Dieses Handbuch geht den Player so durch, wie er auf einem Turnier oder einem
-Tanzabend benutzt wird: einmal einrichten, die Playlists laden, dann die Musik
+Tanzabend benutzt wird: einmal einrichten, die Wiedergabelisten laden, dann die Musik
 auf der Fläche fahren.
 
 Das ganze Handbuch gibt es auch als eine einzige Webseite,
@@ -16,10 +16,10 @@ mit `py -m tools.docs.build_manual_html` neu.
    Analyse und ein Rundgang durch das Hauptfenster.
 2. [Bibliothek und Turniere](02-library-and-tournaments.md): die
    Musikbibliothek durchsuchen und filtern, und der Baum deiner
-   Turnier-Playlists.
-3. [Playlists](03-playlists.md): die Decks als Ablaufpläne, der
-   Party-Bereich, Wunschlisten, `.m3u`-Playlists laden und speichern, und
-   Playlists von einem anderen PC.
+   Turnier-Wiedergabelisten.
+3. [Wiedergabelisten](03-playlists.md): die Decks als Ablaufpläne, der
+   Party-Bereich, Wunschlisten, `.m3u`-Wiedergabelisten laden und speichern, und
+   Wiedergabelisten von einem anderen PC.
 4. [Den Abend fahren](04-playing.md): der Check 🚦 Bereit?, die
    Player-Karte und ihre Wellenform, der Wiedergabe-Bereich, Abspiel-Sets,
    Ansagen, der Paso-Doble-Stopp, die Cartwall, der Präsentationsbildschirm,
@@ -51,17 +51,17 @@ Installation und Konfigurationsdateien beschreibt die
   dem Haken **Deutsche Tanz- und Rundennamen auch in einer anderssprachigen
   Oberfläche** unter der Sprache bleiben es *Langsamer Walzer*, *Vorrunde*,
   *Finale*; der Präsentationsbildschirm und die aufgenommenen Ansagen sind
-  dann ebenfalls deutsch, und eine Eintanzliste heißt *Eintanzen*. Playlists
+  dann ebenfalls deutsch, und eine Eintanzliste heißt *Eintanzen*. Wiedergabelisten
   und Exporte behalten die deutschen Tanz- und Rundennamen in jedem Fall.
 
 ## Begriffe
 
 | Begriff | Bedeutung |
 |---|---|
-| **Deck** | Eine Playlist auf dem Bildschirm, beschriftet mit A, B, C und so weiter. Es hält den Ablauf eines Turniers oder eines Teils des Abends. |
-| **Party-Bereich** | Eine lange Playlist für einen Tanzabend, zwischen den Decks und den Wunschlisten. |
+| **Deck** | Eine Wiedergabeliste auf dem Bildschirm, beschriftet mit A, B, C und so weiter. Es hält den Ablauf eines Turniers oder eines Teils des Abends. |
+| **Party-Bereich** | Eine lange Wiedergabeliste für einen Tanzabend, zwischen den Decks und den Wunschlisten. |
 | **Wunschliste** | Eine flache Liste von Titeln, die du für später parkst: Musikwünsche, ein neues Album. Sie liegt unter den Decks. |
-| **Runde** | *Vorrunde*, *Zwischenrunde*, *Semifinale*, *Finale*. Eine Turnier-Playlist ist nach ihren Runden gegliedert. |
+| **Runde** | *Vorrunde*, *Zwischenrunde*, *Semifinale*, *Finale*. Eine Turnier-Wiedergabeliste ist nach ihren Runden gegliedert. |
 | **Gruppe** | Paare, die gleichzeitig tanzen (englisch *Heat*). Jede Gruppe einer Runde bekommt pro Tanz ihren eigenen Titel. |
 | **Takt / BPM** | Tempo in **Takten** pro Minute, wie die TSO es festlegt (Samba 50–52, Langsamer Walzer 28–30). `[T51]` in einem Deck heißt 51 Takte pro Minute. |
 | **TSO-Bereich** | Das Tempo, das die Turnierordnung für einen Tanz erlaubt. |

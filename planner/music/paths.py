@@ -14,6 +14,8 @@ import re
 import sys
 from pathlib import Path
 
+from planner.music.drives import on_other_drives
+
 log = logging.getLogger("dancesport.paths")
 
 # `F:\…`, `C:/…` — a volume of the machine that wrote the path, and never a
@@ -86,6 +88,38 @@ def parse_remap_paths(value) -> list[str]:
     return out
 
 
+def search_roots(settings) -> list:
+    """Where 🧭 Fix paths looks for a moved file, in order: the Referenzpfad,
+    the extra search folders (Settings) and — away from Windows — the home
+    folder (see `home_search_roots`)."""
+    settings = settings or {}
+    return [settings.get("reference_path") or "",
+            *(settings.get("remap_paths") or []), *home_search_roots()]
+
+
+def resolve_file(path, settings) -> Path | None:
+    """The file behind a stored path on this PC — the one resolver decks,
+    wishlists and 🎛 pads share: the path itself while it is there, else the
+    same path on another local drive (the stick came back as G:), else the
+    copy `search_roots` holds, else None. It only finds; the stored path is
+    the caller's and stays as it was, so a stick that comes back under its
+    old letter is used again."""
+    if _is_file(path):
+        return Path(path)
+    # Only now the drive list: a row fill asks this for every title.
+    for cand in on_other_drives(path):
+        if _is_file(cand):
+            return Path(cand)
+    return PathRemapper(search_roots(settings)).remap(path)
+
+
+def _is_file(path) -> bool:
+    try:
+        return Path(path).is_file()
+    except (OSError, ValueError):
+        return False
+
+
 class PathRemapper:
     """Re-roots a foreign track path under the folders this PC keeps music in.
 
@@ -132,8 +166,7 @@ class PathRemapper:
         # because `foreign_parts` has already dropped the drive letter: what is
         # left of `F:\my music\…` is `my music\…`, and `~/Music/my music/…` is
         # exactly where it lands on the Mac.
-        for n in range(len(parts), 0, -1):
-            tails.append(parts[-n:])
+        tails.extend(parts[-n:] for n in range(len(parts), 0, -1))
         # A '..' could climb out of the root: such a tail is never a candidate.
         cands = [root.joinpath(*tail) for tail in tails if ".." not in tail]
         seen: set[str] = set()

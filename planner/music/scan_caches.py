@@ -5,13 +5,14 @@ whole repo's assembled entries for the opt-in global search),
 PlaylistIndexCache (the learned playlist index) and the cheap coverage
 counts of the global index."""
 
+import contextlib
 import json
 import logging
 from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from planner.config import SCAN_CACHE_FILE, GLOBAL_SCAN_CACHE_FILE, audio_db_file
-from planner.music.db import _META_COLS, _db, _file_id, _meta_to_row, _row_to_meta
+from planner.config import GLOBAL_SCAN_CACHE_FILE, SCAN_CACHE_FILE, audio_db_file
+from planner.music.db import META_COLS, _db, file_id, meta_to_row, row_to_meta
 
 if TYPE_CHECKING:
     from planner.models import MusicEntry
@@ -45,9 +46,9 @@ class ScanCache:
 
     def _load(self) -> None:
         conn = _db()
-        cols = ",".join(_META_COLS)
+        cols = ",".join(META_COLS)
         for row in conn.execute(f"SELECT ckey, {cols} FROM scan_meta").fetchall():  # nosec B608: constant names
-            self._data[row[0]] = _row_to_meta(row[1:])
+            self._data[row[0]] = row_to_meta(row[1:])
         if not self._data and SCAN_CACHE_FILE.exists():
             self._migrate_json()
 
@@ -67,7 +68,7 @@ class ScanCache:
             return
         entries = payload.get('entries', {})
         conn = _db()
-        placeholders = ",".join("?" * (1 + len(_META_COLS)))
+        placeholders = ",".join("?" * (1 + len(META_COLS)))
         imported = 0
         for key, data in entries.items():
             path = key.rpartition('::')[0] or key
@@ -78,15 +79,13 @@ class ScanCache:
             ckey = f"{fp}::{p.stem}"
             self._data[ckey] = data
             conn.execute(
-                f"INSERT OR REPLACE INTO scan_meta (ckey, {','.join(_META_COLS)}) "
+                f"INSERT OR REPLACE INTO scan_meta (ckey, {','.join(META_COLS)}) "
                 f"VALUES ({placeholders})",
-                (ckey, *_meta_to_row(data)))
+                (ckey, *meta_to_row(data)))
             imported += 1
         conn.commit()
-        try:
+        with contextlib.suppress(OSError):
             SCAN_CACHE_FILE.rename(SCAN_CACHE_FILE.with_suffix('.json.bak'))
-        except OSError:
-            pass
         log.info("  ♻️  Scan cache migrated JSON → content-addressed scan_meta: "
                  "%s/%s files → %s", imported, len(entries), audio_db_file().name)
 
@@ -116,11 +115,11 @@ class ScanCache:
         if ckey is None:
             return
         self._data[ckey] = data
-        placeholders = ",".join("?" * (1 + len(_META_COLS)))
+        placeholders = ",".join("?" * (1 + len(META_COLS)))
         _db().execute(
-            f"INSERT OR REPLACE INTO scan_meta (ckey, {','.join(_META_COLS)}) "
+            f"INSERT OR REPLACE INTO scan_meta (ckey, {','.join(META_COLS)}) "
             f"VALUES ({placeholders})",
-            (ckey, *_meta_to_row(data)))
+            (ckey, *meta_to_row(data)))
         self._dirty = True
 
     def forget_custom(self) -> None:
@@ -149,16 +148,16 @@ class ScanCache:
 
 # Metadata keys persisted per entry (everything _make_entry derives except path).
 # cluster is recomputed from the parent dir in scan(); features come from AudioCache.
-_ENTRY_META_KEYS = (
+ENTRY_META_KEYS = (
     "title", "dance", "bpm", "year", "other_genre", "classes_ok",
     "is_instrumental", "is_xmas", "tag_title", "tag_artist", "duration",
     "tag_album", "comment_tags", "rating", "custom", "tag_bpm", "tag_comment",
 )
 
 
-def _entry_meta(entry: MusicEntry) -> dict:
+def entry_meta(entry: MusicEntry) -> dict:
     """Serializable metadata dict for an entry (used by GlobalScanCache)."""
-    return {k: getattr(entry, k) for k in _ENTRY_META_KEYS}
+    return {k: getattr(entry, k) for k in ENTRY_META_KEYS}
 
 
 # ── Global Repo Scan Cache ─────────────────────────────────────────────────────
@@ -181,12 +180,12 @@ class GlobalScanCache:
 
     def _load(self) -> None:
         conn = _db()
-        cols = ",".join(_META_COLS)
+        cols = ",".join(META_COLS)
         for row in conn.execute(
                 f"SELECT f.path, m.mtime, {cols} FROM global_meta m "  # nosec B608: constant names
                 f"JOIN files f ON f.id = m.file_id").fetchall():
             path, mtime = row[0], row[1]
-            self._data[path] = {'mtime': mtime, 'entry': _row_to_meta(row[2:])}
+            self._data[path] = {'mtime': mtime, 'entry': row_to_meta(row[2:])}
         if not self._data and GLOBAL_SCAN_CACHE_FILE.exists():
             self._migrate_json()
 
@@ -202,19 +201,17 @@ class GlobalScanCache:
             return
         entries = payload.get('entries', {})
         conn = _db()
-        placeholders = ",".join("?" * (2 + len(_META_COLS)))
+        placeholders = ",".join("?" * (2 + len(META_COLS)))
         for p, rec in entries.items():
             entry = rec.get('entry', {})
             self._data[p] = {'mtime': rec.get('mtime', 0), 'entry': entry}
             conn.execute(
-                f"INSERT OR REPLACE INTO global_meta (file_id, mtime, {','.join(_META_COLS)}) "
+                f"INSERT OR REPLACE INTO global_meta (file_id, mtime, {','.join(META_COLS)}) "
                 f"VALUES ({placeholders})",
-                (_file_id(p), rec.get('mtime', 0), *_meta_to_row(entry)))
+                (file_id(p), rec.get('mtime', 0), *meta_to_row(entry)))
         conn.commit()
-        try:
+        with contextlib.suppress(OSError):
             GLOBAL_SCAN_CACHE_FILE.rename(GLOBAL_SCAN_CACHE_FILE.with_suffix('.json.bak'))
-        except OSError:
-            pass
         log.info("  ♻️  Global scan cache migrated JSON → SQLite global_meta: "
                  "%s files → %s", len(entries), audio_db_file().name)
 
@@ -241,11 +238,11 @@ class GlobalScanCache:
     def put(self, path: Path, entry_data: dict) -> None:
         mtime = self._mtime(path)
         self._data[str(path)] = {'mtime': mtime, 'entry': entry_data}
-        placeholders = ",".join("?" * (2 + len(_META_COLS)))
+        placeholders = ",".join("?" * (2 + len(META_COLS)))
         _db().execute(
-            f"INSERT OR REPLACE INTO global_meta (file_id, mtime, {','.join(_META_COLS)}) "
+            f"INSERT OR REPLACE INTO global_meta (file_id, mtime, {','.join(META_COLS)}) "
             f"VALUES ({placeholders})",
-            (_file_id(str(path)), mtime, *_meta_to_row(entry_data)))
+            (file_id(str(path)), mtime, *meta_to_row(entry_data)))
         self._dirty = True
 
     def all_entries(self) -> list[tuple[str, dict]]:
@@ -261,7 +258,7 @@ class GlobalScanCache:
         stale = [k for k in self._data if k not in seen_paths]
         for k in stale:
             del self._data[k]
-            fid = _file_id(k, create=False)
+            fid = file_id(k, create=False)
             if fid is not None:
                 _db().execute("DELETE FROM global_meta WHERE file_id = ?", (fid,))
         if stale:

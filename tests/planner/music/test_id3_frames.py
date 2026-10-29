@@ -16,22 +16,22 @@ from pathlib import Path
 
 from mutagen.id3 import APIC, COMM, ID3, POPM, PRIV, TBPM, TDRC, TIT2, TPE1, TXXX, TYER, WXXX
 
+from planner.music import custom_field
 from planner.music.id3_frames import (
     FORM_FIELDS,
     TagField,
     addable_frames,
     added_key,
-    sample_custom,
     read_cover,
     read_fields,
     read_form,
+    sample_custom,
     tag_version,
     write_app_fields,
     write_fields,
     write_tags,
 )
-from planner.music import custom_field
-from planner.music.parsing import _get_comment_tag, _parse_class_tag, parse_comment_markers, popm_stars
+from planner.music.parsing import get_comment_tag, parse_class_tag, parse_comment_markers, popm_stars
 from tests.planner.music.test_custom_field import v1_tail
 
 _AUDIO = b"\xff\xfb\x90\x00" + b"\x00" * 4000
@@ -283,8 +283,8 @@ class AppFieldsTest(_FileTest):
 
     def read_back(self, p):
         """What a library scan makes of the file."""
-        comment = _get_comment_tag(p)
-        classes, instr = _parse_class_tag(comment) if comment else (None, False)
+        comment = get_comment_tag(p)
+        classes, instr = parse_class_tag(comment) if comment else (None, False)
         markers = parse_comment_markers(comment) if comment else []
         return popm_stars(ID3(p)), classes, instr, markers
 

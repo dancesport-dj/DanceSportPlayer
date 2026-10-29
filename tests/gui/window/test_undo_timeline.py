@@ -132,6 +132,7 @@ class WindowTest(unittest.TestCase):
     def setUpClass(cls):
         from PySide6.QtCore import QSettings
         from PySide6.QtWidgets import QApplication
+
         from tests.qt_test_support import stub_window_startup
 
         QSettings.setDefaultFormat(QSettings.Format.IniFormat)

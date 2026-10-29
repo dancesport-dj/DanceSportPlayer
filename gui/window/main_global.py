@@ -13,6 +13,10 @@ import planner.playlist.m3u
 
 HAS_MULTIMEDIA = importlib.util.find_spec("PySide6.QtMultimedia") is not None
 
+from collections.abc import Callable
+from functools import partial
+from pathlib import Path
+
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
     QApplication,
@@ -20,37 +24,28 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QMessageBox,
 )
-from pathlib import Path
-from collections.abc import Callable
-from planner.music.analysis import HAS_LIBROSA
-from planner.music.db import AudioCache
-from planner.music.library import MusicLibrary
-from planner.models import note_class_tag_use, set_hidden_folders, set_no_class_exclusion
-from shared import error_reports
-from shared.appearance import theme
-from planner import i18n
+
 from gui.common import (
     BusyDialog,
+    apply_relaunch_identity,
     apply_taskbar_icon,
     set_dblclick_action,
 )
-from gui.index_summary import index_summary
-from shared.widgets import _show_toast
-from gui.dialogs.reset_db_dialog import ResetDatabaseDialog
-from gui.dialogs.settings_cartwall import CART_WALL_KEYS
-from gui.dialogs.settings_dialog import SettingsDialog
 from gui.dialogs import (  # auto-resolved
     SimilarTracksDialog,
     media_backend_of,
     restart_app,
 )
-from shared.stores import (
-    save_settings,
+from gui.dialogs.reset_db_dialog import ResetDatabaseDialog
+from gui.dialogs.settings_cartwall import CART_WALL_KEYS
+from gui.dialogs.settings_dialog import SettingsDialog
+from gui.index_summary import index_summary
+from gui.window.main_allcache import (
+    AllCacheMixin,
+    plan_allcache_steps,  # noqa: F401 — re-exported for existing callers
 )
-from planner.music.vocals import (
-    apply_vocal_shares,
-    learn_instrumental_probs,
-)
+from gui.window.main_analyze import AnalysisMixin
+from gui.window.main_embed import EmbeddingIndexMixin
 from gui.workers import (  # auto-resolved
     DbMaintenanceWorker,
     DbResetWorker,
@@ -59,12 +54,27 @@ from gui.workers import (  # auto-resolved
     PlaylistRelearnWorker,
     SimilarFromFileWorker,
 )
-from gui.window.main_allcache import (
-    AllCacheMixin,
-    plan_allcache_steps,  # noqa: F401 — re-exported for existing callers
+from planner import i18n
+from planner.models import (
+    ceremony_words_of,
+    note_class_tag_use,
+    set_ceremony_match,
+    set_hidden_folders,
+    set_no_class_exclusion,
 )
-from gui.window.main_analyze import AnalysisMixin
-from gui.window.main_embed import EmbeddingIndexMixin
+from planner.music.analysis import HAS_LIBROSA
+from planner.music.db import AudioCache
+from planner.music.library import MusicLibrary
+from planner.music.vocals import (
+    apply_vocal_shares,
+    learn_instrumental_probs,
+)
+from shared import error_reports
+from shared.appearance import theme
+from shared.stores import (
+    save_settings,
+)
+from shared.widgets import show_toast
 
 log = logging.getLogger("dancesport.gui.global")
 
@@ -113,6 +123,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         # HWND exists only now → push the app icon to the taskbar button so it
         # doesn't fall back to the generic Python icon after the splash closes.
         apply_taskbar_icon(self)
+        apply_relaunch_identity(self)
         self._offer_crash_resume()   # 🆘 over the restored decks, not the splash
         if self._library.load_bar is not None:
             self._library.load_bar.start(self)
@@ -122,12 +133,12 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
             self._library.loader.go()
 
     def _on_library_loaded(self, lib: MusicLibrary, cache: AudioCache):
-        self._library.lib   = lib
+        self._library.lib = lib
         self._library.cache = cache
         note_class_tag_use(lib.entries)   # 🏷 'No class' only where classes are used
-        n          = len(lib.entries)
-        comp       = sum(1 for e in lib.entries if e.dance is not None)
-        cached     = sum(1 for e in lib.entries if e.features is not None)
+        n = len(lib.entries)
+        comp = sum(1 for e in lib.entries if e.dance is not None)
+        cached = sum(1 for e in lib.entries if e.features is not None)
         self._hand_over_library(lib)
         self._load_play_counts()     # 🔁 the Plays column, now the database is there
         if self._library.load_bar is not None:
@@ -171,8 +182,8 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         bar = self._library.load_bar
         if bar is None or not bar.running:
             return False
-        _show_toast(self, i18n.t("📚 The library is still loading — "
-                                 "this works once it is done."), 2500)
+        show_toast(self, i18n.t("📚 The library is still loading — "
+                                 "this works once it is done."), 2500, error=True)
         return True
 
     def _finish_library_load(self, lib: MusicLibrary, ready_msg: str):
@@ -234,9 +245,9 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         """Recompose the ConfigPanel status label (mode + counts + per-model index)."""
         if not self._library.lib:
             return
-        n          = len(self._library.lib.entries)
-        comp       = sum(1 for e in self._library.lib.entries if e.dance is not None)
-        cached     = sum(1 for e in self._library.lib.entries if e.features is not None)
+        n = len(self._library.lib.entries)
+        comp = sum(1 for e in self._library.lib.entries if e.dance is not None)
+        cached = sum(1 for e in self._library.lib.entries if e.features is not None)
         unanalyzed = n - cached
         # Every line takes its numbers through a placeholder: the assembled
         # block is unique on each refresh and would match no catalog key.
@@ -287,6 +298,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
             self._loading_dlg.accept()   # accept() bypasses closeEvent
             self.show()
             apply_taskbar_icon(self)
+            apply_relaunch_identity(self)
         self._cfg.set_library_status(f"Error loading library:\n{msg}")
         self.statusBar().showMessage(i18n.t("Library error: %s") % msg)
         QMessageBox.critical(self, "Library Load Error", msg)
@@ -435,7 +447,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         self._library.whole_waiting = False
         self.statusBar().clearMessage()
 
-    def _rescan_repository(self, values: dict | None = None):
+    def _rescan_repository(self):
         """🔄 Walk the whole repository again, tags only, behind the open window.
 
         The cached index (`_ensure_global_lib`'s fast path) never walks the
@@ -443,16 +455,12 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         from 🌐 — 3.8k of 54k files. This is that walk without the librosa
         pass, and like the startup scan its progress, pause and stop sit in the
         status bar instead of a modal dialog: unchanged files are reused, but a
-        first walk reads tens of thousands of tags. `values`: ⚙ Settings'
-        current ones, which may name a folder not saved yet."""
-        if values is not None:
-            save_settings(values)
-            self._settings = values
+        first walk reads tens of thousands of tags."""
         if self._library_still_loading():
             return
         loader = self._library.global_loader
         if loader is not None and loader.isRunning():
-            _show_toast(self, i18n.t("🌐 The repository is being scanned already."), 2500)
+            show_toast(self, i18n.t("🌐 The repository is being scanned already."), 2500, error=True)
             return
         gdir = self._settings.get("global_dir")
         if not gdir or not Path(gdir).exists():
@@ -603,7 +611,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         if self._library.lib is not None:
             lib.share_playlist_index_from(self._library.lib)
         self._library.global_lib = lib
-        n      = len(lib.entries)
+        n = len(lib.entries)
         cached = sum(1 for e in lib.entries if e.features is not None)
         self._refresh_library_status()   # add the global-index line to the label
         self.statusBar().showMessage(
@@ -636,7 +644,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         self._pending_after_global = None
         self.statusBar().showMessage("Repository scan cancelled.")
 
-    def _build_global_index(self, values: dict):
+    def _build_global_index(self):
         """Settings → 'Build / refresh librosa index': analyze missing audio.
 
         Asks whether to cover the whole repository, the favorites library, or
@@ -644,8 +652,6 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         'global'/'both' scan the repo first, then analyze (scope honoured in
         `_on_global_index_scanned`). Read-only — only the feature cache is written.
         """
-        save_settings(values)
-        self._settings = values
         scope = self._ask_index_scope("Build / refresh librosa audio index")
         if scope is None:
             return
@@ -656,7 +662,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
                 return
             self._run_librosa_analysis(entries, label)
             return
-        gdir = values.get("global_dir")
+        gdir = self._settings.get("global_dir")
         if not gdir or not Path(gdir).exists():
             QMessageBox.warning(
                 self, "Build librosa index",
@@ -715,14 +721,24 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         n_unanalyzed = (sum(1 for e in self._library.lib.entries if e.features is None)
                         if self._library.lib else 0)
         given = dict(self._settings)
+        # What a button closes the dialog for (🔄 Rescan, Build ALL, Relearn,
+        # 📦 Export venue pack…) runs once the dialog's edits are applied
+        # below. The dialog calls it from inside exec(): run there, it saw the
+        # old settings, and the build buttons swapped in the dialog's whole
+        # dict, so OK found nothing changed (BUG_REVIEW B3.1, B4.6).
+        after: list[Callable[[], None]] = []
+
+        def later(fn):
+            return lambda *args: after.append(partial(fn, *args) if args else fn)
+
         dlg = SettingsDialog({**self._settings, **self.cart_wall_settings()},
-                             self, build_cb=self._build_global_index,
-                             embed_cb=self._build_embedding_index,
+                             self, build_cb=later(lambda _vals: self._build_global_index()),
+                             embed_cb=later(self._build_embedding_index),
                              index_summary=self._index_summary(),
-                             all_cb=self._build_all_caches,
+                             all_cb=later(lambda _vals: self._build_all_caches()),
                              maintenance_cb=self._run_db_maintenance,
-                             relearn_cb=self._relearn_playlists,
-                             rescan_cb=self._rescan_repository,
+                             relearn_cb=later(self._relearn_playlists),
+                             rescan_cb=later(lambda _vals: self._rescan_repository()),
                              analyze_cb=self._analyze_audio,
                              loudness_cb=self._analyze_loudness,
                              silence_cb=self._analyze_silences,
@@ -733,7 +749,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
                              pd_export_cb=self._export_manual_pd,
                              pd_import_cb=self._import_manual_pd,
                              backup_restore_cb=self._restore_user_data,
-                             venue_export_cb=self._export_venue_pack,
+                             venue_export_cb=later(self._export_venue_pack),
                              venue_import_cb=self._import_venue_pack,
                              remote_cb=self.start_remote_server,
                              remote_running=lambda: self._remote is not None,
@@ -763,15 +779,17 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         edited = {k: v for k, v in values.items()
                   if k not in given or given[k] != v}
         new = {**self._settings, **edited}
-        lib_changed    = new.get("library_dir") != self._settings.get("library_dir")
-        global_changed = new.get("global_dir")  != self._settings.get("global_dir")
-        pl_changed     = new.get("playlist_dir") != self._settings.get("playlist_dir")
+        lib_changed = new.get("library_dir") != self._settings.get("library_dir")
+        global_changed = new.get("global_dir") != self._settings.get("global_dir")
+        pl_changed = new.get("playlist_dir") != self._settings.get("playlist_dir")
         hidden_changed = (new.get("hidden_folders") or []) != (self._settings.get("hidden_folders") or [])
-        mode_changed   = new.get("app_mode") != self._settings.get("app_mode")
+        mode_changed = new.get("app_mode") != self._settings.get("app_mode")
         backend_changed = (media_backend_of(new)
                            != media_backend_of(self._settings))
         look_changed = (theme.theme_of(new) != theme.theme_of(self._settings)
                         or theme.accent_of(new) != theme.accent_of(self._settings)
+                        or theme.font_scale_of(new)
+                        != theme.font_scale_of(self._settings)
                         or i18n.language_of(new) != i18n.language_of(self._settings)
                         or bool(new.get("german_dance_terms"))
                         != bool(self._settings.get("german_dance_terms"))
@@ -792,11 +810,19 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         set_no_class_exclusion(new.get("exclude_no_class"))
         set_dblclick_action(new.get("dblclick_action"))
         set_hidden_folders(new.get("hidden_folders"))
+        set_ceremony_match(ceremony_words_of(new), new.get("ceremony_folders"))
+        if (ceremony_words_of(new) != ceremony_words_of(old)
+                or new.get("ceremony_folders") != old.get("ceremony_folders")):
+            self._lib_browser.refilter()   # 🏅 the category filter at once
         self._audio_device.sync()   # 🔊 a changed output choice, at once
+        self._audio_device.on_activity()   # 🔇🔕 a switch flipped there
+        self._sync_sound_badge()
         self._sync_dance_len()      # 🏆 per-dance lengths edited: the panel shows them
         self._sync_big_player_limit()
         self._set_artwork_shown(bool(new.get("show_artwork", True)))
         self._set_waveform_shown(bool(new.get("show_waveform", True)))
+        self._set_time_format(new.get("time_format"))
+        self._set_vol_buttons_shown(new.get("vol_buttons", True) is not False)
         self.apply_duck_level()     # 🔉 the buttons name it; a held duck moves to it
         self.apply_cart_settings()  # 🎶 background pads: stop or mute under a title
         self.apply_cart_wall(wall)  # ⏱ 🖌 the wall's fade-out and colour
@@ -814,6 +840,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
             # popularity / co-occurrence index from it (no library rescan).
             planner.config.set_playlist_dir(new["playlist_dir"])
             self._relearn_playlists()
+            after[:] = [run for run in after if run != self._relearn_playlists]   # done
         if lib_changed:
             QMessageBox.information(
                 self, "Settings saved",
@@ -834,9 +861,13 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         self._announcer.set_voice(voice)
         self._play_panel.set_announce_style(
             voice, bool(new.get("announce_heat", False)),
-            bool(new.get("announce_wait", False)))
+            bool(new.get("announce_wait", False)),
+            bool(new.get("announce_lead", False)),
+            bool(new.get("announce_heat_only", False)))
         self._refresh_library_status()   # reflect any search-mode change in the label
         self.statusBar().showMessage("Settings saved.")
+        for run in after:   # before a restart could take the window down
+            run()
         self._offer_settings_restart(backend_changed, look_changed, hidden_changed)
 
     def _offer_settings_restart(self, backend_changed, look_changed, hidden_changed=False):
@@ -880,8 +911,20 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
             self.statusBar().showMessage(
                 "Saved — it takes effect the next time you start the app.")
             return
-        if not self.close():
+        # closeEvent restarts once the window is really closed: with music
+        # sounding that close is ignored while the music fades out, and the
+        # window closes itself after the fade (see _quit_after_fade).
+        self._fade_now.restart = title
+        if not self.close() and not self._fade_now.quitting:
+            self._fade_now.restart = None   # the operator backed out
+
+    def _restart_if_asked(self):
+        """The restart _offer_restart was answered Yes to, now that the window
+        has closed."""
+        title = self._fade_now.restart
+        if title is None:
             return
+        self._fade_now.restart = None
         if restart_app():
             QApplication.quit()
         else:

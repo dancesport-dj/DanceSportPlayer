@@ -20,11 +20,11 @@ from PySide6.QtWidgets import QApplication
 
 from dancesport_planner import RoundConfig
 from gui.common import DEFAULT_HIDDEN_COLUMNS
-from gui.library_browser import _LIB_COL_ALBUM, LibraryBrowser
+from gui.library_browser import LIB_COL_ALBUM, LibraryBrowser
 from gui.table.playlist_table import PlaylistTable
 from gui.table.table_actions import TableActionsMixin
 from planner.models import MusicEntry
-from shared.columns import _COL_ALBUM, _COL_FILE, _COL_REGEN
+from shared.columns import _COL_ALBUM, _COL_FILE, COL_REGEN
 from tests.qt_test_support import reap_widget
 
 _app = QApplication.instance() or QApplication([])
@@ -53,7 +53,7 @@ class DeckAlbumTest(unittest.TestCase):
     def test_album_sits_behind_file_name(self):
         self.assertEqual((_COL_FILE, _COL_ALBUM), (11, 12))
         self.assertEqual(self.table.horizontalHeaderItem(_COL_ALBUM).text(), "Album")
-        self.assertEqual(self.table.horizontalHeaderItem(_COL_REGEN).text(), "↺")
+        self.assertEqual(self.table.horizontalHeaderItem(COL_REGEN).text(), "↺")
 
     def test_the_cell_shows_the_album_tag(self):
         self.assertEqual(self.table.item(self.row, _COL_ALBUM).text(),
@@ -82,15 +82,15 @@ class LibraryAlbumTest(unittest.TestCase):
 
     def test_the_cell(self):
         t = self.pane._table
-        self.assertEqual(_LIB_COL_ALBUM, 13)
+        self.assertEqual(LIB_COL_ALBUM, 13)
         self.assertGreaterEqual(t.columnCount(), 14)
-        self.assertEqual(t.horizontalHeaderItem(_LIB_COL_ALBUM).text(), "Album")
-        self.assertEqual(t.item(0, _LIB_COL_ALBUM).text(), "Strictly Ballroom 3")
+        self.assertEqual(t.horizontalHeaderItem(LIB_COL_ALBUM).text(), "Album")
+        self.assertEqual(t.item(0, LIB_COL_ALBUM).text(), "Strictly Ballroom 3")
 
     def test_it_starts_hidden_and_can_be_ticked_on(self):
-        self.assertIn(_LIB_COL_ALBUM, self.pane.hidden_columns())
+        self.assertIn(LIB_COL_ALBUM, self.pane.hidden_columns())
         menu = self.pane.build_column_menu()
-        self.assertIn(_LIB_COL_ALBUM,
+        self.assertIn(LIB_COL_ALBUM,
                       [a.data() for a in menu.actions() if a.isCheckable()])
 
 

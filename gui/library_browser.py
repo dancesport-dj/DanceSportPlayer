@@ -6,7 +6,10 @@ table/item subclasses (_LibTable, _LibSortItem, _LibPlayItem).
 import gc
 import logging
 import time
+from collections.abc import Callable
 from datetime import date
+from pathlib import Path
+from typing import Any, cast
 
 from PySide6.QtCore import (
     QEvent,
@@ -14,9 +17,9 @@ from PySide6.QtCore import (
     QItemSelectionModel,
     QMimeData,
     QSize,
+    Qt,
     QTimer,
     QUrl,
-    Qt,
     Signal,
 )
 from PySide6.QtGui import (
@@ -36,9 +39,9 @@ from PySide6.QtWidgets import (
     QMenu,
     QProgressBar,
     QStyle,
+    QStyledItemDelegate,
     QStyleOptionComboBox,
     QStylePainter,
-    QStyledItemDelegate,
     QTableWidget,
     QTableWidgetItem,
     QToolButton,
@@ -46,42 +49,43 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from pathlib import Path
-from collections.abc import Callable
-from typing import Any, cast
-from planner.models import DANCE_NAMES, TEMPO_RANGES, MusicEntry
-from planner.terms import dance_name, genre_name
-from planner import i18n
-from planner.models import (  # auto-resolved
-    DEFAULT_DANCES,
-    LIBRARY_CATEGORIES,
-    is_non_turnier,
-    library_category,
-)
-from planner.music.vocals import entry_is_instrumental
-from planner.playing import play_counts
-from planner.generate.warmup import warmup_code
+
 from gui.common import (
+    C_NEW_FG,
+    C_POP_FG,
     CUSTOM_HEADER_TIP,
     DANCE_SHORT,
-    _C_NEW_FG,
-    _PROVEN_MIN_PLAYS,
-    _C_POP_FG,
-    _entry_tooltip,
-    _fmt_track_secs,
-    _open_in_default_player,
-    dblclick_action,
+    PROVEN_MIN_PLAYS,
     add_custom_mapping_action,
     bpm_tooltip,
+    dblclick_action,
     display_title,
+    entry_tooltip,
+    fmt_track_secs,
+    open_in_default_player,
     reveal_in_explorer,
     set_header_tip,
     stopwatch_header,
 )
 from gui.table.star_rating import RATING_ROLE, StarDelegate
+from planner import i18n
+from planner.generate.warmup import warmup_code
+from planner.models import (  # auto-resolved
+    DANCE_NAMES,
+    DEFAULT_DANCES,
+    LIBRARY_CATEGORIES,
+    TEMPO_RANGES,
+    MusicEntry,
+    is_non_turnier,
+    library_category,
+)
+from planner.music.vocals import entry_is_instrumental
+from planner.playing import play_counts
+from planner.playlist.planned import path_key
+from planner.terms import dance_name, genre_name
 from shared.widgets import (
     FlowLayout,
-    _show_toast,
+    show_toast,
 )
 
 log = logging.getLogger("dancesport.gui.library_browser")
@@ -90,19 +94,19 @@ log = logging.getLogger("dancesport.gui.library_browser")
 # named; the row filler below writes the first ten by number as it always has.
 _LIB_COL_PLAY = 0
 _LIB_COL_DANCE = 1
-_LIB_COL_TITLE = 3
-_LIB_COL_LEN = 5
-_LIB_COL_RATING = 10   # ★ came last: the sections are movable, a saved order is by index
-_LIB_COL_CUSTOM = 11   # …and Custom after it
-_LIB_COL_FILE = 12     # …and the cleaned-up file name after that
-_LIB_COL_ALBUM = 13    # …and the ID3 album tag
-_LIB_COL_COMMENT = 14  # …and the comment as the file has it
-_LIB_COL_PLAYS = 15    # …and 🔁 how often it played in the last 24 h, last
+LIB_COL_TITLE = 3
+LIB_COL_LEN = 5
+LIB_COL_RATING = 10   # ★ came last: the sections are movable, a saved order is by index
+LIB_COL_CUSTOM = 11   # …and Custom after it
+LIB_COL_FILE = 12     # …and the cleaned-up file name after that
+LIB_COL_ALBUM = 13    # …and the ID3 album tag
+LIB_COL_COMMENT = 14  # …and the comment as the file has it
+LIB_COL_PLAYS = 15    # …and 🔁 how often it played in the last 24 h, last
 # 🏷 The editor's field a double-click on a column opens on (TagEditDialog's
 # `focus`); the dance is read from the genre tag.
-_LIB_TAG_FIELDS = {_LIB_COL_DANCE: "genre", 2: "artist", _LIB_COL_TITLE: "title",
-                   7: "classes", _LIB_COL_CUSTOM: "custom", _LIB_COL_ALBUM: "album",
-                   _LIB_COL_COMMENT: "comment"}
+_LIB_TAG_FIELDS = {_LIB_COL_DANCE: "genre", 2: "artist", LIB_COL_TITLE: "title",
+                   7: "classes", LIB_COL_CUSTOM: "custom", LIB_COL_ALBUM: "album",
+                   LIB_COL_COMMENT: "comment"}
 
 # 📚 A fill writes this many rows at once (a filtered list is all there before
 # the call returns), then the rest in chunks between turns of the event loop,
@@ -120,7 +124,7 @@ def _classes_label(e: MusicEntry) -> str:
     return f"[{','.join(classes)}]" if classes else ""
 
 
-class _LibSortItem(QTableWidgetItem):
+class LibSortItem(QTableWidgetItem):
     """Sorts by the numeric UserRole payload (text comparison as fallback)."""
 
     def __lt__(self, other):
@@ -131,7 +135,7 @@ class _LibSortItem(QTableWidgetItem):
         return super().__lt__(other)
 
 
-class _LibPlayItem(QTableWidgetItem):
+class LibPlayItem(QTableWidgetItem):
     """▶/■ cell: sorts by its track path, NOT the marker text — so flipping
     the marker while the table is sorted by this column never reorders rows."""
 
@@ -327,7 +331,7 @@ class _ClassFilterCombo(QComboBox):
         p.drawControl(QStyle.ControlElement.CE_ComboBoxLabel, opt)
 
 
-class _LibTable(QTableWidget):
+class LibTable(QTableWidget):
     """Read-only library list whose rows drag out as file URLs — dropping one
     on a deck/wishlist behaves exactly like a file dragged in from Explorer."""
 
@@ -645,9 +649,9 @@ class LibraryBrowser(QWidget):
         self._plays_combo.addItem("Plays: all", "")
         self._plays_combo.addItem("✦ Never played", "never")
         self._plays_combo.addItem(
-            i18n.t("★ Rarely (1–%d)") % (_PROVEN_MIN_PLAYS - 1), "rare")
+            i18n.t("★ Rarely (1–%d)") % (PROVEN_MIN_PLAYS - 1), "rare")
         self._plays_combo.addItem(
-            i18n.t("★ Proven (≥%d)") % _PROVEN_MIN_PLAYS, "proven")
+            i18n.t("★ Proven (≥%d)") % PROVEN_MIN_PLAYS, "proven")
         self._plays_combo.addItem("📅 Not since 1 y", "stale1")
         self._plays_combo.setToolTip(
             i18n.t("Filter by how the track was used so far:\n"
@@ -656,7 +660,7 @@ class LibraryBrowser(QWidget):
                    "📅 not since — played, but the newest playlist\n"
                    "carrying it is that old (the year comes from the\n"
                    "playlist's path; undated lists don't count as old).")
-            % (_PROVEN_MIN_PLAYS - 1, _PROVEN_MIN_PLAYS))
+            % (PROVEN_MIN_PLAYS - 1, PROVEN_MIN_PLAYS))
         flt.addWidget(cap_filter_combo(self._plays_combo))
         # When the file arrived in the library — a copied file gets a fresh
         # creation time, so this really is "new music I put in".
@@ -684,18 +688,18 @@ class LibraryBrowser(QWidget):
 
     def _build_table(self):
         """The track table: its columns, header menu, widths and clicks."""
-        self._table = _LibTable(0, 16)
+        self._table = LibTable(0, 16)
         self._table.setHorizontalHeaderLabels(
             ["▶", "Dance", "Artist", "Title", "BPM", "⏱", "Pop", "Class",
              "Added", "Last", "★", "Custom", "Filename", "Album", "Comment", "Plays"])
-        set_header_tip(self._table, _LIB_COL_CUSTOM, CUSTOM_HEADER_TIP)
+        set_header_tip(self._table, LIB_COL_CUSTOM, CUSTOM_HEADER_TIP)
         set_header_tip(
-            self._table, _LIB_COL_RATING,
+            self._table, LIB_COL_RATING,
             "Rating — click a star to set it, the last lit one again to clear it.\n"
             "Kept in the app's database; the MP3 itself is not changed."
         )
         self._table.setItemDelegateForColumn(
-            _LIB_COL_RATING, StarDelegate(self._on_star_clicked, self._table))
+            LIB_COL_RATING, StarDelegate(self._on_star_clicked, self._table))
         hh2 = stopwatch_header(self._table, 5)
         # Every column is user-resizable; the widths are persisted by MainWindow.
         # (Stretch / ResizeToContents modes would lock the handles, so we use
@@ -712,9 +716,9 @@ class LibraryBrowser(QWidget):
         self._filling = False
         self._col_width: dict[int, int] = {}   # width a column had when it was hidden
         self._short_dances = False             # Dance column: "LW", not "Langsamer Walzer"
-        self.set_hidden_columns([_LIB_COL_RATING, _LIB_COL_CUSTOM, _LIB_COL_FILE,
-                                _LIB_COL_ALBUM, _LIB_COL_COMMENT,
-                                _LIB_COL_PLAYS])   # wait until asked for
+        self.set_hidden_columns([LIB_COL_RATING, LIB_COL_CUSTOM, LIB_COL_FILE,
+                                LIB_COL_ALBUM, LIB_COL_COMMENT,
+                                LIB_COL_PLAYS])   # wait until asked for
         self._table.resize_cb = self._on_table_resized
         # Right-click the header to tick columns away or shorten the dance names.
         hh2.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -842,8 +846,8 @@ class LibraryBrowser(QWidget):
     # ── Columns the pane shows, and how it writes a dance (header right-click) ──
     # Readable names for the two columns whose caption is a glyph — a tick list
     # reading "▶ / ⏱" says nothing about what would disappear.
-    _COL_MENU_NAMES = {_LIB_COL_PLAY: "▶  Play", _LIB_COL_LEN: "⏱  Length",
-                       _LIB_COL_RATING: "★  Rating"}
+    _COL_MENU_NAMES = {_LIB_COL_PLAY: "▶  Play", LIB_COL_LEN: "⏱  Length",
+                       LIB_COL_RATING: "★  Rating"}
 
     def hidden_columns(self) -> list:
         return [c for c in range(self._table.columnCount())
@@ -852,7 +856,7 @@ class LibraryBrowser(QWidget):
     def set_hidden_columns(self, cols):
         """Show exactly the columns not in `cols`. Title is never put away — a
         row without it cannot be told from any other."""
-        want = {int(c) for c in cols if int(c) != _LIB_COL_TITLE}
+        want = {int(c) for c in cols if int(c) != LIB_COL_TITLE}
         t = self._table
         freed = 0
         self._filling = True      # hiding a section resizes it; that is not a drag
@@ -877,8 +881,8 @@ class LibraryBrowser(QWidget):
             # The user has dragged their own widths and those stand; only the
             # room the column leaves behind changes hands, and Title takes it.
             self._filling = True
-            t.setColumnWidth(_LIB_COL_TITLE,
-                             max(120, t.columnWidth(_LIB_COL_TITLE) + freed))
+            t.setColumnWidth(LIB_COL_TITLE,
+                             max(120, t.columnWidth(LIB_COL_TITLE) + freed))
             self._filling = False
 
     def short_dances(self) -> bool:
@@ -927,7 +931,7 @@ class LibraryBrowser(QWidget):
         head.setEnabled(False)
         menu.addSeparator()
         for c in range(self._table.columnCount()):
-            if c == _LIB_COL_TITLE:
+            if c == LIB_COL_TITLE:
                 continue
             item = self._table.horizontalHeaderItem(c)
             act = menu.addAction(self._COL_MENU_NAMES.get(
@@ -980,6 +984,10 @@ class LibraryBrowser(QWidget):
         self._whole_shown = True
         self._entries = list(entries)
         self._sync_source_btn()
+        if self._unplanned_chk.isChecked():
+            # The planned set was matched against the favorites: ask for it
+            # again, now that the index's copies can be matched too.
+            self.unplannedToggled.emit(True)
         self._refilter()
 
     def show_whole_loading(self, on: bool):
@@ -1091,7 +1099,7 @@ class LibraryBrowser(QWidget):
         class_only = self._class_only_chk.isChecked()
         rows = []
         for e in self._entries:
-            if unplanned_only and str(e.path) in self._planned_paths:
+            if unplanned_only and path_key(e.path) in self._planned_paths:
                 continue
             if plays:
                 pop = e.popularity or 0
@@ -1100,11 +1108,11 @@ class LibraryBrowser(QWidget):
                     # An undated play history says nothing — don't call it stale.
                     if not pop or not e.last_played or e.last_played > stale_before:
                         continue
-                elif plays == "never" and pop:
-                    continue
-                elif plays == "rare" and not (1 <= pop < _PROVEN_MIN_PLAYS):
-                    continue
-                elif plays == "proven" and pop < _PROVEN_MIN_PLAYS:
+                elif (
+                    (plays == "never" and pop)
+                    or (plays == "rare" and not (1 <= pop < PROVEN_MIN_PLAYS))
+                    or (plays == "proven" and pop < PROVEN_MIN_PLAYS)
+                ):
                     continue
             if added_after is not None and (e.added or 0) < added_after:
                 continue
@@ -1117,11 +1125,11 @@ class LibraryBrowser(QWidget):
                 # Style group (Standard / Latin): keep any dance of that style.
                 if (e.dance or "") not in self._STYLE_DANCES.get(dance[4:], ()):
                     continue
-            elif dance and e.dance != dance:
-                # Social dances (Forró, Salsa, …) carry no dance code — they
-                # are labelled via other_genre; match that against the combo.
-                if (e.other_genre or "") != DANCE_NAMES.get(dance, dance):
-                    continue
+            elif (dance and e.dance != dance
+                    # Social dances (Forró, Salsa, …) carry no dance code — they
+                    # are labelled via other_genre; match that against the combo.
+                    and (e.other_genre or "") != DANCE_NAMES.get(dance, dance)):
+                continue
             classes_ok = getattr(e, "classes_ok", None)
             if classes and classes_ok and classes.isdisjoint(classes_ok):
                 continue
@@ -1129,11 +1137,10 @@ class LibraryBrowser(QWidget):
             if ((class_only or some_classes) and not classes_ok
                     and e.dance in TEMPO_RANGES):
                 continue   # social dances have no classes — they stay
-            if vocal:
-                # Tag/filename marker first, then the learned audio probability
-                # (planner.music.vocals) for the untagged rest.
-                if entry_is_instrumental(e) != (vocal == "instr"):
-                    continue
+            # Tag/filename marker first, then the learned audio probability
+            # (planner.music.vocals) for the untagged rest.
+            if vocal and entry_is_instrumental(e) != (vocal == "instr"):
+                continue
             if text:
                 # The file name too: the card, the log and the deck name a
                 # title by its file, and that is what gets typed here.
@@ -1195,12 +1202,12 @@ class LibraryBrowser(QWidget):
             7: _classes_label,
             8: lambda e: getattr(e, "added", None) or 0,
             9: lambda e: getattr(e, "last_played", None) or 0,
-            _LIB_COL_RATING: lambda e: int(getattr(e, "rating", 0) or 0),
-            _LIB_COL_CUSTOM: lambda e: e.custom or "",
-            _LIB_COL_FILE: lambda e: e.title or "",
-            _LIB_COL_ALBUM: lambda e: getattr(e, "tag_album", None) or "",
-            _LIB_COL_COMMENT: lambda e: (getattr(e, "tag_comment", None) or "").lower(),
-            _LIB_COL_PLAYS: lambda e: play_counts.count(e.path),
+            LIB_COL_RATING: lambda e: int(getattr(e, "rating", 0) or 0),
+            LIB_COL_CUSTOM: lambda e: e.custom or "",
+            LIB_COL_FILE: lambda e: e.title or "",
+            LIB_COL_ALBUM: lambda e: getattr(e, "tag_album", None) or "",
+            LIB_COL_COMMENT: lambda e: (getattr(e, "tag_comment", None) or "").lower(),
+            LIB_COL_PLAYS: lambda e: play_counts.count(e.path),
         }[col]
 
     def _fill_step(self, gen: int, entries: list[MusicEntry], start: int, now: float, keep):
@@ -1242,11 +1249,11 @@ class LibraryBrowser(QWidget):
             gc.enable()
         if end > start:
             model.dataChanged.emit(model.index(start, 0),
-                                   model.index(end - 1, _LIB_COL_PLAYS))
+                                   model.index(end - 1, LIB_COL_PLAYS))
         if selected:
             sel = QItemSelection()
             for r in selected:
-                sel.select(model.index(r, 0), model.index(r, _LIB_COL_PLAYS))
+                sel.select(model.index(r, 0), model.index(r, LIB_COL_PLAYS))
             t.selectionModel().select(sel, QItemSelectionModel.SelectionFlag.Select)
         if end < len(entries):
             if time.perf_counter() - self._fill_started >= _PROGRESS_AFTER:
@@ -1287,23 +1294,27 @@ class LibraryBrowser(QWidget):
             cell(r, 3, display_title(e))
             cell(r, 4, str(e.bpm) if e.bpm else "", e.bpm or -1)
             secs = int(getattr(e, "duration", 0) or 0)
-            cell(r, 5, _fmt_track_secs(secs) if secs else "", secs)
+            cell(r, 5, fmt_track_secs(secs) if secs else "", secs)
             pop = e.popularity or 0
-            cell(r, 6, f"★{pop}" if pop else "✦", pop, _C_POP_FG if pop else _C_NEW_FG)
+            cell(r, 6, f"★{pop}" if pop else "✦", pop, C_POP_FG if pop else C_NEW_FG)
             cell(r, 7, _classes_label(e))
             put(idx(r, 7), center, align)
             ts = getattr(e, "added", None) or 0
             cell(r, 8, date.fromtimestamp(ts).isoformat() if ts else "", ts,
-                 _C_NEW_FG if ts and ts >= now - 90 * 86400 else None)   # new: last 3 months
+                 C_NEW_FG if ts and ts >= now - 90 * 86400 else None)   # new: last 3 months
             last = getattr(e, "last_played", None)
             cell(r, 9, str(last) if last else ("—" if not pop else "?"), last or 0,
-                 None if last else _C_NEW_FG)
+                 None if last else C_NEW_FG)
             self._put_tag_cells(r, e)
-            cell(r, _LIB_COL_FILE, e.title or "")
-            cell(r, _LIB_COL_ALBUM, getattr(e, "tag_album", None) or "")
-            cell(r, _LIB_COL_COMMENT, getattr(e, "tag_comment", None) or "")
+            cell(r, LIB_COL_FILE, e.title or "")
+            cell(r, LIB_COL_ALBUM, getattr(e, "tag_album", None) or "")
+            cell(r, LIB_COL_COMMENT, getattr(e, "tag_comment", None) or "")
             plays = play_counts.count(e.path)
-            cell(r, _LIB_COL_PLAYS, str(plays) if plays else "", plays)
+            cell(r, LIB_COL_PLAYS, str(plays) if plays else "", plays)
+
+    def refilter(self):
+        """Filter the rows again: what puts a title in a category changed."""
+        self._refilter()
 
     def refresh_play_counts(self):
         """Rewrite the 🔁 Plays cells: a title has just played, or the counters
@@ -1314,7 +1325,7 @@ class LibraryBrowser(QWidget):
             if path is None:
                 continue   # a row the chunked fill has not reached yet
             plays = play_counts.count(path)
-            i = model.index(r, _LIB_COL_PLAYS)
+            i = model.index(r, LIB_COL_PLAYS)
             model.setData(i, str(plays) if plays else "", Qt.ItemDataRole.DisplayRole)
             model.setData(i, plays, Qt.ItemDataRole.UserRole)
 
@@ -1327,7 +1338,7 @@ class LibraryBrowser(QWidget):
         if col == 0:
             return i18n.t("Play / stop this track")
         if col in (2, 3):
-            return _entry_tooltip(e)
+            return entry_tooltip(e)
         if col == 4:
             return bpm_tooltip(e)
         if col == 7:
@@ -1340,11 +1351,11 @@ class LibraryBrowser(QWidget):
                 "Newest playlist carrying this track" if getattr(e, "last_played", None)
                 else "Never played" if not (e.popularity or 0)
                 else "Played, but none of those playlists is dated")
-        if col == _LIB_COL_CUSTOM:
+        if col == LIB_COL_CUSTOM:
             return e.custom or ""
-        if col == _LIB_COL_FILE:
+        if col == LIB_COL_FILE:
             return str(e.path)
-        if col == _LIB_COL_COMMENT:
+        if col == LIB_COL_COMMENT:
             return getattr(e, "tag_comment", None) or ""
         return ""
 
@@ -1352,10 +1363,10 @@ class LibraryBrowser(QWidget):
         """The ★ and Custom cells of one row (the ★ delegate paints RATING_ROLE)."""
         model = self._table.model()
         stars = int(getattr(e, "rating", 0) or 0)
-        i = model.index(row, _LIB_COL_RATING)
+        i = model.index(row, LIB_COL_RATING)
         model.setData(i, stars, Qt.ItemDataRole.UserRole)
         model.setData(i, stars, RATING_ROLE)
-        model.setData(model.index(row, _LIB_COL_CUSTOM), e.custom or "")
+        model.setData(model.index(row, LIB_COL_CUSTOM), e.custom or "")
 
     def _on_star_clicked(self, index, stars: int):
         """★ clicked: MainWindow owns the library and the cache and stores the
@@ -1396,7 +1407,7 @@ class LibraryBrowser(QWidget):
     def _on_double_click(self, row: int, col: int):
         if col == 0:   # the click handler above already toggled this row
             return
-        if col == _LIB_COL_RATING:   # two quick star clicks, not "open the file"
+        if col == LIB_COL_RATING:   # two quick star clicks, not "open the file"
             return
         path = self._row_path(row)
         if not path:
@@ -1418,7 +1429,7 @@ class LibraryBrowser(QWidget):
         Windows, and it raises AttributeError rather than the OSError this used
         to catch — an uncaught crash instead of a shrug.
         """
-        _open_in_default_player(path, self)
+        open_in_default_player(path, self)
 
     def _on_context_menu(self, event):
         row = self._table.rowAt(event.pos().y())
@@ -1441,7 +1452,7 @@ class LibraryBrowser(QWidget):
         chosen = menu.exec(event.globalPos())
         if chosen is copy_act:
             QApplication.clipboard().setText(str(path))
-            _show_toast(self, "📋  Path copied to clipboard")
+            show_toast(self, "📋  Path copied to clipboard")
         elif chosen is reveal_act:
             reveal_in_explorer(path, self)
         elif chosen is open_act:

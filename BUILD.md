@@ -167,7 +167,7 @@ The runners pin `python-version: "3.14.9"`, not `"3.14"`: a floating minor
 version makes every patch release of CPython rebuild the whole stdlib inside the
 bundle, which shows up as ~25 changed binaries in a release diff for no reason.
 
-The version number is `VERSION` in `planner/version.py` (`1.5.1`), and a build
+The version number is `VERSION` in `planner/version.py` (`1.6.0`), and a build
 without a tag gets it. A `v*` tag overrides it, so name the tag
 `vMAJOR.MINOR.PATCH` (`v1.2.0`); the app in the release then says `1.2.0`, the
 tag without its v. Keep `VERSION` in step after a release, so desk builds carry

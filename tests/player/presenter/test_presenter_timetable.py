@@ -17,12 +17,6 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtCore import QTime
 
-from shared.appearance.presenter_theme import (
-    DEFAULT_KEY,
-    THEMES,
-    logo_paths,
-    theme_for,
-)
 from player.presenter.timetable import (
     DEFAULT_ROTATE_SECS,
     DEFAULT_TITLE,
@@ -34,8 +28,13 @@ from player.presenter.timetable import (
     offset_for,
     save_timetable,
 )
+from shared.appearance.presenter_theme import (
+    DEFAULT_KEY,
+    THEMES,
+    logo_paths,
+    theme_for,
+)
 from tests.qt_test_support import qapp, reap_widget
-
 
 _STATE = ("LW", "Titel", ("00:10", "− 02:00", False, 0.1),
           [("TG", "Zweiter")], ("", ""))
@@ -478,15 +477,15 @@ class PresenterPageTest(unittest.TestCase):
         that already agree are left alone."""
         from PySide6.QtGui import QFont, QFontMetrics
 
-        from player.presenter.presenter import _baseline_pads
+        from player.presenter.presenter import baseline_pads
         small, big = QFont(), QFont()
         small.setPixelSize(20)
         big.setPixelSize(40)
         gap = QFontMetrics(big).ascent() - QFontMetrics(small).ascent()
         self.assertGreater(gap, 0)      # …or the case isn't being tested
-        self.assertEqual(_baseline_pads(small, big), (gap, 0))
-        self.assertEqual(_baseline_pads(big, small), (0, gap))
-        self.assertEqual(_baseline_pads(small, small), (0, 0))
+        self.assertEqual(baseline_pads(small, big), (gap, 0))
+        self.assertEqual(baseline_pads(big, small), (0, gap))
+        self.assertEqual(baseline_pads(small, small), (0, 0))
 
     def test_the_time_and_what_it_names_stand_on_one_line(self):
         """Both labels are top-aligned in the same row, so the padding has to
@@ -843,8 +842,8 @@ class TimetableLiveEditTest(unittest.TestCase):
 
     def test_typing_in_a_cell_says_so(self):
         dlg = self._dlg()
-        from player.presenter.timetable_dialog import _COL_WHAT
-        dlg.table.item(1, _COL_WHAT).setText("Abendessen")
+        from player.presenter.timetable_dialog import COL_WHAT
+        dlg.table.item(1, COL_WHAT).setText("Abendessen")
         self.assertTrue(self.seen)
         self.assertEqual(dlg.timetable().entries[1].what, "Abendessen")
 
@@ -979,21 +978,21 @@ class UntilColumnTest(unittest.TestCase):
         return dlg
 
     def test_an_end_that_was_saved_comes_back_into_the_grid(self):
-        from player.presenter.timetable_dialog import _COL_UNTIL
+        from player.presenter.timetable_dialog import COL_UNTIL
         dlg = self._dlg(Timetable(entries=[
             Entry("19:00", "Tanzparty", "", until="01:00")]))
-        self.assertEqual(dlg.table.item(0, _COL_UNTIL).text(), "01:00")
+        self.assertEqual(dlg.table.item(0, COL_UNTIL).text(), "01:00")
         self.assertEqual(dlg.timetable().entries[0].until, "01:00")
 
     def test_an_end_typed_into_the_grid_reaches_the_programme(self):
-        from player.presenter.timetable_dialog import _COL_UNTIL, _COL_WHAT
+        from player.presenter.timetable_dialog import COL_UNTIL, COL_WHAT
         dlg = self._dlg(Timetable(entries=[Entry("19:00", "Tanzparty")]))
-        dlg.table.item(0, _COL_UNTIL).setText("01:00")
+        dlg.table.item(0, COL_UNTIL).setText("01:00")
         out = dlg.timetable()
         self.assertEqual(out.entries[0].until, "01:00")
         self.assertEqual(out.entries[0].what, "Tanzparty")
         # …and the columns did not get crossed on the way through.
-        self.assertEqual(dlg.table.item(0, _COL_WHAT).text(), "Tanzparty")
+        self.assertEqual(dlg.table.item(0, COL_WHAT).text(), "Tanzparty")
 
     def test_the_example_programme_shows_what_the_column_is_for(self):
         """A first start has to teach the shape, or nobody finds it: the snack

@@ -23,6 +23,7 @@ of them, one after the other.
     .venv\\Scripts\\python.exe -m tools.audio.announce_audition --engine sapi
 """
 import argparse
+import contextlib
 import io
 import sys
 
@@ -61,8 +62,7 @@ def german_voices(engine_name):
         if loc.language() != QLocale.Language.German:
             continue
         tts.setLocale(loc)
-        for v in tts.availableVoices():
-            found.append((engine_name, tts, loc, v))
+        found.extend((engine_name, tts, loc, v) for v in tts.availableVoices())
     return found
 
 
@@ -114,10 +114,8 @@ def main():
     # The Windows console is cp1252 and the voice names print inside a rule of
     # box characters — without this the tool dies on its own heading.
     if isinstance(sys.stdout, io.TextIOWrapper):
-        try:
+        with contextlib.suppress(OSError):
             sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-        except OSError:
-            pass
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("words", nargs="*",
                     help=f"spellings to try, or a set: {', '.join(SETS)}")

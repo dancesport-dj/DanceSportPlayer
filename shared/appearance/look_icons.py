@@ -214,7 +214,7 @@ def _dress_menu(menu, set_title) -> None:
 
 def _dress_label(label, set_text) -> None:
     from PySide6.QtCore import Qt
-    from PySide6.QtGui import Qt as GuiQt     # where mightBeRichText lives
+    from PySide6.QtGui import Qt as GuiQt  # where mightBeRichText lives
 
     text = label.text()
     if label.textFormat() == Qt.TextFormat.PlainText:
@@ -391,7 +391,8 @@ def install() -> None:
     global _installed
     if _installed or theme.active_look() is None:
         return
-    from PySide6 import QtGui, QtWidgets as W
+    from PySide6 import QtGui
+    from PySide6 import QtWidgets as W
 
     raw_btn_text = W.QAbstractButton.setText
     raw_act_text = QtGui.QAction.setText

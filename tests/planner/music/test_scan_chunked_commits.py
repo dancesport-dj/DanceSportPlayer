@@ -83,9 +83,8 @@ class ScanChunkedCommitsTest(unittest.TestCase):
             made.append(path)
             return orig(lib, path, scan_cache, *rest)
 
-        with mock.patch.object(MusicLibrary, "_make_entry", make_entry):
-            with self.assertRaises(RuntimeError):
-                self.scan()
+        with mock.patch.object(MusicLibrary, "_make_entry", make_entry), self.assertRaises(RuntimeError):
+            self.scan()
         self.assertFalse(pdb._db().in_transaction)
         self.assertEqual(self.rows_seen_by_another_connection(), 5)
 

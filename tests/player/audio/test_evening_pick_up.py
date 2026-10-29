@@ -19,8 +19,8 @@ from planner.playing import play_session
 from planner.store import JsonStore
 from player.audio.on_air_note import OnAirNote
 from player.window import main_resume
-from tests.qt_test_support import reap_widget
 from tests.player.audio.test_repeat_list import _Desk, _Fixture
+from tests.qt_test_support import reap_widget
 
 
 class EveningPickUpTest(_Fixture):

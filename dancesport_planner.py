@@ -6,15 +6,22 @@ Uses your music library, learns from past playlists, and optionally uses librosa
 audio-feature-based similarity (rhythm + timbre).
 """
 
-import io, re, random, sys, json, os, unicodedata
+import io
+import json
 import logging
-import urllib.request, urllib.error
-from pathlib import Path
-from dataclasses import dataclass
+import os
+import random
+import re
+import sys
+import unicodedata
+import urllib.error
+import urllib.request
 from collections import Counter, defaultdict, deque
-from difflib import SequenceMatcher
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
+from difflib import SequenceMatcher
+from pathlib import Path
 
 # ── UTF-8 fix for Windows console ─────────────────────────────────────────────
 # A windowed (no-console) build — pythonw or a PyInstaller GUI .exe — has no
@@ -32,8 +39,8 @@ log = logging.getLogger("dancesport.planner")
 # numpy/librosa availability is owned by planner.music.db (re-imported below with the
 # rest of the shared names); only mutagen is used directly in this module.
 try:
-    from mutagen.id3 import ID3
     from mutagen import File as MutagenFile
+    from mutagen.id3 import ID3
     HAS_MUTAGEN = True
 except ImportError:
     HAS_MUTAGEN = False
@@ -48,210 +55,164 @@ except ImportError:
 # the modules happened to define was part of it, and a caller reaching for one
 # could not tell it was reaching into an implementation. Whoever needs a private
 # name imports it from the module that owns it, where it is visibly private.
-from planner.config import (
-    APP_DIR, INSTALL_DIR,
-    MUSIC_DIR, OUTPUT_DIR,
-    CACHE_FILE, SCAN_CACHE_FILE, GLOBAL_SCAN_CACHE_FILE,
-    PATH_CONFIG_FILE,
-    write_json_atomic, set_playlist_dir, build_flavor, player_build,
-)
-from planner.music.analysis import (
-    HAS_NUMPY, HAS_LIBROSA, AudioFeatures,
-    probe_decode_backend, PROBE_NO_LIBROSA, PROBE_NO_BACKEND, PROBE_FAILED,
-)
-from planner.music.db import AudioCache
-from planner.music.scan_caches import (
-    ScanCache, GlobalScanCache, global_index_count, global_coverage,
-)
-from planner.music.db_upkeep import cleanup_orphans, db_maintenance
-
-# === split re-exports ===
-
-from planner.playlist.m3u import (  # facade re-export
-    export_m3u,
-    export_flat_m3u,
-    numbered_folder_m3u,
-    grid_from_running_order,
-    running_order_rounds,
-    m3u_marker_rounds,
-    read_m3u_tracks,
-    import_playlist_m3u,
-)
-
 from planner.cli import (  # facade re-export
     DLINE,
     LINE,
-    hdr,
-    sep,
     ask_choice,
     ask_dances,
     ask_rounds_with_heats,
     display_playlist,
+    hdr,
     interactive_refine,
     main,
+    sep,
 )
-
-from planner.music.library import (  # facade re-export
-    MusicLibrary,
+from planner.config import (
+    APP_DIR,
+    CACHE_FILE,
+    GLOBAL_SCAN_CACHE_FILE,
+    INSTALL_DIR,
+    MUSIC_DIR,
+    OUTPUT_DIR,
+    PATH_CONFIG_FILE,
+    SCAN_CACHE_FILE,
+    build_flavor,
+    player_build,
+    set_playlist_dir,
+    write_json_atomic,
 )
-
+from planner.event.competition import (  # facade re-export
+    CompetitionSpec,
+    competition_matches_file,
+    parse_competition_schedule,
+)
+from planner.generate.ai import (  # facade re-export
+    DEFAULT_API_BASE,
+    FREE_MODELS_FALLBACK,
+    OPENROUTER_MODELS_URL,
+    OPENROUTER_URL,
+    api_host,
+    build_track_prompt,
+    load_openrouter_config,
+    match_suggestions_to_library,
+    openrouter_chat,
+    openrouter_free_models,
+    parse_ai_suggestions,
+    save_openrouter_config,
+)
+from planner.generate.scoring import (  # facade re-export
+    BONUS_CLASS_OK,
+    BONUS_FRESH,
+    BONUS_PROVEN,
+    PENALTY_BELOW_TEMPO,
+    PENALTY_CLASS_MISMATCH,
+    RANDOM_TIEBREAK,
+    STRATEGIES,
+    STRATEGY_HELP,
+    STRATEGY_LABELS,
+    W_BPM_FIT,
+    W_POPULARITY,
+    W_TIMBRE,
+    class_popularity,
+    effective_popularity,
+)
 from planner.generate.suggester import (  # facade re-export
     PlaylistSuggester,
     generate_hints,
     source_gap_hint,
 )
-
-from planner.music.gaps import (  # facade re-export
-    gap_stats,
-    gap_reasons,
-    ai_prompt,
-    shopping_list,
-    last_played_year,
-    GAP_MIN_POOL,
-    GAP_MIN_PROVEN,
-)
-
-from planner.generate.ai import (  # facade re-export
-    DEFAULT_API_BASE,
-    OPENROUTER_URL,
-    OPENROUTER_MODELS_URL,
-    FREE_MODELS_FALLBACK,
-    api_host,
-    load_openrouter_config,
-    save_openrouter_config,
-    openrouter_chat,
-    openrouter_free_models,
-    build_track_prompt,
-    parse_ai_suggestions,
-    match_suggestions_to_library,
-)
-
-from planner.themes import (  # facade re-export
-    THEMES,
-    load_user_themes,
-    all_themes,
-)
-
-from planner.event.competition import (  # facade re-export
-    CompetitionSpec,
-    parse_competition_schedule,
-    competition_matches_file,
-)
-
 from planner.generate.warmup import (  # facade re-export
-    warmup_code,
-    warmup_section,
-    warmup_rounds,
+    build_class_warmup,
     build_warmup_playlist,
     class_warmup_pool,
-    build_class_warmup,
     entry_in_style,
     others_dance_from_path,
     others_dance_of,
+    warmup_code,
+    warmup_rounds,
+    warmup_section,
 )
-
 from planner.models import (  # facade re-export
-    DANCE_NAMES,
-    DANCE_PATTERNS,
-    GENRE_TO_DANCE,
-    OTHER_GENRE_LABELS,
-    TEMPO_RANGES,
-    TSO_BANDS,
-    round_takt_target,
-    takt_counts,
-    tso_band_target,
-    DEFAULT_DANCES,
-    DANCE_STYLES,
-    STYLE_FOLDERS,
-    OTHERS_DANCES,
-    fold_text,
-    ROUND_NAMES,
     ALLOW_REPEAT,
     BELOW_TEMPO_EXT,
-    SLOW_DANCES,
+    DANCE_NAMES,
+    DANCE_PATTERNS,
+    DANCE_STYLES,
+    DEFAULT_DANCES,
     FAST_DANCES,
-    RoundConfig,
-    rounds_from_pattern,
-    merge_day_playlists,
-    split_day_rounds,
+    GENRE_TO_DANCE,
+    OTHER_GENRE_LABELS,
+    OTHERS_DANCES,
+    ROUND_NAMES,
+    SLOW_DANCES,
+    STYLE_FOLDERS,
+    TEMPO_RANGES,
+    TSO_BANDS,
     MusicEntry,
-    ScanCancelled,
     Playlist,
+    RoundConfig,
+    ScanCancelled,
+    Strategy,
+    TsoBand,
+    default_round_name,
+    fold_text,
+    merge_day_playlists,
+    round_names,
+    round_takt_target,
+    rounds_from_pattern,
+    split_day_rounds,
+    takt_counts,
+    tso_band_target,
 )
-
+from planner.music.analysis import (
+    HAS_LIBROSA,
+    HAS_NUMPY,
+    PROBE_FAILED,
+    PROBE_NO_BACKEND,
+    PROBE_NO_LIBROSA,
+    AudioFeatures,
+    probe_decode_backend,
+)
+from planner.music.db import AudioCache
+from planner.music.db_upkeep import cleanup_orphans, db_maintenance
+from planner.music.gaps import (  # facade re-export
+    GAP_MIN_POOL,
+    GAP_MIN_PROVEN,
+    ai_prompt,
+    gap_reasons,
+    gap_stats,
+    last_played_year,
+    shopping_list,
+)
+from planner.music.library import (  # facade re-export
+    MusicLibrary,
+)
 from planner.music.parsing import (  # facade re-export
     detect_playlist_meta,
 )
-
-from planner.generate.scoring import (  # facade re-export
-    W_POPULARITY,
-    W_BPM_FIT,
-    W_TIMBRE,
-    PENALTY_BELOW_TEMPO,
-    BONUS_FRESH,
-    BONUS_PROVEN,
-    BONUS_CLASS_OK,
-    PENALTY_CLASS_MISMATCH,
-    RANDOM_TIEBREAK,
-    STRATEGIES,
-    STRATEGY_LABELS,
-    STRATEGY_HELP,
-    class_popularity,
-    effective_popularity,
+from planner.music.scan_caches import (
+    GlobalScanCache,
+    ScanCache,
+    global_coverage,
+    global_index_count,
 )
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# === split re-exports ===
+from planner.playlist.m3u import (  # facade re-export
+    export_flat_m3u,
+    export_m3u,
+    grid_from_running_order,
+    import_playlist_m3u,
+    m3u_marker_rounds,
+    numbered_folder_m3u,
+    read_m3u_tracks,
+    running_order_rounds,
+)
+from planner.themes import (  # facade re-export
+    THEMES,
+    all_themes,
+    load_user_themes,
+)
 
 # ── "Past competitions" mode ─────────────────────────────────────────────────────
 # Build a playlist from songs you have ALREADY played at a given competition class.

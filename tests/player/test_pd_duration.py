@@ -22,10 +22,10 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtCore import QUrl
 from PySide6.QtMultimedia import QMediaPlayer
 
+from planner.models import MusicEntry
 from player.audio.playback_state import PlaybackState
 from player.window.main_pd import PdStopMixin
 from player.window.main_player import PlayerControlMixin
-from planner.models import MusicEntry
 
 BEFORE = Path(r"C:\music\WW\Moon River.mp3")
 PD = Path(r"C:\music\PD\Espana Cani.mp3")
@@ -84,7 +84,7 @@ class RearmOnLoadTest(unittest.TestCase):
         win.armed = []
         win._arm_pd_stop = win.armed.append
         win._deckset = type("D", (), {"all_tables": ()})()
-        win._play_ready_logged = True
+        win._playback.ready_logged = True
         win._resume_seek_ms = None
         return win
 

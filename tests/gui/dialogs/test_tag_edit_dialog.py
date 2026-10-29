@@ -21,9 +21,14 @@ from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QContextMenuEvent
 from PySide6.QtWidgets import QApplication, QMenu, QWidget
 
-from gui.table import table_menu
 from gui.dialogs.tag_edit_dialog import (
-    CLASSES, TagEditDialog, marker_suggestions, parse_markers)
+    CLASSES,
+    TagEditDialog,
+    marker_suggestions,
+    parse_markers,
+    with_filename_title,
+)
+from gui.table import table_menu
 from planner.models import MusicEntry
 from tests.qt_test_support import reap_widget
 
@@ -475,6 +480,27 @@ class FormTest(_DlgTest):
         dlg._form["artist"].setEditText("Other")
         self.assertEqual(dlg.form_changes(), {"title": "Cha", "artist": "Other"})
 
+    def test_the_title_arrow_offers_the_file_name(self):
+        """F12: beside blank and keep, "< filename >" — each track's own."""
+        a, b = self.two()
+        dlg = self.dialog(a, b)
+        combo = dlg._form["title"]
+        combo.setCurrentIndex(combo.findText("< filename >"))
+        changes = dlg.form_changes()
+        self.assertEqual(with_filename_title(changes, a.path), {"title": "a"})
+        self.assertEqual(with_filename_title(changes, b.path), {"title": "b"})
+        self.assertLess(dlg._form["artist"].findText("< filename >"), 0)
+        self.assertEqual(combo.currentText(), "< filename >")   # one each
+
+    def test_for_one_track_the_file_name_itself_is_shown(self):
+        """Marcel: picking "< filename >" for one track shows its name."""
+        a, _b = self.two()
+        dlg = self.dialog(a)
+        combo = dlg._form["title"]
+        combo.setCurrentIndex(combo.findText("< filename >"))
+        self.assertEqual(combo.currentText(), "a")
+        self.assertEqual(dlg.form_changes(), {"title": "a"})
+
     def test_a_differing_field_offers_its_values(self):
         a, b = self.two()
         combo = self.dialog(a, b)._form["title"]
@@ -520,6 +546,23 @@ class NoMp3Test(_DlgTest):
     def test_untouched_changes_nothing(self):
         e = self.flac(tag_artist="Band")
         self.assertEqual(self.dialog(e).changes_for(e), {})
+
+    def test_the_file_name_as_title(self):
+        a, b = self.flac("a"), self.flac("b")
+        dlg = self.dialog(a, b)
+        combo = dlg._db["title"]
+        combo.setCurrentIndex(combo.findText("< filename >"))
+        self.assertEqual(dlg.changes_for(a), {"title": "a"})
+        self.assertEqual(dlg.changes_for(b), {"title": "b"})
+        self.assertEqual(combo.currentText(), "< filename >")
+
+    def test_for_one_track_the_db_title_shows_the_file_name(self):
+        e = MusicEntry(path=Path(r"C:\m\Tango 31 (LT).flac"), title="Old", dance="LW")
+        dlg = self.dialog(e)
+        combo = dlg._db["title"]
+        combo.setCurrentIndex(combo.findText("< filename >"))
+        self.assertEqual(combo.currentText(), "Tango 31 (LT)")
+        self.assertEqual(dlg.changes_for(e), {"title": "Tango 31 (LT)"})
 
     def test_typed_values_are_returned(self):
         e = self.flac(tag_artist="Band", year=2001)

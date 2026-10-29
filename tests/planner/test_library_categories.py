@@ -20,8 +20,7 @@ from pathlib import Path
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_cat_state_"))
 
-from planner.music.db import AudioCache
-from planner.music.library import MusicLibrary
+from planner.generate.suggester import PlaylistSuggester
 from planner.models import (
     MusicEntry,
     folder_category_of_parts,
@@ -30,7 +29,8 @@ from planner.models import (
     note_class_tag_use,
     set_no_class_exclusion,
 )
-from planner.generate.suggester import PlaylistSuggester
+from planner.music.db import AudioCache
+from planner.music.library import MusicLibrary
 
 
 def _entry(*parts):

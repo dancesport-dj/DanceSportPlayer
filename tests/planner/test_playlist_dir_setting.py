@@ -39,7 +39,7 @@ class SetPlaylistDirTest(unittest.TestCase):
 
     def test_the_superseded_check_reads_the_new_folder(self):
         # Relative to the new folder, "alt" is an old-version segment.
-        self.assertTrue(competition._is_superseded_playlist(
+        self.assertTrue(competition.is_superseded_playlist(
             self.folder / "2020" / "alt" / "x.m3u"))
 
 

@@ -21,8 +21,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication, QDialog, QTabWidget
 
 import dancesport_gui as gui
-from gui.window import main_global
 from gui.library_browser import LibraryBrowser
+from gui.window import main_global
 from planner.models import (
     MusicEntry,
     is_non_turnier,

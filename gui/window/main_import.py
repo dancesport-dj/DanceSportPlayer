@@ -3,25 +3,17 @@
 Extracted from dancesport_gui.py (controller split) as a MainWindow mixin.
 """
 import logging
+from pathlib import Path
 
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
     QMessageBox,
 )
-from pathlib import Path
-from planner import i18n
-from planner.config import OUTPUT_DIR
-from planner.playlist.m3u import import_playlist_m3u
-from planner.music.parsing import detect_playlist_meta
-from planner.generate.suggester import PlaylistSuggester, generate_hints
+
 from gui.common import (
     BusyDialog,
 )
-from shared.widgets import (
-    _show_toast,
-)
-from shared.stores import save_settings  # auto-resolved
 from gui.table.playlist_table import (  # auto-resolved
     PlaylistTable,
 )
@@ -29,6 +21,15 @@ from gui.window.main_dupes import DuplicateCheckMixin
 from gui.window.main_music import MusicCheckMixin
 from gui.window.main_paths import PathFixMixin
 from gui.window.main_print import PrintMixin
+from planner import i18n
+from planner.config import OUTPUT_DIR
+from planner.generate.suggester import PlaylistSuggester, generate_hints
+from planner.music.parsing import detect_playlist_meta
+from planner.playlist.m3u import import_playlist_m3u
+from shared.stores import save_settings  # auto-resolved
+from shared.widgets import (
+    show_toast,
+)
 
 log = logging.getLogger("dancesport.gui.import")
 
@@ -160,10 +161,10 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
             added = table._insert_drop_files([Path(p) for p in paths], table.rowCount())
             self._update_wish_counts()
             if added:
-                _show_toast(self, i18n.t("📂  Added %d track(s) from %d file(s)")
+                show_toast(self, i18n.t("📂  Added %d track(s) from %d file(s)")
                             % (added, len(paths)))
             else:
-                _show_toast(self, "📂  Nothing new — all tracks already in the wishlist")
+                show_toast(self, "📂  Nothing new — all tracks already in the wishlist")
             return
         self._set_active_table(table)   # deck import always targets the clicked deck
         self._import_playlist_path(path)
@@ -214,7 +215,7 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
             self._set_active_table(deck)
             self._import_playlist_path(path, report=False)
 
-        _show_toast(self, i18n.t("📂  Imported %d playlists into %d free slot(s)")
+        show_toast(self, i18n.t("📂  Imported %d playlists into %d free slot(s)")
                     % (len(paths), len(paths)))
         self._autosave_playlist()
         self._show_import_remap_report(self._pending_import_reports)
@@ -277,22 +278,22 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
         if n_issues:
             toast += "\n" + i18n.t("⚠ %d row(s) marked red — play-length / takt "
                                    "issues (hover a red title for details)") % n_issues
-        _show_toast(self._deckset.table, toast, msec=4000 if (notes or n_issues) else 1800)
+        show_toast(self._deckset.table, toast, msec=4000 if (notes or n_issues) else 1800)
 
     def _adopt_import(self, style, age, cls, dances, playlist, heat_str):
         """Make the imported list the window's playlist and show it in the combos."""
-        self._replay_label  = None
+        self._replay_label = None
         self._replay_active = False
         self._clear_replay_sources()
-        self._mode          = "Favorites"
-        self._ui_mode       = "Favorites"
+        self._mode = "Favorites"
+        self._ui_mode = "Favorites"
         self._theme_entries = []
-        self._style         = style
-        self._age           = age
-        self._dance_class   = cls
-        self._dances        = dances
-        self._playlist      = playlist
-        self._suggester     = PlaylistSuggester(self._library.lib)
+        self._style = style
+        self._age = age
+        self._dance_class = cls
+        self._dances = dances
+        self._playlist = playlist
+        self._suggester = PlaylistSuggester(self._library.lib)
 
         # Push the recovered settings into the visible combos + heat-count field so the
         # controls reflect what was imported (mode back to Favorites for editing).
@@ -308,7 +309,7 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
         # combos match the imported playlist. Filename wins for age + class (not in the
         # tracks); for style the dance-derived value wins, name only fills a blank.
         meta = detect_playlist_meta(Path(path).stem)
-        age  = meta.get("age") or self._age or "Hauptgruppe"
+        age = meta.get("age") or self._age or "Hauptgruppe"
         cls = meta.get("cls") or cls
         style = style or meta.get("style") or "Standard"
         return age, cls, style
@@ -354,9 +355,9 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
             return
         dlg.finish()
 
-        dances   = res["dances"]
+        dances = res["dances"]
         playlist = res["playlist"]
-        rounds   = res["rounds"]
+        rounds = res["rounds"]
         if not dances or not playlist:
             QMessageBox.warning(
                 self, "Nothing imported",
@@ -364,13 +365,13 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
             self.statusBar().showMessage("Import: no tracks detected")
             return
 
-        cls         = res["dance_class"]
-        latin       = {'CC', 'SA', 'RB', 'PD', 'JI'}
-        ballroom    = latin | {'LW', 'TG', 'WW', 'SF', 'QS'}
+        cls = res["dance_class"]
+        latin = {'CC', 'SA', 'RB', 'PD', 'JI'}
+        ballroom = latin | {'LW', 'TG', 'WW', 'SF', 'QS'}
         # No ballroom dance among the tracks (a social-dance list): no style of their own.
-        style       = None if not ballroom & set(dances) else (
+        style = None if not ballroom & set(dances) else (
             "Latin" if sum(d in latin for d in dances) >= len(dances) / 2 else "Standard")
-        use_timbre  = self._cfg.timbre_check.isChecked()
+        use_timbre = self._cfg.timbre_check.isChecked()
 
         age, cls, style = self._recover_import_meta(path, cls, style)
         # Heat counts (e.g. "6-3-2-1") taken straight from the imported round structure.

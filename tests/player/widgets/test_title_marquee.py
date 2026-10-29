@@ -20,6 +20,7 @@ class TitleMarqueeTest(unittest.TestCase):
 
     def _card(self, wide=False, width=900):
         from PySide6.QtMultimedia import QMediaPlayer
+
         from player.widgets.player import BigPlayerWidget
         card = BigPlayerWidget(QMediaPlayer())
         self.addCleanup(reap_widget, card)

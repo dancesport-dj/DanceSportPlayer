@@ -8,17 +8,24 @@ The wall and its pads are in player.widgets.cartwall.
 
 from pathlib import Path
 
-from PySide6.QtCore import (
-    QEvent, Qt, Signal)
-from PySide6.QtGui import (
-    QKeySequence)
+from PySide6.QtCore import QEvent, Qt, Signal
+from PySide6.QtGui import QKeySequence
 from PySide6.QtWidgets import (
-    QCheckBox, QComboBox, QDialog, QDialogButtonBox, QHBoxLayout, QKeySequenceEdit, QLabel,
-    QLineEdit, QSlider,
-    QToolButton, QVBoxLayout)
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QHBoxLayout,
+    QKeySequenceEdit,
+    QLabel,
+    QLineEdit,
+    QSlider,
+    QToolButton,
+    QVBoxLayout,
+)
 
-from planner.playing import cartwall as pc
 from planner import i18n
+from planner.playing import cartwall as pc
 
 PAD_COLOURS = pc.PAD_COLOURS    # kept with the model, for ⚙ Settings too
 
@@ -36,10 +43,12 @@ class CartPadDialog(QDialog):
 
     def __init__(self, pad: pc.CartPad, parent=None, slot_key: str = "",
                  pad_count: int = 1, wall_fade_ms: int = pc.DEFAULT_FADE_MS,
-                 background_pauses: bool = False):
+                 background_pauses: bool = False,
+                 background_volume: float = pc.DEFAULT_BG_VOLUME_PCT / 100):
         super().__init__(parent)
         self.setWindowTitle("Pad settings")
         self._pad = pad
+        self._bg_volume = background_volume
         lyt = QVBoxLayout(self)
 
         lyt.addWidget(QLabel(f"🎵  {Path(pad.path).name}"))
@@ -83,7 +92,7 @@ class CartPadDialog(QDialog):
         self._fade.setPageStep(500)
         self._fade.setValue(int(pad.fade_ms if pad.fade_ms is not None
                                 else self._wall_fade))
-        self._fade_lbl = _TypedValue(self._fade, 1000)
+        self._fade_lbl = TypedValue(self._fade, 1000)
         self._fade_lbl.setMinimumWidth(56)
         self._fade.valueChanged.connect(self._show_fade)
         self._fade_own.toggled.connect(self._on_fade_own)
@@ -145,6 +154,8 @@ class CartPadDialog(QDialog):
         lyt.addWidget(self._background)
         self._background.toggled.connect(self._on_background)
         self._on_background(pad.background)
+        # Only a tick sets the bed volume: a bed opened again keeps its own.
+        self._background.toggled.connect(self._on_background_ticked)
 
         self._stops_others = QCheckBox("S  Stop the other pads when this one starts")
         self._stops_others.setChecked(pad.stops_others)
@@ -166,6 +177,11 @@ class CartPadDialog(QDialog):
             self._duck.setChecked(False)
         self._duck.setEnabled(not on)
 
+    def _on_background_ticked(self, on: bool) -> None:
+        """🎶 Made a bed: down to the bed volume (⚙ Settings → 🎛 Cartwall)."""
+        if on:
+            self._vol.setValue(int(round(self._bg_volume * 100)))
+
     def _build_volume_row(self, lyt, pad):
         """The pad's volume slider with its value and ▶ to listen."""
         # The slider is heard while it moves — a per-pad trim is a judgement you
@@ -175,7 +191,7 @@ class CartPadDialog(QDialog):
         self._vol = QSlider(Qt.Orientation.Horizontal)
         self._vol.setRange(0, 100)
         self._vol.setValue(int(round(pad.volume * 100)))
-        self._vol_lbl = _TypedValue(self._vol)
+        self._vol_lbl = TypedValue(self._vol)
         self._vol_lbl.setText(f"{self._vol.value()} %")
         self._vol_lbl.setMinimumWidth(44)
         self._vol.valueChanged.connect(self._on_volume)
@@ -236,7 +252,7 @@ class CartPadDialog(QDialog):
             fade_ms=self._fade.value() if self._fade_own.isChecked() else None)
 
 
-class _ClickableLabel(QLabel):
+class ClickableLabel(QLabel):
     """A QLabel that reports a double-click — Qt's does not."""
 
     double_clicked = Signal()
@@ -246,7 +262,7 @@ class _ClickableLabel(QLabel):
             self.double_clicked.emit()
 
 
-class _TypedValue(_ClickableLabel):
+class TypedValue(ClickableLabel):
     """A slider's readout that a double-click turns into a field.
 
     A slider is the right control for a level judged by ear and the wrong one

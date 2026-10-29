@@ -12,17 +12,17 @@ import random
 import unittest
 from pathlib import Path
 
-from planner.models import MusicEntry
 from planner.generate.warmup import (
-    _WARMUP_BALLROOM,
-    _WARMUP_LATIN,
-    _WARMUP_MODE,
+    WARMUP_BALLROOM,
+    WARMUP_LATIN,
+    WARMUP_MODE,
     estimate_warmup_counts,
     warmup_lengths,
 )
+from planner.models import MusicEntry
 
 
-def _lengths(secs, codes=_WARMUP_BALLROOM + _WARMUP_LATIN + _WARMUP_MODE):
+def _lengths(secs, codes=WARMUP_BALLROOM + WARMUP_LATIN + WARMUP_MODE):
     return {c: [secs] for c in codes}
 
 
@@ -75,20 +75,20 @@ class EstimateTest(unittest.TestCase):
         counts, _ = estimate_warmup_counts(_lengths(180), 3, runs=10,
                                            include_latin=False)
         self.assertTrue(counts)
-        self.assertLessEqual(set(counts), set(_WARMUP_BALLROOM))
+        self.assertLessEqual(set(counts), set(WARMUP_BALLROOM))
 
         counts, _ = estimate_warmup_counts(_lengths(180), 6, runs=10, no_paso=True)
         self.assertNotIn("PD", counts)
-        self.assertFalse(set(counts) & set(_WARMUP_MODE))
+        self.assertFalse(set(counts) & set(WARMUP_MODE))
 
         counts, _ = estimate_warmup_counts(_lengths(180), 6, runs=10,
                                            include_modetaenze=True,
                                            modetaenze=["DISCOFOX", "SALSA"])
         self.assertIn("SALSA", counts)
-        self.assertFalse(set(counts) & (set(_WARMUP_MODE) - {"DISCOFOX", "SALSA"}))
+        self.assertFalse(set(counts) & (set(WARMUP_MODE) - {"DISCOFOX", "SALSA"}))
 
     def test_a_dance_without_known_lengths_still_counts(self):
-        lengths = _lengths(180, _WARMUP_BALLROOM)
+        lengths = _lengths(180, WARMUP_BALLROOM)
         counts, _ = estimate_warmup_counts(lengths, 6, runs=10, include_latin=False,
                                            include_modetaenze=True,
                                            modetaenze=["DISCOFOX"],

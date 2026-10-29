@@ -20,8 +20,8 @@ def _tooltip(*args, **kw):
     # gui.common resolves the state files at import time — keep the import at
     # TEST time (see test_drop_check.py).
     os.environ.setdefault("DANCEPLAYLIST_STATE_DIR", tempfile.mkdtemp(prefix="dp_tip_"))
-    from gui.common import _entry_tooltip
-    return _entry_tooltip(*args, **kw)
+    from gui.common import entry_tooltip
+    return entry_tooltip(*args, **kw)
 
 
 def _entry():
@@ -41,7 +41,7 @@ class GermanTooltipTest(unittest.TestCase):
     def test_labels_read_german(self):
         tip = _tooltip(_entry(), 0.91, "Similarity")
         for german in ("Instrumental", "🎄 Weihnachten", "Ähnlichkeit: <b>91.0%</b>",
-                       "Klassen: B, A", "In 4 deiner Playlists", "Gespielt in: S×3 · C×1"):
+                       "Klassen: B, A", "In 4 deiner Wiedergabelisten", "Gespielt in: S×3 · C×1"):
             self.assertIn(german, tip)
         for english in ("Similarity", "Christmas", "Classes:", "of your playlists",
                         "Played in:"):

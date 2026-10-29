@@ -26,14 +26,14 @@ from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 
+from gui.decks.deck_set import DeckSet
 from gui.window.main_decks import DeckLayoutMixin
 from gui.window.main_generate import GenerateMixin
 from planner.event import event_plan
 from planner.event.competition import parse_competition_schedule
-from player.window.main_player import PlayerControlMixin
 from player.widgets.player import PreviewOverlay
+from player.window.main_player import PlayerControlMixin
 from tests.planner.event.test_event_variants import EventFixture
-from gui.decks.deck_set import DeckSet
 
 
 class _Main(QWidget):

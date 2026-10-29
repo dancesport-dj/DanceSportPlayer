@@ -109,9 +109,8 @@ class OwnLookCheckTest(_Clean):
                               ({"key": "midnight"}, "key"),
                               ({"name": " "}, "name"),
                               ({"fonts": []}, "fonts")):
-            with self.subTest(field=field):
-                with self.assertRaisesRegex(ValueError, field):
-                    user_looks.from_dict(self.entry(**change))
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError, field):
+                user_looks.from_dict(self.entry(**change))
 
     def test_a_missing_colour_is_refused_but_a_missing_gradient_is_flat(self):
         data = self.entry()

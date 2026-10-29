@@ -4,11 +4,17 @@ Extracted from dancesport_planner.py (logical split): the text menus/prompts,
 the playlist display and refine loop and main(). The GUI does not use this.
 """
 import logging
-
 import re
 import sys
-from planner.music.db import (  # auto-resolved
-    AudioCache,
+
+from planner.generate.scoring import (  # auto-resolved
+    STRATEGIES,
+    STRATEGY_HELP,
+    STRATEGY_LABELS,
+    resolve_strategy,
+)
+from planner.generate.suggester import (  # auto-resolved
+    PlaylistSuggester,
 )
 from planner.models import (  # auto-resolved
     ALLOW_REPEAT,
@@ -16,24 +22,20 @@ from planner.models import (  # auto-resolved
     DANCE_STYLES,
     DEFAULT_DANCES,
     Playlist,
-    ROUND_NAMES,
     RoundConfig,
+    RoundTier,
     note_class_tag_use,
+    round_names,
+    tier_by_position,
 )
-from planner.music.parsing import (  # auto-resolved
-    _fmt_bpm,
-)
-from planner.generate.scoring import (  # auto-resolved
-    STRATEGIES,
-    STRATEGY_HELP,
-    STRATEGY_LABELS,
-    _resolve_strategy,
+from planner.music.db import (  # auto-resolved
+    AudioCache,
 )
 from planner.music.library import (  # auto-resolved
     MusicLibrary,
 )
-from planner.generate.suggester import (  # auto-resolved
-    PlaylistSuggester,
+from planner.music.parsing import (  # auto-resolved
+    fmt_bpm,
 )
 from planner.playlist.m3u import (  # auto-resolved
     export_m3u,
@@ -43,7 +45,7 @@ log = logging.getLogger("dancesport.cli")
 
 
 # ── CLI Helpers ────────────────────────────────────────────────────────────────
-LINE  = "─" * 64
+LINE = "─" * 64
 
 
 DLINE = "═" * 64
@@ -118,18 +120,13 @@ def ask_rounds_with_heats() -> list[RoundConfig]:
             pass
         print("  Please enter positive integers, e.g.  6-3-2-1")
 
-    n     = len(counts)
-    names = ROUND_NAMES.get(n, [f"Runde {i+1}" for i in range(n)])
-    cfgs  = []
+    n = len(counts)
+    names = round_names(n)
+    cfgs = []
     for i, (name, heats) in enumerate(zip(names, counts, strict=True)):
-        tier = (
-            'final'    if i == n - 1       else
-            'semi'     if i == n - 2       else
-            'pre_semi' if i == n - 3       else
-            'early'
-        )
+        tier = tier_by_position(i, n)
         # Default strategy: pre_semi prefers fresh; everything else prefers proven
-        prefer_fresh = (tier == 'pre_semi')
+        prefer_fresh = (tier == RoundTier.PRE_SEMI)
         cfgs.append(RoundConfig(name=name, heats=heats, tier=tier,
                                 prefer_fresh=prefer_fresh))
 
@@ -144,21 +141,19 @@ def ask_rounds_with_heats() -> list[RoundConfig]:
     for s in STRATEGIES:
         print(f"      • {STRATEGY_LABELS[s]}: {STRATEGY_HELP[s]}")
     for rc in cfgs:
-        default = _resolve_strategy(rc.tier, rc.prefer_fresh, rc.strategy or None)
+        default = resolve_strategy(rc.tier, rc.prefer_fresh, rc.strategy)
         default_num = {v: k for k, v in _num_to_strat.items()}[default]
         raw = input(
             f"    {rc.name:<22}  [{default_num}={STRATEGY_LABELS[default]}]: ").strip()
-        if raw in _num_to_strat:
-            rc.strategy = _num_to_strat[raw]
-        else:
-            rc.strategy = default   # lock in the resolved default explicitly
+        # lock in the resolved default explicitly
+        rc.strategy = _num_to_strat.get(raw, default)
 
     return cfgs
 
 
 # ── Display ────────────────────────────────────────────────────────────────────
 def _round_label(rc: RoundConfig) -> str:
-    strat = _resolve_strategy(rc.tier, rc.prefer_fresh, rc.strategy or None)
+    strat = resolve_strategy(rc.tier, rc.prefer_fresh, rc.strategy)
     return f'  [→ {STRATEGY_LABELS[strat].lower()} songs]'
 
 
@@ -168,8 +163,8 @@ def display_playlist(playlist: Playlist, dances: list[str],
     rc_map = {rc.name: rc for rc in rounds}
 
     for round_name, heats in playlist.items():
-        rc    = rc_map.get(round_name)
-        tier  = rc.tier if rc else 'early'
+        rc = rc_map.get(round_name)
+        tier = rc.tier if rc else RoundTier.EARLY
         total = sum(1 for h in heats for e in h if e is not None)
         sep()
         label = _round_label(rc) if rc else ''
@@ -181,16 +176,16 @@ def display_playlist(playlist: Playlist, dances: list[str],
             dn = DANCE_NAMES.get(dance, dance)
             print(f"  {dn}:")
             for h_idx, heat in enumerate(heats, 1):
-                entry  = heat[d_idx]
+                entry = heat[d_idx]
                 prefix = f"    Heat {h_idx}:  " if multi else "    "
                 if entry:
-                    bpm_s  = _fmt_bpm(entry.bpm, dance, dance_class)
-                    pop_s  = f" ★{entry.popularity}" if entry.popularity else "  ✦new"
-                    src_s  = f"  ← {entry.source_info}" if entry.source_info and tier in ('semi','final') else ""
-                    sim    = suggester.similarity(entry, round_name) if suggester else None
-                    sim_s  = " ≈" if (sim is not None and sim >= 0.7) else ""
-                    cls_s  = f" [{','.join(entry.classes_ok)}]" if entry.classes_ok else ""
-                    title  = entry.title[:40]
+                    bpm_s = fmt_bpm(entry.bpm, dance, dance_class)
+                    pop_s = f" ★{entry.popularity}" if entry.popularity else "  ✦new"
+                    src_s = f"  ← {entry.source_info}" if entry.source_info and tier in (RoundTier.SEMI, RoundTier.FINAL) else ""
+                    sim = suggester.similarity(entry, round_name) if suggester else None
+                    sim_s = " ≈" if (sim is not None and sim >= 0.7) else ""
+                    cls_s = f" [{','.join(entry.classes_ok)}]" if entry.classes_ok else ""
+                    title = entry.title[:40]
                     print(f"{prefix}{title}{bpm_s}{pop_s}{sim_s}{cls_s}{src_s}")
                 else:
                     print(f"{prefix}⚠  No suitable song found!")
@@ -225,7 +220,7 @@ def interactive_refine(
         except ValueError:
             print("  Invalid."); continue
         round_name = round_labels[r_idx]
-        heats      = playlist[round_name]
+        heats = playlist[round_name]
 
         h_idx = 0
         if len(heats) > 1:
@@ -240,7 +235,7 @@ def interactive_refine(
         heat = heats[h_idx]
         print(f"\n  Songs in {round_name}, Heat {h_idx+1}:")
         for i, (dance, entry) in enumerate(zip(dances, heat, strict=True), 1):
-            dn    = DANCE_NAMES.get(dance, dance)
+            dn = DANCE_NAMES.get(dance, dance)
             title = entry.title[:40] if entry else "(none)"
             print(f"    {i}. {dn}: {title}")
 
@@ -253,7 +248,7 @@ def interactive_refine(
             print("  Invalid."); continue
 
         dance = dances[d_idx]
-        tier  = tier_map.get(round_name, 'early')
+        tier = tier_map.get(round_name, RoundTier.EARLY)
 
         # Build full exclusion set (all currently used paths). The current
         # song is only the fallback when no alternative exists: left in the
@@ -261,8 +256,8 @@ def interactive_refine(
         exclude = {
             str(e.path)
             for hs in playlist.values()
-            for h  in hs
-            for e  in h
+            for h in hs
+            for e in h
             if e is not None
         }
         current = heat[d_idx]
@@ -273,7 +268,7 @@ def interactive_refine(
             new_entry = suggester.regenerate(dance, dance_class, tier, exclude)
         if new_entry:
             heat[d_idx] = new_entry
-            bpm_s = _fmt_bpm(new_entry.bpm, dance, dance_class)
+            bpm_s = fmt_bpm(new_entry.bpm, dance, dance_class)
             print(f"  Replaced with: {new_entry.title}{bpm_s}")
         else:
             print("  No alternative found.")
@@ -293,12 +288,12 @@ def main() -> None:
     # ── Audio cache + library ──
     print()
     cache = AudioCache()
-    lib   = MusicLibrary()
+    lib = MusicLibrary()
     lib.scan(cache)
     note_class_tag_use(lib.entries)
 
     # ── Library summary ──
-    summary       = lib.summary()
+    summary = lib.summary()
     other_summary = lib.other_genre_summary()
     sep()
     print("  Competition dances:")
@@ -323,18 +318,18 @@ def main() -> None:
     while True:
         hdr("Tournament Configuration")
 
-        style      = ask_choice("Dance style:", list(DANCE_STYLES), default="Latin")
-        age_group  = ask_choice("Age class:", [
+        style = ask_choice("Dance style:", list(DANCE_STYLES), default="Latin")
+        age_group = ask_choice("Age class:", [
             "Kinder", "Junioren", "Jugend",
             "Hauptgruppe", "Senioren I", "Senioren II", "Senioren III",
             "Senioren IV", "Senioren V",
         ], default="Hauptgruppe")
         dance_class = ask_choice("Start class:", ["D","C","B","A","S"], default="S")
-        dances      = ask_dances(style, DEFAULT_DANCES[style][dance_class])
-        rounds      = ask_rounds_with_heats()
+        dances = ask_dances(style, DEFAULT_DANCES[style][dance_class])
+        rounds = ask_rounds_with_heats()
 
-        suggester   = PlaylistSuggester(lib)
-        iteration   = 1
+        suggester = PlaylistSuggester(lib)
+        iteration = 1
 
         while True:
             total_songs = sum(rc.heats for rc in rounds) * len(dances)
@@ -353,7 +348,7 @@ def main() -> None:
 
             ans = input("Save as M3U file? [Y/n]: ").strip().lower()
             if ans != 'n':
-                suffix   = f"_v{iteration}" if iteration > 1 else ""
+                suffix = f"_v{iteration}" if iteration > 1 else ""
                 basename = f"{age_group.replace(' ','_')}_{dance_class}_{style}{suffix}"
                 out = export_m3u(playlist, dances, basename, dance_class)
                 print(f"  Saved: {out}")

@@ -157,7 +157,7 @@ class WindowTest(unittest.TestCase):
                                   side_effect=lambda *a, **k: self.warned.append(a))
             p.start()
             self.addCleanup(p.stop)
-        p = mock.patch.object(mg, "_show_toast")
+        p = mock.patch.object(mg, "show_toast")
         self.toast = p.start()
         self.addCleanup(p.stop)
         self.gdir = tempfile.mkdtemp(prefix="dp_reposcan_dir_")
@@ -200,14 +200,6 @@ class WindowTest(unittest.TestCase):
         win._rescan_repository()
         self.loader_cls.assert_not_called()
         self.assertEqual(len(self.warned), 1)
-
-    def test_the_settings_values_are_saved_first(self):
-        win = self.host(gdir="")
-        with mock.patch.object(mg, "save_settings") as save:
-            win._rescan_repository({"global_dir": self.gdir})
-        save.assert_called_once_with({"global_dir": self.gdir})
-        self.loader_cls.assert_called_once_with(win._library.cache, self.gdir, win,
-                                                share_from=win._library.lib)
 
     def test_the_scanned_index_replaces_the_cached_one(self):
         win = self.host(whole_shown=True)

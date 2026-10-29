@@ -10,13 +10,20 @@ from collections import deque
 from pathlib import Path
 from types import SimpleNamespace
 
-from planner.models import (
-    DANCE_NAMES, OTHERS_DANCES, STYLE_FOLDERS, _RESERVED_STYLE_FOLDERS,
-    DEFAULT_DANCES, TEMPO_RANGES, BELOW_TEMPO_EXT, _EXCLUDED_FOLDERS,
-    fold_text, MusicEntry, is_non_turnier,
-)
 from planner.generate.scoring import effective_popularity
-
+from planner.models import (
+    BELOW_TEMPO_EXT,
+    DANCE_NAMES,
+    DEFAULT_DANCES,
+    EXCLUDED_FOLDERS,
+    OTHERS_DANCES,
+    RESERVED_STYLE_FOLDERS,
+    STYLE_FOLDERS,
+    TEMPO_RANGES,
+    MusicEntry,
+    fold_text,
+    is_non_turnier,
+)
 
 # ── Warm-up ("Eintanzen") playlist generator ────────────────────────────────
 # A long shuffled practice-floor playlist (NOT competition rounds): dances are
@@ -24,19 +31,19 @@ from planner.generate.scoring import effective_popularity
 # with social "Modetanz" rounds. Ported in spirit from the Java TurnierCheck
 # Analyzer.sortForEintanzen (ETDS party mode) — same constraints, restated
 # without the global mutable state.
-_WARMUP_BALLROOM = ('LW', 'TG', 'WW', 'SF', 'QS')
+WARMUP_BALLROOM = ('LW', 'TG', 'WW', 'SF', 'QS')
 
 
-_WARMUP_LATIN = ('SA', 'CC', 'RB', 'PD', 'JI')
+WARMUP_LATIN = ('SA', 'CC', 'RB', 'PD', 'JI')
 
 
-_WARMUP_MODE = ('DISCOFOX', 'SALSA', 'BACHATA', 'WCS', 'KIZOMBA', 'FORRO')
+WARMUP_MODE = ('DISCOFOX', 'SALSA', 'BACHATA', 'WCS', 'KIZOMBA', 'FORRO')
 
 
 # Competition running order, to optionally sort the dances inside a round.
-_WARMUP_ORDER = {d: i for i, d in enumerate(
+WARMUP_ORDER = {d: i for i, d in enumerate(
     ('LW', 'TG', 'WW', 'SF', 'QS', 'SA', 'CC', 'RB', 'PD', 'JI')
-    + _WARMUP_MODE + ('TANGOARG',))}
+    + WARMUP_MODE + ('TANGOARG',))}
 
 
 # ETDS appearance weights (Java getEtdsProbability) — each section sums to ~1.
@@ -62,16 +69,16 @@ _PD_ROUND_RATE = _PD_SLOT_SHARE / (1 - 3 * _PD_SLOT_SHARE)
 # whose .dance is None but .other_genre names a Modetanz. Tango Argentino comes
 # in the same way; it is a dance, only not one the warm-up builder deals.
 _WARMUP_OTHER_CODE = {fold_text(DANCE_NAMES[c]): c
-                      for c in _WARMUP_MODE + ('TANGOARG',)}
+                      for c in WARMUP_MODE + ('TANGOARG',)}
 
 
 # Dance code → German section header used to separate warm-up rounds in the list
 # view (Standardrunde / Lateinrunde / Socialrunde), so the flat Eintanzen list
 # reads as the alternating rounds it was actually built from.
 _WARMUP_SECTION_LABEL = {
-    **{d: 'Standardrunde' for d in _WARMUP_BALLROOM},
-    **{d: 'Lateinrunde' for d in _WARMUP_LATIN},
-    **{d: 'Socialrunde' for d in _WARMUP_MODE},
+    **dict.fromkeys(WARMUP_BALLROOM, 'Standardrunde'),
+    **dict.fromkeys(WARMUP_LATIN, 'Lateinrunde'),
+    **dict.fromkeys(WARMUP_MODE, 'Socialrunde'),
 }
 
 
@@ -188,7 +195,8 @@ def warmup_swap_partner(entries, index, rng=random) -> int | None:
     return rng.choice(pool) if pool else None
 
 
-def reshuffle_warmup(entries, *, start_with_latin=None, late_ww=True, late_pd=True):
+def reshuffle_warmup(entries, *, start_with_latin=None, late_ww=True,
+                     late_pd=True) -> list[MusicEntry]:
     """🔀 The titles of a party list in a fresh order, as building it again would.
 
     The sections come from what the list holds, so no title drops out for want
@@ -196,13 +204,13 @@ def reshuffle_warmup(entries, *, start_with_latin=None, late_ww=True, late_pd=Tr
     with. Titles the builder can't place follow at the end, in their old order."""
     codes = [warmup_code(e) for e in entries]
     if start_with_latin is None:
-        first = next((c for c in codes if c in _WARMUP_BALLROOM or c in _WARMUP_LATIN), None)
-        start_with_latin = first in _WARMUP_LATIN
+        first = next((c for c in codes if c in WARMUP_BALLROOM or c in WARMUP_LATIN), None)
+        start_with_latin = first in WARMUP_LATIN
     order = build_warmup_playlist(
         entries,
-        include_standard=any(c in _WARMUP_BALLROOM for c in codes),
-        include_latin=any(c in _WARMUP_LATIN for c in codes),
-        include_modetaenze=any(c in _WARMUP_MODE for c in codes),
+        include_standard=any(c in WARMUP_BALLROOM for c in codes),
+        include_latin=any(c in WARMUP_LATIN for c in codes),
+        include_modetaenze=any(c in WARMUP_MODE for c in codes),
         start_with_latin=start_with_latin, late_ww=late_ww, late_pd=late_pd)
     placed = {id(e) for e in order}
     return order + [e for e in entries if id(e) not in placed]
@@ -378,7 +386,7 @@ def _hand_on_waltz(chosen, avail, pools, rounds, deferred, forbidden, late_gated
                                  and not late_gated(d)], pools)
         if fill:
             chosen.append(fill)
-            chosen.sort(key=lambda d: _WARMUP_ORDER.get(d, 99))
+            chosen.sort(key=lambda d: WARMUP_ORDER.get(d, 99))
 
 
 def _draw_round(result, pools, chosen, rounds):
@@ -396,8 +404,8 @@ def _draw_round(result, pools, chosen, rounds):
     return bool(took)
 
 
-def _warmup_section_round(result, pools, section, *, late_ww, late_pd, rounds,
-                          deferred):
+def warmup_section_round(result, pools, section, *, late_ww, late_pd, rounds,
+                          deferred) -> bool:
     """Choose three distinct dances for one Standard/Latin round, honouring the
     opener / coverage / lead / late-WW / late-PD / no-Samba-back-to-back rules,
     then pop one track per chosen dance and append to `result`.
@@ -410,7 +418,7 @@ def _warmup_section_round(result, pools, section, *, late_ww, late_pd, rounds,
     not play in competition order (see the Wiener Walzer rule at the bottom).
     It is a one-slot queue the caller keeps alongside `rounds`, emptied by the
     round that honours it."""
-    is_latin = section is _WARMUP_LATIN
+    is_latin = section is WARMUP_LATIN
     avail = [d for d in section if pools.get(d)]
     if not avail:
         return False
@@ -482,7 +490,7 @@ def _warmup_section_round(result, pools, section, *, late_ww, late_pd, rounds,
         return False
 
     chosen = list(dict.fromkeys(chosen))   # de-dupe, keep order
-    chosen.sort(key=lambda d: _WARMUP_ORDER.get(d, 99))
+    chosen.sort(key=lambda d: WARMUP_ORDER.get(d, 99))
 
     _hand_on_waltz(chosen, avail, pools, rounds, deferred, forbidden, late_gated,
                    last_round)
@@ -490,8 +498,8 @@ def _warmup_section_round(result, pools, section, *, late_ww, late_pd, rounds,
     return _draw_round(result, pools, chosen, rounds)
 
 
-def _warmup_mode_round(result, pools, mode_dances, *, first=False,
-                       allow_double=True):
+def warmup_mode_round(result, pools, mode_dances, *, first=False,
+                       allow_double=True) -> bool:
     """One social-dance interlude: one Modetanz, or two — and a double opens
     with Discofox.
 
@@ -513,10 +521,8 @@ def _warmup_mode_round(result, pools, mode_dances, *, first=False,
     if not avail:
         return False
     two = allow_double and random.random() < 1 / 3
-    if (two or first) and 'DISCOFOX' in avail:
-        chosen = ['DISCOFOX']
-    else:
-        chosen = [_warmup_pick(avail, pools)]
+    chosen = (['DISCOFOX'] if (two or first) and 'DISCOFOX' in avail
+              else [_warmup_pick(avail, pools)])
     if two:
         second = _warmup_pick(avail, pools, exclude=chosen)
         if second:
@@ -543,14 +549,14 @@ def _warmup_pools(entries, include_standard, include_latin, include_modetaenze,
     if no_paso:
         pools.pop('PD', None)
     if not include_standard:
-        for d in _WARMUP_BALLROOM:
+        for d in WARMUP_BALLROOM:
             pools.pop(d, None)
     if not include_latin:
-        for d in _WARMUP_LATIN:
+        for d in WARMUP_LATIN:
             pools.pop(d, None)
     if include_modetaenze:
-        allowed = set(modetaenze) if modetaenze is not None else set(_WARMUP_MODE)
-        mode_dances = [d for d in _WARMUP_MODE if d in allowed]
+        allowed = set(modetaenze) if modetaenze is not None else set(WARMUP_MODE)
+        mode_dances = [d for d in WARMUP_MODE if d in allowed]
     else:
         mode_dances = []
     return pools, mode_dances
@@ -559,7 +565,7 @@ def _warmup_pools(entries, include_standard, include_latin, include_modetaenze,
 def build_warmup_playlist(entries, *, include_standard=True, include_latin=True,
                           include_modetaenze=False, modetaenze=None, no_paso=False,
                           start_with_latin=False, late_ww=True, late_pd=True,
-                          max_tracks=None, progress_cb=None):
+                          max_tracks=None, progress_cb=None) -> list[MusicEntry]:
     """Build a warm-up ('Eintanzen') playlist from `entries` — a flat, ordered
     list of MusicEntry, each track used once. Dances are drawn in alternating
     3-dance Standard / Latin rounds with optional Modetanz interludes.
@@ -580,7 +586,7 @@ def build_warmup_playlist(entries, *, include_standard=True, include_latin=True,
     # Tracks the active sections can contribute — the progress-bar denominator.
     # (Mode pools linger in `pools` when Modetänze are off, so count only what
     # will actually be drawn.)
-    drawable = list(_WARMUP_BALLROOM) + list(_WARMUP_LATIN) + mode_dances
+    drawable = list(WARMUP_BALLROOM) + list(WARMUP_LATIN) + mode_dances
     total = sum(len(pools.get(d, [])) for d in drawable)
     cap = int(max_tracks) if max_tracks else 0
     if cap:
@@ -593,14 +599,14 @@ def build_warmup_playlist(entries, *, include_standard=True, include_latin=True,
     # interlude — so the list reads STD → LAT → Social → STD → LAT → Social …
     # (start_with_latin swaps the two competition sections). The order is NOT
     # flipped every pass; flipping produced the wrong STD LAT | LAT STD | … run.
-    order = ([_WARMUP_LATIN, _WARMUP_BALLROOM] if start_with_latin
-             else [_WARMUP_BALLROOM, _WARMUP_LATIN])
+    order = ([WARMUP_LATIN, WARMUP_BALLROOM] if start_with_latin
+             else [WARMUP_BALLROOM, WARMUP_LATIN])
     # One round history per section — what the coverage and no-rut rules count.
-    history: dict[tuple, list[list[str]]] = {_WARMUP_BALLROOM: [],
-                                             _WARMUP_LATIN: []}
+    history: dict[tuple, list[list[str]]] = {WARMUP_BALLROOM: [],
+                                             WARMUP_LATIN: []}
     # One hand-on slot per section, alongside the history — see
     # _warmup_section_round's `deferred`.
-    owing: dict[tuple, list[str]] = {_WARMUP_BALLROOM: [], _WARMUP_LATIN: []}
+    owing: dict[tuple, list[str]] = {WARMUP_BALLROOM: [], WARMUP_LATIN: []}
     # The first social round of the evening leads with Discofox — see
     # _warmup_mode_round. A round that placed nothing does not count as opened.
     social_opened = False
@@ -615,15 +621,15 @@ def build_warmup_playlist(entries, *, include_standard=True, include_latin=True,
         short". Slicing the result to the cap instead ended 40 of 40 seeds
         on a one-track round at the spinbox's own default of 100."""
         return bool(cap) and len(result) >= cap
-    while guard > 0 and (section_has(_WARMUP_BALLROOM) or section_has(_WARMUP_LATIN)
+    while guard > 0 and (section_has(WARMUP_BALLROOM) or section_has(WARMUP_LATIN)
                          or any(pools.get(d) for d in mode_dances)):
         guard -= 1
         progressed = False
         for section in order:
-            if ((section is _WARMUP_BALLROOM and not include_standard)
-                    or (section is _WARMUP_LATIN and not include_latin)):
+            if ((section is WARMUP_BALLROOM and not include_standard)
+                    or (section is WARMUP_LATIN and not include_latin)):
                 continue
-            if _warmup_section_round(result, pools, section,
+            if warmup_section_round(result, pools, section,
                                      late_ww=late_ww, late_pd=late_pd,
                                      rounds=history[section],
                                      deferred=owing[section]):
@@ -640,7 +646,7 @@ def build_warmup_playlist(entries, *, include_standard=True, include_latin=True,
         # its double.
         after_paso = bool(result) and warmup_code(result[-1]) == 'PD'
         if (not cap_reached() and mode_dances
-                and _warmup_mode_round(result, pools, mode_dances,
+                and warmup_mode_round(result, pools, mode_dances,
                                        first=not social_opened,
                                        allow_double=not after_paso)):
             social_opened = True
@@ -669,7 +675,7 @@ def warmup_lengths(entries) -> dict[str, list[float]]:
 
 
 def estimate_warmup_counts(lengths, hours, *, runs=40, fallback_secs=210.0,
-                           should_stop=None, **options):
+                           should_stop=None, **options) -> tuple[dict, tuple[float, int]] | None:
     """⏱ How many songs per dance a party list of `hours` play time needs.
 
     Builds `runs` lists with the real `build_warmup_playlist` (`options` are its
@@ -682,7 +688,7 @@ def estimate_warmup_counts(lengths, hours, *, runs=40, fallback_secs=210.0,
     count that suffices for 9 of 10 lists. `should_stop()` is asked between runs;
     when it says yes the estimate is abandoned and None comes back."""
     target = hours * 3600
-    codes = _WARMUP_BALLROOM + _WARMUP_LATIN + _WARMUP_MODE
+    codes = WARMUP_BALLROOM + WARMUP_LATIN + WARMUP_MODE
     label = {c: k for k, c in _WARMUP_OTHER_CODE.items()}
     # The builder slows down with the square of the list length, so build only
     # about as long as the target needs (sized by the shortest typical dance),
@@ -725,7 +731,8 @@ def estimate_warmup_counts(lengths, hours, *, runs=40, fallback_secs=210.0,
             mean_and_stock([sum(counts.values()) for counts in per_run]))
 
 
-def class_warmup_pool(entries, style, dance, dance_class, *, relax=True):
+def class_warmup_pool(entries, style, dance, dance_class, *,
+                      relax=True) -> list[MusicEntry]:
     """TSO-conform, class- and style-scoped candidate list for one dance of a
     tournament-class warm-up. Mirrors the competition pool's tempo/class/style
     filters; `relax` keeps the slight pitch-up margin (BELOW_TEMPO_EXT, e.g.
@@ -751,7 +758,8 @@ def class_warmup_pool(entries, style, dance, dance_class, *, relax=True):
 
 
 def build_class_warmup(entries, style, dance_class, *, max_tracks=200,
-                       fresh_ratio=0.25, relax=True, progress_cb=None):
+                       fresh_ratio=0.25, relax=True,
+                       progress_cb=None) -> list[MusicEntry]:
     """Warm-up playlist for ONE tournament class (e.g. Latin 'S'): the class's
     dances (DEFAULT_DANCES[style][dance_class]) repeated round-robin —
     SA, CC, RB, PD, JI, SA, CC, … — each track used once, every track TSO-conform.
@@ -820,14 +828,14 @@ def entry_in_style(entry: MusicEntry, style: str | None) -> bool:
     no folder scoping (legacy behaviour: accept everything).
     """
     segs = {p.lower() for p in entry.path.parts}
-    if segs & _EXCLUDED_FOLDERS:        # hard-excluded folders (e.g. sox) – never used
+    if segs & EXCLUDED_FOLDERS:        # hard-excluded folders (e.g. sox) – never used
         return False
     if style is None:
         return True
     folders = STYLE_FOLDERS.get(style)
     if folders is not None:
         return any(f in segs for f in folders)
-    return not (segs & _RESERVED_STYLE_FOLDERS)   # 'Others' = the complement
+    return not (segs & RESERVED_STYLE_FOLDERS)   # 'Others' = the complement
 
 
 def others_dance_from_path(path: Path) -> str | None:

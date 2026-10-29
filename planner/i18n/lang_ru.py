@@ -363,9 +363,6 @@ CATALOG = {
         "новые (несколько секунд на трек). Отменить можно в любой момент;\n"
         "полученные результаты сохранятся.",
     "Fresh mix:": "Доля новых:",
-    "Pause music:": "Музыка в паузе:",
-    "Pause music volume:": "Громкость музыки в паузе:",
-    "No pause music": "Без музыки в паузе",
     "Set clock to": "Поставить часы на",
     "Draw tracks from": "Брать треки из",
     "Songs needed for:": "Нужно треков для:",
@@ -675,6 +672,14 @@ CATALOG = {
     "Then restart the app — nothing else to configure.":
         "Затем перезапустите приложение — больше ничего настраивать не нужно.",
     "ffmpeg not found": "ffmpeg не найден",
+    "In a terminal:":
+        "В терминале:",
+    "…no Homebrew yet? That line first:":
+        "…ещё нет Homebrew? Сначала эта строка:",
+    "…or with Homebrew, on any distro:":
+        "…или через Homebrew, в любом дистрибутиве:",
+    "…or download a build from <a href='https://www.gyan.dev/ffmpeg/builds/'>gyan.dev/ffmpeg/builds</a> and drop <code>ffmpeg.exe</code> into this app's folder.":
+        "…или скачайте сборку с <a href='https://www.gyan.dev/ffmpeg/builds/'>gyan.dev/ffmpeg/builds</a> и положите <code>ffmpeg.exe</code> в папку этого приложения.",
     "(multimedia unavailable)": "(мультимедиа недоступно)",
     "Play a title first — then TSO sets its heat tempo.":
         "Сначала запустите трек — тогда TSO задаст темп его захода.",
@@ -735,14 +740,11 @@ CATALOG = {
     "Export or import this wall":
         "Экспортировать или импортировать этот Cartwall",
     "Duck to 20 % / back to full": "Приглушить до 20 % / вернуть на полную",
-    "Duck to %d %% / back to full": "Приглушить до %d %% / вернуть на полную",
-    "Duck to %d %% / back to full — the filler music comes down too":
-        "Приглушить до %d %% / вернуть полную громкость — фоновая музыка тоже стихает",
     "🔉  Duck to:": "🔉  Приглушать до:",
     "How loud everything stays while 🔉 Duck is pressed on the player\ncard, the mini player or the presenter screen: low enough to talk\nover, loud enough to keep the floor moving. 0 % is silence.":
         "Насколько громко всё звучит, пока нажата 🔉 на карточке плеера,\nв мини-плеере или на экране презентации: достаточно тихо, чтобы\nговорить поверх, и достаточно громко, чтобы зал продолжал танцевать.\n0 % — тишина.",
-    "🎵  When a title starts:":
-        "🎵  При старте трека:",
+    "🎵  When the main player starts a title:":
+        "🎵  При старте трека в основном плеере:",
     "🎛 Cartwall":
         "🎛 Картволл",
     "<b>🎛 Cartwall</b> — what the pads do to the music, and what every pad follows unless it was given its own.":
@@ -753,24 +755,28 @@ CATALOG = {
         "🎶  Пэды в режиме 🎶 Фон",
     "Tapped again or ⏹, a background pad fades out like every other pad (⏱ above).":
         "При повторном нажатии или ⏹ фоновый пэд затухает, как и любой другой пэд (⏱ выше).",
-    "⏱  Tapped again or ⏹ — fade out over:":
-        "⏱  Повторное нажатие или ⏹ — затухание за:",
+    "⏱  Tapped again or ⏹ — fade the pad out over:":
+        "⏱  Повторное нажатие или ⏹ — затухание пэда за:",
     "How long a pad takes to let go when it is tapped again or ⏹\nstops the wall. A pad can override this in its own settings.":
         "Сколько затухает пэд, когда его нажимают снова или ⏹\nостанавливает картволл. Пэд может изменить это в своих настройках.",
-    "▶  When fired — fade in over:":
-        "▶  При запуске — нарастание за:",
+    "🔉  Ticking 🎶 Background sets the pad's volume to:":
+        "🔉  Отметка 🎶 Фон ставит громкость пэда на:",
+    "A bed at full volume is as loud as the dance music it fills in\nfor. Pads already set to 🎶 Background keep their own volume.":
+        "Фон на полной громкости звучит так же громко, как танцевальная музыка,\nпаузу которой он заполняет. Пэды, уже отмеченные как 🎶 Фон, сохраняют свою громкость.",
+    "▶  When fired — fade the pad in over:":
+        "▶  При запуске — нарастание пэда за:",
     "How long a 🎛 cartwall pad set to 🎶 Background takes to come\nup from silence when it is fired. 0 s starts it at full volume.":
         "Сколько времени пэду 🎛 картволла с режимом 🎶 Фон нужно, чтобы\nнарасти из тишины при запуске. 0 s запускает его на полной громкости.",
-    "🌙  …fading out over:":
-        "🌙  …затихая за:",
+    "🌙  …fading the pad out over:":
+        "🌙  …пэд затихает за:",
     "How long a 🎛 cartwall pad set to 🎶 Background takes to go\nsilent once a title starts.":
         "Сколько времени пэду 🎛 картволла с режимом 🎶 Фон нужно, чтобы\nзатихнуть, когда начинается трек.",
-    "⏳  When the music stops — wait:":
-        "⏳  Когда музыка остановилась — ждать:",
+    "⏳  When the main player stops — wait:":
+        "⏳  Когда основной плеер остановился — ждать:",
     "How long the main player has to stay stopped before a 🎛 cartwall\npad set to 🎶 Background fades back in.\n\nBetween two titles the deck stops for a moment. Without a wait,\nthe bed would swell up in every such gap and dip again as soon as\nthe next title starts. A title starting during the wait keeps the\nbed down.\n\nThere is no wait when a title starts: the bed gets out of the way\nat once, so it never plays over the first notes.\n\n0 s brings it back the moment the music stops, gaps included.\nStandard 0.3 s; much longer feels as if the bed lags behind.":
         "Сколько основной плеер должен стоять, прежде чем пэд 🎛 картволла\nс режимом 🎶 Фон снова нарастёт.\n\nМежду двумя треками дека на мгновение останавливается. Без ожидания\nфон нарастал бы в каждой такой паузе и снова уходил бы вниз со\nследующим треком. Если трек начнётся во время ожидания, фон\nостанется приглушённым.\n\nПри старте трека ожидания нет: фон сразу уступает место и никогда\nне звучит поверх первых нот.\n\n0 s возвращает его сразу, как музыка остановилась, в том числе в паузах.\nСтандарт 0,3 s; намного дольше кажется, что фон запаздывает.",
-    "🌅  …then fade back in over:":
-        "🌅  …затем возвращается за:",
+    "🌅  …then fade the pad back in over:":
+        "🌅  …затем пэд возвращается за:",
     "How long a 🎛 cartwall pad set to 🎶 Background takes to come\nback up to its full volume once the music stops.":
         "Сколько времени пэду 🎛 картволла с режимом 🎶 Фон нужно, чтобы\nвернуться к полной громкости, когда музыка стихает.",
     "🖌  Default wall colour:":
@@ -2030,6 +2036,8 @@ CATALOG = {
     "%s":
         "⚠ Файл не найден на диске:\n"
         "%s",
+    "Is the drive unplugged, or was the file moved or renamed? It cannot play until it is back.":
+        "Диск отключён, или файл перемещён или переименован? Он не сможет играть, пока не вернётся.",
     "Regenerate": "Сгенерировать заново",
     "Regenerate Error": "Ошибка повторной генерации",
     "Track length (m:ss)\n"
@@ -2040,6 +2048,7 @@ CATALOG = {
         "оранжевый = короче заданного времени звучания или 5 с и более\n"
         "тишины на краю, которую плеер пропускает (подсказка самой\n"
         "ячейки говорит, где именно и сколько он звучит на самом деле)",
+    "Playlist": "Плейлист",
     "Wishlist": "Список пожеланий",
     "Rating — click a star to set it, the last lit one again to clear it.\n"
     "Kept in the app's database; the MP3 itself is not changed.":
@@ -2242,16 +2251,6 @@ CATALOG = {
         "Заходы есть только в сетке туров: тематический список, практика и свободный\n"
         "порядок объявляются без него. Записано для заходов 1-8;\n"
         "дальше номер опускается.",
-    "Choose one or more titles — or an .m3u playlist — that play\n"
-    "softly during the pause between songs, faded in at the start\n"
-    "and out before the next song. Several titles rotate: a title\n"
-    "keeps playing pause after pause until it ends, then the next\n"
-    "one takes over.":
-        "Выберите один или несколько треков — или плейлист .m3u, — которые\n"
-        "тихо звучат в паузе между треками: плавно входят в начале\n"
-        "и затухают перед следующим треком. Несколько треков сменяют друг друга: трек\n"
-        "играет пауза за паузой, пока не закончится, затем его\n"
-        "сменяет следующий.",
     "Compensate loudness differences between tracks on playback:\n"
     "each song's measured EBU R128 loudness is pulled towards a common\n"
     "target, so quiet old recordings and loud modern masters play at\n"
@@ -2280,10 +2279,6 @@ CATALOG = {
         "При включённом 🔈 Объявлять следующий танец объявляет приложение, и\n"
         "секунды идут от объявления; если выключено, объявляет ведущий в зале, и ожидание\n"
         "идёт молча — в обоих случаях с обратным отсчётом на этой панели.",
-    "How loud the pause music plays, relative to the normal\n"
-    "playback volume — kept lower so it stays in the background.":
-        "Насколько громко звучит музыка паузы относительно обычной\n"
-        "громкости — тише, чтобы оставаться фоном.",
     "Keep the screensaver and the display timeout off while music is\n"
     "playing or the presenter screen is open.\n"
     "\n"
@@ -2299,13 +2294,13 @@ CATALOG = {
         "пульт, гасит экран посреди захода, включая проектор. Обычные\n"
         "таймауты возвращаются, как только ни то, ни другое не работает.",
     "Off: the next song starts the moment the current one ends, with\n"
-    "no filler music and no announcement. The configured time is kept\n"
+    "no pause music and no announcement. The configured time is kept\n"
     "for switching back.\n"
     "\n"
     "Needs ⏭ auto-advance — without it the next song waits for the\n"
     "operator anyway, so there is no gap to fill.":
         "Выкл.: следующий трек начинается в тот момент, когда закончился текущий,\n"
-        "без фоновой музыки и без объявления. Заданное время сохраняется\n"
+        "без музыки в паузе и без объявления. Заданное время сохраняется\n"
         "на случай обратного переключения.\n"
         "\n"
         "Нужен ⏭ автопереход — без него следующий трек всё равно ждёт\n"
@@ -2607,8 +2602,6 @@ CATALOG = {
         "на 23 → T24, пасодобль на 57 → T58).",
     "Disable preview player  (re-enable in Settings)":
         "Отключить плеер предпрослушивания  (включается снова в Настройках)",
-    "Duck to 20 % / back to full — the filler music comes down too":
-        "Приглушить до 20 % / вернуть полную громкость — фоновая музыка тоже стихает",
     "Endless repeat of THIS title (toggle):\n"
     "while on, the running title starts again every time it ends —\n"
     "for the moment the floor is still full or the speech runs long.\n"
@@ -2623,6 +2616,11 @@ CATALOG = {
         "Он держит вечер на одном треке, поэтому важнее 🏁 конца\n"
         "тура и работает и при выключенном ⏭ автопереходе. Выключите его, и\n"
         "список продолжится с того места, где стоит.",
+    "Next dance": "Следующий танец",
+    "Cut the pause short and go to the next dance. Its announcement\n"
+    "still plays first; the pause music fades out, like ⏭.":
+        "Сократить паузу и перейти к следующему танцу. Объявление\n"
+        "всё равно звучит сначала; музыка паузы затихает, как при ⏭.",
     "Extend the auto-advance pause (add another pause length) —\n"
     "use it when the heat change is taking longer than planned.":
         "Продлить паузу автоперехода (добавить ещё одну длину паузы) —\n"
@@ -2637,10 +2635,11 @@ CATALOG = {
     "— for a quick, clean finish on the floor.":
         "Сейчас увести этот трек в затухание (за заданное время затухания) и завершить его\n"
         "— для быстрого и чистого финиша на паркете.",
-    "Jump straight to the pause music — end this song now and start\n"
-    "the between-songs pause (e.g. the dancers are already leaving).":
-        "Сразу перейти к музыке паузы — завершить этот трек сейчас и начать\n"
-        "паузу между треками (напр. танцоры уже уходят).",
+    "Go to the pause music — fade this song out (over the configured\n"
+    "fade time), then start the between-songs pause (e.g. the dancers\n"
+    "are already leaving).":
+        "Перейти к музыке паузы — увести этот трек в затухание (за заданное время\n"
+        "затухания) и затем начать паузу между треками (напр. танцоры уже уходят).",
     "Tap along to the beat to measure this track's live tempo by hand,\n"
     "against a target for its dance (Sollwert) — display only, does not\n"
     "touch the fader.":
@@ -2895,10 +2894,16 @@ CATALOG = {
         "После … треков",
     "At …":
         "В …",
-    "Let the music stop by itself: after the title playing now,\nafter a number of titles (the one playing now is the first),\nor with the first title that ends at or after a time of day.\n\nA title is never cut: it plays to its end, then the next one\nwaits on the player for ⏯. A ⏭ skip does not count as an end.\n\nSet for this evening only — it is not saved.\n\nNeeds ⏭ auto-advance.":
-        "Музыка остановится сама: после текущего трека,\nпосле нескольких треков (текущий — первый)\nили с первым треком, который закончится в заданное время или позже.\n\nТрек никогда не обрывается: он играет до конца, а следующий\nждёт в плеере нажатия ⏯. Пропуск ⏭ не считается концом.\n\nТолько на этот вечер — не сохраняется.\n\nНужен ⏭ автопереход.",
-    "Titles still to end, the one playing now included —\nit counts down as they do.":
-        "Сколько треков ещё закончится, включая текущий —\nсчёт уменьшается с каждым концом.",
+    "Let the music stop by itself: after the title playing now,\nafter a number of titles (the one playing now is the first),\nor with the first title that ends at or after a time of day.\n\nA title is not cut: it plays to its end, then the next one\nwaits on the player for ⏯ — unless an \"At …\" time is set to\nfade it. A ⏭ skip does not count as an end.\n\nSet for this evening only — it is not saved.\n\nNeeds ⏭ auto-advance.":
+        "Музыка остановится сама: после текущего трека,\nпосле нескольких треков (текущий — первый)\nили с первым треком, который закончится в заданное время или позже.\n\nТрек не обрывается: он играет до конца, а следующий\nждёт в плеере нажатия ⏯ — если только время «В …» не задано\nс затуханием. Пропуск ⏭ не считается концом.\n\nТолько на этот вечер — не сохраняется.\n\nНужен ⏭ автопереход.",
+    "play it to its end":
+        "доиграть до конца",
+    "fade out at the time":
+        "затухание в это время",
+    "hybrid: fade if ≥ 1:30 played":
+        "гибрид: затухание, если ≥ 1:30",
+    "What the title playing at the time does:\n\nPlay it to its end — the first title that ends at or after the\ntime is the last.\nFade out at the time — it fades out the moment the time comes.\nHybrid — it fades if it had played 1:30 by then, a younger\none plays to its end.\n\nA title that starts after the time always plays to its end.\nThis choice is remembered.":
+        "Что делает трек, играющий в это время:\n\nДоиграть до конца — последний трек тот, который закончится\nв это время или позже.\nЗатухание в это время — он затухает, как только наступает время.\nГибрид — он затухает, если к тому времени играл 1:30;\nболее короткий доигрывает до конца.\n\nТрек, начавшийся после этого времени, всегда доигрывает до конца.\nЭтот выбор запоминается.",
     "The first title that ends at or after this time is the last.\nA time already past today means after midnight.":
         "Первый трек, который закончится в это время или позже, — последний.\nВремя, уже прошедшее сегодня, означает после полуночи.",
     "⏹  Stops after this title":
@@ -3146,6 +3151,25 @@ CATALOG = {
     "Male voice": "Мужской голос",
     "Mixed voices": "Смешанные голоса",
     "with heat": "с заходом",
+    "heat only": "только группа",
+    "🔢  Only the heat, not the dance (practice)": "🔢  Только группа, без танца (тренировка)",
+    "On: every call says just “Heat 1”, without “Next dance” and\n"
+    "without the dance, whatever the two boxes above say.\n"
+    "Where there is no heat to call (or one past 8, which was never\n"
+    "recorded), the dance is called as usual.":
+        "Вкл.: каждое объявление говорит только «Группа 1», без «Следующий танец»\n"
+        "и без танца, что бы ни стояло в двух флажках выше.\n"
+        "Если группы нет (или она больше 8 — такие не записаны),\n"
+        "танец объявляется как обычно.",
+    "📣  Say “Next dance” before the dance": "📣  Говорить «Следующий танец» перед танцем",
+    "On: the pause announces “Next dance: Rumba”.\n"
+    "Off: just “Rumba” (with the heat number, if that is on).\n"
+    "\n"
+    "A dance named as its music starts is always said without it.":
+        "Вкл.: пауза объявляет «Следующий танец: Румба».\n"
+        "Выкл.: только «Румба» (с номером захода, если он включён).\n"
+        "\n"
+        "Танец, объявляемый при старте музыки, всегда без этого.",
     "🗣  Dance is named:": "🗣  Танец объявляется:",
     "over the music": "поверх музыки",
     "before the music": "перед музыкой",
@@ -3234,8 +3258,6 @@ CATALOG = {
         "<b>🔈 Выходы</b> — где звучит каждая часть вечера:",
     "🎵  Music:":
         "🎵  Музыка:",
-    "⏸  Filler music:":
-        "⏸  Музыка в паузе:",
     "🔈  Announcements:":
         "🔈  Объявления:",
     "System default (follows the OS)":
@@ -3244,16 +3266,26 @@ CATALOG = {
         "Как у музыки",
     "Every output the operating system lists can be chosen. On a sound card\n"
     "with several outputs, each pair that shows up as a device of its own\n"
-    "(\"Out 3/4\" next to \"Out 1/2\") can take a source of its own; channels\n"
-    "3/4 of ONE multichannel device cannot be picked separately.\n"
+    "(\"Out 3/4\" next to \"Out 1/2\") can take a source of its own. A card\n"
+    "listed as ONE multichannel device offers its further pairs as\n"
+    "\"— Out 3/4\" entries. The music on such an entry changes its\n"
+    "pitch with the tempo fader, like a turntable.\n"
     "\n"
     "A card that is not plugged in plays on the system default until it is back.":
         "Можно выбрать любой выход, который показывает операционная система. На\n"
         "звуковой карте с несколькими выходами каждая пара, видимая как отдельное\n"
-        "устройство (\"Out 3/4\" рядом с \"Out 1/2\"), может получить свой источник;\n"
-        "каналы 3/4 ОДНОГО многоканального устройства отдельно не выбираются.\n"
+        "устройство (\"Out 3/4\" рядом с \"Out 1/2\"), может получить свой источник.\n"
+        "Карта, видимая как ОДНО многоканальное устройство, предлагает остальные пары\n"
+        "как пункты «— Out 3/4». Музыка на таком пункте меняет с регулятором темпа\n"
+        "и высоту тона, как проигрыватель пластинок.\n"
         "\n"
         "Неподключённая карта играет на системном устройстве, пока она не вернётся.",
+    "🔀 A card listed as one multichannel device offers its further outputs (\"— Out 3/4\") to every source. The music on such a pair changes its pitch with the tempo fader, like a turntable: faster sounds higher, slower lower. Only a whole output keeps the pitch while the tempo changes.":
+        "🔀 Карта, видимая как одно многоканальное устройство, предлагает остальные выходы («— Out 3/4») всем источникам. Музыка на такой паре меняет с регулятором темпа и высоту тона, как проигрыватель пластинок: быстрее звучит выше, медленнее ниже. Только целый выход сохраняет высоту тона при изменении темпа.",
+    "Music on a channel pair":
+        "Музыка на паре каналов",
+    "On %s the tempo fader changes the pitch along with the speed, like a turntable: faster sounds higher, slower lower.\n\nOnly a whole output keeps the pitch. Play the music on this pair anyway?":
+        "На %s регулятор темпа меняет вместе со скоростью и высоту тона, как проигрыватель пластинок: быстрее звучит выше, медленнее ниже.\n\nТолько целый выход сохраняет высоту тона. Всё равно играть музыку на этой паре?",
     "⚠  %s (not connected)":
         "⚠  %s (не подключено)",
     "The music plays on %s — click for the sound settings.":
@@ -3701,8 +3733,8 @@ CATALOG = {
         "⭐  Перенесено в список пожеланий: %d",
     "⭐  Added %d track(s) to the wishlist":
         "⭐  Добавлено в список пожеланий: %d",
-    "  ·  🧹 %d already in a playlist removed":
-        "  ·  🧹 уже в плейлисте, убрано: %d",
+    "  ·  ⚠ %d already in a playlist (duplicate)":
+        "  ·  ⚠ уже в плейлисте (дубль): %d",
     "➕  Added %d track(s)": "➕  Добавлено треков: %d",
     "➕  Added %d track(s) — rounds re-cut":
         "➕  Добавлено треков: %d — туры перераспределены",
@@ -4620,9 +4652,16 @@ CATALOG = {
         "🔇 С %s только тишина — трек закончен.",
     "🔇 Skipped %ss of leading silence.": "🔇 Пропущено %s с тишины в начале.",
     "⚠️ Sample not found: %s": "⚠️ Сэмпл не найден: %s",
+    "\n▶ Queue: place %d — Ctrl+click takes it out":
+        "\n▶ Очередь: место %d — Ctrl+клик убирает его",
+    "\nCtrl+click: into the ▶ queue":
+        "\nCtrl+клик: в очередь ▶",
+    "⚠️ Sample not found, skipped: %s":
+        "⚠️ Сэмпл не найден, пропущен: %s",
+    "⚠️ Queue stopped: none of its samples were found":
+        "⚠️ Очередь остановлена: ни один сэмпл не найден",
     "⏱ Auto-advance pause extended by %ss.":
         "⏱ Пауза автоперехода продлена на %s с.",
-    "⏸ Auto-advance…  🎵 %s": "⏸ Автопереход…  🎵 %s",
     "🎯 Highlight at %s — %d mark(s). ✔ Done editing arms the stop.":
         "🎯 Кульминация на %s — меток: %d. ✔ Завершить правку взводит остановку.",
     "🎯 PD highlight %d marked at %s (stop set to #%s)":
@@ -4656,6 +4695,99 @@ CATALOG = {
         "«полностью» — без обрезки, каждый трек играет до своего конца.\n"
         "\n"
         "Двойной щелчок — ввести точную длину (напр. 1:37).",
+    "Move this highlight 0.1 s earlier": "Сдвинуть кульминацию на 0,1 с раньше",
+    "Move this highlight 0.1 s later": "Сдвинуть кульминацию на 0,1 с позже",
+    "⏱  Titles over an hour read:": "⏱  Треки длиннее часа:",
+    "1:04:00 (hours)": "1:04:00 (часы)",
+    "64:00 (minutes)": "64:00 (минуты)",
+    "How the player and the mini player show the times of a title\nlonger than 59 minutes, such as a long mix.": "Как плеер и мини-плеер показывают время трека\nдлиннее 59 минут, например длинного микса.",
+    "🐞 Bugs & ideas": "🐞 Ошибки и идеи",
+    "Report a bug or suggest a feature as a GitHub issue: %s": "Сообщите об ошибке или предложите функцию через issue на GitHub: %s",
+    "open a new issue": "создать новый issue",
+    "No GitHub account? Write to %s": "Нет аккаунта GitHub? Пишите на %s",
+    "🔌 Drive %s is gone: USB stick unplugged? %d titles can't play until it is back.": "🔌 Диск %s пропал: вынута USB-флешка? Треков, которые не сыграют до его возвращения: %d.",
+    "⚠️ %d titles are gone from disk: moved, renamed or deleted?": "⚠️ Треков больше нет на диске: %d. Перемещены, переименованы или удалены?",
+    "🔌 %d titles are back and can play again.": "🔌 Треки вернулись и снова могут играть: %d.",
+    "🐂  Keep the pad down while a Paso Doble waits to start":
+        "🐂  Держать пэд тихо, пока Пасодобль ждёт старта",
+    "With 'Start after' set for the Paso Doble, the deck stands still\nbetween the call and the first bar while the couples walk on.\nOn, a 🎶 Background pad stays down through that wait as if the\nmusic already played. Off, it comes back in the wait like after\nany other title.":
+        "Если для Пасодобля задан «Старт через», дека стоит между\nобъявлением и первым тактом, пока пары выходят на паркет.\nВкл.: пэд 🎶 Фон остаётся приглушённым всё это ожидание,\nкак будто музыка уже играет. Выкл.: он возвращается в ожидании,\nкак после любого другого трека.",
+    "Off, a title waits until a 🎛 cartwall pad set to 🎶 Background\nhas faded out completely, then starts into silence. The wait is\nthe fade-out time above, or less if the bed is already going down.\nOn, the title starts at once and plays over the fade-out.":
+        "Выкл.: трек ждёт, пока пэд 🎛 картволла с 🎶 Фон полностью\nзатихнет, и начинается в тишине. Ожидание равно времени затухания\nвыше или короче, если фон уже затихает.\nВкл.: трек стартует сразу и звучит поверх затухания.",
+    "🔉↓  Fade by hand over:":
+        "🔉↓  Затухание вручную за:",
+    "as the list's fade-out":
+        "как затухание списка",
+    "How long 🔉↓ Fade out now, 🛑 Fade out and hold, a ⏹ stop at a time\nand the fade before quitting take. The fade at the end of the play\nlength keeps the playlist's own fade-out time.\n0 = the playlist's fade-out time for these as well.":
+        "Сколько длятся 🔉↓ Затухание сейчас, 🛑 Затухание и стоп, остановка\n⏹ по времени и затухание перед выходом. Затухание в конце длины\nвоспроизведения сохраняет время затухания плейлиста.\n0 = и для них время затухания плейлиста.",
+    "🔈  Duck under a voice or pad over:":
+        "🔈  Приглушать под голос или пэд за:",
+    "back up over:":
+        "обратно за:",
+    "How fast the music gets out of the way when the announcer speaks\nor a 🎛 cartwall pad plays, and how fast it comes back after.\nShort down keeps a pad's first beat clear; a slow way up keeps\nthe return from being an event of its own. The 🔉 Duck button\nis not ramped: it is immediate.":
+        "Как быстро музыка уходит, когда говорит диктор или играет пэд 🎛\nкартволла, и как быстро возвращается после. Быстрый спуск\nоставляет первый удар пэда чистым; медленный подъём не делает\nвозврат отдельным событием. Кнопка 🔉 Приглушить работает\nсразу, без плавного перехода.",
+    "🥇  Final: the music plays on":
+        "🥇  Финал: музыка продолжает играть",
+    "After the play length has faded a title of the final out, it comes back up as background while the couples celebrate — until 🔉↓ fades it, the next title starts or the file ends. Only under ✋ Manual: with ⏭ Auto the ⏸ pause and its music follow each title, and a title of the final ends as always.":
+        "Когда длительность воспроизведения увела трек финала в тишину, он снова звучит фоном, пока пары празднуют — пока 🔉↓ не выведет его, не начнётся следующий трек или не закончится файл. Только в режиме ✋ Вручную: при ⏭ Авто за каждым треком следуют ⏸ пауза и её музыка, и трек финала заканчивается как обычно.",
+    "Off":
+        "Выкл.",
+    "After the last dance of the final":
+        "После последнего танца финала",
+    "After every dance of the final":
+        "После каждого танца финала",
+    "Which titles of the final come back up after the play\nlength has faded them out. A round is the final when it\nis named Finale, Final or Endrunde.":
+        "Какие треки финала снова звучат после того, как длительность\nувела их в тишину. Раунд считается финалом, если он\nназывается Finale, Final или Endrunde.",
+    "Level:":
+        "Уровень:",
+    "How loud it comes back, in % of the music's level.":
+        "Насколько громко он возвращается, в % от уровня музыки.",
+    "Up over:":
+        "Нарастание за:",
+    "How long it takes to come back up. 0 = at once.":
+        "Сколько времени он нарастает обратно. 0 = сразу.",
+    "Down over:":
+        "Затухание за:",
+    "How long it takes to go down when 🔉↓ fades it.":
+        "Сколько он затихает, когда 🔉↓ выводит его.",
+    "quieter":
+        "тише",
+    "louder":
+        "громче",
+    "Volume %s %s — hold to glide":
+        "Громкость %s %s — удерживайте для плавного изменения",
+    "Duck to %d %%, again to mute, again back to full":
+        "Приглушить до %d %%, ещё раз — без звука, ещё раз — на полную",
+    "🎶 Pause music: the cartwall's ▶ queue plays its 🎶 Background pads.":
+        "🎶 Музыка в паузе: очередь ▶ картволла играет свои 🎶 фоновые пады.",
+    "mute":
+        "без звука",
+    "🌙  Then:":
+        "🌙  Затем:",
+    "A closing song that plays once the stop has ended the music —\n\"Who moved the clock today\". It plays at the music's volume to\nits end (🔉↓ fades it); then the next title waits for ⏯.\nOnly after the planned stop, never after ⏹ by hand.":
+        "Финальная песня, которая звучит, когда остановка завершила музыку, —\n«Who moved the clock today». Она играет с громкостью музыки\nдо конца (🔉↓ плавно её гасит); затем следующий трек ждёт ⏯.\nТолько после запланированной остановки, не после ⏹ вручную.",
+    "No closing song":
+        "Без финальной песни",
+    "⏹ Stopped as planned — 🌙 the closing song plays, then ⏯ the next title.":
+        "⏹ Остановлено по плану — 🌙 звучит финальная песня, затем ⏯ следующий трек.",
+    "🌙 Closing song not found: %s":
+        "🌙 Финальная песня не найдена: %s",
+    "📄  Move to page":
+        "📄  Перенести на страницу",
+    "“%s” is full: %d of %d pads were moved.":
+        "«%s» заполнена: перенесено %d из %d пэдов.",
+    "🔠  Text size:":
+        "🔠  Размер текста:",
+    "🏅 Background: entrance & awards":
+        "🏅 Фон: выход и награждение",
+    "<b>🏅 Background: entrance & awards</b> — a title with one of these words in its file or folder name, title or comment, comma-separated:":
+        "<b>🏅 Фон: выход и награждение</b> — трек, у которого одно из этих слов есть в имени файла или папки, названии или комментарии, через запятую:",
+    "Upper or lower case does not matter, and a part of a word is\nenough: 'Award' also finds '(Background Award)'. Shown under\n🏅 in the library's category filter and kept out of generated\nplaylists. Leave it empty to go by the folders below only.":
+        "Регистр не важен, достаточно части слова: 'Award' находит и\n'(Background Award)'. Видно под 🏅 в фильтре категорий\nбиблиотеки и никогда не попадает в созданные плейлисты.\nОставьте пустым, чтобы искать только по папкам ниже.",
+    "…and every title in these folders and below, one folder per line:":
+        "…и каждый трек в этих папках и глубже, по одной папке в строке:",
+    "Entrance and award music folder":
+        "Папка с музыкой выхода и награждения",
     "Delete the highlight at %s s": "Удалить кульминацию на %s с",
     "Compensate loudness differences between tracks on playback:\n"
     "each song's measured EBU R128 loudness is pulled towards a\n"
@@ -4748,7 +4880,6 @@ CATALOG = {
     "🐂  PD in": "🐂  PD через",
     "🐂  PD %s in": "🐂  PD %s через",
     "🐂  Paso Doble in %d s": "🐂  Paso Doble через %d с",
-    "⏸  %d s  (paused)": "⏸  %d с  (пауза)",
     "⚠ Could not play: %s": "⚠ Не удалось воспроизвести: %s",
     "⚠ Playback failed: %s": "⚠ Ошибка воспроизведения: %s",
     "unknown error": "неизвестная ошибка",
@@ -5644,4 +5775,42 @@ CATALOG = {
         "Выбор пасодобля для %s в ⚙ Настройки → 🎛 Наборы воспроизведения\n(целиком — то же, что 3-я кульминация). Изменение здесь\nдействует только для этого списка.",
     "🐂 Paso Doble → each round's own pick":
         "🐂 Пасодобль → снова выбор каждого раунда",
+    "Advanced: duck and fade times":
+        "Дополнительно: приглушение и время затухания",
+    "How far the duck goes and how fast, and the fade times of every\nkind of fade. The defaults suit most evenings.":
+        "Насколько и как быстро приглушается музыка, и время каждого\nвида затухания. Значения по умолчанию подходят для большинства вечеров.",
+    "\n🔁 Loop is off in the queue: it plays once":
+        "\n🔁 В очереди повтор выключен: звучит один раз",
+    "➕  Volume − / + buttons beside the player's and the cartwall's slider":
+        "➕  Кнопки − / + рядом с регулятором плеера и Cartwall",
+    "Step the music or the cartwall volume by 2 % a click; held, they glide.\nDouble-click the % readout to type a level instead.":
+        "Меняет громкость музыки или Cartwall на 2 % за щелчок; при удержании — плавно.\nДважды щёлкните по значению %, чтобы ввести уровень.",
+    "Mute the cartwall, again to bring it back":
+        "Выключить звук Cartwall, повторный щелчок вернёт его",
+    "🔌 %d titles are no longer on %s: found on %s, they play from there.":
+        "🔌 %d треков больше нет на %s: найдены на %s и играют оттуда.",
+    "Every text in the app, menus and tables included.\nAbove 115 % the buttons grow with it.\nRead when the app starts, like the theme.":
+        "Весь текст приложения, включая меню и таблицы.\nВыше 115 % кнопки растут вместе с ним.\nЧитается при запуске, как и тема.",
+    "< filename >":
+        "< имя файла >",
+    "How many titles, the one playing now included —\nthe count beside it runs down as they end.":
+        "Сколько треков, включая текущий —\nсчётчик рядом уменьшается с каждым концом.",
+    "Titles still to end, the one playing now included.":
+        "Сколько треков ещё закончится, включая текущий.",
+    "%d left":
+        "осталось %d",
+    "🎚  Start the main player's title while the background is still fading out":
+        "🎚  Запускать трек основного плеера, пока фон ещё затухает",
+    "%s — its own length, then plays on":
+        "%s — своя длительность, затем играет дальше",
+    "Plays on after its length":
+        "Играет дальше после длительности",
+    "Hold:":
+        "Удержание:",
+    "How long it stays at its dip before it comes back up.\n0 = it comes up at once.":
+        "Сколько он остаётся на сниженном уровне, прежде чем нарастать обратно.\n0 = нарастает сразу.",
+    "Dip to:":
+        "Снизить до:",
+    "How low the play-length fade takes it before it comes\nback up, in % of the music's level. 0 = all the way down.\nAt most the level it comes back at.":
+        "Насколько затухание по длительности опускает его, прежде чем\nон снова поднимется, в % от уровня музыки. 0 = до тишины.\nНе выше уровня, на котором он возвращается.",
 }

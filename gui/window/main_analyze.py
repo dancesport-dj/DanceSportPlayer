@@ -7,16 +7,25 @@ sit together, away from what the results are then used for.
 import importlib.util
 import logging
 
-
 HAS_MULTIMEDIA = importlib.util.find_spec("PySide6.QtMultimedia") is not None
+
+from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import (
     QCheckBox,
     QMessageBox,
 )
+
 from gui.common import (
     BusyDialog,
-    _fmt_duration,
+    fmt_duration,
+)
+from gui.workers import (  # auto-resolved
+    AudioAnalyzer,
+    LoudnessAnalyzer,
+    PdHighlightAnalyzer,
+    SilenceAnalyzer,
+    VocalShareAnalyzer,
 )
 from planner import i18n
 from planner.music.vocals import (
@@ -25,15 +34,7 @@ from planner.music.vocals import (
     demucs_available,
     learn_instrumental_probs,
 )
-from gui.workers import (  # auto-resolved
-    AudioAnalyzer,
-    LoudnessAnalyzer,
-    SilenceAnalyzer,
-    PdHighlightAnalyzer,
-    VocalShareAnalyzer,
-)
 from shared.audio.audio_probes import find_ffmpeg
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -79,7 +80,7 @@ class AnalysisMixin(MainWindowHost):
             # `noun` and `unit` stay English at the call sites — the noun is
             # also handed to QMessageBox.warning below, where the patched
             # static translates it — so every line asks for its own here.
-            eta_txt = (i18n.t("  ~%s left") % _fmt_duration(eta)
+            eta_txt = (i18n.t("  ~%s left") % fmt_duration(eta)
                        if eta >= 0 else "")
             self.statusBar().showMessage(
                 f"{i18n.t(noun)}: {done}/{total}{eta_txt}  "

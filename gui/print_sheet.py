@@ -7,7 +7,7 @@ keeps choosing what to print and writing the PDF.
 import html
 import time
 
-from gui.common import _fmt_track_secs
+from gui.common import fmt_track_secs
 from planner.terms import dance_name
 
 
@@ -19,7 +19,7 @@ def deck_print_html(name: str, metas: list) -> list:
         f"<h1 style='margin-bottom:0;'>{esc(name)}</h1>",
         f"<p style='color:#555;'>{time.strftime('%d.%m.%Y %H:%M')} · "
         f"{len(metas)} songs"
-        + (f" · ~{_fmt_track_secs(total_secs)} play time" if total_secs else "")
+        + (f" · ~{fmt_track_secs(total_secs)} play time" if total_secs else "")
         + "</p>"]
     cur_round: object = object()   # sentinel ≠ any round name (incl. "")
     open_table = False
@@ -55,7 +55,7 @@ def deck_print_html(name: str, metas: list) -> list:
             f"<td>{esc(e.title or '')}</td>"
             f"<td>{esc(album)}</td>"
             f"<td align=center>{'T' + str(e.bpm) if e.bpm else ''}</td>"
-            f"<td align=center>{_fmt_track_secs(secs) if secs else ''}</td></tr>")
+            f"<td align=center>{fmt_track_secs(secs) if secs else ''}</td></tr>")
     if open_table:
         parts.append("</table>")
     return parts

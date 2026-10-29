@@ -30,22 +30,25 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtWidgets import QApplication, QLabel, QWidget
-from tests.qt_test_support import reap_widget
 
-from player.audio.fade_now import FadeNow
-from player.audio.mix import OutputMix
-from player.window.main_player import PlayerControlMixin
-from planner.playing.play_sets import (
-    _PARTY_SET, _TOURNAMENT_SET, dblclick_ask_of, play_set_of, tso_of,
-)
-from player.widgets.play_mode_panel import PlayModePanel
-from player.audio.playback_state import PlaybackState
-from shared.columns import _COL_TITLE
+from gui.decks.deck_set import DeckSet
 from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry
+from planner.playing.play_sets import (
+    PARTY_SET,
+    TOURNAMENT_SET,
+    dblclick_ask_of,
+    play_set_of,
+    tso_of,
+)
 from player.audio.between_dances import BetweenDances
-from player.audio.pause_filler import PauseFiller
-from gui.decks.deck_set import DeckSet
+from player.audio.fade_now import FadeNow
+from player.audio.mix import OutputMix
+from player.audio.playback_state import PlaybackState
+from player.widgets.play_mode_panel import PlayModePanel
+from player.window.main_player import PlayerControlMixin
+from shared.columns import _COL_TITLE
+from tests.qt_test_support import reap_widget
 
 # What the panel happens to be standing on before anything is applied — neither
 # set, the way an operator's hand leaves it.
@@ -163,16 +166,16 @@ class PartySetTsoTest(unittest.TestCase):
 
     def test_the_party_set_equalizes_the_volume(self):
         """Party songs come off all sorts of CDs — they must not jump in level."""
-        self.assertIs(_PARTY_SET["loudness"], True)
+        self.assertIs(PARTY_SET["loudness"], True)
 
     def test_a_double_click_plays_at_a_party(self):
         """Someone asks for a song: double-click, and it runs."""
-        self.assertIs(_PARTY_SET["dblclick"], True)
+        self.assertIs(PARTY_SET["dblclick"], True)
 
     def test_a_double_click_only_cues_at_a_tournament(self):
         """A heat starts on ⏯, when the couples stand — not the moment the
         operator picks the next title out of the deck."""
-        self.assertIs(_TOURNAMENT_SET["dblclick"], False)
+        self.assertIs(TOURNAMENT_SET["dblclick"], False)
 
     def test_both_sets_ask_before_a_double_click_stops_a_title(self):
         """❓ On by default in both: a stray double-click must not cut the
@@ -208,7 +211,7 @@ class PartySetTsoTest(unittest.TestCase):
 
     def test_the_operator_can_configure_that_pitch_away(self):
         """⚙ Settings → 🎛 Play sets → 🏆 → 🎚 TSO."""
-        self.desk._settings["tournament_set"] = dict(_TOURNAMENT_SET, tso=False)
+        self.desk._settings["tournament_set"] = dict(TOURNAMENT_SET, tso=False)
         self.desk._set_party_mode(True)
         self.desk._apply_tournament_set()
         self.assertFalse(self.desk._big_player.tso_mode())
@@ -221,13 +224,13 @@ class PartySetTsoTest(unittest.TestCase):
 
     def test_the_two_sets_take_turns(self):
         self.desk._set_party_mode(True)
-        self.assertEqual(self.desk._play_panel.play_set(), _PARTY_SET)
+        self.assertEqual(self.desk._play_panel.play_set(), PARTY_SET)
         self.desk._apply_tournament_set()
-        self.assertEqual(self.desk._play_panel.play_set(), _TOURNAMENT_SET)
+        self.assertEqual(self.desk._play_panel.play_set(), TOURNAMENT_SET)
 
     def test_a_party_can_be_configured_to_keep_the_pitch(self):
         """⚙ Settings → 🎛 Play sets → 🎉 → 🎚 TSO: the operator's word wins."""
-        self.desk._settings["party_set"] = dict(_PARTY_SET, tso=True)
+        self.desk._settings["party_set"] = dict(PARTY_SET, tso=True)
         self.desk._set_party_mode(True)
         self.assertTrue(self.desk._big_player.tso_mode())
 
@@ -256,20 +259,20 @@ class TournamentSetTest(unittest.TestCase):
         self.addCleanup(reap_widget, self.desk)
 
     def test_it_is_what_a_heat_is_run_with(self):
-        """1:45 per song, then out over 2.5 s, started by the operator,
+        """1:45 per song, then out over 3 s, started by the operator,
         nothing spoken in between."""
-        self.assertEqual(_TOURNAMENT_SET["secs"], 105)
-        self.assertEqual(_TOURNAMENT_SET["fade"], 2.5)
-        self.assertIs(_TOURNAMENT_SET["fade_inside"], False)
-        self.assertIs(_TOURNAMENT_SET["advance"], False)
-        self.assertIs(_TOURNAMENT_SET["pause_off"], True)
-        self.assertIs(_TOURNAMENT_SET["announce"], False)
+        self.assertEqual(TOURNAMENT_SET["secs"], 105)
+        self.assertEqual(TOURNAMENT_SET["fade"], 3)
+        self.assertIs(TOURNAMENT_SET["fade_inside"], False)
+        self.assertIs(TOURNAMENT_SET["advance"], False)
+        self.assertIs(TOURNAMENT_SET["pause_off"], True)
+        self.assertIs(TOURNAMENT_SET["announce"], False)
 
     def test_the_paso_doble_stop_is_not_a_panel_value(self):
         """It is not one of the values `apply_play_set` takes — the 🏆 set
         carries it beside them (`pd_of`, see test_tournament_pd) and switches
         it off by default (below)."""
-        for s in (_TOURNAMENT_SET, _PARTY_SET):
+        for s in (TOURNAMENT_SET, PARTY_SET):
             self.assertNotIn("pd_highlight_stop", s)
             self.assertNotIn("pd", s)
 
@@ -314,12 +317,12 @@ class TournamentSetTest(unittest.TestCase):
         for on in (True, False):
             panel = PlayModePanel({"pd_highlight_stop": on})
             self.addCleanup(reap_widget, panel)
-            panel.apply_play_set(**_PARTY_SET)
+            panel.apply_play_set(**PARTY_SET)
             self.assertIs(panel.pd_highlight_stop(), on)
 
     def test_pressing_it_applies_the_competition_values(self):
         self.desk._apply_tournament_set()
-        self.assertEqual(self.desk._play_panel.play_set(), _TOURNAMENT_SET)
+        self.assertEqual(self.desk._play_panel.play_set(), TOURNAMENT_SET)
 
     def test_it_switches_the_party_set_off(self):
         self.desk._set_party_mode(True)
@@ -331,7 +334,7 @@ class TournamentSetTest(unittest.TestCase):
         self.desk._set_party_mode(True)
         self.desk._apply_tournament_set()
         self.desk._set_party_mode(True)
-        self.assertEqual(self.desk._play_panel.play_set(), _PARTY_SET)
+        self.assertEqual(self.desk._play_panel.play_set(), PARTY_SET)
 
     def test_it_is_persisted_like_every_other_play_setting(self):
         self.desk._apply_tournament_set()
@@ -345,7 +348,7 @@ class TournamentSetTest(unittest.TestCase):
         self.assertTrue(desk._big_player.tso_mode())
 
     def test_the_operator_can_configure_the_pitch_away(self):
-        self.desk._settings["tournament_set"] = dict(_TOURNAMENT_SET, tso=False)
+        self.desk._settings["tournament_set"] = dict(TOURNAMENT_SET, tso=False)
         self.desk._big_player.set_tso_mode(True)
         self.desk._apply_tournament_set()
         self.assertFalse(self.desk._big_player.tso_mode())
@@ -379,7 +382,7 @@ class SetOffGoesBackTest(unittest.TestCase):
         self.desk = _Desk()
         self.addCleanup(reap_widget, self.desk)
         self.toasts = []
-        patcher = mock.patch("player.window.main_play_values._show_toast",
+        patcher = mock.patch("player.window.main_play_values.show_toast",
                              lambda _w, text, *_a: self.toasts.append(text))
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -421,13 +424,13 @@ class SetOffGoesBackTest(unittest.TestCase):
         self.desk._set_party_mode(True)
         self.desk._apply_tournament_set()
         self.desk._apply_tournament_set()
-        self.assertEqual(self.desk._play_panel.play_set(), _PARTY_SET)
+        self.assertEqual(self.desk._play_panel.play_set(), PARTY_SET)
         self.assertEqual(self.lights(), (True, False))
 
     def test_switching_back_and_forth_cannot_drift(self):
         for _ in range(3):
             self.desk._set_party_mode(True)
-            self.assertEqual(self.desk._play_panel.play_set(), _PARTY_SET)
+            self.assertEqual(self.desk._play_panel.play_set(), PARTY_SET)
             self.desk._set_party_mode(False)
             self.assertEqual(self.desk._play_panel.play_set(), _HAND_PICKED)
 
@@ -441,20 +444,20 @@ class SetOffGoesBackTest(unittest.TestCase):
     def test_with_nothing_to_go_back_to_the_set_stays_on(self):
         """A panel that started out on the 🏆 values was never pressed onto
         them: there is no 'before' to return to."""
-        self.desk._play_panel._set = dict(_TOURNAMENT_SET)
+        self.desk._play_panel._set = dict(TOURNAMENT_SET)
         self.desk._refresh_set_lights()
         self.desk._apply_tournament_set()
-        self.assertEqual(self.desk._play_panel.play_set(), _TOURNAMENT_SET)
+        self.assertEqual(self.desk._play_panel.play_set(), TOURNAMENT_SET)
         self.assertEqual(self.lights(), (False, True))
         self.assertIn("stays on", self.toasts[-1].split("\n")[0])
 
     def test_the_memory_is_spent_on_the_way_back(self):
         self.desk._apply_tournament_set()
         self.desk._apply_tournament_set()      # off: hand-picked again
-        self.desk._play_panel._set = dict(_TOURNAMENT_SET)
+        self.desk._play_panel._set = dict(TOURNAMENT_SET)
         self.desk._refresh_set_lights()
         self.desk._apply_tournament_set()
-        self.assertEqual(self.desk._play_panel.play_set(), _TOURNAMENT_SET)
+        self.assertEqual(self.desk._play_panel.play_set(), TOURNAMENT_SET)
         self.assertIn("stays on", self.toasts[-1].split("\n")[0])
 
 
@@ -490,7 +493,7 @@ class WhichSetIsOnTest(unittest.TestCase):
         self.desk._apply_tournament_set()
         self.desk._play_panel._set["secs"] = 120
         self.desk._refresh_set_lights()
-        self.desk._play_panel._set["secs"] = _TOURNAMENT_SET["secs"]
+        self.desk._play_panel._set["secs"] = TOURNAMENT_SET["secs"]
         self.desk._refresh_set_lights()
         self.assertEqual(self.lights(), (False, True))
 
@@ -504,7 +507,7 @@ class WhichSetIsOnTest(unittest.TestCase):
     def test_a_configured_set_is_what_they_are_measured_against(self):
         """⚙ Settings → 🎛 Play sets moved the goalposts, so the light moves."""
         self.desk._apply_tournament_set()
-        self.desk._settings["tournament_set"] = dict(_TOURNAMENT_SET, secs=120)
+        self.desk._settings["tournament_set"] = dict(TOURNAMENT_SET, secs=120)
         self.desk._refresh_set_lights()
         self.assertEqual(self.lights(), (False, False))
 
@@ -514,7 +517,7 @@ class WhichSetIsOnTest(unittest.TestCase):
         self.desk._set_party_mode(True)
         self.desk._play_panel._set["secs"] = 120
         self.desk._set_party_mode(True)
-        self.assertEqual(self.desk._play_panel.play_set(), _PARTY_SET)
+        self.assertEqual(self.desk._play_panel.play_set(), PARTY_SET)
 
 
 class PlaySetDefaultsTest(unittest.TestCase):
@@ -525,8 +528,8 @@ class PlaySetDefaultsTest(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def test_an_empty_settings_file_yields_the_built_in_sets(self):
-        self.assertEqual(play_set_of({}, "party"), _PARTY_SET)
-        self.assertEqual(play_set_of({}, "tournament"), _TOURNAMENT_SET)
+        self.assertEqual(play_set_of({}, "party"), PARTY_SET)
+        self.assertEqual(play_set_of({}, "tournament"), TOURNAMENT_SET)
 
     def test_a_configured_set_wins(self):
         got = play_set_of({"tournament_set": {"secs": 120, "announce": True}},
@@ -538,15 +541,15 @@ class PlaySetDefaultsTest(unittest.TestCase):
         """A file written before a field joined the set must not lose the rest."""
         got = play_set_of({"party_set": {"secs": 30}}, "party")
         self.assertEqual(got["secs"], 30)
-        self.assertIs(got["advance"], _PARTY_SET["advance"])
-        self.assertIs(got["loudness"], _PARTY_SET["loudness"])
+        self.assertIs(got["advance"], PARTY_SET["advance"])
+        self.assertIs(got["loudness"], PARTY_SET["loudness"])
 
     def test_a_broken_value_falls_back_instead_of_raising(self):
         got = play_set_of({"party_set": {"secs": "hilfe"}}, "party")
-        self.assertEqual(got["secs"], _PARTY_SET["secs"])
+        self.assertEqual(got["secs"], PARTY_SET["secs"])
 
     def test_a_set_that_is_not_a_dict_is_ignored(self):
-        self.assertEqual(play_set_of({"party_set": "on"}, "party"), _PARTY_SET)
+        self.assertEqual(play_set_of({"party_set": "on"}, "party"), PARTY_SET)
 
     def test_the_tso_pitch_belongs_to_the_set(self):
         self.assertIs(tso_of({}, "tournament"), True)
@@ -570,7 +573,7 @@ class PlaySetDefaultsTest(unittest.TestCase):
     def test_the_desk_reads_the_configured_party_set(self):
         desk = _Desk()
         self.addCleanup(reap_widget, desk)
-        desk._settings["party_set"] = dict(_PARTY_SET, secs=45)
+        desk._settings["party_set"] = dict(PARTY_SET, secs=45)
         desk._set_party_mode(True)
         self.assertEqual(desk._play_panel.play_set()["secs"], 45)
 
@@ -588,7 +591,7 @@ class PartyPanelNoBreakTest(unittest.TestCase):
                                     "auto_advance": False, "timed_enabled": True,
                                     "play_secs": 90})
         self.addCleanup(reap_widget, self.panel)
-        self.panel.apply_play_set(**_PARTY_SET)
+        self.panel.apply_play_set(**PARTY_SET)
 
     def test_the_engine_sees_no_pause_at_all(self):
         self.assertEqual(self.panel.pause_secs(), 0)
@@ -700,12 +703,11 @@ class PauseRowTest(unittest.TestCase):
         panel.pause_check.setChecked(True)
         self.assertEqual(panel.pause_secs(), 15)
 
-    def test_a_pause_switched_off_greys_its_seconds_and_music_out(self):
+    def test_a_pause_switched_off_greys_its_seconds_and_hides_its_music(self):
         panel = self._panel()
         panel.pause_check.setChecked(False)
         self.assertFalse(panel.pause_spin.isEnabled())
-        self.assertFalse(panel.pause_music_box.isEnabled())
-        self.assertFalse(panel.pause_vol_box.isEnabled())
+        self.assertFalse(panel.pause_sub_box.isVisibleTo(panel))
 
     def test_without_auto_advance_the_whole_block_leaves_the_panel(self):
         """Not greyed out — gone. Every song is started by hand there, so a
@@ -715,8 +717,7 @@ class PauseRowTest(unittest.TestCase):
         self.assertFalse(panel.pause_row_box.isVisibleTo(panel))
         self.assertFalse(panel.pause_check.isVisibleTo(panel))
         self.assertFalse(panel.pause_spin.isVisibleTo(panel))
-        self.assertFalse(panel.pause_music_box.isVisibleTo(panel))
-        self.assertFalse(panel.pause_vol_box.isVisibleTo(panel))
+        self.assertFalse(panel.pause_sub_box.isVisibleTo(panel))
 
     def test_switching_auto_advance_back_on_brings_it_back(self):
         panel = self._panel(auto_advance=False)
@@ -724,7 +725,7 @@ class PauseRowTest(unittest.TestCase):
         self.assertTrue(panel.pause_row_box.isVisibleTo(panel))
         self.assertTrue(panel.pause_check.isVisibleTo(panel))
         self.assertTrue(panel.pause_spin.isVisibleTo(panel))
-        self.assertTrue(panel.pause_music_box.isVisibleTo(panel))
+        self.assertTrue(panel.pause_sub_box.isVisibleTo(panel))
 
     def test_a_hidden_pause_is_still_the_configured_one(self):
         """Auto-advance off does not silently switch the pause off — it only
@@ -809,29 +810,24 @@ class _AdvanceDesk(PlayerControlMixin, QWidget):
     panel and the REAL `_queue_auto_advance` / `_on_play_tick`, with the media
     backend, the fade timer and the loudness cache stubbed out."""
 
-    def __init__(self, table, pause_music=()):
+    def __init__(self, table):
         QWidget.__init__(self)
         self._play_panel = PlayModePanel({
             "pause_secs": 15, "pause_enabled": True, "auto_advance": False,
-            "timed_enabled": True, "play_secs": 90,
-            "pause_music": list(pause_music)})
+            "timed_enabled": True, "play_secs": 90})
         self._deckset = DeckSet()
         self._deckset.all_tables = [table]
         self._big_player = None
         self._mix = OutputMix()
         self._player = _MediaStub()
-        self._pause_player = _MediaStub()
-        self._pause_out = _MediaStub()
         self._library = SimpleNamespace(cache=None)  # → _await_loudness has nothing to measure
-        self._filler = PauseFiller()
         self._between = BetweenDances()
+        self._playback = PlaybackState()
         self._between.pending = None
         self._between.round_start = None
         self._between.advance_at = 0.0
         self._between.announced = False
         self._between.quiet_until = 0.0
-        self._between.held = False
-        self._between.fade_end = None
         self._fade_now = FadeNow()
         self._announcer = _Announcer()
         self._fade_timer = _TimerStub()
@@ -863,7 +859,7 @@ class PartyAdvanceNoBreakTest(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
-    def _desk(self, pause_music=()):
+    def _desk(self):
         """A party list of two sections (so it carries a ─── header in the
         middle) on a desk with the party set applied."""
         self.played = []
@@ -873,7 +869,7 @@ class PartyAdvanceNoBreakTest(unittest.TestCase):
             [_warmup_entry("LW", 1), _warmup_entry("TG", 1),
              _warmup_entry("SA", 1), _warmup_entry("CC", 1)],
             "🤸 Eintanzen", "both", "S", False, self.played.append, None)
-        desk = _AdvanceDesk(self.table, pause_music)
+        desk = _AdvanceDesk(self.table)
         self.addCleanup(reap_widget, desk)
         desk._set_party_mode(True)      # what the 🎉 button does
         return desk
@@ -897,14 +893,6 @@ class PartyAdvanceNoBreakTest(unittest.TestCase):
         self.assertIsNotNone(desk._between.pending)
         self.assertIsNone(desk._between.round_start)
         self.assertLessEqual(desk._between.advance_at, time.monotonic())
-
-    def test_no_filler_music_starts_even_when_one_is_configured(self):
-        """The ⏭ off switch means no break, so there is no break to fill."""
-        desk = self._desk(pause_music=[__file__])
-        self.table._current_play_row = self._song_rows()[0]
-        desk._queue_auto_advance()
-        self.assertFalse(desk._filler.active)
-        self.assertEqual(desk._pause_player.played, 0)
 
     def test_the_very_first_tick_starts_the_next_title(self):
         desk = self._desk()

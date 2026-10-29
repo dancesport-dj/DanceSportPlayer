@@ -5,10 +5,12 @@ another machine names files that aren't there any more; this maps them onto the
 search folders the operator picks — in the decks, in the 🎛 cartwall pads and in
 dropped .m3u files.
 """
-import logging
-
 import html
+import logging
 from dataclasses import replace
+from pathlib import Path
+from typing import TYPE_CHECKING
+
 from PySide6.QtCore import (
     Qt,
 )
@@ -23,17 +25,16 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from pathlib import Path
-from planner.models import MusicEntry
-from shared.widgets import (
-    _show_toast,
-)
+
 from gui.dialogs.drop_check import FileDropCheckPanel
-from planner.playing import cartwall
 from planner import i18n
-from planner.music.paths import PathRemapper, foreign_name, home_search_roots
+from planner.models import MusicEntry
+from planner.music.paths import PathRemapper, foreign_name, search_roots
+from planner.playing import cartwall
 from planner.playlist.playlist_text import rerooted, rewrite_playlist_paths
-from typing import TYPE_CHECKING
+from shared.widgets import (
+    show_toast,
+)
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -170,14 +171,7 @@ class PathFixMixin(MainWindowHost):
             for e in lib.entries:
                 by_name.setdefault(Path(e.path).name.lower(), []).append(e)
                 by_path[str(Path(e.path)).lower()] = e
-        roots = [self._settings.get("reference_path") or ""]
-        roots += self._settings.get("remap_paths") or []
-        # Last: on a Mac the C:/F: paths of a carried-over playlist point at
-        # drives that cannot exist, and a fresh install there has nothing
-        # configured to try instead. Never on Windows, where those drives are
-        # this PC's own.
-        roots += home_search_roots()
-        return by_name, by_path, PathRemapper(roots)
+        return by_name, by_path, PathRemapper(search_roots(self._settings))
 
     def _path_fix_tables(self) -> list:
         """The tables the "Open playlists" tab checks: the visible decks, every
@@ -287,7 +281,7 @@ class PathFixMixin(MainWindowHost):
         if not unresolved and not fixed and not off_ref:
             msg.append(i18n.t("✅  All track paths are valid."))
         if fixed:
-            _show_toast(self, (i18n.t("🧭  Fixed %d track path") if fixed == 1
+            show_toast(self, (i18n.t("🧭  Fixed %d track path") if fixed == 1
                                else i18n.t("🧭  Fixed %d track paths")) % fixed)
         return "<br>".join(msg)
 
@@ -335,7 +329,7 @@ class PathFixMixin(MainWindowHost):
             log.info("🧭 Deck tracks moved onto the Reference path\n"
                      "tracks: %s\n"
                      "first: %s", swapped, copies[0][2])
-            _show_toast(self, (
+            show_toast(self, (
                 i18n.t("🧭  Moved %d track onto the Reference path") if swapped == 1
                 else i18n.t("🧭  Moved %d tracks onto the Reference path")) % swapped)
         return swapped
@@ -481,4 +475,4 @@ class PathFixMixin(MainWindowHost):
                 done = i18n.t("🧭  Fixed %d paths in 1 file") % fixed
             else:
                 done = i18n.t("🧭  Fixed %d paths in %d files") % (fixed, files_changed)
-            _show_toast(self, done)
+            show_toast(self, done)

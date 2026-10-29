@@ -16,8 +16,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_tagedits_"))
 
 import planner.music.db as pdb
-from planner.music import tag_edits
 from planner.models import MusicEntry, note_class_tag_use
+from planner.music import tag_edits
 from tests.db_support import use_scratch_db
 
 

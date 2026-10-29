@@ -16,7 +16,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_fullscreen_"))
 
-from PySide6.QtCore import QDateTime, QDate, QTime
+from PySide6.QtCore import QDate, QDateTime, QTime
 from PySide6.QtWidgets import QApplication
 
 from gui.window.main_fullscreen import clock_text
@@ -133,6 +133,7 @@ class ClockSettingTest(unittest.TestCase):
 
     def test_a_box_on_look_off_by_default(self):
         from PySide6.QtWidgets import QTabWidget
+
         from gui.dialogs.settings_dialog import SettingsDialog
         dlg = SettingsDialog({}, None)
         self.addCleanup(dlg.deleteLater)

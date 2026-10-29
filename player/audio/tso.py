@@ -8,7 +8,7 @@ keeps what is glue — setting the tempo, the status line and the log.
 from typing import NamedTuple
 
 import planner.models
-from shared.audio.playback import _TSO_FLOOR_OVERRIDE
+from shared.audio.playback import TSO_FLOOR_OVERRIDE
 
 
 class TsoTarget(NamedTuple):
@@ -17,15 +17,14 @@ class TsoTarget(NamedTuple):
     target: float     # where this title is pitched to
 
 
-def tso_band_of(settings: dict, dance: str) -> str:
+def tso_band_of(settings: dict, dance: str) -> planner.models.TsoBand:
     """Where in its TSO band this dance is pitched — ⚙ Settings → 🎛 Play sets.
 
     Unset dances keep the heat mean, which is what the button did before the
     setting existed."""
     stored = settings.get("tso_band")
     stored = stored if isinstance(stored, dict) else {}
-    band = str(stored.get(dance, "mean"))
-    return band if band in planner.models.TSO_BANDS else "mean"
+    return planner.models.TsoBand.of(stored.get(dance, planner.models.TsoBand.MEAN))
 
 
 def round_strip(deck, row: int) -> int | None:
@@ -55,7 +54,8 @@ def round_takte(deck, row: int, dance: str) -> list:
             and getattr(e, "bpm", 0)]
 
 
-def tso_target(bpms: list, dance: str, own_bpm: float, band: str) -> TsoTarget:
+def tso_target(bpms: list, dance: str, own_bpm: float,
+               band: planner.models.TsoBand | str) -> TsoTarget:
     """The takt a title recorded at `own_bpm` is pitched to in a round on `bpms`.
 
     The one takt the round is danced at — the takt most of it is already on
@@ -64,7 +64,7 @@ def tso_target(bpms: list, dance: str, own_bpm: float, band: str) -> TsoTarget:
     takte were recorded outside it."""
     counts = planner.models.takt_counts(bpms)
     rng = planner.models.TEMPO_RANGES.get(dance, {}).get("S")
-    lo, hi = ((_TSO_FLOOR_OVERRIDE.get(dance, rng[0]), rng[1]) if rng
+    lo, hi = ((TSO_FLOOR_OVERRIDE.get(dance, rng[0]), rng[1]) if rng
               else (None, None))
     danced_at = planner.models.round_takt_target(counts, lo, hi) or own_bpm
     # Where in the TSO band the dance is danced: by default the round's own
@@ -74,7 +74,7 @@ def tso_target(bpms: list, dance: str, own_bpm: float, band: str) -> TsoTarget:
     target = danced_at
     if lo is not None and hi is not None:     # the dance has a band
         target = planner.models.tso_band_target(lo, hi, danced_at, band)
-    if band == "mean":
+    if band == planner.models.TsoBand.MEAN:
         # Never more than a whole takt off what was recorded: a T27 Slow Fox
         # comes up to the 28 it is allowed, not to the 28.5 the rest of the
         # round is on. Past a takt the pitch is heard on the voice.

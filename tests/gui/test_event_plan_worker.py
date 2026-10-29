@@ -21,8 +21,8 @@ from PySide6.QtWidgets import QApplication
 from gui.workers import EventPlanWorker
 from planner.event import event_plan
 from planner.event.competition import parse_competition_schedule
-from tests.planner.test_event_ai import FakeModel
 from tests.planner.event.test_event_variants import EventFixture
+from tests.planner.test_event_ai import FakeModel
 
 
 class EventPlanWorkerTest(EventFixture, unittest.TestCase):

@@ -24,9 +24,9 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtWidgets import QApplication
-from tests.qt_test_support import reap_widget
 
 from tests.player.audio.test_fade_indicator import _Desk
+from tests.qt_test_support import reap_widget
 
 PLAYING = QMediaPlayer.PlaybackState.PlayingState
 
@@ -114,6 +114,26 @@ class FadeBlipTest(unittest.TestCase):
         self.desk.log.append("halt")
         self.desk._stop_play_timer()
         self.assertTrue(all(v <= quiet for v in self.desk.pushed_after("halt")))
+
+    def test_a_hand_fade_during_the_timed_fade_goes_on_down_from_there(self):
+        """The ⏳ fade-out had the title at 30 % when 🔉↓, 🛑 or ✕ came in:
+        their ramp started over at full, so the hall heard the music come back
+        up and fade out a second time."""
+        for start in (self.desk._fade_out_now, self.desk._fade_and_hold,
+                      self.desk._fade_out_to_quit):
+            self.desk._fade_now.cancel()
+            self.desk._mix.fade = 0.3        # where the timed fade had it
+            self.desk.log.append("press")
+            start()
+            self.desk._on_play_tick()
+            pushed = self.desk.pushed_after("press")
+            self.assertTrue(pushed, start.__name__)
+            self.assertTrue(all(v <= 0.3 for v in pushed),
+                            (start.__name__, pushed))
+            # …at the speed of the configured fade: what is left of it
+            self.assertLessEqual(self.desk._fade_now.remaining(),
+                                 0.3 * self.desk._fade_now.total)
+            self.desk.log.clear()
 
     def test_the_next_start_is_at_the_full_level(self):
         self.desk._fade_out_now()

@@ -32,8 +32,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 
 def _ctrl(key):

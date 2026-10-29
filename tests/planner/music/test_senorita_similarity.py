@@ -16,8 +16,7 @@ from pathlib import Path
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 import dancesport_planner as P
-
-from planner.music.parsing import _detect_dance
+from planner.music.parsing import detect_dance
 
 # The exact file from the user's screenshots (falls back to the C: mirror).
 ANCHOR_CANDIDATES = [
@@ -38,7 +37,7 @@ def _first_existing(paths):
 
 def _build_entry(path: Path) -> P.MusicEntry:
     """Lightweight MusicEntry: dance from the filename (enough for this timbre test)."""
-    return P.MusicEntry(path=path, title=path.stem, dance=_detect_dance(path.name))
+    return P.MusicEntry(path=path, title=path.stem, dance=detect_dance(path.name))
 
 
 def main():

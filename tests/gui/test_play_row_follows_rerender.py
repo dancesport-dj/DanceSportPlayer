@@ -13,16 +13,17 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_playrow_"))
 
 from PySide6.QtWidgets import QApplication
-from tests.qt_test_support import reap_widget
 
 from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry, RoundConfig
+from tests.qt_test_support import reap_widget
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -145,6 +146,78 @@ class RemovingThePlayingTitleStopsItTest(unittest.TestCase):
         self.t._remove_dynamic_heat(self._row_of("TG 2"))
         self.assertEqual(self.desk.calls, [])
         self.assertEqual(self._marked_title(), self.playing.title)
+
+
+class LoadingAnotherFlatListStopsItTest(unittest.TestCase):
+    """BUG_REVIEW B5.3: only `load()` told the desk its playing title was
+    gone. A theme, warm-up, running order or wishlist loaded over the playing
+    one — or a warm-up edit that took the title out — left it running with no
+    ■ anywhere, and ⏭ / auto-advance with nowhere to go on from."""
+
+    _row_of = PlayRowFollowsRerenderTest._row_of
+    _start = PlayRowFollowsRerenderTest._start
+
+    def setUp(self):
+        PlayRowFollowsRerenderTest.setUp(self)
+        from tests.player.test_double_click_play import _Desk
+        self.first = [_e("LW", 1), _e("TG", 2), self.playing, _e("TG", 4)]
+        self.other = [_e("SW", 5), _e("VW", 6)]
+        self.desk = _Desk(playing=self.playing.path)
+        self.desk._between.pending = None
+
+    def _play_in(self, load):
+        load(self.first)
+        self._start()
+        self.t.loaded.connect(self.desk._stop_if_playing_from)  # as MainWindow wires it
+
+    def _theme(self, entries):
+        self.t.load_theme(entries, "Theme", play_cb=lambda *a: None, suggester=None)
+
+    def _warmup(self, entries):
+        self.t.load_warmup(entries, "Warm-up", style="S", dance_class="S",
+                           relax=True, play_cb=lambda *a: None, suggester=None)
+
+    def _player_list(self, entries):
+        self.t.load_player_list(entries, "Order", play_cb=lambda *a: None)
+
+    def _wishlist(self, entries):
+        self.t.load_wishlist(entries, play_cb=lambda *a: None, suggester=None)
+
+    def test_each_loader_stops_a_title_it_no_longer_holds(self):
+        for load in (self._theme, self._warmup, self._player_list, self._wishlist):
+            with self.subTest(load.__name__):
+                self.desk.calls.clear()
+                self.desk._playback.path = self.playing.path
+                self._play_in(load)
+                load(self.other)
+                self.t.loaded.disconnect(self.desk._stop_if_playing_from)
+                self.assertIn((None, True), self.desk.calls)
+                self.assertEqual(self.t._current_play_row, -1)
+
+    def test_each_loader_keeps_a_title_it_still_holds(self):
+        for load in (self._theme, self._warmup, self._player_list, self._wishlist):
+            with self.subTest(load.__name__):
+                self.desk.calls.clear()
+                self._play_in(load)
+                load(self.other + [self.playing])
+                self.t.loaded.disconnect(self.desk._stop_if_playing_from)
+                self.assertEqual(self.desk.calls, [])
+
+    def test_a_warmup_edit_that_drops_the_title_stops_it(self):
+        self._play_in(self._warmup)
+        with mock.patch.object(self.t, "load_warmup",
+                               side_effect=AssertionError("not edited in place")):
+            self.t._reload_warmup([e for e in self.first if e is not self.playing])
+        self.assertIn((None, True), self.desk.calls)
+        self.assertEqual(self.t._current_play_row, -1)
+
+    def test_a_warmup_edit_elsewhere_keeps_playing(self):
+        self._play_in(self._warmup)
+        with mock.patch.object(self.t, "load_warmup",
+                               side_effect=AssertionError("not edited in place")):
+            self.t._reload_warmup(self.first[:3])
+        self.assertEqual(self.desk.calls, [])
+        self.assertEqual(self.t._row_meta.at(self.t._current_play_row).entry, self.playing)
 
 
 if __name__ == "__main__":

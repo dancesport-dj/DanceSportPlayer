@@ -37,7 +37,7 @@ import logging
 import math
 import re
 
-from PySide6.QtGui import QColor, QPalette
+from PySide6.QtGui import QColor, QFont, QPalette
 
 from shared.appearance import looks
 
@@ -126,6 +126,14 @@ def is_theme(key: str) -> bool:
 
 _active_theme = "light"
 _active_accent = ACCENT_DEFAULT
+
+# 🔠 Text size in percent of the built size, read at start-up like the
+# theme. Above BUTTONS_FOLLOW the buttons grow with it, 🔘 the player's
+# primary ones and every button with a fixed width.
+FONT_SCALES = (100, 105, 110, 115, 130, 150)
+BUTTONS_FOLLOW = 115
+_font_scale = 100
+_button_scaler = None
 
 
 # ── sRGB ↔ Oklab ─────────────────────────────────────────────────────────────
@@ -325,10 +333,31 @@ _HEX_RE = re.compile(r"#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})(?![0-9a-zA-Z])")
 _DECL_RE = re.compile(r"([-a-zA-Z]+)\s*:\s*([^;{}]*)")
 
 
+_FONT_SIZE_RE = re.compile(r"(font-size\s*:\s*)(\d+(?:\.\d+)?)(px|pt)",
+                           re.IGNORECASE)
+
+
+def scale_fonts(sheet: str, pct: int | None = None) -> str:
+    """Every `font-size` in a stylesheet at the 🔠 text size."""
+    pct = _font_scale if pct is None else pct
+    if pct == 100 or not sheet:
+        return sheet
+
+    def grow(match: re.Match) -> str:
+        size = float(match.group(2)) * pct / 100
+        text = (str(max(1, round(size))) if match.group(3).lower() == "px"
+                else f"{round(size, 1):g}")
+        return match.group(1) + text + match.group(3)
+
+    return _FONT_SIZE_RE.sub(grow, sheet)
+
+
 def qss(sheet: str) -> str:
     """Rewrite every colour in a stylesheet (or an inline HTML `style=`) for the
-    active theme. The identity function in light mode with the default accent,
-    so the untouched app keeps exactly the look it has."""
+    active theme, and every font size for the 🔠 text size. The identity
+    function in light mode with the default accent at 100 %, so the untouched
+    app keeps exactly the look it has."""
+    sheet = scale_fonts(sheet)
     if not sheet or (not is_dark() and _active_accent.lower() == ACCENT_DEFAULT):
         return sheet
     if sheet.startswith(looks.LOOK_MARK):
@@ -379,8 +408,33 @@ def set_active(theme: str = "light", accent: str = ACCENT_DEFAULT) -> None:  # s
         _active_accent = look.tokens.accent.lower()
 
 
+def font_scale_of(settings: dict) -> int:
+    """🔠 The text size in percent, falling back to 100."""
+    try:
+        want = int((settings or {}).get("font_scale", 100))
+    except (TypeError, ValueError):
+        return 100
+    return want if want in FONT_SCALES else 100
+
+
+def set_font_scale(pct: int) -> None:
+    global _font_scale
+    _font_scale = pct if pct in FONT_SCALES else 100
+
+
+def font_scale() -> int:
+    return _font_scale
+
+
+def button_scale() -> int:
+    """🔘 The button size: the text size once it is above BUTTONS_FOLLOW,
+    the built size below — a few percent more text still fits."""
+    return _font_scale if _font_scale > BUTTONS_FOLLOW else 100
+
+
 def apply_settings(settings: dict) -> None:  # slop-mop noqa: ambiguity-mine - the settings hook each settings-driven module has
     set_active(theme_of(settings), accent_of(settings))
+    set_font_scale(font_scale_of(settings))
 
 
 def active_theme() -> str:
@@ -396,7 +450,7 @@ def is_dark() -> bool:
     return _active_theme == "dark" or (look is not None and look.dark)
 
 
-def active_look() -> "looks.Look | None":
+def active_look() -> looks.Look | None:
     """The 🎨 look in force, or None under the classic light / dark."""
     return looks.get(_active_theme)
 
@@ -520,25 +574,87 @@ def install_titlebar_hook() -> None:
     log.debug("🎨 Title-bar hook installed")
 
 
+_QT_MAX = 16777215       # QWIDGETSIZE_MAX: no cap
+
+
+def scale_fixed_size(button, pct: int) -> None:
+    """🔘 A fixed width or height, or a capped width, at `pct` percent. A
+    free button sizes from its text and grows with the font by itself; a
+    fixed one would cut its grown caption off. Remembered on the button, so
+    a second look leaves it alone — unless the code has set it anew."""
+    for axis, low, high, set_low, set_high in (
+            ("w", button.minimumWidth, button.maximumWidth,
+             button.setMinimumWidth, button.setMaximumWidth),
+            ("h", button.minimumHeight, button.maximumHeight,
+             button.setMinimumHeight, button.setMaximumHeight)):
+        prop = "fontScaled_" + axis
+        cap = high()
+        if cap >= _QT_MAX or button.property(prop) == cap:
+            continue
+        grown = round(cap * pct / 100)
+        if low() == cap:
+            set_low(grown)
+        elif axis == "h":
+            continue        # a capped height keeps a row flat on purpose
+        set_high(grown)
+        button.setProperty(prop, grown)
+
+
+def install_button_scale_hook() -> None:
+    """Grow every button with a fixed size as it shows, the ones in dialogs
+    not built yet included — the same app-wide filter as the title bar's.
+    Only above BUTTONS_FOLLOW, so the usual app pays nothing for it."""
+    global _button_scaler
+    from PySide6.QtCore import QEvent, QObject
+    from PySide6.QtWidgets import QAbstractButton, QApplication
+
+    pct = button_scale()
+    app = QApplication.instance()
+    if _button_scaler is not None or pct == 100 or app is None:
+        return
+
+    class _ButtonScaler(QObject):
+        def eventFilter(self, obj, event):
+            if (event.type() == QEvent.Type.Show
+                    and isinstance(obj, QAbstractButton)):
+                scale_fixed_size(obj, pct)
+            return False
+
+    _button_scaler = _ButtonScaler(app)
+    app.installEventFilter(_button_scaler)
+    log.debug("🔘 Button scale hook installed\n"
+              "scale: %d %%", pct)
+
+
+def remove_button_scale_hook() -> None:
+    global _button_scaler
+    from PySide6.QtWidgets import QApplication
+
+    app = QApplication.instance()
+    if _button_scaler is not None and app is not None:
+        app.removeEventFilter(_button_scaler)
+    _button_scaler = None
+
+
 # The QColor constants tables paint rows with directly. Role comes from the
 # name: a _BG/_ROW_* is a ground, a _FG is ink.
 _SHARED_COLORS = (
-    ("gui.common", "_C_ROUND_BG", "ground"),
-    ("gui.common", "_C_ROUND_FG", "ink"),
-    ("gui.common", "_C_DANCE_BG", "ground"),
-    ("gui.common", "_C_DANCE_FG", "ink"),
-    ("gui.common", "_C_ROW_EVEN", "ground"),
-    ("gui.common", "_C_ROW_ODD", "ground"),
-    ("gui.common", "_C_POP_FG", "ink"),
-    ("gui.common", "_C_NEW_FG", "ink"),
-    ("gui.common", "_C_SIM_FG", "ink"),
-    ("gui.common", "_C_WARN_FG", "ink"),
-    ("gui.common", "_C_LEN_WARN_FG", "ink"),
-    ("gui.common", "_C_DEFAULT", "ink"),
+    ("gui.common", "C_ROUND_BG", "ground"),
+    ("gui.common", "C_ROUND_FG", "ink"),
+    ("gui.common", "C_DANCE_BG", "ground"),
+    ("gui.common", "C_DANCE_FG", "ink"),
+    ("gui.common", "C_ROW_EVEN", "ground"),
+    ("gui.common", "C_ROW_ODD", "ground"),
+    ("gui.common", "C_POP_FG", "ink"),
+    ("gui.common", "C_NEW_FG", "ink"),
+    ("gui.common", "C_SIM_FG", "ink"),
+    ("gui.common", "C_WARN_FG", "ink"),
+    ("gui.common", "C_LEN_WARN_FG", "ink"),
+    ("gui.common", "C_DEFAULT", "ink"),
     ("gui.table.playlist_table", "_C_MARK_BG", "ground"),
     ("gui.table.playlist_table", "_C_MARK_FG", "ink"),
     ("gui.table.playlist_table", "_C_ISSUE_BG", "ground"),
-    ("gui.table.table_load", "_C_MISSING_BG", "ground"),
+    ("gui.table.table_load", "C_MISSING_BG", "ground"),
     ("gui.tournament_tree", "_C_MISS_BG", "ground"),
     # Class attributes rather than module constants — the resolver walks a
     # dotted path either way, they were simply never listed.
@@ -551,8 +667,8 @@ _SHARED_COLORS = (
     ("gui.table.playlist_table", "_NumberHeader._BG", "ground"),
     ("gui.table.playlist_table", "_NumberHeader._FG", "ink"),
     ("gui.table.playlist_table", "_NumberHeader._LINE", "line"),
-    ("player.widgets.panel_parts", "_Toggle._OFF_TRACK", "ground"),
-    ("player.widgets.panel_parts", "_Toggle._DISABLED_TEXT", "ink"),
+    ("player.widgets.panel_parts", "Toggle._OFF_TRACK", "ground"),
+    ("player.widgets.panel_parts", "Toggle._DISABLED_TEXT", "ink"),
 )
 
 
@@ -570,7 +686,7 @@ def sync_shared_colors() -> None:
     for module_name, attr, role in _SHARED_COLORS:
         try:
             color = importlib.import_module(module_name)  # names from the _SHARED_COLORS constant; nosemgrep: python.lang.security.audit.non-literal-import.non-literal-import
-            for part in attr.split("."):    # "_Toggle._OFF_TRACK" — a widget
+            for part in attr.split("."):    # "Toggle._OFF_TRACK" — a widget
                 color = getattr(color, part)  # that paints its own colours
         except (ImportError, AttributeError):
             log.debug("🎨 %s.%s not present, skipped", module_name, attr)
@@ -630,7 +746,7 @@ def app_palette() -> QPalette:
     return pal
 
 
-def look_palette(look: "looks.Look") -> QPalette:
+def look_palette(look: looks.Look) -> QPalette:
     """The palette of a 🎨 look: straight from its tokens."""
     tok = look.tokens
     pal = QPalette()
@@ -662,8 +778,17 @@ def apply_app(app) -> None:
     transform a second time it would be shaded twice."""
     app.setPalette(app_palette())
     look = active_look()
+    font = looks.font(look, app.font()) if look is not None else QFont(app.font())
+    if _font_scale != 100:          # 🔠 the text size grows the app font too
+        if font.pointSizeF() > 0:
+            font.setPointSizeF(font.pointSizeF() * _font_scale / 100)
+        else:
+            font.setPixelSize(round(font.pixelSize() * _font_scale / 100))
     if look is None:
+        if _font_scale != 100:
+            app.setFont(font)
         return
-    app.setFont(looks.font(look, app.font()))
-    (_raw_app_set_stylesheet or type(app).setStyleSheet)(app, looks.stylesheet(look))
+    app.setFont(font)
+    (_raw_app_set_stylesheet or type(app).setStyleSheet)(
+        app, scale_fonts(looks.stylesheet(look)))
     log.debug("🎨 Look applied: %s", look.key)

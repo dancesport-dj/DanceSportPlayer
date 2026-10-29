@@ -22,10 +22,10 @@ if "DANCEPLAYLIST_STATE_DIR" not in os.environ:
 
 def _rec(idx: int, path: str, dance: str, exact: str = ""):
     """A report record like _check_dropped_duplicates builds them."""
-    from planner.music.parsing import _song_title_keys
+    from planner.music.parsing import song_title_keys
     return {"idx": idx, "title": Path(path).stem, "path": path,
             "exact": exact or f"p:{path.lower()}",
-            "tkeys": _song_title_keys(path), "dance": dance}
+            "tkeys": song_title_keys(path), "dance": dance}
 
 
 class WithinListPdTest(unittest.TestCase):

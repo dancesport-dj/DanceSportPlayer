@@ -9,13 +9,13 @@ from types import SimpleNamespace
 from mutagen.id3 import ID3, TCOM, TIT2
 from PySide6.QtMultimedia import QMediaPlayer
 
-from planner.playing import play_counts, play_log
-from planner.models import MusicEntry
-from tests.db_support import use_scratch_db
-from player.audio.fade_now import FadeNow
-from player.window.main_player import PlayerControlMixin
-from player.audio.playback_state import PlaybackState
 from gui.decks.deck_set import DeckSet
+from planner.models import MusicEntry
+from planner.playing import play_counts, play_log
+from player.audio.fade_now import FadeNow
+from player.audio.playback_state import PlaybackState
+from player.window.main_player import PlayerControlMixin
+from tests.db_support import use_scratch_db
 
 PLAYING = QMediaPlayer.PlaybackState.PlayingState
 # One MPEG-1 Layer III frame header (128 kbit/s, 44.1 kHz): 417 bytes a frame.
@@ -66,7 +66,9 @@ class _Desk(PlayerControlMixin):
         self._playback = PlaybackState(path=self.entry.path, dance="WW")
         self._library = SimpleNamespace(cache=object())
         self._playing = playing
-        self._between = SimpleNamespace(pending=None)
+        self._between = SimpleNamespace(pending=None,
+                                        xfade=SimpleNamespace(state="idle"))
+        self._play_panel = SimpleNamespace(stop_fade_due=lambda now, played: False)
         self._fade_now = FadeNow()
         self._played_marked = False
         self._PLAYED_AFTER_MS = 10_000

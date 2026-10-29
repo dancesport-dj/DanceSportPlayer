@@ -19,8 +19,13 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_retag_"))
 
 from planner.music.db import (
-    _AUDIO_FEAT_DIM, _FP_SAMPLE, AudioCache, AudioFeatures, _db,
-    _fingerprints, _tag_offsets,
+    AUDIO_FEAT_DIM,
+    FP_SAMPLE,
+    AudioCache,
+    AudioFeatures,
+    _db,
+    fingerprints,
+    tag_offsets,
 )
 from tests.db_support import use_scratch_db
 
@@ -45,20 +50,20 @@ class TagOffsetsTest(unittest.TestCase):
     """What counts as tag, from the two byte windows the fingerprint already reads."""
 
     def test_an_untagged_file_is_all_audio(self):
-        self.assertEqual(_tag_offsets(_AUDIO[:64], _AUDIO[-64:]), (0, 0))
+        self.assertEqual(tag_offsets(_AUDIO[:64], _AUDIO[-64:]), (0, 0))
 
     def test_the_id3v2_size_is_read_synchsafe(self):
         blob = _mp3(front=300)
-        self.assertEqual(_tag_offsets(blob[:512], blob[-512:])[0], 310)
+        self.assertEqual(tag_offsets(blob[:512], blob[-512:])[0], 310)
 
     def test_a_trailing_id3v1_block_is_128_bytes(self):
         blob = _mp3(id3v1=_v1(b"Tusch"))
-        self.assertEqual(_tag_offsets(blob[:512], blob[-512:])[1], 128)
+        self.assertEqual(tag_offsets(blob[:512], blob[-512:])[1], 128)
 
     def test_an_ape_tag_is_measured_from_its_footer(self):
         ape = (b"APETAGEX" + (2000).to_bytes(4, "little") + (64).to_bytes(4, "little")
                + (1).to_bytes(4, "little") + (0).to_bytes(4, "little") + b"\x00" * 8)
-        self.assertEqual(_tag_offsets(b"", b"x" * 100 + ape)[1], 64)
+        self.assertEqual(tag_offsets(b"", b"x" * 100 + ape)[1], 64)
 
 
 class AudioFingerprintTest(unittest.TestCase):
@@ -77,36 +82,54 @@ class AudioFingerprintTest(unittest.TestCase):
         p = self._write("plain.mp3", blob)
         h = hashlib.sha1()
         h.update(str(len(blob)).encode())
-        h.update(blob[:_FP_SAMPLE])
-        h.update(blob[-_FP_SAMPLE:])
-        self.assertEqual(_fingerprints(p)[0],
+        h.update(blob[:FP_SAMPLE])
+        h.update(blob[-FP_SAMPLE:])
+        self.assertEqual(fingerprints(p)[0],
                          f"{len(blob)}_{h.hexdigest()[:20]}")
 
     def test_a_retag_changes_the_content_key_but_not_the_audio_one(self):
         before = self._write("a.mp3", _mp3(front=120, id3v1=_v1(b"Old Title")))
         after = self._write("b.mp3", _mp3(front=4096, id3v1=_v1(b"New Title")))
-        fp_before, afp_before = _fingerprints(before)
-        fp_after, afp_after = _fingerprints(after)
+        fp_before, afp_before = fingerprints(before)
+        fp_after, afp_after = fingerprints(after)
         self.assertNotEqual(fp_before, fp_after)
         self.assertEqual(afp_before, afp_after)
 
     def test_a_cover_art_tag_larger_than_the_head_sample_still_matches(self):
         """The audio window then lies past the buffer — it gets re-read."""
         plain = self._write("plain2.mp3", _mp3())
-        arty = self._write("arty.mp3", _mp3(front=_FP_SAMPLE + 4096))
-        self.assertEqual(_fingerprints(plain)[1], _fingerprints(arty)[1])
+        arty = self._write("arty.mp3", _mp3(front=FP_SAMPLE + 4096))
+        self.assertEqual(fingerprints(plain)[1], fingerprints(arty)[1])
 
     def test_a_short_jingle_sees_its_trailing_tag_too(self):
         """Under 512 KB nothing is read from the end for the content hash."""
         audio = bytes(range(256)) * 40      # 10 KB, a cartwall Tusch
         bare = self._write("t1.mp3", _mp3(audio))
         tagged = self._write("t2.mp3", _mp3(audio, front=64, id3v1=_v1(b"Tusch")))
-        self.assertEqual(_fingerprints(bare)[1], _fingerprints(tagged)[1])
+        self.assertEqual(fingerprints(bare)[1], fingerprints(tagged)[1])
+
+    def test_a_short_file_s_tag_edit_in_place_changes_its_content_key(self):
+        """Between 256 and 512 KB only the head was hashed: an ID3v1 edit that
+        keeps the size kept the key, and the scan cache its stale tags
+        (BUG_REVIEW B6.3)."""
+        audio = _AUDIO[:300 * 1024]
+        old = self._write("j1.mp3", _mp3(audio, id3v1=_v1(b"Old comment")))
+        new = self._write("j2.mp3", _mp3(audio, id3v1=_v1(b"New comment")))
+        self.assertNotEqual(fingerprints(old)[0], fingerprints(new)[0])
+        self.assertEqual(fingerprints(old)[1], fingerprints(new)[1])
+
+    def test_a_file_within_the_head_sample_keeps_the_key_it_has(self):
+        blob = _AUDIO[:100 * 1024]
+        p = self._write("small.mp3", blob)
+        h = hashlib.sha1()
+        h.update(str(len(blob)).encode())
+        h.update(blob)
+        self.assertEqual(fingerprints(p)[0], f"{len(blob)}_{h.hexdigest()[:20]}")
 
     def test_different_music_gets_a_different_audio_fingerprint(self):
         one = self._write("one.mp3", _mp3(_AUDIO, front=64))
         two = self._write("two.mp3", _mp3(_AUDIO[::-1], front=64))
-        self.assertNotEqual(_fingerprints(one)[1], _fingerprints(two)[1])
+        self.assertNotEqual(fingerprints(one)[1], fingerprints(two)[1])
 
     def test_a_tag_size_past_the_end_of_the_file_is_not_believed(self):
         """L1: a broken ID3 header claiming more bytes than the file has left
@@ -115,11 +138,11 @@ class AudioFingerprintTest(unittest.TestCase):
         broken = b"ID3\x04\x00\x00" + _synchsafe_bytes(50_000_000)
         one = self._write("one.mp3", broken + _AUDIO)
         two = self._write("two.mp3", broken + _AUDIO[::-1])
-        self.assertNotEqual(_fingerprints(one)[1], _fingerprints(two)[1])
+        self.assertNotEqual(fingerprints(one)[1], fingerprints(two)[1])
 
 
 def _features(bpm: float) -> AudioFeatures:
-    return AudioFeatures(bpm=bpm, mfcc=[0.5] * _AUDIO_FEAT_DIM, centroid=1.0, rms=0.25,
+    return AudioFeatures(bpm=bpm, mfcc=[0.5] * AUDIO_FEAT_DIM, centroid=1.0, rms=0.25,
                          mfcc_mean=[0.1] * 20, mfcc_cov=[0.2] * 400)
 
 
@@ -219,12 +242,12 @@ class AudioFingerprintLookupTest(unittest.TestCase):
     def test_a_later_session_reads_it_off_the_database(self):
         c = self._file("c.mp3", _mp3(front=120))
         want = AudioCache().audio_fingerprint(c)
-        real = self.pdb._fingerprints
+        real = self.pdb.fingerprints
 
         def no_read(_path):
             raise AssertionError("the file was read again")
-        self.pdb._fingerprints = no_read
-        self.addCleanup(setattr, self.pdb, "_fingerprints", real)
+        self.pdb.fingerprints = no_read
+        self.addCleanup(setattr, self.pdb, "fingerprints", real)
         self.assertEqual(AudioCache().audio_fingerprint(c), want)
 
     def test_a_file_hashed_before_the_table_existed_gets_one_now(self):

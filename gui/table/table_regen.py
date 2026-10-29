@@ -10,13 +10,13 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QMessageBox
 
+from gui.common import C_ROW_EVEN, C_ROW_ODD
 from planner import i18n
 from planner.generate.warmup import warmup_swap_partner
-from planner.models import ALLOW_REPEAT
+from planner.models import ALLOW_REPEAT, Strategy
 from planner.terms import dance_name
 from shared.columns import _COL_TITLE
-from shared.widgets import _show_toast
-from gui.common import _C_ROW_EVEN, _C_ROW_ODD
+from shared.widgets import show_toast
 
 if TYPE_CHECKING:
     from gui.window.hosts import PlaylistTableHost
@@ -86,14 +86,14 @@ class TableRegenMixin(PlaylistTableHost):
             if meta.theme:
                 return   # theme rows have no round/tier context to regenerate from
             if self._is_row_pinned(row):
-                _show_toast(self, i18n.t("📌  Pinned — unpin the title to re-roll it"))
+                show_toast(self, i18n.t("📌  Pinned — unpin the title to re-roll it"), error=True)
                 return
             suggester = self._suggester
             if not suggester or not self._playlist:
                 return
 
             dance = meta.dance
-            tier  = meta.tier
+            tier = meta.tier
 
             # Build exclusion set: every current entry AND any library copy of it
             # (same filename / fingerprint), so a re-roll can't return a duplicate of
@@ -112,7 +112,7 @@ class TableRegenMixin(PlaylistTableHost):
                     prefer_fresh=meta.prefer_fresh,
                     round_name=meta.round_name,
                     use_timbre=self._use_timbre,
-                    strategy=meta.strategy or None,
+                    strategy=meta.strategy,
                     style=r_style,
                     candidates=self._round_pools_by_name.get(meta.round_name),
                     anchor=self._effective_anchor(meta.round_name, {row}),
@@ -131,7 +131,7 @@ class TableRegenMixin(PlaylistTableHost):
 
             # Defer row redraw so it happens after the clicked signal returns.
             # Replacing a cell widget while inside its signal handler can crash.
-            bg = _C_ROW_EVEN if meta.h_idx % 2 == 0 else _C_ROW_ODD
+            bg = C_ROW_EVEN if meta.h_idx % 2 == 0 else C_ROW_ODD
 
             def _after():
                 self._fill_song_row(row, meta, bg)
@@ -162,8 +162,8 @@ class TableRegenMixin(PlaylistTableHost):
         k = warmup_swap_partner(self._row_meta.entries(), song_rows.index(row))
         if k is None:
             dance = self._row_meta[row].dance
-            _show_toast(self, i18n.t("↺  No other %s near the end of the list")
-                        % dance_name(dance, dance))
+            show_toast(self, i18n.t("↺  No other %s near the end of the list")
+                        % dance_name(dance, dance), error=True)
             return
         partner = song_rows[k]
         # Deferred: the ↺ button that fired this is one of the widgets redrawn.
@@ -178,9 +178,7 @@ class TableRegenMixin(PlaylistTableHost):
         self._row_meta.swap(a, b)
         song_rows = self._row_meta.song_rows()
         for r, m in ((a, ma), (b, mb)):
-            for c in range(self.columnCount()):
-                self._played_saved.pop((r, c), None)
-            bg = _C_ROW_EVEN if song_rows.index(r) % 2 == 0 else _C_ROW_ODD
+            bg =C_ROW_EVEN if song_rows.index(r) % 2 == 0 else C_ROW_ODD
             self._fill_song_row(r, m, bg)
             if r == self._current_play_row:
                 self.sync_play_glyph()
@@ -218,7 +216,7 @@ class TableRegenMixin(PlaylistTableHost):
         meta.entry = new_entry
         # Striped by song, as load_warmup does: a section header has its own row.
         song_idx = self._row_meta.song_rows().index(row)
-        bg = _C_ROW_EVEN if song_idx % 2 == 0 else _C_ROW_ODD
+        bg = C_ROW_EVEN if song_idx % 2 == 0 else C_ROW_ODD
 
         def _after():
             self._fill_song_row(row, meta, bg)
@@ -271,7 +269,7 @@ class TableRegenMixin(PlaylistTableHost):
                     prefer_fresh=meta.prefer_fresh,
                     round_name=meta.round_name,
                     use_timbre=self._use_timbre,
-                    strategy=meta.strategy or None,
+                    strategy=meta.strategy,
                     style=r_style,
                     candidates=self._round_pools_by_name.get(meta.round_name),
                     anchor=seg_anchor,
@@ -294,7 +292,7 @@ class TableRegenMixin(PlaylistTableHost):
             def _redraw():
                 for r in target_rows:
                     meta = self._row_meta[r]
-                    bg = _C_ROW_EVEN if meta.h_idx % 2 == 0 else _C_ROW_ODD
+                    bg = C_ROW_EVEN if meta.h_idx % 2 == 0 else C_ROW_ODD
                     self._fill_song_row(r, meta, bg)
                 # A playing title keeps playing; its row gets its ■ back.
                 if self._current_play_row in target_rows:
@@ -329,14 +327,14 @@ class TableRegenMixin(PlaylistTableHost):
                 return
 
             all_rows = [r for rows in rows_by_dance.values() for r in rows]
-            picked_any  = False
+            picked_any = False
 
             # Re-roll dance by dance. `exclude` is rebuilt per dance so that
             # already-replaced dances (with their new picks) and untouched
             # rounds keep every slot unique.
             for d_idx in sorted(rows_by_dance):
                 seg_rows = rows_by_dance[d_idx]
-                dance    = self._row_meta[seg_rows[0]].dance
+                dance = self._row_meta[seg_rows[0]].dance
 
                 replacing = set(seg_rows)
                 keep = [m.entry for r, m in self._row_meta.numbered()
@@ -353,7 +351,7 @@ class TableRegenMixin(PlaylistTableHost):
                         prefer_fresh=meta.prefer_fresh,
                         round_name=round_name,
                         use_timbre=self._use_timbre,
-                        strategy=meta.strategy or None,
+                        strategy=meta.strategy,
                         style=r_style,
                         candidates=self._round_pools_by_name.get(round_name),
                         anchor=seg_anchor,
@@ -373,7 +371,7 @@ class TableRegenMixin(PlaylistTableHost):
             def _redraw():
                 for r in all_rows:
                     meta = self._row_meta[r]
-                    bg = _C_ROW_EVEN if meta.h_idx % 2 == 0 else _C_ROW_ODD
+                    bg = C_ROW_EVEN if meta.h_idx % 2 == 0 else C_ROW_ODD
                     self._fill_song_row(r, meta, bg)
                 if self._current_play_row in all_rows:
                     self.sync_play_glyph()
@@ -384,14 +382,16 @@ class TableRegenMixin(PlaylistTableHost):
         except Exception as exc:
             QMessageBox.critical(self, "Regenerate Error", str(exc))
 
-    def update_strategy(self, round_name: str, strategy: str, prefer_fresh: bool):
+    def update_strategy(self, round_name: str, strategy: Strategy | str,
+                        prefer_fresh: bool):
         """Update the stored strategy for every row of a round WITHOUT re-rolling.
 
         Lets the ↺ buttons (per-song / per-dance) draw from the newly selected
         strategy's pool while the already-generated grid stays untouched."""
+        strategy = Strategy.of(strategy)
         for m in self._row_meta:
             if m and m.round_name == round_name:
-                m.strategy     = strategy or ""
+                m.strategy = strategy
                 m.prefer_fresh = prefer_fresh
 
     def set_round_pool(self, round_name: str, pool):

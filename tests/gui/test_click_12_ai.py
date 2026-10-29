@@ -19,15 +19,16 @@ import threading
 import unittest
 from unittest import mock
 
-# First: it points the app's state files at a temp folder before any app
-# module is imported.
-from tests.gui.monkey_support import ClickThrough, printable
-
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMessageBox, QPushButton
+
 from gui.dialogs.ai_dialogs import AiPlaylistDialog, AiTranscriptDialog
 from planner.generate import llm
+
+# First: it points the app's state files at a temp folder before any app
+# module is imported.
+from tests.gui.monkey_support import ClickThrough, printable
 
 _ROW_RE = re.compile(r"^\s*(\d+) \| ", re.MULTILINE)
 

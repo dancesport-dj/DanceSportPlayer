@@ -23,10 +23,10 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication
 
-from gui.common import _C_LEN_WARN_FG
-from shared.columns import _COL_LEN, _COL_TITLE
+from gui.common import C_LEN_WARN_FG
 from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry
+from shared.columns import _COL_LEN, _COL_TITLE
 from tests.qt_test_support import reap_widget
 
 _TRIMMED = MusicEntry(path=Path(r"C:\music\hochzeit_aktuell_v9.mp3"),
@@ -70,7 +70,7 @@ class PlayTimeColumnTest(unittest.TestCase):
     def test_a_trimmed_track_reads_amber(self):
         t = self._table(lambda e: 260 if "hochzeit" in e.path.name else None)
         cell = self._len_cell(t, "Hochzeit aktuell v9")
-        self.assertEqual(cell.foreground().color(), _C_LEN_WARN_FG)
+        self.assertEqual(cell.foreground().color(), C_LEN_WARN_FG)
 
     def test_the_playing_time_is_what_the_tooltip_says(self):
         t = self._table(lambda e: 260 if "hochzeit" in e.path.name else None)
@@ -81,13 +81,13 @@ class PlayTimeColumnTest(unittest.TestCase):
         t = self._table(lambda e: 200 if "df2" in e.path.name else None)
         cell = self._len_cell(t, "Kein Leerlauf")
         self.assertEqual(cell.text(), "3:20")
-        self.assertNotEqual(cell.foreground().color(), _C_LEN_WARN_FG)
+        self.assertNotEqual(cell.foreground().color(), C_LEN_WARN_FG)
 
     def test_an_unprobed_track_shows_its_file_length_in_black(self):
         t = self._table()
         cell = self._len_cell(t, "Hochzeit aktuell v9")
         self.assertEqual(cell.text(), "5:30")
-        self.assertNotEqual(cell.foreground().color(), _C_LEN_WARN_FG)
+        self.assertNotEqual(cell.foreground().color(), C_LEN_WARN_FG)
 
 
 class ShortEdgesAreNotWorthFlaggingTest(unittest.TestCase):
@@ -113,13 +113,13 @@ class ShortEdgesAreNotWorthFlaggingTest(unittest.TestCase):
         self.fail("no row for the trimmed track")
 
     def test_three_seconds_of_room_tone_stays_black(self):
-        self.assertNotEqual(self._cell(327, 3.0).foreground().color(), _C_LEN_WARN_FG)
+        self.assertNotEqual(self._cell(327, 3.0).foreground().color(), C_LEN_WARN_FG)
 
     def test_five_seconds_is_where_the_flag_starts(self):
-        self.assertEqual(self._cell(325, 5.0).foreground().color(), _C_LEN_WARN_FG)
+        self.assertEqual(self._cell(325, 5.0).foreground().color(), C_LEN_WARN_FG)
 
     def test_a_minute_of_dead_air_is_still_flagged(self):
-        self.assertEqual(self._cell(260, 70.0).foreground().color(), _C_LEN_WARN_FG)
+        self.assertEqual(self._cell(260, 70.0).foreground().color(), C_LEN_WARN_FG)
 
     def test_the_tooltip_reports_the_trim_even_when_it_is_not_flagged(self):
         """The cell is black, but the playing time is still worth knowing."""
@@ -128,7 +128,7 @@ class ShortEdgesAreNotWorthFlaggingTest(unittest.TestCase):
     def test_two_short_edges_do_not_add_up_to_a_flag(self):
         """Three seconds at each end is two ordinary edges, not a track that
         stops early — the rule is five seconds on ONE of them."""
-        self.assertNotEqual(self._cell(324, 3.0).foreground().color(), _C_LEN_WARN_FG)
+        self.assertNotEqual(self._cell(324, 3.0).foreground().color(), C_LEN_WARN_FG)
 
 
 class EdgeSilenceFromTheCacheTest(unittest.TestCase):

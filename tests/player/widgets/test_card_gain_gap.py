@@ -27,6 +27,7 @@ class GainGapTest(unittest.TestCase):
 
     def card(self):
         from PySide6.QtMultimedia import QMediaPlayer
+
         from player.widgets.player import BigPlayerWidget
         card = BigPlayerWidget(QMediaPlayer())
         self.addCleanup(reap_widget, card)

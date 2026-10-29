@@ -20,10 +20,10 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_sim_stop_"))
 
 from PySide6.QtWidgets import QApplication, QWidget
-from tests.qt_test_support import reap_widget
 
 from gui.dialogs.similar_dialog import SimilarTracksDialog
 from planner.models import MusicEntry
+from tests.qt_test_support import reap_widget
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -107,6 +107,18 @@ class SimilarPreviewStopTest(unittest.TestCase):
         self.host.calls.clear()
         self.dlg.close()
         self.assertEqual(self.host.calls, [None])
+
+    def test_the_close_button_and_esc_stop_its_own_preview(self):
+        # BUG_REVIEW B4.2: accept() / reject() send no closeEvent.
+        for close in ("accept", "reject"):
+            with self.subTest(close=close):
+                dlg = SimilarTracksDialog(_SOURCE, _RESULTS, self.host,
+                                          play_cb=self.host.play)
+                self.addCleanup(reap_widget, dlg)
+                dlg._toggle_play(0)
+                self.host.calls.clear()
+                getattr(dlg, close)()
+                self.assertEqual(self.host.calls, [None])
 
     def test_its_own_preview_is_still_stopped_by_the_row_button(self):
         self.dlg._toggle_play(1)

@@ -8,8 +8,8 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtWidgets import QApplication
 
 from player.dialogs import remote_dialog
-from player.window.main_remote import _RemoteHub
 from player.dialogs.remote_dialog import RemoteDialog, qr_pixmap
+from player.window.main_remote import RemoteHub
 
 
 class _Host:
@@ -19,7 +19,7 @@ class _Host:
         self.running = running
         self.urls = list(urls)
         self.pin = "4711"
-        self.hub = _RemoteHub()
+        self.hub = RemoteHub()
         self.lines = ["12:00:00  ▶ Server started on port 8765"]
         self.switched = []
         self.mode = "wifi"

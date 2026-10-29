@@ -85,7 +85,7 @@ def _serialize_rounds(table, song_metas, backup_metas) -> list[dict]:
                 "name": rn,
                 "tier": m.tier,
                 "prefer_fresh": bool(m.prefer_fresh),
-                "strategy": m.strategy or "",
+                "strategy": m.strategy,
                 "heats": 0,
                 "grid": {},   # "h_idx" → {"d_idx" → path | null}
             }

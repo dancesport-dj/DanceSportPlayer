@@ -10,21 +10,24 @@ import time
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import (
-    QObject, QTimer, QUrl, Signal)
+from PySide6.QtCore import QObject, QTimer, QUrl, Signal
 
 from planner.playing import cartwall as pc
 from shared.audio.playback import prime_disconnect_notify, quiet_ffmpeg_log
 
 if TYPE_CHECKING:
     from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
+
+    from player.audio.pair_route import PairRoute
     HAS_MULTIMEDIA = True
 else:
     try:
         from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
+
+        from player.audio.pair_route import PairRoute
         HAS_MULTIMEDIA = True
     except ImportError:                               # pragma: no cover
-        QAudioOutput = QMediaPlayer = None
+        QAudioOutput = QMediaPlayer = PairRoute = None
         HAS_MULTIMEDIA = False
 
 log = logging.getLogger("dancesport.gui.cartwall")
@@ -40,7 +43,7 @@ _VOICES = 8
 _STEAL_FADE_MS = 120    # a voice being taken over for a different pad
 _RAMP_MS = 25           # a level change coarser than this is an audible click
 _TICK_MS = 100          # countdown refresh — a 3 s sting needs the digit to move
-_FIRE_GAP_MS = 120      # ignore a re-tap this soon: that is a double-click
+FIRE_GAP_MS = 120      # ignore a re-tap this soon: that is a double-click
 
 # 🎶 A background pad under a running title: down fast, by default as fast as a
 # pad pulls the music (player.audio.mix._CART_DUCK), all the way down: under a
@@ -55,9 +58,10 @@ _FIRE_GAP_MS = 120      # ignore a re-tap this soon: that is a double-click
 class _Voice:
     """One player of the pool, plus what it is currently doing."""
 
-    def __init__(self, player, out):
+    def __init__(self, player, out, route: PairRoute):
         self.player = player
         self.out = out
+        self.route = route       # 🔀 its way to the card, a channel pair or all of it
         # key and pad are set and cleared together: a voice with a pad is busy.
         self.key = None          # (page, row, col) while it is playing
         self.pad: pc.CartPad | None = None
@@ -86,7 +90,11 @@ class CartVoices(QObject):
     activeChanged = Signal(int)     # how many pads are audible
     duckChanged = Signal(bool)      # is any *ducking* pad live right now
     padStopped = Signal(object)     # the (page, row, col) that stopped
+    # …because it ran out on its own: not stopped, faded, stolen or broken.
+    # The ▶ queue's cue for the next pad.
+    padEnded = Signal(object)
     padFading = Signal(object, bool)  # key, is it on its way out right now
+    padHeld = Signal(object, bool)    # key, is it a 🎶 pad paused under a title
     padTick = Signal(list)          # [(key, ms_left, frac), …]
     wantsDevice = Signal()          # a pad is about to fire — 🔇 device back
 
@@ -96,7 +104,7 @@ class CartVoices(QObject):
         self._pool: list[_Voice] = []
         for _ in range(voices):
             player, out = self._make()
-            voice = _Voice(player, out)
+            voice = _Voice(player, out, PairRoute(player, out, self))
             out.setVolume(0.0)
             player.mediaStatusChanged.connect(
                 lambda status, v=voice: self._on_status(v, status))
@@ -104,6 +112,7 @@ class CartVoices(QObject):
                 lambda err, msg, v=voice: self._on_error(v, err, msg))
             self._pool.append(voice)
         self._level = 1.0        # master × desk, pushed in by _apply_volume
+        self._bed_duck = 1.0     # 🔈 the music's duck, heard by 🎶 pads only
         self._muted = False
         self._wall_fade = pc.DEFAULT_FADE_MS   # what a pad follows by default
         self._bg_pauses = False  # a starting title pauses 🎶 pads instead of muting them
@@ -142,23 +151,35 @@ class CartVoices(QObject):
         return player, out
 
     # ── firing and stopping ──────────────────────────────────────────────────
+    def seek(self, key, frac: float) -> None:
+        """Jump a running pad to `frac` (0…1) of its file — the spot a drag
+        across the pad let go of. A pad that is not sounding is left alone."""
+        voice = self._voice_for(key)
+        if voice is None or not voice.busy:
+            return
+        total = voice.player.duration()
+        if total > 0:
+            voice.player.setPosition(int(total * max(0.0, min(1.0, frac))))
+
     def is_playing(self, key) -> bool:
         """True only while the pad is really running — a pad that is fading out
         counts as free, so tapping it again re-fires instead of doing nothing."""
         voice = self._voice_for(key)
         return voice is not None and voice.fade_step <= 0
 
-    def fire(self, key, pad: pc.CartPad) -> bool | None:
+    def fire(self, key, pad: pc.CartPad, *, tapped: bool = True) -> bool | None:
         """Start `pad` on a voice. True: it plays (or will, once a stolen
         voice has faded); False: no voice was free; None: the second half of
-        a double-click, ignored — the first half's outcome stands."""
+        a double-click, ignored — the first half's outcome stands.
+        `tapped=False` is a start nobody clicked (the ▶ queue moving on),
+        which no double-click guard may swallow."""
         # The desk first: it holds the released flag for ALL players, and a wall
         # that quietly re-attached only its own voices would leave that flag set
         # — the deck's output would then never be handed back again.
         self.wantsDevice.emit()
         self.restore_outputs()
         now = time.monotonic()
-        if now - self._last_fire.get(key, 0.0) < _FIRE_GAP_MS / 1000.0:
+        if tapped and now - self._last_fire.get(key, 0.0) < FIRE_GAP_MS / 1000.0:
             return None         # a double-click is one tap
         self._last_fire[key] = now
         if pad.stops_others:
@@ -174,7 +195,7 @@ class CartVoices(QObject):
             reviving.started = now
             reviving.player.setPosition(0)
             reviving.player.play()
-            reviving.held = False
+            self._set_held(reviving, False)
             self._arm_rise(reviving, pad)
             if pad.background and self._bg <= 0.0:
                 self._hold_background()
@@ -253,6 +274,15 @@ class CartVoices(QObject):
             if voice.busy:
                 self._apply(voice)
 
+    def set_bed_duck(self, duck: float) -> None:
+        """🔈 The duck the music takes under a spoken call (or a ducking pad),
+        pushed in from _apply_volume. The 🎶 background pads are the pause
+        music now, so they take it too; a one-shot pad does not."""
+        self._bed_duck = max(0.0, min(1.0, duck))
+        for voice in self._pool:
+            if voice.busy and voice.pad is not None and voice.pad.background:
+                self._apply(voice)
+
     def set_muted(self, muted: bool) -> None:
         """🔇 silences the wall without losing where anything is — the point of
         having it next to ⏹, which cannot bring a bed back mid-track."""
@@ -298,12 +328,24 @@ class CartVoices(QObject):
         elif self._bg_target < 1.0 and not self._bg_hold.isActive():
             self._bg_hold.start()
 
+    def background_down_in_ms(self) -> int:
+        """How long the 🎶 background pads heard now still need to dip to
+        silence at the fade-out pace; 0 when none is (no bed, already down,
+        held, or the wall muted). A starting title waits that long unless
+        the operator lets it overlap (see pc.background_overlaps)."""
+        if self._muted or self._level <= 0.0 or self._bg <= 0.0:
+            return 0
+        if not any(v.busy and v.pad is not None and v.pad.background
+                   and v.fade_step <= 0 and not v.held for v in self._pool):
+            return 0
+        return round(self._bg * self._bg_down_ms)
+
     def _lift_background(self) -> None:
         # Whatever the setting says now: a bed held under the title never
         # comes back otherwise.
         for voice in self._pool:
             if voice.held:
-                voice.held = False
+                self._set_held(voice, False)
                 voice.player.play()
         self._aim_background(1.0)
 
@@ -315,7 +357,7 @@ class CartVoices(QObject):
         for voice in self._pool:
             if (voice.busy and voice.pad is not None and voice.pad.background
                     and voice.fade_step <= 0 and not voice.held):
-                voice.held = True
+                self._set_held(voice, True)
                 voice.player.pause()
 
     def _aim_background(self, target: float) -> None:
@@ -354,9 +396,9 @@ class CartVoices(QObject):
             self._apply(voice)
             self._sync()
 
-    def set_device(self, device) -> None:
+    def set_device(self, device, pair: int = 0) -> None:
         for voice in self._pool:
-            voice.out.setDevice(device)
+            voice.route.set_device(device, pair)
 
     def release_outputs(self) -> None:
         """🔇 Idle audio release: let go of the sound device (see
@@ -364,14 +406,13 @@ class CartVoices(QObject):
         then holds the card for the whole evening, so the wall has to let go too
         or the hiss stays. Only ever called with every voice silent."""
         for voice in self._pool:
-            voice.player.setAudioOutput(None)
+            voice.route.release()
 
     def restore_outputs(self) -> None:
         """Take the device back before a pad is heard. Called from `fire` — the
         one door every tap goes through."""
         for voice in self._pool:
-            if voice.player.audioOutput() is None:
-                voice.player.setAudioOutput(voice.out)
+            voice.route.restore()
 
     def shutdown(self) -> None:
         """The one place sources ARE cleared: WMF keeps the file open, and a
@@ -502,9 +543,9 @@ class CartVoices(QObject):
         voice.player.pause()
         voice.player.setPosition(0)
         voice.out.setVolume(0.0)
+        self._set_held(voice, False)
         voice.key = None
         voice.pad = None
-        voice.held = False
         voice.fade = 1.0
         voice.fade_step = 0.0
         voice.rise = 1.0
@@ -514,12 +555,18 @@ class CartVoices(QObject):
             self.padStopped.emit(key)
         self._sync()
 
+    def _set_held(self, voice: _Voice, held: bool) -> None:
+        if voice.held != held:
+            voice.held = held
+            if voice.key is not None:
+                self.padHeld.emit(voice.key, held)
+
     def _apply(self, voice: _Voice) -> None:
         if voice.pad is None:
             return
         vol = self._level * voice.pad.volume * voice.fade * voice.rise
         if voice.pad.background:
-            vol *= self._bg
+            vol *= self._bg * self._bed_duck
         if self._muted:
             vol = 0.0
         voice.out.setVolume(max(0.0, min(1.0, vol)))
@@ -543,15 +590,19 @@ class CartVoices(QObject):
         if status != QMediaPlayer.MediaStatus.EndOfMedia:
             return
         if voice.pad.loop:
-            # Endless repeat the way the pause music already does it. NOT
+            # Endless repeat by starting the file over. NOT
             # setLoops(Infinite) — this codebase moved off that API on this
-            # backend (see the filler-player comment in dancesport_gui).
+            # backend.
             voice.player.setPosition(0)
             voice.player.play()
             return
         # It ended where it was meant to: no fade — but a pad that stole this
         # voice mid-ramp is still waiting for it.
+        key = voice.key
+        natural = voice.fade_step <= 0 and voice.then is None
         self._finish_fade(voice)
+        if natural:
+            self.padEnded.emit(key)   # after the release: the voice is free again
 
     def _emit_tick(self) -> None:
         rows = []

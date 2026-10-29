@@ -21,17 +21,16 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QWidget
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
 
 from dancesport_planner import DANCE_NAMES, MusicLibrary
-from gui.common import _PROVEN_MIN_PLAYS
+from gui.common import PROVEN_MIN_PLAYS
+from gui.decks.running_order import Row, RunningOrder
 from gui.dialogs import LibraryGapsDialog
+from gui.dialogs.similar_dialog import SimilarTracksDialog
 from gui.library_browser import LibraryBrowser
 from gui.table.playlist_table import PlaylistTable
-from gui.decks.running_order import Row, RunningOrder
-from gui.dialogs.similar_dialog import SimilarTracksDialog
 from planner.models import MusicEntry
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -95,8 +94,8 @@ class LibraryFilterTest(unittest.TestCase):
     def test_the_proven_mark_itself_counts_as_proven(self):
         """One play either side of the line — the boundary is where the
         wording promises it is."""
-        self.pane.set_entries([_entry("nine", popularity=_PROVEN_MIN_PLAYS - 1),
-                               _entry("ten", popularity=_PROVEN_MIN_PLAYS)])
+        self.pane.set_entries([_entry("nine", popularity=PROVEN_MIN_PLAYS - 1),
+                               _entry("ten", popularity=PROVEN_MIN_PLAYS)])
         self._pick(self.pane._plays_combo, "proven")
         self.assertEqual(self._shown(), {"ten"})
         self._pick(self.pane._plays_combo, "rare")
@@ -312,7 +311,7 @@ class EmptySlotJumpTest(unittest.TestCase):
     def test_a_filled_row_does_not_jump(self):
         """It opens the file externally — the audition path, left untouched."""
         self.table._browse_for_empty_slot = lambda meta: self.fail("jumped")
-        with unittest.mock.patch("gui.table.playlist_table._open_in_default_player"):
+        with unittest.mock.patch("gui.table.playlist_table.open_in_default_player"):
             self.table._on_row_double_clicked(0, 0)
         self.assertIsNone(self.win.asked)
 

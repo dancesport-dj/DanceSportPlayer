@@ -47,6 +47,7 @@ class ChildLibraryPathTest(unittest.TestCase):
     def test_the_launcher_does_it_before_anything_runs(self):
         """At import of the launcher, so no child can start before it."""
         import inspect
+
         import dancesport_gui
         src = inspect.getsource(dancesport_gui)
         self.assertLess(src.index("restore_system_library_path("),

@@ -22,8 +22,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication, QScrollArea
 
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 
 class PlayerCardSizeTest(unittest.TestCase):

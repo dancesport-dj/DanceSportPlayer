@@ -16,7 +16,7 @@ import sys
 import tempfile
 import unittest
 
-from planner.music.embeddings import _quiet_native_stderr
+from planner.music.embeddings import quiet_native_stderr
 
 
 class QuietStderrTest(unittest.TestCase):
@@ -35,7 +35,7 @@ class QuietStderrTest(unittest.TestCase):
             return f.read()
 
     def test_overlapping_mutes_that_end_out_of_order_restore_stderr(self):
-        first, second = _quiet_native_stderr(), _quiet_native_stderr()
+        first, second = quiet_native_stderr(), quiet_native_stderr()
         first.__enter__()
         second.__enter__()
         os.write(2, b"muted ")
@@ -58,7 +58,7 @@ class QuietStderrTest(unittest.TestCase):
             k32.WriteFile(wintypes.HANDLE(k32.GetStdHandle(-12)), data, len(data),
                           ctypes.byref(n), None)
 
-        first, second = _quiet_native_stderr(), _quiet_native_stderr()
+        first, second = quiet_native_stderr(), quiet_native_stderr()
         first.__enter__()
         second.__enter__()
         write_win32(b"muted ")
@@ -68,7 +68,7 @@ class QuietStderrTest(unittest.TestCase):
         self.assertEqual(self._written(), b"heard")
 
     def test_a_single_mute_restores_stderr(self):
-        with _quiet_native_stderr():
+        with quiet_native_stderr():
             os.write(2, b"muted ")
         os.write(2, b"heard")
         self.assertEqual(self._written(), b"heard")

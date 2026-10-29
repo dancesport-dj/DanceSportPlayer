@@ -21,12 +21,11 @@ from PySide6.QtWidgets import (
 
 from shared.widgets import FlowLayout
 
-
 # Where a tree item sits in the node list, as "0/2/1". NOT the node dict
 # itself: PySide6 marshals a dict through QVariant as a C++ QVariantMap and
 # hands back a COPY, so edits would never reach the model and `is` comparisons
 # would all miss. An index path is a string, which survives the round trip.
-_ROLE_KEY = Qt.ItemDataRole.UserRole
+ROLE_KEY = Qt.ItemDataRole.UserRole
 # One slot. Wide enough for "Turnier 3 Sen I S" and two rows of them fit the
 # strip the pane gets at the bottom of the window.
 _SLOT_W, _SLOT_H = 200, 62
@@ -34,7 +33,7 @@ _SLOT_W, _SLOT_H = 200, 62
 _SLOT_TINTS = {"Standard": "#3b6ea5", "Latin": "#b5533c", "": "#9aa3ad"}
 
 
-class _TourneyTree(QTreeWidget):
+class TourneyTree(QTreeWidget):
     """The tree itself: .m3u files dropped in from Explorer become leaves,
     and a leaf dragged out is that .m3u file — so it lands on a deck exactly
     as it would coming from Explorer."""
@@ -92,7 +91,7 @@ class _TourneyTree(QTreeWidget):
     def startDrag(self, _actions):
         paths = []
         for item in self.selectedItems():
-            node = (self.node_of(item.data(0, _ROLE_KEY)) if self.node_of else None) or {}
+            node = (self.node_of(item.data(0, ROLE_KEY)) if self.node_of else None) or {}
             if node.get("m3u"):
                 paths.append(str(node["m3u"]))
         if not paths:
@@ -218,7 +217,7 @@ class _SlotTile(QFrame):
         self.activated.emit(self._key)
 
 
-class _SlotBoard(QScrollArea):
+class SlotBoard(QScrollArea):
     """The tiles of one folder, wrapped across whatever width there is."""
 
     picked = Signal(str)

@@ -47,9 +47,9 @@ class PdOfTest(unittest.TestCase):
         got = pd_of({"tournament_set": {"pd_n": "two", "pd_delay": None}})
         self.assertEqual((got["pd_n"], got["pd_delay"]), (2, 0))
 
-    def test_a_party_stops_after_the_2nd_and_waits_3_s(self):
+    def test_a_party_stops_after_the_2nd_and_waits_1_s(self):
         self.assertEqual(pd_of({}, "party"),
-                         {"pd_stop": True, "pd_n": 2, "pd_delay": 3})
+                         {"pd_stop": True, "pd_n": 2, "pd_delay": 1})
 
     def test_each_set_reads_its_own(self):
         settings = {"tournament_set": {"pd_delay": 7},
@@ -93,7 +93,7 @@ class TournamentButtonTest(unittest.TestCase):
         self.desk._set_party_mode(True)
         self.assertTrue(self.panel.pd_highlight_stop())
         self.assertEqual(self.panel.pd_highlight_n(), 2)
-        self.assertEqual(self.panel.pd_start_delay(), 3)
+        self.assertEqual(self.panel.pd_start_delay(), 1)
 
     def test_the_party_button_applies_the_configured_party_values(self):
         self.desk._settings["party_set"] = {"pd_stop": False, "pd_n": 3,
@@ -154,7 +154,7 @@ class SettingsTabTest(unittest.TestCase):
     def test_the_party_box_shows_its_own_defaults(self):
         stop, n, delay = self._dlg({})._set_widgets["party"]["pd"]
         self.assertTrue(stop.isChecked())
-        self.assertEqual((n.value(), delay.value()), (2, 3))
+        self.assertEqual((n.value(), delay.value()), (2, 1))
 
     def test_the_party_values_are_saved_with_the_party_set(self):
         dlg = self._dlg({})

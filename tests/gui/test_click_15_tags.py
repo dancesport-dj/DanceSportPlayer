@@ -14,14 +14,15 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-# First: it points the app's state files at a temp folder before any app
-# module is imported.
-from tests.gui.monkey_support import ClickThrough, printable
-
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QDialogButtonBox
+
 from shared.columns import _COL_CUSTOM, _COL_RATING, _COL_TITLE
+
+# First: it points the app's state files at a temp folder before any app
+# module is imported.
+from tests.gui.monkey_support import ClickThrough, printable
 
 _RAW_DESC, _RAW_VALUE = 1, 2      # the Extended tab's columns (gui.dialogs.tag_edit_dialog)
 
@@ -192,7 +193,7 @@ class TagsClickTest(ClickThrough):
             self.click_star(table, row, 3)
             started, opened_files = [], []
             table.playRequested.connect(started.append)
-            with mock.patch("gui.table.playlist_table._open_in_default_player",
+            with mock.patch("gui.table.playlist_table.open_in_default_player",
                             lambda path, _parent: opened_files.append(path)):
                 self.click_star(table, row, 3, double=True)
             self.assertEqual(started, [], "a double-click on ★ played the title")
@@ -268,8 +269,8 @@ class TagsClickTest(ClickThrough):
             self.assertEqual(table.item(other, _COL_CUSTOM).text(), "")
 
     def test_map_custom_from_the_header_reads_the_tag_and_back(self):
-        from planner.music import custom_field
         from gui.dialogs.tag_edit_dialog import CustomSourceDialog
+        from planner.music import custom_field
         self.addCleanup(custom_field.set_source, None)
         seen = {}
 

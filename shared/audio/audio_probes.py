@@ -538,8 +538,8 @@ def fill_phrased_highlights(times: list, name: str, final_crash: bool) -> list:
     h1, h2, h3 = times
     if not final_crash or _SHORT_EDIT_RE.search(name):
         return times
-    from planner.music.parsing import _detect_bpm
-    bpm = _detect_bpm(name)
+    from planner.music.parsing import detect_bpm
+    bpm = detect_bpm(name)
     if not bpm:
         return times
     bar = 60.0 / bpm

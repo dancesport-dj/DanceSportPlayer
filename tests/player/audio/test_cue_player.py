@@ -194,12 +194,12 @@ class RoutingTest(unittest.TestCase):
 
     def test_the_library_pane_pre_listens(self):
         self.win._on_lib_play(_SONG, 0)
-        self.play.assert_called_once_with(_SONG, self.phones)
+        self.play.assert_called_once_with(_SONG, self.phones, 0)
         self.deck.assert_not_called()
 
     def test_a_preview_window_pre_listens(self):
         self.win._prehear(_SONG)
-        self.play.assert_called_once_with(_SONG, self.phones)
+        self.play.assert_called_once_with(_SONG, self.phones, 0)
         self.deck.assert_not_called()
 
     def test_none_stops_the_pre_listen_not_the_music(self):
@@ -215,6 +215,32 @@ class RoutingTest(unittest.TestCase):
         self.deck.assert_not_called()
         self.assertIn("🎧", self.win._toast_lbl.text())
 
+    def test_a_channel_pair_of_the_music_card_pre_listens_there(self):
+        """🔀 Out 3/4 of the music's card: not where the music plays (its
+        Out 1/2), so the preview goes there instead of being refused."""
+        self.phones = self.music
+        mock.patch.object(self.win._audio_device, "pair",
+                          lambda source: 1 if source == "cue" else 0).start()
+        self.win._prehear(_SONG)
+        self.play.assert_called_once_with(_SONG, self.music, 1)
+        self.deck.assert_not_called()
+
+    def test_the_music_pair_of_its_card_is_refused(self):
+        """🔀 The music on Out 3/4 and the preview on Out 3/4 of the same
+        card: that is the PA."""
+        self.phones = self.music
+        mock.patch.object(self.win._audio_device, "pair",
+                          lambda source: 1).start()
+        self.win._prehear(_SONG)
+        self.play.assert_not_called()
+
+    def test_out_1_2_of_the_card_the_music_has_out_3_4_of(self):
+        self.phones = self.music
+        mock.patch.object(self.win._audio_device, "pair",
+                          lambda source: 1 if source == "music" else 0).start()
+        self.win._prehear(_SONG)
+        self.play.assert_called_once_with(_SONG, self.music, 0)
+
     def test_the_only_output_pre_listens_there(self):
         """One output and no other to choose: the music's own is the
         default, so the preview plays there instead of being refused."""
@@ -222,7 +248,7 @@ class RoutingTest(unittest.TestCase):
         mock.patch.object(self.win._audio_device, "single_output",
                           lambda: True).start()
         self.win._prehear(_SONG)
-        self.play.assert_called_once_with(_SONG, self.music)
+        self.play.assert_called_once_with(_SONG, self.music, 0)
         self.deck.assert_not_called()
 
     def test_a_card_not_plugged_in_pre_listens_on_the_system_default(self):
@@ -230,7 +256,7 @@ class RoutingTest(unittest.TestCase):
         mock.patch.object(self.win._audio_device, "missing",
                           lambda source: True).start()
         self.win._prehear(_SONG)
-        self.play.assert_called_once_with(_SONG, self.phones)
+        self.play.assert_called_once_with(_SONG, self.phones, 0)
         self.deck.assert_not_called()
 
     def test_not_when_that_default_is_the_music_output(self):
@@ -249,7 +275,7 @@ class RoutingTest(unittest.TestCase):
         headphones are where a preview belongs in either mode."""
         self.win._set_play_mode(False)
         self.win._prehear(_SONG)
-        self.play.assert_called_once_with(_SONG, self.phones)
+        self.play.assert_called_once_with(_SONG, self.phones, 0)
         self.deck.assert_not_called()
 
     def test_leaving_playing_mode_keeps_the_pre_listen(self):
@@ -260,7 +286,7 @@ class RoutingTest(unittest.TestCase):
     def _playing(self):
         """The mocked play() takes the title as the real one does."""
         cue = self.win._audio_device.cue
-        self.play.side_effect = lambda path, dev: setattr(cue, "_path", Path(path))
+        self.play.side_effect = lambda path, dev, pair=0: setattr(cue, "_path", Path(path))
         self.addCleanup(setattr, cue, "_path", None)
         return cue
 
@@ -351,8 +377,15 @@ class RoutingTest(unittest.TestCase):
         do not put it into main player"."""
         self.win._settings["audio_outputs"] = {}
         self.win._on_lib_play(_SONG, 0)
-        self.play.assert_called_once_with(_SONG, self.music)
+        self.play.assert_called_once_with(_SONG, self.music, 0)
         self.deck.assert_not_called()
+
+    def test_no_pre_listen_output_plays_on_the_music_pair(self):
+        self.win._settings["audio_outputs"] = {}
+        mock.patch.object(self.win._audio_device, "pair",
+                          lambda source: 1).start()
+        self.win._on_lib_play(_SONG, 0)
+        self.play.assert_called_once_with(_SONG, self.music, 1)
 
     def test_without_one_the_mini_player_shows_not_the_card(self):
         cue = self._playing()
@@ -367,7 +400,7 @@ class RoutingTest(unittest.TestCase):
         self.win._settings["audio_outputs"] = {}
         self.win._set_play_mode(False)
         self.win._on_lib_play(_SONG, 0)
-        self.play.assert_called_once_with(_SONG, self.music)
+        self.play.assert_called_once_with(_SONG, self.music, 0)
         self.deck.assert_not_called()
 
     def test_a_deck_starting_stops_it_on_the_shared_output(self):

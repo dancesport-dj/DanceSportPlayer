@@ -4,8 +4,10 @@ Split off gui/window/main_import.py as a MainWindow mixin — what the desk hand
 chairman, and what the same builder makes of dropped .m3u files.
 """
 import logging
-
 import time
+from pathlib import Path
+from typing import TYPE_CHECKING
+
 from PySide6.QtCore import (
     QMarginsF,
     QSizeF,
@@ -21,19 +23,18 @@ from PySide6.QtWidgets import (
     QDialog,
     QMessageBox,
 )
-from pathlib import Path
-from planner import i18n
-from planner.config import OUTPUT_DIR
+
 from gui.common import (
-    _open_with_default_app,
-    _sanitize_filename,
+    open_with_default_app,
+    sanitize_filename,
 )
-from gui.print_sheet import deck_print_html
 from gui.decks.running_order import Row
 from gui.dialogs import (  # auto-resolved
     PrintExportDialog,
 )
-from typing import TYPE_CHECKING
+from gui.print_sheet import deck_print_html
+from planner import i18n
+from planner.config import OUTPUT_DIR
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -114,7 +115,7 @@ class PrintMixin(MainWindowHost):
 
     def _write_print_pdf(self, parts: list, name: str):
         target = OUTPUT_DIR / (f"{time.strftime('%Y-%m-%d')}_"
-                               f"{_sanitize_filename(name)}.pdf")
+                               f"{sanitize_filename(name)}.pdf")
         try:
             OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
             writer = QPdfWriter(str(target))
@@ -144,4 +145,4 @@ class PrintMixin(MainWindowHost):
             # The shared helper, not os.startfile: off Windows that attribute
             # does not exist at all and the AttributeError would sail straight
             # past an `except OSError`.
-            _open_with_default_app(target, self)
+            open_with_default_app(target, self)

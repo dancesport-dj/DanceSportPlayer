@@ -3,7 +3,7 @@
 [Zurück zur Übersicht](README.md)
 
 Wer auf einem Turnier die Musik fährt, plant nichts, sondern lädt eine
-fertige Playlist und spielt sie ab: zeitgesteuert, mit dem Paso-Doble-Schnitt, den
+fertige Wiedergabeliste und spielt sie ab: zeitgesteuert, mit dem Paso-Doble-Schnitt, den
 gesprochenen Tanzansagen, dem Präsentationsbildschirm und der Cartwall. Der
 **DanceSport Player** ist die App für genau diese Aufgabe.
 
@@ -21,7 +21,7 @@ Beide sehen gleich aus und arbeiten gleich. Das Fenster heißt
 
 Beim ersten Start öffnet die App mit einem Layout für die Halle:
 
-- keine Playlist-Decks und keine Wunschlisten;
+- keine Wiedergabelisten-Decks und keine Wunschlisten;
 - eine leere **Party**-Liste, bereit für eine `.m3u`, die du darauf ziehst;
 - die 📚 Bibliothek offen;
 - die 🎛 Cartwall geschlossen;
@@ -47,9 +47,9 @@ Wiedergabe-Bereich. Der Reiter **📁 Pfade** hält die Ordner:
 |---|---|
 | **Favoriten-Bibliothek** | Dein Turniermusik-Ordner. Er wird bei jedem Start eingelesen und füllt die 📚 Bibliothek. |
 | **Speichern-unter-Ordner** | Wo **Speichern als M3U…** beginnt. |
-| **Turnier-Playlists** | Deine vorhandenen Turnier-`.m3u`-Dateien. Die Spalte **Pop** zählt, in wie vielen davon ein Titel vorkommt. |
-| **Referenzpfad** | Der Ordner, in dem die Musik auf *diesem* PC liegt. Eine Playlist von einem anderen PC wird beim Laden darauf umgehängt, siehe [Kapitel 3](03-playlists.md#playlists-von-einem-anderen-pc). |
-| **Suchordner** | Weitere Orte, an denen ein Titel gesucht wird, wenn eine Playlist auf einem anderen PC geschrieben wurde. Ein Ordner pro Zeile. |
+| **Turnier-Wiedergabelisten** | Deine vorhandenen Turnier-`.m3u`-Dateien. Die Spalte **Pop** zählt, in wie vielen davon ein Titel vorkommt. |
+| **Referenzpfad** | Der Ordner, in dem die Musik auf *diesem* PC liegt. Eine Wiedergabeliste von einem anderen PC wird beim Laden darauf umgehängt, siehe [Kapitel 3](03-playlists.md#wiedergabelisten-von-einem-anderen-pc). |
+| **Suchordner** | Weitere Orte, an denen ein Titel gesucht wird, wenn eine Wiedergabeliste auf einem anderen PC geschrieben wurde. Ein Ordner pro Zeile. |
 
 Der Rest dieses Reiters steht unter [Einstellungen](06-settings.md).
 
@@ -105,7 +105,7 @@ auf ihr Symbol. Fahr mit der Maus darüber, dann siehst du den vollen Namen.
 | 📌 Zustand | Speichert jetzt die ganze Sitzung. Das passiert auch von selbst bei jeder Änderung und beim Schließen. |
 | 🧹 Leeren | Leert jedes Deck. Wunschlisten bleiben erhalten. |
 | 🚦 Prüfen ▾ | **🚦 Bereit?**, der Check vor dem Abend, siehe [Kapitel 4](04-playing.md#-bereit-vor-dem-abend). Die volle App ergänzt das Menü um 🔁 Doppelte prüfen, 🎵 Musik prüfen und 🧭 Pfade reparieren. |
-| ⧉ *n* Playlists | Schaltet durch die Anzahl der Decks auf dem Bildschirm. Ein Rechtsklick geht rückwärts. |
+| ⧉ *n* Listen | Schaltet durch die Anzahl der Decks auf dem Bildschirm. Ein Rechtsklick geht rückwärts. |
 | 🗜 Kompakt | Schaltet die Kopfzeilen durch: voll → kompakt → ohne Gruppen → nummeriert. |
 | ⭐ *n* Wunschlisten | Schaltet den Wunschlistenbereich durch: aus → 1 → 2 → 3 → 4 → 2×2. |
 | 🤸 Party ▾ | Blendet den Party-Bereich ein oder aus. |
@@ -113,7 +113,7 @@ auf ihr Symbol. Fahr mit der Maus darüber, dann siehst du den vollen Namen.
 | 🎛 Cartwall | Blendet die Wand mit den Sample-Pads ein oder aus. |
 | ❔ | Ein Menü: ⌨ Tastenkürzel (**F1**), 📖 Handbuch, 📜 Gespielte Titel…, ⛶ Vollbild (**F11**), 📝 Log exportieren… (kopiert die Log-Dateien in einen Ordner deiner Wahl), ⚙ Einstellungen… (**F12**) und ℹ Über… |
 
-**Mitte: die Decks.** Jedes Deck ist eine Playlist, siehe
+**Mitte: die Decks.** Jedes Deck ist eine Wiedergabeliste, siehe
 [Kapitel 3](03-playlists.md).
 
 **Unter den Decks: der Party-Bereich und die Wunschlisten**, und darunter der

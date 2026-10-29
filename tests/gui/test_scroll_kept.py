@@ -23,14 +23,14 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
-from tests.qt_test_support import reap_widget
 
-from shared.columns import _COL_TITLE
-from gui.table.playlist_table import _SCROLL_MS, PlaylistTable
-from planner.models import MusicEntry
-from player.window.main_player import PlayerControlMixin
-from player.audio.playback_state import PlaybackState
 from gui.decks.deck_set import DeckSet
+from gui.table.playlist_table import SCROLL_MS, PlaylistTable
+from planner.models import MusicEntry
+from player.audio.playback_state import PlaybackState
+from player.window.main_player import PlayerControlMixin
+from shared.columns import _COL_TITLE
+from tests.qt_test_support import reap_widget
 
 
 def _e(n):
@@ -132,7 +132,7 @@ class LoadedTitleDraggedOutTest(_ScrollTest):
         before = t.verticalScrollBar().value()
 
         t._clear_slots_at({row}, select_after=True)
-        QTest.qWait(_SCROLL_MS + 200)     # let a glide to the cued row finish
+        QTest.qWait(SCROLL_MS + 200)     # let a glide to the cued row finish
 
         self.assertEqual(desk._playback.path, t.first_track_path())   # it was cued
         self.assertEqual(t.verticalScrollBar().value(), before)
@@ -146,7 +146,7 @@ class LoadedTitleDraggedOutTest(_ScrollTest):
         before = t.verticalScrollBar().value()
 
         desk._cue_first_track(t)
-        QTest.qWait(_SCROLL_MS + 200)
+        QTest.qWait(SCROLL_MS + 200)
 
         self.assertEqual(t.currentRow(), t._current_play_row)
         self.assertEqual(t.verticalScrollBar().value(), before)

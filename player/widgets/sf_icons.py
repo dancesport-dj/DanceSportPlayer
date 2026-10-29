@@ -17,7 +17,12 @@ and at 200 px.
 
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import (
-    QColor, QGuiApplication, QPainter, QPainterPath, QPen, QPixmap,
+    QColor,
+    QGuiApplication,
+    QPainter,
+    QPainterPath,
+    QPen,
+    QPixmap,
 )
 
 # The box every glyph is drawn into: symmetric side margins, and a height that
@@ -322,6 +327,21 @@ def speaker_low(px: int, color: str) -> QPixmap:
     pm, p = _canvas(px)
     _speaker_body(p, px, color)
     _waves(p, px, color, ((0.20, 100),))
+    p.end()
+    return pm
+
+
+def speaker_mute(px: int, color: str) -> QPixmap:
+    """'speaker.slash.fill' — muted: the same cone with a cross where the
+    waves would be."""
+    pm, p = _canvas(px)
+    _speaker_body(p, px, color)
+    pen = QPen(QColor(color))
+    pen.setWidthF(_W * px)
+    pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+    p.setPen(pen)
+    p.drawLine(QPointF(0.58 * px, 0.36 * px), QPointF(0.86 * px, 0.64 * px))
+    p.drawLine(QPointF(0.86 * px, 0.36 * px), QPointF(0.58 * px, 0.64 * px))
     p.end()
     return pm
 

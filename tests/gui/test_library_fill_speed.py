@@ -43,7 +43,7 @@ class FillSpeedTest(unittest.TestCase):
         self.addCleanup(reap_widget, self.b)
 
     def test_filling_builds_no_hover_text(self):
-        with mock.patch.object(library_browser, "_entry_tooltip", return_value="") as rich, \
+        with mock.patch.object(library_browser, "entry_tooltip", return_value="") as rich, \
                 mock.patch.object(library_browser, "bpm_tooltip", return_value="") as bpm:
             self.b.set_entries(_entries(3))
             self.assertEqual((rich.call_count, bpm.call_count), (0, 0))

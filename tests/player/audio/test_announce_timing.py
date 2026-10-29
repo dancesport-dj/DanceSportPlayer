@@ -15,12 +15,12 @@ import time
 import unittest
 from pathlib import Path
 
+from gui.decks.running_order import Row, RunningOrder
 from planner import i18n, terms
 from player.audio import announce
 from player.audio.announce import announce_secs, clip_secs
-from player.window.main_pause import _ANNOUNCE_LEAD, _ANNOUNCE_TAIL, PauseMusicMixin
-from gui.decks.running_order import Row, RunningOrder
 from player.audio.between_dances import BetweenDances
+from player.window.main_pause import ANNOUNCE_LEAD, ANNOUNCE_TAIL, PauseMusicMixin
 
 
 def _measure(path: Path, start_ms: int, end_ms: int):
@@ -127,11 +127,19 @@ class AnnounceSecsTest(_ClipRoot):
 
 
 class _Panel:
-    def __init__(self, heat=True):
+    def __init__(self, heat=True, lead=True, heat_only=False):
         self._heat = heat
+        self._lead = lead
+        self._heat_only = heat_only
 
     def announce_heat(self):
         return self._heat
+
+    def announce_lead(self):
+        return self._lead
+
+    def announce_heat_only(self):
+        return self._heat_only
 
 
 class _Entry:
@@ -164,8 +172,8 @@ class AnnounceLeadTest(_ClipRoot):
             for name in ("next_dance", "LW", "heat", "1"):
                 _measure(self.clip(gender, name), 0, 500)
         self.assertLess(announce_secs("LW", heat=1, root=self.root),
-                        _ANNOUNCE_LEAD)
-        self.assertAlmostEqual(self.win._announce_lead(), _ANNOUNCE_LEAD)
+                        ANNOUNCE_LEAD)
+        self.assertAlmostEqual(self.win._announce_lead(), ANNOUNCE_LEAD)
 
     def test_a_long_call_starts_early_enough_to_finish(self):
         # 4 × 1.5 s of words: the announcement outlasts the old fixed lead.
@@ -174,8 +182,8 @@ class AnnounceLeadTest(_ClipRoot):
             for name in ("next_dance", "WCS", "heat", "1"):
                 _measure(self.clip(gender, name), 0, 1500)
         spoken = announce_secs("WCS", heat=1, root=self.root)
-        self.assertGreater(spoken, _ANNOUNCE_LEAD)
-        self.assertAlmostEqual(self.win._announce_lead(), spoken + _ANNOUNCE_TAIL)
+        self.assertGreater(spoken, ANNOUNCE_LEAD)
+        self.assertAlmostEqual(self.win._announce_lead(), spoken + ANNOUNCE_TAIL)
 
     def test_the_hall_gets_a_beat_of_quiet_before_the_music(self):
         self.win._between.pending = (_Deck("WCS"), 0, "x.mp3")
@@ -185,17 +193,82 @@ class AnnounceLeadTest(_ClipRoot):
         self.assertGreaterEqual(
             self.win._announce_lead() - announce_secs("WCS", heat=1,
                                                       root=self.root),
-            _ANNOUNCE_TAIL)
+            ANNOUNCE_TAIL)
 
     def test_an_unmeasurable_announcement_falls_back_to_the_fixed_lead(self):
         # A dance never recorded has no clip to time — the settled lead is all
         # there is to go on.
         self.win._between.pending = (_Deck("QS"), 0, "x.mp3")
-        self.assertAlmostEqual(self.win._announce_lead(), _ANNOUNCE_LEAD)
+        self.assertAlmostEqual(self.win._announce_lead(), ANNOUNCE_LEAD)
 
     def test_nothing_queued_still_answers(self):
         self.win._between.pending = None
-        self.assertAlmostEqual(self.win._announce_lead(), _ANNOUNCE_LEAD)
+        self.assertAlmostEqual(self.win._announce_lead(), ANNOUNCE_LEAD)
+
+    def test_the_dance_alone_is_timed_without_the_lead_in(self):
+        """⚙ "Say Next dance" off: the pause calls just "Rumba", and the lead
+        is timed from what is actually said."""
+        self.win._between.pending = (_Deck("WCS"), 0, "x.mp3")
+        self.win._play_panel = _Panel(heat=False, lead=False)
+        for gender in ("female", "male"):
+            for name in ("next_dance", "WCS"):
+                _measure(self.clip(gender, name), 0, 5000)
+        self.assertAlmostEqual(self.win._announce_lead(),
+                               5.0 + ANNOUNCE_TAIL)
+
+    def test_the_heat_alone_is_timed_without_the_dance(self):
+        """🔢 Heat only: "Gruppe 1" is all that is said, so it is all that
+        is timed."""
+        self.win._between.pending = (_Deck("WCS"), 0, "x.mp3")
+        self.win._play_panel = _Panel(heat=False, heat_only=True)
+        for gender in ("female", "male"):
+            for name in ("next_dance", "WCS"):
+                _measure(self.clip(gender, name), 0, 5000)
+            for name in ("heat", "1"):
+                _measure(self.clip(gender, name), 0, 4000)
+        self.assertAlmostEqual(self.win._announce_lead(),
+                               8.0 + announce._CLIP_GAP_MS / 1000.0
+                               + ANNOUNCE_TAIL)
+
+
+class _Speaker:
+    speaking = False
+
+    def __init__(self):
+        self.said = []
+
+    def speak(self, code, now=False, heat=None, heat_only=False):
+        self.said.append((code, now, heat) + (("heat only",) if heat_only else ()))
+        return True
+
+
+class AnnounceNextLeadInTest(unittest.TestCase):
+    """What the pause call says: "Nächster Tanz: Rumba", or "Rumba" alone."""
+
+    def win(self, lead, heat_only=False):
+        win = PauseMusicMixin()
+        win._play_panel = _Panel(heat=False, lead=lead, heat_only=heat_only)
+        win._between = BetweenDances()
+        win._between.pending = (_Deck("RB"), 0, "x.mp3")
+        win._announcer = _Speaker()
+        win._pv = lambda key: True
+        win._deck_advance = lambda deck: True
+        win._maybe_announce_next()
+        return win
+
+    def test_with_the_lead_in(self):
+        self.assertEqual(self.win(lead=True)._announcer.said,
+                         [("RB", False, None)])
+
+    def test_the_dance_name_alone(self):
+        self.assertEqual(self.win(lead=False)._announcer.said,
+                         [("RB", True, None)])
+
+    def test_the_heat_alone_for_practice(self):
+        """🔢 The heat is counted even with …with heat off: it is all there
+        is to say."""
+        self.assertEqual(self.win(lead=True, heat_only=True)._announcer.said,
+                         [("RB", False, 1, "heat only")])
 
 
 class _Announcer:

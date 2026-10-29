@@ -20,10 +20,10 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_heatup_"))
 
 from PySide6.QtWidgets import QApplication
-from tests.qt_test_support import reap_widget
 
 from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry, RoundConfig
+from tests.qt_test_support import reap_widget
 
 _app = QApplication.instance() or QApplication(sys.argv)
 

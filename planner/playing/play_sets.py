@@ -4,6 +4,7 @@ play-length ladder.
 No Qt. The ▶ player applies these values and ⚙ Settings edits them, so they
 live below both: gui/ never imports player/ (tests/app/test_layering.py).
 """
+import contextlib
 
 # 🎉 What a party needs, as opposed to a tournament heat: every title to its
 # own end, one after the other, with nothing in between — and all of them at
@@ -14,7 +15,7 @@ live below both: gui/ never imports player/ (tests/app/test_layering.py).
 # Marcel's party runs title after title, each faded within its length.
 # `fade_inside`: the fade-out ends AT the play length (1:45 is silent at 1:45);
 # off, the title plays its full length and fades after it.
-_PARTY_SET = {"secs": 0, "fade": 3.0, "fade_inside": True, "advance": True,
+PARTY_SET = {"secs": 0, "fade": 3.0, "fade_inside": True, "advance": True,
               "pause_off": True,
               "loudness": True, "announce": False, "dblclick": True,
               "xfade": 4.0, "xfade_on": False, "xfade_curve": "equal"}
@@ -31,13 +32,13 @@ XFADE_MAX_SECS = 10.0
 XFADE_CURVES = ("equal", "linear", "scurve")
 
 # 🏆 …and what a competition heat needs: the TSO play length — 1:45, and a
-# 2.5 s ramp AFTER it (Marcel found 1.5 s too abrupt on the floor; the full
+# 3 s ramp AFTER it (Marcel found 1.5 s too abrupt on the floor; the full
 # length is danced, then faded) —
 # and every title started by the operator: no advancing, no pause running on by
 # itself, no voice, and a double-click that only CUES the title — the music
 # starts when the couples stand, on ⏯. The Paso Doble has values of its own
 # in this set, see `_TOURNAMENT_PD`.
-_TOURNAMENT_SET = {"secs": 105, "fade": 2.5, "fade_inside": False,
+TOURNAMENT_SET = {"secs": 105, "fade": 3, "fade_inside": False,
                    "advance": False,
                    "pause_off": True, "loudness": True, "announce": False,
                    "dblclick": False, "xfade": XFADE_DEFAULT_SECS,
@@ -45,8 +46,8 @@ _TOURNAMENT_SET = {"secs": 105, "fade": 2.5, "fade_inside": False,
 
 # Both sets are only defaults: ⚙ Settings → 🎛 Play sets writes the user's own
 # values under these keys, one dict per set.
-_SET_KEYS = {"party": ("party_set", _PARTY_SET),
-             "tournament": ("tournament_set", _TOURNAMENT_SET)}
+_SET_KEYS = {"party": ("party_set", PARTY_SET),
+             "tournament": ("tournament_set", TOURNAMENT_SET)}
 # …and the 🏆 set's per-dance lengths, see `dance_secs_of`. Shipped as Marcel
 # plays a heat: 1:30 for the Waltzes, the Quickstep and the Jive, 1:37 for the
 # rest. The Paso Doble plays in full (0) — Marcel: "default tournent set for
@@ -87,12 +88,12 @@ _SET_ASK = {"party": True, "tournament": True}
 # the wait. Kept out of `_TOURNAMENT_SET` like the TSO pitch, for the same
 # reason: `apply_play_set` has no place for them, the panel's 🐂 row owns
 # them. Stored in the same set.
-_TOURNAMENT_PD = {"pd_stop": False, "pd_n": 2, "pd_delay": 0}
+TOURNAMENT_PD = {"pd_stop": False, "pd_n": 2, "pd_delay": 0}
 # 🎉 …and the Paso Doble of a party: Marcel: "there we normally only want
 # playing paso till second highlight and wait 3 seconds before starting" —
-# the couples take their position.
-_PARTY_PD = {"pd_stop": True, "pd_n": 2, "pd_delay": 3}
-_SET_PD = {"party": _PARTY_PD, "tournament": _TOURNAMENT_PD}
+# the couples take their position. Later: "set start after default to 1s".
+PARTY_PD = {"pd_stop": True, "pd_n": 2, "pd_delay": 1}
+_SET_PD = {"party": PARTY_PD, "tournament": TOURNAMENT_PD}
 # The ranges of the panel's own spin boxes (player.widgets.play_mode_setup).
 _PD_RANGES = {"pd_n": (1, 3), "pd_delay": (0, 60)}
 
@@ -199,11 +200,9 @@ def migrate_play_sets(s: dict) -> dict:
     if isinstance(stored, dict):
         for since, key, old in ((2, "fade", _OLD_TOURNAMENT_FADE),
                                 (3, "secs", _OLD_TOURNAMENT_SECS)):
-            try:
+            with contextlib.suppress(TypeError, ValueError):
                 if version < since and float(stored.get(key, 0)) == old:
-                    stored[key] = _TOURNAMENT_SET[key]
-            except (TypeError, ValueError):
-                pass
+                    stored[key] = TOURNAMENT_SET[key]
     s["play_sets_version"] = PLAY_SETS_VERSION
     return s
 
@@ -228,7 +227,7 @@ def dance_secs_of(settings: dict) -> dict[str, int]:
         except (TypeError, ValueError):
             continue
         out[str(dance)] = (0 if secs <= 0
-                           else max(_LEN_TYPED_MIN, min(_LEN_TYPED_MAX, secs)))
+                           else max(LEN_TYPED_MIN, min(LEN_TYPED_MAX, secs)))
     return out
 
 
@@ -236,8 +235,10 @@ def round_kind(name: str) -> str | None:
     """Which of `ROUND_KINDS` the round `name` is, or None for a round that
     is no tournament round (a party list's 'Standardrunde 1', a dance code).
     Every Zwischenrunde is one kind: the per-round lengths are a column per
-    kind, not per numbered round."""
-    low = (name or "").strip().lower()
+    kind, not per numbered round. A day plan's stacked deck names its rounds
+    '<competition> — <round>' (planner.models._DAY_COMP_SEP): only the part
+    after the dash is the round."""
+    low = (name or "").rsplit(" — ", 1)[-1].strip().lower()
     if "semi" in low or "halbfinal" in low:
         return "semi"
     if "zwischenrunde" in low or "viertelfinal" in low:
@@ -315,22 +316,20 @@ def pd_of(settings: dict, which: str = "tournament") -> dict:
     out = dict(_SET_PD[which])
     out["pd_stop"] = bool(stored.get("pd_stop", out["pd_stop"]))
     for k, (lo, hi) in _PD_RANGES.items():
-        try:
+        with contextlib.suppress(TypeError, ValueError):
             out[k] = max(lo, min(hi, int(stored.get(k, out[k]))))
-        except (TypeError, ValueError):
-            pass
     return out
 
 
 # Play-length ladder: 15 s rungs up to 2:30, then 0 = "full" (no cut).
-_LEN_STEP = 15
-_LEN_MAX = 150
+LEN_STEP = 15
+LEN_MAX = 150
 # Typed lengths are NOT held to the ladder — 1:37 is a legitimate answer to
 # "how long is this heat". Only the outer bounds still apply: below 5 s the
 # fade-out would be longer than the song, and past 20 min no title survives
 # anyway, so anything longer is what "full" is for.
-_LEN_TYPED_MIN = 5
-_LEN_TYPED_MAX = 20 * 60
+LEN_TYPED_MIN = 5
+LEN_TYPED_MAX = 20 * 60
 
 
 def parse_play_length(text: str) -> int | None:
@@ -354,4 +353,4 @@ def parse_play_length(text: str) -> int | None:
         total = int(text)
     else:
         return None
-    return max(_LEN_TYPED_MIN, min(_LEN_TYPED_MAX, total))
+    return max(LEN_TYPED_MIN, min(LEN_TYPED_MAX, total))

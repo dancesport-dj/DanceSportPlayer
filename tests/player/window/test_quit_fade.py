@@ -26,6 +26,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtMultimedia import QMediaPlayer
 
 from player.audio.fade_now import FadeNow
+from player.audio.mix import OutputMix
 
 PLAYING = QMediaPlayer.PlaybackState.PlayingState
 PAUSED = QMediaPlayer.PlaybackState.PausedState
@@ -57,28 +58,18 @@ class _Timer:
         self.started += 1
 
 
-class _Out:
-    def __init__(self, volume):
-        self._volume = volume
-
-    def volume(self):
-        return self._volume
-
-    def setVolume(self, v):
-        self._volume = v
-
-
-def _desk(state=PLAYING, fade=3.0, pad_ms=None, filler=None):
+def _desk(state=PLAYING, fade=3.0, pad_ms=None):
     from player.audio.between_dances import BetweenDances
     from player.window.main_player import PlayerControlMixin
     d = PlayerControlMixin.__new__(PlayerControlMixin)
     d._player = _Player(state)
     d._playback = SimpleNamespace(path=Path(r"C:\music\waltz.mp3"))
     d._fade_now = FadeNow()
+    d._mix = OutputMix()
+    d._settings = {}
     d._fade_timer = _Timer()
     d._cart_voices = _Voices(pad_ms) if pad_ms is not None else None
-    d._pause_player = _Player(filler) if filler is not None else None
-    d._pause_out = _Out(0.8)
+    d._cartwall = SimpleNamespace(end_queue_run=lambda: None)  # built with the voices
     d._between = BetweenDances()
     d._pv = {"fade": fade}.__getitem__
     d._set_fade_indicator = lambda on: None
@@ -131,35 +122,24 @@ class FadeOutToQuitTest(unittest.TestCase):
         self.assertEqual(d._fade_out_to_quit(), 0)
         self.assertFalse(d._fade_now.running)
 
-    def test_the_pause_music_fades_over_the_lists_fade_time(self):
-        # Between two titles: the deck holds the next one, the filler sounds.
-        d = _desk(state=PAUSED, fade=3.0, filler=PLAYING)
-        self.assertAlmostEqual(d._fade_out_to_quit(), 3000, delta=20)
-        self.assertIsNotNone(d._between.fade_end)
-
-    def test_pause_music_held_by_hand_is_not_waited_for(self):
-        d = _desk(state=PAUSED, filler=PAUSED)
-        self.assertEqual(d._fade_out_to_quit(), 0)
-        self.assertIsNone(d._between.fade_end)
 
 
-class PauseMusicQuitFadeTest(unittest.TestCase):
-    """The ⏭ filler fade starts the next title when it ends; the quit's must
-    stay silent until the window goes."""
+class PauseQuitFadeTest(unittest.TestCase):
+    """A pause that runs out under the quit fade must stay silent until the
+    window goes — no next title on the way out."""
 
-    def test_at_its_end_the_quit_fade_starts_no_next_title(self):
-        d = _in_the_pause(_desk(state=PAUSED, filler=PLAYING))
+    def test_a_pause_run_out_while_quitting_starts_no_next_title(self):
+        d = _in_the_pause(_desk(state=PAUSED, pad_ms=2000))
         d._fade_out_to_quit()
         d._fade_now.quitting = True
-        d._between.fade_end = time.monotonic() - 0.1    # the fade has run out
+        d._between.advance_at = time.monotonic() - 0.1   # the pause is over
         d._between_tick(d._player, d._between.pending)
         d._fire_pending_advance.assert_not_called()
-        self.assertEqual(d._pause_out.volume(), 0.0)
 
-    def test_the_skip_fade_still_starts_the_next_title(self):
-        d = _in_the_pause(_desk(state=PAUSED, filler=PLAYING))
-        d._start_pause_skip_fade()
-        d._between.fade_end = time.monotonic() - 0.1
+    def test_without_quitting_the_same_pause_starts_it(self):
+        d = _in_the_pause(_desk(state=PAUSED))
+        d._between.advance_at = time.monotonic() - 0.1
+        d._hold_for_announcement = lambda: False
         d._between_tick(d._player, d._between.pending)
         d._fire_pending_advance.assert_called_once()
 

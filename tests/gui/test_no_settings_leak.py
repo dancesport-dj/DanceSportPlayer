@@ -15,8 +15,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import dancesport_gui as gui
 from gui import dialogs
-from tests.gui import (test_build_env_failure, test_error_reports_setting,
-                       test_phone_remote_setting, test_settings_apply_merge)
+from tests.gui import (
+    test_build_env_failure,
+    test_error_reports_setting,
+    test_phone_remote_setting,
+    test_settings_apply_merge,
+)
 
 
 class NoSettingsLeakTest(unittest.TestCase):

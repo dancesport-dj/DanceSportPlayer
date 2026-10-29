@@ -5,12 +5,18 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from planner.playlist.m3u import (_round_tiers, _tier_for_round_name, export_m3u,
-                         grid_from_running_order, import_playlist_m3u,
-                         m3u_marker_rounds, m3u_marker_rounds_in_order,
-                         running_order_rounds)
-from planner.music.library import MusicLibrary
 from planner.models import MusicEntry
+from planner.music.library import MusicLibrary
+from planner.playlist.m3u import (
+    export_m3u,
+    grid_from_running_order,
+    import_playlist_m3u,
+    m3u_marker_rounds,
+    m3u_marker_rounds_in_order,
+    round_tiers,
+    running_order_rounds,
+    tier_for_round_name,
+)
 
 
 def _e(name, dance, bpm=None, duration=120):
@@ -35,12 +41,12 @@ def _write_m3u(lines) -> Path:
 class TierForRoundNameTest(unittest.TestCase):
 
     def test_mappings(self):
-        self.assertEqual(_tier_for_round_name("Finale"), "final")
-        self.assertEqual(_tier_for_round_name("Semifinale"), "semi")
-        self.assertEqual(_tier_for_round_name("Halbfinale"), "semi")
-        self.assertEqual(_tier_for_round_name("Viertelfinale"), "early")
-        self.assertEqual(_tier_for_round_name("Vorrunde"), "early")
-        self.assertEqual(_tier_for_round_name("1. Zwischenrunde"), "early")
+        self.assertEqual(tier_for_round_name("Finale"), "final")
+        self.assertEqual(tier_for_round_name("Semifinale"), "semi")
+        self.assertEqual(tier_for_round_name("Halbfinale"), "semi")
+        self.assertEqual(tier_for_round_name("Viertelfinale"), "early")
+        self.assertEqual(tier_for_round_name("Vorrunde"), "early")
+        self.assertEqual(tier_for_round_name("1. Zwischenrunde"), "early")
 
 
 class RoundTiersTest(unittest.TestCase):
@@ -50,27 +56,27 @@ class RoundTiersTest(unittest.TestCase):
     def test_the_round_before_the_final_is_the_semifinal(self):
         """Read off the names alone there was no semifinal in a three-round
         import: 'Zwischenrunde' says nothing, so it came in as an early round."""
-        self.assertEqual(_round_tiers(["Vorrunde", "Zwischenrunde", "Finale"]),
+        self.assertEqual(round_tiers(["Vorrunde", "Zwischenrunde", "Finale"]),
                          ["pre_semi", "semi", "final"])
 
     def test_the_ladder_reaches_back_four_rounds(self):
         self.assertEqual(
-            _round_tiers(["Vorrunde", "1. Zwischenrunde", "2. Zwischenrunde",
+            round_tiers(["Vorrunde", "1. Zwischenrunde", "2. Zwischenrunde",
                           "3. Zwischenrunde", "Semifinale", "Finale"]),
             ["early", "early", "early", "pre_semi", "semi", "final"])
 
     def test_a_name_that_says_which_round_it_is_wins(self):
         """A file whose rounds are named out of position keeps its own word for
         it — a Viertelfinale is an early round wherever it stands."""
-        self.assertEqual(_round_tiers(["Achtelfinale", "Viertelfinale", "Finale"]),
+        self.assertEqual(round_tiers(["Achtelfinale", "Viertelfinale", "Finale"]),
                          ["early", "early", "final"])
 
     def test_nameless_rounds_still_get_the_ladder(self):
-        self.assertEqual(_round_tiers(["Runde 1", "Runde 2", "Runde 3"]),
+        self.assertEqual(round_tiers(["Runde 1", "Runde 2", "Runde 3"]),
                          ["pre_semi", "semi", "final"])
 
     def test_a_single_round_is_the_final(self):
-        self.assertEqual(_round_tiers(["Finale"]), ["final"])
+        self.assertEqual(round_tiers(["Finale"]), ["final"])
 
 
 class StructuredRoundTripTest(unittest.TestCase):
@@ -399,6 +405,13 @@ class MarkerRoundsTest(unittest.TestCase):
     def test_a_plain_m3u_carries_none(self):
         p = _write_m3u(["#EXTM3U", r"C:\music\lw30 - Waltz.mp3"])
         self.assertEqual(m3u_marker_rounds(p), {})
+
+    def test_a_bare_name_is_keyed_by_the_file_next_to_the_playlist(self):
+        """BUG_REVIEW B6.1: keyed as the bare name, its round never matched
+        the path `read_m3u_tracks` gives the same line."""
+        p = _write_m3u(["#EXTM3U", "# ══ Vorrunde (1 Heat) ══", "lw30 - Waltz.mp3"])
+        self.assertEqual(m3u_marker_rounds_in_order(p),
+                         [(str(p.parent / "lw30 - Waltz.mp3").lower(), "Vorrunde")])
 
     def test_an_unreadable_file_carries_none(self):
         self.assertEqual(m3u_marker_rounds(Path("nope") / "gone.m3u"), {})

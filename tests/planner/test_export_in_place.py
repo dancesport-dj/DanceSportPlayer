@@ -14,8 +14,8 @@ import unittest
 from pathlib import Path
 
 from planner.config import replacing_text
-from planner.playlist.m3u import export_flat_m3u, export_m3u
 from planner.models import MusicEntry
+from planner.playlist.m3u import export_flat_m3u, export_m3u
 
 OLD = "#EXTM3U\n#EXTINF:180,Mondschein über Wien\nF:\\music\\old.mp3\n"
 
@@ -62,10 +62,9 @@ class ExportInPlaceTest(unittest.TestCase):
         self.assertEqual([p.name for p in self.dir.iterdir()], [self.out.name])
 
     def test_the_helper_on_its_own(self):
-        with self.assertRaises(RuntimeError):
-            with replacing_text(self.out) as f:
-                f.write("#EXTM3U\n")
-                raise RuntimeError("half-way")
+        with self.assertRaises(RuntimeError), replacing_text(self.out) as f:
+            f.write("#EXTM3U\n")
+            raise RuntimeError("half-way")
         self._left_intact()
 
 

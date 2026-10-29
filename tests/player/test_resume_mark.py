@@ -15,11 +15,12 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from player.audio.playback_state import PlaybackState
-from player.audio.resume_marks import ResumeMarks
+
+from gui.decks.deck_set import DeckSet
 from player.audio.between_dances import BetweenDances
 from player.audio.fade_now import FadeNow
-from gui.decks.deck_set import DeckSet
+from player.audio.playback_state import PlaybackState
+from player.audio.resume_marks import ResumeMarks
 
 TRACK = Path(r"C:\music\track.mp3")
 OTHER = Path(r"C:\music\other.mp3")
@@ -131,8 +132,7 @@ class _FakeWindow:
         self.table = _FakeTable()
         self._deckset = DeckSet()
         self._deckset.all_tables = (self.table,)
-        self._play_ready_logged = True
-        self._play_t0 = None
+        self._playback.ready_logged = True
         # …and what `_on_playback_state` walks past on its way to the ↩ line.
         self._fade_timer = _FakeTimer()
         self._presenter = None
@@ -392,6 +392,21 @@ class ResumeMarkTest(unittest.TestCase):
         w._on_back_to_start()
         self.assertIsNone(w._resume_seek_ms)
 
+    def test_back_to_the_start_forgets_the_ground_the_pick_up_skipped(self):
+        """Picked up at 1:03, then ⏮ 0:00: the green start line stayed at 1:03
+        and the ⏳ cut still subtracted the 63 s no longer skipped."""
+        synced = []
+
+        class Win(self.Win):
+            def _sync_big_player_limit(self):
+                synced.append(self._playback.offset_ms)
+        w = Win()
+        w._playback.offset_ms = 63_000
+        w._playback.pre_roll_ms = 5_000
+        w._on_back_to_start()
+        self.assertEqual((w._playback.offset_ms, w._playback.pre_roll_ms), (0, 0))
+        self.assertEqual(synced, [0])
+
 
 class BackToStartButtonTest(unittest.TestCase):
     """The card's ⏮ tells the window, which owns the marks."""
@@ -400,6 +415,7 @@ class BackToStartButtonTest(unittest.TestCase):
         from PySide6.QtCore import QUrl
         from PySide6.QtMultimedia import QMediaPlayer
         from PySide6.QtWidgets import QApplication
+
         from player.widgets.player import BigPlayerWidget
         from tests.qt_test_support import reap_widget
         QApplication.instance() or QApplication([])
@@ -411,6 +427,35 @@ class BackToStartButtonTest(unittest.TestCase):
         card.toStartRequested.connect(lambda: heard.append(True))
         card._cue_btn.click()
         self.assertEqual(heard, [True])
+
+    def test_a_seek_of_the_operator_takes_the_green_start_line_away(self):
+        """The line says where this play started (a ↩ pick-up, ⏩ pre-roll).
+        Once the operator moves the playhead it marks nothing — it stays gone
+        through every later sync of the overlay, until the next title loads."""
+        from PySide6.QtCore import QUrl
+        from PySide6.QtMultimedia import QMediaPlayer
+        from PySide6.QtWidgets import QApplication
+
+        from player.widgets.player import BigPlayerWidget
+        from tests.qt_test_support import reap_widget
+        QApplication.instance() or QApplication([])
+        player = QMediaPlayer()
+        player.setSource(QUrl.fromLocalFile(str(TRACK)))
+        card = BigPlayerWidget(player)
+        self.addCleanup(reap_widget, card)
+        wave = card._wave
+        for seek in (lambda: card._on_wave_released(90_000),
+                     card._on_slider_released,
+                     lambda: card._slider.clickJumped.emit(30_000),
+                     lambda: card._skip(10_000),
+                     card._cue_btn.click):
+            card.set_waveform_track(TRACK)          # a load: the line is back
+            card.set_wave_overlay([], None, 63_000, 66_000)
+            self.assertEqual(wave._start_at, 63_000)
+            seek()
+            self.assertEqual((wave._start_at, wave._fade_in_end), (0, None))
+            card.set_wave_overlay([], None, 63_000, 66_000)   # a later sync
+            self.assertEqual(wave._start_at, 0)
 
 
 class ResumeMarksTest(unittest.TestCase):

@@ -51,7 +51,7 @@ class _Dialog:
         pass
 
 
-class SettingsApplyMergeTest(unittest.TestCase):
+class _SettingsCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -72,6 +72,9 @@ class SettingsApplyMergeTest(unittest.TestCase):
             patch.start()
             self.addCleanup(patch.stop)
 
+
+class SettingsApplyMergeTest(_SettingsCase):
+
     def test_what_changed_behind_the_dialog_survives_its_ok(self):
         self.win._open_settings()
         self.assertEqual(self.win._settings.get("system_sounds_muted"), MUTED)
@@ -80,6 +83,60 @@ class SettingsApplyMergeTest(unittest.TestCase):
     def test_what_the_operator_changed_in_it_is_applied(self):
         self.win._open_settings()
         self.assertEqual(self.win._settings.get("check_tempo_dev_pct"), 7)
+
+
+class _ButtonDialog(_Dialog):
+    """…and then a button that closes the dialog to run something: like the
+    real one, it calls back from inside exec(), the dialog's values in hand."""
+
+    EDIT: dict = {}
+    BUTTON = ""
+
+    def __init__(self, settings, parent, **kw):
+        super().__init__(settings, parent)
+        self._kw = kw
+
+    def exec(self):
+        super().exec()
+        cb = self._kw[self.BUTTON]
+        cb(self.values()) if self.BUTTON in ("rescan_cb", "all_cb", "build_cb") else cb()
+        return QDialog.DialogCode.Accepted
+
+    def values(self):
+        return {**super().values(), **self.EDIT}
+
+
+class SettingsButtonTest(_SettingsCase):
+    """BUG_REVIEW B3.1 / B4.6: what such a button runs, it runs on the
+    settings as OK leaves them, and it leaves OK's follow-ups intact."""
+
+    def press(self, button, **edit):
+        dlg = type("Dlg", (_ButtonDialog,), {"EDIT": edit, "BUTTON": button})
+        with mock.patch.object(main_global, "SettingsDialog", dlg):
+            self.win._open_settings()
+
+    def test_a_rescan_leaves_the_mode_change_to_ok(self):
+        with mock.patch.object(self.win, "_library_still_loading", return_value=True), \
+                mock.patch.object(self.win, "_apply_app_mode") as apply_mode:
+            self.press("rescan_cb", app_mode="player")
+        apply_mode.assert_called_once()
+        self.assertEqual(self.win._settings["app_mode"], "player")
+        self.assertEqual(self.win._settings.get("master_volume"), 0.42)
+        self.assertFalse(set(main_global.CART_WALL_KEYS) & set(self.win._settings))
+
+    def test_relearn_runs_once_on_the_new_folder(self):
+        order = mock.Mock()
+        with mock.patch("planner.config.set_playlist_dir", order.set_dir), \
+                mock.patch.object(self.win, "_relearn_playlists", order.relearn):
+            self.press("relearn_cb", playlist_dir="D:/new lists")
+        self.assertEqual([c[0] for c in order.mock_calls], ["set_dir", "relearn"])
+
+    def test_the_venue_pack_holds_the_edited_values(self):
+        seen = []
+        with mock.patch.object(self.win, "_export_venue_pack",
+                               lambda: seen.append(self.win._settings.get("check_tempo_dev_pct"))):
+            self.press("venue_export_cb")
+        self.assertEqual(seen, [7])
 
 
 if __name__ == "__main__":

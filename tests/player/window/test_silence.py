@@ -5,8 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from shared.audio.audio_probes import parse_silences  # does NOT import gui.dialogs
 from player.audio.playback_state import PlaybackState
+from shared.audio.audio_probes import parse_silences  # does NOT import gui.dialogs
 
 
 class ParseSilencesTest(unittest.TestCase):

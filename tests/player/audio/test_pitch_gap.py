@@ -26,16 +26,16 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_pitch_"))
 
 from PySide6.QtWidgets import QApplication, QWidget
-from tests.qt_test_support import reap_widget
 
-from player.audio.mix import OutputMix
-from player.window.main_player import PlayerControlMixin
+from gui.decks.deck_set import DeckSet
 from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry
+from player.audio.between_dances import BetweenDances
+from player.audio.mix import OutputMix
 from player.audio.playback_state import PlaybackState
 from player.audio.resume_marks import ResumeMarks
-from player.audio.between_dances import BetweenDances
-from gui.decks.deck_set import DeckSet
+from player.window.main_player import PlayerControlMixin
+from tests.qt_test_support import reap_widget
 
 _MUSIC = Path(r"C:\music\tanzcds")
 
@@ -104,6 +104,9 @@ class _Card:
 
 
 class _Panel:
+    def set_pd_loaded(self, on):
+        pass
+
     def announce_wait(self) -> bool:
         # ⏳ off, so the load path's real `_announce_start_first` answers "no
         # wait" by itself — the announcement has its own tests.
@@ -268,8 +271,8 @@ class TaktReadoutTest(unittest.TestCase):
     too. The half takt is the answer to "what is this heat danced at"."""
 
     def text(self, x):
-        from player.widgets.player_parts import _takt_text
-        return _takt_text(x)
+        from player.widgets.player_parts import takt_text
+        return takt_text(x)
 
     def test_a_half_takt_is_printed_as_one(self):
         self.assertEqual(self.text(24.5), "24.5")
@@ -386,8 +389,7 @@ class RoundTaktByDanceTest(unittest.TestCase):
     """
 
     def target(self, dance, *bpms):
-        from dancesport_planner import (TEMPO_RANGES, round_takt_target,
-                                        takt_counts)
+        from dancesport_planner import TEMPO_RANGES, round_takt_target, takt_counts
         lo, hi = TEMPO_RANGES[dance]["S"]
         return round_takt_target(takt_counts(list(bpms)), lo, hi)
 

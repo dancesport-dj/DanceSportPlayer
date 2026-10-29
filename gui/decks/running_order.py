@@ -23,6 +23,8 @@ from dataclasses import dataclass, field, replace
 from itertools import count
 from typing import TYPE_CHECKING
 
+from planner.models import RoundTier, Strategy
+
 if TYPE_CHECKING:
     from planner.models import MusicEntry
 
@@ -44,9 +46,9 @@ class Row:
     round_name: str = ""            # the round this row belongs to
     h_idx: int = 0                  # heat index within the round
     d_idx: int = 0                  # dance index (the grid column)
-    tier: str = ""                  # early / late — how the round picks
+    tier: RoundTier = RoundTier.EARLY   # how the round picks
     prefer_fresh: bool = False      # round wants unplayed tracks
-    strategy: str = ""              # per-round pick strategy
+    strategy: Strategy = Strategy.DEFAULT   # per-round pick strategy
     multi: bool = False             # round dances more than one dance
     backup: bool = False            # a stacked final-round spare, not a heat
     backup_n: int = 0               # 1, 2, … which spare under the slot
@@ -76,7 +78,7 @@ class Row:
         the stacked backups are stored under, and what an undo compares."""
         return (self.round_name, self.h_idx, self.d_idx)
 
-    def spare(self, entry, n: int) -> "Row":
+    def spare(self, entry, n: int) -> Row:
         """A stacked final-round backup under this slot: same place in the
         draw, a different track, and not counted as a heat."""
         return replace(self, entry=entry, backup=True, backup_n=n)

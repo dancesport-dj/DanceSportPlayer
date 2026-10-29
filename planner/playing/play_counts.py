@@ -10,7 +10,6 @@ A reset only moves the point the counting starts from (kept in app_meta, so a
 restart does not bring the old counts back). The log itself — the report for
 the music rights society — stays as it is.
 """
-from __future__ import annotations
 
 import datetime as dt
 
@@ -21,7 +20,6 @@ DAY = dt.timedelta(hours=24)
 _RESET_KEY = "play_counts_reset"
 
 _plays: dict[str, list[dt.datetime]] = {}   # path key → when it was heard
-
 
 def clear() -> None:
     """Forget every count (the window starting over, or a test)."""

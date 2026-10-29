@@ -23,7 +23,7 @@ from PySide6.QtCore import QPoint
 from PySide6.QtWidgets import QMenu
 
 from dancesport_planner import MusicLibrary
-from tests.gui.window.test_deck_file_reveal import _DIR, _RightClick, _entry
+from tests.gui.window.test_deck_file_reveal import _DIR, _entry, _RightClick
 from tests.qt_test_support import reap_widget, stub_window_startup
 
 

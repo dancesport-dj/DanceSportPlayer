@@ -18,12 +18,12 @@ import math
 import unittest
 
 from player.audio.mix import (
+    ANNOUNCE_DUCK,
+    CART_DUCK,
     CART_DUCK_PCT,
+    DUCK_DOWN_MS,
+    DUCK_UP_MS,
     OutputMix,
-    _ANNOUNCE_DUCK,
-    _CART_DUCK,
-    _DUCK_DOWN_MS,
-    _DUCK_UP_MS,
     cart_duck_level,
     cart_duck_pct,
 )
@@ -36,13 +36,13 @@ class DuckReasonTest(unittest.TestCase):
 
     def test_the_announcer_alone_ducks_and_lifts(self):
         self.m.duck_reason("announce", True)
-        self.assertEqual(self.m.duck_target, _ANNOUNCE_DUCK)
+        self.assertEqual(self.m.duck_target, ANNOUNCE_DUCK)
         self.m.duck_reason("announce", False)
         self.assertEqual(self.m.duck_target, 1.0)
 
     def test_a_pad_alone_ducks_and_lifts(self):
         self.m.duck_reason("cartwall", True)
-        self.assertEqual(self.m.duck_target, _CART_DUCK)
+        self.assertEqual(self.m.duck_target, CART_DUCK)
         self.m.duck_reason("cartwall", False)
         self.assertEqual(self.m.duck_target, 1.0)
 
@@ -51,7 +51,7 @@ class DuckReasonTest(unittest.TestCase):
         self.m.duck_reason("announce", True)
         self.m.duck_reason("cartwall", True)
         self.m.duck_reason("announce", False)
-        self.assertEqual(self.m.duck_target, _CART_DUCK)
+        self.assertEqual(self.m.duck_target, CART_DUCK)
         self.m.duck_reason("cartwall", False)
         self.assertEqual(self.m.duck_target, 1.0)
 
@@ -59,22 +59,22 @@ class DuckReasonTest(unittest.TestCase):
         self.m.duck_reason("cartwall", True)
         self.m.duck_reason("announce", True)
         self.m.duck_reason("cartwall", False)
-        self.assertEqual(self.m.duck_target, _ANNOUNCE_DUCK)
+        self.assertEqual(self.m.duck_target, ANNOUNCE_DUCK)
         self.m.duck_reason("announce", False)
         self.assertEqual(self.m.duck_target, 1.0)
 
     def test_a_pad_pulls_deeper_than_the_announcer(self):
         """A fanfare over music that only sat back 10 dB was lost in it: the
         pad takes the music down about 20 dB, the voice keeps its softer duck."""
-        self.assertLess(_CART_DUCK, _ANNOUNCE_DUCK)
-        self.assertAlmostEqual(_CART_DUCK, 0.1)
+        self.assertLess(CART_DUCK, ANNOUNCE_DUCK)
+        self.assertAlmostEqual(CART_DUCK, 0.1)
 
     def test_both_on_take_the_deeper_duck(self):
         for first, second in (("announce", "cartwall"), ("cartwall", "announce")):
             m = OutputMix()
             m.duck_reason(first, True)
             m.duck_reason(second, True)
-            self.assertEqual(m.duck_target, _CART_DUCK, (first, second))
+            self.assertEqual(m.duck_target, CART_DUCK, (first, second))
 
     def test_an_unbalanced_off_cannot_strand_the_music(self):
         """The announcer's give-up watchdog can report `off` twice; a counter
@@ -103,12 +103,12 @@ class DuckReasonTest(unittest.TestCase):
         self.m.duck_reason("cartwall", True)
         self.m.step()
         down = 1.0 - self.m.duck
-        self.m.duck = _CART_DUCK
+        self.m.duck = CART_DUCK
         self.m.duck_reason("cartwall", False)
         self.m.step()
-        up = self.m.duck - _CART_DUCK
+        up = self.m.duck - CART_DUCK
         self.assertGreater(down, up)
-        self.assertAlmostEqual(down / up, _DUCK_UP_MS / _DUCK_DOWN_MS, places=3)
+        self.assertAlmostEqual(down / up, DUCK_UP_MS / DUCK_DOWN_MS, places=3)
 
     def steps_to_settle(self):
         for n in range(1, 1000):
@@ -122,8 +122,8 @@ class DuckReasonTest(unittest.TestCase):
         duck took longer than _DUCK_DOWN_MS to get down, and longer up
         (10 steps and 31 for the 8 and 24 here). One step of slack: a span
         that divides evenly can land a step late on summed floats."""
-        down = math.ceil(_DUCK_DOWN_MS / OutputMix.step_ms)
-        up = math.ceil(_DUCK_UP_MS / OutputMix.step_ms)
+        down = math.ceil(DUCK_DOWN_MS / OutputMix.step_ms)
+        up = math.ceil(DUCK_UP_MS / OutputMix.step_ms)
         for reason in ("announce", "cartwall"):
             with self.subTest(reason):
                 self.m = OutputMix()
@@ -141,7 +141,7 @@ class DuckReasonTest(unittest.TestCase):
                 break
             self.m.step()
         self.assertTrue(self.m.settled)
-        self.assertEqual(self.m.duck, _ANNOUNCE_DUCK)
+        self.assertEqual(self.m.duck, ANNOUNCE_DUCK)
 
 
 class OutputLevelTest(unittest.TestCase):
@@ -178,26 +178,12 @@ class OutputLevelTest(unittest.TestCase):
 
     def test_the_pads_ignore_the_duck_they_cause(self):
         """A pad ducking the music must not duck itself — that was the point."""
-        self.m.duck = _ANNOUNCE_DUCK
+        self.m.duck = ANNOUNCE_DUCK
         self.assertAlmostEqual(self.m.cartwall(), 1.0)
 
     def test_the_pads_ignore_the_running_title_s_own_level(self):
         self.m.gain, self.m.fade = 0.3, 0.4
         self.assertAlmostEqual(self.m.cartwall(), 1.0)
-
-    def test_the_filler_carries_the_announcement_duck(self):
-        """The announcer speaks over the filler — that is what the break is for."""
-        self.m.duck = 0.5
-        self.assertAlmostEqual(self.m.filler(1.0), 0.8 * 0.5)
-
-    def test_the_filler_ignores_the_deck_s_gain_and_fade(self):
-        """No deck title is running: its loudness correction means nothing."""
-        self.m.gain, self.m.fade = 0.25, 0.25
-        self.assertAlmostEqual(self.m.filler(0.5), 0.4)
-
-    def test_the_filler_takes_its_own_fade(self):
-        self.m.filler_fade = 0.5
-        self.assertAlmostEqual(self.m.filler(1.0), 0.4)
 
     def test_a_level_never_leaves_the_range(self):
         """A broken R128 measurement may push the gain over 1 — a blast at the
@@ -277,7 +263,7 @@ class CartDuckSettingTest(unittest.TestCase):
 
     def test_without_the_setting_it_is_a_tenth(self):
         self.assertEqual(cart_duck_pct({}), CART_DUCK_PCT)
-        self.assertAlmostEqual(cart_duck_level({}), _CART_DUCK)
+        self.assertAlmostEqual(cart_duck_level({}), CART_DUCK)
 
     def test_the_setting_sets_it_within_bounds(self):
         self.assertEqual(cart_duck_pct({"cart_duck_pct": 25}), 25)
@@ -307,7 +293,7 @@ class CartDuckSettingTest(unittest.TestCase):
         m.set_cart_duck(0.5)
         m.duck_reason("cartwall", True)
         m.duck_reason("announce", True)
-        self.assertEqual(m.duck_target, _ANNOUNCE_DUCK)
+        self.assertEqual(m.duck_target, ANNOUNCE_DUCK)
 
     def test_the_readout_names_the_level_in_db(self):
         self.assertEqual(duck_db_text(10), "≈ −20 dB")

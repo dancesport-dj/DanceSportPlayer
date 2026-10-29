@@ -18,7 +18,6 @@ from shared.appearance.presenter_theme import (
 )
 from tests.qt_test_support import qapp, reap_widget
 
-
 _STATE = ("LW", "Titel", ("00:10", "− 02:00", False, 0.1),
           [("TG", "Zweiter")], ("", ""))
 

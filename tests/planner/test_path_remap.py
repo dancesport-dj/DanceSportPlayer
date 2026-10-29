@@ -15,8 +15,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from planner.music.paths import (PathRemapper, foreign_name, foreign_parts,
-                           home_search_roots, parse_remap_paths)
+from planner.music.paths import PathRemapper, foreign_name, foreign_parts, home_search_roots, parse_remap_paths
 
 
 class ParseRemapPathsTest(unittest.TestCase):

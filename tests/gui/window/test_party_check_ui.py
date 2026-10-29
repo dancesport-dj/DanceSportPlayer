@@ -29,15 +29,18 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 import shiboken6
 from PySide6.QtWidgets import (
-    QApplication, QLabel, QToolButton, QWidget,
+    QApplication,
+    QLabel,
+    QToolButton,
+    QWidget,
 )
 
 from gui.decks.deck_set import DeckSet
+from gui.table.playlist_table import PlaylistTable
 from gui.window.main_generate import GenerateMixin
 from gui.window.main_music import MusicCheckMixin
-from gui.table.playlist_table import PlaylistTable
-from planner.playlist import party_check as pc
 from planner.models import MusicEntry
+from planner.playlist import party_check as pc
 from tests.qt_test_support import reap_widget
 
 _TAKT = {'LW': 29, 'TG': 32, 'WW': 59, 'SF': 29, 'QS': 51,

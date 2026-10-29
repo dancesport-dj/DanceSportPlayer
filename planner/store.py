@@ -81,7 +81,7 @@ class JsonStore:
         self.note = note
 
     @classmethod
-    def at(cls, path, *, note: str = "using defaults") -> "JsonStore":
+    def at(cls, path, *, note: str = "using defaults") -> JsonStore:
         """A store over one named file — for the callers that are handed a path
         (a test's temp file) rather than living under one of the roots."""
         p = Path(path)

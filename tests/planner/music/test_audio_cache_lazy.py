@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 
 import planner.music.db as pdb
-from planner.music.analysis import _AUDIO_FEAT_DIM
+from planner.music.analysis import AUDIO_FEAT_DIM
 from tests.db_support import use_scratch_db
 
 
@@ -27,7 +27,7 @@ class LazyFeaturesTest(unittest.TestCase):
             conn.execute(
                 "INSERT INTO features (fp, bpm, centroid, rms, mfcc, mfcc_mean, mfcc_cov) "
                 "VALUES (?,?,?,?,?,?,?)",
-                (fp, bpm, 1500.0, 0.1, pack([0.5] * _AUDIO_FEAT_DIM),
+                (fp, bpm, 1500.0, 0.1, pack([0.5] * AUDIO_FEAT_DIM),
                  pack([0.1] * 20), pack([0.2] * 400)))
         conn.commit()
         self.song = self.dir / "a.mp3"
@@ -41,7 +41,7 @@ class LazyFeaturesTest(unittest.TestCase):
         cache._fp[cache._key(self.song)] = "fp1"
         feat = cache.get(self.song, hash_if_missing=False)
         self.assertEqual(feat.bpm, 120.0)
-        self.assertEqual(len(feat.mfcc), _AUDIO_FEAT_DIM)
+        self.assertEqual(len(feat.mfcc), AUDIO_FEAT_DIM)
         self.assertEqual(set(cache._data), {"fp1"})
 
     def test_a_title_without_analysis_has_none(self):

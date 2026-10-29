@@ -5,32 +5,33 @@ where a track really starts, as a MainWindow mixin. The sound card itself (which
 one, held or handed back, the OS's own sounds) is player/audio/audio_device.py.
 """
 import logging
-
-from planner import i18n
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import (
     QTimer,
 )
-from pathlib import Path
+
+from planner import i18n
+from player.audio.mix import (
+    ANNOUNCE_DUCK,  # noqa: F401 — re-exported: the level arithmetic moved out
+    DESK_DUCK,  # noqa: F401
+    DUCK_DOWN_MS,  # noqa: F401
+    DUCK_UP_MS,  # noqa: F401
+    desk_duck_level,
+    desk_duck_pct,
+    duck_ramp_ms,
+    fade_in_secs,
+)
+from shared.audio.audio_probes import LoudnessWorker, SilenceWorker, find_ffmpeg  # auto-resolved
 from shared.audio.playback import (
-    _TARGET_LUFS,
-    _TRUE_PEAK_CEILING,
+    TARGET_LUFS,
+    TRUE_PEAK_CEILING,
     audible_played_secs,
 )
 from shared.stores import (  # auto-resolved
     save_settings,
 )
-from shared.audio.audio_probes import LoudnessWorker, SilenceWorker, find_ffmpeg  # auto-resolved
-from player.audio.mix import (
-    _ANNOUNCE_DUCK,  # noqa: F401 — re-exported: the level arithmetic moved out
-    _DESK_DUCK,  # noqa: F401
-    _DUCK_DOWN_MS,  # noqa: F401
-    _DUCK_UP_MS,  # noqa: F401
-    desk_duck_level,
-    desk_duck_pct,
-    fade_in_secs,
-)
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -61,31 +62,52 @@ class AudioLevelMixin(MainWindowHost):
             self._audio_out.setVolume(self._mix.deck())
         if self._cart_voices is not None:
             self._cart_voices.set_level(self._mix.cartwall())
+            self._cart_voices.set_bed_duck(self._mix.duck)
 
     def _set_desk_duck(self, on: bool):
         """🔉 The duck button on the player card / preview overlay: everything
         audible down and back. A factor of its own, so it survives a fade-out
-        ramp or an announcement happening at the same time — and the filler
-        music picks it up on its next tick."""
+        ramp or an announcement happening at the same time."""
         self._mix.set_desk_duck(on, desk_duck_level(self._settings))
-        self._apply_volume()
-        if self._big_player:
-            self._big_player.set_ducked(on)
-        if self._preview:
-            self._preview.set_ducked(on)
-        if self._presenter is not None:
-            self._presenter.set_ducked(on)
+        self._show_desk_duck()
         log.info("🔉 Desk duck %s\n"
                  "factor: %.2f", "on" if on else "off", self._mix.desk)
 
+    def _set_desk_mute(self, on: bool):
+        """🔇 The duck button's third state: everything audible silent."""
+        self._mix.set_desk_mute(on)
+        self._show_desk_duck()
+        log.info("🔇 Desk mute %s", "on" if on else "off")
+
+    def _cycle_desk_duck(self):
+        """🔉 A press on the duck button, wherever it sits: full → duck →
+        muted → full. The 🎛 controller's duck stays a two-way toggle."""
+        if self._mix.desk_muted:
+            self._set_desk_mute(False)
+        elif self._mix.desk != 1.0:
+            self._set_desk_mute(True)
+        else:
+            self._set_desk_duck(True)
+
+    def _show_desk_duck(self):
+        """Apply the desk factor and show its state on every duck button."""
+        self._apply_volume()
+        ducked = self._mix.desk != 1.0
+        muted = self._mix.desk_muted
+        for w in (self._big_player, self._preview, self._presenter):
+            if w is not None:
+                w.set_ducked(ducked, muted)
+
     def apply_duck_level(self):
         """🔉 The duck level from ⚙ Settings: every duck button names it, and
-        a duck that is on right now moves to it. One that is off stays off."""
+        a duck that is on right now moves to it. One that is off stays off.
+        🔈 And how fast a voice or a pad ducks the music, and lets it back."""
+        self._mix.set_duck_ramps(*duck_ramp_ms(self._settings))
         pct = desk_duck_pct(self._settings)
         for w in (self._big_player, self._preview, self._presenter):
             if w is not None:
                 w.set_duck_level(pct)
-        if self._mix.desk != 1.0:
+        if self._mix.desk != 1.0 and not self._mix.desk_muted:
             self._set_desk_duck(True)
 
     def _set_duck_reason(self, reason: str, on: bool):
@@ -109,6 +131,7 @@ class AudioLevelMixin(MainWindowHost):
         if on:
             self._audio_device.ensure()
         self._set_duck_reason("announce", on)
+        self._audio_device.on_activity()
 
     def _step_volume_ramp(self):
         """One ramp step of the announcement duck and of a loudness gain that
@@ -118,8 +141,6 @@ class AudioLevelMixin(MainWindowHost):
         if self._mix.settled:
             self._ramp_timer.stop()
         self._apply_volume()
-        if self._filler.active:
-            self._update_pause_music_volume()
 
     def _set_base_volume(self, v: float):
         """Volume slider (preview overlay or big player card) → user's base
@@ -141,6 +162,12 @@ class AudioLevelMixin(MainWindowHost):
             self._cartwall.set_level(self._mix.cart)
         self._vol_save_timer.start()
 
+    def _set_cart_muted(self, on: bool):
+        """🔇 The cartwall's 🔊 clicked: the pads silent, their fader kept.
+        Not persisted — a muted wall at the next start would be a surprise."""
+        self._mix.cart_muted = on
+        self._apply_volume()
+
     def _save_master_volume(self):
         self._settings["master_volume"] = round(self._mix.base, 3)
         self._settings["cartwall_volume"] = round(self._mix.cart, 3)
@@ -160,9 +187,9 @@ class AudioLevelMixin(MainWindowHost):
             return 1.0
         if lufs is None:
             return 1.0
-        gain_db = max(-12.0, min(9.0, _TARGET_LUFS - lufs))
+        gain_db = max(-12.0, min(9.0, TARGET_LUFS - lufs))
         if tp is not None:
-            gain_db = min(gain_db, _TRUE_PEAK_CEILING - tp)
+            gain_db = min(gain_db, TRUE_PEAK_CEILING - tp)
         return 10 ** (gain_db / 20)
 
     def _refresh_loudness_gain(self):
@@ -340,13 +367,14 @@ class AudioLevelMixin(MainWindowHost):
         Not one a 🔀 crossfade brings in (that has its own ramp), and not in
         the floating overlay: a pre-listen starts at full level."""
         xf = self._between.xfade
-        if (fade_in_secs(self._settings) <= 0 or not self._is_playing_mode()
+        secs = fade_in_secs(self._settings)
+        if (secs <= 0 or not self._is_playing_mode()
                 or (xf.state == "fading" and path == xf.incoming)):
             self._playback.fade_in_from = None
             self._playback.fade_in_secs = 0.0
             return
         self._playback.fade_in_from = 0.0
-        self._playback.fade_in_secs = fade_in_secs(self._settings)
+        self._playback.fade_in_secs = secs
         self._mix.fade_in = 0.0
 
     def _step_fade_in(self):
@@ -355,7 +383,7 @@ class AudioLevelMixin(MainWindowHost):
         start = self._playback.fade_in_from
         if start is None or self._between.xfade.state is not None:
             return
-        secs = fade_in_secs(self._settings)
+        secs = self._playback.fade_in_secs   # the one this title was armed with
         level = (1.0 if secs <= 0
                  else max(0.0, min(1.0, (self._heard_secs() - start) / secs)))
         if level >= 1.0:

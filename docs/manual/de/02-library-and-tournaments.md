@@ -34,7 +34,7 @@ wie beim Scan beim Start.
 | Alle Klassen | Titel, die zu einer der angehakten Startklassen passen. Ein Klick hakt eine Klasse an oder ab und lässt die Liste offen, so lassen sich mehrere anhaken; Alle Klassen nimmt alle Haken weg, und wer auch die letzte Klasse anhakt, landet wieder auf Alle Klassen, und die Liste klappt zu. Titel ohne Klassen-Tag erscheinen nur unter Alle Klassen; Gesellschaftstänze haben keine Klassen und bleiben. |
 | Gesang + Instr. | Nur 🎤 Titel mit Gesang oder nur 🎻 instrumentale Titel. |
 | Alle Kategorien | 🏆 **Nur Turnier** blendet Hymnen, Hintergrundmusik, Dateien mit falschem Tempo, Duplikate und Saison-Ordner aus. Du kannst auch eine dieser Kategorien wählen, was für eine Party praktisch ist. Ein Titel außerhalb dieser Ordner kommt in eine Kategorie, wenn sein Kommentar ihren Namen als Tag trägt, z. B. `Hintergrund`, `Hymnen`, `kein Turnier`, `Doppelte` oder `Weihnachten`; die englischen Namen gehen auch. **🏷 Kein Klassen-Tag** listet die Turniertitel, deren Kommentar kein Klassen-Tag trägt, damit du sie taggen kannst. |
-| Gespielt: alle | ✦ **Nie gespielt**, ★ **Selten**, ★ **Bewährt** oder 📅 **Seit 1 J. nicht** (gespielt, aber in keiner Playlist des letzten Jahres). |
+| Gespielt: alle | ✦ **Nie gespielt**, ★ **Selten**, ★ **Bewährt** oder 📅 **Seit 1 J. nicht** (gespielt, aber in keiner Wiedergabeliste des letzten Jahres). |
 | Hinzugefügt: alle | Dateien, die in den letzten 30 oder 90 Tagen oder den letzten 12 oder 18 Monaten angelegt wurden. Kombiniert mit ✦ Nie gespielt findest du, was du hineinkopiert, aber nie benutzt hast. |
 | 🆕 Ungeplant | Nur Titel, die in keinem der offenen Decks stehen. |
 | 🏷 Nur mit Klasse | Blendet die Turniertitel ohne Klassen-Tag aus, die sonst erscheinen, wenn keine oder jede Klasse angehakt ist. Gesellschaftstänze haben keine Klassen und bleiben. |
@@ -63,13 +63,13 @@ wie beim Scan beim Start.
   Name der Datei, mit dem vollen Pfad im Tooltip; Album ist der Album-Tag der
   MP3, Kommentar ihr Kommentar, wie er drinsteht, und Gespielt, wie oft der
   Titel in den letzten 24 Stunden lief, wie in den
-  [Playlists](03-playlists.md), mit **Zähler für Gespielt zurücksetzen** im
+  [Wiedergabelisten](03-playlists.md), mit **Zähler für Gespielt zurücksetzen** im
   selben Menü.
   **Custom einem MP3-Tag zuordnen…** füllt Custom aus einem Tag deiner Wahl.
 
 ## 🏆 Turniere
 
-Dein Archiv an Turnier-Playlists, so sortiert, wie du über sie denkst: eine
+Dein Archiv an Turnier-Wiedergabelisten, so sortiert, wie du über sie denkst: eine
 Saison, ein Wochenende, eine Halle, ein Turnier. Die Ordner sind nur
 Beschriftungen. Die 🎵 Einträge zeigen auf `.m3u`-Dateien, wo immer diese auf
 der Platte liegen.
@@ -80,8 +80,8 @@ der Platte liegen.
 
 - Zieh `.m3u`-Dateien oder einen ganzen Ordner aus dem Explorer auf den Baum.
 - **📁** legt einen Ordner an: einen Tag, eine Halle, ein Turnier.
-- **＋** fügt dem markierten Ordner Playlist-Dateien hinzu. Rechtsklick auf
-  den Baum ▸ **📂 Ordner mit Playlists hinzufügen…** legt einen ganzen Ordner
+- **＋** fügt dem markierten Ordner Wiedergabelisten-Dateien hinzu. Rechtsklick auf
+  den Baum ▸ **📂 Ordner mit Wiedergabelisten hinzufügen…** legt einen ganzen Ordner
   von der Platte als Zweig an, mit jeder `.m3u` darunter, genauso wie ein aus
   dem Explorer gezogener Ordner.
 - **✎** (oder **F2**) benennt den markierten Eintrag um. **🗑** (oder
@@ -93,22 +93,22 @@ der Platte liegen.
   nach einer Rückfrage alle markierten Einträge.
 - **⊟** klappt jeden Ordner zu, was bei einer langen Saison hilft.
 - Aus einem Deck: Rechtsklick ▸ **🏆 Speichern und in „Turniere“ eintragen…**
-  speichert die Playlist und legt sie hier ab. Sie kommt in den markierten
-  Ordner, neben die markierte Playlist oder an die Wurzel. Der neue Eintrag
+  speichert die Wiedergabeliste und legt sie hier ab. Sie kommt in den markierten
+  Ordner, neben die markierte Wiedergabeliste oder an die Wurzel. Der neue Eintrag
   wird sofort gewählt und gezeigt.
 
 ### Slot-Ansicht
 
-Wähl links einen Ordner, dann erscheinen rechts seine Playlists als Slots.
+Wähl links einen Ordner, dann erscheinen rechts seine Wiedergabelisten als Slots.
 Jeder Slot zeigt:
 
-- den Namen der Playlist,
+- den Namen der Wiedergabeliste,
 - die Zahl der Titel (♪),
 - die Tänze,
 - die Runden, die sie enthält (VR = Vorrunde, ZR = Zwischenrunde,
   ER = Endrunde).
 
-- **Zieh einen Slot auf ein Deck**, um diese Playlist dort zu laden. Ziehst
+- **Zieh einen Slot auf ein Deck**, um diese Wiedergabeliste dort zu laden. Ziehst
   du einen von mehreren markierten Slots, kommen alle mit; sie gehen in die
   freien Decks, je einer. Ein einfacher Klick verengt die Markierung auf einen
   Slot.
@@ -118,8 +118,8 @@ Jeder Slot zeigt:
 
 ### Titel-Ansicht
 
-**▤** schaltet auf die Titel-Ansicht. Der Baum listet jetzt die Playlists
-selbst, und rechts stehen die Titel der gewählten Playlist in
+**▤** schaltet auf die Titel-Ansicht. Der Baum listet jetzt die Wiedergabelisten
+selbst, und rechts stehen die Titel der gewählten Wiedergabeliste in
 Abspielreihenfolge, mit Runde und Tanz. Runden stehen kurz da, so wie die
 Slots sie schreiben (VR, 1ZR, ER). Fahr mit der Maus darüber für den vollen
 Namen.
@@ -144,4 +144,4 @@ Namen.
 
 **▦** schaltet zurück auf die Slots.
 
-Weiter: [Playlists](03-playlists.md)
+Weiter: [Wiedergabelisten](03-playlists.md)

@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
 )
 
 
-def _row_box(lyt) -> QWidget:
+def row_box(lyt) -> QWidget:
     """A row of controls as one widget.
 
     A layout cannot be handed from one parent to another; a widget can. The
@@ -41,7 +41,7 @@ def _row_box(lyt) -> QWidget:
     return w
 
 
-class _Rows(QWidget):
+class Rows(QWidget):
     """A group of rows that stands as a column or lies down as a line.
 
     Down the side panel a group is a little stack; in the strip over the decks
@@ -87,7 +87,7 @@ class _Rows(QWidget):
         old.deleteLater()
 
 
-class _FlowLayout(QLayout):
+class FlowLayout(QLayout):
     """Controls set like words in a paragraph: along the line until the edge,
     then on to the next one.
 
@@ -163,7 +163,7 @@ class _FlowLayout(QLayout):
         return y + line - rect.y() + m.bottom()
 
 
-class _Toggle(QAbstractButton):
+class Toggle(QAbstractButton):
     """A sliding on/off switch, the kind a phone uses.
 
     The desk is read at a glance, from a metre away, between two heats, and a
@@ -233,6 +233,13 @@ class _Toggle(QAbstractButton):
         self._ink = color
         self.update()
 
+    def set_scale(self, pct: int):
+        """🔘 The pill at the button size from ⚙ Settings → Look."""
+        self._TRACK_W = round(type(self)._TRACK_W * pct / 100)
+        self._TRACK_H = round(type(self)._TRACK_H * pct / 100)
+        self.updateGeometry()
+        self.update()
+
     def settle(self):
         """Put the knob where the state says, with no slide."""
         self._anim.stop()
@@ -289,7 +296,7 @@ class _Toggle(QAbstractButton):
                     fm.elidedText(self.text(), Qt.TextElideMode.ElideRight, room))
 
 
-class _InlineEdit(QLineEdit):
+class InlineEdit(QLineEdit):
     """A field that sits over the play-length readout while it is being typed.
 
     Only exists for Esc: a QLineEdit swallows it silently, and abandoning a

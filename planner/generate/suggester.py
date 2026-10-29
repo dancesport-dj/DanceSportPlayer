@@ -5,36 +5,13 @@ the per-round/per-heat grid using MusicLibrary, plus generate_hints for the
 post-build advisory notes.
 """
 import logging
-
-from collections import Counter, defaultdict
 import math
 import random
 import secrets
+from collections import Counter, defaultdict
 from typing import Any
+
 from planner import i18n
-from planner.music.db import (  # auto-resolved
-    AudioFeatures,
-)
-from planner.music.similarity import (  # auto-resolved
-    _STRONG_TIMBRE,
-    _timbre_similarity,
-    timbre_measured,
-)
-from planner.models import (  # auto-resolved
-    ALLOW_REPEAT,
-    BELOW_TEMPO_EXT,
-    FAST_DANCES,
-    MusicEntry,
-    Playlist,
-    RoundConfig,
-    SLOW_DANCES,
-    TEMPO_RANGES,
-    is_non_turnier,
-)
-from planner.terms import dance_name
-from planner.music.parsing import (  # auto-resolved
-    _bpm_fit,
-)
 from planner.generate.scoring import (  # auto-resolved
     BONUS_CLASS_OK,
     BONUS_FRESH,
@@ -42,29 +19,54 @@ from planner.generate.scoring import (  # auto-resolved
     PENALTY_BELOW_TEMPO,
     PENALTY_CLASS_DILUTED,
     PENALTY_CLASS_MISMATCH,
+    PROVEN_MIN_POP,
     RANDOM_TIEBREAK,
     W_BPM_FIT,
     W_POPULARITY,
     W_TIMBRE,
-    _PROVEN_MIN_POP,
-    _resolve_strategy,
     class_dilutes,
     class_popularity,
     effective_popularity,
     prefer_late_rounds,
-)
-from planner.themes import (  # auto-resolved
-    all_themes,
-    load_user_themes,
+    resolve_strategy,
 )
 from planner.generate.warmup import (  # auto-resolved
     class_warmup_pool,
     entry_in_style,
     others_dance_of,
 )
+from planner.models import (  # auto-resolved
+    ALLOW_REPEAT,
+    BELOW_TEMPO_EXT,
+    FAST_DANCES,
+    SLOW_DANCES,
+    TEMPO_RANGES,
+    MusicEntry,
+    Playlist,
+    RoundConfig,
+    RoundTier,
+    Strategy,
+    is_non_turnier,
+)
+from planner.music.db import (  # auto-resolved
+    AudioFeatures,
+)
 from planner.music.library import (  # auto-resolved
+    ANCHOR_DEFAULT,
     MusicLibrary,
-    _ANCHOR_DEFAULT,
+)
+from planner.music.parsing import (  # auto-resolved
+    bpm_fit,
+)
+from planner.music.similarity import (  # auto-resolved
+    STRONG_TIMBRE,
+    timbre_measured,
+    timbre_similarity,
+)
+from planner.terms import dance_name
+from planner.themes import (  # auto-resolved
+    all_themes,
+    load_user_themes,
 )
 
 log = logging.getLogger("dancesport.suggester")
@@ -120,12 +122,12 @@ class PlaylistSuggester:
     def suggest(
         self,
         dance_class: str,
-        rounds:      list[RoundConfig],
-        dances:      list[str],
-        use_timbre:  bool = True,
-        style:       str | None = None,
+        rounds: list[RoundConfig],
+        dances: list[str],
+        use_timbre: bool = True,
+        style: str | None = None,
         round_pools: list[list[MusicEntry]] | None = None,
-        exclude:     set | None = None,
+        exclude: set | None = None,
     ) -> Playlist:
         log.info("🎲 Generating a playlist\n"
                  "class: %s\n"
@@ -133,8 +135,8 @@ class PlaylistSuggester:
         # `exclude` seeds the no-repeat set with paths already used elsewhere
         # (the day planner's cross-competition pool). ALLOW_REPEAT dances (PD)
         # are exempt automatically — their pools never consult `used`.
-        used: set      = set(exclude or ())   # strict no-repeat (non-ALLOW_REPEAT dances)
-        pd_used: set   = _SoftUses()   # soft no-repeat for PD – prefer variety, allow reuse
+        used: set = set(exclude or ())   # strict no-repeat (non-ALLOW_REPEAT dances)
+        pd_used: set = _SoftUses()   # soft no-repeat for PD – prefer variety, allow reuse
         result: Playlist = {}
 
         for ri, rc in enumerate(rounds):
@@ -151,14 +153,14 @@ class PlaylistSuggester:
 
     def _suggest_round(
         self,
-        rc:          RoundConfig,
-        dances:      list[str],
+        rc: RoundConfig,
+        dances: list[str],
         dance_class: str,
-        used:        set,
-        pd_used:     set,
-        use_timbre:  bool = True,
-        style:       str | None = None,
-        candidates:  list[MusicEntry] | None = None,
+        used: set,
+        pd_used: set,
+        use_timbre: bool = True,
+        style: str | None = None,
+        candidates: list[MusicEntry] | None = None,
     ) -> list[list[MusicEntry | None]]:
         """Build one round's heats, mutating `used`/`pd_used` so the rest of the
         playlist (or other untouched rounds, when re-rolling a single round) stays
@@ -174,7 +176,7 @@ class PlaylistSuggester:
                                    anchor if use_timbre else None,
                                    soft,
                                    prefer_fresh=rc.prefer_fresh,
-                                   strategy=rc.strategy or None,
+                                   strategy=rc.strategy,
                                    style=style,
                                    candidates=candidates)
                 if entry:
@@ -192,14 +194,14 @@ class PlaylistSuggester:
 
     def regenerate_round(
         self,
-        rc:          RoundConfig,
-        dances:      list[str],
+        rc: RoundConfig,
+        dances: list[str],
         dance_class: str,
-        used:        set,
-        pd_used:     set | None = None,
-        use_timbre:  bool = True,
-        style:       str | None = None,
-        candidates:  list[MusicEntry] | None = None,
+        used: set,
+        pd_used: set | None = None,
+        use_timbre: bool = True,
+        style: str | None = None,
+        candidates: list[MusicEntry] | None = None,
     ) -> list[list[MusicEntry | None]]:
         """Re-roll a whole round in place (used when a strategy combo changes).
 
@@ -214,10 +216,10 @@ class PlaylistSuggester:
         )
 
     def _get_pool(self, dance: str, dance_class: str,
-                  tier: str, used: set,
+                  tier: RoundTier, used: set,
                   soft_used: set | None = None,
                   prefer_fresh: bool = False,
-                  strategy: str | None = None,
+                  strategy: Strategy | str | None = None,
                   style: str | None = None,
                   candidates: list[MusicEntry] | None = None) -> list[MusicEntry]:
         """Return a candidate pool for this dance + tier, honouring `strategy`.
@@ -230,7 +232,7 @@ class PlaylistSuggester:
         whole-library base — falling back to the full library for a dance that the
         round's history never used, so the slot is not forced blank.
         """
-        strat = _resolve_strategy(tier, prefer_fresh, strategy)
+        strat = resolve_strategy(tier, prefer_fresh, strategy)
         lo, hi = TEMPO_RANGES.get(dance, {}).get(dance_class, (20, 70))
 
         all_songs, bpm_ok = self._dance_songs(dance, style, candidates, lo, hi)
@@ -251,19 +253,19 @@ class PlaylistSuggester:
                 if str(e.path) in (soft_used or set())]
             base = (not_soft or _next_cycle(bpm_ok, soft_used)
                     or _next_cycle(played, soft_used) or all_songs)
-            if strat in ('proven', 'top_proven'):
+            if strat in (Strategy.PROVEN, Strategy.TOP_PROVEN):
                 # In a final or a semifinal, having BEEN in that round comes
                 # first — see the long comment on the same step below.
                 base = prefer_late_rounds(base, tier)
-                pool = [e for e in base if e.popularity >= _PROVEN_MIN_POP] or base
+                pool = [e for e in base if e.popularity >= PROVEN_MIN_POP] or base
                 pool = ([e for e in pool
                          if class_popularity(e, dance_class) > 0
-                         and effective_popularity(e, dance_class) >= _PROVEN_MIN_POP]
+                         and effective_popularity(e, dance_class) >= PROVEN_MIN_POP]
                         or [e for e in pool if class_popularity(e, dance_class) > 0]
                         or pool)
-            elif strat == 'fresh':
-                fresh = [e for e in base if e.popularity < _PROVEN_MIN_POP]
-                pool  = fresh or base
+            elif strat == Strategy.FRESH:
+                fresh = [e for e in base if e.popularity < PROVEN_MIN_POP]
+                pool = fresh or base
             else:   # mixed / all → whole base pool
                 pool = base
             return pool
@@ -279,19 +281,19 @@ class PlaylistSuggester:
         # 'top_proven' keeps only the most-played tracks, and the most-played
         # tracks are heat music — a preliminary needs ten per dance, these two
         # rounds need one. Applied afterwards the finalists would already be gone.
-        if strat in ('proven', 'top_proven'):
+        if strat in (Strategy.PROVEN, Strategy.TOP_PROVEN):
             available = prefer_late_rounds(available, tier)
 
-        proven    = [e for e in available if e.popularity >= _PROVEN_MIN_POP]
-        fresh     = [e for e in available if e.popularity <  _PROVEN_MIN_POP]
-        high_pop  = [e for e in available if e.popularity >= _PROVEN_MIN_POP * 2]
-        mid_pop   = proven
+        proven = [e for e in available if e.popularity >= PROVEN_MIN_POP]
+        fresh = [e for e in available if e.popularity < PROVEN_MIN_POP]
+        high_pop = [e for e in available if e.popularity >= PROVEN_MIN_POP * 2]
+        mid_pop = proven
 
-        if strat == 'top_proven':
+        if strat == Strategy.TOP_PROVEN:
             pool = high_pop or mid_pop or proven or available
-        elif strat == 'proven':
+        elif strat == Strategy.PROVEN:
             pool = proven or available
-        elif strat == 'fresh':
+        elif strat == Strategy.FRESH:
             pool = fresh or available
         else:   # mixed / all → proven + fresh together, widest in-tempo pool
             pool = available
@@ -303,10 +305,10 @@ class PlaylistSuggester:
         # class-weighted popularity over the threshold) first, then merely
         # played-once-in-class, then the full strategy pool (a class with little
         # history must not end up with blank slots).
-        if strat in ('proven', 'top_proven'):
+        if strat in (Strategy.PROVEN, Strategy.TOP_PROVEN):
             pool = ([e for e in pool
                      if class_popularity(e, dance_class) > 0
-                     and effective_popularity(e, dance_class) >= _PROVEN_MIN_POP]
+                     and effective_popularity(e, dance_class) >= PROVEN_MIN_POP]
                     or [e for e in pool if class_popularity(e, dance_class) > 0]
                     or pool)
 
@@ -337,29 +339,29 @@ class PlaylistSuggester:
             all_songs = [e for e in base
                          if not e.is_xmas and not is_non_turnier(e)
                          and entry_in_style(e, style)]
-            ext    = BELOW_TEMPO_EXT.get(dance, 0)
+            ext = BELOW_TEMPO_EXT.get(dance, 0)
             bpm_ok = [e for e in all_songs if e.bpm is None or (lo - ext) <= e.bpm <= hi]
         return all_songs, bpm_ok
 
     def _pick(
         self,
-        dance:        str,
-        dance_class:  str,
-        tier:         str,
-        used:         set,
-        anchor:       AudioFeatures | None,
-        soft_used:    set | None = None,
+        dance: str,
+        dance_class: str,
+        tier: RoundTier,
+        used: set,
+        anchor: AudioFeatures | None,
+        soft_used: set | None = None,
         prefer_fresh: bool = False,
-        strategy:     str | None = None,
-        style:        str | None = None,
-        candidates:   list[MusicEntry] | None = None,
+        strategy: Strategy | str | None = None,
+        style: str | None = None,
+        candidates: list[MusicEntry] | None = None,
         timbre_first: bool = False,
     ) -> tuple[MusicEntry | None, float | None]:
         """Pick one song, with its timbre similarity to `anchor` (None when
         there is no anchor or the song has no audio features)."""
         lo, hi = TEMPO_RANGES.get(dance, {}).get(dance_class, (20, 70))
 
-        strat = _resolve_strategy(tier, prefer_fresh, strategy)
+        strat = resolve_strategy(tier, prefer_fresh, strategy)
         # Pass the RESOLVED strategy down so _get_pool doesn't re-derive it.
         pool = self._get_pool(dance, dance_class, tier, used, soft_used,
                               prefer_fresh, strat, style, candidates)
@@ -368,7 +370,7 @@ class PlaylistSuggester:
 
         # Timbre similarity of the whole pool to the round anchor, via the app's
         # default metric (`_timbre_similarity` → Gaussian/KL). Empty when no anchor.
-        sims = _timbre_similarity(anchor, pool) if anchor else {}
+        sims = timbre_similarity(anchor, pool) if anchor else {}
 
         # Popularity on the pool's own 0..1 scale, logarithmic so the 20th play
         # adds less than the 2nd. A raw play count next to the 0..1 timbre and
@@ -383,15 +385,15 @@ class PlaylistSuggester:
             # D-class warhorse can't outrank the genuine S staples in an S round.
             pop = (math.log1p(effective_popularity(e, dance_class)) / top_pop
                    if top_pop else 0.0)
-            s = pop * (0 if strat == 'all' else W_POPULARITY)
-            s += _bpm_fit(e.bpm, lo, hi) * W_BPM_FIT
+            s = pop * (0 if strat == Strategy.ALL else W_POPULARITY)
+            s += bpm_fit(e.bpm, lo, hi) * W_BPM_FIT
             if e.bpm is not None and e.bpm < lo:
                 s -= PENALTY_BELOW_TEMPO
             if anchor and e.features:
                 s += sims.get(str(e.path), 0.5) * W_TIMBRE
-            if strat == 'fresh' and e.popularity < _PROVEN_MIN_POP:
+            if strat == Strategy.FRESH and e.popularity < PROVEN_MIN_POP:
                 s += BONUS_FRESH
-            if strat == 'proven' and e.popularity >= _PROVEN_MIN_POP:
+            if strat == Strategy.PROVEN and e.popularity >= PROVEN_MIN_POP:
                 s += BONUS_PROVEN
             if e.classes_ok:
                 if dance_class in e.classes_ok:
@@ -431,7 +433,7 @@ class PlaylistSuggester:
             by_timbre = sorted(pool, key=sim_of, reverse=True)
             n = max(1, min(10, len(by_timbre)))
             cutoff = sim_of(by_timbre[n - 1])              # similarity of the 10th
-            threshold = min(cutoff, _STRONG_TIMBRE)        # ≥ top-10 floor, and ≥ 0.80
+            threshold = min(cutoff, STRONG_TIMBRE)        # ≥ top-10 floor, and ≥ 0.80
             shortlist = [e for e in by_timbre
                          if str(e.path) in sims and sim_of(e) >= threshold] \
                 or by_timbre[:n]
@@ -451,11 +453,11 @@ class PlaylistSuggester:
                 # S round leans on real S history; 'fresh' keeps the GLOBAL count
                 # (fresh = never played anywhere, regardless of class).
                 ep = effective_popularity(e, dance_class)
-                if strat == 'all':
+                if strat == Strategy.ALL:
                     return 1.0
-                if strat == 'fresh':
-                    return 2.0 if e.popularity < _PROVEN_MIN_POP else 0.4
-                if strat == 'mixed':
+                if strat == Strategy.FRESH:
+                    return 2.0 if e.popularity < PROVEN_MIN_POP else 0.4
+                if strat == Strategy.MIXED:
                     return 1.0 + min(ep, 3) * 0.4
                 return ep + 1.0
 
@@ -478,22 +480,22 @@ class PlaylistSuggester:
 
     def regenerate(
         self,
-        dance:        str,
-        dance_class:  str,
-        tier:         str,
-        exclude:      set,
+        dance: str,
+        dance_class: str,
+        tier: RoundTier,
+        exclude: set,
         prefer_fresh: bool = False,
-        round_name:   str | None = None,
-        use_timbre:   bool = True,
-        strategy:     str | None = None,
-        style:        str | None = None,
-        candidates:   list[MusicEntry] | None = None,
-        anchor:       Any = _ANCHOR_DEFAULT,
+        round_name: str | None = None,
+        use_timbre: bool = True,
+        strategy: Strategy | str | None = None,
+        style: str | None = None,
+        candidates: list[MusicEntry] | None = None,
+        anchor: Any = ANCHOR_DEFAULT,
     ) -> MusicEntry | None:
         # `anchor` lets the caller override the round's stored reference — e.g. when
         # re-rolling the anchor song ITSELF, the GUI passes the next song's features so
         # the replacement matches the rest of the round instead of the song being removed.
-        if anchor is _ANCHOR_DEFAULT:
+        if anchor is ANCHOR_DEFAULT:
             anchor = self._anchors.get(round_name) if round_name else None
         if not use_timbre:
             anchor = None
@@ -521,7 +523,7 @@ class PlaylistSuggester:
 
     def anchor_similarity(self, entry: MusicEntry,
                           round_name: str | None,
-                          anchor: Any = _ANCHOR_DEFAULT) -> float | None:
+                          anchor: Any = ANCHOR_DEFAULT) -> float | None:
         """Timbral similarity (0..1) of `entry` to a round's anchor, for display.
 
         Used when a song is placed manually (e.g. dropped from the Similar-Tracks
@@ -529,11 +531,11 @@ class PlaylistSuggester:
         Pass `anchor` to override the round's stored reference (same fallback as
         `regenerate` when the anchor song itself is the one being replaced). Returns
         None when there is no anchor or the track has no audio features."""
-        if anchor is _ANCHOR_DEFAULT:
+        if anchor is ANCHOR_DEFAULT:
             anchor = self._anchors.get(round_name) if round_name else None
         if anchor is None or entry.features is None:
             return None
-        return _timbre_similarity(anchor, [entry]).get(str(entry.path))
+        return timbre_similarity(anchor, [entry]).get(str(entry.path))
 
     def regenerate_warmup(self, dance: str, style: str | None,
                           dance_class: str | None, exclude: set, *,
@@ -558,7 +560,7 @@ class PlaylistSuggester:
         sims = {}
         anchor = getattr(anchor_entry, "features", None)
         if anchor is not None:
-            sims = _timbre_similarity(anchor, pool)
+            sims = timbre_similarity(anchor, pool)
 
         def score(e: MusicEntry) -> float:
             sim = sims.get(str(e.path), 0.0)
@@ -599,9 +601,7 @@ class PlaylistSuggester:
                 return False
             if mood == 'fast' and e.dance in SLOW_DANCES:
                 return False
-            if e.popularity < spec.get('min_pop', 0):
-                return False
-            return True
+            return e.popularity >= spec.get('min_pop', 0)
 
         pool = [e for e in self._library().entries if matches(e)]
         if not pool:
@@ -619,9 +619,7 @@ class PlaylistSuggester:
             buckets[e.dance or '?'].append(e)
         order: list[MusicEntry] = []
         while any(buckets.values()):
-            for d in list(buckets.keys()):
-                if buckets[d]:
-                    order.append(buckets[d].pop(0))
+            order.extend(buckets[d].pop(0) for d in list(buckets) if buckets[d])
         return order
 
 
@@ -637,10 +635,11 @@ def generate_hints(
     hints: list[str] = []
 
     # Proven-pool depth vs what semi/final rounds demand
-    final_need = max((rc.heats for rc in rounds if rc.tier in ('semi', 'final')), default=0)
+    final_need = max((rc.heats for rc in rounds
+                      if rc.tier in (RoundTier.SEMI, RoundTier.FINAL)), default=0)
     for d in dances:
-        songs  = [e for e in lib.by_dance(d)
-                  if not e.is_xmas and not is_non_turnier(e)]
+        songs = [e for e in lib.by_dance(d)
+                 if not e.is_xmas and not is_non_turnier(e)]
         proven = [e for e in songs if e.popularity > 0]
         if d not in ALLOW_REPEAT and final_need and len(proven) < final_need:
             hints.append(

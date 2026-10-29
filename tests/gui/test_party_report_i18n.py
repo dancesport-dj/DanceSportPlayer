@@ -30,7 +30,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication, QLabel, QPushButton
 
 from planner import i18n
-from tests.gui.window.test_party_check_ui import _Win, _e
+from tests.gui.window.test_party_check_ui import _e, _Win
 from tests.qt_test_support import reap_widget
 
 

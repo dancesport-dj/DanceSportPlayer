@@ -43,13 +43,12 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication
 
 from gui import dialogs
-from planner import i18n
 from gui.window.main_persist import layout_settings
+from planner import i18n
 
 # How much wider than the English row a translated one may measure offscreen.
 TOLERANCE = 0.02
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 
 class ToolbarWidthI18nTest(unittest.TestCase):

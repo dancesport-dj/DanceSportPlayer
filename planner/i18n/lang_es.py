@@ -365,9 +365,6 @@ CATALOG = {
         "los nuevos (unos segundos cada uno). Puedes cancelar cuando quieras;\n"
         "los resultados obtenidos se conservan.",
     "Fresh mix:": "Mezcla de nuevos:",
-    "Pause music:": "Música de pausa:",
-    "Pause music volume:": "Volumen de la música de pausa:",
-    "No pause music": "Sin música de pausa",
     "Set clock to": "Poner el reloj a",
     "Draw tracks from": "Tomar temas de",
     "Songs needed for:": "Temas necesarios para:",
@@ -678,6 +675,14 @@ CATALOG = {
     "Then restart the app — nothing else to configure.":
         "Luego reinicia la app — no hay nada más que configurar.",
     "ffmpeg not found": "ffmpeg no encontrado",
+    "In a terminal:":
+        "En un terminal:",
+    "…no Homebrew yet? That line first:":
+        "…¿aún sin Homebrew? Primero esta línea:",
+    "…or with Homebrew, on any distro:":
+        "…o con Homebrew, en cualquier distribución:",
+    "…or download a build from <a href='https://www.gyan.dev/ffmpeg/builds/'>gyan.dev/ffmpeg/builds</a> and drop <code>ffmpeg.exe</code> into this app's folder.":
+        "…o descarga una compilación de <a href='https://www.gyan.dev/ffmpeg/builds/'>gyan.dev/ffmpeg/builds</a> y pon <code>ffmpeg.exe</code> en la carpeta de esta app.",
     "(multimedia unavailable)": "(multimedia no disponible)",
     "Play a title first — then TSO sets its heat tempo.":
         "Reproduce primero un título — entonces TSO fija el tempo de su grupo.",
@@ -736,14 +741,11 @@ CATALOG = {
         "Volver a la tecla predeterminada de esta posición",
     "Export or import this wall": "Exportar o importar esta Cartwall",
     "Duck to 20 % / back to full": "Bajar al 20 % / volver al máximo",
-    "Duck to %d %% / back to full": "Bajar al %d %% / volver al máximo",
-    "Duck to %d %% / back to full — the filler music comes down too":
-        "Bajar al %d %% / volver al máximo — la música de relleno también baja",
     "🔉  Duck to:": "🔉  Bajar al:",
     "How loud everything stays while 🔉 Duck is pressed on the player\ncard, the mini player or the presenter screen: low enough to talk\nover, loud enough to keep the floor moving. 0 % is silence.":
         "Cuánto suena todo mientras 🔉 Bajar está pulsado en la tarjeta del\nreproductor, el minirreproductor o la pantalla de presentación: lo\nbastante bajo para hablar encima, lo bastante alto para que la pista\nsiga bailando. 0 % es silencio.",
-    "🎵  When a title starts:":
-        "🎵  Cuando empieza un título:",
+    "🎵  When the main player starts a title:":
+        "🎵  Cuando el reproductor principal empieza un título:",
     "<b>🎛 Cartwall</b> — what the pads do to the music, and what every pad follows unless it was given its own.":
         "<b>🎛 Cartwall</b> — lo que los pads hacen con la música y lo que sigue cada pad salvo que tenga su propio ajuste.",
     "🎛  All pads":
@@ -752,24 +754,28 @@ CATALOG = {
         "🎶  Pads en 🎶 Fondo",
     "Tapped again or ⏹, a background pad fades out like every other pad (⏱ above).":
         "Pulsado otra vez o con ⏹, un pad de fondo se desvanece como cualquier otro pad (⏱ arriba).",
-    "⏱  Tapped again or ⏹ — fade out over:":
-        "⏱  Pulsado otra vez o ⏹ — se desvanece en:",
+    "⏱  Tapped again or ⏹ — fade the pad out over:":
+        "⏱  Pulsado otra vez o ⏹ — el pad se desvanece en:",
     "How long a pad takes to let go when it is tapped again or ⏹\nstops the wall. A pad can override this in its own settings.":
         "Cuánto tarda un pad en apagarse cuando se vuelve a pulsar o ⏹\ndetiene la cartwall. Cada pad puede cambiarlo en sus propios ajustes.",
-    "▶  When fired — fade in over:":
-        "▶  Al dispararlo — entra con fundido en:",
+    "🔉  Ticking 🎶 Background sets the pad's volume to:":
+        "🔉  Marcar 🎶 Fondo pone el volumen del pad en:",
+    "A bed at full volume is as loud as the dance music it fills in\nfor. Pads already set to 🎶 Background keep their own volume.":
+        "Un fondo a volumen completo suena tan fuerte como la música de baile\ncuya pausa llena. Los pads ya marcados como 🎶 Fondo conservan su volumen.",
+    "▶  When fired — fade the pad in over:":
+        "▶  Al dispararlo — el pad entra con fundido en:",
     "How long a 🎛 cartwall pad set to 🎶 Background takes to come\nup from silence when it is fired. 0 s starts it at full volume.":
         "Cuánto tarda un pad del 🎛 cartwall marcado como 🎶 Fondo en\nsubir desde el silencio al dispararlo. 0 s lo inicia a volumen completo.",
-    "🌙  …fading out over:":
-        "🌙  …desvaneciéndose en:",
+    "🌙  …fading the pad out over:":
+        "🌙  …desvaneciendo el pad en:",
     "How long a 🎛 cartwall pad set to 🎶 Background takes to go\nsilent once a title starts.":
         "Cuánto tarda un pad del 🎛 cartwall marcado como 🎶 Fondo en\nquedar en silencio cuando empieza un título.",
-    "⏳  When the music stops — wait:":
-        "⏳  Cuando para la música — esperar:",
+    "⏳  When the main player stops — wait:":
+        "⏳  Cuando para el reproductor principal — esperar:",
     "How long the main player has to stay stopped before a 🎛 cartwall\npad set to 🎶 Background fades back in.\n\nBetween two titles the deck stops for a moment. Without a wait,\nthe bed would swell up in every such gap and dip again as soon as\nthe next title starts. A title starting during the wait keeps the\nbed down.\n\nThere is no wait when a title starts: the bed gets out of the way\nat once, so it never plays over the first notes.\n\n0 s brings it back the moment the music stops, gaps included.\nStandard 0.3 s; much longer feels as if the bed lags behind.":
         "Cuánto tiempo debe estar parado el reproductor principal antes de que\nun pad del 🎛 cartwall marcado como 🎶 Fondo vuelva con fundido.\n\nEntre dos títulos el deck se detiene un momento. Sin espera, el fondo\nsubiría en cada hueco y volvería a bajar en cuanto empezara el\nsiguiente título. Si un título empieza durante la espera, el fondo\nse queda abajo.\n\nCuando empieza un título no hay espera: el fondo se aparta enseguida\ny nunca suena sobre las primeras notas.\n\n0 s lo trae de vuelta en cuanto para la música, también en los huecos.\nEstándar 0,3 s; mucho más parece que el fondo va con retraso.",
-    "🌅  …then fade back in over:":
-        "🌅  …y luego vuelve con fundido en:",
+    "🌅  …then fade the pad back in over:":
+        "🌅  …y luego el pad vuelve con fundido en:",
     "How long a 🎛 cartwall pad set to 🎶 Background takes to come\nback up to its full volume once the music stops.":
         "Cuánto tarda un pad del 🎛 cartwall marcado como 🎶 Fondo en\nvolver a su volumen completo cuando la música para.",
     "🖌  Default wall colour:":
@@ -2031,6 +2037,8 @@ CATALOG = {
     "%s":
         "⚠ Archivo no encontrado en el disco:\n"
         "%s",
+    "Is the drive unplugged, or was the file moved or renamed? It cannot play until it is back.":
+        "¿Está desconectada la unidad, o se movió o renombró el archivo? No puede sonar hasta que vuelva.",
     "Regenerate": "Regenerar",
     "Regenerate Error": "Error al regenerar",
     "Track length (m:ss)\n"
@@ -2041,6 +2049,7 @@ CATALOG = {
         "naranja = más corto que la duración de reproducción configurada, o 5 s o más\n"
         "de silencio en un extremo que el reproductor salta (el tooltip de la\n"
         "propia celda dice cuál, y cuánto suena realmente)",
+    "Playlist": "Lista",
     "Wishlist": "Lista de deseos",
     "Rating — click a star to set it, the last lit one again to clear it.\n"
     "Kept in the app's database; the MP3 itself is not changed.":
@@ -2243,16 +2252,6 @@ CATALOG = {
         "Solo una cuadrícula de rondas tiene grupos: una lista temática, el calentamiento y un\n"
         "orden libre se anuncian sin él. Grabado para los grupos 1-8;\n"
         "más allá se omite el número.",
-    "Choose one or more titles — or an .m3u playlist — that play\n"
-    "softly during the pause between songs, faded in at the start\n"
-    "and out before the next song. Several titles rotate: a title\n"
-    "keeps playing pause after pause until it ends, then the next\n"
-    "one takes over.":
-        "Elige uno o más títulos — o una lista .m3u — que suenen\n"
-        "suaves durante la pausa entre canciones, con fundido de entrada al inicio\n"
-        "y de salida antes de la siguiente canción. Varios títulos se turnan: un título\n"
-        "sigue sonando pausa tras pausa hasta que termina, luego el siguiente\n"
-        "toma el relevo.",
     "Compensate loudness differences between tracks on playback:\n"
     "each song's measured EBU R128 loudness is pulled towards a common\n"
     "target, so quiet old recordings and loud modern masters play at\n"
@@ -2281,10 +2280,6 @@ CATALOG = {
         "Con 🔈 Anunciar el siguiente baile activo, la app hace el anuncio y los\n"
         "segundos cuentan desde él; si no, lo hace el locutor de la sala y la espera\n"
         "transcurre en silencio — con cuenta atrás en este panel en ambos casos.",
-    "How loud the pause music plays, relative to the normal\n"
-    "playback volume — kept lower so it stays in the background.":
-        "Lo fuerte que suena la música de pausa, respecto al volumen\n"
-        "normal de reproducción — más baja para que quede de fondo.",
     "Keep the screensaver and the display timeout off while music is\n"
     "playing or the presenter screen is open.\n"
     "\n"
@@ -2300,13 +2295,13 @@ CATALOG = {
         "la mesa apaga la pantalla en mitad de un grupo, proyector incluido. Vuelve\n"
         "a sus tiempos normales en cuanto ninguno de los dos está activo.",
     "Off: the next song starts the moment the current one ends, with\n"
-    "no filler music and no announcement. The configured time is kept\n"
+    "no pause music and no announcement. The configured time is kept\n"
     "for switching back.\n"
     "\n"
     "Needs ⏭ auto-advance — without it the next song waits for the\n"
     "operator anyway, so there is no gap to fill.":
         "Apagado: la siguiente canción empieza en el momento en que termina la actual, sin\n"
-        "música de relleno ni anuncio. El tiempo configurado se conserva\n"
+        "música de pausa ni anuncio. El tiempo configurado se conserva\n"
         "para cuando vuelvas a activarlo.\n"
         "\n"
         "Necesita ⏭ avance automático — sin él la siguiente canción espera\n"
@@ -2607,8 +2602,6 @@ CATALOG = {
         "a 23 → T24, un Paso Doble a 57 → T58).",
     "Disable preview player  (re-enable in Settings)":
         "Desactivar el reproductor de escucha previa  (se reactiva en Ajustes)",
-    "Duck to 20 % / back to full — the filler music comes down too":
-        "Bajar al 20 % / volver al máximo — la música de relleno también baja",
     "Endless repeat of THIS title (toggle):\n"
     "while on, the running title starts again every time it ends —\n"
     "for the moment the floor is still full or the speech runs long.\n"
@@ -2623,6 +2616,11 @@ CATALOG = {
         "Mantiene la velada en un solo tema, así que se impone al 🏁 final de\n"
         "una ronda y funciona también con ⏭ avance automático desactivado. Desactívalo y\n"
         "la lista sigue donde está.",
+    "Next dance": "Siguiente baile",
+    "Cut the pause short and go to the next dance. Its announcement\n"
+    "still plays first; the pause music fades out, like ⏭.":
+        "Acortar la pausa e ir al siguiente baile. Su anuncio suena\n"
+        "igualmente antes; la música de pausa se desvanece, como con ⏭.",
     "Extend the auto-advance pause (add another pause length) —\n"
     "use it when the heat change is taking longer than planned.":
         "Alargar la pausa del avance automático (añadir otra duración de pausa) —\n"
@@ -2637,10 +2635,12 @@ CATALOG = {
     "— for a quick, clean finish on the floor.":
         "Hacer un fundido de salida de este tema ahora (durante el tiempo de fundido configurado) y terminarlo\n"
         "— para un final rápido y limpio en la pista.",
-    "Jump straight to the pause music — end this song now and start\n"
-    "the between-songs pause (e.g. the dancers are already leaving).":
-        "Saltar directamente a la música de pausa — terminar este tema ahora e iniciar\n"
-        "la pausa entre temas (p. ej. los bailarines ya están saliendo).",
+    "Go to the pause music — fade this song out (over the configured\n"
+    "fade time), then start the between-songs pause (e.g. the dancers\n"
+    "are already leaving).":
+        "Ir a la música de pausa — hacer un fundido de salida de este tema (durante el\n"
+        "tiempo de fundido configurado) e iniciar la pausa entre temas (p. ej. los\n"
+        "bailarines ya están saliendo).",
     "Tap along to the beat to measure this track's live tempo by hand,\n"
     "against a target for its dance (Sollwert) — display only, does not\n"
     "touch the fader.":
@@ -2893,10 +2893,16 @@ CATALOG = {
         "Tras … títulos",
     "At …":
         "A las …",
-    "Let the music stop by itself: after the title playing now,\nafter a number of titles (the one playing now is the first),\nor with the first title that ends at or after a time of day.\n\nA title is never cut: it plays to its end, then the next one\nwaits on the player for ⏯. A ⏭ skip does not count as an end.\n\nSet for this evening only — it is not saved.\n\nNeeds ⏭ auto-advance.":
-        "Dejar que la música se detenga sola: tras el título que suena,\ntras un número de títulos (el que suena es el primero)\no con el primer título que termine a una hora o después.\n\nUn título nunca se corta: suena hasta el final y el siguiente\nespera en el reproductor a ⏯. Saltar con ⏭ no cuenta como final.\n\nSolo para esta noche — no se guarda.\n\nNecesita ⏭ avance automático.",
-    "Titles still to end, the one playing now included —\nit counts down as they do.":
-        "Títulos que aún han de terminar, incluido el que suena —\nla cuenta baja con cada final.",
+    "Let the music stop by itself: after the title playing now,\nafter a number of titles (the one playing now is the first),\nor with the first title that ends at or after a time of day.\n\nA title is not cut: it plays to its end, then the next one\nwaits on the player for ⏯ — unless an \"At …\" time is set to\nfade it. A ⏭ skip does not count as an end.\n\nSet for this evening only — it is not saved.\n\nNeeds ⏭ auto-advance.":
+        "Dejar que la música se detenga sola: tras el título que suena,\ntras un número de títulos (el que suena es el primero)\no con el primer título que termine a una hora o después.\n\nUn título no se corta: suena hasta el final y el siguiente\nespera en el reproductor a ⏯, salvo que una hora «A las …»\nesté puesta en fundido. Saltar con ⏭ no cuenta como final.\n\nSolo para esta noche — no se guarda.\n\nNecesita ⏭ avance automático.",
+    "play it to its end":
+        "tocarlo hasta el final",
+    "fade out at the time":
+        "fundido a la hora",
+    "hybrid: fade if ≥ 1:30 played":
+        "híbrido: fundido si sonó ≥ 1:30",
+    "What the title playing at the time does:\n\nPlay it to its end — the first title that ends at or after the\ntime is the last.\nFade out at the time — it fades out the moment the time comes.\nHybrid — it fades if it had played 1:30 by then, a younger\none plays to its end.\n\nA title that starts after the time always plays to its end.\nThis choice is remembered.":
+        "Qué hace el título que suena a esa hora:\n\nTocarlo hasta el final — el primer título que termine a esa\nhora o después es el último.\nFundido a la hora — se apaga en cuanto llega la hora.\nHíbrido — se apaga si para entonces sonó 1:30; uno más\nreciente suena hasta el final.\n\nUn título que empieza después de la hora siempre suena hasta el final.\nEsta elección se recuerda.",
     "The first title that ends at or after this time is the last.\nA time already past today means after midnight.":
         "El primer título que termine a esta hora o después es el último.\nUna hora ya pasada hoy significa después de medianoche.",
     "⏹  Stops after this title":
@@ -3150,6 +3156,25 @@ CATALOG = {
     "Male voice": "Voz masculina",
     "Mixed voices": "Voces mixtas",
     "with heat": "con grupo",
+    "heat only": "solo el grupo",
+    "🔢  Only the heat, not the dance (practice)": "🔢  Solo el grupo, no el baile (entrenamiento)",
+    "On: every call says just “Heat 1”, without “Next dance” and\n"
+    "without the dance, whatever the two boxes above say.\n"
+    "Where there is no heat to call (or one past 8, which was never\n"
+    "recorded), the dance is called as usual.":
+        "Activado: cada anuncio dice solo “Grupo 1”, sin “Siguiente baile” y\n"
+        "sin el baile, digan lo que digan las dos casillas de arriba.\n"
+        "Donde no hay grupo que anunciar (o uno por encima de 8, que nunca se\n"
+        "grabó), el baile se anuncia como siempre.",
+    "📣  Say “Next dance” before the dance": "📣  Decir “Siguiente baile” antes del baile",
+    "On: the pause announces “Next dance: Rumba”.\n"
+    "Off: just “Rumba” (with the heat number, if that is on).\n"
+    "\n"
+    "A dance named as its music starts is always said without it.":
+        "Sí: la pausa anuncia «Siguiente baile: Rumba».\n"
+        "No: solo «Rumba» (con el número de grupo, si está activado).\n"
+        "\n"
+        "Un baile nombrado al empezar su música siempre se dice sin ello.",
     "🗣  Dance is named:": "🗣  El baile se nombra:",
     "over the music": "sobre la música",
     "before the music": "antes de la música",
@@ -3240,8 +3265,6 @@ CATALOG = {
         "<b>🔈 Salidas</b> — dónde se oye cada parte de la velada:",
     "🎵  Music:":
         "🎵  Música:",
-    "⏸  Filler music:":
-        "⏸  Música de pausa:",
     "🔈  Announcements:":
         "🔈  Anuncios:",
     "System default (follows the OS)":
@@ -3250,16 +3273,26 @@ CATALOG = {
         "Igual que la música",
     "Every output the operating system lists can be chosen. On a sound card\n"
     "with several outputs, each pair that shows up as a device of its own\n"
-    "(\"Out 3/4\" next to \"Out 1/2\") can take a source of its own; channels\n"
-    "3/4 of ONE multichannel device cannot be picked separately.\n"
+    "(\"Out 3/4\" next to \"Out 1/2\") can take a source of its own. A card\n"
+    "listed as ONE multichannel device offers its further pairs as\n"
+    "\"— Out 3/4\" entries. The music on such an entry changes its\n"
+    "pitch with the tempo fader, like a turntable.\n"
     "\n"
     "A card that is not plugged in plays on the system default until it is back.":
         "Se puede elegir cualquier salida que muestre el sistema operativo. En una\n"
         "tarjeta de sonido con varias salidas, cada par que aparece como dispositivo\n"
-        "propio (\"Out 3/4\" junto a \"Out 1/2\") puede llevar su propia fuente; los\n"
-        "canales 3/4 de UN dispositivo multicanal no se pueden elegir por separado.\n"
+        "propio (\"Out 3/4\" junto a \"Out 1/2\") puede llevar su propia fuente. Una\n"
+        "tarjeta que aparece como UN dispositivo multicanal ofrece sus otros pares\n"
+        "como entradas \"— Out 3/4\". La música en una de esas entradas cambia el\n"
+        "tono con el control de tempo, como un tocadiscos.\n"
         "\n"
         "Una tarjeta no conectada suena en el predeterminado del sistema hasta que vuelva.",
+    "🔀 A card listed as one multichannel device offers its further outputs (\"— Out 3/4\") to every source. The music on such a pair changes its pitch with the tempo fader, like a turntable: faster sounds higher, slower lower. Only a whole output keeps the pitch while the tempo changes.":
+        "🔀 Una tarjeta que aparece como un único dispositivo multicanal ofrece sus otras salidas (\"— Out 3/4\") a todas las fuentes. La música en uno de esos pares cambia el tono con el control de tempo, como un tocadiscos: más rápido suena más agudo, más lento más grave. Solo una salida completa mantiene el tono mientras cambia el tempo.",
+    "Music on a channel pair":
+        "Música en un par de canales",
+    "On %s the tempo fader changes the pitch along with the speed, like a turntable: faster sounds higher, slower lower.\n\nOnly a whole output keeps the pitch. Play the music on this pair anyway?":
+        "En %s el control de tempo cambia el tono junto con la velocidad, como un tocadiscos: más rápido suena más agudo, más lento más grave.\n\nSolo una salida completa mantiene el tono. ¿Reproducir la música en este par de todos modos?",
     "⚠  %s (not connected)":
         "⚠  %s (no conectado)",
     "The music plays on %s — click for the sound settings.":
@@ -3741,8 +3774,8 @@ CATALOG = {
         "⭐  Movido(s) %d tema(s) a la lista de deseos",
     "⭐  Added %d track(s) to the wishlist":
         "⭐  Añadido(s) %d tema(s) a la lista de deseos",
-    "  ·  🧹 %d already in a playlist removed":
-        "  ·  🧹 %d ya en una lista, quitado(s)",
+    "  ·  ⚠ %d already in a playlist (duplicate)":
+        "  ·  ⚠ %d ya en una lista (duplicado)",
     "➕  Added %d track(s)": "➕  Añadido(s) %d tema(s)",
     "➕  Added %d track(s) — rounds re-cut":
         "➕  Añadido(s) %d tema(s) — rondas redistribuidas",
@@ -4665,9 +4698,16 @@ CATALOG = {
     "🔇 Skipped %ss of leading silence.":
         "🔇 Omitidos %s s de silencio inicial.",
     "⚠️ Sample not found: %s": "⚠️ Muestra no encontrada: %s",
+    "\n▶ Queue: place %d — Ctrl+click takes it out":
+        "\n▶ Cola: puesto %d — Ctrl+clic la saca",
+    "\nCtrl+click: into the ▶ queue":
+        "\nCtrl+clic: a la cola ▶",
+    "⚠️ Sample not found, skipped: %s":
+        "⚠️ Muestra no encontrada, omitida: %s",
+    "⚠️ Queue stopped: none of its samples were found":
+        "⚠️ Cola detenida: no se encontró ninguna de sus muestras",
     "⏱ Auto-advance pause extended by %ss.":
         "⏱ Pausa de avance automático alargada %s s.",
-    "⏸ Auto-advance…  🎵 %s": "⏸ Avance automático…  🎵 %s",
     "🎯 Highlight at %s — %d mark(s). ✔ Done editing arms the stop.":
         "🎯 Momento culminante en %s — %d marca(s). ✔ Terminar edición activa la parada.",
     "🎯 PD highlight %d marked at %s (stop set to #%s)":
@@ -4701,6 +4741,99 @@ CATALOG = {
         "«completo» — sin corte, cada título suena hasta su final.\n"
         "\n"
         "Doble clic para escribir una duración exacta (p. ej. 1:37).",
+    "Move this highlight 0.1 s earlier": "Adelantar este momento culminante 0,1 s",
+    "Move this highlight 0.1 s later": "Retrasar este momento culminante 0,1 s",
+    "⏱  Titles over an hour read:": "⏱  Títulos de más de una hora:",
+    "1:04:00 (hours)": "1:04:00 (horas)",
+    "64:00 (minutes)": "64:00 (minutos)",
+    "How the player and the mini player show the times of a title\nlonger than 59 minutes, such as a long mix.": "Cómo muestran el reproductor y el minirreproductor los tiempos\nde un título de más de 59 minutos, como un mix largo.",
+    "🐞 Bugs & ideas": "🐞 Errores e ideas",
+    "Report a bug or suggest a feature as a GitHub issue: %s": "Informa de un error o propón una función como issue en GitHub: %s",
+    "open a new issue": "abrir un nuevo issue",
+    "No GitHub account? Write to %s": "¿Sin cuenta de GitHub? Escribe a %s",
+    "🔌 Drive %s is gone: USB stick unplugged? %d titles can't play until it is back.": "🔌 La unidad %s ha desaparecido: ¿se desconectó la memoria USB? %d títulos no pueden sonar hasta que vuelva.",
+    "⚠️ %d titles are gone from disk: moved, renamed or deleted?": "⚠️ %d títulos ya no están en el disco: ¿movidos, renombrados o borrados?",
+    "🔌 %d titles are back and can play again.": "🔌 %d títulos han vuelto y pueden sonar de nuevo.",
+    "🐂  Keep the pad down while a Paso Doble waits to start":
+        "🐂  Mantener el pad bajo mientras un Paso Doble espera para empezar",
+    "With 'Start after' set for the Paso Doble, the deck stands still\nbetween the call and the first bar while the couples walk on.\nOn, a 🎶 Background pad stays down through that wait as if the\nmusic already played. Off, it comes back in the wait like after\nany other title.":
+        "Con 'Empezar tras' para el Paso Doble, el deck se queda quieto\nentre el anuncio y el primer compás mientras entran las parejas.\nActivado, un pad de 🎶 Fondo se queda bajo durante esa espera,\ncomo si la música ya sonara. Desactivado, vuelve en la espera\ncomo tras cualquier otro título.",
+    "Off, a title waits until a 🎛 cartwall pad set to 🎶 Background\nhas faded out completely, then starts into silence. The wait is\nthe fade-out time above, or less if the bed is already going down.\nOn, the title starts at once and plays over the fade-out.":
+        "Desactivado, un título espera a que un pad del 🎛 cartwall con\n🎶 Fondo se haya desvanecido del todo, y empieza en silencio. La\nespera es el tiempo de desvanecimiento de arriba, o menos si ya baja.\nActivado, el título empieza enseguida y suena sobre el desvanecimiento.",
+    "🔉↓  Fade by hand over:":
+        "🔉↓  Desvanecer a mano durante:",
+    "as the list's fade-out":
+        "como el desvanecimiento de la lista",
+    "How long 🔉↓ Fade out now, 🛑 Fade out and hold, a ⏹ stop at a time\nand the fade before quitting take. The fade at the end of the play\nlength keeps the playlist's own fade-out time.\n0 = the playlist's fade-out time for these as well.":
+        "Cuánto duran 🔉↓ Fundir ahora, 🛑 Fundir y mantener, una\nparada ⏹ a una hora y el desvanecimiento antes de salir. El de\nfinal de la duración de reproducción mantiene el tiempo de la lista.\n0 = también para estos el tiempo de desvanecimiento de la lista.",
+    "🔈  Duck under a voice or pad over:":
+        "🔈  Bajar bajo una voz o pad durante:",
+    "back up over:":
+        "volver a subir durante:",
+    "How fast the music gets out of the way when the announcer speaks\nor a 🎛 cartwall pad plays, and how fast it comes back after.\nShort down keeps a pad's first beat clear; a slow way up keeps\nthe return from being an event of its own. The 🔉 Duck button\nis not ramped: it is immediate.":
+        "Qué tan rápido se aparta la música cuando habla el locutor o suena\nun pad del 🎛 cartwall, y qué tan rápido vuelve después. Bajar\nrápido deja libre el primer golpe del pad; subir despacio evita que\nla vuelta sea un evento en sí. El botón 🔉 Bajar no tiene rampa:\nactúa al instante.",
+    "🥇  Final: the music plays on":
+        "🥇  Final: la música sigue sonando",
+    "After the play length has faded a title of the final out, it comes back up as background while the couples celebrate — until 🔉↓ fades it, the next title starts or the file ends. Only under ✋ Manual: with ⏭ Auto the ⏸ pause and its music follow each title, and a title of the final ends as always.":
+        "Cuando la duración ha fundido un título de la final, vuelve a subir como música de fondo mientras las parejas celebran — hasta que 🔉↓ lo funde, empieza el título siguiente o termina el archivo. Solo en ✋ Manual: con ⏭ Auto cada título va seguido de la ⏸ pausa y su música, y un título de la final termina como siempre.",
+    "Off":
+        "Desactivado",
+    "After the last dance of the final":
+        "Tras el último baile de la final",
+    "After every dance of the final":
+        "Tras cada baile de la final",
+    "Which titles of the final come back up after the play\nlength has faded them out. A round is the final when it\nis named Finale, Final or Endrunde.":
+        "Qué títulos de la final vuelven a subir después de que la\nduración los haya fundido. Una ronda es la final si se\nllama Finale, Final o Endrunde.",
+    "Level:":
+        "Nivel:",
+    "How loud it comes back, in % of the music's level.":
+        "Con qué volumen vuelve, en % del nivel de la música.",
+    "Up over:":
+        "Subir en:",
+    "How long it takes to come back up. 0 = at once.":
+        "Cuánto tarda en volver a subir. 0 = al instante.",
+    "Down over:":
+        "Bajar en:",
+    "How long it takes to go down when 🔉↓ fades it.":
+        "Cuánto tarda en bajar cuando 🔉↓ lo funde.",
+    "quieter":
+        "más bajo",
+    "louder":
+        "más alto",
+    "Volume %s %s — hold to glide":
+        "Volumen %s %s — mantén pulsado para deslizar",
+    "Duck to %d %%, again to mute, again back to full":
+        "Bajar al %d %%, otra vez silenciar, otra vez volver al máximo",
+    "🎶 Pause music: the cartwall's ▶ queue plays its 🎶 Background pads.":
+        "🎶 Música de pausa: la cola ▶ de la cartwall toca sus pads 🎶 Fondo.",
+    "mute":
+        "silencio",
+    "🌙  Then:":
+        "🌙  Después:",
+    "A closing song that plays once the stop has ended the music —\n\"Who moved the clock today\". It plays at the music's volume to\nits end (🔉↓ fades it); then the next title waits for ⏯.\nOnly after the planned stop, never after ⏹ by hand.":
+        "Una canción de cierre que suena cuando la parada ha terminado la música —\n\"Who moved the clock today\". Suena al volumen de la música\nhasta su final (🔉↓ la desvanece); después el siguiente título espera a ⏯.\nSolo tras la parada planificada, nunca tras ⏹ a mano.",
+    "No closing song":
+        "Sin canción de cierre",
+    "⏹ Stopped as planned — 🌙 the closing song plays, then ⏯ the next title.":
+        "⏹ Parado según lo previsto — 🌙 suena la canción de cierre, luego ⏯ el siguiente título.",
+    "🌙 Closing song not found: %s":
+        "🌙 Canción de cierre no encontrada: %s",
+    "📄  Move to page":
+        "📄  Mover a la página",
+    "“%s” is full: %d of %d pads were moved.":
+        "«%s» está llena: se movieron %d de %d pads.",
+    "🔠  Text size:":
+        "🔠  Tamaño del texto:",
+    "🏅 Background: entrance & awards":
+        "🏅 Fondo: entrada y premios",
+    "<b>🏅 Background: entrance & awards</b> — a title with one of these words in its file or folder name, title or comment, comma-separated:":
+        "<b>🏅 Fondo: entrada y premios</b> — un título con una de estas palabras en el nombre del archivo o carpeta, el título o el comentario, separadas por comas:",
+    "Upper or lower case does not matter, and a part of a word is\nenough: 'Award' also finds '(Background Award)'. Shown under\n🏅 in the library's category filter and kept out of generated\nplaylists. Leave it empty to go by the folders below only.":
+        "Da igual mayúsculas o minúsculas, y basta con parte de una\npalabra: 'Award' también encuentra '(Background Award)'. Se ve\nbajo 🏅 en el filtro de categorías de la biblioteca y queda fuera\nde las listas generadas. Déjalo vacío para usar solo las carpetas.",
+    "…and every title in these folders and below, one folder per line:":
+        "…y cada título en estas carpetas y debajo, una carpeta por línea:",
+    "Entrance and award music folder":
+        "Carpeta de música de entrada y premios",
     "Delete the highlight at %s s": "Borrar el momento culminante en %s s",
     "Compensate loudness differences between tracks on playback:\n"
     "each song's measured EBU R128 loudness is pulled towards a\n"
@@ -4791,7 +4924,6 @@ CATALOG = {
     "🐂  PD in": "🐂  PD en",
     "🐂  PD %s in": "🐂  PD %s en",
     "🐂  Paso Doble in %d s": "🐂  Paso Doble en %d s",
-    "⏸  %d s  (paused)": "⏸  %d s  (en pausa)",
     "⚠ Could not play: %s": "⚠ No se pudo reproducir: %s",
     "⚠ Playback failed: %s": "⚠ Falló la reproducción: %s",
     "unknown error": "error desconocido",
@@ -5691,4 +5823,42 @@ CATALOG = {
         "La elección de Paso Doble para %s en ⚙ Ajustes → 🎛 Sets de reproducción\n(completo cuenta como el 3.er highlight). Un cambio aquí\nvale solo para esta lista.",
     "🐂 Paso Doble → each round's own pick":
         "🐂 Paso Doble → la elección propia de cada ronda",
+    "Advanced: duck and fade times":
+        "Avanzado: atenuación y tiempos de fundido",
+    "How far the duck goes and how fast, and the fade times of every\nkind of fade. The defaults suit most evenings.":
+        "Cuánto y con qué rapidez se atenúa, y los tiempos de cada\ntipo de fundido. Los valores por defecto sirven para casi todas las veladas.",
+    "\n🔁 Loop is off in the queue: it plays once":
+        "\n🔁 El bucle está desactivado en la cola: suena una vez",
+    "➕  Volume − / + buttons beside the player's and the cartwall's slider":
+        "➕  Botones − / + junto al control del reproductor y de la cartwall",
+    "Step the music or the cartwall volume by 2 % a click; held, they glide.\nDouble-click the % readout to type a level instead.":
+        "Cambia el volumen de la música o de la cartwall un 2 % por clic; mantenidos, se deslizan.\nHaz doble clic en el valor % para escribir un nivel.",
+    "Mute the cartwall, again to bring it back":
+        "Silenciar la cartwall; otro clic la recupera",
+    "🔌 %d titles are no longer on %s: found on %s, they play from there.":
+        "🔌 %d títulos ya no están en %s: encontrados en %s, suenan desde allí.",
+    "Every text in the app, menus and tables included.\nAbove 115 % the buttons grow with it.\nRead when the app starts, like the theme.":
+        "Todos los textos de la app, también menús y tablas.\nPor encima del 115 % los botones crecen con ellos.\nSe lee al arrancar, como el tema.",
+    "< filename >":
+        "< nombre de archivo >",
+    "How many titles, the one playing now included —\nthe count beside it runs down as they end.":
+        "Cuántos títulos, incluido el que suena —\nla cuenta de al lado baja con cada final.",
+    "Titles still to end, the one playing now included.":
+        "Títulos que aún han de terminar, incluido el que suena.",
+    "%d left":
+        "quedan %d",
+    "🎚  Start the main player's title while the background is still fading out":
+        "🎚  Empezar el título del reproductor principal mientras el fondo aún se desvanece",
+    "%s — its own length, then plays on":
+        "%s — duración propia, luego sigue",
+    "Plays on after its length":
+        "Sigue sonando tras su duración",
+    "Hold:":
+        "Mantener:",
+    "How long it stays at its dip before it comes back up.\n0 = it comes up at once.":
+        "Cuánto tiempo se queda en la bajada antes de volver a subir.\n0 = sube al instante.",
+    "Dip to:":
+        "Bajar a:",
+    "How low the play-length fade takes it before it comes\nback up, in % of the music's level. 0 = all the way down.\nAt most the level it comes back at.":
+        "Hasta dónde lo baja el fundido de la duración antes de que\nvuelva a subir, en % del nivel de la música. 0 = hasta el silencio.\nComo mucho el nivel al que vuelve.",
 }

@@ -19,10 +19,10 @@ from types import SimpleNamespace
 
 from mutagen.id3 import ID3, TBPM, TCON, TIT2
 
-from planner.music.db import _meta_to_row, _migrate_meta_tag_bpm, _row_to_meta
-from planner.music.library import MusicLibrary
 from planner.models import MusicEntry
-from planner.music.parsing import _detect_bpm_tagged, _takt_from_tag_bpm, bpm_source
+from planner.music.db import meta_to_row, migrate_meta_tag_bpm, row_to_meta
+from planner.music.library import MusicLibrary
+from planner.music.parsing import bpm_source, detect_bpm_tagged, takt_from_tag_bpm
 
 # One MPEG-1 Layer III frame header (128 kbit/s, 44.1 kHz): 417 bytes a frame.
 _FRAME = b"\xff\xfb\x90\x64" + b"\x00" * 413
@@ -31,54 +31,54 @@ _FRAME = b"\xff\xfb\x90\x64" + b"\x00" * 413
 class TaktFromTagBpmTest(unittest.TestCase):
 
     def test_beats_per_minute_are_divided_by_the_meter(self):
-        self.assertEqual(_takt_from_tag_bpm(87, "LW"), 29)     # 3/4
-        self.assertEqual(_takt_from_tag_bpm(177, "WW"), 59)    # 3/4
-        self.assertEqual(_takt_from_tag_bpm(172, "JI"), 43)    # 4/4
-        self.assertEqual(_takt_from_tag_bpm(204, "QS"), 51)    # 4/4
-        self.assertEqual(_takt_from_tag_bpm(100, "SA"), 50)    # 2/4
-        self.assertEqual(_takt_from_tag_bpm(176.6, "WW"), 59)  # fractional tag
+        self.assertEqual(takt_from_tag_bpm(87, "LW"), 29)     # 3/4
+        self.assertEqual(takt_from_tag_bpm(177, "WW"), 59)    # 3/4
+        self.assertEqual(takt_from_tag_bpm(172, "JI"), 43)    # 4/4
+        self.assertEqual(takt_from_tag_bpm(204, "QS"), 51)    # 4/4
+        self.assertEqual(takt_from_tag_bpm(100, "SA"), 50)    # 2/4
+        self.assertEqual(takt_from_tag_bpm(176.6, "WW"), 59)  # fractional tag
 
     def test_a_tag_already_in_bars_per_minute_is_kept(self):
-        self.assertEqual(_takt_from_tag_bpm(29, "LW"), 29)
-        self.assertEqual(_takt_from_tag_bpm(25, "RB"), 25)
+        self.assertEqual(takt_from_tag_bpm(29, "LW"), 29)
+        self.assertEqual(takt_from_tag_bpm(25, "RB"), 25)
 
     def test_half_and_double_time_readings_are_folded_back(self):
-        self.assertEqual(_takt_from_tag_bpm(86, "JI"), 43)     # half time
-        self.assertEqual(_takt_from_tag_bpm(128, "TG"), 32)    # double time
+        self.assertEqual(takt_from_tag_bpm(86, "JI"), 43)     # half time
+        self.assertEqual(takt_from_tag_bpm(128, "TG"), 32)    # double time
 
     def test_a_reading_far_from_the_window_is_ignored(self):
         # 120 for a Viennese Waltz: 120, 40, 20 and 80 are all far off T58-60.
-        self.assertIsNone(_takt_from_tag_bpm(120, "WW"))
+        self.assertIsNone(takt_from_tag_bpm(120, "WW"))
 
     def test_an_analyser_misread_is_ignored(self):
         # Real library tags on Slow Waltzes labelled T29 in the name: 158 → 26,
         # 139.65 → 23 — too far from T28-30 to trust.
-        self.assertIsNone(_takt_from_tag_bpm(158, "LW"))
-        self.assertIsNone(_takt_from_tag_bpm(139.65, "LW"))
+        self.assertIsNone(takt_from_tag_bpm(158, "LW"))
+        self.assertIsNone(takt_from_tag_bpm(139.65, "LW"))
 
     def test_no_dance_no_tag_no_tempo(self):
-        self.assertIsNone(_takt_from_tag_bpm(87, None))
-        self.assertIsNone(_takt_from_tag_bpm(87, "SL"))        # social dance
-        self.assertIsNone(_takt_from_tag_bpm(None, "LW"))
-        self.assertIsNone(_takt_from_tag_bpm(0, "LW"))
+        self.assertIsNone(takt_from_tag_bpm(87, None))
+        self.assertIsNone(takt_from_tag_bpm(87, "SL"))        # social dance
+        self.assertIsNone(takt_from_tag_bpm(None, "LW"))
+        self.assertIsNone(takt_from_tag_bpm(0, "LW"))
 
 
 class PrecedenceTest(unittest.TestCase):
 
     def test_the_file_name_wins(self):
         self.assertEqual(
-            _detect_bpm_tagged("Moon River (LW 29)", None, tag_bpm=84, dance="LW"), 29)
+            detect_bpm_tagged("Moon River (LW 29)", None, tag_bpm=84, dance="LW"), 29)
 
     def test_the_bpm_tag_wins_over_the_title_tag_text(self):
         self.assertEqual(
-            _detect_bpm_tagged("Moon River", "Moon River (LW 28)",
+            detect_bpm_tagged("Moon River", "Moon River (LW 28)",
                                tag_bpm=87, dance="LW"), 29)
 
     def test_the_title_tag_text_is_the_last_resort(self):
         self.assertEqual(
-            _detect_bpm_tagged("Moon River", "Moon River (LW 28)",
+            detect_bpm_tagged("Moon River", "Moon River (LW 28)",
                                tag_bpm=120, dance="LW"), 28)
-        self.assertEqual(_detect_bpm_tagged("Moon River", "Moon River (LW 28)"), 28)
+        self.assertEqual(detect_bpm_tagged("Moon River", "Moon River (LW 28)"), 28)
 
 
 def _entry(stem, bpm, tag_title=None, tag_bpm=None):
@@ -152,16 +152,16 @@ class ScanTest(unittest.TestCase):
 class StorageTest(unittest.TestCase):
 
     def test_the_tag_bpm_survives_a_row_round_trip(self):
-        meta = _row_to_meta(_meta_to_row({"title": "x", "tag_bpm": 87.0}))
+        meta = row_to_meta(meta_to_row({"title": "x", "tag_bpm": 87.0}))
         self.assertEqual(meta["tag_bpm"], 87.0)
-        self.assertIsNone(_row_to_meta(_meta_to_row({"title": "x"}))["tag_bpm"])
+        self.assertIsNone(row_to_meta(meta_to_row({"title": "x"}))["tag_bpm"])
 
     def test_the_column_is_appended_to_old_tables(self):
         conn = sqlite3.connect(":memory:")
         self.addCleanup(conn.close)
         conn.execute("CREATE TABLE scan_meta (ckey TEXT, custom TEXT)")
         conn.execute("CREATE TABLE global_meta (file_id INTEGER, custom TEXT)")
-        _migrate_meta_tag_bpm(conn)
+        migrate_meta_tag_bpm(conn)
         for table in ("scan_meta", "global_meta"):
             cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
             self.assertEqual(cols[-1], "tag_bpm")

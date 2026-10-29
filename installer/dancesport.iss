@@ -1,8 +1,8 @@
 ; Inno Setup script for the Windows installer, one per build flavor.
 ;
 ; Built by build_installer.bat from what build_exe.bat left in dist\, e.g.
-;   ISCC.exe /DFlavor=player /DAppVersion=1.5.1 installer\dancesport.iss
-; -> dist\installer\DanceSport-Player-1.5.1-setup.exe
+;   ISCC.exe /DFlavor=player /DAppVersion=1.6.0 installer\dancesport.iss
+; -> dist\installer\DanceSport-Player-1.6.0-setup.exe
 ;
 ; The install folder is the user's choice. Installed for all users (the
 ; default, admin rights for the setup only) under C:\Program Files, the app
@@ -46,6 +46,10 @@
 
 #define AppExe AppName + ".exe"
 #define Source "..\dist\" + AppName
+; The ID the app gives itself (APP_USER_MODEL_ID in gui/common.py) — change
+; both together. A shortcut without it is not the running app to the taskbar,
+; so a pin made from the running window came out as a white box.
+#define AppUserModelID "danceplaylist.ai.planner.v3"
 
 [Setup]
 AppId={{{#AppGuid}}
@@ -104,8 +108,8 @@ Source: "{#Source}\Handbuch.pdf"; DestDir: "{app}"; Flags: ignoreversion skipifs
 Source: "{#Source}\Licenses\*"; DestDir: "{app}\Licenses"; Flags: ignoreversion skipifsourcedoesntexist
 
 [Icons]
-Name: "{autoprograms}\{#AppDisplayName}"; Filename: "{app}\{#AppExe}"
-Name: "{autodesktop}\{#AppDisplayName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon
+Name: "{autoprograms}\{#AppDisplayName}"; Filename: "{app}\{#AppExe}"; AppUserModelID: "{#AppUserModelID}"
+Name: "{autodesktop}\{#AppDisplayName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon; AppUserModelID: "{#AppUserModelID}"
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#StringChange(AppDisplayName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent runasoriginaluser

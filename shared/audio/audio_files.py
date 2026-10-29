@@ -18,7 +18,7 @@ log = logging.getLogger("dancesport.gui")
 # route checks the suffix, so without this a foreign playlist can point a row at
 # a script and the double-click that means "preview this song" runs it.
 # TableDragDropMixin uses the same tuple for external drops.
-_AUDIO_EXTS = (".mp3", ".m4a", ".m4b", ".flac", ".wav", ".ogg",
+AUDIO_EXTS = (".mp3", ".m4a", ".m4b", ".flac", ".wav", ".ogg",
                ".oga", ".opus", ".aac", ".wma", ".aiff", ".aif")
 
 

@@ -8,8 +8,8 @@ this tool which part of the suite the staged change can actually break:
   runs that area's test package.
 * A commit that spans two or more areas, or is a bigger refactoring (8+ Python
   files or 400+ changed lines), runs the whole suite.
-* The shared test plumbing, the dependencies and the lint/hook config run the
-  whole suite too: they reach every test. So does shared/, the widget code
+* The shared test plumbing (every .py directly in tests/), the dependencies and
+  the lint/hook config run the whole suite too: they reach every test. So does shared/, the widget code
   both the desk and the evening build on. A change to its tests alone runs
   tests/shared.
 * planner/i18n/lang_de.py, the German catalog, is not an area of its own logic. It
@@ -24,6 +24,7 @@ caught before it leaves the machine.
     .venv\\Scripts\\python.exe -m tools.dev.commit_scope          # decide + run
     .venv\\Scripts\\python.exe -m tools.dev.commit_scope --plan   # decide only
 """
+import contextlib
 import io
 import os
 import subprocess
@@ -44,8 +45,6 @@ AREA_PREFIXES = {
 }
 
 FULL_TRIGGERS = (
-    "tests/qt_test_support.py",
-    "tests/__init__.py",
     "shared/",
     "requirements",
     "pyproject.toml",
@@ -68,6 +67,8 @@ def area_of(path: str) -> str | None:
     if path == CATALOG:
         return "i18n"
     parts = path.split("/")
+    if parts[0] == "tests" and len(parts) == 2 and path.endswith(".py"):
+        return "full"   # test plumbing beside the packages (qt_test_support, db_support…)
     if parts[0] == "tests" and len(parts) > 2 and parts[1] in AREAS:
         return parts[1]
     for prefix, area in AREA_PREFIXES.items():
@@ -138,10 +139,8 @@ def run(runs: list[tuple[str, str]] | None) -> int:
 def main(argv: list[str]) -> int:
     # The console is cp1252; the decision line leads with an emoji.
     if isinstance(sys.stdout, io.TextIOWrapper):
-        try:
+        with contextlib.suppress(OSError):
             sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-        except OSError:
-            pass
     if os.environ.get("FULL_SUITE") == "1":
         runs, reason = None, "FULL_SUITE=1"
     else:

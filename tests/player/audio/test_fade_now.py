@@ -42,6 +42,16 @@ class FadeNowTest(unittest.TestCase):
         self.assertEqual(fade.level(1.0), 0.25)
         self.assertEqual(fade.level(-0.3), 0.0)
 
+    def test_a_ramp_from_below_full_picks_up_at_that_level(self):
+        """A fade already under way (the ⏳ timed one) is not started over:
+        the ramp begins at its level and keeps the configured slope."""
+        fade = FadeNow()
+        with mock.patch("player.audio.fade_now.time.monotonic", return_value=100.0):
+            fade.start(4, level=0.25)
+            self.assertEqual(fade.total, 4.0)
+            self.assertEqual(fade.remaining(), 1.0)
+            self.assertEqual(fade.level(fade.remaining()), 0.25)
+
     def test_without_a_length_the_level_is_silence(self):
         self.assertEqual(FadeNow().level(1.0), 0.0)
 
@@ -112,6 +122,7 @@ class WindowPausesTheFadeTest(unittest.TestCase):
 
     def _win(self):
         from PySide6.QtMultimedia import QMediaPlayer
+
         from player.window.main_player import PlayerControlMixin
 
         class Win:

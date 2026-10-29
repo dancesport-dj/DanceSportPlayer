@@ -45,3 +45,16 @@ class PlaybackState:
     # 🆘 The on-air note last written (deck index, row, path); None = there is
     # none on disk for this title.
     on_air: tuple | None = None
+    # 🥇 (token, monotonic start) while a title of the final plays on after
+    # its fade; a load or stop moves the token on, which ends it.
+    celebrate: tuple | None = None
+    # 🌙 The closing song after a planned ⏹ stop while it is on the deck;
+    # None once another title takes over.
+    closing: Path | None = None
+    # 🎶 The token of a title waiting for a background pad to fade out (see
+    # _bed_first_ms); the wall counts that wait as music.
+    bed_wait: int | None = None
+    # ⏱ Start-up latency of the running play request: when the ▶ was handled
+    # and whether the "media ready" line has already been logged for it.
+    play_t0: float | None = None
+    ready_logged: bool = False

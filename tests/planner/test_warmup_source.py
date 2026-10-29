@@ -23,10 +23,10 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_warmsrc_"))
 
+from gui.decks.deck_set import DeckSet
 from gui.window import main_generate as gen
 from gui.window.main_dupes import DuplicateCheckMixin
 from planner.models import MusicEntry
-from gui.decks.deck_set import DeckSet
 
 
 def _entry(name, folder="lateincd/SA"):

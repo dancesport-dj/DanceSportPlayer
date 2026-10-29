@@ -12,7 +12,7 @@ from PySide6.QtWidgets import QApplication, QPushButton
 from planner.playing import controller as pctl
 from player.dialogs import controller_dialog
 from player.dialogs.controller_dialog import ControllerDialog
-from player.window.main_controller import _ControllerHub
+from player.window.main_controller import ControllerHub
 
 _DEVICES = [("midi", "nanoKONTROL2", "nanoKONTROL2"),
             ("hid", "17cc:1234", "Native Instruments Traktor (HID)")]
@@ -22,7 +22,7 @@ class _Host:
     """What the window asks of the main window, and nothing more."""
 
     def __init__(self, cfg=None):
-        self.hub = _ControllerHub()
+        self.hub = ControllerHub()
         self.cfg = {"kind": "", "device": "", "profile": "", "bindings": {}, **(cfg or {})}
         self.listener = None
         self.saves = 0

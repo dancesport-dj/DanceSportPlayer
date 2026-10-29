@@ -14,9 +14,9 @@ from pathlib import Path
 
 import numpy as np
 
+from planner.models import MusicEntry
 from planner.music.analysis import AudioFeatures
 from planner.music.library import MusicLibrary
-from planner.models import MusicEntry
 from planner.music.similarity import SoundAlike
 
 

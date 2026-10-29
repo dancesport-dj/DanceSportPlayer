@@ -12,7 +12,6 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from tests.qt_test_support import qapp, reap_widget
 
-
 _STATE = ("Langsamer Walzer", "Fascination", ("01:12", "− 01:48", False, 0.4),
           [("Tango", "Jealousy"), ("Rumba", "Besame Mucho")],
           ("Cha Cha Cha", "Sway"))

@@ -87,8 +87,8 @@ class RealAudioSimilarityTest(unittest.TestCase):
         return out
 
     def scores(self, feats: dict, method: str) -> dict[str, float]:
-        from planner.music.similarity import _timbre_similarity
-        sims = _timbre_similarity(feats["tone"], self.entries(feats), method)
+        from planner.music.similarity import timbre_similarity
+        sims = timbre_similarity(feats["tone"], self.entries(feats), method)
         return {Path(p).stem: s for p, s in sims.items()}
 
     def test_the_tempo_is_read_off_the_audio(self):

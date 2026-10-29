@@ -23,11 +23,13 @@ from PySide6.QtCore import QUrl
 from PySide6.QtMultimedia import QMediaPlayer
 
 from dancesport_planner import MusicLibrary, PlaylistSuggester, RoundConfig
+from gui.dialogs.tag_edit_dialog import FILENAME_TITLE
+from planner.models import MusicEntry
 from planner.music import tag_edits
 from planner.music.db import AudioCache
-from planner.models import MusicEntry
 from planner.terms import dance_name
-from shared.columns import _COL_DANCE, _COL_HEAT, _COL_TITLE
+from shared.columns import _COL_DANCE, _COL_TITLE, COL_HEAT
+from shared.widgets import WARN_TOAST_MS
 from tests.db_support import use_scratch_db
 from tests.qt_test_support import reap_widget, stub_window_startup
 
@@ -107,9 +109,11 @@ class _WindowTest(unittest.TestCase):
             [RoundConfig(name="Runde 1", heats=1, tier="final")], "S",
             play_cb=self.win._play_or_stop, suggester=PlaylistSuggester(lib),
             use_timbre=False, style="Latin", dynamic=True, capacity=[1])
-        self.toasts = []
-        patcher = mock.patch("gui.window.main_tags._show_toast",
-                             lambda _w, text, *a, **kw: self.toasts.append(text))
+        self.toasts, self.toast_ms, self.toast_kw = [], [], []
+        patcher = mock.patch("gui.window.main_tags.show_toast",
+                             lambda _w, text, *a, **kw: (self.toasts.append(text),
+                                                         self.toast_ms.append(a),
+                                                         self.toast_kw.append(kw)))
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -160,6 +164,9 @@ class RawWriteTest(_WindowTest):
         self.assertEqual(self.path.read_bytes(), before)
         self.assertEqual(self.entry.tag_artist, "Old Band")
         self.assertEqual(len(self.toasts), 2)
+        # F12: long enough to read why.
+        self.assertEqual(self.toast_ms, [(WARN_TOAST_MS,)] * 2)
+        self.assertEqual(self.toast_kw, [{"error": True}] * 2)   # F13: in red
 
     def test_a_cued_track_is_written_and_loaded_again(self):
         """Every deck load cues its first title, so refusing those would block
@@ -269,6 +276,14 @@ class FormWriteTest(_WindowTest):
             self.assertEqual(e.tag_artist, "New Band")
         self.assertEqual(ID3(two.path)["TIT2"].text, ["Cha Two"])
 
+    def test_the_file_name_as_title_is_each_files_own(self):
+        """F12: the title arrow's "< filename >" across a selection."""
+        two = self.second()
+        self.win._apply_tag_dialog([self.entry, two], _Answer(
+            form={"title": FILENAME_TITLE}, mp3s=[self.entry, two]))
+        for e in (self.entry, two):
+            self.assertEqual(ID3(e.path)["TIT2"].text, [Path(e.path).stem])
+
     def test_each_selected_mp3_gets_its_own_table_edit(self):
         """The Extended tab with several tracks: one field typed for all of
         them is set where a file has it and added where it doesn't."""
@@ -346,12 +361,12 @@ class RunningOrderRepaintTest(_WindowTest):
         sections = {str(self.entry.path): "Finale", str(self.rumba.path): "Finale"}
         self.t.load_player_list([self.entry, self.rumba], "🏁 Order",
                                 play_cb=self.win._play_or_stop, sections=sections)
-        self.assertEqual([self.t.item(r, _COL_HEAT).text() for r, _ in self.rows()],
+        self.assertEqual([self.t.item(r, COL_HEAT).text() for r, _ in self.rows()],
                          ["", ""])
         self.win._apply_tag_dialog([self.entry], _Answer(
             form={"title": "Rumba One", "genre": "Rumba"}, mp3s=[self.entry]))
         self.assertEqual(self.entry.dance, "RB")
-        cells = [(self.t.item(r, _COL_DANCE).text(), self.t.item(r, _COL_HEAT).text())
+        cells = [(self.t.item(r, _COL_DANCE).text(), self.t.item(r, COL_HEAT).text())
                  for r, _ in self.rows()]
         rb = self.t._dance_label("RB")
         self.assertEqual(cells, [(rb, "Heat 1"), (rb, "Heat 2")])

@@ -48,6 +48,14 @@ class PlanTest(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertIsNone(cs.plan([(path, 1)])[0])
 
+    def test_every_helper_beside_the_test_packages_runs_everything(self):
+        """85 test files import tests/db_support.py, yet staging it alone ran
+        no tests at all (BUG_REVIEW B7.5). A new helper there is covered too."""
+        for path in ("tests/db_support.py", "tests/_probe_drive_leak.py",
+                     "tests/__init__.py", "tests/some_new_helper.py"):
+            with self.subTest(path=path):
+                self.assertIsNone(cs.plan([(path, 1)])[0])
+
     def test_shared_widgets_run_everything(self):
         # shared/ is what the desk and the evening both build on, so a change
         # there can break either side's tests.

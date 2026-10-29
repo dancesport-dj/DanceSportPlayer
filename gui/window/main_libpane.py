@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import Qt
 
 from planner import i18n
-from planner.playlist.planned import is_planned
+from planner.playlist.planned import is_planned, path_key
 from planner.terms import dance_name
 from shared.stores import save_settings
 
@@ -173,10 +173,11 @@ class LibraryPaneMixin(MainWindowHost):
         planned = set(paths)
         fingerprint = (self._library.cache.recorded_fingerprint
                        if self._library.cache is not None else None)
-        if self._library.lib is not None:
-            for e in self._library.lib.entries:
+        # 🌐 lists the global index, whose tracks need not be favorites.
+        for lib in (self._library.lib, self._library.global_lib):
+            for e in (lib.entries if lib is not None else ()):
                 p = getattr(e, "path", None)
-                # `paths` is lowercased; the browser looks up `str(path)` as is.
+                # The browser looks each track up by its `path_key`, as `paths` holds it.
                 if is_planned(p, paths, fps, fingerprint):
-                    planned.add(str(p))
+                    planned.add(path_key(p))
         self._lib_browser.set_planned_paths(planned)

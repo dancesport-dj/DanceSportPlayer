@@ -17,9 +17,9 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_toast_"))
 
 from PySide6.QtWidgets import QApplication, QLabel, QWidget
-from tests.qt_test_support import reap_widget
 
 from shared import widgets
+from tests.qt_test_support import reap_widget
 
 
 class ToastTest(unittest.TestCase):
@@ -39,27 +39,27 @@ class ToastTest(unittest.TestCase):
         return [w for w in self.win.findChildren(QLabel) if not w.isHidden()]
 
     def test_one_message_shows(self):
-        widgets._show_toast(self.win, "🔁  Marked for replace")
+        widgets.show_toast(self.win, "🔁  Marked for replace")
         self.assertEqual([lbl.text() for lbl in self._labels()],
                          ["🔁  Marked for replace"])
 
     def test_a_second_message_replaces_the_first(self):
         """Mark, then unmark: one label, showing the newer text."""
-        widgets._show_toast(self.win, "🔁  Marked for replace")
-        widgets._show_toast(self.win, "🔁  Unmarked")
+        widgets.show_toast(self.win, "🔁  Marked for replace")
+        widgets.show_toast(self.win, "🔁  Unmarked")
         labels = self._labels()
         self.assertEqual(len(labels), 1, "the two messages overlap")
         self.assertEqual(labels[0].text(), "🔁  Unmarked")
 
     def test_a_long_message_after_a_short_one_is_not_clipped(self):
         """The reused label has to re-measure, or the old width would cut it."""
-        widgets._show_toast(self.win, "🔁  Unmarked")
+        widgets.show_toast(self.win, "🔁  Unmarked")
         short = self._labels()[0].width()
-        widgets._show_toast(self.win, "🔁  Cleared all replacement marks")
+        widgets.show_toast(self.win, "🔁  Cleared all replacement marks")
         self.assertGreater(self._labels()[0].width(), short)
 
     def test_it_stays_centred_on_the_window(self):
-        widgets._show_toast(self.win, "🔁  Marked for replace")
+        widgets.show_toast(self.win, "🔁  Marked for replace")
         lbl = self._labels()[0]
         self.assertAlmostEqual(lbl.x() + lbl.width() / 2,
                                self.win.width() / 2, delta=1)
@@ -67,12 +67,12 @@ class ToastTest(unittest.TestCase):
     def test_the_clock_restarts_for_the_new_message(self):
         """Otherwise the replacement would inherit what was left of the old
         1.5 s and could vanish almost at once."""
-        widgets._show_toast(self.win, "🔁  Marked for replace", msec=50)
-        widgets._show_toast(self.win, "🔁  Unmarked", msec=5000)
+        widgets.show_toast(self.win, "🔁  Marked for replace", msec=50)
+        widgets.show_toast(self.win, "🔁  Unmarked", msec=5000)
         self.assertGreater(self.win._toast_timer.remainingTime(), 50)
 
     def test_it_hides_itself_when_the_time_is_up(self):
-        widgets._show_toast(self.win, "🔁  Marked for replace", msec=1)
+        widgets.show_toast(self.win, "🔁  Marked for replace", msec=1)
         self.win._toast_timer.timeout.emit()
         self.assertEqual(self._labels(), [])
 

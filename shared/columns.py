@@ -4,7 +4,7 @@ evening reads the play, title and regen cells of the ones it is handed.
 
 # Table column indices  (▶ is left of Title)
 _COL_DANCE = 0
-_COL_HEAT = 1
+COL_HEAT = 1
 _COL_PLAY = 2   # ← left of title
 _COL_ARTIST = 3 # artist tag, sits LEFT of Title and shares its width (like the library)
 _COL_TITLE = 4
@@ -18,5 +18,5 @@ _COL_FILE = 11  # the cleaned-up file name, now that Title shows the title tag
 _COL_ALBUM = 12 # the ID3 album tag
 _COL_COMMENT = 13 # the COMM text as the file has it ('vocal AS')
 _COL_PLAYS = 14  # 🔁 how often the title played in the last 24 h, any list
-_COL_REGEN = 15 # stays last: a deck's header rows span every column left of it
+COL_REGEN = 15 # stays last: a deck's header rows span every column left of it
 _N_COLS = 16

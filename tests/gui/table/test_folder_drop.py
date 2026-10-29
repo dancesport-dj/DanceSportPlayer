@@ -29,12 +29,11 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtCore import QMimeData, QUrl
 from PySide6.QtWidgets import QApplication, QMessageBox
-from tests.qt_test_support import reap_widget
 
-from gui.table import table_actions
-from gui.table import table_load
+from gui.table import table_actions, table_load
 from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry
+from tests.qt_test_support import reap_widget
 
 
 class _Sig:
@@ -297,6 +296,20 @@ class UnreadableReportTest(_FolderTest):
             self.table._resolve_drop_entries(
                 [self.root / f"{i}.mp3" for i in range(20)])
         self.assertIn("plus 12 more", box.call_args.args[2])
+
+    def test_the_box_is_titled_after_the_list_dropped_on(self):
+        """Marcel: a drop onto a playlist reported its unreadable file under
+        the header "Wishlist"."""
+        with self._information() as box, mock.patch(
+                "gui.table.table_host.TableHost.deck_name",
+                return_value="Deck B"):
+            self.table._resolve_drop_entries([self.root / "0.mp3"])
+        self.assertEqual(box.call_args.args[1], "Deck B")
+
+    def test_a_playlist_without_a_name_is_not_called_a_wishlist(self):
+        with self._information() as box:
+            self.table._resolve_drop_entries([self.root / "0.mp3"])
+        self.assertNotIn("Wishlist", box.call_args.args[1])
 
     def test_a_dead_line_in_an_m3u_stays_silent(self):
         """A playlist naming a track that has moved is not the user's doing."""

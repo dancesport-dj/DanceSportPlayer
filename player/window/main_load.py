@@ -20,12 +20,14 @@ from PySide6.QtWidgets import QMessageBox
 
 import planner.generate.warmup
 from planner import i18n, terms
+from planner.music.paths import resolve_file
+from planner.playing import cartwall as pc
 from planner.terms import dance_name
+from player.audio.on_air_note import NOTE
+from player.window.main_pause import live_target
 from shared.audio.playback import pre_roll_secs
 from shared.stores import ON_AIR, save_settings
-from shared.widgets import _show_toast
-from player.audio.on_air_note import NOTE
-from player.window.main_pause import _live_target
+from shared.widgets import WARN_TOAST_MS, show_toast
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -44,11 +46,17 @@ log = logging.getLogger("dancesport.gui.player")
 # ⏭ burst is coalesced to its last target — long enough to spare Windows Media
 # Foundation a teardown per keypress, short enough that a single press still
 # feels immediate.
-_LOAD_MIN_GAP_MS = 250.0
+LOAD_MIN_GAP_MS = 250.0
 
 
 class TrackLoadMixin(MainWindowHost):
     """Loading a title, the ↩ resume marks, the mini player and the failover."""
+
+    def _source_url(self, path) -> QUrl:
+        """What the backend opens for a title: its file, else the same path
+        on another drive (the stick came back as G:) or 🧭's copy. Everything
+        else — the row, the caches, the saved list — keeps the stored path."""
+        return QUrl.fromLocalFile(str(resolve_file(path, self._settings) or path))
 
     def deck_path(self) -> Path | None:
         """The title the player is on, or about to load: a load held back by
@@ -73,7 +81,7 @@ class TrackLoadMixin(MainWindowHost):
         """
         if not self._player:
             return
-        gap_left = _LOAD_MIN_GAP_MS - 1000.0 * (time.monotonic() - self._last_load_at)
+        gap_left = LOAD_MIN_GAP_MS - 1000.0 * (time.monotonic() - self._last_load_at)
         if path is not None and gap_left > 0:
             # A newer title supersedes one still waiting for its loudness:
             # that wait would otherwise start the old title when its level
@@ -123,7 +131,7 @@ class TrackLoadMixin(MainWindowHost):
             self._arm_fade_in(path)
             self._mix.load_gain(self._loudness_gain(path))
             self._apply_volume()
-            url = QUrl.fromLocalFile(str(path))
+            url = self._source_url(path)
             if self._player.source() != url:
                 # Errors the backend queued before this source belong to the
                 # title it replaces. The timer is posted first, so it runs
@@ -145,13 +153,16 @@ class TrackLoadMixin(MainWindowHost):
             # the play() it holds back.
             waiting = bool(start and not hold
                            and self._announce_start_first(ent))
-            if start and not hold and not waiting:
+            # 🎶 …and a background pad still heard fades out first, unless
+            # ⚙ Settings ▸ 🎛 Cartwall lets the title start over it.
+            bed = self._bed_first_ms() if start and not hold and not waiting else 0
+            if start and not hold and not waiting and not bed:
                 self._player.play()
             if self._big_player:
                 # Qt may drop a rate set while the player was idle — re-assert.
                 # Free when the early set stuck: apply_tempo skips a no-op.
                 self._big_player.apply_tempo()
-            if start and not hold and not waiting:
+            if start and not hold and not waiting and not bed:
                 self._fade_timer.start()
                 # After play(): the announcement ducks what is running, so the
                 # music has to be on its way already.
@@ -162,15 +173,20 @@ class TrackLoadMixin(MainWindowHost):
             self._sync_big_player_limit()
             self._refresh_next_up()
             self._show_preview(path)
-            self._arm_start(path, start, hold, waiting)
+            self._arm_start(path, start, hold, waiting, bed, ent)
             # ⏱ What the GUI thread spent before the backend took over. The
             # matching "media ready" line comes from _on_media_status, so a slow
             # start can be blamed on us or on the decoder without guessing.
-            self._play_t0 = t0
-            self._play_ready_logged = False
+            self._playback.play_t0 = t0
+            self._playback.ready_logged = False
             log.info("⏱ Play requested\n"
                      "file: %s\n"
                      "blocking: %.0f ms", path.name, 1000 * (time.perf_counter() - t0))
+        if getattr(self, "_cart_voices", None) is not None:
+            # 🎶 A cue or an unload changes no playback state, so the wall
+            # would not hear that a Paso Doble now waits for ⏯, or no longer
+            # does (see _cart_follow_deck).
+            self._cart_follow_deck(None)
         self._preview_src = None
 
     def _unload_track(self, player):
@@ -186,6 +202,7 @@ class TrackLoadMixin(MainWindowHost):
             self._big_player.set_current_dance(None)
         self._playback.dance = ""
         self._playback.path = None
+        self._play_panel.set_pd_loaded(False)
         self._played_marked = False
         self._playback.offset_ms = 0
         self._sync_dance_len()        # 🏆 the panel's length: the picked row's again
@@ -203,6 +220,8 @@ class TrackLoadMixin(MainWindowHost):
                 dance_name(self._playback.dance, self._playback.dance),
                 self._playback.path.stem)
         self._between.round_start = None   # a song starts — round-end resume done
+        if path != self._playback.closing:
+            self._playback.closing = None   # 🌙 another title took over
         ent = self._resolve_entry(str(path))
         # warmup_code, not .dance: a social title (Discofox, Salsa, …) has
         # no competition code, and with an empty dance it was never
@@ -211,9 +230,13 @@ class TrackLoadMixin(MainWindowHost):
         # dance whatever the title is tagged, and a path the library does not
         # hold verbatim (a Mac copy) comes back named by its file name alone —
         # a Paso Doble row then played no Paso Doble, and the stop never ran.
-        self._playback.dance = self._row_dance(path) or (
-            (planner.generate.warmup.warmup_code(ent) or "") if ent is not None else "")
+        # 🌙 The closing song is no dance: no call, no length, no Paso stop.
+        self._playback.dance = "" if self._playback.closing is not None else (
+            self._row_dance(path) or (
+                (planner.generate.warmup.warmup_code(ent) or "")
+                if ent is not None else ""))
         self._playback.path = path
+        self._play_panel.set_pd_loaded(self._playback.dance == "PD")   # 🎯 ✖ ✏️
         self._played_marked = False   # fresh track — re-arm the 10 s rule
         self._playback.offset_ms = 0      # …and no silence skipped on it yet
         self._sync_dance_len()        # 🏆 this dance's own length, where it has one
@@ -278,8 +301,34 @@ class TrackLoadMixin(MainWindowHost):
                     and self._is_playing_mode()):
                 self._equalize_heat_tempo(auto=True)
 
-    def _arm_start(self, path, start, hold, waiting):
-        """🐂 The PD hold, ⏳ the wait for the call, or the load watchdog."""
+    def _bed_first_ms(self) -> int:
+        """🎶 How long a starting title waits for a background pad to fade
+        out: the rest of its dip by default, nothing when ⚙ Settings ▸
+        🎛 Cartwall lets the two overlap. A wait starts the dip right away."""
+        voices = getattr(self, "_cart_voices", None)
+        if voices is None or pc.background_overlaps(self._settings):
+            return 0
+        ms = voices.background_down_in_ms()
+        if ms > 0:
+            self._playback.bed_wait = self._playback.token
+            voices.set_music_playing(True)
+        return ms
+
+    def _release_after_bed(self, token: int, path: Path, ent):
+        """The bed is down: start the title, named over its first bars as
+        ever. A stop or the next title meanwhile hands the bed back to the
+        wall instead — nothing else would ever bring it up again."""
+        if self._playback.bed_wait == token:
+            self._playback.bed_wait = None
+        if token != self._playback.token:
+            self._cart_follow_deck(None)
+            return
+        self._release_held_start(token, path)
+        self._maybe_announce_start(ent)
+
+    def _arm_start(self, path, start, hold, waiting, bed=0, ent=None):
+        """🐂 The PD hold, ⏳ the wait for the call, 🎶 the wait for the bed,
+        or the load watchdog."""
         if start and hold:
             # …the wait counts down on the left panel, speaks the call if
             # the announcement is on, and starts the music (with its own
@@ -289,6 +338,12 @@ class TrackLoadMixin(MainWindowHost):
             # …and this one waits for the voice that has just started,
             # silently: the hall is listening to the call.
             self._wait_for_announcement(path)
+        elif start and bed:
+            # …and this one for the background pad to be down: the title
+            # starts into silence, not over the tail of the bed.
+            token = self._playback.token
+            QTimer.singleShot(bed, self,
+                              lambda: self._release_after_bed(token, path, ent))
         elif start:
             # Watchdog: if the backend silently hangs in Loading/Stalled (it
             # happens on rapid source switches), retry the load once, then give
@@ -313,7 +368,7 @@ class TrackLoadMixin(MainWindowHost):
                         "file: %s", status, path)
             self._player.stop()
             self._player.setSource(QUrl())
-            self._player.setSource(QUrl.fromLocalFile(str(path)))
+            self._player.setSource(self._source_url(path))
             self._player.play()
             QTimer.singleShot(2500, self, lambda: self._check_playback(token, path, True))
             return
@@ -366,7 +421,8 @@ class TrackLoadMixin(MainWindowHost):
         if src and not Path(src).exists():
             for t in self._deckset.all_tables:
                 t.refresh_paths([Path(src)])
-            _show_toast(self, i18n.t("⚠ File not found on disk:\n%s") % Path(src))
+            show_toast(self, i18n.t("⚠ File not found on disk:\n%s") % Path(src),
+                       WARN_TOAST_MS, error=True)
 
     def _playback_failed(self, path: Path | None, reason: str, message: str):
         """A title would not play: remember it, put the UI back to idle and,
@@ -388,8 +444,8 @@ class TrackLoadMixin(MainWindowHost):
         log.warning("⏭ Skipped a title that would not play\n"
                     "failed: %s\n"
                     "next: %s", path.name, Path(nxt[2]).name)
-        _show_toast(self, i18n.t("⚠ “%s” would not play — skipped to the next title.")
-                    % path.stem)
+        show_toast(self, i18n.t("⚠ “%s” would not play — skipped to the next title.")
+                    % path.stem, error=True)
         # Not from inside the backend's own error signal: start it once that
         # has returned.
         QTimer.singleShot(0, lambda: self._start_failover(nxt))
@@ -416,7 +472,7 @@ class TrackLoadMixin(MainWindowHost):
 
     def _start_failover(self, nxt):
         """Start the title a failed one handed over to, if it is still there."""
-        nxt = _live_target(nxt)
+        nxt = live_target(nxt)
         if nxt is None:
             return
         t, nrow, npath = nxt
@@ -520,9 +576,15 @@ class TrackLoadMixin(MainWindowHost):
     def _on_back_to_start(self):
         """⏮ 0:00 on the card: the title starts over, so the ↩ mark of where
         it stopped before goes — the next load would pick it up there again.
-        A pick-up still waiting for the media would undo the rewind, too."""
+        A pick-up still waiting for the media would undo the rewind, too, and
+        the ground it skipped is played now — the ⏳ cut counts it again. A
+        🥇 final's title playing on starts over too: cut at its length again."""
+        self._playback.celebrate = None
         self._resume_seek_ms = None
         self._clear_resume(self._playback.path)
+        self._playback.offset_ms = 0
+        self._playback.pre_roll_ms = 0
+        self._sync_big_player_limit()
 
     def _remember_stop_point(self):
         """Note where the running title stands, just before it is stopped.
@@ -541,6 +603,12 @@ class TrackLoadMixin(MainWindowHost):
             return
         path = self._playback.path
         if path is None:
+            return
+        if self._celebrating():
+            # 🥇 A final's title playing on is past its cut, so it has been
+            # heard: picked up there, its length would count from that point
+            # on and run past the file's end — the card spanned all of it.
+            self._clear_resume(path)
             return
         if self._player.playbackState() == QMediaPlayer.PlaybackState.StoppedState:
             return

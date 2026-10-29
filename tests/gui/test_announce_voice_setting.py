@@ -71,11 +71,53 @@ class SoundTabTest(unittest.TestCase):
         """Trying a voice before pressing OK is the point of the button."""
         heard = []
         dlg = self._dlg({"announce_voice": "female"},
-                        announce_test_cb=lambda v, h: heard.append((v, h)))
+                        announce_test_cb=lambda v, h, ld, ho: heard.append((v, h, ld, ho)))
         dlg._voice_combo.setCurrentIndex(dlg._voice_combo.findData("male"))
         dlg._heat_chk.setChecked(True)
+        dlg._lead_chk.setChecked(False)
         dlg._voice_test_btn.click()
-        self.assertEqual(heard, [("male", True)])
+        self.assertEqual(heard, [("male", True, False, False)])
+
+    # Marcel: "default say next dance before the dance is off".
+
+    def test_the_lead_in_is_off_until_switched_on(self):
+        """📣 Bare "Rumba" by default; switched on says "Nächster Tanz: Rumba"."""
+        dlg = self._dlg({})
+        self.assertFalse(dlg._lead_chk.isChecked())
+        self.assertIs(dlg.values()["announce_lead"], False)
+        dlg = self._dlg({"announce_lead": True})
+        self.assertTrue(dlg._lead_chk.isChecked())
+        self.assertIs(dlg.values()["announce_lead"], True)
+
+    def test_a_fresh_install_starts_without_the_lead_in(self):
+        from gui.dialogs import load_settings
+        with mock.patch("gui.dialogs.SETTINGS.read", return_value={}):
+            self.assertIs(load_settings()["announce_lead"], False)
+
+    # Marcel: "configure the option that it only says Gruppe 1 not the
+    # dance for practice".
+
+    def test_the_heat_only_call_is_off_until_switched_on(self):
+        dlg = self._dlg({})
+        self.assertFalse(dlg._heat_only_chk.isChecked())
+        self.assertIs(dlg.values()["announce_heat_only"], False)
+        dlg = self._dlg({"announce_heat_only": True})
+        self.assertTrue(dlg._heat_only_chk.isChecked())
+        self.assertIs(dlg.values()["announce_heat_only"], True)
+
+    def test_heat_only_greys_the_boxes_it_overrides(self):
+        dlg = self._dlg({})
+        self.assertTrue(dlg._lead_chk.isEnabled())
+        dlg._heat_only_chk.setChecked(True)
+        self.assertFalse(dlg._lead_chk.isEnabled())
+        self.assertFalse(dlg._heat_chk.isEnabled())
+
+    def test_test_speaks_the_heat_only_pick(self):
+        heard = []
+        dlg = self._dlg({}, announce_test_cb=lambda *a: heard.append(a))
+        dlg._heat_only_chk.setChecked(True)
+        dlg._voice_test_btn.click()
+        self.assertEqual(heard, [("random", False, False, True)])
 
     def test_without_an_announcer_there_is_no_test(self):
         self.assertFalse(self._dlg({})._voice_test_btn.isEnabled())
@@ -137,12 +179,24 @@ class PanelCaptionTest(unittest.TestCase):
         self.assertEqual(p.announce_voice(), "random")
         self.assertIs(p.announce_heat(), False)
 
+    def test_the_lead_in_is_named_only_when_switched_on(self):
+        p = self.panel(announce_next=True, announce_lead=True)
+        self.assertEqual(p.announce_style_lbl.text(),
+                         "Mixed voices · Next dance · over the music")
+
     def test_one_voice_with_the_heat(self):
         p = self.panel(announce_next=True, announce_voice="female",
                        announce_heat=True)
         self.assertEqual(p.announce_style_lbl.text(),
                          "Female voice · with heat · over the music")
         self.assertTrue(p.announce_heat())
+
+    def test_heat_only_is_named_in_place_of_the_rest(self):
+        p = self.panel(announce_next=True, announce_heat=True,
+                       announce_lead=False, announce_heat_only=True)
+        self.assertEqual(p.announce_style_lbl.text(),
+                         "Mixed voices · heat only · over the music")
+        self.assertTrue(p.announce_heat_only())
 
     def test_the_wait_is_named_in_short(self):
         """Marcel: "add it as a info to the orange mixed voices text but in
@@ -245,8 +299,28 @@ class WindowTest(unittest.TestCase):
 
         with mock.patch.object(self.win._announcer, "speak", speak):
             self.win._announce_test("male", True)
-        self.assertEqual(spoken, [("male", "LW", 3)])
+        self.assertEqual(spoken[0][0], "male")
         self.assertEqual(self.win._announcer._voice_mode, "female")
+
+    def test_each_test_click_says_another_dance_and_heat(self):
+        """Marcel: "test button for annoucement in setting should generate on
+        multi click different combinations" — it said "Langsamer Walzer,
+        Gruppe 3" every time."""
+        spoken = []
+
+        def speak(code, heat=None, **_k):
+            spoken.append((code, heat))
+            return True
+
+        with mock.patch.object(self.win._announcer, "speak", speak):
+            for _ in range(10):
+                self.win._announce_test("male", True)
+        self.assertEqual(len({code for code, _h in spoken}), 10)
+        self.assertGreater(len({h for _c, h in spoken}), 1)
+        for (code, heat), (ncode, nheat) in zip(spoken, spoken[1:], strict=False):
+            self.assertNotEqual(code, ncode)
+            self.assertNotEqual(heat, nheat)
+            self.assertIn(heat, range(1, 9))   # only 1-8 were recorded
 
     def _save_settings(self, change):
         """⚙ Settings opened, `change` made, Save pressed."""

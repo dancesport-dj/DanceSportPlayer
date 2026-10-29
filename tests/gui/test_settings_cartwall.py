@@ -114,15 +114,48 @@ class CartwallTabTest(unittest.TestCase):
         dlg._cart_bg_hold_spin.setValue(0.6)
         self.assertEqual(dlg.values()["cart_bg_hold_ms"], 600)
 
+    def test_the_paso_doble_wait_keeps_the_bed_down_and_saves(self):
+        """Marcel: no background music while waiting for Paso Doble."""
+        dlg, tabs = self.open()
+        self.assertTrue(self.page(tabs, "🎛 Cartwall").isAncestorOf(
+            dlg._cart_bg_pd_check))
+        self.assertTrue(dlg._cart_bg_pd_check.isChecked())
+        self.assertIs(dlg.values()["cart_bg_pd_quiet"], True)
+        dlg._cart_bg_pd_check.setChecked(False)
+        self.assertIs(dlg.values()["cart_bg_pd_quiet"], False)
+        dlg, _ = self.open({"cart_bg_pd_quiet": False})
+        self.assertFalse(dlg._cart_bg_pd_check.isChecked())
+
+    def test_the_title_waits_for_the_fade_out_unless_overlapping(self):
+        """Marcel: "make it configurable whether it overlaps or not. Default:
+        complete fade-out, then the main music starts"."""
+        dlg, tabs = self.open()
+        self.assertTrue(self.page(tabs, "🎛 Cartwall").isAncestorOf(
+            dlg._cart_bg_overlap_check))
+        self.assertFalse(dlg._cart_bg_overlap_check.isChecked())
+        self.assertIs(dlg.values()["cart_bg_overlap"], False)
+        dlg._cart_bg_overlap_check.setChecked(True)
+        self.assertIs(dlg.values()["cart_bg_overlap"], True)
+        dlg, _ = self.open({"cart_bg_overlap": True})
+        self.assertTrue(dlg._cart_bg_overlap_check.isChecked())
+
+    def test_the_overlap_says_which_title_and_over_what(self):
+        """F19: "Start the title while it is still fading out" left open which
+        title, and what is fading."""
+        dlg, _ = self.open()
+        text = dlg._cart_bg_overlap_check.text()
+        self.assertIn("main player", text)
+        self.assertIn("background", text)
+
     def test_the_background_dip_starts_at_the_standard(self):
         """'make also both fade in and fade out configurable', and 'set to
-        0.2 instead of 0.18'."""
+        0.2 instead of 0.18', and later 'for fading out over use 0.5s'."""
         dlg, tabs = self.open()
         self.assertTrue(self.page(tabs, "🎛 Cartwall").isAncestorOf(
             dlg._cart_bg_out_spin))
         self.assertAlmostEqual(dlg._cart_bg_out_spin.value(),
                                pc.DEFAULT_BG_FADE_OUT_MS / 1000)
-        self.assertEqual(dlg.values()["cart_bg_fade_out_ms"], 200)
+        self.assertEqual(dlg.values()["cart_bg_fade_out_ms"], 500)
 
     def test_every_time_takes_one_decimal(self):
         """'i can only input one commata wich is fine, but then it should be
@@ -201,11 +234,28 @@ class CartwallTabTest(unittest.TestCase):
         rows = [lyt.itemAt(i) for i in range(lyt.count())]
         firsts = [row.widget() or row.layout().itemAt(0).widget() for row in rows]
         self.assertEqual(firsts, [
-            dlg._cart_bg_hint, dlg._cart_bg_fire_lbl, firsts[2],
-            dlg._cart_bg_out_lbl, dlg._cart_bg_hold_lbl, dlg._cart_bg_fade_lbl])
-        self.assertEqual(firsts[2].text(), "🎵  When a title starts:")
-        self.assertEqual(dlg._cart_bg_fire_lbl.text(), "▶  When fired — fade in over:")
-        self.assertEqual(dlg._cart_bg_hold_lbl.text(), "⏳  When the music stops — wait:")
+            dlg._cart_bg_hint, dlg._cart_bg_vol_lbl, dlg._cart_bg_fire_lbl,
+            firsts[3], dlg._cart_bg_out_lbl, dlg._cart_bg_overlap_check,
+            dlg._cart_bg_hold_lbl, dlg._cart_bg_fade_lbl, dlg._cart_bg_pd_check])
+        self.assertEqual(firsts[3].text(), "🎵  When the main player starts a title:")
+        self.assertEqual(dlg._cart_bg_fire_lbl.text(), "▶  When fired — fade the pad in over:")
+        self.assertEqual(dlg._cart_bg_hold_lbl.text(), "⏳  When the main player stops — wait:")
+
+    def test_each_fade_says_it_moves_the_pad(self):
+        """Marcel: the fade settings have to make clear whether the pad or
+        the main music is meant. Every fade here moves the pad; the music is
+        only what sets them off."""
+        dlg, _ = self.open()
+        for lbl in (dlg._cart_fade_lbl, dlg._cart_bg_fire_lbl,
+                    dlg._cart_bg_out_lbl, dlg._cart_bg_fade_lbl):
+            self.assertIn("the pad", lbl.text())
+
+    def test_the_paso_doble_wait_says_it_keeps_the_pad_down(self):
+        """Marcel: rename 'keep it down while a paso doble waits to start'
+        to also include pad."""
+        dlg, _ = self.open()
+        self.assertEqual(dlg._cart_bg_pd_check.text(),
+                         "🐂  Keep the pad down while a Paso Doble waits to start")
 
     def test_its_text_is_translated(self):
         # "🎛 Cartwall" is the same in German, so it has no entry to look for.
@@ -219,6 +269,7 @@ class CartwallTabTest(unittest.TestCase):
                  dlg._cart_bg_out_lbl.text(), dlg._cart_bg_out_spin.toolTip(),
                  dlg._cart_bg_fire_lbl.text(), dlg._cart_bg_fire_spin.toolTip(),
                  dlg._cart_bg_hold_lbl.text(), dlg._cart_bg_hold_spin.toolTip(),
+                 dlg._cart_bg_overlap_check.text(), dlg._cart_bg_overlap_check.toolTip(),
                  dlg._cart_colour_combo.toolTip()]
         for text in texts:
             with self.subTest(text=text):

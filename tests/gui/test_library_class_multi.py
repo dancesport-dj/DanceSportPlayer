@@ -24,10 +24,10 @@ from PySide6.QtCore import QEvent, QPointF, Qt
 from PySide6.QtGui import QMouseEvent
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QStyledItemDelegate
-from tests.qt_test_support import reap_widget
 
 from gui.library_browser import LibraryBrowser
 from planner.models import MusicEntry
+from tests.qt_test_support import reap_widget
 
 _app = QApplication.instance() or QApplication(sys.argv)
 

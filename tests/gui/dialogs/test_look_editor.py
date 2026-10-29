@@ -20,8 +20,8 @@ from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
 
 from gui.dialogs import look_editor, settings_look
-from gui.dialogs.settings_dialog import SettingsDialog
 from gui.dialogs.look_editor import LookEditor, LookPreview, contrast_warnings
+from gui.dialogs.settings_dialog import SettingsDialog
 from planner import i18n
 from shared.appearance import looks, theme, user_looks
 from tests.qt_test_support import reap_widget

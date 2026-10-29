@@ -9,8 +9,19 @@ sends is played on its own.
 """
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFontDatabase, QPixmap
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QHBoxLayout, QLabel,
-                               QListWidget, QListWidgetItem, QPlainTextEdit, QPushButton, QVBoxLayout)
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QPlainTextEdit,
+    QPushButton,
+    QVBoxLayout,
+)
 
 from planner import i18n
 from player.dialogs.remote_dialog import ask_cloudflared, qr_pixmap, server_program

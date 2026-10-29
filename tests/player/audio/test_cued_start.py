@@ -21,10 +21,10 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication
 
-from player.window.main_player import PlayerControlMixin
-from player.audio.playback_state import PlaybackState
-from player.audio.between_dances import BetweenDances
 from gui.decks.deck_set import DeckSet
+from player.audio.between_dances import BetweenDances
+from player.audio.playback_state import PlaybackState
+from player.window.main_player import PlayerControlMixin
 
 
 class _Desk(PlayerControlMixin):

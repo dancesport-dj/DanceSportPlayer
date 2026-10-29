@@ -86,8 +86,9 @@ class GuestQrTest(unittest.TestCase):
         self.assertFalse(win.qr_card.isVisible())
 
     def test_the_caption_speaks_the_halls_language(self):
-        from planner import terms
         from unittest import mock
+
+        from planner import terms
         with mock.patch.object(terms, "hall_language", lambda: "de"):
             win = self._presenter()
         self.assertEqual(win.qr_caption.text(), "Musikwunsch? Hier scannen")

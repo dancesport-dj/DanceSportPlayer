@@ -57,7 +57,7 @@ class DeckContext:
     replay_use_timbre: bool = True
     active_replay_idx: int | None = None
 
-    def carried_over(self, ui_mode: str) -> "DeckContext":
+    def carried_over(self, ui_mode: str) -> DeckContext:
         """The context a never-generated deck starts with when it gets the
         focus: the combos stay as the user left them on the deck before, so a
         schedule is ready for the next competition without re-picking; the

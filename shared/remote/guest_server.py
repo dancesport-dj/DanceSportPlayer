@@ -126,7 +126,7 @@ class Budget:
 
 class _Server(ThreadingHTTPServer):
     """The HTTP server, holding the GuestServer its handlers answer to."""
-    guests: "GuestServer"
+    guests: GuestServer
     slots: threading.BoundedSemaphore
     allow_reuse_address = sys.platform != "win32"   # as the remote: never share a port
 
@@ -152,7 +152,7 @@ class _Handler(BaseHTTPRequestHandler):
         log.debug("📨 %s %s", self.client_address[0], format % args)
 
     @property
-    def app(self) -> "GuestServer":
+    def app(self) -> GuestServer:
         return cast(_Server, self.server).guests
 
     def _send(self, status: int, body: bytes = b"", ctype: str = "application/json"):

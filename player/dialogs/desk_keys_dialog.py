@@ -7,14 +7,25 @@ and slots' keys (player.widgets.cart_keys.CartKeysPanel). One window, so a key o
 takes is flagged on the other before either is saved.
 """
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QFrame, QGridLayout,
-                               QHBoxLayout, QLabel, QPushButton, QScrollArea,
-                               QTabWidget, QToolButton, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (
+    QDialog,
+    QDialogButtonBox,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QScrollArea,
+    QTabWidget,
+    QToolButton,
+    QVBoxLayout,
+    QWidget,
+)
 
-from planner.playing import controller as pctl
 from planner import i18n
-from player.widgets.cart_keys import CartKeysPanel, _KeyPicker
+from planner.playing import controller as pctl
 from player.dialogs.controller_dialog import action_label
+from player.widgets.cart_keys import CartKeysPanel, KeyPicker
 
 
 class KeysDialog(QDialog):
@@ -81,7 +92,7 @@ class DeskKeysPanel(QWidget):
         grid = QGridLayout(body)
         grid.setContentsMargins(0, 0, 0, 0)
         grid.setColumnStretch(1, 1)
-        self._pickers: dict[str, list[_KeyPicker]] = {}
+        self._pickers: dict[str, list[KeyPicker]] = {}
         self._warnings: dict[str, list[QLabel]] = {}
         self._lines: dict[str, list[QWidget]] = {}
         self._stacks: dict[str, QVBoxLayout] = {}
@@ -176,7 +187,7 @@ class DeskKeysPanel(QWidget):
             picker.set_sequence(key)
 
     def _new_field(self, action: str):
-        picker = _KeyPicker("")
+        picker = KeyPicker("")
         picker.changed.connect(self._on_edit)
         warn = QLabel("")
         warn.setStyleSheet("color:#b26a00; font-size:11px;")

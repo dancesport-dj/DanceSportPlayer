@@ -14,9 +14,9 @@ Run:  py -m unittest tests.player.window.test_wake_lock -v
 
 import unittest
 
-from shared.audio import playback
 from player.window import main_player
 from player.window.main_player import PlayerControlMixin
+from shared.audio import playback
 
 
 class _Panel:

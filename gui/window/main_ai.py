@@ -9,13 +9,13 @@ from typing import TYPE_CHECKING, Any
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QMessageBox
 
+from gui.dialogs import AiPlaylistDialog, AiSuggestDialog, AiTranscriptDialog
+from gui.workers import AiPlaylistWorker
 from planner import i18n
 from planner.event import event_plan
 from planner.generate import llm
 from planner.generate.suggester import PlaylistSuggester
 from shared.stores import save_settings
-from gui.dialogs import AiPlaylistDialog, AiSuggestDialog, AiTranscriptDialog
-from gui.workers import AiPlaylistWorker
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -234,13 +234,13 @@ class AiPlaylistMixin(MainWindowHost):
             self._replay_label = None
             self._replay_active = False
             self._clear_replay_sources()
-            self._style       = ctx["style"]
-            self._age         = ctx["age"]
+            self._style = ctx["style"]
+            self._age = ctx["age"]
             self._dance_class = ctx["dance_class"]
-            self._dances      = dances
-            self._playlist    = grid
-            self._mode        = "Favorites"
-            self._ui_mode     = "Favorites"
+            self._dances = dances
+            self._playlist = grid
+            self._mode = "Favorites"
+            self._ui_mode = "Favorites"
             self._theme_entries = []
             self._deckset.table.load(
                 grid, dances, rounds, ctx["dance_class"],
@@ -276,11 +276,11 @@ class AiPlaylistMixin(MainWindowHost):
                 return
             self._back_to_ai_deck(ctx)
             label = ctx.get("label") or "🤖 AI playlist"
-            self._mode          = "Theme"
-            self._ui_mode       = "Theme"
-            self._playlist      = None
+            self._mode = "Theme"
+            self._ui_mode = "Theme"
+            self._playlist = None
             self._theme_entries = entries
-            self._theme_label   = label
+            self._theme_label = label
             self._set_deck_name(self._deckset.table, label)
             self._deckset.table.load_theme(entries, label,
                                    play_cb=self._play_or_stop,

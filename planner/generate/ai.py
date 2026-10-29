@@ -3,29 +3,31 @@
 Extracted from dancesport_planner.py (logical split): the OpenRouter config/chat
 helpers, prompt building, response parsing and library matching.
 """
-import logging
-
-from difflib import SequenceMatcher
+import contextlib
 import http.client
 import json
+import logging
 import os
 import re
 import socket
 import threading
+import urllib.error
 import urllib.parse
-import urllib.request, urllib.error
-from planner.store import OPENROUTER
-from planner.tls import tls_context
+import urllib.request
+from difflib import SequenceMatcher
+
 from planner.models import (  # auto-resolved
     DANCE_NAMES,
     TEMPO_RANGES,
 )
-from planner.music.parsing import (  # auto-resolved
-    _norm_title,
-)
 from planner.music.library import (  # auto-resolved
     MusicLibrary,
 )
+from planner.music.parsing import (  # auto-resolved
+    norm_title,
+)
+from planner.store import OPENROUTER
+from planner.tls import tls_context
 
 log = logging.getLogger("dancesport.ai")
 
@@ -36,7 +38,7 @@ log = logging.getLogger("dancesport.ai")
 # endpoint is derived from it.
 DEFAULT_API_BASE = "https://openrouter.ai/api/v1"
 
-OPENROUTER_URL        = DEFAULT_API_BASE + "/chat/completions"
+OPENROUTER_URL = DEFAULT_API_BASE + "/chat/completions"
 
 
 OPENROUTER_MODELS_URL = DEFAULT_API_BASE + "/models"
@@ -161,10 +163,8 @@ def _read(req, timeout: int, cancel=None) -> bytes:
                 continue
             for conn in conns:
                 if conn.sock is not None:
-                    try:
+                    with contextlib.suppress(OSError):
                         conn.sock.shutdown(socket.SHUT_RDWR)
-                    except OSError:
-                        pass
 
     threading.Thread(target=cut, name="ai-stop", daemon=True).start()
     opener = urllib.request.build_opener(_KeptHttp(conns), _KeptHttps(conns))
@@ -276,7 +276,7 @@ def build_track_prompt(dance: str | None = None, seed_title: str | None = None,
         bits.append(f"Theme/mood: {theme}")
     if seed_title:
         bits.append(f"Similar in style and feel to: \"{seed_title}\"")
-    ctx  = "; ".join(bits) if bits else "general dancesport competition"
+    ctx = "; ".join(bits) if bits else "general dancesport competition"
     user = f"Suggest {n} songs. Context: {ctx}."
     return system, user
 
@@ -307,7 +307,7 @@ def parse_ai_suggestions(text: str) -> list[dict[str, str]]:
         if isinstance(data, list):
             for it in data:
                 if isinstance(it, dict):
-                    title  = str(it.get('title') or it.get('song') or '').strip()
+                    title = str(it.get('title') or it.get('song') or '').strip()
                     artist = str(it.get('artist') or it.get('by') or '').strip()
                     if title:
                         out.append({'artist': artist, 'title': title})
@@ -339,10 +339,10 @@ def match_suggestions_to_library(
 
     Returns a list of {'suggestion', 'entry' (or None if not owned), 'ratio'}.
     """
-    index = [(_norm_title(e.title), e) for e in lib.entries]
+    index = [(norm_title(e.title), e) for e in lib.entries]
     results: list[dict[str, object]] = []
     for s in suggestions:
-        target = _norm_title(s.get('title', ''))
+        target = norm_title(s.get('title', ''))
         best, best_r = None, 0.0
         if target:
             for nt, e in index:

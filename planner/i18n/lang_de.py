@@ -33,7 +33,7 @@ CATALOG = {
     "Fade between music and timetable every":
         "Zwischen Musik und Zeitplan wechseln alle",
     "    Only tracks not already in my open playlists":
-        "    Nur Titel, die noch in keiner offenen Playlist sind",
+        "    Nur Titel, die noch in keiner offenen Wiedergabeliste sind",
     "Close": "Schließen",
     "Replace": "Ersetzen",
     "Reset": "Zurücksetzen",
@@ -57,12 +57,14 @@ CATALOG = {
     "Volume": "Lautstärke",
     "Master volume": "Gesamtlautstärke",
     "Fade out": "Ausblenden",
-    "within the length": "innerhalb der Spieldauer",
+    "within the length":
+        "in der Spieldauer",
     "Ticked: the fade-out ends at the play length.\n"
     "Unticked: the title plays its full length, then fades out.":
         "Angehakt: Das Ausblenden endet mit der Spieldauer.\n"
         "Nicht angehakt: Der Titel läuft die volle Spieldauer und wird danach ausgeblendet.",
-    "fade-out → within the length": "Ausblenden → innerhalb der Spieldauer",
+    "fade-out → within the length":
+        "Ausblenden → in der Spieldauer",
     "fade-out → after the length": "Ausblenden → nach der Spieldauer",
     "Fade-out:": "Ausblenden:",
     "Own fade-out": "Eigenes Ausblenden",
@@ -230,28 +232,28 @@ CATALOG = {
     "🎛  Both — plan and play":
         "🎛  Beides — planen und abspielen",
     "The full app: build playlists at home, run them at the tournament.":
-        "Die volle App: Playlists zu Hause bauen, sie auf dem Turnier "
+        "Die volle App: Wiedergabelisten zu Hause bauen, sie auf dem Turnier "
         "abspielen.",
     "📝  Planner only": "📝  Nur Planer",
     "Build and curate playlists. The tournament floor's playing panel, "
     "its timed play / announcements and the 🎛 cartwall stay hidden.":
-        "Playlists bauen und pflegen. Der Abspielbereich für die "
+        "Wiedergabelisten bauen und pflegen. Der Abspielbereich für die "
         "Turnierfläche, sein zeitgesteuertes Abspielen / die Ansagen "
         "und die 🎛 Cartwall bleiben ausgeblendet.",
     "▶  Player only": "▶  Nur Player",
     "Run prepared playlists at the venue. Everything that generates or "
     "checks a playlist stays hidden.":
-        "Vorbereitete Playlists in der Halle abspielen. Alles, was eine "
-        "Playlist erzeugt oder prüft, bleibt ausgeblendet.",
+        "Vorbereitete Wiedergabelisten in der Halle abspielen. Alles, was eine "
+        "Wiedergabeliste erzeugt oder prüft, bleibt ausgeblendet.",
     "◧  Beside the playlists — at the head of the ▶ Playing panel":
-        "◧  Neben den Playlists — am Kopf des Bereichs ▶ "
+        "◧  Neben den Wiedergabelisten — am Kopf des Bereichs ▶ "
         "Abspielen",
     "The player card stands in the left panel, above the timed-play "
     "controls.":
         "Die Player-Karte steht im linken Bereich, über den "
         "Bedienelementen für zeitgesteuertes Abspielen.",
     "▤  Above the playlists — one wide strip over the decks":
-        "▤  Über den Playlists — ein breiter Streifen über den Decks",
+        "▤  Über den Wiedergabelisten — ein breiter Streifen über den Decks",
     "The same player, laid out along the width above the decks — the "
     "shape a DJ desk uses. It shows in ▶ Playing mode.":
         "Derselbe Player, über die ganze Breite über den Decks "
@@ -428,9 +430,6 @@ CATALOG = {
         "werden dekodiert (ein paar Sekunden je Titel). Du kannst\n"
         "jederzeit abbrechen; bisherige Ergebnisse bleiben erhalten.",
     "Fresh mix:": "Frische-Mischung:",
-    "Pause music:": "Pausenmusik:",
-    "Pause music volume:": "Lautstärke Pausenmusik:",
-    "No pause music": "Keine Pausenmusik",
     "Set clock to": "Uhr stellen auf",
     "Draw tracks from": "Titel auswählen aus",
     "Songs needed for:": "Titel benötigt für:",
@@ -478,9 +477,9 @@ CATALOG = {
     "\n⚠️ File not found": "\n⚠️ Datei nicht gefunden",
     "Remove this page": "Diese Seite entfernen",
     "Remove this competition": "Dieses Turnier entfernen",
-    "Save all playlists": "Alle Playlists speichern",
+    "Save all playlists": "Alle Wiedergabelisten speichern",
     "Save tournament day": "Turniertag speichern",
-    "Clear all tournament-day playlists": "Alle Turniertag-Playlists leeren",
+    "Clear all tournament-day playlists": "Alle Turniertag-Wiedergabelisten leeren",
     "All dances": "Alle Tänze",
     "All classes": "Alle Klassen",
     "All categories": "Alle Kategorien",
@@ -493,8 +492,8 @@ CATALOG = {
         "Runde bei Strategiewechsel neu würfeln",
     "Re-analyze tracks that already have highlights":
         "Titel mit vorhandenen Highlights neu analysieren",
-    "An .m3u playlist file": "Eine .m3u-Playlist-Datei",
-    "Focused playlist (current deck)": "Aktive Playlist (aktuelles Deck)",
+    "An .m3u playlist file": "Eine .m3u-Wiedergabelisten-Datei",
+    "Focused playlist (current deck)": "Aktive Wiedergabeliste (aktuelles Deck)",
     "Number of titles in this wishlist": "Anzahl Titel in dieser Wunschliste",
 
     # ── 🎨 Looks of your own: ⚙ Settings › Look and the editor (gui/dialogs/look_editor.py) ──
@@ -683,14 +682,14 @@ CATALOG = {
     "Loading library…": "Bibliothek wird geladen…",
     "Loading music library…": "Musikbibliothek wird geladen…",
     "Library: loading…": "Bibliothek: wird geladen…",
-    "Generating playlist…": "Playlist wird erzeugt…",
+    "Generating playlist…": "Wiedergabeliste wird erzeugt…",
     "Asking the model…": "Modell wird gefragt…",
-    "Asking the model for a playlist…": "Modell wird nach einer Playlist gefragt…",
+    "Asking the model for a playlist…": "Modell wird nach einer Wiedergabeliste gefragt…",
     "Fetching the model list…": "Modellliste wird geholt…",
     "Cancelling…": "Wird abgebrochen…",
     "Analysis failed.": "Analyse fehlgeschlagen.",
-    "AI playlist failed.": "KI-Playlist fehlgeschlagen.",
-    "AI playlist: nothing usable.": "KI-Playlist: nichts Verwertbares.",
+    "AI playlist failed.": "KI-Wiedergabeliste fehlgeschlagen.",
+    "AI playlist: nothing usable.": "KI-Wiedergabeliste: nichts Verwertbares.",
     "Practice failed.": "Eintanzen fehlgeschlagen.",
     "Practice: no matching tracks.": "Eintanzen: keine passenden Titel.",
     "Global index failed.": "Globaler Index fehlgeschlagen.",
@@ -703,11 +702,11 @@ CATALOG = {
         "Modelle konnten nicht geladen werden (Ersatzliste wird genutzt).",
     "Load the music library first.": "Bitte zuerst die Musikbibliothek laden.",
     "Nothing to clear — all playlists are empty.":
-        "Nichts zu leeren — alle Playlists sind leer.",
+        "Nichts zu leeren — alle Wiedergabelisten sind leer.",
     "Nothing to export — all playlists are empty.":
-        "Nichts zu exportieren — alle Playlists sind leer.",
+        "Nichts zu exportieren — alle Wiedergabelisten sind leer.",
     "Nothing to save — all playlists are empty.":
-        "Nichts zu speichern — alle Playlists sind leer.",
+        "Nichts zu speichern — alle Wiedergabelisten sind leer.",
     "Nothing to save — the day decks are empty.":
         "Nichts zu speichern — die Tagesdecks sind leer.",
     "Nothing to save yet.": "Noch nichts zu speichern.",
@@ -727,7 +726,7 @@ CATALOG = {
     "removed %s": "%s entfernt",
     "replaced %s → %s": "%s ersetzt → %s",
     "moved %s": "%s verschoben",
-    "playlist rename": "Playlist umbenannt",
+    "playlist rename": "Wiedergabeliste umbenannt",
     "deck layout change": "Deck-Aufteilung geändert",
     "view / settings change": "Ansicht / Einstellungen geändert",
     "“%s” and “%s”": "„%s“ und „%s“",
@@ -739,7 +738,7 @@ CATALOG = {
     "No similar tracks found.": "Keine ähnlichen Titel gefunden.",
     "No similar tracks found for that file.":
         "Keine ähnlichen Titel zu dieser Datei gefunden.",
-    "No reference playlist yet.": "Noch keine Referenz-Playlist.",
+    "No reference playlist yet.": "Noch keine Referenz-Wiedergabeliste.",
     "No auto-advance pause is running to extend.":
         "Es läuft keine Auto-Weiter-Pause, die verlängert werden könnte.",
     "This wall has no pads yet.": "Diese Cartwall hat noch keine Pads.",
@@ -750,6 +749,14 @@ CATALOG = {
     "Then restart the app — nothing else to configure.":
         "Dann die App neu starten — sonst ist nichts einzustellen.",
     "ffmpeg not found": "ffmpeg nicht gefunden",
+    "In a terminal:":
+        "Im Terminal:",
+    "…no Homebrew yet? That line first:":
+        "…noch kein Homebrew? Dann zuerst diese Zeile:",
+    "…or with Homebrew, on any distro:":
+        "…oder mit Homebrew, auf jeder Distribution:",
+    "…or download a build from <a href='https://www.gyan.dev/ffmpeg/builds/'>gyan.dev/ffmpeg/builds</a> and drop <code>ffmpeg.exe</code> into this app's folder.":
+        "…oder einen Build von <a href='https://www.gyan.dev/ffmpeg/builds/'>gyan.dev/ffmpeg/builds</a> laden und <code>ffmpeg.exe</code> in den Ordner dieser App legen.",
     "(multimedia unavailable)": "(Multimedia nicht verfügbar)",
     "Play a title first — then TSO sets its heat tempo.":
         "Erst einen Titel abspielen — dann setzt TSO das Tempo der Gruppe.",
@@ -760,7 +767,7 @@ CATALOG = {
     "Preview player disabled — re-enable it in ⚙ Settings.":
         "Vorschau-Player deaktiviert — in ⚙ Einstellungen wieder einschalten.",
     "Pick a playlist again to choose a different track":
-        "Erneut eine Playlist wählen, um einen anderen Titel zu nehmen",
+        "Erneut eine Wiedergabeliste wählen, um einen anderen Titel zu nehmen",
     "Pick “Replace…” again to choose a different track":
         "Erneut „Ersetzen…“ wählen, um einen anderen Titel zu nehmen",
     # The round name comes from the config and stays as the user typed it; the
@@ -774,7 +781,7 @@ CATALOG = {
     "↻ %s re-rolled — %s · %s": "↻ %s neu gewürfelt — %s · %s",
     "Re-roll failed: %s": "Neu würfeln fehlgeschlagen: %s",
     "this comp": "dieses Turnier",
-    "all playlists": "alle Playlists",
+    "all playlists": "alle Wiedergabelisten",
 
     # ── Tooltips and hints on the desk ───────────────────────────────────────
     "Listen to this track": "Diesen Titel anhören",
@@ -794,7 +801,7 @@ CATALOG = {
     "Drag here to move": "Zum Verschieben hier ziehen",
     "Drag here to move the preview player":
         "Vorschau-Player zum Verschieben hier ziehen",
-    "Unfold this playlist": "Diese Playlist aufklappen",
+    "Unfold this playlist": "Diese Wiedergabeliste aufklappen",
     "Fold the library pane to its header":
         "Bibliotheksbereich auf die Kopfzeile einklappen",
     # %s is a deck's or the 🤸 panel's own name, which stays as it is.
@@ -813,14 +820,11 @@ CATALOG = {
     "Back to this slot's default key": "Zurück zur Standardtaste dieses Platzes",
     "Export or import this wall": "Diese Cartwall exportieren oder importieren",
     "Duck to 20 % / back to full": "Auf 20 % absenken / zurück auf voll",
-    "Duck to %d %% / back to full": "Auf %d %% absenken / zurück auf voll",
-    "Duck to %d %% / back to full — the filler music comes down too":
-        "Auf %d %% absenken / zurück auf voll — die Pausenmusik geht mit herunter",
     "🔉  Duck to:": "🔉  Absenken auf:",
     "How loud everything stays while 🔉 Duck is pressed on the player\ncard, the mini player or the presenter screen: low enough to talk\nover, loud enough to keep the floor moving. 0 % is silence.":
         "Wie laut alles bleibt, während 🔉 Absenken auf der Player-Karte,\ndem Mini-Player oder dem Präsentationsbildschirm gedrückt ist: leise\ngenug zum Drüberreden, laut genug, dass die Fläche weitertanzt. 0 % ist Stille.",
-    "🎵  When a title starts:":
-        "🎵  Wenn ein Titel startet:",
+    "🎵  When the main player starts a title:":
+        "🎵  Wenn der Hauptplayer einen Titel startet:",
     "<b>🎛 Cartwall</b> — what the pads do to the music, and what every pad follows unless it was given its own.":
         "<b>🎛 Cartwall</b> — was die Pads mit der Musik machen, und was jedes Pad übernimmt, solange es keine eigene Einstellung hat.",
     "🎛  All pads":
@@ -829,24 +833,28 @@ CATALOG = {
         "🎶  Pads mit 🎶 Hintergrund",
     "Tapped again or ⏹, a background pad fades out like every other pad (⏱ above).":
         "Erneut angetippt oder mit ⏹ blendet ein Hintergrund-Pad aus wie jedes andere Pad (⏱ oben).",
-    "⏱  Tapped again or ⏹ — fade out over:":
-        "⏱  Erneut angetippt oder ⏹ — ausblenden über:",
+    "⏱  Tapped again or ⏹ — fade the pad out over:":
+        "⏱  Erneut angetippt oder ⏹ — Pad ausblenden über:",
     "How long a pad takes to let go when it is tapped again or ⏹\nstops the wall. A pad can override this in its own settings.":
         "Wie lange ein Pad zum Ausblenden braucht, wenn es erneut angetippt wird\noder ⏹ die Cartwall stoppt. Ein Pad kann das in seinen eigenen Einstellungen überschreiben.",
-    "▶  When fired — fade in over:":
-        "▶  Beim Abfeuern — einblenden über:",
+    "🔉  Ticking 🎶 Background sets the pad's volume to:":
+        "🔉  🎶 Hintergrund ankreuzen setzt die Lautstärke des Pads auf:",
+    "A bed at full volume is as loud as the dance music it fills in\nfor. Pads already set to 🎶 Background keep their own volume.":
+        "Ein Hintergrund in voller Lautstärke ist so laut wie die Tanzmusik,\nderen Pause er füllt. Pads, die schon 🎶 Hintergrund sind, behalten ihre Lautstärke.",
+    "▶  When fired — fade the pad in over:":
+        "▶  Beim Abfeuern — Pad einblenden über:",
     "How long a 🎛 cartwall pad set to 🎶 Background takes to come\nup from silence when it is fired. 0 s starts it at full volume.":
         "Wie lange ein 🎛 Cartwall-Pad mit 🎶 Hintergrund braucht, um\nbeim Abfeuern aus der Stille hochzukommen. 0 s startet es mit voller Lautstärke.",
-    "🌙  …fading out over:":
-        "🌙  …und blendet dabei aus über:",
+    "🌙  …fading the pad out over:":
+        "🌙  …Pad dabei ausblenden über:",
     "How long a 🎛 cartwall pad set to 🎶 Background takes to go\nsilent once a title starts.":
         "Wie lange ein 🎛 Cartwall-Pad mit 🎶 Hintergrund braucht, um\nstumm zu werden, sobald ein Titel startet.",
-    "⏳  When the music stops — wait:":
-        "⏳  Wenn die Musik stoppt — warten:",
+    "⏳  When the main player stops — wait:":
+        "⏳  Wenn der Hauptplayer stoppt — warten:",
     "How long the main player has to stay stopped before a 🎛 cartwall\npad set to 🎶 Background fades back in.\n\nBetween two titles the deck stops for a moment. Without a wait,\nthe bed would swell up in every such gap and dip again as soon as\nthe next title starts. A title starting during the wait keeps the\nbed down.\n\nThere is no wait when a title starts: the bed gets out of the way\nat once, so it never plays over the first notes.\n\n0 s brings it back the moment the music stops, gaps included.\nStandard 0.3 s; much longer feels as if the bed lags behind.":
         "Wie lange der Hauptplayer gestoppt sein muss, bevor ein 🎛 Cartwall-Pad\nmit 🎶 Hintergrund wieder einblendet.\n\nZwischen zwei Titeln stoppt das Deck kurz. Ohne Wartezeit würde der\nTeppich in jeder solchen Lücke anschwellen und beim nächsten Titel\ngleich wieder abtauchen. Startet während der Wartezeit ein Titel,\nbleibt der Teppich unten.\n\nBeim Start eines Titels gibt es keine Wartezeit: Der Teppich macht\nsofort Platz und spielt nie über die ersten Töne.\n\n0 s holt ihn zurück, sobald die Musik stoppt, auch in den Lücken.\nStandard 0,3 s; viel länger wirkt, als hinke der Teppich hinterher.",
-    "🌅  …then fade back in over:":
-        "🌅  …dann wieder einblenden über:",
+    "🌅  …then fade the pad back in over:":
+        "🌅  …dann Pad wieder einblenden über:",
     "How long a 🎛 cartwall pad set to 🎶 Background takes to come\nback up to its full volume once the music stops.":
         "Wie lange ein 🎛 Cartwall-Pad mit 🎶 Hintergrund braucht, um\nwieder auf volle Lautstärke zu kommen, wenn die Musik aufhört.",
     "🖌  Default wall colour:":
@@ -926,7 +934,7 @@ CATALOG = {
     "🎯  no marks — scrub to a crash and mark it":
         "🎯  keine Marken — zu einem Schlag spulen und markieren",
     "“Proven” = songs in any of your playlists · “New” = in none.":
-        "„Bewährt“ = Titel aus einer deiner Playlists · „Neu“ = aus keiner.",
+        "„Bewährt“ = Titel aus einer deiner Wiedergabelisten · „Neu“ = aus keiner.",
     "e.g. a song title, mood, or leave blank":
         "z. B. ein Titel, eine Stimmung — oder leer lassen",
     "API base URL:": "API-Basis-URL:",
@@ -934,19 +942,19 @@ CATALOG = {
         "API-Schlüssel  (kostenloser OpenRouter-Schlüssel auf openrouter.ai/keys):",
 
     # ── Drop zones ───────────────────────────────────────────────────────────
-    "Drag in playlists / files…": "Playlists / Dateien hineinziehen…",
+    "Drag in playlists / files…": "Wiedergabelisten / Dateien hineinziehen…",
     "Drop .m3u playlists or audio files here, or click to browse":
-        "*.m3u-Playlists oder Audiodateien hierher ziehen oder klicken zum Suchen",
+        "*.m3u-Wiedergabelisten oder Audiodateien hierher ziehen oder klicken zum Suchen",
     "Drop an audio file here, or click to browse":
         "Audiodatei hierher ziehen oder klicken zum Suchen",
     "Drop saved .m3u playlists here, or click to browse":
-        "Gespeicherte .m3u-Playlists hierher ziehen oder klicken zum Suchen",
+        "Gespeicherte .m3u-Wiedergabelisten hierher ziehen oder klicken zum Suchen",
     "Drop playlists above to check them.":
-        "Playlists oben ablegen, um sie zu prüfen.",
+        "Wiedergabelisten oben ablegen, um sie zu prüfen.",
     "Drop some files above to check them.":
         "Dateien oben ablegen, um sie zu prüfen.",
     "Saved playlists dragged in (.m3u)…":
-        "Hineingezogene gespeicherte Playlists (.m3u)…",
+        "Hineingezogene gespeicherte Wiedergabelisten (.m3u)…",
     "Choose an .m3u file…": "Eine .m3u-Datei wählen…",
     "Browse…": "Durchsuchen…",
     "Add…": "Hinzufügen…",
@@ -975,13 +983,13 @@ CATALOG = {
     "⏸  Auto-advance…": "⏸  Auto-Weiter…",
     "⏱ calculating…": "⏱ wird berechnet…",
     "⏳  Comparing…": "⏳  Vergleiche…",
-    "⚡  Generate Playlist": "⚡  Playlist erzeugen",
+    "⚡  Generate Playlist": "⚡  Wiedergabeliste erzeugen",
     "✅  Apply": "✅  Übernehmen",
     "✅  Keep": "✅  Behalten",
     "✅  Keep all": "✅  Alle behalten",
     "✅  Use this track as replacement": "✅  Diesen Titel als Ersatz nehmen",
     "✅  No duplicate songs across your open playlist(s).":
-        "✅  Keine doppelten Titel in den offenen Playlists.",
+        "✅  Keine doppelten Titel in den offenen Wiedergabelisten.",
     "✎  Rename…": "✎  Umbenennen…",
     "✏  Rename": "✏  Umbenennen",
     "📅  New tournament day…": "📅  Neuer Turniertag…",
@@ -997,7 +1005,7 @@ CATALOG = {
     "➕  Both": "➕  Beide",
     "➕ Add competition": "➕ Turnier hinzufügen",
     "➖  Remove selected": "➖  Auswahl entfernen",
-    "＋  Add playlists…": "＋  Playlists hinzufügen…",
+    "＋  Add playlists…": "＋  Wiedergabelisten hinzufügen…",
     "⬆  Move backup up into this empty slot":
         "⬆  Reserve in diesen freien Platz hochziehen",
     "⇅  Swap these two titles\tAlt+S": "⇅  Diese beiden Titel tauschen\tAlt+S",
@@ -1040,7 +1048,7 @@ CATALOG = {
     "📜  Find planned before": "📜  Früher geplante finden",
     "📜  Find planned before (load library first)":
         "📜  Früher geplante finden (erst Bibliothek laden)",
-    "📜  Re-learn playlist popularity…": "📜  Playlist-Beliebtheit neu lernen…",
+    "📜  Re-learn playlist popularity…": "📜  Wiedergabelisten-Beliebtheit neu lernen…",
     "📚  Library": "📚  Bibliothek",
     "📚  Show never-played tracks": "📚  Nie gespielte Titel zeigen",
     "📋  Copy": "📋  Kopieren",
@@ -1049,7 +1057,7 @@ CATALOG = {
     "📋  Copy file path (not in your library)":
         "📋  Dateipfad kopieren (nicht in deiner Bibliothek)",
     "📋  Based on my playlist history (tracks I play together)":
-        "📋  Nach meiner Playlist-Historie (Titel, die ich zusammen spiele)",
+        "📋  Nach meiner Wiedergabelisten-Historie (Titel, die ich zusammen spiele)",
     "📝  Copy details": "📝  Details kopieren",
     "📝  Planning": "📝  Planung",
     "📝  Wish list — the titles below, in that order":
@@ -1058,13 +1066,13 @@ CATALOG = {
     "📂  Show in Explorer": "📂  Im Explorer zeigen",
     "📂  Show in Explorer (unavailable)": "📂  Im Explorer zeigen (nicht verfügbar)",
     "📂  Import M3U…": "📂  M3U importieren…",
-    "📂  Add a folder of playlists…": "📂  Ordner mit Playlists hinzufügen…",
+    "📂  Add a folder of playlists…": "📂  Ordner mit Wiedergabelisten hinzufügen…",
     "📂  Import — track paths": "📂  Import — Titelpfade",
     "📂  Drag files in": "📂  Dateien hineinziehen",
     "📂  Assign files…": "📂  Dateien zuordnen…",
-    "📂  An .m3u playlist file": "📂  Eine .m3u-Playlist-Datei",
+    "📂  An .m3u playlist file": "📂  Eine .m3u-Wiedergabelisten-Datei",
     "📂  Drop saved .m3u playlists here, or click to browse":
-        "📂  Gespeicherte .m3u-Playlists hierher ziehen oder klicken",
+        "📂  Gespeicherte .m3u-Wiedergabelisten hierher ziehen oder klicken",
     "📄  All pads on one page": "📄  Alle Pads auf einer Seite",
     "📊  Analyze loudness (R128)…": "📊  Lautheit analysieren (R128)…",
     "📊  Library gaps…": "📊  Lücken der Bibliothek…",
@@ -1077,14 +1085,14 @@ CATALOG = {
     "💾  Save as M3U…": "💾  Speichern als M3U…",
     "💾  Save all": "💾  Speichern",
     "💾  Save all competition M3Us": "💾  Alle Turnier-M3Us speichern",
-    "💾  Save all playlists as M3U": "💾  Alle Playlists als M3U speichern",
+    "💾  Save all playlists as M3U": "💾  Alle Wiedergabelisten als M3U speichern",
     "🏆  Save all and add to Tournaments":
         "🏆  Alle speichern und in „Turniere“ eintragen",
     "🏆  Save and add to Tournaments…": "🏆  Speichern und in „Turniere“ eintragen…",
     "🏆 Saved and added %d playlist to Tournaments":
-        "🏆 Gespeichert und %d Playlist in „Turniere“ eingetragen",
+        "🏆 Gespeichert und %d Wiedergabeliste in „Turniere“ eingetragen",
     "🏆 Saved and added %d playlists to Tournaments":
-        "🏆 Gespeichert und %d Playlists in „Turniere“ eingetragen",
+        "🏆 Gespeichert und %d Wiedergabelisten in „Turniere“ eingetragen",
     "🏆 Saved — already in Tournaments": "🏆 Gespeichert — steht schon in „Turniere“",
     "🔁  Check duplicates": "🔁  Doppelte prüfen",
     "🔁  Endless repeat": "🔁  Endlos wiederholen",
@@ -1135,34 +1143,34 @@ CATALOG = {
     "🚫  No groups": "🚫  Keine Gruppen",
     "🔢  Numbers": "🔢  Nummern",
     "🧹  Clear all": "🧹  Leeren",
-    "🧹  Clear all playlists": "🧹  Alle Playlists leeren",
-    "🧹  Empty this playlist": "🧹  Diese Playlist leeren",
+    "🧹  Clear all playlists": "🧹  Alle Wiedergabelisten leeren",
+    "🧹  Empty this playlist": "🧹  Diese Wiedergabeliste leeren",
     "🧹  Clean up database…": "🧹  Datenbank aufräumen…",
     "🧹  Export unused": "🧹  Unbenutzte exportieren",
     "🧹  Reference base": "🧹  Referenz-Basis",
     "🧹  Remove": "🧹  Entfernen",
     "🧹  Remove tracks already in a playlist":
-        "🧹  Titel entfernen, die schon in einer Playlist sind",
-    "🧹 Cleared all playlists.": "🧹 Alle Playlists geleert.",
-    "🧹 Tournament-day playlists cleared.": "🧹 Turniertag-Playlists geleert.",
+        "🧹  Titel entfernen, die schon in einer Wiedergabeliste sind",
+    "🧹 Cleared all playlists.": "🧹 Alle Wiedergabelisten geleert.",
+    "🧹 Tournament-day playlists cleared.": "🧹 Turniertag-Wiedergabelisten geleert.",
     "🧳  USB export": "🧳  USB-Export",
     "🧳 USB export": "🧳 USB-Export",
     "🧳 USB export aborted — incomplete bundle removed.":
         "🧳 USB-Export abgebrochen — unvollständiges Paket entfernt.",
     "🧭  Fix paths": "🧭  Pfade reparieren",
     "🧭  Fix (overwrite)": "🧭  Reparieren (überschreiben)",
-    "🧭  Fix (swap in playlists)": "🧭  Reparieren (in Playlists tauschen)",
+    "🧭  Fix (swap in playlists)": "🧭  Reparieren (in Wiedergabelisten tauschen)",
     "🧱  Build ALL caches…": "🧱  ALLE Caches aufbauen…",
     "🧠  Rebuild index…": "🧠  Index neu aufbauen…",
-    "🤖  AI Playlist…": "🤖  KI-Playlist…",
-    "🤖  AI playlist": "🤖  KI-Playlist",
+    "🤖  AI Playlist…": "🤖  KI-Wiedergabeliste…",
+    "🤖  AI playlist": "🤖  KI-Wiedergabeliste",
     "🤖  Build": "🤖  Erzeugen",
     "🤖  Get Suggestions": "🤖  Vorschläge holen",
     "🤖  Conversation with the model": "🤖  Unterhaltung mit dem Modell",
-    "🤸  Practice / party playlist": "🤸  Eintanzen- / Party-Playlist",
+    "🤸  Practice / party playlist": "🤸  Eintanzen- / Party-Wiedergabeliste",
     "🎉  Party set": "🎉  Party-Set",
     "🎉  Party playlist (alternating 3-dance rounds, all dances)":
-        "🎉  Party-Playlist (abwechselnde 3-Tanz-Runden, alle Tänze)",
+        "🎉  Party-Wiedergabeliste (abwechselnde 3-Tanz-Runden, alle Tänze)",
     "🏆  Tournaments": "🏆  Turniere",
     "🏆  Tournament set": "🏆  Turnier-Set",
     "🏆 Tournament only": "🏆 Nur Turnier",
@@ -1170,7 +1178,8 @@ CATALOG = {
     "🏷  Re-read MP3 tags (unavailable)":
         "🏷  MP3-Tags neu einlesen (nicht verfügbar)",
     "🐂  Analyze PD highlights…": "🐂  PD-Highlights analysieren…",
-    "🎯  Mark highlight now": "🎯  Highlight jetzt markieren",
+    "🎯  Mark highlight now":
+        "🎯  Highlight markieren",
     "🎯 Highlights cleared — 🐂 auto-detection will run again.":
         "🎯 Highlights gelöscht — 🐂 die Automatik läuft wieder.",
     "🎯 Last mark deleted — 🐂 auto-detection takes over again.":
@@ -1193,7 +1202,7 @@ CATALOG = {
     "  ·  ✦ %d new": "  ·  ✦ %d neu",
     "🎼  Build chroma cover / remix index…":
         "🎼  Chroma-Cover- / Remix-Index aufbauen…",
-    "🎚️  Open playlists": "🎚️  Offene Playlists",
+    "🎚️  Open playlists": "🎚️  Offene Wiedergabelisten",
     "🎚️  Timbre + Rhythm (librosa)": "🎚️  Timbre + Rhythmus (librosa)",
     "🎛 Play sets": "🎛 Spiel-Sets",
     "🎛 No free pad voice — every voice holds a looping pad.":
@@ -1214,13 +1223,14 @@ CATALOG = {
     "↺  Default blue": "↺  Standardblau",
     "↺  Default rules": "↺  Standardregeln",
     # ── The chrome that was still English ─────────────────────────────────────
-    "1 playlist": "1 Playlist",
+    # The deck counter says "Liste": "Wiedergabeliste" is too wide for the toolbar.
+    "1 playlist": "1 Liste",
     # The three counting buttons on the right of the toolbar. The deck
     # count asks for itself as a template (any number of decks fits);
     # the wishlist captions are a fixed tuple and are keyed whole.
-    "%d playlist": "%d Playlist",
-    "%d playlists": "%d Playlists",
-    "No playlist": "Keine Playlist",
+    "%d playlist": "%d Liste",
+    "%d playlists": "%d Listen",
+    "No playlist": "Keine Liste",
     "No wishlist": "Keine Wunschliste",
     "1 wishlist": "1 Wunschliste",
     "2 wishlists": "2 Wunschlisten",
@@ -1233,7 +1243,7 @@ CATALOG = {
     "• Party — alternating 3-dance rounds across all dances.\n"
     "Draw from your ⭐ Favorites (unused tracks), the open wishlists\n"
     "or a chosen .m3u file.":
-        "Eine Übungs-Playlist in das fokussierte Deck bauen:\n"
+        "Eine Übungs-Wiedergabeliste in das fokussierte Deck bauen:\n"
         "• Eintanzen für eine Startgruppe — die Tänze der Gruppe im\n"
         "  Rundlauf (z. B. Latein S: SA, CC, RB, PD, JI …), TSO-konform,\n"
         "  beliebt + frisch.\n"
@@ -1265,14 +1275,14 @@ CATALOG = {
         "gemessene Tempo.",
     "Collapse every round and dance header of every playlist —\n"
     "click again to open them all.":
-        "Alle Runden- und Tanzüberschriften aller Playlists zuklappen —\n"
+        "Alle Runden- und Tanzüberschriften aller Wiedergabelisten zuklappen —\n"
         "nochmal klicken öffnet sie wieder.",
     "Cycle the playlist headers: full → 🗜 Compact (per-dance header rows\n"
     "hidden, each round lists its songs directly) → 🚫 No groups (round and\n"
     "─── section headers dropped too, so the list — a Practice / party\n"
     "list above all — is one flat run of songs) → 🔢 Numbers (no groups,\n"
     "plus an Nb. column up front counting the titles).":
-        "Die Playlist-Überschriften durchschalten: voll → 🗜 Kompakt\n"
+        "Die Wiedergabelisten-Überschriften durchschalten: voll → 🗜 Kompakt\n"
         "(Tanz-Überschriften ausgeblendet, jede Runde listet ihre Titel\n"
         "direkt) → 🚫 Ohne Gruppen (auch Runden- und ───-Überschriften\n"
         "fallen weg, die Liste — vor allem eine Eintanz- / Partyliste —\n"
@@ -1290,14 +1300,14 @@ CATALOG = {
     "Empty every playlist deck (wishlists are kept).\n"
     "Tip: Del on a deck's title clears just that one playlist;\n"
     "Del on a wishlist's title clears that wishlist.":
-        "Alle Playlist-Decks leeren (Wunschlisten bleiben erhalten).\n"
-        "Tipp: Entf auf dem Titel eines Decks leert nur diese eine Playlist,\n"
+        "Alle Wiedergabelisten-Decks leeren (Wunschlisten bleiben erhalten).\n"
+        "Tipp: Entf auf dem Titel eines Decks leert nur diese eine Wiedergabeliste,\n"
         "Entf auf dem Titel einer Wunschliste leert diese Wunschliste.",
     "Export every non-empty playlist deck to its own .m3u in the\n"
     "playlist folder at once (wishlists are not included).\n"
     "Each file is named after its deck title.":
-        "Jedes nicht leere Playlist-Deck auf einmal als eigene .m3u in den\n"
-        "Playlist-Ordner exportieren (Wunschlisten sind nicht dabei).\n"
+        "Jedes nicht leere Wiedergabelisten-Deck auf einmal als eigene .m3u in den\n"
+        "Wiedergabelisten-Ordner exportieren (Wunschlisten sind nicht dabei).\n"
         "Jede Datei wird nach ihrem Decktitel benannt.",
     "Export playlists as a self-contained venue bundle — asks first\n"
     "whether to take all open decks, only the 📅 tournament day, or\n"
@@ -1307,24 +1317,24 @@ CATALOG = {
     "folder plays in order even without the M3U, from any drive,\n"
     "laptop or UltraMixer at the venue (no path fixing needed there).\n"
     "Also offers the 📦 venue pack: this desk in one file for another PC.":
-        "Playlists als eigenständiges Turnierpaket exportieren — fragt\n"
+        "Wiedergabelisten als eigenständiges Turnierpaket exportieren — fragt\n"
         "zuerst, ob alle offenen Decks, nur der 📅 Turniertag oder\n"
         "hineingezogene .m3u-Dateien genommen werden, auf Wunsch mit\n"
         "den ⭐ Wunschlisten.\n"
-        "Ein Unterordner je Playlist mit ihren Titeln, kopiert in\n"
+        "Ein Unterordner je Wiedergabeliste mit ihren Titeln, kopiert in\n"
         "nummerierter Spielreihenfolge (0_0_1 - Titel WW29.mp3), dazu die\n"
-        ".m3u der Playlist — jeder Ordner spielt auch ohne die M3U in der\n"
+        ".m3u der Wiedergabeliste — jeder Ordner spielt auch ohne die M3U in der\n"
         "richtigen Reihenfolge, von jedem Laufwerk, Laptop oder UltraMixer\n"
         "vor Ort (dort ist keine Pfadkorrektur nötig).\n"
         "Bietet auch das 📦 Hallenpaket an: dieses Pult in einer Datei für einen anderen PC.",
     "Export the focused playlist as a printable PDF\n"
     "(rounds, heats, titles, lengths) into the playlist folder.":
-        "Die fokussierte Playlist als druckbares PDF\n"
-        "(Runden, Gruppen, Titel, Längen) in den Playlist-Ordner exportieren.",
+        "Die fokussierte Wiedergabeliste als druckbares PDF\n"
+        "(Runden, Gruppen, Titel, Längen) in den Wiedergabelisten-Ordner exportieren.",
     "Fold every visible playlist deck and wishlist to its header tab —\n"
     "click again to open them all.\n"
     "Click a single tab (or its arrow) to open just that one.":
-        "Alle sichtbaren Playlist-Decks und Wunschlisten auf ihren\n"
+        "Alle sichtbaren Wiedergabelisten-Decks und Wunschlisten auf ihren\n"
         "Kopfreiter einklappen — nochmal klicken öffnet sie wieder.\n"
         "Ein Klick auf einen einzelnen Reiter (oder seinen Pfeil) öffnet\n"
         "nur diesen.",
@@ -1339,7 +1349,7 @@ CATALOG = {
         "(Sektion, Altersgruppe, Startklasse, Rundenschema) und alle auf\n"
         "einmal in den Reiter 📅 Turniertag erzeugen — acht eigene\n"
         "Tagesdecks in zwei Unterreitern, getrennt von den normalen\n"
-        "Playlists; bei mehr als 8 Turnieren liegen mehrere je Deck.\n"
+        "Wiedergabelisten; bei mehr als 8 Turnieren liegen mehrere je Deck.\n"
         "Alle teilen sich einen Pool ohne Wiederholung, damit ein Titel\n"
         "nie in zwei Turnieren des Tages auftaucht (Paso ausgenommen).\n"
         "Der Export schreibt eine M3U je Turnier.",
@@ -1361,7 +1371,7 @@ CATALOG = {
     "Scan the visible playlist deck(s) for songs that appear more than once,\n"
     "then resolve each: keep the ones you want and replace the rest with a\n"
     "similar track (chosen from the Similar-Tracks picker).":
-        "Die sichtbaren Playlist-Decks nach mehrfach vorkommenden Titeln\n"
+        "Die sichtbaren Wiedergabelisten-Decks nach mehrfach vorkommenden Titeln\n"
         "durchsuchen und jeden Fall auflösen: die gewünschten behalten und\n"
         "den Rest durch einen ähnlichen Titel ersetzen (aus der Auswahl\n"
         "ähnlicher Titel).",
@@ -1408,7 +1418,7 @@ CATALOG = {
     "playlist good in your eyes.":
         "Freier Text. Die Tempotabelle, der Titelkatalog und das\n"
         "Antwortformat kommen automatisch dazu — beschreibe nur, was für\n"
-        "dich eine gute Playlist ausmacht.",
+        "dich eine gute Wiedergabeliste ausmacht.",
     "How much text this run moves.\n"
     "\n"
     "Sent is everything the model was given (the rules, the library summary, "
@@ -1461,16 +1471,16 @@ CATALOG = {
         "z. B. „Vereinsabend, eher modern“, „keine Coverversionen im Finale“,\n"
         "„die Wünsche sind für eine Show — die zwei markierten zum Schluss“",
     "🏆  Competition playlist — rounds and heats from the left panel":
-        "🏆  Turnier-Playlist — Runden und Gruppen aus dem Bereich links",
+        "🏆  Turnier-Wiedergabeliste — Runden und Gruppen aus dem Bereich links",
     "Drag .m3u playlists or audio files here; drag a title out (e.g. to the "
     "reference field) to remove it":
-        "Ziehe .m3u-Playlists oder Audiodateien hierher; einen Titel herausziehen "
+        "Ziehe .m3u-Wiedergabelisten oder Audiodateien hierher; einen Titel herausziehen "
         "(z. B. in das Referenzfeld) entfernt ihn",
     "Open file": "Datei öffnen",
     "Open folder": "Ordner öffnen",
     "Show in Explorer": "Im Explorer anzeigen",
     "📂  Drop .m3u playlists (or audio files) here, or click to browse":
-        "📂  .m3u-Playlists (oder Audiodateien) hierher ziehen oder klicken zum "
+        "📂  .m3u-Wiedergabelisten (oder Audiodateien) hierher ziehen oder klicken zum "
         "Auswählen",
     "Could not parse any competition lines from the pasted text.\n"
     "Each line needs a class label, a style (STD/LAT) and the\n"
@@ -1484,7 +1494,7 @@ CATALOG = {
     "or as one flat list.\n"
     "Runs on your Claude subscription via the claude CLI, with\n"
     "OpenRouter as fallback.":
-        "Die Playlist von einem Modell bauen lassen statt vom\n"
+        "Die Wiedergabeliste von einem Modell bauen lassen statt vom\n"
         "Bewertungsalgorithmus. Du gibst die Regeln vor (ein Standardsatz\n"
         "ist vorausgefüllt), es wählt und ordnet die Musik — entweder in\n"
         "die oben eingestellten Runden/Gruppen oder als eine flache\n"
@@ -1537,7 +1547,7 @@ CATALOG = {
         "Favoriten-Bibliothek — alles, was aus deinem Bibliotheksordner\n"
         "eingelesen wurde.\n"
         "Offene Wunschlisten — nur das, was in den ⭐ Wunschlisten liegt.\n"
-        "Eine .m3u-Datei — nur die Titel dieser einen Playlist.\n"
+        "Eine .m3u-Datei — nur die Titel dieser einen Wiedergabeliste.\n"
         "Bei den letzten beiden bleibt ein Tanz leer, den der Pool nicht\n"
         "abdecken kann.",
     "“Proven” = songs you played in THIS competition's past lists · “New” = "
@@ -1545,13 +1555,13 @@ CATALOG = {
     "that round from ALL your playlists.":
         "„Bewährt“ = Titel, die du in früheren Listen DIESES Turniers gespielt "
         "hast · „Neu“ = nie gespielt.  🎯 hält eine Runde bei diesem Turnier; "
-        "abwählen zieht diese Runde aus ALLEN deinen Playlists.",
+        "abwählen zieht diese Runde aus ALLEN deinen Wiedergabelisten.",
     "🎯 ticked: draw this round's songs from THIS competition's past lists "
     "only.\n"
     "Unticked: draw from ALL your playlists.":
         "🎯 gesetzt: die Titel dieser Runde nur aus den früheren Listen DIESES "
         "Turniers ziehen.\n"
-        "Nicht gesetzt: aus ALLEN deinen Playlists ziehen.",
+        "Nicht gesetzt: aus ALLEN deinen Wiedergabelisten ziehen.",
     "<b>App mode</b> — which side of the app is shown:":
         "<b>App-Modus</b> — welche Seite der App gezeigt wird:",
     "<b>Favorites library</b> — scanned on start (your tanzcds folder):":
@@ -1560,15 +1570,15 @@ CATALOG = {
     "<b>Reference path</b> — base folder the playlist files live in on THIS PC; "
     "🧭 Fix paths re-roots broken references here (e.g. C:\\Users\\…\\my "
     "music\\tanzcds):":
-        "<b>Referenzpfad</b> — Basisordner, in dem die Playlist-Dateien auf DIESEM "
+        "<b>Referenzpfad</b> — Basisordner, in dem die Wiedergabelisten-Dateien auf DIESEM "
         "PC liegen; 🧭 Pfade korrigieren hängt kaputte Verweise hier wieder ein (z. "
         "B. C:\\Users\\…\\my music\\tanzcds):",
     "<b>Save-as folder</b> — where 'Save as M3U…' starts (e.g. "
     "D:\\Playlists):":
         "<b>Speichern-unter-Ordner</b> — wo „Als M3U speichern…“ beginnt (z. B. "
-        "D:\\Playlists):",
+        "D:\\Wiedergabelisten):",
     "<b>Playlist file format</b> — what 'Save as M3U' and the exports write:":
-        "<b>Playlist-Dateiformat</b> — was „Als M3U speichern“ und die Exporte schreiben:",
+        "<b>Wiedergabelisten-Dateiformat</b> — was „Als M3U speichern“ und die Exporte schreiben:",
     "UTF-8 (.m3u) — default":
         "UTF-8 (.m3u) — Standard",
     "UTF-8 with BOM (.m3u) — for Windows tools that guess ANSI":
@@ -1585,11 +1595,11 @@ CATALOG = {
     "was written on another PC, one folder per line (e.g. F:\\my music and "
     "C:\\Users\\…\\Documents\\datein\\my music):":
         "<b>Suchordner</b> — wo sonst nach einem Titel gesucht wird, wenn eine "
-        "Playlist auf einem anderen PC geschrieben wurde, ein Ordner je Zeile (z. "
+        "Wiedergabeliste auf einem anderen PC geschrieben wurde, ein Ordner je Zeile (z. "
         "B. F:\\my music und C:\\Users\\…\\Documents\\datein\\my music):",
     "<b>Tournament playlists</b> — learned for popularity: .m3u files and/or "
     "tournament folders with copied music (e.g. H:\\DM Latein 2026):":
-        "<b>Turnier-Playlists</b> — für die Beliebtheit gelernt: .m3u-Dateien "
+        "<b>Turnier-Wiedergabelisten</b> — für die Beliebtheit gelernt: .m3u-Dateien "
         "und/oder Turnierordner mit kopierter Musik (z. B. H:\\DM Latein 2026):",
     "<b>What do you want to use this app for?</b>":
         "<b>Wofür willst du diese App benutzen?</b>",
@@ -1774,7 +1784,7 @@ CATALOG = {
     "Player only hides everything that generates or checks a playlist.\n"
     "Nothing is removed — switching back brings it all straight back.":
         "Planer blendet nur den Abspielbereich für die Turnierfläche aus;\n"
-        "Player blendet nur alles aus, was eine Playlist erzeugt oder\n"
+        "Player blendet nur alles aus, was eine Wiedergabeliste erzeugt oder\n"
         "prüft.\n"
         "Es wird nichts entfernt — ein Zurückschalten bringt alles sofort\n"
         "wieder.",
@@ -1782,7 +1792,7 @@ CATALOG = {
     "unavailable:<ul><li>analysing the library — tempo, similar "
     "tracks</li><li>🔊 loudness levelling (EBU R128)</li><li>🔇 silence "
     "detection at the start and end of a track</li></ul>":
-        "Playlists lassen sich auch ohne ffmpeg bauen und abspielen. Dies hier "
+        "Wiedergabelisten lassen sich auch ohne ffmpeg bauen und abspielen. Dies hier "
         "braucht es und bleibt nicht verfügbar:<ul><li>die Bibliothek analysieren "
         "— Tempo, ähnliche Titel</li><li>🔊 Lautheitsangleich (EBU R128)</li><li>🔇 "
         "Stilleerkennung am Anfang und Ende eines Titels</li></ul>",
@@ -1790,7 +1800,7 @@ CATALOG = {
     "playlist folder and rebuild the popularity / co-occurrence index from\n"
     "it — WITHOUT rescanning files or audio. Use after exporting a played\n"
     "tournament so it counts right away.":
-        "Jede M3U und jeden Turnier-Musikordner im Turnier-Playlist-Ordner\n"
+        "Jede M3U und jeden Turnier-Musikordner im Turnier-Wiedergabelisten-Ordner\n"
         "neu einlesen und den Index für Beliebtheit / gemeinsames Auftreten\n"
         "daraus neu aufbauen — OHNE Dateien oder Audio neu einzulesen.\n"
         "Nach dem Export eines gespielten Turniers benutzen, damit es\n"
@@ -1849,7 +1859,7 @@ CATALOG = {
     "On: the presenter screen and the recorded announcements are German too, a 🤸 practice list is called Eintanzen, also in its saved file, and the tempo rules are named TSO (off: WDSF CR).\n"
     "Off: Slow Waltz, Round 1, Standard round 1, Practice … — the playlists and exports keep the German dance and round names either way.":
         "An: Auch der Moderations-Bildschirm und die aufgenommenen Ansagen sind deutsch, eine 🤸 Übungsliste heißt Eintanzen, auch in ihrer Datei, und die Tempo-Regeln heißen TSO.\n"
-        "Aus: Slow Waltz, Round 1, Standard round 1, Practice … — Playlists und Exporte behalten die deutschen Tanz- und Rundennamen in jedem Fall.",
+        "Aus: Slow Waltz, Round 1, Standard round 1, Practice … — Wiedergabelisten und Exporte behalten die deutschen Tanz- und Rundennamen in jedem Fall.",
     "You can change this later under ⚙ Settings → ⚙ General.":
         "Das lässt sich später unter ⚙ Einstellungen → ⚙ Allgemein ändern.",
     "lower": "unten",
@@ -1895,7 +1905,7 @@ CATALOG = {
         "Gesendet: der Fehler und wo im Programm er passiert ist, die letzten\n"
         "Logzeilen davor (sie können den laufenden Titel nennen),\n"
         "das Betriebssystem und die App-Version.\n\n"
-        "Nicht gesendet: deine Musik, deine Playlisten, der Name deines Computers.\n"
+        "Nicht gesendet: deine Musik, deine Wiedergabelisten, der Name deines Computers.\n"
         "Dein Benutzerordner wird aus jedem Pfad herausgeschnitten.\n\n"
         "Standardmäßig aus. Gilt, sobald du speicherst.",
     "Error reports": "Fehlerberichte",
@@ -1922,7 +1932,7 @@ CATALOG = {
         "Gesendet: der Fehler und wo im Programm er passiert ist, die letzten\n"
         "Logzeilen davor (sie können den laufenden Titel nennen),\n"
         "das Betriebssystem und die App-Version.\n\n"
-        "Nicht gesendet: deine Musik, deine Playlisten, der Name deines Computers.\n"
+        "Nicht gesendet: deine Musik, deine Wiedergabelisten, der Name deines Computers.\n"
         "Dein Benutzerordner wird aus jedem Pfad herausgeschnitten.\n\n"
         "Das kannst du jederzeit unter ⚙ Einstellungen → ⚙ Allgemein ändern.",
     "Send reports": "Berichte senden",
@@ -1991,17 +2001,17 @@ CATALOG = {
     "Drag <b>.m3u playlists</b> here (audio files work too) to check whether "
     "any of their tracks are duplicates of <b>each other</b> — across the "
     "dropped playlists, by audio content, else title.":
-        "Ziehe <b>.m3u-Playlists</b> hierher (Audiodateien gehen auch), um zu "
+        "Ziehe <b>.m3u-Wiedergabelisten</b> hierher (Audiodateien gehen auch), um zu "
         "prüfen, ob sich Titel <b>untereinander</b> doppeln — über die "
-        "hineingezogenen Playlists hinweg, nach Audioinhalt, sonst nach Titel.",
+        "hineingezogenen Wiedergabelisten hinweg, nach Audioinhalt, sonst nach Titel.",
     "Drop a <b>reference playlist</b> (.m3u) and the <b>tournament files</b> "
     "(.m3u playlists or audio) below. The reference is compared against the "
     "tournament tracks and every <b>hard duplicate</b> (byte-identical audio) "
     "is removed; the leftover <b>unused</b> tracks are exported to a new .m3u. "
     "<span style='color:#666'>Paso Doble is excluded from the comparison and "
     "always kept.</span>":
-        "Lege unten eine <b>Referenz-Playlist</b> (.m3u) und die "
-        "<b>Turnierdateien</b> (.m3u-Playlists oder Audio) ab. Die Referenz wird "
+        "Lege unten eine <b>Referenz-Wiedergabeliste</b> (.m3u) und die "
+        "<b>Turnierdateien</b> (.m3u-Wiedergabelisten oder Audio) ab. Die Referenz wird "
         "mit den Turniertiteln verglichen und jedes <b>harte Duplikat</b> "
         "(byteweise identisches Audio) entfernt; die übrigen <b>ungenutzten</b> "
         "Titel werden in eine neue .m3u exportiert. <span style='color:#666'>Paso "
@@ -2010,15 +2020,15 @@ CATALOG = {
     "style='color:#666'>🟰 <b>Exact</b> = identical audio. ≈ <b>Similar</b> = "
     "same title, a different recording. Keep the ones you want; switch the "
     "others to <b>Replace</b> and pick a track for each, or to <b>Remove</b>.</span>":
-        "Doppelte Titel über deine offenen Playlists hinweg, in der Reihenfolge "
-        "der Playlist.<br><span style='color:#666'>🟰 <b>Exakt</b> = identisches "
+        "Doppelte Titel über deine offenen Wiedergabelisten hinweg, in der Reihenfolge "
+        "der Wiedergabeliste.<br><span style='color:#666'>🟰 <b>Exakt</b> = identisches "
         "Audio. ≈ <b>Ähnlich</b> = derselbe Titel, eine andere Aufnahme. Behalte "
         "die gewünschten; stelle die übrigen auf <b>Ersetzen</b> und wähle je "
         "einen Titel dafür, oder auf <b>Entfernen</b>.</span>",
     "Every copy of this song is already controlled by the within-playlist\n"
     "section above, so there is nothing left to resolve on this row.":
         "Jede Kopie dieses Titels wird bereits vom Abschnitt innerhalb der\n"
-        "Playlist weiter oben gesteuert, in dieser Zeile bleibt also nichts\n"
+        "Wiedergabeliste weiter oben gesteuert, in dieser Zeile bleibt also nichts\n"
         "mehr aufzulösen.",
     "Export unused tracks": "Ungenutzte Titel exportieren",
     "No hard duplicates of the tournament files were found in the reference — "
@@ -2036,7 +2046,7 @@ CATALOG = {
         "\n"
         "(LW, TG, WW, SF, QS, SB, CC, RB, PD, JV)",
     "The reference base must be a single .m3u playlist.":
-        "Die Referenzgrundlage muss eine einzelne .m3u-Playlist sein.",
+        "Die Referenzgrundlage muss eine einzelne .m3u-Wiedergabeliste sein.",
     "This list holds some titles more than once.<br><span "
     "style='color:#666'>For each title, pick the file to keep — the others are "
     "removed. <b>Keep all</b> leaves that title alone.</span>":
@@ -2068,7 +2078,7 @@ CATALOG = {
         "hineinkopiert, aber nie wirklich benutzt hast.",
     "Show only tracks not already used in any open playlist deck —\n"
     "handy for finding fresh music while building rounds.":
-        "Nur Titel zeigen, die in keinem offenen Playlist-Deck schon\n"
+        "Nur Titel zeigen, die in keinem offenen Wiedergabelisten-Deck schon\n"
         "benutzt werden — praktisch, um beim Rundenbau frische Musik zu\n"
         "finden.",
     "Substring of the title, the artist, or a comment marker\n"
@@ -2104,7 +2114,7 @@ CATALOG = {
     "with the project) — silences cannot be probed.":
         "ffmpeg wurde nicht gefunden (weder im PATH noch die mit dem\n"
         "Projekt gelieferte Kopie) — die Stille lässt sich nicht prüfen.",
-    "Clear playlists": "Playlists leeren",
+    "Clear playlists": "Wiedergabelisten leeren",
     "Clear tournament day": "Turniertag leeren",
     "Close tournament day": "Turniertag schließen",
     "Competition name (empty = default):": "Turniername (leer = Standard):",
@@ -2123,11 +2133,11 @@ CATALOG = {
     "Total play time of this playlist\n"
     "(↳ backup rows not counted — they only play as stand-ins)\n"
     "Click ▸ for the songs per dance":
-        "Gesamte Spielzeit dieser Playlist\n"
+        "Gesamte Spielzeit dieser Wiedergabeliste\n"
         "(↳ Ersatzzeilen zählen nicht mit — sie spielen nur als Vertretung)\n"
         "Klick auf ▸ zeigt die Titel je Tanz",
     "Every similar track is already in an open playlist.":
-        "Jeder ähnliche Titel steht schon in einer offenen Playlist.",
+        "Jeder ähnliche Titel steht schon in einer offenen Wiedergabeliste.",
     "No similar tracks found — the song may not be audio-analyzed yet.":
         "Keine ähnlichen Titel gefunden — der Titel ist vielleicht noch nicht "
         "audio-analysiert.",
@@ -2149,14 +2159,14 @@ CATALOG = {
     "This deck is empty.": "Dieses Deck ist leer.",
     "Fold this playlist to a tab —\n"
     "the other open playlists get its space.":
-        "Diese Playlist auf einen Reiter einklappen —\n"
-        "ihren Platz bekommen die anderen offenen Playlists.",
-    "AI playlist": "KI-Playlist",
-    "AI playlist failed": "KI-Playlist fehlgeschlagen",
+        "Diese Wiedergabeliste auf einen Reiter einklappen —\n"
+        "ihren Platz bekommen die anderen offenen Wiedergabelisten.",
+    "AI playlist": "KI-Wiedergabeliste",
+    "AI playlist failed": "KI-Wiedergabeliste fehlgeschlagen",
     "All picks are TSO-conform (T24 Rumba / T58-59 Paso allowed, like the "
     "normal playlist).":
         "Alle Titel sind TSO-konform (T24 Rumba / T58-59 Paso erlaubt, wie bei der "
-        "normalen Playlist).",
+        "normalen Wiedergabeliste).",
     "Cap the party-list length — handy when drawing from the whole library.\n"
     "The round it lands in is played out, so the list can run a title or two "
     "over.\n"
@@ -2262,7 +2272,7 @@ CATALOG = {
     "Global Index Error": "Fehler im globalen Index",
     "Global search": "Globale Suche",
     "Library Load Error": "Fehler beim Laden der Bibliothek",
-    "Re-learn playlists": "Playlists neu lernen",
+    "Re-learn playlists": "Wiedergabelisten neu lernen",
     "Set a valid music repository folder first.":
         "Lege zuerst einen gültigen Ordner für den Musikbestand fest.",
     "Set a valid music repository folder in ⚙ Settings first.":
@@ -2275,16 +2285,16 @@ CATALOG = {
         "Der Pfad der Favoriten-Bibliothek hat sich geändert.\n"
         "Starte die App neu, um die neue Bibliothek zu laden.",
     "Couldn't detect any danceable tracks in that playlist.":
-        "In dieser Playlist ließ sich kein tanzbarer Titel erkennen.",
+        "In dieser Wiedergabeliste ließ sich kein tanzbarer Titel erkennen.",
     "Import Error": "Importfehler",
     "Import M3U": "M3U importieren",
-    "Not enough free playlists": "Nicht genug freie Playlists",
+    "Not enough free playlists": "Nicht genug freie Wiedergabelisten",
     "Nothing imported": "Nichts importiert",
     "Remove from the playlist(s) — the slot stays empty (Ctrl+Z undoes)":
-        "Aus den Playlists entfernen — der Platz bleibt leer (Strg+Z macht es "
+        "Aus den Wiedergabelisten entfernen — der Platz bleibt leer (Strg+Z macht es "
         "rückgängig)",
     "Drop <b>.m3u playlists</b> here — only playlists carry track paths to fix.":
-        "Lege hier <b>.m3u-Playlists</b> ab — nur Playlists tragen Titelpfade, die "
+        "Lege hier <b>.m3u-Wiedergabelisten</b> ab — nur Wiedergabelisten tragen Titelpfade, die "
         "sich korrigieren lassen.",
     "Fix & overwrite": "Korrigieren & überschreiben",
     "Fix paths": "Pfade korrigieren",
@@ -2293,15 +2303,15 @@ CATALOG = {
     "Set a Reference path or a search folder in Settings before fixing dropped "
     "playlists.":
         "Lege in den Einstellungen einen Referenzpfad oder einen Suchordner fest, "
-        "bevor du hineingezogene Playlists korrigierst.",
+        "bevor du hineingezogene Wiedergabelisten korrigierst.",
     "⚠  No <b>search folder</b> set — open Settings and name the base "
     "folder(s) the music lives in on this PC.":
         "⚠  Kein <b>Suchordner</b> gesetzt — öffne die Einstellungen und nenne die "
         "Basisordner, in denen die Musik auf diesem PC liegt.",
-    "Clear all playlists": "Alle Playlists leeren",
+    "Clear all playlists": "Alle Wiedergabelisten leeren",
     "Nothing to print — no songs found.":
         "Nichts zu drucken — keine Titel gefunden.",
-    "Print playlist": "Playlist drucken",
+    "Print playlist": "Wiedergabeliste drucken",
     "Add folder": "Ordner hinzufügen",
     "No alternative Practice track found.":
         "Kein anderer Eintanz-Titel gefunden.",
@@ -2328,6 +2338,8 @@ CATALOG = {
         "🔁 Zum möglichen Austausch markiert  (Strg+M schaltet um)",
     "⚠ File not found on disk:\n%s":
         "⚠ Datei nicht auf der Platte gefunden:\n%s",
+    "Is the drive unplugged, or was the file moved or renamed? It cannot play until it is back.":
+        "Ist das Laufwerk ausgesteckt, oder wurde die Datei verschoben oder umbenannt? Sie kann erst wieder spielen, wenn sie zurück ist.",
     "Regenerate": "Neu erzeugen",
     "Regenerate Error": "Fehler beim Neuerzeugen",
     "Track length (m:ss)\n"
@@ -2338,6 +2350,7 @@ CATALOG = {
         "orange = kürzer als die eingestellte Spielzeit, oder 5 s und mehr\n"
         "Stille an einem Rand, die der Player überspringt (der Tooltip der\n"
         "Zelle sagt, was davon, und wie lange er wirklich spielt)",
+    "Playlist": "Wiedergabeliste",
     "Wishlist": "Wunschliste",
     "Rating — click a star to set it, the last lit one again to clear it.\n"
     "Kept in the app's database; the MP3 itself is not changed.":
@@ -2385,7 +2398,7 @@ CATALOG = {
     "Off: sound-alike tracks (audio timbre).\n"
     "On: tracks that keep appearing in the same old playlists as this one.":
         "Aus: klanglich ähnliche Titel (Audio-Timbre).\n"
-        "An: Titel, die immer wieder in denselben alten Playlists auftauchen\n"
+        "An: Titel, die immer wieder in denselben alten Wiedergabelisten auftauchen\n"
         "wie dieser.",
     "Replace the duplicate with the selected track (Enter, or double-click a "
     "row)":
@@ -2412,13 +2425,13 @@ CATALOG = {
         "Strg + ← / → : 30 s zurück / vor springen",
     "This track isn't in any of your old playlists yet — nothing to learn "
     "from. Switch the toggle off for sound-alike tracks.":
-        "Dieser Titel steht in keiner deiner alten Playlists — daraus lässt sich "
+        "Dieser Titel steht in keiner deiner alten Wiedergabelisten — daraus lässt sich "
         "nichts lernen. Schalte den Schalter aus, um klanglich ähnliche Titel zu "
         "sehen.",
     "🧹  Hide duplicate copies (same song, ignoring DJ / dance / BPM tags)":
         "🧹  Doppelte Kopien ausblenden (derselbe Titel, ohne Rücksicht auf DJ- / "
         "Tanz- / BPM-Angaben)",
-    "Clear playlist": "Playlist leeren",
+    "Clear playlist": "Wiedergabeliste leeren",
     "Clear wishlist": "Wunschliste leeren",
     "Find in list": "In der Liste suchen",
     "Find planned before": "Frühere Planungen finden",
@@ -2434,7 +2447,7 @@ CATALOG = {
     "Move track": "Titel verschieben",
     "Replace Error": "Fehler beim Ersetzen",
     "Different style": "Andere Sektion",
-    "Load playlist": "Playlist laden",
+    "Load playlist": "Wiedergabeliste laden",
     "Name (competition, day, tournament):":
         "Name (Turnier, Tag, Veranstaltung):",
     "New folder": "Neuer Ordner",
@@ -2450,21 +2463,21 @@ CATALOG = {
     "Rename": "Umbenennen",
     "Songs and total play time of the selected playlist\n"
     "(tracks this library doesn't know count, but add no time)":
-        "Titel und gesamte Spielzeit der gewählten Playlist\n"
+        "Titel und gesamte Spielzeit der gewählten Wiedergabeliste\n"
         "(Titel, die diese Bibliothek nicht kennt, zählen mit, bringen aber\n"
         "keine Zeit ein)",
     "The playlists filed in the selected folder, one slot each.\n"
     "Drag a slot onto a deck to load that round · double-click it to\n"
     "load it onto the focused deck · right-click to rename, remove or\n"
     "read its tracks.":
-        "Die im gewählten Ordner abgelegten Playlists, je ein Platz.\n"
+        "Die im gewählten Ordner abgelegten Wiedergabelisten, je ein Platz.\n"
         "Ziehe einen Platz auf ein Deck, um diese Runde zu laden · Doppelklick\n"
         "lädt sie auf das fokussierte Deck · Rechtsklick zum Umbenennen,\n"
         "Entfernen oder Einlesen ihrer Titel.",
     "The tracks of the selected playlist, in playing order.\n"
     "▶ or Space previews · drag them onto a deck or the player list ·\n"
     "a double-click opens or 🏷 edits them as ⚙ Settings say.":
-        "Die Titel der gewählten Playlist, in Spielreihenfolge.\n"
+        "Die Titel der gewählten Wiedergabeliste, in Spielreihenfolge.\n"
         "▶ oder Leertaste hört vor · ziehe sie auf ein Deck oder die Playerliste ·\n"
         "ein Doppelklick öffnet oder 🏷 bearbeitet sie, wie die ⚙ Einstellungen es sagen.",
     "Your competitions, days and tournaments — folders are labels,\n"
@@ -2478,7 +2491,7 @@ CATALOG = {
         "die 🎵 Einträge zeigen auf .m3u-Dateien, wo immer sie liegen.\n"
         "\n"
         "Ziehe .m3u-Dateien oder einen ganzen Ordner aus dem Explorer herein ·\n"
-        "wähle einen Ordner, um seine Playlists rechts als Plätze auszulegen ·\n"
+        "wähle einen Ordner, um seine Wiedergabelisten rechts als Plätze auszulegen ·\n"
         "ziehe einen Platz auf ein Deck, um die Runde zu laden · Doppelklick\n"
         "lädt sie auf das fokussierte Deck.",
     "📂  (not in a folder)": "📂  (in keinem Ordner)",
@@ -2564,16 +2577,6 @@ CATALOG = {
         "Eintanzen und eine freie Reihenfolge werden ohne angesagt.\n"
         "Aufgenommen für die Gruppen 1-8; darüber hinaus entfällt die\n"
         "Nummer.",
-    "Choose one or more titles — or an .m3u playlist — that play\n"
-    "softly during the pause between songs, faded in at the start\n"
-    "and out before the next song. Several titles rotate: a title\n"
-    "keeps playing pause after pause until it ends, then the next\n"
-    "one takes over.":
-        "Wähle einen oder mehrere Titel — oder eine .m3u-Playlist —, die\n"
-        "in der Pause zwischen den Titeln leise laufen, am Anfang ein- und\n"
-        "vor dem nächsten Titel ausgeblendet. Mehrere Titel wechseln sich\n"
-        "ab: ein Titel läuft Pause um Pause weiter, bis er zu Ende ist,\n"
-        "dann übernimmt der nächste.",
     "Compensate loudness differences between tracks on playback:\n"
     "each song's measured EBU R128 loudness is pulled towards a common\n"
     "target, so quiet old recordings and loud modern masters play at\n"
@@ -2605,11 +2608,6 @@ CATALOG = {
         "Sekunden laufen ab ihm; aus macht ihn der Ansager im Saal und die\n"
         "Wartezeit läuft still — heruntergezählt wird sie in beiden Fällen\n"
         "in diesem Bereich.",
-    "How loud the pause music plays, relative to the normal\n"
-    "playback volume — kept lower so it stays in the background.":
-        "Wie laut die Pausenmusik spielt, bezogen auf die normale\n"
-        "Wiedergabelautstärke — bewusst leiser, damit sie im Hintergrund\n"
-        "bleibt.",
     "Keep the screensaver and the display timeout off while music is\n"
     "playing or the presenter screen is open.\n"
     "\n"
@@ -2626,13 +2624,13 @@ CATALOG = {
         "Beamer eingeschlossen. Sobald beides nicht mehr läuft, gelten wieder\n"
         "die normalen Zeiten.",
     "Off: the next song starts the moment the current one ends, with\n"
-    "no filler music and no announcement. The configured time is kept\n"
+    "no pause music and no announcement. The configured time is kept\n"
     "for switching back.\n"
     "\n"
     "Needs ⏭ auto-advance — without it the next song waits for the\n"
     "operator anyway, so there is no gap to fill.":
         "Aus: der nächste Titel beginnt in dem Moment, in dem der laufende\n"
-        "endet, ohne Füllmusik und ohne Ansage. Die eingestellte Zeit bleibt\n"
+        "endet, ohne Pausenmusik und ohne Ansage. Die eingestellte Zeit bleibt\n"
         "für das Zurückschalten erhalten.\n"
         "\n"
         "Braucht den ⏭ Autovorlauf — ohne ihn wartet der nächste Titel\n"
@@ -2755,7 +2753,7 @@ CATALOG = {
     "in the .m3u or a cover file beside it), otherwise the track's\n"
     "embedded artwork, otherwise a plain ♪ tile.":
         "Ein Coverbild neben dem Titel auf dem Player zeigen.\n"
-        "Benutzt wird das eigene Bild der Playlist, wenn sie eines hat\n"
+        "Benutzt wird das eigene Bild der Wiedergabeliste, wenn sie eines hat\n"
         "(eine #EXTIMG-Zeile in der .m3u oder eine Cover-Datei daneben),\n"
         "sonst das im Titel eingebettete Bild, sonst eine schlichte\n"
         "♪-Kachel.",
@@ -2847,7 +2845,7 @@ CATALOG = {
         "kein Tanz angesagt werden, den dann nichts spielt. Beim Wieder-\n"
         "einschalten kehrt die vorherige Ansage zurück.\n"
         "\n"
-        "Jede Playlist behält ihre eigene Antwort: Dies ist die der\n"
+        "Jede Wiedergabeliste behält ihre eigene Antwort: Dies ist die der\n"
         "zuletzt angeklickten Liste, dieselbe wie ⏭/✋ unter dem Deck.",
     # No entry for "⏭  Auto": Auto is the German word here too, and the
     # toggle sits on a deck header where "Automatik" was simply longer.
@@ -2869,7 +2867,7 @@ CATALOG = {
         "Manuell: Jeder Titel wird von Hand gestartet, und 🔈 Nächsten\n"
         "Tanz ansagen hält mit an — zurück auf Automatik kommt es wieder.\n"
         "\n"
-        "Die eigene Antwort dieser Playlist, für sie gemerkt: Die\n"
+        "Die eigene Antwort dieser Wiedergabeliste, für sie gemerkt: Die\n"
         "Party-Liste kann ohne Zutun laufen, während die Runde daneben\n"
         "von Hand gestartet wird. ⏭ Automatisch zum nächsten Titel auf\n"
         "dem Spiel-Panel ist dieselbe Antwort, solange diese Liste die\n"
@@ -2889,7 +2887,7 @@ CATALOG = {
         "Decks, so läuft eine ganze Runde ohne Zutun — und die Ansage\n"
         "kommt wieder.\n"
         "\n"
-        "Die eigene Antwort dieser Playlist, für sie gemerkt: Die\n"
+        "Die eigene Antwort dieser Wiedergabeliste, für sie gemerkt: Die\n"
         "Party-Liste kann ohne Zutun laufen, während die Runde daneben\n"
         "von Hand gestartet wird. ⏭ Automatisch zum nächsten Titel auf\n"
         "dem Spiel-Panel ist dieselbe Antwort, solange diese Liste die\n"
@@ -2952,8 +2950,6 @@ CATALOG = {
         "(z. B. eine Rumba bei 23 → T24, ein Paso Doble bei 57 → T58).",
     "Disable preview player  (re-enable in Settings)":
         "Vorhör-Player abschalten  (in den Einstellungen wieder einschaltbar)",
-    "Duck to 20 % / back to full — the filler music comes down too":
-        "Auf 20 % absenken / zurück auf voll — die Pausenmusik geht mit herunter",
     "Endless repeat of THIS title (toggle):\n"
     "while on, the running title starts again every time it ends —\n"
     "for the moment the floor is still full or the speech runs long.\n"
@@ -2969,6 +2965,11 @@ CATALOG = {
         "Er hält den Abend auf einem Titel, schlägt damit das 🏁 Ende einer\n"
         "Runde und wirkt auch bei ausgeschaltetem ⏭ Autovorlauf. Schalte ihn\n"
         "aus, und die Liste läuft weiter, wo sie steht.",
+    "Next dance": "Nächster Tanz",
+    "Cut the pause short and go to the next dance. Its announcement\n"
+    "still plays first; the pause music fades out, like ⏭.":
+        "Die Pause abkürzen und zum nächsten Tanz. Seine Ansage kommt\n"
+        "trotzdem vorher; die Pausenmusik wird ausgeblendet, wie bei ⏭.",
     "Extend the auto-advance pause (add another pause length) —\n"
     "use it when the heat change is taking longer than planned.":
         "Die Pause des Autovorlaufs verlängern (eine weitere Pausenlänge\n"
@@ -2986,11 +2987,12 @@ CATALOG = {
         "Diesen Titel jetzt ausblenden (über die eingestellte Blendzeit) und\n"
         "dann beenden — für einen schnellen, sauberen Schluss auf der\n"
         "Fläche.",
-    "Jump straight to the pause music — end this song now and start\n"
-    "the between-songs pause (e.g. the dancers are already leaving).":
-        "Direkt zur Pausenmusik springen — diesen Titel jetzt beenden und\n"
-        "die Pause zwischen den Titeln starten (z. B. weil die Tänzer die\n"
-        "Fläche schon verlassen).",
+    "Go to the pause music — fade this song out (over the configured\n"
+    "fade time), then start the between-songs pause (e.g. the dancers\n"
+    "are already leaving).":
+        "Zur Pausenmusik — diesen Titel ausblenden (über die eingestellte\n"
+        "Blendzeit) und dann die Pause zwischen den Titeln starten (z. B.\n"
+        "weil die Tänzer die Fläche schon verlassen).",
     "Tap along to the beat to measure this track's live tempo by hand,\n"
     "against a target for its dance (Sollwert) — display only, does not\n"
     "touch the fader.":
@@ -3071,7 +3073,7 @@ CATALOG = {
     "Artist": "Interpret",
     "🏷 MP3 tag": "🏷 MP3-Tag",
     "🔬 Measured": "🔬 Gemessen",
-    "🔀  Shared between playlists": "🔀  In mehreren Playlists",
+    "🔀  Shared between playlists": "🔀  In mehreren Wiedergabelisten",
     "Action": "Aktion",
     "Nothing usable — the decks were left alone.":
         "Nichts Verwertbares — die Decks blieben unverändert.",
@@ -3115,7 +3117,7 @@ CATALOG = {
     "Only flagged when the ⏳ checkbox in the Music-check window is on "
     "(Practice playlists); default 4:00.":
         "Wird nur gemeldet, wenn im Musik-Check-Fenster das Häkchen ⏳ gesetzt ist "
-        "(Eintanzen-Playlists); Standard 4:00.",
+        "(Eintanzen-Wiedergabelisten); Standard 4:00.",
     "⚡  Tempo mismatch — deviation above:":
         "⚡  Tempo weicht ab — Abweichung über:",
     "Measured tempo vs the filename label (detector ×2, ×3, ×1.5 … slips are "
@@ -3135,12 +3137,12 @@ CATALOG = {
     "Speed": "Tempo",
     "— (no BPM tag)": "— (kein BPM-Tag)",
     "— (not measured)": "— (nicht gemessen)",
-    "🔁  Doubled inside one playlist": "🔁  Doppelt in einer Playlist",
+    "🔁  Doubled inside one playlist": "🔁  Doppelt in einer Wiedergabeliste",
     "File": "Datei",
     "📌  Reference base (single .m3u)": "📌  Referenz-Basis (eine .m3u)",
     "🎯  Tournament files (compared against)":
         "🎯  Turnierdateien (dagegen wird verglichen)",
-    "🔁  Doubled inside a playlist": "🔁  Doppelt in einer Playlist",
+    "🔁  Doubled inside a playlist": "🔁  Doppelt in einer Wiedergabeliste",
     "Added": "Hinzugefügt",
     "Last": "Zuletzt",
     "Build all caches — librosa…": "Alle Caches aufbauen — librosa…",
@@ -3156,9 +3158,9 @@ CATALOG = {
         "Paso-Doble-Höhepunkte werden erkannt…",
     "PD highlight detection": "PD-Höhepunkt-Erkennung",
     "✅  No other open playlist to compare against":
-        "✅  Keine andere offene Playlist zum Vergleichen",
+        "✅  Keine andere offene Wiedergabeliste zum Vergleichen",
     "✅  Nothing here is in another open playlist":
-        "✅  Nichts davon steht in einer anderen offenen Playlist",
+        "✅  Nichts davon steht in einer anderen offenen Wiedergabeliste",
     "Remove duplicates": "Doppelte entfernen",
     "🌐  Whole repository — every file under your music repo (global search).\n"
     "🎯  Favorites library — just your tanzcds folder.\n"
@@ -3188,7 +3190,7 @@ CATALOG = {
     "Scanning repository…": "Repository wird durchsucht…",
     "Cleaning up database…": "Datenbank wird aufgeräumt…",
     "Re-learning playlist popularity…":
-        "Playlist-Beliebtheit wird neu gelernt…",
+        "Wiedergabelisten-Beliebtheit wird neu gelernt…",
     "Loading repository from cache…": "Repository wird aus dem Cache geladen…",
     "🔊 Audio backend": "🔊 Audio-Backend",
     "The audio backend is chosen when the app starts, so the new one takes "
@@ -3213,9 +3215,9 @@ CATALOG = {
     "Drag <b>.m3u playlists</b> (or audio files) here to check their tracks "
     "for the same issues — tempo label vs measured, TSO takt range, play "
     "length — plus the playlists' round structure (heat tempo spread).":
-        "Ziehe <b>.m3u-Playlists</b> (oder Audiodateien) hierher, um ihre Titel "
+        "Ziehe <b>.m3u-Wiedergabelisten</b> (oder Audiodateien) hierher, um ihre Titel "
         "auf dieselben Probleme zu prüfen — Tempoangabe gegen Messung, "
-        "TSO-Taktbereich, Spiellänge — dazu den Rundenaufbau der Playlists "
+        "TSO-Taktbereich, Spiellänge — dazu den Rundenaufbau der Wiedergabelisten "
         "(Tempospanne je Gruppe).",
     "Drag <b>.m3u playlists</b> here to check their track paths against the "
     "<b>search folders</b> (Settings). Broken references <b>and valid paths on "
@@ -3223,17 +3225,17 @@ CATALOG = {
     "playlist; <b>🧭 Fix &amp; overwrite</b> rewrites those path lines <b>in "
     "place</b> — only the file path changes, every #EXTINF / comment line is "
     "kept exactly as-is.":
-        "Ziehe <b>.m3u-Playlists</b> hierher, um ihre Titelpfade gegen die "
+        "Ziehe <b>.m3u-Wiedergabelisten</b> hierher, um ihre Titelpfade gegen die "
         "<b>Suchordner</b> (Einstellungen) zu prüfen. Kaputte Verweise <b>und "
         "gültige Pfade auf einem anderen Laufwerk</b> (z. B. C:), die sich dorthin "
-        "umbiegen lassen, werden je Playlist aufgelistet; <b>🧭 Reparieren &amp; "
+        "umbiegen lassen, werden je Wiedergabeliste aufgelistet; <b>🧭 Reparieren &amp; "
         "überschreiben</b> schreibt diese Pfadzeilen <b>an Ort und Stelle</b> um — "
         "nur der Dateipfad ändert sich, jede #EXTINF-/Kommentarzeile bleibt exakt "
         "erhalten.",
     "↶  Nothing to undo": "↶  Nichts rückgängig zu machen",
     "↷  Nothing to redo": "↷  Nichts zu wiederholen",
     "✅  No wishlist tracks are in an open playlist":
-        "✅  Keine Wunschlisten-Titel stehen in einer offenen Playlist",
+        "✅  Keine Wunschlisten-Titel stehen in einer offenen Wiedergabeliste",
     "Heat": "Gruppe",
     "🔁  Cleared all replacement marks":
         "🔁  Alle Austausch-Markierungen gelöscht",
@@ -3265,13 +3267,15 @@ CATALOG = {
     "🐂  plays to the end": "🐂  spielt bis zum Ende",
     "🎯  stop reached — ⏯ to go on": "🎯  Stopp erreicht — ⏯ zum Weiterspielen",
     "🐂  Stop Paso Doble after highlight": "🐂  Paso Doble: Stopp am Höhepunkt",
-    "⏭  Auto-advance to next song": "⏭  Automatisch zum nächsten Titel",
+    "⏭  Auto-advance to next song":
+        "⏭  Automatisch weiter",
     # Kept short: the pair sits in a panel 250px wide at its narrowest, and
     # what each one actually does is in the tooltip.
     "over the first bars": "über den ersten Takten",
     "before the music starts": "vor dem Musikstart",
     "⏸  No pause between songs": "⏸  Keine Pause zwischen den Titeln",
-    "🔁  Start again at the end": "🔁  Am Ende von vorn beginnen",
+    "🔁  Start again at the end":
+        "🔁  Am Ende von vorn",
     "⏹  Stop:":
         "⏹  Stopp:",
     "Never":
@@ -3282,10 +3286,16 @@ CATALOG = {
         "Nach … Titeln",
     "At …":
         "Um …",
-    "Let the music stop by itself: after the title playing now,\nafter a number of titles (the one playing now is the first),\nor with the first title that ends at or after a time of day.\n\nA title is never cut: it plays to its end, then the next one\nwaits on the player for ⏯. A ⏭ skip does not count as an end.\n\nSet for this evening only — it is not saved.\n\nNeeds ⏭ auto-advance.":
-        "Die Musik von selbst anhalten lassen: nach dem laufenden Titel,\nnach einer Anzahl Titel (der laufende ist der erste)\noder mit dem ersten Titel, der um oder nach einer Uhrzeit endet.\n\nEin Titel wird nie abgeschnitten: Er spielt zu Ende, dann wartet\nder nächste im Player auf ⏯. Ein ⏭ Überspringen zählt nicht als Ende.\n\nGilt nur für diesen Abend — wird nicht gespeichert.\n\nBraucht den ⏭ Autovorlauf.",
-    "Titles still to end, the one playing now included —\nit counts down as they do.":
-        "Titel, die noch enden, der laufende mitgezählt —\nzählt mit jedem Ende herunter.",
+    "Let the music stop by itself: after the title playing now,\nafter a number of titles (the one playing now is the first),\nor with the first title that ends at or after a time of day.\n\nA title is not cut: it plays to its end, then the next one\nwaits on the player for ⏯ — unless an \"At …\" time is set to\nfade it. A ⏭ skip does not count as an end.\n\nSet for this evening only — it is not saved.\n\nNeeds ⏭ auto-advance.":
+        "Die Musik von selbst anhalten lassen: nach dem laufenden Titel,\nnach einer Anzahl Titel (der laufende ist der erste)\noder mit dem ersten Titel, der um oder nach einer Uhrzeit endet.\n\nEin Titel wird nicht abgeschnitten: Er spielt zu Ende, dann wartet\nder nächste im Player auf ⏯ — außer eine „Um …“-Zeit ist auf\nAusblenden gestellt. Ein ⏭ Überspringen zählt nicht als Ende.\n\nGilt nur für diesen Abend — wird nicht gespeichert.\n\nBraucht den ⏭ Autovorlauf.",
+    "play it to its end":
+        "zu Ende spielen",
+    "fade out at the time":
+        "um die Zeit ausblenden",
+    "hybrid: fade if ≥ 1:30 played":
+        "hybrid: ab 1:30 ausblenden",
+    "What the title playing at the time does:\n\nPlay it to its end — the first title that ends at or after the\ntime is the last.\nFade out at the time — it fades out the moment the time comes.\nHybrid — it fades if it had played 1:30 by then, a younger\none plays to its end.\n\nA title that starts after the time always plays to its end.\nThis choice is remembered.":
+        "Was der Titel tut, der zu der Zeit läuft:\n\nZu Ende spielen — der erste Titel, der um oder nach der\nUhrzeit endet, ist der letzte.\nUm die Zeit ausblenden — er wird ausgeblendet, sobald die Zeit da ist.\nHybrid — er wird ausgeblendet, wenn er bis dahin 1:30 lief, ein\nkürzer gelaufener spielt zu Ende.\n\nEin Titel, der nach der Uhrzeit beginnt, spielt immer zu Ende.\nDiese Auswahl wird gespeichert.",
     "The first title that ends at or after this time is the last.\nA time already past today means after midnight.":
         "Der erste Titel, der um oder nach dieser Uhrzeit endet, ist der letzte.\nEine heute schon vergangene Uhrzeit meint nach Mitternacht.",
     "⏹  Stops after this title":
@@ -3312,10 +3322,12 @@ CATALOG = {
         "Neu beginnen",
     "▶ Evening picked up — %d titles played.":
         "▶ Abend fortgesetzt — %d Titel gespielt.",
-    "Pause between songs:": "Pause zwischen den Titeln:",
+    "Pause between songs:":
+        "Pause zwischen Titeln:",
     "🔈  Announce next dance": "🔈  Nächsten Tanz ansagen",
     "…with heat": "…mit Gruppe",
-    "🔊  Equalize volume (R128)": "🔊  Lautstärke angleichen (R128)",
+    "🔊  Equalize volume (R128)":
+        "🔊  Pegel angleichen (R128)",
     "🖼  Show artwork — a cover next to the title on the player card":
         "🖼  Cover anzeigen — ein Bild neben dem Titel auf der Player-Karte",
     "〰  Show waveform — the title's waveform in place of the player card's seek bar":
@@ -3354,7 +3366,7 @@ CATALOG = {
         "Ein Titel läuft. Anhalten und „%s“ vorbereiten?",
     "🎚  TSO pitch to the heat tempo": "🎚  TSO: auf den Takt der Gruppe ziehen",
     "↩  Remember where a title stopped":
-        "↩  Merken, wo ein Titel stehen geblieben ist",
+        "↩  Titelposition merken",
     "☀  Keep the screen awake": "☀  Bildschirm wach halten",
     "Show the transport on this screen":
         "Die Steuerung auf diesem Bildschirm zeigen",
@@ -3395,7 +3407,7 @@ CATALOG = {
         "Den gewählten Titel neu würfeln",
     "Ctrl + S": "Strg + S",
     "Save the focused playlist / wishlist as M3U":
-        "Die aktive Playlist / Wunschliste als M3U speichern",
+        "Die aktive Wiedergabeliste / Wunschliste als M3U speichern",
     "Ctrl + Shift + S": "Strg + Umschalt + S",
     "Save the whole session state (decks, wishlists, layout)":
         "Den ganzen Sitzungsstand speichern (Decks, Wunschlisten, Anordnung)",
@@ -3413,10 +3425,10 @@ CATALOG = {
     "Del  with nothing selected": "Entf  ohne Auswahl",
     "Clear that whole playlist / wishlist (confirmed) — same when every "
     "song is selected at once":
-        "Diese ganze Playlist / Wunschliste leeren (mit Rückfrage) — genauso, "
+        "Diese ganze Wiedergabeliste / Wunschliste leeren (mit Rückfrage) — genauso, "
         "wenn alle Titel auf einmal gewählt sind",
     "Clear the focused playlist / wishlist (confirmed), wherever the cursor is":
-        "Die gewählte Playlist / Wunschliste leeren (mit Rückfrage), egal wo "
+        "Die gewählte Wiedergabeliste / Wunschliste leeren (mit Rückfrage), egal wo "
         "der Cursor steht",
     "Ctrl + Shift + Del": "Strg + Umschalt + Entf",
     "Ctrl + Del": "Strg + Entf",
@@ -3464,7 +3476,7 @@ CATALOG = {
     "Collapse or expand that section":
         "Diesen Abschnitt ein- oder ausklappen",
     "Double-click a deck title": "Doppelklick auf Deck-Namen",
-    "Rename the playlist / wishlist": "Die Playlist / Wunschliste umbenennen",
+    "Rename the playlist / wishlist": "Die Wiedergabeliste / Wunschliste umbenennen",
     "▾ / ▸ arrow in a deck header": "▾ / ▸ in einer Deck-Kopfzeile",
     "Fold the deck to a header tab (click the tab to reopen)":
         "Das Deck auf einen Kopfzeilen-Reiter einklappen (Klick auf den "
@@ -3575,7 +3587,7 @@ CATALOG = {
     "🔒  Switch to static mode": "🔒  In den statischen Modus wechseln",
     "🔓  Switch to dynamic mode": "🔓  In den dynamischen Modus wechseln",
     "🧹  Empty this wishlist": "🧹  Diese Wunschliste leeren",
-    "Columns in every playlist": "Spalten in jeder Playlist",
+    "Columns in every playlist": "Spalten in jeder Wiedergabeliste",
     "Columns in every wishlist": "Spalten in jeder Wunschliste",
     "Columns in every party list": "Spalten in jeder Partyliste",
     # ── the Σ bar under a deck ──
@@ -3603,6 +3615,25 @@ CATALOG = {
     "Male voice": "Männliche Stimme",
     "Mixed voices": "Gemischte Stimmen",
     "with heat": "mit Gruppe",
+    "heat only": "nur die Gruppe",
+    "🔢  Only the heat, not the dance (practice)": "🔢  Nur die Gruppe, nicht den Tanz (Training)",
+    "On: every call says just “Heat 1”, without “Next dance” and\n"
+    "without the dance, whatever the two boxes above say.\n"
+    "Where there is no heat to call (or one past 8, which was never\n"
+    "recorded), the dance is called as usual.":
+        "An: Jede Ansage sagt nur „Gruppe 1“, ohne „Nächster Tanz“ und\n"
+        "ohne den Tanz, egal was die beiden Kästchen darüber sagen.\n"
+        "Wo es keine Gruppe anzusagen gibt (oder eine über 8, die nie\n"
+        "aufgenommen wurde), wird der Tanz wie gewohnt angesagt.",
+    "📣  Say “Next dance” before the dance": "📣  „Nächster Tanz“ vor dem Tanz sagen",
+    "On: the pause announces “Next dance: Rumba”.\n"
+    "Off: just “Rumba” (with the heat number, if that is on).\n"
+    "\n"
+    "A dance named as its music starts is always said without it.":
+        "An: die Pause sagt „Nächster Tanz: Rumba“ an.\n"
+        "Aus: nur „Rumba“ (mit der Gruppennummer, wenn sie an ist).\n"
+        "\n"
+        "Ein Tanz, der beim Start seiner Musik genannt wird, kommt immer ohne.",
     "🗣  Dance is named:": "🗣  Tanz wird angesagt:",
     "over the music": "über der Musik",
     "before the music": "vor der Musik",
@@ -3702,11 +3733,11 @@ CATALOG = {
     "carrying it is that old (the year comes from the\n"
     "playlist's path; undated lists don't count as old).":
         "Filtern danach, wie der Titel bisher benutzt wurde:\n"
-        "✦ nie — in keiner deiner Playlists\n"
+        "✦ nie — in keiner deiner Wiedergabelisten\n"
         "★ selten / bewährt — in 1–%d gegenüber %d+ davon\n"
-        "📅 seit — gelaufen, aber die neueste Playlist\n"
+        "📅 seit — gelaufen, aber die neueste Wiedergabeliste\n"
         "damit ist so alt (das Jahr kommt aus dem Pfad der\n"
-        "Playlist; undatierte Listen zählen nicht als alt).",
+        "Wiedergabeliste; undatierte Listen zählen nicht als alt).",
     # The non-tournament categories (planner/models.py LIBRARY_CATEGORIES).
     # The combo is read back by `currentData()` everywhere, so the caption is
     # free to change.
@@ -3724,8 +3755,6 @@ CATALOG = {
         "<b>🔈 Ausgänge</b> — wo welcher Teil des Abends zu hören ist:",
     "🎵  Music:":
         "🎵  Musik:",
-    "⏸  Filler music:":
-        "⏸  Pausenmusik:",
     "🔈  Announcements:":
         "🔈  Ansagen:",
     "System default (follows the OS)":
@@ -3734,16 +3763,26 @@ CATALOG = {
         "Wie die Musik",
     "Every output the operating system lists can be chosen. On a sound card\n"
     "with several outputs, each pair that shows up as a device of its own\n"
-    "(\"Out 3/4\" next to \"Out 1/2\") can take a source of its own; channels\n"
-    "3/4 of ONE multichannel device cannot be picked separately.\n"
+    "(\"Out 3/4\" next to \"Out 1/2\") can take a source of its own. A card\n"
+    "listed as ONE multichannel device offers its further pairs as\n"
+    "\"— Out 3/4\" entries. The music on such an entry changes its\n"
+    "pitch with the tempo fader, like a turntable.\n"
     "\n"
     "A card that is not plugged in plays on the system default until it is back.":
         "Jeder Ausgang, den das Betriebssystem anzeigt, ist wählbar. Bei einer\n"
         "Soundkarte mit mehreren Ausgängen kann jedes Paar, das als eigenes Gerät\n"
-        "erscheint (\"Out 3/4\" neben \"Out 1/2\"), eine eigene Quelle bekommen;\n"
-        "die Kanäle 3/4 EINES Mehrkanalgeräts sind nicht einzeln wählbar.\n"
+        "erscheint (\"Out 3/4\" neben \"Out 1/2\"), eine eigene Quelle bekommen. Eine\n"
+        "Karte, die als EIN Mehrkanalgerät erscheint, bietet ihre weiteren Paare als\n"
+        "Einträge \"— Out 3/4\" an. Die Musik ändert auf einem solchen Eintrag mit\n"
+        "dem Tempo-Regler auch die Tonhöhe, wie ein Plattenspieler.\n"
         "\n"
         "Eine nicht angeschlossene Karte spielt auf dem Systemstandard, bis sie wieder da ist.",
+    "🔀 A card listed as one multichannel device offers its further outputs (\"— Out 3/4\") to every source. The music on such a pair changes its pitch with the tempo fader, like a turntable: faster sounds higher, slower lower. Only a whole output keeps the pitch while the tempo changes.":
+        "🔀 Eine Karte, die als ein Mehrkanalgerät erscheint, bietet ihre weiteren Ausgänge (\"— Out 3/4\") jeder Quelle an. Die Musik ändert auf einem solchen Paar mit dem Tempo-Regler auch die Tonhöhe, wie ein Plattenspieler: schneller klingt höher, langsamer tiefer. Nur ein ganzer Ausgang hält die Tonhöhe, während sich das Tempo ändert.",
+    "Music on a channel pair":
+        "Musik auf einem Kanalpaar",
+    "On %s the tempo fader changes the pitch along with the speed, like a turntable: faster sounds higher, slower lower.\n\nOnly a whole output keeps the pitch. Play the music on this pair anyway?":
+        "Auf %s ändert der Tempo-Regler mit der Geschwindigkeit auch die Tonhöhe, wie ein Plattenspieler: schneller klingt höher, langsamer tiefer.\n\nNur ein ganzer Ausgang hält die Tonhöhe. Die Musik trotzdem auf diesem Paar spielen?",
     "⚠  %s (not connected)":
         "⚠  %s (nicht angeschlossen)",
     "The music plays on %s — click for the sound settings.":
@@ -3855,13 +3894,13 @@ CATALOG = {
         "Umschalt",
     "🏷 No class": "🏷 Kein Klassen-Tag",
     "🏷  Leave titles without a class out of generated playlists":
-        "🏷  Titel ohne Klasse aus erzeugten Playlists heraushalten",
+        "🏷  Titel ohne Klasse aus erzeugten Wiedergabelisten heraushalten",
     "Competition titles whose comment carries no class tag are listed\n"
     "under the '🏷 No class' library category either way. Ticked, they\n"
     "also stay out of the generated playlists, the warm-up and the AI search.":
         "Turniertitel ohne Klassen-Tag im Kommentar stehen so oder so in der\n"
         "Bibliothekskategorie '🏷 Kein Klassen-Tag'. Angehakt bleiben sie auch aus\n"
-        "den erzeugten Playlists, dem Warm-up und der KI-Suche heraus.",
+        "den erzeugten Wiedergabelisten, dem Warm-up und der KI-Suche heraus.",
     "🏷 Only with a class": "🏷 Nur mit Klasse",
     "Hide competition titles without a class tag — the class filter\n"
     "shows those for every class.":
@@ -3879,10 +3918,10 @@ CATALOG = {
     "Class tags from the MP3 comment field":
         "Klassen-Tags aus dem MP3-Kommentarfeld",
     "Newest playlist carrying this track":
-        "Neueste Playlist mit diesem Titel",
+        "Neueste Wiedergabeliste mit diesem Titel",
     "Never played": "Nie gelaufen",
     "Played, but none of those playlists is dated":
-        "Gelaufen, aber keine dieser Playlists ist datiert",
+        "Gelaufen, aber keine dieser Wiedergabelisten ist datiert",
     # ── ⚗ the analysis tab of ⚙ Settings ──
     # Its 🐘 Heavy sibling was German already; what stayed English here is
     # everything a count or an availability check goes into, because that
@@ -3943,27 +3982,27 @@ CATALOG = {
     "⚠️  Not read — %s":
         "⚠️  Nicht gelesen — %s",
     "🧹  Removed %d title already in another playlist":
-        "🧹  %d Titel entfernt — stand schon in einer anderen Playlist",
+        "🧹  %d Titel entfernt — stand schon in einer anderen Wiedergabeliste",
     "🧹  Removed %d titles already in another playlist":
-        "🧹  %d Titel entfernt — standen schon in einer anderen Playlist",
+        "🧹  %d Titel entfernt — standen schon in einer anderen Wiedergabeliste",
     "🔁  Replaced %d duplicate":
         "🔁  %d Duplikat ersetzt",
     "🔁  Replaced %d duplicates":
         "🔁  %d Duplikate ersetzt",
     "⚠  %d duplicate was no longer in its playlist — left as it is":
-        "⚠  %d Duplikat stand nicht mehr in seiner Playlist — nicht geändert",
+        "⚠  %d Duplikat stand nicht mehr in seiner Wiedergabeliste — nicht geändert",
     "⚠  %d duplicates were no longer in their playlist — left as they are":
-        "⚠  %d Duplikate standen nicht mehr in ihrer Playlist — nicht geändert",
+        "⚠  %d Duplikate standen nicht mehr in ihrer Wiedergabeliste — nicht geändert",
     "💾  Saved → %s":
         "💾  Gespeichert → %s",
     "💾  Saved %d competition playlist(s)":
-        "💾  %d Turnier-Playlist(s) gespeichert",
+        "💾  %d Turnier-Wiedergabeliste(n) gespeichert",
     "📅  Planned %d competition(s) into %d deck(s)":
         "📅  %d Turnier(e) in %d Deck(s) geplant",
     "📂  Added %d track(s) from %d file(s)":
         "📂  %d Titel aus %d Datei(en) hinzugefügt",
     "📂  Imported %d playlists into %d free slot(s)":
-        "📂  %d Playlists in %d freie Plätze importiert",
+        "📂  %d Wiedergabelisten in %d freie Plätze importiert",
     "%d extra final-round track(s) kept as backups (stacked under their dance)":
         "%d zusätzliche Finaltitel als Reserve behalten (unter ihrem Tanz gestapelt)",
     "%s line(s) name a file the list already had (imported again, not skipped)":
@@ -4149,7 +4188,7 @@ CATALOG = {
     "🧭  Moved %d tracks onto the Reference path":
         "🧭  %d Titel auf den Referenzpfad verschoben",
     "No tracks in the visible playlists or the wishlists.":
-        "Keine Titel in den sichtbaren Playlists oder den Wunschlisten.",
+        "Keine Titel in den sichtbaren Wiedergabelisten oder den Wunschlisten.",
     "Checked %d tracks — %d already valid.":
         "%d Titel geprüft — %d bereits gültig.",
     "🧭  Relocated %d broken reference to their real files (Ctrl+Z undoes).":
@@ -4163,9 +4202,9 @@ CATALOG = {
     "⚠  %d valid tracks are not on the Reference path %s":
         "⚠  %d gültige Titel liegen nicht im Referenzpfad %s",
     "↪ %d has a copy there — 🧭 Fix swaps them in the playlists.":
-        "↪ %d hat dort eine Kopie — 🧭 Reparieren tauscht sie in den Playlists aus.",
+        "↪ %d hat dort eine Kopie — 🧭 Reparieren tauscht sie in den Wiedergabelisten aus.",
     "↪ %d have a copy there — 🧭 Fix swaps them in the playlists.":
-        "↪ %d haben dort eine Kopie — 🧭 Reparieren tauscht sie in den Playlists aus.",
+        "↪ %d haben dort eine Kopie — 🧭 Reparieren tauscht sie in den Wiedergabelisten aus.",
     "⚠ %d has no copy there:":
         "⚠ %d hat dort keine Kopie:",
     "⚠ %d have no copy there:":
@@ -4183,7 +4222,7 @@ CATALOG = {
     "🧭  Fixed %d paths in %d files":
         "🧭  %d Pfade in %d Dateien repariert",
     "🧹  Removed %d track(s) already in a playlist":
-        "🧹  %d Titel entfernt — schon in einer Playlist",
+        "🧹  %d Titel entfernt — schon in einer Wiedergabeliste",
     "↺  No other %s near the end of the list":
         "↺  Am Listenende steht kein weiterer Titel für %s",
     "🔍  No title matching “%s”":
@@ -4233,7 +4272,7 @@ CATALOG = {
     "%d titles with a tempo or length problem: %s":
         "%d Titel mit einem Tempo- oder Längenproblem: %s",
     "%d playlists with uneven rounds or heats: %s":
-        "%d Playlists mit ungleichen Runden oder Gruppen: %s",
+        "%d Wiedergabelisten mit ungleichen Runden oder Gruppen: %s",
     "🎵  Show the report…": "🎵  Bericht zeigen…",
     "Click the heading to open the full tool.":
         "Ein Klick auf die Überschrift öffnet das ganze Werkzeug.",
@@ -4255,9 +4294,9 @@ CATALOG = {
     "Drive %s is not connected — %d titles live there.":
         "Laufwerk %s ist nicht angeschlossen — %d Titel liegen dort.",
     "%d titles not found: %s": "%d Titel nicht gefunden: %s",
-    "🎶  Playlists": "🎶  Playlisten",
+    "🎶  Playlists": "🎶  Wiedergabelisten",
     "Nothing to play yet — load or build a playlist first.":
-        "Noch nichts zu spielen — erst eine Playlist laden oder erstellen.",
+        "Noch nichts zu spielen — erst eine Wiedergabeliste laden oder erstellen.",
     "📊  Loudness": "📊  Lautheit",
     "Every title is measured — 🔊 Equalize volume can stay on.":
         "Jeder Titel ist gemessen — 🔊 Lautstärke angleichen kann an bleiben.",
@@ -4285,8 +4324,8 @@ CATALOG = {
         "⭐  %d Titel auf die Wunschliste verschoben",
     "⭐  Added %d track(s) to the wishlist":
         "⭐  %d Titel zur Wunschliste hinzugefügt",
-    "  ·  🧹 %d already in a playlist removed":
-        "  ·  🧹 %d schon in einer Playlist, entfernt",
+    "  ·  ⚠ %d already in a playlist (duplicate)":
+        "  ·  ⚠ %d schon in einer Wiedergabeliste (Duplikat)",
     "➕  Added %d track(s)":
         "➕  %d Titel hinzugefügt",
     "➕  Added %d track(s) — rounds re-cut":
@@ -4300,7 +4339,7 @@ CATALOG = {
     "🔁  Replaced “%s” with “%s”":
         "🔁  „%s“ durch „%s“ ersetzt",
     "⚠  “%s” is already in this playlist — not replaced":
-        "⚠  „%s“ ist schon in dieser Playlist — nicht ersetzt",
+        "⚠  „%s“ ist schon in dieser Wiedergabeliste — nicht ersetzt",
     "🔁  Replaced %d track(s)":
         "🔁  %d Titel ersetzt",
     "🔁  Replaced %d, ➕ added %d track(s)":
@@ -4314,7 +4353,7 @@ CATALOG = {
     "⚠  Couldn't tell what dance “%s” is — nothing added":
         "⚠  Welcher Tanz „%s“ ist, war nicht zu erkennen — nichts hinzugefügt",
     "⚠  “%s” is already in this playlist — nothing added":
-        "⚠  „%s“ ist schon in dieser Playlist — nichts hinzugefügt",
+        "⚠  „%s“ ist schon in dieser Wiedergabeliste — nichts hinzugefügt",
     "Nothing added — %s":
         "Nichts hinzugefügt — %s",
     "TSO tempo equalize → on":
@@ -4390,7 +4429,7 @@ CATALOG = {
 
     # ── Status bar and message boxes built at runtime (i18n.t + %) ───────────
     "Error generating playlist: %s":
-        "Fehler beim Erzeugen der Playlist: %s",
+        "Fehler beim Erzeugen der Wiedergabeliste: %s",
     "  (iteration %d)":
         "  (Iteration %d)",
     " — from %s":
@@ -4404,9 +4443,9 @@ CATALOG = {
     "📅 Day plan: %d competition(s) generated":
         "📅 Tagesplan: %d Turnier(e) erzeugt",
     "Seeding '%s' from past playlists…":
-        "Befülle „%s“ aus früheren Playlists…",
+        "Befülle „%s“ aus früheren Wiedergabelisten…",
     "Error reading past playlists: %s":
-        "Fehler beim Lesen früherer Playlists: %s",
+        "Fehler beim Lesen früherer Wiedergabelisten: %s",
     "Generated %d songs — %s":
         "%d Titel erzeugt — %s",
     "Timbre similarity on for ↺ regenerations":
@@ -4414,7 +4453,7 @@ CATALOG = {
     "Timbre similarity off for ↺ regenerations":
         "Timbre-Ähnlichkeit aus für ↺ Neuwürfeln",
     "Building '%s' playlist…":
-        "Erzeuge Playlist „%s“…",
+        "Erzeuge Wiedergabeliste „%s“…",
     "No tracks matched theme '%s'.":
         "Kein Titel passt zum Thema „%s“.",
     "Decade themes require year tags in your MP3s; you can also map\nsongs to themes in themes.json (track_themes).":
@@ -4520,7 +4559,7 @@ CATALOG = {
     "noise floors":
         "Grundrauschen",
     "playlist index entries":
-        "Playlist-Indexeinträge",
+        "Wiedergabelisten-Indexeinträge",
     "stale index markers":
         "veraltete Index-Marker",
     "🧹 Database compacted: %s MB → %s MB (%s MB freed).":
@@ -4546,7 +4585,7 @@ CATALOG = {
     "✋  My own data":
         "✋  Meine eigenen Daten",
     "Dance, BPM, class and title of every file, the file list and the learned playlist index. The next library scan reads them again (minutes).":
-        "Tanz, BPM, Klasse und Titel jeder Datei, die Dateiliste und der gelernte Playlist-Index. Der nächste Bibliotheks-Scan liest sie neu (Minuten).",
+        "Tanz, BPM, Klasse und Titel jeder Datei, die Dateiliste und der gelernte Wiedergabelisten-Index. Der nächste Bibliotheks-Scan liest sie neu (Minuten).",
     "Features, AI embeddings, loudness, silences, waveforms, vocal shares and detected PD highlights. ⚗ Analysis builds them again (hours).":
         "Features, KI-Embeddings, Lautheit, Pausen, Wellenformen, Gesangsanteile und erkannte PD-Highlights. ⚗ Analyse baut sie neu auf (Stunden).",
     "Your tag edits, hand-set PD marks and the 📜 play log. Nothing rebuilds them; only ♻ Restore user data backup brings them back.":
@@ -4649,9 +4688,9 @@ CATALOG = {
     "Delete the evening of %s with its %d title(s) from the play log?\n\nIts daily backups still hold it for 7 days.":
         "Den Abend vom %s mit seinen %d Titel(n) aus dem Protokoll löschen?\n\nDie täglichen Sicherungen enthalten ihn noch 7 Tage lang.",
     "Playlist popularity re-learned from %s playlists.":
-        "Playlist-Beliebtheit aus %s Playlists neu gelernt.",
+        "Wiedergabelisten-Beliebtheit aus %s Wiedergabelisten neu gelernt.",
     "📜 %s playlists analyzed (M3U files + tournament folders) — popularity and co-occurrence are up to date, so a just-exported tournament counts now.\n\nRows already in the grid keep their old Pop value until regenerated.":
-        "📜 %s Playlists analysiert (M3U-Dateien + Turnierordner) — Beliebtheit und gemeinsames Vorkommen sind aktuell, ein gerade exportiertes Turnier zählt also schon mit.\n\nZeilen, die schon im Raster stehen, behalten ihren alten Pop-Wert, bis sie neu gewürfelt werden.",
+        "📜 %s Wiedergabelisten analysiert (M3U-Dateien + Turnierordner) — Beliebtheit und gemeinsames Vorkommen sind aktuell, ein gerade exportiertes Turnier zählt also schon mit.\n\nZeilen, die schon im Raster stehen, behalten ihren alten Pop-Wert, bis sie neu gewürfelt werden.",
     "Re-learn failed:":
         "Neu lernen fehlgeschlagen:",
     "  … and %d more":
@@ -4659,11 +4698,11 @@ CATALOG = {
     "⚠ %d title(s) are not on the Reference path\n%s\nand were saved with their own path:":
         "⚠ %d Titel liegen nicht auf dem Referenzpfad\n%s\nund wurden mit ihrem eigenen Pfad gespeichert:",
     "💾 Saved %d playlist → %s":
-        "💾 %d Playlist gespeichert → %s",
+        "💾 %d Wiedergabeliste gespeichert → %s",
     "💾 Saved %d playlists → %s":
-        "💾 %d Playlists gespeichert → %s",
+        "💾 %d Wiedergabelisten gespeichert → %s",
     "Saved %d playlist(s) to:\n%s":
-        "%d Playlist(s) gespeichert in:\n%s",
+        "%d Wiedergabeliste(n) gespeichert in:\n%s",
     "Saved %d wishlist(s) to:\n%s":
         "%d Wunschliste(n) gespeichert in:\n%s",
     "Skipped (empty): %s":
@@ -4682,39 +4721,39 @@ CATALOG = {
     "Could not create “%s”:\n%s":
         "„%s“ ließ sich nicht anlegen:\n%s",
     "🧳 Bundle: %d playlist folder(s), %d track(s), %s MB → %s":
-        "🧳 Paket: %d Playlist-Ordner, %d Titel, %s MB → %s",
+        "🧳 Paket: %d Wiedergabelisten-Ordner, %d Titel, %s MB → %s",
     "Bundle written to:\n%s":
         "Paket geschrieben nach:\n%s",
     "%d playlist folder(s) · %d track(s) · %s MB — each folder holds the tracks numbered in play order plus the playlist's M3U, so it plays even without the M3U.":
-        "%d Playlist-Ordner · %d Titel · %s MB — jeder Ordner enthält die Titel in Spielreihenfolge nummeriert plus die M3U der Playlist, er spielt also auch ohne die M3U.",
+        "%d Wiedergabelisten-Ordner · %d Titel · %s MB — jeder Ordner enthält die Titel in Spielreihenfolge nummeriert plus die M3U der Wiedergabeliste, er spielt also auch ohne die M3U.",
     "⚠ %d track(s) were missing on disk and kept their original absolute path.":
         "⚠ %d Titel fehlten auf der Platte und haben ihren ursprünglichen absoluten Pfad behalten.",
     "💾 Saved %d competition playlist → %s":
-        "💾 %d Turnier-Playlist gespeichert → %s",
+        "💾 %d Turnier-Wiedergabeliste gespeichert → %s",
     "💾 Saved %d competition playlists → %s":
-        "💾 %d Turnier-Playlists gespeichert → %s",
+        "💾 %d Turnier-Wiedergabelisten gespeichert → %s",
     "Saved %d competition playlist(s) to:\n%s":
-        "%d Turnier-Playlist(s) gespeichert in:\n%s",
+        "%d Turnier-Wiedergabeliste(n) gespeichert in:\n%s",
     "Nothing to save.":
         "Nichts zu speichern.",
     "Saved → %s":
         "Gespeichert → %s",
     "Saved %d competition playlist(s) → %s":
-        "%d Turnier-Playlist(s) gespeichert → %s",
+        "%d Turnier-Wiedergabeliste(n) gespeichert → %s",
     "Close the tournament-day view? This clears %d day playlist.":
-        "Die Turniertag-Ansicht schließen? Das leert %d Tages-Playlist.",
+        "Die Turniertag-Ansicht schließen? Das leert %d Tages-Wiedergabeliste.",
     "Close the tournament-day view? This clears %d day playlists.":
-        "Die Turniertag-Ansicht schließen? Das leert %d Tages-Playlists.",
+        "Die Turniertag-Ansicht schließen? Das leert %d Tages-Wiedergabelisten.",
     "Clear the %d day playlist?":
-        "Die %d Tages-Playlist leeren?",
+        "Die %d Tages-Wiedergabeliste leeren?",
     "Clear all %d day playlists?":
-        "Alle %d Tages-Playlists leeren?",
+        "Alle %d Tages-Wiedergabelisten leeren?",
     "Clear the %d playlist on “%s”?":
-        "Die %d Playlist auf „%s“ leeren?",
+        "Die %d Wiedergabeliste auf „%s“ leeren?",
     "Clear all %d playlists on “%s”?":
-        "Alle %d Playlists auf „%s“ leeren?",
+        "Alle %d Wiedergabelisten auf „%s“ leeren?",
     "🧹 %s playlists cleared.":
-        "🧹 Playlists auf %s geleert.",
+        "🧹 Wiedergabelisten auf %s geleert.",
     " — %d track(s) of no known dance left out":
         " — %d Titel ohne bekannten Tanz weggelassen",
     "🔒 Static mode — a drop now replaces a single slot":
@@ -4754,13 +4793,13 @@ CATALOG = {
     "Thresholds: ⚙ Settings → 🎵 Checks.":
         "Schwellen: ⚙ Einstellungen → 🎵 Prüfungen.",
     "⏳  Also flag long tracks (> %s) — only relevant when building a Practice playlist":
-        "⏳  Auch lange Titel markieren (> %s) — nur für eine Eintanzen-Playlist wichtig",
+        "⏳  Auch lange Titel markieren (> %s) — nur für eine Eintanzen-Wiedergabeliste wichtig",
     "🔇  Also flag hissy tracks (never quieter than %.0f dB) — measures each track once with ffmpeg, so the first run takes a moment":
         "🔇  Auch rauschende Titel markieren (nie leiser als %.0f dB) — misst jeden Titel einmal mit ffmpeg, der erste Lauf dauert daher etwas",
     "🧩 <b>Round structure</b> — click a spot to jump to it":
         "🧩 <b>Rundenaufbau</b> — klicke eine Stelle an, um dorthin zu springen",
     "In playlist: %s":
-        "In Playlist: %s",
+        "In Wiedergabeliste: %s",
     "⚠  “%s” is no longer in an open deck.":
         "⚠  „%s“ liegt in keinem offenen Deck mehr.",
     "<b>%d</b> of %d checked tracks have an issue.":
@@ -4772,9 +4811,9 @@ CATALOG = {
     "🧩 <b>Round structure</b>":
         "🧩 <b>Rundenaufbau</b>",
     "%d valid · %d unresolved across %d playlist.":
-        "%d gültig · %d ungelöst in %d Playlist.",
+        "%d gültig · %d ungelöst in %d Wiedergabeliste.",
     "%d valid · %d unresolved across %d playlists.":
-        "%d gültig · %d ungelöst in %d Playlists.",
+        "%d gültig · %d ungelöst in %d Wiedergabelisten.",
     "🔧 %d path line to fix":
         "🔧 %d Pfadzeile zu korrigieren",
     "🔧 %d path lines to fix":
@@ -4790,9 +4829,9 @@ CATALOG = {
     "⚠  unresolved (no match under the search folders):":
         "⚠  ungelöst (kein Treffer unter den Suchordnern):",
     "Rewrite %d path line(s) across %d playlist(s) in place?\n\nOnly the file-path lines change — #EXTINF and every other line stay exactly as-is. This overwrites the .m3u files on disk; each original is kept next to it as <name>.m3u.bak.":
-        "%d Pfadzeile(n) in %d Playlist(s) direkt umschreiben?\n\nNur die Dateipfad-Zeilen ändern sich — #EXTINF und alle anderen Zeilen bleiben genau erhalten. Die .m3u-Dateien auf der Platte werden überschrieben; jedes Original bleibt daneben als <name>.m3u.bak liegen.",
+        "%d Pfadzeile(n) in %d Wiedergabeliste(n) direkt umschreiben?\n\nNur die Dateipfad-Zeilen ändern sich — #EXTINF und alle anderen Zeilen bleiben genau erhalten. Die .m3u-Dateien auf der Platte werden überschrieben; jedes Original bleibt daneben als <name>.m3u.bak liegen.",
     "🧭  Rewrote %d path line(s) in %d playlist(s).":
-        "🧭  %d Pfadzeile(n) in %d Playlist(s) umgeschrieben.",
+        "🧭  %d Pfadzeile(n) in %d Wiedergabeliste(n) umgeschrieben.",
     "⚠  Left unchanged:":
         "⚠  Unverändert gelassen:",
     "… and %d more":
@@ -4800,21 +4839,21 @@ CATALOG = {
     "Could not apply snapshot: %s":
         "Schnappschuss konnte nicht angewendet werden: %s",
     "Could not restore saved playlist: %s":
-        "Gespeicherte Playlist konnte nicht wiederhergestellt werden: %s",
+        "Gespeicherte Wiedergabeliste konnte nicht wiederhergestellt werden: %s",
     "⚠  %d saved track(s) not found — is the music drive plugged in?":
         "⚠  %d gespeicherte(r) Titel nicht gefunden — ist das Musiklaufwerk angeschlossen?",
     "The saved session is kept as %s.":
         "Die gespeicherte Sitzung bleibt als %s erhalten.",
     "↩  Restored your in-progress playlist — %d songs (%s, %s)":
-        "↩  Deine angefangene Playlist ist wiederhergestellt — %d Titel (%s, %s)",
+        "↩  Deine angefangene Wiedergabeliste ist wiederhergestellt — %d Titel (%s, %s)",
     "↩  Restored your running order — %d tracks":
         "↩  Dein Ablauf ist wiederhergestellt — %d Titel",
     "↩  Restored your themed playlist — %d tracks":
         "↩  Deine Themenliste ist wiederhergestellt — %d Titel",
     "All %d playlists already hold tracks — there's no free slot to import into.\n\nClear a playlist first, or pick a single file to overwrite the focused deck.":
-        "Alle %d Playlists enthalten schon Titel — es gibt keinen freien Platz für den Import.\n\nLeere zuerst eine Playlist oder wähle eine einzelne Datei, um das fokussierte Deck zu überschreiben.",
+        "Alle %d Wiedergabelisten enthalten schon Titel — es gibt keinen freien Platz für den Import.\n\nLeere zuerst eine Wiedergabeliste oder wähle eine einzelne Datei, um das fokussierte Deck zu überschreiben.",
     "You picked %d files but only %d playlist slot(s) are free.\n\nImport the first %d into the free slots and skip the rest?":
-        "Du hast %d Dateien gewählt, aber nur %d Playlist-Plätze sind frei.\n\nDie ersten %d in die freien Plätze importieren und den Rest überspringen?",
+        "Du hast %d Dateien gewählt, aber nur %d Wiedergabelisten-Plätze sind frei.\n\nDie ersten %d in die freien Plätze importieren und den Rest überspringen?",
     "Importing %s …":
         "Importiere %s …",
     "Import failed: %s":
@@ -4824,11 +4863,11 @@ CATALOG = {
     "Remove %d titles from %s?\nThey are already planned in: %s":
         "%d Titel aus %s entfernen?\nSie sind schon eingeplant in: %s",
     "Empty %d playlist? This can't be undone.":
-        "%d Playlist leeren? Das lässt sich nicht rückgängig machen.",
+        "%d Wiedergabeliste leeren? Das lässt sich nicht rückgängig machen.",
     "Empty %d playlists? This can't be undone.":
-        "%d Playlists leeren? Das lässt sich nicht rückgängig machen.",
+        "%d Wiedergabelisten leeren? Das lässt sich nicht rückgängig machen.",
     "↩  Restored your worked playlist for “%s” — %d songs":
-        "↩  Deine bearbeitete Playlist für „%s“ ist wiederhergestellt — %d Titel",
+        "↩  Deine bearbeitete Wiedergabeliste für „%s“ ist wiederhergestellt — %d Titel",
     "this competition":
         "dieses Turnier",
     "⚠  Session not saved — the snapshot failed: %r":
@@ -4836,19 +4875,19 @@ CATALOG = {
     "Could not write the PDF:\n%s":
         "Das PDF konnte nicht geschrieben werden:\n%s",
     "🖨 Playlist saved — %s":
-        "🖨 Playlist gespeichert — %s",
+        "🖨 Wiedergabeliste gespeichert — %s",
     "Playlist saved as\n%s\n\nOpen it now?":
-        "Playlist gespeichert als\n%s\n\nJetzt öffnen?",
+        "Wiedergabeliste gespeichert als\n%s\n\nJetzt öffnen?",
     "Cycle 1 → 2 → 4 → 8 → no playlists (and back).":
-        "Durchschalten 1 → 2 → 4 → 8 → keine Playlists (und zurück).",
+        "Durchschalten 1 → 2 → 4 → 8 → keine Wiedergabelisten (und zurück).",
     "Cycle 1 → 2 → 4 → no playlists (and back).":
-        "Durchschalten 1 → 2 → 4 → keine Playlists (und zurück).",
+        "Durchschalten 1 → 2 → 4 → keine Wiedergabelisten (und zurück).",
     "Right click walks the cycle backwards.":
         "Rechtsklick schaltet rückwärts durch.",
     "8 splits into two tabs of four (Group A–D / Group E–H).":
         "8 teilt sich in zwei Reiter zu je vier (Gruppe A–D / Gruppe E–H).",
     "No-playlist hides every deck so the Practice / wishlist / library panes take over.":
-        "„Keine Playlist“ blendet alle Decks aus, sodass Eintanzen / Wunschliste / Bibliothek den Platz übernehmen.",
+        "„Keine Wiedergabeliste“ blendet alle Decks aus, sodass Eintanzen / Wunschliste / Bibliothek den Platz übernehmen.",
     "Two or more decks also reveal the wishlist below.":
         "Ab zwei Decks erscheint darunter auch die Wunschliste.",
     "Generate / Save / ↺ / play act on whichever deck has focus.":
@@ -4887,9 +4926,9 @@ CATALOG = {
         "⚖️ Kombiniert — der Mittelwert, wie weit oben jeder Titel bei Timbre, "
         "Groove und Melodie steht.",
     "★  Only rarely played (1–%d playlists)":
-        "★  Nur selten gespielte (1–%d Playlists)",
+        "★  Nur selten gespielte (1–%d Wiedergabelisten)",
     "The same three picks as 📚 the library's ★ Plays selector.\n'Never played': the track is in none of your old playlists.\n'Rarely played': in 1–%d of them — %d+ is a proven title.\n'Not since 1 y': it is played, but the newest playlist carrying\nit is from an earlier year — the year comes from the playlist's\npath, so lists without a date never count as old.":
-        "Dieselben drei Filter wie der ★-Gespielt-Wähler der 📚 Bibliothek.\n„Nie gespielt“: der Titel steht in keiner deiner alten Playlists.\n„Selten gespielt“: in 1–%d davon — ab %d ist er ein bewährter Titel.\n„Seit 1 J. nicht“: er wird gespielt, aber die neueste Playlist mit ihm\nstammt aus einem früheren Jahr — das Jahr kommt aus dem Pfad der\nPlaylist, Listen ohne Datum gelten also nie als alt.",
+        "Dieselben drei Filter wie der ★-Gespielt-Wähler der 📚 Bibliothek.\n„Nie gespielt“: der Titel steht in keiner deiner alten Wiedergabelisten.\n„Selten gespielt“: in 1–%d davon — ab %d ist er ein bewährter Titel.\n„Seit 1 J. nicht“: er wird gespielt, aber die neueste Wiedergabeliste mit ihm\nstammt aus einem früheren Jahr — das Jahr kommt aus dem Pfad der\nWiedergabeliste, Listen ohne Datum gelten also nie als alt.",
     "%d %s tracks most often played together with this one — ▶ to preview, double-click to open, drag rows into another app":
         "%d %s-Titel, die am häufigsten mit diesem zusammen gespielt wurden — ▶ zum Anhören, Doppelklick zum Öffnen, Zeilen in eine andere App ziehen",
     "%d %s tracks most similar (sound-alike) to this one — ▶ to preview, double-click to open, drag rows into another app":
@@ -4921,7 +4960,7 @@ CATALOG = {
     "Similar to: %s":
         "Ähnlich wie: %s",
     "📋 Learned from your playlists — %d often played together.":
-        "📋 Aus deinen Playlists gelernt — %d oft zusammen gespielt.",
+        "📋 Aus deinen Wiedergabelisten gelernt — %d oft zusammen gespielt.",
     "🧠  Rebuild %s index…":
         "🧠  %s-Index neu aufbauen…",
     "%s vectors for these %d tracks haven't been built yet.\n\nBuilding analyses each track once (slow the first time, then cached).\nBuild now?":
@@ -4975,9 +5014,9 @@ CATALOG = {
     "Could not write file:\n%s":
         "Datei konnte nicht geschrieben werden:\n%s",
     "The reference playlist itself was overwritten with the cleaned list.":
-        "Die Referenz-Playlist selbst wurde mit der bereinigten Liste überschrieben.",
+        "Die Referenz-Wiedergabeliste selbst wurde mit der bereinigten Liste überschrieben.",
     "The reference playlist was left unchanged.":
-        "Die Referenz-Playlist blieb unverändert.",
+        "Die Referenz-Wiedergabeliste blieb unverändert.",
     "📤  Exported %d track(s) (sorted by dance) → %s":
         "📤  %d Titel exportiert (nach Tanz sortiert) → %s",
     "📤  Exported %d track(s) → %s":
@@ -4987,7 +5026,7 @@ CATALOG = {
     "🔁  Replace in %s":
         "🔁  Ersetzen in %s",
     "This song is in %d open playlists. Replacing it on one\nrow leaves the other copies — pick a copy on each of its rows to\nreplace them all (the choices are merged when you press Apply).":
-        "Dieser Titel steht in %d offenen Playlists. Ersetzt du ihn in einer\nZeile, bleiben die anderen Kopien — wähle in jeder seiner Zeilen eine\nKopie, um alle zu ersetzen (die Auswahl wird beim Übernehmen zusammengeführt).",
+        "Dieser Titel steht in %d offenen Wiedergabelisten. Ersetzt du ihn in einer\nZeile, bleiben die anderen Kopien — wähle in jeder seiner Zeilen eine\nKopie, um alle zu ersetzen (die Auswahl wird beim Übernehmen zusammengeführt).",
     "%d occurrence(s) are set to Replace but have no replacement track yet.\nPick a track for each, or switch them back to Keep.":
         "%d Vorkommen steht/stehen auf Ersetzen, haben aber noch keinen Ersatztitel.\nWähle für jedes einen Titel oder stelle es zurück auf Behalten.",
     "%d copy/copies are set to two different changes on different rows.\nChoose the same on each, or set one back to Keep all.":
@@ -4999,17 +5038,17 @@ CATALOG = {
     "🗑  Removed %d duplicates":
         "🗑  %d Duplikate entfernt",
     "A track named “%s” is already in this playlist,\nbut it’s a different file.":
-        "Ein Titel namens „%s“ ist schon in dieser Playlist,\naber es ist eine andere Datei.",
+        "Ein Titel namens „%s“ ist schon in dieser Wiedergabeliste,\naber es ist eine andere Datei.",
     "“%s” is already in this playlist —\n“%s” looks like the same title in another file.":
-        "„%s“ ist schon in dieser Playlist —\n„%s“ scheint derselbe Titel in einer anderen Datei zu sein.",
+        "„%s“ ist schon in dieser Wiedergabeliste —\n„%s“ scheint derselbe Titel in einer anderen Datei zu sein.",
     "“%s” is already in this playlist.\n\nRemove it from the wishlist anyway?":
-        "„%s“ ist schon in dieser Playlist.\n\nTrotzdem aus der Wunschliste entfernen?",
+        "„%s“ ist schon in dieser Wiedergabeliste.\n\nTrotzdem aus der Wunschliste entfernen?",
     "“%s” is already in this playlist.\n\nRemove it from the playlist anyway?":
-        "„%s“ ist schon in dieser Playlist.\n\nTrotzdem aus der Playlist entfernen?",
+        "„%s“ ist schon in dieser Wiedergabeliste.\n\nTrotzdem aus der Wiedergabeliste entfernen?",
     "%d dragged track(s) are already in this playlist.\n\nRemove them from the wishlist anyway?":
-        "%d gezogene(r) Titel ist/sind schon in dieser Playlist.\n\nTrotzdem aus der Wunschliste entfernen?",
+        "%d gezogene(r) Titel ist/sind schon in dieser Wiedergabeliste.\n\nTrotzdem aus der Wunschliste entfernen?",
     "%d dragged track(s) are already in this playlist.\n\nRemove them from the playlist anyway?":
-        "%d gezogene(r) Titel ist/sind schon in dieser Playlist.\n\nTrotzdem aus der Playlist entfernen?",
+        "%d gezogene(r) Titel ist/sind schon in dieser Wiedergabeliste.\n\nTrotzdem aus der Wiedergabeliste entfernen?",
     "“%s” looks like a %s track, but this slot is %s.\n\nReplace anyway?":
         "„%s“ sieht nach einem %s-Titel aus, aber dieser Platz ist %s.\n\nTrotzdem ersetzen?",
     "Remove this whole heat (all dances) from %s?":
@@ -5023,23 +5062,23 @@ CATALOG = {
     "Hide the empty %s from %s?":
         "%s (leer) in %s ausblenden?",
     "Remove %s from all rounds and heats?\n%d song(s) across the playlist will be cleared.":
-        "%s aus allen Runden und Gruppen entfernen?\n%d Titel in der ganzen Playlist werden geleert.",
+        "%s aus allen Runden und Gruppen entfernen?\n%d Titel in der ganzen Wiedergabeliste werden geleert.",
     "Hide the empty %s from all rounds?":
         "%s (leer) in allen Runden ausblenden?",
     "%d dropped track(s) look like %s dances, but this is a %s list.\n\nAdd them anyway?":
         "%d abgelegte(r) Titel sieht/sehen nach %s-Tänzen aus, aber dies ist eine %s-Liste.\n\nTrotzdem hinzufügen?",
     "All open playlists (%d deck)":
-        "Alle offenen Playlists (%d Deck)",
+        "Alle offenen Wiedergabelisten (%d Deck)",
     "All open playlists (%d decks)":
-        "Alle offenen Playlists (%d Decks)",
+        "Alle offenen Wiedergabelisten (%d Decks)",
     "%d file added.":
         "%d Datei hinzugefügt.",
     "%d files added.":
         "%d Dateien hinzugefügt.",
     "📅 Tournament day only (%d playlist)":
-        "📅 Nur Turniertag (%d Playlist)",
+        "📅 Nur Turniertag (%d Wiedergabeliste)",
     "📅 Tournament day only (%d playlists)":
-        "📅 Nur Turniertag (%d Playlists)",
+        "📅 Nur Turniertag (%d Wiedergabelisten)",
     "Dance: %s":
         "Tanz: %s",
     "%s (%d beats/bar)":
@@ -5047,25 +5086,25 @@ CATALOG = {
     "'%s' is not a valid round pattern for %s %s — use heat counts like 6-3-2-1.":
         "„%s“ ist kein gültiges Rundenmuster für %s %s — nutze Gruppenzahlen wie 6-3-2-1.",
     "Red: the pool can't carry a competition (pool < %d or proven < %d — a 6-3-2-1 needs 12 per dance).  Orange: < 80 %% of the takt-labelled tracks are tournament tempo, or over half the pool is stale (no dateable playlist in ≥ 3 years; 'never played' always counts as stale).  Double-click a row to browse its never-played tracks in 📚 the library.":
-        "Rot: der Pool trägt kein Turnier (Pool < %d oder bewährt < %d — ein 6-3-2-1 braucht 12 je Tanz).  Orange: < 80 %% der Titel mit Taktangabe haben Turniertempo, oder über die Hälfte des Pools ist veraltet (keine datierbare Playlist in ≥ 3 Jahren; „nie gespielt“ zählt immer als veraltet).  Doppelklick auf eine Zeile zeigt ihre nie gespielten Titel in 📚 der Bibliothek.",
+        "Rot: der Pool trägt kein Turnier (Pool < %d oder bewährt < %d — ein 6-3-2-1 braucht 12 je Tanz).  Orange: < 80 %% der Titel mit Taktangabe haben Turniertempo, oder über die Hälfte des Pools ist veraltet (keine datierbare Wiedergabeliste in ≥ 3 Jahren; „nie gespielt“ zählt immer als veraltet).  Doppelklick auf eine Zeile zeigt ihre nie gespielten Titel in 📚 der Bibliothek.",
     "⚠️ %d gap(s) found":
         "⚠️ %d Lücke(n) gefunden",
     "(%d playlist)":
-        "(%d Playlist)",
+        "(%d Wiedergabeliste)",
     "(%d playlists)":
-        "(%d Playlists)",
+        "(%d Wiedergabelisten)",
     "%d song":
         "%d Titel",
     "%d songs":
         "%d Titel",
     "The playlist file is gone:\n\n%s":
-        "Die Playlist-Datei ist nicht mehr da:\n\n%s",
+        "Die Wiedergabelisten-Datei ist nicht mehr da:\n\n%s",
     "No .m3u playlists found under “%s”.":
-        "Keine .m3u-Playlists unter „%s“ gefunden.",
+        "Keine .m3u-Wiedergabelisten unter „%s“ gefunden.",
     "Remove “%s” from the tree?\n\n%d playlist file(s) are listed under it — they stay on disk, only this entry goes.":
-        "„%s“ aus dem Baum entfernen?\n\nDarunter stehen %d Playlist-Datei(en) — sie bleiben auf der Platte, nur dieser Eintrag verschwindet.",
+        "„%s“ aus dem Baum entfernen?\n\nDarunter stehen %d Wiedergabelisten-Datei(en) — sie bleiben auf der Platte, nur dieser Eintrag verschwindet.",
     "Remove %d entries from the tree?\n\n%d playlist file(s) are listed under them — they stay on disk, only these entries go.":
-        "%d Einträge aus dem Baum entfernen?\n\nDarunter stehen %d Playlist-Datei(en) — sie bleiben auf der Platte, nur diese Einträge verschwinden.",
+        "%d Einträge aus dem Baum entfernen?\n\nDarunter stehen %d Wiedergabelisten-Datei(en) — sie bleiben auf der Platte, nur diese Einträge verschwinden.",
     "%s and %s are different dances.\n\nOnly titles of the same dance can swap places, so every round keeps its dances.":
         "%s und %s sind verschiedene Tänze.\n\nNur Titel desselben Tanzes können die Plätze tauschen, damit jede Runde ihre Tänze behält.",
     "No past competition plans found for %s in %s.":
@@ -5073,7 +5112,7 @@ CATALOG = {
     "Remove all %d track(s) from wishlist%s?":
         "Alle %d Titel aus der Wunschliste%s entfernen?",
     "Remove the entire playlist%s? The table will be blank again.":
-        "Die ganze Playlist%s entfernen? Die Tabelle ist danach wieder leer.",
+        "Die ganze Wiedergabeliste%s entfernen? Die Tabelle ist danach wieder leer.",
     "Couldn't read as an audio track:":
         "Ließ sich nicht als Audiotitel lesen:",
     "This list":
@@ -5105,7 +5144,7 @@ CATALOG = {
     "%s already holds %d track(s).\n\nImporting %s REPLACES them — the list is loaded fresh from the file, the tracks in it now are dropped.\n\nImport anyway?":
         "%s enthält schon %d Titel.\n\n%s zu importieren ERSETZT sie — die Liste wird frisch aus der Datei geladen, die Titel darin jetzt fallen weg.\n\nTrotzdem importieren?",
     "“%s” is already used in this playlist.":
-        "„%s“ ist in dieser Playlist schon verwendet.",
+        "„%s“ ist in dieser Wiedergabeliste schon verwendet.",
     "A %s track can only move into another %s slot — not a %s slot.":
         "Ein %s-Titel kann nur auf einen anderen %s-Platz — nicht auf einen %s-Platz.",
     "Dances (%d): %s":
@@ -5153,10 +5192,16 @@ CATALOG = {
         "🔇 %s s Stille am Anfang übersprungen.",
     "⚠️ Sample not found: %s":
         "⚠️ Sample nicht gefunden: %s",
+    "\n▶ Queue: place %d — Ctrl+click takes it out":
+        "\n▶ Warteschlange: Platz %d — Strg+Klick nimmt es heraus",
+    "\nCtrl+click: into the ▶ queue":
+        "\nStrg+Klick: in die ▶ Warteschlange",
+    "⚠️ Sample not found, skipped: %s":
+        "⚠️ Sample nicht gefunden, übersprungen: %s",
+    "⚠️ Queue stopped: none of its samples were found":
+        "⚠️ Warteschlange gestoppt: keines ihrer Samples wurde gefunden",
     "⏱ Auto-advance pause extended by %ss.":
         "⏱ Auto-Weiter-Pause um %s s verlängert.",
-    "⏸ Auto-advance…  🎵 %s":
-        "⏸ Auto-Weiter…  🎵 %s",
     "🎯 Highlight at %s — %d mark(s). ✔ Done editing arms the stop.":
         "🎯 Höhepunkt bei %s — %d Marke(n). ✔ Bearbeitung beenden schärft den Stopp.",
     "🎯 PD highlight %d marked at %s (stop set to #%s)":
@@ -5168,7 +5213,7 @@ CATALOG = {
     "Can't cue — file not found: %s":
         "Kann nicht bereitstellen — Datei nicht gefunden: %s",
     "⏸ Cued %s — press ⏯ to play. — ⏭ walks the playlist":
-        "⏸ %s bereitgestellt — ⏯ spielt ab. — ⏭ geht die Playlist entlang",
+        "⏸ %s bereitgestellt — ⏯ spielt ab. — ⏭ geht die Wiedergabeliste entlang",
     "⏸ Cued %s — press ⏯ to play.":
         "⏸ %s bereitgestellt — ⏯ spielt ab.",
     "the %s %s of this round":
@@ -5195,6 +5240,99 @@ CATALOG = {
         "bis %s; ein Schritt weiter ist\n"
         "'komplett' — kein Schnitt, jeder Titel läuft bis zu seinem Ende.\n\n"
         "Doppelklick, um eine genaue Länge einzugeben (z. B. 1:37).",
+    "Move this highlight 0.1 s earlier": "Den Höhepunkt 0,1 s früher setzen",
+    "Move this highlight 0.1 s later": "Den Höhepunkt 0,1 s später setzen",
+    "⏱  Titles over an hour read:": "⏱  Titel über einer Stunde:",
+    "1:04:00 (hours)": "1:04:00 (Stunden)",
+    "64:00 (minutes)": "64:00 (Minuten)",
+    "How the player and the mini player show the times of a title\nlonger than 59 minutes, such as a long mix.": "Wie Player und Mini-Player die Zeiten eines Titels zeigen,\nder länger als 59 Minuten ist, etwa ein langer Mix.",
+    "🐞 Bugs & ideas": "🐞 Fehler & Ideen",
+    "Report a bug or suggest a feature as a GitHub issue: %s": "Melde einen Fehler oder schlage eine Funktion als GitHub-Issue vor: %s",
+    "open a new issue": "neues Issue anlegen",
+    "No GitHub account? Write to %s": "Kein GitHub-Konto? Schreib an %s",
+    "🔌 Drive %s is gone: USB stick unplugged? %d titles can't play until it is back.": "🔌 Laufwerk %s ist weg: USB-Stick abgezogen? %d Titel können nicht spielen, bis es wieder da ist.",
+    "⚠️ %d titles are gone from disk: moved, renamed or deleted?": "⚠️ %d Titel sind nicht mehr auf der Platte: verschoben, umbenannt oder gelöscht?",
+    "🔌 %d titles are back and can play again.": "🔌 %d Titel sind wieder da und können spielen.",
+    "🐂  Keep the pad down while a Paso Doble waits to start":
+        "🐂  Pad unten lassen, solange ein Paso Doble auf den Start wartet",
+    "With 'Start after' set for the Paso Doble, the deck stands still\nbetween the call and the first bar while the couples walk on.\nOn, a 🎶 Background pad stays down through that wait as if the\nmusic already played. Off, it comes back in the wait like after\nany other title.":
+        "Mit 'Start nach' für den Paso Doble steht das Deck zwischen der\nAnsage und dem ersten Takt still, während die Paare einlaufen.\nAn: Ein 🎶 Hintergrund-Pad bleibt durch diese Wartezeit unten,\nals liefe die Musik schon. Aus: Es kommt in der Wartezeit zurück\nwie nach jedem anderen Titel.",
+    "Off, a title waits until a 🎛 cartwall pad set to 🎶 Background\nhas faded out completely, then starts into silence. The wait is\nthe fade-out time above, or less if the bed is already going down.\nOn, the title starts at once and plays over the fade-out.":
+        "Aus: Ein Titel wartet, bis ein 🎛 Cartwall-Pad mit 🎶 Hintergrund\nganz ausgeblendet ist, und beginnt dann in die Stille. Die Wartezeit\nist die Ausblendzeit oben, oder weniger, wenn der Teppich schon sinkt.\nAn: Der Titel startet sofort und spielt über das Ausblenden.",
+    "🔉↓  Fade by hand over:":
+        "🔉↓  Von Hand ausblenden über:",
+    "as the list's fade-out":
+        "wie das Ausblenden der Liste",
+    "How long 🔉↓ Fade out now, 🛑 Fade out and hold, a ⏹ stop at a time\nand the fade before quitting take. The fade at the end of the play\nlength keeps the playlist's own fade-out time.\n0 = the playlist's fade-out time for these as well.":
+        "Wie lange 🔉↓ Jetzt ausblenden, 🛑 Ausblenden und halten, ein ⏹ Stopp\nzu einer Uhrzeit und das Ausblenden vor dem Beenden dauern. Das\nAusblenden am Ende der Spiellänge behält die Ausblendzeit der Wiedergabeliste.\n0 = auch hierfür die Ausblendzeit der Wiedergabeliste.",
+    "🔈  Duck under a voice or pad over:":
+        "🔈  Unter Ansage oder Pad absenken über:",
+    "back up over:":
+        "wieder hoch über:",
+    "How fast the music gets out of the way when the announcer speaks\nor a 🎛 cartwall pad plays, and how fast it comes back after.\nShort down keeps a pad's first beat clear; a slow way up keeps\nthe return from being an event of its own. The 🔉 Duck button\nis not ramped: it is immediate.":
+        "Wie schnell die Musik Platz macht, wenn der Ansager spricht oder\nein 🎛 Cartwall-Pad spielt, und wie schnell sie danach zurückkommt.\nKurz nach unten hält den ersten Schlag eines Pads frei; langsam nach\noben macht die Rückkehr nicht selbst zum Ereignis. Der 🔉 Absenken-\nKnopf hat keine Rampe: Er wirkt sofort.",
+    "🥇  Final: the music plays on":
+        "🥇  Finale: Die Musik spielt weiter",
+    "After the play length has faded a title of the final out, it comes back up as background while the couples celebrate — until 🔉↓ fades it, the next title starts or the file ends. Only under ✋ Manual: with ⏭ Auto the ⏸ pause and its music follow each title, and a title of the final ends as always.":
+        "Hat die Spiellänge einen Titel des Finales ausgeblendet, kommt er als Hintergrundmusik wieder hoch, während die Paare feiern — bis 🔉↓ ihn ausblendet, der nächste Titel startet oder die Datei endet. Nur bei ✋ Manuell: bei ⏭ Auto folgen jedem Titel die ⏸ Pause und ihre Musik, und ein Titel des Finales endet wie immer.",
+    "Off":
+        "Aus",
+    "After the last dance of the final":
+        "Nach dem letzten Tanz des Finales",
+    "After every dance of the final":
+        "Nach jedem Tanz des Finales",
+    "Which titles of the final come back up after the play\nlength has faded them out. A round is the final when it\nis named Finale, Final or Endrunde.":
+        "Welche Titel des Finales wieder hochkommen, nachdem die\nSpiellänge sie ausgeblendet hat. Eine Runde ist das Finale,\nwenn sie Finale, Final oder Endrunde heißt.",
+    "Level:":
+        "Lautstärke:",
+    "How loud it comes back, in % of the music's level.":
+        "Wie laut er wiederkommt, in % der Lautstärke der Musik.",
+    "Up over:":
+        "Einblenden über:",
+    "How long it takes to come back up. 0 = at once.":
+        "Wie lange er braucht, um wieder hochzukommen. 0 = sofort.",
+    "Down over:":
+        "Ausblenden über:",
+    "How long it takes to go down when 🔉↓ fades it.":
+        "Wie lange er zum Ausblenden braucht, wenn 🔉↓ ihn ausblendet.",
+    "quieter":
+        "leiser",
+    "louder":
+        "lauter",
+    "Volume %s %s — hold to glide":
+        "Lautstärke %s %s — zum Gleiten halten",
+    "Duck to %d %%, again to mute, again back to full":
+        "Auf %d %% absenken, nochmal stumm, nochmal zurück auf voll",
+    "🎶 Pause music: the cartwall's ▶ queue plays its 🎶 Background pads.":
+        "🎶 Pausenmusik: Die ▶ Warteschlange der Cartwall spielt ihre 🎶 Hintergrund-Pads.",
+    "mute":
+        "stumm",
+    "🌙  Then:":
+        "🌙  Danach:",
+    "A closing song that plays once the stop has ended the music —\n\"Who moved the clock today\". It plays at the music's volume to\nits end (🔉↓ fades it); then the next title waits for ⏯.\nOnly after the planned stop, never after ⏹ by hand.":
+        "Ein Rausschmeißer, der läuft, wenn der Stopp die Musik beendet hat —\n„Who moved the clock today“. Er spielt in der Lautstärke der Musik\nbis zu seinem Ende (🔉↓ blendet ihn aus); danach wartet der nächste Titel auf ⏯.\nNur nach dem geplanten Stopp, nie nach ⏹ von Hand.",
+    "No closing song":
+        "Kein Rausschmeißer",
+    "⏹ Stopped as planned — 🌙 the closing song plays, then ⏯ the next title.":
+        "⏹ Wie geplant gestoppt — 🌙 der Rausschmeißer läuft, dann startet ⏯ den nächsten Titel.",
+    "🌙 Closing song not found: %s":
+        "🌙 Rausschmeißer nicht gefunden: %s",
+    "📄  Move to page":
+        "📄  Auf Seite verschieben",
+    "“%s” is full: %d of %d pads were moved.":
+        "„%s“ ist voll: %d von %d Pads wurden verschoben.",
+    "🔠  Text size:":
+        "🔠  Schriftgröße:",
+    "🏅 Background: entrance & awards":
+        "🏅 Hintergrund: Einmarsch & Siegerehrung",
+    "<b>🏅 Background: entrance & awards</b> — a title with one of these words in its file or folder name, title or comment, comma-separated:":
+        "<b>🏅 Hintergrund: Einmarsch & Siegerehrung</b> — ein Titel mit einem dieser Wörter im Datei- oder Ordnernamen, Titel oder Kommentar, durch Komma getrennt:",
+    "Upper or lower case does not matter, and a part of a word is\nenough: 'Award' also finds '(Background Award)'. Shown under\n🏅 in the library's category filter and kept out of generated\nplaylists. Leave it empty to go by the folders below only.":
+        "Groß- und Kleinschreibung zählt nicht, ein Wortteil genügt:\n'Award' findet auch '(Background Award)'. Zu sehen unter 🏅\nim Kategorie-Filter der Bibliothek, und nie in erzeugten\nWiedergabelisten. Leer lassen, um nur nach den Ordnern unten zu gehen.",
+    "…and every title in these folders and below, one folder per line:":
+        "…und jeder Titel in diesen Ordnern und darunter, ein Ordner pro Zeile:",
+    "Entrance and award music folder":
+        "Ordner mit Einmarsch- und Siegerehrungsmusik",
     "Delete the highlight at %s s":
         "Den Höhepunkt bei %s s löschen",
     "Compensate loudness differences between tracks on playback:\neach song's measured EBU R128 loudness is pulled towards a\ncommon target, so quiet old recordings and loud modern\nmasters play at a similar level.":
@@ -5202,9 +5340,9 @@ CATALOG = {
     "ℹ No loudness measured yet — tracks play at their\noriginal volume. Run 📊 Analyze loudness (⚙ Settings)\nto equalize them.":
         "ℹ Noch keine Lautheit gemessen — die Titel spielen in ihrer\nOriginallautstärke. Starte 📊 Lautheit analysieren (⚙ Einstellungen),\num sie anzugleichen.",
     "ℹ %d open-playlist track not measured yet — it plays at original volume.\nRun 📊 Analyze loudness (⚙ Settings) to equalize it too.":
-        "ℹ %d Titel der offenen Playlists ist noch nicht gemessen — er spielt in Originallautstärke.\nStarte 📊 Lautheit analysieren (⚙ Einstellungen), um ihn auch anzugleichen.",
+        "ℹ %d Titel der offenen Wiedergabelisten ist noch nicht gemessen — er spielt in Originallautstärke.\nStarte 📊 Lautheit analysieren (⚙ Einstellungen), um ihn auch anzugleichen.",
     "ℹ %d open-playlist tracks not measured yet — they play at original volume.\nRun 📊 Analyze loudness (⚙ Settings) to equalize them too.":
-        "ℹ %d Titel der offenen Playlists sind noch nicht gemessen — sie spielen in Originallautstärke.\nStarte 📊 Lautheit analysieren (⚙ Einstellungen), um sie auch anzugleichen.",
+        "ℹ %d Titel der offenen Wiedergabelisten sind noch nicht gemessen — sie spielen in Originallautstärke.\nStarte 📊 Lautheit analysieren (⚙ Einstellungen), um sie auch anzugleichen.",
     "⚡ Tempo: measured ~%s vs label %s bpm (off %s%%)":
         "⚡ Tempo: gemessen ~%s statt Label %s bpm (%s %% daneben)",
     "label":
@@ -5307,8 +5445,6 @@ CATALOG = {
         "➕  Füge %s Titel hinzu…",
     "🐂  Paso Doble in %d s":
         "🐂  Paso Doble startet in %d s",
-    "⏸  %d s  (paused)":
-        "⏸  %d s  (pausiert)",
     "⚠ Could not play: %s":
         "⚠ Konnte nicht abspielen: %s",
     "⚠ Playback failed: %s":
@@ -5354,23 +5490,23 @@ CATALOG = {
     "📚 Library browser hidden":
         "📚 Bibliotheks-Browser ausgeblendet",
     "💾 Saving all playlists…":
-        "💾 Speichere alle Playlists…",
+        "💾 Speichere alle Wiedergabelisten…",
     "🧳 Exporting venue bundle…":
         "🧳 Exportiere das Hallen-Paket…",
     "💾 Saving tournament-day playlists…":
-        "💾 Speichere die Playlists des Turniertags…",
+        "💾 Speichere die Wiedergabelisten des Turniertags…",
     "This list is empty.":
         "Diese Liste ist leer.",
     "This wishlist is empty.":
         "Diese Wunschliste ist leer.",
     "💾 Saving playlist…":
-        "💾 Speichere die Playlist…",
+        "💾 Speichere die Wiedergabeliste…",
     "💾 Saving wishlist…":
         "💾 Speichere die Wunschliste…",
     "▴ All playlists folded to tabs — click a tab to open one":
-        "▴ Alle Playlists zu Reitern eingeklappt — klick auf einen Reiter, um eine zu öffnen",
+        "▴ Alle Wiedergabelisten zu Reitern eingeklappt — klick auf einen Reiter, um eine zu öffnen",
     "▾ All playlists unfolded":
-        "▾ Alle Playlists aufgeklappt",
+        "▾ Alle Wiedergabelisten aufgeklappt",
     "Open the library pane back up":
         "Den Bibliotheksbereich wieder öffnen",
     "Collapse the whole pane —\n📚 Library and 🏆 Tournaments together":
@@ -5384,21 +5520,21 @@ CATALOG = {
     "Stopped — nothing was changed.":
         "Gestoppt — nichts wurde geändert.",
     "AI playlist stopped.":
-        "KI-Playlist gestoppt.",
+        "KI-Wiedergabeliste gestoppt.",
     "Why these tracks":
         "Warum diese Titel",
     "📅 Planning tournament day…":
         "📅 Plane den Turniertag…",
     "Playlist not read":
-        "Playlist nicht gelesen",
+        "Wiedergabeliste nicht gelesen",
     "🎵 Checking music…":
         "🎵 Prüfe die Musik…",
     "✅  No tempo / length issues in the current tracks.":
         "✅  Keine Tempo- oder Längenprobleme in den aktuellen Titeln.",
     "No tracks in any open playlist — drag playlists into the 📂 tab to check loose files.":
-        "Keine Titel in einer offenen Playlist — zieh Playlists in den 📂-Reiter, um lose Dateien zu prüfen.",
+        "Keine Titel in einer offenen Wiedergabeliste — zieh Wiedergabelisten in den 📂-Reiter, um lose Dateien zu prüfen.",
     "Method <span style='color:#b00'>(not used in playlist mode)</span>:":
-        "Verfahren <span style='color:#b00'>(im Playlist-Modus nicht verwendet)</span>:",
+        "Verfahren <span style='color:#b00'>(im Wiedergabelisten-Modus nicht verwendet)</span>:",
     "📁 Reading the dropped folder…":
         "📁 Lese den hineingezogenen Ordner…",
     "Drop one or more audio files here, or click to browse":
@@ -5444,7 +5580,7 @@ CATALOG = {
     "… +%d more":
         "… +%d weitere",
     "In %d of your playlists":
-        "In %d deiner Playlists",
+        "In %d deiner Wiedergabelisten",
     "Played in: %s":
         "Gespielt in: %s",
     "▶ This list is playing: this switch decides what follows the title.":
@@ -5519,7 +5655,7 @@ CATALOG = {
     "The event whose earlier editions are its history — the folders\n"
     "of that name in the playlist folder, whatever the year.":
         "Die Veranstaltung, deren frühere Ausgaben ihre Geschichte sind — die Ordner\n"
-        "dieses Namens im Playlist-Ordner, egal aus welchem Jahr.",
+        "dieses Namens im Wiedergabelisten-Ordner, egal aus welchem Jahr.",
     "Year planned:":
         "Geplantes Jahr:",
     "Editions of this year and later are not used as history.":
@@ -5812,7 +5948,8 @@ CATALOG = {
         "📱 Handy-Fernbedienung an — auf dem Handy %s öffnen, PIN %s",
     # 📱 The phone remote's window
     "📱  Phone remote": "📱  Handy-Fernbedienung",
-    "📱  Phone remote…": "📱  Handy-Fernbedienung…",
+    "📱  Phone remote…":
+        "📱  Fernbedienung…",
     "Play, skip, fade and fire pads from a phone's browser on this\n"
     "network — no app to install. Opens the window to start the\n"
     "server, with a QR code that logs the phone in and a log of what\n"
@@ -6029,7 +6166,7 @@ CATALOG = {
     "The next title comes in under the end of the\nlast one — only where the list walks on with\nno pause. Off: one ends, the next starts.":
         "Der nächste Titel setzt unter dem Ende des\nletzten ein — nur wo die Liste ohne Pause\nweiterläuft. Aus: einer endet, der nächste beginnt.",
     "The last seconds of a title and the first of the next play\ntogether: the old one fades out while the new one fades in,\nso the floor never hears a gap. Only where the list walks on\nby itself with no pause — a heat keeps its gap. Not after a\n🏁 round, a 🔁 title or a 🐂 Paso Doble run to its highlight.\n\nOff: one title ends, then the next starts. Every playlist\nkeeps its own answer.":
-        "Die letzten Sekunden eines Titels und die ersten des nächsten\nspielen zusammen: der alte blendet aus, während der neue einblendet,\nso hört die Fläche nie eine Lücke. Nur wo die Liste von selbst\nohne Pause weiterläuft — eine Runde im Turnier behält ihre Lücke.\nNicht nach einer 🏁 Runde, einem 🔁 Titel oder einem 🐂 Paso Doble bis zum Höhepunkt.\n\nAus: ein Titel endet, dann beginnt der nächste. Jede Playlist\nbehält ihre eigene Antwort.",
+        "Die letzten Sekunden eines Titels und die ersten des nächsten\nspielen zusammen: der alte blendet aus, während der neue einblendet,\nso hört die Fläche nie eine Lücke. Nur wo die Liste von selbst\nohne Pause weiterläuft — eine Runde im Turnier behält ihre Lücke.\nNicht nach einer 🏁 Runde, einem 🔁 Titel oder einem 🐂 Paso Doble bis zum Höhepunkt.\n\nAus: ein Titel endet, dann beginnt der nächste. Jede Wiedergabeliste\nbehält ihre eigene Antwort.",
     "How long the two titles play together — half-second steps":
         "Wie lange die beiden Titel zusammen spielen — in halben Sekunden",
     "crossfade curve → %s":
@@ -6236,7 +6373,7 @@ CATALOG = {
     "Each ⭐ wishlist with titles in it gets its own numbered\n"
     "folder in the bundle, beside the playlists.":
         "Jede ⭐ Wunschliste mit Titeln bekommt im Paket ihren eigenen\n"
-        "nummerierten Ordner, neben den Playlists.",
+        "nummerierten Ordner, neben den Wiedergabelisten.",
     "One file with the settings, every deck and wishlist and the\n"
     "cartwall, the music they use if you want: the same as\n"
     "⚙ Settings → 📦 Venue pack → Export venue pack….":
@@ -6250,21 +6387,21 @@ CATALOG = {
     "📚 The library is still loading — this works once it is done.":
         "📚 Die Bibliothek lädt noch — das geht, sobald sie fertig ist.",
     "🎯  Focus playlist 1":
-        "🎯  Playlist 1 fokussieren",
+        "🎯  Wiedergabeliste 1 fokussieren",
     "🎯  Focus playlist 2":
-        "🎯  Playlist 2 fokussieren",
+        "🎯  Wiedergabeliste 2 fokussieren",
     "🎯  Focus playlist 3":
-        "🎯  Playlist 3 fokussieren",
+        "🎯  Wiedergabeliste 3 fokussieren",
     "🎯  Focus playlist 4":
-        "🎯  Playlist 4 fokussieren",
+        "🎯  Wiedergabeliste 4 fokussieren",
     "🎯  Focus playlist 5":
-        "🎯  Playlist 5 fokussieren",
+        "🎯  Wiedergabeliste 5 fokussieren",
     "🎯  Focus playlist 6":
-        "🎯  Playlist 6 fokussieren",
+        "🎯  Wiedergabeliste 6 fokussieren",
     "🎯  Focus playlist 7":
-        "🎯  Playlist 7 fokussieren",
+        "🎯  Wiedergabeliste 7 fokussieren",
     "🎯  Focus playlist 8":
-        "🎯  Playlist 8 fokussieren",
+        "🎯  Wiedergabeliste 8 fokussieren",
     "🎯  Focus wishlist 1":
         "🎯  Wunschliste 1 fokussieren",
     "🎯  Focus wishlist 2":
@@ -6284,11 +6421,11 @@ CATALOG = {
     "▶  Play the selected title":
         "▶  Gewählten Titel abspielen",
     "➕  Selected title to the playlist":
-        "➕  Gewählten Titel in die Playlist",
+        "➕  Gewählten Titel in die Wiedergabeliste",
     "⭐  Selected title to the wishlist":
         "⭐  Gewählten Titel in die Wunschliste",
     "➕  This playlist takes a title only dragged onto a slot.":
-        "➕  Diese Playlist nimmt einen Titel nur auf einen Platz gezogen.",
+        "➕  Diese Wiedergabeliste nimmt einen Titel nur auf einen Platz gezogen.",
     "Warm-up list: swap the two selected titles of one dance":
         "Eintanzen: die zwei gewählten Titel eines Tanzes tauschen",
     "Enter":
@@ -6355,4 +6492,42 @@ CATALOG = {
         "Der Paso-Doble-Wert für %s in ⚙ Einstellungen → 🎛 Spiel-Sets\n(ganz gespielt zählt als 3. Highlight). Eine Änderung hier\ngilt nur für diese Liste.",
     "🐂 Paso Doble → each round's own pick":
         "🐂 Paso Doble → wieder der Wert jeder Runde",
+    "Advanced: duck and fade times":
+        "Erweitert: Absenken und Ausblendzeiten",
+    "How far the duck goes and how fast, and the fade times of every\nkind of fade. The defaults suit most evenings.":
+        "Wie weit und wie schnell abgesenkt wird, und die Zeiten jeder\nArt von Ein- und Ausblenden. Die Vorgaben passen für die meisten Abende.",
+    "\n🔁 Loop is off in the queue: it plays once":
+        "\n🔁 Schleife ist in der Warteschlange aus: Es spielt einmal",
+    "➕  Volume − / + buttons beside the player's and the cartwall's slider":
+        "➕  Lautstärke − / + neben dem Regler von Player und Cartwall",
+    "Step the music or the cartwall volume by 2 % a click; held, they glide.\nDouble-click the % readout to type a level instead.":
+        "Ändert die Lautstärke der Musik oder der Cartwall um 2 % pro Klick; gehalten gleiten sie.\nDoppelklicke auf die %-Anzeige, um einen Wert einzutippen.",
+    "Mute the cartwall, again to bring it back":
+        "Cartwall stummschalten, nochmal klicken holt sie zurück",
+    "🔌 %d titles are no longer on %s: found on %s, they play from there.":
+        "🔌 %d Titel sind nicht mehr auf %s: auf %s gefunden, sie spielen von dort.",
+    "Every text in the app, menus and tables included.\nAbove 115 % the buttons grow with it.\nRead when the app starts, like the theme.":
+        "Alle Texte der App, auch Menüs und Tabellen.\nÜber 115 % wachsen die Tasten mit.\nWird beim Start gelesen, wie das Design.",
+    "< filename >":
+        "< Dateiname >",
+    "How many titles, the one playing now included —\nthe count beside it runs down as they end.":
+        "Wie viele Titel, der laufende mitgezählt —\ndie Zahl daneben zählt mit jedem Ende herunter.",
+    "Titles still to end, the one playing now included.":
+        "Titel, die noch enden, der laufende mitgezählt.",
+    "%d left":
+        "noch %d",
+    "🎚  Start the main player's title while the background is still fading out":
+        "🎚  Hauptplayer-Titel schon starten, während der Hintergrund ausblendet",
+    "%s — its own length, then plays on":
+        "%s — eigene Länge, spielt dann weiter",
+    "Plays on after its length":
+        "Spielt nach der Länge weiter",
+    "Hold:":
+        "Halten:",
+    "How long it stays at its dip before it comes back up.\n0 = it comes up at once.":
+        "Wie lange er auf der Absenkung bleibt, bevor er wieder hochkommt.\n0 = er kommt sofort wieder hoch.",
+    "Dip to:":
+        "Absenken auf:",
+    "How low the play-length fade takes it before it comes\nback up, in % of the music's level. 0 = all the way down.\nAt most the level it comes back at.":
+        "Wie weit die Ausblendung am Ende der Spieldauer ihn absenkt, bevor er\nwieder hochkommt, in % der Musiklautstärke. 0 = ganz herunter.\nHöchstens die Lautstärke, mit der er wiederkommt.",
 }

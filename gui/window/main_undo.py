@@ -7,23 +7,23 @@ two of them differ, is gui.window.session_env's; what is left here is the timeli
 the widgets it tints.
 """
 import logging
-
 from collections import Counter
-from shared.widgets import (
-    _show_toast,
-)
+from typing import TYPE_CHECKING
+
 from gui.table.playlist_table import (  # auto-resolved
     PlaylistTable,
 )
 from gui.window.session_env import (
     ALL_DECK_KEYS,
-    SessionEnv,
     WISH_KEYS,
+    SessionEnv,
     deck_paths,
     deck_slots,
 )
 from planner import i18n
-from typing import TYPE_CHECKING
+from shared.widgets import (
+    show_toast,
+)
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -51,14 +51,14 @@ class UndoMixin(MainWindowHost):
     def _undo(self):
         step = self._undo_timeline.undo()
         if step is None:
-            _show_toast(self, "↶  Nothing to undo")
+            show_toast(self, "↶  Nothing to undo")
             return
         self._show_step(i18n.t("↶  Undo — %s"), *step)
 
     def _redo(self):
         step = self._undo_timeline.redo()
         if step is None:
-            _show_toast(self, "↷  Nothing to redo")
+            show_toast(self, "↷  Nothing to redo")
             return
         self._show_step(i18n.t("↷  Redo — %s"), *step)
 
@@ -69,7 +69,7 @@ class UndoMixin(MainWindowHost):
         self._flash_changed(before, after)
         msg = template % self._describe_env_change(before, after)
         self.statusBar().showMessage(msg)
-        _show_toast(self, msg)
+        show_toast(self, msg)
         self._update_undo_actions()
 
     def _describe_env_change(self, before: dict | None,

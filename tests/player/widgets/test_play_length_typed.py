@@ -17,8 +17,8 @@ from PySide6.QtGui import QFontMetrics
 from PySide6.QtWidgets import QApplication, QToolTip
 
 from player.widgets.play_mode_panel import (
-    _LEN_TYPED_MAX,
-    _LEN_TYPED_MIN,
+    LEN_TYPED_MAX,
+    LEN_TYPED_MIN,
     PlayModePanel,
     parse_play_length,
 )
@@ -51,10 +51,10 @@ class ParsePlayLengthTest(unittest.TestCase):
 
     def test_too_short_is_pulled_up_to_the_floor(self):
         """Below the floor the fade-out would outlast the song."""
-        self.assertEqual(parse_play_length("2"), _LEN_TYPED_MIN)
+        self.assertEqual(parse_play_length("2"), LEN_TYPED_MIN)
 
     def test_too_long_is_pulled_down_to_the_ceiling(self):
-        self.assertEqual(parse_play_length("99:00"), _LEN_TYPED_MAX)
+        self.assertEqual(parse_play_length("99:00"), LEN_TYPED_MAX)
 
     def test_seconds_past_sixty_are_still_seconds(self):
         """'90' is a length, not a malformed 1:30 — both mean the same thing."""

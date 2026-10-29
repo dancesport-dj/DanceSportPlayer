@@ -26,12 +26,12 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import QTimer, QUrl
 
 from planner.playing.play_sets import crossfade_curve, crossfade_secs
-from shared.xfade_view import lead_secs
 from shared.audio.playback import (
     audible_played_secs,
     crossfade_levels,
     prime_disconnect_notify,
 )
+from shared.xfade_view import lead_secs
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -160,7 +160,7 @@ class CrossfadeMixin(MainWindowHost):
         spare = self._spare_deck()
         if nxt is None or spare is None:
             return
-        url = QUrl.fromLocalFile(str(nxt[2]))
+        url = self._source_url(nxt[2])
         if spare.source() != url:
             spare.setSource(url)
 

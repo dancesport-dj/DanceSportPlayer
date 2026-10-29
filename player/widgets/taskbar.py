@@ -7,10 +7,9 @@ Only the thumb toolbar: the icon overlay badge and the progress fill were
 dropped on purpose. They rode the playback tick — a shell round trip every
 100 ms for decoration — and the toolbar is the part that does the work.
 
-The shell talking is all in player.widgets.taskbar_win32; this file owns what the buttons
+The shell talking is all in shared.taskbar_win32; this file owns what the buttons
 ARE and what a click means, and does nothing at all off Windows.
 """
-from __future__ import annotations
 
 import logging
 import sys
@@ -29,7 +28,6 @@ ID_NEXT = 3
 
 _WM_COMMAND = 0x0111
 _THBN_CLICKED = 0x1800
-
 
 def decode_click(msg_id: int, wparam: int) -> int | None:
     """The thumb button behind a native message, or None if it is not one.
@@ -61,7 +59,7 @@ def load_win32():
     if sys.platform != "win32":
         return None
     try:
-        from player.widgets import taskbar_win32
+        from shared import taskbar_win32
     except (ImportError, OSError, AttributeError):   # pragma: no cover
         return None
     return taskbar_win32

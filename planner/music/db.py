@@ -21,9 +21,9 @@ import sqlite3
 import threading
 import time
 from array import array
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING
-from collections.abc import Callable
 
 if TYPE_CHECKING:
     from planner.models import MusicEntry
@@ -35,17 +35,27 @@ except ImportError:
     HAS_NUMPY = False
 
 from planner.config import (
-    CACHE_FILE, audio_db_file,
+    CACHE_FILE,
+    audio_db_file,
 )
+from planner.generate.warmup import others_dance_from_path
+from planner.models import DANCE_NAMES
 from planner.music.analysis import (
-    HAS_LIBROSA, AudioFeatures, PROBE_NO_BACKEND, _AUDIO_FEAT_DIM, _release_free_heap,
-    _tempo_prior, analyze_file, probe_decode_backend,
+    AUDIO_FEAT_DIM,
+    HAS_LIBROSA,
+    PROBE_NO_BACKEND,
+    AudioFeatures,
+    analyze_file,
+    probe_decode_backend,
+    release_free_heap,
+    tempo_prior,
 )
+from planner.music.parsing import detect_dance
 
 log = logging.getLogger("dancesport.db")
 
 # ── Content fingerprint (duplicate detection) ──────────────────────────────────
-_FP_SAMPLE = 256 * 1024   # bytes read from head + tail for the content hash
+FP_SAMPLE = 256 * 1024   # bytes read from head + tail for the content hash
 _AFP_WINDOW = 64 * 1024   # bytes of AUDIO hashed at each end, tag blocks skipped
 _AFP_TAIL_PROBE = 256     # short file: bytes read from the end to spot a trailing tag
 
@@ -55,7 +65,7 @@ def _synchsafe(b: bytes) -> int:
     return (b[0] << 21) | (b[1] << 14) | (b[2] << 7) | b[3]
 
 
-def _tag_offsets(head: bytes, tail: bytes) -> tuple[int, int]:
+def tag_offsets(head: bytes, tail: bytes) -> tuple[int, int]:
     """(tag bytes in front of the audio, tag bytes behind it).
 
     Covers what a tag editor actually writes: an ID3v2 header at the front, an
@@ -98,7 +108,7 @@ def _audio_fingerprint(f, size: int, head: bytes, tail: bytes, tail_off: int) ->
     the caller already has open; it is only read from again when a window falls
     outside the buffers (a cover-art tag bigger than the head sample).
     """
-    front, back = _tag_offsets(head, tail)
+    front, back = tag_offsets(head, tail)
     if front + back >= size:
         # A broken header claiming the whole file: believed, it left no audio
         # and every such file one shared fingerprint. Unrecognised, then.
@@ -112,7 +122,7 @@ def _audio_fingerprint(f, size: int, head: bytes, tail: bytes, tail_off: int) ->
     return f"{audio_len}_{h.hexdigest()[:20]}"
 
 
-def _fingerprints(path: Path) -> tuple[str, str]:
+def fingerprints(path: Path) -> tuple[str, str]:
     """(content fingerprint, audio fingerprint) of a music file, from one read.
 
     The content fingerprint is the cheap byte identity: file size + sha1 of a head
@@ -128,19 +138,23 @@ def _fingerprints(path: Path) -> tuple[str, str]:
     h = hashlib.sha1(usedforsecurity=False)
     h.update(str(size).encode())
     with path.open('rb') as f:
-        head = f.read(_FP_SAMPLE)
+        head = f.read(FP_SAMPLE)
         h.update(head)
-        if size > _FP_SAMPLE * 2:
-            f.seek(-_FP_SAMPLE, os.SEEK_END)
-            tail = f.read(_FP_SAMPLE)
+        if size > FP_SAMPLE * 2:
+            f.seek(-FP_SAMPLE, os.SEEK_END)
+            tail = f.read(FP_SAMPLE)
             tail_off = size - len(tail)
             h.update(tail)
         else:
-            # Not part of the content hash — just enough of the end to see a
-            # trailing ID3v1/APE tag on a short file (a cartwall jingle).
-            tail_off = max(0, size - _AFP_TAIL_PROBE)
-            f.seek(tail_off)
-            tail = f.read(_AFP_TAIL_PROBE)
+            # A short file (a cartwall jingle) is hashed whole: from its head
+            # alone, an in-place ID3v1/APE edit at the end kept the key. A file
+            # within the head sample has no rest, so its key is what it was.
+            rest = f.read()
+            h.update(rest)
+            # Enough of the end to see a trailing ID3v1/APE tag.
+            data = head + rest
+            tail_off = max(0, len(data) - _AFP_TAIL_PROBE)
+            tail = data[tail_off:]
         fp = f"{size}_{h.hexdigest()[:20]}"
         afp = _audio_fingerprint(f, size, head, tail, tail_off)
     return fp, afp
@@ -211,6 +225,8 @@ _SCHEMA_VERSION = 3   # v3: scan_meta re-keyed from file_id → content fingerpr
 #   v8 → a comment leading with the instr word ('Instr AS') is instrumental
 #   v9 → glued class codes ('vocal AS', 'BAS', 'DCB') are classes
 #   v10 → a word ending in 't' before a number ('Hit50', 'Best40') is no takt
+# (A dance or social label read off the folder is no longer cached: that one
+# drops only the rows it can concern, see _drop_path_derived_meta.)
 _DANCE_DETECT_VERSION = 10
 
 # How quiet a stretch has to be before it counts as silence (ffmpeg
@@ -225,7 +241,7 @@ SILENCE_NOISE_DB = -50
 # `duration` (track length, whole seconds) and `tag_album` were appended later —
 # `_migrate_meta_duration` / `_migrate_meta_album` ALTER them onto existing tables, so
 # any newly appended column MUST stay at the end (ALTER always appends).
-_META_COLS = ("title", "dance", "bpm", "year", "other_genre", "classes_ok",
+META_COLS = ("title", "dance", "bpm", "year", "other_genre", "classes_ok",
               "is_instrumental", "is_xmas", "tag_title", "tag_artist", "duration",
               "tag_album", "comment_tags", "rating", "custom", "tag_bpm",
               "tag_comment")
@@ -241,7 +257,7 @@ _META_COLS_SQL = (
 )
 
 
-def _meta_to_row(d: dict) -> tuple:
+def meta_to_row(d: dict) -> tuple:
     """Pack a metadata dict into a column tuple (lists→JSON text, bools→0/1)."""
     classes = d.get('classes_ok')
     markers = d.get('comment_tags')
@@ -262,7 +278,7 @@ def _meta_to_row(d: dict) -> tuple:
     )
 
 
-def _row_to_meta(row) -> dict:
+def row_to_meta(row) -> dict:
     """Unpack a column tuple back into the metadata dict (exact original types)."""
     (title, dance, bpm, year, other_genre, classes_ok,
      is_instr, is_xmas, tag_title, tag_artist, duration, tag_album,
@@ -299,7 +315,7 @@ def _key_mtime(mt: str) -> int:
     return int(mt) if mt.lstrip('-').isdigit() else 0
 
 
-def _file_id(path_str: str, create: bool = True) -> int | None:
+def file_id(path_str: str, create: bool = True) -> int | None:
     """Resolve (or create) the files.id for a path string."""
     conn = _db()
     row = conn.execute("SELECT id FROM files WHERE path = ?", (path_str,)).fetchone()
@@ -518,7 +534,7 @@ def _migrate_custom(conn: sqlite3.Connection) -> None:
             log.info("  ♻️  %s: added custom column", table)
 
 
-def _migrate_meta_tag_bpm(conn: sqlite3.Connection) -> None:
+def migrate_meta_tag_bpm(conn: sqlite3.Connection) -> None:
     """Append the `tag_bpm` column (the ID3 TBPM frame) to pre-existing
     scan_meta / global_meta — after `custom`, so the order matches _META_COLS.
     The v6 detect bump clears both tables, so every row is read anew."""
@@ -553,14 +569,14 @@ def _migrate_scan_meta_v3(conn: sqlite3.Connection) -> None:
     if not cols or 'ckey' in cols or 'file_id' not in cols:
         return   # fresh db (no table / already new schema) or an unexpected shape
 
-    meta = ",".join(_META_COLS)
+    meta = ",".join(META_COLS)
     rows = conn.execute(
         f"SELECT f.path, fp.fp, {meta} FROM scan_meta m "  # nosec B608: constant names
         f"JOIN files f        ON f.id = m.file_id "
         f"JOIN fingerprints fp ON fp.file_id = m.file_id").fetchall()
     conn.execute("DROP TABLE scan_meta")
     conn.execute(f"CREATE TABLE scan_meta (ckey TEXT PRIMARY KEY, {_META_COLS_SQL})")
-    placeholders = ",".join("?" * (1 + len(_META_COLS)))
+    placeholders = ",".join("?" * (1 + len(META_COLS)))
     seen: set = set()
     for row in rows:
         ckey = f"{row[1]}::{Path(row[0]).stem}"
@@ -637,6 +653,37 @@ def _invalidate_stale_metadata(conn: sqlite3.Connection) -> None:
         (current,))
 
 
+def _drop_path_derived_meta(conn: sqlite3.Connection) -> None:
+    """Drop, once, the scan_meta rows that may hold a dance or social label
+    read off the folder.
+
+    Those values are no longer stored (they follow the file's current path,
+    BUG_REVIEW B6.2), but rows written before carry them as if a tag had named
+    them. A row whose file name gives the same value is safe, as is a row with
+    neither value; only the rest are read from their tags again, not the whole
+    library. global_meta is keyed by path, so its rows can't be stale this way.
+    """
+    if conn.execute("SELECT 1 FROM app_meta WHERE key = 'path_meta_dropped'"
+                    ).fetchone():
+        return
+    stale = []
+    for ckey, dance, other in conn.execute(
+            "SELECT ckey, dance, other_genre FROM scan_meta").fetchall():
+        name = Path(ckey.partition("::")[2] + ".mp3")
+        if dance and not detect_dance(name.stem):
+            stale.append((ckey,))
+        elif not dance and other:
+            code = others_dance_from_path(name)
+            if not code or DANCE_NAMES[code] != other:
+                stale.append((ckey,))
+    conn.executemany("DELETE FROM scan_meta WHERE ckey = ?", stale)
+    if stale:
+        log.info("  ♻️  Folder dances: cleared %s cached metadata rows "
+                 "→ will re-read their ID3 tags on next scan", len(stale))
+    conn.execute(
+        "INSERT OR REPLACE INTO app_meta (key, value) VALUES ('path_meta_dropped', '1')")
+
+
 def _read_and_drop_legacy(conn: sqlite3.Connection) -> dict | None:
     """If the DB still has the old (key/JSON) tables, read them out and drop them.
 
@@ -687,7 +734,7 @@ def _insert_legacy(conn: sqlite3.Connection, legacy: dict) -> None:
         conn.execute("INSERT OR REPLACE INTO fingerprints (file_id, mtime, fp) VALUES (?,?,?)",
                      (gid(path), _key_mtime(mt), fp))
         n_fp += 1
-    placeholders = ",".join("?" * (2 + len(_META_COLS)))   # file_id, mtime, + 10 cols
+    placeholders = ",".join("?" * (2 + len(META_COLS)))   # file_id, mtime, + 10 cols
     # NOTE: legacy scan_meta (sm) is intentionally NOT migrated — the new schema is keyed
     # by content fingerprint (unavailable here without re-hashing every file), and the
     # ID3-derived metadata is cheap to rebuild on the next scan. global_meta still imports.
@@ -699,9 +746,9 @@ def _insert_legacy(conn: sqlite3.Connection, legacy: dict) -> None:
                       "file: %s", path, exc_info=True)
             continue
         conn.execute(
-            f"INSERT OR REPLACE INTO global_meta (file_id, mtime, {','.join(_META_COLS)}) "
+            f"INSERT OR REPLACE INTO global_meta (file_id, mtime, {','.join(META_COLS)}) "
             f"VALUES ({placeholders})",
-            (gid(path), mtime or 0, *_meta_to_row(d)))
+            (gid(path), mtime or 0, *meta_to_row(d)))
         n_gm += 1
     log.info("  ♻️  DB normalized to schema v%s: "
              "%s unique paths · %s fingerprints · "
@@ -720,10 +767,10 @@ class _ThreadConnCloser:
         self.conn = conn
 
     def __del__(self):
-        try:
+        # Dropped on another thread (e.g. a swapped _DB_LOCAL): the collector
+        # closes it.
+        with contextlib.suppress(sqlite3.ProgrammingError):
             self.conn.close()
-        except sqlite3.ProgrammingError:
-            pass   # dropped on another thread (e.g. a swapped _DB_LOCAL): the collector closes it
 
 
 def _db() -> sqlite3.Connection:
@@ -770,7 +817,7 @@ _BULK_WRITES_FREE.set()
 
 
 @contextlib.contextmanager
-def bulk_writes_held():
+def bulk_writes_held() -> Iterator[None]:
     """Hold every `ChunkedWrites` loop at its next item while the block runs."""
     _BULK_WRITES_FREE.clear()
     try:
@@ -830,7 +877,7 @@ def _init_db(conn: sqlite3.Connection) -> None:
     # connected before the file was moved must not mark the new one as done.
     path = conn.execute("PRAGMA database_list").fetchone()[2]
     with _DB_INIT_LOCK:
-        if _DB_INITIALIZED != path:
+        if path != _DB_INITIALIZED:
             # One transaction for all of it: the legacy tables are DROPPED before
             # their rows go back in, and scan_meta is dropped before it is re-filled.
             # Committed step by step, a crash in between lost those rows for good.
@@ -846,7 +893,7 @@ def _init_db(conn: sqlite3.Connection) -> None:
                 _migrate_meta_comment_tags(conn)        # add comment_tags col (after tag_album)
                 _migrate_meta_rating(conn)              # add rating col (after comment_tags)
                 _migrate_custom(conn)                   # add custom col (after rating), tag_edits too
-                _migrate_meta_tag_bpm(conn)             # add tag_bpm col (after custom)
+                migrate_meta_tag_bpm(conn)             # add tag_bpm col (after custom)
                 _migrate_meta_tag_comment(conn)         # add tag_comment col (after tag_bpm)
                 _migrate_pd_manual(conn)                # add manual flag to pd_highlights
                 _migrate_loudness_tp(conn)              # add tp col to loudness
@@ -859,6 +906,7 @@ def _init_db(conn: sqlite3.Connection) -> None:
                 _migrate_features_gauss(conn)           # v9: add mfcc_mean/mfcc_cov columns
                 conn.execute(f"PRAGMA user_version = {_SCHEMA_VERSION}")
                 _invalidate_stale_metadata(conn)        # re-detect dance if logic version bumped
+                _drop_path_derived_meta(conn)           # once: rows that may hold a folder dance
                 _invalidate_stale_silences(conn)        # re-probe if the silence threshold moved
             except BaseException:
                 conn.execute("ROLLBACK")
@@ -901,7 +949,7 @@ class AudioCache:
         # (`_features`): the DB holds the whole repository's analysis, and unpacking
         # all of it cost the start a second for titles most sessions never ask for.
         self._feat_fps: set[str] = set()
-        self._fp:   dict[str, str]  = {}   # 'path::mtime' → content fingerprint (hash once)
+        self._fp: dict[str, str] = {}   # 'path::mtime' → content fingerprint (hash once)
         # str(path) → mtime from a folder listing, used by `_key` instead of a stat
         # while a library scan runs (MusicLibrary.scan sets and clears it).
         self.listed_mtimes: dict[str, int] = {}
@@ -953,7 +1001,7 @@ class AudioCache:
             'bpm': bpm, 'centroid': centroid, 'rms': rms,
             'mfcc': self._unpack_mfcc(blob),
             'mfcc_mean': self._unpack_mfcc(mean_blob) if mean_blob else None,
-            'mfcc_cov':  self._unpack_mfcc(cov_blob)  if cov_blob  else None,
+            'mfcc_cov': self._unpack_mfcc(cov_blob) if cov_blob else None,
         }
 
     def _load(self) -> None:
@@ -1007,7 +1055,7 @@ class AudioCache:
         kept = dropped = dups = 0
         if ver == 6:
             self._data = dict(entries)
-            self._fp   = dict(payload.get('fingerprints', {}))
+            self._fp = dict(payload.get('fingerprints', {}))
             kept = len(self._data)
         elif ver == 5:
             # Re-key old path::mtime entries by content fingerprint, collapsing dups.
@@ -1015,7 +1063,7 @@ class AudioCache:
                 path_str = key.rpartition('::')[0] or key
                 p = Path(path_str)
                 try:
-                    fp = _fingerprints(p)[0]
+                    fp = fingerprints(p)[0]
                 except Exception:
                     dropped += 1
                     continue
@@ -1047,12 +1095,10 @@ class AudioCache:
             path, _, mt = key.rpartition('::')
             conn.execute(
                 "INSERT OR REPLACE INTO fingerprints (file_id, mtime, fp) VALUES (?,?,?)",
-                (_file_id(path or key), _key_mtime(mt), fp))
+                (file_id(path or key), _key_mtime(mt), fp))
         conn.commit()
-        try:
+        with contextlib.suppress(OSError):
             CACHE_FILE.rename(CACHE_FILE.with_suffix('.json.bak'))
-        except OSError:
-            pass
         log.info("  ♻️  Audio cache migrated JSON v%s → SQLite v%s: "
                  "%s unique vectors, %s duplicates merged, "
                  "%s missing or damaged entries dropped → %s",
@@ -1082,7 +1128,7 @@ class AudioCache:
             self._path_key[str(path)] = k
             return fp
         try:
-            fp, afp = read or _fingerprints(path)
+            fp, afp = read or fingerprints(path)
         except OSError:
             return None
         self._fp[k] = fp
@@ -1092,7 +1138,7 @@ class AudioCache:
         conn = _db()
         conn.execute(
             "INSERT OR REPLACE INTO fingerprints (file_id, mtime, fp) VALUES (?,?,?)",
-            (_file_id(key_path or k), _key_mtime(mt), fp))
+            (file_id(key_path or k), _key_mtime(mt), fp))
         conn.execute("INSERT OR REPLACE INTO audio_fps (fp, afp) VALUES (?,?)", (fp, afp))
         self._dirty = True
         if fp not in self._feat_fps:
@@ -1187,7 +1233,7 @@ class AudioCache:
         if _db().execute("SELECT 1 FROM audio_fps WHERE fp = ?", (fp,)).fetchone():
             return False
         try:
-            again, afp = _fingerprints(path)
+            again, afp = fingerprints(path)
         except OSError:
             return False
         if again != fp:
@@ -1523,10 +1569,8 @@ class AudioCache:
         stays instant instead of re-hashing 25k files. `mtime`, when the caller
         already has it from a folder listing, saves the stat behind the key.
         """
-        if hash_if_missing:
-            fp = self.fingerprint(path)
-        else:
-            fp = self._fp.get(self._key(path, mtime))
+        fp = (self.fingerprint(path) if hash_if_missing
+              else self._fp.get(self._key(path, mtime)))
         if fp is None:
             return None
         d = self._features(fp)
@@ -1535,7 +1579,7 @@ class AudioCache:
         # Length guard: a shorter vector predates the current feature schema (e.g. the
         # old 60-dim MFCC-only one). Treat it as missing so analyze_missing recomputes
         # the richer 84-dim vector and put() overwrites the stale row in place.
-        if len(d.get('mfcc', ())) != _AUDIO_FEAT_DIM:
+        if len(d.get('mfcc', ())) != AUDIO_FEAT_DIM:
             return None
         # Schema v9: rows lacking the Gaussian model (mfcc_mean/cov) predate the
         # middle-of-track + Mandel-Ellis change → recompute so both methods have data.
@@ -1688,7 +1732,7 @@ class AudioCache:
                 self.save()
                 return i - 1 - errors, errors, True
             try:
-                feat = self._analyze_file(e.path, _tempo_prior(e.dance, e.bpm))
+                feat = self._analyze_file(e.path, tempo_prior(e.dance, e.bpm))
                 self.put(e.path, feat)
                 e.features = feat
             except Exception as exc:
@@ -1723,7 +1767,7 @@ class AudioCache:
         """
         self.save()
         gc.collect()
-        _release_free_heap()
+        release_free_heap()
 
     # The analysis itself is planner.music.analysis; it stays reachable here
     # so callers and test fakes keep overriding one method.

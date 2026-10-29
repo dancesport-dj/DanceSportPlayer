@@ -23,13 +23,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_scroll_"))
 
+from PySide6.QtCore import QAbstractAnimation, QTimer
 from PySide6.QtWidgets import QApplication, QTableWidgetItem
 
-from PySide6.QtCore import QAbstractAnimation, QTimer
-from tests.qt_test_support import reap_widget
-
+from gui.table.playlist_table import SCROLL_MS, PlaylistTable
 from shared.columns import _COL_TITLE
-from gui.table.playlist_table import PlaylistTable, _SCROLL_MS
+from tests.qt_test_support import reap_widget
 
 _ROW_H = 24
 _ROWS = 60
@@ -61,7 +60,7 @@ class PlayScrollTest(unittest.TestCase):
         loaded machine can delay past the timer's slack: so wait for it to have
         stopped too, not only for the time it should take."""
         done = []
-        QTimer.singleShot(int(_SCROLL_MS) + 120, lambda: done.append(True))
+        QTimer.singleShot(int(SCROLL_MS) + 120, lambda: done.append(True))
         deadline = time.monotonic() + 10
         while not done or self._gliding():
             if time.monotonic() > deadline:

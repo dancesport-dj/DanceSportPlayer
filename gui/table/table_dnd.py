@@ -3,13 +3,15 @@
 Mixin of PlaylistTable — extracted 1:1 from gui/table/playlist_table.py in the
 big-module split; behaviour unchanged."""
 import logging
-
 import re
+from pathlib import Path
+from typing import TYPE_CHECKING
+
 from PySide6.QtCore import (
     QMimeData,
+    Qt,
     QTimer,
     QUrl,
-    Qt,
 )
 from PySide6.QtGui import (
     QDrag,
@@ -18,28 +20,27 @@ from PySide6.QtWidgets import (
     QApplication,
     QMessageBox,
 )
-from pathlib import Path
+
+from gui.common import (
+    C_ROW_EVEN,
+    C_ROW_ODD,
+)
 from planner import i18n
 from planner.models import ALLOW_REPEAT, MusicEntry
 from planner.terms import dance_name
-from gui.common import (
-    _C_ROW_EVEN,
-    _C_ROW_ODD,
+from shared.audio.audio_files import (
+    AUDIO_EXTS,
 )
 from shared.columns import (
     _COL_TITLE,
 )
-from shared.audio.audio_files import (
-    _AUDIO_EXTS,
-)
 from shared.widgets import (
-    _show_toast,
+    show_toast,
 )
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from gui.window.hosts import PlaylistTableHost
     from gui.table.playlist_table import PlaylistTable
+    from gui.window.hosts import PlaylistTableHost
 else:
     PlaylistTableHost = object
 
@@ -159,7 +160,7 @@ class TableDragDropMixin(PlaylistTableHost):
 
     # Shared with _open_in_default_player so the drop gate and the open gate can
     # never drift apart.
-    _AUDIO_DROP_EXTS = _AUDIO_EXTS
+    _AUDIO_DROP_EXTS = AUDIO_EXTS
 
     # Windows / UNC / forward-slash path ending in an audio extension. Used to dig a
     # real file path out of opaque drag payloads (e.g. UltraMixer's Java-serialized
@@ -349,11 +350,13 @@ class TableDragDropMixin(PlaylistTableHost):
         return self._flat_mode or self._warmup
 
     def _internal_drag_src(self) -> int | None:
-        """First still-valid song row of an in-flight internal drag, or None."""
+        """First still-valid song row of an in-flight internal drag, or None.
+        A "↳ backup" row is none: it carries its primary's slot, so a swap
+        would write into the primary."""
         for r in self._drag_src_rows:
             if 0 <= r < len(self._row_meta):
                 m = self._row_meta[r]
-                if m and not m.theme and m.entry is not None:
+                if m and not m.theme and not m.backup and m.entry is not None:
                     return r
         return None
 
@@ -438,7 +441,7 @@ class TableDragDropMixin(PlaylistTableHost):
         """Flat (Wishlist) insert position for a drop: the row GAP under the cursor.
         Cursor in a row's upper half → insert before it, lower half → after it;
         below the last row → append. Returns an index in 0..rowCount."""
-        y   = self._drag_y(e)
+        y = self._drag_y(e)
         row = self.rowAt(y)
         if row < 0:
             return self.rowCount()
@@ -509,8 +512,8 @@ class TableDragDropMixin(PlaylistTableHost):
         that are off-screen (e.g. a later round) can be reached. Speed scales with
         how far into the edge margin the cursor is, so it crawls near the boundary
         and only races at the very edge — fine control over where it lands."""
-        y      = self._drag_y(e)
-        h      = self.viewport().height()
+        y = self._drag_y(e)
+        h = self.viewport().height()
         margin = 40
         if y < margin:
             self._autoscroll_dir = -1
@@ -743,8 +746,8 @@ class TableDragDropMixin(PlaylistTableHost):
             e.accept()
             src_rows = list(self._drag_src_rows)   # cleared after drag.exec()
             drop_idx = self._drop_index(e)
-            ctrl     = self._drop_ctrl(e)
-            tgt_row  = row
+            ctrl = self._drop_ctrl(e)
+            tgt_row = row
 
             def _do():
                 self._drag_src_rows = src_rows      # restore for the helpers
@@ -814,26 +817,25 @@ class TableDragDropMixin(PlaylistTableHost):
                                                          select_after=True)
             elif from_deck:
                 moved = src_tbl._clear_slots_at(set(src_tbl._drag_src_rows), select_after=True)
-        # Auto-clean: a wishlist shouldn't hold tracks already in an open playlist, so
-        # re-run the check on every add (user-requested). Skip it for a deck → wishlist
-        # drop — that's a deliberate placement, and running it here would instantly
-        # remove the very track just dragged in (it's, or just was, in that playlist).
-        cleaned = 0
-        if not from_deck:
-            cleaned = self.host.clean_wishlist_against_playlists(announce=False)
-        # Duplicates are auto-filtered by _append_entry, so `added` only counts
-        # genuinely new tracks; tell the user when everything was a dup.
+        # A title an open playlist already plans is still dropped — the operator
+        # put it here on purpose — and only named in the toast. (The drop used to
+        # clean the wishlist against the playlists and took it straight out
+        # again; 🧹 in the menu still does that by hand.) A deck → wishlist drop
+        # is the title leaving that playlist, so it isn't counted.
+        planned = 0
+        if added and not from_deck:
+            planned = self.host.count_in_playlists(self._drop_added)
+        # Duplicates are auto-filtered by _not_yet_held, so `added` only counts
+        # genuinely new tracks; tell the user when everything was a dup. A file
+        # that couldn't be read at all is no dup: its message box said so.
         if added:
             msg = (i18n.t("⭐  Moved %d track(s) to the wishlist") if moved
                    else i18n.t("⭐  Added %d track(s) to the wishlist")) % added
-            if cleaned:
-                msg += i18n.t("  ·  🧹 %d already in a playlist removed") % cleaned
-            _show_toast(self, msg)
-        elif cleaned:
-            _show_toast(self, i18n.t("🧹  Removed %d track(s) already in a playlist")
-                        % cleaned)
-        else:
-            _show_toast(self, "⭐  Already in the wishlist — nothing added")
+            if planned:
+                msg += i18n.t("  ·  ⚠ %d already in a playlist (duplicate)") % planned
+            show_toast(self, msg)
+        elif self._drop_held:
+            show_toast(self, "⭐  Already in the wishlist — nothing added")
 
     def _drop_dynamic(self, e):
         """A dynamic deck (or an empty one going dynamic) builds or extends its grid."""
@@ -871,11 +873,11 @@ class TableDragDropMixin(PlaylistTableHost):
             added = self._insert_warmup_files(paths, self._drop_index(e))
             if added:
                 self._move_from_drag_source(e, pre_planned=pre_planned)
-                _show_toast(self, (i18n.t("➕  Added %d track(s)") if self._player_list
+                show_toast(self, (i18n.t("➕  Added %d track(s)") if self._player_list
                                    else i18n.t("➕  Added %d track(s) — rounds re-cut"))
                             % added)
             else:
-                _show_toast(self, "Already in the list — nothing added")
+                show_toast(self, "Already in the list — nothing added")
             return
         if not paths or not (0 <= row < len(self._row_meta)):
             e.ignore()
@@ -891,7 +893,7 @@ class TableDragDropMixin(PlaylistTableHost):
                 msg = i18n.t("🎯  Placed %d track(s)") % len(placed_rows)
                 if skipped:
                     msg += i18n.t("  (%d skipped — no free slot)") % skipped
-                _show_toast(self, msg)
+                show_toast(self, msg)
         if placed_rows:
             # dragging from another deck / wishlist is a MOVE
             self._move_from_drag_source(e, pre_planned=pre_planned)
@@ -905,7 +907,7 @@ class TableDragDropMixin(PlaylistTableHost):
         the top. Tracks with no free slot are skipped. Returns the filled rows."""
         placed: list[int] = []
         n = len(self._row_meta)
-        order = list(range(max(0, start_row), n)) + list(range(0, max(0, start_row)))
+        order = list(range(max(0, start_row), n)) + list(range(max(0, start_row)))
         # Resolved in one pass so a folder's worth of tracks gets the progress
         # dialog rather than reading tags silently in the placement loop. Not
         # strict: a cancelled resolve comes back short and places what it found.
@@ -936,15 +938,16 @@ class TableDragDropMixin(PlaylistTableHost):
         if len(msgs) > 6:
             msgs = msgs[:6] + [i18n.t("… plus %d more") % (len(msgs) - 6)]
         if msgs:
-            _show_toast(self, "⚠  " + "\n".join(msgs), msec=4200)
+            show_toast(self, "⚠  " + "\n".join(msgs), msec=4200, error=True)
 
     def _entry_for(self, path: Path) -> MusicEntry | None:
         """The entry for a dropped file: the library's own if it knows the path,
         otherwise one built from the file (VLC, Explorer, a foreign .m3u).
-        None when the library isn't ready or the file can't be read as audio."""
+        Before this table has a library — a wishlist while the scan still runs —
+        the window's stand-in builds it. None when the file can't be read."""
         lib = self._suggester.lib if self._suggester else None
         if lib is None:
-            return None
+            return self.host.entry_for(path)
         return lib.entry_for(path, self._cache)
 
     def _replace_row_with_path(self, row: int, path: Path) -> bool:
@@ -1009,7 +1012,7 @@ class TableDragDropMixin(PlaylistTableHost):
             # A playing title keeps playing; the cursor stays on the slot.
             self._store_pick(meta, new_entry)
 
-            bg = _C_ROW_EVEN if meta.h_idx % 2 == 0 else _C_ROW_ODD
+            bg = C_ROW_EVEN if meta.h_idx % 2 == 0 else C_ROW_ODD
             QTimer.singleShot(0, lambda: (self._fill_song_row(row, meta, bg),
                                           self.sync_play_glyph(),
                                           self._notify_changed()))
@@ -1122,8 +1125,8 @@ class TableDragDropMixin(PlaylistTableHost):
                             dst_entry, sm.round_name,
                             anchor=self._effective_anchor(sm.round_name, {src})))
 
-            bg_s = _C_ROW_EVEN if sm.h_idx % 2 == 0 else _C_ROW_ODD
-            bg_d = _C_ROW_EVEN if dm.h_idx % 2 == 0 else _C_ROW_ODD
+            bg_s = C_ROW_EVEN if sm.h_idx % 2 == 0 else C_ROW_ODD
+            bg_d = C_ROW_EVEN if dm.h_idx % 2 == 0 else C_ROW_ODD
 
             def _after():
                 self._fill_song_row(src, sm, bg_s)
@@ -1167,10 +1170,10 @@ class TableDragDropMixin(PlaylistTableHost):
                 # path, which shows the "can only move into the same dance" notice.
                 self._move_or_swap_rows(anchor, dst)
                 return
-            base_h    = am.h_idx
+            base_h = am.h_idx
             dst_round = dm0.round_name
-            dst_h     = dm0.h_idx
-            src_set   = set(srcs)
+            dst_h = dm0.h_idx
+            src_set = set(srcs)
             # Resolve every (src, dst) pair against the CURRENT grid before mutating.
             # Skip targets that are themselves dragged rows or already taken so the
             # whole batch stays a set of disjoint swaps (no track is lost/duplicated).
@@ -1216,7 +1219,7 @@ class TableDragDropMixin(PlaylistTableHost):
             def _after():
                 for r in affected:
                     m = self._row_meta[r]
-                    bg = _C_ROW_EVEN if m.h_idx % 2 == 0 else _C_ROW_ODD
+                    bg = C_ROW_EVEN if m.h_idx % 2 == 0 else C_ROW_ODD
                     self._fill_song_row(r, m, bg)
                 # A fresh fill says ▶: the ■ goes back on the playing song's row.
                 if self._current_play_row in affected:

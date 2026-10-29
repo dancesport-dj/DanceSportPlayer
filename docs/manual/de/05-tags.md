@@ -55,7 +55,8 @@ auf dem Feld der Spalte.
 
 Bei mehreren Titeln steht in einem Feld, in dem sie sich unterscheiden,
 **< beibehalten >**, und es bleibt in jeder Datei, wie es ist, bis du es
-änderst. **< leer >** oder ein geleertes Feld löscht das Feld aus den Dateien.
+änderst. **< leer >** oder ein geleertes Feld löscht das Feld aus den Dateien. Beim Titel gibt **< Dateiname >** jedem
+markierten Titel seinen eigenen Dateinamen ohne Endung.
 
 ### In der App
 

@@ -18,23 +18,23 @@ from pathlib import Path
 from typing import cast
 
 from planner import i18n
-from planner.generate import llm
+from planner.config import playlist_dir
 from planner.event.competition import (
     CompetitionSpec,
-    _is_superseded_playlist,
-    _round_stages_in_name,
     comp_categories,
     competition_matches_file,
     is_side_list,
+    is_superseded_playlist,
+    round_stages_in_name,
 )
-from planner.config import playlist_dir
-from planner.models import ALLOW_REPEAT, DEFAULT_DANCES, MusicEntry, RoundConfig, rounds_from_pattern
-from planner.music.parsing import _song_title_keys, is_version, version_base_keys
-from planner.playlist.playlist_text import playlist_files, read_playlist_text
+from planner.generate import llm
 from planner.generate.scoring import class_popularity, effective_popularity
+from planner.generate.warmup import class_warmup_pool
+from planner.models import ALLOW_REPEAT, DEFAULT_DANCES, MusicEntry, RoundConfig, rounds_from_pattern
+from planner.music.parsing import is_version, song_title_keys, version_base_keys
 from planner.music.similarity import SoundAlike
 from planner.music.sound import sound_codes
-from planner.generate.warmup import class_warmup_pool
+from planner.playlist.playlist_text import playlist_files, read_playlist_text
 
 log = logging.getLogger("dancesport.event")
 
@@ -124,7 +124,7 @@ def edition_lists(spec: CompetitionSpec, edition: Path) -> list[Path]:
     """The lists of one edition that were this competition."""
     out = []
     for m3u in playlist_files(edition):
-        if _is_superseded_playlist(m3u) or is_side_list(m3u.stem):
+        if is_superseded_playlist(m3u) or is_side_list(m3u.stem):
             continue
         if competition_matches_file(spec, m3u):
             out.append(m3u)
@@ -188,7 +188,7 @@ def event_round_history(lib, spec: CompetitionSpec,
         for m3u in edition_lists(spec, edition):
             entries = _read_entries(m3u, resolve)
             source = f"{edition.name} / {m3u.stem}"
-            stages = _round_stages_in_name(m3u.stem)
+            stages = round_stages_in_name(m3u.stem)
             if stages:
                 for st in stages:
                     tagged[st].extend((e, source) for e in entries)
@@ -285,10 +285,10 @@ class Pick:
     tier: str    # one of TIERS, or 'library'
     source: str  # 'Edition / list', the class lists, or what it sounds like
     anchor: MusicEntry | None = None     # a new title: the title it sounds like
-    suggestion: "Pick | None" = None     # a replacement offered, not applied
+    suggestion: Pick | None = None     # a replacement offered, not applied
     why: str = ""                        # the AI's reason, when it chose this
     like_heat: str = ""                  # a later heat: what it sounds like in the first
-    replaces: "Pick | None" = None       # the title of last year it stands in for
+    replaces: Pick | None = None       # the title of last year it stands in for
 
 
 @dataclass
@@ -374,7 +374,7 @@ def _original_index(entries) -> tuple[dict, dict]:
     for e in entries:
         if is_version(e.path.name):
             continue
-        keys = _song_title_keys(e.path.name)
+        keys = song_title_keys(e.path.name)
         if keys:
             full.setdefault(keys[0], []).append(e)
             for k in keys[1:]:
@@ -480,12 +480,12 @@ def gather_candidates(lib, spec: CompetitionSpec, editions: list[Path], *,
                        + [p for rnd in reversed(klass) for p in rnd[d]])
         known_paths = {str(p.entry.path) for p in known}
         # Another copy of a song already played is neither new nor rare.
-        known_songs = {k for p in known for k in _song_title_keys(p.entry.path.name)}
+        known_songs = {k for p in known for k in song_title_keys(p.entry.path.name)}
         tiers: dict[str, set[str]] = {}     # path → {"new", "rare"}
         for e in fits[d]:
             path = str(e.path)
             if (path in own or path in known_paths
-                    or known_songs.intersection(_song_title_keys(e.path.name))):
+                    or known_songs.intersection(song_title_keys(e.path.name))):
                 continue
             plays = class_popularity(e, cls)
             if plays <= RARE_MAX_PLAYS:

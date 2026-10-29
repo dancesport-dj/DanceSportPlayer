@@ -5,18 +5,20 @@ player.widgets.cartwall — QMainWindow comes first in MainWindow's bases, so an
 delivers by virtual dispatch would never reach a mixin method.
 """
 import logging
-import os
+from dataclasses import replace
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDockWidget
 
-from planner.playing import cartwall as pc
 from planner import i18n
+from planner.music.paths import resolve_file
+from planner.playing import cartwall as pc
 from player.audio.cart_voices import CartVoices
 from player.audio.mix import cart_duck_level
 from player.widgets.cartwall import CartwallWidget
+from player.window.main_pause import live_target
 from shared.stores import load_cartwall_file, save_cartwall_file, save_settings
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -31,6 +33,15 @@ except ImportError:
 log = logging.getLogger("dancesport.gui.cartwall")
 
 CART_DOCK = "cartwall_dock"     # objectName — QMainWindow.restoreState needs one
+
+
+def paso_comes_next(between) -> bool:
+    """The armed auto-advance (`between.pending`) starts a Paso Doble."""
+    nxt = live_target(between.pending) if between is not None else None
+    if nxt is None:
+        return False
+    meta = nxt[0]._row_meta.at(nxt[1])
+    return meta is not None and meta.dance == "PD"
 
 
 class CartwallMixin(MainWindowHost):
@@ -52,6 +63,9 @@ class CartwallMixin(MainWindowHost):
         self._cartwall.fadeChanged.connect(self._on_cart_wall_fade)
         self._cartwall.set_level(self._mix.cart)
         self._cartwall.levelChanged.connect(self._set_cart_volume)
+        self._cartwall.muteChanged.connect(self._set_cart_muted)
+        self._cartwall.set_vol_buttons_shown(
+            self._settings.get("vol_buttons", True) is not False)
 
         # A dock rather than a tab: the wall has to sit BESIDE the playlists —
         # you fire a Tusch while looking at the running heat, not instead of it.
@@ -68,13 +82,17 @@ class CartwallMixin(MainWindowHost):
         if self._player is not None:
             self._cart_voices = CartVoices(self)
             self._cart_voices.padStopped.connect(self._on_cart_pad_stopped)
+            self._cart_voices.padEnded.connect(self._on_cart_pad_ended)
             self._cart_voices.padFading.connect(self._cartwall.set_fading)
+            self._cart_voices.padHeld.connect(self._cartwall.set_held)
             self._cart_voices.padTick.connect(self._on_cart_tick)
             self._cart_voices.activeChanged.connect(self._on_cart_active)
+            self._cart_voices.activeChanged.connect(self._audio_device.on_activity)
             self._cart_voices.duckChanged.connect(self._on_cart_duck_changed)
             self._cart_voices.wantsDevice.connect(self._audio_device.ensure)
             self._audio_device.sync()   # 🔊 the wall's own output, if one is chosen
             self._cartwall.padsMoved.connect(self._cart_voices.rekey)
+            self._cartwall.padSeekRequested.connect(self._cart_voices.seek)
             self._apply_volume()      # push the desk level into the fresh pool
             self.apply_cart_settings()
         self._load_cartwall()
@@ -150,28 +168,99 @@ class CartwallMixin(MainWindowHost):
             self.statusBar().showMessage(
                 "🔇 No audio backend — the cartwall cannot play here.")
             return
+        run = self._cartwall.queue_run()
         if self._cart_voices.is_playing(key):
+            if run is not None and run[0] == key:
+                self._cartwall.end_queue_run()   # stopping the run's pad stops the run
             self._cart_voices.stop(key)
             return
+        if pad.queue:
+            # ▶ A queued pad starts the queue from itself; a run already going
+            # is replaced, so the pad it was playing ends without handing on.
+            self._cart_run_from(key, pad)
+            return
+        if pad.stops_others:
+            self._cartwall.end_queue_run()       # it takes the floor from the run too
         # Checked on the tap, not on a timer: a stick that came up as a different
         # drive letter must say so instead of firing silence.
-        if not os.path.isfile(pad.path):
+        found = resolve_file(pad.path, self._settings)
+        if found is None:
             self._cartwall.refresh_missing()
             self.statusBar().showMessage(i18n.t("⚠️ Sample not found: %s") % pad.path)
             log.warning("🎛 Pad file is gone\n"
                         "path: %s", pad.path)
             return
-        fired = self._cart_voices.fire(key, pad)
+        # The copy found fires; the pad keeps its own path for when the stick
+        # comes back under its old letter.
+        fired = self._cart_voices.fire(key, replace(pad, path=str(found)))
         if fired:
             self._cartwall.set_playing(key, True)
         elif fired is False:   # None: a double-click's second half
             self.statusBar().showMessage(
                 "🎛 No free pad voice — every voice holds a looping pad.")
 
+    def _cart_run_from(self, key, pad, *, tapped=True):
+        """▶ Play the queue on from this pad: the first one, counting from it,
+        whose file is there. Its own 🔁 is not heard — a looping pad would
+        hold the queue up for good — and every other flag is."""
+        voices = self._cart_voices
+        if voices is None:
+            return
+        for _ in range(len(pc.queued(self._cartwall.pages()))):
+            found = resolve_file(pad.path, self._settings)
+            if found is not None:
+                fired = voices.fire(
+                    key, replace(pad, path=str(found), loop=False), tapped=tapped)
+                if fired:
+                    self._cartwall.set_playing(key, True)
+                    self._cartwall.set_queue_run(key, pad.queue)
+                elif fired is False:
+                    self._cartwall.end_queue_run()
+                    self.statusBar().showMessage(
+                        "🎛 No free pad voice — every voice holds a looping pad.")
+                return
+            self.statusBar().showMessage(
+                i18n.t("⚠️ Sample not found, skipped: %s") % pad.path)
+            log.warning("🎛 Queued pad file is gone\n"
+                        "path: %s", pad.path)
+            hit = pc.queue_next(self._cartwall.pages(), pad.queue)
+            if hit is None:
+                break
+            page, (row, col), pad = hit
+            key = (page, row, col)
+        self._cartwall.end_queue_run()
+        self._cartwall.refresh_missing()
+        self.statusBar().showMessage(
+            i18n.t("⚠️ Queue stopped: none of its samples were found"))
+
+    def _start_pause_pads(self):
+        """⏸ A pause between two titles: the ▶ queue plays from its first 🎶
+        background pad, unless a run is going already. Only a background pad
+        steps back by itself when the next title starts."""
+        if self._cart_voices is None or self._cartwall.queue_run() is not None:
+            return
+        for page, (row, col), pad in pc.queued(self._cartwall.pages()):
+            if pad.background:
+                self._cart_run_from((page, row, col), pad, tapped=False)
+                return
+
+    def _on_cart_pad_ended(self, key):
+        """A pad ran out on its own. If it was the run's, the next one plays."""
+        run = self._cartwall.queue_run()
+        if run is None or run[0] != key:
+            return
+        hit = pc.queue_next(self._cartwall.pages(), run[1])
+        if hit is None:
+            self._cartwall.end_queue_run()
+            return
+        page, (row, col), pad = hit
+        self._cart_run_from((page, row, col), pad, tapped=False)
+
     def _on_cart_pad_stopped(self, key):
         self._cartwall.set_playing(key, False)
 
     def _on_cart_stop_all(self):
+        self._cartwall.end_queue_run()
         if self._cart_voices is not None:
             self._cart_voices.stop_all()
 
@@ -197,9 +286,10 @@ class CartwallMixin(MainWindowHost):
             return
         if on:
             pad = self._cartwall.pad_at(key)
-            if pad is not None and os.path.isfile(pad.path):
-                if self._cart_voices.fire(key, pad):
-                    self._cartwall.set_playing(key, True)
+            found = resolve_file(pad.path, self._settings) if pad is not None else None
+            if (pad is not None and found is not None
+                    and self._cart_voices.fire(key, replace(pad, path=str(found)))):
+                self._cartwall.set_playing(key, True)
         elif self._cart_voices.is_playing(key):
             self._cart_voices.stop(key)
 
@@ -225,6 +315,15 @@ class CartwallMixin(MainWindowHost):
         wall = getattr(self, "_cartwall", None)
         if wall is not None:
             wall.set_background_pauses(pauses)   # the pad dialog's 🎶 wording
+            wall.set_background_volume(pc.background_volume(self._settings))
+            wall.refresh_missing()   # the search folders may have changed
+
+    def _file_check_for_wall(self):
+        """A pad is red only when 🧭's search finds its file nowhere either.
+        The settings are read on every check, so a changed search folder
+        counts from the next refresh on."""
+        self._cartwall.set_file_check(
+            lambda p: resolve_file(p, self._settings) is not None)
 
     def cart_wall_settings(self) -> dict:
         """The wall's fade-out and colour, for ⚙ Settings ▸ 🎛 Cartwall:
@@ -255,15 +354,34 @@ class CartwallMixin(MainWindowHost):
         """🎶 Hung on the deck's playbackStateChanged (see _deck_slots), so it
         moves to the other player when a crossfade swaps them — and on the
         pause music's: that is music too, and a background pad gives way to
-        it the same way. Whichever of the two changed, both are asked."""
+        it the same way. Whichever of the two changed, both are asked.
+
+        🐂 Also called when a Paso Doble's wait starts and ends: the deck is
+        stopped through it, but the couples are walking on to the call, so
+        the bed stays down unless ⚙ Settings ▸ 🎛 Cartwall lets it back.
+        So does a title waiting for the bed to fade out (bed_wait): it is
+        on its way down for that title."""
         voices = getattr(self, "_cart_voices", None)
         if voices is None:
             return
+        # 🐂 …and so is the auto-advance pause running into a Paso Doble with
+        # no 'Start after': the bed rose in it and the PD started over it.
+        # Likewise a Paso Doble cued for ⏯ with ⏭ Auto off. With a wait the
+        # bed may come up in between — the wait dips it out again.
+        playback = getattr(self, "_playback", None)
+        settings = getattr(self, "_settings", {})
+        before_pd = (paso_comes_next(getattr(self, "_between", None))
+                     or (getattr(self, "_cued", False) and playback is not None
+                         and playback.dance == "PD"))
+        pd_wait = ((getattr(self, "_pd_hold", None) is not None
+                    and pc.background_quiet_in_pd_wait(settings))
+                   or (before_pd and pc.background_quiet_before_pd(settings)))
+        bed_wait = playback is not None and playback.bed_wait is not None
         playing = QMediaPlayer.PlaybackState.PlayingState
-        voices.set_music_playing(state == playing or any(
-            p is not None and p.playbackState() == playing
-            for p in (getattr(self, "_player", None),
-                      getattr(self, "_pause_player", None))))
+        player = getattr(self, "_player", None)
+        voices.set_music_playing(
+            pd_wait or bed_wait or state == playing
+            or (player is not None and player.playbackState() == playing))
 
     def _on_cart_tick(self, rows):
         for key, ms_left, frac in rows:
@@ -283,6 +401,7 @@ class CartwallMixin(MainWindowHost):
         if not doc.ok:
             log.warning("🎛 cartwall.json is not a wall this build understands\n"
                         "action: starting empty, and NOT overwriting the file")
+        self._file_check_for_wall()
         self._cartwall.set_wall(doc.grid, doc.pages, doc.page, doc.colour,
                                 doc.fade_ms, doc.slot_keys)
         log.info("🎛 Cartwall loaded\n"

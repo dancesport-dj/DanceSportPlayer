@@ -19,14 +19,14 @@ import random
 import unittest
 from pathlib import Path
 
-from planner.playlist import party_check as pc
-from planner.models import MusicEntry
 from planner.generate.warmup import (
-    _WARMUP_BALLROOM,
-    _WARMUP_LATIN,
-    _WARMUP_MODE,
+    WARMUP_BALLROOM,
+    WARMUP_LATIN,
+    WARMUP_MODE,
     build_warmup_playlist,
 )
+from planner.models import MusicEntry
+from planner.playlist import party_check as pc
 
 # One in-band takt per dance, so the takt rule stays quiet unless a test asks
 # for it. Mid-band on purpose: T29 is the middle of 28–30.
@@ -423,7 +423,7 @@ class GeneratedListTest(unittest.TestCase):
     the one input that must come back empty."""
 
     def pool(self):
-        return [song(d) for d in _WARMUP_BALLROOM + _WARMUP_LATIN
+        return [song(d) for d in WARMUP_BALLROOM + WARMUP_LATIN
                 for _ in range(40)]
 
     def test_twelve_generated_lists_break_no_rule(self):
@@ -444,7 +444,7 @@ class GeneratedListTest(unittest.TestCase):
         # is shallow and drawn from often, so numbered titles one digit apart
         # trip the near-duplicate rule, which is right to say so.
         pool = self.pool() + [song(c, title=w, bpm=30)
-                              for c in _WARMUP_MODE for w in _SOCIAL_TITLES]
+                              for c in WARMUP_MODE for w in _SOCIAL_TITLES]
         for seed in range(12):
             with self.subTest(seed=seed):
                 random.seed(seed)

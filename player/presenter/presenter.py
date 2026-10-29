@@ -42,9 +42,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from shared.appearance.icons import pixmap as icon_pixmap
 from planner import i18n, terms
-from shared.appearance.presenter_theme import DEFAULT_KEY, logo_paths, theme_for
 from player.widgets.sf_icons import (
     backward,
     forward,
@@ -54,8 +52,11 @@ from player.widgets.sf_icons import (
     sliders,
     speaker,
     speaker_low,
+    speaker_mute,
     xmark_circle,
 )
+from shared.appearance.icons import pixmap as icon_pixmap
+from shared.appearance.presenter_theme import DEFAULT_KEY, logo_paths, theme_for
 
 log = logging.getLogger("dancesport.gui.presenter")
 
@@ -64,7 +65,7 @@ log = logging.getLogger("dancesport.gui.presenter")
 # the next, which reads as a stopwatch running unevenly next to the player's
 # own. 100 ms keeps the step within a tenth. The tick itself stays cheap —
 # a refresh that changes nothing but the time skips the fitting pass.
-_REFRESH_MS = 100
+REFRESH_MS = 100
 _NEXT_COUNT = 3
 # How much of the running order stands on the screen at once: the line the
 # evening is on, the one behind it and the next two. A programme on a wall is
@@ -115,7 +116,7 @@ def _hall(text: str) -> str:
     return i18n.translate(text, terms.hall_language())
 
 
-def _baseline_pads(mono, text) -> tuple:
+def baseline_pads(mono, text) -> tuple:
     """Top padding for two fonts so their first lines sit on one baseline.
 
     A label aligned to the top of its box draws its first line one ascent down,
@@ -139,7 +140,7 @@ def _qcolor(spec: str) -> QColor:
     return QColor(s)
 
 
-class _ScrollLabel(QLabel):
+class ScrollLabel(QLabel):
     """A line that scrolls sideways when it is too long for the screen.
 
     Nothing is cut off and nothing shrinks: the whole title reaches the floor,
@@ -576,7 +577,7 @@ class _TimetableView(QWidget):
                 lbl.setFont(lf)
             # …and the two of them on one line, which the mono face otherwise
             # breaks by rising less far than the one beside it.
-            t_pad, w_pad = _baseline_pads(time_lbl.font(), what_lbl.font())
+            t_pad, w_pad = baseline_pads(time_lbl.font(), what_lbl.font())
             time_lbl.setContentsMargins(0, t_pad, 0, 0)
             what_lbl.setContentsMargins(0, w_pad, 0, 0)
         # One width for every time, so the column is a column — but taken from
@@ -655,7 +656,7 @@ class PresenterWindow(QWidget):
     playPauseRequested = Signal()    # ⏯ play / pause
     nextRequested = Signal()         # ⏭ next title
     breakRequested = Signal()        # ☕ over to the break music
-    duckToggled = Signal(bool)       # 🔉 pull everything down to _DESK_DUCK
+    duckPressed = Signal()           # 🔉 full → duck → mute → full
 
     def __init__(self, state_cb, parent=None):
         # An own top-level window, but owned by the main window: it then closes
@@ -675,6 +676,7 @@ class PresenterWindow(QWidget):
         self._upcoming = []        # the queue as last handed over
         self._play_shown = None   # the state the ⏯ icon currently shows
         self._ducked = False
+        self._muted = False   # 🔇 the duck button's third state
         self._btn_px = 24
         self._pause_mark = None   # the ⏸ of the break, at the current size
         self._timetable = None    # 🕒 the evening's running order, once handed over
@@ -958,13 +960,13 @@ class PresenterWindow(QWidget):
         self._rotate.timeout.connect(self._rotate_view)
 
         self._timer = QTimer(self)
-        self._timer.setInterval(_REFRESH_MS)
+        self._timer.setInterval(REFRESH_MS)
         self._timer.timeout.connect(self._refresh)
 
-    def _line(self, field: str, css: str = "") -> _ScrollLabel:
+    def _line(self, field: str, css: str = "") -> ScrollLabel:
         """A scrolling line wearing the theme colour `field`, registered so a
         theme change finds it again."""
-        lbl = _ScrollLabel(getattr(self._theme, field), css)
+        lbl = ScrollLabel(getattr(self._theme, field), css)
         self._styled.append((lbl, field, css))
         return lbl
 
@@ -991,7 +993,7 @@ class PresenterWindow(QWidget):
         row.setContentsMargins(0, 0, 0, 0)
         # The duck sits left of the transport: the one control needed WHILE a
         # title runs (someone has to be heard over the music).
-        self.duck_btn = self._foot_btn("Duck to 20 % / back to full")
+        self.duck_btn = self._foot_btn("")   # named by set_duck_level
         self.duck_btn.setCheckable(True)   # stays pressed while ducked
         self.duck_btn.clicked.connect(self._toggle_duck)
         self.prev_btn = self._foot_btn("Previous title")
@@ -1230,21 +1232,22 @@ class PresenterWindow(QWidget):
         """Ask for the duck; the answer comes back through `set_ducked`, so the
         button follows the desk even when it was ducked from the player card."""
         self.duck_btn.setChecked(self._ducked)
-        self.duckToggled.emit(not self._ducked)
+        self.duckPressed.emit()
 
     def set_duck_level(self, pct: int):
         """🔉 The level from ⚙ Settings, named on the button."""
-        self.duck_btn.setToolTip(i18n.t("Duck to %d %% / back to full") % pct)
+        self.duck_btn.setToolTip(i18n.t("Duck to %d %%, again to mute, again back to full") % pct)
 
-    def set_ducked(self, on: bool):
+    def set_ducked(self, on: bool, muted: bool = False):
         """The desk's duck state, mirrored onto this screen's button."""
         self._ducked = bool(on)
+        self._muted = bool(muted)
         self.duck_btn.setChecked(self._ducked)
         px = self._btn_px
         t = self._theme
-        self.duck_btn.setIcon(QIcon(
-            (speaker_low if self._ducked else speaker)(
-                px, t.up if self._ducked else t.hero)))
+        paint = (speaker_mute if self._muted else speaker_low if self._ducked
+                 else speaker)
+        self.duck_btn.setIcon(QIcon(paint(px, t.up if self._ducked else t.hero)))
         self.duck_btn.setIconSize(QSize(px, px))
 
     def _playing(self) -> bool:
@@ -1270,7 +1273,7 @@ class PresenterWindow(QWidget):
                         (self.break_btn, icon_pixmap("break_music", px, t.hero))):
             btn.setIcon(QIcon(pm))
             btn.setIconSize(QSize(px, px))
-        self.set_ducked(self._ducked)
+        self.set_ducked(self._ducked, self._muted)
         self._play_shown = None   # force the ⏯ glyph to be painted too
         self._sync_transport()
 

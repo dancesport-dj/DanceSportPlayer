@@ -21,11 +21,11 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_sort_"))
 
 from PySide6.QtWidgets import QApplication, QWidget
-from tests.qt_test_support import reap_widget
 
-from shared.columns import _COL_ARTIST, _COL_DANCE, _COL_HEAT, _COL_TITLE
 from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry, RoundConfig
+from shared.columns import _COL_ARTIST, _COL_DANCE, _COL_TITLE, COL_HEAT
+from tests.qt_test_support import reap_widget
 
 
 def _e(dance, title, artist=None):
@@ -119,7 +119,7 @@ class FreeOrderTest(_SortTest):
     def test_a_column_with_nothing_to_order_by_is_ignored(self):
         t = self.deck()
         before = self.titles(t)
-        self.assertEqual(self.sort_by(t, _COL_HEAT), before)
+        self.assertEqual(self.sort_by(t, COL_HEAT), before)
 
     def test_the_list_stays_a_running_order(self):
         t = self.deck()

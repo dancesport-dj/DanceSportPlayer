@@ -20,7 +20,10 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QApplication, QSplitter, QTabWidget, QWidget,
+    QApplication,
+    QSplitter,
+    QTabWidget,
+    QWidget,
 )
 
 from gui.decks.deck_grid import DeckGrid

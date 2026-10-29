@@ -21,9 +21,9 @@ from mutagen.id3 import COMM, ID3, TIT1, TIT2, TXXX
 
 import planner.music.db as pdb
 import planner.music.scan_caches as scan_caches
+from planner.models import MusicEntry
 from planner.music import custom_field, id3_frames, tag_edits
 from planner.music.library import MusicLibrary
-from planner.models import MusicEntry
 from tests.db_support import use_scratch_db
 
 _AUDIO = b"\xff\xfb\x90\x00" + b"\x00" * 4000
@@ -88,14 +88,14 @@ class SourceTest(_ScratchDb):
         mapping it is NULL again, which the next scan reads afresh."""
         custom_field.set_source("TXXX", "a")
         conn = pdb._db()
-        cols = ",".join(pdb._META_COLS)
+        cols = ",".join(pdb.META_COLS)
         meta = {"title": "x", "custom": "old"}
         conn.execute(f"INSERT INTO scan_meta (ckey, {cols}) VALUES "
-                     f"(?, {','.join('?' * len(pdb._META_COLS))})",
-                     ("fp::x", *pdb._meta_to_row(meta)))
+                     f"(?, {','.join('?' * len(pdb.META_COLS))})",
+                     ("fp::x", *pdb.meta_to_row(meta)))
         custom_field.set_source("TXXX", "b")
         row = conn.execute(f"SELECT {cols} FROM scan_meta").fetchone()
-        self.assertIsNone(pdb._row_to_meta(row)["custom"])
+        self.assertIsNone(pdb.row_to_meta(row)["custom"])
 
     def test_the_frames_a_mapping_can_name(self):
         """The custom ones, then standard text frames the form doesn't own —
@@ -245,8 +245,8 @@ class ScanTest(_ScratchDb):
         self.assertEqual([d["custom"] for d in puts if "custom" in d and d["custom"] is not None], [])
 
     def test_the_column_is_in_the_scan_cache(self):
-        self.assertIn("custom", pdb._META_COLS)
-        self.assertEqual(pdb._row_to_meta(pdb._meta_to_row({"custom": "x"}))["custom"], "x")
+        self.assertIn("custom", pdb.META_COLS)
+        self.assertEqual(pdb.row_to_meta(pdb.meta_to_row({"custom": "x"}))["custom"], "x")
 
 
 class _Cache:

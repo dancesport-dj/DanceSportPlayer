@@ -19,8 +19,8 @@ from unittest import mock
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_claude_sandbox_"))
 
-from planner.generate import llm
 from planner.config import INSTALL_DIR
+from planner.generate import llm
 
 
 class ClaudeCliSandboxTest(unittest.TestCase):

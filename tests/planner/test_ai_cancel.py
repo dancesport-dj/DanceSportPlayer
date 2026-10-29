@@ -112,9 +112,8 @@ class AskCancelTest(unittest.TestCase):
     def test_a_stopped_search_round_is_not_swept_over(self):
         cancel = threading.Event()
         cancel.set()
-        with mock.patch.object(llm, "_ask", side_effect=llm.Cancelled()):
-            with self.assertRaises(llm.Cancelled):
-                llm.search_rows("rules", "task", [], cancel=cancel)
+        with mock.patch.object(llm, "_ask", side_effect=llm.Cancelled()), self.assertRaises(llm.Cancelled):
+            llm.search_rows("rules", "task", [], cancel=cancel)
 
 
 class HttpsTrustTest(unittest.TestCase):

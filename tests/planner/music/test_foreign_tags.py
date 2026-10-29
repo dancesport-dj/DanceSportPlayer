@@ -15,10 +15,10 @@ from unittest import mock
 
 from mutagen.id3 import COMM, ID3, POPM
 
-from planner.music.db import _meta_to_row, _row_to_meta
+from planner.music.db import meta_to_row, row_to_meta
 from planner.music.library import MusicLibrary
 from planner.music.parsing import (
-    _parse_class_tag,
+    parse_class_tag,
     parse_comment_markers,
     popm_stars,
     stars_popm,
@@ -28,7 +28,7 @@ from planner.music.parsing import (
 class AbClassTest(unittest.TestCase):
 
     def test_ab_c_means_c_and_up(self):
-        self.assertEqual(_parse_class_tag("ab C"), (["C", "B", "A", "S"], False))
+        self.assertEqual(parse_class_tag("ab C"), (["C", "B", "A", "S"], False))
 
     def test_every_class_floor_is_read(self):
         """Marcel: make sure 'ab B', 'ab D' and 'ab A' are recognised too."""
@@ -37,10 +37,10 @@ class AbClassTest(unittest.TestCase):
                            ("ab A", ["A", "S"]),
                            ("ab S", ["S"]),
                            ("Ab  d", ["D", "C", "B", "A", "S"])):
-            self.assertEqual(_parse_class_tag(text), (want, False), text)
+            self.assertEqual(parse_class_tag(text), (want, False), text)
 
     def test_ab_mixes_with_other_parts(self):
-        self.assertEqual(_parse_class_tag("AB b;instr"), (["B", "A", "S"], True))
+        self.assertEqual(parse_class_tag("AB b;instr"), (["B", "A", "S"], True))
 
     def test_ab_c_is_no_free_marker(self):
         self.assertEqual(parse_comment_markers("ab C;classic"), ["classic"])
@@ -85,8 +85,8 @@ class RatingCachedTest(unittest.TestCase):
 
     def test_the_scan_cache_row_keeps_the_rating(self):
         meta = {"title": "t", "rating": 4}
-        self.assertEqual(_row_to_meta(_meta_to_row(meta))["rating"], 4)
-        self.assertIsNone(_row_to_meta(_meta_to_row({"title": "t"}))["rating"])
+        self.assertEqual(row_to_meta(meta_to_row(meta))["rating"], 4)
+        self.assertIsNone(row_to_meta(meta_to_row({"title": "t"}))["rating"])
 
 
 class _NoCache:
@@ -108,7 +108,7 @@ class EntryFromFileTest(unittest.TestCase):
         tags.add(COMM(encoding=0, lang="XXX", desc="Songs-DB_Custom1", text=["ab C"]))
         tags.save(path)
         self.addCleanup(os.remove, path)
-        with mock.patch("planner.music.library._read_tags_once",
+        with mock.patch("planner.music.library.read_tags_once",
                         return_value=(ID3(path), 180)):
             e = MusicLibrary()._make_entry(path, _NoCache())
         self.assertEqual(e.rating, 5)

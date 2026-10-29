@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
 from planner import i18n
 from planner.playing import play_log
 from planner.terms import dance_name
-from shared.widgets import _app_icon
+from shared.widgets import app_icon
 
 log = logging.getLogger("dancesport.gui.play_log")
 
@@ -36,7 +36,7 @@ class PlayLogDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("📜 Played titles")
-        self.setWindowIcon(_app_icon())
+        self.setWindowIcon(app_icon())
         self.resize(900, 520)
 
         lay = QVBoxLayout(self)

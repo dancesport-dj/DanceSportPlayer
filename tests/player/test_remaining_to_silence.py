@@ -18,9 +18,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_remain_"))
 
+from gui.decks.deck_set import DeckSet
 from planner.playlist.checks import trailing_silence_secs
 from player.audio.playback_state import PlaybackState
-from gui.decks.deck_set import DeckSet
 
 
 class TrailingSilenceTest(unittest.TestCase):
@@ -105,6 +105,7 @@ class BigPlayerLimitTest(unittest.TestCase):
         w._deckset.all_tables = ()    # no list: the panel's values are the ones
         w._playback.offset_ms = 0
         w._player = None
+        w._settings = {}
         return w
 
     def test_the_countdown_ends_at_the_last_note(self):

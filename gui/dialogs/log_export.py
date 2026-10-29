@@ -13,7 +13,7 @@ from pathlib import Path
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 
 import planner.config
-from gui.dialogs import _user_docs_dir
+from gui.dialogs import user_docs_dir
 from planner import i18n
 
 LOG_FILES = ("session.log", "session.prev.log", "crash.log")
@@ -36,7 +36,7 @@ def export_logs(source: Path, target: Path, stamp: str) -> list[Path]:
 def export_log(parent):
     """Ask for a folder, copy the logs there and say what was written."""
     folder = QFileDialog.getExistingDirectory(
-        parent, i18n.t("Export log — pick a folder"), str(_user_docs_dir()))
+        parent, i18n.t("Export log — pick a folder"), str(user_docs_dir()))
     if not folder:
         return
     try:

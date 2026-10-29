@@ -6,15 +6,17 @@ location the planner, the DB layer and the GUI share, including the
 env-var / planner_config.json override mechanism.
 """
 
+import contextlib
 import json
 import logging
 import os
 import sys
 import tempfile
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 
 log = logging.getLogger("dancesport.config")
 
@@ -232,7 +234,7 @@ def _configured_dir(env_key: str, cfg_key: str, default: Path) -> Path:
     return Path(val).expanduser() if val else default
 
 
-def _default_music_dir() -> Path:
+def default_music_dir() -> Path:
     """The library when nothing is configured — per OS, because a drive letter
     is not portable.
 
@@ -245,7 +247,7 @@ def _default_music_dir() -> Path:
     return Path.home() / "Music" / "my music" / "tanzcds"
 
 
-def _default_playlist_dir() -> Path:
+def default_playlist_dir() -> Path:
     """The learned-playlists folder when nothing is configured (see
     `_default_music_dir`): Documents/Playlists under the home folder, on
     every OS. Where the playlists really live is set in the settings."""
@@ -253,9 +255,9 @@ def _default_playlist_dir() -> Path:
 
 
 MUSIC_DIR = _configured_dir("DANCEPLAYLIST_MUSIC_DIR", "music_dir",
-                            _default_music_dir())
+                            default_music_dir())
 PLAYLIST_DIR = _configured_dir("DANCEPLAYLIST_PLAYLIST_DIR", "playlist_dir",
-                               _default_playlist_dir())
+                               default_playlist_dir())
 OUTPUT_DIR = _configured_dir("DANCEPLAYLIST_OUTPUT_DIR", "output_dir",
                              _BASE_DIR / "playlists")
 
@@ -336,14 +338,12 @@ def write_json_atomic(path: Path, obj: Any) -> None:
             os.fsync(f.fileno())
         _replace(tmp, path)
     except BaseException:
-        try:
+        with contextlib.suppress(OSError):
             os.unlink(tmp)
-        except OSError:
-            pass
         raise
 
 @contextmanager
-def replacing_text(path: Path, encoding: str = "utf-8"):
+def replacing_text(path: Path, encoding: str = "utf-8") -> Iterator[TextIO]:
     """A text file handle whose content replaces `path` only once it is whole.
 
     For the writers that go line by line (the playlist exports): opening the
@@ -360,10 +360,8 @@ def replacing_text(path: Path, encoding: str = "utf-8"):
             os.fsync(f.fileno())
         _replace(tmp, path)
     except BaseException:
-        try:
+        with contextlib.suppress(OSError):
             os.unlink(tmp)
-        except OSError:
-            pass
         raise
 
 # The app's other JSON files — themes, OpenRouter credentials, settings,

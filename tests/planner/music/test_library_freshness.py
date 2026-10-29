@@ -16,7 +16,7 @@ from pathlib import Path
 from unittest import mock
 
 from dancesport_planner import MusicEntry, MusicLibrary
-from planner.music.library import _library_mp3s, _listed_mtimes
+from planner.music.library import library_mp3s, listed_mtimes
 from planner.music.playlist_index import playlist_year
 
 
@@ -51,7 +51,7 @@ class LibraryWalkTest(unittest.TestCase):
         _mp3(root / "standardcd" / "lw", "waltz.mp3")
         _mp3(root / "lateincd", "rumba.MP3")      # upper case counts too
         _mp3(root / "lateincd", "cover.jpg")      # …but only mp3s
-        found = {p.name for p, _ in _library_mp3s(root)}
+        found = {p.name for p, _ in library_mp3s(root)}
         self.assertEqual(found, {"top.mp3", "waltz.mp3", "rumba.MP3"})
 
     def test_finds_flac_m4a_ogg_and_opus_too(self):
@@ -59,18 +59,18 @@ class LibraryWalkTest(unittest.TestCase):
         for name in ("a.mp3", "b.flac", "c.M4A", "d.ogg", "e.opus", "f.wav", "g.txt"):
             _mp3(root, name)
         want = {"a.mp3", "b.flac", "c.M4A", "d.ogg", "e.opus"}
-        self.assertEqual({p.name for p, _ in _library_mp3s(root)}, want)
-        self.assertEqual({Path(k).name for k in _listed_mtimes([root])}, want)
+        self.assertEqual({p.name for p, _ in library_mp3s(root)}, want)
+        self.assertEqual({Path(k).name for k in listed_mtimes([root])}, want)
 
     def test_reports_the_creation_time_of_each_file(self):
         root = _tmp()
         _mp3(root, "now.mp3")
-        (path, ts), = _library_mp3s(root)
+        (path, ts), = library_mp3s(root)
         self.assertEqual(path.name, "now.mp3")
         self.assertLess(abs(ts - time.time()), 300)
 
     def test_a_missing_root_is_no_error(self):
-        self.assertEqual(_library_mp3s(_tmp() / "nope"), [])
+        self.assertEqual(library_mp3s(_tmp() / "nope"), [])
 
     def test_an_unreadable_folder_does_not_lose_the_rest(self):
         root = _tmp()
@@ -85,7 +85,7 @@ class LibraryWalkTest(unittest.TestCase):
             return real_scandir(path)
 
         with mock.patch("planner.music.library.os.scandir", scandir):
-            found = [p.name for p, _ in _library_mp3s(root)]
+            found = [p.name for p, _ in library_mp3s(root)]
         self.assertEqual(found, ["kept.mp3"])
 
 

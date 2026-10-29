@@ -15,8 +15,8 @@ def _list_mixins():
     # resolves the GUI state files at import time.
     os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                           tempfile.mkdtemp(prefix="dp_party_"))
-    from gui.table.table_dnd import TableDragDropMixin
     from gui.table.table_actions import TableActionsMixin
+    from gui.table.table_dnd import TableDragDropMixin
     return TableDragDropMixin, TableActionsMixin
 
 

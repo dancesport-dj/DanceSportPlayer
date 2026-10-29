@@ -42,6 +42,14 @@ class PlaylistPathsTest(unittest.TestCase):
         lines = ["file:///C:/m/a%20b.mp3", '"C:\\m\\c.mp3"']
         self.assertEqual(playlist_paths(lines), [Path("C:/m/a b.mp3"), Path(r"C:\m\c.mp3")])
 
+    def test_a_bare_name_sits_next_to_the_playlist(self):
+        """BUG_REVIEW B5.4: the 🧳 USB bundle writes bare names; dropped onto a
+        list they named files in the working directory, and nothing was added."""
+        lines = ["0_0_1 - Title One WW29.mp3", r"sub\b.mp3", r"\m\rooted.mp3"]
+        self.assertEqual(playlist_paths(lines, Path(r"E:\bundle")),
+                         [Path(r"E:\bundle\0_0_1 - Title One WW29.mp3"),
+                          Path(r"E:\bundle\sub\b.mp3"), Path(r"\m\rooted.mp3")])
+
 
 class ResolveTest(unittest.TestCase):
 

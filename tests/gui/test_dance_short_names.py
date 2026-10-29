@@ -24,10 +24,10 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication
 
-from shared.columns import _COL_DANCE
-from gui.window.main_decks import dance_counts_line
 from gui.table.playlist_table import PlaylistTable
+from gui.window.main_decks import dance_counts_line
 from planner.models import MusicEntry, RoundConfig
+from shared.columns import _COL_DANCE
 from tests.qt_test_support import reap_widget
 
 

@@ -28,9 +28,9 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication, QWidget
 
-from shared.columns import _COL_POP
 from planner import i18n
 from planner.models import MusicEntry, RoundConfig
+from shared.columns import _COL_POP
 from tests.qt_test_support import reap_widget
 
 FRESH = MusicEntry(path=Path(r"C:\music\tanzcds\LW1.mp3"),

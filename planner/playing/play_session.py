@@ -11,7 +11,6 @@ title): a list older than that is another evening and is never offered, so a
 party that runs past midnight can still be picked up, and last Saturday's
 cannot.
 """
-from __future__ import annotations
 
 import datetime as dt
 from dataclasses import dataclass, field
@@ -20,7 +19,6 @@ from planner.playing.play_log import GAP_HOURS
 from planner.store import JsonStore
 
 STORE = JsonStore("play_session.json", note="no evening to pick up")
-
 
 @dataclass
 class Session:

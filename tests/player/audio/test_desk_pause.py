@@ -31,17 +31,16 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_pause_"))
 
 from PySide6.QtWidgets import QApplication, QWidget
-from tests.qt_test_support import reap_widget
 
+from dancesport_planner import MusicEntry
+from gui.decks.deck_set import DeckSet
+from gui.decks.running_order import Row, RunningOrder
+from gui.table.playlist_table import PlaylistTable
 from player.audio.between_dances import BetweenDances
 from player.audio.fade_now import FadeNow
 from player.audio.mix import OutputMix
 from player.audio.playback_state import PlaybackState
-from dancesport_planner import MusicEntry
-from gui.decks.deck_set import DeckSet
-from gui.table.playlist_table import PlaylistTable
-from gui.decks.running_order import Row, RunningOrder
-
+from tests.qt_test_support import reap_widget
 
 _MUSIC = Path(tempfile.mkdtemp(prefix="dp_desk_pause_m_"))
 
@@ -275,6 +274,7 @@ class _MixinTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         from PySide6.QtMultimedia import QMediaPlayer
+
         from player.window.main_player import PlayerControlMixin
         cls.states = QMediaPlayer.PlaybackState
         cls.Mixin = PlayerControlMixin

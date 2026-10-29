@@ -11,9 +11,9 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_playerpos_"))
 
 from PySide6.QtCore import QPoint
+
 from shared.stores import player_layout_of
-from tests.qt_test_support import (
-    qapp, reap_widget, stub_window_startup)
+from tests.qt_test_support import qapp, reap_widget, stub_window_startup
 
 _BLOCKS = ("_head_box", "_time_box", "_slider", "_btn_box", "_aux_box",
            "_vol_box", "_tempo_box")
@@ -39,6 +39,7 @@ class WideCardTest(unittest.TestCase):
 
     def _card(self):
         from PySide6.QtMultimedia import QMediaPlayer
+
         from player.widgets.player import BigPlayerWidget
         card = BigPlayerWidget(QMediaPlayer())
         self.addCleanup(reap_widget, card)
@@ -113,6 +114,7 @@ class CardHeightTest(unittest.TestCase):
 
     def _heights(self, wide: bool):
         from PySide6.QtMultimedia import QMediaPlayer
+
         from player.widgets.player import BigPlayerWidget
         card = BigPlayerWidget(QMediaPlayer())
         self.addCleanup(reap_widget, card)

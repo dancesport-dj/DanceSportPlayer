@@ -24,8 +24,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtCore import QObject
 from PySide6.QtWidgets import QApplication
 
-from player.window.main_pd import PdStopMixin
 from player.audio.playback_state import PlaybackState
+from player.window.main_pd import PdStopMixin
 
 
 class _Panel:
@@ -40,6 +40,9 @@ class _Panel:
     def announce_next(self):
         return self._announce
 
+    def announce_heat_only(self):
+        return False
+
     def pause_secs(self):
         return self._pause
 
@@ -48,7 +51,7 @@ class _Announcer:
     def __init__(self):
         self.said = []
 
-    def speak(self, dance, now=False, heat=None):
+    def speak(self, dance, now=False, heat=None, heat_only=False):
         self.said.append((dance, now))
 
 
@@ -74,9 +77,13 @@ class _Card:
     def __init__(self):
         self.wait = ("", "")
         self.takt = "T60"
+        self.fading = []
 
     def set_wait(self, label, count):
         self.wait = (label, count)
+
+    def set_fading(self, on):
+        self.fading.append(on)
 
     def played_takt(self):
         return self.takt
@@ -146,6 +153,9 @@ class _Desk(QObject, PdStopMixin):
 
     def _check_playback(self, _token, _path):
         pass
+
+    def _cart_follow_deck(self, state):
+        pass          # the wall's side: tests/player/test_cartwall_pd_wait.py
 
 
 class _HoldTest(unittest.TestCase):
@@ -225,6 +235,15 @@ class PdTickerTest(_HoldTest):
         QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
         self.assertEqual(d.findChildren(QTimer), [], "one ticker left per hold")
 
+    def test_a_second_hold_stops_the_first_ones_ticker(self):
+        """An orphaned ticker kept ticking into the next wait and could
+        release it a tick early (BUG_REVIEW B1.2)."""
+        d = self.hold(_Desk())
+        first = d._pd_hold_timer
+        d._hold_pd_start(5.0, d.PATH)
+        self.assertIsNot(d._pd_hold_timer, first)
+        self.assertFalse(first.isActive())
+
     def test_a_pause_that_already_announced_it_is_not_repeated(self):
         """`_maybe_announce_next` speaks into the last seconds of the pause —
         the wait then simply follows that call."""
@@ -266,6 +285,31 @@ class PdHoldDisplayTest(_HoldTest):
         d = self.hold(_Desk(), 0.0)
         d._pd_hold_tick()
         self.assertEqual(d._big_player.wait, ("", ""))
+
+    def test_the_card_blinks_orange_while_it_counts(self):
+        d = self.hold(_Desk(), 5.0)
+        self.assertEqual(d._big_player.fading, [True])
+        d._pd_hold_tick()   # kept up: a halt may have stopped it meanwhile
+        self.assertEqual(d._big_player.fading, [True, True])
+
+    def test_the_blink_ends_with_the_wait(self):
+        d = self.hold(_Desk(), 5.0)
+        token, path, _until = d._pd_hold
+        d._pd_hold = (token, path, time.monotonic() - 0.1)
+        d._pd_hold_tick()
+        self.assertEqual(d._big_player.fading[-1], False)
+        self.assertEqual(d._player.started, 1)
+
+    def test_a_stop_during_the_wait_ends_the_blink(self):
+        d = self.hold(_Desk(), 5.0)
+        d._playback.token += 1
+        d._pd_hold_tick()
+        self.assertEqual(d._big_player.fading[-1], False)
+
+    def test_no_wait_leaves_a_fade_blink_alone(self):
+        d = _Desk()
+        d._end_pd_hold()   # no wait running: a 🔉↓ fade keeps its blink
+        self.assertEqual(d._big_player.fading, [])
 
     def test_the_seconds_run_down(self):
         d = self.hold(_Desk(), 5.0)
@@ -401,6 +445,7 @@ class PdHoldOnTheCardTest(unittest.TestCase):
 
     def desk(self, held, pause=False):
         from types import SimpleNamespace
+
         from player.window.main_player import PlayerControlMixin
         d = PlayerControlMixin.__new__(PlayerControlMixin)
         d._play_panel = self._Shown()

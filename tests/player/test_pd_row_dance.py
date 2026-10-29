@@ -83,6 +83,22 @@ class PdRowDanceTest(unittest.TestCase):
         self.win._adopt_track(self.path)
         self.assertEqual(self.win._playback.dance, "SA")
 
+    def test_the_mark_tools_work_only_on_a_paso_doble(self):
+        """F16: 🎯 ✖ ✏️ act on the title on the deck, and only a Paso Doble
+        has highlights to mark."""
+        panel = self.win._play_panel
+        tools = (panel.pd_learn_btn, panel.pd_clear_btn, panel.pd_edit_btn)
+        self.assertFalse(any(w.isEnabled() for w in tools), "nothing loaded")
+        self.start("PD", None)
+        self.assertTrue(all(w.isEnabled() for w in tools))
+        self.start("PD", "SA")
+        self.table._current_play_row = -1
+        self.win._adopt_track(self.path)
+        self.assertFalse(any(w.isEnabled() for w in tools), "a samba")
+        self.start("PD", None)
+        self.win._unload_track(self.win._player)
+        self.assertFalse(any(w.isEnabled() for w in tools), "unloaded")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

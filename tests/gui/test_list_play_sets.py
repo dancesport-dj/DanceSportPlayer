@@ -32,8 +32,7 @@ from PySide6.QtWidgets import QApplication
 from gui.decks.running_order import Row
 from planner.playing.play_sets import dblclick_ask_of, play_set_of, tso_of
 from player.window.main_play_values import OFF_PANEL_KEYS
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 
 class _WindowCase(unittest.TestCase):
@@ -175,7 +174,7 @@ class SwitchToastTest(_WindowCase):
         from unittest import mock
         self.win.show()
         self.toasts = []
-        patcher = mock.patch("player.window.main_play_values._show_toast",
+        patcher = mock.patch("player.window.main_play_values.show_toast",
                              lambda _w, text, *_a: self.toasts.append(text))
         patcher.start()
         self.addCleanup(patcher.stop)

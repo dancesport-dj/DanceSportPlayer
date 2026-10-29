@@ -340,13 +340,13 @@ def shared_colors(look: Look) -> dict[str, str]:
     dark = look.dark
     green = "#5fb760" if dark else "#2e8b3a"
     return {
-        "_C_ROW_EVEN": t.base,
-        "_C_ROW_ODD": t.alt_base,
-        "_C_ROUND_BG": mix(t.accent, t.base, 0.22 if dark else 0.13),
-        "_C_ROUND_FG": t.accent_ink,
-        "_C_DANCE_BG": mix(green, t.base, 0.16 if dark else 0.09),
-        "_C_DANCE_FG": green,
-        "_C_DEFAULT": t.text,
+        "C_ROW_EVEN": t.base,
+        "C_ROW_ODD": t.alt_base,
+        "C_ROUND_BG": mix(t.accent, t.base, 0.22 if dark else 0.13),
+        "C_ROUND_FG": t.accent_ink,
+        "C_DANCE_BG": mix(green, t.base, 0.16 if dark else 0.09),
+        "C_DANCE_FG": green,
+        "C_DEFAULT": t.text,
         "_NumberHeader._BG": t.header,
         "_NumberHeader._FG": t.text_dim,
         "_NumberHeader._LINE": t.border,

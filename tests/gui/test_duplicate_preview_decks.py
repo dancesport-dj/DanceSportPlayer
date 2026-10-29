@@ -21,11 +21,11 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_dup_preview_"))
 
 from PySide6.QtWidgets import QApplication, QWidget
-from tests.qt_test_support import reap_widget
 
+from gui.decks.deck_set import DeckSet
 from gui.dialogs.duplicate_dialog import DuplicateResolveDialog
 from gui.window.main_decks import DeckLayoutMixin
-from gui.decks.deck_set import DeckSet
+from tests.qt_test_support import reap_widget
 
 _app = QApplication.instance() or QApplication(sys.argv)
 

@@ -19,8 +19,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 import planner.music.db as pdb
 import planner.music.scan_caches as scan_caches
-from planner.music.library import MusicLibrary
 from planner.models import MusicEntry
+from planner.music.library import MusicLibrary
 from tests.db_support import use_scratch_db
 
 _PATH = Path(r"C:\music\Latein\Rumba RB 25.mp3")

@@ -5,6 +5,8 @@ big-module split; behaviour unchanged. The right-click menu itself is a mixin
 of its own, in gui/table/table_menu.py."""
 import logging
 import time
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import (
     Qt,
@@ -19,19 +21,22 @@ from PySide6.QtWidgets import (
     QInputDialog,
     QMessageBox,
 )
-from pathlib import Path
-from planner.models import DANCE_NAMES, MusicEntry
-from planner.terms import dance_name, genre_name
-from planner import i18n
-from planner.generate.warmup import _WARMUP_ORDER, warmup_code
-from planner.playing import play_counts
+
 from gui.common import (
+    C_ROW_EVEN,
+    C_ROW_ODD,
     BusyDialog,
-    _C_ROW_EVEN,
-    _C_ROW_ODD,
-    _unreadable_playlist,
     display_title,
+    unreadable_playlist,
 )
+from gui.decks.playlist_entries import playlist_paths
+from gui.table.table_menu import TableMenuMixin
+from planner import i18n
+from planner.generate.warmup import WARMUP_ORDER, warmup_code
+from planner.models import DANCE_NAMES, MusicEntry
+from planner.playing import play_counts
+from planner.playlist.playlist_text import PlaylistEncodingError, read_playlist_text
+from planner.terms import dance_name, genre_name
 from shared.columns import (
     _COL_ALBUM,
     _COL_ARTIST,
@@ -48,16 +53,12 @@ from shared.columns import (
     _COL_TITLE,
 )
 from shared.widgets import (
-    _show_toast,
+    show_toast,
 )
-from planner.playlist.playlist_text import PlaylistEncodingError, read_playlist_text
-from gui.decks.playlist_entries import playlist_paths
-from typing import TYPE_CHECKING
-from gui.table.table_menu import TableMenuMixin
 
 if TYPE_CHECKING:
-    from gui.window.hosts import PlaylistTableHost
     from gui.decks.running_order import Row
+    from gui.window.hosts import PlaylistTableHost
 else:
     PlaylistTableHost = object
 
@@ -77,7 +78,7 @@ def _dance_sort_key(e):
     so the code comes from `warmup_code`. Keyed on `e.dance` alone, every social
     track shared one blank rank and the dances came out mixed, sorted by title."""
     code = warmup_code(e) or ""
-    rank = _WARMUP_ORDER.get(code, len(_WARMUP_ORDER))
+    rank = WARMUP_ORDER.get(code, len(WARMUP_ORDER))
     name = DANCE_NAMES.get(code) or getattr(e, "other_genre", None) or code
     return (rank, name.lower(), (e.title or "").lower())
 
@@ -152,7 +153,7 @@ class TableActionsMixin(TableMenuMixin):
         self._last_search = text.strip()
         n = len(self._row_meta)
         cur = self.currentRow()
-        order = list(range(cur + 1, n)) + list(range(0, cur + 1))
+        order = list(range(cur + 1, n)) + list(range(cur + 1))
         for r in order:
             m = self._row_meta[r] if 0 <= r < n else None
             ent = m.entry if m else None
@@ -166,7 +167,7 @@ class TableActionsMixin(TableMenuMixin):
             if term in hay:
                 self._focus_row(r)
                 return
-        _show_toast(self, i18n.t("🔍  No title matching “%s”") % self._last_search)
+        show_toast(self, i18n.t("🔍  No title matching “%s”") % self._last_search)
 
     def _focus_row(self, row: int, focus: bool = True):
         """Select, centre-scroll and focus `row` so a found / targeted song stands out.
@@ -253,10 +254,10 @@ class TableActionsMixin(TableMenuMixin):
                 self._refill_row(r, m)
         n = len(affected)
         if pinning:
-            _show_toast(self, (i18n.t("📌  Pinned %d title — the round's ↻ keeps it") if n == 1
+            show_toast(self, (i18n.t("📌  Pinned %d title — the round's ↻ keeps it") if n == 1
                                else i18n.t("📌  Pinned %d titles — the round's ↻ keeps them")) % n)
         else:
-            _show_toast(self, (i18n.t("📌  Unpinned %d title") if n == 1
+            show_toast(self, (i18n.t("📌  Unpinned %d title") if n == 1
                                else i18n.t("📌  Unpinned %d titles")) % n)
         self._notify_changed()
         return True
@@ -264,7 +265,7 @@ class TableActionsMixin(TableMenuMixin):
     def _row_base_bg(self, row: int, meta: Row | None) -> QColor:
         """The row's normal (unmarked) background — heat-parity alternating colour."""
         parity = meta.h_idx if meta and meta.h_idx is not None else row
-        return _C_ROW_EVEN if parity % 2 == 0 else _C_ROW_ODD
+        return C_ROW_EVEN if parity % 2 == 0 else C_ROW_ODD
 
     def _refill_row(self, row: int, meta: Row):
         """Re-render one song row (picks up its current mark state), restoring the ■
@@ -298,10 +299,10 @@ class TableActionsMixin(TableMenuMixin):
                 self._refill_row(r, m)
         n = len(affected)
         if marking:
-            _show_toast(self, (i18n.t("🔁  Marked %d track for replace") if n == 1
+            show_toast(self, (i18n.t("🔁  Marked %d track for replace") if n == 1
                                else i18n.t("🔁  Marked %d tracks for replace")) % n)
         else:
-            _show_toast(self, (i18n.t("🔁  Unmarked %d track") if n == 1
+            show_toast(self, (i18n.t("🔁  Unmarked %d track") if n == 1
                                else i18n.t("🔁  Unmarked %d tracks")) % n)
         return True
 
@@ -315,7 +316,7 @@ class TableActionsMixin(TableMenuMixin):
             m = self._row_meta[r]
             if m and m.entry is not None and str(getattr(m.entry, "path", "")) in cleared:
                 self._refill_row(r, m)
-        _show_toast(self, "🔁  Cleared all replacement marks")
+        show_toast(self, "🔁  Cleared all replacement marks")
 
     def keyPressEvent(self, event):
         """Space / Enter: play/stop the selected song.  Ctrl+←/→: seek ∓30 s.
@@ -324,7 +325,7 @@ class TableActionsMixin(TableMenuMixin):
         Alt+S: swap the two selected titles (Eintanzen list).
         Ctrl+M / Ctrl+1: mark/unmark for potential replace (dynamic + free order).
         Ctrl+Del: remove the whole heat (dynamic decks)."""
-        key  = event.key()
+        key = event.key()
         mods = event.modifiers()
         # A held key repeats at the system rate, and every action below is either a
         # toggle or throws something away: held Space plays/stops/plays, a held
@@ -349,6 +350,9 @@ class TableActionsMixin(TableMenuMixin):
                     and mods in (Qt.KeyboardModifier.NoModifier,
                                  Qt.KeyboardModifier.KeypadModifier))):
             row, path = self._selected_song_row()
+            if row >= 0 and self._start_refused(row, path):
+                event.accept()
+                return
             if row >= 0:
                 # A double tap is one press: the second would stop the title
                 # the first just started (still loading, so it looked idle).
@@ -531,7 +535,7 @@ class TableActionsMixin(TableMenuMixin):
         cur = [self._row_meta[r].entry for r in song_rows]
         if final_entries == cur:
             return False   # dropped back where it already was → no-op
-        sel_paths   = {str(e.path) for e in select if e is not None} if select else set()
+        sel_paths = {str(e.path) for e in select if e is not None} if select else set()
         select_rows = []
         # The grey of an already-played row is remembered by (row, column), and
         # the tracks are about to change rows: give every row its own colour
@@ -550,7 +554,7 @@ class TableActionsMixin(TableMenuMixin):
                 # Warm-up song rows count parity from 0 (header sits above them);
                 # the flat wishlist counts it straight from the table row.
                 parity = pos if self._warmup else r
-                bg = _C_ROW_EVEN if parity % 2 == 0 else _C_ROW_ODD
+                bg = C_ROW_EVEN if parity % 2 == 0 else C_ROW_ODD
                 self._fill_song_row(r, m, bg)
             if e is not None and str(e.path) in sel_paths:
                 select_rows.append(r)
@@ -602,14 +606,14 @@ class TableActionsMixin(TableMenuMixin):
         cur = self._row_meta.entries()
         if len(cur) != len(self._row_meta):
             return False   # safety: flat rows map 1:1 to entries
-        moved     = [cur[r] for r in src]
-        src_set   = set(src)
+        moved = [cur[r] for r in src]
+        src_set = set(src)
         remaining = [e for i, e in enumerate(cur) if i not in src_set]
         # Translate the drop gap into the shrunken (post-removal) list: every
         # dragged row before the gap shifts it one place left.
-        before    = sum(1 for r in src if r < drop_index)
+        before = sum(1 for r in src if r < drop_index)
         insert_at = max(0, min(drop_index - before, len(remaining)))
-        final     = remaining[:insert_at] + moved + remaining[insert_at:]
+        final = remaining[:insert_at] + moved + remaining[insert_at:]
         return self._apply_song_reorder(final, select=moved)
 
     def _reorder_warmup(self, drop_index: int) -> bool:
@@ -625,17 +629,17 @@ class TableActionsMixin(TableMenuMixin):
         src_set = {r for r in self._drag_src_rows if r in set(song_rows)}
         if not src_set:
             return False
-        entries  = [self._row_meta[r].entry for r in song_rows]
-        pos_of   = {r: i for i, r in enumerate(song_rows)}
-        src_idx  = sorted(pos_of[r] for r in src_set)
-        moved    = [entries[i] for i in src_idx]
-        keep     = [e for i, e in enumerate(entries) if i not in set(src_idx)]
+        entries = [self._row_meta[r].entry for r in song_rows]
+        pos_of = {r: i for i, r in enumerate(song_rows)}
+        src_idx = sorted(pos_of[r] for r in src_set)
+        moved = [entries[i] for i in src_idx]
+        keep = [e for i, e in enumerate(entries) if i not in set(src_idx)]
         # Translate the table-row gap into the entries list, then account for the
         # dragged rows that sat before it (each shifts the gap one place left).
-        gap       = self._song_pos_at(drop_index)
-        before    = sum(1 for i in src_idx if i < gap)
+        gap = self._song_pos_at(drop_index)
+        before = sum(1 for i in src_idx if i < gap)
         insert_at = max(0, min(gap - before, len(keep)))
-        final     = keep[:insert_at] + moved + keep[insert_at:]
+        final = keep[:insert_at] + moved + keep[insert_at:]
         return self._apply_song_reorder(final, select=moved)
 
     def _swap_reorder(self, dst_row: int) -> bool:
@@ -667,9 +671,9 @@ class TableActionsMixin(TableMenuMixin):
         except OSError:
             return []
         except PlaylistEncodingError as exc:
-            _unreadable_playlist(self, path, exc)
+            unreadable_playlist(self, path, exc)
             return []
-        return playlist_paths(lines)
+        return playlist_paths(lines, Path(path).parent)
 
     # A drop gets a progress dialog only once it has been running this long. Two
     # or three tracks resolve instantly, and a window flashing up for them is
@@ -744,8 +748,10 @@ class TableActionsMixin(TableMenuMixin):
             names = [p.name for p in unreadable[:8]]
             if len(unreadable) > 8:
                 names.append(i18n.t("… plus %d more") % (len(unreadable) - 8))
+            # Titled after the list dropped on — a playlist is no wishlist.
+            title = self.host.deck_name() or (i18n.t("Wishlist") if self._flat_mode else "")
             QMessageBox.information(
-                self, "Wishlist",
+                self, title,
                 i18n.t("Couldn't read as an audio track:") + "\n\n" + "\n".join(names)
             )
         return out
@@ -767,16 +773,20 @@ class TableActionsMixin(TableMenuMixin):
 
     def _insert_drop_files(self, files: list[Path], at: int) -> int:
         """Insert dropped files into the flat Wishlist at gap `at` (0..rowCount),
-        skipping tracks already present. Returns how many NEW tracks were inserted."""
+        skipping tracks already present. Returns how many NEW tracks were inserted;
+        `_drop_added` / `_drop_held` keep which, and how many were skipped."""
+        self._drop_added, self._drop_held = [], 0
         new_entries = self._resolve_drop_entries(files)
         if not new_entries:
             return 0
-        cur  = self._row_meta.entries()
+        cur = self._row_meta.entries()
         to_add = self._not_yet_held(cur, new_entries)
+        self._drop_added = to_add
+        self._drop_held = len(new_entries) - len(to_add)
         if not to_add:
             return 0
         at = max(0, min(at, len(cur)))
-        final   = cur[:at] + to_add + cur[at:]
+        final = cur[:at] + to_add + cur[at:]
         self._render_flat_entries(final)
         # The rebuild resets the scroll to the top — bring the just-dropped rows back
         # into view and select them so the focus stays where the user dropped them.
@@ -856,9 +866,9 @@ class TableActionsMixin(TableMenuMixin):
         _COL_TITLE: lambda e: display_title(e).lower(),
         _COL_ARTIST: lambda e: ((getattr(e, "tag_artist", None) or "").lower(),
                                 (e.title or "").lower()),
-        _COL_BPM:   lambda e: (e.bpm if e.bpm is not None else -1, (e.title or "").lower()),
-        _COL_LEN:   lambda e: (getattr(e, "duration", 0) or 0, (e.title or "").lower()),
-        _COL_POP:   lambda e: (e.popularity or 0, (e.title or "").lower()),
+        _COL_BPM: lambda e: (e.bpm if e.bpm is not None else -1, (e.title or "").lower()),
+        _COL_LEN: lambda e: (getattr(e, "duration", 0) or 0, (e.title or "").lower()),
+        _COL_POP: lambda e: (e.popularity or 0, (e.title or "").lower()),
         _COL_CLASS: lambda e: (",".join(e.classes_ok) if getattr(e, "classes_ok", None)
                                else "", (e.title or "").lower()),
         _COL_RATING: lambda e: (getattr(e, "rating", None) or 0, (e.title or "").lower()),
@@ -948,12 +958,13 @@ class TableActionsMixin(TableMenuMixin):
 
         Right-clicking inside a selection means the selection; right-clicking
         outside one means only the row under the mouse. Shared by the context
-        menu of every deck so the two cannot disagree about it."""
+        menu of every deck so the two cannot disagree about it. Every wishlist
+        row is a theme row: there it is a title like any other, not a slot."""
         sel = {ix.row() for ix in self.selectedIndexes()}
         if row in sel:
             rows = {r for r in sel
                     if 0 <= r < len(self._row_meta) and self._row_meta[r]
-                    and not self._row_meta[r].theme
+                    and (self._flat_mode or not self._row_meta[r].theme)
                     and self._row_meta[r].entry is not None}
             if rows:
                 return rows
@@ -1020,7 +1031,7 @@ class TableActionsMixin(TableMenuMixin):
         dups = self._duplicate_rows()
         if not dups:
             if not on_load:
-                _show_toast(self, "✅  No duplicate titles in this list")
+                show_toast(self, "✅  No duplicate titles in this list")
             return 0
         copies: dict[int, list[int]] = {}       # first row -> every row of that audio
         for r, first, same in dups:
@@ -1052,7 +1063,7 @@ class TableActionsMixin(TableMenuMixin):
                 return 0
             rows = {r for r, _first in identical}
         if not rows:
-            _show_toast(self, "✅  Kept all titles")
+            show_toast(self, "✅  Kept all titles")
             return 0
         n = len(rows)
         if self._flat_mode:
@@ -1065,7 +1076,7 @@ class TableActionsMixin(TableMenuMixin):
                  "list: %s\n"
                  "removed: %d\n"
                  "trigger: %s", name or "?", n, "load" if on_load else "menu")
-        _show_toast(self, (i18n.t("🧹  Removed %d duplicate title") if n == 1
+        show_toast(self, (i18n.t("🧹  Removed %d duplicate title") if n == 1
                            else i18n.t("🧹  Removed %d duplicate titles")) % n)
         return n
 
@@ -1121,7 +1132,7 @@ class TableActionsMixin(TableMenuMixin):
             m.entry = None
             if self._playlist is not None and m.round_name is not None:
                 self._playlist[m.round_name][m.h_idx][m.d_idx] = None
-            bg = _C_ROW_EVEN if m.h_idx % 2 == 0 else _C_ROW_ODD
+            bg = C_ROW_EVEN if m.h_idx % 2 == 0 else C_ROW_ODD
             self._fill_song_row(r, m, bg)
             cleared = True
         if dropped_backup:

@@ -9,6 +9,7 @@ CART_WALL_KEYS and takes them back out of values() before it saves.
 """
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDoubleSpinBox,
     QGroupBox,
@@ -19,9 +20,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from gui.dialogs.settings_look import _DialogHost
 from planner.playing import cartwall as pc
 from shared.audio.playback import duck_db_text
-from gui.dialogs.settings_look import _DialogHost
 
 # The wall's own two, which ride through the dialog but not into the settings.
 CART_WALL_KEYS = ("cart_fade_ms", "cart_wall_colour")
@@ -93,9 +94,24 @@ class CartwallTabMixin(_DialogHost):
         self._cart_bg_hint.setStyleSheet("color:#777; font-size:11px;")
         blyt.addWidget(self._cart_bg_hint)
 
+        # ── 🔉 The volume a pad gets when it is ticked as Background ──
+        bg_vol_row = QHBoxLayout()
+        self._cart_bg_vol_lbl = QLabel("🔉  Ticking 🎶 Background sets the pad's volume to:")
+        bg_vol_row.addWidget(self._cart_bg_vol_lbl)
+        self._cart_bg_vol_spin = QSpinBox()
+        self._cart_bg_vol_spin.setRange(0, 100)
+        self._cart_bg_vol_spin.setSuffix(" %")
+        self._cart_bg_vol_spin.setToolTip(
+            "A bed at full volume is as loud as the dance music it fills in\n"
+            "for. Pads already set to 🎶 Background keep their own volume.")
+        self._cart_bg_vol_spin.setValue(round(pc.background_volume(settings) * 100))
+        bg_vol_row.addWidget(self._cart_bg_vol_spin)
+        bg_vol_row.addStretch(1)
+        blyt.addLayout(bg_vol_row)
+
         # ── ▶ How fast a background pad comes up when it is fired ──
         bg_fire_row = QHBoxLayout()
-        self._cart_bg_fire_lbl = QLabel("▶  When fired — fade in over:")
+        self._cart_bg_fire_lbl = QLabel("▶  When fired — fade the pad in over:")
         bg_fire_row.addWidget(self._cart_bg_fire_lbl)
         self._cart_bg_fire_spin = QDoubleSpinBox()
         self._cart_bg_fire_spin.setRange(0.0, pc.MAX_FADE_MS / 1000)
@@ -113,7 +129,7 @@ class CartwallTabMixin(_DialogHost):
         # ── 🎶 What a starting title does to a cartwall background pad ──
         # The keys are planner.playing.cartwall.BG_MODES.
         bg_row = QHBoxLayout()
-        bg_row.addWidget(QLabel("🎵  When a title starts:"))
+        bg_row.addWidget(QLabel("🎵  When the main player starts a title:"))
         self._cart_bg_combo = QComboBox()
         self._cart_bg_combo.setToolTip(
             "What a 🎛 cartwall pad set to 🎶 Background does once the music\n"
@@ -132,7 +148,7 @@ class CartwallTabMixin(_DialogHost):
 
         # ── 🌙 How fast a background pad dips when a title starts ──
         bg_out_row = QHBoxLayout()
-        self._cart_bg_out_lbl = QLabel("🌙  …fading out over:")
+        self._cart_bg_out_lbl = QLabel("🌙  …fading the pad out over:")
         bg_out_row.addWidget(self._cart_bg_out_lbl)
         self._cart_bg_out_spin = QDoubleSpinBox()
         self._cart_bg_out_spin.setRange(0.0, pc.MAX_FADE_MS / 1000)
@@ -147,9 +163,21 @@ class CartwallTabMixin(_DialogHost):
         bg_out_row.addStretch(1)
         blyt.addLayout(bg_out_row)
 
+        # ── 🎚 Whether the title waits for that fade-out ──
+        self._cart_bg_overlap_check = QCheckBox(
+            "🎚  Start the main player's title while the background is still "
+            "fading out")
+        self._cart_bg_overlap_check.setToolTip(
+            "Off, a title waits until a 🎛 cartwall pad set to 🎶 Background\n"
+            "has faded out completely, then starts into silence. The wait is\n"
+            "the fade-out time above, or less if the bed is already going down.\n"
+            "On, the title starts at once and plays over the fade-out.")
+        self._cart_bg_overlap_check.setChecked(pc.background_overlaps(settings))
+        blyt.addWidget(self._cart_bg_overlap_check)
+
         # ── ⏳ How long the music has to stay stopped before it comes back ──
         bg_hold_row = QHBoxLayout()
-        self._cart_bg_hold_lbl = QLabel("⏳  When the music stops — wait:")
+        self._cart_bg_hold_lbl = QLabel("⏳  When the main player stops — wait:")
         bg_hold_row.addWidget(self._cart_bg_hold_lbl)
         self._cart_bg_hold_spin = QDoubleSpinBox()
         self._cart_bg_hold_spin.setRange(0.0, pc.MAX_FADE_MS / 1000)
@@ -177,7 +205,7 @@ class CartwallTabMixin(_DialogHost):
 
         # ── 🌅 How fast a background pad comes back once the music stops ──
         bg_fade_row = QHBoxLayout()
-        self._cart_bg_fade_lbl = QLabel("🌅  …then fade back in over:")
+        self._cart_bg_fade_lbl = QLabel("🌅  …then fade the pad back in over:")
         bg_fade_row.addWidget(self._cart_bg_fade_lbl)
         self._cart_bg_fade_spin = QDoubleSpinBox()
         self._cart_bg_fade_spin.setRange(0.0, pc.MAX_FADE_MS / 1000)
@@ -191,6 +219,18 @@ class CartwallTabMixin(_DialogHost):
         bg_fade_row.addWidget(self._cart_bg_fade_spin)
         bg_fade_row.addStretch(1)
         blyt.addLayout(bg_fade_row)
+
+        # ── 🐂 The wait before a Paso Doble counts as music ──
+        self._cart_bg_pd_check = QCheckBox(
+            "🐂  Keep the pad down while a Paso Doble waits to start")
+        self._cart_bg_pd_check.setToolTip(
+            "With 'Start after' set for the Paso Doble, the deck stands still\n"
+            "between the call and the first bar while the couples walk on.\n"
+            "On, a 🎶 Background pad stays down through that wait as if the\n"
+            "music already played. Off, it comes back in the wait like after\n"
+            "any other title.")
+        self._cart_bg_pd_check.setChecked(pc.background_quiet_in_pd_wait(settings))
+        blyt.addWidget(self._cart_bg_pd_check)
         clyt.addWidget(bg_box)
 
         clyt.addStretch()
@@ -200,7 +240,7 @@ class CartwallTabMixin(_DialogHost):
         """⏱ The fade-out and 🖌 the colour every pad follows by default —
         once in the pad's right-click menu."""
         fade_row = QHBoxLayout()
-        self._cart_fade_lbl = QLabel("⏱  Tapped again or ⏹ — fade out over:")
+        self._cart_fade_lbl = QLabel("⏱  Tapped again or ⏹ — fade the pad out over:")
         fade_row.addWidget(self._cart_fade_lbl)
         self._cart_fade_spin = QDoubleSpinBox()
         self._cart_fade_spin.setRange(0.0, pc.MAX_FADE_MS / 1000)
@@ -243,10 +283,13 @@ class CartwallTabMixin(_DialogHost):
         return {
             "cart_duck_pct": self._cart_duck_spin.value(),
             "cart_bg_mode": self._cart_bg_combo.currentData(),
+            "cart_bg_volume_pct": self._cart_bg_vol_spin.value(),
             "cart_bg_fire_fade_ms": int(round(self._cart_bg_fire_spin.value() * 1000)),
             "cart_bg_fade_out_ms": int(round(self._cart_bg_out_spin.value() * 1000)),
             "cart_bg_hold_ms": int(round(self._cart_bg_hold_spin.value() * 1000)),
             "cart_bg_fade_in_ms": int(round(self._cart_bg_fade_spin.value() * 1000)),
+            "cart_bg_pd_quiet": self._cart_bg_pd_check.isChecked(),
+            "cart_bg_overlap": self._cart_bg_overlap_check.isChecked(),
             "cart_fade_ms": int(round(self._cart_fade_spin.value() * 1000)),
             "cart_wall_colour": self._cart_colour_combo.currentData(),
         }

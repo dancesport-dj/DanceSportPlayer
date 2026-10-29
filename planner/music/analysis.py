@@ -10,6 +10,7 @@ import logging
 import os
 import sys
 import threading
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -37,21 +38,21 @@ log = logging.getLogger("dancesport.db")
 #   10  contrast  (5 means | 5 stds, spectral_contrast)   – brightness/genre
 #   14  rhythm    (12 tempogram lag-profile bins | onset mean | onset std) – groove
 # = 84 total. Bumping this (and CACHE_VERSION) invalidates shorter cached vectors.
-_AUDIO_FEAT_DIM = 84
+AUDIO_FEAT_DIM = 84
 
 # Only the first 60 dims of the 84-dim vector are pure MFCC timbre (20 means | 20 stds
 # | 20 delta-means). The contrast (10) + rhythm (14) tail is still STORED in the DB but
 # deliberately EXCLUDED from timbre similarity — BPM already handles tempo, and mixing
 # rhythm/brightness into the cosine diluted the timbre signal. See `_feat_vector`.
-_TIMBRE_MFCC_DIM = 60
+TIMBRE_MFCC_DIM = 60
 
 # Per-song single-Gaussian timbre model (Mandel-Ellis): k MFCC coefficients →
 # mean (k) + full covariance (k×k), compared by symmetric KL. Independent of the
 # summary vector above; uses raw per-frame MFCCs with short (Java-matched) frames.
-_GAUSS_MFCC = 20
+GAUSS_MFCC = 20
 
 
-def _tempo_prior(dance: str | None, takt: float | None) -> float | None:
+def tempo_prior(dance: str | None, takt: float | None) -> float | None:
     """Expected musical tempo (beats/min) to seed librosa's beat tracker.
 
     Dance-agnostic beat tracking snaps syncopated grooves (esp. samba — the "and" of
@@ -183,7 +184,7 @@ def _unmute_stderr(saved: tuple[int, int]) -> None:
 
 
 @contextlib.contextmanager
-def quiet_native_stderr():
+def quiet_native_stderr() -> Iterator[None]:
     """Silence the decoders' C-level stderr (mpg123 / ffmpeg / libsndfile chatter).
 
     Python's `sys.stderr` can't catch what is written below Python, so fd 2 itself
@@ -236,7 +237,7 @@ def probe_decode_backend(path: Path) -> str | None:
     return PROBE_FAILED
 
 
-def _release_free_heap() -> None:
+def release_free_heap() -> None:
     """Hand already-freed heap pages back to the operating system.
 
     Analysing one file allocates a decoded 60 s window plus a stack of feature
@@ -265,13 +266,13 @@ def _gaussian_timbre(y, sr):
     # than the librosa default (n_fft=2048 ≈ 186 ms) before any averaging. Pure MFCC
     # only — no rhythm/contrast (BPM handles tempo).
     g_mfcc = librosa.feature.mfcc(
-        y=y, sr=sr, n_mfcc=_GAUSS_MFCC, n_fft=512, hop_length=256)   # (k, frames)
+        y=y, sr=sr, n_mfcc=GAUSS_MFCC, n_fft=512, hop_length=256)   # (k, frames)
     frames = g_mfcc.T                                                # (frames, k)
-    if frames.shape[0] >= _GAUSS_MFCC + 1:
+    if frames.shape[0] >= GAUSS_MFCC + 1:
         mu = frames.mean(axis=0)
         cov = np.cov(frames, rowvar=False)                          # (k, k)
         # Regularize so the covariance is invertible (KL needs Σ⁻¹ and ln|Σ|).
-        cov += np.eye(_GAUSS_MFCC) * (1e-3 * float(np.trace(cov)) / _GAUSS_MFCC + 1e-6)
+        cov += np.eye(GAUSS_MFCC) * (1e-3 * float(np.trace(cov)) / GAUSS_MFCC + 1e-6)
         mfcc_mean = mu.astype(np.float32)
         mfcc_cov = cov.reshape(-1).astype(np.float32)
     else:
@@ -305,14 +306,14 @@ def analyze_file(path: Path, expected_bpm: float | None = None) -> AudioFeatures
     # ── Timbre: 20 MFCCs – mean + std per coefficient + delta-means (60 values).
     # The std captures temporal variation (e.g. steady waltz vs energetic jive);
     # the delta-means capture articulation dynamics (staccato tango vs legato waltz).
-    mfccs    = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=20)
-    deltas   = librosa.feature.delta(mfccs)     # frame-to-frame rate of change
+    mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=20)
+    deltas = librosa.feature.delta(mfccs)     # frame-to-frame rate of change
     centroid = librosa.feature.spectral_centroid(y=y, sr=sr)
-    rms      = librosa.feature.rms(y=y)
+    rms = librosa.feature.rms(y=y)
     mfcc_block = (
         [float(np.mean(c)) for c in mfccs]  +   # 20 means  (timbral shape)
-        [float(np.std(c))  for c in mfccs]  +   # 20 stds   (temporal spread)
-        [float(np.mean(c)) for c in deltas]      # 20 delta-means (articulation dynamics)
+        [float(np.std(c)) for c in mfccs]  +    # 20 stds   (temporal spread)
+        [float(np.mean(c)) for c in deltas]     # 20 delta-means (articulation dynamics)
     )
     # ── Brightness / genre: spectral contrast (peak-vs-valley energy per band).
     # n_bands=4 keeps the top band (200·2^4 = 3200 Hz) below the 5512 Hz Nyquist
@@ -352,9 +353,9 @@ def analyze_file(path: Path, expected_bpm: float | None = None) -> AudioFeatures
         bpm = float(np.mean(tempo))
 
     feat_vec = mfcc_block + contrast_block + rhythm_block
-    if len(feat_vec) != _AUDIO_FEAT_DIM:   # not an assert: -O would strip it
+    if len(feat_vec) != AUDIO_FEAT_DIM:   # not an assert: -O would strip it
         raise RuntimeError(
-            f"feature vector is {len(feat_vec)}, expected {_AUDIO_FEAT_DIM}")
+            f"feature vector is {len(feat_vec)}, expected {AUDIO_FEAT_DIM}")
 
     mfcc_mean, mfcc_cov = _gaussian_timbre(y, sr)
 

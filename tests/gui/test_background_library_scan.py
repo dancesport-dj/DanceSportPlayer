@@ -314,7 +314,7 @@ class WindowFlowTest(unittest.TestCase):
 
     def setUp(self):
         for name in ("apply_taskbar_icon", "learn_instrumental_probs",
-                     "apply_vocal_shares", "_show_toast"):
+                     "apply_vocal_shares", "show_toast"):
             patcher = mock.patch.object(gmg, name, create=True)
             setattr(self, name, patcher.start())
             self.addCleanup(patcher.stop)
@@ -359,11 +359,11 @@ class WindowFlowTest(unittest.TestCase):
     def test_a_library_function_says_it_is_still_loading(self):
         self.win._on_cache_ready(object())
         self.assertTrue(self.win._library_still_loading())
-        self._show_toast.assert_called_once()
+        self.show_toast.assert_called_once()
         self.win._on_library_loaded(self.lib, object())
         self.settle()
         self.assertFalse(self.win._library_still_loading())
-        self._show_toast.assert_called_once()
+        self.show_toast.assert_called_once()
 
 
 class _DropWin(_Win):

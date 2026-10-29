@@ -8,7 +8,6 @@ Holding them in one object gives them one owner and one set of defaults (the
 A 🔀 crossfade is the other way one title hands over to the next — no pause,
 the two overlap — so its state is held here too (Crossfade).
 """
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -59,12 +58,6 @@ class BetweenDances:
     # Whether that pause is long enough to be worth showing the hall
     # (see _pause_on_screen): with the ⏸ switch off it lasts one refresh.
     shown: bool = False
-    # Set while the operator ⏯-pauses the filler, with the seconds that were
-    # left when the hold began.
-    held: bool = False
-    hold_remaining: float = 0.0
-    # Set while ⏭ fades the filler out to skip the rest of the pause.
-    fade_end: float | None = None
     # The spoken "next dance" cue: already given for this pause, and the
     # monotonic time the music is held back until after it (_ANNOUNCE_TAIL).
     announced: bool = False
@@ -75,5 +68,8 @@ class BetweenDances:
     # ⏭ auto-advance off: the title put under the cursor when one ended, to
     # be cued once the end has cleared the player (see _cue_next_song).
     cue_next: tuple[PlaylistTable, int, Path] | None = None
+    # 🌙 The closing song after a planned ⏹ stop, waiting for the end to
+    # release the last title (see _cue_next_song).
+    closing: Path | None = None
     # 🔀 The crossfade, where the list walks on with no pause.
     xfade: Crossfade = field(default_factory=Crossfade)

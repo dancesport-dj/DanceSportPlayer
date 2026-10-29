@@ -33,8 +33,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
-from gui.dialogs import settings_look
-from gui.dialogs import THEME_CHOICES
+from gui.dialogs import THEME_CHOICES, settings_look
 from gui.dialogs.settings_dialog import SettingsDialog
 from planner import i18n
 from shared.appearance import looks
@@ -73,7 +72,7 @@ class ThemeListI18nTest(_Look):
         self.assertEqual(keys, [k for k, _c, _b in THEME_CHOICES] + list(looks.LOOKS))
 
     def test_english_is_unchanged(self):
-        shown = dict((k, text) for k, text in self.rows("en") if k is not None)
+        shown = {k: text for k, text in self.rows("en") if k is not None}
         for key, caption, _b in THEME_CHOICES:
             self.assertEqual(shown[key], caption.strip())
         for look in looks.LOOKS.values():
@@ -81,7 +80,7 @@ class ThemeListI18nTest(_Look):
 
     def test_german_captions_and_sections(self):
         rows = self.rows("de")
-        shown = dict((k, text) for k, text in rows if k is not None)
+        shown = {k: text for k, text in rows if k is not None}
         self.assertIn("Hell", shown["light"])
         self.assertIn("Dunkel", shown["dark"])
         self.assertEqual(shown["contrast_dark"], "Hoher Kontrast · Dunkel")

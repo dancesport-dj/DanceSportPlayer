@@ -55,7 +55,7 @@ class PickSimilarityTest(unittest.TestCase):
         track = _entry("Tanguera (TG 32)")
         deck_a, deck_b = self._suggester([track]), self._suggester([track])
         score = {ANCHOR_A: 0.9, ANCHOR_B: 0.2}
-        with mock.patch.object(suggester_mod, "_timbre_similarity",
+        with mock.patch.object(suggester_mod, "timbre_similarity",
                                _fake_similarity(lambda a, e: score[a])):
             deck_a.regenerate("TG", "S", "early", set(), round_name="Final",
                               anchor=ANCHOR_A, style="Standard")
@@ -67,7 +67,7 @@ class PickSimilarityTest(unittest.TestCase):
     def test_a_re_roll_scores_an_unanalysed_track_as_none(self):
         track = _entry("Sway (TG 33)", features=False)
         sugg = self._suggester([track])
-        with mock.patch.object(suggester_mod, "_timbre_similarity",
+        with mock.patch.object(suggester_mod, "timbre_similarity",
                                _fake_similarity(lambda a, e: 0.3)):
             picked = sugg.regenerate("TG", "S", "early", set(), round_name="Final",
                                      anchor=ANCHOR_A, style="Standard")
@@ -84,7 +84,7 @@ class PickSimilarityTest(unittest.TestCase):
             offered.extend(population)
             return [population[0]]
 
-        with mock.patch.object(suggester_mod, "_timbre_similarity",
+        with mock.patch.object(suggester_mod, "timbre_similarity",
                                _fake_similarity(lambda a, e: 0.3)), \
              mock.patch.object(suggester_mod.random, "choices", choices):
             sugg.regenerate("TG", "S", "early", set(), round_name="Final",

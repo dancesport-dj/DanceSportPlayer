@@ -26,7 +26,12 @@ from PySide6.QtCore import QPoint, QPointF, Qt
 from PySide6.QtGui import QDragLeaveEvent, QDragMoveEvent, QDropEvent, QKeySequence
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import (
-    QApplication, QDialog, QLabel, QMessageBox, QPushButton, QWidget,
+    QApplication,
+    QDialog,
+    QLabel,
+    QMessageBox,
+    QPushButton,
+    QWidget,
 )
 
 from gui.dialogs.event_compare import TIER_NAMES, EventCompareDialog, SlotPicker
@@ -403,6 +408,14 @@ class EventCompareTest(EventFixture, unittest.TestCase):
         dlg._tables[0].setCurrentCell(0, 0)
         QTest.keyClick(dlg._tables[0], Qt.Key.Key_Space)
         dlg.close()
+        self.assertEqual(host.calls[-1], None)
+
+    def test_esc_stops_its_own_prehearing(self):
+        # BUG_REVIEW B4.2: Esc rejects, and reject() sends no closeEvent.
+        host, dlg = self.with_host()
+        dlg._tables[0].setCurrentCell(0, 0)
+        QTest.keyClick(dlg._tables[0], Qt.Key.Key_Space)
+        dlg.reject()
         self.assertEqual(host.calls[-1], None)
 
     def test_closing_leaves_a_deck_title_playing(self):

@@ -47,7 +47,7 @@ def _render(key: str) -> None:
     i18n.install_text_hook()
 
     import dancesport_gui
-    from planner.models import MusicEntry, RoundConfig
+    from planner.models import MusicEntry, RoundConfig, RoundTier
     from tests.qt_test_support import StubLoader
 
     with mock.patch.object(dancesport_gui, "LibraryLoader", StubLoader), \
@@ -72,8 +72,8 @@ def _render(key: str) -> None:
     dances = ["LW", "TG", "WW", "SF", "QS"]
     heat1 = [by_dance[d][0] for d in dances]
     heat2 = [by_dance[d][-1] for d in dances]
-    rounds = [RoundConfig(name="Vorrunde", heats=2, tier="early"),
-              RoundConfig(name="Endrunde", heats=1, tier="final")]
+    rounds = [RoundConfig(name="Vorrunde", heats=2, tier=RoundTier.EARLY),
+              RoundConfig(name="Endrunde", heats=1, tier=RoundTier.FINAL)]
     win._deckset.tableA.load({"Vorrunde": [heat1, heat2], "Endrunde": [heat2]},
                      dances, rounds, "S", play_cb=lambda *a: None,
                      suggester=None, use_timbre=False, style="Standard")

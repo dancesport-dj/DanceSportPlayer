@@ -18,15 +18,16 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_cartpads_"))
 
-from PySide6.QtCore import QEvent, QMimeData, QPoint, QUrl, Qt
+from PySide6.QtCore import QEvent, QMimeData, QPoint, Qt, QUrl
 from PySide6.QtGui import QDropEvent, QKeyEvent, QKeySequence
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QLabel
-from tests.qt_test_support import reap_widget
 
 from planner.playing import cartwall as pc
 from player.dialogs import cart_pad_dialog as cpd
-from player.widgets import cart_keys, cartwall as gc
+from player.widgets import cart_keys
+from player.widgets import cartwall as gc
+from tests.qt_test_support import reap_widget
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -88,7 +89,7 @@ class KeyPickerTest(unittest.TestCase):
     """Press it, learn it, or ✕ it."""
 
     def setUp(self):
-        self.p = cart_keys._KeyPicker("Ctrl+1")
+        self.p = cart_keys.KeyPicker("Ctrl+1")
 
     def tearDown(self):
         self.p.deleteLater()
@@ -718,6 +719,52 @@ class CartPadDialogTest(unittest.TestCase):
         CartwallMixin.apply_cart_settings(host)
         self.assertFalse(w._bg_pauses)
 
+    # ── 🎶 a bed gets the bed volume when it is made one ──────────────────────
+    # Marcel: "tick backgroud setts volume to 50% in the pad … make ist
+    # configurable what is the standard value there in the settings".
+    def test_ticking_background_sets_the_bed_volume(self):
+        dlg = cpd.CartPadDialog(pc.CartPad(path="bed.mp3"))
+        self.assertEqual(dlg._vol.value(), 100)
+        dlg._background.setChecked(True)
+        self.assertEqual(dlg._vol.value(), pc.DEFAULT_BG_VOLUME_PCT)
+        self.assertEqual(pc.DEFAULT_BG_VOLUME_PCT, 50)
+        self.assertEqual(dlg.pad().volume, 0.5)
+
+    def test_the_bed_volume_comes_from_the_setting(self):
+        dlg = cpd.CartPadDialog(pc.CartPad(path="bed.mp3"), background_volume=0.3)
+        dlg._background.setChecked(True)
+        self.assertEqual(dlg._vol.value(), 30)
+
+    def test_opening_a_bed_keeps_its_own_volume(self):
+        """Only the tick sets it: a bed trimmed by hand opens as it was."""
+        dlg = cpd.CartPadDialog(pc.CartPad(path="bed.mp3", background=True,
+                                           volume=0.8))
+        self.assertEqual(dlg._vol.value(), 80)
+        self.assertEqual(dlg.pad().volume, 0.8)
+
+    def test_unticking_background_leaves_the_volume(self):
+        dlg = cpd.CartPadDialog(pc.CartPad(path="bed.mp3", background=True,
+                                           volume=0.5))
+        dlg._background.setChecked(False)
+        self.assertEqual(dlg._vol.value(), 50)
+
+    def test_the_window_hands_the_bed_volume_to_the_dialog(self):
+        from types import SimpleNamespace
+        from typing import Any, cast
+
+        from player.audio.mix import OutputMix
+        from player.window.main_cartwall import CartwallMixin
+        w = gc.CartwallWidget()
+        self.addCleanup(reap_widget, w)
+        w.set_wall(pc.DEFAULT_GRID, [pc.Page(pads={(0, 0): pc.CartPad(path="bed.mp3")})])
+        host = cast(Any, SimpleNamespace(_settings={"cart_bg_volume_pct": 35},
+                                         _mix=OutputMix(), _cartwall=w))
+        CartwallMixin.apply_cart_settings(host)
+        with mock.patch.object(gc, "CartPadDialog") as dialog:
+            dialog.return_value.exec.return_value = 0   # Cancel
+            w._on_edit((0, 0, 0))
+        self.assertEqual(dialog.call_args.kwargs["background_volume"], 0.35)
+
     def test_stopping_the_others_round_trips(self):
         dlg = cpd.CartPadDialog(pc.CartPad(path="anthem.mp3"))
         self.assertFalse(dlg._stops_others.isChecked())
@@ -909,11 +956,31 @@ class MultiSelectTest(unittest.TestCase):
 
     def test_a_selected_pad_is_outlined_not_filled(self):
         """The fill colours already mean 'running' and 'this much has played' —
-        a selection that filled a pad would lie about its state."""
+        a selection that filled a pad would lie about its state. The outline
+        is ✏'s amber: 'the selector (tiny black line) is hard to see'."""
         self.w._on_select((0, 0, 0), False)
         sheet = self.w._buttons[(0, 0, 0)].styleSheet()
-        self.assertIn(f"2px solid {gc._SEL_BORDER}", sheet)
-        self.assertNotIn(gc._SEL_BORDER, sheet.split("background:")[1])
+        self.assertIn(f"3px solid {gc._EDIT_ACCENT}", sheet)
+        self.assertNotIn(gc._EDIT_ACCENT, sheet.split("background:")[1])
+
+    def test_an_amber_pad_keeps_a_dark_outline(self):
+        """Amber is also a pad colour: an amber outline on it would not show."""
+        self.w._on_colour((0, 0, 0), gc._EDIT_ACCENT)
+        self.w._on_select((0, 0, 0), False)
+        sheet = self.w._buttons[(0, 0, 0)].styleSheet()
+        self.assertIn(f"3px solid {gc._SEL_BORDER}", sheet)
+
+    def test_selecting_with_the_mouse_never_fires_a_pad(self):
+        """'Pads must not play while multi-selecting' — a click, a Ctrl-click
+        and a Shift-click in ✏ only build the selection."""
+        seen = []
+        self.w.padClicked.connect(seen.append)
+        for key, mods in (((0, 0, 0), Qt.KeyboardModifier.NoModifier),
+                          ((0, 0, 1), Qt.KeyboardModifier.ControlModifier),
+                          ((0, 1, 0), Qt.KeyboardModifier.ShiftModifier)):
+            QTest.mouseClick(self.w._buttons[key], Qt.MouseButton.LeftButton, mods)
+        self.assertEqual(self.w.selection(), {(0, 0, 0), (0, 0, 1), (0, 1, 0)})
+        self.assertEqual(seen, [])
 
     def test_colouring_hits_the_whole_selection(self):
         self.w._on_select((0, 0, 0), False)

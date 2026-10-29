@@ -17,10 +17,10 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtWidgets import QApplication
 
 from gui.dialogs.warmup_estimate import WarmupEstimateBox, estimate_text
-from planner.generate.warmup import _WARMUP_BALLROOM, _WARMUP_LATIN, _WARMUP_MODE
+from planner.generate.warmup import WARMUP_BALLROOM, WARMUP_LATIN, WARMUP_MODE
 from tests.qt_test_support import reap_widget
 
-_ALL = _WARMUP_BALLROOM + _WARMUP_LATIN + _WARMUP_MODE
+_ALL = WARMUP_BALLROOM + WARMUP_LATIN + WARMUP_MODE
 
 
 class EstimateTextTest(unittest.TestCase):

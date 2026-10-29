@@ -7,13 +7,15 @@ memory.
 """
 import logging
 import time
-
 from pathlib import Path
-from PySide6.QtCore import QTimer, QUrl
-from shared.audio.audio_probes import PdHighlightWorker  # auto-resolved
-from player.audio.pd_stop import pd_stop_at
-from planner import i18n
 from typing import TYPE_CHECKING
+
+from PySide6.QtCore import QTimer, QUrl
+
+from planner import i18n
+from planner.playing import cartwall as pc
+from player.audio.pd_stop import pd_stop_at
+from shared.audio.audio_probes import PdHighlightWorker  # auto-resolved
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -88,6 +90,7 @@ class PdStopMixin(MainWindowHost):
         loaded and pitched at this point — the wait costs nothing but silence,
         and the release is a bare play().
         """
+        self._end_pd_hold()   # a wait still running: its ticker goes with it
         spoken = self._pd_call_wanted()
         if spoken:
             # `now=True` — the bare "Paso Doble", not "Nächster Tanz: …". The
@@ -95,18 +98,36 @@ class PdStopMixin(MainWindowHost):
             # hall announcer's word for the dance that starts here, and the
             # seconds run from it.
             self._announcer.speak(
-                "PD", now=True, heat=self._heat_of(*self._playing_row()))
+                "PD", now=True, heat=self._heat_of(*self._playing_row()),
+                heat_only=self._play_panel.announce_heat_only())
+        # 🎶 A bed still heard (✋ Manual: it came up after the last title)
+        # dips out first: the wait is the couples' sign that the music comes
+        # in a few seconds, so its seconds are silent ones.
+        bed_ms = self._pd_wait_bed_ms()
+        secs += bed_ms / 1000.0
         self._pd_hold = (self._playback.token, path, time.monotonic() + secs)
         self._pd_hold_timer = QTimer(self)
         self._pd_hold_timer.setInterval(_PD_HOLD_TICK_MS)
         self._pd_hold_timer.timeout.connect(self._pd_hold_tick)
         self._pd_hold_timer.start()
+        self._cart_follow_deck(None)  # 🎶 the bed stays down through the wait
         self._pd_hold_tick()          # paint the first second without a delay
         log.info("🐂 Paso Doble held back after the call\n"
                  "file: %s\n"
-                 "wait: %d s\n"
-                 "called by: %s", path.name, int(secs),
+                 "wait: %.1f s\n"
+                 "of it the bed dipping out: %.1f s\n"
+                 "called by: %s", path.name, secs, bed_ms / 1000.0,
                  "the app" if spoken else "the hall")
+
+    def _pd_wait_bed_ms(self) -> int:
+        """How long the 🎶 bed still needs to dip out before the wait's silent
+        seconds can run; 0 with no bed heard, or when ⚙ Settings ▸ 🎛 Cartwall
+        lets it play on through the wait."""
+        voices = getattr(self, "_cart_voices", None)
+        if voices is None or not pc.background_quiet_in_pd_wait(
+                getattr(self, "_settings", {})):
+            return 0
+        return voices.background_down_in_ms()
 
     def _pd_hold_tick(self):
         """Count the wait down on the left Playing panel.
@@ -130,6 +151,9 @@ class PdStopMixin(MainWindowHost):
                 self._big_player.set_wait(
                     i18n.t("🐂  PD %s in") % takt if takt else i18n.t("🐂  PD in"),
                     f"{r} s")
+                # 🟧 Blinks like a 🔉↓ fade while it counts. Every tick: a halt
+                # of the title before stops the card's blink (see _on_state).
+                self._big_player.set_fading(True)
             self._now_playing.setText(f"🐂  {r} s  —  {path.stem[:70]}")
             return
         self._end_pd_hold()
@@ -157,9 +181,14 @@ class PdStopMixin(MainWindowHost):
 
     def _end_pd_hold(self):
         """Drop the wait and its ticker — it has run out, or lost the player."""
+        held = self._pd_hold is not None
         self._pd_hold = None
+        if held:
+            self._cart_follow_deck(None)   # 🎶 the music or the stop decides now
         if self._big_player:
             self._big_player.set_wait("", "")   # the title's stats come back
+            if held:
+                self._big_player.set_fading(False)
         if self._pd_hold_timer is not None:
             self._pd_hold_timer.stop()
             self._pd_hold_timer.deleteLater()   # a child of the window: one per hold
@@ -284,7 +313,7 @@ class PdStopMixin(MainWindowHost):
                     if t is not None]
         else:
             base = []   # first manual mark wipes the auto guess
-        marks = self._merge_pd_mark(base, round(pos, 2))
+        marks = self._merge_pd_mark(base, round(pos, 1))
         self._store_pd_marks(path, marks)
         mmss = f"{int(pos) // 60}:{int(pos) % 60:02d}"
         log.info("🎯 Manual Paso Doble highlight set\n"
@@ -328,6 +357,20 @@ class PdStopMixin(MainWindowHost):
         if not marks:
             self.statusBar().showMessage(
                 "🎯 Last mark deleted — 🐂 auto-detection takes over again.", 4000)
+
+    def _nudge_pd_mark(self, secs: float, delta: float):
+        """−/+ beside a mark chip: move that one mark by `delta` (±0.1 s) —
+        a fine correction of a tap, never below a tenth from the start."""
+        path = self._playback.path
+        if path is None or not self._library.cache:
+            return
+        marks = [t for t in (self._pd_highlights.get(str(path)) or [])
+                 if t is not None]
+        i = next((i for i, t in enumerate(marks) if abs(t - secs) < 0.05), None)
+        if i is None:
+            return
+        marks[i] = round(max(0.1, marks[i] + delta), 1)
+        self._store_pd_marks(path, sorted(marks))
 
     def _known_pd_marks(self, path) -> list[float]:
         """The highlights known for `path` — the session's copy, else the

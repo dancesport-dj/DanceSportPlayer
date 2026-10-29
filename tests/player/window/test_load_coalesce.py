@@ -28,7 +28,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
-from player.window.main_load import _LOAD_MIN_GAP_MS
+from player.window.main_load import LOAD_MIN_GAP_MS
 from player.window.main_player import PlayerControlMixin
 
 
@@ -79,7 +79,7 @@ class LoadCoalesceTest(unittest.TestCase):
         for name in "abcdef":
             self.desk._play_or_stop(Path(f"{name}.mp3"))
         self.assertEqual(self.desk.loaded, [(Path("a.mp3"), True)])
-        _spin(self.app, int(_LOAD_MIN_GAP_MS) + 120)
+        _spin(self.app, int(LOAD_MIN_GAP_MS) + 120)
         self.assertEqual(self.desk.loaded,
                          [(Path("a.mp3"), True), (Path("f.mp3"), True)])
 
@@ -87,7 +87,7 @@ class LoadCoalesceTest(unittest.TestCase):
         self.desk._play_or_stop(Path("a.mp3"))
         self.desk._play_or_stop(Path("b.mp3"))
         self.desk._play_or_stop(Path("c.mp3"))
-        _spin(self.app, int(_LOAD_MIN_GAP_MS) + 120)
+        _spin(self.app, int(LOAD_MIN_GAP_MS) + 120)
         self.assertEqual(self.desk.loaded[-1], (Path("c.mp3"), True))
 
     def test_stopping_is_never_delayed(self):
@@ -101,13 +101,13 @@ class LoadCoalesceTest(unittest.TestCase):
         self.desk._play_or_stop(Path("a.mp3"))
         self.desk._play_or_stop(Path("b.mp3"))     # queued
         self.desk._play_or_stop(None)              # …and cancelled
-        _spin(self.app, int(_LOAD_MIN_GAP_MS) + 120)
+        _spin(self.app, int(LOAD_MIN_GAP_MS) + 120)
         self.assertEqual(self.desk.loaded, [(Path("a.mp3"), True), (None, True)])
 
     def test_a_press_after_the_gap_goes_straight_through(self):
         """Normal operating pace is not rate-limited at all."""
         self.desk._play_or_stop(Path("a.mp3"))
-        _spin(self.app, int(_LOAD_MIN_GAP_MS) + 120)
+        _spin(self.app, int(LOAD_MIN_GAP_MS) + 120)
         self.desk._play_or_stop(Path("b.mp3"))
         self.assertEqual(self.desk.loaded, [(Path("a.mp3"), True),
                                             (Path("b.mp3"), True)])
@@ -116,7 +116,7 @@ class LoadCoalesceTest(unittest.TestCase):
         """Drag-drop cues with start=False — the deferred load must not play it."""
         self.desk._play_or_stop(Path("a.mp3"))
         self.desk._play_or_stop(Path("b.mp3"), start=False)
-        _spin(self.app, int(_LOAD_MIN_GAP_MS) + 120)
+        _spin(self.app, int(LOAD_MIN_GAP_MS) + 120)
         self.assertEqual(self.desk.loaded[-1], (Path("b.mp3"), False))
 
     def test_no_player_does_nothing(self):

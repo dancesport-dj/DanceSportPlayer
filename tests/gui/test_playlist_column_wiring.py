@@ -20,11 +20,18 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication
 
 from shared.columns import (
-    _COL_ALBUM, _COL_ARTIST, _COL_COMMENT, _COL_CUSTOM, _COL_FILE, _COL_HEAT, _COL_PLAYS, _COL_POP, _COL_RATING,
-    _COL_REGEN,
+    _COL_ALBUM,
+    _COL_ARTIST,
+    _COL_COMMENT,
+    _COL_CUSTOM,
+    _COL_FILE,
+    _COL_PLAYS,
+    _COL_POP,
+    _COL_RATING,
+    COL_HEAT,
+    COL_REGEN,
 )
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 
 class ColumnWiringTest(unittest.TestCase):
@@ -66,9 +73,9 @@ class ColumnWiringTest(unittest.TestCase):
 
     def test_hiding_a_column_on_one_wishlist_hides_it_on_all_of_them(self):
         win = self.window()
-        win._deckset.wishlist2._toggle_column(_COL_HEAT, False)
+        win._deckset.wishlist2._toggle_column(COL_HEAT, False)
         for t in win._deckset.wishlists:
-            self.assertTrue(t.isColumnHidden(_COL_HEAT),
+            self.assertTrue(t.isColumnHidden(COL_HEAT),
                             "a wishlist kept the column")
 
     def test_the_decks_are_left_alone(self):
@@ -82,16 +89,16 @@ class ColumnWiringTest(unittest.TestCase):
         win._deckset.wishlist._toggle_column(_COL_POP, False)
         # Heat, Rating and Custom were already off
         self.assertEqual(win._settings["hidden_columns"]["wishlist"],
-                         [_COL_HEAT, _COL_POP, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT, _COL_PLAYS])
+                         [COL_HEAT, _COL_POP, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT, _COL_PLAYS])
         self.assertTrue(self.written, "nothing was saved")
 
     def test_a_saved_tick_comes_back_on_the_next_start(self):
-        win = self.window({"hidden_columns": {"wishlist": [_COL_REGEN],
-                                              "party": [_COL_HEAT]}})
+        win = self.window({"hidden_columns": {"wishlist": [COL_REGEN],
+                                              "party": [COL_HEAT]}})
         for t in win._deckset.wishlists:
-            self.assertTrue(t.isColumnHidden(_COL_REGEN))
-        self.assertTrue(win._deckset.warmup_table.isColumnHidden(_COL_HEAT))
-        self.assertFalse(win._deckset.tableA.isColumnHidden(_COL_REGEN))
+            self.assertTrue(t.isColumnHidden(COL_REGEN))
+        self.assertTrue(win._deckset.warmup_table.isColumnHidden(COL_HEAT))
+        self.assertFalse(win._deckset.tableA.isColumnHidden(COL_REGEN))
 
     def test_a_fresh_install_hides_heat_in_every_kind(self):
         """Heat only ever reads "Heat 2" on a deck with multiple heats per
@@ -100,7 +107,7 @@ class ColumnWiringTest(unittest.TestCase):
         and File name are off everywhere until asked for."""
         win = self.window()
         for t in win._deckset.all_tables:
-            self.assertEqual(t.hidden_columns(), [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT, _COL_PLAYS])
+            self.assertEqual(t.hidden_columns(), [COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT, _COL_PLAYS])
 
     def test_a_saved_numbers_view_reaches_the_wishlists_too(self):
         """The 🔢 state is restored per table at startup, and the wishlists were
@@ -133,8 +140,8 @@ class ColumnWiringTest(unittest.TestCase):
         comes back, not an instruction to bring it back."""
         win = self.window({"column_widths": {"wishlist": {"1": 99}}})
         for t in win._deckset.wishlists:
-            self.assertTrue(t.isColumnHidden(_COL_HEAT))
-            self.assertEqual(t.column_widths()[_COL_HEAT], 99)
+            self.assertTrue(t.isColumnHidden(COL_HEAT))
+            self.assertEqual(t.column_widths()[COL_HEAT], 99)
 
     def test_short_dance_names_reach_every_list_of_the_kind(self):
         win = self.window()
@@ -180,7 +187,7 @@ class ColumnWiringTest(unittest.TestCase):
         for t in win._deckset.wishlists:
             self.assertEqual(t.hidden_columns(), [])
         self.assertEqual(win._deckset.warmup_table.hidden_columns(),
-                         [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT, _COL_PLAYS])
+                         [COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT, _COL_PLAYS])
 
 
 if __name__ == "__main__":

@@ -6,13 +6,13 @@ theme list).
 """
 from dataclasses import replace
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from planner import i18n
-from planner.models import MusicEntry, RoundConfig
-from planner.generate.suggester import PlaylistSuggester
 from gui.dialogs import (  # auto-resolved
     keep_autosave_copy,
     load_autosave,
+    localized_deck_name,
+    localized_wishlist_name,
     save_autosave,
 )
 from gui.table.playlist_table import (  # auto-resolved
@@ -23,7 +23,10 @@ from gui.window.session_env import (
     WISH_KEYS,
     SessionEnv,
 )
-from typing import TYPE_CHECKING
+from planner import i18n
+from planner.generate.suggester import PlaylistSuggester
+from planner.models import MusicEntry, RoundConfig, RoundTier, Strategy
+from planner.music.paths import resolve_file
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -76,10 +79,18 @@ class RestoreMixin(MainWindowHost):
         self._restore_warmup_state(data.get("warmup"))
 
         names = data.get("names") or {}
-        for key, table in zip(ALL_DECK_KEYS + WISH_KEYS,
-                              self._deckset.decks + self._deckset.day_decks + self._deckset.wishlists, strict=True):
+        for n, (key, table) in enumerate(zip(ALL_DECK_KEYS,
+                                             self._deckset.decks + self._deckset.day_decks,
+                                             strict=True), start=1):
             if names.get(key):
-                self._set_deck_name(table, names[key])
+                name = names[key]
+                if table in self._deckset.decks:
+                    name = localized_deck_name(n, name)
+                self._set_deck_name(table, name)
+        for n, (key, table) in enumerate(zip(WISH_KEYS, self._deckset.wishlists,
+                                             strict=True), start=1):
+            if names.get(key):
+                self._set_deck_name(table, localized_wishlist_name(n, names[key]))
         files = data.get("m3u_paths") or {}
         for key, table in zip(ALL_DECK_KEYS + WISH_KEYS,
                               self._deckset.decks + self._deckset.day_decks + self._deckset.wishlists, strict=True):
@@ -136,6 +147,9 @@ class RestoreMixin(MainWindowHost):
             for table in decks:
                 self._blank_deck(table, keep_playing=True)
             for wl in self._deckset.wishlists:
+                # Off the marker first, as _blank_deck(keep_playing=True) does:
+                # an emptied list still marked reads as its title dropped.
+                wl._current_play_row = -1
                 wl.load_wishlist([], play_cb=self._play_or_stop, suggester=None)
             self._restore_env(data, wish_default=True)
         except Exception as exc:
@@ -171,6 +185,12 @@ class RestoreMixin(MainWindowHost):
         if memo is not None and path in memo:
             return memo[path]
         entry = lib.entry_for(path, self._library.cache, require_file=True)
+        if entry is None:
+            # Written on another PC, or the stick came back under another
+            # letter: the copy under the Reference path / search folders.
+            hit = resolve_file(path, self._settings)
+            if hit is not None and str(hit) != str(path):
+                entry = lib.entry_for(hit, self._library.cache, require_file=True)
         if memo is not None:
             memo[path] = entry
         return entry
@@ -252,25 +272,25 @@ class RestoreMixin(MainWindowHost):
             self._deckset.table = prev
 
     def _restore_favorites(self, data: dict):
-        dances      = data.get("dances") or []
+        dances = data.get("dances") or []
         rounds_data = data.get("rounds") or []
         if not dances or not rounds_data:
             return
         dance_class = data.get("dance_class", "S")
-        style       = data.get("style", "Latin")
-        use_timbre  = bool(data.get("use_timbre", True))
-        n_dances    = len(dances)
+        style = data.get("style", "Latin")
+        use_timbre = bool(data.get("use_timbre", True))
+        n_dances = len(dances)
 
         rounds = [RoundConfig(name=r["name"], heats=int(r.get("heats", 1)),
-                              tier=r.get("tier", "early"),
+                              tier=RoundTier.of(r.get("tier")),
                               prefer_fresh=bool(r.get("prefer_fresh", False)),
-                              strategy=r.get("strategy", "") or "")
+                              strategy=Strategy.of(r.get("strategy", "")))
                   for r in rounds_data]
 
         playlist = self._playlist_from_grid(rounds_data, n_dances)
 
         # Dynamic-mode state + stacked final-round backups.
-        dynamic  = bool(data.get("dynamic"))
+        dynamic = bool(data.get("dynamic"))
         capacity = data.get("dynamic_capacity") or []
         backups: dict[tuple[str, int, int], list[MusicEntry]] = {}
         for r in rounds_data:
@@ -294,15 +314,15 @@ class RestoreMixin(MainWindowHost):
 
         seed = data.get("seed")
         suggester = PlaylistSuggester(self._library.lib, seed=seed if isinstance(seed, int) else None)
-        self._suggester     = suggester
-        self._playlist      = playlist
-        self._mode          = "Favorites"
-        self._ui_mode       = data.get("ui_mode", "Favorites")
+        self._suggester = suggester
+        self._playlist = playlist
+        self._mode = "Favorites"
+        self._ui_mode = data.get("ui_mode", "Favorites")
         self._theme_entries = []
-        self._style         = style
-        self._dance_class   = dance_class
-        self._dances        = dances
-        self._age           = data.get("age", self._age)
+        self._style = style
+        self._dance_class = dance_class
+        self._dances = dances
+        self._age = data.get("age", self._age)
 
         self._deckset.table.load(
             playlist, dances, rounds, dance_class,
@@ -331,7 +351,7 @@ class RestoreMixin(MainWindowHost):
             return
         suggester = PlaylistSuggester(self._library.lib)
         self._suggester = suggester
-        self._playlist  = None
+        self._playlist = None
         # Set before the load, not after: the rows read the mark set as they are
         # filled, so this way they come back orange in one pass with no re-render.
         self._deckset.table._marked_paths = {str(p) for p in (data.get("marked") or [])}
@@ -352,14 +372,14 @@ class RestoreMixin(MainWindowHost):
         if not entries:
             return
         suggester = PlaylistSuggester(self._library.lib)
-        self._suggester     = suggester
-        self._mode          = "Theme"
-        self._ui_mode       = "Theme"
+        self._suggester = suggester
+        self._mode = "Theme"
+        self._ui_mode = "Theme"
         self._theme_entries = entries
-        self._theme_label   = data.get("theme_label", "")
-        self._playlist      = None
-        self._style         = data.get("style", self._style)
-        self._dance_class   = data.get("dance_class", self._dance_class)
+        self._theme_label = data.get("theme_label", "")
+        self._playlist = None
+        self._style = data.get("style", self._style)
+        self._dance_class = data.get("dance_class", self._dance_class)
 
         self._deckset.table.load_theme(
             entries, self._theme_label or "Theme",

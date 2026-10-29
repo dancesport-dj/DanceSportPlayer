@@ -10,11 +10,19 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QButtonGroup, QDialog, QGroupBox, QHBoxLayout, QLabel, QPushButton,
-    QRadioButton, QScrollArea, QVBoxLayout, QWidget,
+    QButtonGroup,
+    QDialog,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QRadioButton,
+    QScrollArea,
+    QVBoxLayout,
+    QWidget,
 )
 
-from gui.common import _fmt_track_secs
+from gui.common import fmt_track_secs
 from planner import i18n
 
 
@@ -22,7 +30,7 @@ def _describe(entry) -> str:
     """The file name and length, its folder on a second line."""
     p = Path(str(entry.path))
     secs = int(getattr(entry, "duration", 0) or 0)
-    length = f"   {_fmt_track_secs(secs)}" if secs else ""
+    length = f"   {fmt_track_secs(secs)}" if secs else ""
     return f"{p.name}{length}\n{p.parent}"
 
 

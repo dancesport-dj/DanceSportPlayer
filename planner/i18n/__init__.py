@@ -35,6 +35,7 @@ install functions, which only ever run under a QApplication.
 import contextlib
 import importlib
 import logging
+from collections.abc import Iterator
 
 log = logging.getLogger("dancesport.i18n")
 
@@ -148,7 +149,7 @@ def is_translated() -> bool:
     return bool(_catalog)
 
 
-def translate(text, lang: str):
+def translate[T](text: T, lang: str) -> T:
     """`text` in `lang`, whatever language the rest of the app is in — for the
     one window the hall reads (see planner.terms.hall_language). Misses come
     back unchanged, exactly as with `t`."""
@@ -161,7 +162,7 @@ def translate(text, lang: str):
     return _other_catalogs[lang].get(text, text)
 
 
-def t(text):
+def t[T](text: T) -> T:
     """The active language's version of an English chrome string.
 
     Anything unknown — a track name, an f-string, a number, None — comes back
@@ -172,7 +173,7 @@ def t(text):
 
 
 @contextlib.contextmanager
-def verbatim():
+def verbatim() -> Iterator[None]:
     """Inside this block nothing is translated, whatever the catalog says.
 
     The escape hatch for **data**. Keying by the English string is what makes a

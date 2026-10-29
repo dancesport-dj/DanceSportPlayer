@@ -36,11 +36,11 @@ class _NoCache:
 
 def _entry(name: str, genre: str | None, folder: str = "others"):
     path = Path(rf"C:\music\tanzcds\{folder}\{name}.mp3")
-    with mock.patch("planner.music.library._get_raw_genre_tag", return_value=genre), \
-         mock.patch("planner.music.library._get_comment_tag", return_value=None), \
-         mock.patch("planner.music.library._get_title_artist_tags",
+    with mock.patch("planner.music.library.get_raw_genre_tag", return_value=genre), \
+         mock.patch("planner.music.library.get_comment_tag", return_value=None), \
+         mock.patch("planner.music.library.get_title_artist_tags",
                     return_value=(None, None, None)), \
-         mock.patch("planner.music.library._read_duration", return_value=180):
+         mock.patch("planner.music.library.read_duration", return_value=180):
         return MusicLibrary()._make_entry(path, _NoCache())
 
 
@@ -83,7 +83,7 @@ def _um_entry(name: str, genre: str | None, dancestyle: str | None):
     tags = ID3()
     if dancestyle is not None:
         tags.add(TXXX(encoding=3, desc="ultramixer_dancestyle", text=[dancestyle]))
-    with mock.patch("planner.music.library._read_tags_once", return_value=(tags, 180)):
+    with mock.patch("planner.music.library.read_tags_once", return_value=(tags, 180)):
         return _entry(name, genre)
 
 

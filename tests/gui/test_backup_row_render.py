@@ -20,13 +20,13 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_backuprow_"))
 
 from PySide6.QtWidgets import QApplication, QWidget
-from tests.qt_test_support import reap_widget
 
 from gui.table.playlist_table import PlaylistTable
-from planner.music.library import MusicLibrary
-from planner.models import MusicEntry, RoundConfig
 from planner.generate.suggester import PlaylistSuggester
-from shared.columns import _COL_HEAT
+from planner.models import MusicEntry, RoundConfig
+from planner.music.library import MusicLibrary
+from shared.columns import COL_HEAT
+from tests.qt_test_support import reap_widget
 
 
 def _waltz(name: str) -> MusicEntry:
@@ -61,8 +61,8 @@ class BackupRowTest(unittest.TestCase):
                use_timbre=False, dynamic=True, capacity=[6],
                backups={("Endrunde", 0, 0): [spare1, spare2]})
 
-        heats = [t.item(r, _COL_HEAT).text() for r in range(t.rowCount())
-                 if t.item(r, _COL_HEAT) is not None]
+        heats = [t.item(r, COL_HEAT).text() for r in range(t.rowCount())
+                 if t.item(r, COL_HEAT) is not None]
         self.assertIn("↳ backup 1", heats)
         self.assertIn("↳ backup 2", heats)
 

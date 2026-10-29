@@ -22,8 +22,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication
 
 from gui.decks.deck_set import DeckSet
-from gui.window.main_decks import DeckLayoutMixin
 from gui.table.playlist_table import PlaylistTable
+from gui.window.main_decks import DeckLayoutMixin
 from planner.models import MusicEntry, RoundConfig
 from tests.qt_test_support import reap_widget
 

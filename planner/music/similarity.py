@@ -6,7 +6,7 @@ methods (`gaussian_kl` Mandel-Ellis symmetric KL — the app default — and the
 pool-z-scored cosine `librosa` method), their KL→percent calibration, and the
 `_timbre_similarity` dispatcher shared by display and playlist scoring.
 """
-
+import contextlib
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -21,8 +21,12 @@ else:
         np = None
 
 from planner.music.analysis import (
-    AudioFeatures, HAS_LIBROSA, _GAUSS_MFCC, _TIMBRE_MFCC_DIM,
+    GAUSS_MFCC,
+    HAS_LIBROSA,
+    TIMBRE_MFCC_DIM,
+    AudioFeatures,
 )
+
 
 def _feat_vector(f: AudioFeatures) -> list[float]:
     """Raw timbre-only feature vector [centroid, rms, *mfcc(60)] for pool standardization.
@@ -38,12 +42,12 @@ def _feat_vector(f: AudioFeatures) -> list[float]:
     coefficients — can hijack the cosine direction, giving a discriminative,
     perceptual ranking instead of everything bunched at ~99.9 %.
     """
-    return [f.centroid, f.rms] + list(f.mfcc[:_TIMBRE_MFCC_DIM])
+    return [f.centroid, f.rms] + list(f.mfcc[:TIMBRE_MFCC_DIM])
 
 
 # Timbre similarity (0..1) at/above which a track is treated as a "strong" sound-alike:
 # such tracks join the replace/↺ shortlist even when they rank below the top 10.
-_STRONG_TIMBRE = 0.80
+STRONG_TIMBRE = 0.80
 
 # Default timbre metric for the whole app (display + playlist scoring). The Gaussian /
 # symmetric-KL (Mandel-Ellis) model matches the Java app's good suggestions far better
@@ -68,7 +72,7 @@ _KL_SCALE = 11.0
 _KL_IDENTICAL = 1e-6
 
 
-def _kl_to_sim(j: float) -> float:
+def kl_to_sim(j: float) -> float:
     """Map a symmetric-KL divergence J to an absolute similarity in [0, 1].
 
     Confidence is capped at 0.99 unless J ≈ 0 (identical Gaussian → same-fingerprint
@@ -133,14 +137,12 @@ def _gauss_of(f: AudioFeatures | None):
         return f.gauss_cache
     triple = (None, None, None)
     if f.mfcc_mean is not None and f.mfcc_cov is not None:
-        k = _GAUSS_MFCC
+        k = GAUSS_MFCC
         if len(f.mfcc_mean) == k and len(f.mfcc_cov) == k * k:
             mu = np.asarray(f.mfcc_mean, dtype=float)
             cov = np.asarray(f.mfcc_cov, dtype=float).reshape(k, k)
-            try:
+            with contextlib.suppress(np.linalg.LinAlgError):
                 triple = (mu, cov, np.linalg.inv(cov))
-            except np.linalg.LinAlgError:
-                pass
     f.gauss_cache = triple
     return triple
 
@@ -171,7 +173,7 @@ def _gaussian_kl_similarity(anchor: AudioFeatures,
     a_mu, a_cov, a_inv = _gauss_of(anchor)
     if not HAS_LIBROSA or a_mu is None or a_cov is None or a_inv is None:
         return {str(e.path): 0.5 for e in entries}
-    k = _GAUSS_MFCC
+    k = GAUSS_MFCC
     dists: dict[str, float] = {}
     for e in entries:
         mu, cov, inv = _gauss_of(e.features)
@@ -193,11 +195,11 @@ def _gaussian_kl_similarity(anchor: AudioFeatures,
     out: dict[str, float] = {}
     for e in entries:
         j = dists.get(str(e.path))
-        out[str(e.path)] = _kl_to_sim(j) if j is not None else 0.5
+        out[str(e.path)] = kl_to_sim(j) if j is not None else 0.5
     return out
 
 
-def _timbre_similarity(anchor: AudioFeatures,
+def timbre_similarity(anchor: AudioFeatures,
                        entries: list[MusicEntry],
                        method: str | None = None) -> dict[str, float]:
     """Dispatch to the app's timbre metric (default `_DEFAULT_TIMBRE_METHOD`).

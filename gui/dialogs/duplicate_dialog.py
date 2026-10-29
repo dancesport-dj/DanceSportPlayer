@@ -6,56 +6,72 @@ import html
 import logging
 from pathlib import Path
 
-from PySide6.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
-    QTableWidget, QTableWidgetItem, QPushButton, QLabel,
-    QComboBox, QGroupBox,
-    QHeaderView, QAbstractItemView, QMessageBox,
-    QScrollArea, QDialog, QProgressBar, QFileDialog, QTabWidget,
-)
 from PySide6.QtCore import (
-    Qt, QTimer,
+    Qt,
+    QTimer,
 )
 from PySide6.QtGui import (
-    QColor, QShortcut, QKeySequence,
+    QColor,
+    QKeySequence,
+    QShortcut,
+)
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
+    QComboBox,
+    QDialog,
+    QFileDialog,
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QMessageBox,
+    QProgressBar,
+    QPushButton,
+    QScrollArea,
+    QTableWidget,
+    QTableWidgetItem,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
 )
 
-
+from gui.common import (  # noqa: F401  (shared primitives)
+    C_DANCE_BG,
+    C_DANCE_FG,
+    C_DEFAULT,
+    C_NEW_FG,
+    C_POP_FG,
+    C_ROUND_BG,
+    C_ROUND_FG,
+    C_ROW_EVEN,
+    C_ROW_ODD,
+    C_SIM_FG,
+    C_WARN_FG,
+    BusyDialog,
+    DragTable,
+    DroppedFilesList,
+    DropZone,
+    LoadingDialog,
+    MultiFileDropZone,
+    PathListWidget,
+    _lbl,
+    apply_taskbar_icon,
+    entry_tooltip,
+    fmt_duration,
+    fmt_track_secs,
+    open_folder,
+    open_in_default_player,
+    reveal_in_explorer,
+    sanitize_filename,
+)
+from gui.workers import adopt_running
 from planner import i18n
 from planner.config import replacing_text
-from planner.music.parsing import _detect_bpm, _detect_dance
-from planner.terms import dance_name
+from planner.music.parsing import detect_bpm, detect_dance
 from planner.playlist.planned import path_key
-from gui.workers import adopt_running
-from gui.common import (  # noqa: F401  (shared primitives)
-    _sanitize_filename,
-    apply_taskbar_icon,
-    _lbl,
-    LoadingDialog,
-    _fmt_duration,
-    BusyDialog,
-    _C_ROUND_BG,
-    _C_ROUND_FG,
-    _C_DANCE_BG,
-    _C_DANCE_FG,
-    _C_ROW_EVEN,
-    _C_ROW_ODD,
-    _C_POP_FG,
-    _C_NEW_FG,
-    _C_SIM_FG,
-    _C_WARN_FG,
-    _C_DEFAULT,
-    _fmt_track_secs,
-    _entry_tooltip,
-    _open_in_default_player,
-    _open_folder,
-    reveal_in_explorer,
-    _DragTable,
-    DropZone,
-    _PathListWidget,
-    _DroppedFilesList,
-    _MultiFileDropZone,
-)
+from planner.terms import dance_name
 
 log = logging.getLogger("dancesport.gui")
 
@@ -76,21 +92,21 @@ class DuplicateResolveDialog(QDialog):
         self.setWindowTitle("Check duplicates")
         self.resize(900, 300)
         self.setMinimumWidth(760)
-        self._pick_fn       = pick_fn      # pick_fn(entry) -> MusicEntry | None
+        self._pick_fn = pick_fn      # pick_fn(entry) -> MusicEntry | None
         self._drop_check_fn = drop_check_fn  # drop_check_fn(paths) -> [ {title, files} ]
         self._ref_clean_factory = ref_clean_factory  # () -> ReferenceCleanWorker
-        self._play_cb       = play_cb      # play_cb(path|None): preview / stop a file
-        self._play_btn      = None         # the ▶ button currently showing ■ (playing)
-        self._occ_state     = []           # one record per resolvable occurrence
-        self._occ_seen      = {}           # slot → state, dedup across sections
+        self._play_cb = play_cb      # play_cb(path|None): preview / stop a file
+        self._play_btn = None         # the ▶ button currently showing ■ (playing)
+        self._occ_state = []           # one record per resolvable occurrence
+        self._occ_seen = {}           # slot → state, dedup across sections
         self._cross_cliques = {}           # clique root → member copies (built per report)
-        self._slot_clique   = {}           # slot → clique root
-        self._drop_busy     = False        # a tab-2 check is running
-        self._drop_dirty    = False        # files arrived mid-check → re-run after
-        self._ref_path      = None         # tab-3 reference .m3u
-        self._ref_worker    = None         # running ReferenceCleanWorker (kept alive)
-        self._ref_result    = None         # last comparison result (awaiting export)
-        self.resolutions    = []           # filled on accept
+        self._slot_clique = {}           # slot → clique root
+        self._drop_busy = False        # a tab-2 check is running
+        self._drop_dirty = False        # files arrived mid-check → re-run after
+        self._ref_path = None         # tab-3 reference .m3u
+        self._ref_worker = None         # running ReferenceCleanWorker (kept alive)
+        self._ref_result = None         # last comparison result (awaiting export)
+        self.resolutions = []           # filled on accept
         self.finished.connect(lambda _=0: self._stop_preview())
         self.finished.connect(self._let_ref_worker_go)
 
@@ -190,7 +206,7 @@ class DuplicateResolveDialog(QDialog):
         w = QWidget()
         lyt = QVBoxLayout(w)
         within = report.get("within", [])
-        cross  = report.get("cross", [])
+        cross = report.get("cross", [])
         head = QLabel(
             "Duplicate songs across your open playlist(s), in playlist order."
             "<br><span style='color:#666'>🟰 <b>Exact</b> = identical audio. "
@@ -243,11 +259,11 @@ class DuplicateResolveDialog(QDialog):
         info.setWordWrap(True)
         lyt.addWidget(info)
 
-        self._drop_zone = _MultiFileDropZone()
+        self._drop_zone = MultiFileDropZone()
         self._drop_zone.filesDropped.connect(lambda ps: self._drop_files.add_paths(ps))
         lyt.addWidget(self._drop_zone)
 
-        self._drop_files = _DroppedFilesList()
+        self._drop_files = DroppedFilesList()
         self._drop_files.changed.connect(self._refresh_drop_results)
         lyt.addWidget(self._drop_files)
 
@@ -327,7 +343,7 @@ class DuplicateResolveDialog(QDialog):
         lyt.addWidget(info)
 
         lyt.addWidget(self._section_heading("📌  Reference base (single .m3u)"))
-        self._ref_zone = _MultiFileDropZone()
+        self._ref_zone = MultiFileDropZone()
         self._ref_zone.filesDropped.connect(self._on_ref_dropped)
         lyt.addWidget(self._ref_zone)
         self._ref_lbl = QLabel("No reference playlist yet.")
@@ -335,11 +351,11 @@ class DuplicateResolveDialog(QDialog):
         lyt.addWidget(self._ref_lbl)
 
         lyt.addWidget(self._section_heading("🎯  Tournament files (compared against)"))
-        self._ref_tour_zone = _MultiFileDropZone()
+        self._ref_tour_zone = MultiFileDropZone()
         self._ref_tour_zone.filesDropped.connect(
             lambda ps: self._ref_tour_files.add_paths(ps))
         lyt.addWidget(self._ref_tour_zone)
-        self._ref_tour_files = _DroppedFilesList(clear_hook=self._reset_reference_base)
+        self._ref_tour_files = DroppedFilesList(clear_hook=self._reset_reference_base)
         self._ref_tour_files.changed.connect(self._on_ref_inputs_changed)
         lyt.addWidget(self._ref_tour_files)
 
@@ -468,8 +484,8 @@ class DuplicateResolveDialog(QDialog):
         """Render the overview table from rows of (mark, colour_hex, Path, title)."""
         self._ref_overview.setRowCount(len(rows))
         for r, (mark, colour, path, title) in enumerate(rows):
-            dance = _detect_dance(path.name.replace("_", " ")) or ""
-            bpm = _detect_bpm(path.name)
+            dance = detect_dance(path.name.replace("_", " ")) or ""
+            bpm = detect_bpm(path.name)
             takt = str(bpm) if bpm else ""
             cells = [mark, dance, title, takt, path.name]
             for c, text in enumerate(cells):
@@ -509,7 +525,7 @@ class DuplicateResolveDialog(QDialog):
             order = ["LW", "TG", "WW", "SF", "QS", "SA", "CC", "RB", "PD", "JI"]
             rank = {d: i for i, d in enumerate(order)}
             blocks = sorted(kept_blocks, key=lambda b: rank.get(
-                _detect_dance(b["path"].name.replace("_", " ")) or "",
+                detect_dance(b["path"].name.replace("_", " ")) or "",
                 len(order)))  # stable: unknown dances keep their order, at the end
         try:
             lines = ["#EXTM3U"]

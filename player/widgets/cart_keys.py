@@ -6,22 +6,29 @@ the desk's own keys. The wall and its pads are in player.widgets.cartwall.
 
 from pathlib import Path
 
-from PySide6.QtCore import (
-    Qt, Signal)
-from PySide6.QtGui import (
-    QKeySequence)
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QKeySequence
 from PySide6.QtWidgets import (
-    QGridLayout, QHBoxLayout, QKeySequenceEdit, QLabel,
-    QPushButton, QScrollArea, QSizePolicy, QToolButton, QVBoxLayout, QWidget)
+    QGridLayout,
+    QHBoxLayout,
+    QKeySequenceEdit,
+    QLabel,
+    QPushButton,
+    QScrollArea,
+    QSizePolicy,
+    QToolButton,
+    QVBoxLayout,
+    QWidget,
+)
 
-from planner.playing import cartwall as pc
 from planner import i18n
+from planner.playing import cartwall as pc
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Shortcuts
 # ─────────────────────────────────────────────────────────────────────────────
-class _KeyPicker(QWidget):
+class KeyPicker(QWidget):
     """One shortcut: press it, Learn it, or ✕ it away.
 
     Learn armed, the next key pressed is the key, whatever it is (F13–F24
@@ -126,8 +133,8 @@ class CartKeysPanel(QWidget):
         self._pad_names: dict[tuple, str] = {}
         self._grid = grid
         self._cells = list(pc.cells_in_order(grid))
-        self._slot_pickers: list[_KeyPicker] = []
-        self._pad_pickers: list[tuple[tuple, _KeyPicker, QLabel]] = []
+        self._slot_pickers: list[KeyPicker] = []
+        self._pad_pickers: list[tuple[tuple, KeyPicker, QLabel]] = []
         self._slot_warnings: list[QLabel] = []
 
         lyt = QVBoxLayout(self)
@@ -143,7 +150,7 @@ class CartKeysPanel(QWidget):
         grid_lyt.setColumnStretch(1, 1)
         keys = pc.clean_slot_keys(slot_keys)
         for slot, _cell in enumerate(self._cells):
-            picker = _KeyPicker(keys[slot] if slot < len(keys) else "")
+            picker = KeyPicker(keys[slot] if slot < len(keys) else "")
             picker.changed.connect(self._on_edit)
             warn = _warning_label()
             grid_lyt.addWidget(QLabel(i18n.t("Slot %d") % (slot + 1)), slot, 0)
@@ -165,7 +172,7 @@ class CartKeysPanel(QWidget):
             pad_lyt = QGridLayout()
             pad_lyt.setColumnStretch(1, 1)
             for line, (page, cell, pad) in enumerate(pads):
-                picker = _KeyPicker(pad.shortcut)
+                picker = KeyPicker(pad.shortcut)
                 picker.changed.connect(self._on_edit)
                 warn = _warning_label()
                 name = _pad_name(pad)

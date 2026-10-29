@@ -26,12 +26,11 @@ from dancesport_planner import (
     PlaylistSuggester,
     RoundConfig,
 )
-from gui.library_browser import _LIB_COL_CUSTOM
+from gui.library_browser import LIB_COL_CUSTOM
 from planner.music import custom_field, tag_edits
+from shared.columns import _COL_CUSTOM, _N_COLS, COL_REGEN
 from tests.db_support import use_scratch_db
-from shared.columns import _COL_CUSTOM, _COL_REGEN, _N_COLS
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 _AUDIO = b"\xff\xfb\x90\x00" + b"\x00" * 4000
 
@@ -61,7 +60,7 @@ class _Cache:
 class ColumnsTest(unittest.TestCase):
 
     def test_custom_sits_in_front_of_regen(self):
-        self.assertEqual((_COL_CUSTOM, _COL_REGEN, _N_COLS), (10, 15, 16))
+        self.assertEqual((_COL_CUSTOM, COL_REGEN, _N_COLS), (10, 15, 16))
 
 
 class CustomColumnTest(unittest.TestCase):
@@ -124,7 +123,7 @@ class CustomColumnTest(unittest.TestCase):
         t = self.win._lib_browser._table
         for r in range(t.rowCount()):
             if str(t.item(r, 0).data(Qt.ItemDataRole.UserRole)) == str(entry.path):
-                return t.item(r, _LIB_COL_CUSTOM).text()
+                return t.item(r, LIB_COL_CUSTOM).text()
         self.fail(f"no library row for {entry.title}")
 
     class _Answer:
@@ -161,7 +160,7 @@ class CustomColumnTest(unittest.TestCase):
         self.assertEqual(self._cell(self.win._deckset.tableB, self.rum), "")
 
     def test_the_library_starts_with_it_put_away(self):
-        self.assertIn(_LIB_COL_CUSTOM, self.win._lib_browser.hidden_columns())
+        self.assertIn(LIB_COL_CUSTOM, self.win._lib_browser.hidden_columns())
 
     def test_the_library_shows_the_value(self):
         self.win._lib_browser.set_entries(self.win._library.lib.entries)
@@ -193,6 +192,7 @@ class CustomColumnTest(unittest.TestCase):
 
     def test_the_editor_opens_on_the_double_clicked_field(self):
         from unittest import mock
+
         from gui.window import main_tags
         seen = {}
 
@@ -273,6 +273,7 @@ class CustomColumnTest(unittest.TestCase):
 
     def test_the_dialog_is_shown_what_the_library_mp3s_hold(self):
         from unittest import mock
+
         from gui.window import main_tags
         seen = {}
 

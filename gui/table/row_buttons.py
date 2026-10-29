@@ -20,9 +20,9 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QPushButton,
     QStyle,
+    QStyledItemDelegate,
     QStyleOptionButton,
     QStyleOptionViewItem,
-    QStyledItemDelegate,
 )
 
 BUTTON_ROLE = Qt.ItemDataRole.UserRole + 42   # the glyph; None = no button in this cell

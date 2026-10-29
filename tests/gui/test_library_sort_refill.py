@@ -32,7 +32,7 @@ from gui.library_browser import LibraryBrowser
 from planner.models import MusicEntry
 from tests.qt_test_support import reap_widget
 
-_PLAY, _TITLE, _BPM, _RATING = 0, 3, 4, library_browser._LIB_COL_RATING
+_PLAY, _TITLE, _BPM, _RATING = 0, 3, 4, library_browser.LIB_COL_RATING
 ASC, DESC = Qt.SortOrder.AscendingOrder, Qt.SortOrder.DescendingOrder
 
 

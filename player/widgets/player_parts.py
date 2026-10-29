@@ -14,36 +14,53 @@ from PySide6.QtWidgets import QApplication, QSlider, QStyle, QWidget
 
 # Edge length of the 🖼 cover on the player card — as tall as the title block
 # next to it, so switching it on doesn't grow the card.
-_ART_PX = 76
+ART_PX = 76
 
 # Icon colours. The overlay is a light card in the app's blue, the big player a
 # dark one — an icon carries its own colour, so it has to be told which world
 # it is in (a QSS `color:` no longer reaches it).
-_OVERLAY_INK = "#1565c0"
-_CARD_INK = "#cfe0f5"
-_CARD_FADE = "#d8a0a0"     # fade this song out
-_CARD_PAUSE = "#9fc3f0"    # over to the pause music
-_CARD_EXTEND = "#7fd4a0"   # give the pause more time
-_CARD_CUE = "#f0c674"      # back to 0:00
-_CARD_PANIC = "#e58080"    # fade to silence and hold
-_CARD_DIM = "#8fa3c4"      # the fader's own small marks
-_CARD_GAIN = "#d8b35c"     # the R128 equalization readout
+OVERLAY_INK = "#1565c0"
+CARD_INK = "#cfe0f5"
+CARD_FADE = "#d8a0a0"     # fade this song out
+CARD_PAUSE = "#9fc3f0"    # over to the pause music
+CARD_EXTEND = "#7fd4a0"   # give the pause more time
+CARD_CUE = "#f0c674"      # back to 0:00
+CARD_PANIC = "#e58080"    # fade to silence and hold
+CARD_DIM = "#8fa3c4"      # the fader's own small marks
+CARD_GAIN = "#d8b35c"     # the R128 equalization readout
 
 # The card's gold countdown: the pause's own, and the 🐂 wait's, which reads
 # on from the 11 px words before it ("PD T60 in 5 s") in their font.
-_COUNTDOWN_CSS = ("font-size:13px; font-weight:bold; color:#d8b35c;"
+COUNTDOWN_CSS = ("font-size:13px; font-weight:bold; color:#d8b35c;"
                   "font-family:Consolas,monospace;")
-_WAIT_COUNT_CSS = "font-size:11px; font-weight:bold; color:#d8b35c;"
+WAIT_COUNT_CSS = "font-size:11px; font-weight:bold; color:#d8b35c;"
 
 # One − / + click on the tempo fader, in the slider's own 0.1 % units — the
 # finest step the fader has. A takt is hit by tenths, not halves, and the far
 # side of the range is reached by holding the button rather than by clicking.
-_TEMPO_STEP = 1
+TEMPO_STEP = 1
+
+# One − / + click on the music volume, in per cent. Held, the buttons glide:
+# half to full in under three seconds. A figure already known is typed.
+VOL_STEP = 2
 
 
-def _fmt_ms(ms: int) -> str:
-    """Milliseconds → mm:ss for the preview-overlay time labels."""
+# ⏱ How a title over an hour reads: "hours" → 1:04:00, "minutes" → 64:00.
+# ⚙ Settings → 🔊 Sound & player; one switch for every player time label.
+_time_format = "hours"
+
+
+def set_time_format(fmt: str | None):
+    global _time_format
+    _time_format = "minutes" if fmt == "minutes" else "hours"
+
+
+def fmt_ms(ms: int) -> str:
+    """Milliseconds → mm:ss for the player's time labels — h:mm:ss from an
+    hour on, unless ⚙ Settings asks for minutes past 59."""
     s = max(0, int(ms) // 1000)
+    if s >= 3600 and _time_format == "hours":
+        return f"{s // 3600}:{s % 3600 // 60:02d}:{s % 60:02d}"
     return f"{s // 60:02d}:{s % 60:02d}"
 
 
@@ -53,7 +70,7 @@ def _round_half_up(x: float) -> int:
     return math.floor(x + 0.5)
 
 
-def _takt_text(x: float) -> str:
+def takt_text(x: float) -> str:
     """A takt for the readout: whole where the pitch lands whole, one decimal
     where it does not.
 
@@ -79,7 +96,7 @@ class _NoWheelSlider(QSlider):
         event.ignore()
 
 
-class _ClickSlider(_NoWheelSlider):
+class ClickSlider(_NoWheelSlider):
     """Slider that jumps straight to the clicked spot (no page-stepping). The
     handle lands under the cursor, so the same press continues as a drag."""
 
@@ -126,7 +143,7 @@ class _ClickSlider(_NoWheelSlider):
         super().mousePressEvent(event)
 
 
-class _TempoSlider(_ClickSlider):
+class TempoSlider(ClickSlider):
     """The ±16 % fader. A click lands the handle on the spot you hit — Qt's own
     page-stepping moves it by exactly 1 %, which turns "put it at +4" into four
     clicks. A double-click anywhere on it snaps back to ±0 % — the same as the
@@ -157,7 +174,7 @@ class _TempoSlider(_ClickSlider):
         super().mouseDoubleClickEvent(event)
 
 
-def _block(layout) -> QWidget:
+def block(layout) -> QWidget:
     """A row of the player card, wrapped in a widget of its own so `set_wide`
     can move it: a layout is re-parented only through a widget."""
     w = QWidget()

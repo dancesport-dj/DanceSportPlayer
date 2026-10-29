@@ -25,8 +25,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
-from planner.models import MusicEntry
 from gui.library_browser import LibraryBrowser
+from planner.models import MusicEntry
 from tests.qt_test_support import reap_widget
 
 DANCES = ["LW", "TG", "WW", "SF", "QS", "CC", "SA", "RB", "PD", "JI"]

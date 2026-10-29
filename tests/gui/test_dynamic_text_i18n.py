@@ -54,7 +54,7 @@ _SINKS = {
     "QLabel": (0,), "QPushButton": (0,), "QCheckBox": (0,),
     "QRadioButton": (0,), "QGroupBox": (0,), "QToolButton": (0,),
     "QMenu": (0,), "QAction": (0, 1),
-    "_show_toast": (1,), "_confirm_delete": (0, 1),
+    "show_toast": (1,), "_confirm_delete": (0, 1),
     # The app's own helpers that end in a label.
     "BusyDialog": (1,), "set_message": (0,), "_finish_ai_log": (0,),
     "add_step": (1, 2), "_set_countdown": (0,), "_run_export": (0,),
@@ -228,12 +228,11 @@ def _uncataloged() -> list[str]:
             span = lines[call.lineno - 2:call.end_lineno]
             if any(_MARKER in line for line in span):
                 continue
-            for arg in texts:
-                for lit in _literals(arg):
-                    if _english(lit.value) and lit.value not in CATALOG \
-                            and lit.value not in _SAME_IN_GERMAN:
-                        found.append(f"{path.relative_to(_ROOT).as_posix()}:{lit.lineno}"
-                                     f"  {lit.value[:60]!r}")
+            found.extend(f"{path.relative_to(_ROOT).as_posix()}:{lit.lineno}"
+                         f"  {lit.value[:60]!r}"
+                         for arg in texts for lit in _literals(arg)
+                         if _english(lit.value) and lit.value not in CATALOG
+                         and lit.value not in _SAME_IN_GERMAN)
     return sorted(set(found))
 
 

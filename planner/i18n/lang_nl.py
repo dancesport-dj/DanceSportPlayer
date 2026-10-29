@@ -359,9 +359,6 @@ CATALOG = {
         "worden gedecodeerd (een paar seconden per nummer). Je kunt altijd annuleren;\n"
         "de resultaten tot dan blijven bewaard.",
     "Fresh mix:": "Mix van nieuwe:",
-    "Pause music:": "Pauzemuziek:",
-    "Pause music volume:": "Volume pauzemuziek:",
-    "No pause music": "Geen pauzemuziek",
     "Set clock to": "Klok zetten op",
     "Draw tracks from": "Nummers kiezen uit",
     "Songs needed for:": "Nummers nodig voor:",
@@ -665,6 +662,14 @@ CATALOG = {
     "Then restart the app — nothing else to configure.":
         "Start de app daarna opnieuw — verder hoef je niets in te stellen.",
     "ffmpeg not found": "ffmpeg niet gevonden",
+    "In a terminal:":
+        "In een terminal:",
+    "…no Homebrew yet? That line first:":
+        "…nog geen Homebrew? Eerst deze regel:",
+    "…or with Homebrew, on any distro:":
+        "…of met Homebrew, op elke distributie:",
+    "…or download a build from <a href='https://www.gyan.dev/ffmpeg/builds/'>gyan.dev/ffmpeg/builds</a> and drop <code>ffmpeg.exe</code> into this app's folder.":
+        "…of download een build van <a href='https://www.gyan.dev/ffmpeg/builds/'>gyan.dev/ffmpeg/builds</a> en zet <code>ffmpeg.exe</code> in de map van deze app.",
     "(multimedia unavailable)": "(multimedia niet beschikbaar)",
     "Play a title first — then TSO sets its heat tempo.":
         "Speel eerst een titel af — dan zet TSO het tempo van de heat.",
@@ -724,14 +729,11 @@ CATALOG = {
         "Terug naar de standaardtoets van deze plek",
     "Export or import this wall": "Deze Cartwall exporteren of importeren",
     "Duck to 20 % / back to full": "Dempen naar 20 % / terug naar vol",
-    "Duck to %d %% / back to full": "Dempen naar %d %% / terug naar vol",
-    "Duck to %d %% / back to full — the filler music comes down too":
-        "Dempen tot %d %% / terug naar vol — de vulmuziek gaat mee omlaag",
     "🔉  Duck to:": "🔉  Dempen naar:",
     "How loud everything stays while 🔉 Duck is pressed on the player\ncard, the mini player or the presenter screen: low enough to talk\nover, loud enough to keep the floor moving. 0 % is silence.":
         "Hoe luid alles blijft terwijl 🔉 Dempen is ingedrukt op de spelerkaart,\nde minispeler of het presentatiescherm: zacht genoeg om eroverheen te\npraten, luid genoeg om de vloer te laten dansen. 0 % is stilte.",
-    "🎵  When a title starts:":
-        "🎵  Als een nummer start:",
+    "🎵  When the main player starts a title:":
+        "🎵  Als de hoofdspeler een nummer start:",
     "<b>🎛 Cartwall</b> — what the pads do to the music, and what every pad follows unless it was given its own.":
         "<b>🎛 Cartwall</b> — wat de pads met de muziek doen, en wat elke pad volgt tenzij hij een eigen instelling heeft.",
     "🎛  All pads":
@@ -740,24 +742,28 @@ CATALOG = {
         "🎶  Pads op 🎶 Achtergrond",
     "Tapped again or ⏹, a background pad fades out like every other pad (⏱ above).":
         "Opnieuw aangetikt of met ⏹ fadet een achtergrondpad uit zoals elk ander pad (⏱ hierboven).",
-    "⏱  Tapped again or ⏹ — fade out over:":
-        "⏱  Opnieuw aangetikt of ⏹ — uitfaden in:",
+    "⏱  Tapped again or ⏹ — fade the pad out over:":
+        "⏱  Opnieuw aangetikt of ⏹ — pad uitfaden in:",
     "How long a pad takes to let go when it is tapped again or ⏹\nstops the wall. A pad can override this in its own settings.":
         "Hoe lang een pad nodig heeft om los te laten als hij opnieuw wordt aangetikt of ⏹\nde cartwall stopt. Een pad kan dit in zijn eigen instellingen overschrijven.",
-    "▶  When fired — fade in over:":
-        "▶  Bij afvuren — infaden in:",
+    "🔉  Ticking 🎶 Background sets the pad's volume to:":
+        "🔉  🎶 Achtergrond aanvinken zet het volume van de pad op:",
+    "A bed at full volume is as loud as the dance music it fills in\nfor. Pads already set to 🎶 Background keep their own volume.":
+        "Een achtergrond op vol volume is even luid als de dansmuziek\nwaarvan hij de pauze vult. Pads die al 🎶 Achtergrond zijn, houden hun volume.",
+    "▶  When fired — fade the pad in over:":
+        "▶  Bij afvuren — pad infaden in:",
     "How long a 🎛 cartwall pad set to 🎶 Background takes to come\nup from silence when it is fired. 0 s starts it at full volume.":
         "Hoe lang een 🎛 cartwall-pad met 🎶 Achtergrond nodig heeft om\nbij afvuren uit de stilte op te komen. 0 s start hem op vol volume.",
-    "🌙  …fading out over:":
-        "🌙  …en fadet uit in:",
+    "🌙  …fading the pad out over:":
+        "🌙  …pad daarbij uitfaden in:",
     "How long a 🎛 cartwall pad set to 🎶 Background takes to go\nsilent once a title starts.":
         "Hoe lang een 🎛 cartwall-pad met 🎶 Achtergrond nodig heeft om\nstil te worden zodra een nummer start.",
-    "⏳  When the music stops — wait:":
-        "⏳  Als de muziek stopt — wachten:",
+    "⏳  When the main player stops — wait:":
+        "⏳  Als de hoofdspeler stopt — wachten:",
     "How long the main player has to stay stopped before a 🎛 cartwall\npad set to 🎶 Background fades back in.\n\nBetween two titles the deck stops for a moment. Without a wait,\nthe bed would swell up in every such gap and dip again as soon as\nthe next title starts. A title starting during the wait keeps the\nbed down.\n\nThere is no wait when a title starts: the bed gets out of the way\nat once, so it never plays over the first notes.\n\n0 s brings it back the moment the music stops, gaps included.\nStandard 0.3 s; much longer feels as if the bed lags behind.":
         "Hoe lang de hoofdspeler gestopt moet zijn voordat een 🎛 cartwall-pad\nmet 🎶 Achtergrond weer infadet.\n\nTussen twee nummers stopt het deck even. Zonder wachttijd zou de\nachtergrond in elk zo'n gat opzwellen en bij het volgende nummer\nmeteen weer wegzakken. Start er tijdens het wachten een nummer, dan\nblijft de achtergrond weg.\n\nBij de start van een nummer is er geen wachttijd: de achtergrond\nmaakt meteen plaats en speelt nooit over de eerste noten.\n\n0 s brengt hem terug zodra de muziek stopt, ook in de gaten.\nStandaard 0,3 s; veel langer voelt alsof de achtergrond achterloopt.",
-    "🌅  …then fade back in over:":
-        "🌅  …dan weer infaden in:",
+    "🌅  …then fade the pad back in over:":
+        "🌅  …dan pad weer infaden in:",
     "How long a 🎛 cartwall pad set to 🎶 Background takes to come\nback up to its full volume once the music stops.":
         "Hoe lang een 🎛 cartwall-pad met 🎶 Achtergrond nodig heeft om\nweer op vol volume te komen als de muziek stopt.",
     "🖌  Default wall colour:":
@@ -2023,6 +2029,8 @@ CATALOG = {
     "%s":
         "⚠ Bestand niet gevonden op de schijf:\n"
         "%s",
+    "Is the drive unplugged, or was the file moved or renamed? It cannot play until it is back.":
+        "Is de schijf losgekoppeld, of is het bestand verplaatst of hernoemd? Het kan pas weer spelen als het terug is.",
     "Regenerate": "Opnieuw genereren",
     "Regenerate Error": "Fout bij opnieuw genereren",
     "Track length (m:ss)\n"
@@ -2033,6 +2041,7 @@ CATALOG = {
         "oranje = korter dan de ingestelde speelduur, of 5 s of meer\n"
         "stilte aan een rand die de speler overslaat (de tooltip van de\n"
         "cel zegt welke, en hoe lang het echt speelt)",
+    "Playlist": "Afspeellijst",
     "Wishlist": "Wensenlijst",
     "Rating — click a star to set it, the last lit one again to clear it.\n"
     "Kept in the app's database; the MP3 itself is not changed.":
@@ -2234,16 +2243,6 @@ CATALOG = {
         "Alleen een rondeschema heeft heats: een themalijst, het oefenen en een vrije\n"
         "speelvolgorde worden zonder aangekondigd. Opgenomen voor heats 1-8;\n"
         "daarboven valt het nummer weg.",
-    "Choose one or more titles — or an .m3u playlist — that play\n"
-    "softly during the pause between songs, faded in at the start\n"
-    "and out before the next song. Several titles rotate: a title\n"
-    "keeps playing pause after pause until it ends, then the next\n"
-    "one takes over.":
-        "Kies een of meer nummers — of een .m3u-afspeellijst — die zacht\n"
-        "spelen in de pauze tussen de nummers, aan het begin ingefaded\n"
-        "en voor het volgende nummer weggefaded. Meerdere nummers wisselen elkaar af: een nummer\n"
-        "speelt pauze na pauze door tot het afgelopen is, dan neemt het\n"
-        "volgende het over.",
     "Compensate loudness differences between tracks on playback:\n"
     "each song's measured EBU R128 loudness is pulled towards a common\n"
     "target, so quiet old recordings and loud modern masters play at\n"
@@ -2272,10 +2271,6 @@ CATALOG = {
         "Met 🔈 Volgende dans aankondigen aan doet de app de omroep en lopen de\n"
         "seconden vanaf daar; uit doet de omroeper in de zaal het en loopt de wachttijd\n"
         "stil — in beide gevallen afgeteld op dit paneel.",
-    "How loud the pause music plays, relative to the normal\n"
-    "playback volume — kept lower so it stays in the background.":
-        "Hoe luid de pauzemuziek speelt, ten opzichte van het normale\n"
-        "afspeelvolume — lager gehouden zodat het op de achtergrond blijft.",
     "Keep the screensaver and the display timeout off while music is\n"
     "playing or the presenter screen is open.\n"
     "\n"
@@ -2291,13 +2286,13 @@ CATALOG = {
         "aanraakt, maakt het scherm midden in de heat zwart, de beamer inbegrepen. Het gaat\n"
         "terug naar de normale tijden zodra geen van beide meer loopt.",
     "Off: the next song starts the moment the current one ends, with\n"
-    "no filler music and no announcement. The configured time is kept\n"
+    "no pause music and no announcement. The configured time is kept\n"
     "for switching back.\n"
     "\n"
     "Needs ⏭ auto-advance — without it the next song waits for the\n"
     "operator anyway, so there is no gap to fill.":
         "Uit: het volgende nummer begint op het moment dat het huidige eindigt, zonder\n"
-        "vulmuziek en zonder aankondiging. De ingestelde tijd blijft bewaard\n"
+        "pauzemuziek en zonder aankondiging. De ingestelde tijd blijft bewaard\n"
         "voor als je terugschakelt.\n"
         "\n"
         "Vereist ⏭ automatisch doorgaan — zonder dat wacht het volgende nummer\n"
@@ -2599,8 +2594,6 @@ CATALOG = {
         "op 23 → T24, een Paso Doble op 57 → T58).",
     "Disable preview player  (re-enable in Settings)":
         "Voorluisterspeler uitschakelen  (weer aan te zetten in Instellingen)",
-    "Duck to 20 % / back to full — the filler music comes down too":
-        "Dempen tot 20 % / terug naar vol — de vulmuziek gaat mee omlaag",
     "Endless repeat of THIS title (toggle):\n"
     "while on, the running title starts again every time it ends —\n"
     "for the moment the floor is still full or the speech runs long.\n"
@@ -2615,6 +2608,11 @@ CATALOG = {
         "Het houdt de avond op één nummer, gaat dus boven het 🏁 einde van een\n"
         "ronde en werkt ook met ⏭ automatisch doorgaan uit. Zet het uit en\n"
         "de lijst gaat verder waar ze staat.",
+    "Next dance": "Volgende dans",
+    "Cut the pause short and go to the next dance. Its announcement\n"
+    "still plays first; the pause music fades out, like ⏭.":
+        "De pauze inkorten en naar de volgende dans. De omroep ervan\n"
+        "komt nog eerst; de pauzemuziek wordt uitgefaded, zoals bij ⏭.",
     "Extend the auto-advance pause (add another pause length) —\n"
     "use it when the heat change is taking longer than planned.":
         "De pauze van automatisch doorgaan verlengen (nog een pauzelengte toevoegen) —\n"
@@ -2629,10 +2627,11 @@ CATALOG = {
     "— for a quick, clean finish on the floor.":
         "Dit nummer nu wegfaden (over de ingestelde fadetijd) en het dan beëindigen\n"
         "— voor een snel, net einde op de vloer.",
-    "Jump straight to the pause music — end this song now and start\n"
-    "the between-songs pause (e.g. the dancers are already leaving).":
-        "Meteen naar de pauzemuziek springen — dit nummer nu beëindigen en\n"
-        "de pauze tussen de nummers starten (bijv. de dansers verlaten de vloer al).",
+    "Go to the pause music — fade this song out (over the configured\n"
+    "fade time), then start the between-songs pause (e.g. the dancers\n"
+    "are already leaving).":
+        "Naar de pauzemuziek — dit nummer wegfaden (over de ingestelde fadetijd)\n"
+        "en dan de pauze tussen de nummers starten (bijv. de dansers verlaten de vloer al).",
     "Tap along to the beat to measure this track's live tempo by hand,\n"
     "against a target for its dance (Sollwert) — display only, does not\n"
     "touch the fader.":
@@ -2884,10 +2883,16 @@ CATALOG = {
         "Na … nummers",
     "At …":
         "Om …",
-    "Let the music stop by itself: after the title playing now,\nafter a number of titles (the one playing now is the first),\nor with the first title that ends at or after a time of day.\n\nA title is never cut: it plays to its end, then the next one\nwaits on the player for ⏯. A ⏭ skip does not count as an end.\n\nSet for this evening only — it is not saved.\n\nNeeds ⏭ auto-advance.":
-        "De muziek vanzelf laten stoppen: na het nummer dat nu speelt,\nna een aantal nummers (het huidige is het eerste)\nof met het eerste nummer dat om of na een tijdstip eindigt.\n\nEen nummer wordt nooit afgekapt: het speelt tot het einde, daarna\nwacht het volgende in de speler op ⏯. Een ⏭ sprong telt niet als einde.\n\nAlleen voor deze avond — wordt niet opgeslagen.\n\nVereist ⏭ automatisch doorgaan.",
-    "Titles still to end, the one playing now included —\nit counts down as they do.":
-        "Nummers die nog moeten eindigen, het huidige meegeteld —\ntelt af bij elk einde.",
+    "Let the music stop by itself: after the title playing now,\nafter a number of titles (the one playing now is the first),\nor with the first title that ends at or after a time of day.\n\nA title is not cut: it plays to its end, then the next one\nwaits on the player for ⏯ — unless an \"At …\" time is set to\nfade it. A ⏭ skip does not count as an end.\n\nSet for this evening only — it is not saved.\n\nNeeds ⏭ auto-advance.":
+        "De muziek vanzelf laten stoppen: na het nummer dat nu speelt,\nna een aantal nummers (het huidige is het eerste)\nof met het eerste nummer dat om of na een tijdstip eindigt.\n\nEen nummer wordt niet afgekapt: het speelt tot het einde, daarna\nwacht het volgende in de speler op ⏯ — tenzij een „Om …”-tijd op\nuitfaden staat. Een ⏭ sprong telt niet als einde.\n\nAlleen voor deze avond — wordt niet opgeslagen.\n\nVereist ⏭ automatisch doorgaan.",
+    "play it to its end":
+        "tot het einde spelen",
+    "fade out at the time":
+        "uitfaden op het tijdstip",
+    "hybrid: fade if ≥ 1:30 played":
+        "hybride: uitfaden bij ≥ 1:30 gespeeld",
+    "What the title playing at the time does:\n\nPlay it to its end — the first title that ends at or after the\ntime is the last.\nFade out at the time — it fades out the moment the time comes.\nHybrid — it fades if it had played 1:30 by then, a younger\none plays to its end.\n\nA title that starts after the time always plays to its end.\nThis choice is remembered.":
+        "Wat het nummer doet dat op het tijdstip speelt:\n\nTot het einde spelen — het eerste nummer dat om of na het\ntijdstip eindigt, is het laatste.\nUitfaden op het tijdstip — het faadt uit zodra het tijdstip er is.\nHybride — het faadt uit als het dan al 1:30 speelde, een\nkorter gespeeld nummer speelt tot het einde.\n\nEen nummer dat na het tijdstip begint, speelt altijd tot het einde.\nDeze keuze wordt onthouden.",
     "The first title that ends at or after this time is the last.\nA time already past today means after midnight.":
         "Het eerste nummer dat om of na dit tijdstip eindigt, is het laatste.\nEen tijdstip dat vandaag al voorbij is, betekent na middernacht.",
     "⏹  Stops after this title":
@@ -3128,6 +3133,25 @@ CATALOG = {
     "Male voice": "Mannenstem",
     "Mixed voices": "Gemengde stemmen",
     "with heat": "met heat",
+    "heat only": "alleen de groep",
+    "🔢  Only the heat, not the dance (practice)": "🔢  Alleen de groep, niet de dans (training)",
+    "On: every call says just “Heat 1”, without “Next dance” and\n"
+    "without the dance, whatever the two boxes above say.\n"
+    "Where there is no heat to call (or one past 8, which was never\n"
+    "recorded), the dance is called as usual.":
+        "Aan: elke omroep zegt alleen “Groep 1”, zonder “Volgende dans” en\n"
+        "zonder de dans, wat de twee vakjes hierboven ook zeggen.\n"
+        "Waar geen groep om te roepen is (of een boven 8, die nooit is\n"
+        "opgenomen), wordt de dans zoals gewoonlijk omgeroepen.",
+    "📣  Say “Next dance” before the dance": "📣  “Volgende dans” voor de dans zeggen",
+    "On: the pause announces “Next dance: Rumba”.\n"
+    "Off: just “Rumba” (with the heat number, if that is on).\n"
+    "\n"
+    "A dance named as its music starts is always said without it.":
+        "Aan: de pauze kondigt „Volgende dans: Rumba” aan.\n"
+        "Uit: alleen „Rumba” (met het heatnummer, als dat aan staat).\n"
+        "\n"
+        "Een dans die bij de start van zijn muziek genoemd wordt, altijd zonder.",
     "🗣  Dance is named:": "🗣  Dans wordt genoemd:",
     "over the music": "over de muziek",
     "before the music": "voor de muziek",
@@ -3216,8 +3240,6 @@ CATALOG = {
         "<b>🔈 Uitgangen</b> — waar elk deel van de avond te horen is:",
     "🎵  Music:":
         "🎵  Muziek:",
-    "⏸  Filler music:":
-        "⏸  Pauzemuziek:",
     "🔈  Announcements:":
         "🔈  Aankondigingen:",
     "System default (follows the OS)":
@@ -3226,16 +3248,26 @@ CATALOG = {
         "Zelfde als de muziek",
     "Every output the operating system lists can be chosen. On a sound card\n"
     "with several outputs, each pair that shows up as a device of its own\n"
-    "(\"Out 3/4\" next to \"Out 1/2\") can take a source of its own; channels\n"
-    "3/4 of ONE multichannel device cannot be picked separately.\n"
+    "(\"Out 3/4\" next to \"Out 1/2\") can take a source of its own. A card\n"
+    "listed as ONE multichannel device offers its further pairs as\n"
+    "\"— Out 3/4\" entries. The music on such an entry changes its\n"
+    "pitch with the tempo fader, like a turntable.\n"
     "\n"
     "A card that is not plugged in plays on the system default until it is back.":
         "Elke uitgang die het besturingssysteem toont, is te kiezen. Bij een\n"
         "geluidskaart met meerdere uitgangen kan elk paar dat als eigen apparaat\n"
-        "verschijnt (\"Out 3/4\" naast \"Out 1/2\") een eigen bron krijgen; kanalen\n"
-        "3/4 van ÉÉN meerkanaalsapparaat zijn niet apart te kiezen.\n"
+        "verschijnt (\"Out 3/4\" naast \"Out 1/2\") een eigen bron krijgen. Een kaart\n"
+        "die als ÉÉN meerkanaalsapparaat verschijnt, biedt zijn verdere paren aan als\n"
+        "items \"— Out 3/4\". De muziek op zo'n item verandert met de tempo-regelaar\n"
+        "ook van toonhoogte, zoals een platenspeler.\n"
         "\n"
         "Een kaart die niet is aangesloten speelt op de systeemstandaard tot hij terug is.",
+    "🔀 A card listed as one multichannel device offers its further outputs (\"— Out 3/4\") to every source. The music on such a pair changes its pitch with the tempo fader, like a turntable: faster sounds higher, slower lower. Only a whole output keeps the pitch while the tempo changes.":
+        "🔀 Een kaart die als één meerkanaalsapparaat verschijnt, biedt zijn verdere uitgangen (\"— Out 3/4\") aan elke bron. De muziek op zo'n paar verandert met de tempo-regelaar ook van toonhoogte, zoals een platenspeler: sneller klinkt hoger, langzamer lager. Alleen een hele uitgang houdt de toonhoogte vast terwijl het tempo verandert.",
+    "Music on a channel pair":
+        "Muziek op een kanaalpaar",
+    "On %s the tempo fader changes the pitch along with the speed, like a turntable: faster sounds higher, slower lower.\n\nOnly a whole output keeps the pitch. Play the music on this pair anyway?":
+        "Op %s verandert de tempo-regelaar met de snelheid ook de toonhoogte, zoals een platenspeler: sneller klinkt hoger, langzamer lager.\n\nAlleen een hele uitgang houdt de toonhoogte vast. De muziek toch op dit paar spelen?",
     "⚠  %s (not connected)":
         "⚠  %s (niet aangesloten)",
     "The music plays on %s — click for the sound settings.":
@@ -3688,8 +3720,8 @@ CATALOG = {
         "⭐  %d nummer(s) naar de wensenlijst verplaatst",
     "⭐  Added %d track(s) to the wishlist":
         "⭐  %d nummer(s) aan de wensenlijst toegevoegd",
-    "  ·  🧹 %d already in a playlist removed":
-        "  ·  🧹 %d al in een afspeellijst, verwijderd",
+    "  ·  ⚠ %d already in a playlist (duplicate)":
+        "  ·  ⚠ %d al in een afspeellijst (duplicaat)",
     "➕  Added %d track(s)": "➕  %d nummer(s) toegevoegd",
     "➕  Added %d track(s) — rounds re-cut":
         "➕  %d nummer(s) toegevoegd — rondes opnieuw verdeeld",
@@ -4615,9 +4647,16 @@ CATALOG = {
     "🔇 Skipped %ss of leading silence.":
         "🔇 %s s stilte aan het begin overgeslagen.",
     "⚠️ Sample not found: %s": "⚠️ Sample niet gevonden: %s",
+    "\n▶ Queue: place %d — Ctrl+click takes it out":
+        "\n▶ Wachtrij: plaats %d — Ctrl+klik haalt hem eruit",
+    "\nCtrl+click: into the ▶ queue":
+        "\nCtrl+klik: in de ▶ wachtrij",
+    "⚠️ Sample not found, skipped: %s":
+        "⚠️ Sample niet gevonden, overgeslagen: %s",
+    "⚠️ Queue stopped: none of its samples were found":
+        "⚠️ Wachtrij gestopt: geen van de samples gevonden",
     "⏱ Auto-advance pause extended by %ss.":
         "⏱ Pauze voor automatisch doorgaan met %s s verlengd.",
-    "⏸ Auto-advance…  🎵 %s": "⏸ Automatisch doorgaan…  🎵 %s",
     "🎯 Highlight at %s — %d mark(s). ✔ Done editing arms the stop.":
         "🎯 Hoogtepunt bij %s — %d markering(en). ✔ Klaar met bewerken zet de stop scherp.",
     "🎯 PD highlight %d marked at %s (stop set to #%s)":
@@ -4651,6 +4690,99 @@ CATALOG = {
         "‘volledig’ — geen knip, elke titel speelt tot zijn eigen einde.\n"
         "\n"
         "Dubbelklik om een exacte lengte in te typen (bijv. 1:37).",
+    "Move this highlight 0.1 s earlier": "Dit hoogtepunt 0,1 s eerder zetten",
+    "Move this highlight 0.1 s later": "Dit hoogtepunt 0,1 s later zetten",
+    "⏱  Titles over an hour read:": "⏱  Titels langer dan een uur:",
+    "1:04:00 (hours)": "1:04:00 (uren)",
+    "64:00 (minutes)": "64:00 (minuten)",
+    "How the player and the mini player show the times of a title\nlonger than 59 minutes, such as a long mix.": "Hoe de speler en de minispeler de tijden tonen van een titel\nlanger dan 59 minuten, zoals een lange mix.",
+    "🐞 Bugs & ideas": "🐞 Fouten & ideeën",
+    "Report a bug or suggest a feature as a GitHub issue: %s": "Meld een fout of stel een functie voor als GitHub-issue: %s",
+    "open a new issue": "nieuw issue openen",
+    "No GitHub account? Write to %s": "Geen GitHub-account? Schrijf naar %s",
+    "🔌 Drive %s is gone: USB stick unplugged? %d titles can't play until it is back.": "🔌 Station %s is weg: USB-stick uitgetrokken? %d titels kunnen niet spelen tot het terug is.",
+    "⚠️ %d titles are gone from disk: moved, renamed or deleted?": "⚠️ %d titels staan niet meer op de schijf: verplaatst, hernoemd of verwijderd?",
+    "🔌 %d titles are back and can play again.": "🔌 %d titels zijn terug en kunnen weer spelen.",
+    "🐂  Keep the pad down while a Paso Doble waits to start":
+        "🐂  Pad laag houden terwijl een Paso Doble op de start wacht",
+    "With 'Start after' set for the Paso Doble, the deck stands still\nbetween the call and the first bar while the couples walk on.\nOn, a 🎶 Background pad stays down through that wait as if the\nmusic already played. Off, it comes back in the wait like after\nany other title.":
+        "Met 'Start na' voor de Paso Doble staat het deck stil tussen de\naankondiging en de eerste maat, terwijl de paren opkomen.\nAan: een 🎶 Achtergrond-pad blijft tijdens die wachttijd laag,\nalsof de muziek al speelt. Uit: het komt in de wachttijd terug\nzoals na elke andere titel.",
+    "Off, a title waits until a 🎛 cartwall pad set to 🎶 Background\nhas faded out completely, then starts into silence. The wait is\nthe fade-out time above, or less if the bed is already going down.\nOn, the title starts at once and plays over the fade-out.":
+        "Uit: een titel wacht tot een 🎛 cartwall-pad met 🎶 Achtergrond\nhelemaal is uitgefade, en begint dan in de stilte. De wachttijd is\nde uitfadetijd hierboven, of korter als hij al aan het zakken is.\nAan: de titel start meteen en speelt over het uitfaden heen.",
+    "🔉↓  Fade by hand over:":
+        "🔉↓  Met de hand uitfaden over:",
+    "as the list's fade-out":
+        "zoals het uitfaden van de lijst",
+    "How long 🔉↓ Fade out now, 🛑 Fade out and hold, a ⏹ stop at a time\nand the fade before quitting take. The fade at the end of the play\nlength keeps the playlist's own fade-out time.\n0 = the playlist's fade-out time for these as well.":
+        "Hoe lang 🔉↓ Nu uitfaden, 🛑 Uitfaden en vasthouden, een ⏹ stop op\neen tijdstip en het uitfaden voor het afsluiten duren. Het uitfaden\naan het eind van de speelduur houdt de uitfadetijd van de playlist.\n0 = ook hiervoor de uitfadetijd van de playlist.",
+    "🔈  Duck under a voice or pad over:":
+        "🔈  Dempen onder stem of pad over:",
+    "back up over:":
+        "weer omhoog over:",
+    "How fast the music gets out of the way when the announcer speaks\nor a 🎛 cartwall pad plays, and how fast it comes back after.\nShort down keeps a pad's first beat clear; a slow way up keeps\nthe return from being an event of its own. The 🔉 Duck button\nis not ramped: it is immediate.":
+        "Hoe snel de muziek plaatsmaakt als de omroeper spreekt of een 🎛\ncartwall-pad speelt, en hoe snel ze daarna terugkomt. Kort omlaag\nhoudt de eerste tel van een pad vrij; langzaam omhoog voorkomt dat\nde terugkeer zelf opvalt. De 🔉 Dempen-knop heeft geen helling:\ndie werkt meteen.",
+    "🥇  Final: the music plays on":
+        "🥇  Finale: de muziek speelt door",
+    "After the play length has faded a title of the final out, it comes back up as background while the couples celebrate — until 🔉↓ fades it, the next title starts or the file ends. Only under ✋ Manual: with ⏭ Auto the ⏸ pause and its music follow each title, and a title of the final ends as always.":
+        "Heeft de speelduur een titel van de finale uitgefaded, dan komt hij als achtergrondmuziek weer op terwijl de paren feestvieren — tot 🔉↓ hem uitfadet, de volgende titel start of het bestand eindigt. Alleen bij ✋ Handmatig: bij ⏭ Auto volgen op elke titel de ⏸ pauze en haar muziek, en een titel van de finale eindigt zoals altijd.",
+    "Off":
+        "Uit",
+    "After the last dance of the final":
+        "Na de laatste dans van de finale",
+    "After every dance of the final":
+        "Na elke dans van de finale",
+    "Which titles of the final come back up after the play\nlength has faded them out. A round is the final when it\nis named Finale, Final or Endrunde.":
+        "Welke titels van de finale weer opkomen nadat de speelduur\nze heeft uitgefaded. Een ronde is de finale als ze\nFinale, Final of Endrunde heet.",
+    "Level:":
+        "Niveau:",
+    "How loud it comes back, in % of the music's level.":
+        "Hoe luid hij terugkomt, in % van het niveau van de muziek.",
+    "Up over:":
+        "Opkomen in:",
+    "How long it takes to come back up. 0 = at once.":
+        "Hoe lang hij nodig heeft om weer op te komen. 0 = meteen.",
+    "Down over:":
+        "Uitfaden in:",
+    "How long it takes to go down when 🔉↓ fades it.":
+        "Hoe lang hij nodig heeft om weg te zakken wanneer 🔉↓ hem uitfadet.",
+    "quieter":
+        "zachter",
+    "louder":
+        "harder",
+    "Volume %s %s — hold to glide":
+        "Volume %s %s — vasthouden om te glijden",
+    "Duck to %d %%, again to mute, again back to full":
+        "Dempen naar %d %%, nog eens dempen tot stil, nog eens terug naar vol",
+    "🎶 Pause music: the cartwall's ▶ queue plays its 🎶 Background pads.":
+        "🎶 Pauzemuziek: de ▶ wachtrij van de cartwall speelt zijn 🎶 Achtergrond-pads.",
+    "mute":
+        "stil",
+    "🌙  Then:":
+        "🌙  Daarna:",
+    "A closing song that plays once the stop has ended the music —\n\"Who moved the clock today\". It plays at the music's volume to\nits end (🔉↓ fades it); then the next title waits for ⏯.\nOnly after the planned stop, never after ⏹ by hand.":
+        "Een afsluiter die speelt zodra de stop de muziek heeft beëindigd —\n\"Who moved the clock today\". Hij speelt op het volume van de muziek\ntot zijn einde (🔉↓ fadet hem uit); daarna wacht de volgende titel op ⏯.\nAlleen na de geplande stop, nooit na ⏹ met de hand.",
+    "No closing song":
+        "Geen afsluiter",
+    "⏹ Stopped as planned — 🌙 the closing song plays, then ⏯ the next title.":
+        "⏹ Gestopt zoals gepland — 🌙 de afsluiter speelt, daarna ⏯ de volgende titel.",
+    "🌙 Closing song not found: %s":
+        "🌙 Afsluiter niet gevonden: %s",
+    "📄  Move to page":
+        "📄  Naar pagina verplaatsen",
+    "“%s” is full: %d of %d pads were moved.":
+        "‘%s’ is vol: %d van %d pads zijn verplaatst.",
+    "🔠  Text size:":
+        "🔠  Tekstgrootte:",
+    "🏅 Background: entrance & awards":
+        "🏅 Achtergrond: opkomst & prijsuitreiking",
+    "<b>🏅 Background: entrance & awards</b> — a title with one of these words in its file or folder name, title or comment, comma-separated:":
+        "<b>🏅 Achtergrond: opkomst & prijsuitreiking</b> — een titel met een van deze woorden in de bestands- of mapnaam, titel of opmerking, gescheiden door komma's:",
+    "Upper or lower case does not matter, and a part of a word is\nenough: 'Award' also finds '(Background Award)'. Shown under\n🏅 in the library's category filter and kept out of generated\nplaylists. Leave it empty to go by the folders below only.":
+        "Hoofd- of kleine letters maken niet uit, een deel van een woord\nis genoeg: 'Award' vindt ook '(Background Award)'. Te zien onder\n🏅 in het categoriefilter van de bibliotheek en nooit in\ngegenereerde playlists. Laat leeg om alleen de mappen te gebruiken.",
+    "…and every title in these folders and below, one folder per line:":
+        "…en elke titel in deze mappen en eronder, één map per regel:",
+    "Entrance and award music folder":
+        "Map met opkomst- en prijsuitreikingsmuziek",
     "Delete the highlight at %s s": "Het hoogtepunt bij %s s verwijderen",
     "Compensate loudness differences between tracks on playback:\n"
     "each song's measured EBU R128 loudness is pulled towards a\n"
@@ -4739,7 +4871,6 @@ CATALOG = {
     "🐂  PD in": "🐂  PD over",
     "🐂  PD %s in": "🐂  PD %s over",
     "🐂  Paso Doble in %d s": "🐂  Paso Doble over %d s",
-    "⏸  %d s  (paused)": "⏸  %d s  (gepauzeerd)",
     "⚠ Could not play: %s": "⚠ Kon niet afspelen: %s",
     "⚠ Playback failed: %s": "⚠ Afspelen mislukt: %s",
     "unknown error": "onbekende fout",
@@ -5632,4 +5763,42 @@ CATALOG = {
         "De Paso Doble-keuze voor %s in ⚙ Instellingen → 🎛 Speelsets\n(volledig gespeeld telt als het 3e hoogtepunt). Een wijziging hier\ngeldt alleen voor deze lijst.",
     "🐂 Paso Doble → each round's own pick":
         "🐂 Paso Doble → weer de keuze van elke ronde",
+    "Advanced: duck and fade times":
+        "Geavanceerd: dempen en fadetijden",
+    "How far the duck goes and how fast, and the fade times of every\nkind of fade. The defaults suit most evenings.":
+        "Hoe ver en hoe snel er gedempt wordt, en de tijden van elke\nsoort fade. De standaardwaarden passen bij de meeste avonden.",
+    "\n🔁 Loop is off in the queue: it plays once":
+        "\n🔁 Herhalen staat uit in de wachtrij: het speelt één keer",
+    "➕  Volume − / + buttons beside the player's and the cartwall's slider":
+        "➕  Volumeknoppen − / + naast de schuif van speler en cartwall",
+    "Step the music or the cartwall volume by 2 % a click; held, they glide.\nDouble-click the % readout to type a level instead.":
+        "Verandert het volume van de muziek of de cartwall met 2 % per klik; vastgehouden glijden ze.\nDubbelklik op de %-waarde om een niveau in te typen.",
+    "Mute the cartwall, again to bring it back":
+        "Cartwall dempen, nog eens klikken haalt hem terug",
+    "🔌 %d titles are no longer on %s: found on %s, they play from there.":
+        "🔌 %d titels staan niet meer op %s: gevonden op %s, ze spelen vanaf daar.",
+    "Every text in the app, menus and tables included.\nAbove 115 % the buttons grow with it.\nRead when the app starts, like the theme.":
+        "Alle teksten in de app, ook menu's en tabellen.\nBoven 115 % groeien de knoppen mee.\nWordt bij het starten gelezen, net als het thema.",
+    "< filename >":
+        "< bestandsnaam >",
+    "How many titles, the one playing now included —\nthe count beside it runs down as they end.":
+        "Hoeveel nummers, het huidige meegeteld —\nde teller ernaast telt af bij elk einde.",
+    "Titles still to end, the one playing now included.":
+        "Nummers die nog moeten eindigen, het huidige meegeteld.",
+    "%d left":
+        "nog %d",
+    "🎚  Start the main player's title while the background is still fading out":
+        "🎚  Titel in de hoofdspeler al starten terwijl de achtergrond nog uitfadet",
+    "%s — its own length, then plays on":
+        "%s — eigen lengte, speelt dan door",
+    "Plays on after its length":
+        "Speelt na de lengte door",
+    "Hold:":
+        "Vasthouden:",
+    "How long it stays at its dip before it comes back up.\n0 = it comes up at once.":
+        "Hoe lang hij in het dal blijft voordat hij weer opkomt.\n0 = hij komt meteen op.",
+    "Dip to:":
+        "Dalen tot:",
+    "How low the play-length fade takes it before it comes\nback up, in % of the music's level. 0 = all the way down.\nAt most the level it comes back at.":
+        "Hoe ver de fade aan het eind van de speelduur hem laat zakken\nvoordat hij weer opkomt, in % van het muziekniveau. 0 = helemaal weg.\nHooguit het niveau waarop hij terugkomt.",
 }

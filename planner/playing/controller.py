@@ -149,7 +149,7 @@ PRESETS = {
 }
 
 
-def midi_control(status: int, data1: int, data2: int):
+def midi_control(status: int, data1: int, data2: int) -> tuple[str, float] | None:
     """A MIDI short message → (control, value 0…1), or None for anything
     that is not a key, a controller or a bend (clock, aftertouch, …)."""
     kind, ch = status & 0xF0, status & 0x0F
@@ -201,9 +201,8 @@ def hid_controls(prev: bytes, cur: bytes) -> list:
         if old == new:
             continue
         out.append((f"hid:{report}:{i}", new / 255))
-        for bit in range(8):
-            if (old ^ new) >> bit & 1:
-                out.append((f"hid:{report}:{i}:{bit}", float(new >> bit & 1)))
+        out.extend((f"hid:{report}:{i}:{bit}", float(new >> bit & 1))
+                   for bit in range(8) if (old ^ new) >> bit & 1)
     return out
 
 

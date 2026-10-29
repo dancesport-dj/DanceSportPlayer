@@ -14,15 +14,16 @@ from PySide6.QtCore import Qt, QUrl
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtWidgets import QApplication, QDialog
 
-from planner import i18n
-from planner.music import custom_field, id3_frames
-from shared.widgets import _show_toast
 from gui.dialogs.tag_edit_dialog import (
     CustomSourceDialog,
-    marker_suggestions,
     TagEditDialog,
+    marker_suggestions,
+    with_filename_title,
 )
 from gui.workers import CustomFieldReader
+from planner import i18n
+from planner.music import custom_field, id3_frames
+from shared.widgets import WARN_TOAST_MS, show_toast
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -71,7 +72,7 @@ def _tag_value_text(value) -> str:
     return str(value)
 
 
-def _tag_change_summary(changed: dict, translate: bool = False) -> str:
+def tag_change_summary(changed: dict, translate: bool = False) -> str:
     """'dance SF → RB, takt 29 → 25' for a rescan_tags result. `translate`
     names the fields in the UI language (the toast); the log stays English."""
     def label(col):
@@ -96,14 +97,14 @@ class TagEditMixin(MainWindowHost):
             return {}
         p = Path(entry.path)
         if not p.exists():
-            _show_toast(self, i18n.t("🏷  %s is not on disk any more") % p.name)
+            show_toast(self, i18n.t("🏷  %s is not on disk any more") % p.name, error=True)
             return {}
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
             changed = lib.rescan_tags(entry, cache)
         except Exception as exc:
             log.warning("🏷 Couldn't re-read the tags of %s:\n%s", p.name, exc)
-            _show_toast(self, i18n.t("🏷  Couldn't re-read %s: %s") % (p.name, exc))
+            show_toast(self, i18n.t("🏷  Couldn't re-read %s: %s") % (p.name, exc), error=True)
             return {}
         finally:
             QApplication.restoreOverrideCursor()
@@ -115,10 +116,10 @@ class TagEditMixin(MainWindowHost):
             browser.set_entries(lib.entries)
         if changed:
             log.info("🏷 Tags re-read for %s:\n%s", p.name,
-                     _tag_change_summary(changed))
-            _show_toast(self, "🏷  %s: %s" % (p.name, _tag_change_summary(changed, translate=True)))
+                     tag_change_summary(changed))
+            show_toast(self, "🏷  %s: %s" % (p.name, tag_change_summary(changed, translate=True)))
         else:
-            _show_toast(self, i18n.t("🏷  %s: tags unchanged") % p.name)
+            show_toast(self, i18n.t("🏷  %s: tags unchanged") % p.name)
         return changed
 
     def _set_entry_rating(self, entry, stars: int):
@@ -134,7 +135,7 @@ class TagEditMixin(MainWindowHost):
             paths = lib.edit_tags(self._copies_of(entry), cache, {"rating": stars})
         except ValueError as exc:
             log.warning("★ Couldn't store the rating of %s:\n%s", Path(entry.path).name, exc)
-            _show_toast(self, i18n.t("★  Couldn't store the rating: %s") % exc)
+            show_toast(self, i18n.t("★  Couldn't store the rating: %s") % exc, error=True)
             return
         for table in self._deckset.all_tables:
             table.refresh_paths(paths)
@@ -198,7 +199,7 @@ class TagEditMixin(MainWindowHost):
         app = {id(e): c for e, c in on_disk} if dlg.write_app_to_mp3() else {}
         for e in entries:
             raw = dlg.raw_edits(e)
-            f = form if id(e) in form_to else None
+            f = with_filename_title(form, e.path) if id(e) in form_to else None
             a = app.get(id(e))
             if raw or f or a:
                 paths += self._write_into_mp3(
@@ -212,7 +213,8 @@ class TagEditMixin(MainWindowHost):
                 paths += lib.edit_tags(self._copies_of(e), cache, changes)
         except ValueError as exc:
             log.warning("🏷 Couldn't store the tag edit:\n%s", exc)
-            _show_toast(self, i18n.t("🏷  Couldn't store the tags: %s") % exc)
+            show_toast(self, i18n.t("🏷  Couldn't store the tags: %s") % exc,
+                       WARN_TOAST_MS, error=True)
         if not paths:
             return
         for table in self._deckset.all_tables:
@@ -308,15 +310,16 @@ class TagEditMixin(MainWindowHost):
             return []
         player = self._player if self._player_has_loaded(p) else None
         if player is not None and player.playbackState() != QMediaPlayer.PlaybackState.StoppedState:
-            _show_toast(self, i18n.t("🏷  %s is in the player — stop it to write "
-                                     "its MP3 tags") % p.name)
+            show_toast(self, i18n.t("🏷  %s is in the player — stop it to write "
+                                     "its MP3 tags") % p.name, WARN_TOAST_MS, error=True)
             return []
         try:
             cache.ensure_audio_fp(p)
             write(p)
         except (OSError, ValueError, MutagenError) as exc:
             log.warning("🏷 Couldn't write the MP3 tags of %s:\n%s", p.name, exc)
-            _show_toast(self, i18n.t("🏷  Couldn't write the MP3 tags: %s") % exc)
+            show_toast(self, i18n.t("🏷  Couldn't write the MP3 tags: %s") % exc,
+                       WARN_TOAST_MS, error=True)
             return []
         if player is not None:
             src = player.source()
@@ -327,7 +330,7 @@ class TagEditMixin(MainWindowHost):
                 lib.rescan_tags(e, cache)
         except Exception as exc:
             log.warning("🏷 Couldn't re-read the tags of %s:\n%s", p.name, exc)
-            _show_toast(self, i18n.t("🏷  Couldn't re-read %s: %s") % (p.name, exc))
+            show_toast(self, i18n.t("🏷  Couldn't re-read %s: %s") % (p.name, exc), error=True)
         cache.save()
         log.info("🏷 MP3 tags written\n"
                  "file: %s\n"

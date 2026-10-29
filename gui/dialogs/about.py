@@ -15,9 +15,12 @@ from PySide6.QtWidgets import QDialog, QLabel, QPushButton, QVBoxLayout
 from planner import i18n
 from planner.music.embeddings import mert_available
 from planner.version import app_version
-from shared.widgets import _app_icon
+from shared.widgets import app_icon
 
 REPO_URL = "https://github.com/dancesport-dj/DanceSportPlayer"
+# 🐞 Bugs and ideas: straight to a new GitHub issue, or by mail without an account.
+NEW_ISSUE_URL = f"{REPO_URL}/issues/new"
+FEEDBACK_MAIL = "dancesportplayer@t-online.de"
 AUTHOR = "marcelkb"
 AUTHOR_URL = "https://github.com/marcelkb"
 # The app icon is Icons8's "Swing"; the free licence asks for a link to icons8.com in the About section (ICONS-LICENSE.txt).
@@ -65,8 +68,14 @@ def about_html(name: str, version: str) -> str:
     )
     body = "".join(f"<tr><td style='padding-right:12px;'><b>{label}</b></td>"
                    f"<td>{value}</td></tr>" for label, value in rows)
+    report = (f"<p><b>{html.escape(i18n.t('🐞 Bugs & ideas'))}</b><br>"
+              + i18n.t("Report a bug or suggest a feature as a GitHub issue: %s")
+              % _link(NEW_ISSUE_URL, i18n.t("open a new issue")) + "<br>"
+              + i18n.t("No GitHub account? Write to %s")
+              % _link(f"mailto:{FEEDBACK_MAIL}", FEEDBACK_MAIL) + "</p>")
     return (f"<p style='font-size:15pt;'><b>{html.escape(name)}</b></p>"
             f"<table>{body}</table>"
+            f"{report}"
             f"<p style='color:#666;'>{html.escape(COPYRIGHT)}</p>")
 
 
@@ -74,7 +83,7 @@ def about_dialog(parent, name: str) -> QDialog:
     """❔ → ℹ About. The ℹ is the menu entry's; the window title goes without."""
     dlg = QDialog(parent)
     dlg.setWindowTitle("About")
-    dlg.setWindowIcon(_app_icon())
+    dlg.setWindowIcon(app_icon())
     lyt = QVBoxLayout(dlg)
     lyt.setContentsMargins(24, 18, 24, 16)
     text = QLabel(about_html(name, app_version()))

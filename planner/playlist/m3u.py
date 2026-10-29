@@ -5,44 +5,47 @@ and the round/heat-aware import_playlist_m3u that reconstructs a deck from a sav
 .m3u (final-round backups → extra heats).
 """
 import logging
-
+import re
 from collections import Counter
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-import re
-from collections.abc import Callable
+
 from planner.config import (  # auto-resolved
     OUTPUT_DIR,
     replacing_text,
 )
-from planner.music.db import (  # auto-resolved
-    AudioCache,
+from planner.generate.warmup import (  # auto-resolved
+    warmup_rounds,
 )
 from planner.models import (  # auto-resolved
     DANCE_NAMES,
     GENRE_TO_DANCE,
+    ROUND_NAMES,
     MusicEntry,
     Playlist,
-    ROUND_NAMES,
     RoundConfig,
+    RoundTier,
+    default_round_name,
+    tier_by_position,
 )
-from planner.music.parsing import (  # auto-resolved
-    _clean_title,
-    _detect_bpm,
-    _detect_dance,
-    _fmt_bpm,
+from planner.music.db import (  # auto-resolved
+    AudioCache,
 )
 from planner.music.library import (  # auto-resolved
     MusicLibrary,
 )
-from planner.playlist.planned import path_key
+from planner.music.parsing import (  # auto-resolved
+    clean_title,
+    detect_bpm,
+    detect_dance,
+    fmt_bpm,
+)
 from planner.music.paths import (  # auto-resolved
     foreign_name,
 )
+from planner.playlist.planned import path_key
 from planner.playlist.playlist_text import PlaylistEncodingError, read_playlist_text
-from planner.generate.warmup import (  # auto-resolved
-    warmup_rounds,
-)
 
 log = logging.getLogger("dancesport.m3u")
 
@@ -93,12 +96,12 @@ def export_m3u(playlist: Playlist, dances: list[str], basename: str,
         out.parent.mkdir(parents=True, exist_ok=True)
     else:
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-        ts  = datetime.now().strftime("%Y%m%d_%H%M_") if timestamp else ""
+        ts = datetime.now().strftime("%Y%m%d_%H%M_") if timestamp else ""
         out = OUTPUT_DIR / f"{ts}{basename}{m3u_suffix()}"
 
     total = sum(1 for heats in playlist.values() for heat in heats
                 for e in heat if e is not None)
-    done  = 0
+    done = 0
     with replacing_text(out, encoding=m3u_encoding()) as f:
         f.write("#EXTM3U\n")
         for round_name, heats in playlist.items():
@@ -112,7 +115,7 @@ def export_m3u(playlist: Playlist, dances: list[str], basename: str,
                         f.write(f"# Heat {h_idx}\n")
                     entry = heat[d_idx]
                     if entry:
-                        bpm_s = _fmt_bpm(entry.bpm, dance, dance_class)
+                        bpm_s = fmt_bpm(entry.bpm, dance, dance_class)
                         f.write(f"#EXTINF:{entry.duration},{entry.title}{bpm_s}\n")
                         f.write(f"{path_for(entry.path) if path_for else entry.path}\n")
                         done += 1
@@ -146,7 +149,7 @@ def export_flat_m3u(entries: list[MusicEntry], basename: str,
     else:
         target_dir = Path(out_dir) if out_dir is not None else OUTPUT_DIR
         target_dir.mkdir(parents=True, exist_ok=True)
-        ts  = datetime.now().strftime("%Y%m%d_%H%M_") if timestamp else ""
+        ts = datetime.now().strftime("%Y%m%d_%H%M_") if timestamp else ""
         out = target_dir / f"{ts}{basename}{m3u_suffix()}"
     total = len(entries)
     round_at = _flat_round_starts(entries)
@@ -156,9 +159,9 @@ def export_flat_m3u(entries: list[MusicEntry], basename: str,
             name = round_at.get(i - 1)
             if name:
                 f.write(f"\n# ── {name} ──\n")
-            dn   = DANCE_NAMES.get(e.dance or '', e.dance or '')
-            tag  = f" [{dn}]" if dn else ""
-            yr   = f" ({e.year})" if e.year else ""
+            dn = DANCE_NAMES.get(e.dance or '', e.dance or '')
+            tag = f" [{dn}]" if dn else ""
+            yr = f" ({e.year})" if e.year else ""
             f.write(f"#EXTINF:{e.duration},{e.title}{tag}{yr}\n")
             f.write(f"{path_for(e.path) if path_for else e.path}\n")
             if progress_cb:
@@ -190,6 +193,27 @@ def _safe_filename(name: str) -> str:
 
 
 _BPM_TAG_RE = re.compile(r"\s*\[(?:T(\d+)\*?|\?BPM)\]")
+
+
+def _bundle_source(line: str, folder: Path) -> Path:
+    """The file an M3U track line points at, a bare name next to the M3U."""
+    return playlist_line_path(line, folder)
+
+
+def m3u_track_sizes(m3u_path: Path) -> list[int]:
+    """The bytes of every track `numbered_folder_m3u` will go through for this
+    M3U, in play order; 0 for one that is not there."""
+    text, _encoding = read_playlist_text(m3u_path)
+    folder = Path(m3u_path).parent
+    sizes = []
+    for ln in text.splitlines():
+        if not ln.strip() or ln.lstrip().startswith("#"):
+            continue
+        try:
+            sizes.append(_bundle_source(ln, folder).stat().st_size)
+        except OSError:
+            sizes.append(0)
+    return sizes
 
 
 def numbered_folder_m3u(m3u_path: Path,
@@ -236,10 +260,8 @@ def numbered_folder_m3u(m3u_path: Path,
         if ln.startswith("#"):
             continue
         idx += 1
-        src = Path(ln.strip('"'))
-        if not src.is_absolute() and not _ROOTED_LINE_RE.match(str(src)):
-            src = folder / src     # a bare name this function wrote earlier
-        raw_title = pending_title or _clean_title(src.stem) or src.stem
+        src = _bundle_source(ln, folder)
+        raw_title = pending_title or clean_title(src.stem) or src.stem
         pending_title = ""
         m = _BPM_TAG_RE.search(raw_title)
         title = _BPM_TAG_RE.sub("", raw_title).strip() or src.stem
@@ -252,8 +274,8 @@ def numbered_folder_m3u(m3u_path: Path,
             copied.append(src)     # already in the bundle, already numbered
             lines[i] = src.name    # an absolute line would tie it to this drive
             continue
-        bpm =(m.group(1) if m and m.group(1) else None) or _detect_bpm(src.name)
-        dance = cur_dance or _detect_dance(src.name) or _detect_dance(title)
+        bpm =(m.group(1) if m and m.group(1) else None) or detect_bpm(src.name)
+        dance = cur_dance or detect_dance(src.name) or detect_dance(title)
         tag = f" {dance or ''}{bpm or ''}" if (dance or bpm) else ""
         name = f"{_index_prefix(idx)} - {_safe_filename(title)}{tag}{src.suffix}"
         try:
@@ -282,7 +304,7 @@ _IMPORT_ROUND_RE = re.compile(r'^#\s*═+\s*(.*?)\s*\(\s*\d+\s*Heats?\s*\)\s*═
 _IMPORT_DANCE_RE = re.compile(r'^#\s*─+\s*(.*?)\s*─+\s*$')
 
 
-_IMPORT_HEAT_RE  = re.compile(r'^#\s*Heat\s*\d+\s*$', re.IGNORECASE)
+_IMPORT_HEAT_RE = re.compile(r'^#\s*Heat\s*\d+\s*$', re.IGNORECASE)
 
 
 _IMPORT_NOSONG_RE = re.compile(r'^#\s*\(\s*no song found\s*\)\s*$', re.IGNORECASE)
@@ -291,27 +313,27 @@ _IMPORT_NOSONG_RE = re.compile(r'^#\s*\(\s*no song found\s*\)\s*$', re.IGNORECAS
 _IMPORT_EXTINF_RE = re.compile(r'^#EXTINF:\s*(-?\d+)\s*,(.*)$')
 
 
-def _explicit_tier(name: str) -> str | None:
+def _explicit_tier(name: str) -> RoundTier | None:
     """The tier a round name SAYS it is, or None when the name doesn't say.
 
     'Zwischenrunde' and 'Runde 2' name no tier — only where the round is called
     a final, a semifinal or a quarter/eighth-final does the name settle it."""
     n = name.lower()
     if 'halbfinal' in n or 'semifinal' in n or 'semi-final' in n or n.strip() == 'semi':
-        return 'semi'
+        return RoundTier.SEMI
     if 'viertelfinal' in n or 'achtelfinal' in n:
-        return 'early'
+        return RoundTier.EARLY
     if 'final' in n:
-        return 'final'
+        return RoundTier.FINAL
     return None
 
 
-def _tier_for_round_name(name: str) -> str:
+def tier_for_round_name(name: str) -> RoundTier:
     """Map a round display name (German) to a planner tier code."""
-    return _explicit_tier(name) or 'early'
+    return _explicit_tier(name) or RoundTier.EARLY
 
 
-def _round_tiers(names: list[str]) -> list[str]:
+def round_tiers(names: list[str]) -> list[RoundTier]:
     """One tier per round of an imported playlist, counted back from the end:
     final, semi, pre_semi, then early — the very same ladder the '6-3-2-1' heat
     pattern lays down in `rounds_from_pattern`. A name that says which round it
@@ -325,18 +347,14 @@ def _round_tiers(names: list[str]) -> list[str]:
     n = len(names)
     out = []
     for i, name in enumerate(names):
-        by_position = ('final'    if i == n - 1 else
-                       'semi'     if i == n - 2 else
-                       'pre_semi' if i == n - 3 else
-                       'early')
-        out.append(_explicit_tier(name) or by_position)
+        out.append(_explicit_tier(name) or tier_by_position(i, n))
     return out
 
 
 def _dance_from_header(name: str) -> str | None:
     """Reverse-map a dance section header (e.g. 'Cha-Cha', 'Wiener Walzer') to a code."""
     code = GENRE_TO_DANCE.get(name.strip().lower())
-    return code or _detect_dance(name)
+    return code or detect_dance(name)
 
 
 def _entry_dance_for_import(entry: MusicEntry, extinf_title: str) -> str | None:
@@ -345,7 +363,7 @@ def _entry_dance_for_import(entry: MusicEntry, extinf_title: str) -> str | None:
     if entry.dance:
         return entry.dance
     for src in (entry.path.name, entry.title or "", extinf_title or ""):
-        d = _detect_dance(src)
+        d = detect_dance(src)
         if d:
             return d
     return None
@@ -357,7 +375,18 @@ def _entry_dance_for_import(entry: MusicEntry, extinf_title: str) -> str | None:
 _ROOTED_LINE_RE = re.compile(r"^([A-Za-z]:|[\\/])")
 
 
-def _resolve_import_path(path_str: str, lib: MusicLibrary, cache: AudioCache | None,
+def playlist_line_path(line: str, base: Path | None) -> Path:
+    """The file a playlist's track line names: quotes around it dropped, and a
+    relative line — the 🧳 USB bundle writes bare filenames — taken as relative
+    to the playlist's folder `base`. A line with a root of its own stays as is."""
+    line = line.strip().strip('"')
+    p = Path(line)
+    if base is not None and not p.is_absolute() and not _ROOTED_LINE_RE.match(line):
+        p = Path(base) / p
+    return p
+
+
+def resolve_import_path(path_str: str, lib: MusicLibrary, cache: AudioCache | None,
                          extinf_title: str, remapper=None, base: Path | None = None,
                          ) -> tuple[MusicEntry, bool, Path | None]:
     """Resolve one M3U path line to a MusicEntry.
@@ -373,9 +402,7 @@ def _resolve_import_path(path_str: str, lib: MusicLibrary, cache: AudioCache | N
     bundle writes bare filenames — and quotes around a line are not part of it.
     Returns (entry, found_on_disk, re-rooted path or None)."""
     path_str = path_str.strip().strip('"')
-    p = Path(path_str)
-    if base is not None and not p.is_absolute() and not _ROOTED_LINE_RE.match(path_str):
-        p = base / p
+    p = playlist_line_path(path_str, base)
     ent = lib.entry_for(p)    # exact, then case-folded — off the path index
     if ent is not None:
         return ent, True, None
@@ -404,7 +431,7 @@ def _resolve_import_path(path_str: str, lib: MusicLibrary, cache: AudioCache | N
     # the dance detection would read the folder names too.
     name = foreign_name(path_str) or p.name
     title = (extinf_title or "").strip() or Path(name).stem
-    return MusicEntry(path=p, title=title, dance=_detect_dance(name)), False, None
+    return MusicEntry(path=p, title=title, dance=detect_dance(name)), False, None
 
 
 def _segment_buckets(segment: list[tuple[str | None, MusicEntry]],
@@ -451,9 +478,10 @@ def _round_heats_and_backups(
     {(round_name, h_idx, d_idx): [entry, …]} to match the GUI's dynamic backups map."""
     sizes = [len(buckets[d]) for d in dances if buckets[d]]
     base = max(1, Counter(sizes).most_common(1)[0][0]) if sizes else 1
-    heats: list[list[MusicEntry | None]] = []
-    for h in range(base):
-        heats.append([buckets[d][h] if h < len(buckets[d]) else None for d in dances])
+    heats: list[list[MusicEntry | None]] = [
+        [buckets[d][h] if h < len(buckets[d]) else None for d in dances]
+        for h in range(base)
+    ]
     backups: dict[tuple[str, int, int], list[MusicEntry]] = {}
     for d_idx, d in enumerate(dances):
         extra = buckets[d][base:]
@@ -550,7 +578,7 @@ def _named_round_segments(
     if wu_segments:
         return wu_segments, wu_names, dances
 
-    return segments, [f"Runde {i + 1}" for i in range(len(segments))], dances
+    return segments, [default_round_name(i) for i in range(len(segments))], dances
 
 
 def _segments_by_section(
@@ -583,7 +611,7 @@ def _segments_by_section(
             dances.append(dance)
     seen: dict[str, int] = {}
     for i, name in enumerate(names):
-        name = name or f"Runde {i + 1}"
+        name = name or default_round_name(i)
         seen[name] = seen.get(name, 0) + 1
         names[i] = name if seen[name] == 1 else f"{name} ({seen[name]})"
     return segments, names, dances
@@ -598,7 +626,7 @@ def _grid_from_segments(
     Every round (not just the final) detects backups: a lone dance with one extra
     song stacks the surplus as a backup instead of widening the whole round with
     empty cells — e.g. a 3rd Tango in a 2-heat semifinal becomes a Tango backup."""
-    tiers = _round_tiers(names)
+    tiers = round_tiers(names)
     playlist: dict[str, list[list[MusicEntry | None]]] = {}
     rounds: list[RoundConfig] = []
     backups: dict[tuple[str, int, int], list[MusicEntry]] = {}
@@ -680,6 +708,7 @@ def m3u_marker_rounds_in_order(m3u_path) -> list[tuple[str, str]]:
                     "file: %s\n"
                     "reason: %s", m3u_path, exc)
         return []
+    base = Path(m3u_path).parent
     out: list[tuple[str, str]] = []
     cur = ""
     for raw in lines:
@@ -692,7 +721,7 @@ def m3u_marker_rounds_in_order(m3u_path) -> list[tuple[str, str]]:
             continue
         if ln.startswith('#') or not cur:
             continue
-        out.append((path_key(ln.strip('"')), cur))
+        out.append((path_key(playlist_line_path(ln, base)), cur))
     return out
 
 
@@ -722,6 +751,7 @@ def read_m3u_tracks(m3u_path) -> list[tuple[Path, str]]:
                     "file: %s\n"
                     "reason: %s", m3u_path, exc)
         return []
+    base = Path(m3u_path).parent
     out: list[tuple[Path, str]] = []
     title = ""
     for raw in lines:
@@ -734,7 +764,7 @@ def read_m3u_tracks(m3u_path) -> list[tuple[Path, str]]:
             continue
         if ln.startswith('#'):
             continue
-        out.append((Path(ln.strip('"')), title))
+        out.append((playlist_line_path(ln, base), title))
         title = ""
     return out
 
@@ -785,7 +815,7 @@ def _parse_structured(lines, lib, cache, remapper, base, _tick, _note_dance,
         if ln.startswith('#'):
             continue
         # A real path line.
-        entry, found, hit = _resolve_import_path(ln, lib, cache,
+        entry, found, hit = resolve_import_path(ln, lib, cache,
                                                  pending_title, remapper, base)
         _tick(entry.title if entry else ln)
         if hit is not None:
@@ -811,7 +841,7 @@ def _grid_from_rounds(rounds_ord, dance_order):
     dances = dance_order
     playlist: dict[str, list[list[MusicEntry | None]]] = {}
     rounds: list[RoundConfig] = []
-    tiers = _round_tiers([name for name, _ in rounds_ord])
+    tiers = round_tiers([name for name, _ in rounds_ord])
     for (name, dmap), tier in zip(rounds_ord, tiers, strict=True):
         heat_n = max((len(v) for v in dmap.values()), default=1) or 1
         heats: list[list[MusicEntry | None]] = []
@@ -839,7 +869,7 @@ def _parse_heuristic(lines, lib, cache, remapper, base, _tick, remapped,
             continue
         if ln.startswith('#'):
             continue
-        entry, found, hit = _resolve_import_path(ln, lib, cache,
+        entry, found, hit = resolve_import_path(ln, lib, cache,
                                                  pending_title, remapper, base)
         _tick(entry.title if entry else ln)
         if hit is not None:

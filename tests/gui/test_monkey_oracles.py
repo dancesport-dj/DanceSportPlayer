@@ -4,9 +4,8 @@ says nothing unless a broken window would have failed it."""
 
 import unittest
 
-from tests.gui.monkey_support import LoadedWindow, Monkey, SEED
-
 from planner.store import state_dir
+from tests.gui.monkey_support import SEED, LoadedWindow, Monkey
 
 
 class OracleTest(LoadedWindow):

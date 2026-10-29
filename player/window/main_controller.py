@@ -12,9 +12,11 @@ reading crosses to the GUI thread through `_ControllerHub.control` before
 anything is done with it. A device that is not plugged in at launch is looked for every few
 seconds, so the controller can come out of the bag after the app is up.
 """
+import contextlib
 import logging
 import threading
 from functools import partial
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QEvent, QMimeData, QObject, QPointF, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QDropEvent, QKeyEvent, QKeySequence, QShortcut
@@ -25,8 +27,7 @@ from planner.playing import cartwall as pc
 from planner.playing import controller as pctl
 from shared.controllers import hid_input, midi_input
 from shared.stores import save_settings
-from shared.widgets import _show_toast
-from typing import TYPE_CHECKING
+from shared.widgets import show_toast
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -41,7 +42,7 @@ _GLIDING = ("vol_up", "vol_down", "cart_vol_up", "cart_vol_down",
             "tempo_up", "tempo_down")
 
 
-class _ControllerHub(QObject):
+class ControllerHub(QObject):
     """Carries readings from the input thread onto the GUI thread, and tells
     the 🎛 window news."""
 
@@ -73,10 +74,8 @@ def _look_for(hub, kind: str, device: str, on_report=None):
             return
     else:
         found = device in midi_input.list_inputs()
-    try:
+    with contextlib.suppress(RuntimeError):    # the window closed while it looked
         hub.found.emit(device, found)
-    except RuntimeError:    # the window closed while it looked
-        pass
 
 
 def controller_devices(all_hid: bool = False) -> list[tuple[str, str, str]]:
@@ -91,7 +90,7 @@ class ControllerMixin(MainWindowHost):
     """🎛 A hardware controller — none unless one is chosen."""
 
     def _init_controller(self):
-        self._ctl_hub = _ControllerHub()
+        self._ctl_hub = ControllerHub()
         self._ctl_hub.control.connect(self._on_controller_control)
         self._ctl_hub.found.connect(self._on_controller_found)
         self._ctl_hub.opened.connect(self._on_controller_opened)
@@ -108,7 +107,7 @@ class ControllerMixin(MainWindowHost):
         self._ctl_retry.timeout.connect(self._controller_tick)
         self._connect_controller()
 
-    def controller_hub(self) -> _ControllerHub:
+    def controller_hub(self) -> ControllerHub:
         return self._ctl_hub
 
     def controller_config(self) -> dict:
@@ -491,5 +490,5 @@ class ControllerMixin(MainWindowHost):
         target.dropEvent(drop)
         if not drop.isAccepted():
             # A planned draw takes a title only into a slot of its dance.
-            _show_toast(self, i18n.t("➕  This playlist takes a title only "
-                                     "dragged onto a slot."), 3000)
+            show_toast(self, i18n.t("➕  This playlist takes a title only "
+                                     "dragged onto a slot."), 3000, error=True)

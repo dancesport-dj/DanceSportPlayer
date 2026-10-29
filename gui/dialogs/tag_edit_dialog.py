@@ -36,7 +36,6 @@ from dataclasses import replace
 from pathlib import Path
 
 from mutagen import MutagenError
-
 from PySide6.QtCore import QRegularExpression, Qt
 from PySide6.QtGui import QGuiApplication, QPixmap, QRegularExpressionValidator
 from PySide6.QtWidgets import (
@@ -68,6 +67,9 @@ from planner.music.tag_edits import genre_label
 
 CLASSES = ("D", "C", "B", "A", "S")
 _KEEP = -1          # the stars combo's "keep each track's own"
+# The title arrow's "< filename >" in form_changes: each track's own file name,
+# put in per file by with_filename_title.
+FILENAME_TITLE = "\0filename"
 _MAX_SUGGESTIONS = 12
 _CHIP_COLUMNS = 4
 _RAW_FRAME, _RAW_DESC, _RAW_VALUE = range(3)
@@ -366,6 +368,7 @@ class TagEditDialog(QDialog):
         or "< keep >" where they differ — written into the files on Save."""
         self._keep = i18n.t("< keep >")
         self._blank = i18n.t("< blank >")
+        self._filename = i18n.t("< filename >")
         self._file_box = QGroupBox(i18n.t("In the MP3 file"))
         lyt.addWidget(self._file_box)
         row = QHBoxLayout(self._file_box)
@@ -397,7 +400,8 @@ class TagEditDialog(QDialog):
         for r, fields in enumerate(_FORM_ROWS):
             for i, (field, label) in enumerate(fields):
                 combo = self._form_combo(
-                    [f[field].value if f[field] else "" for f in self._form_read] or [""])
+                    [f[field].value if f[field] else "" for f in self._form_read] or [""],
+                    field == "title", self._mp3s)
                 last = i == len(fields) - 1
                 grid.addWidget(QLabel(i18n.t(label)), r, 2 * i)
                 grid.addWidget(combo, r, 2 * i + 1, 1,
@@ -427,6 +431,7 @@ class TagEditDialog(QDialog):
         Save and laid over what the files say; no file is written."""
         self._keep = i18n.t("< keep >")
         self._blank = i18n.t("< blank >")
+        self._filename = i18n.t("< filename >")
         self._mp3s, self._form_read, self._form, self._form_start = [], [], {}, {}
         self._db_box = QGroupBox(i18n.t("In the app's database"))
         self._db_box.setToolTip(i18n.t("Kept in the app only — the file itself is not changed."))
@@ -442,7 +447,8 @@ class TagEditDialog(QDialog):
         }
         for r, fields in enumerate(_DB_ROWS):
             for i, (field, label) in enumerate(fields):
-                combo = self._form_combo([shown[field](e) for e in self._entries])
+                combo = self._form_combo([shown[field](e) for e in self._entries],
+                                         field == "title", self._entries)
                 last = i == len(fields) - 1
                 grid.addWidget(QLabel(i18n.t(label)), r, 2 * i)
                 grid.addWidget(combo, r, 2 * i + 1, 1,
@@ -459,15 +465,17 @@ class TagEditDialog(QDialog):
             if genre.findText(g) < 0:
                 genre.addItem(g)
 
-    def _db_changes(self) -> dict:
+    def _db_changes(self, entry) -> dict:
         """{field: value} for every database field changed: "" (0 for the
-        year) is an explicit blank."""
+        year) is an explicit blank, "< filename >" `entry`'s file name."""
         out = {}
         for field, combo in self._db.items():
             text = combo.currentText()
             if text in (self._keep, self._db_start[field]):
                 continue
-            value = "" if text == self._blank else text.strip()
+            value = ("" if text == self._blank
+                     else Path(entry.path).stem if text == self._filename
+                     else text.strip())
             if field == "year":
                 if value and not value.isdigit():
                     continue
@@ -476,9 +484,11 @@ class TagEditDialog(QDialog):
                 out[field] = value
         return out
 
-    def _form_combo(self, values: list) -> QComboBox:
+    def _form_combo(self, values: list, title: bool = False,
+                    entries=()) -> QComboBox:
         """An editable field: the shared value, or "< keep >" when the tracks
-        differ, with "< blank >" and their values to pick from."""
+        differ, with "< blank >" — and for the title "< filename >" — and
+        their values to pick from."""
         combo = QComboBox()
         combo.setEditable(True)
         combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
@@ -488,6 +498,15 @@ class TagEditDialog(QDialog):
         distinct = list(dict.fromkeys(values))
         combo.addItem(self._keep)
         combo.addItem(self._blank)
+        if title:
+            combo.addItem(self._filename)
+            if len(entries) == 1:
+                # One track: picking it shows the name it stands for. Across
+                # a selection the placeholder stays, each track gets its own.
+                stem = Path(entries[0].path).stem
+                combo.currentIndexChanged.connect(
+                    lambda i: combo.setEditText(stem)
+                    if combo.itemText(i) == self._filename else None)
         for v in [v for v in distinct if v][:_MAX_FORM_VALUES]:
             combo.addItem(v)
         combo.setEditText(distinct[0] if len(distinct) == 1 else self._keep)
@@ -499,14 +518,17 @@ class TagEditDialog(QDialog):
 
     def form_changes(self) -> dict:
         """{form field: new value} for every field changed — '' removes it from
-        the files; a field left on "< keep >" or as it was isn't there."""
+        the files, FILENAME_TITLE each file's own name; a field left on
+        "< keep >" or as it was isn't there."""
         if not self._mp3s:
             return {}
         out = {}
         for field, combo in self._form.items():
             text = combo.currentText()
             if text not in (self._keep, self._form_start[field]):
-                out[field] = "" if text == self._blank else text
+                out[field] = ("" if text == self._blank
+                              else FILENAME_TITLE if text == self._filename
+                              else text)
         return out
 
     # ── "Extended tags" ─────────────────────────────────────────────────────
@@ -853,8 +875,16 @@ class TagEditDialog(QDialog):
             out["comment_tags"] = parse_markers(self._markers.text())
         if self._custom.text() != self._custom_start:
             out["custom"] = self._custom.text()
-        out.update(self._db_changes())
+        out.update(self._db_changes(entry))
         return out
+
+
+def with_filename_title(changes: dict | None, path) -> dict | None:
+    """`changes` from form_changes for the file at `path`: a title of
+    "< filename >" becomes that file's name, without its extension."""
+    if not changes or changes.get("title") != FILENAME_TITLE:
+        return changes
+    return {**changes, "title": Path(path).stem}
 
 
 class CustomSourceDialog(QDialog):

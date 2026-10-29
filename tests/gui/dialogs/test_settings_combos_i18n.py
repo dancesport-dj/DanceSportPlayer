@@ -36,7 +36,9 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 from gui.dialogs import (
-    APP_MODE_CHOICES, MEDIA_BACKEND_CHOICES, PLAYER_LAYOUT_CHOICES,
+    APP_MODE_CHOICES,
+    MEDIA_BACKEND_CHOICES,
+    PLAYER_LAYOUT_CHOICES,
     AppModeDialog,
 )
 from gui.dialogs.settings_dialog import SettingsDialog
@@ -137,8 +139,8 @@ class PlayerLayoutComboI18nTest(_Combos):
         for caption, (_k, english, _b) in zip(shown, PLAYER_LAYOUT_CHOICES, strict=True):
             self.assertNotEqual(caption, english,
                                 f"{english!r} stayed English")
-        self.assertIn("Neben den Playlists", shown[0])
-        self.assertIn("Über den Playlists", shown[1])
+        self.assertIn("Neben den Wiedergabelisten", shown[0])
+        self.assertIn("Über den Wiedergabelisten", shown[1])
 
     def test_german_per_item_tooltips(self):
         for (key, _c, english), tip in zip(PLAYER_LAYOUT_CHOICES,

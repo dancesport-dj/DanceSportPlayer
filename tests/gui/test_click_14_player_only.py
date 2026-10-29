@@ -13,21 +13,22 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from PySide6.QtCore import QPointF
+
 # First: it points the app's state files at a temp folder before any app
 # module is imported.
 from tests.gui.monkey_support import ClickThrough, DropFrom, printable
-
-from PySide6.QtCore import QPointF
 
 
 class PlayerOnlyClickTest(ClickThrough):
     """14 Player only."""
 
     def test_the_player_build_opens_on_the_venue_layout_and_plays_a_list(self):
-        import planner.config
-        from gui.dialogs import PLAYER_FIRST_START
         from PySide6.QtCore import QMimeData, QUrl
         from PySide6.QtMultimedia import QMediaPlayer
+
+        import planner.config
+        from gui.dialogs import PLAYER_FIRST_START
         # The first start of DanceSport-Player, as ensure_app_mode leaves it.
         for p in (mock.patch.object(planner.config, "build_flavor", lambda: "player"),
                   mock.patch.dict(self.settings, {"app_mode": "player",

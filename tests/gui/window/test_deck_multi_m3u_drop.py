@@ -23,11 +23,11 @@ from PySide6.QtCore import QMimeData, QPoint, QPointF, Qt, QUrl
 from PySide6.QtGui import QDragEnterEvent, QDragMoveEvent, QDropEvent
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
 
+from gui.decks.deck_set import DeckSet
+from gui.table.playlist_table import PlaylistTable
 from gui.window import main_import
 from gui.window.main_import import ImportMixin
-from gui.table.playlist_table import PlaylistTable
 from tests.qt_test_support import reap_widget
-from gui.decks.deck_set import DeckSet
 
 
 def _drop(table, *paths):
@@ -132,9 +132,9 @@ class _ImportWin(ImportMixin):
 class MultiImportTest(unittest.TestCase):
 
     def setUp(self):
-        self._toast = main_import._show_toast
-        main_import._show_toast = lambda *a: None
-        self.addCleanup(setattr, main_import, "_show_toast", self._toast)
+        self._toast = main_import.show_toast
+        main_import.show_toast = lambda *a: None
+        self.addCleanup(setattr, main_import, "show_toast", self._toast)
 
     def test_a_planner_deck_gets_the_grid_import(self):
         win = _ImportWin(flat=False)

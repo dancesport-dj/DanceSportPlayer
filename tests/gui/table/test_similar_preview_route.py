@@ -26,14 +26,14 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_simroute_"))
 
 from PySide6.QtWidgets import QApplication, QWidget
-from tests.qt_test_support import reap_widget
 
 import gui.table.table_menu as table_menu
 from gui.table.playlist_table import PlaylistTable
-from planner.music.library import MusicLibrary
-from planner.models import MusicEntry, RoundConfig
 from planner.generate.suggester import PlaylistSuggester
+from planner.models import MusicEntry, RoundConfig
+from planner.music.library import MusicLibrary
 from tests.gui.test_duplicate_replacement_pick import _PickWin, _waltz
+from tests.qt_test_support import reap_widget
 
 
 def _tango(name: str) -> MusicEntry:

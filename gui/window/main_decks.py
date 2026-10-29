@@ -3,8 +3,8 @@
 Extracted from dancesport_gui.py (controller split) as a MainWindow mixin.
 """
 import logging
-
 import re
+
 from PySide6.QtCore import (
     Qt,
     Signal,
@@ -22,12 +22,11 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from planner.config import player_build
-from planner.playlist.m3u import grid_from_running_order
-from planner.generate.suggester import PlaylistSuggester
+
 from gui.common import (
     DANCE_SHORT,
-    _fmt_track_secs,
+    fmt_track_secs,
+    plain_tooltip,
     reveal_in_explorer,
 )
 from gui.decks.deck import Deck, DeckContext
@@ -35,19 +34,22 @@ from gui.dialogs import (  # auto-resolved
     app_mode_of,
     warmup_name,
 )
-from shared.stores import (
-    save_settings,
-)
 from gui.table.playlist_table import (  # auto-resolved
     PlaylistTable,
 )
+from gui.window.main_fold import FoldMixin
+from gui.window.main_libpane import LibraryPaneMixin
+from gui.window.main_wish import WishlistMixin
 from gui.window.session_env import ALL_DECK_KEYS, WISH_KEYS
 from planner import i18n
+from planner.config import player_build
+from planner.generate.suggester import PlaylistSuggester
+from planner.generate.warmup import WARMUP_ORDER, warmup_code
 from planner.playing.play_sets import upgrade_xfade
-from planner.generate.warmup import _WARMUP_ORDER, warmup_code
-from gui.window.main_fold import FoldMixin
-from gui.window.main_wish import WishlistMixin
-from gui.window.main_libpane import LibraryPaneMixin
+from planner.playlist.m3u import grid_from_running_order
+from shared.stores import (
+    save_settings,
+)
 
 log = logging.getLogger("dancesport.gui.decks")
 
@@ -60,7 +62,7 @@ def dance_counts_line(entries) -> str:
     for e in entries:
         code = warmup_code(e)
         counts[code] = counts.get(code, 0) + 1
-    order = sorted(counts, key=lambda c: (c is None, _WARMUP_ORDER.get(c, 99), c or ""))
+    order = sorted(counts, key=lambda c: (c is None, WARMUP_ORDER.get(c, 99), c or ""))
     return " · ".join(
         f"{i18n.t('other') if c is None else DANCE_SHORT.get(c, c)}"
         f" {counts[c]}" for c in order)
@@ -391,6 +393,7 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
         hdr = QLabel()
         hdr.setStyleSheet(self._DECK_HDR_IDLE)
         hdr.setToolTip("Click to focus · right-click or double-click to rename")
+        plain_tooltip(hdr)
         hdr.mouseDoubleClickEvent = lambda _e, t=table: self._begin_inline_rename(t)
         if table in self._deckset.wishlists:
             # Wishlist headers can be dragged onto one another to swap the two
@@ -404,9 +407,9 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
             hdr.dropEvent = lambda e, t=table: self._wish_header_drop(e, t)
         else:
             hdr.mousePressEvent = lambda e, t=table: self._on_header_press(e, t)
-        self.deck(table).header        = hdr
-        self.deck(table).name          = title
-        self.deck(table).default_name  = title
+        self.deck(table).header = hdr
+        self.deck(table).name = title
+        self.deck(table).default_name = title
         hdr.setText(self._deck_header_text(table, False))
         # Per-deck mode button, cycling 🔒 static → 🔓 dynamic → ✋ free order
         # (decks only; the flat wishlist has none).
@@ -515,6 +518,7 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
             tot.setToolTip("Total play time of this playlist\n"
                            "(↳ backup rows not counted — they only play as stand-ins)\n"
                            "Click ▸ for the songs per dance")
+            plain_tooltip(tot)
             tot.setCursor(Qt.CursorShape.PointingHandCursor)
             tot.clicked.connect(self._toggle_totals_by_dance)
             tot.setVisible(False)
@@ -527,6 +531,7 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
                 "color:#7a5b00; background:#fff8e6; border:1px solid #e6d28a; "
                 "border-radius:4px; padding:2px 6px; font-size:11px;")
             cnt.setToolTip("Number of titles in this wishlist")
+            plain_tooltip(cnt)
             self.deck(table).count_lbl = cnt
             badge = cnt
         row = QWidget()
@@ -1070,7 +1075,7 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
 
         # Expose the active editor's teardown so a re-entrant rename can flush it.
         self._rename_finish = _finish
-        edit.keyPressEvent      = _key
+        edit.keyPressEvent = _key
         edit.returnPressed.connect(lambda: _finish(True))
         edit.editingFinished.connect(lambda: _finish(True))
 
@@ -1389,7 +1394,7 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
                 count = (i18n.t("Σ  %d song") if n == 1
                          else i18n.t("Σ  %d songs")) % n
                 lbl.setText(f"{'▾' if by_dance else '▸'}  " + count
-                            + (f"  ·  ~{_fmt_track_secs(secs)}" if secs else "")
+                            + (f"  ·  ~{fmt_track_secs(secs)}" if secs else "")
                             + (f"\n{dance_counts_line(entries)}" if by_dance else ""))
             else:
                 lbl.setText("")

@@ -200,6 +200,7 @@ class DeskLinesTest(_ReadyBase):
         """The outputs are picked on 🔊 Sound & player — the fix lands there,
         not on ⚙ General, where nothing about them can be changed."""
         from PySide6.QtWidgets import QTabWidget
+
         from gui.dialogs.settings_dialog import SettingsDialog
 
         self.load(self.entry("Valse"))

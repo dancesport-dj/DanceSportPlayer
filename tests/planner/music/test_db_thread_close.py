@@ -12,11 +12,10 @@ import sqlite3
 import threading
 import unittest
 
-from tests.qt_test_support import qapp
-
 from PySide6.QtCore import QThread
 
 from planner.music import db as pdb
+from tests.qt_test_support import qapp
 
 
 def _is_closed(conn: sqlite3.Connection) -> bool:

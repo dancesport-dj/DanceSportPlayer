@@ -32,8 +32,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_analyze_i18n_"))
 
-from PySide6.QtWidgets import (
-    QApplication, QCheckBox, QGroupBox, QLabel)
+from PySide6.QtWidgets import QApplication, QCheckBox, QGroupBox, QLabel
 
 from gui.dialogs.settings_dialog import SettingsDialog
 from planner import i18n

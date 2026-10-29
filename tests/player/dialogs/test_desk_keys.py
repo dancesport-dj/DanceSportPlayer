@@ -23,12 +23,11 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import (QApplication, QComboBox, QDialog,
-                               QDialogButtonBox, QPushButton, QToolButton)
+from PySide6.QtWidgets import QApplication, QComboBox, QDialog, QDialogButtonBox, QPushButton, QToolButton
 
+from planner import i18n
 from planner.playing import cartwall as pc
 from planner.playing import controller as pctl
-from planner import i18n
 from tests.qt_test_support import reap_widget, stub_window_startup
 
 
@@ -235,6 +234,19 @@ class WindowKeysTest(_WindowTest):
         self.win._save_master_volume()
         self.assertEqual(self.win._settings["master_volume"], 0.6)
         self.assertEqual(self.win._settings["cartwall_volume"], 0.4)
+
+    def test_a_level_moved_just_before_quitting_is_kept(self):
+        """The save waits 600 ms after the last fader step, and the quit ended
+        the process before it ran (BUG_REVIEW B3.3)."""
+        self.win._set_base_volume(0.55)
+        self.win._set_cart_volume(0.35)
+        self.assertTrue(self.win._vol_save_timer.isActive())
+        with mock.patch.object(self.win, "_autosave_playlist"), \
+                mock.patch.object(self.win, "_save_layout"):
+            self.win.save_on_quit()
+        self.assertFalse(self.win._vol_save_timer.isActive())
+        self.assertEqual(self.win._settings["master_volume"], 0.55)
+        self.assertEqual(self.win._settings["cartwall_volume"], 0.35)
 
     def _open(self, opener, answer=None):
         """Open the ⌨ Keys window through `opener`. `answer(dlg)` plays the

@@ -6,23 +6,24 @@ builds share, the pools it hands them and the MERT / Chroma runs.
 import importlib.util
 import logging
 
-
 HAS_MULTIMEDIA = importlib.util.find_spec("PySide6.QtMultimedia") is not None
+
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import (
     QMessageBox,
 )
-from collections.abc import Callable
+
 from gui.common import (
     BusyDialog,
-    _fmt_duration,
+    fmt_duration,
 )
-from planner import i18n
 from gui.workers import (  # auto-resolved
     AudioAnalyzer,
     EmbeddingIndexWorker,
 )
-from typing import TYPE_CHECKING
+from planner import i18n
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -90,7 +91,7 @@ class EmbeddingIndexMixin(MainWindowHost):
     def _on_index_progress(self, done: int, total: int, errors: int, name: str, eta: float):
         if self._busy:
             self._busy.set_progress(done, total, "🔬 " + name, eta)
-        eta_txt = (i18n.t("  ~%s left") % _fmt_duration(eta)) if eta >= 0 else ""
+        eta_txt = (i18n.t("  ~%s left") % fmt_duration(eta)) if eta >= 0 else ""
         self.statusBar().showMessage(
             i18n.t("Global index: %s/%s%s") % (done, total, eta_txt)
             + ((i18n.t("  (%s errors)") % errors) if errors else ""))

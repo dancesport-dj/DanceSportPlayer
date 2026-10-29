@@ -30,9 +30,9 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication
 
+from gui.decks.deck_set import DeckSet
 from gui.window import main_global as gmg
 from planner import i18n
-from gui.decks.deck_set import DeckSet
 
 
 class _Bar:

@@ -177,8 +177,8 @@ def measure_vocal_share(path: Path) -> float:
     Near zero for instrumentals, typically ≥0.2 for vocal tracks. ~7 s of CPU
     per track — call from a background worker and cache the result. Raises on
     decode/separation failure."""
-    import numpy as np
     import librosa
+    import numpy as np
     import torch  # pyright: ignore[reportMissingImports]
 
     model = _get_demucs_model()

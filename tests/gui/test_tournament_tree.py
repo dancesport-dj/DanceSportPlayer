@@ -19,13 +19,14 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtCore import QMimeData, QPoint, QPointF, QUrl
 from PySide6.QtWidgets import QApplication
-from tests.qt_test_support import reap_widget
 
-from gui import tournament_tiles as tiles, tournament_tree as gt
-from planner.store import JsonStore
-from planner.playlist.m3u import read_m3u_tracks
+from gui import tournament_tiles as tiles
+from gui import tournament_tree as gt
 from planner.models import MusicEntry
 from planner.playing import play_counts
+from planner.playlist.m3u import read_m3u_tracks
+from planner.store import JsonStore
+from tests.qt_test_support import reap_widget
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -70,6 +71,17 @@ class ReadM3uTracksTest(unittest.TestCase):
 
     def test_a_file_that_is_not_there_reads_as_empty(self):
         self.assertEqual(read_m3u_tracks(Path("nope") / "gone.m3u"), [])
+
+    def test_a_bare_name_is_the_file_next_to_the_playlist(self):
+        """BUG_REVIEW B6.1: a 🧳 USB bundle's bare names were read against the
+        working directory, so every track of it showed as missing."""
+        folder = _tmp()
+        track = folder / "0_0_1 - Title One WW29.mp3"
+        track.write_bytes(b"")
+        p = folder / "B.m3u"
+        p.write_text("#EXTM3U\n#EXTINF:120,Title One\n0_0_1 - Title One WW29.mp3\n",
+                     encoding="utf-8")
+        self.assertEqual(read_m3u_tracks(p), [(track, "Title One")])
 
 
 class TreeFileTest(unittest.TestCase):
@@ -269,13 +281,13 @@ class PaneFilingTest(_PaneCase):
         mime = QMimeData()
         mime.setUrls([QUrl.fromLocalFile(r"C:\lists\t1.m3u"),
                       QUrl.fromLocalFile(r"C:\music\a.mp3")])
-        self.assertEqual(tiles._TourneyTree._m3u_urls(mime),
+        self.assertEqual(tiles.TourneyTree._m3u_urls(mime),
                          [Path(r"C:\lists\t1.m3u")])
 
     def test_a_folder_is_taken_from_a_drop_too(self):
         mime = QMimeData()
         mime.setUrls([QUrl.fromLocalFile(str(self.dir))])
-        self.assertEqual(tiles._TourneyTree._m3u_urls(mime), [self.dir])
+        self.assertEqual(tiles.TourneyTree._m3u_urls(mime), [self.dir])
 
     def test_a_dropped_folder_arrives_as_the_branch_it_is_on_disk(self):
         comp = self.dir / "DanceComp 2026"
@@ -708,7 +720,7 @@ class PaneInteractionTest(_PaneCase):
         m3u = _m3u(self.dir, "Turnier 1")
         self.pane._on_files_dropped(None, [m3u])
         item = self.pane._tree.topLevelItem(0)
-        node = self.pane._tree.node_of(item.data(0, tiles._ROLE_KEY))
+        node = self.pane._tree.node_of(item.data(0, tiles.ROLE_KEY))
         self.assertEqual(node["m3u"], str(m3u))
 
     def test_a_track_row_carries_the_file_the_drag_exports(self):

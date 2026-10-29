@@ -10,29 +10,36 @@ scan and the competition importer depend on.
 """
 
 import unittest
-from unittest import mock
 from pathlib import Path
+from unittest import mock
 
 from dancesport_planner import (
-    parse_competition_schedule, competition_matches_file,
+    competition_matches_file,
+    parse_competition_schedule,
 )
-from planner.event.competition import _is_superseded_playlist, _round_stage_value
+from planner.event.competition import is_superseded_playlist, round_stage_value
 from planner.music.parsing import (
-    dance_from_folders, _clean_title, _detect_bpm, _detect_dance,
-    _parse_class_tag, _song_title_keys, parse_comment_markers, version_base_keys,
+    clean_title,
+    dance_from_folders,
+    detect_bpm,
+    detect_dance,
+    parse_class_tag,
+    parse_comment_markers,
+    song_title_keys,
+    version_base_keys,
 )
-from planner.music.similarity import _kl_to_sim
+from planner.music.similarity import kl_to_sim
 
 
 class DetectBpmTest(unittest.TestCase):
     """BPM values are bars per minute encoded in many filename styles."""
 
     def test_glued_uppercase_t_marker(self):
-        self.assertEqual(_detect_bpm("Hello CattailsT28"), 28)
-        self.assertEqual(_detect_bpm("Diosa marinaT32"), 32)
+        self.assertEqual(detect_bpm("Hello CattailsT28"), 28)
+        self.assertEqual(detect_bpm("Diosa marinaT32"), 32)
 
     def test_t_marker_with_boundary(self):
-        self.assertEqual(_detect_bpm("Some Song T50"), 50)
+        self.assertEqual(detect_bpm("Some Song T50"), 50)
 
     def test_a_word_ending_in_t_is_not_a_marker(self):
         """L2: the 'T' prefix letters matched case-insensitively, so the end
@@ -40,88 +47,88 @@ class DetectBpmTest(unittest.TestCase):
         for name in ("Dance Hit50 Mix", "Best40 Ballads", "Part30 Intro",
                      "Song Feat30 Remix"):
             with self.subTest(name=name):
-                self.assertIsNone(_detect_bpm(name))
+                self.assertIsNone(detect_bpm(name))
 
     def test_parenthetical_code(self):
-        self.assertEqual(_detect_bpm("My Waltz (LW 29)"), 29)
-        self.assertEqual(_detect_bpm("Fiesta (Samba 50)"), 50)
+        self.assertEqual(detect_bpm("My Waltz (LW 29)"), 29)
+        self.assertEqual(detect_bpm("Fiesta (Samba 50)"), 50)
 
     def test_parenthetical_multiword_name(self):
-        self.assertEqual(_detect_bpm("Track (Slow Waltz 29)"), 29)
-        self.assertEqual(_detect_bpm("Track (Paso Doble 60)"), 60)
+        self.assertEqual(detect_bpm("Track (Slow Waltz 29)"), 29)
+        self.assertEqual(detect_bpm("Track (Paso Doble 60)"), 60)
 
     def test_parenthetical_tournament_tempo_marker(self):
-        self.assertEqual(_detect_bpm("Song (Langsamer Walzer 29 TM)"), 29)
-        self.assertEqual(_detect_bpm("Song (Tango - 33 T_M)"), 33)
+        self.assertEqual(detect_bpm("Song (Langsamer Walzer 29 TM)"), 29)
+        self.assertEqual(detect_bpm("Song (Tango - 33 T_M)"), 33)
 
     def test_bare_parenthetical_number(self):
-        self.assertEqual(_detect_bpm("viennese waltz(58)"), 58)
+        self.assertEqual(detect_bpm("viennese waltz(58)"), 58)
 
     def test_bpm_suffix(self):
-        self.assertEqual(_detect_bpm("Track 50bpm"), 50)
+        self.assertEqual(detect_bpm("Track 50bpm"), 50)
 
     def test_code_dash_number(self):
-        self.assertEqual(_detect_bpm("[TG-32] Tanguera"), 32)
-        self.assertEqual(_detect_bpm("WW-59 Wien bleibt Wien"), 59)
+        self.assertEqual(detect_bpm("[TG-32] Tanguera"), 32)
+        self.assertEqual(detect_bpm("WW-59 Wien bleibt Wien"), 59)
 
     def test_glued_pitch_suffix(self):
-        self.assertEqual(_detect_bpm("Rb 25gepitched"), 25)
+        self.assertEqual(detect_bpm("Rb 25gepitched"), 25)
 
     def test_name_glued_number(self):
-        self.assertEqual(_detect_bpm("Tango32"), 32)
-        self.assertEqual(_detect_bpm("ChaCha 30"), 30)
+        self.assertEqual(detect_bpm("Tango32"), 32)
+        self.assertEqual(detect_bpm("ChaCha 30"), 30)
 
     def test_skips_out_of_range_first_hit(self):
         # Track number 'WW 10' is out of range (10 < 15) → keep looking, find vw59.
-        self.assertEqual(_detect_bpm("WW 10 Goldener Saal vw59"), 59)
+        self.assertEqual(detect_bpm("WW 10 Goldener Saal vw59"), 59)
 
     def test_slow_non_tournament_tempo_is_parsed(self):
         # Floor is 15 so a slow practice version reads as a (filterable) tempo,
         # not as bpm=None that would slip past the in-tempo filter.
-        self.assertEqual(_detect_bpm("Rumba 19"), 19)
+        self.assertEqual(detect_bpm("Rumba 19"), 19)
 
     def test_no_tempo(self):
-        self.assertIsNone(_detect_bpm("Just A Song Title"))
+        self.assertIsNone(detect_bpm("Just A Song Title"))
 
     def test_out_of_range_only(self):
-        self.assertIsNone(_detect_bpm("Track T99"))
+        self.assertIsNone(detect_bpm("Track T99"))
 
 
 class DetectDanceTest(unittest.TestCase):
 
     def test_code_token(self):
-        self.assertEqual(_detect_dance("LW Moon River"), 'LW')
-        self.assertEqual(_detect_dance("01 QS Sing Sing Sing"), 'QS')
+        self.assertEqual(detect_dance("LW Moon River"), 'LW')
+        self.assertEqual(detect_dance("01 QS Sing Sing Sing"), 'QS')
 
     def test_full_name(self):
-        self.assertEqual(_detect_dance("La Cumparsita Tango"), 'TG')
-        self.assertEqual(_detect_dance("Slow Waltz Dream"), 'LW')
+        self.assertEqual(detect_dance("La Cumparsita Tango"), 'TG')
+        self.assertEqual(detect_dance("Slow Waltz Dream"), 'LW')
 
     def test_code_glued_to_bpm(self):
         # Fallback: code fused to BPM digits, e.g. (RB24)
-        self.assertEqual(_detect_dance("Besame Mucho (RB24)"), 'RB')
+        self.assertEqual(detect_dance("Besame Mucho (RB24)"), 'RB')
 
     def test_code_glued_to_bpm_before_an_underscore(self):
         # UltraMixer / Casa Musica names: 'SW29_Children_DJ Maksy'
-        self.assertEqual(_detect_dance("LW29_Children"), 'LW')
-        self.assertEqual(_detect_dance("CC31_Some Title"), 'CC')
+        self.assertEqual(detect_dance("LW29_Children"), 'LW')
+        self.assertEqual(detect_dance("CC31_Some Title"), 'CC')
 
     def test_sw_is_the_slow_waltz(self):
         # SW = Slow Waltz, the Casa Musica / DJ ICE / Prandi code
-        self.assertEqual(_detect_dance("SW29_Children_DJ Maksy"), 'LW')
-        self.assertEqual(_detect_dance("01 - Easy (Sw28)"), 'LW')
-        self.assertEqual(_detect_dance("02 - Like A Song - sw29"), 'LW')
+        self.assertEqual(detect_dance("SW29_Children_DJ Maksy"), 'LW')
+        self.assertEqual(detect_dance("01 - Easy (Sw28)"), 'LW')
+        self.assertEqual(detect_dance("02 - Like A Song - sw29"), 'LW')
 
     def test_a_bare_sw_word_is_no_dance(self):
         # Only glued to a tempo: 'SW' alone is too short a word to trust
-        self.assertIsNone(_detect_dance("SW Radio Mix"))
+        self.assertIsNone(detect_dance("SW Radio Mix"))
 
     def test_alias_normalisation(self):
         # TA is an alias for Tango
-        self.assertEqual(_detect_dance("TA 33 El Choclo"), 'TG')
+        self.assertEqual(detect_dance("TA 33 El Choclo"), 'TG')
 
     def test_no_dance(self):
-        self.assertIsNone(_detect_dance("Some Random Pop Song"))
+        self.assertIsNone(detect_dance("Some Random Pop Song"))
 
 
 class DanceFromFoldersTest(unittest.TestCase):
@@ -167,25 +174,35 @@ class RoundStageValueTest(unittest.TestCase):
 
     def test_vorrunde(self):
         for tok in ('VR', 'vor', 'Vorrunde'):
-            self.assertEqual(_round_stage_value(tok), 0, tok)
+            self.assertEqual(round_stage_value(tok), 0, tok)
 
     def test_zwischenrunde(self):
-        self.assertEqual(_round_stage_value('ZR'), 10)
-        self.assertEqual(_round_stage_value('1ZR'), 10)
-        self.assertEqual(_round_stage_value('2ZR'), 20)
-        self.assertEqual(_round_stage_value('3ZR'), 30)
+        self.assertEqual(round_stage_value('ZR'), 10)
+        self.assertEqual(round_stage_value('1ZR'), 10)
+        self.assertEqual(round_stage_value('2ZR'), 20)
+        self.assertEqual(round_stage_value('3ZR'), 30)
 
     def test_halbfinale(self):
         for tok in ('SEMI', 'HF', 'Halbfinale'):
-            self.assertEqual(_round_stage_value(tok), 50, tok)
+            self.assertEqual(round_stage_value(tok), 50, tok)
+
+    def test_the_german_semifinale(self):
+        """It was no round at all: 'VR Semifinale Finale 30-12-6' kept
+        'Semifinale' in the label and read the couples as heats (BUG_REVIEW B7.2)."""
+        for tok in ('Semifinal', 'Semifinale', 'SEMIFINALE'):
+            self.assertEqual(round_stage_value(tok), 50, tok)
+        spec, = parse_competition_schedule("Hgr D STD VR Semifinale Finale 30-12-6")
+        self.assertEqual(spec.label, 'Hgr D STD')
+        self.assertEqual(spec.couples_per_round, [30, 12, 6])
+        self.assertEqual(spec.heats, [3, 1, 1])
 
     def test_endrunde(self):
         for tok in ('ER', 'Finale', 'final', 'FIN'):
-            self.assertEqual(_round_stage_value(tok), 60, tok)
+            self.assertEqual(round_stage_value(tok), 60, tok)
 
     def test_non_round_tokens(self):
         for tok in ('LAT', 'SEN', 'Jive', '2019', ''):
-            self.assertIsNone(_round_stage_value(tok), tok)
+            self.assertIsNone(round_stage_value(tok), tok)
 
 
 class SupersededPlaylistTest(unittest.TestCase):
@@ -193,73 +210,73 @@ class SupersededPlaylistTest(unittest.TestCase):
     relative (the function treats non-PLAYLIST_DIR paths as already relative)."""
 
     def test_old_marker_directories(self):
-        self.assertTrue(_is_superseded_playlist(Path("alt/SEN_I_LAT.m3u")))
-        self.assertTrue(_is_superseded_playlist(Path("alte Listen/x.m3u")))
-        self.assertTrue(_is_superseded_playlist(Path("07.8.2011alt/x.m3u")))
-        self.assertTrue(_is_superseded_playlist(Path("old/x.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("alt/SEN_I_LAT.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("alte Listen/x.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("07.8.2011alt/x.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("old/x.m3u")))
 
     def test_old_marker_filename_suffix(self):
-        self.assertTrue(_is_superseded_playlist(Path("HGR_S_STD_alt.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("HGR_S_STD_alt.m3u")))
 
     def test_abschlussveranstaltung_is_spared(self):
         # 'alt' inside 'Abschlussveranstaltung' is followed by 'u' → not a marker.
         self.assertFalse(
-            _is_superseded_playlist(Path("Abschlussveranstaltung 2019/SEN_I_LAT.m3u")))
+            is_superseded_playlist(Path("Abschlussveranstaltung 2019/SEN_I_LAT.m3u")))
 
     def test_export_dumps(self):
-        self.assertTrue(_is_superseded_playlist(Path("ExportM3U.m3u")))
-        self.assertTrue(_is_superseded_playlist(Path("ExportUnused.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("ExportM3U.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("ExportUnused.m3u")))
 
     def test_merged_lists(self):
-        self.assertTrue(_is_superseded_playlist(Path("musik_zusammen_einfach.m3u")))
-        self.assertTrue(_is_superseded_playlist(Path("latein_merged_pre_6.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("musik_zusammen_einfach.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("latein_merged_pre_6.m3u")))
 
     def test_alle_lists_but_halle_is_spared(self):
-        self.assertTrue(_is_superseded_playlist(Path("alleSTD.m3u")))
-        self.assertFalse(_is_superseded_playlist(Path("Turnier Halle 2019.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("alleSTD.m3u")))
+        self.assertFalse(is_superseded_playlist(Path("Turnier Halle 2019.m3u")))
 
     def test_holding_bins(self):
-        self.assertTrue(_is_superseded_playlist(Path("neu_r.m3u")))
-        self.assertTrue(_is_superseded_playlist(Path("zu_sortieren.m3u")))
-        self.assertTrue(_is_superseded_playlist(Path("unsortiert_LAT.m3u")))
-        self.assertTrue(_is_superseded_playlist(Path("liste_all.m3u")))
-        self.assertTrue(_is_superseded_playlist(Path("Ball_2019.m3u")))
-        self.assertTrue(_is_superseded_playlist(Path("Reserve_STD.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("neu_r.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("zu_sortieren.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("unsortiert_LAT.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("liste_all.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("Ball_2019.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("Reserve_STD.m3u")))
 
     def test_token_lookalikes_survive(self):
         # 'neu'/'ball' only match as whole tokens: city/event names survive.
-        self.assertFalse(_is_superseded_playlist(Path("Neuss Open 2018.m3u")))
-        self.assertFalse(_is_superseded_playlist(Path("Galaball Turnier.m3u")))
+        self.assertFalse(is_superseded_playlist(Path("Neuss Open 2018.m3u")))
+        self.assertFalse(is_superseded_playlist(Path("Galaball Turnier.m3u")))
 
     def test_per_dance_collection_dumps(self):
-        self.assertTrue(_is_superseded_playlist(Path("Jive.m3u")))
-        self.assertTrue(_is_superseded_playlist(Path("Jive_2.m3u")))
-        self.assertTrue(_is_superseded_playlist(Path("LAT_Jive.m3u")))
-        self.assertTrue(_is_superseded_playlist(Path("Tango Standard.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("Jive.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("Jive_2.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("LAT_Jive.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("Tango Standard.m3u")))
 
     def test_mixed_names_survive(self):
-        self.assertFalse(_is_superseded_playlist(Path("Jive Hits 2018.m3u")))
+        self.assertFalse(is_superseded_playlist(Path("Jive Hits 2018.m3u")))
 
     def test_working_drafts(self):
         # Pre-selection pools: they hold the whole filtered library, so counting
         # them would mark hundreds of never-danced titles as played.
-        self.assertTrue(_is_superseded_playlist(Path("Standard_filter_final.m3u")))
-        self.assertTrue(_is_superseded_playlist(Path("gesamt_standard_pre.m3u")))
-        self.assertTrue(_is_superseded_playlist(Path("gesamt.m3u")))
-        self.assertTrue(_is_superseded_playlist(Path("standard_pre_4.m3u")))
-        self.assertTrue(_is_superseded_playlist(Path("Vorsortierungen/LW_pre.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("Standard_filter_final.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("gesamt_standard_pre.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("gesamt.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("standard_pre_4.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("Vorsortierungen/LW_pre.m3u")))
         # …and anything sitting in a sorting folder, whatever it is called.
-        self.assertTrue(_is_superseded_playlist(Path("grundsortierung/Modetaenze.m3u")))
+        self.assertTrue(is_superseded_playlist(Path("grundsortierung/Modetaenze.m3u")))
 
     def test_words_starting_with_pre_survive(self):
         # 'pre' counts as a whole token only — an event is not a draft.
-        self.assertFalse(_is_superseded_playlist(Path("Preisverleihung 2019.m3u")))
-        self.assertFalse(_is_superseded_playlist(Path("Premiere HGR S STD.m3u")))
+        self.assertFalse(is_superseded_playlist(Path("Preisverleihung 2019.m3u")))
+        self.assertFalse(is_superseded_playlist(Path("Premiere HGR S STD.m3u")))
 
     def test_normal_event_playlist_survives(self):
         self.assertFalse(
-            _is_superseded_playlist(Path("20.05.2023 Turnier Krefeld/SEN_I_LAT.m3u")))
-        self.assertFalse(_is_superseded_playlist(Path("HGR S STD Finale.m3u")))
+            is_superseded_playlist(Path("20.05.2023 Turnier Krefeld/SEN_I_LAT.m3u")))
+        self.assertFalse(is_superseded_playlist(Path("HGR S STD Finale.m3u")))
 
 
 class ParseCompetitionScheduleTest(unittest.TestCase):
@@ -314,6 +331,19 @@ class ParseCompetitionScheduleTest(unittest.TestCase):
         spec, = parse_competition_schedule("Sa: 9.30 HGR S STD 2-1")
         self.assertEqual(spec.label, 'HGR S STD')
 
+    def test_a_day_without_its_colon_before_a_time(self):
+        """Only 'Sa:' was dropped: 'Sa 18:30' stayed in the label, and the
+        class, the style and the deck's name were read off it (BUG_REVIEW B7.3)."""
+        for line in ("Sa 18:30 Hgr C LAT 3-2-1", "So. 9.30 Hgr C LAT 3-2-1"):
+            with self.subTest(line=line):
+                spec, = parse_competition_schedule(line)
+                self.assertEqual(spec.label, 'Hgr C LAT')
+                self.assertEqual(spec.heats, [3, 2, 1])
+
+    def test_a_label_starting_with_a_short_word_keeps_it(self):
+        spec, = parse_competition_schedule("Jug A STD 2-1")
+        self.assertEqual(spec.label, 'Jug A STD')
+
     def test_start_class_comes_from_the_label(self):
         """'Jug A' is an A-class event — it used to be read as S."""
         spec, = parse_competition_schedule("Jug A STD 2-1")
@@ -359,6 +389,13 @@ class ParseCompetitionScheduleTest(unittest.TestCase):
         spec, = parse_competition_schedule(
             "J & J (LW; TG; CC; RB) VR ZR ER 24 - 12 - 6", max_couples_per_heat=8)
         self.assertEqual(spec.heats, [3, 2, 1])
+
+    def test_heats_from_a_large_field_are_capped_at_thirty(self):
+        """400 couples made 34 heats, past what a round may have, and the day
+        plan skipped the whole competition (BUG_REVIEW B7.4)."""
+        spec, = parse_competition_schedule("Hgr D STD VR ER 400-6")
+        self.assertEqual(spec.couples_per_round, [400, 6])
+        self.assertEqual(spec.heats, [30, 1])
 
     def test_a_plain_heat_pattern_is_not_read_as_couples(self):
         spec, = parse_competition_schedule("HGR S STD 2-1")
@@ -432,42 +469,42 @@ class KlToSimTest(unittest.TestCase):
     """Absolute KL→similarity calibration: _KL_FLOOR=5.5, _KL_SCALE=11.0."""
 
     def test_identical_gaussian_reads_100_percent(self):
-        self.assertEqual(_kl_to_sim(0.0), 1.0)
+        self.assertEqual(kl_to_sim(0.0), 1.0)
 
     def test_different_recordings_capped_at_99(self):
         # At/below the floor the raw value clamps to 1.0, but any J above the
         # identical-threshold means a different recording → capped at 0.99.
-        self.assertEqual(_kl_to_sim(5.5), 0.99)
-        self.assertEqual(_kl_to_sim(1.0), 0.99)
+        self.assertEqual(kl_to_sim(5.5), 0.99)
+        self.assertEqual(kl_to_sim(1.0), 0.99)
 
     def test_monotonically_decreasing(self):
-        sims = [_kl_to_sim(j) for j in (6.0, 8.0, 11.5, 20.0, 40.0)]
+        sims = [kl_to_sim(j) for j in (6.0, 8.0, 11.5, 20.0, 40.0)]
         self.assertEqual(sims, sorted(sims, reverse=True))
 
     def test_calibration_anchors(self):
         # Genuine same-dance sound-alikes (J≈6–8) should read clearly above the
         # 80% suggestion threshold; a pool-median J≈11.5 lands mid-range.
-        self.assertGreater(_kl_to_sim(6.0), 0.90)
-        self.assertGreater(_kl_to_sim(8.0), 0.79)
-        self.assertAlmostEqual(_kl_to_sim(11.5), 0.58, delta=0.03)
+        self.assertGreater(kl_to_sim(6.0), 0.90)
+        self.assertGreater(kl_to_sim(8.0), 0.79)
+        self.assertAlmostEqual(kl_to_sim(11.5), 0.58, delta=0.03)
 
     def test_large_divergence_near_zero(self):
-        self.assertLess(_kl_to_sim(60.0), 0.01)
-        self.assertGreaterEqual(_kl_to_sim(1000.0), 0.0)
+        self.assertLess(kl_to_sim(60.0), 0.01)
+        self.assertGreaterEqual(kl_to_sim(1000.0), 0.0)
 
 
 class CleanTitleTest(unittest.TestCase):
     """_clean_title strips tempo/dance tags so display titles stay readable."""
 
     def test_strips_leading_tracknumber_and_code(self):
-        self.assertEqual(_clean_title("01. LW Moon River"), "Moon River")
+        self.assertEqual(clean_title("01. LW Moon River"), "Moon River")
 
     def test_strips_parenthetical_tempo(self):
-        self.assertEqual(_clean_title("Fiesta (Samba 50)"), "Fiesta")
-        self.assertEqual(_clean_title("viennese waltz(58)"), "viennese waltz")
+        self.assertEqual(clean_title("Fiesta (Samba 50)"), "Fiesta")
+        self.assertEqual(clean_title("viennese waltz(58)"), "viennese waltz")
 
     def test_strips_pitch_suffixes(self):
-        self.assertEqual(_clean_title("Besame Mucho_gepitched"), "Besame Mucho")
+        self.assertEqual(clean_title("Besame Mucho_gepitched"), "Besame Mucho")
 
 
 class VersionBaseKeysTest(unittest.TestCase):
@@ -477,7 +514,7 @@ class VersionBaseKeysTest(unittest.TestCase):
     def test_a_remix_names_its_song(self):
         remix = version_base_keys(
             "Jasmine Thompson - Willow (DJ Maksy Viennese Waltz Remix) 58BPM.mp3")
-        song = _song_title_keys("22-Jasmine Thompson _ Willow (Viennese Waltz 58).mp3")
+        song = song_title_keys("22-Jasmine Thompson _ Willow (Viennese Waltz 58).mp3")
         self.assertEqual(remix[0], song[0])
         self.assertIn("willow", version_base_keys("Willow [Salsa Remix]_cut.mp3"))
         self.assertIn("rolling in the deep", version_base_keys(
@@ -508,7 +545,7 @@ class CommentMarkerTest(unittest.TestCase):
         self.assertEqual(parse_comment_markers("D;instrumental"), [])
 
     def test_it_does_not_disturb_the_class_parse(self):
-        classes, instr = _parse_class_tag("B;A;S;vocal_f;instr")
+        classes, instr = parse_class_tag("B;A;S;vocal_f;instr")
         self.assertEqual(classes, ["B", "A", "S"])
         self.assertTrue(instr)
 
@@ -516,32 +553,32 @@ class CommentMarkerTest(unittest.TestCase):
         """UltraMixer comments read 'Instr', 'Instr AS', 'instr. AS': the
         instr word leads, the classes follow it."""
         for comment in ("Instr AS", "instr. AS"):
-            self.assertEqual(_parse_class_tag(comment), (["A", "S"], True))
+            self.assertEqual(parse_class_tag(comment), (["A", "S"], True))
             self.assertEqual(parse_comment_markers(comment), [])
-        self.assertEqual(_parse_class_tag("instr."), (None, True))
+        self.assertEqual(parse_class_tag("instr."), (None, True))
         self.assertEqual(parse_comment_markers("instr."), [])
 
     def test_a_vocal_comment_carries_its_classes(self):
         """DJ Maksy (Casa Musica) tags 'vocal AS' / 'instr. AS': the glued
         letters are the classes the track is for."""
-        self.assertEqual(_parse_class_tag("vocal AS"), (["A", "S"], False))
+        self.assertEqual(parse_class_tag("vocal AS"), (["A", "S"], False))
         self.assertEqual(parse_comment_markers("vocal AS"), ["vocal"])
 
     def test_glued_class_codes_are_classes(self):
         for comment, classes in (("BAS", ["B", "A", "S"]), ("DC", ["D", "C"]),
                                  ("DCB", ["D", "C", "B"]),
                                  ("vocal DCB", ["D", "C", "B"])):
-            self.assertEqual(_parse_class_tag(comment)[0], classes, comment)
+            self.assertEqual(parse_class_tag(comment)[0], classes, comment)
 
     def test_dance_codes_in_the_comment_are_no_classes(self):
         """The same field holds dance codes: 'SA' 3×, 'SB' 129×, 'CC' 140× in
         the library. Only upper case in class order (D C B A S) is a run."""
         for comment in ("SA", "SB", "CC", "as", "vocal ab 35s"):
-            self.assertIsNone(_parse_class_tag(comment)[0], comment)
+            self.assertIsNone(parse_class_tag(comment)[0], comment)
         self.assertEqual(parse_comment_markers("vocal ab 35s"), ["vocal ab 35s"])
 
     def test_a_word_only_starting_like_instr_is_no_instr(self):
-        self.assertEqual(_parse_class_tag("instructions"), (None, False))
+        self.assertEqual(parse_class_tag("instructions"), (None, False))
         self.assertEqual(parse_comment_markers("instructions"), ["instructions"])
 
     def test_multi_word_markers_survive_whole(self):

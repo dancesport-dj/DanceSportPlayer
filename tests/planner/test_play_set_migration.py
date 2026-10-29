@@ -1,5 +1,5 @@
-"""🏆 The tournament set's fade-out went from 1.5 s to 3 s (2.5 s since
-2026-10-17), its length from 1:40 to 1:45.
+"""🏆 The tournament set's fade-out went from 1.5 s to 3 s (2.5 s from
+2026-10-17 until 2026-10-25), its length from 1:40 to 1:45.
 
 Run:  py -m unittest tests.planner.test_play_set_migration -v
 
@@ -17,7 +17,7 @@ class TournamentFadeMigrationTest(unittest.TestCase):
 
     def test_the_old_default_is_lifted(self):
         s = migrate_play_sets({"tournament_set": {"secs": 90, "fade": 1.5}})
-        self.assertEqual(play_set_of(s, "tournament")["fade"], 2.5)
+        self.assertEqual(play_set_of(s, "tournament")["fade"], 3)
         self.assertEqual(s["tournament_set"]["secs"], 90)
 
     def test_a_chosen_value_stays(self):
@@ -32,7 +32,7 @@ class TournamentFadeMigrationTest(unittest.TestCase):
 
     def test_no_stored_set_takes_the_default(self):
         s = migrate_play_sets({})
-        self.assertEqual(play_set_of(s, "tournament")["fade"], 2.5)
+        self.assertEqual(play_set_of(s, "tournament")["fade"], 3)
 
     def test_the_party_set_is_left_alone(self):
         s = migrate_play_sets({"party_set": {"fade": 1.5}})
@@ -50,7 +50,7 @@ class TournamentLengthMigrationTest(unittest.TestCase):
     def test_it_is_lifted_from_the_first_version_too(self):
         s = migrate_play_sets({"tournament_set": {"secs": 100, "fade": 1.5}})
         self.assertEqual(play_set_of(s, "tournament")["secs"], 105)
-        self.assertEqual(play_set_of(s, "tournament")["fade"], 2.5)
+        self.assertEqual(play_set_of(s, "tournament")["fade"], 3)
 
     def test_a_chosen_length_stays(self):
         s = migrate_play_sets({"play_sets_version": 2,

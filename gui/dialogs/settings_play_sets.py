@@ -20,17 +20,40 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from planner import i18n
-from planner.models import TEMPO_RANGES
-from planner.terms import dance_name, round_name, rules_name
-from planner.playing.play_sets import (
-    _LEN_MAX, _LEN_STEP, DANCE_SECS_KEY, ROUND_DANCE_SECS_KEY, ROUND_KINDS,
-    ROUND_PD_KEY, XFADE_MAX_SECS, XFADE_MIN_SECS, dance_secs_of,
-    dblclick_ask_of, parse_play_length, pd_of, play_set_of,
-    round_dance_secs_of, round_pd_n_of, tso_of)
-from shared.widgets import _hsep
-from shared.xfade_view import CrossfadeCurveButton, CrossfadeView
 from gui.dialogs.settings_look import _DialogHost
+from planner import i18n
+from planner.models import TEMPO_RANGES, TsoBand
+from planner.playing.celebration import (
+    CELEBRATE_MAX_SECS,
+    CELEBRATE_PCT_MIN,
+    celebrate_dip_pct,
+    celebrate_down_secs,
+    celebrate_hold_secs,
+    celebrate_mode,
+    celebrate_pct,
+    celebrate_up_secs,
+)
+from planner.playing.play_sets import (
+    DANCE_SECS_KEY,
+    LEN_MAX,
+    LEN_STEP,
+    ROUND_DANCE_SECS_KEY,
+    ROUND_KINDS,
+    ROUND_PD_KEY,
+    XFADE_MAX_SECS,
+    XFADE_MIN_SECS,
+    dance_secs_of,
+    dblclick_ask_of,
+    parse_play_length,
+    pd_of,
+    play_set_of,
+    round_dance_secs_of,
+    round_pd_n_of,
+    tso_of,
+)
+from planner.terms import dance_name, round_name, rules_name
+from shared.widgets import hsep
+from shared.xfade_view import CrossfadeCurveButton, CrossfadeView
 
 
 class PlaySetsTabMixin(_DialogHost):
@@ -88,7 +111,7 @@ class PlaySetsTabMixin(_DialogHost):
         row.addWidget(QLabel("Play length:"))
         length = QComboBox()
         length.addItem("full — to each title's own end", 0)
-        for s in range(_LEN_STEP, _LEN_MAX + 1, _LEN_STEP):
+        for s in range(LEN_STEP, LEN_MAX + 1, LEN_STEP):
             length.addItem(f"{s // 60}:{s % 60:02d}", s)
         # Typable as well as pickable — the rungs are 15 s apart and a heat
         # that wants 1:37 has to be able to say so here too, not only on the
@@ -138,7 +161,90 @@ class PlaySetsTabMixin(_DialogHost):
         self._set_widgets[which]["pd"] = self._add_pd_row(blyt, settings, which)
         if which == "tournament":
             self._add_dance_len_grid(blyt, settings)
+            # 🥇 Only a competition has a final to play on after.
+            self._add_celebrate_box(blyt, settings)
         tlyt.addWidget(box)
+
+    def _add_celebrate_box(self, set_lyt, settings):
+        """🥇 The final plays on: which of its titles come back up after the
+        play length faded them out, how loud, and over how long."""
+        box = QGroupBox("🥇  Final: the music plays on")
+        self._celebrate_box = box
+        blyt = QVBoxLayout(box)
+        hint = QLabel(
+            "After the play length has faded a title of the final out, it "
+            "comes back up as background while the couples celebrate — until "
+            "🔉↓ fades it, the next title starts or the file ends. Only under "
+            "✋ Manual: with ⏭ Auto the ⏸ pause and its music follow each "
+            "title, and a title of the final ends as always.")
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color:#777; font-size:11px;")
+        self._celebrate_hint = hint
+        blyt.addWidget(hint)
+
+        row = QHBoxLayout()
+        mode = QComboBox()
+        for caption, key in (("Off", "off"),
+                             ("After the last dance of the final", "last"),
+                             ("After every dance of the final", "all")):
+            mode.addItem(caption, key)
+        mode.setCurrentIndex(mode.findData(celebrate_mode(settings)))
+        mode.setToolTip("Which titles of the final come back up after the play\n"
+                        "length has faded them out. A round is the final when it\n"
+                        "is named Finale, Final or Endrunde.")
+        self._celebrate_mode = mode
+        row.addWidget(mode)
+        row.addSpacing(12)
+        row.addWidget(QLabel("Level:"))
+        pct = QSpinBox()
+        pct.setRange(CELEBRATE_PCT_MIN, 100)
+        pct.setSuffix(" %")
+        pct.setValue(celebrate_pct(settings))
+        pct.setToolTip("How loud it comes back, in % of the music's level.")
+        self._celebrate_pct = pct
+        row.addWidget(pct)
+        row.addSpacing(12)
+        row.addWidget(QLabel("Dip to:"))
+        dip = QSpinBox()
+        dip.setRange(0, 100)
+        dip.setSuffix(" %")
+        dip.setValue(celebrate_dip_pct(settings))
+        dip.setToolTip("How low the play-length fade takes it before it comes\n"
+                       "back up, in % of the music's level. 0 = all the way down.\n"
+                       "At most the level it comes back at.")
+        self._celebrate_dip = dip
+        row.addWidget(dip)
+        spins = []
+        for caption, value, tip in (
+                ("Hold:", celebrate_hold_secs(settings),
+                 "How long it stays at its dip before it comes back up.\n"
+                 "0 = it comes up at once."),
+                ("Up over:", celebrate_up_secs(settings),
+                 "How long it takes to come back up. 0 = at once."),
+                ("Down over:", celebrate_down_secs(settings),
+                 "How long it takes to go down when 🔉↓ fades it.")):
+            row.addSpacing(12)
+            row.addWidget(QLabel(caption))
+            spin = QDoubleSpinBox()
+            spin.setRange(0.0, CELEBRATE_MAX_SECS)
+            spin.setDecimals(1)
+            spin.setSingleStep(0.5)
+            spin.setSuffix(" s")
+            spin.setValue(value)
+            spin.setToolTip(tip)
+            row.addWidget(spin)
+            spins.append(spin)
+        self._celebrate_hold, self._celebrate_up, self._celebrate_down = spins
+        row.addStretch(1)
+        blyt.addLayout(row)
+
+        def sync(*_):
+            on = mode.currentData() != "off"
+            for w in (pct, dip, *spins):
+                w.setEnabled(on)
+        mode.currentIndexChanged.connect(sync)
+        sync()
+        set_lyt.addWidget(box)
 
     def _add_pd_row(self, blyt, settings, which):
         """🐂 One set's Paso Doble: the highlight stop, which highlight, and
@@ -367,7 +473,7 @@ class PlaySetsTabMixin(_DialogHost):
         combo = QComboBox()
         combo.addItem(unset, None)
         combo.addItem("full", 0)
-        for s in range(_LEN_STEP, _LEN_MAX + 1, _LEN_STEP):
+        for s in range(LEN_STEP, LEN_MAX + 1, LEN_STEP):
             combo.addItem(f"{s // 60}:{s % 60:02d}", s)
         # Typable like the set's own length: 1:37 is not a rung.
         combo.setEditable(True)
@@ -451,7 +557,7 @@ class PlaySetsTabMixin(_DialogHost):
     def _add_tso_band_grid(self, tlyt, settings):
         """🎚 Which takt of its TSO band each dance is pitched to."""
         # ── 🎚 Where in its TSO band each dance is pitched ──
-        tlyt.addWidget(_hsep())
+        tlyt.addWidget(hsep())
         band_lbl = QLabel(rules_name(i18n.t(
             "<b>🎚 TSO pitch target</b> — which takt the 🎚 button pitches a "
             "heat to. <i>Middle of the round</i> puts the round on one takt: "
@@ -475,12 +581,12 @@ class PlaySetsTabMixin(_DialogHost):
         for i, dance in enumerate(dances):
             lo, hi = TEMPO_RANGES[dance]["S"]
             combo = QComboBox()
-            combo.addItem("Middle of the round", "mean")
-            combo.addItem(i18n.t("Lower — T%s") % f"{lo:g}", "lower")
+            combo.addItem("Middle of the round", TsoBand.MEAN)
+            combo.addItem(i18n.t("Lower — T%s") % f"{lo:g}", TsoBand.LOWER)
             combo.addItem(i18n.t("Middle — T%s") % f"{(lo + hi) / 2:g}",
-                          "middle")
-            combo.addItem(i18n.t("Upper — T%s") % f"{hi:g}", "upper")
-            idx = combo.findData(str(stored_bands.get(dance, "mean")))
+                          TsoBand.MIDDLE)
+            combo.addItem(i18n.t("Upper — T%s") % f"{hi:g}", TsoBand.UPPER)
+            idx = combo.findData(TsoBand.of(stored_bands.get(dance)))
             combo.setCurrentIndex(max(0, idx))
             # A Mac draws the popup button's frame past its size hint: at
             # exactly the hint its right edge was cut off.
@@ -503,7 +609,7 @@ class PlaySetsTabMixin(_DialogHost):
         # would freeze today's default into the settings file.
         vals["tso_band"] = {d: c.currentData()
                             for d, c in self._band_combos.items()
-                            if c.currentData() != "mean"}
+                            if c.currentData() != TsoBand.MEAN}
         # Only the dances given a length of their own: the rest run on the set's.
         lens = {d: self._dance_len_secs(c, opened)
                 for d, (c, opened) in self._dance_len_combos.items()}
@@ -518,6 +624,12 @@ class PlaySetsTabMixin(_DialogHost):
         vals[ROUND_PD_KEY] = {kind: c.currentData()
                               for kind, c in self._round_pd_combos.items()
                               if c.currentData() is not None}
+        vals["celebrate_mode"] = self._celebrate_mode.currentData()
+        vals["celebrate_pct"] = self._celebrate_pct.value()
+        vals["celebrate_dip_pct"] = self._celebrate_dip.value()
+        vals["celebrate_hold_secs"] = self._celebrate_hold.value()
+        vals["celebrate_up_secs"] = self._celebrate_up.value()
+        vals["celebrate_down_secs"] = self._celebrate_down.value()
         for which, w in self._set_widgets.items():
             vals[f"{which}_set"] = dict(
                 {k: chk.isChecked() for k, chk in w["boxes"].items()},

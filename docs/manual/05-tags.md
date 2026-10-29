@@ -51,7 +51,8 @@ A double-click in 📚 the library opens on the column's field here too.
 
 With several titles, a field they differ in reads **< keep >** and stays as
 it is in each file until you change it. **< blank >**, or an emptied field,
-deletes the field from the files.
+deletes the field from the files. On the title, **< filename >** gives each
+selected title its own file name, without the extension.
 
 ### In the app
 

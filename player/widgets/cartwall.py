@@ -12,34 +12,75 @@ The audio pool the pads sound on is player.audio.cart_voices, the shortcut
 panel player.widgets.cart_keys, the pad and wall-fade dialogs (with the pad
 colours) player.dialogs.cart_pad_dialog.
 """
+import functools
 import html
-import math
 import logging
+import math
 import os
 from dataclasses import replace
 from pathlib import Path
 
 from PySide6.QtCore import (
-    QMimeData, QPoint, QTimer, QUrl, Qt, Signal)
-from PySide6.QtGui import (
-    QColor, QDrag, QIcon, QKeySequence, QPainter, QPixmap, QShortcut)
-from PySide6.QtWidgets import (
-    QApplication, QComboBox, QDialog, QFileDialog,
-    QFrame, QGridLayout, QHBoxLayout, QInputDialog, QLabel,
-    QLayout, QLineEdit, QMenu, QMessageBox, QSizePolicy,
-    QStyle, QStyleOption, QToolButton, QVBoxLayout, QWidget)
-
-from shared.appearance import icons
-from planner.playing import cartwall as pc
-from planner import i18n
-from shared.audio.audio_files import (_AUDIO_EXTS, music_browse_dir,
-                                remember_browse_dir)
-from shared.widgets import FlowLayout
-from player.dialogs.cart_pad_dialog import (
-    PAD_COLOURS, CartPadDialog, _ClickableLabel,
+    QBuffer,
+    QByteArray,
+    QIODevice,
+    QMimeData,
+    QPoint,
+    QPointF,
+    QRectF,
+    Qt,
+    QTimer,
+    QUrl,
+    Signal,
 )
-from player.widgets.player_parts import _ClickSlider, _fmt_ms
-from planner.music.parsing import _read_duration
+from PySide6.QtGui import (
+    QColor,
+    QDrag,
+    QFont,
+    QIcon,
+    QImage,
+    QKeySequence,
+    QPainter,
+    QPen,
+    QPixmap,
+    QPolygonF,
+    QShortcut,
+)
+from PySide6.QtWidgets import (
+    QApplication,
+    QComboBox,
+    QDialog,
+    QFileDialog,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QLayout,
+    QLineEdit,
+    QMenu,
+    QMessageBox,
+    QSizePolicy,
+    QStyle,
+    QStyleOption,
+    QToolButton,
+    QVBoxLayout,
+    QWidget,
+)
+
+from planner import i18n
+from planner.music.parsing import read_duration
+from planner.playing import cartwall as pc
+from player.dialogs.cart_pad_dialog import (
+    PAD_COLOURS,
+    CartPadDialog,
+    ClickableLabel,
+    TypedValue,
+)
+from player.widgets.player_parts import VOL_STEP, ClickSlider, fmt_ms
+from shared.appearance import icons
+from shared.audio.audio_files import AUDIO_EXTS, music_browse_dir, remember_browse_dir
+from shared.widgets import FlowLayout
 
 log = logging.getLogger("dancesport.gui.cartwall")
 
@@ -51,10 +92,141 @@ _LIGHT_BORDER = "#b9c0cc"    # a white pad needs a darker edge to exist at all
 _PLAY_BG = "#bcd4f7"         # running: light blue, so the deep band reads on it
 _PLAY_BORDER = "#7ba4e8"
 _GONE_BG = "#dfe1e5"
-_SEL_BORDER = "#3f4653"      # ✏ multi-select: an outline, never a fill
+_SEL_BORDER = "#3f4653"      # ✏ multi-select on an amber pad, where amber can't show
 # ✏ edit mode. Amber, and not one of the pad colours: it frames the whole wall
 # and has to read as "this is a mode", not as "somebody painted a pad".
 _EDIT_ACCENT = "#c8871a"
+# ▶ A pad in the queue. Navy, in the blue family of "running" but deeper than its
+# edge and band, so it reads as part of playing — never as ✏'s amber, which an
+# orange edge came too close to. Only ever shown with ✏ off.
+_QUEUE_ACCENT = "#1e3a8a"
+# A pad mark the ▶ queue overrides (its 🔁: the run plays every pad once) is
+# crossed out in this red, so the pad no longer promises what it won't do.
+_OVERRIDDEN = "#e53935"
+# A bold ✕ on the 🔁, not <s>: Qt draws a strike-through one pixel thin, and
+# on a coloured pad that was barely there. Rich text cannot stack two glyphs,
+# so the 🔁 and its ✕ are painted into one picture (see loop_overridden_html).
+_LOOP_MARK_PX = 16
+# ⏸ A 🎶 pad paused under a title: as tall as the badge's ▶, and as tall as the
+# digits of the big time it stands in front of outside the queue. The time
+# itself goes grey there: the pause is the news, how much
+# is left of the bed the detail.
+_HELD_BADGE_PX = 6
+_HELD_BADGE_DROP = 1
+_HELD_TIME_PX = 12
+_HELD_TIME_DROP = 2
+_HELD_TIME_GREY = "#626a78"
+
+
+@functools.cache
+def loop_overridden_image() -> QImage:
+    """🔁 with a bold red ✕ painted over it, at twice the mark's size so it
+    stays sharp on a high-DPI screen."""
+    side = 2 * _LOOP_MARK_PX
+    img = QImage(side, side, QImage.Format.Format_ARGB32_Premultiplied)
+    img.fill(Qt.GlobalColor.transparent)
+    p = QPainter(img)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    font = QFont()
+    font.setPixelSize(int(side * 0.8))
+    p.setFont(font)
+    p.drawText(img.rect(), Qt.AlignmentFlag.AlignCenter, "🔁")
+    pen = QPen(QColor(_OVERRIDDEN), side * 0.14)
+    pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+    p.setPen(pen)
+    m = side * 0.18
+    p.drawLine(QPointF(m, m), QPointF(side - m, side - m))
+    p.drawLine(QPointF(side - m, m), QPointF(m, side - m))
+    p.end()
+    return img
+
+
+@functools.cache
+def held_image(colour: str, height: int) -> QImage:
+    """⏸ The pause mark, two bars `height` px tall in `colour`. Painted, not
+    ⏸ (Windows draws that as a blue emoji tile) and not ❚❚ (two glyphs, too
+    far apart). Twice the size, for a high-DPI screen."""
+    width = round(height * 0.8)
+    img = QImage(2 * width, 2 * height, QImage.Format.Format_ARGB32_Premultiplied)
+    img.fill(Qt.GlobalColor.transparent)
+    p = QPainter(img)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QColor(colour))
+    bar = img.width() * 0.4   # whole pixels at 6 and 13 px: no blurred edge
+    p.drawRoundedRect(QRectF(0, 0, bar, img.height()), 1.0, 1.0)
+    p.drawRoundedRect(QRectF(img.width() - bar, 0, bar, img.height()), 1.0, 1.0)
+    p.end()
+    return img
+
+
+@functools.cache
+def held_html(colour: str, height: int, drop: int = 0) -> str:
+    """⏸ The pause mark as an inline picture, for a rich-text label."""
+    return _inline_mark(held_image(colour, height), height, drop)
+
+
+@functools.cache
+def queue_mark_html(kind: str, colour: str = "#ffffff") -> str:
+    """▶ / ≡ in the queue badge as a picture, level with the rank's digits.
+    The glyphs sat a pixel low beside them (Marcel: "play and queue icon of
+    the cartwall queue also need a bit up to be centered"), and rich text has
+    no way to lift a glyph, so they are painted like the ⏸."""
+    height = _HELD_BADGE_PX
+    if kind == "≡":
+        width = height
+        img = QImage(2 * width, 2 * height, QImage.Format.Format_ARGB32_Premultiplied)
+        img.fill(Qt.GlobalColor.transparent)
+        p = QPainter(img)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QColor(colour))
+        for y in (0, 5, 10):   # three 1 px lines, 2 px apart, at twice the size
+            p.drawRect(QRectF(0, y, img.width(), 2))
+        p.end()
+    else:
+        width = round(height * 0.8)
+        img = QImage(2 * width, 2 * height, QImage.Format.Format_ARGB32_Premultiplied)
+        img.fill(Qt.GlobalColor.transparent)
+        p = QPainter(img)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QColor(colour))
+        p.drawPolygon(QPolygonF([QPointF(0, 0), QPointF(img.width(), img.height() / 2),
+                                 QPointF(0, img.height())]))
+        p.end()
+    return _inline_mark(img, height, _HELD_BADGE_DROP)
+
+
+def _inline_mark(bars: QImage, height: int, drop: int) -> str:
+    """A painted mark (at twice its size) as an inline picture for rich text."""
+    width = bars.width() // 2
+    # vertical-align:middle centres the picture a pixel above the digit beside
+    # which it stands, so the mark sits under a clear top margin.
+    height += drop
+    img = QImage(bars.width(), 2 * height, QImage.Format.Format_ARGB32_Premultiplied)
+    img.fill(Qt.GlobalColor.transparent)
+    p = QPainter(img)
+    p.drawImage(0, 2 * drop, bars)
+    p.end()
+    data = QByteArray()
+    buf = QBuffer(data)
+    buf.open(QIODevice.OpenModeFlag.WriteOnly)
+    img.save(buf, "PNG")  # pyright: ignore[reportCallIssue, reportArgumentType]  # the stub wants bytes, PySide6 only takes str
+    uri = "data:image/png;base64," + bytes(data.toBase64().data()).decode("ascii")
+    return (f"<img src='{uri}' width='{width}' height='{height}'"
+            " style='vertical-align:middle'>")
+
+
+@functools.cache
+def loop_overridden_html() -> str:
+    """The crossed-out 🔁 as an inline picture for a pad's rich-text title."""
+    data = QByteArray()
+    buf = QBuffer(data)
+    buf.open(QIODevice.OpenModeFlag.WriteOnly)
+    loop_overridden_image().save(buf, "PNG")  # pyright: ignore[reportCallIssue, reportArgumentType]  # the stub wants bytes, PySide6 only takes str
+    uri = "data:image/png;base64," + bytes(data.toBase64().data()).decode("ascii")
+    return (f"<img src='{uri}' width='{_LOOP_MARK_PX}'"
+            f" height='{_LOOP_MARK_PX}' style='vertical-align:middle'>")
 # Deep blue, filling left to right over the light-blue running pad. Translucent
 # on purpose: solid enough to read as the darker blue, open enough that the pad's
 # own dark caption still survives on top of it.
@@ -98,12 +270,12 @@ def _duration_text(path: str) -> str:
     and re-reading sixteen headers each time would be felt."""
     secs = _DURATIONS.get(path)
     if secs is None:
-        secs = _read_duration(Path(path))
+        secs = read_duration(Path(path))
         if secs:
             # Only a real length is remembered: a 0 means the file was missing or
             # unreadable, and a stick that comes back must show its lengths again.
             _DURATIONS[path] = secs
-    return _fmt_ms(secs * 1000) if secs > 0 else "--:--"
+    return fmt_ms(secs * 1000) if secs > 0 else "--:--"
 
 
 def _colour_icon(colour: str) -> QIcon:
@@ -123,7 +295,7 @@ def _colour_icon(colour: str) -> QIcon:
 # ─────────────────────────────────────────────────────────────────────────────
 # One pad
 # ─────────────────────────────────────────────────────────────────────────────
-class _CartPadButton(QFrame):
+class CartPadButton(QFrame):
     """A single pad. Empty it is a drop target; filled it is a button."""
 
     tapped = Signal(object)              # key
@@ -132,9 +304,12 @@ class _CartPadButton(QFrame):
     edit_requested = Signal(object)
     clear_requested = Signal(object)
     colour_requested = Signal(object, str)
+    move_requested = Signal(object, int)  # key, the page it goes to
     shortcuts_requested = Signal()       # the ⌨ Keys window, on the wall's tab
     wall_settings_requested = Signal()   # ⚙ Settings, on its 🎛 Cartwall tab
     selected_requested = Signal(object, bool)   # key, add to the selection
+    queue_toggled = Signal(object)       # key — Ctrl+click with ✏ off
+    seek_requested = Signal(object, float)  # key, 0…1 — dragged across, ✏ off
 
     def __init__(self, key, parent=None):
         super().__init__(parent)
@@ -144,11 +319,18 @@ class _CartPadButton(QFrame):
         self._missing = False
         self._press: QPoint | None = None
         self._frac = 0.0                 # how much of the sample has played
+        self._scrub: float | None = None  # where a drag across it would seek
         self._shortcut = ""              # the key that fires it, shown on the face
         self._default_bg = _IDLE_BG
         self._editable = False           # ✏ off = a pad can only be FIRED
         self._selected = False           # part of a multi-pad edit
         self._sel_count = 0              # how many pads that edit would hit
+        self._page_names: list[str] = []  # the wall's pages, for 📄 Move to page
+        self._queue_rank = 0             # ▶ place in the wall's queue, 0 = none
+        self._queue_running = False      # the pad the queue's run fired last
+        self._held = False               # ⏸ a 🎶 pad paused under a title
+        self._time_text = ""             # the big middle line, without its ⏸
+        self._fg = _text_on(_PLAY_BG)    # the pad's text colour, for the ⏸
         self._fading = False
         self._pulse_t = 0                # ms into the current breath
         self._blink = QTimer(self)
@@ -195,6 +377,12 @@ class _CartPadButton(QFrame):
         self._del_btn.clicked.connect(
             lambda: self.clear_requested.emit(self._key))
         self._del_btn.hide()
+        # ▶ "≡ 2": second in the queue, "▶ 2" while the run plays it. In the
+        # corner ✕ takes with ✏ on — the badge only shows with ✏ off.
+        self._queue_lbl = QLabel("")
+        self._queue_lbl.setObjectName("cartQueue")
+        self._queue_lbl.setTextFormat(Qt.TextFormat.RichText)   # for the ⏸ mark
+        self._queue_lbl.hide()
         # Title on top, time filling the middle, slot key in the bottom corner.
         # The stretch goes to the TIME, so it stays centred as the pad grows.
         lyt.addWidget(self._title)
@@ -205,6 +393,7 @@ class _CartPadButton(QFrame):
         # Stretch on the LABEL, never a spacer: the key label is Ignored-policy
         # and a spacer beside one squeezes it to nothing.
         foot.addWidget(self._key_lbl, 1)
+        foot.addWidget(self._queue_lbl, 0, Qt.AlignmentFlag.AlignBottom)
         foot.addWidget(self._del_btn, 0, Qt.AlignmentFlag.AlignBottom)
         lyt.addLayout(foot)
         self._restyle()
@@ -252,13 +441,29 @@ class _CartPadButton(QFrame):
     def selected(self) -> bool:
         return self._selected
 
+    def set_queue(self, rank: int, running: bool) -> None:
+        """▶ Where the pad stands in the wall's queue (0 = not in it), and
+        whether it is the one the queue's run fired last."""
+        if (rank, running) == (self._queue_rank, self._queue_running):
+            return
+        self._queue_rank = rank
+        self._queue_running = running
+        self._restyle()
+
+    def set_held(self, held: bool) -> None:
+        """⏸ The pad is a 🎶 background pad paused while a title plays."""
+        if held != self._held:
+            self._held = held
+            self._restyle()
+
     def set_playing(self, playing: bool) -> None:
         if playing != self._playing:
             self._playing = playing
             if not playing:
                 self._frac = 0.0
+                self._held = False
                 self.set_fading(False)
-                self._time.setText(
+                self._set_time(
                     _duration_text(self._pad.path) if self._pad else "")
             self._restyle()
 
@@ -291,23 +496,53 @@ class _CartPadButton(QFrame):
     def set_remaining(self, ms_left: int, frac: float) -> None:
         if self._pad is None:
             return
-        self._frac = max(0.0, min(1.0, frac))
-        if self._pad.loop:
-            self._time.setText("∞")
+        if self._scrub is None:       # mid-drag the band shows the mouse
+            self._frac = max(0.0, min(1.0, frac))
+        # Inside the ▶ queue's run the pad plays once, so it counts down.
+        if self._pad.loop and not self._queue_running:
+            self._set_time("∞")
         elif ms_left < 0:
-            self._time.setText("--:--")
+            self._set_time("--:--")
         else:
-            self._time.setText(_fmt_ms(ms_left))
+            self._set_time(fmt_ms(ms_left))
         self.update()      # repaint the progress band
+
+    def _set_time(self, text: str) -> None:
+        """The big middle line."""
+        self._time_text = text
+        if self.held_in_middle():
+            text = (f"{held_html(self._fg, _HELD_TIME_PX, _HELD_TIME_DROP)}"
+                    f" <span style='color:{_HELD_TIME_GREY}'>{text}</span>")
+        self._time.setText(text)
+
+    def held_in_middle(self) -> bool:
+        """⏸ A held pad outside the queue: the pause mark takes the time's
+        place, the time follows it in grey (Marcel: "when a pad is paused
+        show the length in grey, remove the ()"). In the queue the badge
+        says it."""
+        return (not self._editable and self._pad is not None
+                and self._playing and self._held and self._queue_rank == 0)
 
     # ── looks ────────────────────────────────────────────────────────────────
     def _restyle(self) -> None:
         # There is nothing to clear on an empty pad, and nothing to clear at all
         # while the wall is locked.
         self._del_btn.setVisible(self._editable and self._pad is not None)
+        queued = (not self._editable and self._pad is not None
+                  and self._queue_rank > 0)
+        # ⏸ A bed paused under the title: in the queue its ▶ turns into the
+        # pause mark; outside it the mark takes the time's place (_set_time).
+        self._queue_lbl.setVisible(queued)
+        if queued and self._playing and self._held:
+            self._queue_lbl.setText(
+                f"{held_html('#ffffff', _HELD_BADGE_PX, _HELD_BADGE_DROP)}"
+                f" {self._queue_rank}")
+        elif queued:
+            mark = "▶" if self._queue_running and self._playing else "≡"
+            self._queue_lbl.setText(f"{queue_mark_html(mark)} {self._queue_rank}")
         if self._pad is None:
             self._title.setText("＋" if self._editable else "")
-            self._time.setText("")
+            self._set_time("")
             self._key_lbl.setText("")
             self.setToolTip(
                 "Drop one or more audio files here, or click to browse"
@@ -320,7 +555,10 @@ class _CartPadButton(QFrame):
 
         title = pc.pad_title(self._pad)
         marks = ""
-        if self._pad.loop:
+        if self._pad.loop and queued:
+            # Every tap on a queued pad starts the run, and the run never loops.
+            marks += f" {loop_overridden_html()}"
+        elif self._pad.loop:
             marks += " 🔁"
         if self._pad.duck and not self._pad.background:
             # Not 🔈: Windows draws that as a pale grey emoji, lost on a
@@ -342,12 +580,13 @@ class _CartPadButton(QFrame):
                             + html.escape(title, quote=False) + marks)
         if not self._playing:
             # Idle pads show how long the sample IS; a running one counts down.
-            self._time.setText(_duration_text(self._pad.path))
+            self._time_text = _duration_text(self._pad.path)
         self._key_lbl.setText(self._shortcut)
         self.setToolTip(f"{title}\n{self._pad.path}"
                         + (i18n.t("\nKey: %s") % self._shortcut
                            if self._shortcut else "")
-                        + (i18n.t("\n⚠️ File not found") if self._missing else ""))
+                        + (i18n.t("\n⚠️ File not found") if self._missing else "")
+                        + self._queue_hint(queued))
 
         if self._missing:
             bg, border = _GONE_BG, "#c9ced6"
@@ -361,12 +600,22 @@ class _CartPadButton(QFrame):
             bg = self._pad.colour or self._default_bg
             border = _LIGHT_BORDER if _luma(bg) > 225 else _IDLE_BORDER
             fg = _text_on(bg)
+        self._fg = fg   # the ⏸ in front of the time takes it
+        self._set_time(self._time_text)
         # The slot key is a hint, not information the operator reads mid-heat —
         # light grey, so it never competes with the title next to it.
         key_fg = "#8f96a3" if fg == "#2b3038" else "#dfe3ea"
         # A selected pad is outlined, never filled: a fill would collide with the
-        # blues that mean "running", and with the pad's own colour.
-        edge = f"2px solid {_SEL_BORDER}" if self._selected else f"1px solid {border}"
+        # blues that mean "running", and with the pad's own colour. The outline
+        # is ✏'s amber, so it reads as part of the edit — but an amber pad
+        # would swallow it, so that one gets the dark edge.
+        sel = _SEL_BORDER if bg.lower() == _EDIT_ACCENT else _EDIT_ACCENT
+        if self._selected:
+            edge = f"3px solid {sel}"
+        elif queued:
+            edge = f"2px solid {_QUEUE_ACCENT}"
+        else:
+            edge = f"1px solid {border}"
         self.setStyleSheet(
             f"QFrame {{ border: {edge}; border-radius: 6px;"
             f" background: {bg}; }}"
@@ -374,10 +623,25 @@ class _CartPadButton(QFrame):
             " font-size: 11px; }"
             f"QLabel#cartKey {{ color: {key_fg}; }}"
             "QLabel#cartTime { font-size: 17px; font-weight: 600; }"
+            # White on navy: it has to read on every pad colour.
+            f"QLabel#cartQueue {{ background: {_QUEUE_ACCENT}; color: #ffffff;"
+            " border-radius: 3px; padding: 0 3px; font-weight: 700; }"
             f"QToolButton#cartDel {{ border: 0; padding: 0; background:"
             f" transparent; color: {key_fg}; font-size: 11px; }}"
             f"QToolButton#cartDel:hover {{ color: {fg};"
             " background: rgba(0, 0, 0, 0.12); border-radius: 3px; }")
+
+    def _queue_hint(self, queued: bool) -> str:
+        """The tooltip's ▶ queue line — only while the wall is being played,
+        since that is the only time Ctrl+click means the queue."""
+        if self._editable:
+            return ""
+        if queued:
+            return (i18n.t("\n▶ Queue: place %d — Ctrl+click takes it out")
+                    % self._queue_rank
+                    + (i18n.t("\n🔁 Loop is off in the queue: it plays once")
+                       if self._pad is not None and self._pad.loop else ""))
+        return i18n.t("\nCtrl+click: into the ▶ queue")
 
     def paintEvent(self, e):
         """Draw the stylesheet background first, then a fading pad's pulse,
@@ -397,14 +661,11 @@ class _CartPadButton(QFrame):
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(own)
             painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), 5, 5)
-        if not self._playing or self._frac <= 0.0:
-            return
-        width = int(round(self.width() * self._frac))
-        if width <= 0:
-            return
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor(*_PLAYED_BAND))
-        painter.drawRect(0, 0, width, self.height())
+        width = int(round(self.width() * self._frac)) if self._playing else 0
+        if width > 0:
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor(*_PLAYED_BAND))
+            painter.drawRect(0, 0, width, self.height())
 
     # ── mouse ────────────────────────────────────────────────────────────────
     def mousePressEvent(self, e):
@@ -414,9 +675,19 @@ class _CartPadButton(QFrame):
             self._context_menu(e.globalPosition().toPoint())
 
     def mouseMoveEvent(self, e):
-        if self._press is None or self._pad is None or not self._editable:
+        if self._press is None or self._pad is None:
             return
         moved = (e.position().toPoint() - self._press).manhattanLength()
+        if not self._editable:
+            # Playing the wall, a drag across a running pad picks the spot to
+            # jump to: the played band follows the mouse until it lets go.
+            if self._scrub is not None or (
+                    self._playing and moved >= QApplication.startDragDistance()):
+                width = max(1, self.width())
+                self._scrub = max(0.0, min(1.0, e.position().x() / width))
+                self._frac = self._scrub
+                self.update()
+            return
         if moved < QApplication.startDragDistance():
             return
         self._press = None
@@ -431,6 +702,12 @@ class _CartPadButton(QFrame):
         if e.button() != Qt.MouseButton.LeftButton or self._press is None:
             return
         self._press = None
+        frac, self._scrub = self._scrub, None
+        # Ctrl on the release is still the ▶ queue's toggle; the next tick
+        # puts the band back where the pad really is.
+        if frac is not None and not e.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            self.seek_requested.emit(self._key, frac)
+            return
         if self._pad is None:
             if self._editable:
                 self._browse()
@@ -442,6 +719,10 @@ class _CartPadButton(QFrame):
                 self._key,
                 bool(e.modifiers() & (Qt.KeyboardModifier.ControlModifier
                                       | Qt.KeyboardModifier.ShiftModifier)))
+        elif e.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            # Playing the wall, Ctrl+click puts the pad into the ▶ queue or
+            # takes it out again — and never fires it.
+            self.queue_toggled.emit(self._key)
         else:
             self.tapped.emit(self._key)
 
@@ -479,14 +760,25 @@ class _CartPadButton(QFrame):
                     lambda v=value: self.colour_requested.emit(self._key, v))
                 act.setCheckable(True)
                 act.setChecked(self._pad.colour == value)
+            # 📄 Onto another page of the wall, without dragging it across.
+            move = menu.addMenu(i18n.t("📄  Move to page") + many)
+            for index, name in enumerate(self._page_names):
+                if index != self._key[0]:
+                    move.addAction(name, lambda i=index: self.move_requested.emit(
+                        self._key, i))
+            move.setEnabled(len(self._page_names) > 1)
             menu.addAction(i18n.t("🗑  Clear pad") + many,
                            lambda: self.clear_requested.emit(self._key))
         # No ⌨ here: building the wall, the menu is about this pad, and ⌨
         # sits in the toolbar next to ✏.
         menu.exec(pos)
 
+    def set_page_names(self, names: list[str]) -> None:
+        """The wall's pages as the page label names them."""
+        self._page_names = list(names)
+
     def _browse(self) -> None:
-        exts = " ".join(f"*{x}" for x in _AUDIO_EXTS)
+        exts = " ".join(f"*{x}" for x in AUDIO_EXTS)
         paths, _ = QFileDialog.getOpenFileNames(
             self, "Choose samples — the first lands here, the rest fill up",
             music_browse_dir(), f"Audio files ({exts});;All files (*)")
@@ -499,14 +791,14 @@ class _CartPadButton(QFrame):
     def _audio_urls(mime) -> list[str]:
         """Every audio file in the drop, in the order it was dragged — a library
         multi-select arrives as one drop and fills the free slots after this one."""
-        out = []
-        for url in mime.urls():
-            if url.isLocalFile() and url.toLocalFile().lower().endswith(_AUDIO_EXTS):
-                # toLocalFile() hands back forward slashes even on Windows; the
-                # stored path is shown in tooltips and compared with library
-                # paths, so normalise it to what the rest of the app writes.
-                out.append(os.path.normpath(url.toLocalFile()))
-        return out
+        return [
+            # toLocalFile() hands back forward slashes even on Windows; the
+            # stored path is shown in tooltips and compared with library
+            # paths, so normalise it to what the rest of the app writes.
+            os.path.normpath(url.toLocalFile())
+            for url in mime.urls()
+            if url.isLocalFile() and url.toLocalFile().lower().endswith(AUDIO_EXTS)
+        ]
 
     def _welcomes(self, mime) -> bool:
         """setAcceptDrops(False) already turns real drags away while ✏ is off;
@@ -555,6 +847,7 @@ class CartwallWidget(QWidget):
     """The 🎛 page: a configurable grid of pads, page nav and the wall transport."""
 
     padClicked = Signal(object)          # cell key (page, row, col)
+    padSeekRequested = Signal(object, float)  # key, 0…1 — a running pad dragged across
     changed = Signal()                   # anything worth persisting
     stopAll = Signal()
     padRefreshed = Signal(object, object)  # key, pad — settings changed live
@@ -566,6 +859,7 @@ class CartwallWidget(QWidget):
     keysRequested = Signal()               # ⌨ the Keys window, on the wall's tab
     settingsRequested = Signal()           # ⚙ Settings, on its 🎛 Cartwall tab
     levelChanged = Signal(float)           # 🔊 the wall's own fader, 0…1
+    muteChanged = Signal(bool)             # 🔇 a click on the 🔊: the wall silent
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -575,11 +869,17 @@ class CartwallWidget(QWidget):
         self._default_colour = pc.DEFAULT_PAD_COLOUR
         self._fade_ms = pc.DEFAULT_FADE_MS      # every pad follows it by default
         self._bg_pauses = False  # ⚙ a title pauses 🎶 background pads, not mutes them
+        self._bg_volume = pc.DEFAULT_BG_VOLUME_PCT / 100  # ⚙ what ticking 🎶 sets
         self._slot_keys = pc.SLOT_KEYS          # what each position answers to
         self._missing = set()
+        self._exists = os.path.isfile  # what makes a pad not red, see set_file_check
         self._live = set()      # keys sounding right now, kept across rebuilds
+        self._held = set()      # ⏸ of those, the 🎶 pads paused under a title
+        # ▶ The queue's run while it plays: the key it fired last and that pad's
+        # queue number — the number is what pc.queue_next goes on from.
+        self._run: tuple[tuple[int, int, int], int] | None = None
         self._selected = set()  # ✏ multi-select: the pads an edit applies to
-        self._buttons: dict[tuple[int, int, int], _CartPadButton] = {}
+        self._buttons: dict[tuple[int, int, int], CartPadButton] = {}
         self._shortcuts: list[QShortcut] = []
         self._edit = False      # ✏ locked: pads fire, the wall cannot be changed
 
@@ -631,7 +931,7 @@ class CartwallWidget(QWidget):
         self._next_btn.setAutoRaise(True)
         self._next_btn.setToolTip("Next page")
         self._next_btn.clicked.connect(lambda: self.step_page(1))
-        self._page_lbl = _ClickableLabel("")
+        self._page_lbl = ClickableLabel("")
         self._page_lbl.setMinimumWidth(70)
         self._page_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._page_lbl.setToolTip("Double-click to rename this page")
@@ -746,8 +1046,17 @@ class CartwallWidget(QWidget):
         row = QHBoxLayout(box)
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(4)
-        row.addWidget(QLabel("🔊"))
-        self._level = _ClickSlider(Qt.Orientation.Horizontal)
+        # A click on the speaker silences the wall and the next one brings it
+        # back at its level: the fader keeps its value, so nothing is lost.
+        self._muted = False
+        self._mute_btn = QToolButton()
+        self._mute_btn.setText("🔊")
+        self._mute_btn.setAutoRaise(True)
+        self._mute_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._mute_btn.setToolTip("Mute the cartwall, again to bring it back")
+        self._mute_btn.clicked.connect(lambda: self.set_muted(not self._muted, emit=True))
+        row.addWidget(self._mute_btn)
+        self._level = ClickSlider(Qt.Orientation.Horizontal)
         self._level.setRange(0, 100)
         self._level.setValue(100)
         self._level.setFixedWidth(90)
@@ -756,16 +1065,61 @@ class CartwallWidget(QWidget):
             "Cartwall volume — every pad, apart from the music volume.\n"
             "Also on a controller fader and the desk keys (⌨).")
         self._level.valueChanged.connect(self._on_level)
+        # − / + as on the player card, and switched by the same ⚙ setting.
+        self._level_down_btn = self._level_step_btn("−", -VOL_STEP, i18n.t("quieter"))
+        self._level_up_btn = self._level_step_btn("+", +VOL_STEP, i18n.t("louder"))
+        row.addWidget(self._level_down_btn)
         row.addWidget(self._level)
-        self._level_lbl = QLabel("100 %")
+        row.addWidget(self._level_up_btn)
+        self._level_lbl = TypedValue(self._level)   # double-click: type it
+        self._level_lbl.setText("100 %")
         self._level_lbl.setFixedWidth(40)
         self._level_lbl.setAlignment(Qt.AlignmentFlag.AlignRight
                                      | Qt.AlignmentFlag.AlignVCenter)
         row.addWidget(self._level_lbl)
         return box
 
+    def _level_step_btn(self, text: str, delta: int, word: str) -> QToolButton:
+        """One of the − / + buttons beside the wall's fader."""
+        b = QToolButton()
+        b.setText(text)
+        b.setAutoRaise(True)
+        b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        b.setToolTip(i18n.t("Volume %s %s — hold to glide") % (f"{VOL_STEP} %", word))
+        b.setAutoRepeat(True)
+        b.setAutoRepeatDelay(400)
+        b.setAutoRepeatInterval(110)
+        b.setStyleSheet("QToolButton { font-weight:bold; padding:0 3px; }")
+        b.clicked.connect(
+            lambda _checked=False, d=delta: self._level.setValue(self._level.value() + d))
+        return b
+
+    def set_vol_buttons_shown(self, on: bool) -> None:
+        """➕ The − / + from ⚙ Sound & player, the same switch as the card's."""
+        self._level_down_btn.setVisible(on)
+        self._level_up_btn.setVisible(on)
+
+    def set_muted(self, on: bool, emit: bool = False) -> None:
+        """🔇 The wall silenced, or back at its fader's level."""
+        self._muted = bool(on)
+        self._mute_btn.setText("🔇" if self._muted else "🔊")
+        self._refresh_level_lbl()
+        if emit:
+            self.muteChanged.emit(self._muted)
+
+    def is_muted(self) -> bool:
+        return self._muted
+
+    def _refresh_level_lbl(self) -> None:
+        if self._muted:
+            self._level_lbl.setText(i18n.t("mute"))
+            self._level_lbl.setStyleSheet("color:#d9534f;")
+        else:
+            self._level_lbl.setText(f"{self._level.value()} %")
+            self._level_lbl.setStyleSheet("")
+
     def _on_level(self, value: int) -> None:
-        self._level_lbl.setText(f"{value} %")
+        self._refresh_level_lbl()
         self.levelChanged.emit(value / 100.0)
 
     def set_level(self, level: float) -> None:
@@ -775,7 +1129,7 @@ class CartwallWidget(QWidget):
         self._level.blockSignals(True)
         self._level.setValue(value)
         self._level.blockSignals(False)
-        self._level_lbl.setText(f"{value} %")
+        self._refresh_level_lbl()
 
     def level(self) -> float:
         return self._level.value() / 100.0
@@ -862,6 +1216,9 @@ class CartwallWidget(QWidget):
                 if old is not None and old != (p, row, col):
                     moved[old] = (p, row, col)
         self._live = {moved.get(k, k) for k in self._live}
+        self._held = {moved.get(k, k) for k in self._held}
+        if self._run is not None:
+            self._run = (moved.get(self._run[0], self._run[0]), self._run[1])
         return moved
 
     # ── model in / out ───────────────────────────────────────────────────────
@@ -926,6 +1283,16 @@ class CartwallWidget(QWidget):
         dialog can say it (the audio follows it in CartVoices)."""
         self._bg_pauses = on
 
+    def set_background_volume(self, volume: float) -> None:
+        """The volume the pad dialog gives a pad ticked as 🎶 Background."""
+        self._bg_volume = volume
+
+    def set_file_check(self, exists) -> None:
+        """How the wall asks whether a pad's file is there: the window's
+        resolver, which also finds it under the Reference path and the search
+        folders. A pad found there is not red; it fires that copy."""
+        self._exists = exists
+
     def pad_at(self, key) -> pc.CartPad | None:
         page, row, col = key
         if 0 <= page < len(self._pages):
@@ -935,12 +1302,49 @@ class CartwallWidget(QWidget):
     def refresh_missing(self) -> None:
         """Re-sync every visible pad with the model — which files are gone, and
         which key fires which cell after a move or a clear."""
-        self._missing = pc.missing_paths(self._pages)
+        self._missing = pc.missing_paths(self._pages, exists=self._exists)
         for key, button in self._buttons.items():
             page, row, col = key
             button.set_pad(self._pages[page].pads.get((row, col)),
                            missing=(page, (row, col)) in self._missing)
         self._rebuild_shortcuts()
+        self._paint_queue()
+
+    # ── the ▶ queue ──────────────────────────────────────────────────────────
+    def queue_run(self) -> tuple[tuple[int, int, int], int] | None:
+        """(key, queue number) of the pad the run fired last, or None."""
+        return self._run
+
+    def set_queue_run(self, key, number: int) -> None:
+        self._run = (key, number)
+        self._paint_queue()
+
+    def end_queue_run(self) -> None:
+        if self._run is not None:
+            self._run = None
+            self._paint_queue()
+
+    def _on_queue_toggled(self, key) -> None:
+        page, row, col = key
+        if self._edit or self.pad_at(key) is None:
+            return
+        on = pc.toggle_queue(self._pages, page, (row, col),
+                             bed_volume=self._bg_volume)
+        self._paint_queue()
+        # The face shows the bed's new level, and a playing bed hears it.
+        self.padRefreshed.emit(key, self.pad_at(key))
+        self.changed.emit()
+        log.info("🎛 Cartwall queue changed\n"
+                 "pad: %s\n"
+                 "queued: %s\n"
+                 "length: %d", pc.cell_key((row, col)), on,
+                 len(pc.queued(self._pages)))
+
+    def _paint_queue(self) -> None:
+        ranks = pc.queue_ranks(self._pages)
+        running = self._run[0] if self._run is not None else None
+        for key, button in self._buttons.items():
+            button.set_queue(ranks.get((key[0], key[1:]), 0), key == running)
 
     # ── playback feedback ────────────────────────────────────────────────────
     def set_playing(self, key, playing: bool) -> None:
@@ -948,9 +1352,19 @@ class CartwallWidget(QWidget):
             self._live.add(key)
         else:
             self._live.discard(key)
+            self._held.discard(key)
         button = self._buttons.get(key)
         if button is not None:
             button.set_playing(playing)
+
+    def set_held(self, key, held: bool) -> None:
+        if held:
+            self._held.add(key)
+        else:
+            self._held.discard(key)
+        button = self._buttons.get(key)
+        if button is not None:
+            button.set_held(held)
 
     def set_fading(self, key, fading: bool) -> None:
         button = self._buttons.get(key)
@@ -973,30 +1387,37 @@ class CartwallWidget(QWidget):
             button.setParent(None)
             button.deleteLater()
         self._buttons.clear()
-        self._missing = pc.missing_paths(self._pages)
+        self._missing = pc.missing_paths(self._pages, exists=self._exists)
         page = self._pages[self._page]
+        names = [self._page_name(i) for i in range(len(self._pages))]
         for row, col in pc.cells_in_order(self._grid):
             key = (self._page, row, col)
             pad = page.pads.get((row, col))
-            button = _CartPadButton(key)
+            button = CartPadButton(key)
             button.set_editable(self._edit)
             button.set_default_colour(self._default_colour)
             button.set_pad(pad, missing=(self._page, (row, col)) in self._missing)
             # A pad that is sounding stays lit through a page flip or a grid
             # change — the operator has to see what they still have to stop.
             button.set_playing(key in self._live)
+            button.set_held(key in self._held)
             button.tapped.connect(self._fire)
             button.assigned.connect(self._on_assigned)
             button.dropped_pad.connect(self._on_pad_dropped)
             button.edit_requested.connect(self._on_edit)
             button.clear_requested.connect(self._on_clear)
             button.colour_requested.connect(self._on_colour)
+            button.set_page_names(names)
+            button.move_requested.connect(self._on_move_to_page)
             button.shortcuts_requested.connect(self._on_shortcuts)
             button.wall_settings_requested.connect(self.settingsRequested.emit)
             button.selected_requested.connect(self._on_select)
+            button.queue_toggled.connect(self._on_queue_toggled)
+            button.seek_requested.connect(self._seek)
             self._grid_lyt.addWidget(button, row, col)
             self._buttons[key] = button
         self._rebuild_shortcuts()
+        self._paint_queue()
         # A selection cannot survive a page turn or a reshape: it is a set of
         # cells, and those cells now hold something else.
         self._selected = {k for k in self._selected if k in self._buttons}
@@ -1010,8 +1431,8 @@ class CartwallWidget(QWidget):
             self._grid_lyt.setColumnStretch(col, 1 if col < cols else 0)
         for row in range(max(rows, self._grid_lyt.rowCount())):
             self._grid_lyt.setRowStretch(row, 1 if row < rows else 0)
-        name = page.name or i18n.t("Page %d") % (self._page + 1)
-        self._page_lbl.setText(f"{name}  ({self._page + 1}/{len(self._pages)})")
+        self._page_lbl.setText(
+            f"{names[self._page]}  ({self._page + 1}/{len(self._pages)})")
         self._prev_btn.setEnabled(self._page > 0)
         self._next_btn.setEnabled(self._page + 1 < len(self._pages))
         # One page has nowhere to go: ◀ ▶ only show once there is a second.
@@ -1019,6 +1440,9 @@ class CartwallWidget(QWidget):
         self._next_btn.setVisible(len(self._pages) > 1)
         self._add_btn.setEnabled(len(self._pages) < pc.MAX_PAGES)
         self._rm_btn.setEnabled(len(self._pages) > 1)
+
+    def _page_name(self, index: int) -> str:
+        return self._pages[index].name or i18n.t("Page %d") % (index + 1)
 
     # ── keyboard ─────────────────────────────────────────────────────────────
     def _rebuild_shortcuts(self) -> None:
@@ -1071,6 +1495,12 @@ class CartwallWidget(QWidget):
         must not go off, whether the pad was clicked or its key was pressed."""
         if not self._edit:
             self.padClicked.emit(key)
+
+    def _seek(self, key, frac: float) -> None:
+        """A running pad dragged across: jump it to where the band was let go.
+        Behind the same ✏ gate as firing."""
+        if not self._edit:
+            self.padSeekRequested.emit(key, frac)
 
     def play_pad(self, key) -> None:
         """A pad fired from outside the wall (📱 the phone remote) — through
@@ -1227,9 +1657,13 @@ class CartwallWidget(QWidget):
         if not moved and len(self._pages) == 1:
             return
         self._selected.clear()
+        before = self._pages
         self._pages = pages
+        keys = self._follow_pads(before)
         self._page = 0
         self._rebuild()
+        if keys:
+            self.padsMoved.emit(keys)
         log.info("🎛 Cartwall packed onto one page\n"
                  "pads moved: %d\n"
                  "pads total: %d", moved, pc.pad_count(pages))
@@ -1284,6 +1718,12 @@ class CartwallWidget(QWidget):
                 i18n.t("Replace the current wall with %d pads from\n%s?")
                 % (pc.pad_count(doc.pages), path)) != QMessageBox.StandardButton.Yes:
             return
+        # The old wall's pads are silenced first: one left sounding would sit
+        # under whatever pad the import puts on its cell, and that pad's tap
+        # would stop it instead of firing. A queue run's next key is gone too.
+        self.end_queue_run()
+        if self._live:
+            self.stopAll.emit()
         self._selected.clear()
         self.set_wall(doc.grid, doc.pages, doc.page, doc.colour, doc.fade_ms,
                       doc.slot_keys)
@@ -1358,6 +1798,29 @@ class CartwallWidget(QWidget):
         self.refresh_missing()
         self.changed.emit()
 
+    def _on_move_to_page(self, key, dst: int) -> None:
+        """📄 The pad — or the selection it belongs to — onto another page:
+        the same cell there where it is free, else the first free one."""
+        scope = [k for k in self._scope(key) if k[0] != dst]
+        before = [pc.Page(p.name, dict(p.pads)) for p in self._pages]
+        pc.move_to_page(self._pages, [(p, (r, c)) for p, r, c in scope], dst,
+                        self._grid)
+        moved = self._follow_pads(before)   # a sounding pad stays lit there
+        self._selected -= set(moved)
+        self._paint_selection()
+        self.refresh_missing()
+        if moved:
+            self.padsMoved.emit(moved)
+            self.changed.emit()
+        log.info("🎛 Cartwall pads moved to another page\n"
+                 "page: %d\n"
+                 "moved: %d of %d", dst + 1, len(moved), len(scope))
+        if len(moved) < len(scope):
+            QMessageBox.information(
+                self, "Cartwall",
+                i18n.t("“%s” is full: %d of %d pads were moved.")
+                % (self._page_name(dst), len(moved), len(scope)))
+
     def _on_clear(self, key) -> None:
         for page, row, col in self._scope(key):
             pc.clear_pad(self._pages, page, (row, col))
@@ -1376,7 +1839,8 @@ class CartwallWidget(QWidget):
                             slot_key=pc.slot_key(self._grid, (row, col),
                                                  self._slot_keys),
                             pad_count=len(scope), wall_fade_ms=self._fade_ms,
-                            background_pauses=self._bg_pauses)
+                            background_pauses=self._bg_pauses,
+                            background_volume=self._bg_volume)
         dlg.previewVolume.connect(
             lambda vol, k=key: self.previewVolume.emit(k, vol))
         dlg.previewFire.connect(
@@ -1388,7 +1852,8 @@ class CartwallWidget(QWidget):
             # Whatever the dialog did to the live level, the pad's own trim wins
             # again the moment it closes.
             self.previewVolume.emit(key, pad.volume)
-        updated = dlg.pad()
+        # The dialog knows nothing of the ▶ queue: the pad keeps its place in it.
+        updated = replace(dlg.pad(), queue=pad.queue)
         pc.set_pad(self._pages, page, (row, col), updated)
         self.padRefreshed.emit(key, updated)
         # The rest of the selection takes only what a pad can SHARE: its path,

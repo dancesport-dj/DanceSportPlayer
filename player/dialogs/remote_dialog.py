@@ -15,9 +15,18 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QFontDatabase, QImage, QPixmap
-from PySide6.QtWidgets import (QComboBox, QDialog, QDialogButtonBox, QHBoxLayout, QLabel,
-                               QMessageBox, QPlainTextEdit, QProgressDialog, QPushButton,
-                               QVBoxLayout)
+from PySide6.QtWidgets import (
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QHBoxLayout,
+    QLabel,
+    QMessageBox,
+    QPlainTextEdit,
+    QProgressDialog,
+    QPushButton,
+    QVBoxLayout,
+)
 
 from planner import config, i18n
 from player.window.main_remote import qr_url

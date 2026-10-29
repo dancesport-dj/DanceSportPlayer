@@ -16,28 +16,51 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
-from PySide6.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QPushButton, QLabel,
-    QAbstractItemView, QHeaderView, QMessageBox,
-    QFrame, QDialog, QProgressBar, QMenu, QFileDialog, QListWidget, QListWidgetItem,
-)
 from PySide6.QtCore import (
-    Qt, Signal, QUrl, QMimeData, QTimer,
+    QEvent,
+    QMimeData,
+    QObject,
+    Qt,
+    QTimer,
+    QUrl,
+    Signal,
 )
 from PySide6.QtGui import (
-    QColor, QDrag, QTextDocumentFragment,
+    QColor,
+    QDrag,
+    QGuiApplication,
+    QTextDocumentFragment,
+)
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
+    QDialog,
+    QFileDialog,
+    QFrame,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QMenu,
+    QMessageBox,
+    QProgressBar,
+    QPushButton,
+    QTableWidget,
+    QToolTip,
+    QVBoxLayout,
+    QWidget,
 )
 
 from planner import i18n
-from planner.music.parsing import bpm_source
-from planner.terms import DANCE_SHORT, dance_name  # noqa: F401 (DANCE_SHORT: re-exported)
-from planner.music.vocals import entry_is_instrumental
 from planner.generate.warmup import warmup_code
-from shared.audio.audio_files import _AUDIO_EXTS, music_browse_dir, remember_browse_dir
-from shared.columns import (_COL_ALBUM, _COL_COMMENT, _COL_CUSTOM, _COL_FILE, _COL_HEAT,
-                            _COL_PLAYS, _COL_RATING)
+from planner.music.parsing import bpm_source
+from planner.music.vocals import entry_is_instrumental
+from planner.terms import DANCE_SHORT, dance_name  # noqa: F401 (DANCE_SHORT: re-exported)
 from shared.appearance.icons import INK, icon
-from shared.widgets import _ICON_ICO, _app_icon, _show_toast
+from shared.audio.audio_files import AUDIO_EXTS, music_browse_dir, remember_browse_dir
+from shared.columns import _COL_ALBUM, _COL_COMMENT, _COL_CUSTOM, _COL_FILE, _COL_PLAYS, _COL_RATING, COL_HEAT
+from shared.widgets import ICON_ICO, app_icon, show_toast
 
 log = logging.getLogger("dancesport.gui")
 
@@ -49,14 +72,14 @@ log = logging.getLogger("dancesport.gui")
 # rather than rarely played (the ★ pick in 📚 the library and in the
 # Similar-Tracks window). A handful of plays is still a track being tried out;
 # ten says the floor has really danced it.
-_PROVEN_MIN_PLAYS = 10
+PROVEN_MIN_PLAYS = 10
 
 # 🎛 First-run width of the cartwall dock, as a share of the window
 # (_restore_layout applies it): a quarter leaves the decks the room.
 CART_DOCK_SHARE = 0.25
 
 
-def _sanitize_filename(name: str) -> str:
+def sanitize_filename(name: str) -> str:
     """Turn a competition label like 'SEN I LAT' into a safe M3U basename."""
     safe = re.sub(r"[^\w]+", "_", name).strip("_")
     return safe or "Competition"
@@ -71,24 +94,66 @@ def apply_taskbar_icon(window) -> None:
     icon even though the startup splash showed ours. Pushing the icon straight
     to the HWND via WM_SETICON (after show()) fixes it reliably. No-op off
     Windows / when the .ico is missing."""
-    if sys.platform != "win32" or not _ICON_ICO.exists():
+    if sys.platform != "win32" or not ICON_ICO.exists():
         return
     try:
         import ctypes
         hwnd = int(window.winId())
         user32 = ctypes.windll.user32
-        ico = str(_ICON_ICO)
+        ico = str(ICON_ICO)
         IMAGE_ICON, LR_LOADFROMFILE = 1, 0x00000010
         WM_SETICON, ICON_SMALL, ICON_BIG = 0x0080, 0, 1
         # Load the frame Windows wants for each slot directly from the .ico.
         h_small = user32.LoadImageW(None, ico, IMAGE_ICON, 16, 16, LR_LOADFROMFILE)
-        h_big   = user32.LoadImageW(None, ico, IMAGE_ICON, 32, 32, LR_LOADFROMFILE)
+        h_big = user32.LoadImageW(None, ico, IMAGE_ICON, 32, 32, LR_LOADFROMFILE)
         if h_small:
             user32.SendMessageW(hwnd, WM_SETICON, ICON_SMALL, h_small)
         if h_big:
             user32.SendMessageW(hwnd, WM_SETICON, ICON_BIG, h_big)
     except Exception as ex:
         log.warning("🖼️ Could not push native taskbar icon: %s", ex)
+
+
+# Windows groups taskbar buttons by this ID. installer/dancesport.iss gives
+# its shortcuts the same one (AppUserModelID) — change both together. Bump the
+# suffix to bust Windows' per-ID taskbar icon cache when the icon changes.
+APP_USER_MODEL_ID = "danceplaylist.ai.planner.v3"
+
+
+def relaunch_properties(name: str) -> dict[str, str]:
+    """What a taskbar pin starts and shows: a build its own exe and the icon
+    inside it, a source run this script under the Python that runs it."""
+    if getattr(sys, "frozen", False):
+        return {"command": f'"{sys.executable}"', "icon": f"{sys.executable},0",
+                "name": name}
+    python = Path(sys.executable)
+    pythonw = python.with_name("pythonw.exe")   # no console window behind it
+    if pythonw.exists():
+        python = pythonw
+    script = Path(sys.argv[0]).resolve()
+    return {"command": f'"{python}" "{script}"', "icon": f"{ICON_ICO},0",
+            "name": name}
+
+
+def apply_relaunch_identity(window) -> None:
+    """📌 Let a taskbar pin of the main `window` start the app and wear its icon.
+
+    Without this a pin of the running app came out as a white box: under the
+    explicit AppUserModelID the shell pins only what a shortcut or the window
+    tells it to. No-op off Windows, and off the native platform plugin: an
+    offscreen winId is no HWND, and the shell would tag whatever window
+    happens to own that number."""
+    if sys.platform != "win32" or QGuiApplication.platformName() != "windows":
+        return
+    try:
+        from gui.dialogs import app_mode_of, app_title  # gui.dialogs imports this module
+        from shared import taskbar_win32
+        name = app_title(app_mode_of(window._settings))
+        if not taskbar_win32.set_relaunch_properties(
+                int(window.winId()), APP_USER_MODEL_ID, **relaunch_properties(name)):
+            log.warning("📌 The shell took no relaunch properties for the taskbar pin")
+    except Exception as ex:
+        log.warning("📌 Could not set the taskbar pin's relaunch properties: %s", ex)
 
 
 # Emoji and what rides on them: symbols, variation selectors, joiners.
@@ -188,7 +253,7 @@ class LoadingDialog(QDialog):
         bar.setFixedHeight(7)
         bar.setTextVisible(False)
         lyt.addWidget(bar)
-        self.setWindowIcon(_app_icon())
+        self.setWindowIcon(app_icon())
 
     def set_status(self, msg: str):
         self._msg.setText(msg)
@@ -197,7 +262,7 @@ class LoadingDialog(QDialog):
         event.ignore()          # user cannot close it manually
 
 
-def _fmt_duration(seconds: float) -> str:
+def fmt_duration(seconds: float) -> str:
     """Human-readable duration, e.g. 8m 20s / 1h 03m / 45s."""
     s = int(max(0, seconds))
     h, rem = divmod(s, 3600)
@@ -239,8 +304,8 @@ class BusyDialog(QDialog):
             | Qt.WindowType.WindowTitleHint
         )
         self._cancelled = False
-        self._shown     = False
-        self._base_msg  = message
+        self._shown = False
+        self._base_msg = message
 
         lyt = QVBoxLayout(self)
         lyt.setContentsMargins(24, 20, 24, 20)
@@ -305,7 +370,7 @@ class BusyDialog(QDialog):
             remaining = total - done
             line = i18n.t("%s / %s  (%s left)") % (f"{done:,}", f"{total:,}", f"{remaining:,}")
             if eta_seconds is not None and eta_seconds >= 0:
-                line += "\n" + i18n.t("~%s remaining") % _fmt_duration(eta_seconds)
+                line += "\n" + i18n.t("~%s remaining") % fmt_duration(eta_seconds)
             self._lbl.setText(f"{i18n.t(self._base_msg)}\n{line}")
         else:
             # total unknown yet (listing phase) → keep pulsing
@@ -349,18 +414,18 @@ class BusyDialog(QDialog):
 # ─────────────────────────────────────────────────────────────────────────────
 # Palette colours (referenced throughout)
 # ─────────────────────────────────────────────────────────────────────────────
-_C_ROUND_BG  = QColor(200, 210, 240)   # soft blue-gray header
-_C_ROUND_FG  = QColor(30,  50, 120)   # dark navy text
-_C_DANCE_BG  = QColor(210, 235, 210)  # soft green header
-_C_DANCE_FG  = QColor(30,  90,  30)   # dark green text
-_C_ROW_EVEN  = QColor(255, 255, 255)  # white
-_C_ROW_ODD   = QColor(245, 247, 252)  # very light blue-gray
-_C_POP_FG    = QColor(180, 110,   0)  # dark amber (visible on white)
-_C_NEW_FG    = QColor( 30, 110, 200)  # medium blue
-_C_SIM_FG    = QColor( 20, 130,  50)  # dark green
-_C_WARN_FG   = QColor(200,  30,  30)  # red
-_C_LEN_WARN_FG = QColor(215, 120,   0)  # orange — ⏱ length needs a second look
-_C_DEFAULT   = QColor( 30,  30,  30)  # near-black
+C_ROUND_BG = QColor(200, 210, 240)   # soft blue-gray header
+C_ROUND_FG = QColor(30,  50, 120)   # dark navy text
+C_DANCE_BG = QColor(210, 235, 210)  # soft green header
+C_DANCE_FG = QColor(30,  90,  30)   # dark green text
+C_ROW_EVEN = QColor(255, 255, 255)  # white
+C_ROW_ODD = QColor(245, 247, 252)  # very light blue-gray
+C_POP_FG = QColor(180, 110,   0)  # dark amber (visible on white)
+C_NEW_FG = QColor( 30, 110, 200)  # medium blue
+C_SIM_FG = QColor( 20, 130,  50)  # dark green
+C_WARN_FG = QColor(200,  30,  30)  # red
+C_LEN_WARN_FG = QColor(215, 120,   0)  # orange — ⏱ length needs a second look
+C_DEFAULT = QColor( 30,  30,  30)  # near-black
 
 
 # Columns a KIND of list starts without (header right-click ticks them back on,
@@ -369,11 +434,11 @@ _C_DEFAULT   = QColor( 30,  30,  30)  # near-black
 # put away in every kind, decks included. ★ Rating, Custom, File name, Album
 # and Comment too: Marcel asked for them hidden until wanted.
 DEFAULT_HIDDEN_COLUMNS = {
-    "playlist": [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT,
+    "playlist": [COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT,
                 _COL_PLAYS],
-    "wishlist": [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT,
+    "wishlist": [COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT,
                 _COL_PLAYS],
-    "party": [_COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT,
+    "party": [COL_HEAT, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT,
              _COL_PLAYS],
 }
 
@@ -392,7 +457,7 @@ def add_custom_mapping_action(menu, widget) -> None:
     menu.addAction("Map Custom to an MP3 tag…").triggered.connect(
         lambda: win._map_custom_field())
 
-def _fmt_track_secs(secs: int) -> str:
+def fmt_track_secs(secs: int) -> str:
     """Track/total length as m:ss (or h:mm:ss for round totals over an hour)."""
     secs = int(secs)
     if secs >= 3600:
@@ -419,7 +484,7 @@ def bpm_tooltip(e) -> str:
     return ""
 
 
-def _entry_tooltip(e, sim=None, sim_label: str = "Match", tags=None) -> str:
+def entry_tooltip(e, sim=None, sim_label: str = "Match", tags=None) -> str:
     """Rich hover description of a track (metadata + where it's used).
 
     Shared by the Similar-Tracks window. `tags` (sound tags) are
@@ -460,8 +525,8 @@ def _entry_tooltip(e, sim=None, sim_label: str = "Match", tags=None) -> str:
     replay_sources = getattr(e, "replay_sources", None)
     if replay_sources:
         rows.append(i18n.t("In these matching past lists:"))
-        for src in replay_sources[:8]:
-            rows.append(f"<span style='color:#9c9'>• {esc(src)}</span>")
+        rows.extend(f"<span style='color:#9c9'>• {esc(src)}</span>"
+                    for src in replay_sources[:8])
         if len(replay_sources) > 8:
             rows.append("<span style='color:#888'>%s</span>"
                         % (i18n.t("… +%d more") % (len(replay_sources) - 8)))
@@ -502,19 +567,19 @@ def dblclick_opens_external() -> bool:
     return _dblclick_action == "external"
 
 
-def _open_in_default_player(path: Path, parent: QWidget | None = None) -> None:
+def open_in_default_player(path: Path, parent: QWidget | None = None) -> None:
     """Open a file in the OS default application (music player on Windows)."""
-    if path.suffix.lower() not in _AUDIO_EXTS:
+    if path.suffix.lower() not in AUDIO_EXTS:
         log.warning("🚫 Refused to open a non-audio file\n"
                     "path: %s\n"
                     "suffix: %s", path, path.suffix)
         QMessageBox.warning(parent, "Open file",
                             i18n.t("This is not an audio file, so it won't be opened:\n%s") % path)
         return
-    _open_with_default_app(path, parent)
+    open_with_default_app(path, parent)
 
 
-def _open_with_default_app(path: Path, parent: QWidget | None = None) -> None:
+def open_with_default_app(path: Path, parent: QWidget | None = None) -> None:
     """Open a file the app wrote itself (e.g. the printed PDF) in its OS
     default application. No audio gate: never hand it a path from a playlist."""
     if not path.exists():
@@ -533,7 +598,7 @@ def _open_with_default_app(path: Path, parent: QWidget | None = None) -> None:
                             i18n.t("Couldn't open the file:\n%s") % ex)
 
 
-def _open_folder(path, parent: QWidget | None = None) -> None:
+def open_folder(path, parent: QWidget | None = None) -> None:
     """Open a directory in the OS file manager (Explorer / Finder / xdg)."""
     path = Path(path)
     if not path.exists():
@@ -671,17 +736,39 @@ def set_header_tip(table: QTableWidget, col: int, tip: str) -> None:
         item.setToolTip(tip)
 
 
-def _unreadable_playlist(anchor: QWidget, m3u, exc) -> None:
+class _PlainTip(QObject):
+    """Shows the tooltip of the widget it watches on that widget's parent."""
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Type.ToolTip and obj.toolTip():
+            QToolTip.showText(event.globalPos(), obj.toolTip(),
+                              obj.parentWidget(), obj.geometry())
+            return True
+        return super().eventFilter(obj, event)
+
+
+def plain_tooltip(widget: QWidget) -> None:
+    """Draw `widget`'s tooltip like any other tooltip.
+
+    Qt styles a tooltip with the sheet of the widget it belongs to, so a
+    selector-less sheet (a bold, padded header strip, a coloured badge) makes
+    its tip bold, padded and coloured too. Shown on the parent instead —
+    limited to the widget's own rectangle — the tip gets the app's style.
+    """
+    widget.installEventFilter(_PlainTip(widget))
+
+
+def unreadable_playlist(anchor: QWidget, m3u, exc) -> None:
     """A dropped playlist whose text could not be decoded without losing
     characters: it counts as empty, and the window says so instead of
     silently showing nothing from it."""
     log.warning("⚠️ Playlist not read\n"
                 "file: %s\n"
                 "reason: %s", m3u, exc)
-    _show_toast(anchor, i18n.t("⚠️  Not read — %s") % exc, 6000)
+    show_toast(anchor, i18n.t("⚠️  Not read — %s") % exc, 6000, error=True)
 
 
-class _DragTable(QTableWidget):
+class DragTable(QTableWidget):
     """Minimal QTableWidget that drags the file paths of selected rows.
 
     `paths` is row-aligned; entries that are None (e.g. AI suggestions not in
@@ -699,7 +786,7 @@ class _DragTable(QTableWidget):
         """Space: play/stop the current row.  Ctrl+←/→: seek ∓30 s.
         (Ctrl+arrows are intercepted here so the table's default column
         navigation doesn't swallow them.)"""
-        key  = event.key()
+        key = event.key()
         mods = event.modifiers()
         if (key in (Qt.Key.Key_Left, Qt.Key.Key_Right)
                 and (mods & Qt.KeyboardModifier.ControlModifier)
@@ -750,10 +837,10 @@ class _DragTable(QTableWidget):
         chosen = menu.exec(event.globalPos())
         if chosen is copy_act and path is not None:
             QApplication.clipboard().setText(str(path))
-            _show_toast(self, "📋  Path copied to clipboard")
+            show_toast(self, "📋  Path copied to clipboard")
         elif chosen is details_act and details:
             QApplication.clipboard().setText(details)
-            _show_toast(self, "📝  Details copied to clipboard")
+            show_toast(self, "📝  Details copied to clipboard")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -775,8 +862,8 @@ class DropZone(QFrame):
         self.setToolTip("Drop an audio file here, or click to browse")
         self._base = ("#DropZone { border:2px dashed #9aa6c0; border-radius:6px;"
                       " background:#f3f6fc; }")
-        self._hot  = ("#DropZone { border:2px dashed #4a82d2; border-radius:6px;"
-                      " background:#e3ecfb; }")
+        self._hot = ("#DropZone { border:2px dashed #4a82d2; border-radius:6px;"
+                     " background:#e3ecfb; }")
         self.setStyleSheet(self._base)
         lyt = QVBoxLayout(self)
         lyt.setContentsMargins(6, 4, 6, 4)
@@ -787,7 +874,7 @@ class DropZone(QFrame):
 
     @staticmethod
     def _is_audio(url) -> bool:
-        return url.isLocalFile() and url.toLocalFile().lower().endswith(_AUDIO_EXTS)
+        return url.isLocalFile() and url.toLocalFile().lower().endswith(AUDIO_EXTS)
 
     def dragEnterEvent(self, e):
         if e.mimeData().hasUrls() and any(self._is_audio(u) for u in e.mimeData().urls()):
@@ -814,7 +901,7 @@ class DropZone(QFrame):
         super().mousePressEvent(e)
 
     def _browse(self):
-        exts = " ".join(f"*{x}" for x in _AUDIO_EXTS)
+        exts = " ".join(f"*{x}" for x in AUDIO_EXTS)
         path, _ = QFileDialog.getOpenFileName(
             self, "Select a music file", music_browse_dir(),
             f"Audio files ({exts});;All files (*)",
@@ -824,7 +911,7 @@ class DropZone(QFrame):
             self.fileDropped.emit(path)
 
 
-class _PathListWidget(QListWidget):
+class PathListWidget(QListWidget):
     """A list whose items can be dragged OUT as file URLs (the full path is held in
     each item's tooltip), so a dropped title can be dragged on into another zone — e.g.
     promoting one of the listed playlists into the reference-base field. Dragging an
@@ -849,7 +936,7 @@ class _PathListWidget(QListWidget):
         self.draggedOut.emit(paths)
 
 
-class _DroppedFilesList(QWidget):
+class DroppedFilesList(QWidget):
     """A visible list of the files added so far, with ➕ Add… / ➖ Remove selected /
     🗑 Clear controls. Lets the user review what was dropped and curate it (add from
     other folders, drop the wrong ones) before running. Emits `changed` on every edit."""
@@ -864,7 +951,7 @@ class _DroppedFilesList(QWidget):
         self.setAcceptDrops(True)
         lyt = QVBoxLayout(self)
         lyt.setContentsMargins(0, 0, 0, 0)
-        self._list = _PathListWidget()
+        self._list = PathListWidget()
         self._list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self._list.setMaximumHeight(90)
         self._list.setToolTip("Drag .m3u playlists or audio files here; "
@@ -938,7 +1025,7 @@ class _DroppedFilesList(QWidget):
             self._list.addItem(it)
 
     def _browse(self):
-        audio = " ".join(f"*{x}" for x in _AUDIO_EXTS)
+        audio = " ".join(f"*{x}" for x in AUDIO_EXTS)
         paths, _ = QFileDialog.getOpenFileNames(
             self, "Add playlists or music files", music_browse_dir(),
             f"Playlists & audio (*.m3u *.m3u8 {audio});;All files (*)")
@@ -948,7 +1035,7 @@ class _DroppedFilesList(QWidget):
 
     def dragEnterEvent(self, e):
         if e.mimeData().hasUrls() and any(
-                _MultiFileDropZone._is_droppable(u) for u in e.mimeData().urls()):
+                MultiFileDropZone._is_droppable(u) for u in e.mimeData().urls()):
             e.acceptProposedAction()
         else:
             e.ignore()
@@ -958,7 +1045,7 @@ class _DroppedFilesList(QWidget):
 
     def dropEvent(self, e):
         files = [u.toLocalFile() for u in e.mimeData().urls()
-                 if _MultiFileDropZone._is_droppable(u)]
+                 if MultiFileDropZone._is_droppable(u)]
         if files:
             e.acceptProposedAction()
             self.add_paths(files)
@@ -966,12 +1053,12 @@ class _DroppedFilesList(QWidget):
             e.ignore()
 
 
-class _MultiFileDropZone(QFrame):
+class MultiFileDropZone(QFrame):
     """A drop target that accepts SEVERAL files at once — .m3u/.m3u8 playlists and/or
     plain audio files (and click-to-browse, multi-select). Emits the dropped local
     file paths as a list."""
     filesDropped = Signal(list)
-    _DROP_EXTS = ('.m3u', '.m3u8') + _AUDIO_EXTS
+    _DROP_EXTS = ('.m3u', '.m3u8') + AUDIO_EXTS
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -982,8 +1069,8 @@ class _MultiFileDropZone(QFrame):
         self.setToolTip("Drop .m3u playlists or audio files here, or click to browse")
         self._base = ("#DropZone { border:2px dashed #9aa6c0; border-radius:6px;"
                       " background:#f3f6fc; }")
-        self._hot  = ("#DropZone { border:2px dashed #4a82d2; border-radius:6px;"
-                      " background:#e3ecfb; }")
+        self._hot = ("#DropZone { border:2px dashed #4a82d2; border-radius:6px;"
+                     " background:#e3ecfb; }")
         self.setStyleSheet(self._base)
         lyt = QVBoxLayout(self)
         lyt.setContentsMargins(6, 6, 6, 6)
@@ -1017,7 +1104,7 @@ class _MultiFileDropZone(QFrame):
 
     def mousePressEvent(self, e):
         if e.button() == Qt.MouseButton.LeftButton:
-            audio = " ".join(f"*{x}" for x in _AUDIO_EXTS)
+            audio = " ".join(f"*{x}" for x in AUDIO_EXTS)
             paths, _ = QFileDialog.getOpenFileNames(
                 self, "Select playlists or music files", music_browse_dir(),
                 f"Playlists & audio (*.m3u *.m3u8 {audio});;All files (*)",

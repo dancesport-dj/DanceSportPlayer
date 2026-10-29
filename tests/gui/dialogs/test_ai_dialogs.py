@@ -23,15 +23,19 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QLabel, QPushButton
-from tests.qt_test_support import reap_widget
 
-from planner import config as planner_config
-from planner.event import event_plan
-from planner import i18n
-from planner.generate import llm
 from gui.dialogs.ai_dialogs import (
-    AiPlaylistDialog, AiTranscriptDialog, _Bubble, _ThinkingBubble,
+    AiPlaylistDialog,
+    AiSuggestDialog,
+    AiTranscriptDialog,
+    Bubble,
+    ThinkingBubble,
 )
+from planner import config as planner_config
+from planner import i18n
+from planner.event import event_plan
+from planner.generate import llm
+from tests.qt_test_support import reap_widget
 
 
 class DialogTest(unittest.TestCase):
@@ -150,6 +154,44 @@ class DialogTest(unittest.TestCase):
         self.assertFalse(dlg._count_spin.isEnabled())
         dlg._rb_flat.setChecked(True)
         self.assertTrue(dlg._count_spin.isEnabled())
+
+
+class SuggestPreviewTest(unittest.TestCase):
+    """🤖 AI suggestions' ▶ plays on the desk; leaving the window stops it."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def test_close_and_esc_stop_the_preview(self):
+        # BUG_REVIEW B4.2: "Close" accepts and Esc rejects, and neither sends
+        # the closeEvent that stopped it.
+        for close in ("accept", "reject"):
+            with self.subTest(close=close):
+                calls = []
+                dlg = AiSuggestDialog(None, play_cb=calls.append)
+                self.addCleanup(reap_widget, dlg)
+                dlg._row_paths[:] = [Path("a.mp3")]
+                dlg._toggle_play(0)
+                getattr(dlg, close)()
+                self.assertEqual(calls, [Path("a.mp3"), None])
+
+    def test_new_suggestions_stop_the_preview_and_their_play_plays(self):
+        # BUG_REVIEW B4.7: the old playing row stayed current, so the new
+        # list's ▶ in that row stopped instead of playing.
+        from types import SimpleNamespace
+
+        calls = []
+        dlg = AiSuggestDialog(None, play_cb=calls.append)
+        self.addCleanup(reap_widget, dlg)
+        a = SimpleNamespace(path=Path("a.mp3"), title="A")
+        b = SimpleNamespace(path=Path("b.mp3"), title="B")
+        dlg._populate([{"suggestion": {"artist": "x", "title": "A"}, "entry": a}])
+        dlg._toggle_play(0)
+        dlg._populate([{"suggestion": {"artist": "y", "title": "B"}, "entry": b}])
+        self.assertEqual(calls, [Path("a.mp3"), None])
+        dlg._toggle_play(0)
+        self.assertEqual(calls, [Path("a.mp3"), None, Path("b.mp3")])
 
 
 class EventDialogTest(unittest.TestCase):
@@ -402,7 +444,7 @@ class TranscriptWindowTest(unittest.TestCase):
     @staticmethod
     def _bubbles(dlg):
         """Every chat bubble in the thread, oldest first."""
-        return dlg.findChildren(_Bubble)
+        return dlg.findChildren(Bubble)
 
     def test_a_step_lands_with_its_title_and_its_text(self):
         dlg = self._dlg()
@@ -529,7 +571,7 @@ class ThinkingIndicatorTest(unittest.TestCase):
 
     @staticmethod
     def _thinking(dlg):
-        return dlg.findChildren(_ThinkingBubble)
+        return dlg.findChildren(ThinkingBubble)
 
     def test_a_question_leaves_the_model_visibly_thinking(self):
         dlg = self._dlg()
@@ -585,6 +627,18 @@ class ThinkingIndicatorTest(unittest.TestCase):
         dlg.add_step("received", "its answer", "b")
         self.assertEqual(len(self._thinking(dlg)), 0)
 
+    def test_a_failure_note_ends_the_lone_turn(self):
+        """The search round's failure note was taken for a retry: its bubble
+        ran on, and turn 2's reply then closed turn 1's (BUG_REVIEW B4.4)."""
+        dlg = self._dlg()
+        dlg.add_step("sent", "1 · What the model is asked to search", "a")
+        dlg.add_step("note", "1 · The search round failed", "HTTP 500")
+        self.assertEqual(self._thinking(dlg), [])
+        dlg.add_step("sent", "2 · What the model is asked to pick", "b")
+        dlg.add_step("received", "2 · Its picks — stub", "c")
+        self.assertEqual(self._thinking(dlg), [])
+        self.assertEqual(dlg._open, [])
+
     def test_parallel_questions_each_keep_their_own_clock(self):
         """The event planner sends every competition's question at once and
         the answers come back in any order: each question out is one bubble,
@@ -617,7 +671,7 @@ class ThinkingIndicatorTest(unittest.TestCase):
         dlg.add_step("sent", "B — the drafts to check", "b")
         dlg.add_step("received", "B — its swaps — stub", "[]")
         last = dlg._thread.itemAt(dlg._thread.count() - 2).widget()
-        self.assertTrue(last.findChildren(_ThinkingBubble))
+        self.assertTrue(last.findChildren(ThinkingBubble))
 
     def test_a_parallel_turn_pairs_the_answer_with_its_own_question(self):
         """The biggest turn is a prompt plus ITS reply, not the last prompt

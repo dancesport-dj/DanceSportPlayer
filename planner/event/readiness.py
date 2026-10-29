@@ -127,7 +127,7 @@ def _music_finding(music: tuple) -> Finding:
 
 # What each output source is called in the 🔈 line — the captions of its
 # picker in ⚙ Settings (shared.audio.playback.OUTPUT_SOURCES + 🎧).
-_SOURCE_NAMES = {"music": "🎵  Music:", "filler": "⏸  Filler music:",
+_SOURCE_NAMES = {"music": "🎵  Music:",
                  "cartwall": "🎛  Cartwall:", "announcer": "🔈  Announcements:",
                  "cue": "🎧  Pre-listen:"}
 

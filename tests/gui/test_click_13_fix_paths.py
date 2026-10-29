@@ -16,15 +16,16 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-# First: it points the app's state files at a temp folder before any app
-# module is imported.
-from tests.gui.monkey_support import ClickThrough, DropFrom, printable
-
 from PySide6.QtCore import QMimeData, QPointF, Qt, QUrl
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QLabel, QPushButton, QTabWidget
+
 from gui.table.row_buttons import BUTTON_ROLE
 from shared.columns import _COL_PLAY
+
+# First: it points the app's state files at a temp folder before any app
+# module is imported.
+from tests.gui.monkey_support import ClickThrough, DropFrom, printable
 from tests.qt_test_support import reap_widget
 
 
@@ -244,27 +245,33 @@ class FixPathsClickTest(ClickThrough):
             table = self.win._deckset.table
             row = self.song_rows()[1]
             path = self.vanish(row)
+            cued = table._current_play_row      # the first title, cued by generate
             self.click_cell(table, row, _COL_PLAY)
 
             def glyph():
                 return table.item(row, _COL_PLAY).data(BUTTON_ROLE)
             self.assertTrue(self.wait_until(lambda: glyph() == "❗"),
                             f"the ▶ reads {printable(glyph())!r}")
-            self.assertIn(str(path), self.win._playback.failed)
-            self.assertEqual(table._current_play_row, -1, "a dead title looks playing")
+            # Refused at the press (dc72a673): the player never gets the path.
+            self.assertNotIn(str(path), self.win._playback.failed)
+            self.assertEqual(table._current_play_row, cued, "a dead title looks playing")
 
-    def test_playing_mode_skips_a_title_gone_from_disk(self):
+    def test_playing_mode_plays_on_past_a_click_on_a_title_gone_from_disk(self):
         with self.clicking():
             self.generate(rounds="1")
             self.click(self.win._mode_play_btn)
             table = self.win._deckset.table
-            first, gone, after, *_ = self.song_rows()
-            self.assertTrue(table._advance_get(), "⏭ Auto is off in Playing mode")
+            first, gone, *_ = self.song_rows()
             self.play_row(first)
             self.vanish(gone)
             self.click_cell(table, gone, _COL_PLAY)
-            self.assertTrue(self.wait_until(lambda: table._current_play_row == after),
-                            f"playing row {table._current_play_row}, not {after}")
+
+            def glyph():
+                return table.item(gone, _COL_PLAY).data(BUTTON_ROLE)
+            self.assertTrue(self.wait_until(lambda: glyph() == "❗"),
+                            f"the ▶ reads {printable(glyph())!r}")
+            self.assertEqual(table._current_play_row, first,
+                             "the running title stopped for a file that is gone")
 
     def test_a_window_gone_mid_start_takes_its_watchdog_along(self):
         # Every start arms a 2 s watchdog. A window destroyed before it fires

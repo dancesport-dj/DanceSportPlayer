@@ -119,6 +119,7 @@ class PlayerCardArtworkTest(unittest.TestCase):
 
     def setUp(self):
         from PySide6.QtMultimedia import QMediaPlayer
+
         from player.widgets.player import BigPlayerWidget
         self.dir = Path(tempfile.mkdtemp(prefix="dp_card_"))
         self.track = self.dir / "LW1.mp3"

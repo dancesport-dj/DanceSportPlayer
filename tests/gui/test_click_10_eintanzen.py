@@ -12,13 +12,12 @@ MainWindow (see tests/gui/monkey_support.py):
 import unittest
 from pathlib import Path
 
+from PySide6.QtCore import QPointF
+from PySide6.QtWidgets import QLabel, QPushButton, QRadioButton, QSpinBox, QStackedWidget
+
 # First: it points the app's state files at a temp folder before any app
 # module is imported.
 from tests.gui.monkey_support import ClickThrough, DropFrom, printable
-
-from PySide6.QtCore import QPointF
-from PySide6.QtWidgets import (
-    QLabel, QPushButton, QSpinBox, QRadioButton, QStackedWidget)
 
 
 class EintanzenClickTest(ClickThrough):

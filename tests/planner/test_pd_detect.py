@@ -11,8 +11,8 @@ import struct
 import tempfile
 import unittest
 import wave
-from unittest import mock
 from pathlib import Path
+from unittest import mock
 
 from shared.audio import audio_probes as gw
 

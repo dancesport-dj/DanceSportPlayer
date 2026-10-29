@@ -20,9 +20,9 @@ class OneTableTest(unittest.TestCase):
 
     def test_the_tempo_prior_follows_the_table(self):
         # No per-file takt: the midpoint × beats per bar.
-        self.assertEqual(analysis._tempo_prior("JI", None), 43 * 4)
-        self.assertEqual(analysis._tempo_prior("SA", 50), 50 * 2)
-        self.assertIsNone(analysis._tempo_prior("SALSA", None))
+        self.assertEqual(analysis.tempo_prior("JI", None), 43 * 4)
+        self.assertEqual(analysis.tempo_prior("SA", 50), 50 * 2)
+        self.assertIsNone(analysis.tempo_prior("SALSA", None))
         self.assertFalse(hasattr(analysis, "_DEFAULT_TAKT"))
 
 

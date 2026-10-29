@@ -31,8 +31,7 @@ from PySide6.QtWidgets import QApplication, QSplitter
 
 from gui import dialogs
 from gui.window.main_persist import layout_settings
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 
 class ToolbarCompactionTest(unittest.TestCase):

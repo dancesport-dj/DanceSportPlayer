@@ -25,8 +25,7 @@ from PySide6.QtGui import QContextMenuEvent
 from PySide6.QtWidgets import QMenu, QMessageBox
 
 from dancesport_planner import MusicEntry, MusicLibrary
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 _DIR = Path(tempfile.mkdtemp(prefix="dp_save_tree_files_"))
 

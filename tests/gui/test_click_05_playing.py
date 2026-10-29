@@ -14,18 +14,17 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-# First: it points the app's state files at a temp folder before any app
-# module is imported.
-from tests.gui.monkey_support import ClickThrough, describe
-
 import shiboken6
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import (
-    QAbstractButton, QApplication, QDialogButtonBox, QFileDialog, QMessageBox,
-    QTabWidget)
+from PySide6.QtWidgets import QAbstractButton, QApplication, QDialogButtonBox, QFileDialog, QMessageBox, QTabWidget
+
 from shared.audio.playback import device_id
 from shared.columns import _COL_PLAY
+
+# First: it points the app's state files at a temp folder before any app
+# module is imported.
+from tests.gui.monkey_support import ClickThrough, describe
 
 
 class _Plug:
@@ -237,7 +236,7 @@ class PlayingClickTest(ClickThrough):
             return [c for c in toast.call_args_list if card.description() in c.args[1]]
 
         playing = QMediaPlayer.PlaybackState.PlayingState
-        with self.clicking() as op, mock.patch.object(self.gui, "_show_toast") as toast:
+        with self.clicking() as op, mock.patch.object(self.gui, "show_toast") as toast:
             self.generate(rounds="1")
             self.edit_settings(op, choose)
             self.assertTrue(self.wait_until(lambda: on(device_id(card)), 5000),
@@ -275,6 +274,7 @@ class PlayingClickTest(ClickThrough):
         # brings the deck back from the autosave and asks once: yes cues that
         # title on its row from its start, and the first one greys again.
         from PySide6.QtMultimedia import QMediaPlayer
+
         from player.audio.on_air_note import NOTE
         from player.window.main_resume import EVENING
         from shared.stores import ON_AIR
@@ -332,8 +332,8 @@ class PlayingClickTest(ClickThrough):
 
     def test_a_cartwall_pad_plays_over_the_running_title(self):
         from planner.playing import cartwall as pc
-        from player.audio.cart_voices import _FIRE_GAP_MS
-        from player.widgets.cartwall import _CartPadButton
+        from player.audio.cart_voices import FIRE_GAP_MS
+        from player.widgets.cartwall import CartPadButton
         win = self.win
         with self.clicking():
             self.generate(rounds="1")
@@ -344,7 +344,7 @@ class PlayingClickTest(ClickThrough):
             self.assertTrue(wall.isVisible(), "🎛 shows no wall")
             key = (wall.current_page(), *next(pc.cells_in_order(wall.grid())))
 
-            def pad() -> _CartPadButton:
+            def pad() -> CartPadButton:
                 # Assigning a sample builds the grid anew: never keep a button.
                 return wall._buttons[key]
 
@@ -367,7 +367,7 @@ class PlayingClickTest(ClickThrough):
             self.key(Qt.Key.Key_Escape, widget=pad())
             self.assertTrue(self.wait_until(lambda: not voices.is_playing(key)),
                             "Esc left the pad running")
-            QTest.qWait(_FIRE_GAP_MS + 50)    # two fires inside it are one tap
+            QTest.qWait(FIRE_GAP_MS + 50)    # two fires inside it are one tap
             self.key(Qt.Key.Key_1, Qt.KeyboardModifier.ControlModifier, widget=win)
             self.assertTrue(self.wait_until(lambda: voices.is_playing(key)),
                             "Ctrl+1 did not fire the first pad")

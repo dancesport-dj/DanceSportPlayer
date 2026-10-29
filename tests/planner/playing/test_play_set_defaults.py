@@ -7,11 +7,11 @@ from planner.playing.play_sets import DANCE_SECS_KEY, dance_secs_of, play_set_of
 
 class SetDefaultsTest(unittest.TestCase):
 
-    def test_a_heat_fades_in_2_5_s_after_its_length(self):
+    def test_a_heat_fades_in_3_s_after_its_length(self):
         """Marcel: "default tournament set not with the length ticked" and
         "default tournament set fadeout 2.5s"."""
         t = play_set_of({}, "tournament")
-        self.assertEqual(t["fade"], 2.5)
+        self.assertEqual(t["fade"], 3)
         self.assertIs(t["fade_inside"], False)
 
     def test_a_party_fades_within_its_length_and_does_not_crossfade(self):

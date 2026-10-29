@@ -11,13 +11,14 @@ MainWindow (see tests/gui/monkey_support.py):
 
 import unittest
 
+from PySide6.QtCore import Qt
+from PySide6.QtTest import QTest
+
+from shared.columns import _COL_TITLE, COL_REGEN
+
 # First: it points the app's state files at a temp folder before any app
 # module is imported.
 from tests.gui.monkey_support import ClickThrough, printable
-
-from PySide6.QtCore import Qt
-from PySide6.QtTest import QTest
-from shared.columns import _COL_REGEN, _COL_TITLE
 
 
 class PlanningClickTest(ClickThrough):
@@ -50,7 +51,7 @@ class PlanningClickTest(ClickThrough):
             self.generate(rounds="1")
             for row in self.song_rows():
                 before = self.entry_at(row)
-                self.click_cell(self.win._deckset.table, row, _COL_REGEN)
+                self.click_cell(self.win._deckset.table, row, COL_REGEN)
                 QTest.qWait(20)
                 after = self.entry_at(row)
                 self.assertIsNot(after, before, f"row {row}: re-roll kept the title")
@@ -71,7 +72,7 @@ class PlanningClickTest(ClickThrough):
             self.generate(rounds="1")
             row = self.song_rows()[0]
             before = self.entry_at(row)
-            self.click_cell(self.win._deckset.table, row, _COL_REGEN)
+            self.click_cell(self.win._deckset.table, row, COL_REGEN)
             QTest.qWait(20)
             after = self.entry_at(row)
             self.assertIsNot(after, before)
@@ -101,7 +102,7 @@ class PlanningClickTest(ClickThrough):
             op.pick("📌  Pin")
             self.right_click(op, table, row)
             self.assertIn(str(before.path), table._pinned_paths)
-            self.click_cell(table, row, _COL_REGEN)
+            self.click_cell(table, row, COL_REGEN)
             QTest.qWait(20)
             self.assertIs(self.entry_at(row), before)
             op.pick("📌  Unpin")

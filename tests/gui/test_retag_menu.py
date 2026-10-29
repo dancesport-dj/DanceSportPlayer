@@ -27,12 +27,11 @@ from dancesport_planner import (
     PlaylistSuggester,
     RoundConfig,
 )
-from gui.window.main_tags import _tag_change_summary
+from gui.table.playlist_table import _COL_BPM, _COL_TITLE
+from gui.window.main_tags import tag_change_summary
 from planner.music.db import AudioCache
 from tests.db_support import use_scratch_db
-from gui.table.playlist_table import _COL_BPM, _COL_TITLE
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 
 class _StubScan:
@@ -190,22 +189,22 @@ class TagChangeSummaryTest(unittest.TestCase):
     """The one line the toast shows — DB column names would mean nothing."""
 
     def test_fields_are_named_the_way_the_ui_names_them(self):
-        self.assertEqual(_tag_change_summary({"bpm": (29, 30)}), "takt 29 → 30")
+        self.assertEqual(tag_change_summary({"bpm": (29, 30)}), "takt 29 → 30")
 
     def test_several_changes_are_listed(self):
-        out = _tag_change_summary({"dance": ("SF", "CC"), "bpm": (29, 30)})
+        out = tag_change_summary({"dance": ("SF", "CC"), "bpm": (29, 30)})
         self.assertEqual(out, "dance SF → CC, takt 29 → 30")
 
     def test_a_cleared_field_still_reads_as_a_change(self):
-        self.assertEqual(_tag_change_summary({"tag_artist": ("Abba", None)}),
+        self.assertEqual(tag_change_summary({"tag_artist": ("Abba", None)}),
                          "artist Abba → —")
 
     def test_a_list_of_markers_is_joined(self):
-        self.assertEqual(_tag_change_summary({"classes_ok": (None, ["B", "A"])}),
+        self.assertEqual(tag_change_summary({"classes_ok": (None, ["B", "A"])}),
                          "classes — → B/A")
 
     def test_nothing_changed_is_an_empty_line(self):
-        self.assertEqual(_tag_change_summary({}), "")
+        self.assertEqual(tag_change_summary({}), "")
 
     def test_the_toast_names_the_fields_in_german(self):
         """The toast follows the UI language; the log line stays English."""
@@ -213,9 +212,9 @@ class TagChangeSummaryTest(unittest.TestCase):
         i18n.set_active("de")
         self.addCleanup(i18n.set_active, i18n.DEFAULT_LANGUAGE)
         changed = {"dance": ("SF", "CC"), "bpm": (29, 30)}
-        self.assertEqual(_tag_change_summary(changed, translate=True),
+        self.assertEqual(tag_change_summary(changed, translate=True),
                          "Tanz SF → CC, Takt 29 → 30")
-        self.assertEqual(_tag_change_summary(changed), "dance SF → CC, takt 29 → 30")
+        self.assertEqual(tag_change_summary(changed), "dance SF → CC, takt 29 → 30")
 
 
 if __name__ == "__main__":

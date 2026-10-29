@@ -23,8 +23,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_deckctx_"))
 
 from gui.decks.deck import DeckContext
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 
 class DeckContextTest(unittest.TestCase):

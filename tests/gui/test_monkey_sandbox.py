@@ -7,10 +7,12 @@ test), so it is checked here, with the sandbox of tests/gui/monkey_support.py
 up and no window built.
 """
 
+import os
 import socket
 import unittest
 import urllib.error
 import urllib.request
+from unittest import mock
 
 from tests.gui.monkey_support import LoadedWindow
 
@@ -44,9 +46,22 @@ class SandboxTest(LoadedWindow):
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             with self.assertRaisesRegex(OSError, "monkey test"):
                 s.sendto(b"x", ("192.0.2.1", 53))
-        with socket.socket() as s:
-            with self.assertRaisesRegex(OSError, "monkey test"):
-                s.bind(("0.0.0.0", 0))
+        with socket.socket() as s, self.assertRaisesRegex(OSError, "monkey test"):
+            s.bind(("0.0.0.0", 0))
+
+    def test_both_ai_backends_meet_the_sandbox_on_a_bare_machine(self):
+        # CI has no claude CLI and no OpenRouter key: without the sandbox's
+        # own, the AI failed before reaching it, and the walk saw a critical box.
+        from planner.generate import ai, llm
+        with mock.patch.dict(os.environ, {"CLAUDE_BIN": "", "OPENROUTER_API_KEY": ""}), \
+                mock.patch("shutil.which", return_value=None), \
+                mock.patch.object(ai.OPENROUTER, "read", return_value={}), self.assertRaises(RuntimeError) as caught:
+            llm._ask("system", "user", model="m", config_dir="",
+                     timeout=1, sleep=lambda _s: None)
+        failures = str(caught.exception).split("\n\n")[1:]
+        self.assertEqual(len(failures), 2, caught.exception)
+        for failure in failures:
+            self.assertIn("monkey test", failure)
 
     def test_loopback_still_works(self):
         """Qt and asyncio talk to themselves over loopback sockets."""

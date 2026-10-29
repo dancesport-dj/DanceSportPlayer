@@ -24,6 +24,7 @@ import zipfile
 import zlib
 from dataclasses import dataclass, field
 from pathlib import Path, PurePath, PureWindowsPath
+from typing import Any
 
 from planner.config import write_json_atomic
 from planner.music.paths import PathRemapper, home_search_roots
@@ -111,7 +112,7 @@ def track_paths(*docs) -> list[str]:
     return list(seen)
 
 
-def remap(obj, mapping: dict):
+def remap(obj: Any, mapping: dict) -> Any:
     """A copy of `obj` with every string found in `mapping` replaced —
     values and dict keys alike."""
     if isinstance(obj, dict):

@@ -25,12 +25,11 @@ from PySide6.QtWidgets import QApplication
 from dancesport_planner import RoundConfig
 from gui.common import DEFAULT_HIDDEN_COLUMNS, display_title
 from gui.dialogs import COLUMNS_VERSION, migrate_column_settings
-from gui.library_browser import _LIB_COL_FILE, _LIB_COL_TITLE, LibraryBrowser
+from gui.library_browser import LIB_COL_FILE, LIB_COL_TITLE, LibraryBrowser
 from gui.table.playlist_table import PlaylistTable
 from gui.table.table_actions import TableActionsMixin
 from planner.models import MusicEntry
-from shared.columns import (_COL_ALBUM, _COL_COMMENT, _COL_CUSTOM, _COL_FILE, _COL_PLAYS, _COL_REGEN,
-                            _COL_TITLE)
+from shared.columns import _COL_ALBUM, _COL_COMMENT, _COL_CUSTOM, _COL_FILE, _COL_PLAYS, _COL_TITLE, COL_REGEN
 from tests.qt_test_support import reap_widget
 
 _app = QApplication.instance() or QApplication([])
@@ -99,16 +98,16 @@ class LibraryColumnsTest(unittest.TestCase):
 
     def test_the_cells(self):
         t = self.pane._table
-        self.assertEqual(t.item(0, _LIB_COL_TITLE).text(), "Moon River")
-        self.assertEqual(_LIB_COL_FILE, 12)
-        self.assertEqual(t.horizontalHeaderItem(_LIB_COL_FILE).text(), "Filename")
-        self.assertEqual(t.item(0, _LIB_COL_FILE).text(), "Moon River remaster")
-        self.assertEqual(self.pane.cell_tooltip(0, _LIB_COL_FILE), str(_PATH))
+        self.assertEqual(t.item(0, LIB_COL_TITLE).text(), "Moon River")
+        self.assertEqual(LIB_COL_FILE, 12)
+        self.assertEqual(t.horizontalHeaderItem(LIB_COL_FILE).text(), "Filename")
+        self.assertEqual(t.item(0, LIB_COL_FILE).text(), "Moon River remaster")
+        self.assertEqual(self.pane.cell_tooltip(0, LIB_COL_FILE), str(_PATH))
 
     def test_it_starts_hidden_and_can_be_ticked_on(self):
-        self.assertIn(_LIB_COL_FILE, self.pane.hidden_columns())
+        self.assertIn(LIB_COL_FILE, self.pane.hidden_columns())
         menu = self.pane.build_column_menu()
-        self.assertIn(_LIB_COL_FILE,
+        self.assertIn(LIB_COL_FILE,
                       [a.data() for a in menu.actions() if a.isCheckable()])
 
 
@@ -122,9 +121,9 @@ class MigrationTest(unittest.TestCase):
         migrate_column_settings(s)
         self.assertEqual(s["hidden_columns"],
                          {"playlist": [9, 10, _COL_FILE, _COL_ALBUM, _COL_COMMENT, _COL_PLAYS],
-                          "wishlist": [1, _COL_FILE, _COL_ALBUM, _COL_COMMENT, _COL_PLAYS, _COL_REGEN]})
+                          "wishlist": [1, _COL_FILE, _COL_ALBUM, _COL_COMMENT, _COL_PLAYS, COL_REGEN]})
         self.assertEqual(s["column_widths"]["playlist"],
-                         {"10": 90, str(_COL_REGEN): 30})
+                         {"10": 90, str(COL_REGEN): 30})
         self.assertEqual(s["columns_version"], COLUMNS_VERSION)
 
     def test_the_library_gets_it_at_the_end(self):

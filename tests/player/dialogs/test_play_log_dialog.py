@@ -13,9 +13,9 @@ from PySide6.QtWidgets import QApplication, QMessageBox, QPushButton
 
 from planner import i18n
 from planner.playing import play_log
-from tests.db_support import use_scratch_db
 from player.dialogs import play_log_dialog
 from player.dialogs.play_log_dialog import PlayLogDialog
+from tests.db_support import use_scratch_db
 
 
 def at(day, hh, mm):

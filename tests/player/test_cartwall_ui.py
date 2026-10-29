@@ -18,13 +18,12 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtCore import QPointF, Qt
 from PySide6.QtGui import QMouseEvent
-from PySide6.QtWidgets import (QApplication, QStyleOptionToolButton, QToolButton,
-    QWidgetItem)
-from tests.qt_test_support import reap_widget
+from PySide6.QtWidgets import QApplication, QStyleOptionToolButton, QToolButton, QWidgetItem
 
 from planner.playing import cartwall as pc
 from player.dialogs import cart_pad_dialog as cpd
 from player.widgets import cartwall as gc
+from tests.qt_test_support import reap_widget
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -459,6 +458,20 @@ class WallShapeTest(unittest.TestCase):
         self.assertEqual(self.w._live, {new})
         self.assertEqual(moved, [{(0, 5, 7): new}])
 
+    def test_a_sounding_pad_packed_onto_page_1_stays_lit(self):
+        """BUG_REVIEW B2.1: the bed's voice stayed on page 2, so a tap on its
+        new cell started a second copy."""
+        self.w.set_wall((2, 8), [pc.blank_page(), pc.Page(pads={
+            (0, 0): pc.CartPad(path="bed.mp3")})])
+        self.w.set_playing((1, 0, 0), True)
+        moved = []
+        self.w.padsMoved.connect(moved.append)
+        self.w._pack_one_page()
+        self.assertEqual(self.w.pad_at((0, 0, 0)).path, "bed.mp3")
+        self.assertEqual(self.w._live, {(0, 0, 0)})
+        self.assertTrue(self.w._buttons[(0, 0, 0)]._playing)
+        self.assertEqual(moved, [{(1, 0, 0): (0, 0, 0)}])
+
     def test_a_turn_with_nothing_on_the_wall_moves_nothing(self):
         moved = []
         self.w.padsMoved.connect(moved.append)
@@ -515,6 +528,29 @@ class WallFileTest(unittest.TestCase):
             fh.write("#EXTM3U\n")
         self.assertFalse(pc.read_wall(self.path)[4])
         self.assertFalse(pc.read_wall(self.path + ".nope")[4])
+
+    def test_an_import_silences_the_old_walls_pads_and_ends_its_queue(self):
+        """The fanfare on (0,0,0) kept sounding under the imported wall's own
+        (0,0,0), whose tap then stopped it instead of firing, and a running
+        queue went on with a key into the new wall (BUG_REVIEW B2.4)."""
+        pc.write_wall(self.path, pc.dump_doc(
+            (4, 4), [pc.Page(pads={(0, 0): pc.CartPad(path=_SAMPLE, label="New")})],
+            0, "#c8871a"))
+        key = (0, 0, 0)
+        self.w.set_playing(key, True)
+        self.w.set_queue_run(key, 1)
+        stops = []
+        self.w.stopAll.connect(lambda: stops.append(1))
+        real = gc.QFileDialog.getOpenFileName
+        gc.QFileDialog.getOpenFileName = staticmethod(lambda *a, **kw: (self.path, ""))
+        try:
+            with _answer(True):
+                self.w._import_wall()
+        finally:
+            gc.QFileDialog.getOpenFileName = real
+        self.assertEqual(self.w.pad_at(key).label, "New")
+        self.assertEqual(stops, [1])
+        self.assertIsNone(self.w.queue_run())
 
     def test_the_wall_menu_offers_both(self):
         actions = [a.text() for a in self.w._file_menu.actions()]
@@ -668,7 +704,7 @@ class PageNameTest(unittest.TestCase):
     def test_the_label_reports_a_real_double_click(self):
         """A bare label, deliberately: the wall's own is wired to the rename
         dialog, and a modal exec() in a test run never comes back."""
-        label = cpd._ClickableLabel("Page 1")
+        label = cpd.ClickableLabel("Page 1")
         self.addCleanup(reap_widget, label)
         seen = []
         label.double_clicked.connect(lambda: seen.append(1))

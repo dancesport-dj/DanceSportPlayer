@@ -28,12 +28,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from planner import i18n
-from shared.appearance import looks, theme, user_looks
-from shared.widgets import _hsep
 from gui.dialogs import THEME_CHOICES, ThemePreview
 from gui.dialogs.look_editor import LookEditor, LookPreview
+from planner import i18n
+from shared.appearance import looks, theme, user_looks
 from shared.appearance.presenter_theme import DEFAULT_KEY, theme_choices
+from shared.widgets import hsep
 
 # Typed as the dialog it is mixed into, so `self` passes as a parent widget.
 if TYPE_CHECKING:
@@ -63,7 +63,7 @@ class LookTabMixin(_DialogHost):
         pick_row = self._make_theme_picker()
         llyt.addLayout(pick_row, stretch=1)
 
-        llyt.addWidget(_hsep())
+        llyt.addWidget(hsep())
 
         llyt.addWidget(QLabel(
             "<b>🎚 Accent colour</b> — the blue the buttons, sliders and the "
@@ -90,7 +90,7 @@ class LookTabMixin(_DialogHost):
         self._theme_list.currentItemChanged.connect(self._on_theme_picked)
         self._select_theme(theme.theme_of(settings))
 
-        llyt.addWidget(_hsep())
+        llyt.addWidget(hsep())
 
         llyt.addWidget(QLabel(
             "<b>🌐 Language</b> — menus, buttons and dialogs:"))
@@ -121,6 +121,22 @@ class LookTabMixin(_DialogHost):
         self._german_terms_chk.setChecked(bool(settings.get("german_dance_terms")))
         llyt.addWidget(self._german_terms_chk)
 
+        # 🔠 Bigger for a desk read from a step back, or a touch screen.
+        size_row = QHBoxLayout()
+        size_row.addWidget(QLabel("🔠  Text size:"))
+        self._font_scale_combo = QComboBox()
+        self._font_scale_combo.setToolTip(
+            "Every text in the app, menus and tables included.\n"
+            "Above 115 % the buttons grow with it.\n"
+            "Read when the app starts, like the theme.")
+        for pct in theme.FONT_SCALES:
+            self._font_scale_combo.addItem(f"{pct} %", pct)
+        self._font_scale_combo.setCurrentIndex(max(0, self._font_scale_combo.findData(
+            theme.font_scale_of(settings))))
+        size_row.addWidget(self._font_scale_combo)
+        size_row.addStretch(1)
+        llyt.addLayout(size_row)
+
         look_note = QLabel(
             "Theme, accent and language are read when the app starts, so a "
             "change takes effect after a restart — you are asked once you save.")
@@ -128,7 +144,7 @@ class LookTabMixin(_DialogHost):
         look_note.setStyleSheet("color:#666; font-size:11px;")
         llyt.addWidget(look_note)
 
-        llyt.addWidget(_hsep())
+        llyt.addWidget(hsep())
         self._clock_time_only_chk = QCheckBox(
             "⛶  Fullscreen clock: only the time (20:45:12), no date")
         self._clock_time_only_chk.setChecked(
@@ -137,7 +153,7 @@ class LookTabMixin(_DialogHost):
 
         # 🖥 …and the palette the presenter screen wears: a hall wants the
         # black screen, a wedding the creme one — set once per venue.
-        llyt.addWidget(_hsep())
+        llyt.addWidget(hsep())
         llyt.addWidget(QLabel(
             "<b>🖥 Presenter screen</b> — the colours it wears:"))
         self._presenter_theme_combo = QComboBox()
@@ -241,7 +257,7 @@ class LookTabMixin(_DialogHost):
             self._theme_list.addItem(empty)
         self._theme_list.blockSignals(False)
 
-    def _selected_own(self) -> "looks.Look | None":
+    def _selected_own(self) -> looks.Look | None:
         look = looks.get(self.selected_theme())
         return look if look is not None and look.group == user_looks.GROUP else None
 

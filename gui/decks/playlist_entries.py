@@ -10,10 +10,13 @@ from pathlib import Path
 
 from PySide6.QtCore import QUrl
 
+from planner.playlist.m3u import playlist_line_path
 
-def playlist_paths(lines: list[str]) -> list[Path]:
+
+def playlist_paths(lines: list[str], base: Path | None = None) -> list[Path]:
     """The track paths a playlist's lines name, in file order: comments and
-    blank lines skipped, a file: URL read as its local path, quotes dropped."""
+    blank lines skipped, a file: URL read as its local path, quotes dropped,
+    a relative line taken from the playlist's folder `base`."""
     out: list[Path] = []
     for line in lines:
         s = line.strip()
@@ -23,7 +26,7 @@ def playlist_paths(lines: list[str]) -> list[Path]:
             u = QUrl(s)
             if u.isLocalFile():
                 s = u.toLocalFile()
-        out.append(Path(s.strip('"')))
+        out.append(playlist_line_path(s, base))
     return out
 
 

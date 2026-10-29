@@ -1,20 +1,17 @@
-"""⏸ Between the rounds: the pause, its filler music and the spoken next dance.
+"""⏸ Between the rounds: the pause and the spoken next dance.
 
 Split off player/window/main_player.py as a MainWindow mixin. Nothing here plays a heat —
 this is the time in between, which the hall still hears.
 """
+import itertools
 import logging
-
 import time
-from PySide6.QtCore import (
-    QTimer,
-    QUrl,
-)
-from pathlib import Path
-
-from player.audio.announce import announce_secs
-from planner import i18n
 from typing import TYPE_CHECKING
+
+from PySide6.QtCore import QTimer
+
+from planner import i18n
+from player.audio.announce import announce_secs
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -33,12 +30,12 @@ log = logging.getLogger("dancesport.gui.pause")
 # A FLOOR, not the whole answer: a long announcement ("Nächster Tanz: West
 # Coast Swing, Heat 5" runs past six seconds) starts earlier than this, see
 # `_announce_lead`.
-_ANNOUNCE_LEAD = 5.0
+ANNOUNCE_LEAD = 5.0
 # …and the music waits this long after the last word. The hall should hear the
 # call end, not have the next title come in on its tail.
-_ANNOUNCE_TAIL = 1.2
+ANNOUNCE_TAIL = 1.2
 # ⏳ …but the held-back start waits only this long. There the tail is not
-# covered by anything: the pause has filler music running underneath, where
+# covered by anything: the pause has its 🎶 beds running underneath, where
 # 1.2s is inaudible, while a held start is silence from the last word to the
 # first bar — and 1.2s of silence in a hall is a hole, not a breath. Nudge
 # this, not _ANNOUNCE_TAIL, if the call and the music sit too close.
@@ -48,9 +45,13 @@ _START_TAIL = 0.20
 # ⏳ How often the held-back start looks to see whether the voice is done.
 # Granularity, so it is added to _START_TAIL on top: kept well under it.
 _ANNOUNCE_POLL_MS = 25
+# 🔈 Test in ⚙ Settings walks the ten dances, and the heats 1-8 (all that
+# were recorded) beside them, so each click is another call.
+_TEST_DANCES = ("LW", "TG", "WW", "SF", "QS", "SA", "CC", "RB", "PD", "JI")
+_test_calls = itertools.count()
 
 
-def _live_target(nxt):
+def live_target(nxt):
     """An armed (table, row, path) advance, with the row re-found by its path.
 
     The row number was right when the advance was armed; a re-render during
@@ -71,7 +72,7 @@ def _live_target(nxt):
 
 
 class PauseMusicMixin(MainWindowHost):
-    """⏸ The pause between rounds: filler music and the spoken next dance."""
+    """⏸ The pause between rounds and the spoken next dance."""
 
     def _heat_of(self, table, row) -> int | None:
         """The heat number a row sits in, or None when there is none to call.
@@ -80,9 +81,12 @@ class PauseMusicMixin(MainWindowHost):
         list — a normal running order, a party set, an imported .m3u — has no
         grid, so the heat is read off the ORDER instead: three Sambas in the
         Vorrunde are heats 1, 2 and 3, and the count restarts with the next
-        round strip. None when the operator didn't ask for the heat at all.
+        round strip. None when the operator didn't ask for the heat at all
+        (…with heat off, and no 🔢 heat-only call either).
         """
-        if table is None or not self._play_panel.announce_heat():
+        panel = self._play_panel
+        if table is None or not (panel.announce_heat()
+                                 or panel.announce_heat_only()):
             return None
         if not (0 <= row < len(table._row_meta)):
             return None
@@ -111,7 +115,7 @@ class PauseMusicMixin(MainWindowHost):
 
     def _announce_dance_of(self, nxt) -> tuple[str, int | None]:
         """(dance code, heat) of a (table, row, path) advance target."""
-        nxt = _live_target(nxt)
+        nxt = live_target(nxt)
         if nxt is None:
             return "", None
         t, nrow, _npath = nxt
@@ -132,11 +136,13 @@ class PauseMusicMixin(MainWindowHost):
         that was never recorded.
         """
         if self._between.pending is None:
-            return _ANNOUNCE_LEAD
+            return ANNOUNCE_LEAD
         code, heat = self._announce_dance_of(self._between.pending)
-        secs = announce_secs(code, heat=heat)
-        return max(_ANNOUNCE_LEAD, secs + _ANNOUNCE_TAIL) if secs \
-            else _ANNOUNCE_LEAD
+        secs = announce_secs(code, now=not self._play_panel.announce_lead(),
+                             heat=heat,
+                             heat_only=self._play_panel.announce_heat_only())
+        return max(ANNOUNCE_LEAD, secs + ANNOUNCE_TAIL) if secs \
+            else ANNOUNCE_LEAD
 
     def _hold_for_announcement(self) -> bool:
         """The pause has run out but the voice has not — True to keep waiting.
@@ -153,7 +159,7 @@ class PauseMusicMixin(MainWindowHost):
             return False
         now = time.monotonic()
         if self._announcer.speaking:
-            self._between.quiet_until = now + _ANNOUNCE_TAIL
+            self._between.quiet_until = now + ANNOUNCE_TAIL
         if now >= self._between.quiet_until:
             return False
         self._set_countdown("🔈  announcing…")
@@ -171,7 +177,29 @@ class PauseMusicMixin(MainWindowHost):
         code, heat = self._announce_dance_of(self._between.pending)
         if not code:
             return
-        self._announcer.speak(code, heat=heat)
+        # 📣 "Nächster Tanz" off in ⚙ Settings: the bare dance, as over the music.
+        self._announcer.speak(code, now=not self._play_panel.announce_lead(),
+                              heat=heat,
+                              heat_only=self._play_panel.announce_heat_only())
+
+    def _skip_to_call(self) -> bool:
+        """⏭ in a pause whose call is still to come: cut the wait short to
+        where the voice comes in, instead of skipping the call along with it
+        (Marcel: "when i click next dance i miss the announcement, i only want
+        skip the play lenht of the pause music"). The title starts once the
+        call is through.
+
+        False when there is no call left to wait for: announcements off, ✋
+        Manual or already spoken — ⏭ then goes on at once, as before."""
+        b = self._between
+        if (b.announced or b.pending is None
+                or not self._pv("announce")
+                or not self._deck_advance(b.pending[0])
+                or not self._announce_dance_of(b.pending)[0]):
+            return False
+        b.advance_at = min(b.advance_at,
+                           time.monotonic() + self._announce_lead())
+        return True
 
     def _playing_row(self):
         """(deck, row) of the row that is actually playing (the one with a
@@ -200,7 +228,8 @@ class PauseMusicMixin(MainWindowHost):
         Tanz: …"). False when nothing was said."""
         return self._announcer.speak(
             self._playback.dance, now=True,
-            heat=self._heat_of(*self._playing_row()))
+            heat=self._heat_of(*self._playing_row()),
+            heat_only=self._play_panel.announce_heat_only())
 
     def _announce_start_first(self, ent) -> bool:
         """⏳ Call the dance into silence and hold the music for it.
@@ -254,15 +283,21 @@ class PauseMusicMixin(MainWindowHost):
             return
         self._speak_start_call()
 
-    def _announce_test(self, voice: str, heat: bool):
+    def _announce_test(self, voice: str, heat: bool, lead: bool = True,
+                       heat_only: bool = False):
         """🔈 Test in ⚙ Settings — hear voice and level before the round.
 
         Speaks the dialog's unsaved pick, then puts the saved voice back: the
         clips are chosen as `speak` starts, so the sample keeps its voice, and
-        a Cancel afterwards leaves the evening announcing as before."""
+        a Cancel afterwards leaves the evening announcing as before. Each
+        click says another dance and heat."""
+        n = next(_test_calls)
         self._announcer.set_voice(voice)
         try:
-            spoken = self._announcer.speak("LW", heat=3 if heat else None)
+            spoken = self._announcer.speak(
+                _TEST_DANCES[n % len(_TEST_DANCES)], now=not lead,
+                heat=n % 8 + 1 if heat or heat_only else None,
+                heat_only=heat_only)
         finally:
             self._announcer.set_voice(
                 str(self._settings.get("announce_voice", "random")))
@@ -271,13 +306,20 @@ class PauseMusicMixin(MainWindowHost):
                 "🔈 No announcement recordings found for this voice.", 6000)
 
     def _on_to_pause(self):
-        """⏸♪ on the big player: end the playing song right now and jump into
-        the between-songs pause (filler music + countdown), exactly as a timed
-        play-length end would. Needs Playing mode + auto-advance + a next song;
-        otherwise it just stops the song."""
+        """⏸♪ on the big player: end the playing song and go into the
+        between-songs pause (countdown, 🎶 beds), exactly as a timed
+        play-length end would. A playing song goes down over the fade time
+        first, the 🔉↓ ramp, whose end opens the pause (Marcel: "if i use the
+        [cup] button to get into pause i want the title fade out before").
+        Needs Playing mode + auto-advance + a next song; otherwise it just
+        stops the song."""
         if self._between.pending is not None:
             return   # already in the pause
         if not self._is_playing_mode() or self._playback.path is None:
+            return
+        if (self._player is not None and self._player.playbackState()
+                == QMediaPlayer.PlaybackState.PlayingState):
+            self._fade_out_now()
             return
         self._on_timed_end()
         if self._between.pending is None:
@@ -288,19 +330,14 @@ class PauseMusicMixin(MainWindowHost):
     def _extend_pause(self):
         """⏱➕: lengthen the running auto-advance pause by one more pause
         length, so a heat change that runs long doesn't cut to the next song
-        too soon. The preloaded filler keeps rotating meanwhile."""
+        too soon."""
         if self._between.pending is None:
             self.statusBar().showMessage(
                 "No auto-advance pause is running to extend.", 4000)
             return
         extra = max(4, self._engine_pause_secs())
         self._between.advance_at += extra
-        if self._between.held:
-            # ⏯-held: the tick pins the deadline to now + hold_remaining.
-            self._between.hold_remaining += extra
         self._between.shown = True   # 🖥 held by hand — now the hall should see it
-        # Keep the fade-out ramp proportional to the (now longer) pause.
-        self._filler.total += extra
         r = int(self._between.advance_at - time.monotonic() + 0.999)
         self._set_countdown(f"⏸  {r} s")
         self.statusBar().showMessage(
@@ -309,7 +346,7 @@ class PauseMusicMixin(MainWindowHost):
     def _start_next_round(self) -> bool:
         """⏯ on the big player after a 🏁 round-end stop: start the next
         round's first song. Returns True when the tap was handled."""
-        nxt = _live_target(self._between.round_start)
+        nxt = live_target(self._between.round_start)
         self._between.round_start = None
         if nxt is None:
             return False    # its title left the deck: ⏯ does what it always does
@@ -318,125 +355,10 @@ class PauseMusicMixin(MainWindowHost):
         t.scroll_row_into_play_view(nrow)
         return True
 
-    def _start_pause_music(self):
-        """Start the optional filler for the between-songs pause (silent — the
-        tick fades it in). The current title resumes where the last pause left
-        off; when it ends, _on_pause_media_status rotates to the next one.
-        Very short pauses skip it (no room for an audible fade in + out)."""
-        paths = self._play_panel.pause_music()
-        secs = self._engine_pause_secs()
-        if (not paths or not self._pause_player or self._pause_out is None
-                or secs < 4):
-            return
-        path = self._filler.load(paths)
-        if path is None:
-            log.warning("🎵 Pause music not found\n"
-                        "files: %s", "\n".join(paths))
-            return
-        url = QUrl.fromLocalFile(path)
-        if self._pause_player.source() != url:
-            self._pause_player.setSource(url)
-        self._filler.total = float(secs)
-        self._pause_out.setVolume(0.0)
-        self._pause_player.play()
-        self._filler.active = True
-
-    def _on_pause_media_status(self, status):
-        """A filler title ran out mid-pause → rotate to the next one (a single
-        title restarts from the top) and update the big-player status."""
-        if status == QMediaPlayer.MediaStatus.InvalidMedia and self._pause_player:
-            self._skip_broken_filler()
-            return
-        if (status != QMediaPlayer.MediaStatus.EndOfMedia
-                or not self._pause_player or not self._filler.titles):
-            return
-        path = self._filler.rotate()
-        if path is None:
-            return      # the titles check above rules that out
-        url = QUrl.fromLocalFile(path)
-        if self._pause_player.source() != url:
-            self._pause_player.setSource(url)
-        else:
-            self._pause_player.setPosition(0)
-        if self._between.pending is not None:   # pause still running
-            self._pause_player.play()
-            self._filler.active = True
-            self._show_pause_status()
-
-    def _skip_broken_filler(self):
-        """A filler title that cannot be decoded never reaches EndOfMedia: the
-        pause stayed silent behind its name, and every later pause started on
-        it again. Leave it out and go on with the next title."""
-        player = self._pause_player
-        if player is None:
-            return
-        log.warning("🎵 Pause music would not play\n"
-                    "error: %s\n"
-                    "file: %s", player.errorString() or "unknown",
-                    self._filler.current)
-        path = self._filler.drop_current()
-        if path is None:
-            self._filler.active = False
-        else:
-            player.setSource(QUrl.fromLocalFile(path))
-        if self._between.pending is not None:   # pause still running
-            if path is not None:
-                player.play()
-            self._show_pause_status()
-
     def _show_pause_status(self):
-        """Pause display: with filler music the title line carries the filler
-        (walking text if too long) and 'Auto-advance' moves to the subtitle
-        row; the card's seek bar/⏯ control the FILLER player meanwhile."""
-        current = self._filler.current     # None exactly when there are no titles
-        if self._filler.active and current is not None:
-            stem = Path(current).stem
-            self._now_playing.setText(i18n.t("⏸ Auto-advance…  🎵 %s") % stem)
-            if self._big_player and self._pause_player:
-                self._big_player.set_now(
-                    "", subtitle="Auto-advance…", status=stem,
-                    sub_icon="pause_circle")
-                self._big_player.set_player(self._pause_player)
-        else:
-            self._now_playing.setText("⏸  Auto-advance…")
-            if self._big_player:
-                self._big_player.set_now("", status="Auto-advance…",
-                                         sub_icon="pause_circle")
+        """Pause display: the title line and the card say 'Auto-advance'."""
+        self._now_playing.setText("⏸  Auto-advance…")
+        if self._big_player:
+            self._big_player.set_now("", status="Auto-advance…",
+                                     sub_icon="pause_circle")
         self._refresh_next_up()   # set_now("") cleared it — the pause needs it most
-
-    def _update_pause_music(self, remaining: float):
-        """Fade ramp of the filler: in over the first seconds of the pause,
-        out over the last ones; follows the user's base volume in between."""
-        if (not self._pause_player
-                or self._pause_player.playbackState()
-                != QMediaPlayer.PlaybackState.PlayingState):
-            return
-        self._mix.filler_fade = self._filler.fade(remaining)
-        self._update_pause_music_volume()
-
-    def _update_pause_music_volume(self):
-        """The filler's level: its own fade ramp × the shared announcement duck.
-
-        Split out of the 200 ms fade tick because the duck ramps in 25 ms steps
-        — stepping the filler only every fifth of a second would leave the very
-        artefact the ramp exists to avoid.
-
-        While ⏭ fades the filler out, that fade alone sets the level: a duck
-        coming back up (the announcer it stopped, a 🎛 pad ending) would
-        otherwise swell the filler between two of its steps."""
-        if self._pause_out is None or self._between.fade_end is not None:
-            return
-        self._pause_out.setVolume(
-            self._mix.filler(self._play_panel.pause_music_vol() / 100.0))
-
-    def _stop_pause_music(self):
-        """Silence the filler, keeping its position for the next pause."""
-        self._filler.active = False
-        if self._big_player and self._player:
-            self._big_player.set_player(self._player)   # card back to main
-        if (self._pause_player
-                and self._pause_player.playbackState()
-                != QMediaPlayer.PlaybackState.StoppedState):
-            self._pause_player.pause()
-            if self._pause_out is not None:
-                self._pause_out.setVolume(0.0)

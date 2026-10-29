@@ -21,8 +21,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 import planner.music.library as plib
 from planner.music.db import AudioCache
-from planner.music.scan_caches import GlobalScanCache
 from planner.music.library import MusicLibrary
+from planner.music.scan_caches import GlobalScanCache
 from tests.db_support import use_scratch_db
 
 
@@ -48,8 +48,8 @@ class GlobalDurationHealTest(unittest.TestCase):
             probes.append(path)
             return None, secs
         lib = MusicLibrary()
-        with mock.patch.object(plib, "_read_duration", probe), \
-                mock.patch.object(plib, "_read_tags_once", tags_once):
+        with mock.patch.object(plib, "read_duration", probe), \
+                mock.patch.object(plib, "read_tags_once", tags_once):
             lib.scan(AudioCache(), music_dir=self.root, skip_special=False, learn=False,
                      analyze=False, interactive=False,
                      global_cache=GlobalScanCache() if whole_repo else None)

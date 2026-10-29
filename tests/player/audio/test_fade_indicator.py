@@ -14,8 +14,8 @@ import os
 import tempfile
 import time
 import unittest
-from types import SimpleNamespace
 from pathlib import Path
+from types import SimpleNamespace
 
 # Offscreen BEFORE any QApplication exists, and state files into a temp dir (the
 # gui modules resolve those at import time — see test_gui_smoke.py).
@@ -25,15 +25,15 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtWidgets import QApplication, QWidget
-from tests.qt_test_support import reap_widget
 
+from gui.decks.deck_set import DeckSet
+from player.audio.between_dances import BetweenDances
 from player.audio.fade_now import FadeNow
 from player.audio.mix import OutputMix
-from player.window.main_player import PlayerControlMixin
-from player.widgets.player import BigPlayerWidget
 from player.audio.playback_state import PlaybackState
-from player.audio.between_dances import BetweenDances
-from gui.decks.deck_set import DeckSet
+from player.widgets.player import BigPlayerWidget
+from player.window.main_player import PlayerControlMixin
+from tests.qt_test_support import reap_widget
 
 ORANGE = "#fb8c00"
 RED = "#e53935"
@@ -243,8 +243,8 @@ class _Desk(PlayerControlMixin, QWidget):
         self._between = BetweenDances()
         self._between.pending = None
         self._pd_stop_at = None
-        self._between.fade_end = None
         self._ended = []
+        self._settings = {}
 
     def _is_playing_mode(self):
         return True
@@ -253,9 +253,6 @@ class _Desk(PlayerControlMixin, QWidget):
         pass
 
     def _set_countdown(self, text):
-        pass
-
-    def _stop_pause_music(self):
         pass
 
     def _maybe_skip_silence(self):

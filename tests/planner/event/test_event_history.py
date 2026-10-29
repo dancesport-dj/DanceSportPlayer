@@ -19,8 +19,7 @@ from pathlib import Path
 
 from dancesport_planner import MusicEntry, MusicLibrary
 from planner.event import event_plan
-from planner.event.competition import (competition_matches_file,
-                                 parse_competition_schedule)
+from planner.event.competition import competition_matches_file, parse_competition_schedule
 
 _STD = ("LW", "TG", "WW", "SF", "QS")
 _BPM = {"LW": 29, "TG": 32, "WW": 59, "SF": 29, "QS": 50,

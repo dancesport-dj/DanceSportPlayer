@@ -29,7 +29,7 @@ class EmptyMarkRowHint(_Base):
         self.use(LOOK, language)
         panel = self.keep(PlayModePanel({"pd_highlight_stop": True}))
         panel.set_pd_marks([])
-        labels = [w for w in panel.pd_marks_box.findChildren(QLabel)]
+        labels = list(panel.pd_marks_box.findChildren(QLabel))
         self.assertEqual(len(labels), 1)
         return labels[0].text()
 

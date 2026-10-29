@@ -15,9 +15,9 @@ import logging
 import unittest
 from pathlib import Path
 
-from planner.music.analysis import _release_free_heap
-from planner.music.db import AudioCache
 from planner.models import MusicEntry
+from planner.music.analysis import release_free_heap
+from planner.music.db import AudioCache
 
 
 class _StubCache:
@@ -145,8 +145,8 @@ class ReleaseFreeHeapTest(unittest.TestCase):
 
     def test_it_never_raises(self):
         """Best effort by design: a missing symbol may only cost us the release."""
-        _release_free_heap()
-        _release_free_heap()
+        release_free_heap()
+        release_free_heap()
 
 
 if __name__ == "__main__":

@@ -7,9 +7,8 @@ the ImportMixin methods are thin wrappers that fill in the GUI-side context
 """
 
 from planner import i18n
-from planner.models import ALLOW_REPEAT, TEMPO_RANGES
+from planner.models import ALLOW_REPEAT, TEMPO_RANGES, RoundTier
 from planner.terms import dance_name
-
 
 # ── ≈ Similar-song matching: Levenshtein on the cleaned title ──────────────────
 # The old TurnierCheck matched "similar" songs by an edit distance on names. We run
@@ -274,9 +273,8 @@ def build_dropped_dup_report(files: list) -> dict:
         by_exact: dict[str, list] = {}
         for r in recs:
             by_exact.setdefault(r["exact"], []).append(r)
-        for group in by_exact.values():
-            if len(group) >= 2:
-                clusters.append({"kind": "exact", "members": group})
+        clusters.extend({"kind": "exact", "members": group}
+                        for group in by_exact.values() if len(group) >= 2)
         cmap = title_cluster_map([k for r in recs for k in (r.get("tkeys") or ())])
         for reps in similar_reps(recs, cmap).values():
             for group in dance_split(list(reps.values())):
@@ -327,9 +325,9 @@ _FINAL_NAMES = ("final", "endrunde")
 _NOT_THE_FINAL = ("halb", "semi", "viertel", "achtel", "zwischen")
 
 
-def is_final_round(round_name: str = "", tier: str = "") -> bool:
+def is_final_round(round_name: str = "", tier: RoundTier | str = "") -> bool:
     """Is this slot in the final? Used by the checks that only bite there."""
-    if (tier or "").strip().lower() == "final":
+    if str(tier).strip().lower() == RoundTier.FINAL:
         return True
     name = (round_name or "").strip().lower()
     if any(word in name for word in _NOT_THE_FINAL):

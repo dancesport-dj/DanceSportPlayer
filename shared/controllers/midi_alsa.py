@@ -15,7 +15,6 @@ the data union from 16. Notes are channel, note, velocity bytes there; a
 controller or pitch bend is the channel byte, then `unsigned int param` at 20
 and `signed int value` at 24.
 """
-from __future__ import annotations
 
 import ctypes
 import ctypes.util
@@ -43,7 +42,6 @@ _EVENT_SIZE = 28
 _EV_NOTEON, _EV_NOTEOFF, _EV_CONTROLLER, _EV_PITCHBEND = 6, 7, 10, 13
 
 _lib = None
-
 
 class _PollFd(ctypes.Structure):
     _fields_ = [("fd", ctypes.c_int), ("events", ctypes.c_short),

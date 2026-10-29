@@ -35,8 +35,8 @@ script, then run:
 import os
 import re
 import sys
-from pathlib import Path
 from collections.abc import Iterable
+from pathlib import Path
 
 # Editable voice IDs. Replace these with IDs from your ElevenLabs Voice
 # Library if you prefer different voices. Both are multilingual voices and
@@ -104,12 +104,23 @@ DANCE_NAMES = {
 # others, and the hall needs the word.
 HEAT_CALLS = {
     "german": {
-        "heat": "Heat",
-        "1": "eins",
-        "2": "zwei",
-        "3": "drei",
-        "4": "vier",
-        "5": "fünf",
+        # The German screen says "Gruppe", and so does the hall now (Marcel:
+        # "create new audio for german translation Gruppe for Heat").
+        # The comma leads on into the number; the audition winner over
+        # "Gruppe." and "Gruppe...", read slower in the female voice (SPEEDS).
+        "heat": "Gruppe,",
+        # The full stop is the audition winner: bare "eins" came back cut
+        # off on its "s" in the female voice (Marcel: "zu abgehackt"); the
+        # male one, read slower (SPEEDS), replaces a take that started on
+        # full level with no lead-in.
+        "1": "eins.",
+        # 2-5 likewise, auditioned per voice. The male "3" was read from
+        # "drei," - its "drei." take did not pass - and there is no
+        # per-voice text, so a re-record of it needs that typed by hand.
+        "2": "zwei.",
+        "3": "drei.",
+        "4": "vier.",
+        "5": "fünf.",
         "6": "sechs",
         "7": "sieben",
         "8": "acht",
@@ -136,6 +147,12 @@ ANNOUNCEMENTS = {language: {**DANCE_NAMES[language], **HEAT_CALLS[language]}
 SPEEDS = {
     ("female", "english/LW"): 0.85,
     ("female", "english/CC"): 0.85,
+    # Marcel on the female "Gruppe": "its also not nice" - cut off at its end.
+    ("female", "german/heat"): 0.9,
+    # Marcel on the male clips: "male is also with same problem".
+    ("male", "german/1"): 0.9,
+    # The female "vier." at normal speed did not pass the audition.
+    ("female", "german/4"): 0.9,
 }
 
 # Spellings to audition, per language and announcement (see the module
@@ -228,10 +245,10 @@ def announcement_jobs(genders: Iterable[str]) -> list:
                              OUTPUT_ROOT / language / gender / f"{code}.mp3"))
         for language, variants in PRONUNCIATION_VARIANTS.items():
             for code, texts in variants.items():
-                for text in texts:
-                    jobs.append((gender, f"{language}/{code} ({text})", text,
-                                 VARIANTS_ROOT / language / gender
-                                 / f"{code}__{spelling(text, language)}.mp3"))
+                jobs.extend((gender, f"{language}/{code} ({text})", text,
+                             VARIANTS_ROOT / language / gender
+                             / f"{code}__{spelling(text, language)}.mp3")
+                            for text in texts)
     return jobs
 
 

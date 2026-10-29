@@ -19,9 +19,9 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtCore import QPoint
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtWidgets import QApplication, QTableWidget, QTableWidgetItem
-from tests.qt_test_support import reap_widget
 
 from player.widgets.player import PreviewOverlay
+from tests.qt_test_support import reap_widget
 
 _app = QApplication.instance() or QApplication([])
 

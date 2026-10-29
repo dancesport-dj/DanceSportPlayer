@@ -38,7 +38,7 @@ TARGETS = [
     (r"⭐  Find similar \(in my wishlist only\)", "_show_similar"),
     (r"🌱  Find similar \(never played\)", "_show_similar"),
     (r"📜  Find planned before", "_show_planned_before"),
-    (r"📋  Copy file path", "module._show_toast"),
+    (r"📋  Copy file path", "module.show_toast"),
     (r"📂  Show in Explorer", "module.reveal_in_explorer"),
     (r"🎵  Check music speed", "host.check_track_speed"),
     (r"🏷  Re-read MP3 tags", "host.rescan_entry_tags"),
@@ -129,13 +129,13 @@ class ContextMenuDispatchTest(unittest.TestCase):
         patches = [mock.patch.object(table_menu, "QMenu", _Menu),
                    mock.patch.object(PlaylistTable, "host", new_callable=mock.PropertyMock,
                                      return_value=host)]
-        for name in TABLE_METHODS:
-            patches.append(mock.patch.object(
-                t, name, side_effect=lambda *a, _n=name, **k: calls.append(_n)))
-        for name in MODULE_FUNCS:
-            patches.append(mock.patch.object(
-                table_menu, name,
-                side_effect=lambda *a, _n=name, **k: calls.append("module." + _n)))
+        patches.extend(mock.patch.object(
+            t, name, side_effect=lambda *a, _n=name, **k: calls.append(_n))
+            for name in TABLE_METHODS)
+        patches.extend(mock.patch.object(
+            table_menu, name,
+            side_effect=lambda *a, _n=name, **k: calls.append("module." + _n))
+            for name in MODULE_FUNCS)
         # removeRow's caller goes on to drop the row meta and announce the change.
         patches.append(mock.patch.object(t, "_notify_changed"))
         for sig in ("saveRequested", "saveToTournamentsRequested"):

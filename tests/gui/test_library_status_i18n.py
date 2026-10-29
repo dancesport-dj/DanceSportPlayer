@@ -34,8 +34,8 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_libstatus_i18n_"))
 
-from gui.window import main_global as glb
 from gui.config_panel import mark_index_gaps
+from gui.window import main_global as glb
 from planner import i18n
 from planner.models import MusicEntry
 

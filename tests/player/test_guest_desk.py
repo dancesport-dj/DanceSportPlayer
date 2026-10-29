@@ -183,7 +183,7 @@ class GuestDeskTest(unittest.TestCase):
         if badge is None:
             self.fail("no badge")
         calm = badge.styleSheet()
-        with mock.patch.object(main_guest, "_show_toast") as toast:
+        with mock.patch.object(main_guest, "show_toast") as toast:
             self.desk._on_arrived({"song": song_id(self.moon)})
             self.desk._on_arrived({"text": "Dancing Queen"})
         self.assertEqual([c.args[1] for c in toast.call_args_list],
@@ -202,7 +202,7 @@ class GuestDeskTest(unittest.TestCase):
         self._start()
         dlg = self.win.open_guest_window()
         self.addCleanup(dlg.close)
-        with mock.patch.object(main_guest, "_show_toast") as toast:
+        with mock.patch.object(main_guest, "show_toast") as toast:
             self.desk._on_arrived({"song": song_id(self.moon)})
         toast.assert_not_called()
         self.assertFalse(self.desk._flash.isActive())

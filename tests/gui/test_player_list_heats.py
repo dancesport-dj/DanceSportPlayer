@@ -23,7 +23,7 @@ from PySide6.QtWidgets import QApplication
 
 from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry
-from shared.columns import _COL_HEAT
+from shared.columns import COL_HEAT
 from tests.qt_test_support import reap_widget
 
 
@@ -52,7 +52,7 @@ class PlayerListHeatsTest(unittest.TestCase):
 
     def heats(self, t):
         """{title: Heat cell} of every song row."""
-        return {meta.entry.title: t.item(row, _COL_HEAT).text()
+        return {meta.entry.title: t.item(row, COL_HEAT).text()
                 for row, meta in t._row_meta.numbered()}
 
     def test_a_restored_running_order_shows_its_heats(self):
@@ -100,7 +100,7 @@ class PlayerListHeatsTest(unittest.TestCase):
         rows = t._row_meta.numbered()
         self.assertEqual(t._player_section_labels([m.entry for _, m in rows]),
                          [name for name, _ in rounds])
-        self.assertEqual([t.item(r, _COL_HEAT).text() for r, _ in rows],
+        self.assertEqual([t.item(r, COL_HEAT).text() for r, _ in rows],
                          ["Heat 1", "Heat 2", "Heat 1", "Heat 2", "", ""])
 
 

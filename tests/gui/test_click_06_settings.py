@@ -14,13 +14,12 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from PySide6.QtCore import QTime
+from PySide6.QtWidgets import QAbstractButton, QDialogButtonBox, QGroupBox, QMessageBox, QTableWidget
+
 # First: it points the app's state files at a temp folder before any app
 # module is imported.
 from tests.gui.monkey_support import ClickThrough, printable
-
-from PySide6.QtCore import QTime
-from PySide6.QtWidgets import (
-    QAbstractButton, QDialogButtonBox, QGroupBox, QMessageBox, QTableWidget)
 
 
 class SettingsClickTest(ClickThrough):
@@ -226,6 +225,7 @@ class SettingsClickTest(ClickThrough):
         its own, restart: the deck is back and plays from that folder."""
         from PySide6.QtMultimedia import QMediaPlayer
         from PySide6.QtWidgets import QFileDialog
+
         from planner.event import venue_pack
         from planner.store import state_dir
         pack = self.out / f"venue{venue_pack.SUFFIX}"
@@ -323,7 +323,7 @@ class SettingsClickTest(ClickThrough):
         self.restart()
         win = self.win
         with self.clicking():
-            for btn, text in ((win._cfg.generate_btn, "⚡  Playlist erzeugen"),
+            for btn, text in ((win._cfg.generate_btn, "⚡  Wiedergabeliste erzeugen"),
                               (win._cfg.save_btn, "💾  M3U speichern"),
                               (win._mode_plan_btn, "📝  Planung"),
                               (win._mode_play_btn, "▶  Wiedergabe")):

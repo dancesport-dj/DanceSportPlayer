@@ -6,25 +6,35 @@ MainWindow mixin: it owns its state (released? idle since when? which device?
 the system-sound mute) and gets everything else it looks at handed in, so it is
 built and tested without a window.
 """
+import contextlib
 import logging
 import time
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
+
+from PySide6.QtCore import QObject, QTimer
 
 from planner import i18n
-from shared.audio.playback import (_AUDIO_IDLE_S, OUTPUT_SOURCES, SYSTEM_DEFAULT,
-                                   device_id, match_output)
-from shared.stores import save_settings
 from player.audio.mix import OutputMix
 from player.audio.system_sounds import SystemSoundGuard
+from shared.audio.playback import (
+    AUDIO_IDLE_S,
+    OUTPUT_SOURCES,
+    SYSTEM_DEFAULT,
+    choice_pair,
+    device_id,
+    match_output,
+    pair_label,
+)
+from shared.stores import save_settings
 
-try:
+with contextlib.suppress(ImportError):
     from PySide6.QtMultimedia import QMediaDevices, QMediaPlayer
-except ImportError:
-    pass
 
 if TYPE_CHECKING:
     from player.audio.announce import DanceAnnouncer
     from player.audio.cart_voices import CartVoices
+    from player.audio.pair_route import PairRoute
 
 log = logging.getLogger("dancesport.gui.audio")
 
@@ -39,25 +49,29 @@ class AudioDevice:
     saves, and the wall builds its pool after this exists. `devices` is
     QMediaDevices unless a test hands in its own list; `warn` tells the
     operator that a chosen output is not there. `cue` is the 🎧 pre-listen
-    player (player.audio.cue_player), None without Qt Multimedia."""
+    player (player.audio.cue_player), None without Qt Multimedia.
+    The music's players get theirs from `make_route`, each the first time
+    the music is put on a pair; until then they run Qt's own path."""
 
-    def __init__(self, player, audio_out, pause_player, pause_out, *,
+    def __init__(self, player, audio_out, *,
                  mix: OutputMix,
                  settings: Callable[[], dict],
-                 cart_voices: Callable[[], "CartVoices | None"],
+                 cart_voices: Callable[[], CartVoices | None],
                  is_playing_mode: Callable[[], bool],
                  apply_volume: Callable[[], None],
                  system_sounds: SystemSoundGuard,
-                 announcer: Callable[[], "DanceAnnouncer | None"] = lambda: None,
+                 announcer: Callable[[], DanceAnnouncer | None] = lambda: None,
                  devices=None,
                  warn: Callable[[str], None] | None = None,
                  cue=None,
-                 spare_deck: Callable[[], tuple] = lambda: (None, None)):
+                 spare_deck: Callable[[], tuple] = lambda: (None, None),
+                 make_route: Callable[[object, object], PairRoute] | None = None):
         self._player = player
+        self._make_route = make_route
+        # id(player) → the route of a music player (the deck, the spare deck).
+        self._routes: dict[int, PairRoute] = {}
         self.cue = cue
         self._audio_out = audio_out
-        self._pause_player = pause_player
-        self._pause_out = pause_out
         self._mix = mix
         self._settings = settings
         self._cart_voices = cart_voices
@@ -71,18 +85,23 @@ class AudioDevice:
         self.released = False
         self.idle_since: float | None = None
         self.out_id = None
-        # Source → id of the device it was last put on, and the chosen outputs
-        # already reported missing (said once, until they are back).
-        self._applied: dict[str, bytes] = {}
+        # Source → (device id, channel pair) it was last put on, and the chosen
+        # outputs already reported missing (said once, until they are back).
+        self._applied: dict[str, tuple[bytes, int]] = {}
         self._missing: set[str] = set()
         if player is not None:
             self._devices = devices or QMediaDevices
+            # 🔇 Started by the silence that starts the idle clock: one look
+            # when the window is over, no poll. It goes with the deck's player,
+            # so it never looks at a window that is gone.
+            self._idle_timer = QTimer(player if isinstance(player, QObject) else None)
+            self._idle_timer.setSingleShot(True)
+            self._idle_timer.timeout.connect(self.watch_idle)
             dev = self._devices.defaultAudioOutput()
             self.out_id = None if dev is None or dev.isNull() else dev.id()
-            # Both outputs were built on the default: only a choice moves them.
-            for source, out in (("music", audio_out), ("filler", pause_out)):
-                if out is not None:
-                    self._applied[source] = device_id(out.device())
+            # The output was built on the default: only a choice moves it.
+            if audio_out is not None:
+                self._applied["music"] = (device_id(audio_out.device()), 0)
             self.sync()
 
     def on_outputs_changed(self):
@@ -104,16 +123,18 @@ class AudioDevice:
                 self.out_id = dev.id()
                 log.info("🔊 Default audio device changed → %s", dev.description())
         self.sync()
+        # 🔕 While muted, a backend that mutes per device mutes the one
+        # plugged in just now.
+        if self._system_sounds.active:
+            self.hold_system_sounds(True)
 
     def watch_default(self):
-        """Poll for a change of DEFAULT output — Qt has no signal for it.
+        """Poll for a change of DEFAULT output, off Windows only.
 
-        `audioOutputsChanged` fires when a device appears or disappears, which
-        misses the case the operator hits at the desk: two headsets both plugged
-        in, and the output switched in the Windows flyout. The device list never
-        changes, so the music keeps going into the one nobody is wearing.
-
-        The same tick applies a changed output choice from ⚙ Settings."""
+        The case the operator hits at the desk: two headsets both plugged in,
+        and the output switched in the system's sound menu. On Windows
+        `audioOutputsChanged` fires for that too (measured 2026-10-27, Qt
+        6.11), so nothing polls there. macOS and Linux are unverified."""
         if not self._player:
             return
         dev = self._devices.defaultAudioOutput()
@@ -174,6 +195,20 @@ class AudioDevice:
                                   "system default until it is back.") % name)
         return self._devices.defaultAudioOutput()
 
+    def pair(self, source: str) -> int:
+        """🔀 The channel pair `source` plays on, 0 for the whole device. A
+        source following the music is on the music's pair; one following the
+        system default, or whose chosen card is missing (the default it
+        falls back to is not that card), is on all of it."""
+        choice = self._choice(source)
+        want = choice.get("id")
+        if not want and source != "music":
+            return self.pair("music")
+        if (not want or want == SYSTEM_DEFAULT
+                or self._chosen_device(want, choice.get("name")) is None):
+            return 0
+        return choice_pair(choice)
+
     def cue_device(self):
         """🎧 The pre-listen output, or None when none is chosen (pre-listen
         is off — it follows nothing). A chosen card that is not plugged in
@@ -226,7 +261,8 @@ class AudioDevice:
         cue, music = self._lookup("cue"), self._lookup("music")
         if cue is None or music is None:
             return False
-        return device_id(cue) == device_id(music)
+        return ((device_id(cue), self.pair("cue"))
+                == (device_id(music), self.pair("music")))
 
     def cue_shares_music(self) -> bool:
         """Whether 🎧 pre-listen is left on "Same as the music" while another
@@ -241,13 +277,36 @@ class AudioDevice:
         choice = ((self._settings() or {}).get("audio_outputs") or {}).get(source) or {}
         return choice.get("id") in self._missing
 
-    def _sink(self, source: str):
-        """What takes a device for `source`, or None while it does not exist
-        (the wall's pool and the announcer are built after this)."""
+    def _route(self, player, out, pair: int) -> PairRoute | None:
+        """🔀 A music player's route, built the first time it is put on a
+        channel pair; None for one that never was."""
+        route = self._routes.get(id(player))
+        if route is None and pair:
+            if self._make_route is None:
+                from player.audio.pair_route import PairRoute
+                self._make_route = PairRoute
+            route = self._routes[id(player)] = self._make_route(player, out)
+        return route
+
+    def _hold(self, player, out, on: bool):
+        """Take a music player's card (`on`) or let go of it."""
+        route = self._routes.get(id(player))
+        if route is None:
+            player.setAudioOutput(out if on else None)
+        elif on:
+            route.restore()
+        else:
+            route.release()
+
+    def _sink(self, source: str, pair: int):
+        """What takes a device and channel pair for `source`, or None while
+        it does not exist (the wall's pool and the announcer are built after
+        this)."""
         if source == "music":
-            return self._audio_out.setDevice
-        if source == "filler":
-            return None if self._pause_out is None else self._pause_out.setDevice
+            route = self._route(self._player, self._audio_out, pair)
+            if route is not None:
+                return route.set_device
+            return lambda dev, _pair: self._audio_out.setDevice(dev)
         owner = self._cart_voices() if source == "cartwall" else self._announcer()
         return None if owner is None else owner.set_device
 
@@ -260,17 +319,20 @@ class AudioDevice:
             dev = self.target(source)
             if dev is None or dev.isNull():
                 continue
-            key = device_id(dev)
+            pair = self.pair(source)
+            key = (device_id(dev), pair)
             if self._applied.get(source) == key:
                 continue
-            sink = self._sink(source)
+            sink = self._sink(source, pair)
             if sink is None:
                 continue
-            sink(dev)
+            sink(dev, pair)
             self._applied[source] = key
             log.info("🔊 Audio output set\n"
                      "source: %s\n"
-                     "output: %s", source, dev.description())
+                     "output: %s\n"
+                     "channels: %s", source, dev.description(),
+                     pair_label(pair) if pair else "the whole device")
 
     def swap_deck(self, player, audio_out):
         """🔀 A crossfade made the other player the deck: the music is that
@@ -283,15 +345,12 @@ class AudioDevice:
 
     def busy(self) -> bool:
         """True while anything of ours is — or is about to be — audible: the
-        deck (playing OR paused; a pause is resumed, not ended), the filler
-        music, a cartwall pad, an announcement being spoken."""
+        deck (playing OR paused; a pause is resumed, not ended), a cartwall
+        pad, an announcement being spoken."""
         if self._player is None:
             return True
         stopped = QMediaPlayer.PlaybackState.StoppedState
         if self._player.playbackState() != stopped:
-            return True
-        if (self._pause_player is not None
-                and self._pause_player.playbackState() != stopped):
             return True
         voices = self._cart_voices()
         if voices is not None and voices.playing_keys():
@@ -300,7 +359,9 @@ class AudioDevice:
 
     def watch_idle(self):
         """Hand the sound card back once everything has been silent for
-        `_AUDIO_IDLE_S`. Rides the same 2 s tick as the default-device poll.
+        `_AUDIO_IDLE_S`. Called whenever something starts or stops being
+        audible (see `on_activity`); the silence that starts the clock sets
+        `_idle_timer` to look again when the window is over.
 
         An onboard output un-mutes its analogue stage the moment an app opens
         it, and the PA carries that hiss all evening — it starts with the app
@@ -312,17 +373,23 @@ class AudioDevice:
             return
         if not (self._settings() or {}).get("release_audio_idle"):
             self.idle_since = None
+            self._idle_timer.stop()
             if self.released:
                 self.ensure()   # switched off mid-evening
             return
         if self.busy():
             self.idle_since = None
+            self._idle_timer.stop()
             return
         now = time.monotonic()
         if self.idle_since is None:
             self.idle_since = now
-        elif now - self.idle_since >= _AUDIO_IDLE_S:
+        left = AUDIO_IDLE_S - (now - self.idle_since)
+        if left <= 0:
             self.release()
+        else:
+            # A coarse timer may fire a little early: then it looks again.
+            self._idle_timer.start(int(left * 1000) + 1)
 
     def release(self):
         """Let go of the output — every player at once, because one of them
@@ -330,21 +397,19 @@ class AudioDevice:
         if self.released or self._player is None:
             return
         self.released = True
-        self._player.setAudioOutput(None)
-        if self._pause_player is not None:
-            self._pause_player.setAudioOutput(None)
+        self._hold(self._player, self._audio_out, False)
         voices = self._cart_voices()
         if voices is not None:
             voices.release_outputs()
         # Both built on first use — and from then on holding the card too.
-        spare, _ = self._spare_deck()
+        spare, spare_out = self._spare_deck()
         if spare is not None:
-            spare.setAudioOutput(None)
+            self._hold(spare, spare_out, False)
         announcer = self._announcer()
         if announcer is not None:
             announcer.release_outputs()
         log.info("🔇 Sound device handed back\n"
-                 "after: %.0f s of silence", _AUDIO_IDLE_S)
+                 "after: %.0f s of silence", AUDIO_IDLE_S)
 
     def ensure(self):
         """Take the device back before anything can be heard.
@@ -355,15 +420,13 @@ class AudioDevice:
         if not self.released or self._player is None:
             return
         self.released = False
-        self._player.setAudioOutput(self._audio_out)
-        if self._pause_player is not None and self._pause_out is not None:
-            self._pause_player.setAudioOutput(self._pause_out)
+        self._hold(self._player, self._audio_out, True)
         voices = self._cart_voices()
         if voices is not None:
             voices.restore_outputs()
         spare, spare_out = self._spare_deck()
         if spare is not None and spare_out is not None:
-            spare.setAudioOutput(spare_out)
+            self._hold(spare, spare_out, True)
         announcer = self._announcer()
         if announcer is not None:
             announcer.restore_outputs()
@@ -372,19 +435,26 @@ class AudioDevice:
         log.info("🔊 Sound device taken back for the next title")
 
     def on_playback_state(self, state):
-        """Whatever starts a title — a deck row, ⏯, the presenter, the filler —
+        """Whatever starts a title — a deck row, ⏯, the presenter —
         the device is back before its first sample is due."""
         if state != QMediaPlayer.PlaybackState.StoppedState:
             self.ensure()
+        self.on_activity()
+
+    def on_activity(self):
+        """🔇🔕 Something started or stopped being audible — a player, a pad,
+        an announcement — or ⚙ Settings was saved: the idle clock and the
+        system-sound mute look again. They have no poll of their own."""
         self.watch_system_sounds()
+        self.watch_idle()
 
     # ── 🔕 The OS's own sounds off the PA ─────────────────────────────────────
 
     def watch_system_sounds(self):
         """Mute the System Sounds session all through Playing mode — the gaps
         between dances go out over the PA too — and whenever anything of ours
-        is audible in planning. Rides the 2 s tick, the playback signal and the
-        mode switch; `player.audio.system_sounds` does the muting."""
+        is audible in planning. Called from `on_activity` and the mode
+        switch; `player.audio.system_sounds` does the muting."""
         want = (bool(self._settings().get("mute_system_sounds", True))
                 and (self._is_playing_mode() or self.busy()))
         self.hold_system_sounds(want)

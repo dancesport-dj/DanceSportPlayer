@@ -5,17 +5,12 @@ tempo, hissing, half silence — plus the report it all lands in and the jumps
 from a finding back into the deck it came from. Reading and writing a title's
 tags is a mixin of its own, in gui/window/main_tags.py.
 """
+import html
 import logging
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from typing import TYPE_CHECKING
 
-import planner.music.analysis
-import planner.music.db
-
-from planner.music.analysis import _tempo_prior
-
-from planner.music.parsing import _detect_bpm, _get_tag_bpm
-
-import html
 import shiboken6
 from PySide6.QtCore import (
     Qt,
@@ -39,31 +34,34 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from pathlib import Path
-from planner.playlist.m3u import import_playlist_m3u
-from planner.terms import dance_name
+
+import planner.music.analysis
+import planner.music.db
 from gui.common import (
     BusyDialog,
-    _entry_tooltip,
-)
-from shared.columns import (
-    _COL_TITLE,
-)
-from shared.widgets import (
-    _show_toast,
+    entry_tooltip,
 )
 from gui.dialogs import (  # auto-resolved
     MusicSpeedDialog,
 )
 from gui.dialogs.drop_check import FileDropCheckPanel
 from gui.dialogs.readiness_dialog import ReadinessDialog
-from shared.audio.audio_probes import detect_silences, find_ffmpeg, measure_noise_floor  # auto-resolved
-from planner.playlist import checks as planner_checks
-from planner import i18n
-from planner.playlist import party_check
-from planner.event import readiness
-from typing import TYPE_CHECKING
 from gui.window.main_tags import TagEditMixin
+from planner import i18n
+from planner.event import readiness
+from planner.music.analysis import tempo_prior
+from planner.music.parsing import detect_bpm, get_tag_bpm
+from planner.playlist import checks as planner_checks
+from planner.playlist import party_check
+from planner.playlist.m3u import import_playlist_m3u
+from planner.terms import dance_name
+from shared.audio.audio_probes import detect_silences, find_ffmpeg, measure_noise_floor  # auto-resolved
+from shared.columns import (
+    _COL_TITLE,
+)
+from shared.widgets import (
+    show_toast,
+)
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -89,6 +87,10 @@ class _MusicReportDialog(QDialog):
     _noise_chk: QCheckBox
     _body_lyt: QVBoxLayout
     _music_panel: FileDropCheckPanel
+
+    def reset_play_marker(self):
+        """An all-clear report has no ▶ to reset; a suspects table replaces this."""
+        self._play_state["row"] = -1
 
 
 class MusicCheckMixin(TagEditMixin):
@@ -294,8 +296,8 @@ class MusicCheckMixin(TagEditMixin):
         p = Path(entry.path)
         dance = entry.dance or ""
         bpb = self._BEATS_PER_BAR.get(dance)
-        file_takt = _detect_bpm(p.stem) or 0
-        tag_bpm = _get_tag_bpm(p) or 0.0
+        file_takt = detect_bpm(p.stem) or 0
+        tag_bpm = get_tag_bpm(p) or 0.0
 
         # Measured musical tempo (beats/min): reuse cached features, else analyze now.
         measured = float(getattr(entry.features, "bpm", 0) or 0) if entry.features else 0.0
@@ -303,7 +305,7 @@ class MusicCheckMixin(TagEditMixin):
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             try:
                 feat = planner.music.db.AudioCache._analyze_file(
-                    p, _tempo_prior(dance, entry.bpm))
+                    p, tempo_prior(dance, entry.bpm))
                 entry.features = feat
                 if self._library.cache is not None:
                     self._library.cache.put(p, feat)
@@ -825,7 +827,7 @@ class MusicCheckMixin(TagEditMixin):
                     it.setFont(f)
                 it.setToolTip(note)
             self.statusBar().showMessage(note)
-            _show_toast(self, note)
+            show_toast(self, note)
 
         def on_remove(row: int, e):
             n = self._remove_track_everywhere(e.path)
@@ -906,7 +908,7 @@ class MusicCheckMixin(TagEditMixin):
         pl_it = QTableWidgetItem(pl_txt)
         pl_it.setToolTip(i18n.t("In playlist: %s") % pl_txt)
         t.setItem(r, 1, pl_it)
-        tip = _entry_tooltip(e)
+        tip = entry_tooltip(e)
         dance_it = QTableWidgetItem(dance_name(e.dance, e.dance or "?"))
         dance_it.setToolTip(tip)
         t.setItem(r, 2, dance_it)

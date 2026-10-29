@@ -107,7 +107,7 @@ class PathFallbackTest(unittest.TestCase):
 
     def test_every_path_setting_has_a_fallback(self):
         s = dialogs.apply_path_fallbacks(
-            {k: "X:\\gone" for k in self._orig})
+            dict.fromkeys(self._orig, "X:\\gone"))
         for k in self._orig:
             self.assertTrue(Path(s[k]).is_dir(), f"{k} still points nowhere")
 
@@ -188,7 +188,7 @@ class UserFolderTest(unittest.TestCase):
     """The fallback folders themselves: Qt's own Music / Documents."""
 
     def test_music_and_documents_are_two_absolute_folders(self):
-        music, docs = dialogs._user_music_dir(), dialogs._user_docs_dir()
+        music, docs = dialogs._user_music_dir(), dialogs.user_docs_dir()
         self.assertTrue(music.is_absolute(), music)
         self.assertTrue(docs.is_absolute(), docs)
         self.assertNotEqual(music, docs)
@@ -200,7 +200,7 @@ class UserFolderTest(unittest.TestCase):
     def test_save_as_starts_in_documents_even_where_dropbox_exists(self):
         """No one machine's Dropbox folder as the M3U chooser's start."""
         with mock.patch.object(Path, "exists", return_value=True):
-            self.assertEqual(dialogs._default_save_dir(), dialogs._user_docs_dir())
+            self.assertEqual(dialogs.default_save_dir(), dialogs.user_docs_dir())
 
 
 class MediaBackendTest(unittest.TestCase):

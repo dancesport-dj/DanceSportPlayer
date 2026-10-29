@@ -22,8 +22,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication
 
-from gui.workers import (AudioAnalyzer, EmbeddingIndexWorker, LibraryPass,
-                         LoudnessAnalyzer, PdHighlightAnalyzer)
+from gui.workers import AudioAnalyzer, EmbeddingIndexWorker, LibraryPass, LoudnessAnalyzer, PdHighlightAnalyzer
 from planner.music import embeddings as ae
 
 

@@ -20,16 +20,16 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_simround_"))
 
 from PySide6.QtWidgets import QApplication, QWidget
-from tests.qt_test_support import reap_widget
 
 import gui.table.table_menu as table_menu
-from gui.table.playlist_table import PlaylistTable
 from gui.dialogs.similar_dialog import SimilarTracksDialog
+from gui.table.playlist_table import PlaylistTable
 from planner import config as planner_config
-from planner.music.library import MusicLibrary
-from planner.models import MusicEntry, RoundConfig
-from planner.music.parsing import _song_title_key
 from planner.generate.suggester import PlaylistSuggester
+from planner.models import MusicEntry, RoundConfig
+from planner.music.library import MusicLibrary
+from planner.music.parsing import song_title_key
+from tests.qt_test_support import reap_widget
 
 
 def _tango(i: int, name: str | None = None) -> MusicEntry:
@@ -97,7 +97,7 @@ class DialogTest(unittest.TestCase):
 
     def test_another_copy_of_the_song_counts(self):
         copy = r"D:\Turniere\2024\Blue Moon DJ Ice.mp3"
-        dlg = self._dialog(({copy}, {_song_title_key(copy)}))
+        dlg = self._dialog(({copy}, {song_title_key(copy)}))
         dlg._round_chk.setChecked(True)
         self.assertEqual(dlg._row_entries, [_POOL[11]])
 
@@ -164,7 +164,7 @@ class DeckTest(unittest.TestCase):
     def test_the_round_history_is_what_planned_before_finds(self):
         paths, keys = self.t._round_history_keys("TG", "Endrunde")
         self.assertEqual(paths, {str(self.played.path)})
-        self.assertEqual(keys, {_song_title_key(str(self.played.path))})
+        self.assertEqual(keys, {song_title_key(str(self.played.path))})
 
     def test_a_slot_gives_the_window_its_round(self):
         self.t._show_similar(self.source, slot=("TG", "Endrunde"))

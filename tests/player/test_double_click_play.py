@@ -25,17 +25,17 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_dblclick_"))
 
 from PySide6.QtWidgets import QApplication
-from tests.qt_test_support import reap_widget
 
-from gui import common
-from gui.table import playlist_table as gpt
 from dancesport_planner import MusicEntry
-from player.window.main_player import PlayerControlMixin
-from player.audio.playback_state import PlaybackState
-from gui.table.playlist_table import PlaylistTable
-from gui.decks.running_order import Row, RunningOrder
-from player.audio.between_dances import BetweenDances
+from gui import common
 from gui.decks.deck_set import DeckSet
+from gui.decks.running_order import Row, RunningOrder
+from gui.table import playlist_table as gpt
+from gui.table.playlist_table import PlaylistTable
+from player.audio.between_dances import BetweenDances
+from player.audio.playback_state import PlaybackState
+from player.window.main_player import PlayerControlMixin
+from tests.qt_test_support import reap_widget
 
 
 def _entry(name: str) -> MusicEntry:
@@ -70,9 +70,6 @@ class _Desk(PlayerControlMixin):
             self._playback.path = None
 
     # The rest of the stop: each one only has to be called, not to work here.
-    def _stop_pause_music(self):
-        self.calls.append(("pause music stopped", None))
-
     def _on_stop_btn(self):
         self.calls.append(("markers reset", None))
 
@@ -101,10 +98,13 @@ class _Table(unittest.TestCase):
                                          Row(entry=_entry("second"))])
         self.played = []
         self.t._play_cb = self.played.append
+        # The C:\music files do not exist; a missing file is refused before it
+        # plays (test_row_buttons) — here every file counts as present.
+        self.t._start_refused = lambda row, path: False
         self.opened = []
-        real_open = gpt._open_in_default_player
-        gpt._open_in_default_player = lambda p, parent=None: self.opened.append(p)
-        self.addCleanup(setattr, gpt, "_open_in_default_player", real_open)
+        real_open = gpt.open_in_default_player
+        gpt.open_in_default_player = lambda p, parent=None: self.opened.append(p)
+        self.addCleanup(setattr, gpt, "open_in_default_player", real_open)
         # 📂 Handing the file to the OS player is a ⚙ setting, off by default;
         # these cases are about what happens when it is on.
         self.addCleanup(common.set_dblclick_action,
@@ -509,7 +509,7 @@ class StopOnReloadTest(_Table):
         self.t.loaded.connect(desk._stop_if_playing_from)   # as MainWindow wires it
         self._reload("new one", "new two")
         self.assertIsNone(desk._between.pending)
-        self.assertIn(("pause music stopped", None), desk.calls)
+        self.assertIn(("markers reset", None), desk.calls)
 
     def test_a_re_render_during_the_pause_keeps_the_advance(self):
         desk = self._pausing_into("second")
@@ -531,6 +531,9 @@ class StopOnReloadTest(_Table):
 
 class _NoHeat:
     def announce_heat(self):
+        return False
+
+    def announce_heat_only(self):
         return False
 
 
@@ -577,11 +580,11 @@ class AdvanceTargetFollowsTheTitleTest(_Table):
         self.assertEqual(code, "QS")
 
     def test_an_unmoved_title_keeps_its_row(self):
-        from player.window.main_pause import _live_target
+        from player.window.main_pause import live_target
         desk, target = self._armed("second")
-        self.assertIs(_live_target(target), target)
+        self.assertIs(live_target(target), target)
         self._reload("first", "second", "third")
-        self.assertEqual(_live_target(target)[1], self._song_row("second"))
+        self.assertEqual(live_target(target)[1], self._song_row("second"))
 
 
 if __name__ == "__main__":

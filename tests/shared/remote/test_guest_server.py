@@ -44,7 +44,7 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("text/html", headers["Content-Type"])
         self.assertIn("connect-src 'self'", headers["Content-Security-Policy"])
-        self.assertIn('"send": "Senden"'.encode(), body)
+        self.assertIn(b'"send": "Senden"', body)
         self.assertNotIn(b"ABC234", body)
 
     def test_no_other_page_may_frame_it(self):

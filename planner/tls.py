@@ -8,9 +8,13 @@ Windows it holds the roots a virus scanner's https check signs with.
 No ssl import at the top: a player build without error reports drops the
 module (dancesport.spec), and the modules importing this must load there.
 """
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ssl import SSLContext
 
 
-def tls_context():
+def tls_context() -> SSLContext | None:
     """An ssl.SSLContext for urlopen's `context`, or None in a build without
     ssl — urllib then fails an https URL with its own OSError."""
     try:

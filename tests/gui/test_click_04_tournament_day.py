@@ -12,11 +12,11 @@ MainWindow (see tests/gui/monkey_support.py):
 import unittest
 from unittest import mock
 
+from PySide6.QtWidgets import QDialogButtonBox, QFileDialog, QPushButton
+
 # First: it points the app's state files at a temp folder before any app
 # module is imported.
 from tests.gui.monkey_support import ClickThrough, Operator
-
-from PySide6.QtWidgets import QDialogButtonBox, QFileDialog, QPushButton
 
 
 class TournamentDayClickTest(ClickThrough):

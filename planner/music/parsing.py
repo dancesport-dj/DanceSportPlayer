@@ -5,16 +5,17 @@ filename-in, value-out) helpers that the scan and the competition importer
 depend on — BPM/dance/year/Christmas detection, ID3 comment & class-tag reading,
 title cleaning and tempo-fit formatting. Pinned by test_parsing.py.
 """
-import re
 import logging
+import re
 import unicodedata
 from pathlib import Path
 from typing import cast
 
 try:
-    from mutagen.id3 import ID3
     from mutagen import File as MutagenFile
     from mutagen.apev2 import APEv2
+    from mutagen.id3 import ID3
+
     from planner.music.foreign_tags import as_id3
     HAS_MUTAGEN = True
 except ImportError:
@@ -22,7 +23,10 @@ except ImportError:
 
 from planner.dances import BEATS_PER_BAR
 from planner.models import (
-    DANCE_PATTERNS, GENRE_TO_DANCE, TEMPO_RANGES, fold_text,
+    DANCE_PATTERNS,
+    GENRE_TO_DANCE,
+    TEMPO_RANGES,
+    fold_text,
 )
 
 log = logging.getLogger("dancesport.parsing")
@@ -37,7 +41,7 @@ def _norm(p: str) -> str:
     return p.lower().replace('\\', '/')
 
 
-def _stem_key(name: str) -> str:
+def stem_key(name: str) -> str:
     """Match key for playlist co-occurrence: the bare filename (no folder, no
     extension), lower-cased. Matching by filename rather than full path means a
     track still matches even if the M3U points at a different drive/folder than
@@ -58,13 +62,13 @@ def _title_key(name: str) -> str:
     punctuation stripped, alphanumeric-normalised). Lets a renamed file match an
     old playlist entry whose filename approximated the song title. Returns '' if
     nothing meaningful remains (callers must ignore empty keys)."""
-    return _title_key_of_stem(Path(name).stem)
+    return title_key_of_stem(Path(name).stem)
 
 
-def _title_key_of_stem(stem: str) -> str:
+def title_key_of_stem(stem: str) -> str:
     """`_title_key` of an already-split file name (no folder, no extension)."""
     stem = _DANCE_BPM_PREFIX.sub('', stem)
-    key = _norm_title(_clean_title(stem))
+    key = norm_title(clean_title(stem))
     return key if len(key) >= 3 else ''
 
 
@@ -120,7 +124,7 @@ _LEAD_TRACK_NUM = re.compile(r'^\s*(?:\d+[\s._\-]+)+')
 _CUT_TRIM_RE = re.compile(r'[\s_(\[]+cut\b[\s)\]]*$', re.IGNORECASE)
 
 
-def _song_title_key(name: str) -> str:
+def song_title_key(name: str) -> str:
     """Aggressively normalise a track title so re-encoded copies of the SAME song
     collapse together — e.g. 'Upside Down DJ Ice' and 'Upside Down (JI43)' both
     become 'upside down'. Strips a trailing DJ tag, parenthetical/glued dance+bpm
@@ -128,10 +132,10 @@ def _song_title_key(name: str) -> str:
     normalised title if nothing meaningful survives (so distinct songs whose whole
     title looks like a tag, e.g. 'DJ Got Us Fallin In Love', stay distinct).
     Used by the Similar-window 'hide duplicate copies' filter."""
-    return _song_title_key_of_stem(Path(name).stem)
+    return song_title_key_of_stem(Path(name).stem)
 
 
-def _song_title_key_of_stem(raw: str) -> str:
+def song_title_key_of_stem(raw: str) -> str:
     """`_song_title_key` of an already-split file name (no folder, no extension)."""
     s = _PAREN_CODE.sub(' ', raw)
     dj = _DJ_TAG.search(s)
@@ -144,20 +148,20 @@ def _song_title_key_of_stem(raw: str) -> str:
     s = _BARE_PAREN_NUM.sub(' ', s)      # strip a leftover bare '(43)' / '[50]'
     s = _LEAD_TRACK_NUM.sub(' ', s)      # strip leading track-number(s): '08 1-16 ', '2-14 '
     s = s.strip(' -_|')                  # drop separators the prefix-strip left behind
-    cleaned = _clean_title(s)
+    cleaned = clean_title(s)
     # A trailing 'cut' tournament-edit marker, however separated ('… cut', '… (cut)';
     # the '_cut' form is already gone via _clean_title). Stripped only here in the
     # dedup KEY (not in _clean_title) so the displayed title 'The Final Cut' stays
     # intact while a 'Creepin cut' copy still collapses onto 'Creepin'. End-anchored.
     cleaned = _CUT_TRIM_RE.sub('', cleaned)
-    key = _norm_title(cleaned)
-    return key if len(key) >= 3 else _norm_title(_clean_title(raw))
+    key = norm_title(cleaned)
+    return key if len(key) >= 3 else norm_title(clean_title(raw))
 
 
 _DASH_SPLIT_RE = re.compile(r'\s+-\s+')
 
 
-def _song_title_keys(name: str) -> list[str]:
+def song_title_keys(name: str) -> list[str]:
     """Candidate dedup keys for a track: the full title key, PLUS — when the name has
     a spaced ' - ' (the DJ-export Artist–Title delimiter) — a key for each side. A
     bare 'Rhythm' then shares the 'rhythm' candidate of 'Casey … - Rhythm' WITHOUT the
@@ -166,13 +170,13 @@ def _song_title_keys(name: str) -> list[str]:
     precision, so a possible duplicate is mentioned rather than missed. Order: full
     key first, then the dash parts; de-duplicated, empties dropped."""
     keys: list[str] = []
-    full = _song_title_key(name)
+    full = song_title_key(name)
     if full:
         keys.append(full)
     stem = Path(name).stem
     if _DASH_SPLIT_RE.search(stem):
         for part in _DASH_SPLIT_RE.split(stem):
-            k = _song_title_key(part)
+            k = song_title_key(part)
             if k and k not in keys:
                 keys.append(k)
     return keys
@@ -204,7 +208,7 @@ def version_base_keys(name: str) -> list[str]:
     base = _VERSION_DASH_RE.sub(' ', _VERSION_GROUP_RE.sub(' ', stem))
     if base.strip() == stem.strip():
         return []
-    return [k for k in _song_title_keys(base + '.mp3')
+    return [k for k in song_title_keys(base + '.mp3')
             if not _DANCE_WORD_KEY_RE.fullmatch(k)]
 
 
@@ -212,7 +216,7 @@ def version_base_keys(name: str) -> list[str]:
 _CLASS_CODES = {'D', 'C', 'B', 'A', 'S'}
 
 
-_INSTR_WORDS = {'instr', 'instrumental'}
+INSTR_WORDS = {'instr', 'instrumental'}
 
 # UltraMixer comments lead with the instr word: 'Instr AS', 'instr. AS'.
 _LEADING_INSTR_RE = re.compile(r'(instr|instrumental)\.?(?:\s+(.*))?', re.IGNORECASE)
@@ -231,7 +235,7 @@ def _glued_classes(part: str) -> list[str] | None:
     return list(part)
 
 
-def _comment_parts(comment: str) -> list[str]:
+def comment_parts(comment: str) -> list[str]:
     """The ';'-separated parts of a comment, a leading instr word split off
     its own part ('instr. AS' → 'instr', 'AS'), and 'vocal' off the classes
     glued after it ('vocal AS' → 'vocal', 'AS')."""
@@ -250,7 +254,7 @@ def _comment_parts(comment: str) -> list[str]:
     return parts
 
 # Songs-DB writes a class floor, 'ab C' = class C and every class above it.
-_CLASS_ORDER = ('D', 'C', 'B', 'A', 'S')
+CLASS_ORDER = ('D', 'C', 'B', 'A', 'S')
 _AB_CLASS_RE = re.compile(r'ab\s+([dcbas])', re.IGNORECASE)
 
 
@@ -259,7 +263,7 @@ def _ab_classes(part: str) -> list[str] | None:
     m = _AB_CLASS_RE.fullmatch(part.strip())
     if not m:
         return None
-    return list(_CLASS_ORDER[_CLASS_ORDER.index(m.group(1).upper()):])
+    return list(CLASS_ORDER[CLASS_ORDER.index(m.group(1).upper()):])
 
 
 def part_classes(part: str) -> list[str] | None:
@@ -320,7 +324,7 @@ def _ape_of(path: Path) -> ID3 | None:
         return None
 
 
-def _read_tags_once(path: Path) -> tuple:
+def read_tags_once(path: Path) -> tuple:
     """(ID3 tag or None, duration in whole seconds) from ONE parse of the file.
 
     For the scan's slow path, which wants every tag field and the length: the
@@ -345,7 +349,7 @@ def _read_tags_once(path: Path) -> tuple:
     return (foreign or _id3_of(path)), secs
 
 
-def _read_id3v1_comment(path: Path) -> str | None:
+def read_id3v1_comment(path: Path) -> str | None:
     """The raw ID3v1 'comment' field from the last 128 bytes ('TAG' magic). Some older
     files carry the class tag only here, so it's used as a last-resort fallback."""
     try:
@@ -367,7 +371,7 @@ def _read_id3v1_comment(path: Path) -> str | None:
         return None
 
 
-def _get_comment_tag(path: Path, tags=_UNREAD) -> str | None:
+def get_comment_tag(path: Path, tags=_UNREAD) -> str | None:
     """Return the most relevant comment for class-tag parsing.
 
     Skips iTunes / UltraMixer technical COMM frames (iTunNORM, iTunPGAP, …) that would
@@ -391,7 +395,7 @@ def _get_comment_tag(path: Path, tags=_UNREAD) -> str | None:
                 continue
             prio = 0 if desc == '' else (1 if 'id3v1' in desc else 2)
             candidates.append((prio, txt))
-    v1 = _read_id3v1_comment(path)              # old ID3v1 tail → lowest priority
+    v1 = read_id3v1_comment(path)              # old ID3v1 tail → lowest priority
     if v1:
         candidates.append((3, v1))
     if not candidates:
@@ -400,7 +404,7 @@ def _get_comment_tag(path: Path, tags=_UNREAD) -> str | None:
     # Prefer the highest-priority comment that actually carries class codes; fall back
     # to the standard (highest-priority) comment when none of them do.
     for _prio, txt in candidates:
-        classes, _ = _parse_class_tag(txt)
+        classes, _ = parse_class_tag(txt)
         if classes:
             return txt
     return candidates[0][1]
@@ -446,17 +450,17 @@ def parse_comment_markers(comment: str) -> list[str]:
     Class codes, instr words and the noise above are left out — those are already
     carried by `classes_ok` / `is_instrumental` / `bpm` / `dance`."""
     out: list[str] = []
-    for part in _comment_parts(comment):
+    for part in comment_parts(comment):
         if part_classes(part):
             continue
         low = part.lower()
-        if low in _INSTR_WORDS or is_marker_noise(low) or low in out:
+        if low in INSTR_WORDS or is_marker_noise(low) or low in out:
             continue
         out.append(low)
     return out
 
 
-def _parse_class_tag(comment: str) -> tuple[list[str] | None, bool]:
+def parse_class_tag(comment: str) -> tuple[list[str] | None, bool]:
     """Parse a comment like 'B;A;S;instr' or 'C;B;A;S;vocal_f;classic'.
 
     Returns (classes_ok, is_instrumental):
@@ -464,13 +468,13 @@ def _parse_class_tag(comment: str) -> tuple[list[str] | None, bool]:
                        the comment contains no class codes at all
       is_instrumental – True when the comment contains 'instr' / 'instrumental'
     """
-    parts = _comment_parts(comment)
+    parts = comment_parts(comment)
     classes: list[str] = []
     for p in parts:
         for code in part_classes(p) or []:
             if code not in classes:
                 classes.append(code)
-    is_instr  = any(p.lower() in _INSTR_WORDS for p in parts)
+    is_instr = any(p.lower() in INSTR_WORDS for p in parts)
     return (classes if classes else None), is_instr
 
 
@@ -483,13 +487,13 @@ _CODE_BPM_PAT = re.compile(
 )
 
 
-_CODE_ALIAS: dict[str, str] = {
+CODE_ALIAS: dict[str, str] = {
     'LWT':'LW','SW':'LW','TA':'TG','VW':'WW','SFX':'SF','QU':'QS',
     'CH':'CC','SB':'SA','RU':'RB','PS':'PD','JV':'JI',
 }
 
 
-def _detect_dance(name: str) -> str | None:
+def detect_dance(name: str) -> str | None:
     for code, pat in DANCE_PATTERNS:
         if pat.search(name):
             return code
@@ -497,7 +501,7 @@ def _detect_dance(name: str) -> str | None:
     m = _CODE_BPM_PAT.search(name)
     if m:
         raw = m.group(1).upper()
-        return _CODE_ALIAS.get(raw, raw)
+        return CODE_ALIAS.get(raw, raw)
     return None
 
 
@@ -570,7 +574,7 @@ _CLASS_EXPLICIT = re.compile(
     r'\b(?:start)?kl(?:asse)?[\s._-]*([sabcd])\b', re.I)
 
 
-_CLASS_BARE     = re.compile(r'(?<![A-Za-z])([SABCD])(?![A-Za-z])')
+_CLASS_BARE = re.compile(r'(?<![A-Za-z])([SABCD])(?![A-Za-z])')
 
 
 _SPACED_SEP_RE = re.compile(r'[._\-]+')
@@ -632,7 +636,7 @@ _CLS_GLUED = (
 )
 
 
-def _playlist_class_of(m3u: Path) -> str | None:
+def playlist_class_of(m3u: Path) -> str | None:
     """Start class an M3U was run as, parsed from its FILE name — falling back to
     the parent folder name (tournament lists are often organized as
     'HGR S Lat\\Finale.m3u'). None when neither carries a recognizable class."""
@@ -647,7 +651,7 @@ def _playlist_class_of(m3u: Path) -> str | None:
     return None
 
 
-def _get_raw_genre_tag(path: Path, tags=_UNREAD) -> str | None:
+def get_raw_genre_tag(path: Path, tags=_UNREAD) -> str | None:
     """Return the raw TCON genre string from the MP3 ID3 tag, or None."""
     if not HAS_MUTAGEN:
         return None
@@ -663,7 +667,7 @@ def _get_raw_genre_tag(path: Path, tags=_UNREAD) -> str | None:
     return None
 
 
-def _get_um_dance(tags) -> str | None:
+def get_um_dance(tags) -> str | None:
     """The dance UltraMixer's own TXXX 'ultramixer_dancestyle' names ('SW'),
     or None without the frame or for a style that is no competition dance."""
     if tags is None:
@@ -674,7 +678,7 @@ def _get_um_dance(tags) -> str | None:
     return None
 
 
-def _read_duration(path: Path) -> int:
+def read_duration(path: Path) -> int:
     """Track length in whole seconds from the audio header (0 = unknown).
 
     Uses mutagen's generic File so it works for any format in the library;
@@ -694,7 +698,7 @@ def _read_duration(path: Path) -> int:
 # POPM (Popularimeter) ratings, 0–255. Windows Explorer / Media Player write the
 # stars as 1/64/128/196/255 under this e-mail; other programs use their own e-mail
 # (Songs-DB: 'no@email') and the same scale, so any POPM counts.
-_WMP_POPM_EMAIL = 'Windows Media Player 9 Series'
+WMP_POPM_EMAIL = 'Windows Media Player 9 Series'
 _STARS_POPM = {1: 1, 2: 64, 3: 128, 4: 196, 5: 255}
 
 
@@ -718,12 +722,12 @@ def popm_stars(tags) -> int | None:
     rated = [f for f in frames if getattr(f, 'rating', 0)]
     if not rated:
         return None
-    wmp = [f for f in rated if f.email == _WMP_POPM_EMAIL]
+    wmp = [f for f in rated if f.email == WMP_POPM_EMAIL]
     raw = (wmp or [max(rated, key=lambda f: f.rating)])[0].rating
     return 1 if raw < 32 else 2 if raw < 96 else 3 if raw < 160 else 4 if raw < 224 else 5
 
 
-def _get_title_artist_tags(path: Path, tags=_UNREAD) -> tuple[str | None, str | None, str | None]:
+def get_title_artist_tags(path: Path, tags=_UNREAD) -> tuple[str | None, str | None, str | None]:
     """Return (ID3 title TIT2, artist TPE1, album TALB) for the file, or (None, None, None)."""
     if not HAS_MUTAGEN:
         return None, None, None
@@ -741,7 +745,7 @@ def _get_title_artist_tags(path: Path, tags=_UNREAD) -> tuple[str | None, str | 
         return None, None, None
 
 
-def _get_tag_bpm(path: Path, tags=_UNREAD) -> float | None:
+def get_tag_bpm(path: Path, tags=_UNREAD) -> float | None:
     """Return the ID3 BPM frame (TBPM) as a float, or None. This is the BPM written
     into the file's metadata (typically beats/min, as DJ tools store it) — distinct
     from the tempo encoded in the file NAME and from a measured tempo."""
@@ -762,7 +766,7 @@ def _get_tag_bpm(path: Path, tags=_UNREAD) -> float | None:
 _YEAR_PAT = re.compile(r'\b(19[3-9]\d|20[0-4]\d)\b')
 
 
-def _detect_year(name: str, path: Path, tags=_UNREAD) -> int | None:
+def detect_year(name: str, path: Path, tags=_UNREAD) -> int | None:
     """Best-effort release year: ID3 year tag first, then a 4-digit year in the filename."""
     tags = _id3_of(path, tags) if HAS_MUTAGEN else None
     if tags is not None:
@@ -787,7 +791,7 @@ _XMAS_NAME_PAT = re.compile(
 )
 
 
-def _is_christmas(filename_stem: str, genre_tag: str) -> bool:
+def is_christmas(filename_stem: str, genre_tag: str) -> bool:
     """Return True for Christmas/seasonal songs that should not appear in playlists."""
     genre_l = genre_tag.lower()
     if 'weihn' in genre_l or genre_l == 'xmas':
@@ -870,7 +874,7 @@ _BPM_PATTERNS = [re.compile(pat, re.IGNORECASE) for pat in [
 ]]
 
 
-def _detect_bpm(name: str) -> int | None:
+def detect_bpm(name: str) -> int | None:
     for pat in _BPM_PATTERNS:
         for m in pat.finditer(name):
             bpm = int(m.group(1))
@@ -884,7 +888,7 @@ def _detect_bpm(name: str) -> int | None:
     return None
 
 
-def _takt_from_tag_bpm(tag_bpm: float | None, dance: str | None) -> int | None:
+def takt_from_tag_bpm(tag_bpm: float | None, dance: str | None) -> int | None:
     """Takt (bars/min) from an ID3 BPM tag, or None when it can't be trusted.
 
     DJ tools write beats/min (a Slow Waltz at 87), some taggers the takt itself
@@ -906,18 +910,18 @@ def _takt_from_tag_bpm(tag_bpm: float | None, dance: str | None) -> int | None:
     return None
 
 
-def _detect_bpm_tagged(stem: str, tag_title: str | None,
+def detect_bpm_tagged(stem: str, tag_title: str | None,
                        tag_bpm: float | None = None,
                        dance: str | None = None) -> int | None:
     """BPM from the filename, then the ID3 BPM tag (TBPM, converted for the
     dance), then the ID3 title tag text. The title fallback covers files whose
     name was truncated (e.g. '...(RB 2.mp3') while the full '(RB 25)' survives
     in the title tag."""
-    bpm = _detect_bpm(stem)
+    bpm = detect_bpm(stem)
     if bpm is None:
-        bpm = _takt_from_tag_bpm(tag_bpm, dance)
+        bpm = takt_from_tag_bpm(tag_bpm, dance)
     if bpm is None and tag_title:
-        bpm = _detect_bpm(tag_title)
+        bpm = detect_bpm(tag_title)
     return bpm
 
 
@@ -928,12 +932,12 @@ def bpm_source(entry) -> str:
     bpm = getattr(entry, 'bpm', None)
     if not bpm:
         return ''
-    if _detect_bpm(Path(entry.path).stem) == bpm:
+    if detect_bpm(Path(entry.path).stem) == bpm:
         return 'name'
-    if _takt_from_tag_bpm(getattr(entry, 'tag_bpm', None), entry.dance) == bpm:
+    if takt_from_tag_bpm(getattr(entry, 'tag_bpm', None), entry.dance) == bpm:
         return 'tag'
     tag_title = getattr(entry, 'tag_title', None)
-    if tag_title and _detect_bpm(tag_title) == bpm:
+    if tag_title and detect_bpm(tag_title) == bpm:
         return 'title'
     return ''
 
@@ -960,7 +964,7 @@ _CT_EMPTY_BRACKETS = re.compile(r'[(\[]\s*[)\]]')
 _CT_MULTI_WS = re.compile(r'[\s_]{2,}')
 
 
-def _clean_title(name: str) -> str:
+def clean_title(name: str) -> str:
     # Leading track number, incl. a disc-track token like '1-11' / '02-01' / '3.07'
     # (numbers joined by . - _ ). Space-joined numbers are NOT swallowed, so a title
     # such as '05 1 2 3 4' keeps its '1 2 3 4' after the '05' track number goes.
@@ -989,7 +993,7 @@ _ALL_DIGITS_WS_RE = re.compile(r'[\d\s]+')
 _SLUG_STEM_RE = re.compile(r'[^\s_-]+(?:[_-]+[^\s_-]+)+')
 
 
-def _title_for(stem: str, tag_title: str | None = None) -> str:
+def title_for(stem: str, tag_title: str | None = None) -> str:
     """Display title for a track. Starts from the cleaned filename, then resolves a
     trailing bare copy index that the cleaner leaves behind (e.g. '16-Timber (Sf29) 1'
     → 'Timber 1'): if in the original filename that number sat right after a ()/[]
@@ -998,9 +1002,9 @@ def _title_for(stem: str, tag_title: str | None = None) -> str:
 
     A slug filename (no spaces, words glued by '_' or '-', as store downloads come)
     was never named by hand, so a spaced ID3 title wins over it."""
-    t = _clean_title(stem)
+    t = clean_title(stem)
     if _SLUG_STEM_RE.fullmatch(stem.strip()):
-        tt = _clean_title(tag_title or '')
+        tt = clean_title(tag_title or '')
         if ' ' in tt and not _ALL_DIGITS_WS_RE.fullmatch(tt):
             return tt
     if _TRAILING_COPY_NUM_RE.search(t):
@@ -1008,7 +1012,7 @@ def _title_for(stem: str, tag_title: str | None = None) -> str:
             stripped = _TRAILING_COPY_NUM_RE.sub('', t).strip()
             if stripped:
                 return stripped
-        tt = _clean_title(tag_title or '')
+        tt = clean_title(tag_title or '')
         if tt and not _ALL_DIGITS_WS_RE.fullmatch(tt):
             return tt
     return t
@@ -1020,7 +1024,7 @@ def _tempo_lo(dance: str, dance_class: str) -> int:
     return lo
 
 
-def _fmt_bpm(bpm: int | None, dance: str, dance_class: str) -> str:
+def fmt_bpm(bpm: int | None, dance: str, dance_class: str) -> str:
     """Format BPM tag; adds * if below the class minimum (needs pitching)."""
     if bpm is None:
         return " [?BPM]"
@@ -1028,7 +1032,7 @@ def _fmt_bpm(bpm: int | None, dance: str, dance_class: str) -> str:
     return f" [T{bpm}{star}]"
 
 
-def _bpm_fit(bpm: int | None, lo: int, hi: int) -> float:
+def bpm_fit(bpm: int | None, lo: int, hi: int) -> float:
     if bpm is None:
         return 0.4
     if lo <= bpm <= hi:
@@ -1040,7 +1044,7 @@ def _bpm_fit(bpm: int | None, lo: int, hi: int) -> float:
 _NON_ALNUM_RE = re.compile(r'[^a-z0-9]+')
 
 
-def _norm_title(s: str) -> str:
+def norm_title(s: str) -> str:
     # Transliterate accents to ASCII first (é→e, ó→o, ñ→n…) so a title tagged
     # 'Ai Que Dó' and a filename 'Ai Que Do' normalise to the SAME key — otherwise
     # the accented char was dropped wholesale ('dó'→'d') and the two never matched.

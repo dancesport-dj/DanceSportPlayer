@@ -16,9 +16,9 @@ if TYPE_CHECKING:
     from gui.common import BusyDialog
     from gui.library_load_bar import LibraryLoadBar
     from gui.workers import GlobalCacheLoader, GlobalLibraryLoader, LibraryLoader
+    from planner.models import MusicEntry
     from planner.music.db import AudioCache
     from planner.music.library import MusicLibrary
-    from planner.models import MusicEntry
 
 
 class LibraryService:
@@ -58,7 +58,7 @@ class LibraryService:
         self.whole_waiting = False
         self._stand_in: MusicLibrary | None = None
 
-    def resolver(self) -> "MusicLibrary | None":
+    def resolver(self) -> MusicLibrary | None:
         """The library that turns a saved path into an entry.
 
         `lib` once it is scanned. Before that — the window opens and the last

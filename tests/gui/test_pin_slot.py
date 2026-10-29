@@ -28,7 +28,6 @@ from dancesport_planner import (
 )
 from tests.qt_test_support import reap_widget, stub_window_startup
 
-
 # Real files: a missing one is painted red, and red outranks the lila pin.
 _MUSIC = Path(tempfile.mkdtemp(prefix="dp_pin_music_"))
 
@@ -119,7 +118,7 @@ class PinSlotTest(unittest.TestCase):
     def test_the_rows_own_reroll_leaves_a_pinned_title_alone(self):
         row = self.row_of(self.cha2)
         self.table._toggle_pin({row})
-        with mock.patch("gui.table.table_regen._show_toast") as toast:
+        with mock.patch("gui.table.table_regen.show_toast") as toast:
             self.table._regen(row)
         self.settle()
         self.assertEqual(self.rolled, [])
@@ -137,13 +136,13 @@ class PinSlotTest(unittest.TestCase):
     # ----- the look -------------------------------------------------------------
 
     def test_a_pinned_row_is_lila(self):
-        from gui.table.playlist_table import _C_PIN_BG, _C_PIN_FG
+        from gui.table.playlist_table import C_PIN_BG, C_PIN_FG
         from shared.columns import _COL_TITLE
         row = self.row_of(self.rum1)
         self.table._toggle_pin({row})
         title = self.table.item(row, _COL_TITLE)
-        self.assertEqual(title.background().color(), _C_PIN_BG)
-        self.assertEqual(title.foreground().color(), _C_PIN_FG)
+        self.assertEqual(title.background().color(), C_PIN_BG)
+        self.assertEqual(title.foreground().color(), C_PIN_FG)
         self.assertTrue(self.table._is_row_pinned(row))
 
     def test_a_pinned_title_shows_the_pin(self):

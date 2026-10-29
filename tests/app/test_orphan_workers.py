@@ -103,6 +103,15 @@ class OrphanWorkerTest(unittest.TestCase):
         self.assertIn("window closed", proc.stdout, proc.stderr[-2000:])
         self.assertEqual(proc.returncode, 0, proc.stderr[-2000:])
 
+    def test_the_close_button_or_esc_mid_rank(self):
+        # BUG_REVIEW B4.1: Close and Esc go through accept() / reject(), which
+        # send no closeEvent — the window still deleted itself on close.
+        for close in ("dlg.accept()", "dlg.reject()"):
+            with self.subTest(close=close):
+                proc = self._run(_SIMILAR.replace("dlg.close()", close))
+                self.assertIn("window closed", proc.stdout, proc.stderr[-2000:])
+                self.assertEqual(proc.returncode, 0, proc.stderr[-2000:])
+
     def test_quitting_after_a_duplicate_check_closed_mid_compare(self):
         proc = self._run(_DUPLICATES)
         self.assertIn("window gone", proc.stdout, proc.stderr[-2000:])

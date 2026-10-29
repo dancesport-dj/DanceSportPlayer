@@ -19,23 +19,23 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from gui.common import (
+    C_DANCE_BG,
+    C_DANCE_FG,
+    C_ROUND_BG,
+    C_ROUND_FG,
+    C_ROW_EVEN,
+    C_ROW_ODD,
+    fmt_track_secs,
+)
+from gui.decks.running_order import Row, RunningOrder
 from planner import i18n, terms
 from planner.generate.suggester import PlaylistSuggester
 from planner.generate.warmup import warmup_code, warmup_rounds
-from planner.models import MusicEntry, RoundConfig
+from planner.models import MusicEntry, RoundConfig, RoundTier, Strategy
 from planner.playlist.m3u import running_order_rounds
 from planner.terms import dance_name
-from shared.columns import _COL_HEAT, _COL_REGEN, _COL_TITLE, _N_COLS
-from gui.common import (
-    _C_DANCE_BG,
-    _C_DANCE_FG,
-    _C_ROUND_BG,
-    _C_ROUND_FG,
-    _C_ROW_EVEN,
-    _C_ROW_ODD,
-    _fmt_track_secs,
-)
-from gui.decks.running_order import Row, RunningOrder
+from shared.columns import _COL_TITLE, _N_COLS, COL_HEAT, COL_REGEN
 
 if TYPE_CHECKING:
     from gui.window.hosts import PlaylistTableHost
@@ -47,7 +47,7 @@ log = logging.getLogger("dancesport.gui.playlist_table")
 
 # A file not on disk: a light-red row, paler than the issue red so the two
 # stay apart — the orange mark's counterpart for the red ❗.
-_C_MISSING_BG = QColor(255, 222, 222)
+C_MISSING_BG = QColor(255, 222, 222)
 
 
 class TableLoadMixin(PlaylistTableHost):
@@ -78,30 +78,30 @@ class TableLoadMixin(PlaylistTableHost):
         marked: set | None = None,
         pinned: set | None = None,
     ):
-        self._playlist    = playlist
-        self._warmup      = False
+        self._playlist = playlist
+        self._warmup = False
         self._player_list = False
         # 🖼 A fresh load is not the imported .m3u any more — the importer sets
         # this again right after, so the deck's cover follows what it holds.
-        self._m3u_path    = None
+        self._m3u_path = None
         self._dance_class = dance_class
-        self._play_cb     = play_cb
-        self._suggester   = suggester
-        self._use_timbre  = use_timbre
-        self._style       = style
+        self._play_cb = play_cb
+        self._suggester = suggester
+        self._use_timbre = use_timbre
+        self._style = style
         self._loaded_dances = list(dances)
         self._loaded_rounds = list(rounds)
         # The rows are rebuilt below — keep the placements, to hand the ids back.
         placed = self._row_meta.placements()
         playing = self._current_play_row >= 0
-        self._row_meta    = RunningOrder()
+        self._row_meta = RunningOrder()
         self._played_saved.clear()   # rows are rebuilt with fresh colors
         # Dynamic-mode state: a static (combo-generated) load resets it; a dynamic
         # load / rebuild carries the pattern, column order and stacked backups.
-        self._dynamic          = dynamic
+        self._dynamic = dynamic
         self._dynamic_capacity = list(capacity) if capacity else ([] if not dynamic else self._dynamic_capacity)
-        self._dynamic_dances   = list(dances) if dynamic else []
-        self._dynamic_backups  = backups or {}
+        self._dynamic_dances = list(dances) if dynamic else []
+        self._dynamic_backups = backups or {}
         self._round_skip_dances = ({k: set(v) for k, v in round_skip_dances.items()}
                                    if round_skip_dances else {})
         self._round_ctx = ({k: dict(v) for k, v in round_ctx.items()}
@@ -124,8 +124,8 @@ class TableLoadMixin(PlaylistTableHost):
         rc_map = {rc.name: rc for rc in rounds}
 
         for round_name, heats in playlist.items():
-            rc    = rc_map.get(round_name)
-            tier  = rc.tier if rc else "early"
+            rc = rc_map.get(round_name)
+            tier = rc.tier if rc else RoundTier.EARLY
             total = sum(1 for h in heats for e in h if e is not None)
             multi = len(heats) > 1
 
@@ -134,7 +134,7 @@ class TableLoadMixin(PlaylistTableHost):
             # duration count as 0 (and timed fade-out may cut songs early anyway).
             round_secs = sum(getattr(e, "duration", 0) or 0
                              for h in heats for e in h if e is not None)
-            time_s = f",  ~{_fmt_track_secs(round_secs)}" if round_secs else ""
+            time_s = f",  ~{fmt_track_secs(round_secs)}" if round_secs else ""
             heat_s = "heat" if len(heats) == 1 else "heats"
             if self._nogroup:
                 round_hdr = -1   # no grouping: the songs stand on their own
@@ -142,7 +142,7 @@ class TableLoadMixin(PlaylistTableHost):
                 round_hdr = self._add_span_row(
                     f"  ═══  {terms.round_name(round_name).upper()}   "
                     f"({len(heats)} {heat_s},  {total} songs{time_s})  ═══",
-                    _C_ROUND_BG, _C_ROUND_FG, bold=True, collapsible=True,
+                    C_ROUND_BG, C_ROUND_FG, bold=True, collapsible=True,
                     regen_cb=(lambda rn=round_name: self._regen_round(rn)),
                     regen_tip="Regenerate every dance in this round",
                 )
@@ -164,7 +164,7 @@ class TableLoadMixin(PlaylistTableHost):
                     dance_hdr = round_hdr
                 else:
                     dance_hdr = self._add_span_row(
-                        f"    {dn}", _C_DANCE_BG, _C_DANCE_FG, bold=False,
+                        f"    {dn}", C_DANCE_BG, C_DANCE_FG, bold=False,
                         regen_cb=(lambda rn=round_name, di=d_idx, dc=dance:
                                   self._regen_dance(rn, di, dc)),
                         collapsible=True,
@@ -176,14 +176,14 @@ class TableLoadMixin(PlaylistTableHost):
 
                 for h_idx, heat in enumerate(heats):
                     entry = heat[d_idx]
-                    meta  = Row(
+                    meta = Row(
                         round_name=round_name,
                         dance=dance,
                         h_idx=h_idx,
                         d_idx=d_idx,
                         tier=tier,
                         prefer_fresh=rc.prefer_fresh if rc else False,
-                        strategy=(rc.strategy if rc else "") or "",
+                        strategy=rc.strategy if rc else Strategy.DEFAULT,
                         entry=entry,
                         multi=multi,
                     )
@@ -192,7 +192,7 @@ class TableLoadMixin(PlaylistTableHost):
                     self._row_meta.append(meta)
                     self._row_round_hdr[row] = round_hdr
                     self._row_dance_hdr[row] = dance_hdr
-                    bg = _C_ROW_EVEN if h_idx % 2 == 0 else _C_ROW_ODD
+                    bg = C_ROW_EVEN if h_idx % 2 == 0 else C_ROW_ODD
                     self._fill_song_row(row, meta, bg)
 
                     # Final-round backups: stacked, indented under their slot.
@@ -212,6 +212,12 @@ class TableLoadMixin(PlaylistTableHost):
         self._update_play_row_hl()
         self._grey_played_rows()   # re-apply played greys after the rebuild
         self._notify_changed()
+        self._emit_loaded(playing)
+
+    def _emit_loaded(self, playing: bool):
+        """`loaded`, with `_play_dropped` set while it runs: this table was
+        `playing` before its rows were rebuilt and the title is gone from them
+        — the desk's stop handler tells that apart from music running elsewhere."""
         self._play_dropped = playing and self._current_play_row < 0
         try:
             self.loaded.emit(self)
@@ -226,31 +232,32 @@ class TableLoadMixin(PlaylistTableHost):
         suggester: PlaylistSuggester,
     ):
         """Load a flat themed playlist (no rounds / heats)."""
-        self._playlist    = None
-        self._warmup      = False
+        self._playlist = None
+        self._warmup = False
         self._player_list = False
         self._dance_class = "S"
-        self._play_cb     = play_cb
-        self._suggester   = suggester
-        self._use_timbre  = False
+        self._play_cb = play_cb
+        self._suggester = suggester
+        self._use_timbre = False
         placed = self._row_meta.placements()   # to hand the ids back below
-        self._row_meta    = RunningOrder()
+        playing = self._current_play_row >= 0
+        self._row_meta = RunningOrder()
         self._played_saved.clear()   # rows are rebuilt with fresh colors
         self._reset_collapse_state()
         self.setRowCount(0)
 
         theme_secs = sum(getattr(e, "duration", 0) or 0 for e in entries)
-        time_s = f",  ~{_fmt_track_secs(theme_secs)}" if theme_secs else ""
+        time_s = f",  ~{fmt_track_secs(theme_secs)}" if theme_secs else ""
         self._add_span_row(
             f"  ═══  {theme_label}   ({len(entries)} tracks{time_s})  ═══",
-            _C_ROUND_BG, _C_ROUND_FG, bold=True,
+            C_ROUND_BG, C_ROUND_FG, bold=True,
         )
         for i, e in enumerate(entries):
             meta = Row(dance=e.dance or "", entry=e, theme=True)
             row = self.rowCount()
             self.insertRow(row)
             self._row_meta.append(meta)
-            bg = _C_ROW_EVEN if i % 2 == 0 else _C_ROW_ODD
+            bg = C_ROW_EVEN if i % 2 == 0 else C_ROW_ODD
             self._fill_song_row(row, meta, bg)
 
         self._row_meta.adopt(placed)   # the ■ marker follows a title still here
@@ -258,7 +265,7 @@ class TableLoadMixin(PlaylistTableHost):
         self._update_play_row_hl()
         self._grey_played_rows()   # re-apply played greys after the rebuild
         self._notify_changed()
-        self.loaded.emit(self)
+        self._emit_loaded(playing)
 
     def _warmup_sections(self, entries: list[MusicEntry]) -> list:
         """The ─── strips a warm-up / running-order list is cut into, as
@@ -283,7 +290,7 @@ class TableLoadMixin(PlaylistTableHost):
     def _section_title(self, section: str, songs: list[MusicEntry]) -> str:
         """The ─── strip over a section: what it is, and what is in it."""
         r_secs = sum(getattr(s, "duration", 0) or 0 for s in songs)
-        r_time = f",  ~{_fmt_track_secs(r_secs)}" if r_secs else ""
+        r_time = f",  ~{fmt_track_secs(r_secs)}" if r_secs else ""
         song_s = "song" if len(songs) == 1 else "songs"
         if self._player_list:
             # The strip names the round — or the dance, when the rounds couldn't
@@ -311,21 +318,22 @@ class TableLoadMixin(PlaylistTableHost):
         self._player_list = bool(running_order)
         if not running_order:
             self._player_sections = {}
-        self._flat_mode    = False
-        self._playlist     = None
-        self._dynamic      = False
-        self._warmup       = True
+        self._flat_mode = False
+        self._playlist = None
+        self._dynamic = False
+        self._warmup = True
         self._warmup_style = style
         self._warmup_class = dance_class
         self._warmup_relax = bool(relax)
         self._warmup_label = label
-        self._dance_class  = dance_class
-        self._style        = style
-        self._play_cb      = play_cb
-        self._suggester    = suggester
-        self._use_timbre   = True
+        self._dance_class = dance_class
+        self._style = style
+        self._play_cb = play_cb
+        self._suggester = suggester
+        self._use_timbre = True
         placed = self._row_meta.placements()   # to hand the ids back below
-        self._row_meta     = RunningOrder()
+        playing = self._current_play_row >= 0
+        self._row_meta = RunningOrder()
         self._played_saved.clear()   # rows are rebuilt with fresh colors
         self._reset_collapse_state()
         self.setRowCount(0)
@@ -346,7 +354,7 @@ class TableLoadMixin(PlaylistTableHost):
         self._update_play_row_hl()
         self._grey_played_rows()   # re-apply played greys after the rebuild
         self._notify_changed()
-        self.loaded.emit(self)
+        self._emit_loaded(playing)
 
     def _fill_warmup_rows(self, rounds: list) -> None:
         """load_warmup's rows, strip by strip. Each row's round is its strip's,
@@ -361,7 +369,7 @@ class TableLoadMixin(PlaylistTableHost):
             if section and not self._nogroup:
                 round_hdr = self._add_span_row(
                     self._section_title(section, songs),
-                    _C_ROUND_BG, _C_ROUND_FG, bold=True, collapsible=True,
+                    C_ROUND_BG, C_ROUND_FG, bold=True, collapsible=True,
                 )
                 self._round_hdr_rows.add(round_hdr)
             for e in songs:
@@ -374,7 +382,7 @@ class TableLoadMixin(PlaylistTableHost):
                 self._row_meta.append(meta)
                 self._row_round_hdr[row] = round_hdr
                 self._loading_rounds[row] = section
-                bg = _C_ROW_EVEN if i % 2 == 0 else _C_ROW_ODD
+                bg = C_ROW_EVEN if i % 2 == 0 else C_ROW_ODD
                 self._fill_song_row(row, meta, bg)
                 i += 1
 
@@ -430,6 +438,8 @@ class TableLoadMixin(PlaylistTableHost):
         if gone and added:
             return False              # changed on both sides: not an insert or a drop
 
+        placed = self._row_meta.placements()   # to hand the ids back below
+        playing = self._current_play_row >= 0
         for _ in gone:
             self.removeRow(head)
         for i in range(len(added)):
@@ -454,7 +464,7 @@ class TableLoadMixin(PlaylistTableHost):
                 self._round_hdr_rows.add(row)
                 title = self._section_title(section, songs)
                 if fresh(row):
-                    self._paint_span_row(row, title, _C_ROUND_BG, _C_ROUND_FG,
+                    self._paint_span_row(row, title, C_ROUND_BG, C_ROUND_FG,
                                          bold=True, collapsible=True)
                 else:
                     # The strip was already there; only what it counts changed.
@@ -468,14 +478,16 @@ class TableLoadMixin(PlaylistTableHost):
                 self._row_meta.append(meta)
                 self._row_round_hdr[row] = round_hdr
                 if fresh(row):
-                    bg = _C_ROW_EVEN if i % 2 == 0 else _C_ROW_ODD
+                    bg = C_ROW_EVEN if i % 2 == 0 else C_ROW_ODD
                     self._fill_song_row(row, meta, bg)
                 i += 1
                 row += 1
         self._restripe_song_rows(head)
         self._paint_player_heats()
+        self._row_meta.adopt(placed)   # the ■ marker follows a title still here
+        self._follow_play_row()
         self._notify_changed()
-        self.loaded.emit(self)
+        self._emit_loaded(playing)
         return True
 
     def _restripe_song_rows(self, from_row: int) -> None:
@@ -492,9 +504,9 @@ class TableLoadMixin(PlaylistTableHost):
                          or path in self._pinned_paths):
                 continue
             title = self.item(row, _COL_TITLE)
-            if title is not None and title.background().color() == _C_MISSING_BG:
+            if title is not None and title.background().color() == C_MISSING_BG:
                 continue
-            bg = _C_ROW_EVEN if i % 2 == 0 else _C_ROW_ODD
+            bg = C_ROW_EVEN if i % 2 == 0 else C_ROW_ODD
             for col in range(self.columnCount()):
                 it = self.item(row, col)
                 if it is not None:
@@ -557,7 +569,7 @@ class TableLoadMixin(PlaylistTableHost):
             text = i18n.t("Heat %d") % seen[key] if total[key] > 1 else ""
             if text:
                 self._player_heat_text[row] = text
-            it = self.item(row, _COL_HEAT)
+            it = self.item(row, COL_HEAT)
             if it is not None:
                 it.setText(text)
 
@@ -597,15 +609,16 @@ class TableLoadMixin(PlaylistTableHost):
     def load_wishlist(self, entries: list[MusicEntry], play_cb,
                       suggester: PlaylistSuggester | None):
         """Load the flat scratch Wishlist. Like a theme list but drops append to it."""
-        self._flat_mode   = True
-        self._warmup      = False
-        self._playlist    = None
+        self._flat_mode = True
+        self._warmup = False
+        self._playlist = None
         self._dance_class = "S"
-        self._play_cb     = play_cb
-        self._suggester   = suggester
-        self._use_timbre  = False
+        self._play_cb = play_cb
+        self._suggester = suggester
+        self._use_timbre = False
         placed = self._row_meta.placements()   # to hand the ids back below
-        self._row_meta    = RunningOrder()
+        playing = self._current_play_row >= 0
+        self._row_meta = RunningOrder()
         self._played_saved.clear()   # rows are rebuilt with fresh colors
         self._reset_collapse_state()
         self.setRowCount(0)
@@ -616,7 +629,7 @@ class TableLoadMixin(PlaylistTableHost):
         self._update_play_row_hl()
         self._grey_played_rows()   # re-apply played greys after the rebuild
         self._notify_changed()
-        self.loaded.emit(self)
+        self._emit_loaded(playing)
 
     def _append_entry(self, entry: MusicEntry, notify: bool = True):
         """Append one track as a flat row (Wishlist)."""
@@ -630,7 +643,7 @@ class TableLoadMixin(PlaylistTableHost):
         row = self.rowCount()
         self.insertRow(row)
         self._row_meta.append(meta)
-        bg = _C_ROW_EVEN if row % 2 == 0 else _C_ROW_ODD
+        bg = C_ROW_EVEN if row % 2 == 0 else C_ROW_ODD
         self._fill_song_row(row, meta, bg)
         if notify:
             self._notify_changed()
@@ -665,7 +678,7 @@ class TableLoadMixin(PlaylistTableHost):
                 u = QUrl(s)
                 if u.isLocalFile():
                     s = u.toLocalFile()
-            tp = Path(s.strip('"'))
+            tp = self.host.resolve_file(Path(s.strip('"')))
             entry = self._entry_for(tp)
             if entry is not None:
                 before = len(self._row_meta)
@@ -794,7 +807,7 @@ class TableLoadMixin(PlaylistTableHost):
             lay = QHBoxLayout(holder)
             lay.setContentsMargins(0, 0, 0, 0)
             lay.addWidget(btn, 0, Qt.AlignmentFlag.AlignCenter)
-            self.setCellWidget(row, _COL_REGEN, holder)
+            self.setCellWidget(row, COL_REGEN, holder)
         else:
             self.setSpan(row, 0, 1, _N_COLS)
         self.setRowHeight(row, 22)

@@ -5,8 +5,6 @@ TSO tempo-pitching.
 """
 import time
 
-import planner.models
-
 from PySide6.QtCore import QEvent, QPoint, Qt, QTimer, Signal
 from PySide6.QtGui import QMouseEvent
 from PySide6.QtWidgets import (
@@ -21,14 +19,15 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+import planner.models
 from shared.appearance.icons import button as icon_button
 
 _INK = "#cfe0f5"
-_DIM = "#8fa3c4"
+DIM = "#8fa3c4"
 _GOOD = "#7fd4a0"
 _ACCENT = "#4a82d2"
-_GAIN = "#d8b35c"    # same as the tempo fader's own pitch readout
-_BAD = "#e53935"     # same red as the end-of-track warning
+GAIN = "#d8b35c"    # same as the tempo fader's own pitch readout
+BAD = "#e53935"     # same red as the end-of-track warning
 
 _KORREKTUR_WARN_PCT = 2.5
 # A gap this many times the running mean interval is a pause in the tapping,
@@ -128,7 +127,7 @@ class TaktMeterOverlay(QFrame):
             "QDoubleSpinBox::down-arrow { width:0; height:0; margin:3px;"
             " border-left:4px solid transparent; border-right:4px solid transparent;"
             " border-top:5px solid %(ink)s; }"
-            % {"ink": _INK, "dim": _DIM, "accent": _ACCENT}
+            % {"ink": _INK, "dim": DIM, "accent": _ACCENT}
         )
 
         lyt = QVBoxLayout(self)
@@ -191,7 +190,7 @@ class TaktMeterOverlay(QFrame):
         korrektur_row = QHBoxLayout()
         korrektur_row.addWidget(QLabel("Correction needed:"))
         self._korrektur_lbl = QLabel("0.0%")
-        self._korrektur_lbl.setStyleSheet(f"color:{_DIM};")
+        self._korrektur_lbl.setStyleSheet(f"color:{DIM};")
         korrektur_row.addWidget(self._korrektur_lbl)
         korrektur_row.addStretch(1)
         self._apply_btn = QPushButton("Apply")
@@ -232,10 +231,10 @@ class TaktMeterOverlay(QFrame):
         significant = abs(pct) >= 0.05
         self._korrektur_lbl.setText(f"{pct:+.1f}%" if significant else "0.0%")
         if significant:
-            color = _BAD if abs(pct) > _KORREKTUR_WARN_PCT else _GAIN
+            color = BAD if abs(pct) > _KORREKTUR_WARN_PCT else GAIN
             self._korrektur_lbl.setStyleSheet(f"font-weight:bold; color:{color};")
         else:
-            self._korrektur_lbl.setStyleSheet(f"color:{_DIM};")
+            self._korrektur_lbl.setStyleSheet(f"color:{DIM};")
         self._apply_btn.setEnabled(has_correction and significant)
 
     def _on_apply(self):

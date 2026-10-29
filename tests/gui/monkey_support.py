@@ -35,18 +35,35 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 import numpy as np
 import shiboken6
-from PySide6.QtCore import (
-    QAbstractListModel, QEvent, QEventLoop, QPoint, QPointF, QProcess, Qt,
-    QTimer)
-from PySide6.QtGui import (
-    QColor, QContextMenuEvent, QDesktopServices, QDrag, QDropEvent, QKeyEvent,
-    QShortcut)
+from PySide6.QtCore import QAbstractListModel, QEvent, QEventLoop, QPoint, QPointF, QProcess, Qt, QTimer
+from PySide6.QtGui import QColor, QContextMenuEvent, QDesktopServices, QDrag, QDropEvent, QKeyEvent, QShortcut
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import (
-    QAbstractButton, QAbstractItemView, QAbstractScrollArea, QAbstractSlider,
-    QAbstractSpinBox, QApplication, QCheckBox, QColorDialog, QComboBox, QDialog,
-    QDialogButtonBox, QDoubleSpinBox, QFileDialog, QInputDialog, QLineEdit, QMenu, QMessageBox,
-    QScrollBar, QSpinBox, QStyle, QStyleOptionButton, QTabBar, QWidget)
+    QAbstractButton,
+    QAbstractItemView,
+    QAbstractScrollArea,
+    QAbstractSlider,
+    QAbstractSpinBox,
+    QApplication,
+    QCheckBox,
+    QColorDialog,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QDoubleSpinBox,
+    QFileDialog,
+    QInputDialog,
+    QLineEdit,
+    QMenu,
+    QMessageBox,
+    QScrollBar,
+    QSpinBox,
+    QStyle,
+    QStyleOptionButton,
+    QTabBar,
+    QWidget,
+)
+
 from planner.music.analysis import AudioFeatures
 from shared.columns import _COL_PLAY, _COL_TITLE
 from tests.qt_test_support import reap_widget
@@ -434,6 +451,7 @@ class LoadedWindow(unittest.TestCase):
         import shared.error_reports
         import shared.remote.guest_server
         import shared.remote.remote_server
+        from planner.generate import ai, llm
 
         def refuse(*_a, **_kw):
             raise FileNotFoundError("monkey test: no child processes")
@@ -504,6 +522,12 @@ class LoadedWindow(unittest.TestCase):
               for name in ("connect", "connect_ex", "bind", "sendto")),
             # Ticking 🐞 Send error reports in ⚙ Settings must not start Sentry.
             (shared.error_reports, "available", lambda: False),
+            # A CLI and a key on every machine, so both AI backends get as far
+            # as the refusals above (CI has neither; this machine has both).
+            (llm, "resolve_claude_bin", lambda: "claude"),
+            (ai, "load_openrouter_config", lambda: {
+                "api_key": "monkey", "model": ai.FREE_MODELS_FALLBACK[0],
+                "base_url": ai.DEFAULT_API_BASE}),
         ]
         if hasattr(os, "startfile"):
             patches.append((os, "startfile", refuse))

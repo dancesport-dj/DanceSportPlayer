@@ -9,7 +9,6 @@ How long a title ran is not recorded but worked out: until the next title
 started, at most the track's own length. A cut at 1:30 reads 1:30, a title
 followed by a break reads its full length.
 """
-from __future__ import annotations
 
 import csv
 import datetime as dt
@@ -27,7 +26,6 @@ GAP_HOURS = 4
 _COLS = "started_at, path, artist, title, dance, list_name, length, composer"
 
 log = logging.getLogger("dancesport.play_log")
-
 
 @dataclass(frozen=True)
 class Play:

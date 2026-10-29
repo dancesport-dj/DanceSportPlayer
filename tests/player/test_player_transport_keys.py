@@ -34,8 +34,7 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import QApplication, QToolButton
 
 from player.widgets import player_parts
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 
 class _WindowTest(unittest.TestCase):
@@ -99,7 +98,6 @@ class TransportShortcutTest(_WindowTest):
         fired = []
         self.win._fire_pending_advance = lambda: fired.append(True)
         self.win._between.pending = (self.win._deckset.tableA, 0, Path("x.mp3"))
-        self.win._filler.active = False   # nothing audible to fade first
         self.win._desk_keys["next"].activated.emit()
         self.assertEqual(fired, [True])
         self.assertEqual(self.stepped, [], "the deck was stepped as well")
@@ -140,6 +138,7 @@ class HeldKeyTest(_WindowTest):
         played = []
         table._on_play_click = lambda row, path: played.append(row)
         table._selected_song_row = lambda: (0, Path("x.mp3"))
+        table._start_refused = lambda row, path: False   # x.mp3 is not on disk
 
         self._press(table, Qt.Key.Key_Space, repeat=False)
         self._press(table, Qt.Key.Key_Space, repeat=True)
@@ -200,6 +199,7 @@ class DoubleTapSpaceTest(_WindowTest):
         played = []
         table._on_play_click = lambda row, path: played.append(row)
         table._selected_song_row = lambda: (0, Path("x.mp3"))
+        table._start_refused = lambda row, path: False   # x.mp3 is not on disk
 
         table.keyPressEvent(self._space())
         self.clock[0] += 0.15
@@ -233,25 +233,27 @@ class TempoStepTest(_WindowTest):
     def setUp(self):
         super().setUp()
         self.card._tempo.setValue(0)
+        # The volume slider has a − / + pair of its own.
+        volume = (self.card._vol_down_btn, self.card._vol_up_btn)
         self.minus, self.plus = (b for b in self.card.findChildren(QToolButton)
-                                 if b.text() in ("−", "+"))
+                                 if b.text() in ("−", "+") and b not in volume)
 
     def test_plus_raises_the_tempo_by_a_tenth_of_a_percent(self):
         self.plus.click()
-        self.assertEqual(self.card._tempo.value(), player_parts._TEMPO_STEP)
+        self.assertEqual(self.card._tempo.value(), player_parts.TEMPO_STEP)
 
     def test_a_step_is_the_finest_the_fader_has(self):
         """0.1 % — the fader's own unit. A takt is hit by tenths."""
-        self.assertEqual(player_parts._TEMPO_STEP, 1)
+        self.assertEqual(player_parts.TEMPO_STEP, 1)
 
     def test_minus_lowers_it_by_the_same(self):
         self.minus.click()
-        self.assertEqual(self.card._tempo.value(), -player_parts._TEMPO_STEP)
+        self.assertEqual(self.card._tempo.value(), -player_parts.TEMPO_STEP)
 
     def test_steps_accumulate(self):
         for _ in range(4):
             self.plus.click()
-        self.assertEqual(self.card._tempo.value(), 4 * player_parts._TEMPO_STEP)
+        self.assertEqual(self.card._tempo.value(), 4 * player_parts.TEMPO_STEP)
 
     def test_they_stop_at_the_ends_of_the_range(self):
         """Holding + at +16 % must not run the value past the fader."""
@@ -278,7 +280,7 @@ class TempoStepTest(_WindowTest):
         self.assertEqual(applied, [], "the rate was set mid-glide")
         self.assertTrue(self.card._tempo_apply.isActive())
         self.card._tempo_apply.timeout.emit()
-        self.assertEqual(applied, [6 * player_parts._TEMPO_STEP])
+        self.assertEqual(applied, [6 * player_parts.TEMPO_STEP])
 
     def test_the_desk_keys_step_and_reset_it(self):
         """⌨ Ctrl+Shift+PgUp / PgDown are the + / − buttons from anywhere,
@@ -286,7 +288,7 @@ class TempoStepTest(_WindowTest):
         self.win._desk_keys["tempo_up"].activated.emit()
         self.win._desk_keys["tempo_up"].activated.emit()
         self.win._desk_keys["tempo_down"].activated.emit()
-        self.assertEqual(self.card._tempo.value(), player_parts._TEMPO_STEP)
+        self.assertEqual(self.card._tempo.value(), player_parts.TEMPO_STEP)
         self.win._desk_keys["tempo_reset"].activated.emit()
         self.assertEqual(self.card._tempo.value(), 0)
 

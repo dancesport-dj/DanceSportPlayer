@@ -17,7 +17,6 @@ already turned off stays off), and `record` is what the caller persists so a
 crash that skips `hold(False)` is repaired on the next start by
 `restore_leftover`.
 """
-from __future__ import annotations
 
 import logging
 import os
@@ -28,7 +27,6 @@ import sys
 log = logging.getLogger("dancesport.gui.audio")
 
 _CMD_TIMEOUT_S = 3
-
 
 def _run(*cmd: str) -> str | None:
     """stdout of a short helper command, or None if it is missing or failed."""

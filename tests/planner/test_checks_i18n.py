@@ -13,8 +13,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from planner import i18n
-from planner.playlist.checks import grid_structure_findings, track_issues
 from planner.models import MusicEntry
+from planner.playlist.checks import grid_structure_findings, track_issues
 
 _BEATS_PER_BAR = {"LW": 3, "TG": 2, "WW": 3, "SF": 4, "QS": 4}
 _TEMPO_RATIOS = (1.0, 2.0, 0.5, 3.0, 1 / 3, 4.0, 0.25, 1.5, 2 / 3)

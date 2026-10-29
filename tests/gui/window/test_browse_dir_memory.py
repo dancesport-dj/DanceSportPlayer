@@ -62,7 +62,7 @@ class BrowseDirMemoryTest(unittest.TestCase):
 
     # ── the pickers themselves ────────────────────────────────────────────────
     def _zone(self):
-        z = common._DroppedFilesList()
+        z = common.DroppedFilesList()
         self.addCleanup(reap_widget, z)
         return z
 

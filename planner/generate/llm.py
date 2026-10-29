@@ -32,14 +32,18 @@ import subprocess
 import tempfile
 import time
 from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING
 
-from planner.models import ALLOW_REPEAT, DANCE_NAMES, TEMPO_RANGES, is_non_turnier
-from planner.music.parsing import _norm_title
-from planner.generate.scoring import HIGHER_CLASSES, class_focused, effective_popularity
-from planner.music.sound import code_text, sound_codes
-from planner.generate.warmup import class_warmup_pool, warmup_code
 from planner.generate import ai
+from planner.generate.scoring import HIGHER_CLASSES, class_focused, effective_popularity
+from planner.generate.warmup import class_warmup_pool, warmup_code
+from planner.models import ALLOW_REPEAT, DANCE_NAMES, TEMPO_RANGES, is_non_turnier
+from planner.music.parsing import norm_title
+from planner.music.sound import code_text, sound_codes
 from planner.playlist.planned import path_key
+
+if TYPE_CHECKING:
+    from planner.models import MusicEntry
 
 log = logging.getLogger("dancesport.llm")
 
@@ -276,8 +280,9 @@ def call_claude_cli(prompt: str, model: str = CLAUDE_MODEL,
 
 
 # ── The pool the model picks from ────────────────────────────────
-def competition_candidates(entries, style: str, dance_class: str,
-                           dances: list[str], *, cap: int = MAX_CANDIDATES):
+def competition_candidates(entries: Sequence[MusicEntry], style: str, dance_class: str,
+                           dances: list[str], *,
+                           cap: int = MAX_CANDIDATES) -> list[MusicEntry]:
     """Every TSO-conform candidate per dance for a competition, most-played
     first. Nothing is sampled away: the model no longer reads this list, it
     queries it, so the pool may as well be complete."""
@@ -290,7 +295,8 @@ def competition_candidates(entries, style: str, dance_class: str,
     return out
 
 
-def flat_candidates(entries, *, cap: int = MAX_CANDIDATES):
+def flat_candidates(entries: Sequence[MusicEntry], *,
+                    cap: int = MAX_CANDIDATES) -> list[MusicEntry]:
     """Candidates for a free-form list: everything danceable, junk categories
     (seasonal / duplicates / wrong tempo) left out."""
     by_dance: dict[str, list] = {}
@@ -426,8 +432,8 @@ def catalog_rows(candidates, numbers, *, dance_class=None, used_paths=(),
     used = _used_set(used_paths)
     lines = ([_ROW_LEGEND, "", _ROW_HEADER] if sound
              else [_ROUND_LEGEND, "", _ROW_HEADER])
-    for n in numbers:
-        lines.append(_row(n, candidates[n - 1], dance_class, used, sound))
+    lines.extend(_row(n, candidates[n - 1], dance_class, used, sound)
+                 for n in numbers)
     return "\n".join(lines)
 
 
@@ -674,7 +680,7 @@ def _search_key(s: str) -> str:
     The normaliser folds accents and turns punctuation into spaces; dropping
     the spaces on top of that lets a wished "dont stop" find "Don't Stop" and
     "mas que nada" find "Mas Que Nada (Radio Edit)"."""
-    return _norm_title(s).replace(" ", "")
+    return norm_title(s).replace(" ", "")
 
 
 def _matches(entry, query: dict, dance_class, used_paths, sound=None) -> bool:
@@ -709,9 +715,9 @@ def _matches(entry, query: dict, dance_class, used_paths, sound=None) -> bool:
         if allowed and cls not in allowed:
             return False
 
-    if "instr" in query:
-        if bool(query["instr"]) != bool(getattr(entry, "is_instrumental", False)):
-            return False
+    if "instr" in query and (
+            bool(query["instr"]) != bool(getattr(entry, "is_instrumental", False))):
+        return False
 
     if query.get("focus") and not class_focused(entry):
         return False
@@ -820,9 +826,9 @@ def competition_task(style: str, age: str, dance_class: str,
     """The 'what to build' half for a competition: rounds, heats, dances."""
     lines = [f"Build the music for a {age} {dance_class}-class {style} competition.",
              "Rounds and how many songs of EVERY dance each one needs:"]
-    for rc in rounds:
-        lines.append(f"  • {rc.name}: {rc.heats} heat(s) × "
-                     f"{len(dances)} dances = {rc.heats * len(dances)} songs")
+    lines.extend(f"  • {rc.name}: {rc.heats} heat(s) × "
+                 f"{len(dances)} dances = {rc.heats * len(dances)} songs"
+                 for rc in rounds)
     lines.append("Dance order inside every heat: "
                  + ", ".join(f"{DANCE_NAMES.get(d, d)} ({d})" for d in dances))
     total = sum(rc.heats for rc in rounds) * len(dances)
@@ -957,8 +963,8 @@ def event_task(label: str, style: str | None, dance_class: str,
              f"{kind}competition \"{label}\" ({dance_class}-class) in each of "
              "them and swap titles where a better one is in the catalogue.",
              "Rounds and heats:"]
-    for rc in rounds:
-        lines.append(f"  • {rc.name}: {rc.heats} heat(s) × {len(dances)} dances")
+    lines.extend(f"  • {rc.name}: {rc.heats} heat(s) × {len(dances)} dances"
+                 for rc in rounds)
     lines.append("Dance order inside every heat: "
                  + ", ".join(f"{DANCE_NAMES.get(d, d)} ({d})" for d in dances))
     note = _tempo_note(dances, dance_class)

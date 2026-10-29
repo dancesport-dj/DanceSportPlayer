@@ -43,7 +43,7 @@ _SOURCES = [*sorted((_ROOT / "gui").rglob("*.py")),
 def _is_toast(call: ast.Call) -> bool:
     f = call.func
     name = f.id if isinstance(f, ast.Name) else getattr(f, "attr", None)
-    return name == "_show_toast"
+    return name == "show_toast"
 
 
 def _toast_text(call: ast.Call):
@@ -118,7 +118,7 @@ class ToastGermanTest(unittest.TestCase):
         # "Time" is a column header elsewhere — as a title it is data.
         self.assertEqual(
             _Drop()._nothing_added({"dup": [_entry("Time")]}),
-            "⚠  „Time“ ist schon in dieser Playlist — nichts hinzugefügt")
+            "⚠  „Time“ ist schon in dieser Wiedergabeliste — nichts hinzugefügt")
 
 
 if __name__ == "__main__":

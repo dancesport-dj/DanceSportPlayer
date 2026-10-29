@@ -8,7 +8,6 @@ shared.controllers.midi_input, which picks the backend for the platform.
 winmm delivers each message on a thread of its own and `MidiInput` hands it
 to the callback it was given, straight from that thread.
 """
-from __future__ import annotations
 
 import ctypes
 import logging
@@ -45,7 +44,6 @@ if sys.platform == "win32":
         getattr(_winmm, _name).argtypes = [wintypes.HANDLE]
 else:   # pragma: no cover - no winmm off Windows
     _winmm = None
-
 
 def list_inputs() -> list[str]:  # slop-mop noqa: ambiguity-mine - the MIDI backend interface, one module per OS
     """The names of the MIDI inputs plugged in now, in winmm's order (the

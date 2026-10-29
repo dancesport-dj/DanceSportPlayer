@@ -17,6 +17,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from tools.audio import announce_eq as eq
 
@@ -107,6 +108,105 @@ class _Stubbed(_ClipTree):
         self._real_render = eq.render
         eq.render = self.fake_render
         self.addCleanup(setattr, eq, "render", self._real_render)
+        # Nothing here is real audio to measure; a word from the first sample.
+        self.enterContext(mock.patch.object(eq, "lead_of", return_value=0))
+
+
+class LeadTest(_Stubbed):
+    """Qt's FFmpeg backend drops up to ~30 ms of audio somewhere in the first
+    80 ms of every clip it starts. A word that begins at once loses part of its
+    first syllable — the "e-eins" stutter — so every clip is given the silence
+    ahead of its word for the backend to lose instead."""
+
+    def setUp(self):
+        super().setUp()
+        self.filters = []
+        eq.render = self.recording_render
+
+    def recording_render(self, ffmpeg, src, dst, filters):
+        self.filters.append(filters)
+        return self.fake_render(ffmpeg, src, dst, filters)
+
+    def treat(self, lead_ms, preset="clear"):
+        """The chain the clip was finally rendered with, `lead_ms` being the
+        silence the treated clip had ahead of its word (it is measured with the
+        pre-roll already added)."""
+        with mock.patch.object(eq, "lead_of",
+                               return_value=lead_ms + eq.announce._PREROLL_MS):
+            eq.apply_voice("ffmpeg", self.folder, preset)
+        return self.filters[-1]
+
+    def test_a_word_that_starts_at_once_gets_silence_ahead(self):
+        self.assertEqual(self.treat(0), eq.chain("clear")
+                         + f",adelay={eq.announce._PREROLL_MS}:all=1")
+
+    def test_only_the_missing_silence_is_added(self):
+        self.assertTrue(self.treat(50).endswith(
+            f",adelay={eq.announce._PREROLL_MS - 50}:all=1"))
+
+    def test_the_lead_is_measured_on_the_treated_clip(self):
+        """The makeup gain lifts a breath ahead of the word above the probe's
+        floor, so the recording's lead is not the clip's."""
+        measured = []
+        with mock.patch.object(eq, "lead_of",
+                               side_effect=lambda _ff, p: measured.append(
+                                   p.read_bytes()) or 0):
+            eq.apply_voice("ffmpeg", self.folder, "clear")
+        self.assertTrue(measured)
+        self.assertTrue(all(m.startswith(b"EQ(") for m in measured))
+
+    def test_the_lead_is_measured_with_the_pre_roll_ahead_of_it(self):
+        """silencedetect reports no silence shorter than 50 ms: a clip with 40
+        ms ahead of its word reads as none, and got all of the pre-roll more."""
+        chains = []
+        with mock.patch.object(eq, "lead_of",
+                               side_effect=lambda _ff, _p: chains.append(
+                                   self.filters[-1]) or eq.announce._PREROLL_MS):
+            eq.apply_voice("ffmpeg", self.folder, "clear")
+        self.assertTrue(chains)
+        self.assertEqual(set(chains), {
+            eq.chain("clear") + f",adelay={eq.announce._PREROLL_MS}:all=1"})
+
+    def test_a_clip_with_the_lead_already_is_only_treated(self):
+        self.assertEqual(self.treat(eq.announce._PREROLL_MS), eq.chain("clear"))
+
+    def test_more_silence_is_cut_back_to_the_lead(self):
+        """Playback would seek past it, and a seek ~185 ms deep put a 2 ms hole
+        into the word after it (23 calls in 72); a few ms deep, none."""
+        cut = (400 - eq.announce._PREROLL_MS) / 1000
+        self.assertEqual(self.treat(400), eq.chain("clear")
+                         + f",atrim=start={cut},asetpts=PTS-STARTPTS")
+
+    def test_the_reference_preset_still_gets_the_silence(self):
+        self.assertEqual(self.treat(0, "off"),
+                         f"adelay={eq.announce._PREROLL_MS}:all=1")
+
+
+class InstalledClipsTest(unittest.TestCase):
+    """The clips that ship: each one has the silence ahead of its word, so a
+    take recorded again (the speech script writes straight over the file)
+    cannot bring the stutter back unnoticed. Run --apply after recording."""
+
+    def leads(self) -> dict:
+        ffmpeg = eq.find_ffmpeg()
+        if not ffmpeg:
+            self.skipTest("no ffmpeg to measure the clips with")
+        clips = sorted(eq.announce._CLIP_DIR.glob("*/*/*.mp3"))
+        self.assertTrue(clips)
+        return {f"{c.parent.parent.name}/{c.parent.name}/{c.stem}":
+                eq.lead_of(ffmpeg, c) for c in clips}
+
+    def test_every_clip_starts_with_silence_for_the_backend(self):
+        short = {c: lead for c, lead in self.leads().items()
+                 if lead < eq.announce._PREROLL_MS - 20}
+        self.assertEqual(short, {})
+
+    def test_no_clip_makes_playback_seek_deep(self):
+        """Playback seeks past what a clip has beyond the lead; deep seeks hole
+        the word after them (see LeadTest)."""
+        long = {c: lead for c, lead in self.leads().items()
+                if lead > eq.announce._PREROLL_MS + 30}
+        self.assertEqual(long, {})
 
 
 class ApplyTest(_Stubbed):

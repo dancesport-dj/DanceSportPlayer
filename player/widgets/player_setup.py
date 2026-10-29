@@ -12,29 +12,38 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QToolButton, QVB
 
 from planner import i18n
 from planner.terms import rules_name
-from shared.appearance.icons import button as icon_button, pixmap as icon_pixmap
+from player.dialogs.cart_pad_dialog import TypedValue
 from player.widgets.player_parts import (
-    _ART_PX,
-    _block,
-    _CARD_CUE,
-    _CARD_DIM,
-    _CARD_EXTEND,
-    _CARD_FADE,
-    _CARD_GAIN,
-    _CARD_INK,
-    _CARD_PANIC,
-    _CARD_PAUSE,
-    _ClickSlider,
-    _COUNTDOWN_CSS,
-    _TEMPO_STEP,
-    _TempoSlider,
+    ART_PX,
+    CARD_CUE,
+    CARD_DIM,
+    CARD_EXTEND,
+    CARD_FADE,
+    CARD_GAIN,
+    CARD_INK,
+    CARD_PANIC,
+    CARD_PAUSE,
+    COUNTDOWN_CSS,
+    TEMPO_STEP,
+    VOL_STEP,
+    ClickSlider,
+    TempoSlider,
+    block,
 )
 from player.widgets.waveform import WaveformLoader, WaveformStrip
+from shared.appearance.icons import button as icon_button
+from shared.appearance.icons import pixmap as icon_pixmap
 
 if TYPE_CHECKING:
     from gui.window.hosts import BigPlayerHost
 else:
     BigPlayerHost = object
+
+
+# 🎚 The fader knob from the canvas boards: a dark cap crossed by a light line.
+_CAP_H = ("qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3b4252,"
+          " stop:0.42 #3b4252, stop:0.43 #e8eef8, stop:0.57 #e8eef8,"
+          " stop:0.58 #3b4252, stop:1 #3b4252)")
 
 
 class BigPlayerSetupMixin(BigPlayerHost):
@@ -52,8 +61,9 @@ class BigPlayerSetupMixin(BigPlayerHost):
             "QSlider::groove:horizontal { height:6px; border-radius:3px;"
             " background:#2a3346; }"
             "QSlider::sub-page:horizontal { background:#4a82d2; border-radius:3px; }"
-            "QSlider::handle:horizontal { width:12px; margin:-4px 0;"
-            " border-radius:6px; background:#9fc3f0; }"
+            # 🎚 DJ-cap knobs (dark cap, light line) on volume, pitch and seek.
+            "QSlider::handle:horizontal { width:14px; margin:-6px 0;"
+            f" border-radius:3px; border:1px solid #0d1017; background:{_CAP_H}; }}"
             "QSlider#seek { min-height:20px; }")
         # Normal vs end-of-track warning skins (the card flashes red while a
         # song is in its last seconds — see _flash_step / _update_time).
@@ -101,13 +111,13 @@ class BigPlayerSetupMixin(BigPlayerHost):
         self._art_track: Path | None = None
         self._art_list: Path | None = None
         self._art = QLabel()
-        self._art.setFixedSize(_ART_PX, _ART_PX)
+        self._art.setFixedSize(ART_PX, ART_PX)
         self._art.setVisible(False)
         head_row.addWidget(self._art, 0, Qt.AlignmentFlag.AlignTop)
         text_col = QVBoxLayout()
         text_col.setSpacing(4)
         head_row.addLayout(text_col, 1)
-        self._head_box = _block(head_row)
+        self._head_box = block(head_row)
 
         self._title = QLabel("")
         # Track metadata is foreign input — never let Qt read markup in it (see
@@ -147,7 +157,7 @@ class BigPlayerSetupMixin(BigPlayerHost):
         # the sand clock and the card shows the adjusted time, so mirroring it
         # here too would just double the ⏳.
         self._countdown_lbl = QLabel("")
-        self._countdown_lbl.setStyleSheet(_COUNTDOWN_CSS)
+        self._countdown_lbl.setStyleSheet(COUNTDOWN_CSS)
         # Hidden while empty: an empty label still takes its font's width and
         # a spacing on both sides, right between the bpm and the dB.
         self._countdown_lbl.setVisible(False)
@@ -155,11 +165,11 @@ class BigPlayerSetupMixin(BigPlayerHost):
         # R128 equalization feedback: how far this track's volume was pulled —
         # back at the right end of the subtitle row.
         self._gain_icon = QLabel()
-        self._gain_icon.setPixmap(icon_pixmap("volume", 11, _CARD_GAIN))
+        self._gain_icon.setPixmap(icon_pixmap("volume", 11, CARD_GAIN))
         self._gain_icon.setVisible(False)
         sub_row.addWidget(self._gain_icon)
         self._gain_lbl = QLabel("")
-        self._gain_lbl.setStyleSheet(f"font-size:11px; color:{_CARD_GAIN};")
+        self._gain_lbl.setStyleSheet(f"font-size:11px; color:{CARD_GAIN};")
         self._gain_lbl.setToolTip(
             "Volume adjustment of this track by Equalize volume (R128)")
         sub_row.addWidget(self._gain_lbl)
@@ -182,7 +192,7 @@ class BigPlayerSetupMixin(BigPlayerHost):
         # here but placed in their OWN row BELOW the transport buttons (see
         # _build_aux_row); shown only while a song plays / a pause runs.
         self._fade_btn = QToolButton()
-        icon_button(self._fade_btn, "fade_out", 16, _CARD_FADE)
+        icon_button(self._fade_btn, "fade_out", 16, CARD_FADE)
         self._fade_btn.setFixedHeight(28)
         self._fade_btn.setMinimumWidth(52)
         self._fade_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -192,17 +202,18 @@ class BigPlayerSetupMixin(BigPlayerHost):
         self._fade_btn.clicked.connect(self.fadeOutRequested.emit)
         self._fade_btn.setVisible(False)
         self._topause_btn = QToolButton()
-        icon_button(self._topause_btn, "break_music", 16, _CARD_PAUSE)
+        icon_button(self._topause_btn, "break_music", 16, CARD_PAUSE)
         self._topause_btn.setFixedHeight(28)
         self._topause_btn.setMinimumWidth(52)
         self._topause_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._topause_btn.setToolTip(
-            "Jump straight to the pause music — end this song now and start\n"
-            "the between-songs pause (e.g. the dancers are already leaving).")
+            "Go to the pause music — fade this song out (over the configured\n"
+            "fade time), then start the between-songs pause (e.g. the dancers\n"
+            "are already leaving).")
         self._topause_btn.clicked.connect(self.toPauseRequested.emit)
         self._topause_btn.setVisible(False)
         self._extend_btn = QToolButton()
-        icon_button(self._extend_btn, "extend", 16, _CARD_EXTEND)
+        icon_button(self._extend_btn, "extend", 16, CARD_EXTEND)
         self._extend_btn.setFixedHeight(28)
         self._extend_btn.setMinimumWidth(52)
         self._extend_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -211,6 +222,20 @@ class BigPlayerSetupMixin(BigPlayerHost):
             "use it when the heat change is taking longer than planned.")
         self._extend_btn.clicked.connect(self.extendPauseRequested.emit)
         self._extend_btn.setVisible(False)
+        # The pause's own way out, in words: ⏭ does the same, but the hall
+        # waiting on the next dance should not hinge on knowing that.
+        self._skip_pause_btn = QToolButton()
+        icon_button(self._skip_pause_btn, "next", 16, CARD_EXTEND)
+        self._skip_pause_btn.setText("Next dance")
+        self._skip_pause_btn.setToolButtonStyle(
+            Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self._skip_pause_btn.setFixedHeight(28)
+        self._skip_pause_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._skip_pause_btn.setToolTip(
+            "Cut the pause short and go to the next dance. Its announcement\n"
+            "still plays first; the pause music fades out, like ⏭.")
+        self._skip_pause_btn.clicked.connect(self.nextRequested.emit)
+        self._skip_pause_btn.setVisible(False)
         # Card state for the context-dependent aux buttons (play vs. pause).
         self._is_paused = False
         self._has_song = False
@@ -238,6 +263,7 @@ class BigPlayerSetupMixin(BigPlayerHost):
         # stop) next to the track's full length.
         self._limit_ms: int | None = None
         self._limit_glyph = "hourglass"
+        self._limit_then: str | None = None   # 🥇 drawn after the limit
         # True when a stop is armed but resolves to the track's natural end (a PD
         # whose finale highlight sits at the end) — the card still shows a 🐂
         # marker so the operator sees the highlight-stop is on and the song plays
@@ -252,19 +278,18 @@ class BigPlayerSetupMixin(BigPlayerHost):
             "next to the track's full length")
         right_col.addWidget(self._limit_lbl)
         time_row.addLayout(right_col)
-        self._time_box = _block(time_row)
+        self._time_box = block(time_row)
 
     def _build_seek(self, cache_of):
         """The seek bar and the waveform strip above it."""
-        self._slider = _ClickSlider(Qt.Orientation.Horizontal)
+        self._slider = ClickSlider(Qt.Orientation.Horizontal)
         self._slider.setObjectName("seek")
         self._slider.setRange(0, 0)
         self._slider.sliderPressed.connect(self._on_slider_pressed)
         self._slider.sliderMoved.connect(self._on_slider_moved)
         self._slider.sliderReleased.connect(self._on_slider_released)
         # Late-bound: the card can be retargeted to the pause-music player.
-        self._slider.clickJumped.connect(
-            lambda ms: self._player.setPosition(ms))
+        self._slider.clickJumped.connect(self._seek_by_hand)
         # 〰 The title's waveform above the seek bar — the same span, the same
         # late-bound seek.
         self._wave = WaveformStrip()
@@ -272,6 +297,7 @@ class BigPlayerSetupMixin(BigPlayerHost):
         self._wave.seekRequested.connect(self._on_wave_released)
         self._wave_on = True
         self._wave_path: str | None = None
+        self._moved_by_hand = False     # an operator seek hid the start line
         self._wave_loader = WaveformLoader(self, cache_of=cache_of)
         self._wave_loader.ready.connect(self._on_wave_ready)
 
@@ -281,11 +307,12 @@ class BigPlayerSetupMixin(BigPlayerHost):
         btns.setSpacing(4)
         btns.addStretch(1)
         self._cue_btn = QToolButton()
-        icon_button(self._cue_btn, "cue_start", 16, _CARD_CUE)
+        icon_button(self._cue_btn, "cue_start", 16, CARD_CUE)
         self._cue_btn.setToolTip("Jump back to the start (0:00) of this track")
         self._cue_btn.clicked.connect(self._seek_to_start)
         btns.addWidget(self._cue_btn)
         self._pause_btn = None
+        self._primary_btns = []     # 🔘 what the button size in ⚙ Settings grows
         # The primary controls (prev / play-pause / next) are enlarged so the
         # operator can hit them at a glance; the fine controls stay smaller.
         primary = {"prev", "play_circle", "next"}
@@ -297,11 +324,12 @@ class BigPlayerSetupMixin(BigPlayerHost):
                 ("next", "Next title", self.nextRequested.emit)):
             b = QToolButton()
             big = name in primary
-            icon_button(b, name, 24 if big else 16, _CARD_INK)
+            icon_button(b, name, 24 if big else 16, CARD_INK)
             b.setToolTip(tip)
             b.clicked.connect(cb)
             if big:
                 b.setStyleSheet("QToolButton { padding:5px 7px; }")
+                self._primary_btns.append(b)
             btns.addWidget(b)
             if name == "play_circle":
                 self._pause_btn = b
@@ -309,7 +337,7 @@ class BigPlayerSetupMixin(BigPlayerHost):
         # A state, not an action, so it stays pressed and lights up — next to ⏭
         # because it is the answer to the same question, "what comes now".
         self._loop_btn = QToolButton()
-        icon_button(self._loop_btn, "regen", 16, _CARD_INK)
+        icon_button(self._loop_btn, "regen", 16, CARD_INK)
         self._loop_btn.setCheckable(True)
         self._loop_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._loop_btn.setToolTip(
@@ -323,7 +351,7 @@ class BigPlayerSetupMixin(BigPlayerHost):
             "QToolButton:checked { background:#1565c0; }")
         btns.addWidget(self._loop_btn)
         btns.addStretch(1)
-        self._btn_box = _block(btns)
+        self._btn_box = block(btns)
 
     def _build_aux_row(self):
         """The row under the transport that holds the aux buttons."""
@@ -337,8 +365,9 @@ class BigPlayerSetupMixin(BigPlayerHost):
         aux_row.addWidget(self._fade_btn)
         aux_row.addWidget(self._topause_btn)
         aux_row.addWidget(self._extend_btn)
+        aux_row.addWidget(self._skip_pause_btn)
         aux_row.addStretch(1)
-        self._aux_box = _block(aux_row)
+        self._aux_box = block(aux_row)
         # Hidden, it still holds its row: a title ending (a 🔉↓ fade-out, the
         # last of a list) must not make the whole card jump shorter.
         keep = self._aux_box.sizePolicy()
@@ -353,7 +382,7 @@ class BigPlayerSetupMixin(BigPlayerHost):
         vol_row = QHBoxLayout()
         vol_row.setSpacing(6)
         self._panic_btn = QToolButton()
-        icon_button(self._panic_btn, "panic", 16, _CARD_PANIC)
+        icon_button(self._panic_btn, "panic", 16, CARD_PANIC)
         self._panic_btn.setFixedHeight(28)
         self._panic_btn.setMinimumWidth(40)
         self._panic_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -362,36 +391,62 @@ class BigPlayerSetupMixin(BigPlayerHost):
             "Nothing ends and nothing advances — ⏯ resumes at exactly the\n"
             "spot it went quiet. For an announcement or an incident on the floor.")
         self._panic_btn.clicked.connect(self.panicRequested.emit)
+        # Here until set_vol_buttons_shown moves it up beside 🔉↓.
+        self._panic_up = False
         vol_row.addWidget(self._panic_btn)
         self._duck_btn = QToolButton()
-        icon_button(self._duck_btn, "volume", 16, _CARD_INK)
+        icon_button(self._duck_btn, "volume", 16, CARD_INK)
         self._duck_btn.setFixedHeight(28)
         self._duck_btn.setMinimumWidth(40)
         self._duck_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._duck_btn.setCheckable(True)   # stays pressed while ducked
+        # Orange while ducked, red while muted: the colours of the % readout.
         self._duck_btn.setStyleSheet(
             "QToolButton:checked { background:#d98f3a; border:1px solid #b06f20;"
-            " border-radius:4px; }")
-        self._duck_btn.setToolTip(
-            "Duck to 20 % / back to full — the filler music comes down too")
+            " border-radius:4px; }"
+            "QToolButton[muted=\"true\"]:checked { background:#d9534f;"
+            " border:1px solid #b52b27; }")
         self._duck_btn.clicked.connect(self.toggle_duck)
         vol_row.addWidget(self._duck_btn)
-        self._vol = _ClickSlider(Qt.Orientation.Horizontal)
+        self._vol = ClickSlider(Qt.Orientation.Horizontal)
         self._vol.setRange(0, 100)
         self._vol.setValue(round(self._get_vol() * 100))
         self._vol.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._vol.setToolTip("Master volume")
         self._vol.valueChanged.connect(self._on_vol_changed)
+        # − / + around it, like the tempo fader's; ⚙ Sound & player hides them.
+        self._vol_down_btn = self._vol_step_btn("−", -VOL_STEP, i18n.t("quieter"))
+        self._vol_up_btn = self._vol_step_btn("+", +VOL_STEP, i18n.t("louder"))
+        vol_row.addWidget(self._vol_down_btn)
         vol_row.addWidget(self._vol, stretch=1)
-        self._vol_lbl = QLabel("")
+        vol_row.addWidget(self._vol_up_btn)
+        # Double-click it to type a level the sound check already gave.
+        self._vol_lbl = TypedValue(self._vol)
         self._vol_lbl.setFixedWidth(34)
         self._vol_lbl.setAlignment(Qt.AlignmentFlag.AlignRight
                                    | Qt.AlignmentFlag.AlignVCenter)
         self._vol_lbl.setStyleSheet(
             "font-size:11px; color:#8fa3c4; font-family:Consolas,monospace;")
         vol_row.addWidget(self._vol_lbl)
-        self._vol_box = _block(vol_row)
+        self._vol_box = block(vol_row)
         self._refresh_vol_lbl()
+
+    def _vol_step_btn(self, text: str, delta: int, word: str) -> QToolButton:
+        """One of the − / + buttons beside the volume slider."""
+        b = QToolButton()
+        b.setText(text)
+        b.setFixedHeight(28)
+        b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        b.setToolTip(i18n.t("Volume %s %s — hold to glide")
+                     % (f"{VOL_STEP} %", word))
+        b.setAutoRepeat(True)
+        b.setAutoRepeatDelay(400)
+        b.setAutoRepeatInterval(110)
+        b.setStyleSheet(
+            "QToolButton { font-size:14px; font-weight:bold; padding:0 5px; }")
+        b.clicked.connect(
+            lambda _checked=False, d=delta: self._vol.setValue(self._vol.value() + d))
+        return b
 
     def _build_tempo(self):
         """The tempo fader with its step buttons, TSO, reset, pin and takt meter."""
@@ -407,9 +462,9 @@ class BigPlayerSetupMixin(BigPlayerHost):
         slider_row = QHBoxLayout()
         slider_row.setSpacing(6)
         tempo_icon = QLabel()
-        tempo_icon.setPixmap(icon_pixmap("sliders", 12, _CARD_DIM))
+        tempo_icon.setPixmap(icon_pixmap("sliders", 12, CARD_DIM))
         slider_row.addWidget(tempo_icon)
-        self._tempo = _TempoSlider(Qt.Orientation.Horizontal)
+        self._tempo = TempoSlider(Qt.Orientation.Horizontal)
         self._tempo.setRange(-160, 160)   # 0.1 % steps
         self._tempo.setValue(0)
         self._tempo.setToolTip(
@@ -434,15 +489,15 @@ class BigPlayerSetupMixin(BigPlayerHost):
         # point, not the hazard. The rate still lands once, when the stepping
         # stops: a programmatic setValue is no drag, so _on_tempo debounces it
         # exactly like a wheel notch and a glide costs one gap, not thirty.
-        minus = self._tempo_step_btn("−", -_TEMPO_STEP, i18n.t("slower"))
-        plus = self._tempo_step_btn("+", +_TEMPO_STEP, i18n.t("faster"))
+        minus = self._tempo_step_btn("−", -TEMPO_STEP, i18n.t("slower"))
+        plus = self._tempo_step_btn("+", +TEMPO_STEP, i18n.t("faster"))
         slider_row.addWidget(minus)
         slider_row.addWidget(self._tempo, stretch=1)
         slider_row.addWidget(plus)
         tempo_box.addLayout(slider_row)
         info_row = self._build_tempo_info()
         tempo_box.addLayout(info_row)
-        self._tempo_box = _block(tempo_box)
+        self._tempo_box = block(tempo_box)
 
     def _build_tempo_info(self):
         """The row under the fader: readout, TSO, reset, 📌 pin and ♪ meter."""
@@ -480,7 +535,7 @@ class BigPlayerSetupMixin(BigPlayerHost):
         # the dark card); it lights up in the accent colour while armed. Pinned
         # is the exception, so the signal carries the reset flag, not the pin.
         self._tempo_pin = QToolButton()
-        icon_button(self._tempo_pin, "pin", 12, _CARD_INK)
+        icon_button(self._tempo_pin, "pin", 12, CARD_INK)
         self._tempo_pin.setCheckable(True)
         self._tempo_pin.setToolTip(rules_name(i18n.t(
             "📌 Pin the tempo: the fader stays where you left it when the next\n"
@@ -514,7 +569,7 @@ class BigPlayerSetupMixin(BigPlayerHost):
         # %% in a catalog key would be the only one in the catalog, and the
         # number is a number in every language anyway.
         b.setToolTip(i18n.t("Tempo %s %s — hold to glide")
-                     % (f"{_TEMPO_STEP / 10:.1f} %", word))
+                     % (f"{TEMPO_STEP / 10:.1f} %", word))
         b.setAutoRepeat(True)
         b.setAutoRepeatDelay(400)
         b.setAutoRepeatInterval(110)

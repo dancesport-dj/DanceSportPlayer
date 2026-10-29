@@ -25,15 +25,18 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QTabWidget
 
 from gui import dialogs
-from planner import config
 from gui.dialogs import (
-    APP_MODES, PLAYER_FIRST_START, AppModeDialog, app_mode_of,
-    app_title, ensure_app_mode,
+    APP_MODES,
+    PLAYER_FIRST_START,
+    AppModeDialog,
+    app_mode_of,
+    app_title,
+    ensure_app_mode,
 )
 from gui.dialogs.settings_dialog import SettingsDialog
 from gui.window.main_persist import layout_settings
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
+from planner import config
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 
 class _PlayerBuild:
@@ -421,6 +424,23 @@ class FfmpegDialogTest(_Qt):
                                  [c for _cap, c in
                                   dialogs.ffmpeg_install_steps(platform)])
 
+    def test_every_caption_and_note_is_translated(self):
+        """Marcel: the dialog showed "In a terminal:" and "…or download…" in
+        English. The distro names read the same in every language, so they
+        have no entry to look for."""
+        from planner.i18n import lang_de, lang_es, lang_nl, lang_ru
+
+        names = {"Debian / Ubuntu:", "Fedora:", "Arch:"}
+        texts = set()
+        for platform in ("win32", "darwin", "linux"):
+            texts.update(cap for cap, _cmd in dialogs.ffmpeg_install_steps(platform))
+            texts.add(dialogs.ffmpeg_install_note(platform))
+        texts -= names | {""}
+        for lang in (lang_de, lang_es, lang_nl, lang_ru):
+            for text in sorted(texts):
+                with self.subTest(lang=lang.__name__, text=text[:30]):
+                    self.assertIn(text, lang.CATALOG)
+
     def test_a_command_field_cannot_be_edited_into_something_else(self):
         self.assertTrue(all(r.field.isReadOnly() for r in self._dlg("linux").rows))
 
@@ -584,11 +604,10 @@ class PlaySetsTabTest(_Qt):
         return tabs, idx
 
     def test_the_built_in_sets_are_what_it_starts_on(self):
-        from planner.playing.play_sets import (_PARTY_PD, _PARTY_SET,
-                                               _TOURNAMENT_PD, _TOURNAMENT_SET)
+        from planner.playing.play_sets import PARTY_PD, PARTY_SET, TOURNAMENT_PD, TOURNAMENT_SET
         vals = self._dlg({}).values()
-        for key, built_in, pd in (("tournament_set", _TOURNAMENT_SET, _TOURNAMENT_PD),
-                                  ("party_set", _PARTY_SET, _PARTY_PD)):
+        for key, built_in, pd in (("tournament_set", TOURNAMENT_SET, TOURNAMENT_PD),
+                                  ("party_set", PARTY_SET, PARTY_PD)):
             got = dict(vals[key])
             got.pop("tso")          # its own default — see below
             # ❓ Kept beside the set like the pitch, on by default in both.
@@ -1038,10 +1057,14 @@ class PlayerMenuTest(_Qt):
 
 
 class _RestartHost:
-    """Just enough window for `_offer_restart`: it asks, closes, restarts."""
+    """Just enough window for `_offer_restart`: it asks, closes, restarts.
+    Like the real window, an accepted close ends in `_restart_if_asked`."""
 
     def __init__(self, closes: bool = True):
+        from player.audio.fade_now import FadeNow
+
         self._closes = closes
+        self._fade_now = FadeNow()
         self.closed = False
         self.messages = []
         self.log = []
@@ -1055,8 +1078,12 @@ class _RestartHost:
         return _Bar()
 
     def close(self) -> bool:
+        from gui.window import main_global
+
         self.closed = True
         self.log.append("close")
+        if self._closes:
+            main_global.GlobalIndexMixin._restart_if_asked(self)
         return self._closes
 
 
@@ -1068,8 +1095,9 @@ class RestartOfferTest(unittest.TestCase):
     def _offer(self, answer, started=True, closes=True):
         from unittest import mock
 
-        from gui.window import main_global
         from PySide6.QtWidgets import QMessageBox
+
+        from gui.window import main_global
 
         host = _RestartHost(closes=closes)
 

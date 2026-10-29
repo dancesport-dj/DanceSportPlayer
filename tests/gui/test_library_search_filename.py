@@ -20,10 +20,10 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_libsearch_"))
 
 from PySide6.QtWidgets import QApplication
-from tests.qt_test_support import reap_widget
 
 from gui.library_browser import LibraryBrowser
 from planner.models import MusicEntry
+from tests.qt_test_support import reap_widget
 
 _app = QApplication.instance() or QApplication(sys.argv)
 

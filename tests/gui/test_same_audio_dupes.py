@@ -12,8 +12,8 @@ list must not be added again — and a list that arrives holding such a pair
 import os
 import tempfile
 import unittest
-from unittest import mock
 from pathlib import Path
+from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
@@ -25,8 +25,7 @@ import planner.music.db as pdb
 from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry, RoundConfig
 from tests.db_support import use_scratch_db
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 _AUDIO = bytes(range(256)) * 2048          # 512 KB of "music"
 
@@ -163,9 +162,9 @@ class CleanupTest(_ScratchDbTest):
         super().setUp()
         import gui.table.table_actions as ta
         self.toasts = []
-        real = ta._show_toast
-        ta._show_toast = lambda _w, text, **kw: self.toasts.append(text)
-        self.addCleanup(setattr, ta, "_show_toast", real)
+        real = ta.show_toast
+        ta.show_toast = lambda _w, text, **kw: self.toasts.append(text)
+        self.addCleanup(setattr, ta, "show_toast", real)
 
     def ask(self, t, answer=True, keep=None):
         """Stand in for both questions: the plain Yes/No over identical copies, and

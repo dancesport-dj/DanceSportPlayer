@@ -10,8 +10,7 @@ from pathlib import Path
 
 from planner.config import folders_below, playlist_dir
 from planner.models import DEFAULT_DANCES
-from planner.music.parsing import _CODE_ALIAS
-
+from planner.music.parsing import CODE_ALIAS
 
 # ── Superseded-playlist filter ───────────────────────────────────────────────────
 # Old / replaced playlists are parked in folders named "alt" / "alte" / "old"
@@ -71,7 +70,7 @@ _DANCE_WORDS = {
 }
 
 
-def _is_superseded_playlist(m3u: Path) -> bool:
+def is_superseded_playlist(m3u: Path) -> bool:
     """True if `m3u` (relative to PLAYLIST_DIR) is an old / replaced / auto-dumped
     playlist that must NOT feed popularity / replay learning.
 
@@ -136,23 +135,21 @@ def _is_superseded_playlist(m3u: Path) -> bool:
         return True
     # Per-dance / per-style collection dumps named ONLY after dances/styles.
     alpha = [t for t in tokens if t and not t.isdigit()]
-    if alpha and all(t in _DANCE_WORDS for t in alpha):
-        return True
-    return False
+    return bool(alpha) and all(t in _DANCE_WORDS for t in alpha)
 
 
 # Canonical category id → all filename / label tokens that mean it. SEN and MAS are
 # the SAME category (renamed); WO = World Open; RIS = Rising Stars.
 _COMP_CATEGORY_SYNONYMS: dict[str, set[str]] = {
     'SEN': {'SEN', 'MAS', 'SENIOR', 'SENIOREN', 'MASTER', 'MASTERS'},
-    'HGR':    {'HGR', 'HG', 'HAUPTGRUPPE', 'ADULT'},
-    'U21':    {'U21'},
-    'RIS':    {'RIS', 'RISING', 'RISINGSTARS'},
-    'WO':     {'WO', 'WORLD', 'WORLDOPEN'},
-    'YOUTH':  {'YOUTH', 'JUGEND', 'JGD', 'JUG', 'TEEN', 'TEENS'},
-    'JUN':    {'JUN', 'JUNIOR', 'JUNIOREN'},
-    'KIN':    {'KIN', 'KINDER', 'KIDS', 'BAMBINI', 'BAMBINIS'},
-    'JJ':     {'JJ', 'JNJ'},
+    'HGR': {'HGR', 'HG', 'HAUPTGRUPPE', 'ADULT'},
+    'U21': {'U21'},
+    'RIS': {'RIS', 'RISING', 'RISINGSTARS'},
+    'WO': {'WO', 'WORLD', 'WORLDOPEN'},
+    'YOUTH': {'YOUTH', 'JUGEND', 'JGD', 'JUG', 'TEEN', 'TEENS'},
+    'JUN': {'JUN', 'JUNIOR', 'JUNIOREN'},
+    'KIN': {'KIN', 'KINDER', 'KIDS', 'BAMBINI', 'BAMBINIS'},
+    'JJ': {'JJ', 'JNJ'},
 }
 
 
@@ -288,7 +285,7 @@ def is_competition_file(stem: str) -> bool:
         return True
     if any(t in _COMP_STYLE_TOKENS for t in toks):
         return True
-    return bool(_round_stages_in_name(stem))
+    return bool(round_stages_in_name(stem))
 
 
 def comp_categories(text: str) -> set[str]:
@@ -341,20 +338,20 @@ _ROUND_STAGE_RE = re.compile(
     r'^(?:(\d+)\s*)?'
     r'(VR|VOR|VORR|VORRUNDE|'
     r'ZR|ZW|ZWR|ZWISCHEN|ZWISCHENRUNDE|'
-    r'SEMI|HF|HALBF|HALBFINALE|SEMIFINAL|'
+    r'SEMI|HF|HALBF|HALBFINALE|SEMIFINALE|SEMIFINAL|'
     r'ER|ENDR|ENDRUNDE|FINALE|FINAL|FIN)'
     r'(\d+)?$',
     re.IGNORECASE,
 )
 
 
-def _round_stage_value(token: str) -> int | None:
+def round_stage_value(token: str) -> int | None:
     """Canonical stage value for one filename token, or None if it is not a round
     marker. 0=Vorrunde, 10·n=n-th Zwischenrunde, 50=Halbfinale, 60=Endrunde."""
     m = _ROUND_STAGE_RE.match(token)
     if not m:
         return None
-    num  = m.group(1) or m.group(3)
+    num = m.group(1) or m.group(3)
     base = m.group(2).upper()
     if base in ('VR', 'VOR', 'VORR', 'VORRUNDE'):
         return 0
@@ -366,13 +363,13 @@ def _round_stage_value(token: str) -> int | None:
     return 60                          # ER / ENDR / FINALE / FINAL / FIN
 
 
-def _round_stages_in_name(stem: str) -> list[int]:
+def round_stages_in_name(stem: str) -> list[int]:
     """Distinct round-stage values found in a filename stem, in appearance order
     (earliest round first). Empty when the file carries no round marker (i.e. a
     plain per-class list holding every round, to be sectioned bottom-up instead)."""
     out: list[int] = []
     for t in re.split(r'[^A-Za-z0-9]+', stem):
-        v = _round_stage_value(t)
+        v = round_stage_value(t)
         if v is not None and v not in out:
             out.append(v)
     return out
@@ -407,7 +404,7 @@ def _bracket_dances(text: str) -> list[str] | None:
     only dance codes (a '(50)' couples count is not one)."""
     for m in re.finditer(r'\(([^)]*)\)', text):
         toks = [t.upper() for t in re.split(r'[;,/\s]+', m.group(1)) if t]
-        codes = [_CODE_ALIAS.get(t, t) for t in toks]
+        codes = [CODE_ALIAS.get(t, t) for t in toks]
         if codes and all(c in _STD_DANCES | _LAT_DANCES for c in codes):
             return list(dict.fromkeys(codes))
     return None
@@ -432,7 +429,9 @@ def parse_competition_schedule(
         line = raw.strip()
         if not line:
             continue
-        line = re.sub(r'^[A-Za-zÄÖÜäöü]{2,3}\s*:\s*', '', line).strip()  # drop 'Fr:'/'So:'
+        # drop 'Fr:'/'So:', and 'Sa'/'So.' when a start time follows
+        line = re.sub(r'^[A-Za-zÄÖÜäöü]{2,3}(?:\s*:\s*|\.?\s+(?=\d{1,2}[:.]\d{2}\b))',
+                      '', line).strip()
         line = re.sub(r'^\d{1,2}[:.]\d{2}(?:\s*Uhr)?\s+', '', line).strip()  # drop '18:30'
         if not line:
             continue
@@ -471,14 +470,16 @@ def parse_competition_schedule(
             i -= 1
         named_rounds = 0
         while i >= 0 and (not parts[i].strip()
-                          or _round_stage_value(parts[i].strip()) is not None):
+                          or round_stage_value(parts[i].strip()) is not None):
             named_rounds += bool(parts[i].strip())
             i -= 1
 
         per_round = None
         if named_rounds:
             per_round = [n for n in numbers if n >= 1]
-            heats = [-(-n // max(1, max_couples_per_heat)) for n in per_round]
+            # Capped where `rounds_from_pattern` stops: a larger count drops the
+            # whole competition.
+            heats = [min(30, -(-n // max(1, max_couples_per_heat))) for n in per_round]
         else:
             heats = [h for h in numbers if 1 <= h <= 30]
         if not heats:

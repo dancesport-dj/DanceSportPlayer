@@ -233,7 +233,7 @@ class _Desk:
         self.playing = playing
         self.busy = busy
         self.device = AudioDevice(
-            None, None, None, None,
+            None, None,
             mix=None,
             settings=lambda: self.settings,
             cart_voices=lambda: None,

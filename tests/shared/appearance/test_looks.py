@@ -167,8 +167,8 @@ class ActiveLookTest(unittest.TestCase):
         not for "Einlesen" once a look pads its buttons."""
         from PySide6.QtWidgets import QPushButton
 
-        from planner import i18n
         from gui.config_panel import ConfigPanel
+        from planner import i18n
 
         theme.install_stylesheet_hook()
         app = QApplication.instance()

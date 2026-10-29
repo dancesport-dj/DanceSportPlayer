@@ -24,8 +24,8 @@ import unittest
 from pathlib import Path
 
 from dancesport_planner import MusicEntry, MusicLibrary
-from planner.event import event_plan
 from planner import config as planner_config
+from planner.event import event_plan
 from planner.event.competition import parse_competition_schedule
 
 _STD = ("LW", "TG", "WW", "SF", "QS")

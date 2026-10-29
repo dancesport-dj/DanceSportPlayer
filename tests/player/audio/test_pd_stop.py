@@ -5,11 +5,12 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+
+from gui.decks.deck_set import DeckSet
+from player.audio.between_dances import BetweenDances
 from player.audio.fade_now import FadeNow
 from player.audio.playback_state import PlaybackState
-from player.audio.between_dances import BetweenDances
-from types import SimpleNamespace
-from gui.decks.deck_set import DeckSet
 
 
 def _player_mixin():
@@ -228,6 +229,9 @@ class _TickPanel(_FakePanel):
 
     def play_set(self):
         return {"secs": 100, "fade": 2.0, "fade_inside": True}
+
+    def stop_fade_due(self, now, played_secs):
+        return False
 
 
 class _TickDesk:

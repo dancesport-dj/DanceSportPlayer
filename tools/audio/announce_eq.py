@@ -32,6 +32,7 @@ something anybody heard these clips through:
     .venv\\Scripts\\python.exe -m tools.audio.announce_eq --apply --language english
 """
 import argparse
+import contextlib
 import io
 import shutil
 import subprocess
@@ -40,8 +41,8 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
-from shared.audio.audio_probes import find_ffmpeg
 from player.audio import announce
+from shared.audio.audio_probes import find_ffmpeg
 
 # Where the untouched recordings are kept, inside each voice's folder. A plain
 # subfolder and not a sibling: `announce_clips` globs *.mp3 in the voice folder
@@ -154,6 +155,33 @@ def keep_master(clip: Path) -> Path:
     return master
 
 
+def lead_of(ffmpeg: str, clip: Path) -> int:
+    """How long the clip is silent before its word, in ms (0 if unmeasured)."""
+    return announce.lead_silence_ms(announce._silencedetect(ffmpeg, clip) or "")
+
+
+def with_lead(filters: str, lead_ms: int) -> str:
+    """The chain, then the silence ahead of the word brought to the pre-roll.
+
+    Qt's FFmpeg backend loses a few ms of audio just after it starts a clip
+    (see `announce._PREROLL_MS`); a word from the first sample loses part of
+    its first syllable. A clip with more silence than that is cut back to it:
+    playback would seek past the rest, and a deep seek loses audio too.
+    Done here, it survives the next --apply and a take recorded again — which
+    is why it is not done to the files once by hand. Last in the chain, so
+    what it adds or cuts is exactly what was measured, not something the
+    compressor gets to lift.
+    """
+    missing = announce._PREROLL_MS - lead_ms
+    if missing > 0:
+        tail = f"adelay={missing}:all=1"
+    elif missing < 0:
+        tail = f"atrim=start={-missing / 1000},asetpts=PTS-STARTPTS"
+    else:
+        return filters
+    return ",".join(f for f in (filters, tail) if f)
+
+
 def render(ffmpeg: str, src: Path, dst: Path, filters: str) -> tuple:
     """Run one clip through the chain. (ok, what ffmpeg said if it wasn't)."""
     cmd = [ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-i", str(src)]
@@ -197,7 +225,17 @@ def apply_voice(ffmpeg: str, folder: Path, preset: str) -> tuple:
         # played as a clip, and treated as one next time.
         tmp = clip.with_name(clip.name + ".eq-tmp")
         try:
-            ok, err = render(ffmpeg, master, tmp, filters)
+            # Measured on the treated clip, not the recording: the makeup gain
+            # lifts a breath ahead of the word above the probe's floor. And
+            # with the pre-roll already ahead of it: silencedetect reports no
+            # silence shorter than 50 ms, so a short lead would read as none.
+            probe = with_lead(filters, 0)
+            ok, err = render(ffmpeg, master, tmp, probe)
+            if ok:
+                padded = with_lead(filters, lead_of(ffmpeg, tmp)
+                                   - announce._PREROLL_MS)
+                if padded != probe:
+                    ok, err = render(ffmpeg, master, tmp, padded)
             if not ok:
                 print(f"   x {clip.name}: {err.splitlines()[-1] if err else 'ffmpeg failed'}")
                 failed += 1
@@ -264,10 +302,8 @@ def main():
     # The console is cp1252 and the clip names print under a heading of box
     # characters — without this the tool dies on its own output.
     if isinstance(sys.stdout, io.TextIOWrapper):
-        try:
+        with contextlib.suppress(OSError):
             sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-        except OSError:
-            pass
     ap = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)

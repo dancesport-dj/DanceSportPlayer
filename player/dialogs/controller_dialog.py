@@ -5,17 +5,30 @@ Every change applies at once and is saved; there is nothing to confirm.
 While a row is learning, the controller's readings go to this window instead
 of the desk, so the press that teaches a button does not also fire it.
 """
+import contextlib
 from pathlib import Path
 
 from PySide6.QtGui import QBrush, QColor
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox,
-                               QFileDialog, QHBoxLayout, QHeaderView, QLabel,
-                               QMenu, QMessageBox, QPushButton, QTableWidget,
-                               QTableWidgetItem, QVBoxLayout)
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFileDialog,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QMenu,
+    QMessageBox,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+)
 
-from planner.playing import controller as pctl
 from planner import i18n
 from planner.config import APP_DIR
+from planner.playing import controller as pctl
 from player.window.main_controller import controller_devices
 
 _COL_ACTION, _COL_CONTROL, _COL_LEARN, _COL_CLEAR = range(4)
@@ -314,8 +327,6 @@ class ControllerDialog(QDialog):
         hub = self._host.controller_hub()
         for signal, slot in ((hub.changed, self._sync_status),
                              (hub.control, self._on_reading)):
-            try:
+            with contextlib.suppress(RuntimeError, TypeError):
                 signal.disconnect(slot)
-            except (RuntimeError, TypeError):
-                pass
         super().done(result)

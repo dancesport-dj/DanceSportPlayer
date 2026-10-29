@@ -20,10 +20,10 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_gensrc_"))
 
-from gui.window import main_generate as gen
-from planner.music.library import MusicLibrary
-from planner.models import MusicEntry
 from gui.decks.deck_set import DeckSet
+from gui.window import main_generate as gen
+from planner.models import MusicEntry
+from planner.music.library import MusicLibrary
 
 
 def _entry(name, dance="SA"):

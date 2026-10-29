@@ -1,4 +1,4 @@
-# 3 · Playlists
+# 3 · Wiedergabelisten
 
 [Zurück zur Übersicht](README.md) · zurück: [Bibliothek und Turniere](02-library-and-tournaments.md)
 
@@ -10,11 +10,11 @@ Der Player hält seine Musik in drei Arten von Listen:
 
 ## Die Decks
 
-**⧉ *n* Playlists** in der Werkzeugleiste legt fest, wie viele Decks auf dem
+**⧉ *n* Listen** in der Werkzeugleiste legt fest, wie viele Decks auf dem
 Bildschirm stehen. Jedes Deck ist ein **Ablauf**: die Titel laufen von oben
 nach unten.
 
-- Eine Turnier-Playlist erscheint weiterhin nach Runden und Tänzen
+- Eine Turnier-Wiedergabeliste erscheint weiterhin nach Runden und Tänzen
   gegliedert. Ein Klick auf einen Runden- oder Tanzkopf klappt ihn zu.
 - Jede Zeile lässt sich überallhin ziehen, auch in ein anderes Deck.
 - Ein Titel, den du auf ein Deck ziehst, aus der Bibliothek, einer
@@ -40,7 +40,7 @@ Die Spalten:
   die Datei trägt kein Tempo.
 - **⏱**: die Länge. Sie ist **orange**, wenn der Titel kürzer ist als die
   Spieldauer oder wenn an einem Rand 5 s oder mehr Stille übersprungen werden.
-- **Pop**: `★58` heißt, der Titel steht in 58 deiner Turnier-Playlists.
+- **Pop**: `★58` heißt, der Titel steht in 58 deiner Turnier-Wiedergabelisten.
   **✦neu** heißt, er steht in keiner.
 - **Klasse**: die Klassen-Tags aus dem MP3-Kommentar, zum Beispiel `[B,A,S]`.
 
@@ -138,7 +138,7 @@ willst: Wünsche von der Fläche, ein neues Album, das du ausprobieren willst.
 | Um | Tu |
 |---|---|
 | eine `.m3u` in ein Deck oder eine Wunschliste zu laden | Rechtsklick ▸ **📂 M3U importieren…**, oder zieh die `.m3u` darauf. Mehrere `.m3u` auf einmal gehen in die freien Decks, je eine. |
-| eine Playlist aus deinem Turnierarchiv zu laden | Zieh ihren Slot aus 🏆 Turniere auf ein Deck, siehe [Kapitel 2](02-library-and-tournaments.md#-turniere). |
+| eine Wiedergabeliste aus deinem Turnierarchiv zu laden | Zieh ihren Slot aus 🏆 Turniere auf ein Deck, siehe [Kapitel 2](02-library-and-tournaments.md#-turniere). |
 | das aktive Deck oder die aktive Wunschliste zu speichern | **Strg + S**, oder Rechtsklick auf einen Titel oder den Kopf ▸ **💾 Speichern als M3U…** |
 | sie zu speichern und im Baum Turniere abzulegen | Rechtsklick ▸ **🏆 Speichern und in „Turniere“ eintragen…** |
 | jedes Deck auf einmal zu speichern | **💾 Speichern** in der Werkzeugleiste. Jede Datei wird nach ihrem Decktitel benannt. |
@@ -147,10 +147,10 @@ Beim Import erkennt ein Deck Runden, Tänze und Gruppen von selbst, auch ein
 Finale mit zusätzlichen Ersatztiteln. Eine Wunschliste hängt die Titel als
 flache Liste an.
 
-### Das Playlist-Dateiformat
+### Das Wiedergabelisten-Dateiformat
 
-Jede Playlist, die die App schreibt, ist UTF-8, so überleben Umlaute und
-Akzente. Das **Playlist-Dateiformat** unter ⚙ Einstellungen ▸ 📁 Pfade wählt
+Jede Wiedergabeliste, die die App schreibt, ist UTF-8, so überleben Umlaute und
+Akzente. Das **Wiedergabelisten-Dateiformat** unter ⚙ Einstellungen ▸ 📁 Pfade wählt
 eine von drei Formen:
 
 - **UTF-8 (.m3u)**: der Standard, den aktuelle Player lesen.
@@ -162,12 +162,12 @@ eine von drei Formen:
 Speichern als M3U, 💾 Speichern und die Exporte folgen ihm alle. Die App liest
 alle drei wieder ein, und `.m3u8`-Dateien zählen auch für die Spalte **Pop**.
 
-## Playlists von einem anderen PC
+## Wiedergabelisten von einem anderen PC
 
-Eine Playlist-Datei speichert den vollen Pfad jedes Titels. Wurde sie auf
+Eine Wiedergabelisten-Datei speichert den vollen Pfad jedes Titels. Wurde sie auf
 einem anderen PC geschrieben oder liegt die Musik inzwischen auf einem anderen
 Laufwerk, stimmen diese Pfade nicht. Der Player repariert sie beim Laden der
-Playlist, mit zwei Einstellungen unter
+Wiedergabeliste, mit zwei Einstellungen unter
 [⚙ Einstellungen ▸ 📁 Pfade](01-getting-started.md#der-app-deine-musik-zeigen):
 
 - **Referenzpfad**: der Ordner, in dem die Musik auf *diesem* PC liegt;
@@ -183,7 +183,7 @@ Musste ein Pfad geändert werden, sagt ein Fenster, wie viele Titel umgehängt
 wurden und wie viele nicht zu finden waren; **Details anzeigen** listet jeden
 alten und neuen Pfad. Ein Titel, der nicht zu finden war, steht rot mit ❗
 da. Trag den Ordner, in dem er liegt, unter Suchordner ein und importiere die
-Playlist dann noch einmal.
+Wiedergabeliste dann noch einmal.
 
 Vor dem Abend zählt **🚦 Prüfen ▸ 🚦 Bereit?** die Titel, die fehlen oder
 nicht unter dem Referenzpfad liegen. Sein Knopf **🧭 Pfade reparieren…**, in

@@ -8,91 +8,90 @@ planner.music.playlist_index, as PlaylistIndexMixin.
 import copy
 import logging
 import os
-
-from collections import deque
-from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
 import re
 import time
-from typing import Any
+from collections import defaultdict, deque
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from typing import Any
+
 from planner.config import (  # auto-resolved
     MUSIC_DIR,
     folders_below,
     playlist_dir,
 )
-from planner.music.db import (  # auto-resolved
-    AudioCache,
-    ChunkedWrites,
-    _META_COLS,
-    _fingerprints,
+from planner.event.competition import (  # auto-resolved
+    CompetitionSpec,
+    competition_matches_file,
+    is_competition_file,
+    is_side_list,
+    is_superseded_playlist,
+    is_working_collection_path,
+    round_stages_in_name,
 )
-from planner.music.analysis import _tempo_prior
-from planner.music.playlist_index import (
-    PlaylistIndexMixin,
-    _dq,
-    _warn_unreadable,
+from planner.generate.warmup import (  # auto-resolved
+    others_dance_from_path,
 )
-from planner.music.scan_caches import (
-    GlobalScanCache,
-    ScanCache,
-    _entry_meta,
-)
-from planner.music.similarity import (  # auto-resolved
-    _timbre_similarity,
-)
-from planner.music import custom_field, tag_edits
-from planner.system_info import UsageMeter, lower_thread_priority
 from planner.models import (  # auto-resolved
     DANCE_NAMES,
+    EXCLUDED_FOLDERS,
     GENRE_TO_DANCE,
-    MusicEntry,
     OTHER_GENRE_LABELS,
+    MusicEntry,
     ScanCancelled,
-    _EXCLUDED_FOLDERS,
     fold_text,
     folder_category_of_parts,
     is_hidden_path,
     note_class_tag_use,
 )
+from planner.music import custom_field, tag_edits
+from planner.music.analysis import tempo_prior
+from planner.music.db import (  # auto-resolved
+    META_COLS,
+    AudioCache,
+    ChunkedWrites,
+    fingerprints,
+)
 from planner.music.parsing import (  # auto-resolved
-    _title_for,
-    _detect_bpm_tagged,
-    _get_tag_bpm,
-    _detect_dance,
-    _detect_year,
-    dance_from_folders,
-    _get_comment_tag,
-    is_marker_noise,
-    parse_comment_markers,
-    _get_raw_genre_tag,
-    _get_um_dance,
-    _get_title_artist_tags,
-    popm_stars,
     LIBRARY_EXTS,
-    _is_christmas,
-    _parse_class_tag,
-    title_marks_instrumental,
-    _read_duration,
-    _read_tags_once,
-    _song_title_key,
-    _stem_key,
     _title_key,
+    dance_from_folders,
+    detect_bpm_tagged,
+    detect_dance,
+    detect_year,
+    get_comment_tag,
+    get_raw_genre_tag,
+    get_tag_bpm,
+    get_title_artist_tags,
+    get_um_dance,
+    is_christmas,
+    is_marker_noise,
+    parse_class_tag,
+    parse_comment_markers,
+    popm_stars,
+    read_duration,
+    read_tags_once,
+    song_title_key,
+    stem_key,
+    title_for,
+    title_marks_instrumental,
 )
-from planner.event.competition import (  # auto-resolved
-    CompetitionSpec,
-    _is_superseded_playlist,
-    _round_stages_in_name,
-    competition_matches_file,
-    is_competition_file,
-    is_side_list,
-    is_working_collection_path,
+from planner.music.playlist_index import (
+    PlaylistIndexMixin,
+    dq,
+    warn_unreadable,
 )
-from planner.generate.warmup import (  # auto-resolved
-    others_dance_from_path,
+from planner.music.scan_caches import (
+    GlobalScanCache,
+    ScanCache,
+    entry_meta,
+)
+from planner.music.similarity import (  # auto-resolved
+    timbre_similarity,
 )
 from planner.playlist.playlist_text import PlaylistEncodingError, playlist_files, read_playlist_text
+from planner.system_info import UsageMeter, lower_thread_priority
 
 log = logging.getLogger("dancesport.library")
 
@@ -102,9 +101,9 @@ _GENRE_CATEGORY_RE = re.compile(r'^(?:ballroom|standard|latin|latein)\s+', re.IG
 
 # Sentinel for regenerate()/anchor_similarity(): distinguishes "caller didn't pass an
 # anchor → use the round's stored one" from "caller explicitly passed None → no timbre".
-_ANCHOR_DEFAULT: Any = object()
+ANCHOR_DEFAULT: Any = object()
 
-def _library_mp3s(root: Path,
+def library_mp3s(root: Path,
                   mtimes: dict[str, int] | None = None) -> list[tuple[Path, float]]:
     """Every music file (LIBRARY_EXTS) under `root` with the time it was
     created (breadth-first).
@@ -142,7 +141,7 @@ def _library_mp3s(root: Path,
     return out
 
 
-def _listed_mtimes(folders) -> dict[str, int]:
+def listed_mtimes(folders) -> dict[str, int]:
     """str(path) → mtime of every music file directly in `folders`, one listing each.
 
     The key to a recorded fingerprint holds the file's mtime; for the whole
@@ -178,7 +177,7 @@ def _left_out(rel_parts: list[str], skip_special: bool) -> str | None:
     """Why a file in these folders stays out of the library: '' for a hard-excluded
     folder (sox, unbearbeitet: in every scan mode), the special folder's name, or
     None when it loads."""
-    if {p.lower() for p in rel_parts} & _EXCLUDED_FOLDERS:
+    if {p.lower() for p in rel_parts} & EXCLUDED_FOLDERS:
         return ''
     if skip_special:
         skip_hit = next((p for p in rel_parts if _SKIP_DIR.search(p)), None)
@@ -269,9 +268,9 @@ def _read_new_file(path, cache, scan_cache):
     fps = None
     fp = cache.known_fingerprint(path)
     if fp is None:
-        fps = _fingerprints(path)
+        fps = fingerprints(path)
         fp = fps[0]
-    tags = None if scan_cache.has_row(fp, path) else _read_tags_once(path)
+    tags = None if scan_cache.has_row(fp, path) else read_tags_once(path)
     return fps, tags
 
 
@@ -332,34 +331,46 @@ def _custom_classes(entry: MusicEntry) -> None:
     starts over from them. A value typed in the app sets no classes."""
     if tag_edits.file_value(entry, 'classes_ok') is not None:
         return
-    classes, _ = _parse_class_tag(tag_edits.file_value(entry, 'custom') or '')
+    classes, _ = parse_class_tag(tag_edits.file_value(entry, 'custom') or '')
     if classes:
         _set_file_value(entry, 'classes_ok', classes)
 
 
 def _heal_cached(path, cached, scan_cache):
     """🩹 A cached row with every lazily healed field brought up to date."""
+    # 📁 The folder's dance is read off THIS path on every hit and never
+    # stored: the row is keyed by content and name, so a stored folder dance
+    # followed a file moved to another dance folder (BUG_REVIEW B6.2).
+    folder_dance = (dance_from_folders(path) if cached.get('dance') is None
+                    and not cached.get('other_genre') else None)
+    # 📁 The social label read off the path (a Forró folder) likewise.
+    path_other = None
+    if (cached.get('dance') is None and not cached.get('other_genre')
+            and not folder_dance):
+        code = others_dance_from_path(path)
+        path_other = DANCE_NAMES[code] if code else None
     # 🩹 Re-derive bpm from the filename on every cache hit: it's a pure
     # function of the name (+ title tag), so an old cache built before
     # the detection was fixed (e.g. slow 'Nicht TSO Turniertempo'
     # versions at 19 bars/min, or a name truncated past its '(RB 25)'
     # tact that survives in the tag) self-heals without a re-scan.
-    bpm = _detect_bpm_tagged(path.stem, cached.get('tag_title'),
-                             cached.get('tag_bpm'), cached.get('dance'))
+    bpm = detect_bpm_tagged(path.stem, cached.get('tag_title'),
+                             cached.get('tag_bpm'),
+                             cached.get('dance') or folder_dance)
     if bpm != cached.get('bpm'):
         cached = {**cached, 'bpm': bpm}
         scan_cache.put(path, cached)
     # 🩹 Title heals lazily too: it's a pure function of the name (+ title
     # tag), so titles cached before the disc-track / copy-index cleanup
     # self-heal without a full re-scan.
-    title = _title_for(path.stem, cached.get('tag_title'))
+    title = title_for(path.stem, cached.get('tag_title'))
     if title != cached.get('title'):
         cached = {**cached, 'title': title}
         scan_cache.put(path, cached)
     # 🩹 Duration heals lazily too: rows cached before the duration column
     # existed carry 0 — probe the header once and persist, no full re-scan.
     if not cached.get('duration'):
-        secs = _read_duration(path)
+        secs = read_duration(path)
         cached = {**cached, 'duration': secs or _NO_LENGTH}
         scan_cache.put(path, cached)
     # 🩹 Comment markers heal lazily: rows cached before the column
@@ -367,7 +378,7 @@ def _heal_cached(path, cached, scan_cache):
     # were none"). Re-reading the COMM frame costs one ID3 open, so a
     # library scanned before this pays it once and never again.
     if cached.get('comment_tags') is None:
-        comment = _get_comment_tag(path)
+        comment = get_comment_tag(path)
         cached = {**cached,
                   'comment_tags': parse_comment_markers(comment)
                   if comment else []}
@@ -381,32 +392,17 @@ def _heal_cached(path, cached, scan_cache):
                   'comment_tags': [t for t in tags
                                    if not is_marker_noise(t)]}
         scan_cache.put(path, cached)
-    # 🩹 Folder-structure dance heals lazily: rows cached before the folder
-    # fallback existed carry None — pure function of the path, so classify
-    # once and persist without a re-scan.
-    if cached.get('dance') is None and not cached.get('other_genre'):
-        code = dance_from_folders(path)
-        if code:
-            cached = {**cached, 'dance': code}
-            scan_cache.put(path, cached)
-    # 🩹 Social-dance label heals lazily: rows cached before the path
-    # classifier existed carry None — classify once and persist.
-    if cached.get('dance') is None and not cached.get('other_genre'):
-        code = others_dance_from_path(path)
-        if code:
-            cached = {**cached, 'other_genre': DANCE_NAMES[code]}
-            scan_cache.put(path, cached)
     # 🩹 Album heals lazily: rows cached before the tag_album column existed
     # carry None — read the TALB tag once and persist ('' = checked, no album)
     # so later cache hits skip the ID3 read.
     if cached.get('tag_album') is None:
-        _, _, album = _get_title_artist_tags(path)
+        _, _, album = get_title_artist_tags(path)
         cached = {**cached, 'tag_album': album or ''}
         scan_cache.put(path, cached)
     # 🩹 The comment text heals the same way: None = cached before the
     # Comment column existed, '' = read, the file has none.
     if cached.get('tag_comment') is None:
-        cached = {**cached, 'tag_comment': _get_comment_tag(path) or ''}
+        cached = {**cached, 'tag_comment': get_comment_tag(path) or ''}
         scan_cache.put(path, cached)
     # 🩹 The Custom field heals lazily: None is "not read under the
     # current mapping" (a new mapping clears the column), '' is read.
@@ -414,7 +410,9 @@ def _heal_cached(path, cached, scan_cache):
     if cached.get('custom') is None and custom_field.source() is not None:
         cached = {**cached, 'custom': custom_field.read_file(path)}
         scan_cache.put(path, cached)
-    return cached
+    if folder_dance:
+        return {**cached, 'dance': folder_dance}
+    return {**cached, 'other_genre': path_other} if path_other else cached
 
 
 class MusicLibrary(PlaylistIndexMixin):
@@ -518,7 +516,7 @@ class MusicLibrary(PlaylistIndexMixin):
             # The walk already has every file's mtime: lent to the cache, it
             # spares the fingerprint lookups a stat per file (two, in fact).
             mtimes: dict[str, int] = {}
-            found = _library_mp3s(music_dir, mtimes)
+            found = library_mp3s(music_dir, mtimes)
             cache.listed_mtimes = mtimes
             added_ts = {str(p): ts for p, ts in found}
             all_mp3 = [p for p, _ in found]
@@ -581,7 +579,7 @@ class MusicLibrary(PlaylistIndexMixin):
                             # 🩹 Self-heal bpm (pure fn of the name + title tag) on
                             # reuse so entries cached before the detection fix get
                             # corrected.
-                            bpm = _detect_bpm_tagged(mp3.stem, cached_entry.get('tag_title'),
+                            bpm = detect_bpm_tagged(mp3.stem, cached_entry.get('tag_title'),
                                                      cached_entry.get('tag_bpm'),
                                                      cached_entry.get('dance'))
                             if bpm != cached_entry.get('bpm'):
@@ -590,7 +588,7 @@ class MusicLibrary(PlaylistIndexMixin):
                             # ⏱ Rows written before the duration column carry 0 —
                             # probe the length once, like `_make_entry` does.
                             if not cached_entry.get('duration'):
-                                secs = _read_duration(mp3)
+                                secs = read_duration(mp3)
                                 cached_entry = {**cached_entry,
                                                 'duration': secs or _NO_LENGTH}
                                 global_cache.put(mp3, cached_entry)
@@ -599,7 +597,7 @@ class MusicLibrary(PlaylistIndexMixin):
                             was_reused = True
                         else:
                             entry = self._make_entry(mp3, scan_cache)
-                            global_cache.put(mp3, {**_entry_meta(entry),
+                            global_cache.put(mp3, {**entry_meta(entry),
                                                    'duration': entry.duration or _NO_LENGTH})
                             self.entries.append(entry)
                     else:
@@ -662,7 +660,7 @@ class MusicLibrary(PlaylistIndexMixin):
         """
         self.entries = []
         rows = global_cache.all_entries()
-        mtimes = _listed_mtimes({os.path.dirname(path_str) for path_str, _ in rows})
+        mtimes = listed_mtimes({os.path.dirname(path_str) for path_str, _ in rows})
         cache.load_all_features()
         for path_str, meta in rows:
             if is_hidden_path(path_str):
@@ -671,7 +669,7 @@ class MusicLibrary(PlaylistIndexMixin):
             entry = MusicEntry(path=p, **meta)
             # 🩹 Self-heal bpm from the name + title tag so global-cache
             # entries built before the detection fix get tempo-filtered too.
-            bpm = _detect_bpm_tagged(p.stem, entry.tag_title, entry.tag_bpm, entry.dance)
+            bpm = detect_bpm_tagged(p.stem, entry.tag_title, entry.tag_bpm, entry.dance)
             if bpm != entry.bpm:
                 entry.bpm = bpm
                 global_cache.put(p, {**meta, 'bpm': bpm})
@@ -745,8 +743,8 @@ class MusicLibrary(PlaylistIndexMixin):
             return MusicEntry(path=path, **cached)
 
         # Slow path: read ID3 tags (happens once per file, then cached)
-        name  = path.stem
-        file_dance = _detect_dance(name)
+        name = path.stem
+        file_dance = detect_dance(name)
         other = None
 
         # Read TCON genre tag once – used for dance detection, other_genre, AND is_xmas.
@@ -754,8 +752,8 @@ class MusicLibrary(PlaylistIndexMixin):
         # filename guess, because the filename can false-positive — e.g. the title word
         # 'Ta' in 'Je Ne Serai Jamais Ta Parisienne' looks like the Tango code 'TA',
         # though its genre tag correctly says 'LW' (Slow Waltz).
-        tags, duration = tags_read or _read_tags_once(path)
-        raw_genre = _get_raw_genre_tag(path, tags) or ''
+        tags, duration = tags_read or read_tags_once(path)
+        raw_genre = get_raw_genre_tag(path, tags) or ''
         genre_dance = None
         genre_other = None
         if raw_genre:
@@ -773,6 +771,7 @@ class MusicLibrary(PlaylistIndexMixin):
                     if label:
                         genre_other = label
                         break
+        from_folder = other_from_path = False
         if genre_other:
             # A SOCIAL genre tag is just as authoritative as a dance one: the
             # track is no competition dance at all, so neither the filename nor
@@ -781,49 +780,55 @@ class MusicLibrary(PlaylistIndexMixin):
             dance, other = None, genre_other
         else:
             # UltraMixer's own dance style comes after the genre, before the name.
-            dance = genre_dance or _get_um_dance(tags) or file_dance
+            dance = genre_dance or get_um_dance(tags) or file_dance
             if dance is None:
                 # Fallback layer: libraries organised by FOLDER (my music/standard/LW)
                 # instead of tags or coded filenames.
                 dance = dance_from_folders(path)
+                from_folder = dance is not None
         if dance is None and other is None:
             # Social dance without a genre tag → classify by path (folder /
             # filename keywords), so e.g. Forró shows up in the library.
             code = others_dance_from_path(path)
             if code:
                 other = DANCE_NAMES[code]
+                other_from_path = True
 
-        comment = _get_comment_tag(path, tags)
-        classes_ok, is_instr = _parse_class_tag(comment) if comment else (None, False)
+        comment = get_comment_tag(path, tags)
+        classes_ok, is_instr = parse_class_tag(comment) if comment else (None, False)
         comment_tags = parse_comment_markers(comment) if comment else []
-        is_xmas = _is_christmas(name, raw_genre)
-        tag_title, tag_artist, tag_album = _get_title_artist_tags(path, tags)
-        tag_bpm = _get_tag_bpm(path, tags)
+        is_xmas = is_christmas(name, raw_genre)
+        tag_title, tag_artist, tag_album = get_title_artist_tags(path, tags)
+        tag_bpm = get_tag_bpm(path, tags)
         if not is_instr:
             # No COMM 'instr' tag — a filename/title marker like '(Instr.)' or
             # '(inst)' flags the track as instrumental too.
             is_instr = title_marks_instrumental(f"{name} {tag_title or ''}")
 
         data = {
-            'title':          _title_for(name, tag_title),
-            'dance':          dance,
-            'bpm':            _detect_bpm_tagged(name, tag_title, tag_bpm, dance),
-            'year':           _detect_year(name, path, tags),
-            'other_genre':    other,
-            'classes_ok':     classes_ok,
-            'comment_tags':   comment_tags,
-            'rating':         popm_stars(tags),
-            'custom':         custom_field.value_of(tags, path),
+            'title': title_for(name, tag_title),
+            'dance': dance,
+            'bpm': detect_bpm_tagged(name, tag_title, tag_bpm, dance),
+            'year': detect_year(name, path, tags),
+            'other_genre': other,
+            'classes_ok': classes_ok,
+            'comment_tags': comment_tags,
+            'rating': popm_stars(tags),
+            'custom': custom_field.value_of(tags, path),
             'is_instrumental': is_instr,
-            'is_xmas':        is_xmas,
-            'tag_title':      tag_title,
-            'tag_artist':     tag_artist,
-            'tag_album':      tag_album,
-            'tag_comment':    comment or '',
-            'tag_bpm':        tag_bpm,
-            'duration':       duration,
+            'is_xmas': is_xmas,
+            'tag_title': tag_title,
+            'tag_artist': tag_artist,
+            'tag_album': tag_album,
+            'tag_comment': comment or '',
+            'tag_bpm': tag_bpm,
+            'duration': duration,
         }
-        scan_cache.put(path, {**data, 'duration': duration or _NO_LENGTH})
+        # The folder's dance and the path's social label stay out of the row:
+        # `_heal_cached` reads them off the path the file has at the time.
+        scan_cache.put(path, {**data, 'dance': None if from_folder else dance,
+                              'other_genre': None if other_from_path else other,
+                              'duration': duration or _NO_LENGTH})
         return MusicEntry(path=path, **data)
 
     def _get_scan_cache(self, cache: AudioCache) -> ScanCache:
@@ -858,7 +863,7 @@ class MusicLibrary(PlaylistIndexMixin):
         if twin is not None and twin is not entry:
             targets.append(twin)
         changed: dict[str, tuple] = {}
-        for col in _META_COLS:
+        for col in META_COLS:
             new = getattr(fresh, col)
             old = getattr(entry, col)
             if old != new:
@@ -903,7 +908,7 @@ class MusicLibrary(PlaylistIndexMixin):
                     own = cached.get('classes_ok')
                 else:
                     own = tag_edits.file_value(e, 'classes_ok')
-                    old, _ = _parse_class_tag(tag_edits.file_value(e, 'custom') or '')
+                    old, _ = parse_class_tag(tag_edits.file_value(e, 'custom') or '')
                     if old and own == old:
                         own = None
                 _set_file_value(e, 'classes_ok', own)
@@ -1021,7 +1026,7 @@ class MusicLibrary(PlaylistIndexMixin):
     def by_dance(self, dance: str) -> list[MusicEntry]:
         return [e for e in self.entries if e.dance == dance]
 
-    def restricted_to(self, entries: list[MusicEntry]) -> "MusicLibrary":
+    def restricted_to(self, entries: list[MusicEntry]) -> MusicLibrary:
         """A view of this library holding only `entries` — everything a pick is
         scored on (playlist popularity, finals/semi history, the class index)
         stays shared, only the candidate set shrinks.
@@ -1056,7 +1061,7 @@ class MusicLibrary(PlaylistIndexMixin):
         self._refresh_stem_dance()
         if (root := playlist_dir()).exists():
             for m3u in playlist_files(root):
-                if _is_superseded_playlist(m3u):
+                if is_superseded_playlist(m3u):
                     continue
                 if is_side_list(m3u.stem):
                     continue
@@ -1066,7 +1071,7 @@ class MusicLibrary(PlaylistIndexMixin):
                 try:
                     lines = read_playlist_text(m3u)[0].splitlines()
                 except PlaylistEncodingError as exc:
-                    _warn_unreadable(m3u, exc)
+                    warn_unreadable(m3u, exc)
                     continue
                 except Exception:
                     continue
@@ -1078,13 +1083,10 @@ class MusicLibrary(PlaylistIndexMixin):
                         key_to_files[k].add(m3u)
         if not key_to_files:
             return [], n_files
-        out: list[MusicEntry] = []
-        for e in self.entries:
-            if any(k in key_to_files for k in self._match_keys(e)):
-                out.append(e)
-        return out, n_files
+        return [e for e in self.entries
+                if any(k in key_to_files for k in self._match_keys(e))], n_files
 
-    def line_resolver(self):
+    def line_resolver(self) -> Callable[[str], MusicEntry | None]:
         """A function from one M3U line to the library entry it names, or None.
 
         Path-independent: a list written on another machine, or before the
@@ -1099,18 +1101,117 @@ class MusicLibrary(PlaylistIndexMixin):
                 key_index.setdefault(k, e)
 
         def _resolve(line: str) -> MusicEntry | None:
-            sk = _stem_key(line)
+            sk = stem_key(line)
             if sk in key_index:
                 return key_index[sk]
             d = self._line_dance(line)
             tk = _title_key(line)
-            if tk and _dq(d, tk) in key_index:
-                return key_index[_dq(d, tk)]
-            qk = _song_title_key(line)
-            if len(qk) >= 3 and _dq(d, qk) in key_index:
-                return key_index[_dq(d, qk)]
+            if tk and dq(d, tk) in key_index:
+                return key_index[dq(d, tk)]
+            qk = song_title_key(line)
+            if len(qk) >= 3 and dq(d, qk) in key_index:
+                return key_index[dq(d, qk)]
             return None
         return _resolve
+
+    def _round_history_files(
+        self,
+        spec: CompetitionSpec | None,
+        schedule_heats: list[int],
+        num_dances: int,
+        round_files: list[dict[int, set[Path]]],
+    ) -> tuple[list[list[MusicEntry]], dict[int, list[tuple[MusicEntry, Path]]], int]:
+        """Read every matching past list into per-round and per-stage pools.
+
+        The file-reading half of `past_competition_round_pools`: returns the
+        round pools a plain combined list was sliced into, the pools of the
+        round-tagged files keyed by their stage, and how many files matched.
+        `round_files` is filled in alongside (see the caller)."""
+        n_rounds = len(round_files)
+        round_pools_raw: list[list[MusicEntry]] = [[] for _ in range(n_rounds)]
+        stage_pools: dict[int, list[tuple[MusicEntry, Path]]] = defaultdict(list)
+        n_files = 0
+
+        _resolve = self.line_resolver()
+
+        if (root := playlist_dir()).exists():
+            for m3u in playlist_files(root):
+                if is_superseded_playlist(m3u):
+                    continue
+                if is_side_list(m3u.stem):
+                    continue
+                if spec is not None:
+                    if not competition_matches_file(spec, m3u):
+                        continue
+                elif not is_competition_file(m3u.stem) or is_working_collection_path(m3u):
+                    continue   # not a tournament list, or a working/pre-sorting draft
+                n_files += 1
+                try:
+                    lines = read_playlist_text(m3u)[0].splitlines()
+                except PlaylistEncodingError as exc:
+                    warn_unreadable(m3u, exc)
+                    continue
+                except Exception:
+                    continue
+
+                songs: list[MusicEntry | None] = []
+                for line in lines:
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        continue
+                    songs.append(_resolve(line))
+                if not any(s is not None for s in songs):
+                    continue
+
+                stages = round_stages_in_name(m3u.stem)
+                resolved = [e for e in songs if e is not None]
+                if stages:
+                    # Round-tagged: range-restrict to the stage(s) the file names.
+                    for st in stages:
+                        stage_pools[st].extend((e, m3u) for e in resolved)
+                else:
+                    # Plain combined list: slice bottom-up by the schedule's heats.
+                    idx = len(songs)
+                    for s in range(n_rounds - 1, -1, -1):
+                        cnt = max(0, schedule_heats[s]) * max(1, num_dances)
+                        seg = songs[max(0, idx - cnt):idx]
+                        idx -= cnt
+                        for e in seg:
+                            if e is not None:
+                                round_pools_raw[s].append(e)
+                                round_files[s][id(e)].add(m3u)
+                        if idx <= 0:
+                            break
+                    if idx > 0:   # leftover (history longer than schedule) → first round
+                        for e in songs[:idx]:
+                            if e is not None:
+                                round_pools_raw[0].append(e)
+                                round_files[0][id(e)].add(m3u)
+        return round_pools_raw, stage_pools, n_files
+
+    def _align_stages(
+        self,
+        stage_pools: dict[int, list[tuple[MusicEntry, Path]]],
+        round_pools_raw: list[list[MusicEntry]],
+        round_files: list[dict[int, set[Path]]],
+    ) -> None:
+        """Place the round-tagged stages into the schedule's rounds, from the
+        final upward: the highest stage present feeds the final, the next the
+        semi, and so on. History deeper than the schedule joins the first round."""
+        n_rounds = len(round_files)
+        present = sorted(stage_pools.keys(), reverse=True)   # final-most first
+        if not present:
+            return
+        for s in range(n_rounds):
+            rank = n_rounds - 1 - s                       # 0 = final
+            st = present[rank] if rank < len(present) else present[-1]
+            for e, m3u in stage_pools[st]:
+                round_pools_raw[s].append(e)
+                round_files[s][id(e)].add(m3u)
+        for st in present[n_rounds:]:                      # extra-deep history
+            for e, m3u in stage_pools[st]:
+                round_pools_raw[0].append(e)
+                round_files[0][id(e)].add(m3u)
 
     def past_competition_round_pools(
         self,
@@ -1140,84 +1241,14 @@ class MusicLibrary(PlaylistIndexMixin):
         files, per-round source labels `id(entry) → list-names that placed it there`).
         """
         n_rounds = max(1, len(schedule_heats))
-        round_pools_raw: list[list[MusicEntry]] = [[] for _ in range(n_rounds)]
-        stage_pools: dict[int, list[tuple[MusicEntry, Path]]] = defaultdict(list)
         # Per-round source attribution: which lists put a song into THAT round (so
         # 'planned before' shows only the lists where it sat in the matched round,
         # not every list it appears anywhere in).
         round_files: list[dict[int, set[Path]]] = [defaultdict(set) for _ in range(n_rounds)]
-        n_files = 0
 
-        _resolve = self.line_resolver()
-
-        if (root := playlist_dir()).exists():
-            for m3u in playlist_files(root):
-                if _is_superseded_playlist(m3u):
-                    continue
-                if is_side_list(m3u.stem):
-                    continue
-                if spec is not None:
-                    if not competition_matches_file(spec, m3u):
-                        continue
-                elif not is_competition_file(m3u.stem) or is_working_collection_path(m3u):
-                    continue   # not a tournament list, or a working/pre-sorting draft
-                n_files += 1
-                try:
-                    lines = read_playlist_text(m3u)[0].splitlines()
-                except PlaylistEncodingError as exc:
-                    _warn_unreadable(m3u, exc)
-                    continue
-                except Exception:
-                    continue
-
-                songs: list[MusicEntry | None] = []
-                for line in lines:
-                    line = line.strip()
-                    if not line or line.startswith('#'):
-                        continue
-                    e = _resolve(line)
-                    songs.append(e)
-                if not any(s is not None for s in songs):
-                    continue
-
-                stages = _round_stages_in_name(m3u.stem)
-                resolved = [e for e in songs if e is not None]
-                if stages:
-                    # Round-tagged: range-restrict to the stage(s) the file names.
-                    for st in stages:
-                        stage_pools[st].extend((e, m3u) for e in resolved)
-                else:
-                    # Plain combined list: slice bottom-up by the schedule's heats.
-                    idx = len(songs)
-                    for s in range(n_rounds - 1, -1, -1):
-                        cnt = max(0, schedule_heats[s]) * max(1, num_dances)
-                        seg = songs[max(0, idx - cnt):idx]
-                        idx -= cnt
-                        for e in seg:
-                            if e is not None:
-                                round_pools_raw[s].append(e)
-                                round_files[s][id(e)].add(m3u)
-                        if idx <= 0:
-                            break
-                    if idx > 0:   # leftover (history longer than schedule) → first round
-                        for e in songs[:idx]:
-                            if e is not None:
-                                round_pools_raw[0].append(e)
-                                round_files[0][id(e)].add(m3u)
-
-        # Align tagged stages to schedule rounds from the final upward.
-        present = sorted(stage_pools.keys(), reverse=True)   # final-most first
-        if present:
-            for s in range(n_rounds):
-                rank = n_rounds - 1 - s                       # 0 = final
-                st = present[rank] if rank < len(present) else present[-1]
-                for e, m3u in stage_pools[st]:
-                    round_pools_raw[s].append(e)
-                    round_files[s][id(e)].add(m3u)
-            for st in present[n_rounds:]:                      # extra-deep history
-                for e, m3u in stage_pools[st]:
-                    round_pools_raw[0].append(e)
-                    round_files[0][id(e)].add(m3u)
+        round_pools_raw, stage_pools, n_files = self._round_history_files(
+            spec, schedule_heats, num_dances, round_files)
+        self._align_stages(stage_pools, round_pools_raw, round_files)
 
         # De-duplicate each round pool by path (preserve order).
         round_pools: list[list[MusicEntry]] = []
@@ -1244,12 +1275,13 @@ class MusicLibrary(PlaylistIndexMixin):
 
         # Per-round source labels (id(e) → lists that placed it in THAT round), so a
         # caller can show the round-correct subset instead of the cross-round union.
-        round_sources: list[dict[int, list[str]]] = []
-        for dct in round_files:
-            round_sources.append({
+        round_sources: list[dict[int, list[str]]] = [
+            {
                 eid: sorted(f"{p.parent.name} / {p.stem}" for p in files)
                 for eid, files in dct.items()
-            })
+            }
+            for dct in round_files
+        ]
         return all_entries, round_pools, n_files, round_sources
 
     def similar_tracks(
@@ -1289,7 +1321,7 @@ class MusicLibrary(PlaylistIndexMixin):
             cands = _pool(self.entries)
         if not cands:
             return []
-        sims = _timbre_similarity(entry.features, cands, method)
+        sims = timbre_similarity(entry.features, cands, method)
         scored = [(sims[str(e.path)], e) for e in cands]
         scored.sort(key=lambda x: x[0], reverse=True)
         scored = [(d, e) for d, e in scored if d >= min_display]
@@ -1347,19 +1379,19 @@ class MusicLibrary(PlaylistIndexMixin):
         Returns (pseudo_entry_for_the_file, results). Requires librosa for the analysis;
         the file's features are cached so repeated drops are fast.
         """
-        tag_title = _get_title_artist_tags(path)[0]
-        dance = _detect_dance(path.stem)
-        takt = _detect_bpm_tagged(path.stem, tag_title, _get_tag_bpm(path), dance)
+        tag_title = get_title_artist_tags(path)[0]
+        dance = detect_dance(path.stem)
+        takt = detect_bpm_tagged(path.stem, tag_title, get_tag_bpm(path), dance)
         feat = cache.get(path)
         if feat is None:
             # raises if librosa/ffmpeg unavailable; seed the beat tracker with the
             # dance's expected tempo so syncopated grooves don't lock to a harmonic.
-            feat = cache._analyze_file(path, _tempo_prior(dance, takt))
+            feat = cache._analyze_file(path, tempo_prior(dance, takt))
             cache.put(path, feat)
             cache.save()
         entry = MusicEntry(
             path=path,
-            title=_title_for(path.stem, tag_title),
+            title=title_for(path.stem, tag_title),
             dance=dance,
             bpm=takt,
         )

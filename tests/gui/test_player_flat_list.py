@@ -30,14 +30,14 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtCore import QEvent, QMimeData, QPointF, Qt, QUrl
 from PySide6.QtGui import QDropEvent, QKeyEvent
-from PySide6.QtWidgets import (QApplication,
-                               QMessageBox as _QMessageBox, QWidget)
-from tests.qt_test_support import reap_widget
+from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtWidgets import QMessageBox as _QMessageBox
 
 from gui.decks.deck import Deck
 from gui.decks.deck_set import DeckSet
 from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry, RoundConfig
+from tests.qt_test_support import reap_widget
 
 
 def _e(dance, n):

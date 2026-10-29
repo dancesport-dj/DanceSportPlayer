@@ -30,8 +30,7 @@ from PySide6.QtWidgets import QApplication
 
 from gui.library_browser import LibraryBrowser
 from planner.models import MusicEntry
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 _COL_PLAY, _COL_DANCE, _COL_ARTIST, _COL_TITLE, _COL_BPM = 0, 1, 2, 3, 4
 _COL_LEN, _COL_POP, _COL_CLASS, _COL_ADDED, _COL_LAST = 5, 6, 7, 8, 9

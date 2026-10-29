@@ -27,14 +27,14 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication
 
-from gui.table.playlist_table import PlaylistTable
-from gui.decks.running_order import Row
-from player.window.main_player import PlayerControlMixin
-from player.widgets.play_mode_panel import PlayModePanel
-from player.audio.playback_state import PlaybackState
-from tests.qt_test_support import reap_widget
-from player.audio.between_dances import BetweenDances
 from gui.decks.deck_set import DeckSet
+from gui.decks.running_order import Row
+from gui.table.playlist_table import PlaylistTable
+from player.audio.between_dances import BetweenDances
+from player.audio.playback_state import PlaybackState
+from player.widgets.play_mode_panel import PlayModePanel
+from player.window.main_player import PlayerControlMixin
+from tests.qt_test_support import reap_widget
 
 
 class _Announcer:
@@ -44,7 +44,7 @@ class _Announcer:
         self.spoken = []
         self.speaking = False
 
-    def speak(self, code, now=False, heat=None):
+    def speak(self, code, now=False, heat=None, heat_only=False):
         self.spoken.append(code)
         return True
 
@@ -67,6 +67,7 @@ class _Desk(PlayerControlMixin):
         self._between.pending = None
         self._playback = PlaybackState()
         self._playback.dance = ""
+        self._settings = {}
         self._saves = 0
 
     def _autosave_playlist(self):

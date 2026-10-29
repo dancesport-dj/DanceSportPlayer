@@ -27,8 +27,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication, QMenu
 
-from planner.playing import cartwall as pc
 from planner import i18n
+from planner.playing import cartwall as pc
 from player.dialogs import cart_pad_dialog as cpd
 from player.widgets import cartwall as gc
 from tests.qt_test_support import reap_widget
@@ -74,7 +74,7 @@ class _PadMenu(unittest.TestCase):
         """The captions and submenu titles the right-click puts on screen."""
         i18n.set_active(language)
         i18n.install_text_hook()    # a no-op until a language is picked
-        pad = gc._CartPadButton((0, 0, 0))
+        pad = gc.CartPadButton((0, 0, 0))
         self.addCleanup(reap_widget, pad)
         pad._editable = True
         pad._sel_count = selected
@@ -95,13 +95,14 @@ class PadMenuI18nTest(_PadMenu):
 
     def test_english_is_unchanged(self):
         self.assertEqual(
-            self.captions(self.menu("en"))[:3],
-            ["⚙  Settings…", "🎨  Colour", "🗑  Clear pad"])
+            self.captions(self.menu("en")),
+            ["⚙  Settings…", "🎨  Colour", "📄  Move to page", "🗑  Clear pad"])
 
-    def test_the_three_captions_speak_german(self):
-        for caption in self.captions(self.menu("de"))[:3]:
+    def test_the_four_captions_speak_german(self):
+        for caption in self.captions(self.menu("de")):
             self.assertNotIn("Settings", caption)
             self.assertNotIn("Colour", caption)
+            self.assertNotIn("Move to page", caption)
             self.assertNotIn("Clear pad", caption)
 
     def test_the_empty_pad_was_already_german(self):

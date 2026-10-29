@@ -27,9 +27,7 @@ from dancesport_planner import (
     PlaylistSuggester,
     RoundConfig,
 )
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
-
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 # The rows must not read as "file missing" — that tooltip replaces the rich one
 # the ↩ badge writes into, so the entries point at real (empty) files.

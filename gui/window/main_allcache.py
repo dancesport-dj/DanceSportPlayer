@@ -15,26 +15,25 @@ from planner import i18n
 
 HAS_MULTIMEDIA = importlib.util.find_spec("PySide6.QtMultimedia") is not None
 
+from typing import TYPE_CHECKING, Any
+
 from PySide6.QtCore import QCoreApplication, QEvent, QEventLoop, QThread, QTimer, Signal
 from PySide6.QtWidgets import (
     QMessageBox,
 )
+
 from gui.common import (
     BusyDialog,
-)
-from shared.stores import (  # auto-resolved
-    save_settings,
 )
 from gui.workers import (  # auto-resolved
     AudioAnalyzer,
     AudioFpAnalyzer,
     EmbeddingIndexWorker,
     LoudnessAnalyzer,
-    SilenceAnalyzer,
     PdHighlightAnalyzer,
+    SilenceAnalyzer,
 )
 from shared.audio.audio_probes import find_ffmpeg
-from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -121,15 +120,13 @@ class AllCacheMixin(MainWindowHost):
     """🧱 The build-all pipeline: one step at a time, failures kept."""
 
     # ── One-click: build ALL caches (librosa → ffmpeg probes → AI models) ───────
-    def _build_all_caches(self, vals: dict):
+    def _build_all_caches(self):
         """Settings → 'Build ALL caches': run every index for one library in turn.
 
         Asks the scope once, then chains every analysis sequentially over the same
         pool. Models that aren't installed are skipped. Read-only — only the
         feature/embedding caches are written, never the audio files.
         """
-        save_settings(vals)
-        self._settings = vals
         if self._library.cache is None:
             QMessageBox.information(
                 self, "Build all caches",

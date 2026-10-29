@@ -31,18 +31,18 @@ Run:  .venv\\Scripts\\python.exe -m tools.find_missing_metadata [--all] [--save 
 import io
 import re
 import sys
-from pathlib import PurePath
+from pathlib import Path, PurePath
 from urllib.parse import quote_plus
 
 # Windows console is cp1252; force UTF-8 so dance/title emojis don't crash.
 if isinstance(sys.stdout, io.TextIOWrapper):
     sys.stdout.reconfigure(encoding="utf-8")
 
-from planner.music import db as db
 from planner.dances import BEATS_PER_BAR as _BEATS_PER_BAR
-from planner.music.db import _row_to_meta, _META_COLS
 from planner.models import STYLE_FOLDERS
-from planner.music.parsing import _detect_bpm_tagged
+from planner.music import db as db
+from planner.music.db import META_COLS, row_to_meta
+from planner.music.parsing import dance_from_folders, detect_bpm_tagged
 
 CASA_SEARCH = "https://casa-musica.com/de/23-single-tracks?title={}"
 
@@ -98,7 +98,7 @@ def casa_url(title: str) -> str:
 
 def measured_bpm_by_fp(conn) -> dict:
     """fingerprint → measured tempo (beats/min) from the audio analysis."""
-    return {fp: bpm for fp, bpm in conn.execute("SELECT fp, bpm FROM features")}
+    return dict(conn.execute("SELECT fp, bpm FROM features"))
 
 
 def path_by_fp(conn) -> dict:
@@ -121,10 +121,10 @@ def scan_rows(conn):
     """Yield (fingerprint, stem, metadata-dict) for every indexed track.
     `scan_meta.ckey` is '{fingerprint}::{filename stem}' (a fingerprint never
     contains '::', so a single split is safe)."""
-    cols = ",".join(_META_COLS)
+    cols = ",".join(META_COLS)
     for row in conn.execute(f"SELECT ckey, {cols} FROM scan_meta"):  # nosec B608: constant names
         fp, _, stem = row[0].partition("::")
-        yield fp, stem, _row_to_meta(row[1:])
+        yield fp, stem, row_to_meta(row[1:])
 
 
 def main() -> None:
@@ -157,9 +157,12 @@ def main() -> None:
         # cached `bpm` column: entries scanned before a detector improvement keep
         # a stale None there (e.g. '(58VW)', '(29 SF)', '(29W)' — number-before-code
         # labels), and the cache isn't refreshed until the file itself changes.
-        label_bpm = m.get("bpm") or _detect_bpm_tagged(stem, m.get("tag_title")) or 0
+        label_bpm = m.get("bpm") or detect_bpm_tagged(stem, m.get("tag_title")) or 0
         meas = measured.get(fp) or 0
-        dance = (m.get("dance") or "").strip()
+        # A dance read off the folder is not cached (it follows the path), so
+        # it is read off the path here the way the library does.
+        dance = (m.get("dance") or "").strip() or (
+            "" if m.get("other_genre") else dance_from_folders(Path(path)) or "")
         title = m.get("title") or stem or "(untitled)"
 
         if not label_bpm and not meas:

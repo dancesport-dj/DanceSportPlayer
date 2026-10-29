@@ -32,16 +32,16 @@ MAGENTA = "#b8006e"
 # The ▶ player's icon colours, split by what they are. shared/appearance/theme.py recolours
 # the accent's own family and spares anything whose colour is its meaning.
 PLAYER_ACCENT = {
-    "_OVERLAY_INK": "#1565c0",   # the overlay's ink, the accent itself
-    "_CARD_INK": "#cfe0f5",      # ink on the dark card
-    "_CARD_DIM": "#8fa3c4",      # the fader's own small marks
+    "OVERLAY_INK": "#1565c0",   # the overlay's ink, the accent itself
+    "CARD_INK": "#cfe0f5",      # ink on the dark card
+    "CARD_DIM": "#8fa3c4",      # the fader's own small marks
 }
 PLAYER_MEANING = {
-    "_CARD_FADE": "#d8a0a0",     # fade this song out
-    "_CARD_EXTEND": "#7fd4a0",   # give the pause more time
-    "_CARD_CUE": "#f0c674",      # back to 0:00
-    "_CARD_PANIC": "#e58080",    # fade to silence and hold
-    "_CARD_GAIN": "#d8b35c",     # the R128 readout
+    "CARD_FADE": "#d8a0a0",     # fade this song out
+    "CARD_EXTEND": "#7fd4a0",   # give the pause more time
+    "CARD_CUE": "#f0c674",      # back to 0:00
+    "CARD_PANIC": "#e58080",    # fade to silence and hold
+    "CARD_GAIN": "#d8b35c",     # the R128 readout
 }
 # The panel's own surfaces, set through stylesheets in player/widgets/player_setup.py.
 PLAYER_SURFACES = ("#1d2330", "#10141d", "#2a3346", "#3a4a68")
@@ -227,8 +227,8 @@ class IconThemeTest(unittest.TestCase):
         painted = ((playlist_table._NumberHeader, "_BG", "ground"),
                    (playlist_table._NumberHeader, "_FG", "ink"),
                    (playlist_table._NumberHeader, "_LINE", "line"),
-                   (panel_parts._Toggle, "_OFF_TRACK", "ground"),
-                   (panel_parts._Toggle, "_DISABLED_TEXT", "ink"))
+                   (panel_parts.Toggle, "_OFF_TRACK", "ground"),
+                   (panel_parts.Toggle, "_DISABLED_TEXT", "ink"))
         saved = [(getattr(owner, name), getattr(owner, name).rgba())
                  for owner, name, _role in painted]
         try:
@@ -241,12 +241,12 @@ class IconThemeTest(unittest.TestCase):
                 round(theme.contrast_ratio(
                     playlist_table._NumberHeader._FG.name(), gutter.name()), 2),
                 4.5, "the row numbers are not readable on their own gutter")
-            track = panel_parts._Toggle._OFF_TRACK
+            track = panel_parts.Toggle._OFF_TRACK
             self.assertLess(track.lightness(), 90,
                             f"the off switch stayed a bright pill ({track.name()})")
             self.assertGreaterEqual(
                 round(theme.contrast_ratio(
-                    panel_parts._Toggle._KNOB.name(), track.name()), 2),
+                    panel_parts.Toggle._KNOB.name(), track.name()), 2),
                 3.0, "the knob no longer stands out on its track")
         finally:
             for color, rgba in saved:
@@ -284,14 +284,14 @@ class IconThemeTest(unittest.TestCase):
     def test_the_on_switch_keeps_the_green_that_means_on(self):
         theme.set_active("dark", theme.ACCENT_DEFAULT)
         from player.widgets import panel_parts
-        green = panel_parts._Toggle._ON_TRACK.name()
+        green = panel_parts.Toggle._ON_TRACK.name()
         self.assertEqual(theme.shade(green, "ground"), green)
 
     def test_the_player_ink_still_reads_on_the_panel_it_was_recoloured_with(self):
         theme.set_active("dark", MAGENTA)
         ground = theme.shade("#1d2330", "ground")
         for name, color in PLAYER_ACCENT.items():
-            if name == "_OVERLAY_INK":
+            if name == "OVERLAY_INK":
                 continue          # the overlay is its own light card
             ratio = theme.contrast_ratio(theme.shade(color, "ink"), ground)
             self.assertGreaterEqual(round(ratio, 2), 4.5,

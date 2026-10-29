@@ -19,8 +19,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtCore import QEvent, Qt
 from PySide6.QtGui import QKeyEvent
-from PySide6.QtWidgets import (QApplication, QInputDialog, QMessageBox,
-                               QToolButton)
+from PySide6.QtWidgets import QApplication, QInputDialog, QMessageBox, QToolButton
 
 from gui import tournament_tree as gt
 from planner.store import JsonStore

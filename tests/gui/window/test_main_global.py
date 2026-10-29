@@ -356,32 +356,31 @@ class BuildIndexTest(_TestBase):
         return win
 
     def test_no_scope_picked_builds_nothing(self):
-        win = self.build_host(None)
-        win._build_global_index({"global_dir": "x"})
-        self.saved.assert_called_once_with({"global_dir": "x"})
-        self.assertEqual(win._settings, {"global_dir": "x"})
+        win = self.build_host(None, settings={"global_dir": "x"})
+        win._build_global_index()
+        self.saved.assert_not_called()   # ⚙ Settings' OK saved them (B3.1)
         self.assertEqual(win.analyses, [])
 
     def test_the_favorites_scope_analyzes_its_pool_directly(self):
         win = self.build_host("local")
         pool = self.patch(win, "_scoped_pool", return_value=(None, ""))
-        win._build_global_index({})
+        win._build_global_index()
         self.assertEqual(win.analyses, [])
         pool.return_value = ([_entry("a")], "the favorites library")
-        win._build_global_index({})
+        win._build_global_index()
         self.assertEqual(win.analyses, [([_entry("a")], "the favorites library")])
         self.scanner.assert_not_called()
 
     def test_the_repository_scope_needs_its_folder(self):
-        win = self.build_host("global")
-        win._build_global_index({"global_dir": "C:/does/not/exist"})
+        win = self.build_host("global", settings={"global_dir": "C:/does/not/exist"})
+        win._build_global_index()
         self.assertIn("valid music repository folder", self.dialogs.text())
         self.scanner.assert_not_called()
 
     def test_the_repository_scope_scans_first(self):
         gdir = self.folder()
-        win = self.build_host("both", cache=mock.Mock())
-        win._build_global_index({"global_dir": gdir})
+        win = self.build_host("both", cache=mock.Mock(), settings={"global_dir": gdir})
+        win._build_global_index()
         self.assertEqual(win._librosa_scope, "both")
         self.scanner.assert_called_once_with(win._library.cache, gdir, win,
                                              share_from=win._library.lib)
@@ -390,7 +389,7 @@ class BuildIndexTest(_TestBase):
         scan.progress.connect.assert_called_once_with(win._on_global_scan_progress)
         scan.start.assert_called_once()
         win._library.global_loader = _running()
-        win._build_global_index({"global_dir": gdir})
+        win._build_global_index()
         self.scanner.assert_called_once()
 
     def test_scan_progress_goes_to_the_busy_dialog_and_the_status_bar(self):
@@ -458,6 +457,7 @@ class SettingsTest(_TestBase):
         self.patch(planner.playlist.m3u, "set_m3u_format")
         self.patch(mg, "set_no_class_exclusion")
         self.hidden = self.patch(mg, "set_hidden_folders")
+        self.ceremony = self.patch(mg, "set_ceremony_match")
         self.patch(mg, "error_reports")
         self.playlist_dir = self.patch(planner.config, "set_playlist_dir")
         self.win = mock.Mock()
@@ -516,6 +516,16 @@ class SettingsTest(_TestBase):
         self.win._settings["hidden_folders"] = ["F:/m/Party"]
         self.open(hidden_folders=["F:/m/Party"])
         self.win._offer_restart.assert_not_called()
+
+    def test_ceremony_words_apply_and_refilter_the_library(self):
+        self.open(ceremony_words=["Fanfare"], ceremony_folders=["F:/m/Ehrung"])
+        self.ceremony.assert_called_with(["Fanfare"], ["F:/m/Ehrung"])
+        self.win._lib_browser.refilter.assert_called_once_with()
+        self.win._offer_restart.assert_not_called()
+
+    def test_unchanged_ceremony_words_leave_the_library_alone(self):
+        self.open(app_mode="both")
+        self.win._lib_browser.refilter.assert_not_called()
 
 
 class MaintenanceTest(_TestBase):

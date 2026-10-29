@@ -20,8 +20,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 
 from PySide6.QtWidgets import QApplication
 
-from shared.appearance import theme
 from gui.dialogs.settings_dialog import SettingsDialog
+from shared.appearance import theme
 from tests.qt_test_support import reap_widget
 
 

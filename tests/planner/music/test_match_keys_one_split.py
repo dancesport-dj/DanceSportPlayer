@@ -18,7 +18,7 @@ from pathlib import Path
 from planner.models import MusicEntry
 from planner.music import parsing
 from planner.music.library import MusicLibrary
-from planner.music.playlist_index import _dq
+from planner.music.playlist_index import dq
 
 _NAMES = [
     r"F:\my music\lateincd\08 1-16 SB50 El Sonador (Samba 50).mp3",
@@ -36,18 +36,18 @@ _NAMES = [
 def _keys_from_the_full_path(entry: MusicEntry) -> set[str]:
     """What `_match_keys` returned before: each key from the full path string."""
     name, d = str(entry.path), entry.dance
-    keys = {parsing._stem_key(name)}
+    keys = {parsing.stem_key(name)}
     if tkey := parsing._title_key(name):
-        keys.add(_dq(d, tkey))
-    if len(skey := parsing._song_title_key(name)) >= 3:
-        keys.add(_dq(d, skey))
+        keys.add(dq(d, tkey))
+    if len(skey := parsing.song_title_key(name)) >= 3:
+        keys.add(dq(d, skey))
     if entry.tag_title:
-        if len(tt := parsing._norm_title(entry.tag_title)) >= 3:
-            keys.add(_dq(d, tt))
+        if len(tt := parsing.norm_title(entry.tag_title)) >= 3:
+            keys.add(dq(d, tt))
         if entry.tag_artist:
-            at = parsing._norm_title(f"{entry.tag_artist} {entry.tag_title}")
+            at = parsing.norm_title(f"{entry.tag_artist} {entry.tag_title}")
             if len(at) >= 3:
-                keys.add(_dq(d, at))
+                keys.add(dq(d, at))
     return keys
 
 

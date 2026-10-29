@@ -3,11 +3,8 @@
 Mixin of PlaylistTable — extracted 1:1 from gui/table/playlist_table.py in the
 big-module split; behaviour unchanged."""
 import logging
-
-import planner.models
-from planner import i18n
-
-from planner.music.parsing import _detect_dance, _song_title_key
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import (
     QTimer,
@@ -16,22 +13,27 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QMessageBox,
 )
-from pathlib import Path
+
+import planner.models
+from planner import i18n
 from planner.models import (
     ALLOW_REPEAT,
     MusicEntry,
-    ROUND_NAMES,
     RoundConfig,
+    RoundTier,
+    default_round_name,
+    round_names,
+    tier_by_position,
 )
+from planner.music.parsing import detect_dance, song_title_key
 from planner.terms import dance_name
 from shared.widgets import (
-    _show_toast,
+    show_toast,
 )
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from gui.window.hosts import PlaylistTableHost
     from gui.table.playlist_table import PlaylistTable
+    from gui.window.hosts import PlaylistTableHost
 else:
     PlaylistTableHost = object
 
@@ -188,7 +190,7 @@ class DynamicModeMixin(PlaylistTableHost):
         not-yet-created rounds borrow the standard names for the pattern length."""
         caps = self._dynamic_capacity or [6, 3, 2, 1]
         existing = list(self._playlist.keys()) if self._playlist else []
-        names = ROUND_NAMES.get(len(caps), [f"Runde {i + 1}" for i in range(len(caps))])
+        names = round_names(len(caps))
         specs: list[tuple[str, int]] = []
         for i, cap in enumerate(caps):
             if i < len(existing):
@@ -196,7 +198,7 @@ class DynamicModeMixin(PlaylistTableHost):
             elif i < len(names):
                 name = names[i]
             else:
-                name = f"Runde {i + 1}"
+                name = default_round_name(i)
             specs.append((name, cap))
         return specs
 
@@ -208,11 +210,10 @@ class DynamicModeMixin(PlaylistTableHost):
         for i, (name, _cap) in enumerate(specs):
             if not self._playlist or name not in self._playlist:
                 continue
-            tier = ("final" if i == n - 1 else "semi" if i == n - 2
-                    else "pre_semi" if i == n - 3 else "early")
+            tier = tier_by_position(i, n)
             cfgs.append(RoundConfig(
                 name=name, heats=len(self._playlist[name]), tier=tier,
-                prefer_fresh=(tier == "pre_semi")))
+                prefer_fresh=(tier == RoundTier.PRE_SEMI)))
         return cfgs
 
     def _round_of_row(self, row: int) -> str | None:
@@ -324,7 +325,7 @@ class DynamicModeMixin(PlaylistTableHost):
         p = getattr(entry, "path", None) if entry is not None else None
         if not p:
             return None
-        key = _song_title_key(str(p))
+        key = song_title_key(str(p))
         if not key:
             return None
         return ((getattr(entry, "dance", None) or "").upper(), key)
@@ -561,7 +562,7 @@ class DynamicModeMixin(PlaylistTableHost):
             return dance
         path = getattr(entry, "path", None) if entry is not None else None
         name = Path(str(path)).name.replace("_", " ") if path else ""
-        return _detect_dance(name) or _detect_dance(getattr(entry, "title", "") or "")
+        return detect_dance(name) or detect_dance(getattr(entry, "title", "") or "")
 
     def _dynamic_place_one(self, entry: MusicEntry, target_row: int,
                            prefer_existing: bool = False) -> str:
@@ -587,7 +588,7 @@ class DynamicModeMixin(PlaylistTableHost):
             # soft duplicate (same filename, different file) → let the user decide
             if self._ask_soft_duplicate(entry, existing) == "replace":
                 if self._replace_planned_entry(existing, entry):
-                    _show_toast(self, i18n.t("🔁  Replaced “%s” with “%s”")
+                    show_toast(self, i18n.t("🔁  Replaced “%s” with “%s”")
                                 % (existing.title, entry.title))
                     return ""
                 # couldn't locate it (shouldn't happen) → fall through to a normal add
@@ -656,8 +657,8 @@ class DynamicModeMixin(PlaylistTableHost):
         # Block a duplicate that lives in ANOTHER slot; the one being overwritten is fine.
         dup = self._find_duplicate(entry)
         if dup is not None and dup[1] is not old:
-            _show_toast(self, i18n.t("⚠  “%s” is already in this playlist — not replaced")
-                        % entry.title)
+            show_toast(self, i18n.t("⚠  “%s” is already in this playlist — not replaced")
+                        % entry.title, error=True)
             return False
         heats = self._dyn_playlist()[m.round_name]
         d_idx = self._dynamic_dances.index(slot_dance)
@@ -771,7 +772,7 @@ class DynamicModeMixin(PlaylistTableHost):
         moved = self._move_up_from_heat(heats, h_idx)
         del heats[h_idx]
         if moved:
-            _show_toast(self, i18n.t("⬆  %d song(s) moved up into empty slots") % moved)
+            show_toast(self, i18n.t("⬆  %d song(s) moved up into empty slots") % moved)
         if heats:
             # Round keeps other heats → just re-key its backups around the gap.
             self._reindex_backups_for_heat(rname, h_idx)
@@ -988,7 +989,7 @@ class DynamicModeMixin(PlaylistTableHost):
             if not backups:
                 self._dynamic_backups.pop(key, None)
             self._rebuild_dynamic()
-            _show_toast(self, "⬆  Backup moved up into the empty slot")
+            show_toast(self, "⬆  Backup moved up into the empty slot")
             return
         if dance:
             self._remove_dance_from_round(rname, dance)
@@ -1072,7 +1073,7 @@ class DynamicModeMixin(PlaylistTableHost):
         self._dynamic_capacity = caps[:n]
         if n == 0:
             return
-        names = ROUND_NAMES.get(n, [f"Runde {i + 1}" for i in range(n)])
+        names = round_names(n)
         if rounds == names[:n]:
             return   # already correctly named
         mapping = {old: names[i] for i, old in enumerate(rounds)}
@@ -1134,7 +1135,7 @@ class DynamicModeMixin(PlaylistTableHost):
             self.host.ensure_deck_ready()
         entries = self._collect_drop_entries(e)
         if not entries:
-            _show_toast(self, "Couldn't read the dropped track(s).")
+            show_toast(self, "Couldn't read the dropped track(s).", error=True)
             return
         if not self._confirm_cross_style(entries):
             return
@@ -1192,9 +1193,9 @@ class DynamicModeMixin(PlaylistTableHost):
                 msg = i18n.t("➕  Added %d track(s)") % placed
             if skipped:
                 msg += i18n.t("  (%s — skipped)") % self._skipped_tail(skipped)
-            _show_toast(self, msg)
+            show_toast(self, msg)
         elif skipped:
-            _show_toast(self, self._nothing_added(skipped))
+            show_toast(self, self._nothing_added(skipped))
 
     @staticmethod
     def _skipped_tail(skipped: dict) -> str:

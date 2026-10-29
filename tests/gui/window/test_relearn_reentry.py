@@ -17,8 +17,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtWidgets import QApplication, QMainWindow
 
 import dancesport_gui as dg
-from gui.window.library_service import LibraryService
 from gui.window import main_global
+from gui.window.library_service import LibraryService
 
 
 class RelearnReentryTest(unittest.TestCase):

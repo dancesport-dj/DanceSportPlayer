@@ -26,7 +26,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from shared.widgets import _app_icon, _hsep
 from player.presenter.timetable import (
     DEFAULT_ROTATE_SECS,
     DEFAULT_TITLE,
@@ -36,12 +35,13 @@ from player.presenter.timetable import (
     Timetable,
     offset_for,
 )
+from shared.widgets import app_icon, hsep
 
 log = logging.getLogger("dancesport.gui.timetable")
 
 _COL_TIME = 0
-_COL_UNTIL = 1
-_COL_WHAT = 2
+COL_UNTIL = 1
+COL_WHAT = 2
 _COL_NOTE = 3
 
 # What a first-time timetable is pre-filled with. Not empty: an empty grid
@@ -70,7 +70,7 @@ class TimetableDialog(QDialog):
                  now_offset=None):
         super().__init__(parent)
         self.setWindowTitle("🕒 Timetable — presenter screen")
-        self.setWindowIcon(_app_icon())
+        self.setWindowIcon(app_icon())
         self.setModal(True)
         self.resize(620, 700)
         table = table if table is not None else Timetable()
@@ -88,7 +88,7 @@ class TimetableDialog(QDialog):
             "end time (01:00) or a length in minutes (20).")
         hint.setWordWrap(True)
         lay.addWidget(hint)
-        lay.addWidget(_hsep())
+        lay.addWidget(hsep())
 
         title_row = QHBoxLayout()
         title_row.addWidget(QLabel("Heading"))
@@ -107,9 +107,9 @@ class TimetableDialog(QDialog):
         head = self.table.horizontalHeader()
         head.setSectionResizeMode(_COL_TIME, QHeaderView.ResizeMode.Fixed)
         self.table.setColumnWidth(_COL_TIME, 90)
-        head.setSectionResizeMode(_COL_UNTIL, QHeaderView.ResizeMode.Fixed)
-        self.table.setColumnWidth(_COL_UNTIL, 90)
-        head.setSectionResizeMode(_COL_WHAT, QHeaderView.ResizeMode.Stretch)
+        head.setSectionResizeMode(COL_UNTIL, QHeaderView.ResizeMode.Fixed)
+        self.table.setColumnWidth(COL_UNTIL, 90)
+        head.setSectionResizeMode(COL_WHAT, QHeaderView.ResizeMode.Stretch)
         head.setSectionResizeMode(_COL_NOTE, QHeaderView.ResizeMode.Stretch)
         lay.addWidget(self.table, 1)
 
@@ -128,7 +128,7 @@ class TimetableDialog(QDialog):
             btn_row.addWidget(b)
         btn_row.addStretch(1)
         lay.addLayout(btn_row)
-        lay.addWidget(_hsep())
+        lay.addWidget(hsep())
 
         self._build_rotate_row(lay, table)
 
@@ -208,8 +208,8 @@ class TimetableDialog(QDialog):
         entry = entry if isinstance(entry, Entry) else Entry()
         row = self.table.rowCount()
         self.table.insertRow(row)
-        for col, text in ((_COL_TIME, entry.time), (_COL_UNTIL, entry.until),
-                          (_COL_WHAT, entry.what), (_COL_NOTE, entry.note)):
+        for col, text in ((_COL_TIME, entry.time), (COL_UNTIL, entry.until),
+                          (COL_WHAT, entry.what), (_COL_NOTE, entry.note)):
             self.table.setItem(row, col, QTableWidgetItem(text))
         self.table.setCurrentCell(row, _COL_TIME)
 
@@ -243,9 +243,9 @@ class TimetableDialog(QDialog):
         entries = []
         for row in range(self.table.rowCount()):
             entry = Entry(time=self._cell(row, _COL_TIME),
-                          what=self._cell(row, _COL_WHAT),
+                          what=self._cell(row, COL_WHAT),
                           note=self._cell(row, _COL_NOTE),
-                          until=self._cell(row, _COL_UNTIL))
+                          until=self._cell(row, COL_UNTIL))
             if entry.time or entry.what:
                 entries.append(entry)
         return Timetable(title=self.title_ed.text().strip() or DEFAULT_TITLE,

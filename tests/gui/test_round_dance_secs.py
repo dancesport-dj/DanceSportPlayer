@@ -30,8 +30,14 @@ from PySide6.QtWidgets import QApplication, QWidget
 from gui.decks.running_order import Row
 from planner.models import MusicEntry
 from planner.playing.play_sets import (
-    DANCE_SECS_KEY, ROUND_DANCE_SECS_KEY, ROUND_KINDS, ROUND_PD_KEY,
-    round_dance_secs_of, round_kind, round_pd_n_of)
+    DANCE_SECS_KEY,
+    ROUND_DANCE_SECS_KEY,
+    ROUND_KINDS,
+    ROUND_PD_KEY,
+    round_dance_secs_of,
+    round_kind,
+    round_pd_n_of,
+)
 from planner.terms import dance_name, round_name
 from tests.qt_test_support import reap_widget, stub_window_startup
 
@@ -53,6 +59,20 @@ class RoundKindTest(unittest.TestCase):
         self.assertEqual(round_kind("Semi-final"), "semi")
         self.assertEqual(round_kind("Halbfinale"), "semi")
         self.assertEqual(round_kind("Viertelfinale"), "inter")
+
+    def test_a_stacked_day_decks_rounds(self):
+        """A day plan names its rounds '<competition> — <round>'; the Finale
+        and Vorrunde lost their kind there while the Semifinale kept it
+        (BUG_REVIEW B7.1)."""
+        for name, kind in (("Hgr D Std — Vorrunde", "first"),
+                           ("Hgr D Std — 1. Zwischenrunde", "inter"),
+                           ("Hgr D Std — Semifinale", "semi"),
+                           ("Hgr D Std — Finale", "final")):
+            with self.subTest(name=name):
+                self.assertEqual(round_kind(name), kind)
+
+    def test_a_competition_named_like_a_round_does_not_make_one(self):
+        self.assertIsNone(round_kind("Semi-Pro Cup — Standardrunde 1"))
 
     def test_a_party_round_or_no_name_is_no_tournament_round(self):
         for name in ("", "Standardrunde 1", "Socialrunde 2", "LW"):

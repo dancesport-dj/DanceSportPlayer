@@ -24,12 +24,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_panel_opt_"))
 
-from PySide6.QtWidgets import QApplication
-from tests.qt_test_support import reap_widget
-
 from PySide6.QtCore import Qt
-from player.widgets.panel_parts import _Toggle
+from PySide6.QtWidgets import QApplication
+
+from player.widgets.panel_parts import Toggle
 from player.widgets.play_mode_panel import PlayModePanel
+from tests.qt_test_support import reap_widget
 
 
 class _PanelTest(unittest.TestCase):
@@ -190,12 +190,11 @@ class FoldingSubSettingsTest(_PanelTest):
         self.assertEqual(p.pd_spin.value(), 3)
         self.assertEqual(p.pd_start_delay(), 7)
 
-    def test_the_filler_music_follows_the_pause(self):
+    def test_the_pause_music_hint_follows_the_pause(self):
         p = self.panel(auto_advance=True, pause_enabled=True)
         self.assertTrue(p.pause_sub_box.isVisible())
         p.pause_check.setChecked(False)
         self.assertFalse(p.pause_sub_box.isVisible())
-        self.assertFalse(p.pause_music_box.isVisible())
 
     def test_no_auto_advance_means_no_pause_block_at_all(self):
         """Without ⏭ every song is started by hand, so there is no gap."""
@@ -282,7 +281,7 @@ class ToggleButtonTest(_PanelTest):
         p = self.panel()
         for name in self._NAMES:
             w = getattr(p, name)
-            self.assertIsInstance(w, _Toggle, name)
+            self.assertIsInstance(w, Toggle, name)
             self.assertTrue(w.isCheckable(), name)
 
     def test_a_switch_still_carries_its_setting(self):

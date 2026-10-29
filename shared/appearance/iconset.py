@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """The app's icon artwork: Bootstrap Icons, embedded as SVG bodies.
 
 Generated — do not edit by hand. Regenerate with the script this file was

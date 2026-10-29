@@ -28,8 +28,7 @@ from dancesport_planner import (
     PlaylistSuggester,
     RoundConfig,
 )
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 
 def _entry(name: str, dance: str) -> MusicEntry:

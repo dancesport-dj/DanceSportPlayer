@@ -31,14 +31,14 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtCore import QObject
 from PySide6.QtWidgets import QApplication
 
-from gui.table.playlist_table import PlaylistTable
-from gui.decks.running_order import Row
-from player.window.main_player import PlayerControlMixin
-from player.widgets.play_mode_panel import PlayModePanel
-from player.audio.playback_state import PlaybackState
-from tests.qt_test_support import reap_widget
-from player.audio.between_dances import BetweenDances
 from gui.decks.deck_set import DeckSet
+from gui.decks.running_order import Row
+from gui.table.playlist_table import PlaylistTable
+from player.audio.between_dances import BetweenDances
+from player.audio.playback_state import PlaybackState
+from player.widgets.play_mode_panel import PlayModePanel
+from player.window.main_player import PlayerControlMixin
+from tests.qt_test_support import reap_widget
 
 
 class _Announcer:
@@ -47,7 +47,7 @@ class _Announcer:
         self.speaking = False
         self._works = works
 
-    def speak(self, code, *, heat=None, now=False):
+    def speak(self, code, *, heat=None, now=False, heat_only=False):
         if not self._works:
             return False
         self.spoken.append((code, now))
@@ -313,8 +313,8 @@ class AnnounceWaitTest(unittest.TestCase):
 
     def test_the_pause_keeps_the_tail_it_always_had(self):
         """Nothing was wrong with the pause, and filler music covers it."""
-        from player.window.main_pause import _ANNOUNCE_TAIL
-        self.assertEqual(_ANNOUNCE_TAIL, 1.2)
+        from player.window.main_pause import ANNOUNCE_TAIL
+        self.assertEqual(ANNOUNCE_TAIL, 1.2)
 
     def test_a_stop_during_the_wait_leaves_the_music_alone(self):
         desk, _t = self.desk(wait=True)

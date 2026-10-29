@@ -8,8 +8,7 @@ had before. Two buttons pause the scan and stop it early; the loader acts on
 them, this bar only says what was asked.
 """
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import (QHBoxLayout, QLabel, QProgressBar, QSizePolicy,
-                               QToolButton, QWidget)
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QProgressBar, QSizePolicy, QToolButton, QWidget
 
 from planner import i18n
 

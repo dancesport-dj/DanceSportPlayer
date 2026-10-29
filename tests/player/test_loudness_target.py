@@ -16,8 +16,8 @@ beside the loudness caps the gain at −1 dBTP — where it is on record.
 import unittest
 from types import SimpleNamespace
 
-from shared.audio.playback import _TARGET_LUFS, _TRUE_PEAK_CEILING
 from player.window.main_audio import AudioLevelMixin
+from shared.audio.playback import TARGET_LUFS, TRUE_PEAK_CEILING
 
 
 def _db(gain: float) -> float:
@@ -49,8 +49,8 @@ class LoudnessTargetTest(unittest.TestCase):
     def test_the_target_sits_near_the_music_not_far_under_it(self):
         """−18 threw away 8 dB of the card's range for headroom nothing used;
         −12 would boost a quarter of this library with no peak to clamp to."""
-        self.assertGreaterEqual(_TARGET_LUFS, -16.0)
-        self.assertLessEqual(_TARGET_LUFS, -12.0)
+        self.assertGreaterEqual(TARGET_LUFS, -16.0)
+        self.assertLessEqual(TARGET_LUFS, -12.0)
 
     def test_a_typical_dance_track_keeps_most_of_its_level(self):
         """The library's median is −9.9 LUFS: 4748 measured tracks, p75 −8.8.
@@ -78,7 +78,7 @@ class TruePeakCapTest(unittest.TestCase):
     """🔝 No boost past −1 dBTP, and a master already over it comes down."""
 
     def test_the_ceiling_is_one_db_under_full_scale(self):
-        self.assertEqual(_TRUE_PEAK_CEILING, -1.0)
+        self.assertEqual(TRUE_PEAK_CEILING, -1.0)
 
     def test_a_boost_stops_at_the_ceiling(self):
         """−20 LUFS wants +6 dB; a peak at −3 dBTP leaves room for 2."""
@@ -89,7 +89,7 @@ class TruePeakCapTest(unittest.TestCase):
 
     def test_a_master_over_the_ceiling_is_pulled_down(self):
         """On target already (0 dB), but peaking at +0.5 dBTP: −1.5 dB."""
-        self.assertAlmostEqual(_db(_gain(_TARGET_LUFS, tp=0.5)), -1.5, places=6)
+        self.assertAlmostEqual(_db(_gain(TARGET_LUFS, tp=0.5)), -1.5, places=6)
 
     def test_a_deeper_cut_is_not_lifted(self):
         self.assertAlmostEqual(_db(_gain(-9.0, tp=-0.2)), -5.0, places=6)

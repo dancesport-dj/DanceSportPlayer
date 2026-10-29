@@ -19,8 +19,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_export_ref_"))
 
 from dancesport_planner import MusicEntry, MusicLibrary
-from tests.qt_test_support import (
-    reap_widget, stub_window_startup)
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 _TMP = Path(tempfile.mkdtemp(prefix="dp_export_ref_files_"))
 _C = _TMP / "C" / "my music" / "tanzcds"      # the Referenzpfad
