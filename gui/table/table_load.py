@@ -96,6 +96,7 @@ class TableLoadMixin(PlaylistTableHost):
         playing = self._current_play_row >= 0
         self._row_meta = RunningOrder()
         self._played_saved.clear()   # rows are rebuilt with fresh colors
+        self._drop_find_marks()      # …and so is the find tint
         # Dynamic-mode state: a static (combo-generated) load resets it; a dynamic
         # load / rebuild carries the pattern, column order and stacked backups.
         self._dynamic = dynamic
@@ -243,6 +244,7 @@ class TableLoadMixin(PlaylistTableHost):
         playing = self._current_play_row >= 0
         self._row_meta = RunningOrder()
         self._played_saved.clear()   # rows are rebuilt with fresh colors
+        self._drop_find_marks()      # …and so is the find tint
         self._reset_collapse_state()
         self.setRowCount(0)
 
@@ -335,6 +337,7 @@ class TableLoadMixin(PlaylistTableHost):
         playing = self._current_play_row >= 0
         self._row_meta = RunningOrder()
         self._played_saved.clear()   # rows are rebuilt with fresh colors
+        self._drop_find_marks()      # …and so is the find tint
         self._reset_collapse_state()
         self.setRowCount(0)
         # Separate the flat list into the rounds it was built from, numbered per
@@ -620,6 +623,7 @@ class TableLoadMixin(PlaylistTableHost):
         playing = self._current_play_row >= 0
         self._row_meta = RunningOrder()
         self._played_saved.clear()   # rows are rebuilt with fresh colors
+        self._drop_find_marks()      # …and so is the find tint
         self._reset_collapse_state()
         self.setRowCount(0)
         for e in entries:
@@ -782,20 +786,30 @@ class TableLoadMixin(PlaylistTableHost):
             # Store the bare label; the ▼/▶ arrow is rendered by _set_header_text.
             self._hdr_base_text[row] = text
             text = f"▼ {text}"
-        item = QTableWidgetItem(text)
-        item.setBackground(bg)
-        item.setForeground(fg)
-        if bold:
-            f = item.font()
-            f.setBold(True)
-            item.setFont(f)
-        item.setFlags(Qt.ItemFlag.ItemIsEnabled)   # not selectable / draggable
-        if collapsible:
-            item.setToolTip("Click to collapse / expand")
-        self.setItem(row, 0, item)
+        else:
+            # A strip that does not fold still has to follow a column drag, so
+            # its bare label is kept too.
+            self._hdr_plain_text[row] = text
+        # The label sits in the leftmost column and the row is filled right
+        # across, so a header reads as one band whatever order the columns were
+        # dragged into - Dance is no longer nailed to the left edge.
+        first = self.horizontalHeader().logicalIndex(0)
+        self._hdr_text_col[row] = first
+        for col in range(_N_COLS):
+            item = QTableWidgetItem(text if col == first else "")
+            item.setBackground(bg)
+            item.setForeground(fg)
+            if bold:
+                f = item.font()
+                f.setBold(True)
+                item.setFont(f)
+            item.setFlags(Qt.ItemFlag.ItemIsEnabled)   # not selectable / draggable
+            if collapsible and col == first:
+                item.setToolTip("Click to collapse / expand")
+            self.setItem(row, col, item)
         if regen_cb is not None:
-            # Leave the last (↺) column free for a per-dance regenerate button.
-            self.setSpan(row, 0, 1, _N_COLS - 1)
+            # ↺ keeps a per-dance regenerate button in its own column, which the
+            # operator may have dragged anywhere.
             btn = QPushButton("↺")
             btn.setFixedSize(26, 20)
             btn.setStyleSheet("padding: 0;")
@@ -808,6 +822,4 @@ class TableLoadMixin(PlaylistTableHost):
             lay.setContentsMargins(0, 0, 0, 0)
             lay.addWidget(btn, 0, Qt.AlignmentFlag.AlignCenter)
             self.setCellWidget(row, COL_REGEN, holder)
-        else:
-            self.setSpan(row, 0, 1, _N_COLS)
         self.setRowHeight(row, 22)

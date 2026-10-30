@@ -373,7 +373,7 @@ class TableMenuMixin(PlaylistTableHost):
         if self._row_meta.has_songs():
             if not menu.isEmpty():
                 menu.addSeparator()
-            search_act = menu.addAction("🔍  Find a title in this list…\tCtrl+F")
+            search_act = menu.addAction("🔍  Find a title or genre in this list…\tCtrl+F")
             handlers[search_act] = self._search_title
 
         # Empty the whole list (blank it again) — clearer than Del-on-header / Ctrl+A.

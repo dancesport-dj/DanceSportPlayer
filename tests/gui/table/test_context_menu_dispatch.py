@@ -64,7 +64,7 @@ TARGETS = [
     (r"🧹  Remove tracks already in a playlist", "host.clean_wishlist_against_playlists"),
     (r"🧹  Remove titles the other", "host.clean_deck_against_others"),
     (r"♊  Remove duplicate titles", "_remove_duplicate_titles"),
-    (r"🔍  Find a title in this list", "_search_title"),
+    (r"🔍  Find a title or genre in this list", "_search_title"),
     (r"🧹  Empty this", "_clear_entire"),
 ]
 TABLE_METHODS = sorted({t for _, t in TARGETS if "." not in t

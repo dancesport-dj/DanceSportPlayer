@@ -1034,6 +1034,8 @@ CATALOG = {
         "🔍  Titel / Interpret / Kommentar filtern…",
     "🔍  Find a title in this list…\tCtrl+F":
         "🔍  Titel in dieser Liste suchen…\tStrg+F",
+    "🔍  Find a title or genre in this list…\tCtrl+F":
+        "🔍  Titel oder Genre in dieser Liste suchen…\tStrg+F",
     "🆕 Last 30 days": "🆕 Letzte 30 Tage",
     "🆕 Last 90 days": "🆕 Letzte 90 Tage",
     "🆕 Last 12 months": "🆕 Letzte 12 Monate",
@@ -2436,6 +2438,16 @@ CATALOG = {
     "Find in list": "In der Liste suchen",
     "Find planned before": "Frühere Planungen finden",
     "Find title:": "Titel suchen:",
+    "A word of the title, the tag title or the file name":
+        "Ein Wort aus dem Titel, dem Tag-Titel oder dem Dateinamen",
+    "Find genre / dance:": "Genre / Tanz suchen:",
+    "e.g. paso doble, PD, Boogie Woogie, Line Dance, salsa":
+        "z. B. Paso Doble, PD, Boogie Woogie, Line Dance, Salsa",
+    "Highlights every row of the list whose dance or genre matches -\n"
+    "leave empty to search titles only.":
+        "Hebt alle Zeilen der Liste hervor, deren Tanz oder Genre passt –\n"
+        "leer lassen, um nur Titel zu suchen.",
+    "🔍  No title of “%s” in this list": "🔍  Kein Titel zu „%s“ in dieser Liste",
     "No similar tracks found (audio features may be missing).":
         "Keine ähnlichen Titel gefunden (vielleicht fehlen die Audio-Merkmale).",
     "Select exactly two titles of the same dance to swap them.":
@@ -3458,9 +3470,10 @@ CATALOG = {
         "Den Titel bewerten; ein Klick auf den letzten vergebenen Stern löscht "
         "die Bewertung",
     "Ctrl + F": "Strg + F",
-    "Find a title in the focused list (repeat to step to the next match)":
-        "Einen Titel in der aktiven Liste suchen (nochmal drücken springt zum "
-        "nächsten Treffer)",
+    "Find a title or a genre in the focused list. A title steps to the next "
+    "match; a genre highlights every row of it at once":
+        "Einen Titel oder ein Genre in der aktiven Liste suchen. Ein Titel "
+        "springt zum nächsten Treffer, ein Genre hebt alle seine Zeilen hervor",
     "Esc  in the 🖥 presenter window": "Esc  im 🖥 Moderations-Fenster",
     "This cheat sheet": "Diese Übersicht",
     "Nothing found": "Nichts gefunden",
@@ -3489,9 +3502,11 @@ CATALOG = {
     "Drag a dance header": "Eine Tanz-Überschrift ziehen",
     "Reorder the dance columns of a static deck":
         "Die Tanzspalten eines statischen Decks umsortieren",
-    "Right-click ▸ 🔍 Find a title": "Rechtsklick ▸ 🔍 Titel suchen",
-    "Jump to a song by name; repeat to step to the next match":
-        "Zu einem Titel per Name springen; nochmal für den nächsten Treffer",
+    "Right-click ▸ 🔍 Find a genre":
+        "Rechtsklick ▸ 🔍 Genre suchen",
+    "Jump to a song by name; or highlight every row of a genre at once":
+        "Zu einem Titel per Name springen; oder alle Zeilen eines Genres "
+        "auf einmal hervorheben",
     "Ctrl + drag onto a filled slot":
         "Strg + Ziehen auf einen Platz",
     "Dynamic deck: replace the song in that slot with the dragged one":

@@ -497,7 +497,8 @@ def entry_tooltip(e, sim=None, sim_label: str = "Match", tags=None) -> str:
     if getattr(e, "tag_album", None):
         rows.append(f"<span style='color:#aaa'>💿 {esc(e.tag_album)}</span>")
     meta = []
-    dance = dance_name(warmup_code(e), e.dance or getattr(e, "other_genre", None) or "")
+    dance = dance_name(warmup_code(e), e.dance or getattr(e, "other_genre", None)
+                       or getattr(e, "tag_genre", None) or "")
     if dance:
         meta.append(esc(dance))
     if e.bpm is not None:

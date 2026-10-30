@@ -3026,8 +3026,10 @@ CATALOG = {
     "Click a star in the ★ column": "Clic en una estrella de la columna ★",
     "Rate the title; click the star the rating ends on to clear it":
         "Valorar el tema; clic en la estrella donde termina la valoración para borrarla",
-    "Find a title in the focused list (repeat to step to the next match)":
-        "Buscar un título en la lista activa (repite para ir a la siguiente coincidencia)",
+    "Find a title or a genre in the focused list. A title steps to the next "
+    "match; a genre highlights every row of it at once":
+        "Buscar un título o un género en la lista activa. Un título salta a la "
+        "siguiente coincidencia, un género resalta todas sus filas a la vez",
     "Esc  in the 🖥 presenter window": "Esc  en la ventana 🖥 del presentador",
     "This cheat sheet": "Esta chuleta",
     "Nothing found": "No se encontró nada",
@@ -3050,9 +3052,10 @@ CATALOG = {
     "Drag a dance header": "Arrastrar una cabecera de baile",
     "Reorder the dance columns of a static deck":
         "Reordenar las columnas de baile de un deck estático",
-    "Right-click ▸ 🔍 Find a title": "Clic derecho ▸ 🔍 Buscar un título",
-    "Jump to a song by name; repeat to step to the next match":
-        "Saltar a un tema por su nombre; repite para ir a la siguiente coincidencia",
+    "Right-click ▸ 🔍 Find a genre": "Clic derecho ▸ 🔍 Buscar un género",
+    "Jump to a song by name; or highlight every row of a genre at once":
+        "Saltar a un tema por su nombre; o resaltar todas las filas de un "
+        "género a la vez",
     "Ctrl + drag onto a filled slot":
         "Ctrl + arrastrar sobre un hueco ocupado",
     "Dynamic deck: replace the song in that slot with the dragged one":

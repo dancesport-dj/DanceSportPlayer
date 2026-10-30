@@ -225,9 +225,11 @@ _SCHEMA_VERSION = 3   # v3: scan_meta re-keyed from file_id → content fingerpr
 #   v8 → a comment leading with the instr word ('Instr AS') is instrumental
 #   v9 → glued class codes ('vocal AS', 'BAS', 'DCB') are classes
 #   v10 → a word ending in 't' before a number ('Hit50', 'Best40') is no takt
+#   v11 → + the raw genre tag (tag_genre), the Dance column's last fallback
+#   v12 → Boogie Woogie and Line Dance are dances (BW, LD), from tag or path
 # (A dance or social label read off the folder is no longer cached: that one
 # drops only the rows it can concern, see _drop_path_derived_meta.)
-_DANCE_DETECT_VERSION = 10
+_DANCE_DETECT_VERSION = 12
 
 # How quiet a stretch has to be before it counts as silence (ffmpeg
 # silencedetect). −30 dB was a fade-out still playing to the floor — “Fare Thee
@@ -244,7 +246,7 @@ SILENCE_NOISE_DB = -50
 META_COLS = ("title", "dance", "bpm", "year", "other_genre", "classes_ok",
               "is_instrumental", "is_xmas", "tag_title", "tag_artist", "duration",
               "tag_album", "comment_tags", "rating", "custom", "tag_bpm",
-              "tag_comment")
+              "tag_comment", "tag_genre")
 
 # SQL column declarations for the metadata columns above (kept in one place so the
 # scan_meta / global_meta DDL and the v3 migration can't drift apart).
@@ -253,7 +255,7 @@ _META_COLS_SQL = (
     "classes_ok TEXT, is_instrumental INTEGER, is_xmas INTEGER, "
     "tag_title TEXT, tag_artist TEXT, duration INTEGER, tag_album TEXT, "
     "comment_tags TEXT, rating INTEGER, custom TEXT, tag_bpm REAL, "
-    "tag_comment TEXT"
+    "tag_comment TEXT, tag_genre TEXT"
 )
 
 
@@ -275,6 +277,7 @@ def meta_to_row(d: dict) -> tuple:
         d.get('custom'),
         d.get('tag_bpm'),
         d.get('tag_comment'),
+        d.get('tag_genre'),
     )
 
 
@@ -282,7 +285,7 @@ def row_to_meta(row) -> dict:
     """Unpack a column tuple back into the metadata dict (exact original types)."""
     (title, dance, bpm, year, other_genre, classes_ok,
      is_instr, is_xmas, tag_title, tag_artist, duration, tag_album,
-     comment_tags, rating, custom, tag_bpm, tag_comment) = row
+     comment_tags, rating, custom, tag_bpm, tag_comment, tag_genre) = row
     return {
         'title': title, 'dance': dance, 'bpm': bpm, 'year': year,
         'other_genre': other_genre,
@@ -305,6 +308,9 @@ def row_to_meta(row) -> dict:
         # The COMM text as written, for the Comment column; NULL = a row
         # cached before the column existed, '' = read, the file has none.
         'tag_comment': tag_comment,
+        # The TCON text as written - what the Dance column falls back to when
+        # neither a dance nor a social genre could be determined.
+        'tag_genre': tag_genre,
     }
 
 
@@ -554,6 +560,17 @@ def _migrate_meta_tag_comment(conn: sqlite3.Connection) -> None:
         if cols and 'tag_comment' not in cols:
             conn.execute(f"ALTER TABLE {table} ADD COLUMN tag_comment TEXT")
             log.info("  ♻️  %s: added tag_comment column", table)
+
+
+def _migrate_meta_tag_genre(conn: sqlite3.Connection) -> None:
+    """Append the `tag_genre` column (the raw TCON text) to pre-existing
+    scan_meta / global_meta — after `tag_comment`, so the order matches
+    _META_COLS. The v11 detect bump re-reads every file, which fills it."""
+    for table in ("scan_meta", "global_meta"):
+        cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+        if cols and 'tag_genre' not in cols:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN tag_genre TEXT")
+            log.info("  ♻️  %s: added tag_genre column", table)
 
 
 def _migrate_scan_meta_v3(conn: sqlite3.Connection) -> None:
@@ -895,6 +912,7 @@ def _init_db(conn: sqlite3.Connection) -> None:
                 _migrate_custom(conn)                   # add custom col (after rating), tag_edits too
                 migrate_meta_tag_bpm(conn)             # add tag_bpm col (after custom)
                 _migrate_meta_tag_comment(conn)         # add tag_comment col (after tag_bpm)
+                _migrate_meta_tag_genre(conn)           # add tag_genre col (after tag_comment)
                 _migrate_pd_manual(conn)                # add manual flag to pd_highlights
                 _migrate_loudness_tp(conn)              # add tp col to loudness
                 _migrate_playlist_index_finals(conn)    # add fkeys col to playlist_index

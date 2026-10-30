@@ -10,6 +10,7 @@ from PySide6.QtWidgets import QApplication
 from player.dialogs import remote_dialog
 from player.dialogs.remote_dialog import RemoteDialog, qr_pixmap
 from player.window.main_remote import RemoteHub
+from tests.qt_test_support import reap_widget
 
 
 class _Host:
@@ -66,7 +67,7 @@ class RemoteDialogTest(unittest.TestCase):
 
     def _dlg(self, host):
         dlg = RemoteDialog(host)
-        self.addCleanup(dlg.deleteLater)
+        self.addCleanup(reap_widget, dlg)   # the test may delete it itself
         return dlg
 
     def test_start_and_stop_go_to_the_host_and_the_code_follows(self):
@@ -190,6 +191,28 @@ class RemoteDialogTest(unittest.TestCase):
                 self.assertIn(step, text)
                 msg.deleteLater()
         self.assertEqual(host.switched, [])
+
+    def test_a_download_that_lands_after_the_window_closed_does_not_raise(self):
+        """BUG 172: the progress dialog is the window's child, so closing the
+        window — ⚙ Settings' ✕, with the 📱 window opened on top of it — takes
+        it along. The download runs on in its thread and, coming back, closed
+        the dialog that is gone: "Internal C++ object (QProgressDialog) already
+        deleted"."""
+        import shiboken6
+
+        host = _Host()
+        host.mode = "tunnel"
+        dlg = self._dlg(host)
+        box = remote_dialog.QMessageBox
+        with mock.patch.object(remote_dialog.tn, "find_cloudflared", return_value=None), \
+                mock.patch.object(box, "question", return_value=box.StandardButton.Yes), \
+                mock.patch.object(box, "exec"):
+            dlg._toggle_btn.click()
+        done = host.desk.fetch_done.connect.call_args.args[0]
+        shiboken6.delete(dlg)           # the window goes while the bytes still come in
+        done("", "connection reset")    # was: RuntimeError out of busy.close()
+        done("C:/cloudflared.exe", "")
+        self.assertEqual(host.switched, [True])   # the Start he asked for still lands
 
     def test_a_qr_code_is_square_whole_pixels_and_white_round_the_edge(self):
         pix = qr_pixmap("http://192.168.1.20:8765/#pin=4711", 220)

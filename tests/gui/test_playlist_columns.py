@@ -22,6 +22,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_cols_"))
 
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QApplication, QHeaderView
 
 from gui.table.playlist_table import PlaylistTable
@@ -332,34 +333,36 @@ class ColumnOrderTest(_TableTest):
         t.set_column_order(list(range(_N_COLS - 1)))
         self.assertEqual(self.visual(t), before)
 
-    def test_dance_stays_first_and_regen_last(self):
-        """A round's header row spans every column up to ↺ and keeps ↺ for
-        its regenerate button: the two edges hold whatever is dragged."""
+    def test_every_column_can_be_dragged_including_dance_and_regen(self):
+        """Nothing is pinned: Dance may leave the left edge and ↺ the right one,
+        and a saved order is applied exactly as it is."""
         t = self.table()
         hh = t.horizontalHeader()
-        hh.moveSection(hh.visualIndex(COL_REGEN), 3)
-        hh.moveSection(hh.visualIndex(_COL_DANCE), 5)
-        hh.moveSection(hh.visualIndex(_COL_POP), 0)
-        hh.moveSection(hh.visualIndex(_COL_BPM), _N_COLS - 1)
-        order = self.visual(t)
-        self.assertEqual(order[0], _COL_DANCE)
-        self.assertEqual(order[-1], COL_REGEN)
-        t.set_column_order([COL_REGEN] + [c for c in range(_N_COLS) if c != COL_REGEN])
-        self.assertEqual(self.visual(t)[0], _COL_DANCE)
-        self.assertEqual(self.visual(t)[-1], COL_REGEN)
+        target = self.visual(t).index(_COL_BPM)
+        hh.moveSection(hh.visualIndex(_COL_DANCE), target)
+        self.assertEqual(self.visual(t)[target], _COL_DANCE)
+        hh.moveSection(hh.visualIndex(COL_REGEN), 1)
+        self.assertEqual(self.visual(t)[1], COL_REGEN)
+        want = [c for c in range(_N_COLS) if c != _COL_DANCE] + [_COL_DANCE]
+        t.set_column_order(want)
+        self.assertEqual(self.visual(t), want)
 
-    def test_a_header_row_still_spans_up_to_regen(self):
+    def test_a_header_row_follows_the_leftmost_column(self):
+        """The header is one filled band whose label sits in the leftmost
+        column - after a drag that is another column, and the band stays."""
         t = self.table()
-        t.show()
-        t.resize(1500, 400)
-        t.setRowCount(1)
-        t.setSpan(0, 0, 1, _N_COLS - 1)
+        bg = QColor("#223344")
+        row = t._add_span_row("Waltz", bg, QColor("#ffffff"), True)
+        self.assertEqual(t.item(row, _COL_DANCE).text(), "Waltz")
         hh = t.horizontalHeader()
-        hh.moveSection(hh.visualIndex(_COL_BPM), hh.visualIndex(_COL_ARTIST))
-        QApplication.processEvents()
-        span = t.visualRect(t.model().index(0, _COL_DANCE))
-        self.assertAlmostEqual(span.right() + 1,
-                               hh.sectionViewportPosition(COL_REGEN), delta=2)
+        hh.moveSection(hh.visualIndex(_COL_DANCE), 3)
+        left = hh.logicalIndex(0)
+        self.assertNotEqual(left, _COL_DANCE)
+        self.assertEqual(t.item(row, left).text(), "Waltz")
+        self.assertEqual(t.item(row, _COL_DANCE).text(), "")
+        for c in range(_N_COLS):
+            self.assertEqual(t.item(row, c).background().color(), bg,
+                             f"column {c} is not part of the header band")
 
 
 if __name__ == "__main__":

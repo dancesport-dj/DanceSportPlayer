@@ -248,6 +248,17 @@ class WarmupSectionOrderTest(unittest.TestCase):
         self.assertEqual(warmup_code(e), "TANGOARG")
         self.assertIsNone(warmup_section(e))
 
+    def test_boogie_woogie_and_line_dance_by_their_genre_are_dances(self):
+        """The same route as Tango Argentino: the genre label is the dance.
+        Neither is in the ETDS rotation, so neither is a warm-up section."""
+        for label, code in (("Boogie Woogie", "BW"), ("Line Dance", "LD")):
+            with self.subTest(label=label):
+                e = MusicEntry(path=Path(rf"C:\music\others\{code}.mp3"),
+                               title=label, dance=None, other_genre=label,
+                               duration=180)
+                self.assertEqual(warmup_code(e), code)
+                self.assertIsNone(warmup_section(e))
+
 
 class WarmupOptionsTest(unittest.TestCase):
     def test_max_tracks_caps_the_list(self):

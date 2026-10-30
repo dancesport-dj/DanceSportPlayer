@@ -16,7 +16,7 @@ from unittest import mock
 from PySide6.QtCore import QMimeData, QPoint, QPointF, Qt, QUrl
 from PySide6.QtGui import QDrag
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QInputDialog
+from PySide6.QtWidgets import QApplication, QDialog
 
 from gui.dialogs import load_autosave
 
@@ -47,8 +47,23 @@ class KeyboardClickTest(ClickThrough):
             first, *_, last = self.song_rows()
             table.selectRow(first)
             wanted = self.entry_at(last).title
-            with mock.patch.object(QInputDialog, "getText",
-                                   lambda *_a, **_kw: (wanted, True)):
+
+            class _FindInList:
+                """The dialog, answered as if the operator had typed the title."""
+
+                def __init__(self, *_a, **_kw):
+                    pass
+
+                def exec(self):
+                    return QDialog.DialogCode.Accepted
+
+                def title(self):
+                    return wanted
+
+                def genre(self):
+                    return ""
+
+            with mock.patch("gui.dialogs.FindInListDialog", _FindInList):
                 self.key(Qt.Key.Key_F, Qt.KeyboardModifier.ControlModifier)
             self.assertEqual(table.currentRow(), last)
 

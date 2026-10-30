@@ -18,7 +18,6 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
     QDialog,
-    QInputDialog,
     QMessageBox,
 )
 
@@ -33,7 +32,7 @@ from gui.decks.playlist_entries import playlist_paths
 from gui.table.table_menu import TableMenuMixin
 from planner import i18n
 from planner.generate.warmup import WARMUP_ORDER, warmup_code
-from planner.models import DANCE_NAMES, MusicEntry
+from planner.models import DANCE_NAMES, MusicEntry, fold_text
 from planner.playing import play_counts
 from planner.playlist.playlist_text import PlaylistEncodingError, read_playlist_text
 from planner.terms import dance_name, genre_name
@@ -68,6 +67,18 @@ log = logging.getLogger("dancesport.gui.playlist_table")
 # the class is defined (a top-level import would be circular): the methods
 # here isinstance-check drag sources against it at call time.
 PlaylistTable = None
+
+# The find tint: the same warm amber the app flashes changed rows with, so a
+# row that a search found reads as found wherever it appears.
+_C_FIND_BG = QColor(255, 236, 160)
+
+
+def _loose(text: str) -> str:
+    """The comparison form of a search term: lower case, accents folded away and
+    every separator dropped, so 'Cha-Cha', 'chacha' and 'cha cha' are one word.
+    Letters of any script are kept, only punctuation and spaces go."""
+    return "".join(ch for ch in fold_text(str(text or "")) if ch.isalnum())
+
 
 def _dance_sort_key(e):
     """Sort key for the dance-column sort: Standard, then Latin, then the social
@@ -138,36 +149,137 @@ class TableActionsMixin(TableMenuMixin):
         self._swap_song_rows(*pair)
 
     def _search_title(self):
-        """Prompt for text and jump to the next song row whose title (tag title or
-        filename too) contains it, wrapping around. The query is remembered and the
-        search starts just AFTER the current row, so re-running with the same term
-        steps through every match in turn."""
-        text, ok = QInputDialog.getText(
-            self, "Find in list", "Find title:",
-            text=getattr(self, "_last_search", ""))
-        if not ok:
+        """Find a title and/or a genre in the focused list.
+
+        A title steps to the next matching song row and tints every match, so
+        the operator sees the whole set at once (tag title and file name count
+        too). A fresh search always lands on the FIRST match, whatever row the
+        list happened to sit on; running the same search again steps to the
+        next match, wrapping around. Punctuation does not matter: 'chacha'
+        finds a 'Cha-Cha'. A title search that finds no title falls through to
+        the dance / genre - 'CC' names a dance, not a title - and a genre
+        highlights ALL its matches at once, every Paso Doble of a party list,
+        say. With both filled, the genre narrows the rows the title steps
+        through."""
+        from gui.dialogs import FindInListDialog  # gui.dialogs is a big package
+        dlg = FindInListDialog(self, getattr(self, "_last_search", ""),
+                               getattr(self, "_last_genre_search", ""))
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            self._last_find_query = None   # a cancel breaks the stepping run
             return
-        term = text.strip().lower()
+        text = dlg.title()
+        genre = dlg.genre()
+        query = (text, genre)
+        # The same search again walks on to the next match; any other starts at
+        # the top of its set - the current row is no head start, it is only
+        # where the operator happened to look before.
+        repeat = query == self._last_find_query
+        self._last_find_query = query
+        # Remember exactly what was typed, an emptied field included: the dialog
+        # comes back with the last search, and a title cleared for a genre-only
+        # search must not reappear.
+        self._last_search = text
+        self._last_genre_search = genre
+        matches = self._genre_match_rows(genre) if genre else []
+        if genre and not matches:
+            self._clear_find_marks()
+            show_toast(self, i18n.t("🔍  No title of “%s” in this list") % genre)
+            return
+        if not text:
+            if not genre:
+                self._clear_find_marks()
+                return
+            hits = matches            # every match of the genre at once
+        else:
+            pool = matches if genre else self._row_meta.song_rows()
+            hits = self._title_match_rows(text, pool)
+            if not hits and not genre:
+                # No title carries the term: it may name a dance instead, so
+                # 'CC' or 'chacha' finds the Cha-Chas from either field.
+                hits = self._genre_match_rows(text)
+        if not hits:
+            self._clear_find_marks()
+            show_toast(self, i18n.t("🔍  No title matching “%s”") % text)
+            return
+        self._mark_find_rows(hits)
+        order = hits
+        if repeat:
+            cur = self.currentRow()
+            order = [r for r in hits if r > cur] + [r for r in hits if r <= cur]
+        self._focus_row(order[0])
+
+    def _title_match_rows(self, query: str, pool) -> list[int]:
+        """The song rows of `pool` whose title matches `query`, in row order.
+
+        Case, accents and punctuation are ignored, so 'chacha' finds 'Cha-Cha'
+        and 'cha cha' finds it too."""
+        term = _loose(query)
         if not term:
-            return
-        self._last_search = text.strip()
-        n = len(self._row_meta)
-        cur = self.currentRow()
-        order = list(range(cur + 1, n)) + list(range(cur + 1))
-        for r in order:
-            m = self._row_meta[r] if 0 <= r < n else None
-            ent = m.entry if m else None
-            if ent is None:
+            return []
+        rows = []
+        for r in pool:
+            meta = self._row_meta[r]
+            entry = meta.entry if meta else None
+            if entry is None:
                 continue
             hay = " ".join(filter(None, [
-                ent.title or "",
-                getattr(ent, "tag_title", "") or "",
-                Path(ent.path).name if getattr(ent, "path", None) else "",
-            ])).lower()
-            if term in hay:
-                self._focus_row(r)
-                return
-        show_toast(self, i18n.t("🔍  No title matching “%s”") % self._last_search)
+                entry.title or "",
+                getattr(entry, "tag_title", "") or "",
+                Path(entry.path).name if getattr(entry, "path", None) else "",
+            ]))
+            if term in _loose(hay):
+                rows.append(r)
+        return rows
+
+    def _genre_match_rows(self, query: str) -> list[int]:
+        """The song rows whose dance matches `query`: its code, its full name, the
+        social genre label or the plain genre tag. Matching is accent-, case- and
+        punctuation-insensitive, so 'paso', 'Paso Doble', 'PD' and 'chacha' all
+        find their dance."""
+        term = _loose(query)
+        rows = []
+        for r in self._row_meta.song_rows():
+            meta = self._row_meta[r]
+            entry = meta.entry
+            if entry is None or not term:
+                continue
+            code = warmup_code(entry)
+            hay = [meta.dance, entry.dance, code,
+                   getattr(entry, "other_genre", None),
+                   getattr(entry, "tag_genre", None)]
+            hay += [dance_name(c, c) for c in (meta.dance, entry.dance, code) if c]
+            if any(term in _loose(str(t)) for t in hay if t):
+                rows.append(r)
+        return rows
+
+    def _mark_find_rows(self, rows) -> None:
+        """Tint every row a find matched in the search amber, remembering the
+        backgrounds to put back when the next find runs. The rows are tinted
+        rather than selected, so all findings stay visible at once."""
+        self._clear_find_marks()
+        rows = [r for r in rows if 0 <= r < self.rowCount()]
+        for r in rows:
+            for c in range(self.columnCount()):
+                it = self.item(r, c)
+                if it is None:
+                    continue
+                self._find_saved[(r, c)] = it.background()
+                it.setBackground(_C_FIND_BG)
+        self._find_rows = rows
+
+    def _clear_find_marks(self) -> None:
+        """Take the last find's amber back off the rows it tinted."""
+        for (r, c), brush in self._find_saved.items():
+            it = self.item(r, c)
+            if it is not None:
+                it.setBackground(brush)
+        self._find_saved.clear()
+        self._find_rows = []
+
+    def _drop_find_marks(self) -> None:
+        """Forget the find tint without restoring it: the rows are being rebuilt."""
+        self._find_saved.clear()
+        self._find_rows = []
 
     def _focus_row(self, row: int, focus: bool = True):
         """Select, centre-scroll and focus `row` so a found / targeted song stands out.

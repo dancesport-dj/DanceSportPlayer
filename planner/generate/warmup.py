@@ -66,10 +66,11 @@ _PD_ROUND_RATE = _PD_SLOT_SHARE / (1 - 3 * _PD_SLOT_SHARE)
 
 
 # Social-dance display label → code (accent-folded), to bucket library entries
-# whose .dance is None but .other_genre names a Modetanz. Tango Argentino comes
-# in the same way; it is a dance, only not one the warm-up builder deals.
+# whose .dance is None but .other_genre names a Modetanz. Tango Argentino,
+# Boogie Woogie and Line Dance come in the same way; they are dances, only not
+# ones the warm-up builder rotates through.
 _WARMUP_OTHER_CODE = {fold_text(DANCE_NAMES[c]): c
-                      for c in WARMUP_MODE + ('TANGOARG',)}
+                      for c in WARMUP_MODE + ('TANGOARG', 'BW', 'LD')}
 
 
 # Dance code → German section header used to separate warm-up rounds in the list

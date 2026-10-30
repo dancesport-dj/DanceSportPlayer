@@ -3010,8 +3010,10 @@ CATALOG = {
     "Click a star in the ★ column": "Klik op een ster in de kolom ★",
     "Rate the title; click the star the rating ends on to clear it":
         "Het nummer waarderen; klik op de ster waar de waardering eindigt om ze te wissen",
-    "Find a title in the focused list (repeat to step to the next match)":
-        "Een titel zoeken in de actieve lijst (herhaal om naar de volgende treffer te gaan)",
+    "Find a title or a genre in the focused list. A title steps to the next "
+    "match; a genre highlights every row of it at once":
+        "Een titel of een genre zoeken in de actieve lijst. Een titel gaat naar "
+        "de volgende treffer, een genre licht al zijn rijen tegelijk op",
     "Esc  in the 🖥 presenter window": "Esc  in het 🖥 presentatievenster",
     "This cheat sheet": "Dit overzicht",
     "Nothing found": "Niets gevonden",
@@ -3035,9 +3037,10 @@ CATALOG = {
     "Drag a dance header": "Een danskop slepen",
     "Reorder the dance columns of a static deck":
         "De danskolommen van een statisch deck herschikken",
-    "Right-click ▸ 🔍 Find a title": "Rechtsklik ▸ 🔍 Titel zoeken",
-    "Jump to a song by name; repeat to step to the next match":
-        "Op naam naar een nummer springen; herhaal om naar de volgende treffer te gaan",
+    "Right-click ▸ 🔍 Find a genre": "Rechtsklik ▸ 🔍 Genre zoeken",
+    "Jump to a song by name; or highlight every row of a genre at once":
+        "Op naam naar een nummer springen; of alle rijen van een genre "
+        "tegelijk oplichten",
     "Ctrl + drag onto a filled slot": "Ctrl + slepen naar een gevulde plek",
     "Dynamic deck: replace the song in that slot with the dragged one":
         "Dynamisch deck: het nummer op die plek vervangen door het gesleepte",

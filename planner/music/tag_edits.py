@@ -110,7 +110,11 @@ def file_value(entry, field: str) -> Any:
     """What the file itself says for `field`, edit or not."""
     edits = entry.tag_edits or {}
     if field == "genre":
-        return genre_label(*edits.get("genre", (entry.dance, entry.other_genre)))
+        if "genre" in edits:
+            return genre_label(*edits["genre"])
+        # The plain genre tag is the same last fallback the Dance column uses.
+        return (genre_label(entry.dance, entry.other_genre)
+                or getattr(entry, "tag_genre", None) or "")
     return edits[field] if field in edits else getattr(entry, field)
 
 

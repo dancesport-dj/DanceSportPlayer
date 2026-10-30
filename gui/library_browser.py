@@ -82,7 +82,7 @@ from planner.models import (  # auto-resolved
 from planner.music.vocals import entry_is_instrumental
 from planner.playing import play_counts
 from planner.playlist.planned import path_key
-from planner.terms import dance_name, genre_name
+from planner.terms import dance_name, genre_short
 from shared.widgets import (
     FlowLayout,
     show_toast,
@@ -918,10 +918,11 @@ class LibraryBrowser(QWidget):
         line's short code when the user has asked for it. A social track has no
         .dance at all — its genre names the dance."""
         if not self._short_dances:
-            return dance_name(warmup_code(e), e.dance or e.other_genre or "")
+            return dance_name(warmup_code(e), e.dance or e.other_genre
+                              or e.tag_genre or "")
         code = warmup_code(e)
         if not code:
-            return genre_name(e.other_genre or "")
+            return genre_short(e.other_genre or e.tag_genre or "")
         return DANCE_SHORT.get(code, code)
 
     def build_column_menu(self) -> QMenu:

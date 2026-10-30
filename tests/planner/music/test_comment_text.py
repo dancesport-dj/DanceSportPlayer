@@ -99,14 +99,16 @@ class CommentTextTest(unittest.TestCase):
 
     def test_an_older_database_gets_the_column(self):
         conn = sqlite3.connect(":memory:")
-        cols = [c for c in pdb.META_COLS if c != "tag_comment"]
+        cols = [c for c in pdb.META_COLS
+                if c not in ("tag_comment", "tag_genre")]
         conn.execute(f"CREATE TABLE scan_meta (ckey TEXT PRIMARY KEY, {', '.join(cols)})")
         conn.execute(f"CREATE TABLE global_meta (file_id INTEGER, {', '.join(cols)})")
         pdb._migrate_meta_tag_comment(conn)
         for table in ("scan_meta", "global_meta"):
             have = [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
             self.assertEqual(have[-1], "tag_comment", table)
-        self.assertEqual(pdb.META_COLS[-1], "tag_comment")
+        self.assertLess(pdb.META_COLS.index("tag_comment"),
+                        pdb.META_COLS.index("tag_genre"))
 
 
 if __name__ == "__main__":

@@ -3023,8 +3023,10 @@ CATALOG = {
     "Click a star in the ★ column": "Щелчок по звезде в столбце ★",
     "Rate the title; click the star the rating ends on to clear it":
         "Оценить трек; щелчок по звезде, на которой заканчивается оценка, сбрасывает её",
-    "Find a title in the focused list (repeat to step to the next match)":
-        "Найти трек в активном списке (повторите, чтобы перейти к следующему совпадению)",
+    "Find a title or a genre in the focused list. A title steps to the next "
+    "match; a genre highlights every row of it at once":
+        "Найти название или жанр в активном списке. Название переходит к "
+        "следующему совпадению, жанр подсвечивает все свои строки сразу",
     "Esc  in the 🖥 presenter window": "Esc  в 🖥 окне ведущего",
     "This cheat sheet": "Эта шпаргалка",
     "Nothing found": "Ничего не найдено",
@@ -3048,9 +3050,9 @@ CATALOG = {
     "Drag a dance header": "Перетащить заголовок танца",
     "Reorder the dance columns of a static deck":
         "Изменить порядок столбцов танцев статического дека",
-    "Right-click ▸ 🔍 Find a title": "Правый щелчок ▸ 🔍 Найти трек",
-    "Jump to a song by name; repeat to step to the next match":
-        "Перейти к треку по названию; повторите для следующего совпадения",
+    "Right-click ▸ 🔍 Find a genre": "Правый щелчок ▸ 🔍 Найти жанр",
+    "Jump to a song by name; or highlight every row of a genre at once":
+        "Перейти к треку по названию; или подсветить все строки жанра сразу",
     "Ctrl + drag onto a filled slot": "Ctrl + перетаскивание на занятое место",
     "Dynamic deck: replace the song in that slot with the dragged one":
         "Динамический дек: заменить трек на этом месте перетаскиваемым",

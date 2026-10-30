@@ -13,6 +13,7 @@ import html
 import sys
 from pathlib import Path
 
+import shiboken6
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QFontDatabase, QImage, QPixmap
 from PySide6.QtWidgets import (
@@ -117,14 +118,26 @@ def _fetch_cloudflared(parent, fetcher, then):
     busy.setWindowTitle("cloudflared")
     busy.setMinimumDuration(0)
 
+    def alive() -> bool:
+        """The window the fetch was started from, and its progress dialog with
+        it — both gone when it was closed while the bytes still came in (the
+        📱 window hangs off ⚙ Settings and goes when that does)."""
+        return shiboken6.isValid(parent) and shiboken6.isValid(busy)
+
     def progress(done, total):
-        if total:
+        if total and alive():
             busy.setMaximum(total)
             busy.setValue(done)
 
     def finished(path, error):
         fetcher.fetch_progress.disconnect(progress)
         fetcher.fetch_done.disconnect(finished)
+        if not alive():
+            # Nothing left to show the download on, but it still has to take
+            # effect: Start was pressed, and this is the only word of it.
+            if path:
+                then()
+            return
         busy.close()
         if path:
             then()

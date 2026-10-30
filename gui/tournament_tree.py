@@ -670,7 +670,8 @@ class TournamentTree(QWidget):
                 "path": path,
                 "round": round_name,
                 "dance": dance_name(warmup_code(entry), entry.dance
-                                         or entry.other_genre or "")
+                                         or entry.other_genre
+                                         or entry.tag_genre or "")
                          if entry is not None else "",
                 "artist": getattr(entry, "tag_artist", None) or "",
                 "title": (display_title(entry) if entry is not None else "")

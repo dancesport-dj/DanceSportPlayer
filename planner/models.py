@@ -25,6 +25,10 @@ DANCE_NAMES = {
     'SALSA': 'Salsa', 'DISCOFOX': 'Discofox', 'BACHATA': 'Bachata',
     'WCS': 'West Coast Swing', 'KIZOMBA': 'Kizomba', 'FORRO': 'Forró',
     'TANGOARG': 'Tango Argentino',
+    # Boogie Woogie and Line Dance are social dances with a code of their own,
+    # but they don't sit in the ETDS warm-up rotation (WARMUP_MODE): an evening
+    # plays them as they come, not in alternating rounds.
+    'BW': 'Boogie Woogie', 'LD': 'Line Dance',
 }
 
 
@@ -68,6 +72,7 @@ GENRE_TO_DANCE: dict[str, str] = {
 OTHER_GENRE_LABELS: dict[str, str] = {
     'df': 'Discofox',
     'bw': 'Boogie Woogie',
+    'ld': 'Line Dance',
     'sl': 'Salsa',
     'bc': 'Bachata',
     'bac': 'Bachata',
@@ -464,6 +469,8 @@ OTHERS_DANCES: dict[str, dict[str, tuple[str, ...]]] = {
     'KIZOMBA': {'keys': ('kizomba',)},
     'FORRO': {'keys': ('forro',)},   # matching is accent-folded (Forro with any accent)
     'TANGOARG': {'keys': ('argtango', 'tangoarg', 'tango arg', 'argentino')},
+    'BW': {'keys': ('boogie woogie', 'boogie', 'bw')},
+    'LD': {'keys': ('line dance', 'linedance', 'ld')},
 }
 
 
@@ -644,6 +651,7 @@ class MusicEntry:
     tag_album: str | None = None  # ID3 TALB album (shown in hover info)
     tag_comment: str | None = None  # the COMM text as written ('vocal AS'), '' = none
     tag_bpm: float | None = None  # ID3 TBPM as written (usually beats/min), None = no tag
+    tag_genre: str | None = None  # raw ID3 TCON text - the Dance column's last fallback
     is_instrumental: bool = False  # True when COMM tag or filename marks 'instr'
     audio_instr_prob: float | None = None  # learned from audio (planner.music.vocals), None = unknown
     vocal_share: float | None = None  # measured Demucs vocal-stem energy share, None = not measured

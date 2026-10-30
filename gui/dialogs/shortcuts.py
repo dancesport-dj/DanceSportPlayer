@@ -56,8 +56,8 @@ def shortcut_rows(desk_keys=None):
         ("Ctrl + A  in 🏆 Tournaments", "Mark every slot of the folder, or "
                                        "every entry of the tree — Del and a "
                                        "drag then take them all"),
-        ("Ctrl + F", "Find a title in the focused list (repeat to step to "
-                     "the next match)"),
+        ("Ctrl + F", "Find a title or a genre in the focused list. A title steps "
+                     "to the next match; a genre highlights every row of it at once"),
         ("Esc  in the 🖥 presenter window", "Close the presenter screen"),
         ("F12  /  Ctrl + Alt + S", "Open ⚙ Settings"),
         ("F1", "This cheat sheet"),
@@ -70,8 +70,8 @@ def shortcut_rows(desk_keys=None):
         ("Drag a row", "Move a song to another slot, deck, wishlist — or "
                        "drop it into Explorer / UltraMixer"),
         ("Drag a dance header", "Reorder the dance columns of a static deck"),
-        ("Right-click ▸ 🔍 Find a title", "Jump to a song by name; repeat to "
-                                          "step to the next match"),
+        ("Right-click ▸ 🔍 Find a genre", "Jump to a song by name; or highlight "
+                                          "every row of a genre at once"),
         ("Ctrl + drag onto a filled slot", "Dynamic deck: replace the song in "
                                            "that slot with the dragged one"),
         ("Drop a file from outside", "Replace a slot / add to a wishlist "

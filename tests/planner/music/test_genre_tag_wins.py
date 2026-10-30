@@ -58,6 +58,15 @@ class SocialGenreTagTest(unittest.TestCase):
         self.assertIsNone(e.dance)
         self.assertEqual(e.other_genre, "Salsa")
 
+    def test_a_boogie_woogie_or_line_dance_folder_names_the_dance(self):
+        """No tag, no coded name: a dedicated folder classifies the track, as
+        a Forró folder does. The label lands in other_genre."""
+        for folder in ("Boogie Woogie", "Line Dance"):
+            with self.subTest(folder=folder):
+                e = _entry("Some Title", None, folder=folder)
+                self.assertIsNone(e.dance)
+                self.assertEqual(e.other_genre, folder)
+
     def test_a_competition_tag_still_wins_over_the_filename(self):
         """Unchanged: the tag beat the filename for dances all along."""
         e = _entry("Je Ne Serai Jamais Ta Parisienne", "LW")
@@ -76,6 +85,32 @@ class SocialGenreTagTest(unittest.TestCase):
     def test_a_tag_naming_nothing_leaves_the_filename_in_charge(self):
         e = _entry("Cha Chicki Salsa 2", "Pop")
         self.assertEqual(e.dance, "CC")
+
+
+class SocialGenreLabelTest(unittest.TestCase):
+    """BW and LD are social genres; the tag's plain text is kept as a fallback."""
+
+    def test_bw_is_boogie_woogie(self):
+        e = _entry("Some Title", "BW")
+        self.assertIsNone(e.dance)
+        self.assertEqual(e.other_genre, "Boogie Woogie")
+
+    def test_ld_is_line_dance(self):
+        e = _entry("Some Title", "LD")
+        self.assertIsNone(e.dance)
+        self.assertEqual(e.other_genre, "Line Dance")
+
+    def test_a_tag_naming_nothing_still_keeps_its_text(self):
+        e = _entry("Cha Chicki Salsa 2", "Pop")
+        self.assertEqual(e.tag_genre, "Pop")
+
+    def test_a_multi_value_tag_reads_without_nul_characters(self):
+        e = _entry("Some Title", "Pop\0Rock")
+        self.assertEqual(e.tag_genre, "Pop; Rock")
+
+    def test_no_tag_keeps_no_text(self):
+        e = _entry("Some Title", None)
+        self.assertIsNone(e.tag_genre)
 
 
 def _um_entry(name: str, genre: str | None, dancestyle: str | None):
@@ -114,6 +149,15 @@ class UltraMixerDanceTest(unittest.TestCase):
     def test_an_unknown_dance_style_leaves_the_filename_in_charge(self):
         e = _um_entry("Cha Chicki Salsa 2", None, "Disco")
         self.assertEqual(e.dance, "CC")
+
+
+class TagGenreCacheTest(unittest.TestCase):
+    """The plain genre text has to survive the scan cache's row packing."""
+
+    def test_it_round_trips_through_the_meta_columns(self):
+        from planner.music import db as pdb
+        row = pdb.meta_to_row({"title": "T", "tag_genre": "Pop"})
+        self.assertEqual(pdb.row_to_meta(row)["tag_genre"], "Pop")
 
 
 if __name__ == "__main__":

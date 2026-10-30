@@ -136,7 +136,7 @@ class OldRowsTest(unittest.TestCase):
         self.assertIn("fp6::Another Title", self.kept())
 
     def test_the_detection_version_does_not_clear_the_whole_library(self):
-        self.assertEqual(db._DANCE_DETECT_VERSION, 10)
+        self.assertEqual(db._DANCE_DETECT_VERSION, 12)
 
 
 if __name__ == "__main__":

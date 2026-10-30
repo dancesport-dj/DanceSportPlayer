@@ -216,6 +216,12 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         # Tracks already played this session (playing mode greys them out).
         self._played_paths: set = set()
         self._played_saved: dict[tuple[int, int], QBrush] = {}
+        # 🔍 Find in list: the rows the last search tinted, and the backgrounds
+        # to put back when the next search runs or the rows are rebuilt. The
+        # query is kept too, so only the SAME search steps to its next match.
+        self._find_rows: list[int] = []
+        self._find_saved: dict[tuple[int, int], QBrush] = {}
+        self._last_find_query: tuple[str, str] | None = None
         # Songs the user flagged "for potential replace" (dynamic decks), keyed by file
         # path so the orange mark survives structural re-renders. Persisted per deck
         # in the autosave/undo snapshot ("marked" key of _serialize_playlist_state).
@@ -244,6 +250,10 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         self._row_round_name: dict[int, str] = {}    # header row → its round name
         self._collapsed: set = set()
         self._hdr_base_text: dict[int, str] = {}
+        self._hdr_plain_text: dict[int, str] = {}   # strips that do not fold
+        # Which column of a header row currently carries its label - the leftmost
+        # one, which changes when the operator drags a column elsewhere.
+        self._hdr_text_col: dict[int, int] = {}
 
         self._build_columns()
         self._build_headers()
@@ -959,16 +969,30 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         self._row_round_name = {}
         self._collapsed = set()
         self._hdr_base_text = {}
+        self._hdr_plain_text = {}
+        self._hdr_text_col = {}
 
     def _set_header_text(self, row: int):
-        """Render a collapsible header's label with the current ▼/▶ arrow."""
+        """Render a header row's label in whichever column is leftmost right
+        now — with the current ▼/▶ arrow when the row collapses."""
         base = self._hdr_base_text.get(row)
-        if base is None:
-            return
-        arrow = "▶" if row in self._collapsed else "▼"
-        it = self.item(row, 0)
+        if base is not None:
+            arrow = "▶" if row in self._collapsed else "▼"
+            text = f"{arrow} {base}"
+        else:
+            text = self._hdr_plain_text.get(row)
+            if text is None:
+                return
+        new_col = self.horizontalHeader().logicalIndex(0)
+        old_col = self._hdr_text_col.get(row, 0)
+        if new_col != old_col:
+            previous = self.item(row, old_col)
+            if previous is not None:
+                previous.setText("")
+            self._hdr_text_col[row] = new_col
+        it = self.item(row, new_col)
         if it is not None:
-            it.setText(f"{arrow} {base}")
+            it.setText(text)
 
     def _on_header_click(self, row: int, _col: int):
         if row in self._round_hdr_rows or row in self._dance_hdr_rows:
@@ -1040,7 +1064,7 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             bg = C_PIN_BG
 
         # Dance column (also holds path for drag)
-        cell(_COL_DANCE, "" if is_backup else self._dance_label(dance))
+        cell(_COL_DANCE, "" if is_backup else self._dance_cell_text(meta))
 
         # Heat column
         if is_backup:
@@ -1110,6 +1134,7 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         # left in place they would keep this row from greying again.
         for c in range(self.columnCount()):
             self._played_saved.pop((row, c), None)
+            self._find_saved.pop((row, c), None)
         self._grey_row_if_played(row, meta)
 
     def _fill_class_cell(self, cell, entry, sim, ctr):

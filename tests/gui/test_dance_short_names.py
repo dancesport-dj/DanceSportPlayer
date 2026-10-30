@@ -37,6 +37,12 @@ def _e(dance, n, other_genre=None):
                       other_genre=other_genre)
 
 
+def _social(other_genre, n=1):
+    """A social track with no dance of its own, only its genre label."""
+    return MusicEntry(path=Path(rf"C:\music\{other_genre}{n}.mp3"),
+                      title=f"{other_genre} {n}", other_genre=other_genre)
+
+
 class _DanceTest(unittest.TestCase):
 
     @classmethod
@@ -95,6 +101,16 @@ class ShortDanceNamesTest(_DanceTest):
         self.assertEqual(self.cells(t), ["Discofox", "Bachata"])
         t.set_short_dances(True)
         self.assertEqual(self.cells(t), ["DF", "BC"])
+
+    def test_boogie_woogie_and_line_dance_are_bw_and_ld(self):
+        """They have dance codes of their own now, so the same switch and the
+        same table answer for them: Boogie Woogie is BW, Line Dance LD."""
+        t = self.table(kind="wishlist")
+        t.load_wishlist([_social("Boogie Woogie", 1), _social("Line Dance", 2)],
+                        play_cb=lambda *a: None, suggester=None)
+        self.assertEqual(self.cells(t), ["Boogie Woogie", "Line Dance"])
+        t.set_short_dances(True)
+        self.assertEqual(self.cells(t), ["BW", "LD"])
 
     def test_switching_back_spells_them_out_again(self):
         t = self.deck()

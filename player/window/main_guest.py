@@ -80,7 +80,8 @@ def song_id(entry) -> str:
 def song_label(entry) -> str:
     """How a requested title reads in the inbox: the dance, then artist – title
     — the three things the guest picked it by."""
-    dance = dance_name(entry.dance, entry.other_genre or entry.dance or "")
+    dance = dance_name(entry.dance, entry.other_genre or entry.dance
+                       or entry.tag_genre or "")
     artist = entry.tag_artist or ""
     song = f"{artist} – {entry.title}" if artist else entry.title
     return f"{dance} — {song}" if dance else song
@@ -294,7 +295,8 @@ class GuestDesk(QObject):
         lib = self._win._library.lib
         self._songs = {song_id(e): e for e in (lib.entries if lib is not None else [])}
         return [(i, e.title, e.tag_artist or "",
-                 dance_name(e.dance, e.other_genre or e.dance or ""))
+                 dance_name(e.dance, e.other_genre or e.dance
+                            or e.tag_genre or ""))
                 for i, e in self._songs.items()]
 
     def _publish_now(self):

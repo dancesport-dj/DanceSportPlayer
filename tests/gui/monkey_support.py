@@ -447,6 +447,7 @@ class LoadedWindow(unittest.TestCase):
         """Everything a click can reach outside this process, answered from
         here. Started once for the class, stopped after it."""
         import dancesport_gui
+        import gui.dialogs
         import gui.window.main_global
         import shared.error_reports
         import shared.remote.guest_server
@@ -508,6 +509,10 @@ class LoadedWindow(unittest.TestCase):
             (QFileDialog, "getSaveFileName", staticmethod(lambda *_a, **_kw: ("", ""))),
             (QFileDialog, "getExistingDirectory", staticmethod(lambda *_a, **_kw: "")),
             (QInputDialog, "getText", staticmethod(lambda *_a, **_kw: ("", False))),
+            # 🔍 Find in list is a dialog of its own since the genre row: it is
+            # exec()ed modally, so a monkey Ctrl+F must answer it as cancelled.
+            (gui.dialogs.FindInListDialog, "exec",
+             lambda _self: QDialog.DialogCode.Rejected),
             (QColorDialog, "getColor", staticmethod(lambda *_a, **_kw: QColor())),
             (QDesktopServices, "openUrl", staticmethod(lambda *_a, **_kw: False)),
             (QProcess, "startDetached", staticmethod(lambda *_a, **_kw: False)),

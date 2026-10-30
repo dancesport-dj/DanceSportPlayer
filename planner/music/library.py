@@ -823,6 +823,10 @@ class MusicLibrary(PlaylistIndexMixin):
             'tag_comment': comment or '',
             'tag_bpm': tag_bpm,
             'duration': duration,
+            # The plain genre text, kept for the Dance column's last fallback:
+            # a multi-value TCON frame arrives NUL-joined, so it is shown as
+            # "Pop; Rock" rather than with invisible separators.
+            'tag_genre': raw_genre.replace('\0', '; ').strip() or None,
         }
         # The folder's dance and the path's social label stay out of the row:
         # `_heal_cached` reads them off the path the file has at the time.

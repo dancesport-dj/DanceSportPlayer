@@ -19,7 +19,7 @@ import re
 from typing import overload
 
 from planner import i18n
-from planner.models import DANCE_NAMES
+from planner.models import DANCE_NAMES, fold_text
 
 DANCE_NAMES_EN = {
     'LW': 'Slow Waltz', 'TG': 'Tango', 'WW': 'Viennese Waltz',
@@ -30,14 +30,20 @@ DANCE_NAMES_EN = {
 
 # A dance written short, for where the full name doesn't fit: the code itself,
 # except where the operator knows the dance by another abbreviation — Samba is
-# SB on the desk and Jive JV, not SA / JI — and the social dances, which have
-# no two-letter code of their own. The Σ song-count line has always read this
-# way; the Dance column can be switched to it per kind of list, and the player
-# card's subtitle uses it. The same in every language.
+# SB on the desk and Jive JV, not SA / JI — and the social dances, which have a
+# short form of their own (Discofox DF, Boogie Woogie BW). The Σ song-count line
+# has always read this way; the Dance column can be switched to it per kind of
+# list, and the player card's subtitle uses it. Same in every language.
 DANCE_SHORT = {"SA": "SB", "JI": "JV",
                "DISCOFOX": "DF", "SALSA": "SL", "BACHATA": "BC",
                "WCS": "WCS", "KIZOMBA": "KZ", "FORRO": "FR",
-               "TANGOARG": "TA"}
+               "TANGOARG": "TA",
+               # Boogie Woogie and Line Dance are their own abbreviation.
+               "BW": "BW", "LD": "LD"}
+
+# Dance code by the folded full name, so a genre LABEL — the Dance column's
+# last fallback ("Boogie Woogie") — reaches the same short table a code does.
+_CODE_BY_NAME = {fold_text(name): code for code, name in DANCE_NAMES.items()}
 
 # The German genre labels of the non-competition tracks
 # (models.OTHER_GENRE_LABELS). They are stored as `other_genre` and matched on
@@ -124,6 +130,23 @@ def genre_name(label: str | None) -> str | None:
     if english() and label in _GENRE_EN:
         return _GENRE_EN[label]
     return label
+
+
+@overload
+def genre_short(label: str) -> str: ...
+@overload
+def genre_short(label: None) -> None: ...
+def genre_short(label: str | None) -> str | None:
+    """A genre label as the Dance column shows it short. A label that names a
+    dance reaches that dance's short form through the same table the codes use
+    ('Boogie Woogie' → BW, 'Line Dance' → LD); a plain genre tag ('Pop') passes
+    untouched - there is no shorter name to invent for it. The German genre
+    labels are translated first, so a short line still reads "Entrance"."""
+    if not label:
+        return label
+    label = genre_name(label)
+    code = _CODE_BY_NAME.get(fold_text(str(label)).strip())
+    return DANCE_SHORT.get(code, label) if code else label
 
 
 def round_name(name: str) -> str:

@@ -1436,6 +1436,54 @@ class UsbBundleFolderDialog(QDialog):
         return self._into_root
 
 
+class FindInListDialog(QDialog):
+    """🔍 The in-list search: one row for a title, a second for a genre.
+
+    `title()` steps to the next match and `genre()` highlights every match at
+    once (every Paso Doble of a party list, say). Both are offered, because the
+    operator usually knows which of the two they are hunting for."""
+
+    def __init__(self, parent, title: str = "", genre: str = ""):
+        super().__init__(parent)
+        self.setWindowTitle("Find in list")
+        lyt = QVBoxLayout(self)
+        lyt.addWidget(QLabel("Find title:"))
+        self._title = QLineEdit(title)
+        self._title.setPlaceholderText(
+            "A word of the title, the tag title or the file name")
+        self._title.setClearButtonEnabled(True)
+        lyt.addWidget(self._title)
+        lyt.addWidget(QLabel("Find genre / dance:"))
+        self._genre = QLineEdit(genre)
+        self._genre.setPlaceholderText(
+            "e.g. paso doble, PD, Boogie Woogie, Line Dance, salsa")
+        self._genre.setToolTip(
+            "Highlights every row of the list whose dance or genre matches -\n"
+            "leave empty to search titles only.")
+        self._genre.setClearButtonEnabled(True)
+        lyt.addWidget(self._genre)
+        # As wide as the example text and no wider: the placeholders say what
+        # may be typed, so the fields only need room for them and the ✕.
+        fm = self._genre.fontMetrics()
+        need = max(fm.horizontalAdvance(self._title.placeholderText()),
+                   fm.horizontalAdvance(self._genre.placeholderText()))
+        self._title.setMinimumWidth(need + 34)
+        self._genre.setMinimumWidth(need + 34)
+        btns = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok
+                                | QDialogButtonBox.StandardButton.Cancel)
+        btns.accepted.connect(self.accept)
+        btns.rejected.connect(self.reject)
+        lyt.addWidget(btns)
+        self._title.setFocus()
+        self._title.selectAll()
+
+    def title(self) -> str:
+        return self._title.text().strip()
+
+    def genre(self) -> str:
+        return self._genre.text().strip()
+
+
 class M3uDropDialog(QDialog):
     """A QDialog that accepts a dropped .m3u/.m3u8 file anywhere on it, emitting its
     path via m3uDropped — so e.g. the Eintanzen dialog can be filled by dragging a

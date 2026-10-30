@@ -10,8 +10,9 @@ from PySide6.QtCore import QPoint
 from PySide6.QtWidgets import QMenu
 
 from gui.common import DANCE_SHORT, add_custom_mapping_action
+from planner.generate.warmup import warmup_code
 from planner.playing import play_counts
-from planner.terms import dance_name
+from planner.terms import dance_name, genre_name, genre_short
 from shared.columns import (
     _COL_ALBUM,
     _COL_DANCE,
@@ -71,31 +72,24 @@ class TableColumnsMixin(PlaylistTableHost):
                 cur = hh.visualIndex(logical)
                 if cur != visual:
                     hh.moveSection(cur, visual)
-            self._pin_edge_columns()
         finally:
             hh.blockSignals(False)
-
-    def _pin_edge_columns(self):
-        """Dance stays first and ↺ last: a round's header row spans every
-        column up to ↺, writes its name in Dance and keeps ↺ for its own
-        regenerate button."""
-        hh = self.horizontalHeader()
-        if hh.visualIndex(_COL_DANCE) != 0:
-            hh.moveSection(hh.visualIndex(_COL_DANCE), 0)
-        if hh.visualIndex(COL_REGEN) != _N_COLS - 1:
-            hh.moveSection(hh.visualIndex(COL_REGEN), _N_COLS - 1)
+        self._replace_header_texts()
 
     def _on_section_moved(self, *_args):
-        """A header was dragged to a new place: hold the edges, then tell the
-        window, which keeps the order for every list of this kind."""
-        hh = self.horizontalHeader()
-        hh.blockSignals(True)
-        try:
-            self._pin_edge_columns()
-        finally:
-            hh.blockSignals(False)
+        """A header was dragged to a new place: move every header row's label to
+        the new left edge, then tell the window, which keeps the order for every
+        list of this kind. Every column is free to move, Dance included."""
+        self._replace_header_texts()
         if self._order_cb:
             self._order_cb(self.list_kind, self.column_order())
+
+    def _replace_header_texts(self):
+        """Every header row's label sits in whichever column is leftmost; after a
+        column drag that is a different one, so let each header re-place itself."""
+        for row in (*getattr(self, "_hdr_base_text", {}),
+                    *getattr(self, "_hdr_plain_text", {})):
+            self._set_header_text(row)
 
     def set_column_order_callback(self, cb):
         """`cb(kind, order)` when the user has dragged a column elsewhere."""
@@ -147,6 +141,25 @@ class TableColumnsMixin(PlaylistTableHost):
             return DANCE_SHORT.get(dance, dance)
         return dance_name(dance, dance)
 
+    def _dance_cell_text(self, meta) -> str:
+        """The Dance cell of a song row: the row's dance, and where that cannot
+        be determined the track's own genre - the social label, else the plain
+        genre tag. So a Boogie Woogie or an unrecognised genre is never blank.
+
+        A grid slot keeps the dance it was planned for; only a row without one
+        falls back to what the file says."""
+        label = self._dance_label(meta.dance)
+        if label:
+            return label
+        entry = meta.entry
+        if entry is None:
+            return ""
+        code = warmup_code(entry)
+        if code:
+            return self._dance_label(code)
+        fallback = entry.other_genre or entry.tag_genre or ""
+        return genre_short(fallback) if self._short_dances else genre_name(fallback)
+
     def short_dances(self) -> bool:
         return self._short_dances
 
@@ -165,7 +178,7 @@ class TableColumnsMixin(PlaylistTableHost):
                 continue
             item = self.item(row, _COL_DANCE)
             if item is not None:
-                item.setText(self._dance_label(meta.dance))
+                item.setText(self._dance_cell_text(meta))
 
     def set_columns_callback(self, cb):
         """`cb(kind, hidden_columns)` whenever a tick changes — the window saves it
