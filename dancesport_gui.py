@@ -13,6 +13,7 @@ import sys
 import time
 from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 # The log goes to stdout with emoji in it. A Windows console is cp1252, so switch
 # it to UTF-8; a windowed build has no stdout at all (sys.stdout is None).
@@ -61,11 +62,16 @@ except ImportError as e:
 # counts, the time and double ones too, and a 🎛 key-learn field takes any key.
 _TYPED_INTO = (QLineEdit, QPlainTextEdit, QAbstractSpinBox, QKeySequenceEdit)
 
-try:
+if TYPE_CHECKING:
     from PySide6.QtMultimedia import QAudioOutput, QMediaDevices, QMediaPlayer
     HAS_MULTIMEDIA = True
-except ImportError:
-    HAS_MULTIMEDIA = False
+else:
+    try:
+        from PySide6.QtMultimedia import QAudioOutput, QMediaDevices, QMediaPlayer
+        HAS_MULTIMEDIA = True
+    except ImportError:
+        QAudioOutput = QMediaDevices = QMediaPlayer = None
+        HAS_MULTIMEDIA = False
 
 # FFmpeg — Qt's own default on Windows since 6.5, and the one that has never
 # misbehaved here. Windows Media Foundation worked too on Qt 6.10.2, and it is

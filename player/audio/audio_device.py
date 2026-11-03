@@ -6,7 +6,6 @@ MainWindow mixin: it owns its state (released? idle since when? which device?
 the system-sound mute) and gets everything else it looks at handed in, so it is
 built and tested without a window.
 """
-import contextlib
 import logging
 import time
 from collections.abc import Callable
@@ -28,8 +27,13 @@ from shared.audio.playback import (
 )
 from shared.stores import save_settings
 
-with contextlib.suppress(ImportError):
+if TYPE_CHECKING:
     from PySide6.QtMultimedia import QMediaDevices, QMediaPlayer
+else:
+    try:
+        from PySide6.QtMultimedia import QMediaDevices, QMediaPlayer
+    except ImportError:
+        QMediaDevices = QMediaPlayer = None
 
 if TYPE_CHECKING:
     from player.audio.announce import DanceAnnouncer

@@ -9,7 +9,7 @@ import logging
 import math
 from collections.abc import Callable
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import shiboken6
 from PySide6.QtCore import (
@@ -66,11 +66,16 @@ from shared.appearance.icons import (
     pixmap as icon_pixmap,
 )
 
-try:
+if TYPE_CHECKING:
     from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
     HAS_MULTIMEDIA = True
-except ImportError:
-    HAS_MULTIMEDIA = False
+else:
+    try:
+        from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
+        HAS_MULTIMEDIA = True
+    except ImportError:
+        QAudioOutput = QMediaPlayer = None
+        HAS_MULTIMEDIA = False
 
 log = logging.getLogger("dancesport.gui.player")
 

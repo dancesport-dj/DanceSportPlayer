@@ -37,11 +37,16 @@ if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
 else:
     MainWindowHost = object
-try:
+if TYPE_CHECKING:
     from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
     HAS_MULTIMEDIA = True
-except ImportError:
-    HAS_MULTIMEDIA = False
+else:
+    try:
+        from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
+        HAS_MULTIMEDIA = True
+    except ImportError:
+        QAudioOutput = QMediaPlayer = None
+        HAS_MULTIMEDIA = False
 
 log = logging.getLogger("dancesport.gui.xfade")
 

@@ -81,11 +81,16 @@ from shared.widgets import (
     show_toast,
 )
 
-try:
+if TYPE_CHECKING:
     from PySide6.QtMultimedia import QMediaPlayer
     HAS_MULTIMEDIA = True
-except ImportError:
-    HAS_MULTIMEDIA = False
+else:
+    try:
+        from PySide6.QtMultimedia import QMediaPlayer
+        HAS_MULTIMEDIA = True
+    except ImportError:
+        QMediaPlayer = None
+        HAS_MULTIMEDIA = False
 
 # The desk's table, named in annotations only: the evening is handed one
 # and never builds one, so it must not import the desk at runtime.

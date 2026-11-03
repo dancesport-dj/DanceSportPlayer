@@ -6,6 +6,8 @@ Needs the network — the icons are fetched from jsDelivr. Run it after adding a
 name to WANT below; the generated module is what ships, so a build never has to
 reach the internet.
 """
+import contextlib
+import importlib
 import re
 import sys
 import urllib.request
@@ -192,11 +194,8 @@ def body_of(svg: str) -> str:
 def useOsCerts():
     """Verify HTTPS against the OS certificate store: behind a TLS-intercepting
     proxy the CA is there, not in Python's bundle. Best effort."""
-    try:
-        import truststore
-        truststore.inject_into_ssl()
-    except Exception:  # noqa: S110 - not installed: the default bundle
-        pass
+    with contextlib.suppress(Exception):  # not installed: the default bundle
+        importlib.import_module("truststore").inject_into_ssl()
 
 
 def main():
