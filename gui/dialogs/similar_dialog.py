@@ -479,7 +479,7 @@ class SimilarTracksDialog(QDialog):
         out = []
         for sim, e in results:
             key = song_title_key(str(e.path) if e.path else (e.title or ""))
-            if key in seen:
+            if key and key in seen:
                 continue
             seen.add(key)
             out.append((sim, e))
@@ -962,16 +962,23 @@ class SimilarTracksDialog(QDialog):
         if source is None or store is None:
             return
         pool = self._emb_pool()
+        if self._emb_busy:      # a rank still running: its modal must not stay behind
+            self._emb_busy.finish()
         self._emb_busy = BusyDialog(self, i18n.t("Ranking by %s embedding…") % name)
-        self._rank_worker = EmbeddingRankWorker(
+        worker = EmbeddingRankWorker(
             lambda: (source,
                      ae.embedding_similar(source, pool, store, model,
                                           n=self._limits()[0],
                                           same_dance=self._same_dance)),
             self)
-        self._rank_worker.done.connect(self._on_embedding_ranked)
-        self._rank_worker.error.connect(self._on_embed_error)
-        self._rank_worker.start()
+        self._rank_worker = worker
+        # Only the latest run reports; an older one finishing late would fill the
+        # table under the wrong method's name.
+        worker.done.connect(lambda src, res, w=worker: w is self._rank_worker
+                            and self._on_embedding_ranked(src, res))
+        worker.error.connect(lambda msg, w=worker: w is self._rank_worker
+                             and self._on_embed_error(msg))
+        worker.start()
         self._emb_busy.show_after(300)
 
     def _on_embedding_ranked(self, source, results):
@@ -994,7 +1001,9 @@ class SimilarTracksDialog(QDialog):
 
     # ── Chained drop ────────────────────────────────────────────────────────────
     def _on_dropped(self, path: str):
-        if self._worker and self._worker.isRunning():
+        # _emb_busy is up while an embedding index build or rank runs: those end in
+        # _populate too, so a second analysis now would race them for the table.
+        if self._emb_busy or (self._worker and self._worker.isRunning()):
             return
         self._status.setText(i18n.t("Analyzing %s …") % Path(path).name)
         self._busy = BusyDialog(self, i18n.t("Analyzing %s …") % Path(path).name)

@@ -39,6 +39,10 @@ class TrailingSilenceTest(unittest.TestCase):
     def test_a_silent_intro_is_not_an_ending(self):
         self.assertIsNone(trailing_silence_secs(330, [[0, 8]]))
 
+    def test_a_short_fade_tail_ends_the_countdown(self):
+        # "A New Life": the probe reports 1.9 s of stillness at the end.
+        self.assertEqual(trailing_silence_secs(181.83, [[179.92, 181.83]]), 179.92)
+
     def test_a_blink_of_quiet_at_the_end_is_not_worth_stopping_for(self):
         self.assertIsNone(trailing_silence_secs(330, [[329, 330]]))
 

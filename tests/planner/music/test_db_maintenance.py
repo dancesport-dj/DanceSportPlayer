@@ -181,6 +181,15 @@ class MaintenanceTest(unittest.TestCase):
             upkeep.db_maintenance()
         self.assertEqual(len(self._rows("features")), 200)
 
+    def test_a_small_library_on_an_unmounted_drive_is_protected_too(self):
+        """#39: the abort needed more than 100 missing files, so a library of
+        100 or fewer was wiped the first time its drive was out."""
+        for i in range(20):
+            self._track(f"gone{i}.mp3", f"fp{i}", on_disk=False)
+        with self.assertRaises(RuntimeError):
+            upkeep.db_maintenance()
+        self.assertEqual(len(self._rows("features")), 20)
+
     def test_it_reports_what_it_freed(self):
         self._track("here.mp3", "fp-live")
         res = upkeep.db_maintenance()

@@ -34,6 +34,7 @@ from PySide6.QtWidgets import QApplication
 from gui.decks.deck_set import DeckSet
 from gui.decks.running_order import Row
 from gui.table.playlist_table import PlaylistTable
+from planner.models import MusicEntry
 from player.audio.between_dances import BetweenDances
 from player.audio.playback_state import PlaybackState
 from player.widgets.play_mode_panel import PlayModePanel
@@ -228,9 +229,58 @@ class AnnounceWaitTest(unittest.TestCase):
     def test_a_pause_announces_into_the_pause_as_before(self):
         """There the call has a gap of its own and the music is already held
         off its last word — nothing to turn round."""
-        desk, _t = self.desk(wait=True, pause=True)
+        desk, table = self.desk(wait=True, pause=True)
+        self.after_a_pause(desk, table)
         self.assertFalse(desk._announce_start_first(_Entry()))
         self.assertEqual(desk._announcer.spoken, [])
+
+    def after_a_pause(self, desk, table, called=True):
+        """The way a title really comes out of a pause, up to its load."""
+        entry = MusicEntry(path=desk.PATH, title="W", dance="LW")
+        table._row_meta[0].entry = entry
+        table._on_play_click = lambda row, path: desk._adopt_track(path)
+        table.scroll_row_into_play_view = lambda row: None
+        desk._big_player = None
+        desk._row_dance = lambda path: "LW"
+        desk._resolve_entry = lambda path: entry
+        desk._sync_dance_len = desk._refresh_resume_marks = lambda *a: None
+        desk._sync_taskbar_title = lambda: None
+        desk._resume_mark_for = desk._pre_roll_ms_for = lambda path: 0
+        desk._between.pending = (table, 0, desk.PATH)
+        desk._between.shown = called
+        desk._fire_pending_advance()
+
+    def test_the_first_title_with_a_pause_set_is_named_over_its_bars(self):
+        """No pause came before it, so there was no call. Clicking the first
+        title of a list with ⏸ on started it without one."""
+        desk, _t = self.desk(wait=False, pause=True)
+        desk._maybe_announce_start(_Entry())
+        self.assertEqual(desk._announcer.spoken, [("LW", True)])
+
+    def test_the_first_title_with_a_pause_set_can_wait_for_the_call(self):
+        desk, _t = self.desk(wait=True, pause=True)
+        self.assertTrue(desk._announce_start_first(_Entry()))
+        self.assertEqual(desk._announcer.spoken, [("LW", True)])
+
+    def test_the_title_out_of_a_pause_is_not_named_again(self):
+        desk, table = self.desk(wait=False, pause=True)
+        self.after_a_pause(desk, table)
+        desk._maybe_announce_start(_Entry())
+        self.assertEqual(desk._announcer.spoken, [])
+
+    def test_the_same_title_started_again_by_hand_is_named(self):
+        desk, table = self.desk(wait=False, pause=True)
+        self.after_a_pause(desk, table)
+        desk._adopt_track(desk.PATH)
+        desk._maybe_announce_start(_Entry())
+        self.assertEqual(desk._announcer.spoken, [("LW", True)])
+
+    def test_a_gap_of_nothing_is_no_pause_to_call_in(self):
+        """🔁 can reach the pause with no seconds to it: no call went there."""
+        desk, table = self.desk(wait=False, pause=True)
+        self.after_a_pause(desk, table, called=False)
+        desk._maybe_announce_start(_Entry())
+        self.assertEqual(desk._announcer.spoken, [("LW", True)])
 
     def test_a_crossfade_keeps_the_start_call_off_the_mix(self):
         """🔀 The incoming title of a crossfade starts under the last one: a

@@ -656,6 +656,15 @@ class PlaySetsTabTest(_Qt):
         dlg._set_widgets["party"]["boxes"]["tso"].setChecked(True)
         self.assertIs(dlg.values()["party_set"]["tso"], True)
 
+    def test_ticking_the_call_ticks_no_pause_in_a_set(self):
+        """🔈 As on the panel: the pause goes by default, and can be put back."""
+        boxes = self._dlg({"party_set": {"pause_off": False}})._set_widgets["party"]["boxes"]
+        boxes["announce"].click()
+        self.assertTrue(boxes["pause_off"].isChecked())
+        boxes["pause_off"].click()
+        self.assertFalse(boxes["pause_off"].isChecked())
+        self.assertTrue(boxes["announce"].isChecked())
+
     def test_full_length_is_offered_and_survives(self):
         """0 is the 'full' rung — it must not read back as 'nothing picked'."""
         dlg = self._dlg({"party_set": {"secs": 0}})

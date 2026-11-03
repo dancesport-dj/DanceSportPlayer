@@ -122,7 +122,7 @@ class EditHooksTest(_ScratchCache):
         win, _ = self.window()
         calls = self.stats()
         DeckLayoutMixin._refresh_library_planned_filter(win)
-        win._lib_browser.set_planned_paths.assert_called_once_with(set())
+        win._lib_browser.set_planned_paths.assert_called_once_with(set(), copies=set())
         self.assertEqual(calls, [])
 
 

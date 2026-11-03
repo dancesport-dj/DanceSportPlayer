@@ -11,11 +11,13 @@ import os
 import re
 import socket
 import threading
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from difflib import SequenceMatcher
 
+from planner import secret_store
 from planner.models import (  # auto-resolved
     DANCE_NAMES,
     TEMPO_RANGES,
@@ -94,14 +96,23 @@ FREE_MODELS_FALLBACK: list[str] = [
 ]
 
 
+KEY_NAME = 'openrouter_api_key'     # its name in the OS credential store
+
+
 def load_openrouter_config() -> dict:
-    """Return {'api_key', 'model', 'base_url'} from the config file, with env-var
-    fallback for the key and the base URL."""
+    """Return {'api_key', 'model', 'base_url'}: the key from the OS credential
+    store (a key an older version left in the file moves there now), the rest
+    from the config file, with env-var fallback for the key and the base URL."""
     cfg = {'api_key': '', 'model': FREE_MODELS_FALLBACK[0],
            'base_url': DEFAULT_API_BASE}
     stored = OPENROUTER.read()
     if isinstance(stored, dict):
         cfg.update(stored)
+    kept = secret_store.get(KEY_NAME)
+    if kept:
+        cfg['api_key'] = kept
+    elif cfg.get('api_key') and secret_store.put(KEY_NAME, cfg['api_key']):
+        OPENROUTER.write({k: v for k, v in stored.items() if k != 'api_key'})
     if not cfg.get('api_key'):
         cfg['api_key'] = os.environ.get('OPENROUTER_API_KEY', '')
     if not cfg.get('base_url'):
@@ -109,50 +120,83 @@ def load_openrouter_config() -> dict:
     return cfg
 
 
-def save_openrouter_config(api_key: str, model: str, base_url: str = '') -> None:
-    OPENROUTER.write({'api_key': api_key, 'model': model,
-                      'base_url': (base_url or '').strip() or DEFAULT_API_BASE})
+def save_openrouter_config(api_key: str, model: str, base_url: str = '',
+                           ask_first: bool | None = None) -> None:
+    """Write the config. `ask_first` puts this model ahead of the claude CLI;
+    a save that leaves it out keeps what is stored."""
+    stored = OPENROUTER.read()
+    cfg = dict(stored) if isinstance(stored, dict) else {}
+    cfg.update({'model': model,
+                'base_url': (base_url or '').strip() or DEFAULT_API_BASE})
+    # In the OS credential store when there is one; the file only as a fallback.
+    if not api_key:
+        secret_store.delete(KEY_NAME)
+        cfg.pop('api_key', None)
+    elif secret_store.put(KEY_NAME, api_key):
+        cfg.pop('api_key', None)
+    else:
+        cfg['api_key'] = api_key
+    if ask_first is not None:
+        cfg['ask_first'] = ask_first
+    OPENROUTER.write(cfg)
 
 
-def _kept(conn_class, conns: list):
-    """`conn_class`, noting every connection it makes in `conns`."""
+# How long a model may go without a word or a thought. A guess with room in it:
+# a model that hides its reasoning stays this quiet before it answers.
+NO_OUTPUT_SECS = 180
+
+
+class NoOutput(TimeoutError):
+    """The host stopped sending anything that is part of the answer."""
+
+
+def _kept(conn_class, socks: list):
+    """`conn_class`, noting every socket it opens in `socks`. The connection
+    itself is no use for that: it hands its socket to the response as soon as
+    the headers are in, and a stop has to reach a stream too."""
     def make(*args, **kwargs):
         conn = conn_class(*args, **kwargs)
-        conns.append(conn)
+        opened = conn.connect
+
+        def connect():
+            opened()
+            socks.append(conn.sock)
+
+        conn.connect = connect
         return conn
     return make
 
 
 class _KeptHttp(urllib.request.HTTPHandler):
-    def __init__(self, conns: list):
+    def __init__(self, socks: list):
         super().__init__()
-        self.conns = conns
+        self.socks = socks
 
     def http_open(self, req):
-        return self.do_open(_kept(http.client.HTTPConnection, self.conns), req)
+        return self.do_open(_kept(http.client.HTTPConnection, self.socks), req)
 
 
 class _KeptHttps(urllib.request.HTTPSHandler):
-    def __init__(self, conns: list):
+    def __init__(self, socks: list):
         self.tls = tls_context()
         super().__init__(context=self.tls)
-        self.conns = conns
+        self.socks = socks
 
     def https_open(self, req):
-        return self.do_open(_kept(http.client.HTTPSConnection, self.conns), req,
+        return self.do_open(_kept(http.client.HTTPSConnection, self.socks), req,
                             context=self.tls)
 
 
-def _read(req, timeout: int, cancel=None) -> bytes:
-    """The body `req` is answered with. Setting `cancel` (a threading.Event)
-    shuts the request's socket: the wait for the answer ends at once with an
-    OSError, and the host sees the client leave instead of writing a reply
-    nobody reads. Without one it is a plain urlopen."""
+def _read(req, timeout: float, take, cancel=None):
+    """What `take` makes of the response `req` gets. Setting `cancel` (a
+    threading.Event) shuts the request's socket: the wait for the answer ends at
+    once with an OSError, and the host sees the client leave instead of writing a
+    reply nobody reads. Without one it is a plain urlopen."""
     if cancel is None:
         with urllib.request.urlopen(req, timeout=timeout,  # nosec B310: user's endpoint
                                     context=tls_context()) as resp:
-            return resp.read()
-    conns: list = []
+            return take(resp)
+    socks: list = []
     done = threading.Event()
 
     def cut():
@@ -161,24 +205,68 @@ def _read(req, timeout: int, cancel=None) -> bytes:
         while not done.wait(0.1):
             if not cancel.is_set():
                 continue
-            for conn in conns:
-                if conn.sock is not None:
-                    with contextlib.suppress(OSError):
-                        conn.sock.shutdown(socket.SHUT_RDWR)
+            for sock in socks:
+                with contextlib.suppress(OSError):
+                    sock.shutdown(socket.SHUT_RDWR)
 
     threading.Thread(target=cut, name="ai-stop", daemon=True).start()
-    opener = urllib.request.build_opener(_KeptHttp(conns), _KeptHttps(conns))
+    opener = urllib.request.build_opener(_KeptHttp(socks), _KeptHttps(socks))
     try:
         with opener.open(req, timeout=timeout) as resp:  # nosec B310: user's endpoint
-            return resp.read()
+            return take(resp)
     finally:
         done.set()
+
+
+def _stream_reply(resp, host: str, deadline: float, stall: float) -> dict:
+    """The chat completion a streamed reply adds up to. Only the model's own
+    words and thinking count as output: a host keeps the line alive with comment
+    lines however stuck the model behind it is."""
+    started = heard = time.monotonic()
+    parts: list[str] = []
+    finish = None
+    ended = False
+    for raw in iter(resp.readline, b''):
+        now = time.monotonic()
+        line = raw.decode('utf-8', 'replace').strip()
+        if line == 'data: [DONE]':
+            ended = True
+            break
+        if line.startswith('data:'):
+            data = json.loads(line[5:])
+            choice = (data.get('choices') or [{}])[0]
+            if 'error' in data or 'error' in choice:
+                return data
+            delta = choice.get('delta') or {}
+            parts.append(delta.get('content') or '')
+            if parts[-1] or delta.get('reasoning') or delta.get('reasoning_content'):
+                heard = now
+            finish = choice.get('finish_reason') or finish
+        if now - heard > stall:
+            raise NoOutput(f"{host} sent no output for {stall:g} s")
+        if now - started > deadline:
+            raise NoOutput(f"{host} did not finish within {deadline:g} s")
+    if not ended and finish is None:
+        raise ConnectionError(f"{host} cut the answer off")
+    return {'choices': [{'message': {'content': ''.join(parts)},
+                         'finish_reason': finish}]}
+
+
+def _take_reply(resp, host: str, deadline: float, stall: float) -> dict:
+    """The chat completion in `resp`, whether the host streamed it or not."""
+    kind = getattr(resp, 'headers', {}).get('Content-Type', '')
+    if 'text/event-stream' in kind:
+        return _stream_reply(resp, host, deadline, stall)
+    return json.loads(resp.read().decode('utf-8'))
 
 
 def openrouter_chat(api_key: str, model: str, system: str, user: str,
                     timeout: int = 60, base_url: str = '', cancel=None) -> str:
     """Call an OpenAI-compatible chat endpoint and return the reply text.
-    Setting `cancel` (a threading.Event) cuts a request still on the wire."""
+
+    The reply streams, so a model that stops producing raises NoOutput well
+    before `timeout`, which limits the whole answer. Setting `cancel` (a
+    threading.Event) cuts a request still on the wire."""
     if not api_key:
         raise RuntimeError(f"No API key set for {api_host(base_url)}.")
     body = json.dumps({
@@ -188,6 +276,7 @@ def openrouter_chat(api_key: str, model: str, system: str, user: str,
             {'role': 'user',   'content': user},
         ],
         'temperature': 0.7,
+        'stream': True,
     }).encode('utf-8')
     host = api_host(base_url)
     req = urllib.request.Request(_keyed_endpoint(base_url, '/chat/completions'),
@@ -197,11 +286,17 @@ def openrouter_chat(api_key: str, model: str, system: str, user: str,
     if is_openrouter(base_url):
         req.add_header('HTTP-Referer', 'https://localhost/danceplaylist')
         req.add_header('X-Title', 'Dancesport Playlist Planner')
+    stall = min(NO_OUTPUT_SECS, timeout)
     try:
-        data = json.loads(_read(req, timeout, cancel).decode('utf-8'))
+        data = _read(req, stall, lambda resp: _take_reply(resp, host, timeout, stall),
+                     cancel)
     except urllib.error.HTTPError as ex:
         detail = ex.read().decode('utf-8', 'replace')[:300]
         raise RuntimeError(f"{host} HTTP {ex.code}: {detail}") from ex
+    except NoOutput:
+        raise
+    except TimeoutError as ex:
+        raise NoOutput(f"{host} sent no output for {stall:g} s") from ex
     try:
         choice = data['choices'][0] if 'error' not in data else data
         # A host that fails after it has started still answers 200, with the
@@ -223,21 +318,33 @@ def openrouter_chat(api_key: str, model: str, system: str, user: str,
     return content
 
 
-def openrouter_free_models(api_key: str = '', timeout: int = 30,
-                           base_url: str = '') -> list[str]:
-    """Fetch the live model list.
-
-    On OpenRouter only the free ones come back (price 0 or ':free'); any other
-    host prices nothing in that list, so every id it names is offered."""
+def _model_rows(api_key: str, timeout: int, base_url: str) -> list[dict]:
+    """The host's /models answer, one dict per model."""
     req = urllib.request.Request(_keyed_endpoint(base_url, '/models'))
     if api_key:
         req.add_unredirected_header('Authorization', f'Bearer {api_key}')
     with urllib.request.urlopen(req, timeout=timeout,  # nosec B310: user's endpoint
                                 context=tls_context()) as resp:
         data = json.loads(resp.read().decode('utf-8'))
+    return data.get('data', [])
+
+
+def openrouter_models(api_key: str = '', timeout: int = 30,
+                      base_url: str = '') -> list[str]:
+    """Every model id the host names, exactly as it names them."""
+    rows = _model_rows(api_key, timeout, base_url)
+    return sorted({m.get('id', '') for m in rows} - {''})
+
+
+def openrouter_free_models(api_key: str = '', timeout: int = 30,
+                           base_url: str = '') -> list[str]:
+    """Fetch the live model list.
+
+    On OpenRouter only the free ones come back (price 0 or ':free'); any other
+    host prices nothing in that list, so every id it names is offered."""
     free_only = is_openrouter(base_url)
     free: list[str] = []
-    for m in data.get('data', []):
+    for m in _model_rows(api_key, timeout, base_url):
         mid = m.get('id', '')
         if not mid:
             continue
@@ -345,11 +452,20 @@ def match_suggestions_to_library(
         target = norm_title(s.get('title', ''))
         best, best_r = None, 0.0
         if target:
+            sm = SequenceMatcher(None)
+            sm.set_seq1(target)
             for nt, e in index:
                 if not nt:
                     continue
-                r = SequenceMatcher(None, target, nt).ratio()
-                if target in nt or nt in target:
+                contains = target in nt or nt in target
+                sm.set_seq2(nt)
+                # Upper bounds of ratio(): a title that cannot beat the best so
+                # far skips the full match (same result, about half the time).
+                if not contains and (sm.real_quick_ratio() <= best_r
+                                     or sm.quick_ratio() <= best_r):
+                    continue
+                r = sm.ratio()
+                if contains:
                     r = max(r, 0.9)
                 if r > best_r:
                     best_r, best = r, e

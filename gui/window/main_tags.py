@@ -23,6 +23,7 @@ from gui.dialogs.tag_edit_dialog import (
 from gui.workers import CustomFieldReader
 from planner import i18n
 from planner.music import custom_field, id3_frames
+from planner.music.paths import foreign_name, resolve_file
 from shared.widgets import WARN_TOAST_MS, show_toast
 
 if TYPE_CHECKING:
@@ -95,31 +96,32 @@ class TagEditMixin(MainWindowHost):
         lib, cache = self._library.lib, self._library.cache
         if entry is None or not getattr(entry, "path", None) or lib is None or cache is None:
             return {}
-        p = Path(entry.path)
-        if not p.exists():
-            show_toast(self, i18n.t("🏷  %s is not on disk any more") % p.name, error=True)
+        name = foreign_name(entry.path)
+        file = resolve_file(entry.path, self._settings)   # what playback would open
+        if file is None:
+            show_toast(self, i18n.t("🏷  %s is not on disk any more") % name, error=True)
             return {}
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
-            changed = lib.rescan_tags(entry, cache)
+            changed = lib.rescan_tags(entry, cache, file)
         except Exception as exc:
-            log.warning("🏷 Couldn't re-read the tags of %s:\n%s", p.name, exc)
-            show_toast(self, i18n.t("🏷  Couldn't re-read %s: %s") % (p.name, exc), error=True)
+            log.warning("🏷 Couldn't re-read the tags of %s:\n%s", name, exc)
+            show_toast(self, i18n.t("🏷  Couldn't re-read %s: %s") % (name, exc), error=True)
             return {}
         finally:
             QApplication.restoreOverrideCursor()
 
         for table in self._deckset.all_tables:
-            table.refresh_paths([p])
+            table.refresh_paths([Path(entry.path)])
         browser = getattr(self, "_lib_browser", None)
         if browser is not None:
             browser.set_entries(lib.entries)
         if changed:
-            log.info("🏷 Tags re-read for %s:\n%s", p.name,
+            log.info("🏷 Tags re-read for %s:\n%s", name,
                      tag_change_summary(changed))
-            show_toast(self, "🏷  %s: %s" % (p.name, tag_change_summary(changed, translate=True)))
+            show_toast(self, "🏷  %s: %s" % (name, tag_change_summary(changed, translate=True)))
         else:
-            show_toast(self, i18n.t("🏷  %s: tags unchanged") % p.name)
+            show_toast(self, i18n.t("🏷  %s: tags unchanged") % name)
         return changed
 
     def _set_entry_rating(self, entry, stars: int):

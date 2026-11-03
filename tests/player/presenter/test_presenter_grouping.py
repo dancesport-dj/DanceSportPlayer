@@ -198,6 +198,7 @@ class PresenterStateTest(unittest.TestCase):
                 self._player = None          # no media backend in the test
                 self._playback.offset_ms = 0
                 self._pd_stop_at = None
+                self._silences = {}    # 🔇 no probed dead air
                 self._between.advance_at = time.monotonic() + 12.4
                 self._last_played = None     # 🕘 nothing played before
                 # No 🏆 per-dance lengths: the list's one length applies.
@@ -270,10 +271,33 @@ class PresenterStateTest(unittest.TestCase):
 
     def test_the_title_before_this_one_is_carried_along(self):
         songs, _ = _rows(self.t)
-        self._play(songs[0])
+        self._play(songs[1])
         self.assertEqual(self.win._presenter_state()[4], ("", ""))
         self.win._last_played = ("Tango", "TG0")
         self.assertEqual(self.win._presenter_state()[4], ("Tango", "TG0"))
+
+    def test_the_first_title_of_the_only_list_has_nothing_before_it(self):
+        """What played before belongs to another list, or another evening:
+        the hall saw a title before the first one."""
+        songs, _ = _rows(self.t)
+        self._play(songs[0])
+        self.win._last_played = ("Tango", "TG0")
+        self.assertEqual(self.win._presenter_state()[4], ("", ""))
+
+    def test_with_lists_side_by_side_the_one_before_may_be_next_door(self):
+        songs, _ = _rows(self.t)
+        self._play(songs[0])
+        self.win._deckset.deck_count = 2
+        self.win._last_played = ("Tango", "TG0")
+        self.assertEqual(self.win._presenter_state()[4], ("Tango", "TG0"))
+
+    def test_the_party_list_starts_with_its_own_first_title(self):
+        songs, _ = _rows(self.t)
+        self._play(songs[0])
+        self.win._deckset.deck_count = 2
+        self.t._warmup = True
+        self.win._last_played = ("Tango", "TG0")
+        self.assertEqual(self.win._presenter_state()[4], ("", ""))
 
     def test_during_the_break_it_names_the_title_that_just_ended(self):
         """The hero line is 'Pause' then, and what the hall just heard is the

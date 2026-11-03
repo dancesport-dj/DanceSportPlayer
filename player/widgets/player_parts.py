@@ -27,6 +27,7 @@ CARD_EXTEND = "#7fd4a0"   # give the pause more time
 CARD_CUE = "#f0c674"      # back to 0:00
 CARD_PANIC = "#e58080"    # fade to silence and hold
 CARD_DIM = "#8fa3c4"      # the fader's own small marks
+CARD_OFF = "#5f6b7d"      # a control that cannot be used now
 CARD_GAIN = "#d8b35c"     # the R128 equalization readout
 
 # The card's gold countdown: the pause's own, and the 🐂 wait's, which reads
@@ -39,6 +40,18 @@ WAIT_COUNT_CSS = "font-size:11px; font-weight:bold; color:#d8b35c;"
 # finest step the fader has. A takt is hit by tenths, not halves, and the far
 # side of the range is reached by holding the button rather than by clicking.
 TEMPO_STEP = 1
+
+# How long the rate waits for the next step. A rate change is an audible gap
+# Qt cannot do without: it rebuilds its audio converter in its own audio thread.
+# A hand manages about three clicks a second, so the wait outlasts that gap
+# and a run of clicks lands as one change. The readout follows at once.
+TEMPO_SETTLE_MS = 450
+
+# The − / + buttons wait longer: tuning a takt is a click, listen, click again
+# at about one a second, and with 450 ms each click was its own change, its own
+# gap. The wait now outlasts that pace, so the run is one gap at the end. The
+# price is the same wait before a single click is heard.
+TEMPO_STEP_SETTLE_MS = 750
 
 # One − / + click on the music volume, in per cent. Held, the buttons glide:
 # half to full in under three seconds. A figure already known is typed.
@@ -172,6 +185,13 @@ class TempoSlider(ClickSlider):
             event.accept()
             return
         super().mouseDoubleClickEvent(event)
+
+
+def heard_percent(vol: float, ducked: bool, muted: bool, duck_pct: int) -> int:
+    """🔉 Where a volume slider stands for master `vol`: at what is heard, so a
+    duck or a mute moves it too."""
+    factor = 0.0 if muted else duck_pct / 100 if ducked else 1.0
+    return max(0, min(100, round(vol * factor * 100)))
 
 
 def block(layout) -> QWidget:

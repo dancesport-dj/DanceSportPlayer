@@ -88,18 +88,31 @@ class _ReferenceMapper:
         return path
 
 
+def _path_lines(paths: list[Path]) -> str:
+    lines = [f"  • {p}" for p in paths[:_OFF_REFERENCE_SHOWN]]
+    if len(paths) > _OFF_REFERENCE_SHOWN:
+        lines.append(i18n.t("  … and %d more") % (len(paths) - _OFF_REFERENCE_SHOWN))
+    return "\n".join(lines)
+
+
 def _off_reference_text(path_for: _ReferenceMapper | None) -> str:
-    """The ⚠ paragraph naming the exported titles missing on the Referenzpfad,
-    or "" when there are none."""
+    """The ⚠ paragraphs naming the exported titles missing on the Referenzpfad,
+    or "" when there are none. A title on no disk at all gets its own: its path
+    can name the Referenzpfad itself, and moving files would not help it."""
     if path_for is None or not path_for.missing:
         return ""
-    missing = path_for.missing
-    lines = [f"  • {p}" for p in missing[:_OFF_REFERENCE_SHOWN]]
-    if len(missing) > _OFF_REFERENCE_SHOWN:
-        lines.append(i18n.t("  … and %d more") % (len(missing) - _OFF_REFERENCE_SHOWN))
-    return (i18n.t("⚠ %d title(s) are not on the Reference path\n%s\n"
-                   "and were saved with their own path:") % (len(missing), path_for.root)
-            + "\n" + "\n".join(lines))
+    off = [p for p in path_for.missing if p.is_file()]
+    gone = [p for p in path_for.missing if not p.is_file()]
+    parts = []
+    if off:
+        parts.append(i18n.t("⚠ %d title(s) are not on the Reference path\n%s\n"
+                            "and were saved with their own path:") % (len(off), path_for.root)
+                     + "\n" + _path_lines(off))
+    if gone:
+        parts.append(i18n.t("⚠ %d title(s) are not on disk any more\n"
+                            "and were saved with their old path:") % len(gone)
+                     + "\n" + _path_lines(gone))
+    return "\n\n".join(parts)
 
 
 def bundle_name_guess(m3us) -> str:
@@ -357,17 +370,38 @@ class ExportMixin(MainWindowHost):
                                 "in the pack.") % len(res.missing))
         QMessageBox.information(self, title, "\n\n".join(lines))
 
-    def _import_venue_pack(self):
+    def dragEnterEvent(self, e):
+        if self._dropped_venue_pack(e) is not None:
+            e.acceptProposedAction()
+
+    def dropEvent(self, e):
+        pack = self._dropped_venue_pack(e)
+        if pack is not None:
+            e.acceptProposedAction()
+            self._import_venue_pack(pack)
+
+    @staticmethod
+    def _dropped_venue_pack(e) -> Path | None:
+        """The venue pack among the dragged files, if there is one."""
+        for url in e.mimeData().urls():
+            path = Path(url.toLocalFile())
+            if path.suffix.lower() == venue_pack.SUFFIX:
+                return path
+        return None
+
+    def _import_venue_pack(self, src: Path | None = None):
         """📥 A venue pack from another PC: staged now, put in place at the
-        next start (closing the window would write over it otherwise)."""
+        next start (closing the window would write over it otherwise).
+        `src` is the dropped file; without it the file dialog asks."""
         title = "Import venue pack"
-        chosen, _ = QFileDialog.getOpenFileName(
-            self, title, str(Path.home()),
-            i18n.t("Venue packs") + f" (*{venue_pack.SUFFIX});;"
-            + i18n.t("All files") + " (*)")
-        if not chosen:
-            return
-        src = Path(chosen)
+        if not isinstance(src, Path):
+            chosen, _ = QFileDialog.getOpenFileName(
+                self, title, str(Path.home()),
+                i18n.t("Venue packs") + f" (*{venue_pack.SUFFIX});;"
+                + i18n.t("All files") + " (*)")
+            if not chosen:
+                return
+            src = Path(chosen)
         try:
             pack = venue_pack.read_pack(src)
         except venue_pack.VenuePackError as exc:
@@ -431,7 +465,7 @@ class ExportMixin(MainWindowHost):
         """⚠ After a single save: name the titles that are not on the Referenzpfad."""
         text = _off_reference_text(path_for)
         if text:
-            QMessageBox.warning(self, "Not on the Reference path", text)
+            QMessageBox.warning(self, "Titles saved with their own path", text)
 
     def _save_all_playlists(self, decks=None):
         """💾 Save-all: export every non-empty playlist deck to its own .m3u in the
@@ -585,39 +619,40 @@ class ExportMixin(MainWindowHost):
         order even without the M3U (imported file-by-file on a USB player /
         UltraMixer at the venue, no 🧭 path fixing needed there).
 
-        Asks first WHAT to bundle: all open decks, only the 📅 tournament day, or
-        saved .m3u files dragged in. The ⭐ wishlists with titles go along with
-        the decks, each into a folder of its own, when their box is ticked. The
-        📦 venue pack is offered there too, and runs `_export_venue_pack` instead."""
+        Asks first WHAT to bundle, in any combination: the open decks, the 📅
+        tournament day, the party list, the ⭐ wishlists with titles, saved .m3u
+        files dragged in. Each gets a folder of its own. The 📦 venue pack is
+        offered there too, and runs `_export_venue_pack` instead."""
         decks = [t for t in self._deckset.decks if t.rowCount() > 0]
         day = [t for t in self._deckset.day_decks if t.rowCount() > 0]
         wishes = [t for t in self._deckset.wishlists if t.wishlist_entries()]
+        party = self._deckset.warmup_table
+        party_entries = party._row_meta.entries() if self._warmup_has_content() else []
         ask = UsbExportDialog(
             self, n_decks=len(decks), n_day=len(day),
             day_selected=self._grid.deck_tabs.currentWidget() is self._grid.day_tabs,
-            n_wish=len(wishes))
+            n_wish=len(wishes), n_party=len(party_entries))
         if ask.exec() != QDialog.DialogCode.Accepted:
             return
-        if ask.mode() == "venue":
+        if ask.venue_pack():
             self._export_venue_pack()
             return
-        if ask.mode() == "dropped":
+        selected = (decks if ask.include_decks() else []) + (day if ask.include_day() else [])
+        jobs, skipped = self._bundle_jobs_for_decks(selected)
+        flat = []
+        if ask.include_party():
+            flat.append((party, self.deck(party).name or practice_name(), party_entries))
+        if ask.include_wishlists():
+            flat += [(t, self.deck(t).name or "Wishlist", t.wishlist_entries()) for t in wishes]
+        for _t, title, entries in flat:
+            jobs.append((title.replace("·", "-"), lambda out, e=entries:
+                         Path(export_flat_m3u(e, out.stem, out_path=out))))
+        sources = [getattr(t, "_m3u_path", None) for t in selected + [f[0] for f in flat]]
+        for p in ask.dropped_paths():
             # Pre-saved playlists: each dropped .m3u is copied into its folder
             # as-is, then the copy is rewritten to the numbered track names.
-            jobs = [(p.stem, lambda out, src=p: Path(shutil.copyfile(src, out)))
-                    for p in ask.dropped_paths()]
-            skipped = []
-            sources = ask.dropped_paths()
-        else:
-            selected = day if ask.mode() == "day" else decks + day
-            jobs, skipped = self._bundle_jobs_for_decks(selected)
-            if ask.include_wishlists():
-                selected = selected + wishes
-                for t in wishes:
-                    jobs.append(((self.deck(t).name or "Wishlist").replace("·", "-"),
-                                 lambda out, e=t.wishlist_entries():
-                                 Path(export_flat_m3u(e, out.stem, out_path=out))))
-            sources = [getattr(t, "_m3u_path", None) for t in selected]
+            jobs.append((p.stem, lambda out, src=p: Path(shutil.copyfile(src, out))))
+            sources.append(p)
         if not jobs:
             self.statusBar().showMessage("Nothing to export — all playlists are empty.")
             return

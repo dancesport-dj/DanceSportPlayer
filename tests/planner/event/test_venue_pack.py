@@ -226,12 +226,78 @@ class HostileMusicNamesTest(unittest.TestCase):
         self.assertEqual(list(mapping.values()), [str(self.dest / "x" / "song.mp3")])
         self.assertEqual(self._written(), [str(Path("venue_music/x/song.mp3"))])
 
+    def test_a_cancel_survives_a_file_that_cannot_be_removed(self):
+        """#37: the cleanup's PermissionError replaced the cancel, and the
+        files after the locked one stayed behind."""
+        src = self._pack(["music/x/a.mp3", "music/x/b.mp3", "music/x/c.mp3"])
+        calls = []
+        real_unlink = Path.unlink
+
+        def unlink(path, *a, **k):
+            if path.name == "a.mp3":
+                raise PermissionError("locked")
+            return real_unlink(path, *a, **k)
+        with mock.patch.object(Path, "unlink", unlink):
+            with self.assertRaises(vp.VenuePackCancelled):
+                vp.extract_music(src, self.dest,
+                                 cancelled=lambda: calls.append(1) or len(calls) > 2)
+        self.assertFalse((self.dest / "x" / "b.mp3").exists())
+
     def test_a_name_without_a_file_part_is_skipped(self):
         """L-VP1: `music` alone made the target the folder itself, and
         opening a folder for writing unwound the whole import."""
         mapping = vp.extract_music(self._pack(["music", "music/x/song.mp3"]),
                                    self.dest)
         self.assertEqual(list(mapping.values()), [str(self.dest / "x" / "song.mp3")])
+
+
+class DamagedManifestTest(unittest.TestCase):
+    """#21 / #36: a pack that is cut short or hand-edited must end in a
+    VenuePackError, the one error the import dialog turns into a message."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name)
+        self.dest = self.root / "venue_music"
+
+    def _pack(self, music, members=()):
+        src = self.root / "damaged.dpvenue"
+        with zipfile.ZipFile(src, "w") as z:
+            for arc in members:
+                z.writestr(arc, b"payload")
+            z.writestr(vp.MANIFEST, json.dumps(
+                {"format": vp.FORMAT, "version": vp.VERSION, "files": [],
+                 "music": music}))
+        return src
+
+    def test_a_named_track_missing_from_the_zip_is_a_pack_error(self):
+        src = self._pack({"F:\\a.mp3": "music/x/a.mp3", "F:\\b.mp3": "music/x/b.mp3"},
+                         members=["music/x/a.mp3"])
+        with self.assertRaises(vp.VenuePackError):
+            vp.extract_music(src, self.dest)
+        # What was unpacked before the gap is taken back.
+        self.assertEqual([p for p in self.dest.rglob("*") if p.is_file()], [])
+
+    def test_the_staged_import_reports_it_the_same_way(self):
+        src = self._pack({"F:\\b.mp3": "music/x/b.mp3"})
+        with self.assertRaises(vp.VenuePackError):
+            vp.stage_import(src, self.root / "state", self.dest)
+
+    def test_a_music_map_of_the_wrong_type_is_refused(self):
+        for music in (["a.mp3"], 5, "a.mp3", {"F:\\a.mp3": 7}, {"F:\\a.mp3": None},
+                      {"F:\\a.mp3": ["music/x/a.mp3"]}):
+            src = self._pack(music)
+            with self.subTest(music=music):
+                with self.assertRaises(vp.VenuePackError):
+                    vp.read_pack(src)
+                with self.assertRaises(vp.VenuePackError):
+                    vp.extract_music(src, self.dest)
+
+    def test_no_music_at_all_is_still_fine(self):
+        for music in (None, {}):
+            with self.subTest(music=music):
+                self.assertEqual(vp.read_pack(self._pack(music)).music, {})
 
 
 class StagedImportTest(unittest.TestCase):
@@ -315,6 +381,41 @@ class StagedImportTest(unittest.TestCase):
         with mock.patch.object(vp.shutil, "copy2", side_effect=copy2):
             self.assertEqual(vp.apply_pending(self.state), [])
         self._assert_untouched()
+
+    def test_a_failed_roll_back_keeps_the_backup_for_recovery(self):
+        """#34: the roll-back deleted the backup it had just failed to restore
+        from, the only intact copy of the operator's settings."""
+        vp.stage_import(self.pack, self.state, music_dir=None)
+        real_write = vp.write_json_atomic
+        real_copy = vp.shutil.copy2
+
+        def write(path, obj):
+            if Path(path).name == "cartwall.json":
+                raise OSError("disk full")
+            return real_write(path, obj)
+
+        def copy2(src, dst, *a, **k):
+            if Path(src).parent.name.startswith("before-venue-import"):
+                raise PermissionError("locked")
+            return real_copy(src, dst, *a, **k)
+        with mock.patch.object(vp, "write_json_atomic", side_effect=write), \
+                mock.patch.object(vp.shutil, "copy2", side_effect=copy2), \
+                self.assertLogs(vp.log, "ERROR"):
+            vp.apply_pending(self.state)
+        backups = list(self.state.glob("before-venue-import-*"))
+        self.assertEqual(len(backups), 1)
+        self.assertTrue((backups[0] / "gui_settings.json").exists())
+
+    def test_a_stage_that_was_not_finished_is_not_applied(self):
+        """#35: a crash between mkdir and the last write left a stage that the
+        next start took for complete and merged half of."""
+        vp.stage_import(self.pack, self.state, music_dir=None)
+        (self.state / vp.STAGE_DIR / vp.STAGE_DONE).unlink()
+        with self.assertLogs(vp.log, "WARNING"):
+            self.assertEqual(vp.apply_pending(self.state), [])
+        self.assertEqual(self._read("gui_settings.json")["zoom"], 1)
+        self.assertEqual(self._read("autosave_playlist.json"), {})
+        self.assertFalse(vp.has_pending(self.state))
 
     def test_a_write_that_fails_puts_the_earlier_files_back(self):
         vp.stage_import(self.pack, self.state, music_dir=None)

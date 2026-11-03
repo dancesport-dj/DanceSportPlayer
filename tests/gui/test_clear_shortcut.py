@@ -45,6 +45,10 @@ class ClearShortcutTest(unittest.TestCase):
     def test_the_key_is_ctrl_shift_del(self):
         self.assertEqual(self.win._clear_sc.key(), QKeySequence("Ctrl+Shift+Del"))
 
+    def test_the_key_above_return_does_it_too(self):
+        """Marcel's list, 6.4: a Mac keyboard has no Del."""
+        self.assertIn(QKeySequence("Ctrl+Shift+Backspace"), self.win._clear_sc.keys())
+
     def test_it_empties_the_focused_deck(self):
         deck = self.win._deckset.tableA
         self.win._on_table_focused(deck)

@@ -141,6 +141,21 @@ class TaktMeterOverlayTest(unittest.TestCase):
         self.w.set_dance("WW")                        # auto stays off
         self.assertAlmostEqual(self.w._sollwert_spin.value(), 40.0)
 
+    def test_an_unknown_dance_clears_the_automatic_target(self):
+        """#93: the previous dance's target stayed loaded, so Apply offered a
+        correction measured against the wrong band."""
+        self._tap_at(0.0, 2.0)
+        self.w.set_dance("WW")
+        self.assertTrue(self.w._apply_btn.isEnabled())
+        self.w.set_dance(None)
+        self.assertEqual(self.w._sollwert_spin.value(), 0)
+        self.assertFalse(self.w._apply_btn.isEnabled())
+
+    def test_an_unknown_dance_keeps_a_hand_set_target(self):
+        self.w._sollwert_spin.setValue(40.0)
+        self.w.set_dance(None)
+        self.assertAlmostEqual(self.w._sollwert_spin.value(), 40.0)
+
     def test_korrektur_matches_the_formula(self):
         self._tap_at(0.0, 2.0)                        # 30 / min
         self.w._sollwert_spin.setValue(33.0)           # +10 % needed

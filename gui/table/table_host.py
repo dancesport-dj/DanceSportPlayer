@@ -83,6 +83,10 @@ class TableHost:
         """Load the title on the player card and leave it silent."""
         self._call("_on_player_drop", path)
 
+    def clear_resume(self, path):
+        """Forget the title's ↩ time marker."""
+        self._call("_clear_resume", path)
+
     # ── Checks on single tracks ─────────────────────────────────────────────
     def can_check_tracks(self) -> bool:
         win = self._win()
@@ -144,6 +148,13 @@ class TableHost:
         """The paths in the wishlists, or None where there are none to ask."""
         return self._call("current_wishlist_paths")
 
+    def wish_expand_caption(self):
+        """What the ↔ entry says for this wishlist; None where there is none."""
+        return self._call("_wish_expand_caption", self._table)
+
+    def expand_wishlist(self) -> None:
+        self._call("_expand_wishlist", self._table)
+
     def can_clean_decks(self) -> bool:
         return hasattr(self._win(), "_clean_deck_against_others")
 
@@ -164,6 +175,9 @@ class TableHost:
     # ── Playlists and the library ───────────────────────────────────────────
     def import_m3u_into(self):
         self._call("_import_m3u_into", self._table)
+
+    def import_venue_pack(self):
+        self._call("_import_venue_pack")
 
     def warmup_m3u_loader(self):
         return getattr(self._win(), "_load_warmup_from_m3u", None)

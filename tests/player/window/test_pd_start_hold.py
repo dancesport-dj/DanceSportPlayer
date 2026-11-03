@@ -29,10 +29,9 @@ from player.window.main_pd import PdStopMixin
 
 
 class _Panel:
-    def __init__(self, delay=5, announce=False, pause=0):
+    def __init__(self, delay=5, announce=False):
         self._delay = delay
         self._announce = announce
-        self._pause = pause
 
     def pd_start_delay(self):
         return self._delay
@@ -42,9 +41,6 @@ class _Panel:
 
     def announce_heat_only(self):
         return False
-
-    def pause_secs(self):
-        return self._pause
 
 
 class _Announcer:
@@ -141,9 +137,6 @@ class _Desk(QObject, PdStopMixin):
     def _pv(self, key):
         # The playing list's own values; here the panel's stand in for them.
         return {"announce": self._play_panel.announce_next()}[key]
-
-    def _engine_pause_secs(self):
-        return self._play_panel.pause_secs()
 
     def _heat_of(self, _table, _row):
         return None
@@ -247,10 +240,12 @@ class PdTickerTest(_HoldTest):
     def test_a_pause_that_already_announced_it_is_not_repeated(self):
         """`_maybe_announce_next` speaks into the last seconds of the pause —
         the wait then simply follows that call."""
-        self.assertFalse(_Desk(announce=True, pause=90)._pd_call_wanted())
+        d = _Desk(announce=True)
+        d._playback.called_in_pause = True
+        self.assertFalse(d._pd_call_wanted())
 
-    def test_without_a_pause_the_announcement_never_ran(self):
-        self.assertTrue(_Desk(announce=True, pause=0)._pd_call_wanted())
+    def test_no_pause_came_before_it_so_the_announcement_never_ran(self):
+        self.assertTrue(_Desk(announce=True)._pd_call_wanted())
 
 
 class PdHoldDisplayTest(_HoldTest):

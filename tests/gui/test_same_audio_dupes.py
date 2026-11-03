@@ -86,21 +86,18 @@ class _ScratchDbTest(unittest.TestCase):
 class AddIsRefusedTest(_ScratchDbTest):
     """A copy of a planned title never gets in, whichever way it is added."""
 
-    def test_the_static_deck_refuses_the_copy_from_the_other_drive(self):
+    def test_the_static_deck_asks_about_the_copy_from_the_other_drive(self):
         c = self.file("C", "Moon River (LW 29)")
         f = self.file("F", "Moon River (LW 29)")
         t = self.static_deck([[self.entry(c)], [None]])
         empty = next(r for r, m in enumerate(t._row_meta)
                      if m and not m.theme and m.entry is None)
         t._entry_for = lambda p: self.entry(Path(p))
-        import gui.table.table_dnd as dnd
-        shown = []
-        real = dnd.QMessageBox.information
-        dnd.QMessageBox.information = lambda *a, **kw: shown.append(a)
-        self.addCleanup(setattr, dnd.QMessageBox, "information", real)
+        t._ask_held_drop = mock.Mock(
+            side_effect=lambda _title, _lines, _choices, done: done(""))
         self.assertFalse(t._replace_row_with_path(empty, f))
         self.assertEqual(self.songs(t), [str(c)])
-        self.assertTrue(shown, "refused without saying why")
+        t._ask_held_drop.assert_called_once()
 
     def test_the_player_list_refuses_the_copy_from_the_other_drive(self):
         c = self.file("C", "Moon River (LW 29)")

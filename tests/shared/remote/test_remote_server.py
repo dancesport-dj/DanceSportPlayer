@@ -6,6 +6,7 @@ import time
 import unittest
 from unittest import mock
 
+from shared.remote import guest_server as gs
 from shared.remote import remote_server as rs
 from shared.remote.remote_page import page_html
 
@@ -26,6 +27,31 @@ class LanClientTest(unittest.TestCase):
         for addr in ("8.8.8.8", "2001:4860:4860::8888", "::ffff:8.8.8.8", "junk",
                      "100.63.255.255", "100.128.0.1"):
             self.assertFalse(rs.lan_client(addr), addr)
+
+
+class LanAddressesCacheTest(unittest.TestCase):
+    """#18: the window asks for the addresses at every guest event; each ask
+    was a DNS lookup of the host name."""
+
+    def setUp(self):
+        rs._LAN_CACHE.clear()
+        self.addCleanup(rs._LAN_CACHE.clear)
+
+    def test_a_second_ask_within_seconds_does_not_look_again(self):
+        with mock.patch.object(rs.socket, "gethostbyname_ex",
+                               return_value=("h", [], ["192.168.1.7"])) as dns:
+            first = rs.lan_addresses()
+            self.assertEqual(rs.lan_addresses(), first)
+        self.assertEqual(dns.call_count, 1)
+
+    def test_it_looks_again_once_the_cache_is_old(self):
+        with mock.patch.object(rs.socket, "gethostbyname_ex",
+                               return_value=("h", [], ["192.168.1.7"])) as dns, \
+                mock.patch.object(rs.time, "monotonic", side_effect=[100.0,
+                                                                     100.0 + rs._LAN_TTL + 1]):
+            rs.lan_addresses()
+            rs.lan_addresses()
+        self.assertEqual(dns.call_count, 2)
 
 
 class ServerTest(unittest.TestCase):
@@ -209,6 +235,14 @@ class EventTest(unittest.TestCase):
             ("login", "127.0.0.1", ""), ("cmd", "127.0.0.1", "pad 2"),
             ("wrong_pin", "127.0.0.1", ""), ("stop", "", "")])
 
+    def test_a_phone_that_only_sends_commands_is_logged_in_too(self):
+        """#16.2: only the state poll called logged_in, so a phone whose first
+        right PIN came with a command stayed unknown and lost its immunity to
+        the network-wide pause."""
+        self._req("POST", "/api/cmd", {"cmd": "pad", "pad": 2})
+        self.assertIn("127.0.0.1", self.srv._seen)
+        self.assertEqual([e[0] for e in self.events if e[0] == "login"], ["login"])
+
     def test_the_lockout_is_reported_with_its_length(self):
         for _ in range(rs.MAX_FAILS):
             self._req("GET", "/api/state", pin="0000")
@@ -268,6 +302,29 @@ class FailureBudgetTest(unittest.TestCase):
         with mock.patch.object(rs.time, "monotonic", return_value=later):
             self.assertEqual(self.srv.check_pin("10.0.0.99", "4711"), 200)
 
+    def test_the_pause_lets_one_login_through_every_few_seconds(self):
+        """#4: thirty wrong PINs from anyone refused the DJ's new phone for ten
+        minutes. Now one attempt per slot is still weighed, so the pause costs
+        seconds, not the window, and a guesser gets one try per slot."""
+        with mock.patch.object(rs.time, "monotonic", return_value=1000.0):
+            self._flood()
+            self.assertEqual(self.srv.check_pin("10.0.0.99", "4711"), 429)
+        gap = rs._PAUSED_GAP_SECS
+        with mock.patch.object(rs.time, "monotonic", return_value=1000.0 + gap + 1):
+            self.assertEqual(self.srv.check_pin("10.0.0.98", "0000"), 401)
+            # the slot is spent: the next one waits for the following gap
+            self.assertEqual(self.srv.check_pin("10.0.0.99", "4711"), 429)
+        with mock.patch.object(rs.time, "monotonic", return_value=1000.0 + 2 * gap + 2):
+            self.assertEqual(self.srv.check_pin("10.0.0.99", "4711"), 200)
+
+    def test_a_probe_without_a_pin_does_not_spend_the_slot(self):
+        with mock.patch.object(rs.time, "monotonic", return_value=1000.0):
+            self._flood()
+        later = 1000.0 + rs._PAUSED_GAP_SECS + 1
+        with mock.patch.object(rs.time, "monotonic", return_value=later):
+            self.assertEqual(self.srv.check_pin("10.0.0.97", ""), 401)
+            self.assertEqual(self.srv.check_pin("10.0.0.99", "4711"), 200)
+
     def test_the_pause_is_reported_once(self):
         self._flood()
         self.srv.check_pin("10.0.0.98", "0000")
@@ -284,9 +341,106 @@ class FailureBudgetTest(unittest.TestCase):
                          429)
 
 
+class LockoutKeyTest(unittest.TestCase):
+    """#3, #20.3: a phone holds a whole IPv6 /64 and may take a new address per
+    guess, so the lockout and the logged-in set are keyed by the network."""
+
+    def setUp(self):
+        self.srv = rs.RemoteServer(pin="4711", on_command=lambda c, a: None)
+
+    def test_new_ipv6_addresses_in_one_network_do_not_reset_the_lockout(self):
+        for i in range(rs.MAX_FAILS):
+            self.assertEqual(self.srv.check_pin(f"2001:db8:1:2::{i + 1}", "0000"), 401)
+        self.assertEqual(self.srv.check_pin("2001:db8:1:2::ffff", "4711"), 429)
+
+    def test_another_network_is_not_locked_out(self):
+        for i in range(rs.MAX_FAILS):
+            self.srv.check_pin(f"2001:db8:1:2::{i + 1}", "0000")
+        self.assertEqual(self.srv.check_pin("2001:db8:1:3::1", "4711"), 200)
+
+    def test_the_logged_in_set_is_keyed_the_same_way(self):
+        self.srv.logged_in("2001:db8:1:2::1")
+        self.srv.logged_in("2001:db8:1:2::2")      # same phone, new address
+        self.assertEqual(len(self.srv._seen), 1)
+
+    def test_the_lockout_table_does_not_grow_without_end(self):
+        """Expired entries go once the table is large."""
+        for i in range(rs.MAX_TRACKED * 2):
+            self.srv._fails[f"10.{i // 65536}.{i // 256 % 256}.{i % 256}"] = (1, 0.0, 0)
+        self.srv.check_pin("192.168.0.9", "0000")
+        self.assertLessEqual(len(self.srv._fails), rs.MAX_TRACKED)
+
+
+class VanishedPhoneTest(unittest.TestCase):
+    """#16.6: a phone that leaves before the answer is written is no error; the
+    server printed a traceback for it."""
+
+    def test_a_write_to_a_closed_socket_is_ignored(self):
+        for handler in (rs._Handler, gs._Handler):
+            with self.subTest(handler=handler.server_version):
+                fake = mock.Mock()
+                fake.wfile.write.side_effect = BrokenPipeError
+                handler._send(fake, 200, b"body")      # must not raise
+                self.assertTrue(fake.close_connection)
+
+            with self.subTest(handler=handler.server_version, at="headers"):
+                fake = mock.Mock()
+                fake.end_headers.side_effect = ConnectionResetError
+                handler._send(fake, 200, b"body")
+                self.assertTrue(fake.close_connection)
+
+
 class IdleConnectionTest(unittest.TestCase):
-    def test_the_default_idle_timeout_is_ten_minutes(self):
-        self.assertEqual(rs._Handler.timeout, 600)
+    def test_a_stranger_gets_a_short_deadline_and_a_logged_in_phone_ten_minutes(self):
+        """#1: ten minutes before anyone had shown the PIN let a handful of
+        silent sockets hold as many threads for that long."""
+        self.assertEqual(rs._IDLE_SECS, 600)
+        self.assertLess(rs._Handler.timeout, 60)
+        seen = {}
+        real = rs._Handler._send
+
+        def send(handler, status, *a, **k):
+            seen[handler.path] = handler.connection.gettimeout()
+            return real(handler, status, *a, **k)
+
+        srv = rs.RemoteServer(pin="4711", on_command=lambda c, a: None,
+                              host="127.0.0.1", port=0)
+        srv.start()
+        self.addCleanup(srv.stop)
+        with mock.patch.object(rs._Handler, "_send", send):
+            for path, pin in (("/", None), ("/api/state", "0000"), ("/api/state", "4711")):
+                conn = http.client.HTTPConnection("127.0.0.1", srv.port, timeout=5)
+                conn.request("GET", path, headers={rs.PIN_HEADER: pin} if pin else {})
+                conn.getresponse().read()
+                conn.close()
+                seen[(path, pin)] = seen.pop(path)
+        self.assertEqual(seen[("/", None)], rs._Handler.timeout)
+        self.assertEqual(seen[("/api/state", "0000")], rs._Handler.timeout)
+        self.assertEqual(seen[("/api/state", "4711")], rs._IDLE_SECS)
+
+    def test_connections_past_the_cap_get_no_thread(self):
+        """#1: every connection started a thread, however many were open."""
+        srv = rs.RemoteServer(pin="4711", on_command=lambda c, a: None,
+                              host="127.0.0.1", port=0)
+        with mock.patch.object(rs, "MAX_CONNECTIONS", 1):
+            srv.start()
+        self.addCleanup(srv.stop)
+        idle = socket.create_connection(("127.0.0.1", srv.port), timeout=3)
+        self.addCleanup(idle.close)
+        time.sleep(0.3)                       # accepted, its thread waits for a line
+        with socket.create_connection(("127.0.0.1", srv.port), timeout=3) as extra:
+            self.assertEqual(extra.recv(1), b"")      # closed at once, no thread
+        idle.close()
+        for _ in range(30):                   # its thread sees the close and ends
+            try:
+                conn = http.client.HTTPConnection("127.0.0.1", srv.port, timeout=3)
+                conn.request("GET", "/")
+                status = conn.getresponse().status
+                conn.close()
+                break
+            except (ConnectionError, http.client.HTTPException):
+                time.sleep(0.1)
+        self.assertEqual(status, 200)
 
     def test_a_connection_that_never_speaks_is_dropped(self):
         srv = rs.RemoteServer(pin="4711", on_command=lambda c, a: None,

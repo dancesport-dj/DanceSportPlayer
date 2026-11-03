@@ -1313,7 +1313,7 @@ class TournamentTree(QWidget):
         if event.key() == Qt.Key.Key_F2:
             self._rename()
             return
-        if event.key() == Qt.Key.Key_Delete:
+        if event.key() in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
             self._remove()
             return
         super().keyPressEvent(event)

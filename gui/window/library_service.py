@@ -13,6 +13,7 @@ to the deck that was generated (see gui.decks.deck_snapshot) and stays on the wi
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from gui.background_bar import BackgroundAnalysisBar
     from gui.common import BusyDialog
     from gui.library_load_bar import LibraryLoadBar
     from gui.workers import GlobalCacheLoader, GlobalLibraryLoader, LibraryLoader
@@ -37,6 +38,7 @@ class LibraryService:
     - `load_bar`: the scan's progress in the status bar (gui.library_load_bar);
       `load_bar.running` is True while `lib` is still being scanned.
     - `repo_bar`: the same for 🔄 the walk of the whole repository.
+    - `background_bar`: the 🔬 background analysis of new titles (gui.background_bar).
     - `preloader`: the `cache_loader` started after startup to have
       `global_lib` ready before anyone asks; `preload_busy` the dialog of
       whoever asked while it still ran, None while nobody waits for it;
@@ -53,6 +55,7 @@ class LibraryService:
         self.restore_memo: dict[str, MusicEntry | None] | None = None
         self.load_bar: LibraryLoadBar | None = None
         self.repo_bar: LibraryLoadBar | None = None
+        self.background_bar: BackgroundAnalysisBar | None = None
         self.preloader: GlobalCacheLoader | None = None
         self.preload_busy: BusyDialog | None = None
         self.whole_waiting = False

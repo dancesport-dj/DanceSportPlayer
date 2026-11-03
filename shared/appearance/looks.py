@@ -15,6 +15,8 @@ shape of its buttons, tabs and focus mark. The app's own inline stylesheets
 (the round bands, the ▶ player card, …) still go through shared/appearance/theme.py's
 transform; the accent it re-hues them to is the look's.
 """
+import hashlib
+import os
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -357,16 +359,19 @@ def _svg_file(name: str, body: str, size: int) -> str:
     """A small SVG a stylesheet can name by path.
 
     QSS draws no shapes of its own — a combo's arrow, a check box's tick
-    want an image. Written once per colour into the temp folder; nothing to
-    bundle with the app."""
+    want an image. Written once per colour and shape into the temp folder;
+    nothing to bundle with the app. The name carries a hash of the content, so
+    a changed shape never meets an older file, and the write goes through a
+    temporary name, so the Planner and the Player never read a half file."""
+    svg = (f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" '
+           f'height="{size}" viewBox="0 0 {size} {size}">{body}</svg>')
     folder = Path(tempfile.gettempdir()) / "danceplaylist_theme"
-    path = folder / f"{name}.svg"
+    path = folder / f"{name}_{hashlib.sha1(svg.encode()).hexdigest()[:8]}.svg"
     if not path.exists():
         folder.mkdir(parents=True, exist_ok=True)
-        path.write_text(
-            f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" '
-            f'height="{size}" viewBox="0 0 {size} {size}">{body}</svg>',
-            encoding="utf-8")
+        part = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+        part.write_text(svg, encoding="utf-8")
+        os.replace(part, path)
     return path.as_posix()
 
 
@@ -466,7 +471,7 @@ QCheckBox::indicator, QGroupBox::indicator {{
 QCheckBox::indicator:hover {{ border-color: {t.accent_ink}; }}
 QCheckBox::indicator:checked, QGroupBox::indicator:checked {{
     background: {t.accent}; border-color: {t.accent};
-    image: url({_tick(t.on_accent)});
+    image: url("{_tick(t.on_accent)}");
 }}
 QCheckBox::indicator:disabled {{ background: {t.window}; border-color: {t.border}; }}"""
 
@@ -527,8 +532,8 @@ QComboBox::drop-down {{
     subcontrol-origin: padding; subcontrol-position: center right;
     width: 20px; border: none;
 }}
-QComboBox::down-arrow {{ image: url({_chevron(t.text_dim)}); width: 10px; height: 10px; }}
-QComboBox::down-arrow:on {{ image: url({_chevron(t.accent_ink)}); }}
+QComboBox::down-arrow {{ image: url("{_chevron(t.text_dim)}"); width: 10px; height: 10px; }}
+QComboBox::down-arrow:on {{ image: url("{_chevron(t.accent_ink)}"); }}
 QAbstractSpinBox {{ padding-right: 18px; }}
 QAbstractSpinBox::up-button, QAbstractSpinBox::down-button {{
     subcontrol-origin: border; width: 16px; border: none; background: transparent;
@@ -538,8 +543,8 @@ QAbstractSpinBox::down-button {{ subcontrol-position: bottom right; }}
 QAbstractSpinBox::up-button:hover, QAbstractSpinBox::down-button:hover {{
     background: {t.surface_hover};
 }}
-QAbstractSpinBox::up-arrow {{ image: url({_chevron(t.text_dim, True)}); width: 8px; height: 8px; }}
-QAbstractSpinBox::down-arrow {{ image: url({_chevron(t.text_dim)}); width: 8px; height: 8px; }}
+QAbstractSpinBox::up-arrow {{ image: url("{_chevron(t.text_dim, True)}"); width: 8px; height: 8px; }}
+QAbstractSpinBox::down-arrow {{ image: url("{_chevron(t.text_dim)}"); width: 8px; height: 8px; }}
 QComboBox QAbstractItemView {{
     background: {t.base}; border: 1px solid {t.border_strong};
     selection-background-color: {t.selection}; selection-color: {t.on_selection};

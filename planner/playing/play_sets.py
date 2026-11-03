@@ -10,14 +10,15 @@ import contextlib
 # own end, one after the other, with nothing in between — and all of them at
 # the same level, since a party set spans decades of mastering. Nothing spoken:
 # without a pause the announcement would land on top of the music. A
-# double-click plays at once: someone asks for a song and it runs. The 🔀
+# double-click only cues, as in every preset: whoever wants it to play at once
+# switches that on, and the set keeps it. The 🔀
 # crossfade stands ready at 4 s, the length UltraMixer starts on, but is off:
 # Marcel's party runs title after title, each faded within its length.
 # `fade_inside`: the fade-out ends AT the play length (1:45 is silent at 1:45);
 # off, the title plays its full length and fades after it.
 PARTY_SET = {"secs": 0, "fade": 3.0, "fade_inside": True, "advance": True,
               "pause_off": True,
-              "loudness": True, "announce": False, "dblclick": True,
+              "loudness": True, "announce": False, "dblclick": False,
               "xfade": 4.0, "xfade_on": False, "xfade_curve": "equal"}
 
 # 🔀 The crossfade has a switch of its own, and its seconds stay where they are

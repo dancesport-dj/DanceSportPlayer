@@ -24,6 +24,8 @@ _DESK_DUCK_MAX_PCT = 90   # …at most: a duck to full is no duck, and "full" me
 _GAIN_RAMP_MS = 500       # a late loudness correction is a swell, not a step
 # 🌅 The longest fade-in a title gets: past that it is an intro nobody hears.
 FADE_IN_MAX_SECS = 10.0
+# ↩ What a title picked up at its time marker fades in over, out of the box.
+RESUME_FADE_SECS = 1.0
 # 🔉↓ 🛑 ⏹ ✕ The longest fade by hand, as long as the playlist's own may be.
 HAND_FADE_MAX_SECS = 10.0
 
@@ -82,6 +84,16 @@ def fade_in_secs(settings: dict) -> float:
         secs = float(settings.get("fade_in_secs", 0) or 0)
     except (TypeError, ValueError):
         return 0.0
+    return max(0.0, min(FADE_IN_MAX_SECS, secs))
+
+
+def resume_fade_secs(settings: dict) -> float:
+    """↩ How long a title picked up at its time marker fades in, set under
+    ⚙ Settings ▸ Sound & player; 0 = off. A broken value is the default."""
+    try:
+        secs = float(settings.get("resume_fade_secs", RESUME_FADE_SECS))
+    except (TypeError, ValueError):
+        return RESUME_FADE_SECS
     return max(0.0, min(FADE_IN_MAX_SECS, secs))
 
 

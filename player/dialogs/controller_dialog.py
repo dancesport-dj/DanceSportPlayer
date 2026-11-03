@@ -141,9 +141,8 @@ class ControllerDialog(QDialog):
         box.rejected.connect(self.reject)
         lyt.addWidget(box)
 
-        hub = host.controller_hub()
-        hub.changed.connect(self._sync_status)
-        hub.control.connect(self._on_reading)
+        self._wired = False
+        self._wire()
         self._fill_devices()
         self._sync_table()
 
@@ -320,6 +319,23 @@ class ControllerDialog(QDialog):
                            % {"control": pctl.control_label(control),
                               "value": round(value * 100), "action": label})
 
+    def _wire(self):
+        """Listen to the desk. The main window keeps this one instance and only
+        shows it again, so a close must be undone by the next show."""
+        if self._wired:
+            return
+        hub = self._host.controller_hub()
+        hub.changed.connect(self._sync_status)
+        hub.control.connect(self._on_reading)
+        self._wired = True
+
+    def showEvent(self, event):
+        if not self._wired:
+            self._wire()
+            self._sync_status()      # what changed while it was closed
+            self._sync_table()
+        super().showEvent(event)
+
     def done(self, result):
         if self._learning is not None:
             self._learning = None
@@ -329,4 +345,5 @@ class ControllerDialog(QDialog):
                              (hub.control, self._on_reading)):
             with contextlib.suppress(RuntimeError, TypeError):
                 signal.disconnect(slot)
+        self._wired = False
         super().done(result)

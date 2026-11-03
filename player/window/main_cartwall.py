@@ -92,6 +92,7 @@ class CartwallMixin(MainWindowHost):
             self._cart_voices.wantsDevice.connect(self._audio_device.ensure)
             self._audio_device.sync()   # 🔊 the wall's own output, if one is chosen
             self._cartwall.padsMoved.connect(self._cart_voices.rekey)
+            self._cartwall.padCleared.connect(self._cart_voices.stop)
             self._cartwall.padSeekRequested.connect(self._cart_voices.seek)
             self._apply_volume()      # push the desk level into the fresh pool
             self.apply_cart_settings()
@@ -243,6 +244,34 @@ class CartwallMixin(MainWindowHost):
             if pad.background:
                 self._cart_run_from((page, row, col), pad, tapped=False)
                 return
+        self._start_pause_pad()
+
+    def _start_pause_pad(self):
+        """No 🎶 pad in the ▶ queue: the selected 🎶 pad fills the pause on its own.
+        With none selected nothing plays: the first pad on the wall is not a
+        choice. A bed that is going, or held under the last title and about to
+        carry on, is the pause music already."""
+        wall = self._cartwall
+        voices = self._cart_voices
+        if voices is None:
+            return
+        if any((pad := wall.pad_at(key)) is not None and pad.background
+               for key in voices.playing_keys()):
+            return
+        selected = wall.selection()
+        pads = [hit for hit in pc.background_pads(wall.pages())
+                if (hit[0], *hit[1]) in selected]
+        for page, cell, pad in pads:
+            found = resolve_file(pad.path, self._settings)
+            if found is None:
+                continue
+            key = (page, *cell)
+            if voices.fire(key, replace(pad, path=str(found)), tapped=False):
+                wall.set_playing(key, True)
+            else:
+                self.statusBar().showMessage(
+                    "🎛 No free pad voice — every voice holds a looping pad.")
+            return
 
     def _on_cart_pad_ended(self, key):
         """A pad ran out on its own. If it was the run's, the next one plays."""

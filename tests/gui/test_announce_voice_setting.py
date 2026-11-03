@@ -230,7 +230,9 @@ class PanelCaptionTest(unittest.TestCase):
         from PySide6.QtCore import QPoint, Qt
         from PySide6.QtGui import QFontMetrics
         p = self.panel(announce_next=True)
-        p.resize(300, p.height())
+        # Wide enough for the caption to fit under the indent: a longer one
+        # takes the whole width centred (FitLabel).
+        p.resize(900, p.height())
         self.app.processEvents()
         lbl, sw = p.announce_style_lbl, p.announce_check
         self.assertFalse(lbl.alignment() & Qt.AlignmentFlag.AlignHCenter)

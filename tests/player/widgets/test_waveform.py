@@ -18,8 +18,9 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_wave_"))
 
 import numpy as np
-from PySide6.QtCore import QPointF, Qt
-from PySide6.QtGui import QMouseEvent
+from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
+from PySide6.QtGui import QHelpEvent, QMouseEvent
+from PySide6.QtWidgets import QApplication, QToolTip
 
 from shared.audio.audio_probes import waveform_peaks
 from tests.qt_test_support import qapp, reap_widget
@@ -179,6 +180,64 @@ class StripTest(unittest.TestCase):
         plain = w.grab().toImage()
         w.set_start(0, None)
         self.assertEqual(w.grab().toImage(), plain)
+
+    # Marcel's list, 5.7: "The waveform tooltip shows the timestamp under the
+    # mouse, so the user can see where a click would jump to before clicking."
+
+    def shown(self):
+        w = self.strip()
+        w.show()
+        QApplication.processEvents()
+        return w
+
+    def test_the_mouse_is_followed_without_a_button_held(self):
+        self.assertTrue(self.strip().hasMouseTracking())
+
+    def test_hovering_shows_the_time_a_click_would_jump_to(self):
+        w = self.shown()
+        self.drag(w, 200)       # half of 200 s
+        self.assertEqual(QToolTip.text(), "01:40")
+        self.drag(w, 300)
+        self.assertEqual(QToolTip.text(), "02:30")
+
+    def test_the_time_shown_is_where_the_click_lands(self):
+        w = self.shown()
+        got = []
+        w.seekRequested.connect(got.append)
+        self.drag(w, 123)
+        self.click(w, 123)
+        self.assertEqual(QToolTip.text(), "01:01")
+        self.assertEqual(got[0] // 1000, 61)
+
+    def test_hovering_seeks_nothing_and_leaves_the_playhead(self):
+        w = self.shown()
+        got = []
+        w.seekRequested.connect(got.append)
+        w.scrubbed.connect(got.append)
+        w.set_position(5_000)
+        self.drag(w, 200)
+        self.assertEqual(got, [])
+        self.assertEqual(w._pos, 5_000)
+
+    def test_scrubbing_shows_the_time_too(self):
+        w = self.shown()
+        self.press(w, 50)
+        self.drag(w, 100)
+        self.assertEqual(QToolTip.text(), "00:50")
+
+    def test_resting_on_it_keeps_the_explanation_below_the_time(self):
+        w = self.shown()
+        spot = QPoint(200, 10)
+        w.event(QHelpEvent(QEvent.Type.ToolTip, spot, w.mapToGlobal(spot)))
+        self.assertTrue(QToolTip.text().startswith("01:40\n"), QToolTip.text())
+        self.assertIn("Click to jump there.", QToolTip.text())
+
+    def test_without_a_title_there_is_no_time(self):
+        w = self.shown()
+        w.set_span(0, 0)
+        QToolTip.showText(QPoint(0, 0), "before", w)
+        self.drag(w, 200)
+        self.assertEqual(QToolTip.text(), "before")
 
     def test_the_playhead_is_a_slim_orange_line_with_caps(self):
         w = self.strip()

@@ -69,6 +69,25 @@ class RmsEnvelopeTest(unittest.TestCase):
     def test_nothing_in_nothing_out(self):
         self.assertEqual(gw._rms_envelope(np.empty(0, dtype=np.float32)).size, 0)
 
+    def test_it_matches_the_plain_frame_matrix_and_stays_small(self):
+        """#19: the (frames x 2048) float64 copy of a 4-minute track took
+        ~200 MB. The result must not move (the thresholds were tuned on it)
+        and the peak must stay a small multiple of the signal."""
+        import tracemalloc
+        rng = np.random.default_rng(1)
+        y = (rng.standard_normal(22050 * 120) * 0.2).astype(np.float32)
+        padded = np.pad(y.astype(np.float64), 1024)
+        frames = np.lib.stride_tricks.sliding_window_view(padded, 2048)[::512]
+        want = np.sqrt(np.mean(frames * frames, axis=1)).astype(np.float32)
+        del padded, frames
+        tracemalloc.start()
+        got = gw._rms_envelope(y)
+        peak = tracemalloc.get_traced_memory()[1]
+        tracemalloc.stop()
+        np.testing.assert_allclose(got, want, rtol=1e-6, atol=0)
+        self.assertEqual(got.shape, want.shape)
+        self.assertLess(peak, 40e6, "peak %.1f MB" % (peak / 1e6))
+
 
 @unittest.skipUnless(HAS_NUMPY and HAS_FFMPEG, "needs numpy + ffmpeg")
 class DecodePcmMonoTest(unittest.TestCase):
@@ -204,6 +223,14 @@ class PhrasedHighlightsTest(unittest.TestCase):
 
     def fill(self, times, name=CONCERTANTE, final_crash=True):
         return gw.fill_phrased_highlights(times, name, final_crash)
+
+    def test_a_short_tagged_edit_gets_no_negative_highlight(self):
+        """#13: counting 35 + 43.5 bars back from a crash 20 s in went below 0."""
+        for times in ([None, None, 20.0], [None, None, 60.0]):
+            with self.subTest(times=times):
+                out = self.fill(times)
+                self.assertTrue(all(t is None or t >= 0 for t in out), out)
+                self.assertEqual(out[2], times[2])
 
     def test_both_missing_highlights_are_counted_back_from_the_end(self):
         h1, h2, h3 = self.fill([None, None, 137.9])

@@ -142,6 +142,26 @@ class ExportReferencePathTest(unittest.TestCase):
         self.assertIn(str(self.only_f), text)
         self.assertNotIn("both.mp3", text)
 
+    # ── ⚠ a title that is on no disk at all ───────────────────────────────────
+    def test_a_title_gone_from_disk_is_not_blamed_on_the_referenzpfad(self):
+        """Its path names the Referenzpfad itself: the file is simply gone."""
+        gone = _C / "salsa" / "gone.mp3"
+        self.table.load_player_list([_entry(self.on_c), _entry(gone)], "Party", play_cb=None)
+        self.save_as("gone.m3u")
+        text = self.warning.call_args.args[2]
+        self.assertIn("not on disk any more", text)
+        self.assertIn(str(gone), text)
+        self.assertNotIn("not on the Reference path", text)
+
+    def test_each_title_is_listed_under_what_is_wrong_with_it(self):
+        gone = _C / "salsa" / "gone.mp3"
+        self.table.load_player_list([_entry(self.only_f), _entry(gone)], "Party", play_cb=None)
+        self.save_as("both_kinds.m3u")
+        text = self.warning.call_args.args[2]
+        off, on_disk = text.split("not on disk any more")
+        self.assertIn(str(self.only_f), off)
+        self.assertIn(str(gone), on_disk)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

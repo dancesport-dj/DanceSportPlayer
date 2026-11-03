@@ -31,6 +31,9 @@ class PlayLogDialogTest(unittest.TestCase):
         self.dir = Path(tempfile.mkdtemp(prefix="dp_play_dlg_"))
         self.addCleanup(shutil.rmtree, self.dir, ignore_errors=True)
         use_scratch_db(self, self.dir / "scratch.db")
+        env = mock.patch.dict(os.environ, {"DANCEPLAYLIST_STATE_DIR": str(self.dir)})
+        env.start()
+        self.addCleanup(env.stop)
 
     def fill(self):
         for when, title in ((at(3, 20, 0), "a"), (at(3, 20, 3), "b"), (at(5, 19, 0), "c")):
@@ -79,6 +82,21 @@ class PlayLogDialogTest(unittest.TestCase):
         self.assertEqual([e.count for e in play_log.evenings()], [2])
         self.assertEqual(dlg.evening_list.count(), 1)
 
+    def test_a_failed_delete_is_reported_and_keeps_the_evening(self):
+        import sqlite3
+        self.fill()
+        dlg = self.dialog()
+        dlg.evening_list.setCurrentRow(0)
+        with (mock.patch.object(play_log_dialog.QMessageBox, "question",
+                                return_value=QMessageBox.StandardButton.Yes),
+              mock.patch.object(play_log, "delete",
+                                side_effect=sqlite3.OperationalError("database is locked")),
+              mock.patch.object(play_log_dialog.QMessageBox, "warning") as warn):
+            dlg.delete_btn.click()
+        warn.assert_called_once()
+        self.assertIn("locked", warn.call_args.args[2])
+        self.assertEqual(len(play_log.evenings()), 2)
+
     def test_the_columns_can_be_dragged_and_keep_their_width(self):
         from PySide6.QtWidgets import QHeaderView
         self.fill()
@@ -89,6 +107,54 @@ class PlayLogDialogTest(unittest.TestCase):
         head.resizeSection(1, 333)                      # as a drag on the header does
         dlg.evening_list.setCurrentRow(1)               # another evening keeps it
         self.assertEqual(head.sectionSize(1), 333)
+
+    def test_one_long_cell_does_not_make_its_column_wide(self):
+        """A composer list of 96 characters in one row sized the whole column
+        to it. The width stops at a cap, the full text stays in the tooltip."""
+        long = "Composer, " * 9 + "Last"
+        play_log.record(at(3, 20, 0), r"C:\m.mp3", "Artist", "a", "LW", "Deck A", 180,
+                        composer=long)
+        play_log.record(at(3, 20, 3), r"C:\m.mp3", "Artist", "b", "LW", "Deck A", 180,
+                        composer="Short")
+        dlg = self.dialog()
+        dlg.show()
+        table = dlg.plays_table
+        self.assertLessEqual(table.columnWidth(3), play_log_dialog.MAX_COLUMN_WIDTH)
+        self.assertEqual(table.item(0, 3).toolTip(), long)
+        self.assertGreater(table.columnWidth(3), table.columnWidth(5))   # still by content
+
+    def test_the_list_column_fits_the_longest_name_of_the_evening_shown(self):
+        """The widths used to be fitted once, for the first evening shown: a
+        longer list name on another evening was cut."""
+        play_log.record(at(5, 19, 0), r"C:\m\c.mp3", "Artist", "c", "LW", "A", 180)
+        play_log.record(at(3, 20, 0), r"C:\m.mp3", "Artist", "a", "LW",
+                        "Tournament Saturday", 180)
+        dlg = self.dialog()
+        dlg.show()
+        dlg.evening_list.setCurrentRow(1)
+        table = dlg.plays_table
+        need = table.fontMetrics().horizontalAdvance("Tournament Saturday")
+        self.assertGreaterEqual(table.columnWidth(5), need)
+
+    def test_a_dragged_width_is_remembered_the_next_time(self):
+        self.fill()
+        first = self.dialog()
+        first.show()
+        first.plays_table.horizontalHeader().resizeSection(1, 333)   # as a drag does
+        first.reject()
+        second = self.dialog()
+        second.show()
+        self.assertEqual(second.plays_table.columnWidth(1), 333)
+        # …and only that one: the others still fit their content.
+        self.assertNotEqual(second.plays_table.columnWidth(5), 333)
+
+    def test_a_dragged_width_wins_over_the_content_on_the_next_evening(self):
+        self.fill()
+        dlg = self.dialog()
+        dlg.show()
+        dlg.plays_table.horizontalHeader().resizeSection(5, 30)
+        dlg.evening_list.setCurrentRow(1)
+        self.assertEqual(dlg.plays_table.columnWidth(5), 30)
 
     def test_an_empty_log_says_how_it_fills(self):
         dlg = self.dialog()

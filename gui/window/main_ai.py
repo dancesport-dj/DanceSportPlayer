@@ -71,7 +71,8 @@ class AiPlaylistMixin(MainWindowHost):
             candidates = llm.competition_candidates(
                 self._library.lib.entries, style, cls, dances)
             task = llm.competition_task(style, age, cls, dances, rounds,
-                                                opts["brief"])
+                                        opts["brief"],
+                                        opts["mode_prompts"]["competition"])
             ctx: dict[str, Any] = dict(mode="competition", style=style, age=age, dance_class=cls,
                        dances=dances, rounds=rounds, use_timbre=use_timbre)
         elif opts["mode"] == "wishes":
@@ -83,13 +84,15 @@ class AiPlaylistMixin(MainWindowHost):
                 return
             cls = None
             candidates = llm.flat_candidates(self._library.lib.entries)
-            task = llm.wish_task(opts["wishes"], opts["brief"])
+            task = llm.wish_task(opts["wishes"], opts["brief"],
+                                 opts["mode_prompts"]["wishes"])
             # A wish list is a flat list that the user, not the model, ordered.
             ctx = dict(mode="flat", label="\U0001f4dd Wish list")
         else:
             cls = None
             candidates = llm.flat_candidates(self._library.lib.entries)
-            task = llm.flat_task(opts["count"], opts["brief"])
+            task = llm.flat_task(opts["count"], opts["brief"], opts["flat_kind"],
+                                opts["flat_prompt"])
             ctx = dict(mode="flat", count=opts["count"])
 
         # What the open decks already hold. The model does not have to avoid it,
@@ -159,6 +162,16 @@ class AiPlaylistMixin(MainWindowHost):
         self._settings["ai_brief"] = opts["brief"]
         self._settings["ai_wishes"] = opts["wishes"]
         self._settings["ai_flat_count"] = opts["count"]
+        self._settings["ai_flat_kind"] = opts["flat_kind"]
+        # Only what differs from the shipped prompts, so a later change to them
+        # still reaches everyone who never edited them.
+        self._settings["ai_flat_prompts"] = {
+            k: v for k, v in opts["flat_prompts"].items()
+            if v.strip() != llm.FLAT_PROMPTS[k].strip()}
+        shipped = {"competition": llm.COMPETITION_PROMPT, "wishes": llm.WISH_PROMPT}
+        self._settings["ai_mode_prompts"] = {
+            k: v for k, v in opts["mode_prompts"].items()
+            if v.strip() != shipped[k].strip()}
         self._settings["ai_claude_config_dir"] = opts["config_dir"]
         ev = opts["event"]
         self._settings["ai_event_schedule"] = ev["schedule"]

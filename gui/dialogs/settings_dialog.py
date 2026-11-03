@@ -4,8 +4,8 @@ index builds, playback, the look and the app mode, one tab each.
 Split out of gui/dialogs/__init__.py, which keeps the settings persistence
 (load_settings, the path fallbacks, the choice tables) this dialog reads.
 The 🎨 Look tab is a mixin of its own, in gui/dialogs/settings_look.py,
-and so are 🔊 Sound & player and 🎛 Play sets, in settings_sound.py and
-settings_play_sets.py.
+and so are 🔊 Sound & player, 🎛 Play sets and 🤖 AI, in settings_sound.py,
+settings_play_sets.py and settings_ai.py.
 """
 import logging
 import os
@@ -41,6 +41,7 @@ from gui.dialogs import (
     M3U_FORMAT_CHOICES,
     app_mode_of,
 )
+from gui.dialogs.settings_ai import AiTabMixin
 from gui.dialogs.settings_cartwall import CartwallTabMixin
 from gui.dialogs.settings_look import LookTabMixin
 from gui.dialogs.settings_play_sets import PlaySetsTabMixin
@@ -61,7 +62,7 @@ log = logging.getLogger("dancesport.gui")
 
 
 class SettingsDialog(LookTabMixin, SoundTabMixin, CartwallTabMixin,
-                     PlaySetsTabMixin, QDialog):
+                     PlaySetsTabMixin, AiTabMixin, QDialog):
     """Configure the library paths + global search (tab 1) and run every
     analysis / index build, grouped light vs heavy (tab 2)."""
 
@@ -121,8 +122,9 @@ class SettingsDialog(LookTabMixin, SoundTabMixin, CartwallTabMixin,
             summ, tabs, vocals_cb)
         sets_idx = self._setup_play_sets_tab(settings, tabs)
         chk_idx = self._setup_checks_tab(gaps_cb, settings, tabs)
+        ai_idx = self._setup_ai_tab(tabs)
         self._setup_venue_tab(tabs)
-        self._setup_tab_visibility(chk_idx, lyt, sets_idx, cart_idx, tabs)
+        self._setup_tab_visibility(chk_idx, lyt, sets_idx, cart_idx, ai_idx, tabs)
         self._scroll_the_pages(tabs)
         self._tabs = tabs
         last = SettingsDialog._last_tab
@@ -136,8 +138,10 @@ class SettingsDialog(LookTabMixin, SoundTabMixin, CartwallTabMixin,
 
     def done(self, result):
         """OK, Cancel or ✕: the next Settings of this session opens on the
-        tab this one closes on."""
+        tab this one closes on. 🤖 The AI tab has its own file, written on OK."""
         SettingsDialog._last_tab = self._tabs.currentIndex()
+        if result == QDialog.DialogCode.Accepted:
+            self.save_ai_config()
         super().done(result)
 
     def _setup_general_tab(self, settings, tabs):
@@ -843,7 +847,7 @@ class SettingsDialog(LookTabMixin, SoundTabMixin, CartwallTabMixin,
         vlyt.addStretch()
         return tabs.addTab(venue_tab, "📦 Venue pack")
 
-    def _setup_tab_visibility(self, chk_idx, lyt, sets_idx, cart_idx, tabs):
+    def _setup_tab_visibility(self, chk_idx, lyt, sets_idx, cart_idx, ai_idx, tabs):
         """Tabs that follow the app mode, and the OK/Cancel buttons."""
         # A player-only install never runs the planning checks — and the tab
         # follows the combo above right away, so the dialog stays consistent
@@ -854,6 +858,7 @@ class SettingsDialog(LookTabMixin, SoundTabMixin, CartwallTabMixin,
         def _sync_checks_tab():
             mode = self._app_mode_combo.currentData()
             tabs.setTabVisible(chk_idx, mode != "player")
+            tabs.setTabVisible(ai_idx, mode != "player")
             tabs.setTabVisible(sets_idx, mode != "planner")
             tabs.setTabVisible(cart_idx, mode != "planner")
         _sync_checks_tab()

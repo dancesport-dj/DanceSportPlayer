@@ -2,39 +2,19 @@
 """Cut a short snippet out of every file in a folder whose name contains "LW".
 
 Stream-copies the first N seconds (no re-encode) into a `snippets/` subfolder,
-at most 25 files per run.
+at most 100 files per run (--limit).
 """
 
 import argparse
 import logging
-import shutil
 import subprocess
 import sys
 from pathlib import Path
 
+# The GUI's lookup: it never runs an ffmpeg.exe planted in the current (music) folder.
+from shared.audio.audio_probes import find_ffmpeg
+
 log = logging.getLogger("lw_snippets")
-
-# Same bundled-ffmpeg locations the GUI uses (see find_ffmpeg in shared/audio/audio_probes.py).
-_FFMPEG_CANDIDATES = (
-    Path(__file__).parents[2] / "ffmpeg.exe",
-    Path(__file__).parents[2] / "ffmpeg-9.0.2-essentials_build" / "bin" / "ffmpeg.exe",
-)
-
-
-def find_ffmpeg() -> str | None:
-    """ffmpeg on PATH, else the copy bundled with the project, else the one
-    shipped inside imageio_ffmpeg (installed in the venv), else None."""
-    exe = shutil.which("ffmpeg")
-    if exe:
-        return exe
-    for cand in _FFMPEG_CANDIDATES:
-        if cand.is_file():
-            return str(cand)
-    try:
-        import imageio_ffmpeg  # pyright: ignore[reportMissingImports]  # optional
-        return imageio_ffmpeg.get_ffmpeg_exe()
-    except Exception:
-        return None
 
 
 def cut_snippet(ffmpeg: str, src: Path, dst: Path, start: float, duration: float):
@@ -69,10 +49,11 @@ def main() -> int:
     ffmpeg = find_ffmpeg()
     if not ffmpeg:
         log.error("🎬 ffmpeg not found\n"
-                  "looked in: PATH, project folder, imageio_ffmpeg")
+                  "looked in: project folder, PATH")
         return 1
 
-    files = sorted(f for f in args.path.iterdir() if f.is_file() and "LW" in f.name)
+    files = sorted(f for f in args.path.iterdir() if f.is_file() and "LW" in f.name
+                   and not f.stem.endswith("_snippet"))
     files = files[:args.limit]
     if not files:
         log.info("🔍 No files containing 'LW'\n"
@@ -97,7 +78,7 @@ def main() -> int:
     log.info("✅ Done\n"
              "snippets: %d\n"
              "output: %s", done, out_dir)
-    return 0
+    return 0 if done else 1
 
 
 if __name__ == "__main__":

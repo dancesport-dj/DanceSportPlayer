@@ -48,6 +48,7 @@ TARGETS = [
     (r"📌  (Unpin|Pin)", "_toggle_pin"),
     (r"🗑  Remove from wishlist", "_remove_rows"),
     (r"⇅  Swap these two titles", "_swap_selected"),
+    (r"⬇  Move ", "_move_to_end"),
     (r"➕  Add a heat", "_add_dynamic_heat"),
     (r"➕  (Insert new round|Create new round)", "_insert_dynamic_round"),
     (r"🗑  Remove (this title|\d+ selected titles)", "_confirm_delete"),
@@ -61,10 +62,12 @@ TARGETS = [
     (r"💾  Save as M3U", "saveRequested"),
     (r"🏆  Save and add to Tournaments", "saveToTournamentsRequested"),
     (r"📂  Import M3U", "host.import_m3u_into"),
+    (r"📥  Import venue pack", "host.import_venue_pack"),
     (r"🧹  Remove tracks already in a playlist", "host.clean_wishlist_against_playlists"),
     (r"🧹  Remove titles the other", "host.clean_deck_against_others"),
     (r"♊  Remove duplicate titles", "_remove_duplicate_titles"),
     (r"🔍  Find a title or genre in this list", "_search_title"),
+    (r"↔  ", "host.expand_wishlist"),
     (r"🧹  Empty this", "_clear_entire"),
 ]
 TABLE_METHODS = sorted({t for _, t in TARGETS if "." not in t
@@ -101,6 +104,7 @@ class ContextMenuDispatchTest(unittest.TestCase):
         host.wishlist_paths.return_value = [r"C:\music\tanzcds\LW1.mp3"]
         host.has_tournaments.return_value = True
         host.can_clean_decks.return_value = True
+        host.wish_expand_caption.return_value = "↔  Expand this wishlist\tCtrl+Shift+E"
         other = SimpleNamespace(_row_meta=SimpleNamespace(has_songs=lambda: True))
         host.visible_deck_tables.return_value = [table, other]
         return host
@@ -220,7 +224,7 @@ class ContextMenuDispatchTest(unittest.TestCase):
 
     def test_warmup_deck(self):
         picked = self._check_every_entry(self._warmup, self._first_song)
-        self.assertIn("📋  Copy file path", picked)
+        self.assertIn("📋  Copy file path	Ctrl+Shift+C", picked)
         self.assertTrue(any(p.startswith("⇅  Swap") for p in picked))
 
     def test_running_order(self):
@@ -229,7 +233,7 @@ class ContextMenuDispatchTest(unittest.TestCase):
 
     def test_wishlist(self):
         picked = self._check_every_entry(self._wishlist, self._first_song)
-        self.assertIn("🗑  Remove from wishlist", picked)
+        self.assertIn("🗑  Remove from wishlist	Del", picked)
 
     def test_dynamic_deck_song(self):
         picked = self._check_every_entry(self._dynamic, self._first_song)

@@ -71,8 +71,18 @@ class ScanCache:
         placeholders = ",".join("?" * (1 + len(META_COLS)))
         imported = 0
         for key, data in entries.items():
-            path = key.rpartition('::')[0] or key
+            # One damaged entry costs a rescan, not the start.
+            if not isinstance(data, dict):
+                continue
+            # The legacy key is path::size. The data describes the bytes the file
+            # had then; a file that changed since is read afresh by the next scan.
+            path, _, size = key.rpartition('::')
             p = Path(path)
+            try:
+                if int(size) != p.stat().st_size:
+                    continue
+            except (ValueError, OSError):
+                continue
             fp = self._cache.fingerprint(p)   # needs the file on disk
             if fp is None:
                 continue
@@ -204,6 +214,8 @@ class GlobalScanCache:
         conn = _db()
         placeholders = ",".join("?" * (2 + len(META_COLS)))
         for p, rec in entries.items():
+            if not isinstance(rec, dict) or not isinstance(rec.get('entry', {}), dict):
+                continue   # a damaged record costs a rescan, not the start
             entry = rec.get('entry', {})
             self._data[p] = {'mtime': rec.get('mtime', 0), 'entry': entry}
             conn.execute(

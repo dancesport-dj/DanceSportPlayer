@@ -64,6 +64,9 @@ class _LoggedDesk(_Desk):
     def _refresh_wake_lock(self):
         pass
 
+    def _stop_background_analysis(self):
+        pass
+
     def _refresh_loudness_gain(self):
         pass
 

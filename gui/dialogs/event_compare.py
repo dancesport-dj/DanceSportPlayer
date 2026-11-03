@@ -143,7 +143,10 @@ class _SlotTable(QTableWidget):
         """(src, dst) of a drag over this table, None when it cannot go there."""
         if not self._can_drop or not e.mimeData().hasFormat(SLOT_MIME):
             return None
-        comp, row, col = map(int, bytes(e.mimeData().data(SLOT_MIME)).decode().split(","))
+        try:
+            comp, row, col = map(int, bytes(e.mimeData().data(SLOT_MIME)).decode().split(","))
+        except ValueError:      # not three numbers, or not text at all
+            return None
         index = self.indexAt(e.position().toPoint())
         if comp != self._comp or not index.isValid():
             return None
@@ -543,6 +546,7 @@ class EventCompareDialog(QDialog):
         lay.addWidget(self._tabs, 1)
         self._status = QLabel()
         self._status.setWordWrap(True)
+        self._status.setTextFormat(Qt.TextFormat.PlainText)
         lay.addWidget(self._status)
 
         row = QHBoxLayout()
@@ -797,7 +801,7 @@ class EventCompareDialog(QDialog):
         for p in self._profiles:
             note = self._result.variants[p][i].notes
             if note:
-                lines.append(f"<b>{i18n.t(self._name(i, p))}:</b> {note}")
+                lines.append(f"<b>{i18n.t(self._name(i, p))}:</b> {html.escape(note, quote=False)}")
         return "<br>".join(lines)
 
     def _status_text(self) -> str:
@@ -969,6 +973,10 @@ class EventCompareDialog(QDialog):
         in its own onto another slot with a title to swap with."""
         (src_row, src_col), (dst_row, dst_col) = src, dst
         slots = self._slots[i]
+        # A forged or stale position is no slot (-1 would be the last row).
+        if not all(0 <= r < len(slots) and 0 <= c < len(self._profiles)
+                   for r, c in (src, dst)):
+            return False
         return (not self._busy and src != dst
                 and slots[src_row][2] == slots[dst_row][2]
                 and self._pick(i, src_row, src_col) is not None

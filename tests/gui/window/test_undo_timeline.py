@@ -148,7 +148,7 @@ class WindowTest(unittest.TestCase):
         self.addCleanup(reap_widget, win)
         win._seed_undo_baseline()
         self.applied = []
-        win._apply_env = self.applied.append
+        win._apply_env = lambda env: self.applied.append(env) or True
         return win
 
     def test_undo_applies_the_step_before_and_redo_the_one_after(self):

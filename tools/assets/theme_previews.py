@@ -14,6 +14,7 @@ Pillow). Run it on Windows with the real platform plugin; offscreen Qt measures
 text far too wide and the crops come out cramped.
 """
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -27,7 +28,9 @@ CROP = (0, 0, 760, 430)
 
 
 def _render(key: str) -> None:
-    os.environ["DANCEPLAYLIST_STATE_DIR"] = tempfile.mkdtemp(prefix="dp_preview_")
+    # The state dir comes from the parent in main(), which removes it: os._exit
+    # below skips every cleanup.
+    os.environ.setdefault("DANCEPLAYLIST_STATE_DIR", tempfile.mkdtemp(prefix="dp_preview_"))
     sys.path.insert(0, str(ROOT))
     from PySide6.QtCore import QRect, Qt
     from PySide6.QtWidgets import QApplication
@@ -134,6 +137,9 @@ def _blur_names(path: Path, cells: list, scale: float) -> None:
 
 def main(argv: list[str]) -> int:
     if argv[:1] == ["--one"]:
+        if len(argv) < 2:
+            print("--one needs a theme key")
+            return 2
         _render(argv[1])
         return 0
     from shared.appearance import theme
@@ -142,8 +148,13 @@ def main(argv: list[str]) -> int:
         else dict(os.environ)
     failed = []
     for key in keys:
-        done = subprocess.run([sys.executable, "-m", "tools.assets.theme_previews",
-                               "--one", key], cwd=ROOT, env=env)
+        state = tempfile.mkdtemp(prefix="dp_preview_")
+        try:
+            done = subprocess.run([sys.executable, "-m", "tools.assets.theme_previews",
+                                   "--one", key], cwd=ROOT,
+                                  env=dict(env, DANCEPLAYLIST_STATE_DIR=state))
+        finally:
+            shutil.rmtree(state, ignore_errors=True)
         if done.returncode != 0:
             failed.append(key)
     if failed:

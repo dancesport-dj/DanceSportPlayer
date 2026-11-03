@@ -27,6 +27,7 @@ from gui.common import (
     DANCE_SHORT,
     fmt_track_secs,
     plain_tooltip,
+    platform_keys,
     reveal_in_explorer,
 )
 from gui.decks.deck import Deck, DeckContext
@@ -981,6 +982,10 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
                 save_acts = self._add_header_save_actions(menu, table)
                 fold = menu.addAction("Unfold this wishlist" if is_folded
                                       else "Fold to a tab")
+                caption = self._wish_expand_caption(table)
+                expand = menu.addAction(caption) if caption else None
+                if expand is not None:
+                    expand.setText(platform_keys(expand.text()))
                 gp = (e.globalPosition().toPoint() if hasattr(e, "globalPosition")
                       else e.globalPos())
                 chosen = menu.exec(gp)
@@ -992,6 +997,8 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
                     save_acts[chosen]()
                 elif chosen is fold:
                     self._toggle_deck_fold(table, not is_folded)
+                elif expand is not None and chosen is expand:
+                    self._expand_wishlist(table)
         else:
             # Clicking a folded tab re-opens the deck.
             if table is self._deckset.warmup_table:

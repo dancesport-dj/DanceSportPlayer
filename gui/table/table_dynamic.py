@@ -1130,7 +1130,11 @@ class DynamicModeMixin(PlaylistTableHost):
 
         `replace` (Ctrl held): the FIRST track overwrites the song in the OCCUPIED
         slot under the cursor instead of filling the next free slot / adding a heat;
-        any extra tracks of a multi-drop fall back to the normal top-up behaviour."""
+        any extra tracks of a multi-drop fall back to the normal top-up behaviour.
+
+        True when the drop was one title the deck holds and the user was asked
+        (`_dynamic_held_drop`): it only rearranged this deck, so the source of
+        the drag keeps what it has."""
         if self._suggester is None:
             self.host.ensure_deck_ready()
         entries = self._collect_drop_entries(e)
@@ -1151,6 +1155,8 @@ class DynamicModeMixin(PlaylistTableHost):
                     self._style = max(set(styles), key=styles.count)
         if self._playlist is None:
             self._playlist = {}
+        if len(entries) == 1 and self._dynamic_held_drop(entries[0], target_row):
+            return True
         # Ctrl + drop on a filled slot: the first track REPLACES the song there.
         m0 = self._row_meta[target_row] if 0 <= target_row < len(self._row_meta) else None
         replace_first = (replace and m0 and not m0.theme
@@ -1196,6 +1202,20 @@ class DynamicModeMixin(PlaylistTableHost):
             show_toast(self, msg)
         elif skipped:
             show_toast(self, self._nothing_added(skipped))
+
+    def _dynamic_held_drop(self, entry: MusicEntry, row: int) -> bool:
+        """One title dropped on a FILLED slot of a deck that holds its audio in
+        another slot: ask (`_settle_held_slot`). False when that isn't the case."""
+        m = self._row_meta[row] if 0 <= row < len(self._row_meta) else None
+        dup = self._find_duplicate(entry)
+        if (m is None or m.entry is None or not self._swappable(m)
+                or dup is None or dup[0] != "hard"):
+            return False
+        held_row = self._held_row(entry, row)
+        if held_row is None:
+            return False
+        self._settle_held_slot(held_row, row)
+        return True
 
     @staticmethod
     def _skipped_tail(skipped: dict) -> str:

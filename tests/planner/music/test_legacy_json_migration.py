@@ -46,6 +46,26 @@ class LegacyMigrationTest(unittest.TestCase):
         self.assertFalse(legacy.exists())
         self.assertTrue(legacy.with_suffix(".json.bak").exists())
 
+    def test_the_fingerprint_rows_go_in_as_one_transaction(self):
+        """#20.6: the connection autocommits, so every row was its own commit
+        (and its own disk sync) - up to 50k of them on a big library."""
+        legacy = Path(tempfile.mkdtemp(prefix="dp_legacy_")) / "audio_cache.json"
+        legacy.write_text(json.dumps({
+            "version": 6, "entries": {"fp_good": _GOOD},
+            "fingerprints": {"a.mp3::1": "fp_good", "b.mp3::2": "fp_good"}}),
+            encoding="utf-8")
+        seen = []
+        real = db.file_id
+
+        def spy(path, create=True):
+            seen.append(db._db().in_transaction)
+            return real(path, create)
+
+        with mock.patch.object(db, "CACHE_FILE", legacy),                 mock.patch.object(db, "file_id", spy):
+            AudioCache()._migrate_json()
+        self.assertEqual(seen, [True, True])
+        self.assertFalse(db._db().in_transaction)
+
 
 if __name__ == "__main__":
     unittest.main()

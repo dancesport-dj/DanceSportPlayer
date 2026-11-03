@@ -21,6 +21,13 @@ nach unten.
   Wunschliste oder dem Explorer, wird dort **eingefügt**, wo du ihn ablegst.
   Er ersetzt nie den Titel, der dort stand.
 - **Entf** nimmt die markierten Titel nach einer Rückfrage aus dem Ablauf.
+  In einer Partyliste lautet die Frage **Mit Slot entfernen**, **Slot
+  behalten** oder **Abbrechen**; Decks fragen mit Ja oder Nein. Danach steht
+  die Markierung auf der Zeile, die an die Stelle nachgerückt ist (auf der
+  neuen letzten Zeile, wenn der letzte Titel ging).
+- **⬇ Ans Ende der Liste verschieben** im Rechtsklick-Menü einer Party-Liste,
+  eines freien Ablaufs oder einer Wunschliste setzt den Titel ans Ende. Eine
+  Markierung geht geschlossen mit.
 - **Strg + Z / Strg + Y** machen jede Änderung rückgängig und wiederholen sie.
   Die Knöpfe ↶ / ↷ unten zeigen, wie viele Schritte es gibt.
 - Ein Doppelklick auf den Decktitel benennt das Deck um. **▾** im Kopf klappt
@@ -60,6 +67,10 @@ für Gespielt zurücksetzen** im Rechtsklick-Menü des Spaltenkopfs setzt alle
 Zähler auf null; 📜 Gespielte Titel behält trotzdem jeden Titel. Die
 Bibliothek und die 🏆 Titelliste haben dieselbe Spalte.
 
+**Gespielte Titel zurücksetzen (grau)** im selben Menü nimmt das Grau aus
+allen Listen, ohne Neustart. Zähler und 📜 Gespielte Titel bleiben, wie sie
+sind, und ein laufender Titel, der schon zählt, bleibt gespielt.
+
 Zieh einen Spaltenkopf zur Seite, um die Spalte zu verschieben. Die neue
 Reihenfolge gilt für alle Listen dieser Art (alle Decks, alle Wunschlisten
 oder alle Partylisten) und bleibt beim nächsten Start erhalten. **Tanz**
@@ -92,8 +103,9 @@ Gesamtzeit. Ein Klick auf ▸ zeigt die Zahl pro Tanz. Der Schalter
 
 Ein Rechtsklick auf einen Titel bietet **🏷 MP3-Tags neu einlesen**,
 **🏷 Tags bearbeiten…** (siehe [Kapitel 5](05-tags.md)),
-**📋 Dateipfad kopieren**, **📂 Im Explorer zeigen** und die Einträge zum
-Speichern und Importieren weiter unten.
+**📋 Dateipfad kopieren**, **📂 Im Explorer zeigen**,
+**↩ Zeitmarke zurücksetzen** (nur bei einem Titel mit Zeitmarke) und die
+Einträge zum Speichern und Importieren weiter unten.
 
 ## 🤸 Der Party-Bereich
 
@@ -101,6 +113,10 @@ Der Party-Bereich hält eine lange Liste für einen Tanzabend. Er sitzt
 zwischen den Decks und den Wunschlisten. **🤸 Party ▾** in der
 Werkzeugleiste blendet ihn ein oder aus, und **▾** in seinem Kopf klappt ihn
 ein.
+
+Eine Liste, die du hier öffnest, erscheint in voller Größe: Die Playlists
+werden ausgeschaltet und eine Wunschliste bleibt. Der Playlist-Knopf in der
+Werkzeugleiste holt sie zurück.
 
 ![Eine Partyliste im Bereich](../img/party-panel.png)
 
@@ -112,10 +128,40 @@ ein.
   *Standardrunde*, *Lateinrunde* und *Socialrunde*.
 - **⇅ Diese beiden Titel tauschen** (Rechtsklick oder **Alt + S**) tauscht
   zwei markierte Titel desselben Tanzes, so behält jede Runde ihre Tänze.
+- **🗑 Diesen Titel entfernen (Platz bleibt frei)** (Rechtsklick) lässt eine
+  leere Zeile stehen. **🗑 Diesen Titel samt Platz entfernen** nimmt die Zeile
+  mit heraus. Auch Decks bieten das an, wenn der Titel der einzige seines
+  Tanzes in der Runde ist: Der Tanz verlässt dann diese Runde.
 
 Spielst du aus dem Bereich, schaltet die App von selbst auf das
 **🎉 Party-Set**: volle Länge, automatisch weiter, keine Pause, siehe
 [Kapitel 4](04-playing.md#abspiel-sets).
+
+### Ein Titel, den die Liste schon hat
+
+Eine Liste hält jeden Titel nur einmal. Ziehst du einen einzelnen Titel auf ein
+Deck oder den Party-Bereich, der ihn schon hat, fragt die Liste nach:
+
+- **Ersetzen** holt den Titel von seinem alten Platz hierher. Landet er auf
+  einem anderen Titel (ein Platz im Deck, oder **Umschalt** im Party-Bereich),
+  fällt dieser aus der Liste.
+- **Swap** vertauscht die beiden Titel.
+- **Abbrechen** lässt die Liste, wie sie war.
+
+Ein leerer Platz bietet statt der ersten beiden **Ersetzen** an (der Titel
+zieht hierher). Ziehst du mehrere Titel auf einmal, bleiben die schon
+vorhandenen weg.
+
+Die Frage sperrt die App nicht: Der Player bleibt bedienbar, die längeren
+Hinweise stehen als Tooltips an den Knöpfen. **Ersetzen** und **Swap** lassen
+die geänderten Zeilen etwa eine Sekunde blau aufblitzen (Ersetzen zeigt den
+alten Platz und die Zeile, in der der Titel gelandet ist). Hat sich die Liste
+inzwischen geändert, passiert nichts, und eine Meldung sagt es.
+
+Im Spielmodus bietet ein Ablegen in einer Partyliste außerdem **Add** an: Der
+Titel läuft hier und bleibt auch an seinem alten Platz. Ist er gespielt, werden
+beide Zeilen grau, und eine graue Zeile läuft trotzdem, wenn sie an der Reihe
+ist. Im Planungsmodus bekommt eine Liste nie eine zweite Kopie.
 
 ## ⭐ Wunschlisten
 
@@ -128,6 +174,10 @@ willst: Wünsche von der Fläche, ein neues Album, das du ausprobieren willst.
   oder ein 2×2-Raster.
 - Ein Doppelklick auf den Titel benennt sie um. Zieh den Kopf einer
   Wunschliste auf einen anderen, um die beiden zu tauschen.
+- Rechtsklick auf eine Wunschliste oder ihren Kopf ▸ **↔ Diese Wunschliste
+  vergrößern**, oder **Strg + Umschalt + E**: Sie bekommt den ganzen Bereich,
+  die anderen klappen zu Reitern ein. Derselbe Eintrag und dieselbe Taste
+  öffnen wieder alle.
 - Die Leiste darunter zählt die Titel und wie viele davon neu (nie gespielt)
   sind.
 
@@ -138,6 +188,7 @@ willst: Wünsche von der Fläche, ein neues Album, das du ausprobieren willst.
 | Um | Tu |
 |---|---|
 | eine `.m3u` in ein Deck oder eine Wunschliste zu laden | Rechtsklick ▸ **📂 M3U importieren…**, oder zieh die `.m3u` darauf. Mehrere `.m3u` auf einmal gehen in die freien Decks, je eine. |
+| ein [Hallenpaket](06-settings.md#hallenpaket) von einem anderen PC zu laden | Zieh die `.dpvenue`-Datei auf das Programmfenster, oder Rechtsklick ▸ **📥 Hallenpaket importieren…**. Das ist dasselbe wie in den ⚙ Einstellungen. |
 | eine Wiedergabeliste aus deinem Turnierarchiv zu laden | Zieh ihren Slot aus 🏆 Turniere auf ein Deck, siehe [Kapitel 2](02-library-and-tournaments.md#-turniere). |
 | das aktive Deck oder die aktive Wunschliste zu speichern | **Strg + S**, oder Rechtsklick auf einen Titel oder den Kopf ▸ **💾 Speichern als M3U…** |
 | sie zu speichern und im Baum Turniere abzulegen | Rechtsklick ▸ **🏆 Speichern und in „Turniere“ eintragen…** |

@@ -80,6 +80,16 @@ class DoubleClickOptionTest(_PanelTest):
         self.assertEqual(seen, [True])
 
 
+class EqualizeLabelTest(_PanelTest):
+    """5.4: the switch says what it does, the tooltip how."""
+
+    def test_the_label_leaves_the_norm_out(self):
+        self.assertNotIn("R128", self.panel().loudness_check.text())
+
+    def test_the_tooltip_keeps_it(self):
+        self.assertIn("R128", self.panel().loudness_check.toolTip())
+
+
 class NoDoubleClickAskSwitchTest(_PanelTest):
     """❓ 'Ask before a double-click stops the playing title' has no switch on
     the panel: it is set per play set in ⚙ Settings → 🎛 Play sets only."""
@@ -128,16 +138,15 @@ class VoiceControlsTest(_PanelTest):
         p = self.panel()
         self.assertTrue(p.announce_check.isVisible())
 
-    def test_the_voice_line_wraps_rather_than_clips(self):
-        """The longest caption, at the panel's narrowest. On screen it takes
-        about 140 of 234 px; offscreen fonts measure far wider, so what is
-        pinned is that a longer translation breaks onto a second line."""
+    def test_the_voice_line_shrinks_rather_than_wraps(self):
+        """The longest caption, at the panel's narrowest: it stays on one
+        row, the font shrinking to fit, instead of breaking onto a second."""
         p = self.panel(announce_next=True, announce_voice="female",
                        announce_heat=True)
         p.resize(250, p.height())
         self.app.processEvents()
         w = p.announce_style_lbl
-        self.assertTrue(w.wordWrap())
+        self.assertFalse(w.wordWrap())
         self.assertGreaterEqual(w.width(), w.minimumSizeHint().width())
 
 
@@ -213,6 +222,7 @@ class FoldingSubSettingsTest(_PanelTest):
         over/before pair moved to ⚙ Settings.)"""
         wide = self.panel(pd_highlight_stop=True, auto_advance=True,
                           pause_enabled=True, announce_next=True)
+        wide.set_pd_loaded(True)    # 🎯 ✖ ✏️ only show with a Paso Doble
         lean = self.panel(pd_highlight_stop=False, auto_advance=True,
                           pause_enabled=False, announce_next=False)
         self.assertLess(lean.sizeHint().height(),
@@ -267,6 +277,62 @@ class GreySecondsTest(_PanelTest):
                     grey, live = self._bg(off), self._bg(p.fade_spin)
                     self.assertGreater(abs(grey.lightness() - live.lightness()), 12,
                                        (grey.name(), live.name()))
+
+
+class AnnounceTakesThePauseTest(_PanelTest):
+    """Marcel: "When 'announce next dance' is active, disable 'pause between
+    songs' by default, but let the user override it." """
+
+    def test_switching_the_call_on_takes_the_pause_off(self):
+        p = self.panel(pause_enabled=True)
+        p.announce_check.click()
+        self.assertFalse(p.pause_check.isChecked())
+
+    def test_switching_the_call_off_brings_the_pause_back(self):
+        p = self.panel(pause_enabled=True)
+        p.announce_check.click()
+        p.announce_check.click()
+        self.assertTrue(p.pause_check.isChecked())
+
+    def test_a_pause_that_was_off_stays_off(self):
+        p = self.panel(pause_enabled=False)
+        p.announce_check.click()
+        p.announce_check.click()
+        self.assertFalse(p.pause_check.isChecked())
+
+    def test_the_operator_can_have_both(self):
+        p = self.panel(pause_enabled=True)
+        p.announce_check.click()
+        p.pause_check.click()
+        self.assertTrue(p.pause_check.isChecked())
+        self.assertTrue(p.announce_check.isChecked())
+
+    def test_both_on_in_the_settings_stay_on(self):
+        p = self.panel(pause_enabled=True, announce_next=True)
+        self.assertTrue(p.pause_check.isChecked())
+
+    def test_a_set_with_both_on_keeps_both(self):
+        p = self.panel(pause_enabled=False, announce_next=False)
+        p.apply_play_set(0, True, False, announce=True)
+        self.assertTrue(p.pause_check.isChecked())
+        self.assertTrue(p.announce_check.isChecked())
+
+    def test_the_switch_says_why_the_pause_is_off(self):
+        p = self.panel(pause_enabled=True)
+        self.assertNotIn("because", p.pause_check.toolTip())
+        p.announce_check.click()
+        self.assertIn("because", p.pause_check.toolTip())
+
+    def test_the_reason_goes_when_the_pause_is_back_on(self):
+        p = self.panel(pause_enabled=True)
+        p.announce_check.click()
+        p.pause_check.click()
+        self.assertNotIn("because", p.pause_check.toolTip())
+
+    def test_the_reason_follows_a_set(self):
+        p = self.panel(pause_enabled=False, announce_next=False)
+        p.apply_play_set(0, True, True, announce=True)
+        self.assertIn("because", p.pause_check.toolTip())
 
 
 class ToggleButtonTest(_PanelTest):

@@ -106,7 +106,7 @@ auf ihr Symbol. Fahr mit der Maus darüber, dann siehst du den vollen Namen.
 | 🧹 Leeren | Leert jedes Deck. Wunschlisten bleiben erhalten. |
 | 🚦 Prüfen ▾ | **🚦 Bereit?**, der Check vor dem Abend, siehe [Kapitel 4](04-playing.md#-bereit-vor-dem-abend). Die volle App ergänzt das Menü um 🔁 Doppelte prüfen, 🎵 Musik prüfen und 🧭 Pfade reparieren. |
 | ⧉ *n* Listen | Schaltet durch die Anzahl der Decks auf dem Bildschirm. Ein Rechtsklick geht rückwärts. |
-| 🗜 Kompakt | Schaltet die Kopfzeilen durch: voll → kompakt → ohne Gruppen → nummeriert. |
+| 🗜 Kompakt | Schaltet die Kopfzeilen durch: voll → kompakt → ohne Gruppen → nummeriert. Ziehe den rechten Rand der Nummern, um ihre Breite zu ändern; ein Doppelklick dort stellt die automatische Breite wieder her. |
 | ⭐ *n* Wunschlisten | Schaltet den Wunschlistenbereich durch: aus → 1 → 2 → 3 → 4 → 2×2. |
 | 🤸 Party ▾ | Blendet den Party-Bereich ein oder aus. |
 | 📚 Bibliothek | Blendet den Bereich Bibliothek und Turniere ein oder aus. |

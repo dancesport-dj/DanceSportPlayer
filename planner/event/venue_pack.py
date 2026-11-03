@@ -36,6 +36,7 @@ VERSION = 1
 MANIFEST = "manifest.json"
 SUFFIX = ".dpvenue"
 STAGE_DIR = "venue_import"
+STAGE_DONE = ".complete"   # written last: a stage without it was interrupted
 BACKUP_PREFIX = "before-venue-import-"
 SETTINGS_FILE = "gui_settings.json"
 # The only documents a pack may bring: the names come from the pack itself,
@@ -237,6 +238,10 @@ def _manifest(z: zipfile.ZipFile) -> dict:
         raise VenuePackError("not a venue pack")
     if not isinstance(m.get("version"), int) or m["version"] > VERSION:
         raise VenuePackError("made by a newer version of the app")
+    music = m.get("music")
+    if music is not None and not (isinstance(music, dict) and all(
+            isinstance(k, str) and isinstance(v, str) for k, v in music.items())):
+        raise VenuePackError("damaged music list")
     return m
 
 
@@ -312,7 +317,10 @@ def extract_music(src: Path, dest_dir: Path, progress=None, cancelled=None) -> d
                 target = dest_dir.joinpath(*parts)
                 if not target.resolve().is_relative_to(dest_dir.resolve()):
                     continue                    # never write outside dest_dir
-                info = z.getinfo(arc)
+                try:
+                    info = z.getinfo(arc)
+                except KeyError as exc:     # cut-short or hand-edited pack
+                    raise VenuePackError(f"damaged entry: {arc}") from exc
                 target = _landing(target, info)
                 if not target.is_file():
                     target.parent.mkdir(parents=True, exist_ok=True)
@@ -324,7 +332,13 @@ def extract_music(src: Path, dest_dir: Path, progress=None, cancelled=None) -> d
                     progress(i, len(music))
     except BaseException:
         for t in written:
-            t.unlink(missing_ok=True)
+            try:
+                t.unlink(missing_ok=True)
+            except OSError as exc:
+                # A locked file must not hide why we are here, nor spare the rest.
+                log.warning("⚠️ Cancelled import left a file behind\n"
+                            "file: %s\n"
+                            "error: %s", t, exc)
         raise
     return mapping
 
@@ -350,6 +364,7 @@ def stage_import(src: Path, state_dir: Path, music_dir: Path | None,
     for name, obj in docs.items():
         (stage / PurePath(name).name).write_text(
             json.dumps(obj, indent=2, ensure_ascii=False), encoding="utf-8")
+    (stage / STAGE_DONE).write_text("", encoding="utf-8")
     return pack
 
 
@@ -361,6 +376,13 @@ def apply_pending(state_dir: Path) -> list[str]:
     state_dir = Path(state_dir)
     stage = state_dir / STAGE_DIR
     if not stage.is_dir():
+        return []
+    if not (stage / STAGE_DONE).exists():
+        # A crash or a full disk stopped the staging half way: applying it
+        # would merge some documents and leave the rest at their old values.
+        log.warning("⚠️ Venue import was interrupted while staging, discarded\n"
+                    "stage: %s", stage)
+        shutil.rmtree(stage, ignore_errors=True)
         return []
     docs = {}
     for src in sorted(p for p in stage.iterdir() if p.name in PACK_FILES):
@@ -415,7 +437,10 @@ def apply_pending(state_dir: Path) -> list[str]:
 
 def _roll_back(state_dir: Path, backup: Path, written: list[str]) -> None:
     """Put back the files a half-done apply_pending already replaced: the
-    backed-up copy where there was one, else the new file goes again."""
+    backed-up copy where there was one, else the new file goes again. The backup
+    is only removed when every file came back: after a failure it is the one
+    intact copy left."""
+    failed = False
     for name in written:
         try:
             if (backup / name).exists():
@@ -426,4 +451,9 @@ def _roll_back(state_dir: Path, backup: Path, written: list[str]) -> None:
             log.error("🗄️ Venue import roll-back failed\n"
                       "file: %s\n"
                       "error: %s", name, exc)
+            failed = True
+    if failed:
+        log.error("🗄️ Venue import backup kept for recovery\n"
+                  "backup: %s", backup)
+        return
     shutil.rmtree(backup, ignore_errors=True)

@@ -28,7 +28,7 @@ _NAMES_SHOWN = 3
 
 @dataclass(frozen=True)
 class Finding:
-    key: str            # files / loudness / silences / pd / duplicates / music / empty
+    key: str            # files / loudness / silences / pd / duplicates / music / power / empty
     level: int          # OK, WARN or FAIL
     title: str
     detail: str = ""
@@ -184,6 +184,21 @@ def awake_finding(keep_awake: bool) -> Finding:
                    i18n.t("☀ Keep the screen awake is off — an hour nobody touches "
                           "the desk blanks the screen and the beamer, and may put "
                           "the computer to sleep."), 1, "awake")
+
+
+def power_finding(status: tuple[bool, int | None] | None) -> Finding | None:
+    """🔋 Mains or battery: `status` is (on mains, percent or None). Never red,
+    and no Fix link: the cure is a cable. None (no line) when nobody can tell."""
+    if status is None:
+        return None
+    on_mains, percent = status
+    title = i18n.t("🔋  Power")
+    if on_mains:
+        return Finding("power", OK, title, i18n.t("🔌 On mains power"))
+    if percent is None:
+        return Finding("power", WARN, title, i18n.t("🔋 On battery: plug in the charger"), 1)
+    return Finding("power", WARN, title,
+                   i18n.t("🔋 On battery, %d %%: plug in the charger") % percent, 1)
 
 
 def readiness_findings(tracks: list[tuple], cache, dup_report: dict,

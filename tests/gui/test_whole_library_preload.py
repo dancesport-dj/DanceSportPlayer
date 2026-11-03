@@ -129,11 +129,13 @@ class StartTest(_Base):
         self.win._sync_loudness_available = mock.Mock()
         self.patch(mg, "learn_instrumental_probs")
         self.patch(mg, "apply_vocal_shares")
+        self.win._schedule_background_analysis = mock.Mock()
         with mock.patch.object(self.win, "_preload_global_lib") as preload:
             self.win._finish_library_load(self.win._library.lib, "ready")
             for _ in range(20):
                 _app.processEvents()
         preload.assert_called_once()
+        self.win._schedule_background_analysis.assert_called_once_with()
         self.assertEqual(self.win.statusBar().currentMessage(), "ready")
 
 

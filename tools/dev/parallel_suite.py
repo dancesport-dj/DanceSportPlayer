@@ -32,6 +32,13 @@ BATCH = 4
 # arrives unsigned or signed depending on who reads it.
 NATIVE_CRASH = {139, -11, 0xC0000005, -1073741819}
 
+# A batch normally takes well under a minute. One that runs this long is wedged
+# (a Qt deadlock offscreen is the plausible cause): it is killed, and treated like
+# a crash - run once more on its own, red if it hangs again. 124 is the exit code
+# `timeout` uses.
+BATCH_TIMEOUT = 900
+HUNG = 124
+
 
 def batches() -> list[list[str]]:
     names = sorted(".".join(p.relative_to(ROOT).with_suffix("").parts)
@@ -49,10 +56,17 @@ def child_env() -> dict[str, str]:
 
 
 def run_batch(batch: list[str]) -> tuple[int, str]:
-    proc = subprocess.run([sys.executable, "-m", "unittest", "-q", *batch],
-                          cwd=ROOT, env=child_env(),
-                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                          encoding="utf-8", errors="replace")
+    try:
+        proc = subprocess.run([sys.executable, "-m", "unittest", "-q", *batch],
+                              cwd=ROOT, env=child_env(),
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                              encoding="utf-8", errors="replace",
+                              timeout=BATCH_TIMEOUT)
+    except subprocess.TimeoutExpired as exc:
+        partial = exc.output
+        if isinstance(partial, bytes):
+            partial = partial.decode("utf-8", errors="replace")
+        return HUNG, f"{partial or ''}\n⏱ timed out after {BATCH_TIMEOUT} s: {' '.join(batch)}\n"
     return proc.returncode, proc.stdout or ""
 
 
@@ -68,10 +82,11 @@ def run_all(work: list[list[str]]) -> int:
     ran = 0
     failed = []
     for batch, (code, output) in zip(work, results, strict=True):
-        if code in NATIVE_CRASH:
+        if code in NATIVE_CRASH or code == HUNG:
+            cause = "timed out" if code == HUNG else "native crash"
             # On its own, so a second crash cannot be blamed on the others.
             code, output = run_batch(batch)
-            print(f"⚠️ native crash, retried: {' '.join(batch)}", flush=True)
+            print(f"⚠️ {cause}, retried: {' '.join(batch)}", flush=True)
         ran += tests_ran(output)
         if code:
             failed.append(batch)

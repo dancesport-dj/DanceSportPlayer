@@ -26,6 +26,7 @@ ist nicht angeschlossen.
 | 🔈 Audioausgänge | Jeder Ausgang, der in ⚙ Einstellungen → 🔊 Ton & Player gewählt ist, ist angeschlossen. Fehlt die Karte für die Musik, die Cartwall oder die Ansagen, ist die Zeile rot: Diese Quelle spielt dann auf dem Systemstandard. Fehlt die Karte fürs 🎧 Vorhören, ist sie gelb, ebenso wenn das Vorhören auf dem Ausgang der Musik läge, denn dann würde jedes Vorhören abgelehnt. Steht das Vorhören auf *Wie die Musik*, ist sie auch gelb, denn der Saal hört jedes Vorhören mit. Mit nur einem Ausgang gibt es keinen anderen zur Wahl, dann meldet die Zeile nichts. |
 | 🎛 Controller | Der gewählte Hardware-Controller ist verbunden. Nicht jeder Abend braucht einen, darum ist diese Zeile höchstens gelb, und sie fehlt, solange kein Controller eingerichtet ist. |
 | ☀ Bildschirm und Ruhezustand | ☀ Bildschirm wach halten ist an, also bleiben Bildschirm, Beamer und Computer wach, solange Musik läuft oder der Präsentationsbildschirm offen ist. |
+| 🔋 Stromversorgung | Der Computer hängt am Stromnetz. Im Akkubetrieb ist die Zeile gelb und nennt den Ladestand. Nur unter Windows, sonst fehlt die Zeile. |
 
 Eine Zeile, die nicht grün ist, hat einen Knopf, der sie behebt:
 **📊 Lautheit messen…**, **🐂 Highlights finden…**, **🔁 Doppelte
@@ -51,7 +52,10 @@ Zeile 🎵 Musikprüfung für Tempo, Länge und den Aufbau der Runden.
   anhalten?**), und **Nein** lässt die Musik an. Ob er fragt, legt jedes
   Spiel-Set fest, mit **❓ Fragen, bevor ein Doppelklick den Titel anhält**
   unter [⚙ Einstellungen ▸ 🎛 Spiel-Sets](06-settings.md#spiel-sets); in
-  beiden an.
+  beiden an. Würde der Doppelklick einen Titel mit ↩ Zeitmarke starten, heißt
+  die Frage stattdessen **Zeitmarke zurücksetzen?**, und sie kommt immer: **Von
+  vorn**, **An der Zeitmarke** oder **Abbrechen**. Das
+  ist die Vorgabe und lässt die Musik an.
 - **Strg + Umschalt + ← / →** springt zum vorigen oder nächsten Titel, und
   **Strg + ← / →** springt 30 s.
 
@@ -109,14 +113,14 @@ die Restzeit.
 | **⏮ / ⏭** | Voriger / nächster Titel. |
 | **◀◀ / ▶▶** | 10 s zurück / vor. |
 | **⏯** | Pause / weiter. |
-| **🔁** | Wiederholt *diesen* Titel endlos, wenn die Fläche noch voll ist oder eine Rede länger dauert. Das geht auch mit ausgeschaltetem ⏭ Auto. |
+| **🔁** | Wiederholt *diesen* Titel endlos, wenn die Fläche noch voll ist oder eine Rede länger dauert. Das geht auch mit ausgeschaltetem ⏭ Auto. Schaltest du eine Liste auf ⏭ Auto, während das läuft, fragt das Programm, ob die Wiederholung ausgehen soll; sonst ginge die Liste nie weiter. |
 | Ausblend-Knopf (durchgestrichener Lautsprecher) | Blendet den Titel jetzt über die Ausblendzeit aus und beendet ihn dann. |
 | **☕** | Blendet den Titel über die 🔉↓-Rampe aus, die Karte blinkt dabei orange, und startet dann die Pause. Ein mit ⏯ angehaltener Titel geht direkt hinein. Nur da, solange **Pause zwischen den Titeln** an ist. |
 | Verlängern-Knopf | Hängt eine weitere Pausenlänge an, wenn der Gruppenwechsel länger dauert. |
-| **⏭ Nächster Tanz** | Nur während der Pause. Verkürzt das Warten, behält aber die Ansage: Die Pausenmusik blendet aus (die Karte blinkt dabei orange), der Tanz wird angesagt, dann startet der Titel. Ist die Ansage schon gesprochen, sind die Ansagen aus, steht ✋ Manuell oder hält ⏯ die Pause an, geht es sofort weiter. |
+| **⏭** (nächster Tanz) | Nur während der Pause. Verkürzt das Warten, behält aber die Ansage: Die Pausenmusik blendet aus (die Karte blinkt dabei orange), der Tanz wird angesagt, dann startet der Titel. Ist die Ansage schon gesprochen, sind die Ansagen aus, steht ✋ Manuell oder hält ⏯ die Pause an, geht es sofort weiter. |
 | **⊗** | Notfall: blendet die Musik aus und *hält* sie an. Nichts endet und nichts geht weiter. **⏯** setzt genau an dieser Stelle fort. Mit den Lautstärke-Knöpfen − / + rückt er neben den Ausblend-Knopf und erscheint nur, solange ein Titel läuft. |
 | **🔊** | Drei Stufen: der erste Klick senkt auf 10 %, der zweite schaltet stumm, der dritte holt die Musik wieder auf voll. Das Symbol folgt jeder Stufe, und die Anzeige unter dem Regler sagt rot **stumm**, solange stumm ist. Die Pausenmusik geht mit herunter. Wie weit abgesenkt wird, stellst du unter ⚙ Einstellungen ▸ 🔊 Ton & Player ▸ ▸ Erweitert ▸ **🔉 Absenken auf** ein; der Tooltip des Knopfs nennt es. |
-| Lautstärkeregler | Gesamtlautstärke. |
+| Lautstärkeregler | Gesamtlautstärke. Beim Absenken und Stummschalten geht er mit der Musik herunter und zeigt, was zu hören ist; bewegst du ihn, endet das Absenken auf dieser Lautstärke. |
 | **− / +** daneben | Ändern die Lautstärke um 2 % je Klick, gedrückt gehalten gleiten sie. Ein Doppelklick auf die % unter dem Regler lässt dich einen Wert eintippen. Von Haus aus an; ⚙ Einstellungen ▸ 🔊 Ton & Player ▸ **➕ Lautstärke − / +** blendet sie aus. |
 
 Die Zeiten eines Titels über einer Stunde, etwa eines langen Mixes, lauten
@@ -139,6 +143,7 @@ keine Goldtönung, denn die Überblendung blendet ihn ein. Ein Klick oder
 Ziehen von Hand in der Wellenform nimmt die grüne Linie weg: der Titel
 beginnt dann nicht mehr dort, wo sie stand.
 
+- **Zeigst** du darauf, siehst du die Zeit unter der Maus, noch vor dem Klick.
 - Ein **Klick** springt an diese Stelle. **Ziehen** spult: Abspielkopf und
   Zeiten folgen der Maus, und die Musik springt beim Loslassen. Über den
   linken Rand hinaus gezogen geht es auf 0:00.
@@ -152,7 +157,9 @@ Die Tempo-Zeile darunter:
 - **Tempo-Regler**: −16 % bis +16 %, ohne die Tonhöhe zu ändern (Time
   Stretch), zum Beispiel um einen Titel auf das Tempo zu ziehen, das das
   Turnier braucht. **− / +** gehen in Schritten, gedrückt gehalten gleiten
-  sie. **0** oder ein Doppelklick auf den Regler setzt ihn zurück. Auch
+  sie. Eine Folge von Klicks auf **− / +** zählt als eine Änderung und wird
+  750 ms nach dem letzten Klick angewendet; Mausrad und Tasten wirken nach
+  450 ms. **0** oder ein Doppelklick auf den Regler setzt ihn zurück. Auch
   [Pult-Tasten](#-pult-tasten) und ein Drehregler am
   [DJ-Controller](#-ein-dj-controller) bewegen ihn.
 - **TSO**: solange an, wird jeder Titel auf das mittlere Tempo seines Tanzes in
@@ -180,7 +187,8 @@ Die Tempo-Zeile darunter:
   er endet also bei 1:48.
 
 Sobald die Analyse sie gemessen hat, wird Stille am Anfang und Ende eines
-Titels übersprungen.
+Titels übersprungen. Ein Titel, dessen Datei in voller Lautstärke abbricht,
+wird über seine letzte Sekunde ausgeblendet.
 
 ### 🐂 Paso Doble
 
@@ -198,15 +206,15 @@ tanzen.
   bearbeiten** auch dann, wenn der Paso Doble ganz läuft.
 - Die Höhepunkte findet die Analyse. Fehlt einer oder sitzt er falsch, klick
   während des Abspielens genau auf dem Höhepunkt auf
-  **🎯 Highlight markieren**. **✖** vergisst die gelernten Marken dieses
-  Titels.
+  **🎯 Highlight markieren**. **✖** fragt nach, bevor es die gelernten Marken
+  dieses Titels vergisst; **Nein** lässt sie.
 - **✏️ Highlights bearbeiten** pausiert die Musik und setzt den Stopp aus, so
   kannst du durch den ganzen Titel spulen und seine Marken setzen. Jede
   Marke steht auf die Zehntelsekunde genau da, *0:44,3*, und die **− / +**
   daneben schieben sie um 0,1 s früher oder später, für einen Klick, der
   etwas zu früh oder zu spät kam.
-- 🎯, ✖ und ✏️ wirken auf den geladenen Titel: steht kein Paso Doble im
-  Player, sind sie ausgegraut.
+- 🎯, ✖ und ✏️ wirken auf den geladenen Titel, sie erscheinen also nur,
+  solange ein Paso Doble im Player steht.
 - **Start nach** hält einen Paso Doble vor dem Musikstart zurück, damit die
   Paare ihre Ausgangsposition einnehmen können. Die Player-Karte zählt die
   Wartezeit dort herunter, wo die Werte des Titels stehen, mit dem Takt, in dem er läuft, *🐂 PD T60 in 5 s*,
@@ -234,8 +242,13 @@ Mit ausgeschaltetem Schalter ist ein Paso Doble ein gewöhnlicher Titel.
   - **Nach diesem Titel**: der laufende Titel ist der letzte.
   - **Nach … Titeln**: 2 bis 99 Titel, der laufende als erster gezählt. Das
     bernsteinfarbene *noch 3* daneben zählt herunter, wie sie enden.
-  - **Um …**: eine Uhrzeit, `HH:mm`. Eine Zeit, die heute schon vorbei ist,
-    heißt nach Mitternacht. Das Feld daneben sagt, was der Titel tut, der zu
+  - **Um …**: eine Uhrzeit aus der Liste, alle fünf Minuten. Sie bietet nur
+    noch kommende Zeiten an, über Mitternacht bis 01:55 und immer mindestens
+    die nächsten zwei Stunden. Mit einem Doppelklick auf die Zeit tippst du
+    stattdessen eine beliebige Zeit (23:17, 2317, 23.17 oder nur eine volle
+    Stunde): **Enter** oder das Verlassen des Felds stellt sie scharf, Text,
+    der keine Zeit ist, bringt die alte zurück, und eine getippte Zeit, die
+    nicht in der Liste steht, bleibt sichtbar. Das Feld daneben sagt, was der Titel tut, der zu
     der Zeit läuft: **zu Ende spielen** (der erste Titel, der um oder nach
     der Uhrzeit endet, ist der letzte), **um die Zeit ausblenden** oder
     **hybrid: ab 1:30 ausblenden** (ein Titel, der gerade erst begonnen hat,
@@ -251,13 +264,16 @@ Mit ausgeschaltetem Schalter ist ein Paso Doble ein gewöhnlicher Titel.
   aus); danach wartet der nächste Titel auf ⏯. Er folgt nur dem ⏹ Stopp
   oben, nie einem ⏹ von Hand. Der Titel bleibt gespeichert.
 - **Pause zwischen den Titeln**: Zeit für die Paare zum Wechseln oder
-  Durchatmen. Aus, folgt der nächste Titel sofort.
+  Durchatmen. Solange sie zählt, blinkt die Karte orange, wie beim Warten vor
+  einem Paso Doble. Aus, folgt der nächste Titel sofort.
 - **🎶 Pausenmusik**: ein Hinweis in einer Zeile unter dem Pausenschalter. Die
   Pausenmusik ist die [▶ Warteschlange](#-eine-warteschlange-aus-pads) der
   Cartwall: Eine Pause startet sie beim ersten 🎶 Hintergrund-Pad, sofern
   nicht schon ein Lauf der Warteschlange geht. Pads ohne 🎶 werden
-  übersprungen, weil sie über den Titel hinweg weiterspielen würden. Die
-  🎶 Pads werden unter der gesprochenen Ansage leiser wie die Musik und
+  übersprungen, weil sie über den Titel hinweg weiterspielen würden. Ohne
+  🎶 Pad in der Warteschlange spielt das ausgewählte 🎶 Pad für sich; ist
+  keines ausgewählt, spielt nichts. Ein 🎶 Pad, das schon läuft, spielt einfach
+  weiter. Die 🎶 Pads werden unter der gesprochenen Ansage leiser wie die Musik und
   treten zurück, wenn der nächste Titel startet. Um die Pausenmusik zu
   ändern, ändert man die Warteschlange.
 - **🔀 Überblenden**: die letzten Sekunden eines Titels und die ersten des
@@ -306,7 +322,10 @@ Die App sagt den nächsten Tanz laut an. Ab Werk nennt sie nur den Tanz,
 „Nächster Tanz: Langsamer Walzer“. **🔢 Nur die Gruppe** sagt stattdessen nur
 „Gruppe 1“, für einen Trainingsabend.
 
-- Mit Pause kommt die Ansage kurz bevor die Pause endet.
+- Mit Pause kommt die Ansage kurz bevor die Pause endet. Die Ansage braucht
+  keine Lücke, darum schaltet sie **Pause zwischen den Titeln** aus, und
+  schaltet man sie aus, kommt die Pause zurück. Wer beides will, schaltet die
+  Pause wieder ein.
 - Ohne Pause wird der Tanz genannt, wenn der Titel startet: **über den ersten
   Takten** (die Musik wird unter der Stimme leiser) oder **vor dem
   Musikstart** (die Musik folgt der Ansage), je nach ⚙ Einstellungen ▸
@@ -326,7 +345,7 @@ Die App sagt den nächsten Tanz laut an. Ab Werk nennt sie nur den Tanz,
 
 ### Klang und Anzeige
 
-- **🔊 Pegel angleichen (R128)**: gleicht die Lautheit zwischen den
+- **🔊 Pegel angleichen**: gleicht die Lautheit zwischen den
   Titeln an. Braucht die Lautheitsanalyse.
   Dabei bleibt der True Peak jedes Titels bei höchstens −1 dBTP: ein
   leiser Titel, der beim Anheben übersteuern würde, wird weniger
@@ -335,10 +354,12 @@ Die App sagt den nächsten Tanz laut an. Ab Werk nennt sie nur den Tanz,
   neu gemessen.
 - **▶️ Doppelklick startet den Titel**: an, spielt ein Doppelklick sofort. Aus,
   legt er den Titel nur bereit, und ⏯ startet ihn. Das ist es, was eine Gruppe
-  braucht.
+  braucht, und jedes Spiel-Set beginnt so.
 - **↩ Titelposition merken**: ein Titel, den du verlassen
-  hast, startet wieder an dieser Stelle. Die Zeile zeigt **↩ mm:ss**. Die
-  Marken werden vergessen, wenn die App schließt.
+  hast, startet wieder an dieser Stelle und kommt dabei über eine Sekunde hoch,
+  statt mit voller Lautstärke einzusetzen (ein Paso Doble setzt abrupt ein; die
+  Zeit steht unter [⚙ Einstellungen ▸ 🔊 Ton & Player](06-settings.md#ton-und-player)).
+  Die Zeile zeigt **↩ mm:ss**. Die Marken werden vergessen, wenn die App schließt.
 
 ### Abspiel-Sets
 
@@ -408,7 +429,8 @@ Ihre Farben stellst du unter
 [⚙ Einstellungen ▸ 🎨 Aussehen](06-settings.md#aussehen) ein.
 
 **☀ Bildschirm wach halten** hält Bildschirmschoner und Bildschirm-Abschaltung
-auf, solange Musik läuft oder die Präsentation offen ist.
+auf, solange Musik läuft oder die Präsentation offen ist, und noch zehn Minuten
+danach, damit der Bildschirm zwischen den Titeln an bleibt.
 
 ## 🎧 Vorhören über Kopfhörer
 
@@ -528,8 +550,9 @@ grau hinter den Pausenstrichen.
 - Das laufende Pad zeigt **▶** statt **≡**.
 - In der Warteschlange gilt die 🔁 Endloswiederholung eines Pads nicht, sonst
   käme sie nie weiter: sein 🔁 ist rot durchgestrichen, und das Pad zählt
-  herunter wie jedes andere. Alles andere (Lautstärke, Musik leiser, 🎶 Hintergrund,
-  das Ausblenden) bleibt, wie es am Pad eingestellt ist.
+  herunter wie jedes andere. Allein in der Warteschlange wiederholt es sich aber,
+  darum bleibt sein 🔁 dann unverändert. Alles andere (Lautstärke, Musik leiser,
+  🎶 Hintergrund, das Ausblenden) bleibt, wie es am Pad eingestellt ist.
 - Ein Pad, dessen Datei fehlt, wird übersprungen, mit einem Hinweis in der
   Statusleiste. Fehlen alle, hält die Warteschlange an.
 - **Ein Klick auf das laufende Pad**, **⏹ Alles stoppen**, **Esc**, das
@@ -628,9 +651,12 @@ Solange der Server läuft, trägt die Statusleiste ein grünes Abzeichen
 der Knopf dann **📱 Server stoppen**.
 
 - Nur Handys im lokalen Netz kommen hinein, und nur mit der PIN. Falsche PINs
-  sperren ein Handy eine Weile aus, und nach 30 falschen PINs aus dem ganzen
-  Netz binnen zehn Minuten kommt kein neues Handy mehr hinein; Handys, die schon
-  drin sind, laufen weiter.
+  sperren ein Handy eine Weile aus. Nach 30 falschen PINs aus dem ganzen Netz
+  binnen zehn Minuten sind neue Handys pausiert, aber nicht ausgesperrt: Eine
+  PIN alle 10 Sekunden wird weiter geprüft, dein eigenes neues Handy kommt
+  also binnen Sekunden hinein, auch während ein Fremder rät. Handys, die schon
+  drin sind, laufen weiter. Das Fernbedienungs-Fenster selbst sagt, dass die
+  PIN unverschlüsselt durchs WLAN geht.
 - Die PIN geht unverschlüsselt übers Netz (einfaches HTTP). Im eigenen Netz ist
   das in Ordnung. In einem offenen WLAN der Halle könnte sie jeder darin
   mitlesen; nimm dort wenn möglich einen Handy-Hotspot oder einen eigenen Router
@@ -850,5 +876,8 @@ Party über Mitternacht ein Abend bleibt.
   Beispiel für eine GEMA-Meldung: Datum, Start, Interpret, Titel, Komponist, Tanz, Liste
   und Dauer.
 - **🗑 Abend löschen** entfernt ihn nach einer Rückfrage aus dem Protokoll.
+- Eine Spalte, die du auf eine neue Breite ziehst, behält sie (gespeichert in
+  `play_log_dialog.json`); die übrigen Spalten passen sich dem gezeigten Abend
+  an, und eine lange Zelle bestimmt nicht mehr die Breite ihrer ganzen Spalte.
 
 Weiter: [Tags](05-tags.md)

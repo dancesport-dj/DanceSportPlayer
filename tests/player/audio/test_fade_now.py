@@ -131,6 +131,7 @@ class WindowPausesTheFadeTest(unittest.TestCase):
             def __init__(self):
                 self._fade_now = mock.Mock()
                 self._xfade_follow = self._refresh_wake_lock = lambda *a: None
+                self._stop_background_analysis = lambda: None
                 self._deckset = mock.Mock(all_tables=())
                 self._playback = mock.Mock(path=None, dance="")
                 self._level_owed = False

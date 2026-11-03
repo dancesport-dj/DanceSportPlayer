@@ -236,6 +236,7 @@ def load_settings() -> dict:
         # each — it is a single pane, not one list per kind.
         "library_hidden_columns": [],
         "library_short_dances": False,
+        "library_folder_view": False,
         "global_search": False,
         # 🏷 Titles without a class tag stay in generation unless ticked.
         "exclude_no_class": False,
@@ -1162,8 +1163,36 @@ def load_autosave() -> dict | None:
     # lack the newer keys) and the legacy single-playlist file (v1);
     # _restore_playlist normalises them all.
     if isinstance(data, dict) and data.get("version") in (1, 2, 3, AUTOSAVE_VERSION):
+        for key in validate_env(data):
+            logging.warning("🗂️ Autosave: dropped %r, it has the wrong type", key)
         return data
     return None
+
+
+_ENV_DICTS = ("deck_a", "deck_b", "deck_c", "deck_d", "deck_e", "deck_f", "deck_g", "deck_h",
+              "names", "m3u_paths", "deck_modes", "list_play", "deck_advance")
+_ENV_LISTS = ("wishlist", "wishlist2", "wishlist3", "wishlist4")
+
+
+def validate_env(data: dict) -> list[str]:
+    """Drop the top-level parts of an autosave whose container type is wrong.
+
+    The version number says nothing about the contents of a file that is
+    hand-edited or copied between machines; a part that is not the dict or list
+    the restore expects is removed, so it restores as absent instead of
+    failing the whole restore. Returns the dropped keys (#28). A part saved as
+    null is a deck with no playlist, which the writer produces on its own: it
+    restores as absent too, and is no wrong type.
+    """
+    dropped = []
+    for keys, kind in ((_ENV_DICTS, dict), (_ENV_LISTS, list)):
+        for key in keys:
+            if key in data and data[key] is None:
+                del data[key]
+            elif key in data and not isinstance(data[key], kind):
+                del data[key]
+                dropped.append(key)
+    return dropped
 
 
 class PrintExportDialog(QDialog):
@@ -1291,53 +1320,51 @@ class _M3uDroppedList(DroppedFilesList):
 
 
 class UsbExportDialog(QDialog):
-    """🧳 choose what goes into the USB venue bundle: every open playlist deck,
-    only the 📅 tournament day, or saved .m3u files dragged in (like the
-    Check-duplicates drop tab). The ⭐ wishlists go along with the decks only
-    when their box is ticked. Or, instead of a bundle, the 📦 venue pack (the
-    one ⚙ Settings exports too).
-    `mode()` → 'all' | 'day' | 'dropped' | 'venue'; `dropped_paths()` → list[Path];
-    `include_wishlists()` → bool."""
+    """🧳 choose what goes into the USB venue bundle, any combination of: the open
+    playlist decks, the 📅 tournament day, the party list, the ⭐ wishlists and
+    saved .m3u files dragged in (like the Check-duplicates drop tab). Or, instead
+    of a bundle, the 📦 venue pack (the one ⚙ Settings exports too): a button of
+    its own, since it combines with nothing.
+    `include_decks()`, `include_day()`, `include_party()`, `include_wishlists()`,
+    `venue_pack()` → bool; `dropped_paths()` → list[Path]."""
 
     def __init__(self, parent=None, n_decks: int = 0, n_day: int = 0,
-                 day_selected: bool = False, n_wish: int = 0):
+                 day_selected: bool = False, n_wish: int = 0, n_party: int = 0):
         super().__init__(parent)
         self.setWindowTitle("🧳 USB export")
         self.setMinimumWidth(440)
+        self._venue_pack = False
         lyt = QVBoxLayout(self)
-        lyt.addWidget(QLabel("What should go into the venue bundle?"))
+        lyt.addWidget(QLabel("What should be exported?"))
 
-        n_all = n_decks + n_day
-        self._grp = QButtonGroup(self)
-        self._rb_all = QRadioButton((i18n.t("All open playlists (%d deck)") if n_all == 1
-                                     else i18n.t("All open playlists (%d decks)")) % n_all)
-        self._rb_day = QRadioButton((i18n.t("📅 Tournament day only (%d playlist)") if n_day == 1
-                                     else i18n.t("📅 Tournament day only (%d playlists)")) % n_day)
-        self._rb_dropped = QRadioButton("Saved playlists dragged in (.m3u)…")
-        self._rb_venue = QRadioButton("📦 Venue pack: this desk for another PC…")
-        self._rb_venue.setToolTip(
-            "One file with the settings, every deck and wishlist and the\n"
-            "cartwall, the music they use if you want: the same as\n"
-            "⚙ Settings → 📦 Venue pack → Export venue pack….")
-        for rb in (self._rb_all, self._rb_day, self._rb_dropped, self._rb_venue):
-            self._grp.addButton(rb)
-            lyt.addWidget(rb)
-        self._rb_all.setEnabled(n_all > 0)
-        self._rb_day.setEnabled(n_day > 0)
-        if day_selected and n_day:
-            self._rb_day.setChecked(True)
-        elif n_all:
-            self._rb_all.setChecked(True)
-        else:
-            self._rb_dropped.setChecked(True)
-
-        # Taken along with the open decks or the 📅 day; off by default.
-        self._n_wish = n_wish
+        self._cb_decks = QCheckBox((i18n.t("All open playlists (%d deck)") if n_decks == 1
+                                    else i18n.t("All open playlists (%d decks)")) % n_decks)
+        self._cb_day = QCheckBox((i18n.t("📅 Tournament day (%d playlist)") if n_day == 1
+                                  else i18n.t("📅 Tournament day (%d playlists)")) % n_day)
+        self._cb_party = QCheckBox((i18n.t("🎉 Practice / party list (%d title)") if n_party == 1
+                                    else i18n.t("🎉 Practice / party list (%d titles)")) % n_party)
         self._cb_wish = QCheckBox(i18n.t("⭐ Include wishlists (%d)") % n_wish)
         self._cb_wish.setToolTip(
             "Each ⭐ wishlist with titles in it gets its own numbered\n"
             "folder in the bundle, beside the playlists.")
-        lyt.addWidget(self._cb_wish)
+        self._cb_dropped = QCheckBox("Saved playlists dragged in (.m3u)…")
+        boxes = ((self._cb_decks, n_decks), (self._cb_day, n_day),
+                 (self._cb_party, n_party), (self._cb_wish, n_wish),
+                 (self._cb_dropped, 1))
+        for box, count in boxes:
+            box.setEnabled(count > 0)
+            lyt.addWidget(box)
+        # What the export took before there were boxes; the party list and the
+        # wishlists are asked for, unless the party list is all there is.
+        if day_selected and n_day:
+            self._cb_day.setChecked(True)
+        elif n_decks or n_day:
+            self._cb_decks.setChecked(n_decks > 0)
+            self._cb_day.setChecked(n_day > 0)
+        elif n_party:
+            self._cb_party.setChecked(True)
+        else:
+            self._cb_dropped.setChecked(True)
 
         self._drop_zone = _M3uOnlyDropZone()
         self._drop_zone.filesDropped.connect(self._on_dropped)
@@ -1346,45 +1373,66 @@ class UsbExportDialog(QDialog):
         self._files.changed.connect(self._on_files_changed)
         lyt.addWidget(self._files)
 
-        self._grp.buttonToggled.connect(self._sync_state)
-
-        btns = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel)
-        self._ok = btns.addButton("🧳  Export",
-                                  QDialogButtonBox.ButtonRole.AcceptRole)
-        btns.accepted.connect(self.accept)
-        btns.rejected.connect(self.reject)
-        lyt.addWidget(btns)
+        # A plain row, not a QDialogButtonBox: in the Windows style that box sits
+        # 6 px in from the left, off the edge of the Add files row above it.
+        btns = QHBoxLayout()
+        self._ok = QPushButton("🧳  Export")
+        self._ok.setDefault(True)
+        self._venue = QPushButton("📦 Venue pack: this desk for another PC…")
+        cancel = QPushButton("Cancel")
+        self._venue.setToolTip(
+            "One file with the settings, every deck and wishlist and the\n"
+            "cartwall, the music they use if you want: the same as\n"
+            "⚙ Settings → 📦 Venue pack → Export venue pack….")
+        self._venue.clicked.connect(self._accept_venue_pack)
+        self._ok.clicked.connect(self.accept)
+        cancel.clicked.connect(self.reject)
+        for button in (self._ok, self._venue):
+            btns.addWidget(button)
+        btns.addStretch(1)
+        btns.addWidget(cancel)
+        lyt.addLayout(btns)
+        for box, _count in boxes:
+            box.toggled.connect(self._sync_state)
         self._sync_state()
 
     def _sync_state(self, *_):
-        self._ok.setEnabled(not self._rb_dropped.isChecked()
-                            or bool(self._files.paths()))
-        self._cb_wish.setEnabled(self._n_wish > 0
-                                 and self.mode() in ("all", "day"))
+        self._ok.setEnabled(self.include_decks() or self.include_day()
+                            or self.include_party() or self.include_wishlists()
+                            or bool(self.dropped_paths()))
 
     def _on_dropped(self, paths: list):
         self._files.add_paths(paths)
 
     def _on_files_changed(self):
-        # Touching the list means the user wants the dropped-files source.
-        if self._files.paths() and not self._rb_dropped.isChecked():
-            self._rb_dropped.setChecked(True)
+        # Touching the list means the user wants the dropped files along.
+        if self._files.paths():
+            self._cb_dropped.setChecked(True)
         self._sync_state()
 
-    def mode(self) -> str:
-        if self._rb_day.isChecked():
-            return "day"
-        if self._rb_dropped.isChecked():
-            return "dropped"
-        if self._rb_venue.isChecked():
-            return "venue"
-        return "all"
+    def _accept_venue_pack(self):
+        self._venue_pack = True
+        self.accept()
 
-    def dropped_paths(self) -> list[Path]:
-        return [Path(p) for p in self._files.paths()]
+    def venue_pack(self) -> bool:
+        return self._venue_pack
+
+    def include_decks(self) -> bool:
+        return self._cb_decks.isChecked()
+
+    def include_day(self) -> bool:
+        return self._cb_day.isChecked()
+
+    def include_party(self) -> bool:
+        return self._cb_party.isChecked()
 
     def include_wishlists(self) -> bool:
-        return self._cb_wish.isEnabled() and self._cb_wish.isChecked()
+        return self._cb_wish.isChecked()
+
+    def dropped_paths(self) -> list[Path]:
+        if not self._cb_dropped.isChecked():
+            return []
+        return [Path(p) for p in self._files.paths()]
 
 
 class UsbBundleFolderDialog(QDialog):
@@ -1434,54 +1482,6 @@ class UsbBundleFolderDialog(QDialog):
 
     def into_root(self) -> bool:
         return self._into_root
-
-
-class FindInListDialog(QDialog):
-    """🔍 The in-list search: one row for a title, a second for a genre.
-
-    `title()` steps to the next match and `genre()` highlights every match at
-    once (every Paso Doble of a party list, say). Both are offered, because the
-    operator usually knows which of the two they are hunting for."""
-
-    def __init__(self, parent, title: str = "", genre: str = ""):
-        super().__init__(parent)
-        self.setWindowTitle("Find in list")
-        lyt = QVBoxLayout(self)
-        lyt.addWidget(QLabel("Find title:"))
-        self._title = QLineEdit(title)
-        self._title.setPlaceholderText(
-            "A word of the title, the tag title or the file name")
-        self._title.setClearButtonEnabled(True)
-        lyt.addWidget(self._title)
-        lyt.addWidget(QLabel("Find genre / dance:"))
-        self._genre = QLineEdit(genre)
-        self._genre.setPlaceholderText(
-            "e.g. paso doble, PD, Boogie Woogie, Line Dance, salsa")
-        self._genre.setToolTip(
-            "Highlights every row of the list whose dance or genre matches -\n"
-            "leave empty to search titles only.")
-        self._genre.setClearButtonEnabled(True)
-        lyt.addWidget(self._genre)
-        # As wide as the example text and no wider: the placeholders say what
-        # may be typed, so the fields only need room for them and the ✕.
-        fm = self._genre.fontMetrics()
-        need = max(fm.horizontalAdvance(self._title.placeholderText()),
-                   fm.horizontalAdvance(self._genre.placeholderText()))
-        self._title.setMinimumWidth(need + 34)
-        self._genre.setMinimumWidth(need + 34)
-        btns = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok
-                                | QDialogButtonBox.StandardButton.Cancel)
-        btns.accepted.connect(self.accept)
-        btns.rejected.connect(self.reject)
-        lyt.addWidget(btns)
-        self._title.setFocus()
-        self._title.selectAll()
-
-    def title(self) -> str:
-        return self._title.text().strip()
-
-    def genre(self) -> str:
-        return self._genre.text().strip()
 
 
 class M3uDropDialog(QDialog):

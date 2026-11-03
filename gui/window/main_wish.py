@@ -194,6 +194,37 @@ class WishlistMixin(MainWindowHost):
         """The fold-neighbour group: the 2×2 column pair, else all wishlists in a row."""
         return self._wish_col_pair(table) if self._wish_grid_on() else tuple(self._deckset.wishlists)
 
+    def _wishes_beside(self, wl) -> list:
+        """The other wishlists on screen."""
+        return [t for t in self._deckset.wishlists
+                if t is not wl and self._box_shown(t)]
+
+    def _wish_is_expanded(self, wl) -> bool:
+        """True if `wl` is the one open wishlist left."""
+        return (not self.deck(wl).folded
+                and all(self.deck(t).folded for t in self._wishes_beside(wl)))
+
+    def _wish_expand_caption(self, wl) -> str | None:
+        """↔ What the expand entry says for `wl`; None with no other wishlist shown."""
+        if not self._wishes_beside(wl):
+            return None
+        return ("↔  Show all wishlists again\tCtrl+Shift+E" if self._wish_is_expanded(wl)
+                else "↔  Expand this wishlist\tCtrl+Shift+E")
+
+    def _expand_wishlist(self, wl) -> None:
+        """↔ `wl` gets the area and the other wishlists go down to tabs; with that
+        already so, they all open again."""
+        back = self._wish_is_expanded(wl)
+        self._toggle_deck_fold(wl, folded=False)   # first: never all folded on the way
+        for t in self._wishes_beside(wl):
+            self._toggle_deck_fold(t, folded=not back)
+
+    def _expand_focused_wishlist(self) -> None:
+        """Ctrl+Shift+E — the focused wishlist; a deck in focus has nothing to expand."""
+        table = getattr(self, "_focused_table", None)
+        if table in self._deckset.wishlists and self._wishes_beside(table):
+            self._expand_wishlist(table)
+
     def _update_wish_area(self):
         """The wishlist area follows the cycle (_wish_state): 0 off · 1..4 show that many
         wishlists, in every deck view. State 0 hides it entirely (even with multiple

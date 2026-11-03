@@ -32,7 +32,6 @@ Kept small on purpose:
 Runs on daemon threads like the remote (http.server, no Qt); requests come
 back through `on_request` on the server's thread.
 """
-import ipaddress
 import json
 import logging
 import secrets
@@ -46,7 +45,13 @@ from typing import cast
 from urllib.parse import urlsplit
 
 from shared.remote.guest_page import GUEST_CODE_HEADER, MAX_WISH, page_html
-from shared.remote.remote_server import desk_host, forwarded_client, lan_client, read_body
+from shared.remote.remote_server import (
+    desk_host,
+    forwarded_client,
+    guest_key,
+    lan_client,
+    read_body,
+)
 
 log = logging.getLogger("dancesport.guests")
 
@@ -57,8 +62,10 @@ PER_GUEST = 10                # requests (and wrong codes) one guest may send…
 ALL_GUESTS = 120              # …and all guests together…
 _WINDOW_SECS = 600            # …within this long
 READS_PER_GUEST = 120        # title list and now playing: the page polls every 20 s
-ALL_READS = 3000
 MAX_CONNECTIONS = 200        # open at once, each holding a thread
+# …and every one of those phones may poll for a whole window (20 s apart, plus
+# the first loads), so the shared read budget never runs dry before they do.
+ALL_READS = MAX_CONNECTIONS * (_WINDOW_SECS // 20 + 2)
 _IDLE_SECS = 60
 _MAX_BODY = 1024
 _BODY_SECS = 5                # the whole body, not each read of it
@@ -75,21 +82,6 @@ def clean_wish(text) -> str:
         return ""
     kept = "".join(" " if unicodedata.category(ch).startswith("C") else ch for ch in text)
     return " ".join(kept.split())[:MAX_WISH].strip()
-
-
-def guest_key(addr: str) -> str:
-    """Whose budget a request spends: an IPv4 address as it is, an IPv6 one
-    by its /64 — a phone holds the whole network and may pick a new address
-    per request."""
-    try:
-        ip = ipaddress.ip_address(addr.split("%", 1)[0])
-    except ValueError:
-        return addr
-    if isinstance(ip, ipaddress.IPv6Address):
-        if ip.ipv4_mapped is not None:
-            return str(ip.ipv4_mapped)
-        return str(ipaddress.IPv6Network((ip, 64), strict=False))
-    return str(ip)
 
 
 class Budget:
@@ -169,9 +161,12 @@ class _Handler(BaseHTTPRequestHandler):
                              "default-src 'none'; script-src 'unsafe-inline'; "
                              "style-src 'unsafe-inline'; connect-src 'self'; "
                              "frame-ancestors 'none'")
-        self.end_headers()
-        if body:
-            self.wfile.write(body)
+        try:
+            self.end_headers()
+            if body:
+                self.wfile.write(body)
+        except OSError:      # the phone left before the answer: nobody to tell
+            self.close_connection = True
 
     def _guest(self) -> str:
         """Who is asking: the address, or behind the tunnel the guest's own."""

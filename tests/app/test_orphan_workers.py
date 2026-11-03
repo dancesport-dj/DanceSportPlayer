@@ -89,6 +89,30 @@ print("window gone", flush=True)
 dg.exit_app(0)
 """
 
+_SUGGEST = _PRELUDE + r"""
+from gui.dialogs.ai_dialogs import AiSuggestDialog
+import gui.workers as gw
+
+def slow_match(lib, suggestions):
+    release.wait(8)
+    return []
+
+gw.match_suggestions_to_library = slow_match
+win = QWidget()
+dlg = AiSuggestDialog(None, win)
+dlg._on_reply('[{"artist": "a", "title": "t"}]')    # the match starts on its worker
+time.sleep(0.2)
+dlg.reject()                     # the user closes the dialog mid-match
+print("dialog closed", flush=True)
+dg.MainWindow._stop_workers(win)
+shiboken6.delete(win)            # the main window going at quit, children and all
+gc.collect()
+print("window gone", flush=True)
+release.set()
+time.sleep(0.3)
+dg.exit_app(0)
+"""
+
 
 class OrphanWorkerTest(unittest.TestCase):
 
@@ -114,6 +138,11 @@ class OrphanWorkerTest(unittest.TestCase):
 
     def test_quitting_after_a_duplicate_check_closed_mid_compare(self):
         proc = self._run(_DUPLICATES)
+        self.assertIn("window gone", proc.stdout, proc.stderr[-2000:])
+        self.assertEqual(proc.returncode, 0, proc.stderr[-2000:])
+
+    def test_quitting_after_the_ai_suggest_dialog_closed_mid_match(self):
+        proc = self._run(_SUGGEST)
         self.assertIn("window gone", proc.stdout, proc.stderr[-2000:])
         self.assertEqual(proc.returncode, 0, proc.stderr[-2000:])
 

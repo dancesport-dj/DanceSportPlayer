@@ -36,6 +36,7 @@ _ART_TAGS = ("#EXTIMG:", "#EXTALBUMARTURL:", "#EXTART:")
 
 _cache: dict = {}       # (kind, path, size) → QPixmap
 _no_art: set = set()    # files already known to carry no cover
+_refs_cache: dict = {}  # (playlist, mtime_ns, size) → the picture names it gives
 
 
 def _beside(path: Path) -> Path | None:
@@ -53,6 +54,30 @@ def _beside(path: Path) -> Path | None:
     return None
 
 
+def _art_refs(m3u: Path) -> tuple:
+    """The picture names a playlist's tag lines give, in file order. Read once
+    per version of the file: cover() asks on every paint and track change, and
+    a tournament list runs to thousands of lines. Whether a named file exists
+    is not remembered here, only what the playlist says."""
+    st = m3u.stat()
+    key = (str(m3u), st.st_mtime_ns, st.st_size)
+    hit = _refs_cache.get(key)
+    if hit is None:
+        refs = []
+        for line in read_playlist_text(m3u)[0].splitlines():
+            line = line.strip()
+            for tag in _ART_TAGS:
+                if line.upper().startswith(tag):
+                    ref = line[len(tag):].strip()
+                    if ref:
+                        refs.append(ref)
+        hit = tuple(refs)
+        if len(_refs_cache) >= 64:
+            _refs_cache.clear()
+        _refs_cache[key] = hit
+    return hit
+
+
 def playlist_art(m3u: Path | None) -> Path | None:
     """The image a whole playlist stands for — a picture tag inside the .m3u,
     or an image file next to it."""
@@ -60,18 +85,18 @@ def playlist_art(m3u: Path | None) -> Path | None:
         return None
     m3u = Path(m3u)
     try:
-        for line in read_playlist_text(m3u)[0].splitlines():
-            line = line.strip()
-            for tag in _ART_TAGS:
-                if line.upper().startswith(tag):
-                    ref = line[len(tag):].strip()
-                    if not ref:
-                        continue
-                    cand = Path(ref)
-                    if not cand.is_absolute():
-                        cand = m3u.parent / ref
-                    if cand.exists():
-                        return cand
+        for ref in _art_refs(m3u):
+            if ref.startswith(("\\\\", "//")) or "://" in ref:
+                # A network host named by someone else's playlist:
+                # touching it opens a connection, so no art at all.
+                log.warning("⚠️ Playlist artwork on a network path ignored\n"
+                            "file: %s", m3u)
+                return None
+            cand = Path(ref)
+            if not cand.is_absolute():
+                cand = m3u.parent / ref
+            if cand.exists():
+                return cand
     except (OSError, PlaylistEncodingError) as exc:
         log.debug("🖼 Playlist artwork unreadable\nfile: %s\nerror: %s", m3u, exc)
         return None

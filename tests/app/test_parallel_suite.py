@@ -10,6 +10,7 @@ stay red. That is what is pinned down here, with the processes faked.
 import contextlib
 import io
 import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -110,6 +111,30 @@ class BatchTest(unittest.TestCase):
     def test_tests_ran_reads_the_unittest_tail(self):
         self.assertEqual(ps.tests_ran(RED[1]), 3)
         self.assertEqual(ps.tests_ran(CRASH[1]), 0)
+
+
+class HangTest(unittest.TestCase):
+    """A wedged child must not stall the suite forever (#79)."""
+
+    def test_a_hung_batch_is_cut_off_and_reported(self):
+        hang = subprocess.TimeoutExpired(["python"], ps.BATCH_TIMEOUT, output="partial output")
+        with mock.patch.object(ps.subprocess, "run", side_effect=hang) as run:
+            code, output = ps.run_batch(["tests.gui.test_a"])
+        self.assertEqual(run.call_args.kwargs["timeout"], ps.BATCH_TIMEOUT)
+        self.assertEqual(code, ps.HUNG)
+        self.assertIn("timed out", output)
+
+    def test_a_hang_is_retried_once_and_passes(self):
+        code, out, calls = run_with({"tests.player.test_b": [(ps.HUNG, "timed out"), GREEN]})
+        self.assertEqual(code, 0)
+        self.assertEqual(calls["tests.player.test_b"], 2)
+        self.assertIn("timed out, retried: tests.player.test_b", out)
+
+    def test_a_hang_twice_fails(self):
+        hung = (ps.HUNG, "timed out")
+        code, out, _ = run_with({"tests.player.test_b": [hung, hung]})
+        self.assertEqual(code, 1)
+        self.assertIn("red: tests.player.test_b", out)
 
 
 if __name__ == "__main__":

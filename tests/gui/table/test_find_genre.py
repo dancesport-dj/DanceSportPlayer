@@ -3,7 +3,7 @@
 
 Run:  py -m unittest tests.gui.table.test_find_genre -v
 
-The search dialog has a title row and a genre row: the title steps to the next
+The find bar has a title field and a genre field: the title steps to the next
 match and tints every match at once, the genre highlights every matching row -
 "show me every Paso Doble of this party list". A row matches by dance code, full
 dance name, social genre label or plain genre tag, accent-, case- and
@@ -15,15 +15,15 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_findgenre_"))
 
-from PySide6.QtWidgets import QApplication, QDialog, QWidget
+from PySide6.QtCore import Qt
+from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QApplication, QWidget
 
-from gui.dialogs import FindInListDialog
 from gui.table.playlist_table import PlaylistTable
 from gui.table.table_actions import _C_FIND_BG
 from planner.models import MusicEntry
@@ -115,24 +115,14 @@ class SearchTest(unittest.TestCase):
         return t
 
     def search(self, t, title="", genre="", seen=None, accept=True):
-        """Answer the find dialog as if the operator had typed `title`/`genre`."""
-        class _FindInList:
-            def __init__(self, _parent, remembered_title="", remembered_genre=""):
-                if seen is not None:
-                    seen.append((remembered_title, remembered_genre))
-
-            def exec(self):
-                return (QDialog.DialogCode.Accepted if accept
-                        else QDialog.DialogCode.Rejected)
-
-            def title(self):
-                return title
-
-            def genre(self):
-                return genre
-
-        with mock.patch("gui.dialogs.FindInListDialog", _FindInList):
-            t._search_title()
+        """Ctrl+F, type `title`/`genre`, then Enter - or Esc with `accept` False."""
+        t._search_title()
+        bar = t._find_bar
+        if seen is not None:
+            seen.append((bar.title(), bar.genre()))
+        bar._title.setText(title)
+        bar._genre.setText(genre)
+        QTest.keyClick(bar._title, Qt.Key.Key_Return if accept else Qt.Key.Key_Escape)
 
     def row_of(self, t, title):
         return next(r for r, m in t._row_meta.numbered()
@@ -229,23 +219,6 @@ class SearchTest(unittest.TestCase):
         self.search(t, title="", genre="PD", seen=seen)
         self.search(t, title="", genre="PD", seen=seen)
         self.assertEqual(seen, [("", ""), ("PD 1", "PD"), ("", "PD")])
-
-
-class FindDialogWidthTest(unittest.TestCase):
-    """The dialog is as wide as the example it shows, and no wider."""
-
-    @classmethod
-    def setUpClass(cls):
-        cls.app = QApplication.instance() or QApplication([])
-
-    def test_the_fields_are_as_wide_as_the_example_text(self):
-        dlg = FindInListDialog(None)
-        self.addCleanup(dlg.deleteLater)
-        dlg.adjustSize()
-        need = dlg._genre.fontMetrics().horizontalAdvance(
-            dlg._genre.placeholderText())
-        self.assertGreaterEqual(dlg._genre.width(), need)
-        self.assertLessEqual(dlg.width(), need + 80)
 
 
 if __name__ == "__main__":

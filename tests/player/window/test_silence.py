@@ -6,7 +6,9 @@ import unittest
 from pathlib import Path
 
 from player.audio.playback_state import PlaybackState
-from shared.audio.audio_probes import parse_silences  # does NOT import gui.dialogs
+
+# does NOT import gui.dialogs
+from shared.audio.audio_probes import parse_silences, parse_title_silences
 
 
 class ParseSilencesTest(unittest.TestCase):
@@ -33,10 +35,26 @@ class ParseSilencesTest(unittest.TestCase):
         self.assertEqual(parse_silences("  Duration: 00:02:00.00\n"), [])
         self.assertEqual(parse_silences(""), [])
 
+    def test_a_short_span_stays(self):
+        # The announcement clips measure their words with these.
+        text = ("  Duration: 00:00:02.00\n"
+                "[x] silence_start: 0.0\n"
+                "[x] silence_end: 0.4 | silence_duration: 0.4\n")
+        self.assertEqual(parse_silences(text), [[0.0, 0.4]])
+
     def test_unclosed_span_without_duration_dropped(self):
         # No Duration line to close the open span with → drop it rather than
         # invent an end time.
         self.assertEqual(parse_silences("[x] silence_start: 5.0\n"), [])
+
+    def test_a_stray_end_does_not_shift_the_later_spans(self):
+        # An end with no start before it pairs with nothing; the real spans after
+        # it must survive (#11).
+        text = ("  Duration: 00:03:20.00\n"
+                "[x] silence_end: 3.0 | silence_duration: 3.0\n"
+                "[x] silence_start: 10.5\n"
+                "[x] silence_end: 14.0 | silence_duration: 3.5\n")
+        self.assertEqual(parse_silences(text), [[10.5, 14.0]])
 
     def test_negative_start_clamped(self):
         # silencedetect can report a tiny negative start on leading silence.
@@ -44,6 +62,40 @@ class ParseSilencesTest(unittest.TestCase):
                 "[x] silence_start: -0.01\n"
                 "[x] silence_end: 4.0 | silence_duration: 4.01\n")
         self.assertEqual(parse_silences(text), [[0.0, 4.0]])
+
+
+class ParseTitleSilencesTest(unittest.TestCase):
+
+    def test_a_short_stillness_that_runs_to_the_end_counts(self):
+        # "A New Life": a long fade-out, 1.9 s under the threshold at the end.
+        text = ("  Duration: 00:03:01.83\n"
+                "[x] silence_start: 179.92\n")
+        self.assertEqual(parse_title_silences(text), [[179.92, 181.83]])
+
+    def test_a_long_stillness_in_the_middle_stays(self):
+        text = ("  Duration: 00:03:00.00\n"
+                "[x] silence_start: 50.0\n"
+                "[x] silence_end: 53.0 | silence_duration: 3.0\n")
+        self.assertEqual(parse_title_silences(text), [[50.0, 53.0]])
+
+    def test_a_short_stillness_in_the_middle_is_a_break(self):
+        text = ("  Duration: 00:03:00.00\n"
+                "[x] silence_start: 50.0\n"
+                "[x] silence_end: 51.7 | silence_duration: 1.7\n")
+        self.assertEqual(parse_title_silences(text), [])
+
+    def test_a_short_stillness_before_a_last_hit_is_a_break(self):
+        # Close to the end but not at it: there is music behind it.
+        text = ("  Duration: 00:03:00.00\n"
+                "[x] silence_start: 177.0\n"
+                "[x] silence_end: 178.7 | silence_duration: 1.7\n")
+        self.assertEqual(parse_title_silences(text), [])
+
+    def test_a_short_stillness_at_the_start_stays_out(self):
+        text = ("  Duration: 00:03:00.00\n"
+                "[x] silence_start: 0.0\n"
+                "[x] silence_end: 1.7 | silence_duration: 1.7\n")
+        self.assertEqual(parse_title_silences(text), [])
 
 
 class _FakePlayer:
@@ -159,6 +211,11 @@ class SilenceSkipTest(unittest.TestCase):
 
     def test_short_silent_outro_ends_the_song(self):
         w = self.Win(pos_secs=178.5, dur_secs=180.0, spans=[[178.0, 180.0]])
+        self.assertTrue(w._maybe_skip_silence())
+        self.assertTrue(w.ended)
+
+    def test_a_tail_under_two_seconds_ends_the_song(self):
+        w = self.Win(pos_secs=180.4, dur_secs=181.83, spans=[[179.92, 181.83]])
         self.assertTrue(w._maybe_skip_silence())
         self.assertTrue(w.ended)
 

@@ -95,6 +95,31 @@ class ManualPdTransferTest(unittest.TestCase):
         _, cache = self._pc()
         self.assertEqual(cache.import_manual_pd(marks), (1, 0))
 
+    def test_damaged_entries_are_skipped_and_never_stored(self):
+        # A file from another PC is untrusted: a mark that is not a list of
+        # plain non-negative seconds would crash the player when the track plays.
+        _, cache = self._pc()
+        bad = [
+            {"fp": "a1", "times": [1.0, float("nan")]},
+            {"fp": "a2", "times": [float("inf")]},
+            {"fp": "a3", "times": [-5.0]},
+            {"fp": "a4", "times": ["12"]},
+            {"fp": "a5", "times": [True]},
+            {"fp": 7, "times": [1.0]},
+            {"fp": "a6", "times": [1.0], "afp": 5},
+            "not a dict",
+            None,
+        ]
+        good = {"fp": "g1", "times": [10.5, 20]}
+        self.assertEqual(cache.import_manual_pd(bad + [good]), (1, 0))
+        stored = {r[0] for r in pdb._db().execute("SELECT fp FROM pd_highlights")}
+        self.assertEqual(stored, {"g1"})
+        self.assertEqual(pdb._db().execute("SELECT COUNT(*) FROM audio_fps").fetchone()[0], 0)
+
+    def test_marks_that_are_not_a_list_import_nothing(self):
+        _, cache = self._pc()
+        self.assertEqual(cache.import_manual_pd({"fp": "x"}), (0, 0))
+
 
 if __name__ == "__main__":
     unittest.main()

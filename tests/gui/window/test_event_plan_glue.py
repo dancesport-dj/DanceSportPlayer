@@ -218,6 +218,7 @@ class ReopenPlanTest(unittest.TestCase):
             dlg.exec.return_value = code
             dlg.values.return_value = dict(
                 mode="event", rules="r", model="m", brief="", wishes="", count=60,
+                flat_kind="party", flat_prompt="", flat_prompts={}, mode_prompts={},
                 config_dir="", event=dict(schedule="", series_name="", new_share=0.2,
                                           rare_share=0.15,
                                           variants=[], use_event=True,

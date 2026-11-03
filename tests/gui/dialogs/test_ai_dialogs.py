@@ -155,6 +155,95 @@ class DialogTest(unittest.TestCase):
         dlg._rb_flat.setChecked(True)
         self.assertTrue(dlg._count_spin.isEnabled())
 
+    def test_a_flat_list_is_a_party_list_unless_warm_up_is_chosen(self):
+        dlg = self._dlg()
+        self.assertEqual(dlg.values()["flat_kind"], "party")
+        self.assertEqual([dlg._flat_kind.itemData(i)
+                          for i in range(dlg._flat_kind.count())],
+                         ["party", "warmup"])
+        dlg._flat_kind.setCurrentIndex(1)
+        self.assertEqual(dlg.values()["flat_kind"], "warmup")
+
+    def test_the_list_kind_comes_back(self):
+        self.assertEqual(self._dlg({"ai_flat_kind": "warmup"}).values()["flat_kind"],
+                         "warmup")
+
+    def test_an_unknown_list_kind_falls_back_to_a_party_list(self):
+        self.assertEqual(self._dlg({"ai_flat_kind": "gala"}).values()["flat_kind"],
+                         "party")
+
+    def test_the_list_kind_only_applies_to_a_flat_list(self):
+        dlg = self._dlg()
+        self.assertFalse(dlg._flat_kind.isEnabled())
+        dlg._rb_flat.setChecked(True)
+        self.assertTrue(dlg._flat_kind.isEnabled())
+
+    def test_the_prompt_of_the_list_kind_is_shown_under_the_rules(self):
+        dlg = self._dlg()
+        dlg._rb_flat.setChecked(True)
+        self.assertEqual(dlg._kind_prompt.toPlainText().strip(),
+                         llm.FLAT_PROMPTS["party"].strip())
+        dlg._flat_kind.setCurrentIndex(1)
+        self.assertEqual(dlg._kind_prompt.toPlainText().strip(),
+                         llm.FLAT_PROMPTS["warmup"].strip())
+        self.assertEqual(dlg.values()["flat_prompt"],
+                         llm.FLAT_PROMPTS["warmup"].strip())
+
+    def test_an_edited_prompt_stays_with_its_kind(self):
+        dlg = self._dlg()
+        dlg._rb_flat.setChecked(True)
+        dlg._kind_prompt.setPlainText("my party")
+        dlg._flat_kind.setCurrentIndex(1)
+        dlg._flat_kind.setCurrentIndex(0)
+        self.assertEqual(dlg.values()["flat_prompt"], "my party")
+        self.assertEqual(dlg.values()["flat_prompts"]["warmup"],
+                         llm.FLAT_PROMPTS["warmup"].strip())
+
+    def test_a_remembered_prompt_comes_back(self):
+        dlg = self._dlg({"ai_flat_kind": "warmup",
+                         "ai_flat_prompts": {"warmup": "mine"}})
+        dlg._rb_flat.setChecked(True)
+        self.assertEqual(dlg._kind_prompt.toPlainText(), "mine")
+
+    def test_the_prompt_box_is_hidden_only_for_an_event(self):
+        dlg = self._dlg()
+        self.assertFalse(dlg._kind_prompt.isHidden())
+        dlg._rb_flat.setChecked(True)
+        self.assertFalse(dlg._kind_prompt.isHidden())
+        dlg._rb_event.setChecked(True)
+        self.assertTrue(dlg._kind_prompt.isHidden())
+
+    def test_the_competition_shows_its_own_prompt_and_says_when_it_applies(self):
+        dlg = self._dlg()
+        self.assertEqual(dlg._kind_prompt.toPlainText().strip(),
+                         llm.COMPETITION_PROMPT.strip())
+        self.assertIn("competition", dlg._kind_lbl.text().lower())
+        self.assertIn("B, A", dlg._kind_lbl.text())
+
+    def test_the_wish_list_shows_its_own_prompt(self):
+        dlg = self._dlg()
+        dlg._rb_wish.setChecked(True)
+        self.assertEqual(dlg._kind_prompt.toPlainText().strip(),
+                         llm.WISH_PROMPT.strip())
+        self.assertIn("wish", dlg._kind_lbl.text().lower())
+
+    def test_each_mode_keeps_its_own_edit(self):
+        dlg = self._dlg()
+        dlg._kind_prompt.setPlainText("my competition")
+        dlg._rb_wish.setChecked(True)
+        dlg._kind_prompt.setPlainText("my wishes")
+        dlg._rb_comp.setChecked(True)
+        self.assertEqual(dlg._kind_prompt.toPlainText(), "my competition")
+        mp = dlg.values()["mode_prompts"]
+        self.assertEqual(mp["competition"], "my competition")
+        self.assertEqual(mp["wishes"], "my wishes")
+        self.assertEqual(dlg.values()["flat_prompts"]["party"],
+                         llm.FLAT_PROMPTS["party"].strip())
+
+    def test_remembered_mode_prompts_come_back(self):
+        dlg = self._dlg({"ai_mode_prompts": {"competition": "mine"}})
+        self.assertEqual(dlg._kind_prompt.toPlainText(), "mine")
+
 
 class SuggestPreviewTest(unittest.TestCase):
     """🤖 AI suggestions' ▶ plays on the desk; leaving the window stops it."""
@@ -175,6 +264,43 @@ class SuggestPreviewTest(unittest.TestCase):
                 dlg._toggle_play(0)
                 getattr(dlg, close)()
                 self.assertEqual(calls, [Path("a.mp3"), None])
+
+    def test_a_failed_request_pops_no_modal_once_the_dialog_is_closed(self):
+        # The worker outlives a closed dialog; its failure must not put a modal
+        # box over whatever the user is doing on the desk by then.
+        dlg = AiSuggestDialog(None)
+        self.addCleanup(reap_widget, dlg)
+        dlg.show()
+        with mock.patch("gui.dialogs.ai_dialogs.QMessageBox.critical") as box:
+            dlg._on_reply_error("boom")
+            self.assertEqual(box.call_count, 1)
+            dlg.reject()
+            dlg._on_reply_error("boom")
+            self.assertEqual(box.call_count, 1)
+
+    def test_the_library_match_runs_off_the_gui_thread(self):
+        # A big library took seconds to fuzzy-match inside the reply slot and
+        # froze the dialog.
+        import threading
+        import time
+
+        seen = []
+
+        def match(lib, suggestions):
+            seen.append(threading.current_thread())
+            return [{"suggestion": s, "entry": None, "ratio": 0.0} for s in suggestions]
+
+        dlg = AiSuggestDialog(None)
+        self.addCleanup(reap_widget, dlg)
+        with mock.patch("gui.workers.match_suggestions_to_library", match):
+            dlg._on_reply('[{"artist": "a", "title": "t"}]')
+            end = time.monotonic() + 5
+            while dlg._table.rowCount() == 0 and time.monotonic() < end:
+                self.app.processEvents()
+                time.sleep(0.01)
+        self.assertEqual(dlg._table.rowCount(), 1)
+        self.assertEqual(len(seen), 1)
+        self.assertIsNot(seen[0], threading.main_thread())
 
     def test_new_suggestions_stop_the_preview_and_their_play_plays(self):
         # BUG_REVIEW B4.7: the old playing row stayed current, so the new
@@ -243,6 +369,18 @@ class EventDialogTest(unittest.TestCase):
         self.assertEqual(spec.dance_class, "A")
         self.assertEqual(spec.dances, ["LW", "TG", "QS"])
         self.assertEqual(spec.heats, [3, 2, 1])
+
+    def test_a_correction_survives_editing_the_schedule_text(self):
+        dlg = self._dlg()
+        dlg._event._schedule.setPlainText(self.SCHEDULE)
+        table = dlg._event._table
+        table.item(0, 2).setText("LW TG QS")
+        # A typo fixed in the other line: the first row's correction must stay.
+        dlg._event._schedule.setPlainText(self.SCHEDULE.replace("24 - 12 - 6", "24 - 12 - 8"))
+        self.assertEqual(table.item(0, 2).text(), "LW TG QS")
+        self.assertEqual(table.item(1, 3).text(), "2-1-1")
+        spec = dlg.values()["event"]["specs"][0]
+        self.assertEqual(spec.dances, ["LW", "TG", "QS"])
 
     def test_a_cell_that_makes_no_sense_keeps_what_was_read(self):
         dlg = self._dlg()

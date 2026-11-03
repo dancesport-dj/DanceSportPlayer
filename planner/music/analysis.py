@@ -10,7 +10,7 @@ import logging
 import os
 import sys
 import threading
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -209,6 +209,34 @@ def quiet_native_stderr() -> Iterator[None]:
                 _quiet_saved = None
 
 
+# What decodes a file libsndfile cannot open: a callable (path, sr) -> samples,
+# empty for "could not". The ffmpeg decode lives above this package (gui.workers
+# registers it), so that planner imports nothing from the widget layers.
+fallback_decoder: Callable[[Path, int], Any] | None = None
+
+
+def load_audio(path: Path, sr: int, offset: float, duration: float,
+               centered: bool = False):
+    """`librosa.load` (mono), with ffmpeg as the fallback decoder.
+
+    librosa 1.0 reads through libsndfile only, which cannot open .m4a or .wma;
+    those titles fall back to the ffmpeg decode the app already ships. The whole
+    file is decoded then and the window cut from it: `centered` takes the middle
+    `duration` seconds instead of `offset`, for a caller that could not learn the
+    length. When ffmpeg gets nothing either, the librosa error is raised."""
+    try:
+        return librosa.load(str(path), sr=sr, offset=offset, duration=duration, mono=True)
+    except Exception as exc:
+        y = fallback_decoder(path, sr) if fallback_decoder else None
+        if y is None or y.size == 0:
+            raise exc from None
+        log.info("🎚️ libsndfile cannot read the file, decoded by ffmpeg\n"
+                 "file: %s", path.name)
+        n = int(duration * sr)
+        start = max(0, (len(y) - n) // 2) if centered else int(offset * sr)
+        return y[start:start + n], sr
+
+
 def probe_decode_backend(path: Path) -> str | None:
     """Decode 2 s of `path`: None when that works, else a `PROBE_*` reason.
 
@@ -224,7 +252,7 @@ def probe_decode_backend(path: Path) -> str | None:
     exc = None
     with quiet_native_stderr():
         try:
-            librosa.load(str(path), sr=11025, offset=0.0, duration=2.0, mono=True)
+            load_audio(path, 11025, 0.0, 2.0)
         except Exception as ex:
             exc = ex
     if exc is None:
@@ -280,7 +308,12 @@ def _gaussian_timbre(y, sr):
     return mfcc_mean, mfcc_cov
 
 
-def analyze_file(path: Path, expected_bpm: float | None = None) -> AudioFeatures:
+class AnalysisCancelled(Exception):
+    """The caller asked to stop while a title was in work: nothing of it is kept."""
+
+
+def analyze_file(path: Path, expected_bpm: float | None = None,
+                 should_cancel: Callable[[], bool] | None = None) -> AudioFeatures:
     """Load audio and extract features, suppressing all ffmpeg/mpg123 stderr output.
 
     `expected_bpm` (beats/min, from `_tempo_prior`) seeds the beat tracker so
@@ -288,7 +321,16 @@ def analyze_file(path: Path, expected_bpm: float | None = None) -> AudioFeatures
 
     On Windows, audioread runs ffmpeg as a subprocess that inherits the Win32
     STD_ERROR_HANDLE (not the CRT fd 2); `quiet_native_stderr` mutes both layers.
+
+    `should_cancel` is asked between the stages (decode, timbre, contrast, rhythm),
+    so a stop lands within the stage in work instead of after the whole title;
+    AnalysisCancelled then leaves nothing half-done behind.
     """
+    def checkpoint():
+        if should_cancel is not None and should_cancel():
+            raise AnalysisCancelled()
+
+    checkpoint()
     with quiet_native_stderr():
         # Analyze the MIDDLE of the track, not the intro. Dance-track intros are
         # atypical (count-ins, fades, talk-ins, slow builds); the steady body is
@@ -302,7 +344,8 @@ def analyze_file(path: Path, expected_bpm: float | None = None) -> AudioFeatures
             total = 0.0
         win = 60.0
         offset = max(0.0, (total - win) / 2.0) if total > win else 0.0
-        y, sr = librosa.load(str(path), sr=11025, offset=offset, duration=win, mono=True)
+        y, sr = load_audio(path, 11025, offset, win, centered=total == 0.0)
+    checkpoint()
     # ── Timbre: 20 MFCCs – mean + std per coefficient + delta-means (60 values).
     # The std captures temporal variation (e.g. steady waltz vs energetic jive);
     # the delta-means capture articulation dynamics (staccato tango vs legato waltz).
@@ -315,6 +358,7 @@ def analyze_file(path: Path, expected_bpm: float | None = None) -> AudioFeatures
         [float(np.std(c)) for c in mfccs]  +    # 20 stds   (temporal spread)
         [float(np.mean(c)) for c in deltas]     # 20 delta-means (articulation dynamics)
     )
+    checkpoint()
     # ── Brightness / genre: spectral contrast (peak-vs-valley energy per band).
     # n_bands=4 keeps the top band (200·2^4 = 3200 Hz) below the 5512 Hz Nyquist
     # at sr=11025 (the default n_bands=6 would exceed it and raise). → 5 sub-bands.
@@ -342,6 +386,7 @@ def analyze_file(path: Path, expected_bpm: float | None = None) -> AudioFeatures
         rhythm_fp = np.zeros(rhythm_bins)
         onset_mean = onset_std = 0.0
     rhythm_block = [float(x) for x in rhythm_fp] + [onset_mean, onset_std]
+    checkpoint()
 
     # ── Tempo. When the dance is known, read it off the tempogram inside the
     # expected band (robust to syncopation — see `_tempo_from_tempogram`); reusing

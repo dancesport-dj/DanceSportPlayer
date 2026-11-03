@@ -11,6 +11,7 @@ import os
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
@@ -701,6 +702,25 @@ class PageNameTest(unittest.TestCase):
         self.w.set_wall((4, 4), [pc.Page(name="Fanfaren")])
         self.assertIn("Fanfaren", self.w._page_lbl.text())
 
+    def test_a_name_with_markup_is_shown_as_text_not_rendered(self):
+        # The name comes from the cartwall file: an <img> in it would make Qt
+        # fetch whatever it points at when the wall is shown.
+        name = '<img src="//host/share/x.png">'
+        self.w.set_wall((4, 4), [pc.Page(name=name)])
+        self.assertEqual(self.w._page_lbl.textFormat(), Qt.TextFormat.PlainText)
+        self.assertIn(name, self.w._page_lbl.text())
+
+    def test_a_locked_wall_cannot_be_renamed(self):
+        """#94: the double-click is wired while ✏ is off; renaming a page is
+        building the wall, so a mid-heat double-tap must do nothing."""
+        self.w.set_wall((4, 4), [pc.Page(name="Fanfaren")])
+        self.w._edit = False
+        with mock.patch.object(gc.QInputDialog, "getText",
+                               return_value=("Changed", True)) as ask:
+            self.w._rename_page()
+        ask.assert_not_called()
+        self.assertEqual(self.w._pages[0].name, "Fanfaren")
+
     def test_the_label_reports_a_real_double_click(self):
         """A bare label, deliberately: the wall's own is wired to the rename
         dialog, and a modal exec() in a test run never comes back."""
@@ -712,6 +732,7 @@ class PageNameTest(unittest.TestCase):
         self.assertEqual(seen, [1])
 
     def test_renaming_writes_the_name_and_saves(self):
+        self.w._edit = True   # renaming is a ✏ act
         saved = []
         self.w.changed.connect(lambda: saved.append(1))
         with _typed_text("Fanfaren"):
@@ -726,6 +747,7 @@ class PageNameTest(unittest.TestCase):
         self.assertEqual(self.w.pages()[0].name, "")
 
     def test_a_name_cannot_be_longer_than_a_pad_label(self):
+        self.w._edit = True   # renaming is a ✏ act
         with _typed_text("x" * 80):
             self.w._rename_page()
         self.assertEqual(len(self.w.pages()[0].name), pc.LABEL_MAX)

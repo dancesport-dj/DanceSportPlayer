@@ -340,6 +340,7 @@ class AllCacheMixin(MainWindowHost):
             % f"{len(to_do)}")
         self._busy = BusyDialog(self, i18n.t("Build all caches — librosa…"),
                                 cancelable=True)
+        self._stop_background_analysis()
         self._index_analyzer = AudioAnalyzer(cache, pool, self)
         self._busy.cancel_requested.connect(self._index_analyzer.cancel)
         self._busy.show_after(300)

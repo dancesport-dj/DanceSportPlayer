@@ -364,6 +364,44 @@ class ColumnOrderTest(_TableTest):
             self.assertEqual(t.item(row, c).background().color(), bg,
                              f"column {c} is not part of the header band")
 
+    def label_width(self, t, row) -> int:
+        """How wide the header's label may run before it is cut with an "…"."""
+        return t.visualRect(t.model().index(row, t.horizontalHeader().logicalIndex(0))).width()
+
+    def band_width(self, t, row, stop=None) -> int:
+        """The sections from the left edge up to `stop`, a logical column."""
+        hh = t.horizontalHeader()
+        end = hh.count() if stop is None else hh.visualIndex(stop)
+        return sum(hh.sectionSize(hh.logicalIndex(v)) for v in range(end))
+
+    def test_a_round_label_is_not_cut_at_the_first_column(self):
+        """The label reads "Vorrunde (5 songs, ~12:41)": cut at the Dance column
+        it was "Vorrun…", and the songs and the time were gone."""
+        t = self.table()
+        row = t._add_span_row("Vorrunde  (5 songs, ~12:41)", QColor("#223344"),
+                              QColor("#ffffff"), True, collapsible=True)
+        self.assertEqual(self.label_width(t, row), self.band_width(t, row))
+
+    def test_a_label_with_a_regen_button_stops_at_the_button(self):
+        t = self.table()
+        row = t._add_span_row("Waltz", QColor("#223344"), QColor("#ffffff"), True,
+                              regen_cb=lambda: None)
+        self.assertEqual(self.label_width(t, row), self.band_width(t, row, COL_REGEN))
+        self.assertIsNotNone(t.cellWidget(row, COL_REGEN))
+
+    def test_the_label_keeps_its_room_after_a_column_drag(self):
+        t = self.table()
+        plain = t._add_span_row("Vorrunde", QColor("#223344"), QColor("#ffffff"), True,
+                                collapsible=True)
+        regen = t._add_span_row("Waltz", QColor("#223344"), QColor("#ffffff"), True,
+                                regen_cb=lambda: None)
+        hh = t.horizontalHeader()
+        hh.moveSection(hh.visualIndex(_COL_DANCE), 3)
+        self.assertEqual(self.label_width(t, plain), self.band_width(t, plain))
+        self.assertEqual(self.label_width(t, regen), self.band_width(t, regen, COL_REGEN))
+        hh.moveSection(hh.visualIndex(COL_REGEN), 3)
+        self.assertEqual(self.label_width(t, regen), self.band_width(t, regen, COL_REGEN))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

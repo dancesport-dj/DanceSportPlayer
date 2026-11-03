@@ -44,6 +44,7 @@ class ThresholdTest(unittest.TestCase):
             audio_probes.detect_silences("ffmpeg", Path("x.mp3"))
         flt = seen[0][seen[0].index("-af") + 1]
         self.assertIn(f"noise={pdb.SILENCE_NOISE_DB}dB", flt)
+        self.assertIn(f":d={pdb.SILENCE_TAIL_MIN_SECS}", flt)
 
 
 class StaleSpansTest(unittest.TestCase):
@@ -78,13 +79,20 @@ class StaleSpansTest(unittest.TestCase):
         self._reopen()
         self.assertEqual(self._spans(), [])
 
+    def test_spans_from_before_the_short_tail_are_dropped(self):
+        """The bare threshold is what the 2 s probe noted down: those rows
+        have no short tails, so they are probed again."""
+        self._store(str(pdb.SILENCE_NOISE_DB))
+        self._reopen()
+        self.assertEqual(self._spans(), [])
+
     def test_spans_from_a_database_that_never_noted_one_are_dropped(self):
         self._store(None)
         self._reopen()
         self.assertEqual(self._spans(), [])
 
     def test_spans_probed_at_the_current_threshold_are_kept(self):
-        self._store(str(pdb.SILENCE_NOISE_DB))
+        self._store(pdb.SILENCE_PROBE_KEY)
         self._reopen()
         self.assertEqual(len(self._spans()), 1)
 
@@ -94,7 +102,7 @@ class StaleSpansTest(unittest.TestCase):
         self.assertEqual(
             self.conn.execute("SELECT value FROM app_meta WHERE key = ?",
                               ("silence_noise_db",)).fetchone()[0],
-            str(pdb.SILENCE_NOISE_DB))
+            pdb.SILENCE_PROBE_KEY)
 
 
 if __name__ == "__main__":

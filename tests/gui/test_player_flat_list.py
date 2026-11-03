@@ -490,6 +490,7 @@ class M3uProgressTest(_FlatTest):
 
         class _Win(GenerateMixin):
             _library = SimpleNamespace(lib=_Lib(), cache=None)
+            _file_finder = staticmethod(lambda: None)
 
         seen = []
         got = _Win()._entries_from_m3u_file(
@@ -528,6 +529,7 @@ class M3uProgressTest(_FlatTest):
 
         class _Win(GenerateMixin):
             _library = SimpleNamespace(lib=_Lib(), cache=None)
+            _file_finder = staticmethod(lambda: None)
 
         self.assertEqual(len(_Win()._entries_from_m3u_file(path)), 1)
 

@@ -109,10 +109,14 @@ RESERVED_KEYS = {
     "Ctrl+W": "Close the active dialog or the preview mini player",
     "Del": "Remove the selected rows (wishlist) / empty the selected heat "
            "slots (deck)",
+    "Ctrl+Shift+E": "The focused wishlist gets the whole area, the others fold "
+                    "to tabs; again: all open",
     "Ctrl+Shift+Del": "Clear the focused playlist / wishlist (confirmed), "
                       "wherever the cursor is",
-    "Ctrl+F": "Find a title in the focused list (repeat to step to the next "
-              "match)",
+    "Ctrl+F": "Find a title in the focused list (Enter steps to the next match)",
+    "Ctrl+E": "Show the selected title in Explorer",
+    "Ctrl+T": "Edit the tags of the selected title(s)",
+    "Ctrl+Shift+C": "Copy the file path of the selected title",
     "Alt+S": "Warm-up list: swap the two selected titles of one dance",
     "F1": "This cheat sheet",
     "F11": "Fullscreen on / off — with date and time in the status bar",

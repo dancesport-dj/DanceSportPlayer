@@ -289,6 +289,46 @@ class CartPadWidgetTest(unittest.TestCase):
         self.assertEqual(self.w.pad_at((0, 1, 1)).path, "a.mp3")
         self.assertEqual(self.w.pad_at((0, 0, 0)).path, "b.mp3")
 
+    def test_a_sounding_pad_dragged_onto_a_cell_stays_lit_there(self):
+        """#25: the voice map followed turns and page moves but not a drag, so
+        the old cell kept the voice and a tap on the new one fired a second."""
+        self.w.set_wall(pc.DEFAULT_GRID, [pc.Page(pads={
+            (0, 0): pc.CartPad(path="a.mp3"),
+            (1, 1): pc.CartPad(path="b.mp3")})])
+        self.w.set_playing((0, 0, 0), True)
+        moved = []
+        self.w.padsMoved.connect(moved.append)
+        mime = QMimeData()
+        mime.setData(gc._PAD_MIME, b"0,0")
+        _drop(self.w._buttons[(0, 1, 1)], mime)
+        self.assertEqual(self.w._live, {(0, 1, 1)})
+        self.assertEqual(moved, [{(0, 0, 0): (0, 1, 1), (0, 1, 1): (0, 0, 0)}])
+
+    def test_a_drag_takes_the_source_out_of_the_selection(self):
+        """#31: the swapped-in neighbour sat in the old cell, still selected,
+        and the next Clear wiped it too."""
+        self.w.set_wall(pc.DEFAULT_GRID, [pc.Page(pads={
+            (0, 0): pc.CartPad(path="a.mp3"),
+            (1, 1): pc.CartPad(path="b.mp3")})])
+        self.w._selected = {(0, 0, 0), (0, 0, 1)}
+        mime = QMimeData()
+        mime.setData(gc._PAD_MIME, b"0,0")
+        _drop(self.w._buttons[(0, 1, 1)], mime)
+        self.assertNotIn((0, 0, 0), self.w._selected)
+
+    def test_clearing_a_sounding_pad_stops_its_voice_and_lamp(self):
+        """#25: a pad assigned to that cell later came up already lit."""
+        self.w.set_wall(pc.DEFAULT_GRID, [pc.Page(pads={
+            (0, 0): pc.CartPad(path="a.mp3")})])
+        self.w.set_playing((0, 0, 0), True)
+        self.w.set_held((0, 0, 0), True)
+        cleared = []
+        self.w.padCleared.connect(cleared.append)
+        self.w._on_clear((0, 0, 0))
+        self.assertNotIn((0, 0, 0), self.w._live)
+        self.assertNotIn((0, 0, 0), self.w._held)
+        self.assertEqual(cleared, [(0, 0, 0)])
+
     def test_clearing_a_pad_empties_only_that_cell(self):
         self.w.set_wall(pc.DEFAULT_GRID, [pc.Page(pads={
             (0, 0): pc.CartPad(path="a.mp3"),

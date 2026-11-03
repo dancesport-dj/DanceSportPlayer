@@ -122,7 +122,7 @@ class HttpsTrustTest(unittest.TestCase):
 
     def _answer(self, payload):
         body = json.dumps(payload).encode()
-        return mock.MagicMock(__enter__=lambda s: mock.Mock(read=lambda: body),
+        return mock.MagicMock(__enter__=lambda s: mock.Mock(read=lambda: body, headers={}),
                               __exit__=lambda s, *a: False)
 
     def test_the_model_list_is_fetched_with_certifi_too(self):

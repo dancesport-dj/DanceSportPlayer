@@ -67,7 +67,6 @@ from player.window.main_xfade import CrossfadeMixin
 from shared.audio.playback import (
     audible_played_secs,
     device_id,
-    keep_display_awake,
 )
 from shared.columns import (
     _COL_TITLE,
@@ -100,6 +99,13 @@ _STALL_MS = 5000
 # ✕ during music: how long past the last fade's end the window waits, so the
 # ramp's final step has landed before the players go.
 _QUIT_FADE_MARGIN_MS = 200
+
+# ✂️ A file that stops in full sound is taken down over this long, and is gone one
+# play tick before it stops: aimed at the end itself, the last tick could leave
+# the cut standing at a fifth of the level.
+HARD_END_FADE_SECS = 1.0
+HARD_END_LEAD_SECS = 0.2
+
 
 class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
                          AudioLevelMixin, PdStopMixin, PauseMusicMixin,
@@ -722,6 +728,7 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
             return
         nxt = live_target(self._between.pending)
         self._between.pending = None
+        self._set_fade_indicator(False)
         if self._big_player:
             self._big_player.set_pause_active(False)
         if nxt is None:
@@ -732,6 +739,7 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
                 "was started.", 8000)
             return
         t, nrow, npath = nxt
+        self._between.leads_in = self._between.shown
         t._on_play_click(nrow, npath)   # handles the ▶/■ markers + playback
         t.scroll_row_into_play_view(nrow)
 
@@ -936,8 +944,10 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
             self._pd_tick(self._player)
             return
         if not self._play_limit_secs() > 0:
-            if self._mix.fade != 1.0:   # toggled off mid-fade → ramp back up
-                self._mix.fade = 1.0
+            # Back up as well when the length was toggled off mid-fade.
+            level = self._hard_end_level()
+            if self._mix.fade != level:
+                self._mix.fade = level
                 self._apply_volume()
             self._set_countdown("")
             return
@@ -957,10 +967,25 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         x = min(1.0, remaining / fade) if fade > 0 else 1.0
         # 🥇 A title that comes back up is faded only down to its dip.
         floor = self._cut_fade_floor() if x < 1.0 else 0.0
-        self._mix.fade = floor + (1.0 - floor) * x
+        self._mix.fade = min(floor + (1.0 - floor) * x, self._hard_end_level())
         self._apply_volume()
         r = int(remaining + 0.999)
         self._set_countdown(f"⏳  {r // 60}:{r % 60:02d}")
+
+    def _hard_end_level(self) -> float:
+        """✂️ The level the end of the file allows (0…1): full, unless it stops in
+        full sound. A loop is left alone, its seam is meant to run through."""
+        if (not self._playback.hard_ends.get(str(self._playback.path))
+                or self._looping()):
+            return 1.0
+        player = self._player
+        if player is None:
+            return 1.0
+        dur = player.duration()
+        if dur <= 0:
+            return 1.0
+        left = (dur - player.position()) / 1000 - HARD_END_LEAD_SECS
+        return max(0.0, min(1.0, left / HARD_END_FADE_SECS))
 
     def _celebration_due(self) -> bool:
         """🥇 Does the title playing come back up after its play-length fade?
@@ -1121,6 +1146,9 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
                 self._maybe_announce_next()
             r = int(remaining + 0.999)
             self._set_countdown(f"⏸  {r} s")
+            # 🟧 Blinks like the 🐂 wait while it counts. Every tick: the halt
+            # of the title before stops the card's blink (see _on_state).
+            self._set_fade_indicator(True)
             return
         if self._hold_for_announcement():
             return
@@ -1223,6 +1251,16 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
             log.warning("🔁 Play counter reset not saved\n"
                         "error: %s", exc)
         self._refresh_play_counts()
+
+    def _reset_played_titles(self):
+        """The header menu's reset: nothing is grey any more, in any list, and
+        the evening on disk forgets too, or a restart would offer it back. The
+        title on air stays if it has counted: it will not be marked again."""
+        for t in self._deckset.all_tables:
+            t.reset_played_marks()
+        if self._played_marked and self._playback.path is not None:
+            self._mark_path_played(self._playback.path)
+        self._note_session()
 
     def _equalize_heat_tempo(self, auto: bool = False) -> bool:
         """TSO button on the player: pitch the playing title to the average
@@ -1443,6 +1481,8 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         playing = state == QMediaPlayer.PlaybackState.PlayingState
         self._xfade_follow(state)   # 🔀 a fading title pauses and runs with it
         self._refresh_wake_lock()
+        if playing:
+            self._stop_background_analysis()
         if playing or state == QMediaPlayer.PlaybackState.PausedState:
             # StoppedState is deliberately skipped: it also fires on every track
             # switch, and the stop paths clear the row markers themselves.
@@ -1717,14 +1757,9 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         """Put the machine's idle timers where the current state wants them.
 
         Called from every edge that can change the answer — playback state, the
-        presenter opening or closing, the setting itself. Only the CHANGES go to
-        the OS: a track switch passes through Stopped for a moment, and that is
-        no reason to hand the timeout back and take it again."""
-        want = self._wake_lock_wanted()
-        if want == self._awake_held:
-            return
-        if keep_display_awake(want) or not want:
-            self._awake_held = want
+        presenter opening or closing, the setting itself."""
+        self._wake_hold.follow(self._wake_lock_wanted(),
+                               self._play_panel.keep_awake())
 
 
     def _init_taskbar(self):

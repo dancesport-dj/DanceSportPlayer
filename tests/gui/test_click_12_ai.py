@@ -135,6 +135,22 @@ class AiClickTest(ClickThrough):
             self.assertEqual(self.titles(),
                              [pool[n - 1].title for n in list(reversed(shown))[:5]])
 
+    def test_a_warm_up_list_gets_the_warm_up_prompt_and_stays_chosen(self):
+        model = FakeModel(lambda shown: shown[:5])
+        with self.clicking() as op, mock.patch.object(llm, "_ask", model):
+            def fill(dlg):
+                self.flat(5)(dlg)
+                dlg._flat_kind.setCurrentIndex(dlg._flat_kind.findData("warmup"))
+            self.ask(op, fill)
+            self.assertIn(llm.FLAT_PROMPTS["warmup"].strip(), model.calls[0][1])
+            self.assertIn(llm.FLAT_PROMPTS["warmup"].strip(), model.calls[1][1])
+            self.assertNotIn(llm.FLAT_PROMPTS["party"].strip(), model.calls[1][1])
+
+            seen = []
+            self.ask(op, lambda dlg: (seen.append(dlg.values()["flat_kind"]),
+                                      self.flat(5)(dlg)))
+            self.assertEqual(seen, ["warmup"])
+
     def test_an_empty_wish_list_asks_nothing_a_full_one_keeps_its_label(self):
         model = FakeModel(lambda shown: shown[:2])
         with self.clicking() as op, mock.patch.object(llm, "_ask", model):

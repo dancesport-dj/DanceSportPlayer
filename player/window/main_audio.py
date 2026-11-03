@@ -22,8 +22,14 @@ from player.audio.mix import (
     desk_duck_pct,
     duck_ramp_ms,
     fade_in_secs,
+    resume_fade_secs,
 )
-from shared.audio.audio_probes import LoudnessWorker, SilenceWorker, find_ffmpeg  # auto-resolved
+from shared.audio.audio_probes import (  # auto-resolved
+    HardEndWorker,
+    LoudnessWorker,
+    SilenceWorker,
+    find_ffmpeg,
+)
 from shared.audio.playback import (
     TARGET_LUFS,
     TRUE_PEAK_CEILING,
@@ -42,9 +48,10 @@ log = logging.getLogger("dancesport.gui.audio")
 
 # 🔇 Only stretches at least this silent-long are skipped in playback. Only the
 # edges of a track are skipped at all, so a musical break (a Paso Doble stop
-# pose!) is safe by position; the floor matches the probe's own 2 s minimum,
-# which catches a short silent intro like Ella Vos - Temporary (3.8 s).
-_SILENCE_SKIP_MIN = 2.0
+# pose!) is safe by position; the probe's own 2 s minimum still catches a short
+# silent intro like Ella Vos - Temporary (3.8 s). Only a tail gets below 2 s: the
+# probe drops anything else that short.
+_SILENCE_SKIP_MIN = 1.5
 
 # 📊 A title nobody measured yet: hold its start until its loudness is known,
 # but never longer than this — a silent floor is worse than a levelled one.
@@ -72,6 +79,11 @@ class AudioLevelMixin(MainWindowHost):
         self._show_desk_duck()
         log.info("🔉 Desk duck %s\n"
                  "factor: %.2f", "on" if on else "off", self._mix.desk)
+
+    def _lift_desk_duck(self):
+        """🔉 A hand on a volume slider ends the duck or the mute: the slider
+        shows what is heard, so where it is put is what is heard from then on."""
+        self._set_desk_duck(False)
 
     def _set_desk_mute(self, on: bool):
         """🔇 The duck button's third state: everything audible silent."""
@@ -212,6 +224,7 @@ class AudioLevelMixin(MainWindowHost):
         """Arm the 🔇 stillness skip for the (about to be) playing track: use
         the session dict or the DB cache if we can, else probe with ffmpeg in
         the background and arm once the spans land (the song plays meanwhile)."""
+        self._ensure_hard_end(path)
         if self._silences.get(str(path)) is not None:
             return      # spans known (None: one probe failed, try again)
         if self._library.cache:
@@ -238,6 +251,26 @@ class AudioLevelMixin(MainWindowHost):
         w.error.connect(self._on_silence_error)
         self._silence_worker = w
         w.start()
+
+    def _ensure_hard_end(self, path: Path):
+        """✂️ Ask how the title being loaded ends, for _hard_end_level. Unlike the
+        silence probe this reads only the last moment of the file, so it needs no
+        pass over the library and no place in the database."""
+        if str(path) in self._playback.hard_ends:
+            return
+        ffmpeg = find_ffmpeg()
+        if not ffmpeg:
+            return
+        w = HardEndWorker(path, ffmpeg, parent=self)
+        w.done.connect(self._on_hard_end)
+        w.finished.connect(w.deleteLater)
+        w.start()
+
+    def _on_hard_end(self, path_str: str, hard: bool):
+        self._playback.hard_ends[path_str] = hard
+        if hard:
+            log.info("✂️ File stops in full sound, it gets a short fade\n"
+                     "file: %s", Path(path_str).name)
 
     def _on_silences(self, path_str: str, spans: list):
         self._silences[path_str] = [list(s) for s in spans]
@@ -288,29 +321,39 @@ class AudioLevelMixin(MainWindowHost):
             return False    # measured once, ffmpeg said no — never wait again
         try:
             if self._library.cache.get_lufs(path) is not None:
+                if self._library.cache.get_tp(path) is None:
+                    self._measure_peak(path)
                 return False
         except Exception:
             return False
         ffmpeg = find_ffmpeg()
         if not ffmpeg:
             return False
+        def wait_for_it():
+            self._lufs_pending = path
+            self._lufs_token = self._playback.token
+            QTimer.singleShot(_LUFS_WAIT_MS, self,
+                              lambda: self._resume_after_loudness(path))
+
         running = self._lufs_worker
         if running is not None and running.isRunning():
             if running.path == path:
-                return False    # already being measured — don't measure twice
+                # Already being measured — don't measure twice. A cue's probe that
+                # is still running when the title is played is waited for too.
+                if start:
+                    wait_for_it()
+                return start
             running.cancel()    # a skipped title's decode gives way, as above
         log.info("📊 Loudness measurement started (background)\n"
                  "file: %s\n"
                  "playback waits: %s", path.name, "yes" if start else "no")
+        self._say_measuring()
         w = LoudnessWorker(path, ffmpeg, parent=self)
         w.done.connect(self._on_track_lufs)
         w.error.connect(self._on_track_lufs_error)
         self._lufs_worker = w
         if start:
-            self._lufs_pending = path
-            self._lufs_token = self._playback.token
-            QTimer.singleShot(_LUFS_WAIT_MS, self,
-                              lambda: self._resume_after_loudness(path))
+            wait_for_it()
         w.start()
         return start
 
@@ -327,10 +370,55 @@ class AudioLevelMixin(MainWindowHost):
         self._lufs_pending = None
         self._load_track(path, True)
 
+    def _measure_peak(self, path: Path):
+        """A title with a loudness on record but no true peak, which only caps
+        its gain once known. 📊 walks the library folder only, so a title from
+        elsewhere gets it here, from its first play or preload, for the next
+        one. Nobody waits for it, and any measurement running goes first."""
+        ffmpeg = find_ffmpeg()
+        running = self._lufs_worker
+        if not ffmpeg or (running is not None and running.isRunning()):
+            return
+        log.info("📊 True peak measurement started (background)\n"
+                 "file: %s", path.name)
+        self._say_measuring()
+        w = LoudnessWorker(path, ffmpeg, parent=self)
+        w.done.connect(self._on_track_peak)
+        w.error.connect(self._on_track_lufs_error)
+        self._lufs_worker = w
+        w.start()
+
+    def _say_measuring(self):
+        """The status line says one title is being measured: text only, no bar.
+        A single title takes seconds, under music, and ffmpeg tells no progress.
+        The timeout is the fallback for a measurement cancelled without a signal."""
+        self.statusBar().showMessage(i18n.t("📊 Measuring loudness…"), 30000)
+
+    def _done_measuring(self):
+        """Take the line down again, unless something else has since replaced it."""
+        bar = self.statusBar()
+        if bar.currentMessage() == i18n.t("📊 Measuring loudness…"):
+            bar.clearMessage()
+
+    def _on_track_peak(self, path_str: str, lufs: float, tp: float | None = None):
+        """Stored only. The peak can cut the gain by several dB, and a title on
+        the speakers keeps its level: the floor would hear the drop."""
+        self._done_measuring()
+        if tp is None:
+            self._lufs_failed.add(path_str)   # asking again would not change it
+            return
+        if self._library.cache:
+            self._library.cache.put_lufs(Path(path_str), lufs, tp)
+            self._library.cache.save()
+        log.info("📊 True peak measured\n"
+                 "file: %s\n"
+                 "peak: %.1f dBTP", Path(path_str).name, tp)
+
     def _on_track_lufs(self, path_str: str, lufs: float, tp: float | None = None):
         """A measurement landed: store it, then either start the title that was
         waiting for it or — if that title is already running because the wait
         timed out — ramp its gain to where it should have started."""
+        self._done_measuring()
         if self._library.cache:
             self._library.cache.put_lufs(Path(path_str), lufs, tp)
             self._library.cache.save()
@@ -348,6 +436,7 @@ class AudioLevelMixin(MainWindowHost):
     def _on_track_lufs_error(self, path_str: str, msg: str):
         """ffmpeg couldn't measure the file — remember that, so no later play
         of it waits for a number that will never come."""
+        self._done_measuring()
         self._lufs_failed.add(path_str)
         log.warning("📊 Loudness measurement failed\n"
                     "file: %s\n"
@@ -365,9 +454,17 @@ class AudioLevelMixin(MainWindowHost):
     def _arm_fade_in(self, path: Path):
         """🌅 A title being loaded starts at silence when the fade-in is on.
         Not one a 🔀 crossfade brings in (that has its own ramp), and not in
-        the floating overlay: a pre-listen starts at full level."""
+        the floating overlay: a pre-listen starts at full level.
+
+        ↩ One picked up at its time marker lands in the middle of the music,
+        so it comes up over its own time; with that off, the 🌅 one. Except a
+        Paso Doble: the couples stand on the floor and go on the beat, so that
+        one starts abruptly whatever 🌅 says."""
         xf = self._between.xfade
         secs = fade_in_secs(self._settings)
+        if getattr(self, "_resume_seek_ms", None):
+            secs = (0.0 if self._playback.dance == "PD"
+                    else resume_fade_secs(self._settings) or secs)
         if (secs <= 0 or not self._is_playing_mode()
                 or (xf.state == "fading" and path == xf.incoming)):
             self._playback.fade_in_from = None
@@ -392,7 +489,7 @@ class AudioLevelMixin(MainWindowHost):
         self._apply_volume()
 
     def _maybe_skip_silence(self) -> bool:
-        """Playhead inside a ≥2 s silent stretch at the EDGES of the track:
+        """Playhead inside a silent stretch at the EDGES of the track:
         jump past a silent intro, end the song when the stretch runs to the
         end of the file (dead air after the last note). Silence in the middle
         is left alone — it may be a deliberate break the dancers know.

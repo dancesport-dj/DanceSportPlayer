@@ -79,6 +79,7 @@ class EmbeddingIndexMixin(MainWindowHost):
             i18n.t("Audio index: analyzing %s files…") % len(to_do))
         self._busy = BusyDialog(
             self, i18n.t("Building audio index (%s)…") % scope_label, cancelable=True)
+        self._stop_background_analysis()
         self._index_analyzer = AudioAnalyzer(cache, entries, self)
         self._busy.cancel_requested.connect(self._index_analyzer.cancel)
         self._busy.show_after(300)

@@ -53,19 +53,24 @@ class UndoMixin(MainWindowHost):
         if step is None:
             show_toast(self, "↶  Nothing to undo")
             return
-        self._show_step(i18n.t("↶  Undo — %s"), *step)
+        self._show_step(i18n.t("↶  Undo — %s"), *step, back=self._undo_timeline.redo)
 
     def _redo(self):
         step = self._undo_timeline.redo()
         if step is None:
             show_toast(self, "↷  Nothing to redo")
             return
-        self._show_step(i18n.t("↷  Redo — %s"), *step)
+        self._show_step(i18n.t("↷  Redo — %s"), *step, back=self._undo_timeline.undo)
 
-    def _show_step(self, template: str, before: dict | None, after: dict):
+    def _show_step(self, template: str, before: dict | None, after: dict, back=None):
         """Put the state an undo/redo step landed on into the window and say
-        what it changed."""
-        self._apply_env(after)
+        what it changed. A snapshot that would not apply says so (the status
+        line `_apply_env` set stays) and the timeline steps back via `back`."""
+        if not self._apply_env(after):
+            if back is not None:
+                back()
+            self._update_undo_actions()
+            return
         self._flash_changed(before, after)
         msg = template % self._describe_env_change(before, after)
         self.statusBar().showMessage(msg)

@@ -303,6 +303,14 @@ class LibraryColumnWiringTest(unittest.TestCase):
         win2 = self.window({"library_short_dances": True})
         self.assertTrue(win2._lib_browser.short_dances())
 
+    def test_the_folder_view_is_saved_and_comes_back(self):
+        win = self.window()
+        win._lib_browser.folderViewChanged.emit(True)
+        self.assertTrue(win._settings["library_folder_view"])
+        self.assertTrue(self.written, "nothing was saved")
+        win2 = self.window({"library_folder_view": True})
+        self.assertTrue(win2._lib_browser._folder_btn.isChecked())
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

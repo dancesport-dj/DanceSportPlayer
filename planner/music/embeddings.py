@@ -23,7 +23,7 @@ import io
 import logging
 import traceback
 from array import array
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -180,7 +180,7 @@ class EmbeddingStore:
 
     def __init__(self, cache: planner.music.db.AudioCache):
         self._cache = cache
-        self._mirror: dict[str, dict[str, list]] = {}   # model → {fp → vec list}
+        self._mirror: dict[str, dict[str, array]] = {}   # model → {fp → float32 array}
         self._fps: dict[str, set[str]] = {}             # model → {fp}, keys only
         self._ensure_schema()
 
@@ -201,10 +201,10 @@ class EmbeddingStore:
         return array('f', (float(x) for x in vec)).tobytes()
 
     @staticmethod
-    def _unpack(blob: bytes) -> list[float]:
-        a = array('f'); a.frombytes(blob); return list(a)
+    def _unpack(blob: bytes) -> array:
+        a = array('f'); a.frombytes(blob); return a
 
-    def _load_model(self, model: str) -> dict[str, list[float]]:
+    def _load_model(self, model: str) -> dict[str, array]:
         if model not in self._mirror:
             rows = _db().execute(
                 "SELECT fp, vec FROM embeddings WHERE model = ?", (model,)).fetchall()
@@ -233,26 +233,26 @@ class EmbeddingStore:
     def fingerprint(self, path: Path) -> str | None:
         return self._cache.fingerprint(path)
 
-    def get(self, path: Path, model: str) -> list[float] | None:
+    def get(self, path: Path, model: str) -> Sequence[float] | None:
         fp = self._cache.fingerprint(path)
         if fp is None:
             return None
         return self._load_model(model).get(fp)
 
-    def get_by_fp(self, fp: str | None, model: str) -> list[float] | None:
+    def get_by_fp(self, fp: str | None, model: str) -> Sequence[float] | None:
         return self._load_model(model).get(fp) if fp else None
 
-    def recorded(self, path: Path, model: str) -> list[float] | None:
+    def recorded(self, path: Path, model: str) -> Sequence[float] | None:
         """The vector for `path` by the fingerprint on record — never touches
         the disk, for look-ups over a whole dance."""
         return self.get_by_fp(self._cache.recorded_fingerprint(path), model)
 
     def put(self, fp: str, model: str, vec) -> None:
-        vec = list(vec)
+        vec = array('f', (float(x) for x in vec))
         self._load_model(model)[fp] = vec
         _db().execute(
             "INSERT OR REPLACE INTO embeddings (fp, model, vec) VALUES (?,?,?)",
-            (fp, model, self._pack(vec)))
+            (fp, model, vec.tobytes()))
 
     def has(self, fp: str, model: str) -> bool:
         return fp in self._load_model(model)
@@ -497,7 +497,7 @@ def embedding_similar(
         src_vec = (_embed_entry_live(source, model, store))
     if src_vec is None:
         return []
-    cands: list[tuple[MusicEntry, list[float]]] = []
+    cands: list[tuple[MusicEntry, Sequence[float]]] = []
     for e in entries:
         if e is source or e.is_xmas:
             continue

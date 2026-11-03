@@ -61,6 +61,15 @@ class VorbisTest(unittest.TestCase):
         self.assertEqual([(f.desc.lower(), list(f.text)) for f in frames],
                          [("ultramixer_dancestyle", ["Rumba"])])
 
+    def test_an_embedded_picture_is_not_imported_as_a_frame(self):
+        # FLAC and Ogg keep the cover as base64 text in a field of its own.
+        for name in ("METADATA_BLOCK_PICTURE", "coverart", "COVERARTMIME"):
+            with self.subTest(name=name):
+                tags = VCFLACDict()
+                tags["TITLE"] = "Moon River"
+                tags[name] = "QUJD" * 1000
+                self.assertEqual(as_id3(tags).getall("TXXX"), [])
+
     def test_bpm_wins_over_tempo(self):
         tags = VCFLACDict()
         tags["BPM"] = "120"

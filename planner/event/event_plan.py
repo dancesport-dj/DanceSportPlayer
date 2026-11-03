@@ -1047,7 +1047,10 @@ def refine_with_ai(variants: dict[str, list[PlannedCompetition]],
         llm._step(on_step, "sent", f"{cands_list[i].spec.label} — the drafts to check",
                   system + "\n\n" + user)
     replies: dict[int, tuple | Exception] = {}
-    with ThreadPoolExecutor(max_workers=min(len(todo), AI_PARALLEL)) as executor:
+    # Not a `with` block: its exit waits for every question still out, so a
+    # Cancel would hang until the slowest model call came back (#20.9).
+    executor = ThreadPoolExecutor(max_workers=min(len(todo), AI_PARALLEL))
+    try:
         asked = {executor.submit(ask, q[1], q[2]): i for i, q in questions.items()}
         for fut in as_completed(asked):
             i = asked[fut]
@@ -1060,6 +1063,10 @@ def refine_with_ai(variants: dict[str, list[PlannedCompetition]],
                 raise
             except Exception as exc:
                 replies[i] = exc
+    except BaseException:
+        executor.shutdown(wait=False, cancel_futures=True)
+        raise
+    executor.shutdown()
 
     for i in sorted(todo, key=lambda i: (competition_rank(cands_list[i].spec), i)):
         label = cands_list[i].spec.label

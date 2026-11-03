@@ -16,6 +16,7 @@ import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
 # Offscreen BEFORE any QApplication exists, and state files into a temp dir (the
 # gui modules resolve those at import time — see test_gui_smoke.py).
@@ -260,6 +261,109 @@ class _Desk(PlayerControlMixin, QWidget):
 
     def _on_timed_end(self, why):
         self._ended.append(why)
+
+
+class _PausingDesk(_Desk):
+    """The desk in a ⏸ pause between two songs."""
+
+    def __init__(self):
+        super().__init__()
+        self.advancing = True
+        self.fired = []
+
+    def _deck_advance(self, _table):
+        return self.advancing
+
+    def _looping(self):
+        return False
+
+    def _announce_lead(self):
+        return 0
+
+    def _hold_for_announcement(self):
+        return False
+
+    def _set_pause(self, secs):
+        table = SimpleNamespace(
+            _on_play_click=lambda row, path: self.fired.append(path),
+            scroll_row_into_play_view=lambda row: None)
+        self._between.pending = (table, 3, "next.mp3")
+        self._between.advance_at = time.monotonic() + secs
+
+
+@mock.patch("player.window.main_player.live_target", side_effect=lambda nxt: nxt)
+class PauseCountdownBlinkTest(unittest.TestCase):
+    """⏸ A configured wait counts on the card the way the 🐂 wait does."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.desk = _PausingDesk()
+        self.addCleanup(reap_widget, self.desk)
+
+    def test_the_count_blinks_the_card(self, _live):
+        self.desk._set_pause(10)
+        self.desk._on_play_tick()
+        self.assertTrue(self.desk._big_player.fading)
+
+    def test_it_lights_again_on_every_tick(self, _live):
+        """A halt of the title before stops the card's blink (`_on_state`)."""
+        self.desk._set_pause(10)
+        self.desk._on_play_tick()
+        self.desk._big_player.fading = False
+        self.desk._on_play_tick()
+        self.assertTrue(self.desk._big_player.fading)
+
+    def test_the_real_card_goes_on_blinking_past_the_halt(self, _live):
+        card = BigPlayerWidget(QMediaPlayer())
+        self.addCleanup(reap_widget, card)
+        self.desk._big_player = card
+        self.desk._set_pause(10)
+        self.desk._on_play_tick()
+        card._on_state(QMediaPlayer.PlaybackState.StoppedState)
+        self.assertFalse(card._flash.isActive())
+        self.desk._on_play_tick()
+        self.assertTrue(card._flash.isActive())
+        self.assertEqual(_skin(card), "fade")
+
+    def test_without_a_wait_nothing_blinks(self, _live):
+        self.desk._set_pause(0)
+        self.desk._on_play_tick()
+        self.assertEqual(self.desk.fired, ["next.mp3"])
+        self.assertFalse(self.desk._big_player.fading)
+
+    def test_it_goes_out_when_the_count_is_over(self, _live):
+        self.desk._set_pause(10)
+        self.desk._on_play_tick()
+        self.desk._between.advance_at = time.monotonic() - 0.1
+        self.desk._on_play_tick()
+        self.assertEqual(self.desk.fired, ["next.mp3"])
+        self.assertFalse(self.desk._big_player.fading)
+
+    def test_it_goes_out_when_next_dance_cuts_the_wait(self, _live):
+        self.desk._set_pause(10)
+        self.desk._on_play_tick()
+        self.desk._fire_pending_advance()
+        self.assertFalse(self.desk._big_player.fading)
+
+    def test_it_goes_out_when_the_next_title_has_left_the_list(self, live):
+        """Nothing loads then, so nothing else would put it out."""
+        self.desk._set_pause(10)
+        self.desk._on_play_tick()
+        live.side_effect = lambda nxt: None
+        self.desk.statusBar = lambda: SimpleNamespace(showMessage=lambda *a: None)
+        self.desk._fire_pending_advance()
+        self.assertFalse(self.desk._big_player.fading)
+
+    def test_it_goes_out_when_auto_advance_is_switched_off(self, _live):
+        self.desk._set_pause(10)
+        self.desk._on_play_tick()
+        self.desk.advancing = False
+        self.desk._player.setSource = lambda url: None
+        self.desk._on_play_tick()
+        self.assertFalse(self.desk._big_player.fading)
 
 
 class FadeIndicatorWiringTest(unittest.TestCase):

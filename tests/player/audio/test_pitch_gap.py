@@ -182,6 +182,9 @@ class _Desk(PlayerControlMixin, QWidget):
     def _await_loudness(self, path, start):
         return False
 
+    def _stop_background_analysis(self):
+        pass
+
     def _resolve_entry(self, path):
         return next((m.entry for m in self._deckset.all_tables[0]._row_meta
                      if m and m.entry is not None

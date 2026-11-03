@@ -178,6 +178,7 @@ class CartKeysPanel(QWidget):
                 name = _pad_name(pad)
                 self._pad_names[(page, *cell)] = f"{name} (p{page + 1})"
                 caption = QLabel(f"p{page + 1}  {name}")
+                caption.setTextFormat(Qt.TextFormat.PlainText)    # a pad name is not markup
                 caption.setToolTip(pad.path)
                 pad_lyt.addWidget(caption, line, 0)
                 pad_lyt.addWidget(picker, line, 1)

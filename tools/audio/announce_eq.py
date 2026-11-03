@@ -206,7 +206,9 @@ def write_note(folder: Path, preset: str, done: int) -> Path:
              "reads from there — applying again cannot stack a second EQ.",
              "", "## Filter chain (ffmpeg -af)", ""]
     lines += [f"    {f}" for f in PRESETS[preset]] or ["    (nothing)"]
-    lines += ["", "## Re-encoded as", "", "    " + " ".join(ENCODE),
+    lines += ["", f"The silence ahead of each word is always brought to the "
+              f"{announce._PREROLL_MS} ms pre-roll, whatever the chain.",
+              "", "## Re-encoded as", "", "    " + " ".join(ENCODE),
               "", "## To undo", "",
               "    .venv\\Scripts\\python.exe -m tools.audio.announce_eq --restore", "",
               "Written by `tools/audio/announce_eq.py`; the next --apply overwrites it.",
@@ -231,9 +233,11 @@ def apply_voice(ffmpeg: str, folder: Path, preset: str) -> tuple:
             # silence shorter than 50 ms, so a short lead would read as none.
             probe = with_lead(filters, 0)
             ok, err = render(ffmpeg, master, tmp, probe)
-            if ok:
-                padded = with_lead(filters, lead_of(ffmpeg, tmp)
-                                   - announce._PREROLL_MS)
+            # The probe clip carries the pre-roll, so a lead below it means the
+            # probe measured nothing: keep the probe, do not pad a second time.
+            lead = lead_of(ffmpeg, tmp) if ok else 0
+            if lead >= announce._PREROLL_MS:
+                padded = with_lead(filters, lead - announce._PREROLL_MS)
                 if padded != probe:
                     ok, err = render(ffmpeg, master, tmp, padded)
             if not ok:

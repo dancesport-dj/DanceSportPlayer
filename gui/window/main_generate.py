@@ -877,10 +877,6 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
         if lib is None:
             return []
         try:
-            _, _, remapper = self._remap_index()
-        except Exception:
-            remapper = None
-        try:
             lines = read_playlist_text(path)[0].splitlines()
         except OSError:
             return []
@@ -896,7 +892,7 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
         # reads as half the file having been thrown away.
         return resolve_playlist_entries(playlist_paths(lines, Path(path).parent),
                                         lib, self._library.cache,
-                                        remapper, progress_cb)
+                                        self._file_finder(), progress_cb)
 
     def _generate_warmup(self):
         """🤸: build a per-class warm-up or an ETDS party playlist into the focused
@@ -1014,7 +1010,7 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
         self._grid.warmup_box.setVisible(True)   # reveal the panel now it has content
         self._toggle_warmup_fold(False)     # always open a freshly built list
         self._sync_warmup_toggle()          # enable + check the toolbar toggle
-        self._set_active_table(target)      # Save / similar follow this list
+        self._party_list_alone()
         self._autosave_playlist()
         mix = Counter(planner.generate.warmup.warmup_code(e) for e in entries)
         dance_mix = ", ".join(f"{dance_name(d, d)}×{n}"
@@ -1022,10 +1018,32 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
         how = (i18n.t("↺ swaps with a title from the end, drag-drop replaces")
                if opts.get("mode") != "class"
                else i18n.t("↺ / drag-drop to replace by timbre"))
+        # The title already carries the 🤸 logo; the hint adds its own.
         self._show_hints([i18n.t("🤸 %s: %d tracks  (%s)  — %s")
-                          % (list_label, len(entries), dance_mix, how)])
+                          % (list_label.removeprefix(self._WARMUP_LOGO).strip(),
+                             len(entries), dance_mix, how)])
         self.statusBar().showMessage(
             i18n.t("%s — %d tracks") % (list_label, len(entries)))
+
+    def _party_list_alone(self) -> None:
+        """A list just built or opened in the panel gets the column: the playlists
+        go off, one wishlist stays and the panel takes the height they held. It
+        takes the focus too, or Ctrl+S would save a deck that is no longer shown."""
+        split = self._grid.right_split
+        sizes = split.sizes()
+        self._deckset.deck_count = 0
+        self._apply_deck_view()
+        self._set_wish_state(1)
+        panel = split.indexOf(self._grid.warmup_box)
+        wish = split.indexOf(self._grid.wish_split)
+        room = sum(sizes)
+        sizes[wish] = min(sizes[wish], room // 5)
+        sizes[0] = 0
+        sizes[panel] = room - sum(s for i, s in enumerate(sizes) if i != panel)
+        split.setSizes(sizes)
+        table = self._deckset.warmup_table
+        table.setFocus()
+        self._on_table_focused(table)
 
     def _sync_warmup_shuffle_btn(self, *_):
         """🔀 and ✓ show only while the panel holds an ETDS party list with
@@ -1103,7 +1121,7 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
         self._grid.warmup_box.setVisible(True)
         self._toggle_warmup_fold(False)
         self._sync_warmup_toggle()
-        self._set_active_table(table)
+        self._party_list_alone()
         table._remove_duplicate_titles(on_load=True)
         self._autosave_playlist()
         self.statusBar().showMessage(

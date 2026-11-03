@@ -5,6 +5,7 @@ Extracted from dancesport_gui.py (controller split) as a MainWindow mixin.
 import importlib.util
 import json
 import logging
+import sqlite3
 
 import planner.config
 import planner.music.db_upkeep
@@ -219,6 +220,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
             if i >= len(steps):
                 self.statusBar().showMessage(ready_msg)
                 self._preload_global_lib()
+                self._schedule_background_analysis()
                 return
             msg, fn = steps[i]
             self.statusBar().showMessage(msg)
@@ -1047,7 +1049,8 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         try:
             marks = json.loads(Path(chosen).read_text(encoding="utf-8"))["manual_pd_marks"]
             n, found = self._library.cache.import_manual_pd(marks)
-        except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
+        except (OSError, ValueError, KeyError, TypeError, AttributeError,
+                sqlite3.Error) as exc:
             QMessageBox.warning(self, title, i18n.t("This is no manual-PD-marks file:") + "\n\n" + str(exc))
             return
         log.info("📥 Manual PD marks imported\n"

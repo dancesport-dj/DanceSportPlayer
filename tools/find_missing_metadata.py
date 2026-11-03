@@ -30,6 +30,7 @@ Run:  .venv\\Scripts\\python.exe -m tools.find_missing_metadata [--all] [--save 
 """
 import io
 import re
+import sqlite3
 import sys
 from pathlib import Path, PurePath
 from urllib.parse import quote_plus
@@ -38,9 +39,9 @@ from urllib.parse import quote_plus
 if isinstance(sys.stdout, io.TextIOWrapper):
     sys.stdout.reconfigure(encoding="utf-8")
 
+from planner import config
 from planner.dances import BEATS_PER_BAR as _BEATS_PER_BAR
-from planner.models import STYLE_FOLDERS
-from planner.music import db as db
+from planner.models import STYLE_FOLDERS, fold_text
 from planner.music.db import META_COLS, row_to_meta
 from planner.music.parsing import dance_from_folders, detect_bpm_tagged
 
@@ -65,13 +66,13 @@ def is_tournament_path(path: str) -> bool:
 
 # Folders that are pure noise for this report and are dropped from every bucket:
 # anthems (hymnen), the 'special' umbrella (background, hymns, …) and the forró
-# social-dance folder. Matched case-insensitively as exact path segments.
+# social-dance folder. Matched accent- and case-insensitively as exact path segments.
 _SKIP_FOLDERS = {"hymnen", "special", "forro"}
 
 
 def is_skipped_path(path: str) -> bool:
     """True when the file sits under a skipped folder (hymnen / special / forró)."""
-    return any(p.lower() in _SKIP_FOLDERS for p in PurePath(path).parts)
+    return any(fold_text(p) in _SKIP_FOLDERS for p in PurePath(path).parts)
 
 
 # Leading track/disc numbers to drop from a search tag: one or more 1–3 digit
@@ -133,7 +134,13 @@ def main() -> None:
         save_to = sys.argv[sys.argv.index("--save") + 1]
     tournament_only = TOURNAMENT_ONLY and "--all" not in sys.argv
 
-    conn = db._db()
+    db_file = config.audio_db_file()
+    if not db_file.is_file():
+        print(f"No library index at {db_file} - start the app and scan the library first.")
+        sys.exit(1)
+    # Not db._db(): that is the app's read-write opener, which migrates the schema
+    # (and can empty stale rows) before the first query.
+    conn = sqlite3.connect(f"{db_file.as_uri()}?mode=ro", uri=True)
     measured = measured_bpm_by_fp(conn)
     paths = path_by_fp(conn)
 
@@ -150,7 +157,9 @@ def main() -> None:
         if is_skipped_path(path):
             skipped += 1
             continue
-        if tournament_only and not is_tournament_path(path):
+        # No path (drive unplugged) means the folder is unknown: the filter cannot
+        # call it irrelevant, and its missing tempo is what the report is for.
+        if tournament_only and fp in paths and not is_tournament_path(path):
             non_tournament += 1
             continue
         # Re-detect the takt from the name/title tag rather than trusting the

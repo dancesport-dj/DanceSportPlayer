@@ -103,7 +103,7 @@ Hover over one for its full name.
 | 🧹 Clear all | Empties every deck. Wishlists are kept. |
 | 🚦 Check ▾ | **🚦 Ready?**, the check before the evening, see [chapter 4](04-playing.md#-ready-before-the-evening). The full app adds 🔁 Check duplicates, 🎵 Check music and 🧭 Fix paths to this menu. |
 | ⧉ *n* playlists | Cycles through the number of decks on screen. A right click goes backwards. |
-| 🗜 Compact | Cycles the header view: full → compact → no groups → numbered. |
+| 🗜 Compact | Cycles the header view: full → compact → no groups → numbered. Drag the right edge of the numbers to change their width; double-click it for the automatic width. |
 | ⭐ *n* wishlists | Cycles the wishlist area: off → 1 → 2 → 3 → 4 → 2×2. |
 | 🤸 Party ▾ | Shows or hides the Party panel. |
 | 📚 Library | Shows or hides the library and tournaments pane. |

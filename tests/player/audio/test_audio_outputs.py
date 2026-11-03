@@ -9,19 +9,24 @@ output pair. Every output the operating system lists as a device of its own
 🔊 Sound & player. Nothing chosen keeps the old behaviour: the music follows
 the system default, and the other sources follow the music.
 """
+import logging
 import os
 import tempfile
 import unittest
+from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_outputs_"))
 
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
 from player.audio.audio_device import SYSTEM_DEFAULT, AudioDevice
 from player.audio.mix import OutputMix
 from player.audio.system_sounds import SystemSoundGuard
+
+log = logging.getLogger("dancesport.gui.audio")
 
 
 class _Dev:
@@ -550,6 +555,82 @@ class ChannelPairTest(_Test):
         self.assertFalse(desk.device.cue_on_music())
         desk.settings["audio_outputs"]["cue"].pop("pair")
         self.assertTrue(desk.device.cue_on_music())
+
+
+class OutputBurstTest(_Test):
+    """A sound card waking up says so a dozen times in three seconds: in a
+    real session those lines were more than half of the log. The first one
+    stands where it happened, the rest are counted; what the sources do
+    does not change."""
+
+    def setUp(self):
+        self.desk = _Desk()
+        self.device = self.desk.device
+
+    def changes(self, n):
+        with self.assertLogs("dancesport.gui.audio", level="INFO") as seen:
+            log.info("-")   # assertLogs insists on one line, folded or not
+            for _ in range(n):
+                self.device.on_outputs_changed()
+        return [r.getMessage() for r in seen.records if "🔊" in r.getMessage()]
+
+    def closed(self):
+        with self.assertLogs("dancesport.gui.audio", level="INFO") as seen:
+            log.info("-")
+            self.device._close_output_burst()
+        return [r.getMessage() for r in seen.records if "🔊" in r.getMessage()]
+
+    def test_a_burst_writes_its_first_line_only(self):
+        self.assertEqual(len(self.changes(5)), 1)
+
+    def test_its_end_says_how_many_were_folded(self):
+        self.changes(5)
+        lines = self.closed()
+        self.assertEqual(len(lines), 1)
+        self.assertIn("times: 4", lines[0])
+
+    def test_a_single_change_needs_no_closing_line(self):
+        self.changes(1)
+        self.assertEqual(self.closed(), [])
+
+    def test_the_next_burst_writes_again(self):
+        self.changes(3)
+        self.closed()
+        self.assertEqual(len(self.changes(3)), 1)
+
+    def test_the_timer_ends_the_burst(self):
+        self.device._burst_timer.setInterval(1)
+        self.changes(2)
+        with self.assertLogs("dancesport.gui.audio", level="INFO") as seen:
+            QTest.qWait(50)
+        self.assertIn("times: 1", seen.records[0].getMessage())
+
+    def test_a_burst_ends_after_its_window_even_if_it_goes_on(self):
+        self.changes(1)
+        self.assertEqual(self.device._burst_timer.interval(), 5000)
+        self.assertTrue(self.device._burst_timer.isSingleShot())
+        remaining = self.device._burst_timer.remainingTime()
+        QTest.qWait(30)
+        self.changes(1)
+        self.assertLess(self.device._burst_timer.remainingTime(), remaining)
+
+    def test_the_default_changing_is_never_folded(self):
+        self.changes(1)
+        self.desk.devices.default = USB12
+        said = "\n".join(self.changes(1))
+        self.assertIn("Default audio device changed", said)
+        self.assertNotIn("Audio outputs changed", said)
+
+    def test_every_change_still_moves_the_sources(self):
+        with mock.patch.object(self.device, "sync") as sync:
+            self.changes(4)
+        self.assertEqual(sync.call_count, 4)
+
+    def test_every_change_still_mutes_a_new_device(self):
+        self.device._system_sounds = mock.Mock(active=True)
+        with mock.patch.object(self.device, "hold_system_sounds") as hold:
+            self.changes(4)
+        self.assertEqual(hold.call_count, 4)
 
 
 if __name__ == "__main__":

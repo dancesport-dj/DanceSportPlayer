@@ -191,6 +191,7 @@ class _StageMonkey(Monkey):
         # deck that is still stopped. Wait for the music, as the operator does.
         deadline = time.monotonic() + 2
         while not self.playing() and time.monotonic() < deadline:
+            win._skip_pd_hold()   # ⏯ cuts a Paso Doble's wait, up to 60 s of it
             settle(10)
         if self.playing():
             self.playing_steps += 1
@@ -224,6 +225,22 @@ class PlayingMonkeyTest(LoadedWindow):
         self.assertGreater(monkey.playing_steps, STEPS // 3,
                            f"music ran in {monkey.playing_steps} of {STEPS} steps")
 
+    def test_the_walk_does_not_sit_out_a_paso_doble_wait(self):
+        """The walk raises the wait on the Playing panel itself. Up to 60 s of
+        silence per title on a Paso Doble deck timed whole walks out."""
+        win = self.win
+        monkey = _StageMonkey(SEED, self._roots, win)
+        QTest.mouseClick(win._cfg.generate_btn, Qt.MouseButton.LeftButton)
+        win._play_panel.set_pd_start_delay(60)
+        rows = [r for r, m in enumerate(win._deckset.table._row_meta)
+                if m and m.entry and m.entry.dance == "PD"]
+        self.assertTrue(rows, "no Paso Doble in the deck")
+        monkey.rng = mock.Mock(choice=lambda _rows: rows[0])
+        self.addCleanup(win._on_stop_btn)
+        monkey.keep_playing()
+        self.assertTrue(monkey.playing())
+        self.assertIsNone(win._pd_hold)
+
 
 class PlayerOnlyMonkeyTest(LoadedWindow):
     """The click monkey on DanceSport Player, the build that runs the
@@ -254,10 +271,11 @@ class PlayerOnlyMonkeyTest(LoadedWindow):
         mime = QMimeData()
         mime.setUrls([QUrl.fromLocalFile(str(m3u))])
         party = win._deckset.warmup_table
-        party.dropEvent(DropFrom(QPointF(20, 20), mime, None))
 
         def loaded():
             return sum(1 for m in party._row_meta if m and m.entry)
+        self.assertEqual(loaded(), 0, "a walk must not start on the list the last one left")
+        party.dropEvent(DropFrom(QPointF(20, 20), mime, None))
         deadline = time.monotonic() + 3
         while loaded() < len(music) and time.monotonic() < deadline:
             settle(10)

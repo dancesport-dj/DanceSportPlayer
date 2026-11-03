@@ -74,7 +74,9 @@ class ScanChunkedCommitsTest(unittest.TestCase):
         self.assertEqual(self.rows_seen_by_another_connection(), 24)
 
     def test_a_failed_scan_keeps_its_rows(self):
-        orig = MusicLibrary._make_entry
+        # One file failing is skipped (#40); a failure of the scan itself, here
+        # raised past the per-file guard, still ends it with the rows kept.
+        orig = MusicLibrary._make_entry_or_none
         made = []
 
         def make_entry(lib, path, scan_cache, *rest):
@@ -83,7 +85,7 @@ class ScanChunkedCommitsTest(unittest.TestCase):
             made.append(path)
             return orig(lib, path, scan_cache, *rest)
 
-        with mock.patch.object(MusicLibrary, "_make_entry", make_entry), self.assertRaises(RuntimeError):
+        with mock.patch.object(MusicLibrary, "_make_entry_or_none", make_entry), self.assertRaises(RuntimeError):
             self.scan()
         self.assertFalse(pdb._db().in_transaction)
         self.assertEqual(self.rows_seen_by_another_connection(), 5)

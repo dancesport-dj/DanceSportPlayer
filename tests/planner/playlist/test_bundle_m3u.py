@@ -115,6 +115,34 @@ class NumberedFolderM3uTest(unittest.TestCase):
         self.assertEqual(copied[0].name, "0_0_1 - Bad_Title_ _X__ CC30.mp3")
         self.assertEqual(copied[1].name, "0_0_2 - Plain Rumba RB26.mp3")
 
+    def test_a_very_long_title_is_cut_on_a_word_so_the_copy_has_a_name(self):
+        """#20.1: nothing bounded the name, and past 255 characters the copy failed."""
+        a = self._mp3("cha/Song (CC 30).mp3")
+        title = " ".join(["Wonderful"] * 60)
+        m3u = self._m3u("comp.m3u", ["#EXTM3U", f"#EXTINF:120,{title}", str(a)])
+        copied, missing = numbered_folder_m3u(m3u)
+        self.assertEqual(missing, 0)
+        name = copied[0].name
+        self.assertLessEqual(len(name), 130)
+        self.assertTrue(name.startswith("0_0_1 - Wonderful Wonderful"))
+        self.assertTrue(name.endswith(" CC30.mp3"))
+        self.assertNotIn("Wonderful CC30", name.replace("Wonderful Wonderful", ""))   # no half word
+
+    def test_a_line_into_the_bundle_in_other_capitals_is_not_copied_again(self):
+        """#20.2: on macOS a Path compares by its spelling, so the same folder
+        written with other capitals counted as another folder."""
+        from pathlib import PurePosixPath
+        from types import SimpleNamespace
+        m3u = self._m3u("comp.m3u", ["#EXTM3U", "whatever.mp3"])
+        there = SimpleNamespace(parent=PurePosixPath(str(self.folder).upper()),
+                                name="0_0_1 - Song.mp3", stem="0_0_1 - Song",
+                                suffix=".mp3", is_file=lambda: True)
+        with mock.patch("planner.playlist.m3u._bundle_source", return_value=there),                 mock.patch("shutil.copy2") as copy:
+            copied, missing = numbered_folder_m3u(m3u)
+        copy.assert_not_called()
+        self.assertEqual(copied, [there])
+        self.assertIn("0_0_1 - Song.mp3", m3u.read_text(encoding="utf-8"))
+
     def test_same_track_twice_gets_two_numbered_copies(self):
         a = self._mp3("cha/Song A (CC 30).mp3")
         m3u = self._m3u("comp.m3u", [str(a), str(a)])
@@ -183,6 +211,28 @@ class NumberedFolderM3uTest(unittest.TestCase):
         self.assertEqual(m3u.read_text(encoding="utf-8").splitlines(),
                          [str(a), "0_0_2 - Song B RB26.mp3"])
         self.assertFalse((self.folder / "0_0_1 - Song A CC30.mp3").exists())
+
+    def test_a_half_copy_that_cannot_be_removed_does_not_end_the_export(self):
+        """#7: the cleanup unlink after a failed copy may fail itself (the
+        file is locked too); the rest of the folder must still be written."""
+        a = self._mp3("cha/Song A (CC 30).mp3")
+        b = self._mp3("rumba/Song B (RB 26).mp3")
+        m3u = self._m3u("comp.m3u", [str(a), str(b)])
+        real_copy = shutil.copy2
+
+        def copy2(src, dst):
+            if Path(src) == a:
+                raise OSError(32, "In use")
+            return real_copy(src, dst)
+
+        def unlink(self_, missing_ok=False):
+            raise PermissionError(13, "Locked")
+
+        with mock.patch("shutil.copy2", copy2), \
+                mock.patch.object(Path, "unlink", unlink):
+            copied, missing = numbered_folder_m3u(m3u)
+        self.assertEqual(missing, 1)
+        self.assertEqual([p.name for p in copied], ["0_0_2 - Song B RB26.mp3"])
 
 
 if __name__ == "__main__":

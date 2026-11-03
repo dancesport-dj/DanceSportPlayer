@@ -73,6 +73,10 @@ class LibraryPaneMixin(MainWindowHost):
         self._settings["library_hidden_columns"] = [int(c) for c in hidden]
         save_settings(self._settings)
 
+    def _on_lib_folder_view(self, on: bool):
+        self._settings["library_folder_view"] = bool(on)
+        save_settings(self._settings)
+
     def _on_lib_dance_names(self, short: bool):
         self._settings["library_short_dances"] = bool(short)
         save_settings(self._settings)
@@ -164,13 +168,14 @@ class LibraryPaneMixin(MainWindowHost):
     def _refresh_library_planned_filter(self):
         """Build the set of library paths already used in the open decks and hand it
         to the library browser. Matches by full path AND by content fingerprint, so a
-        renamed/relocated copy of a planned track is hidden too."""
+        renamed/relocated copy of a planned track is hidden too; the 📁 folder view
+        keeps such a copy and marks it, so those are handed over apart as well."""
         if getattr(self, "_lib_browser", None) is None:
             return
         if not self._lib_browser.unplanned_active():
             return
         paths, fps = self._deck_dedup_index()
-        planned = set(paths)
+        copies = set()
         fingerprint = (self._library.cache.recorded_fingerprint
                        if self._library.cache is not None else None)
         # 🌐 lists the global index, whose tracks need not be favorites.
@@ -178,6 +183,6 @@ class LibraryPaneMixin(MainWindowHost):
             for e in (lib.entries if lib is not None else ()):
                 p = getattr(e, "path", None)
                 # The browser looks each track up by its `path_key`, as `paths` holds it.
-                if is_planned(p, paths, fps, fingerprint):
-                    planned.add(path_key(p))
-        self._lib_browser.set_planned_paths(planned)
+                if is_planned(p, paths, fps, fingerprint) and path_key(p) not in paths:
+                    copies.add(path_key(p))
+        self._lib_browser.set_planned_paths(paths | copies, copies=copies)

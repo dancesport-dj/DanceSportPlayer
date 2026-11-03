@@ -159,6 +159,19 @@ class PanelTest(_WindowCase):
                         "the list still stands on the 🏆 set")
         self.assertEqual(self.win._play_limit_secs(), 105)
 
+    def test_stepping_never_moves_against_the_arrow(self):
+        """#92: a typed 5 s went UP to 15 s on "shorter"; a typed 149 s became
+        164 s on "longer" instead of reaching full."""
+        panel = self.panel
+        panel._dance_len = None
+        for start, direction, want in ((5, -1, 5), (10, -1, 5), (15, -1, 5),
+                                       (20, -1, 5), (149, +1, 0), (150, +1, 0),
+                                       (135, +1, 150)):
+            with self.subTest(start=start, direction=direction):
+                panel._secs = start
+                panel._step_len(direction)
+                self.assertEqual(panel._secs, want)
+
     def test_a_fresh_install_nudges_one_dance_and_keeps_the_others(self):
         """Nothing stored yet: the nudged dance is written beside the shipped
         lengths, not instead of them."""

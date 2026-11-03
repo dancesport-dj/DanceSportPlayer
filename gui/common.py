@@ -666,6 +666,16 @@ def _select_in_explorer_shell(path: Path) -> bool:
         return False
 
 
+def platform_keys(text: str) -> str:
+    """A shown shortcut, named as this keyboard names it: Qt's Control is the
+    ⌘ key on a Mac, and its delete key is the ⌫ above Return. Takes translated
+    text, so the German Strg and Entf go too."""
+    if sys.platform != "darwin":
+        return text
+    text = text.replace("Ctrl", "Cmd").replace("Strg", "Cmd")
+    return re.sub(r"\b(?:Del|Entf|Supr)\b", "⌫", text)
+
+
 def reveal_in_explorer(path, parent: QWidget | None = None) -> None:
     """Open the OS file manager with the file selected/highlighted (focused).
     Windows: the shell API, falling back to explorer /select; macOS: open -R;

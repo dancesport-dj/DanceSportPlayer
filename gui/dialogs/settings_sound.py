@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDoubleSpinBox,
     QGridLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QMessageBox,
@@ -164,13 +165,9 @@ class SoundTabMixin(_DialogHost):
         grid = QGridLayout()
         self._output_combos = {}
         # 🎧 Pre-listen right below the music: the two the desk is set up by.
-        # Announcements rarely need an output of their own — they come last,
-        # below a line. None is that line.
-        order = ("music", "cue", "cartwall", None, "announcer")
+        # Announcements rarely need an output of their own — they come last.
+        order = ("music", "cue", "cartwall", "announcer")
         for row, source in enumerate(order):
-            if source is None:
-                grid.addWidget(hsep(), row, 0, 1, 2)
-                continue
             combo = QComboBox()
             combo.setToolTip(cue_tip if source == "cue" else tip)
             grid.addWidget(QLabel(captions[source]), row, 0)
@@ -462,6 +459,29 @@ class SoundTabMixin(_DialogHost):
         fade_in_row.addStretch(1)
         plyt.addLayout(fade_in_row)
 
+        # ── ↩ A title picked up at its time marker fades in ──
+        # 1 s is player.audio.mix's RESUME_FADE_SECS.
+        resume_fade_row = QHBoxLayout()
+        resume_fade_row.addWidget(QLabel("↩  Fade in at a time marker over:"))
+        self._resume_fade_spin = QDoubleSpinBox()
+        self._resume_fade_spin.setRange(0.0, 10.0)
+        self._resume_fade_spin.setSingleStep(0.5)
+        self._resume_fade_spin.setDecimals(1)
+        self._resume_fade_spin.setSuffix(" s")
+        self._resume_fade_spin.setSpecialValueText("off")
+        self._resume_fade_spin.setToolTip(
+            "A title picked up at its ↩ time marker lands in the middle of the\n"
+            "music, so the big player brings it up over these seconds. A Paso\n"
+            "Doble always starts abruptly: the couples stand and go on the beat.\n"
+            "0 = off.")
+        try:
+            self._resume_fade_spin.setValue(float(settings.get("resume_fade_secs", 1.0)))
+        except (TypeError, ValueError):
+            self._resume_fade_spin.setValue(1.0)
+        resume_fade_row.addWidget(self._resume_fade_spin)
+        resume_fade_row.addStretch(1)
+        plyt.addLayout(resume_fade_row)
+
         # ── 🔉↓ The fades started by hand ──
         # 10 s is player.audio.mix's HAND_FADE_MAX_SECS, as long as a list's.
         hand_fade_row = QHBoxLayout()
@@ -510,6 +530,11 @@ class SoundTabMixin(_DialogHost):
 
     def _add_voice_rows(self, settings, plyt):
         """🎙 The announcement voice and 🗣 where the call sits."""
+        # One box for the four settings that shape the same call, so they
+        # read as parts of one thing.
+        outer = plyt
+        group = QGroupBox(i18n.t("🔈  Announcements"))
+        plyt = QVBoxLayout(group)
         # ── 🎙 How 🔈 Announce next dance sounds ──
         # Set once per venue, not on the night: the ▶ Playing panel only
         # names the choice under its 🔈 switch.
@@ -598,6 +623,7 @@ class SoundTabMixin(_DialogHost):
         self._lead_over_radio.setChecked(not wait)
         lead_row.addStretch(1)
         plyt.addLayout(lead_row)
+        outer.addWidget(group)
 
     def _add_position_rows(self, settings, plyt):
         """▶ Where the master player stands in Playing mode."""
@@ -672,6 +698,7 @@ class SoundTabMixin(_DialogHost):
             "sound_advanced_open": self._advanced_btn.isChecked(),
             "duck_pct": self._duck_spin.value(),
             "fade_in_secs": self._fade_in_spin.value(),
+            "resume_fade_secs": self._resume_fade_spin.value(),
             "hand_fade_secs": self._hand_fade_spin.value(),
             "duck_down_ms": round(self._duck_down_spin.value() * 1000),
             "duck_up_ms": round(self._duck_up_spin.value() * 1000),

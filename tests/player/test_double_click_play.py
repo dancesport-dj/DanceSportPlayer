@@ -278,6 +278,134 @@ class DoubleClickAskTest(_Table):
         self.assertEqual(self.played, [Path(r"C:\music\second.mp3")])
 
 
+class ResumeMarkQuestionTest(_Table):
+    """↩ A title is playing and the double-clicked one has a time marker: one
+    question instead of the stop question, because it decides both things."""
+
+    PATH = Path(r"C:\music\second.mp3")
+
+    def setUp(self):
+        super().setUp()
+        self.t.set_play_highlight_enabled(True)
+        self.t._is_player_running = lambda: True
+        self.t._resume_marks = {str(self.PATH): 65_000}
+        self.cued = []
+        self.t._on_player_drop = self.cued.append
+        self.cleared = []
+        self.t._clear_resume = self.cleared.append
+        self.stop_asked = []
+
+        def ask_stop(title):
+            self.stop_asked.append(title)
+            return True
+        self.t._ask_stop_playing = ask_stop
+        self.mark_asked = []
+        self.answer = None
+
+        def ask_mark(title, ms):
+            self.mark_asked.append((title, ms))
+            return self.answer
+        self.t._ask_resume_mark = ask_mark
+
+    def test_it_starts_at_the_marker(self):
+        self.answer = "mark"
+        self.t._on_row_double_clicked(1, 0)
+        self.assertEqual(self.mark_asked, [("second", 65_000)])
+        self.assertEqual(self.stop_asked, [], "one question, not two")
+        self.assertEqual(self.cleared, [])
+        self.assertEqual(self.played, [self.PATH])
+
+    def test_from_the_top_resets_the_marker_before_the_title_loads(self):
+        self.answer = "top"
+        order = []
+        self.t._clear_resume = lambda p: order.append(("clear", p))
+        self.t._play_cb = lambda p: order.append(("play", p))
+        self.t._on_row_double_clicked(1, 0)
+        self.assertEqual(order, [("clear", self.PATH), ("play", self.PATH)])
+
+    def test_cancel_keeps_the_music_and_the_marker(self):
+        self.answer = None
+        self.t._on_row_double_clicked(1, 0)
+        self.assertEqual(self.mark_asked, [("second", 65_000)])
+        self.assertEqual(self.cleared, [])
+        self.assertEqual(self.played, [])
+
+    def test_a_title_without_a_marker_gets_the_stop_question(self):
+        self.t._resume_marks = {}
+        self.t._on_row_double_clicked(1, 0)
+        self.assertEqual(self.mark_asked, [])
+        self.assertEqual(self.stop_asked, ["second"])
+
+    def test_only_cueing_it_gets_the_stop_question(self):
+        """The todo asks for this where a double-click starts the title."""
+        self.t._settings["dblclick_plays"] = False
+        self.t._on_row_double_clicked(1, 0)
+        self.assertEqual(self.mark_asked, [])
+        self.assertEqual(self.stop_asked, ["second"])
+
+    def test_it_asks_even_with_the_stop_question_switched_off(self):
+        """❓ only waives the stop question; where the title starts stays open."""
+        self.t._settings["tournament_set"] = {"dblclick_ask": False}
+        self.answer = "mark"
+        self.t._on_row_double_clicked(1, 0)
+        self.assertEqual(self.mark_asked, [("second", 65_000)])
+        self.assertEqual(self.played, [self.PATH])
+
+    def test_nothing_playing_asks_nothing(self):
+        self.t._is_player_running = lambda: False
+        self.t._on_row_double_clicked(1, 0)
+        self.assertEqual(self.mark_asked, [])
+        self.assertEqual(self.played, [self.PATH])
+
+
+class ResumeMarkDialogTest(_Table):
+    """The real dialog, a button pressed on it the way a hand would."""
+
+    def _press(self, role, text=None):
+        from PySide6.QtCore import QTimer
+        seen = {}
+
+        def go():
+            box = QApplication.activeModalWidget()
+            seen["default"] = box.defaultButton().text()
+            seen["text"] = box.text()
+            buttons = box.buttons()
+            seen["count"] = len(buttons)
+            seen["order"] = [b.text() for b in buttons]
+            next(b for b in buttons if box.buttonRole(b) == role
+                 and (text is None or b.text() == text)).click()
+        QTimer.singleShot(0, go)
+        return self.t._ask_resume_mark("second", 65_000), seen
+
+    def test_the_default_keeps_the_music(self):
+        from PySide6.QtWidgets import QMessageBox
+        answer, seen = self._press(QMessageBox.ButtonRole.RejectRole)
+        self.assertIsNone(answer)
+        self.assertEqual(seen["default"], "Cancel")
+        self.assertEqual(seen["count"], 3)
+
+    def test_it_names_the_title_and_the_time(self):
+        from PySide6.QtWidgets import QMessageBox
+        _answer, seen = self._press(QMessageBox.ButtonRole.RejectRole)
+        self.assertIn("second", seen["text"])
+        self.assertIn("1:05", seen["text"])
+
+    def test_the_marker_button(self):
+        from PySide6.QtWidgets import QMessageBox
+        self.assertEqual(
+            self._press(QMessageBox.ButtonRole.AcceptRole, "At the marker")[0], "mark")
+
+    def test_the_from_the_top_button(self):
+        from PySide6.QtWidgets import QMessageBox
+        self.assertEqual(
+            self._press(QMessageBox.ButtonRole.AcceptRole, "From the beginning")[0], "top")
+
+    def test_from_the_beginning_comes_first(self):
+        from PySide6.QtWidgets import QMessageBox
+        _answer, seen = self._press(QMessageBox.ButtonRole.RejectRole)
+        self.assertEqual(seen["order"][:2], ["From the beginning", "At the marker"])
+
+
 class DoubleClickEventTest(_Table):
     """The click has to ARRIVE, too.
 

@@ -25,6 +25,7 @@ ready*: some titles will not play, or a sound output is not connected.
 | 🔈 Sound outputs | Every output chosen in ⚙ Settings → 🔊 Sound & player is plugged in. A missing card for the music, the cartwall or the announcements is red: that source plays on the system default instead. A missing 🎧 Pre-listen card is yellow, and so is a pre-listen that would land on the music's own output, because every preview would be refused. Pre-listen left on *Same as the music* is yellow too, because the hall hears every preview. With one output only there is no other to choose, so nothing is flagged. |
 | 🎛 Controller | The chosen hardware controller is connected. Not every evening needs one, so this line is yellow at worst, and it is left out while no controller is set up. |
 | ☀ Screen and sleep | ☀ Keep the screen awake is on, so the screen, the beamer and the computer stay awake while music plays or the presenter screen is up. |
+| 🔋 Power | The computer runs on mains power. On battery the line is yellow and says how full it is. Windows only: elsewhere the line is left out. |
 
 A line that is not green has a button that fixes it: **📊 Measure
 loudness…**, **🐂 Find highlights…**, **🔁 Resolve duplicates…**,
@@ -49,6 +50,10 @@ structure.
   title?**), and **No** keeps the music on. Whether it asks is set per play
   set, with **❓ Ask before a double-click stops the title** in
   [⚙ Settings ▸ 🎛 Play sets](06-settings.md#play-sets); on in both.
+  Where the double-click would start a title with a ↩ time marker, the
+  question is **Reset the time marker?** instead, and it always comes: **From
+  the beginning**, **At the marker**, or **Cancel**, which is the
+  default and keeps the music on.
 - **Ctrl + Shift + ← / →** jumps to the previous or next title, and
   **Ctrl + ← / →** seeks 30 s.
 
@@ -101,14 +106,14 @@ the time left.
 | **⏮ / ⏭** | Previous / next title. |
 | **◀◀ / ▶▶** | Back / forward 10 s. |
 | **⏯** | Pause / resume. |
-| **🔁** | Repeats *this* title endlessly, for when the floor is still full or a speech runs long. It works with ⏭ Auto off, too. |
+| **🔁** | Repeats *this* title endlessly, for when the floor is still full or a speech runs long. It works with ⏭ Auto off, too. Switching a list to ⏭ Auto while it runs asks whether the repeat should go, or the list would never move on. |
 | fade button (muted speaker) | Fades the title out now, over the fade time, then ends it. |
 | **☕** | Fades the title out over the 🔉↓ ramp, the card blinking orange meanwhile, then starts the pause. A title held with ⏯ goes straight in. Only there while **Pause between songs** is on. |
 | extend button | Adds another pause length when the heat change takes longer. |
-| **⏭ Next dance** | Only during the pause. Cuts the wait short but keeps the call: the pause music fades out (the card blinks orange meanwhile), the dance is called, then the title starts. Once the call has been spoken, with announcements off, under ✋ Manual or with the pause held by ⏯, it goes on at once. |
+| **⏭** (next dance) | Only during the pause. Cuts the wait short but keeps the call: the pause music fades out (the card blinks orange meanwhile), the dance is called, then the title starts. Once the call has been spoken, with announcements off, under ✋ Manual or with the pause held by ⏯, it goes on at once. |
 | **⊗** | Panic: fades the music out and *holds* it. Nothing ends and nothing advances. **⏯** resumes at exactly that spot. With the volume − / + buttons on, it moves up beside the fade button and shows only while a title plays. |
 | **🔊** | Three steps: the first click ducks to 10 %, the second mutes, the third brings the music back to full. The icon follows each step, and the readout under the slider says **mute** in red while muted. The pause music comes down too. The duck level is set under ⚙ Settings ▸ 🔊 Sound & player ▸ ▸ Advanced ▸ **🔉 Duck to**, and the button's tooltip names it. |
-| volume slider | Master volume. |
+| volume slider | Master volume. During a duck or a mute it comes down with the music and shows what is heard; moving it ends the duck at that level. |
 | **− / +** beside it | Step the volume by 2 % a click; held, they glide. Double-click the % under the slider to type a level. On by default; ⚙ Settings ▸ 🔊 Sound & player ▸ **➕ Volume − / + buttons** hides them. |
 
 The time readouts of a title longer than an hour, such as a long mix, read
@@ -129,6 +134,7 @@ The stretch before it is dimmed. With 🌅 fade-in on, the fade-in is tinted
 click or drag on the waveform by hand takes the green line away: the
 title no longer starts where it marked.
 
+- **Point** at it to see the time under the mouse, before you click.
 - **Click** it to jump to that spot. **Drag** along it to scrub: the playhead
   and the times follow the mouse, and the music jumps when you let go. A drag
   off the left edge goes to 0:00.
@@ -141,7 +147,9 @@ The tempo row under it:
 
 - **Tempo fader**: −16 % to +16 % without changing the pitch (time stretch),
   for example to pull a title onto the tempo the tournament needs. **− / +**
-  step it, hold them to glide. **0** or a double-click on the fader resets it.
+  step it, hold them to glide. A run of clicks on **− / +** counts as one
+  change, applied 750 ms after the last click; the wheel and the keys apply
+  after 450 ms. **0** or a double-click on the fader resets it.
   [Desk keys](#-desk-keys) and a knob on a
   [hardware controller](#-a-hardware-controller) move it too.
 - **CR**: while on, every title is pitched to the average tempo of its dance
@@ -170,7 +178,8 @@ The tempo row under it:
   its full 1:45 and then fades, so it ends at 1:48.
 
 Once the analysis has measured it, silence at the start and end of a title
-is skipped.
+is skipped. A title whose file breaks off in full sound is faded out over
+its last second.
 
 ### 🐂 Paso Doble
 
@@ -187,13 +196,14 @@ at a highlight, the musical break the couples dance to.
   when the Paso Doble plays in full.
 - The highlights are detected by the analysis. When one is missing or wrong,
   click **🎯 Mark highlight now** exactly on the highlight while the title
-  plays. **✖** forgets the learned marks of this title.
+  plays. **✖** asks before it forgets the learned marks of this title;
+  **No** leaves them.
 - **✏️ Edit highlights** pauses the music and suspends the stop, so you can
   scrub through the whole title and set its marks. Each mark reads to the
   tenth of a second, *0:44.3*, and the **− / +** beside it move that mark
   0.1 s earlier or later, for a tap that landed a little early or late.
-- 🎯, ✖ and ✏️ work on the title on the deck: with anything but a Paso Doble
-  there they are greyed out.
+- 🎯, ✖ and ✏️ work on the title on the deck, so they only show while a
+  Paso Doble is there.
 - **Start after** holds a Paso Doble back before the music starts, so the
   couples can take their position. The player card counts the wait down
   where the title's stats stand, with the takt it plays at, *🐂 PD T60 in 5 s*, as it counts down
@@ -220,8 +230,12 @@ With the switch off, a Paso Doble is an ordinary title.
   - **After this title**: the title on air is the last.
   - **After … titles**: 2 to 99 titles, the one on air counted as the first.
     The amber *3 left* beside it counts down as they end.
-  - **At …**: a time of day, `HH:mm`. A time already past today means after
-    midnight. The box beside it says what the title on air at that time
+  - **At …**: a time from the list, every five minutes. It offers only times
+    still to come, on through midnight to 01:55, and always at least the next
+    two hours. Double-click the time to type any time instead (23:17, 2317,
+    23.17 or a bare hour): **Enter** or leaving the field arms it, text that
+    is no time puts the old one back, and a typed time that is not on the
+    list stays shown. The box beside it says what the title on air at that time
     does: **play it to its end** (the first title that ends at or after the
     time is the last), **fade out at the time**, or **hybrid: fade if ≥ 1:30
     played** (a title that has just begun plays to its end). This choice is
@@ -236,11 +250,14 @@ With the switch off, a Paso Doble is an ordinary title.
   ⏯. It only follows the ⏹ Stop above, never a ⏹ by hand. The song is
   remembered.
 - **Pause between songs**: time for the couples to change or catch their
-  breath. Off, the next title follows at once.
+  breath. While it counts, the card blinks orange, like the wait before a
+  Paso Doble. Off, the next title follows at once.
 - **🎶 Pause music**: a one-line hint under the pause switch. The pause music
   is the cartwall's [▶ queue](#-a-queue-of-pads): a pause starts it from its
   first 🎶 background pad, unless a queue run is going already. Pads that are
-  not 🎶 are skipped, because they would play on over the title. The 🎶 pads
+  not 🎶 are skipped, because they would play on over the title. With no 🎶
+  pad in the queue, the selected 🎶 pad plays on its own; with none selected
+  nothing plays. A 🎶 pad already going simply carries on. The 🎶 pads
   dip under the spoken call like the music does, and step back when the
   next title starts. To change the pause music, change the queue.
 - **🔀 Crossfade**: the last seconds of a title and the first of the next
@@ -284,7 +301,9 @@ dance, "Langsamer Walzer"; **📣 Say "Next dance" before the dance** in
 Langsamer Walzer". **🔢 Only the heat** says just "Gruppe 1" instead, for a
 practice evening.
 
-- With a pause, the call comes shortly before the pause ends.
+- With a pause, the call comes shortly before the pause ends. The call needs
+  no gap, so switching it on takes **Pause between songs** off, and switching
+  it off brings the pause back. Switch the pause back on to have both.
 - Without a pause, the dance is named as the title starts: **over the first
   bars** (the music is ducked under the voice) or **before the music starts**
   (the music follows the call), as ⚙ Settings ▸ 🔊 Sound & player has it.
@@ -303,16 +322,19 @@ practice evening.
 
 ### Sound and display
 
-- **🔊 Equalize volume (R128)**: levels the loudness between titles. It needs
+- **🔊 Equalize volume**: levels the loudness between titles. It needs
   the loudness analysis.
   It also keeps every title's true peak at −1 dBTP or below: a quiet
   title that would clip when raised is raised less, and one mastered
   over the ceiling comes down. A title measured by an older version is
   measured again in the background.
 - **▶️ Double-click starts the title**: on, a double-click plays at once. Off,
-  it only cues the title and ⏯ starts it. That is what a heat wants.
+  it only cues the title and ⏯ starts it. That is what a heat wants, and
+  every play set starts that way.
 - **↩ Remember where a title stopped**: a title you left starts again at that
-  spot. The row shows **↩ mm:ss**. The marks are forgotten when the app
+  spot, coming up over a second instead of at full level (a Paso Doble starts
+  abruptly; the time is in [⚙ Settings ▸ 🔊 Sound & player](06-settings.md#sound-and-player)).
+  The row shows **↩ mm:ss**. The marks are forgotten when the app
   closes.
 
 ### Play sets
@@ -379,7 +401,8 @@ Its colours are set in
 [⚙ Settings ▸ 🎨 Look](06-settings.md#look).
 
 **☀ Keep the screen awake** stops the screensaver and the display timeout
-while music plays or the presenter is open.
+while music plays or the presenter is open, and for ten minutes after both
+have ended, so the screen stays on between titles.
 
 ## 🎧 Pre-listening on headphones
 
@@ -489,8 +512,9 @@ below is a 🎶 bed paused under a title: its time is grey behind the pause bars
 - The pad playing shows **▶** instead of **≡**.
 - Inside the queue a pad's own 🔁 endless repeat is not used, or the queue
   would never move on: its 🔁 is struck through in red, and the pad counts
-  down like any other. Everything else (volume, ducking, 🎶 background, its
-  fade-out) stays as set on the pad.
+  down like any other. Alone in the queue it does repeat, so its 🔁 stays as it
+  is. Everything else (volume, ducking, 🎶 background, its fade-out) stays as
+  set on the pad.
 - A pad whose file is missing is skipped, with a note in the status bar. When
   none of them are found, the queue stops.
 - **Click the playing pad**, **⏹ Stop all**, **Esc**, unlocking with **✏**,
@@ -578,8 +602,12 @@ click on it brings the window back. In ⚙ Settings the button then reads
 **📱 Stop Server**.
 
 - Only phones on the local network get in, and only with the PIN. Wrong PINs
-  lock a phone out for a while, and after 30 wrong PINs from the whole network
-  within ten minutes no new phone gets in; phones already in keep working.
+  lock a phone out for a while. After 30 wrong PINs from the whole network
+  within ten minutes the network is paused for new phones, but not shut: one
+  PIN every 10 seconds is still weighed, so your own new phone gets in
+  within seconds even while a stranger guesses. Phones already in keep
+  working. The remote window itself says that the PIN crosses the Wi-Fi
+  unencrypted.
 - The PIN travels unencrypted (plain HTTP). On your own network that is fine.
   On an open venue Wi-Fi anyone on it could read it, so start a
   phone hotspot or a router of your own for the desk where you can.
@@ -778,5 +806,8 @@ new one, so a party past midnight stays one evening.
 - **💾 Save as CSV…** saves the evening as a table for Excel, for example
   for a GEMA report: date, start, artist, title, composer, dance, list and duration.
 - **🗑 Delete evening** removes it from the log after asking.
+- A column you drag to a new width keeps it (kept in `play_log_dialog.json`);
+  the other columns fit the evening shown, and one long cell no longer sizes
+  its whole column.
 
 Next: [Tags](05-tags.md)

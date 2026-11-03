@@ -22,6 +22,21 @@ missing, **🔄** next to 🌐 (or **🔄 Scan repository for new titles** under
 changed files, no audio analysis, and runs in the background: its progress,
 ⏸ pause and ⏹ stop sit in the status bar, like the scan on start.
 
+**📁 Folders** in the header shows the folders beside the table. Choose one and
+the table lists only the titles directly in that folder, not those in its
+subfolders. **📁 All folders** lists everything again, and the button goes back
+to the plain list. In this view **🆕 Unplanned** hides the planned file itself.
+The same music in another folder stays listed and gets a **♊** in front of its
+title. The plain list hides those copies too.
+
+The tree leaves out a bare drive line, so the first folders sit at the top.
+The box above it, **Find a folder…**, keeps only the folders whose name has
+your text, plus the folders above them. The funnel button beside it works
+like a spreadsheet's filter button: it opens a menu, where **Sort by size** puts
+the folder with the most titles first and **Sort by name** is the default. The
+button stays pressed while another choice than the default is active. Folders
+wear a folder icon.
+
 ![The library browser](img/library.png)
 
 | Filter | Shows |
@@ -118,15 +133,14 @@ the slots write them (VR, 1ZR, ER). Hover over one for the full name.
   set. A double-click does what it does in
   the 📚 library (see above).
 - Drag titles onto a deck, the Party panel or a wishlist.
-- The bar underneath shows the songs and total play time. Titles that the
-  library doesn't know are counted, but add no time.
+- The bar underneath shows songs and play time. Titles the library doesn't
+  know count, but add no time.
 - **Title** shows the MP3's title tag, or the cleaned-up file name when the
   tag is empty. As in the library, a **right-click on the column header**
   ticks columns on or off (Title always stays), and the headers can be
   dragged into another order. **Filename** and **Plays** are hidden at first:
-  Filename shows the cleaned-up name of the file, with the full path in its
-  tooltip, and Plays counts the last 24 hours' plays as in the library. The
-  tab remembers the columns.
+  Filename shows the cleaned-up file name (full path in its tooltip), Plays
+  the last 24 hours' plays. The tab remembers the columns.
 
 **▦** switches back to the slots.
 

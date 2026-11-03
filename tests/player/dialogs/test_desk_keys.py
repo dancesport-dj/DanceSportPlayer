@@ -23,7 +23,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QComboBox, QDialog, QDialogButtonBox, QPushButton, QToolButton
+from PySide6.QtWidgets import QApplication, QComboBox, QDialog, QDialogButtonBox, QLabel, QPushButton, QToolButton
 
 from planner import i18n
 from planner.playing import cartwall as pc
@@ -475,6 +475,24 @@ class LearnTest(unittest.TestCase):
         picker = dlg._slot_pickers[0]
         self.assertFalse(picker._learn.isHidden())
         self.assertEqual(dlg.findChildren(QComboBox), [])
+
+
+class CartKeysCaptionTest(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def test_a_pad_name_with_markup_is_shown_as_text_not_rendered(self):
+        from planner.playing import cartwall as pc
+        from player.widgets.cart_keys import CartKeysPanel
+        name = '<img src="//host/share/x.png">'
+        page = pc.Page(pads={(0, 0): pc.CartPad(path="t.mp3", label=name)})
+        dlg = CartKeysPanel((2, 2), [page], pc.SLOT_KEYS)
+        self.addCleanup(reap_widget, dlg)
+        captions = [lb for lb in dlg.findChildren(QLabel) if lb.text().startswith("p1  ")]
+        self.assertEqual(len(captions), 1)
+        self.assertEqual(captions[0].textFormat(), Qt.TextFormat.PlainText)
 
 
 class KeysDialogTest(unittest.TestCase):

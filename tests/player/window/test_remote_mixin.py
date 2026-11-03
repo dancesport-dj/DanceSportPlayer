@@ -79,7 +79,8 @@ class StateTest(unittest.TestCase):
 
 class CommandTest(unittest.TestCase):
     def test_each_button_reaches_its_desk_action(self):
-        host = _host()
+        host = _host({(0, 0): pc.CartPad(path=r"C:\s\A.mp3"),
+                      (0, 1): pc.CartPad(path=r"C:\s\B.mp3")})
         host._remote_pad_keys = [(0, 0, 0), (0, 0, 1)]
         for cmd, arg in (("toggle", None), ("next", None), ("prev", None),
                          ("fade", None), ("hold", None), ("stop_pads", None),
@@ -94,6 +95,19 @@ class CommandTest(unittest.TestCase):
         # A pad number from a stale page is ignored, not mapped elsewhere.
         host._cartwall.play_pad.assert_called_once_with((0, 0, 1))
 
+    def test_a_pad_tap_from_a_page_that_has_moved_on_fires_nothing(self):
+        """#8: the phone's index was matched against the snapshot of the last
+        publish; a flipped page or an edited pad made it fire another jingle."""
+        pads = {(0, 0): pc.CartPad(path=r"C:\s\A.mp3")}
+        flipped = _host(pads, page=1)
+        flipped._remote_pad_keys = [(0, 0, 0)]
+        RemoteMixin._on_remote_command(flipped, "pad", 0)
+        flipped._cartwall.play_pad.assert_not_called()
+        emptied = _host({})
+        emptied._remote_pad_keys = [(0, 0, 0)]
+        RemoteMixin._on_remote_command(emptied, "pad", 0)
+        emptied._cartwall.play_pad.assert_not_called()
+
     def test_a_tapped_next_title_is_played(self):
         host = _host()
         RemoteMixin._on_remote_command(host, "jump", (1, "Tango One"))
@@ -105,15 +119,11 @@ class CommandTest(unittest.TestCase):
         host._seek_fraction.assert_called_once_with(0.25)
 
     def test_announce_flips_the_play_panels_toggle(self):
-        """🔈 The same switch as the desk's, so it is remembered the same way."""
+        """🔈 The same switch as the desk's, clicked the same way, so the
+        pause follows it too."""
         host = _host()
-        chk = host._play_panel.announce_check
-        chk.isChecked.return_value = False
         RemoteMixin._on_remote_command(host, "announce", None)
-        chk.setChecked.assert_called_once_with(True)
-        chk.isChecked.return_value = True
-        RemoteMixin._on_remote_command(host, "announce", None)
-        chk.setChecked.assert_called_with(False)
+        host._play_panel.announce_check.click.assert_called_once_with()
 
 
 class JumpTest(unittest.TestCase):

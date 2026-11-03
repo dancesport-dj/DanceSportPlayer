@@ -53,6 +53,9 @@ class WindowsBackend:
         self._w = win32
         self._ours: set[str] = set()   # muted by us — lifted on restore
         self._left: set[str] = set()   # muted by hand — never touched
+        # Whether the last sweep met a System Sounds session at all: Windows
+        # makes it only once it has played a sound.
+        self.found = False
 
     def _volumes(self):
         try:
@@ -65,7 +68,9 @@ class WindowsBackend:
     def mute(self):
         """Mute every device not seen before; the record, or None."""
         w = self._w
-        for dev_id, vol in self._volumes() or ():
+        devices = self._volumes() or ()
+        self.found = bool(devices)
+        for dev_id, vol in devices:
             try:
                 if dev_id in self._ours or dev_id in self._left:
                     continue   # decided when it was first seen
@@ -184,6 +189,13 @@ class SystemSoundGuard:
             return False
         if on:
             self.record = self._backend.mute()
+            if not getattr(self._backend, "found", True):
+                # Nothing was there to mute, so say so and stay "off": the
+                # next activity looks again.
+                log.warning("🔕 No System Sounds session yet\n"
+                            "nothing muted, will try again")
+                self.record = None
+                return False
             log.info("🔕 System sounds muted\n"
                      "changed: %s", self.record)
         else:

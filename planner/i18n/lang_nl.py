@@ -587,13 +587,14 @@ CATALOG = {
     "all licences": "alle licenties",
     "Which library should this index cover?":
         "Welke bibliotheek moet deze index omvatten?",
-    "What should go into the venue bundle?": "Wat moet er in het zaalpakket?",
+    "What should be exported?": "Wat moet er in het zaalpakket?",
     "Settings saved.": "Instellingen opgeslagen.",
     "Database cleanup done.": "Database opgeruimd.",
     "Loading library…": "Bibliotheek laden…",
     "Loading music library…": "Muziekbibliotheek laden…",
     "Library: loading…": "Bibliotheek: laden…",
     "Generating playlist…": "Afspeellijst maken…",
+    "Matching against your library…": "Vergelijken met je bibliotheek…",
     "Asking the model…": "Het model vragen…",
     "Asking the model for a playlist…":
         "Het model om een afspeellijst vragen…",
@@ -786,6 +787,13 @@ CATALOG = {
         "Hoe luid de muziek blijft terwijl een 🎛 cartwall-pad met 🔈 muziek\ndempen speelt, in procent van haar volume zoals bij 🔉 Dempen naar.\n10 % is ongeveer −20 dB: een fanfare komt erdoor. 30 % (ongeveer −10 dB)\nzet de muziek alleen een stap terug. 0 % is stilte.",
     "A duck, here or a pad's on the 🎛 Cartwall tab, is a percentage of the music's volume, not of its loudness: 50 % ≈ −6 dB, 30 % ≈ −10 dB (sounds about half as loud), 20 % ≈ −14 dB, 10 % ≈ −20 dB.":
         "Een demping, hier of die van een pad op het tabblad 🎛 Cartwall, is een percentage van het volume van de muziek, niet van de luidheid: 50 % ≈ −6 dB, 30 % ≈ −10 dB (klinkt ongeveer half zo luid), 20 % ≈ −14 dB, 10 % ≈ −20 dB.",
+    "↩  Fade in at a time marker over:":
+        "↩  Infaden bij een tijdmarkering over:",
+    "A title picked up at its ↩ time marker lands in the middle of the\n"
+    "music, so the big player brings it up over these seconds. A Paso\n"
+    "Doble always starts abruptly: the couples stand and go on the beat.\n"
+    "0 = off.":
+        "Een nummer dat bij zijn ↩ tijdmarkering verdergaat, valt midden in de\nmuziek, dus brengt de grote speler het over deze seconden omhoog. Een\nPaso Doble start altijd abrupt: de paren staan klaar en gaan op de tel.\n0 = uit.",
     "🌅  Fade each title in over:":
         "🌅  Elk nummer laten infaden over:",
     "The big player starts every title at silence and brings it up\nover these seconds of music. Not a title a 🔀 crossfade brings in,\nwhich has its own ramp. Couples start on the first downbeat, so\nleave it off for a competition. 0 = off.":
@@ -1216,16 +1224,16 @@ CATALOG = {
         "afspeellijstmap exporteren (wensenlijsten niet inbegrepen).\n"
         "Elk bestand krijgt de naam van zijn decktitel.",
     "Export playlists as a self-contained venue bundle — asks first\n"
-    "whether to take all open decks, only the 📅 tournament day, or\n"
-    "saved .m3u files dragged in, with the ⭐ wishlists if ticked.\n"
+    "what to take: open decks, the 📅 tournament day, the party list,\n"
+    "⭐ wishlists or saved .m3u files, in any combination.\n"
     "One sub-folder per playlist holding its tracks copied in numbered\n"
     "play order (0_0_1 - Title WW29.mp3) plus the playlist's .m3u — each\n"
     "folder plays in order even without the M3U, from any drive,\n"
     "laptop or UltraMixer at the venue (no path fixing needed there).\n"
     "Also offers the 📦 venue pack: this desk in one file for another PC.":
         "Afspeellijsten exporteren als zelfstandig zaalpakket — vraagt eerst\n"
-        "of alle open decks, alleen de 📅 toernooidag of binnengesleepte\n"
-        "opgeslagen .m3u-bestanden mee moeten (⭐ wensenlijsten als aangevinkt).\n"
+        "wat mee moet: open decks, de 📅 toernooidag, de feestlijst,\n"
+        "⭐ wensenlijsten of opgeslagen .m3u-bestanden, in elke combinatie.\n"
         "Eén submap per afspeellijst met haar nummers gekopieerd in genummerde\n"
         "speelvolgorde (0_0_1 - Title WW29.mp3) plus de .m3u van de afspeellijst — elke\n"
         "map speelt in volgorde, ook zonder de M3U, vanaf elke schijf,\n"
@@ -1782,10 +1790,10 @@ CATALOG = {
     "Resolve duplicates": "Duplicaten oplossen",
     "Sort the exported tracks by dance?\n"
     "\n"
-    "(LW, TG, WW, SF, QS, SB, CC, RB, PD, JV)":
+    "(%s)":
         "De geëxporteerde nummers op dans sorteren?\n"
         "\n"
-        "(LW, TG, WW, SF, QS, SB, CC, RB, PD, JV)",
+        "(%s)",
     "The reference base must be a single .m3u playlist.":
         "De referentiebasis moet één .m3u-afspeellijst zijn.",
     "This list holds some titles more than once.<br><span style='color:#666'>For each title, pick the file to keep — the others are removed. <b>Keep all</b> leaves that title alone.</span>":
@@ -1879,7 +1887,7 @@ CATALOG = {
         "De favorietenbibliotheek is nog niet geladen.",
     "The whole-repository library isn't loaded yet. Drop a file (or build the librosa index over the repository) once to load it, then retry.":
         "De bibliotheek van de hele verzameling is nog niet geladen. Zet één keer een bestand neer (of bouw de librosa-index over de verzameling) om hem te laden en probeer het dan opnieuw.",
-    "Not on the Reference path": "Niet in het referentiepad",
+    "Titles saved with their own path": "Titels met hun eigen pad opgeslagen",
     "Save Error": "Fout bij opslaan",
     "Save as M3U": "Opslaan als M3U",
     "This deck is empty.": "Dit deck is leeg.",
@@ -2110,9 +2118,7 @@ CATALOG = {
         "🧹  Dubbele kopieën verbergen (hetzelfde nummer, DJ- / dans- / BPM-tags genegeerd)",
     "Clear playlist": "Afspeellijst leegmaken",
     "Clear wishlist": "Wensenlijst leegmaken",
-    "Find in list": "Zoeken in lijst",
     "Find planned before": "Eerder gepland zoeken",
-    "Find title:": "Titel zoeken:",
     "No similar tracks found (audio features may be missing).":
         "Geen vergelijkbare nummers gevonden (misschien ontbreken de audiokenmerken).",
     "Select exactly two titles of the same dance to swap them.":
@@ -2277,40 +2283,46 @@ CATALOG = {
     "The system counts idle time from the mouse and the keyboard,\n"
     "never from the speakers — so an hour of music with nobody touching\n"
     "the desk blanks the screen mid-heat, the beamer included. It goes\n"
-    "back to its normal timeouts as soon as neither is running.":
+    "back to its normal timeouts ten minutes after both have ended.":
         "De schermbeveiliging en het uitschakelen van het scherm tegenhouden zolang er muziek\n"
         "speelt of het presentatiescherm open is.\n"
         "\n"
         "Het systeem telt de inactieve tijd aan muis en toetsenbord,\n"
         "nooit aan de luidsprekers — dus een uur muziek zonder dat iemand de tafel\n"
         "aanraakt, maakt het scherm midden in de heat zwart, de beamer inbegrepen. Het gaat\n"
-        "terug naar de normale tijden zodra geen van beide meer loopt.",
+        "terug naar de normale tijden tien minuten nadat beide zijn geëindigd.",
     "Off: the next song starts the moment the current one ends, with\n"
-    "no pause music and no announcement. The configured time is kept\n"
+    "no pause music. The configured time is kept\n"
     "for switching back.\n"
     "\n"
     "Needs ⏭ auto-advance — without it the next song waits for the\n"
     "operator anyway, so there is no gap to fill.":
         "Uit: het volgende nummer begint op het moment dat het huidige eindigt, zonder\n"
-        "pauzemuziek en zonder aankondiging. De ingestelde tijd blijft bewaard\n"
+        "pauzemuziek. De ingestelde tijd blijft bewaard\n"
         "voor als je terugschakelt.\n"
         "\n"
         "Vereist ⏭ automatisch doorgaan — zonder dat wacht het volgende nummer\n"
         "hoe dan ook op de operator, dus er is geen gat te vullen.",
+    "🔈 The pause is off because the next dance is announced: the\n"
+    "call comes with the title and needs no gap. Switch the pause\n"
+    "back on to have both.":
+        "🔈 De pauze staat uit omdat de volgende dans wordt aangekondigd: de\n"
+        "aankondiging komt met het nummer en heeft geen gat nodig. Zet de\n"
+        "pauze weer aan om beide te hebben.",
     "On: a double-click in a deck puts the title on the speakers at\n"
     "once — what a party wants.\n"
     "Off: it is only CUED on the player (loaded, shown, silent) and ⏯\n"
     "starts it — what a heat wants, where the music begins when the\n"
     "couples are on the floor and not a moment earlier.\n"
     "\n"
-    "Part of the play sets: 🏆 tournament switches it off, 🎉 party on.":
+    "Part of the play sets: off in every one of them until you switch it on.":
         "Aan: een dubbelklik in een deck zet het nummer meteen op de luidsprekers\n"
         "— wat een feest wil.\n"
         "Uit: het wordt alleen KLAARGEZET op de speler (geladen, getoond, stil) en ⏯\n"
         "start het — wat een heat wil, waar de muziek begint als de\n"
         "paren op de vloer staan en geen moment eerder.\n"
         "\n"
-        "Deel van de speelsets: 🏆 toernooi zet het uit, 🎉 feest aan.",
+        "Deel van de speelsets: in elke set uit tot je het aanzet.",
     "On: a double-click in a deck plays the title at once.\n"
     "Off: it is only cued on the player (loaded, shown,\n"
     "silent) and ⏯ starts it — the heat begins when the\n"
@@ -2893,8 +2905,8 @@ CATALOG = {
         "hybride: uitfaden bij ≥ 1:30 gespeeld",
     "What the title playing at the time does:\n\nPlay it to its end — the first title that ends at or after the\ntime is the last.\nFade out at the time — it fades out the moment the time comes.\nHybrid — it fades if it had played 1:30 by then, a younger\none plays to its end.\n\nA title that starts after the time always plays to its end.\nThis choice is remembered.":
         "Wat het nummer doet dat op het tijdstip speelt:\n\nTot het einde spelen — het eerste nummer dat om of na het\ntijdstip eindigt, is het laatste.\nUitfaden op het tijdstip — het faadt uit zodra het tijdstip er is.\nHybride — het faadt uit als het dan al 1:30 speelde, een\nkorter gespeeld nummer speelt tot het einde.\n\nEen nummer dat na het tijdstip begint, speelt altijd tot het einde.\nDeze keuze wordt onthouden.",
-    "The first title that ends at or after this time is the last.\nA time already past today means after midnight.":
-        "Het eerste nummer dat om of na dit tijdstip eindigt, is het laatste.\nEen tijdstip dat vandaag al voorbij is, betekent na middernacht.",
+    "The first title that ends at or after this time is the last.\nOnly times still to come are offered, on through midnight to about 2.":
+        "Het eerste nummer dat om of na dit tijdstip eindigt, is het laatste.\nAlleen tijden die nog komen staan in de lijst, over middernacht tot ongeveer 2 uur.",
     "⏹  Stops after this title":
         "⏹  Stopt na dit nummer",
     "⏹  Stops after %d titles":
@@ -2922,7 +2934,15 @@ CATALOG = {
     "Pause between songs:": "Pauze tussen nummers:",
     "🔈  Announce next dance": "🔈  Volgende dans aankondigen",
     "…with heat": "…met heat",
-    "🔊  Equalize volume (R128)": "🔊  Volume gelijktrekken (R128)",
+    "Endless repeat is on":
+        "Eindeloos herhalen staat aan",
+    "🔁 This title starts again every time it ends, so the list\n"
+    "will not move on to the next one.\n\n"
+    "Switch endless repeat off?":
+        "🔁 Dit nummer begint telkens opnieuw als het eindigt, dus de lijst\n"
+        "gaat niet door naar het volgende.\n\n"
+        "Eindeloos herhalen uitzetten?",
+    "🔊  Equalize volume": "🔊  Volume gelijktrekken",
     "🖼  Show artwork — a cover next to the title on the player card":
         "🖼  Hoes tonen — een afbeelding naast de titel op de spelerkaart",
     "〰  Show waveform — the title's waveform in place of the player card's seek bar":
@@ -2946,6 +2966,13 @@ CATALOG = {
         "de fade-in · groene lijn: waar het nummer begint.\n"
         "Klik om daarheen te springen.",
     "▶️  Double-click starts the title": "▶️  Dubbelklik start het nummer",
+    "Reset the time marker?": "Tijdmarkering wissen?",
+    "A title is playing. “%s” has a time marker at %s.\n"
+    "Stop the playing title and start it from where?":
+        "Er speelt een nummer. “%s” heeft een tijdmarkering op %s.\n"
+        "Het spelende nummer stoppen en vanaf waar starten?",
+    "At the marker": "Bij de markering",
+    "From the beginning": "Vanaf het begin",
     "🎚  TSO pitch to the heat tempo": "🎚  TSO: naar het heattempo trekken",
     "↩  Remember where a title stopped": "↩  Onthouden waar een nummer stopte",
     "☀  Keep the screen awake": "☀  Het scherm wakker houden",
@@ -3010,10 +3037,6 @@ CATALOG = {
     "Click a star in the ★ column": "Klik op een ster in de kolom ★",
     "Rate the title; click the star the rating ends on to clear it":
         "Het nummer waarderen; klik op de ster waar de waardering eindigt om ze te wissen",
-    "Find a title or a genre in the focused list. A title steps to the next "
-    "match; a genre highlights every row of it at once":
-        "Een titel of een genre zoeken in de actieve lijst. Een titel gaat naar "
-        "de volgende treffer, een genre licht al zijn rijen tegelijk op",
     "Esc  in the 🖥 presenter window": "Esc  in het 🖥 presentatievenster",
     "This cheat sheet": "Dit overzicht",
     "Nothing found": "Niets gevonden",
@@ -3245,6 +3268,8 @@ CATALOG = {
         "🎵  Muziek:",
     "🔈  Announcements:":
         "🔈  Aankondigingen:",
+    "🔈  Announcements":
+        "🔈  Aankondigingen",
     "System default (follows the OS)":
         "Systeemstandaard (volgt het systeem)",
     "Same as the music":
@@ -4009,6 +4034,7 @@ CATALOG = {
         "componist, dans, lijst en hoe lang elke titel liep — bijv. voor een melding aan de auteursrechtenorganisatie.",
     "🗑  Delete evening": "🗑  Avond verwijderen",
     "Delete evening": "Avond verwijderen",
+    "Could not delete the evening:": "De avond kon niet worden verwijderd:",
     "%d title(s)": "%d titel(s)",
     "Save played titles": "Gespeelde titels opslaan",
     "CSV files (*.csv);;All files (*)":
@@ -4035,6 +4061,10 @@ CATALOG = {
         "⚠ %d titel(s) staan niet op het referentiepad\n"
         "%s\n"
         "en zijn met hun eigen pad opgeslagen:",
+    "⚠ %d title(s) are not on disk any more\n"
+    "and were saved with their old path:":
+        "⚠ %d titel(s) staan niet meer op de schijf\n"
+        "en zijn met hun oude pad opgeslagen:",
     "💾 Saved %d playlist → %s": "💾 %d afspeellijst opgeslagen → %s",
     "💾 Saved %d playlists → %s": "💾 %d afspeellijsten opgeslagen → %s",
     "Saved %d playlist(s) to:\n"
@@ -4484,10 +4514,6 @@ CATALOG = {
     "All open playlists (%d decks)": "Alle open afspeellijsten (%d decks)",
     "%d file added.": "%d bestand toegevoegd.",
     "%d files added.": "%d bestanden toegevoegd.",
-    "📅 Tournament day only (%d playlist)":
-        "📅 Alleen toernooidag (%d afspeellijst)",
-    "📅 Tournament day only (%d playlists)":
-        "📅 Alleen toernooidag (%d afspeellijsten)",
     "Dance: %s": "Dans: %s",
     "%s (%d beats/bar)": "%s (%d tellen/maat)",
     "'%s' is not a valid round pattern for %s %s — use heat counts like 6-3-2-1.":
@@ -4647,6 +4673,12 @@ CATALOG = {
         "Maak enkele pads leeg of kies een groter raster voor de rest.",
     "🔇 Only stillness left from %s — song ended.":
         "🔇 Vanaf %s alleen nog stilte — nummer afgelopen.",
+    "Stop the analysis of the new titles; the title in work still ends":
+        "De analyse van de nieuwe titels stoppen; de titel in bewerking wordt nog afgemaakt",
+    "🔬 Analyzing new titles…":
+        "🔬 Nieuwe titels worden geanalyseerd…",
+    "📊 Measuring loudness…":
+        "📊 Volume wordt gemeten…",
     "🔇 Skipped %ss of leading silence.":
         "🔇 %s s stilte aan het begin overgeslagen.",
     "⚠️ Sample not found: %s": "⚠️ Sample niet gevonden: %s",
@@ -5423,6 +5455,14 @@ CATALOG = {
         "Zolang er muziek speelt of het presentatiescherm open is, blijven het scherm, de beamer en de computer wakker.",
     "☀ Keep the screen awake is off — an hour nobody touches the desk blanks the screen and the beamer, and may put the computer to sleep.":
         "☀ Het scherm wakker houden staat uit — een uur zonder iemand aan de tafel maakt het scherm en de beamer zwart, en kan de computer in slaap brengen.",
+    "🔋  Power":
+        "🔋  Stroom",
+    "🔌 On mains power":
+        "🔌 Op netstroom",
+    "🔋 On battery: plug in the charger":
+        "🔋 Op de accu: sluit de oplader aan",
+    "🔋 On battery, %d %%: plug in the charger":
+        "🔋 Op de accu, %d %%: sluit de oplader aan",
     "🔴  Not ready — a sound output is not connected.":
         "🔴  Niet klaar — een audio-uitgang is niet aangesloten.",
     "⚙  Choose outputs…":
@@ -5598,6 +5638,8 @@ CATALOG = {
         "Alleen wifi: de telefoon moet op dezelfde wifi zitten als deze pc, of op zijn hotspot.\nCloudflare-tunnel: een openbaar https-adres leidt ook naar deze pc —\ngeen account en geen routerinstellingen; het verandert bij elke start, en\nde pincode groeit naar 8 cijfers. Heeft het gratis programma cloudflared nodig.",
     "The https address works on mobile data too, and on any Wi-Fi. It is new on every start — scan the fresh QR code. Whoever has the address still needs the PIN.":
         "Het https-adres werkt ook met mobiele data en op elke wifi. Het is bij elke start nieuw — scan de verse QR-code. Wie het adres heeft, heeft nog steeds de pincode nodig.",
+    "On Wi-Fi the PIN travels unencrypted: anyone on the same network can read it. On a network you do not trust, use the Cloudflare tunnel.":
+        "Op wifi gaat de pincode onversleuteld over de lijn: iedereen op hetzelfde netwerk kan hem meelezen. Gebruik op een netwerk dat je niet vertrouwt de Cloudflare-tunnel.",
     "● Running — port %d, waiting for Cloudflare…":
         "● Actief — poort %d, wacht op Cloudflare…",
     "Connecting… the code to scan shows up as soon as the phone can reach the desk.":
@@ -5804,4 +5846,101 @@ CATALOG = {
         "Dalen tot:",
     "How low the play-length fade takes it before it comes\nback up, in % of the music's level. 0 = all the way down.\nAt most the level it comes back at.":
         "Hoe ver de fade aan het eind van de speelduur hem laat zakken\nvoordat hij weer opkomt, in % van het muziekniveau. 0 = helemaal weg.\nHooguit het niveau waarop hij terugkomt.",
+    "Already in this list":
+        "Staat al in deze lijst",
+    "“%s” is already in this list.":
+        "“%s” staat al in deze lijst.",
+    "Replace: it moves here and “%s” leaves the list.":
+        "Vervangen: de titel komt hier en “%s” gaat uit de lijst.",
+    "Replace: it moves here from its old place.":
+        "Vervangen: de titel komt hier vanaf zijn oude plek.",
+    "Swap: it changes places with “%s”.":
+        "Wisselen: hij wisselt van plaats met “%s”.",
+    "Move it to this slot?":
+        "Naar deze plek verplaatsen?",
+    "Move it here":
+        "Hierheen verplaatsen",
+    "Swap positions":
+        "Plaatsen wisselen",
+    "Do nothing":
+        "Niets doen",
+    "Add here too":
+        "Hier ook toevoegen",
+    "Add here too: it plays here and stays at its old place as well.":
+        "Ook toevoegen: hij speelt hier en blijft ook op zijn oude plek.",
+    "🗑  Remove this title and its slot":
+        "🗑  Deze titel met zijn plek verwijderen",
+    "🗑  Remove %d selected titles and their slots":
+        "🗑  %d geselecteerde titels met hun plekken verwijderen",
+    "Remove this song and its slot?":
+        "Dit nummer met zijn plek verwijderen?",
+    "Remove %d songs and their slots?":
+        "%d nummers met hun plekken verwijderen?",
+    "⬇  Move to the end of the list": "⬇  Naar het einde van de lijst",
+    "⬇  Move %d selected titles to the end":
+        "⬇  %d gekozen titels naar het einde",
+    "Reset the played titles (grey)":
+        "Gespeelde titels terugzetten (grijs)",
+    "Drag to change the width. Double-click for the automatic width.":
+        "Sleep om de breedte te wijzigen. Dubbelklik voor de automatische breedte.",
+    "↔  Expand this wishlist\tCtrl+Shift+E":
+        "↔  Deze wensenlijst vergroten\tCtrl+Shift+E",
+    "↔  Show all wishlists again\tCtrl+Shift+E":
+        "↔  Alle wensenlijsten weer tonen\tCtrl+Shift+E",
+    "The focused wishlist gets the whole area, the others fold to tabs; again: all open":
+        "De actieve wensenlijst krijgt het hele gebied, de andere klappen in tot tabs; nogmaals: alle open",
+    "Find a title or a genre in the focused list. Enter steps to the next match, Shift + Enter back; Esc closes the bar":
+        "Een titel of genre in de actieve lijst zoeken. Enter springt naar de volgende treffer, Shift + Enter terug; Esc sluit de balk",
+    "Find title (Ctrl+F)":
+        "Titel zoeken (Ctrl+F)",
+    "Genre / dance":
+        "Genre / dans",
+    "Previous match (Shift+Enter)":
+        "Vorige treffer (Shift+Enter)",
+    "Next match (Enter)":
+        "Volgende treffer (Enter)",
+    "A word of the title, the tag title or the file name":
+        "Een woord uit de titel, de tagtitel of de bestandsnaam",
+    "Highlights every row of the list whose dance or genre matches -\nleave empty to search titles only.":
+        "Markeert elke rij van de lijst waarvan de dans of het genre overeenkomt -\nlaat leeg om alleen titels te zoeken.",
+    "📅 Tournament day (%d playlist)":
+        "📅 Toernooidag (%d afspeellijst)",
+    "📅 Tournament day (%d playlists)":
+        "📅 Toernooidag (%d afspeellijsten)",
+    "🎉 Practice / party list (%d title)":
+        "🎉 Oefen- / feestlijst (%d titel)",
+    "🎉 Practice / party list (%d titles)":
+        "🎉 Oefen- / feestlijst (%d titels)",
+    "The 🤖 AI Playlist runs on the claude CLI. OpenRouter is the second way to reach a model: any model in its list, on your own key.":
+        "De 🤖 AI-afspeellijst draait op de claude-CLI. OpenRouter is de tweede weg naar een model: elk model uit de lijst, met je eigen sleutel.",
+    "API key:":
+        "API-sleutel:",
+    "From openrouter.ai/keys. Kept on this PC only, never in a venue pack.":
+        "Van openrouter.ai/keys. Blijft alleen op deze pc, nooit in een locatiepakket.",
+    "The exact model ID. Load models fills this list from the host;\ntype any part of a name to find it.":
+        "De exacte model-ID. Modellen laden vult deze lijst vanaf de host;\ntyp een deel van een naam om het te vinden.",
+    "Ask this model first — the claude CLI becomes the fallback":
+        "Dit model eerst vragen — de claude-CLI wordt de reserve",
+    "Off: the claude CLI answers, this model steps in when that fails.\nOn: this model answers, the CLI steps in when it fails.":
+        "Uit: de claude-CLI antwoordt, dit model springt in als dat mislukt.\nAan: dit model antwoordt, de CLI springt in als het mislukt.",
+    "Could not fetch the model list: %s":
+        "Kon de modellenlijst niet ophalen: %s",
+    "Asks %s on %s first, the claude CLI after that. ⚙ Settings → 🤖 AI changes it.":
+        "Vraagt eerst %s op %s, daarna de claude-CLI. Te wijzigen via ⚙ Instellingen → 🤖 AI.",
+    "🎉  Party list":
+        "🎉  Feestlijst",
+    "🤸  Warm-up list":
+        "🤸  Oefenlijst",
+    "Each kind asks the model for something else: a party list for a\nfull floor, a warm-up list for couples before their competition.":
+        "Elke soort vraagt het model iets anders: een feestlijst voor een\nvolle vloer, een oefenlijst voor paren vóór hun wedstrijd.",
+    '🤖  OpenRouter connection':
+        '🤖  OpenRouter-verbinding',
+    '📁 Folders':
+        '📁 Mappen',
+    '📁 All folders':
+        '📁 Alle mappen',
+    'Show the folders beside the list: choosing one lists only the titles\ndirectly in it. Here 🆕 Unplanned hides the planned file itself, and\nthe same music in another folder stays, marked with ♊.':
+        'Toont de mappen naast de lijst: een gekozen map toont alleen de nummers\ndie er direct in staan. Hier verbergt 🆕 Ongepland het geplande bestand\nzelf, en dezelfde muziek in een andere map blijft staan, gemarkeerd met ♊.',
+    '♊ The same music is planned from another folder':
+        '♊ Dezelfde muziek is gepland vanuit een andere map',
 }

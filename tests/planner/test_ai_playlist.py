@@ -123,6 +123,20 @@ class ParseReplyTest(unittest.TestCase):
         self.assertLessEqual(len(out["notes"]), llm._WHY_MAX * 2)
         self.assertTrue(out["notes"].startswith("x x"))
 
+    def test_round_variant_and_dance_are_cut_like_the_reason(self):
+        """#20.7: only why/notes were clamped; these went verbatim into the
+        grid lookups, the refusal messages and the next prompt."""
+        big = "R" * 100000
+        pick = llm.parse_reply('{"playlist": [{"n": 1, "round": "%s"}]}' % big)["picks"][0]
+        self.assertLessEqual(len(pick["round"]), llm._LABEL_MAX)
+        swap = llm.parse_swaps(
+            '{"swaps": [{"n": 1, "variant": "%s", "round": "%s", "dance": "%s"}],'
+            ' "notes": {"%s": "x"}}' % (big, big, big, big))
+        self.assertLessEqual(len(swap["swaps"][0]["variant"]), llm._LABEL_MAX)
+        self.assertLessEqual(len(swap["swaps"][0]["round"]), llm._LABEL_MAX)
+        self.assertLessEqual(len(swap["swaps"][0]["dance"]), llm._DANCE_MAX)
+        self.assertTrue(all(len(k) <= llm._LABEL_MAX for k in swap["notes"]))
+
     def test_no_json_raises(self):
         with self.assertRaises(RuntimeError):
             llm.parse_reply("I'd rather not.")
@@ -172,6 +186,50 @@ class CandidateTest(unittest.TestCase):
         self.assertIn("no covers", task)
         self.assertIn("Samba (SA) 50-52", task)
 
+    def test_a_higher_class_gets_the_competition_prompt(self):
+        task = llm.competition_task(
+            "Latin", "Hauptgruppe", "S", DANCES, _rounds(), "")
+        self.assertIn(llm.COMPETITION_PROMPT.strip(), task)
+
+    def test_a_lower_class_gets_none(self):
+        task = llm.competition_task(
+            "Latin", "Hauptgruppe", "D", DANCES, _rounds(), "")
+        self.assertNotIn(llm.COMPETITION_PROMPT.strip(), task)
+
+    def test_an_edited_competition_prompt_replaces_the_shipped_one(self):
+        task = llm.competition_task(
+            "Latin", "Hauptgruppe", "S", DANCES, _rounds(), "", "only my text")
+        self.assertIn("only my text", task)
+        self.assertNotIn(llm.COMPETITION_PROMPT.strip(), task)
+
+
+class FlatTaskTest(unittest.TestCase):
+    """A party and a warm-up floor want different lists, and the default rules
+    talk about rounds and finals, which a flat list does not have."""
+
+    def test_each_kind_gets_its_own_prompt(self):
+        party = llm.flat_task(40, "", "party")
+        warmup = llm.flat_task(40, "", "warmup")
+        self.assertIn(llm.FLAT_PROMPTS["party"].strip(), party)
+        self.assertNotIn(llm.FLAT_PROMPTS["warmup"].strip(), party)
+        self.assertIn(llm.FLAT_PROMPTS["warmup"].strip(), warmup)
+        self.assertNotIn(llm.FLAT_PROMPTS["party"].strip(), warmup)
+
+    def test_neither_kind_is_held_to_the_rounds_and_finals(self):
+        for kind in llm.FLAT_PROMPTS:
+            self.assertIn("rounds", llm.flat_task(40, "", kind))
+            self.assertIn("not a competition", llm.flat_task(40, "", kind))
+
+    def test_the_count_and_the_brief_stay_in(self):
+        task = llm.flat_task(40, "keep it modern", "warmup")
+        self.assertIn("about 40 tracks", task)
+        self.assertTrue(task.endswith("What this list is for: keep it modern"))
+
+    def test_an_edited_prompt_replaces_the_shipped_one(self):
+        task = llm.flat_task(40, "", "party", "only slow waltzes")
+        self.assertIn("only slow waltzes", task)
+        self.assertNotIn(llm.FLAT_PROMPTS["party"].strip(), task)
+
 
 class WishTaskTest(unittest.TestCase):
     """The pasted sheet reaches the model as it was pasted, with the shorthand
@@ -180,6 +238,16 @@ class WishTaskTest(unittest.TestCase):
     WISHES = ("lw\tt\tww\n"
               "White wings lw\ta new life t\tWillow ww\n"
               "melancolia lw!!\tDance of love t\tCity of stars sf")
+
+    def test_the_shipped_wish_prompt_is_in_the_task(self):
+        self.assertIn(llm.WISH_PROMPT.strip(), llm.wish_task(self.WISHES))
+
+    def test_an_edited_wish_prompt_replaces_it_but_not_the_search_steps(self):
+        task = llm.wish_task(self.WISHES, "", "just do it")
+        self.assertIn("just do it", task)
+        self.assertNotIn(llm.WISH_PROMPT.strip(), task)
+        self.assertIn('"search" query key', task)
+        self.assertIn('"limit": 8', task)
 
     def test_the_pasted_lines_are_carried_over_verbatim(self):
         task = llm.wish_task(self.WISHES)
@@ -425,6 +493,12 @@ class QueryParseTest(unittest.TestCase):
         """R3: the answer, not the app, decided how many searches ran."""
         text = '{"queries": [' + ", ".join(['{"dance": "SA"}'] * 5000) + "]}"
         self.assertEqual(len(llm.parse_queries(text)), llm._QUERIES_MAX)
+
+
+    def test_the_model_is_told_how_many_queries_it_gets(self):
+        """#16.4: the cap cut the list silently, the prompt never mentioned it."""
+        system, _user = llm.build_search_prompt("rules", "task", "summary")
+        self.assertIn(f"at most {llm._QUERIES_MAX} queries", system)
 
 
 class RunQueriesTest(unittest.TestCase):

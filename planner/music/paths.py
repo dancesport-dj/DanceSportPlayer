@@ -106,11 +106,7 @@ def resolve_file(path, settings) -> Path | None:
     old letter is used again."""
     if _is_file(path):
         return Path(path)
-    # Only now the drive list: a row fill asks this for every title.
-    for cand in on_other_drives(path):
-        if _is_file(cand):
-            return Path(cand)
-    return PathRemapper(search_roots(settings)).remap(path)
+    return FileFinder(search_roots(settings)).remap(path)
 
 
 def _is_file(path) -> bool:
@@ -181,3 +177,20 @@ class PathRemapper:
             except OSError:
                 continue
         return None
+
+
+class FileFinder(PathRemapper):
+    """`PathRemapper` looking everywhere playback looks: first the same path on
+    another local drive, then the roots. An import asks this one, so a row holds
+    the file that will play. 🧭 Fix paths keeps the plain remapper: it rewrites a
+    list for good, and a stick's new letter is not worth that."""
+
+    def __bool__(self) -> bool:
+        return True     # the drives can answer without a single root
+
+    def remap(self, broken) -> Path | None:
+        # Only now the drive list: a row fill asks this for every title.
+        for cand in on_other_drives(broken):
+            if _is_file(cand):
+                return Path(cand)
+        return super().remap(broken)

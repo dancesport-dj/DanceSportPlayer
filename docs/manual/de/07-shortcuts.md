@@ -4,6 +4,8 @@
 
 **F1** zeigt in der App die Tastenkürzel als Übersicht.
 
+Auf dem Mac gilt unten **Cmd** statt **Strg**: **Cmd + F** sucht einen Titel. Die Übersicht in der App zeigt das schon so. **Entf** hat auf jeder Tastatur einen Zwilling: Die Rücktaste über der Eingabetaste, **⌫** auf dem Mac, tut dasselbe.
+
 ## Tastatur
 
 | Tasten | Macht |
@@ -19,14 +21,18 @@
 | **Strg + Umschalt + S** | Die ganze Sitzung speichern: Decks, Wunschlisten, Layout. |
 | **Strg + Z / Strg + Y** | Rückgängig / Wiederholen. **Strg + Umschalt + Z** wiederholt auch. |
 | **Strg + X** oder **Strg + W** | Den aktiven Dialog schließen. |
-| **Entf** | Die markierten Titel nach einer Rückfrage aus einem Deck oder einer Wunschliste entfernen. |
+| **Entf** | Die markierten Titel nach einer Rückfrage aus einem Deck oder einer Wunschliste entfernen. In einer Partyliste lautet die Frage **Mit Slot entfernen** / **Slot behalten** / **Abbrechen**. Danach steht der Cursor auf der Zeile, die an die Stelle nachgerückt ist. |
 | **Entf** ohne Markierung | Die ganze Wiedergabeliste oder Wunschliste nach einer Rückfrage leeren. Genauso, wenn jeder Titel markiert ist. |
 | **Strg + Umschalt + Entf** | Die aktive Wiedergabeliste oder Wunschliste nach einer Rückfrage leeren, egal wo der Cursor steht. |
+| **Strg + Umschalt + E** | Die aktive Wunschliste bekommt den ganzen Bereich, die anderen klappen zu Reitern ein; noch einmal gedrückt: alle offen. |
 | **Strg + M** | Die markierten Titel kennzeichnen oder die Kennzeichnung entfernen (orange Zeile), zum Beispiel als Titel, die später getauscht werden sollen. **Strg + 1** macht dasselbe, solange die Cartwall ausgeblendet ist. |
 | **Alt + S** | Die zwei markierten Titel desselben Tanzes im Party-Bereich tauschen. |
 | **F2** im Baum 🏆 Turniere | Den Eintrag umbenennen. **Entf** entfernt ihn aus dem Baum. |
 | **Strg + A** in 🏆 Turniere | Jeden Slot des Ordners oder jeden Eintrag des Baums markieren. **Entf** und Ziehen nehmen dann alle mit. |
-| **Strg + F** | Einen Titel in der aktiven Liste suchen. Nochmal drücken springt zum nächsten Treffer. |
+| **Strg + F** | Öffnet die Suchleiste über der aktiven Liste (**Cmd + F** auf dem Mac); noch einmal gedrückt, schließt es die Leiste, auch aus der Liste. Beim Tippen färben sich die Treffer sofort ein, und **Enter** springt zum ersten; danach springt **Enter** zum nächsten Treffer, **Umschalt + Enter** zurück, **Esc** schließt sie, auch aus der Liste. **Tab** / **Umschalt + Tab** wechseln zwischen Titel- und Genrefeld, **Strg + X** leert das Feld (beide Felder, wenn es auf der Liste gedrückt wird). |
+| **Strg + E** | Den markierten Titel im Explorer zeigen. |
+| **Strg + T** | Die Tags der markierten Titel bearbeiten. |
+| **Strg + Umschalt + C** | Den Dateipfad des markierten Titels kopieren. |
 | **T** in der 🖥 Präsentation | Zwischen den Titeln und der Seite mit dem Zeitplan umschalten. |
 | **Esc** in der 🖥 Präsentation | Den Präsentationsbildschirm schließen. |
 | **F12** / **Strg + Alt + S** | ⚙ Einstellungen öffnen, auch unter ❔ am Ende der Werkzeugleiste. |
@@ -47,7 +53,7 @@ sich ändern, zum Beispiel auf F13 bis F24 für ein Stream Deck:
 | Pfeil ▾ / ▸ im Kopf eines Decks | Das Deck zu einem Reiter einklappen. Ein Klick auf den Reiter öffnet es wieder. |
 | Eine Zeile ziehen | Einen Titel innerhalb der Liste verschieben, in ein anderes Deck oder eine Wunschliste, oder in den Explorer oder ein DJ-Programm ablegen. |
 | Einen Spaltenkopf zur Seite ziehen | Die Spalte verschieben, in allen Listen dieser Art. |
-| Rechtsklick ▸ 🔍 Titel suchen | Zu einem Titel über seinen Namen springen. Nochmal springt zum nächsten Treffer. |
+| Rechtsklick ▸ 🔍 Titel suchen | Öffnet die Suchleiste, wie Strg + F. |
 | Eine Datei von außen ablegen | Sie dem Deck oder der Wunschliste hinzufügen, wo sie abgelegt wurde. Eine `.m3u` auf einem Deck wird importiert. |
 | ▶ / ■ in einer Zeile | Genau diesen Titel abspielen / stoppen. |
 | Doppelklick auf eine Deckzeile | Sie abspielen oder nur bereitlegen, je nach *▶️ Doppelklick startet den Titel*. |

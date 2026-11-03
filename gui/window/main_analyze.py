@@ -11,17 +11,21 @@ HAS_MULTIMEDIA = importlib.util.find_spec("PySide6.QtMultimedia") is not None
 
 from typing import TYPE_CHECKING
 
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
     QCheckBox,
     QMessageBox,
 )
 
+from gui.background_bar import BackgroundAnalysisBar
 from gui.common import (
     BusyDialog,
     fmt_duration,
 )
+from gui.dialogs import app_mode_of
 from gui.workers import (  # auto-resolved
     AudioAnalyzer,
+    BackgroundAnalyzer,
     LoudnessAnalyzer,
     PdHighlightAnalyzer,
     SilenceAnalyzer,
@@ -42,6 +46,13 @@ else:
     MainWindowHost = object
 
 log = logging.getLogger("dancesport.gui.analyze")
+
+# 🔬 New titles are analyzed this long after the library came up, so a window
+# opened to play has had the time to start its music.
+_BACKGROUND_ANALYSIS_DELAY_MS = 30_000
+# More than this missing is a first run, an hour or more: that stays the
+# question of the 🔬 button.
+_BACKGROUND_ANALYSIS_MAX = 200
 
 
 class AnalysisMixin(MainWindowHost):
@@ -162,10 +173,57 @@ class AnalysisMixin(MainWindowHost):
         self.statusBar().showMessage(
             i18n.t("Audio analysis started — %s files…") % len(targets)
         )
+        self._stop_background_analysis()
         self._analyzer = AudioAnalyzer(self._library.cache, targets, self, force=force)
         self._run_library_pass(self._analyzer, "Analyzing audio (timbre)…", "🔬",
                                "Audio analysis", "files cached",
                                after=self._apply_analysis_results)
+
+    def _schedule_background_analysis(self):
+        QTimer.singleShot(_BACKGROUND_ANALYSIS_DELAY_MS, self, self._analyze_new_titles)
+
+    def _analyze_new_titles(self):
+        """🔬 Titles added since the last run, without anyone pressing the
+        button. A show comes first: nothing starts in the player-only mode or
+        under music, and music starting stops it (_on_playback_state). What
+        was finished by then is saved, the rest waits for the next start."""
+        lib, cache = self._library.lib, self._library.cache
+        if not lib or not cache or app_mode_of(self._settings) == "player":
+            return
+        if self._player and self._player.isPlaying():
+            return
+        running = (self._analyzer, self._index_analyzer)
+        if any(worker and worker.isRunning() for worker in running):
+            return
+        missing = [e for e in lib.entries if e.features is None]
+        if not missing or len(missing) > _BACKGROUND_ANALYSIS_MAX:
+            return
+        log.info("🔬 Analyzing new titles in the background\n"
+                 "titles: %s", len(missing))
+        self._analyzer = BackgroundAnalyzer(cache, missing, self)
+        bar = self._library.background_bar
+        if bar is None:
+            bar = self._library.background_bar = BackgroundAnalysisBar()
+            bar.stop_requested.connect(self._stop_background_analysis)
+            self.statusBar().addPermanentWidget(bar)
+        bar.start(len(missing))
+        self._analyzer.progress.connect(bar.set_progress)
+        self._analyzer.done.connect(self._on_background_analysis_done)
+        for ended in (self._analyzer.done, self._analyzer.cancelled, self._analyzer.error):
+            ended.connect(bar.finish)
+        self._analyzer.start()
+
+    def _on_background_analysis_done(self, ok: int, _errors: int):
+        if ok:
+            self._apply_analysis_results(ok)
+
+    def _stop_background_analysis(self):
+        """The current title still ends, at this thread's low priority; the
+        cache takes writes from two threads, so whoever comes next need not
+        wait for it."""
+        worker = self._analyzer
+        if isinstance(worker, BackgroundAnalyzer) and worker.isRunning():
+            worker.cancel()
 
     def _apply_analysis_results(self, _ok: int):
         if self._library.lib:

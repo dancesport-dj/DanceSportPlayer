@@ -237,6 +237,65 @@ class IncompleteRestoreTest(_WindowCase):
         self.assertEqual(self.kept.read_bytes(), self.before)
 
 
+class DamagedRestoreTest(_WindowCase):
+    """#22/#23/#26: a damaged autosave, a snapshot that will not apply, and a
+    desk that cannot be written down are three different faults. Each says so,
+    none of them stops the start, none is blamed on the music drive."""
+
+    def setUp(self):
+        self.kept = dialogs.autosave_kept_path()
+        for path in (dialogs.AUTOSAVE.path, self.kept):
+            path.unlink(missing_ok=True)
+            self.addCleanup(path.unlink, missing_ok=True)
+
+    def _launch(self, env):
+        dialogs.AUTOSAVE.write(env)
+        win = self._win()
+        win._library.lib = win._library.lib or object()
+        win._resolve_entry = _found_unless_gone
+        win._restore_playlist()
+        return win
+
+    def test_a_file_with_wrong_containers_does_not_stop_the_start(self):
+        win = self._launch({"version": 4, "deck_a": {"rounds": "oops"},
+                            "warmup": ["a"], "wishlist": "abc"})
+        self.assertFalse(win._restoring)
+
+    def test_a_desk_that_cannot_be_written_down_is_not_blamed_on_the_drive(self):
+        dialogs.AUTOSAVE.write({"version": 4, "wishlist": [HERE]})
+        win = self._win()
+        win._library.lib = win._library.lib or object()
+        win._resolve_entry = _found_unless_gone
+        win._build_env = lambda: None
+        win._restore_playlist()
+        self.assertNotIn("drive", win.statusBar().currentMessage())
+        self.assertFalse(self.kept.exists())
+
+    def test_a_snapshot_that_will_not_apply_is_not_written_to_disk(self):
+        win = self._win()
+        before = {"version": 4, "wishlist": [HERE]}
+        dialogs.AUTOSAVE.write(before)
+        on_disk = dialogs.AUTOSAVE.path.read_bytes()
+
+        def boom(*a, **k):
+            raise ValueError("bad snapshot")
+        win._restore_env = boom
+        self.assertFalse(win._apply_env({"version": 4, "wishlist": [GONE]}))
+        self.assertEqual(dialogs.AUTOSAVE.path.read_bytes(), on_disk)
+
+    def test_a_snapshot_that_applies_reports_it(self):
+        self.assertTrue(self._win()._apply_env(dict(ENV)))
+
+    def test_a_failed_undo_steps_the_timeline_back_and_toasts_no_success(self):
+        win = self._win()
+        win._undo_timeline.seed({"v": 1})
+        win._undo_timeline.push({"v": 2})
+        win._apply_env = lambda env: False
+        win._undo()
+        self.assertEqual(win._undo_timeline.current, {"v": 2})
+        self.assertNotIn("Undo", win.statusBar().currentMessage())
+
+
 class _CountingLibrary:
     """Answers every path, and counts how often each one was asked for."""
 

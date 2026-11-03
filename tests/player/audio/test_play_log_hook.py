@@ -112,17 +112,21 @@ class PlayLogHookTest(unittest.TestCase):
 
     def test_the_tick_logs_a_title_once_when_it_greys(self):
         desk = _Desk()
+        before = dt.datetime.now()
         desk._on_play_tick()
         desk._on_play_tick()
+        after = dt.datetime.now()
         self.assertEqual(len(desk.marked), 1)
         got = self.logged()
         self.assertEqual(len(got), 1)
         p = got[0]
         self.assertEqual((p.artist, p.title, p.dance, p.list_name, p.length),
                          ("Henry Mancini", "Moon River", "WW", "Hauptgruppe S", 150))
-        # It started when the music did, not when it greyed.
-        ago = (dt.datetime.now() - p.started_at).total_seconds()
-        self.assertTrue(11 <= ago <= 14, ago)
+        # It started when the music did, not when it greyed. The log keeps whole
+        # seconds, and these two clocks hold however slow the machine is.
+        played = dt.timedelta(seconds=12)
+        self.assertLessEqual(before - played - dt.timedelta(seconds=1), p.started_at)
+        self.assertLessEqual(p.started_at, after - played)
 
     def test_skipped_or_resumed_ground_is_not_heard_time(self):
         """L14: the 10 s rule read the raw position, so a ↩ resume at 1:20 or

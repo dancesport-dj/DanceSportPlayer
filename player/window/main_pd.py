@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QTimer, QUrl
+from PySide6.QtWidgets import QMessageBox
 
 from planner import i18n
 from planner.playing import cartwall as pc
@@ -79,7 +80,7 @@ class PdStopMixin(MainWindowHost):
         """
         if not self._pv("announce") or not self._playing_advance():
             return False
-        return not self._engine_pause_secs() > 0
+        return not self._playback.called_in_pause
 
     def _hold_pd_start(self, secs: float, path: Path):
         """Call the Paso Doble (or let the hall's announcer do it) and start the
@@ -229,8 +230,11 @@ class PdStopMixin(MainWindowHost):
         # Nothing known yet: arm the standard phrase positions now so the track
         # has a stop while the detection runs (re-armed for real when it lands).
         self._arm_pd_stop(path)
-        if self._pd_worker is not None and self._pd_worker.isRunning():
-            return   # a detection is already running — this one keeps the guess
+        running = self._pd_worker
+        if running is not None and running.isRunning() and running.path == path:
+            return   # this very track is already being detected
+        # Another track's detection may still run: this one needs its own, or it
+        # keeps the generic guess for its whole playback. Each reports under its path.
         w = PdHighlightWorker(path, parent=self)
         w.done.connect(self._on_pd_highlights)
         w.error.connect(self._on_pd_error)
@@ -425,6 +429,12 @@ class PdStopMixin(MainWindowHost):
         auto-detection take over again on the next play."""
         path = self._playback.path
         if path is None or not self._library.cache:
+            return
+        if QMessageBox.question(
+                self, i18n.t("Clear highlights"),
+                i18n.t("Forget the highlights of this title?\n\n"
+                       "Manual marks are lost; 🐂 auto-detection runs again."),
+        ) != QMessageBox.StandardButton.Yes:
             return
         self._library.cache.clear_pd_highlights(path)
         self._library.cache.save()

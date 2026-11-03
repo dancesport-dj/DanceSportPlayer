@@ -47,6 +47,9 @@ class _Host(QMainWindow, EmbeddingIndexMixin):
     def _refresh_library_status(self):
         self.refreshed += 1
 
+    def _stop_background_analysis(self):
+        pass
+
     def _ensure_global_lib(self, then_build=None):
         self.global_loads.append(then_build)
 

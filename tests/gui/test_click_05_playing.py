@@ -537,7 +537,9 @@ class PlayingClickTest(ClickThrough):
             before = rows[rows.index(cha_cha) - 1]
             self.play_row(before)
             self.assertTrue(self.wait_until(lambda: win._player.playbackState() == playing))
-            self.assertEqual(said, [], "a start with a pause ahead was called over the music")
+            # No pause led to this title, so it names its own dance.
+            self.assertEqual(said, [["SB"]], "a start no pause led to was not called")
+            said.clear()
             self.click(win._big_player._topause_btn)
             self.assertTrue(self.wait_until(lambda: said), "the pause called nothing")
             self.assertEqual(said, [["next_dance", "CC"]])

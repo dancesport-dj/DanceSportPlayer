@@ -5,9 +5,11 @@ timbre settings a re-roll draws with.
 Mixin of PlaylistTable, split off gui/table/playlist_table.py.
 """
 import logging
+import math
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QVariantAnimation
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QMessageBox
 
 from gui.common import C_ROW_EVEN, C_ROW_ODD
@@ -169,6 +171,52 @@ class TableRegenMixin(PlaylistTableHost):
         # Deferred: the ↺ button that fired this is one of the widgets redrawn.
         QTimer.singleShot(0, lambda: self._swap_song_rows(row, partner))
 
+    def pulse_rows(self, rows) -> None:
+        """Pulse the rows blue for about a second, so the eye finds where a swap
+        happened. The rows are painted back to normal when it is over."""
+        self._end_pulse()
+        rows = [r for r in rows if 0 <= r < self.rowCount()]
+        if not rows:
+            return
+        metas = {r: self._row_meta.at(r) for r in rows}
+        flash = QColor(21, 101, 192)
+
+        def tick(t):
+            strength = 0.55 * (1 - t) * (0.5 + 0.5 * math.cos(4 * math.pi * t))
+            for r, m in metas.items():
+                base = self._row_base_bg(r, m)
+                mix = QColor(
+                    round(base.red() + (flash.red() - base.red()) * strength),
+                    round(base.green() + (flash.green() - base.green()) * strength),
+                    round(base.blue() + (flash.blue() - base.blue()) * strength))
+                for c in range(self.columnCount()):
+                    it = self.item(r, c)
+                    if it is not None:
+                        it.setBackground(mix)
+
+        anim = QVariantAnimation(self)
+        anim.setDuration(1100)
+        anim.setStartValue(0.0)
+        anim.setEndValue(1.0)
+        anim.valueChanged.connect(tick)
+        anim.finished.connect(self._end_pulse)
+        self._pulse = (anim, metas)
+        anim.start()
+
+    def _end_pulse(self) -> None:
+        """Stop a running flash and put its rows right again."""
+        cur = getattr(self, "_pulse", None)
+        self._pulse = None
+        if cur is None:
+            return
+        anim, metas = cur
+        anim.stop()
+        anim.deleteLater()
+        for r, m in metas.items():
+            # Rebuilt meanwhile (a re-cut, a reload): the row is not this one any more.
+            if r < self.rowCount() and self._row_meta.at(r) is m and m is not None:
+                self._refill_row(r, m)
+
     def _swap_song_rows(self, a: int, b: int):
         """Swap the titles on two song rows in place and redraw just those two.
         The playing title keeps playing; its marker moves with it."""
@@ -185,6 +233,7 @@ class TableRegenMixin(PlaylistTableHost):
         self._update_play_row_hl()
         self.setCurrentCell(a, _COL_TITLE)
         self.setFocus(Qt.FocusReason.OtherFocusReason)
+        self.pulse_rows([a, b])
         log.info("⇅ Titles swapped\n"
                  "row %d: %s\n"
                  "row %d: %s", a, ma.entry.title, b, mb.entry.title)

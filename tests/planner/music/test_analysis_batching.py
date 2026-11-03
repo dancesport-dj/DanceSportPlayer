@@ -43,7 +43,7 @@ class _StubCache:
     def fingerprint(self, path):
         return f"fp-{path.name}"
 
-    def _analyze_file(self, path, expected_bpm=None):
+    def _analyze_file(self, path, expected_bpm=None, should_cancel=None):
         if path.name in self._fail:
             raise RuntimeError("simulated decode failure")
         self.analyzed.append(path)

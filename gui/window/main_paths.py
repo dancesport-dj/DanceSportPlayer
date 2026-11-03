@@ -29,7 +29,7 @@ from PySide6.QtWidgets import (
 from gui.dialogs.drop_check import FileDropCheckPanel
 from planner import i18n
 from planner.models import MusicEntry
-from planner.music.paths import PathRemapper, foreign_name, search_roots
+from planner.music.paths import FileFinder, PathRemapper, foreign_name, search_roots
 from planner.playing import cartwall
 from planner.playlist.playlist_text import rerooted, rewrite_playlist_paths
 from shared.widgets import (
@@ -172,6 +172,10 @@ class PathFixMixin(MainWindowHost):
                 by_name.setdefault(Path(e.path).name.lower(), []).append(e)
                 by_path[str(Path(e.path)).lower()] = e
         return by_name, by_path, PathRemapper(search_roots(self._settings))
+
+    def _file_finder(self) -> FileFinder:
+        """What an import looks through: everywhere playback finds a file."""
+        return FileFinder(search_roots(self._settings))
 
     def _path_fix_tables(self) -> list:
         """The tables the "Open playlists" tab checks: the visible decks, every

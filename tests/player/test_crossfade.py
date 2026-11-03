@@ -447,6 +447,19 @@ class RampTest(unittest.TestCase):
                          [("swap",), ("end", "crossfade"), ("advance",)])
         self.assertAlmostEqual(desk._mix.tail_gain, 0.4)
 
+    def test_a_handover_during_the_fade_in_keeps_the_level_it_had(self):
+        """The deck was at gain x fade x fade_in: dropping the fade-in made the
+        outgoing title jump louder for the crossfade (#86)."""
+        desk = self.desk()
+        desk._mix.gain, desk._mix.fade, desk._mix.fade_in = 0.8, 0.5, 0.5
+
+        def swap():     # the next title starts on a fresh deck: fade and fade-in reset
+            desk._mix.fade = desk._mix.fade_in = 1.0
+        desk._swap_decks = swap
+        before = desk._mix.deck()
+        desk._hand_over()
+        self.assertAlmostEqual(desk._mix.tail(1.0), before)
+
     def test_its_own_incoming_title_starts_from_silence(self):
         desk = self.desk()
         desk._between.xfade.state, desk._between.xfade.t0 = "fading", time.monotonic()

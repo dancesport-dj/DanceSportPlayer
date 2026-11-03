@@ -14,6 +14,7 @@ Both player UIs carry the same button, so both are pinned here.
 import os
 import tempfile
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 
 # Offscreen BEFORE any QApplication exists, and state files into a temp dir (the
@@ -23,12 +24,14 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_duck_"))
 
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QTableView
 
+import dancesport_gui
 from gui.dialogs.settings_dialog import SettingsDialog
 from player.audio.mix import DESK_DUCK_PCT, OutputMix, desk_duck_level
 from player.presenter.presenter import PresenterWindow
 from player.widgets.player import BigPlayerWidget, PreviewOverlay
+from player.widgets.player_parts import VOL_STEP
 from player.window.main_audio import AudioLevelMixin
 from player.window.main_player import DESK_DUCK
 from tests.qt_test_support import reap_widget
@@ -298,6 +301,172 @@ class PreviewOverlayDuckTest(_DuckButtonMixin, unittest.TestCase):
 
     def _make(self):
         return PreviewOverlay(QMediaPlayer(), QAudioOutput())
+
+
+class _WiredDesk:
+    """The real `_set_base_volume` and duck path, with a real card and overlay
+    wired the way `MainWindow` wires them."""
+
+    _set_desk_duck = AudioLevelMixin._set_desk_duck
+    _set_desk_mute = AudioLevelMixin._set_desk_mute
+    _cycle_desk_duck = AudioLevelMixin._cycle_desk_duck
+    _lift_desk_duck = AudioLevelMixin._lift_desk_duck
+    _show_desk_duck = AudioLevelMixin._show_desk_duck
+    _set_base_volume = AudioLevelMixin._set_base_volume
+    apply_duck_level = AudioLevelMixin.apply_duck_level
+
+    def __init__(self, pct=10, base=0.8):
+        self._settings = {"duck_pct": pct}
+        self._mix = OutputMix()
+        self._mix.set_base(base)
+        self._presenter = None
+        self._cart_voices = None
+        self._vol_save_timer = SimpleNamespace(start=lambda: None)
+        self._big_player = BigPlayerWidget(
+            QMediaPlayer(), get_vol=lambda: self._mix.base,
+            set_vol=self._set_base_volume)
+        self._preview = PreviewOverlay(
+            QMediaPlayer(), QAudioOutput(), get_vol=lambda: self._mix.base,
+            set_vol=self._set_base_volume)
+        for w in (self._big_player, self._preview):
+            w.duckPressed.connect(self._cycle_desk_duck)
+            w.duckLifted.connect(self._lift_desk_duck)
+            w.set_duck_level(pct)
+        self._big_player.set_volume_value(base)
+        self._preview._vol.setValue(round(base * 100))
+
+    def _apply_volume(self):
+        """Nothing audible to push to here."""
+
+    def heard(self):
+        return self._mix.base * self._mix.desk
+
+
+class DuckMovesTheSliderTest(unittest.TestCase):
+    """Marcel's list, 5.3: "The duck button sets music to 10%, but the volume
+    slider does not move. Make the slider move too." The sliders show what is
+    heard, and a hand on a slider says what is heard from then on."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.desk = _WiredDesk()
+        self.addCleanup(reap_widget, self.desk._big_player)
+        self.addCleanup(reap_widget, self.desk._preview)
+        self.card = self.desk._big_player
+        self.overlay = self.desk._preview
+
+    def sliders(self):
+        return self.card._vol.value(), self.overlay._vol.value()
+
+    def test_the_duck_brings_both_sliders_down(self):
+        self.card._duck_btn.click()
+        self.assertEqual(self.sliders(), (8, 8))
+
+    def test_at_full_volume_it_is_the_duck_level_itself(self):
+        self.desk._set_base_volume(1.0)
+        self.card._duck_btn.click()
+        self.assertEqual(self.card._vol.value(), 10)
+
+    def test_the_mute_step_goes_to_zero(self):
+        self.card._duck_btn.click()
+        self.card._duck_btn.click()
+        self.assertEqual(self.sliders(), (0, 0))
+
+    def test_the_third_press_brings_them_back(self):
+        for _ in range(3):
+            self.card._duck_btn.click()
+        self.assertEqual(self.sliders(), (80, 80))
+        self.assertEqual(self.card._vol_lbl.text(), "80%")
+
+    def test_the_duck_leaves_the_master_alone(self):
+        self.card._duck_btn.click()
+        self.assertAlmostEqual(self.desk._mix.base, 0.8)
+        self.card._duck_btn.click()
+        self.assertAlmostEqual(self.desk._mix.base, 0.8)
+
+    def test_the_readout_still_says_duck_and_mute(self):
+        self.card._duck_btn.click()
+        self.assertEqual(self.card._vol_lbl.text(), "duck")
+        self.card._duck_btn.click()
+        self.assertEqual(self.card._vol_lbl.text(), "mute")
+
+    def test_a_duck_level_from_the_settings_counts(self):
+        self.desk._settings["duck_pct"] = 50
+        self.desk.apply_duck_level()
+        self.card._duck_btn.click()
+        self.assertEqual(self.sliders(), (40, 40))
+
+    def test_a_new_level_moves_a_running_duck(self):
+        self.card._duck_btn.click()
+        self.desk._settings["duck_pct"] = 50
+        self.desk.apply_duck_level()
+        self.assertEqual(self.sliders(), (40, 40))
+
+    def test_the_overlay_opens_on_what_is_heard(self):
+        """It takes its value afresh on every show."""
+        table = QTableView()
+        self.addCleanup(reap_widget, table)
+        self.card._duck_btn.click()
+        self.card._duck_btn.click()
+        self.overlay.show_for(table, 0, "Titel")
+        self.assertEqual(self.overlay._vol.value(), 0)
+        self.assertTrue(self.overlay._muted, "showing it is no change of state")
+
+    def test_a_master_set_elsewhere_stays_ducked_on_the_slider(self):
+        """🎛 A controller fader moves the master during a duck."""
+        self.card._duck_btn.click()
+        self.desk._set_base_volume(0.5)
+        self.assertEqual(self.card._vol.value(), 5)
+        self.assertEqual(self.card._vol_lbl.text(), "duck")
+
+    def test_the_hand_on_a_ducked_slider_ends_the_duck(self):
+        self.card._duck_btn.click()
+        self.card._vol.setValue(30)
+        self.assertEqual(self.sliders()[0], 30)
+        self.assertAlmostEqual(self.desk.heard(), 0.3)
+        self.assertEqual(self.desk._mix.desk, 1.0)
+        self.assertFalse(self.card._duck_btn.isChecked())
+        self.assertEqual(self.card._vol_lbl.text(), "30%")
+
+    def test_the_hand_on_a_muted_slider_ends_the_mute(self):
+        self.card._duck_btn.click()
+        self.card._duck_btn.click()
+        self.card._vol.setValue(30)
+        self.assertAlmostEqual(self.desk.heard(), 0.3)
+        self.assertFalse(self.desk._mix.desk_muted)
+        self.assertEqual(self.card._vol_lbl.text(), "30%")
+
+    def test_the_hand_on_the_overlay_does_the_same(self):
+        self.overlay._duck_btn.click()
+        self.overlay._vol.setValue(30)
+        self.assertAlmostEqual(self.desk.heard(), 0.3)
+        self.assertEqual(self.sliders(), (30, 30))
+        self.assertFalse(self.overlay._duck_btn.isChecked())
+
+    def test_the_plus_button_counts_as_a_hand(self):
+        self.card._duck_btn.click()
+        self.card._vol_up_btn.click()
+        self.assertEqual(self.card._vol.value(), 8 + VOL_STEP)
+        self.assertEqual(self.desk._mix.desk, 1.0)
+
+    def test_a_hand_without_a_duck_lifts_nothing(self):
+        lifted = []
+        self.card.duckLifted.connect(lambda: lifted.append(1))
+        self.card._vol.setValue(30)
+        self.assertEqual(lifted, [])
+        self.assertAlmostEqual(self.desk._mix.base, 0.3)
+
+
+class DuckLiftedWiringTest(unittest.TestCase):
+    """The window itself has to listen, not only the host above."""
+
+    def test_both_players_are_connected(self):
+        source = Path(dancesport_gui.__file__).read_text(encoding="utf-8")
+        self.assertIn("self._preview.duckLifted.connect(self._lift_desk_duck)", source)
+        self.assertIn("self._big_player.duckLifted.connect(self._lift_desk_duck)", source)
 
 
 class PresenterDuckTest(unittest.TestCase):

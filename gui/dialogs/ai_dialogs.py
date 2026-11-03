@@ -76,6 +76,7 @@ from gui.common import (  # noqa: F401  (shared primitives)
 from gui.workers import (
     OpenRouterChatWorker,
     OpenRouterModelsWorker,
+    SuggestionMatchWorker,
 )
 from planner import i18n
 from planner.event import event_plan
@@ -84,9 +85,9 @@ from planner.generate import llm
 from planner.generate.ai import (
     DEFAULT_API_BASE,
     FREE_MODELS_FALLBACK,
+    api_host,
     build_track_prompt,
     load_openrouter_config,
-    match_suggestions_to_library,
     parse_ai_suggestions,
     save_openrouter_config,
 )
@@ -115,6 +116,7 @@ class AiSuggestDialog(QDialog):
         self._row_paths: list[Path | None] = []
         self._cur_row = -1
         self._chat: OpenRouterChatWorker | None = None
+        self._matcher: SuggestionMatchWorker | None = None
         self._models: OpenRouterModelsWorker | None = None
         # "Close" accepts and Esc rejects; neither sends a closeEvent.
         self.finished.connect(lambda _=0: self._stop_preview())
@@ -248,15 +250,27 @@ class AiSuggestDialog(QDialog):
     def _on_reply_error(self, msg):
         self._get_btn.setEnabled(True)
         self._status.setText("Failed.")
+        if not self.isVisible():
+            # The worker outlives a closed dialog: no modal over the desk for it.
+            log.warning("🤖 AI suggestion failed after the dialog was closed\n"
+                        "error: %s", msg)
+            return
         QMessageBox.critical(self, "AI Error", msg)
 
     def _on_reply(self, text: str):
-        self._get_btn.setEnabled(True)
         suggestions = parse_ai_suggestions(text)
         if not suggestions:
+            self._get_btn.setEnabled(True)
             self._status.setText("No parseable suggestions returned.")
             return
-        matched = match_suggestions_to_library(self._lib, suggestions)
+        self._status.setText("Matching against your library…")
+        self._matcher = SuggestionMatchWorker(self._lib, suggestions, self)
+        self._matcher.done.connect(self._on_matched)
+        self._matcher.error.connect(self._on_reply_error)
+        self._matcher.start()
+
+    def _on_matched(self, matched):
+        self._get_btn.setEnabled(True)
         owned = sum(1 for m in matched if m["entry"])
         self._status.setText(i18n.t("%d suggestions — %d in your library.") % (len(matched), owned))
         self._populate(matched)
@@ -369,6 +383,7 @@ class _EventPanel(QWidget):
     def __init__(self, settings: dict, parent=None):
         super().__init__(parent)
         self._specs: list[CompetitionSpec] = []
+        self._parsed_cells: list[tuple] = []     # what the parser wrote, to spot corrections
         lyt = QVBoxLayout(self)
         lyt.setContentsMargins(18, 0, 0, 0)
 
@@ -501,13 +516,24 @@ class _EventPanel(QWidget):
         lyt.addLayout(row)
 
     def _reparse(self):
+        # Cells the user corrected, by the label the parser gave that row: they are
+        # input, and a keystroke in the schedule box must not throw them away.
+        corrections = {}
+        for r, shown in enumerate(self._parsed_cells):
+            for c, text in enumerate(shown):
+                item = self._table.item(r, c)
+                if item is not None and item.text() != text:
+                    corrections.setdefault(shown[0], {})[c] = item.text()
         self._specs = parse_competition_schedule(self._schedule.toPlainText())
         self._table.setRowCount(len(self._specs))
+        self._parsed_cells = []
         for r, spec in enumerate(self._specs):
             cells = (spec.label, spec.dance_class, " ".join(spec.dances),
                      "-".join(str(h) for h in spec.heats))
+            self._parsed_cells.append(cells)
+            fixed = corrections.pop(spec.label, {})
             for c, text in enumerate(cells):
-                self._table.setItem(r, c, QTableWidgetItem(text))
+                self._table.setItem(r, c, QTableWidgetItem(fixed.get(c, text)))
 
     def specs(self) -> list[CompetitionSpec]:
         def cell(r, c):
@@ -567,11 +593,33 @@ class AiPlaylistDialog(QDialog):
         self._brief.setMaximumHeight(76)
         lyt.addWidget(self._brief)
 
+        # The prompt of the flat list's kind: it sits under the rules, which it
+        # adds to, and each kind keeps its own text.
+        # The competition and the wish list have one of their own, so the box
+        # follows the chosen mode and its label says whose text it is.
+        saved = {**(settings.get("ai_flat_prompts") or {}),
+                 **(settings.get("ai_mode_prompts") or {})}
+        shipped = {**llm.FLAT_PROMPTS, "competition": llm.COMPETITION_PROMPT,
+                   "wishes": llm.WISH_PROMPT}
+        self._kind_prompts = {k: saved.get(k) or v.strip() for k, v in shipped.items()}
+        self._shown_kind = self._prompt_key()
+        self._kind_lbl = _lbl("")
+        self._kind_prompt = QPlainTextEdit(self._kind_prompts[self._shown_kind])
+        self._kind_prompt.setMaximumHeight(150)
+        self._swap_kind_prompt()
+        self._flat_kind.currentIndexChanged.connect(self._swap_kind_prompt)
+        self._rb_comp.toggled.connect(lambda *_: self._swap_kind_prompt())
+        self._rb_wish.toggled.connect(lambda *_: self._swap_kind_prompt())
+        self._rb_flat.toggled.connect(lambda *_: self._swap_kind_prompt())
+
         def sync_mode():
             self._count_spin.setEnabled(self._rb_flat.isChecked())
+            self._flat_kind.setEnabled(self._rb_flat.isChecked())
+            event = self._rb_event.isChecked()
+            self._kind_lbl.setVisible(not event)
+            self._kind_prompt.setVisible(not event)
             # Only the mode that uses it gets to take up the room.
             self._wishes.setVisible(self._rb_wish.isChecked())
-            event = self._rb_event.isChecked()
             self._event.setVisible(event)
             # The event's variants say what they are for; there is no brief.
             self._brief_lbl.setVisible(not event)
@@ -595,6 +643,8 @@ class AiPlaylistDialog(QDialog):
             "format are added automatically — describe only what makes a\n"
             "playlist good in your eyes.")
         lyt.addWidget(self._rules, stretch=1)
+        lyt.addWidget(self._kind_lbl)
+        lyt.addWidget(self._kind_prompt)
 
         self._add_model_rows(lyt, settings)
 
@@ -620,6 +670,45 @@ class AiPlaylistDialog(QDialog):
         bb.addWidget(ok)
         lyt.addLayout(bb)
 
+    _PROMPT_TEXT = {
+        "competition": (
+            "🏆 Competition prompt (added to the rules, sent for the B, A and S classes only):",
+            "Which tracks suit a higher-class event. It is sent with the task,\n"
+            "after the rules, for the B, A and S classes; the lower classes get\n"
+            "none. The rounds, heats, dances and tempos are added automatically."),
+        "wishes": (
+            "📝 Wish-list prompt (added to the rules):",
+            "How the pasted wishes are read and when a wish may be answered with\n"
+            "something else. The search steps are added automatically, because\n"
+            "the code depends on them."),
+        "party": (
+            "🎉 Party-list prompt (added to the rules):",
+            "What a party list is for. It is sent with the task, after the rules,\n"
+            "and says which of the rules do not apply. Each mode keeps its own text."),
+        "warmup": (
+            "🤸 Warm-up-list prompt (added to the rules):",
+            "What a warm-up list is for. It is sent with the task, after the\n"
+            "rules, and says which of the rules do not apply. Each mode keeps\n"
+            "its own text."),
+    }
+
+    def _prompt_key(self) -> str:
+        """Whose prompt the box shows: the mode's, or the list kind's."""
+        if self._rb_comp.isChecked():
+            return "competition"
+        if self._rb_wish.isChecked():
+            return "wishes"
+        return self._flat_kind.currentData()
+
+    def _swap_kind_prompt(self):
+        """Another mode or kind: keep the text of the old one, show the new."""
+        self._kind_prompts[self._shown_kind] = self._kind_prompt.toPlainText().strip()
+        self._shown_kind = self._prompt_key()
+        self._kind_prompt.setPlainText(self._kind_prompts[self._shown_kind])
+        label, tip = self._PROMPT_TEXT[self._shown_kind]
+        self._kind_lbl.setText(i18n.t(label))
+        self._kind_prompt.setToolTip(i18n.t(tip))
+
     def _add_mode_box(self, lyt, settings):
         """🏆 🎵 📝 What to build, each mode with its own controls."""
         # ── What to build ──────────────────────────────────────────────────
@@ -643,6 +732,15 @@ class AiPlaylistDialog(QDialog):
         self._count_spin.setValue(int(settings.get("ai_flat_count", 60)))
         self._count_spin.setSuffix(" tracks")
         flat_row.addWidget(self._count_spin)
+        self._flat_kind = QComboBox()
+        self._flat_kind.addItem("🎉  Party list", "party")
+        self._flat_kind.addItem("🤸  Warm-up list", "warmup")
+        self._flat_kind.setToolTip(
+            "Each kind asks the model for something else: a party list for a\n"
+            "full floor, a warm-up list for couples before their competition.")
+        self._flat_kind.setCurrentIndex(
+            max(0, self._flat_kind.findData(settings.get("ai_flat_kind"))))
+        flat_row.addWidget(self._flat_kind)
         flat_row.addStretch(1)
         mode_lyt.addLayout(flat_row)
 
@@ -720,7 +818,12 @@ class AiPlaylistDialog(QDialog):
         lrow.addWidget(self._config_dir, stretch=1)
         lyt.addLayout(lrow)
 
-        if llm.claude_available():
+        cfg = load_openrouter_config()
+        if cfg.get("ask_first") and cfg.get("api_key"):
+            hint = i18n.t("Asks %s on %s first, the claude CLI after that. "
+                          "⚙ Settings → 🤖 AI changes it.") % (
+                cfg["model"], api_host(cfg.get("base_url", "")))
+        elif llm.claude_available():
             hint = ("Runs through the claude CLI on your Claude subscription — "
                     "no API key. Falls back to OpenRouter if that fails.")
         else:
@@ -739,10 +842,21 @@ class AiPlaylistDialog(QDialog):
             mode = "event"
         else:
             mode = "flat"
+        kind = self._flat_kind.currentData()
+        prompts = dict(self._kind_prompts)
+        prompts[self._shown_kind] = self._kind_prompt.toPlainText().strip()
+        shipped = {**llm.FLAT_PROMPTS, "competition": llm.COMPETITION_PROMPT,
+                   "wishes": llm.WISH_PROMPT}
+        for k, text in prompts.items():
+            prompts[k] = text or shipped[k].strip()
         return dict(
             mode=mode,
             event=self._event.values(),
             count=self._count_spin.value(),
+            flat_kind=kind,
+            flat_prompt=prompts[kind],
+            flat_prompts={k: prompts[k] for k in llm.FLAT_PROMPTS},
+            mode_prompts={k: prompts[k] for k in ("competition", "wishes")},
             wishes=self._wishes.toPlainText().strip(),
             brief=self._brief.toPlainText().strip(),
             rules=self._rules.toPlainText().strip() or llm.DEFAULT_RULES,

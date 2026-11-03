@@ -879,8 +879,8 @@ class DeckMenuTest(_DlgTest):
     def test_a_row_offers_it_and_edits_that_track(self):
         t, win = self._table()
         row = t._row_meta.song_rows()[1]
-        self.assertIn("🏷  Edit tags…", self._menu(t, row))
-        self._menu(t, row, choose="🏷  Edit tags…")
+        self.assertIn("🏷  Edit tags…	Ctrl+T", self._menu(t, row))
+        self._menu(t, row, choose="🏷  Edit tags…	Ctrl+T")
         self.assertEqual(win.edited, [[t._row_meta.entry_at(row)]])
 
     def test_inside_a_selection_it_edits_the_selection(self):
@@ -889,7 +889,7 @@ class DeckMenuTest(_DlgTest):
         t.setSelectionMode(t.SelectionMode.MultiSelection)
         for r in rows:
             t.selectRow(r)
-        caption = f"🏷  Edit tags of {len(rows)} tracks…"
+        caption = f"🏷  Edit tags of {len(rows)} tracks…	Ctrl+T"
         self.assertIn(caption, self._menu(t, rows[0]))
         self._menu(t, rows[0], choose=caption)
         self.assertEqual(win.edited, [[t._row_meta.entry_at(r) for r in rows]])

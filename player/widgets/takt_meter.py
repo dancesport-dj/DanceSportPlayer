@@ -253,11 +253,12 @@ class TaktMeterOverlay(QFrame):
     def set_dance(self, dance: str | None):
         self._dance = dance
         if self._sollwert_auto:
-            val = default_sollwert(dance)
-            if val is not None:
-                self._sollwert_spin.blockSignals(True)
-                self._sollwert_spin.setValue(val)
-                self._sollwert_spin.blockSignals(False)
+            # No target for an untagged or unknown dance: 0 is "none", not the
+            # previous dance's band (#93).
+            val = default_sollwert(dance) or 0.0
+            self._sollwert_spin.blockSignals(True)
+            self._sollwert_spin.setValue(val)
+            self._sollwert_spin.blockSignals(False)
         self._refresh()
 
     # ── Placement (same drag/anchor pattern as PreviewOverlay) ──

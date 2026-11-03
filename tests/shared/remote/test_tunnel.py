@@ -8,6 +8,7 @@ import sys
 import tarfile
 import tempfile
 import threading
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -269,6 +270,23 @@ class TunnelTest(unittest.TestCase):
             self.assertTrue(got["exit"].wait(10))
             self.assertFalse(got["url"].wait(1))
 
+    def test_a_broken_output_pipe_still_reports_the_end(self):
+        """#16.3: a read that raised ended the reader thread silently, and the
+        app never heard on_exit for a tunnel it could no longer follow."""
+        t, got = self._tunnel()
+
+        class _Broken:
+            def __init__(self, *a, **k):
+                pass
+
+            def __iter__(self):
+                raise OSError("pipe broke")
+
+        with mock.patch.object(tunnel.io, "TextIOWrapper", _Broken):
+            t.start()
+            self.assertTrue(got["exit"].wait(10))
+        self.assertEqual(len(self.codes), 1)
+
     def test_a_missing_program_raises(self):
         t = tunnel.Tunnel(self.dir / "nothere.exe", 8766, on_url=print)
         with self.assertRaises(OSError):
@@ -293,6 +311,63 @@ class DnsTest(unittest.TestCase):
         other = bytes.fromhex("9999" "8400" "0001" "0001" "0000" "0000")
         for reply in (nx, empty, other, b"\x12"):
             self.assertFalse(tunnel.dns_answered(reply, 0x1234), reply)
+
+    def _ask_with(self, replies):
+        """name_published against a fake socket that hands out `replies`
+        ((bytes, peer) pairs), then times out."""
+        good = bytes.fromhex("1234" "8400" "0001" "0001" "0000" "0000")
+        queue = [(good if r is None else r[0], r[1] if r else ("1.1.1.1", 53))
+                 for r in replies]
+
+        class Sock:
+            def __enter__(self): return self
+            def __exit__(self, *exc): return False
+            def settimeout(self, secs): pass
+            def sendto(self, data, addr): pass
+
+            def recvfrom(self, n):
+                if not queue:
+                    raise TimeoutError()
+                return queue.pop(0)
+        with mock.patch.object(tunnel.socket, "socket", return_value=Sock()), \
+                mock.patch.object(tunnel.socket, "gethostbyname", return_value="1.1.1.1"), \
+                mock.patch.object(tunnel.secrets, "randbelow", return_value=0x1234):
+            return tunnel.name_published("moon.trycloudflare.com")
+
+    def test_a_reply_from_the_nameserver_counts(self):
+        self.assertTrue(self._ask_with([None]))
+
+    def test_a_reply_from_anyone_else_does_not(self):
+        """#20.5: a spoofed packet with the right 16-bit id made the tunnel
+        report itself up before the name resolved."""
+        good = bytes.fromhex("1234" "8400" "0001" "0001" "0000" "0000")
+        self.assertIsNone(self._ask_with([(good, ("6.6.6.6", 53))]))
+
+    def test_a_spoofed_reply_does_not_hide_the_real_one(self):
+        good = bytes.fromhex("1234" "8400" "0001" "0001" "0000" "0000")
+        self.assertTrue(self._ask_with([(good, ("6.6.6.6", 53)), None]))
+
+    def test_a_flood_from_strangers_ends_at_the_deadline(self):
+        """A LAN peer sending faster than the wait kept the guest-tunnel thread
+        in the loop for as long as the packets came."""
+        started = time.monotonic()
+
+        class Flood:
+            def __enter__(self): return self
+            def __exit__(self, *exc): return False
+            def settimeout(self, secs): pass
+            def sendto(self, data, addr): pass
+
+            def recvfrom(self, n):
+                # Not an OSError: name_published would take that for a timeout.
+                if time.monotonic() - started > 1.0:
+                    raise AssertionError("still reading the flood after 1 s")
+                time.sleep(0.001)
+                return b"\x12\x34", ("6.6.6.6", 53)
+        with mock.patch.object(tunnel.socket, "socket", return_value=Flood()), \
+                mock.patch.object(tunnel.socket, "gethostbyname", return_value="1.1.1.1"), \
+                mock.patch.object(tunnel, "_DNS_ASK_SECS", 0.05):
+            self.assertIsNone(tunnel.name_published("moon.trycloudflare.com"))
 
     def test_nameservers_out_of_reach_tell_nothing(self):
         with mock.patch.object(tunnel.socket, "socket", side_effect=OSError("blocked")):

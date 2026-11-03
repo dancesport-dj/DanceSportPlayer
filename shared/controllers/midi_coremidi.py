@@ -29,6 +29,7 @@ log = logging.getLogger("dancesport.midi")
 _CF_UTF8 = 0x08000100
 _PACKET_DATA = 10           # offset of data[] in a MIDIPacket
 _LIST_FIRST = 4             # offset of packet[0] in a MIDIPacketList
+_LIST_MAX = 1 << 16         # no MIDIPacketList is larger: the walk never goes past it
 
 _ReadProc = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p)
 
@@ -42,11 +43,17 @@ def packet_aligned() -> bool:
 
 
 def packet_list_bytes(addr: int, aligned: bool) -> list[bytes]:
-    """The data of every packet in the MIDIPacketList at `addr`."""
+    """The data of every packet in the MIDIPacketList at `addr`. The count and
+    the lengths are read off the buffer, so the walk stops where a list could
+    not reach any more (reading further would be a segfault no `try` catches)."""
     count = struct.unpack("=I", ctypes.string_at(addr, 4))[0]
     out, pkt = [], addr + _LIST_FIRST
     for _ in range(count):
+        if pkt - addr + _PACKET_DATA > _LIST_MAX:
+            break
         length = struct.unpack("=H", ctypes.string_at(pkt + 8, 2))[0]
+        if pkt - addr + _PACKET_DATA + length > _LIST_MAX:
+            break
         out.append(ctypes.string_at(pkt + _PACKET_DATA, length))
         pkt += _PACKET_DATA + length
         if aligned:

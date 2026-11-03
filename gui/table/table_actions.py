@@ -29,6 +29,7 @@ from gui.common import (
     unreadable_playlist,
 )
 from gui.decks.playlist_entries import playlist_paths
+from gui.table.find_bar import FindBar
 from gui.table.table_menu import TableMenuMixin
 from planner import i18n
 from planner.generate.warmup import WARMUP_ORDER, warmup_code
@@ -149,41 +150,54 @@ class TableActionsMixin(TableMenuMixin):
         self._swap_song_rows(*pair)
 
     def _search_title(self):
-        """Find a title and/or a genre in the focused list.
+        """Ctrl+F: the 🔍 find bar over this list; it keeps its last search."""
+        if self._find_bar is None:
+            self._find_bar = FindBar(self)
+            self._find_bar.stepped.connect(self._find_step)
+            self._find_bar.edited.connect(lambda: self._find_step(1, jump=False))
+            self._find_bar.dismissed.connect(self._close_find)
+        elif self._find_bar.isVisible():
+            self._find_bar.dismiss()     # Ctrl+F again closes it
+            return
+        self._find_bar.open()
+
+    def _close_find(self) -> None:
+        """The bar went: so do its tint and the stepping run; the keyboard is back
+        on the list, on the row it found."""
+        self._last_find_query = None
+        self._clear_find_marks()
+        self.setFocus()
+
+    def _find_step(self, step: int, jump: bool = True) -> None:
+        """Find what the bar holds: a title and/or a genre, `step` 1 forward, -1 back.
 
         A title steps to the next matching song row and tints every match, so
         the operator sees the whole set at once (tag title and file name count
-        too). A fresh search always lands on the FIRST match, whatever row the
-        list happened to sit on; running the same search again steps to the
-        next match, wrapping around. Punctuation does not matter: 'chacha'
+        too). A fresh search always lands on the FIRST match, or going back on
+        the last, whatever row the list happened to sit on; running the same
+        search again steps on, wrapping around. Punctuation does not matter: 'chacha'
         finds a 'Cha-Cha'. A title search that finds no title falls through to
         the dance / genre - 'CC' names a dance, not a title - and a genre
         highlights ALL its matches at once, every Paso Doble of a party list,
         say. With both filled, the genre narrows the rows the title steps
-        through."""
-        from gui.dialogs import FindInListDialog  # gui.dialogs is a big package
-        dlg = FindInListDialog(self, getattr(self, "_last_search", ""),
-                               getattr(self, "_last_genre_search", ""))
-        if dlg.exec() != QDialog.DialogCode.Accepted:
-            self._last_find_query = None   # a cancel breaks the stepping run
-            return
-        text = dlg.title()
-        genre = dlg.genre()
+        through.
+
+        `jump` False is typing: it only tints the matches, with no toast, no
+        stepping and no jump; Enter (jump True) then goes to the match."""
+        text = self._find_bar.title()
+        genre = self._find_bar.genre()
         query = (text, genre)
         # The same search again walks on to the next match; any other starts at
         # the top of its set - the current row is no head start, it is only
         # where the operator happened to look before.
-        repeat = query == self._last_find_query
-        self._last_find_query = query
-        # Remember exactly what was typed, an emptied field included: the dialog
-        # comes back with the last search, and a title cleared for a genre-only
-        # search must not reappear.
-        self._last_search = text
-        self._last_genre_search = genre
+        repeat = jump and query == self._last_find_query
+        if jump:
+            self._last_find_query = query
         matches = self._genre_match_rows(genre) if genre else []
         if genre and not matches:
             self._clear_find_marks()
-            show_toast(self, i18n.t("🔍  No title of “%s” in this list") % genre)
+            if jump:
+                show_toast(self, i18n.t("🔍  No title of “%s” in this list") % genre)
             return
         if not text:
             if not genre:
@@ -199,14 +213,18 @@ class TableActionsMixin(TableMenuMixin):
                 hits = self._genre_match_rows(text)
         if not hits:
             self._clear_find_marks()
-            show_toast(self, i18n.t("🔍  No title matching “%s”") % text)
+            if jump:
+                show_toast(self, i18n.t("🔍  No title matching “%s”") % text)
             return
         self._mark_find_rows(hits)
-        order = hits
+        if not jump:
+            return
+        order = hits if step > 0 else hits[::-1]
         if repeat:
+            # Past the end of the set `order` itself is the way round.
             cur = self.currentRow()
-            order = [r for r in hits if r > cur] + [r for r in hits if r <= cur]
-        self._focus_row(order[0])
+            order = [r for r in order if (r - cur) * step > 0] or order
+        self._focus_row(order[0], focus=False)   # the cursor stays in the bar
 
     def _title_match_rows(self, query: str, pool) -> list[int]:
         """The song rows of `pool` whose title matches `query`, in row order.
@@ -450,9 +468,17 @@ class TableActionsMixin(TableMenuMixin):
                 and (mods & Qt.KeyboardModifier.ControlModifier)):
             super().keyPressEvent(event)
             return
-        if (key == Qt.Key.Key_F and (mods & Qt.KeyboardModifier.ControlModifier)
-                and self._row_meta.has_songs()):
-            self._search_title()
+        if (key == Qt.Key.Key_Escape and self._find_bar is not None
+                and self._find_bar.isVisible()):
+            self._find_bar.dismiss()     # Esc closes the bar from the list too
+            event.accept()
+            return
+        if (key == Qt.Key.Key_X and (mods & Qt.KeyboardModifier.ControlModifier)
+                and self._find_bar is not None and self._find_bar.isVisible()):
+            self._find_bar.clearFields()     # Ctrl+X from the list clears the search
+            event.accept()
+            return
+        if self._menu_key(key, mods):
             event.accept()
             return
         # Enter too: in Playing mode the window keeps Space for the player's
@@ -510,7 +536,8 @@ class TableActionsMixin(TableMenuMixin):
                 event.accept()
                 return
         elif (key in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace)
-              and mods == Qt.KeyboardModifier.NoModifier):
+              and mods in (Qt.KeyboardModifier.NoModifier,
+                           Qt.KeyboardModifier.KeypadModifier)):
             has_sel = bool(self.selectedIndexes())
             # Selecting EVERY song (e.g. Ctrl+A) then Del = empty the whole list,
             # same as Del on the header — wiping it back to blank (after a confirm).
@@ -561,7 +588,8 @@ class TableActionsMixin(TableMenuMixin):
 
     def _remove_selected_rows(self) -> bool:
         """Wishlist helper: drop every selected song row. Returns True if any went."""
-        return self._remove_rows({ix.row() for ix in self.selectedIndexes()})
+        return self._remove_rows({ix.row() for ix in self.selectedIndexes()},
+                                 select_after=True)
 
     def _clear_entire(self) -> bool:
         """Del on the header (nothing selected) clears the WHOLE table after a confirm.
@@ -772,6 +800,17 @@ class TableActionsMixin(TableMenuMixin):
         dragged = entries[si]                  # the track being dropped onto dst_row
         entries[si], entries[di] = entries[di], entries[si]
         return self._apply_song_reorder(entries, select=[dragged])
+
+    def _at_the_end(self, rows) -> bool:
+        """True when `rows` are the last song rows, so a move there does nothing."""
+        return set(rows) == set(self._row_meta.song_rows()[-len(rows):])
+
+    def _move_to_end(self, rows) -> bool:
+        """The titles on `rows` go last, in the order they stood."""
+        song_rows = self._row_meta.song_rows()
+        moved = [self._row_meta[r].entry for r in song_rows if r in rows]
+        keep = [self._row_meta[r].entry for r in song_rows if r not in rows]
+        return self._apply_song_reorder(keep + moved, select=moved)
 
     def _m3u_track_paths(self, path: Path) -> list[Path]:
         """The track paths an .m3u/.m3u8 names, in file order. Reading the file is
@@ -1093,6 +1132,11 @@ class TableActionsMixin(TableMenuMixin):
         return (i18n.t("🗑  Remove %d selected titles (keep slots)") % n if n > 1
                 else i18n.t("🗑  Remove this title (keep slot)"))
 
+    def _remove_slots_caption(self, n: int) -> str:
+        """The menu entry that takes n titles out along with their slots."""
+        return (i18n.t("🗑  Remove %d selected titles and their slots") % n if n > 1
+                else i18n.t("🗑  Remove this title and its slot"))
+
     def _remove_songs_prompt(self, n: int) -> str:
         """What the confirm asks before n songs are taken out. A planned grid
         keeps the empty slot; a free running order does not, and saying so is
@@ -1108,6 +1152,37 @@ class TableActionsMixin(TableMenuMixin):
                 if n > 1
                 else i18n.t("Remove this song from its slot? The slot stays empty."))
 
+    def _remove_slots_prompt(self, n: int) -> str:
+        """The confirm before n titles leave a party list with their rows."""
+        return (i18n.t("Remove %d songs and their slots?") % n if n > 1
+                else i18n.t("Remove this song and its slot?"))
+
+    def _ask_remove_party(self, n: int) -> str | None:
+        """Del in a party list: "slots" takes the rows out, "keep" empties them,
+        None cancels. Same two ways as the context menu."""
+        box = QMessageBox(
+            QMessageBox.Icon.Question, "Remove song",
+            i18n.t("Remove %d songs?") % n if n > 1 else i18n.t("Remove this song?"),
+            parent=self)
+        with_slots = box.addButton(i18n.t("Remove with slot"),
+                                   QMessageBox.ButtonRole.DestructiveRole)
+        keep = box.addButton(i18n.t("Keep slot"), QMessageBox.ButtonRole.AcceptRole)
+        cancel = box.addButton(QMessageBox.StandardButton.Cancel)
+        box.setDefaultButton(cancel)
+        box.setEscapeButton(cancel)
+        box.exec()
+        clicked = box.clickedButton()
+        return "slots" if clicked is with_slots else "keep" if clicked is keep else None
+
+    def _lone_in_round(self, m) -> bool:
+        """Is this slot's title the only one of its dance in the round, with no
+        backup under it? A grid keeps a row per heat and dance, so a filled slot
+        can go by itself only then: the dance leaves the round."""
+        if m.backup or self._dynamic_backups.get((m.round_name, m.h_idx, m.d_idx)):
+            return False
+        heats = (self._playlist or {}).get(m.round_name, [])
+        return sum(m.d_idx < len(h) and h[m.d_idx] is not None for h in heats) == 1
+
     def _clear_selected_slots(self) -> bool:
         """Deck helper: empty every selected heat slot — the track is removed but the
         slot stays in the grid (renders "⚠ No song found"), ready for a new pick or
@@ -1120,10 +1195,17 @@ class TableActionsMixin(TableMenuMixin):
         eligible = {ix.row() for ix in self.selectedIndexes()} & songs
         if not eligible:
             return False
+        if self._warmup and not self._player_list:
+            choice = self._ask_remove_party(len(eligible))
+            if choice == "slots":
+                self._drop_running_order_rows(eligible, select_after=True)
+            elif choice == "keep":
+                self._clear_slots_at(eligible, select_after=True)
+            return True   # cancelled or done, the key is consumed
         if not self._confirm_delete("Remove song",
                                     self._remove_songs_prompt(len(eligible))):
             return True   # cancelled, but still consume the key
-        self._clear_slots_at(eligible)
+        self._clear_slots_at(eligible, select_after=True)
         return True
 
     def _remove_duplicate_titles(self, on_load: bool = False) -> int:

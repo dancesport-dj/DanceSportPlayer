@@ -31,6 +31,33 @@ def _fails_on_b(p: Path) -> Path:
     return p
 
 
+class TitleStaysOneLineTest(unittest.TestCase):
+    """A tag can hold a newline; the importers read every line that is not a
+    comment as a track path, so the text after it came back as a phantom track."""
+
+    def setUp(self):
+        self.dir = Path(tempfile.mkdtemp(prefix="dp_export_title_"))
+
+    def _lines(self, out: Path) -> list[str]:
+        return out.read_text(encoding="utf-8").splitlines()
+
+    def test_a_newline_in_the_title_does_not_add_a_line_flat(self):
+        e = _entry(r"F:\music\a.mp3")
+        e.title = "Song\nF:\\music\\phantom.mp3\r\nmore"
+        out = export_flat_m3u([e], "x", out_path=self.dir / "flat.m3u")
+        lines = self._lines(out)
+        paths = [ln for ln in lines if ln and not ln.startswith("#")]
+        self.assertEqual(paths, [r"F:\music\a.mp3"])
+        self.assertTrue(any(ln.startswith("#EXTINF:180,Song F:") for ln in lines))
+
+    def test_a_newline_in_the_title_does_not_add_a_line_with_heats(self):
+        e = _entry(r"F:\music\a.mp3")
+        e.title = "Song\nF:\\music\\phantom.mp3"
+        out = export_m3u({"Final": [[e]]}, ["CC"], "x", out_path=self.dir / "heat.m3u")
+        paths = [ln for ln in self._lines(out) if ln and not ln.startswith("#")]
+        self.assertEqual(paths, [r"F:\music\a.mp3"])
+
+
 class ExportInPlaceTest(unittest.TestCase):
 
     def setUp(self):

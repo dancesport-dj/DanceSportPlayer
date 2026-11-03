@@ -56,6 +56,7 @@ from planner.playlist import party_check
 from planner.playlist.m3u import import_playlist_m3u
 from planner.terms import dance_name
 from shared.audio.audio_probes import detect_silences, find_ffmpeg, measure_noise_floor  # auto-resolved
+from shared.audio.playback import power_status
 from shared.columns import (
     _COL_TITLE,
 )
@@ -171,7 +172,7 @@ class MusicCheckMixin(TagEditMixin):
         return floor
 
     def _track_silence_total(self, e, dur: int, probe: bool = True) -> float:
-        """Total silent seconds inside a track (≥2 s stretches under −30 dB).
+        """Total silent seconds inside a track (the stretches the probe found).
         Cached spans are used when present (also filled during playback);
         borderline-short tracks are probed on the fly via ffmpeg and the result
         cached, so re-checks are instant. 0.0 when unknown."""
@@ -492,8 +493,9 @@ class MusicCheckMixin(TagEditMixin):
         return findings + self._desk_findings()
 
     def _desk_findings(self) -> list:
-        """🔈 🎛 ☀ The desk around the music: the chosen sound outputs, the
-        hardware controller (left out while none is set up) and keep-awake."""
+        """🔈 🎛 ☀ 🔋 The desk around the music: the chosen sound outputs, the
+        hardware controller (left out while none is set up), keep-awake and the
+        power (left out where nobody can tell)."""
         dev = self._audio_device
         out = [readiness.outputs_finding(dev.unplugged(), dev.cue_on_music(),
                                          dev.cue_shares_music())]
@@ -502,6 +504,9 @@ class MusicCheckMixin(TagEditMixin):
         if ctl is not None:
             out.append(ctl)
         out.append(readiness.awake_finding(self._play_panel.keep_awake()))
+        power = readiness.power_finding(power_status())
+        if power is not None:
+            out.append(power)
         return out
 
     def _ready_keep_awake(self):

@@ -4,6 +4,8 @@
 
 **F1** in the app shows the shortcuts as a cheat sheet.
 
+On a Mac, read **Cmd** for **Ctrl** below: **Cmd + F** finds a title. The app's cheat sheet says so itself. **Del** has a twin on every keyboard: the Backspace key above Return, **⌫** on a Mac, does the same.
+
 ## Keyboard
 
 | Keys | Does |
@@ -19,14 +21,18 @@
 | **Ctrl + Shift + S** | Save the whole session: decks, wishlists, layout. |
 | **Ctrl + Z / Ctrl + Y** | Undo / redo. **Ctrl + Shift + Z** also redoes. |
 | **Ctrl + X** or **Ctrl + W** | Close the active dialog. |
-| **Del** | Remove the selected titles from a deck or wishlist, after asking. |
+| **Del** | Remove the selected titles from a deck or wishlist, after asking. In a party list the question is **Remove with slot** / **Keep slot** / **Cancel**. The cursor then lands on the row that moved up into the spot. |
 | **Del** with nothing selected | Clear that whole playlist or wishlist, after asking. The same when every title is selected. |
 | **Ctrl + Shift + Del** | Clear the focused playlist or wishlist, after asking, wherever the cursor is. |
+| **Ctrl + Shift + E** | The focused wishlist gets the whole area and the others fold to tabs; pressed again, all open. |
 | **Ctrl + M** | Mark or unmark the selected titles (orange row), for example as titles to swap later. **Ctrl + 1** does the same while the cartwall is hidden. |
 | **Alt + S** | Swap the two selected titles of the same dance in the Party panel. |
 | **F2** in the 🏆 Tournaments tree | Rename the entry. **Del** removes it from the tree. |
 | **Ctrl + A** in 🏆 Tournaments | Mark every slot of the folder, or every entry of the tree. **Del** and a drag then take them all. |
-| **Ctrl + F** | Find a title in the focused list. Repeat to step to the next match. |
+| **Ctrl + F** | Open the find bar over the focused list (**Cmd + F** on a Mac); pressed again, it closes the bar, also from the list. Typing tints the matches at once and **Enter** jumps to the first one; then **Enter** steps to the next match, **Shift + Enter** back, **Esc** closes it, also from the list. **Tab** / **Shift + Tab** switch between the title and the genre field, **Ctrl + X** clears the field (both fields when pressed on the list). |
+| **Ctrl + E** | Show the selected title in Explorer. |
+| **Ctrl + T** | Edit the tags of the selected titles. |
+| **Ctrl + Shift + C** | Copy the file path of the selected title. |
 | **T** on the 🖥 presenter | Switch between the titles and the timetable page. |
 | **Esc** on the 🖥 presenter | Close the presenter screen. |
 | **F12** / **Ctrl + Alt + S** | Open ⚙ Settings, also under ❔ at the end of the toolbar. |
@@ -47,7 +53,7 @@ F1 cheat sheet or in ⚙ Settings ▸ ⚙ General, see
 | ▾ / ▸ arrow in a deck header | Fold the deck to a header tab. Click the tab to reopen it. |
 | Drag a row | Move a title within the list, to another deck or a wishlist, or drop it into Explorer or a DJ program. |
 | Drag a column header sideways | Move the column, in every list of that kind. |
-| Right-click ▸ 🔍 Find a title | Jump to a title by name. Repeat to step to the next match. |
+| Right-click ▸ 🔍 Find a title | Opens the find bar, the same as Ctrl + F. |
 | Drop a file from outside | Add it to the deck or wishlist where it was dropped. An `.m3u` dropped on a deck is imported. |
 | ▶ / ■ in a row | Play / stop exactly that title. |
 | Double-click a deck row | Play it, or only cue it, depending on *▶️ Double-click starts the title*. |

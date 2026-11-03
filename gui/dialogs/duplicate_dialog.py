@@ -75,6 +75,10 @@ from planner.terms import dance_name
 
 log = logging.getLogger("dancesport.gui")
 
+# Tournament dance order for the reference-base export; the codes are the real ones from
+# planner/dances.py, and the export's sort question lists them as its legend.
+TOURNAMENT_DANCE_ORDER = ("LW", "TG", "WW", "SF", "QS", "SA", "CC", "RB", "PD", "JI")
+
 
 class DuplicateResolveDialog(QDialog):
     """Resolve songs that appear more than once across the playlist decks.
@@ -505,7 +509,8 @@ class DuplicateResolveDialog(QDialog):
         if not result:
             return
         kept_blocks = result.get("kept_blocks", [])
-        removed = result.get("removed", [])
+        # The first export empties "removed"; keep the count so a second export reports it too.
+        removed_count = result.setdefault("removed_count", len(result.get("removed", [])))
         ref_path = Path(result["ref_path"])
         default = ref_path.with_name(f"{ref_path.stem}_cleaned.m3u")
         out, _ = QFileDialog.getSaveFileName(
@@ -515,18 +520,17 @@ class DuplicateResolveDialog(QDialog):
             return
         sort_by_dance = QMessageBox.question(
             self, "Export unused tracks",
-            "Sort the exported tracks by dance?\n\n"
-            "(LW, TG, WW, SF, QS, SB, CC, RB, PD, JV)",
+            i18n.t("Sort the exported tracks by dance?\n\n(%s)")
+            % ", ".join(TOURNAMENT_DANCE_ORDER),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.Yes) == QMessageBox.StandardButton.Yes
         blocks = kept_blocks
         if sort_by_dance:
             # Tournament dance order; underscores normalised so 'PD_58_…' is detected.
-            order = ["LW", "TG", "WW", "SF", "QS", "SA", "CC", "RB", "PD", "JI"]
-            rank = {d: i for i, d in enumerate(order)}
+            rank = {d: i for i, d in enumerate(TOURNAMENT_DANCE_ORDER)}
             blocks = sorted(kept_blocks, key=lambda b: rank.get(
                 detect_dance(b["path"].name.replace("_", " ")) or "",
-                len(order)))  # stable: unknown dances keep their order, at the end
+                len(TOURNAMENT_DANCE_ORDER)))  # stable: unknown dances keep their order, at the end
         try:
             lines = ["#EXTM3U"]
             for blk in blocks:
@@ -556,7 +560,7 @@ class DuplicateResolveDialog(QDialog):
         QMessageBox.information(
             self, "Reference base",
             i18n.t("Exported %d unused track(s) to:\n%s\n\n%d hard duplicate(s) removed. %s")
-            % (len(blocks), out, len(removed), note))
+            % (len(blocks), out, removed_count, note))
 
     @staticmethod
     def _section_heading(text: str) -> QLabel:

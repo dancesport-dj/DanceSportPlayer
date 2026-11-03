@@ -285,6 +285,9 @@ class _Win:
     def _preload_global_lib(self):
         pass   # the background repository load has its own test
 
+    def _schedule_background_analysis(self):
+        pass   # the background analysis has its own test
+
     def _offer_crash_resume(self):
         pass   # the crash resume has its own test
 

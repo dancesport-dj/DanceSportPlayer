@@ -88,16 +88,19 @@ class PdRowDanceTest(unittest.TestCase):
         has highlights to mark."""
         panel = self.win._play_panel
         tools = (panel.pd_learn_btn, panel.pd_clear_btn, panel.pd_edit_btn)
-        self.assertFalse(any(w.isEnabled() for w in tools), "nothing loaded")
+
+        def shown():
+            return [w.isVisibleTo(panel.pd_sub_box) for w in tools]
+        self.assertFalse(any(shown()), "nothing loaded")
         self.start("PD", None)
-        self.assertTrue(all(w.isEnabled() for w in tools))
+        self.assertTrue(all(shown()))
         self.start("PD", "SA")
         self.table._current_play_row = -1
         self.win._adopt_track(self.path)
-        self.assertFalse(any(w.isEnabled() for w in tools), "a samba")
+        self.assertFalse(any(shown()), "a samba")
         self.start("PD", None)
         self.win._unload_track(self.win._player)
-        self.assertFalse(any(w.isEnabled() for w in tools), "unloaded")
+        self.assertFalse(any(shown()), "unloaded")
 
 
 if __name__ == "__main__":

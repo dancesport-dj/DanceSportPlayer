@@ -239,11 +239,19 @@ class PresenterMixin(MainWindowHost):
         While a title runs that is the one remembered from the handover. When
         nothing is sounding — a break, or the moment between two songs where
         the hero already names the one about to start — the title that just
-        ended is the last played, and that one is still the loaded one."""
+        ended is the last played, and that one is still the loaded one.
+
+        The first title of a list has none. With lists side by side the one
+        before may sit next door, but the party list and a list alone start
+        with their own first title."""
         if ((self._pause_on_screen() or self._between.pending is not None)
                 and self._playback.path is not None):
             return (dance_name(self._playback.dance, self._playback.dance),
                     self._playback.path.stem)
+        table, row = self._playing_row()
+        if (table is not None and table.next_song_row(row, -1)[0] < 0
+                and (self._deckset.deck_count <= 1 or table._warmup)):
+            return "", ""
         return self._last_played or ("", "")
 
     def _presenter_times(self) -> tuple[str, str, bool, float]:
@@ -277,11 +285,17 @@ class PresenterMixin(MainWindowHost):
         played = audible_played_secs(self._player.position(),
                                      self._playback.offset_ms, rate)
         left = None
-        if self._pd_runs_to_its_highlight():
+        if self._celebrating():
+            pass    # 🥇 past its cut the title plays on to the file's end
+        elif self._pd_runs_to_its_highlight():
             if self._pd_stop_at is not None:
                 left = (self._pd_stop_at - pos) / rate
         elif self._play_limit_secs() > 0:
             left = self._play_end_secs() - played
+            # 🔇 Dead air before the cut ends the song there (as the big player says).
+            sil_ms = self._silence_stop_ms()
+            if sil_ms is not None:
+                left = min(left, (sil_ms / 1000.0 - pos) / rate)
         if left is None:
             dur = self._player.duration() / 1000.0
             left = (dur - pos) / rate if dur > 0 else 0.0

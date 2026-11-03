@@ -116,5 +116,27 @@ class EntryFromFileTest(unittest.TestCase):
         self.assertEqual(e.comment_tags, [])
 
 
+class UnreadableRatingTest(unittest.TestCase):
+    """#60: float() accepts "nan" and "inf", and neither survives int(); one
+    such RATING field used to raise out of the tag read."""
+
+    def _tags(self, name, text):
+        from mutagen._vorbis import VCommentDict
+        vc = VCommentDict()
+        vc[name] = [text]
+        return vc
+
+    def test_nan_and_inf_mean_unrated(self):
+        from planner.music.foreign_tags import as_id3
+        for name in ("rating", "fmps_rating"):
+            for text in ("nan", "NaN", "inf", "-inf", "Infinity"):
+                with self.subTest(name=name, text=text):
+                    self.assertIsNone(as_id3(self._tags(name, text)))
+
+    def test_a_real_rating_still_reads(self):
+        from planner.music.foreign_tags import as_id3
+        self.assertEqual(popm_stars(as_id3(self._tags("rating", "4"))), 4)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

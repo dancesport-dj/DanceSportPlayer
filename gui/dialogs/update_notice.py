@@ -33,7 +33,8 @@ class UpdateNotice(QObject):
 
     def show_notice(self, version: str, url: str) -> None:
         if not self._window.isVisible():
-            QTimer.singleShot(_WAIT_FOR_WINDOW_MS,
+            # self as the context object: the retry dies with the window.
+            QTimer.singleShot(_WAIT_FOR_WINDOW_MS, self,
                               lambda: self.show_notice(version, url))
             return
         self._mark_seen(version)

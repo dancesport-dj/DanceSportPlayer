@@ -149,6 +149,7 @@ class StallWatchdogTest(unittest.TestCase):
         with mock.patch.object(self.desk, "_xfade_follow", create=True), \
                 mock.patch.object(self.desk, "_deckset", create=True), \
                 mock.patch.object(self.desk, "_refresh_wake_lock", create=True), \
+                mock.patch.object(self.desk, "_stop_background_analysis", create=True), \
                 mock.patch.object(self.desk, "_refresh_loudness_gain", create=True):
             self.desk._on_playback_state(PLAYING)
         self.tick_after(0.2)            # the position has not moved yet

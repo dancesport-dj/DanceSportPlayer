@@ -12,6 +12,7 @@ group and are held for every look where they are cheap to meet.
 import os
 import tempfile
 import unittest
+from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
@@ -94,6 +95,21 @@ class LookStyleTest(unittest.TestCase):
                 self.assertIn("QPushButton", sheet)
                 self.assertIn(look.tokens.window, sheet)
                 self.assertNotIn("{t.", sheet)
+
+    def test_a_changed_shape_gets_a_new_file_instead_of_the_cached_old_one(self):
+        """#20.10: the file was named after the colour alone, so a cached one
+        from an older version was kept for good."""
+        old = looks._svg_file("shape_t", "<g/>", 10)
+        new = looks._svg_file("shape_t", "<path/>", 10)
+        self.assertNotEqual(old, new)
+        self.assertIn("<path/>", Path(new).read_text(encoding="utf-8"))
+        self.assertEqual(looks._svg_file("shape_t", "<path/>", 10), new)
+        folder = Path(new).parent
+        self.assertEqual([p.name for p in folder.glob("*.tmp")], [], "no half written file left")
+
+    def test_the_images_are_named_in_quotes_for_a_path_with_spaces(self):
+        sheet = looks.stylesheet(next(iter(looks.LOOKS.values())))
+        self.assertNotRegex(sheet, r"url\([^\"')]")
 
     def test_every_look_has_its_parts_marked_final(self):
         for look in looks.LOOKS.values():

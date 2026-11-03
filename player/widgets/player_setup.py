@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QToolButton, QVBoxLayout
 
 from planner import i18n
@@ -21,9 +22,11 @@ from player.widgets.player_parts import (
     CARD_FADE,
     CARD_GAIN,
     CARD_INK,
+    CARD_OFF,
     CARD_PANIC,
     CARD_PAUSE,
     COUNTDOWN_CSS,
+    TEMPO_SETTLE_MS,
     TEMPO_STEP,
     VOL_STEP,
     ClickSlider,
@@ -222,14 +225,13 @@ class BigPlayerSetupMixin(BigPlayerHost):
             "use it when the heat change is taking longer than planned.")
         self._extend_btn.clicked.connect(self.extendPauseRequested.emit)
         self._extend_btn.setVisible(False)
-        # The pause's own way out, in words: ⏭ does the same, but the hall
-        # waiting on the next dance should not hinge on knowing that.
+        # The pause's own way out, beside the pause's other buttons: ⏭ does the
+        # same, but the hall waiting on the next dance should not hinge on
+        # knowing that.
         self._skip_pause_btn = QToolButton()
         icon_button(self._skip_pause_btn, "next", 16, CARD_EXTEND)
-        self._skip_pause_btn.setText("Next dance")
-        self._skip_pause_btn.setToolButtonStyle(
-            Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self._skip_pause_btn.setFixedHeight(28)
+        self._skip_pause_btn.setMinimumWidth(52)   # as wide as ⏱➕ beside it
         self._skip_pause_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._skip_pause_btn.setToolTip(
             "Cut the pause short and go to the next dance. Its announcement\n"
@@ -479,7 +481,7 @@ class BigPlayerSetupMixin(BigPlayerHost):
         # Wheel / keyboard changes (no drag) fall back to a debounce timer.
         self._tempo_apply = QTimer(self)
         self._tempo_apply.setSingleShot(True)
-        self._tempo_apply.setInterval(220)
+        self._tempo_apply.setInterval(TEMPO_SETTLE_MS)
         self._tempo_apply.timeout.connect(self.apply_tempo)
         self._tempo.valueChanged.connect(self._on_tempo)
         self._tempo.sliderReleased.connect(self._on_tempo_released)
@@ -536,7 +538,16 @@ class BigPlayerSetupMixin(BigPlayerHost):
         # is the exception, so the signal carries the reset flag, not the pin.
         self._tempo_pin = QToolButton()
         icon_button(self._tempo_pin, "pin", 12, CARD_INK)
+        # Under TSO it is out of use, and Qt's own disabled icon comes out
+        # lighter than the live one on the dark card, not dimmer.
+        pin_icon = self._tempo_pin.icon()
+        for px in (12, 24):
+            pin_icon.addPixmap(icon_pixmap("pin", px, CARD_OFF), QIcon.Mode.Disabled)
+        self._tempo_pin.setIcon(pin_icon)
         self._tempo_pin.setCheckable(True)
+        # An icon-only button is shorter than its text neighbours by itself.
+        self._tempo_pin.setSizePolicy(QSizePolicy.Policy.Fixed,
+                                      QSizePolicy.Policy.Preferred)
         self._tempo_pin.setToolTip(rules_name(i18n.t(
             "📌 Pin the tempo: the fader stays where you left it when the next\n"
             "title starts.\n"

@@ -20,6 +20,41 @@ from planner import i18n
 HYBRID_FADE_SECS = 90
 
 
+def stop_time_choices(now: datetime) -> list[datetime]:
+    """⏹ The times the "At …" list offers: every five minutes from the next one
+    on, through midnight up to 01:55, and always at least two hours of them so
+    a party already past one can still set a time. Never tomorrow morning."""
+    slot = now.replace(second=0, microsecond=0)
+    slot += timedelta(minutes=5 - slot.minute % 5)
+    last = slot.replace(hour=1, minute=55)
+    if slot.hour >= 2:
+        last += timedelta(days=1)
+    last = max(last, slot + timedelta(hours=2))
+    choices = []
+    while slot <= last:
+        choices.append(slot)
+        slot += timedelta(minutes=5)
+    return choices
+
+
+def parse_stop_time(text: str) -> tuple[int, int] | None:
+    """⏹ A time typed into the "At …" field as (hour, minute), or None. Takes
+    23:15, 23.15, 2315, 930 and a bare hour (23); anything else is refused."""
+    text = text.strip().replace(".", ":")
+    if ":" in text:
+        hour, _, minute = text.partition(":")
+    elif len(text) > 2:
+        hour, minute = text[:-2], text[-2:]
+    else:
+        hour, minute = text, "0"
+    if not (hour.isascii() and hour.isdigit() and minute.isascii() and minute.isdigit()):
+        return None
+    hour, minute = int(hour), int(minute)
+    if hour > 23 or minute > 59 or len(str(int(minute))) > 2:
+        return None
+    return hour, minute
+
+
 class PartyStop:
     """The armed condition, or none (`kind` None)."""
 

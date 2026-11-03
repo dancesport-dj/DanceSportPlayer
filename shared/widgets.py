@@ -66,6 +66,8 @@ class FlowLayout(QLayout):
         line: list = []
         for item in self._items:
             hint = item.sizeHint()
+            # On a line narrower than its wish, a control that can shrink does.
+            hint.setWidth(max(item.minimumSize().width(), min(hint.width(), rect.width())))
             if x + hint.width() > rect.right() + 1 and line_h > 0:
                 self._centre_line(line, line_h, apply)
                 self._fill_line(line, rect.right() + 1 - (x - space), apply)

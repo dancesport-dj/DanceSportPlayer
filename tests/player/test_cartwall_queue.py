@@ -336,12 +336,16 @@ class OverriddenLoopTest(_QueueWallCase):
     """Marcel: a queued pad still showed ∞ and 🔁 though the run plays it
     once — what the queue overrides is struck through in red. The thin
     strike was hard to see on a pad, so it is a bold red ✕ on the 🔁 now:
-    painted over it, not set beside it."""
+    painted over it, not set beside it.
+
+    Only with a second pad in the queue, see LoneQueueTest."""
 
     def setUp(self):
         super().setUp()
         self.w.set_wall((2, 2), [Page(pads={
-            (0, 0): CartPad(path=self.files["a"], loop=True)})])
+            (0, 0): CartPad(path=self.files["a"], loop=True),
+            (0, 1): CartPad(path=self.files["b"])})])
+        self.ctrl_click((0, 0, 1))
 
     def title(self):
         return self.button((0, 0, 0))._title.text()
@@ -389,6 +393,51 @@ class OverriddenLoopTest(_QueueWallCase):
         self.w.set_queue_run((0, 0, 0), self.w.pad_at((0, 0, 0)).queue)
         btn.set_remaining(5000, 0.5)
         self.assertEqual(btn._time.text(), gc.fmt_ms(5000))
+
+
+class LoneQueueTest(_QueueWallCase):
+    """Marcel's list, 8.2: "show the red X on the endless icon only if the queue
+    has more than 1 element. With only one element, that element is still playing
+    endlessly." A lone queued pad follows itself, so the ✕ would be a lie."""
+
+    def setUp(self):
+        super().setUp()
+        self.w.set_wall((2, 2), [Page(pads={
+            (0, 0): CartPad(path=self.files["a"], loop=True),
+            (0, 1): CartPad(path=self.files["b"])})])
+        self.btn = self.button((0, 0, 0))
+
+    def title(self):
+        return self.btn._title.text()
+
+    def test_alone_in_the_queue_the_loop_stays_a_plain_loop(self):
+        self.ctrl_click((0, 0, 0))
+        self.assertIn(" 🔁", self.title())
+        self.assertNotIn("<img", self.title())
+
+    def test_alone_the_tooltip_does_not_promise_one_play(self):
+        self.ctrl_click((0, 0, 0))
+        self.assertNotIn("plays once", self.btn.toolTip())
+        self.assertIn("place 1", self.btn.toolTip())
+
+    def test_alone_it_shows_endless_while_it_runs(self):
+        self.ctrl_click((0, 0, 0))
+        self.btn.set_playing(True)
+        self.w.set_queue_run((0, 0, 0), self.w.pad_at((0, 0, 0)).queue)
+        self.btn.set_remaining(5000, 0.5)
+        self.assertEqual(self.btn._time.text(), "∞")
+
+    def test_a_second_pad_joining_brings_the_cross(self):
+        self.ctrl_click((0, 0, 0))
+        self.ctrl_click((0, 0, 1))
+        self.assertIn(gc.loop_overridden_html(), self.title())
+
+    def test_the_second_pad_leaving_takes_it_away(self):
+        self.ctrl_click((0, 0, 0))
+        self.ctrl_click((0, 0, 1))
+        self.ctrl_click((0, 0, 1))
+        self.assertNotIn("<img", self.title())
+        self.assertIn(" 🔁", self.title())
 
 
 class PadEditQueueTest(_QueueWallCase):
@@ -644,11 +693,61 @@ class PauseStartsTheQueueTest(_QueueWallCase):
         self.assertEqual(self.playing(), [])
         self.assertIsNone(self.w.queue_run())
 
-    def test_no_queue_nothing_starts(self):
+    def drop_the_queue(self):
         for key in ((0, 0, 1), (0, 1, 0), (0, 0, 0)):
             self.ctrl_click(key)
+
+    def test_no_queue_and_nothing_selected_the_first_pad_does_not_play(self):
+        # Marcel: with no queue the first background pad on the wall is not a
+        # choice; only a selected one fills the pause.
+        self.drop_the_queue()
         self.desk._start_pause_pads()
         self.assertEqual(self.playing(), [])
+        self.assertIsNone(self.w.queue_run())
+
+    def test_no_queue_the_selected_background_pad_goes_first(self):
+        self.drop_the_queue()
+        self.w._on_select((0, 1, 0), False)
+        self.desk._start_pause_pads()
+        self.assertEqual(self.playing(), [(0, 1, 0)])
+
+    def test_a_selected_pad_without_the_tag_does_not_play(self):
+        self.drop_the_queue()
+        self.w.pad_at((0, 1, 0)).background = False
+        self.w._on_select((0, 1, 0), False)
+        self.desk._start_pause_pads()
+        self.assertEqual(self.playing(), [])
+
+    def test_no_queue_and_no_background_pad_stays_silent(self):
+        self.drop_the_queue()
+        for key in ((0, 0, 1), (0, 1, 0), (0, 0, 0)):
+            self.w.pad_at(key).background = False
+        self.desk._start_pause_pads()
+        self.assertEqual(self.playing(), [])
+
+    def test_a_queue_without_background_leaves_it_to_a_pad_outside(self):
+        self.ctrl_click((0, 0, 0))
+        self.w.pad_at((0, 0, 1)).background = False
+        self.w.pad_at((0, 1, 0)).background = False
+        self.w._on_select((0, 0, 0), False)
+        self.desk._start_pause_pads()
+        self.assertEqual(self.playing(), [(0, 0, 0)])
+        self.assertIsNone(self.w.queue_run())
+
+    def test_a_pad_whose_file_is_gone_is_passed_over(self):
+        self.drop_the_queue()
+        self.w.pad_at((0, 0, 0)).path = self.files["a"] + ".gone"
+        self.w._on_select((0, 0, 0), False)
+        self.w._on_select((0, 0, 1), True)
+        self.desk._start_pause_pads()
+        self.assertEqual(self.playing(), [(0, 0, 1)])
+
+    def test_a_bed_already_going_is_left_alone(self):
+        # Fired by hand, or held under the last title: it carries the pause.
+        self.drop_the_queue()
+        QTest.mouseClick(self.button((0, 1, 0)), Qt.MouseButton.LeftButton)
+        self.desk._start_pause_pads()
+        self.assertEqual(self.playing(), [(0, 1, 0)])
 
 
 if __name__ == "__main__":

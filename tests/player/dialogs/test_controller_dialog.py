@@ -227,6 +227,29 @@ class ControllerDialogTest(unittest.TestCase):
         self.assertIn("not bound", dlg._last.text())
 
 
+    def test_a_reopened_window_hears_the_desk_again(self):
+        """#33: closing it disconnected the hub, and the main window only ever
+        calls show() on the same instance, so it stayed deaf after the first
+        close: a frozen status and a last reading that never moved."""
+        host = _Host({"bindings": {"next": "cc:0:44"}})
+        dlg = self._dlg(host)
+        dlg.show()
+        dlg.close()
+        dlg.show()
+        host.hub.control.emit("cc:0:44", 1.0)
+        self.assertIn("Next title", dlg._last.text())
+        host.cfg["device"] = "nanoKONTROL2"
+        host.hub.changed.emit()
+        self.assertIn("Connected", dlg._status.text())
+
+    def test_a_closed_window_listens_to_nothing(self):
+        host = _Host({"bindings": {"next": "cc:0:44"}})
+        dlg = self._dlg(host)
+        dlg.show()
+        dlg.close()
+        host.hub.control.emit("cc:0:44", 1.0)
+        self.assertNotIn("Next title", dlg._last.text())
+
     def test_a_learning_button_says_how_to_stop(self):
         dlg = self._dlg(_Host())
         btn = dlg._learn_btns["next"]

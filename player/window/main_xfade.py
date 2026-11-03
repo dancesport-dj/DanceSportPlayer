@@ -269,7 +269,7 @@ class CrossfadeMixin(MainWindowHost):
         xf.state = "fading"
         xf.t0 = time.monotonic()
         # The level it plays at already: the tail goes on without a step.
-        self._mix.tail_gain = self._mix.gain * self._mix.fade
+        self._mix.tail_gain = self._mix.gain * self._mix.fade * self._mix.fade_in
         self._swap_decks()
         if jump is not None:
             table, row, path = jump

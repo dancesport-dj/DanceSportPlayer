@@ -346,8 +346,7 @@ class RemoteMixin(MainWindowHost):
         elif cmd == "announce":
             # 🔈 The play panel's own switch: remembered, and its options
             # follow, exactly as when it is flipped on the desk.
-            chk = self._play_panel.announce_check
-            chk.setChecked(not chk.isChecked())
+            self._play_panel.announce_check.click()
         elif cmd == "advance":
             # click(), as on the desk: ✋ Manual takes the announcement along.
             self._play_panel.advance_check.click()
@@ -364,7 +363,13 @@ class RemoteMixin(MainWindowHost):
         elif cmd == "pad":
             keys = self._remote_pad_keys
             if self._cartwall is not None and isinstance(arg, int) and 0 <= arg < len(keys):
-                self._cartwall.play_pad(keys[arg])
+                page, row, col = keys[arg]
+                pages = self._cartwall.pages()
+                # The index is from the last publish (up to a second old): a
+                # page flipped or a pad removed since must not fire another one.
+                if (page == self._cartwall.current_page() and 0 <= page < len(pages)
+                        and (row, col) in pages[page].pads):
+                    self._cartwall.play_pad(keys[arg])
         self._publish_remote()
 
     def _play_upcoming(self, index: int, title: str):

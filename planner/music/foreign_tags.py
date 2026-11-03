@@ -21,6 +21,8 @@ MusicBee and MediaMonkey RATING=0–100, Picard and Amarok FMPS_RATING=0.0–1.0
 (an M4A carries the same names as free-form atoms). Each is read as the
 Windows POPM frame an MP3 would carry for the same stars.
 """
+import math
+
 from mutagen._vorbis import VCommentDict
 from mutagen.apev2 import APETextValue, APEv2
 from mutagen.id3 import COMM, ID3, POPM, TALB, TBPM, TCON, TDRC, TIT2, TPE1, TXXX
@@ -30,6 +32,9 @@ from mutagen.mp4 import MP4Tags
 _VORBIS = {"title": TIT2, "artist": TPE1, "album": TALB, "genre": TCON,
            "bpm": TBPM, "tempo": TBPM, "date": TDRC, "year": TDRC}
 _VORBIS_COMMENT = ("comment", "description")
+# Embedded cover fields (lower-case): FLAC and Ogg keep the picture as base64 text,
+# which as a TXXX would be hundreds of KB of nonsense in the tag editor.
+_PICTURE = ("metadata_block_picture", "coverart", "coverartmime")
 # Rating field names (lower-case), Vorbis or M4A free-form.
 _RATING = ("rating", "fmps_rating")
 
@@ -83,7 +88,7 @@ def _stars(name: str, text: str) -> int | None:
         value = float(text)
     except ValueError:
         return None
-    if value <= 0:
+    if not math.isfinite(value) or value <= 0:     # float() reads "nan" and "inf"
         return None
     if name.lower() == "fmps_rating":
         value *= 5
@@ -108,6 +113,8 @@ def _named(fields: list) -> list:
     out = []
     for name, values in fields:
         k = name.lower()
+        if k in _PICTURE:
+            continue
         frame = (POPM if k in _RATING else
                  _VORBIS.get(k, COMM if k in _VORBIS_COMMENT else TXXX))
         out.append((name, frame, values))

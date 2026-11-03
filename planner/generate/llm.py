@@ -80,6 +80,10 @@ _PAIRS_MIN_SHARED = 2
 # How much of a per-pick reason is kept. Long enough for a real sentence, short
 # enough that a model that decides to write an essay cannot flood the window.
 _WHY_MAX = 200
+# Labels a model names a round, a variant or a dance by: short words, so the
+# same cut applies and a hostile answer cannot carry megabytes along.
+_LABEL_MAX = 40
+_DANCE_MAX = 8
 
 
 # From how many plays a track counts as "proven" in the summary (the same
@@ -389,6 +393,10 @@ def _sem_of(entry) -> int:
     return int(getattr(entry, "semi_plays", 0) or 0)
 
 
+MARKER_MAX = 40     # characters of one free comment marker in the prompt
+MARKERS_MAX = 8     # markers of one track in the prompt
+
+
 def entry_tags(entry) -> str:
     """The whole COMM comment in one cell: 'B,A,S+instr;vocal_f;classic'.
 
@@ -399,8 +407,10 @@ def entry_tags(entry) -> str:
     out = ",".join(parts) if parts else "*"
     if getattr(entry, "is_instrumental", False):
         out += "+instr"
-    for marker in (getattr(entry, "comment_tags", None) or []):
-        out += ";" + marker
+    # The markers come from the music file's own comment: keep each one a short
+    # single-line word so it cannot grow the prompt or start a row of its own.
+    for marker in (getattr(entry, "comment_tags", None) or [])[:MARKERS_MAX]:
+        out += ";" + " ".join(str(marker).replace("|", "/").split())[:MARKER_MAX]
     return out
 
 
@@ -605,8 +615,9 @@ Query keys — "dance" is the only one you must give:
            first), "random"
   limit    rows for this query, at most {_QUERY_MAX} (default {_QUERY_LIMIT})
 
-You get ONE search round and at most {_ROWS_MAX} rows over all queries
-together, so spend them well: ask per dance, and pair a proven query with a
+You get ONE search round of at most {_QUERIES_MAX} queries (any beyond that
+are dropped) and at most {_ROWS_MAX} rows over all queries together, so spend
+them well: ask per dance, and pair a proven query with a
 fresh or random one wherever you want room to surprise. You cannot pick a
 track you did not ask to see.
 """
@@ -821,9 +832,24 @@ def build_search_prompt(rules: str, task: str, summary: str) -> tuple[str, str]:
     return system, user
 
 
+# The class tags say which classes a track is cleared for. A tag that names only
+# the higher classes was written for this level; one that also carries D and C
+# is a title the lower classes dance well to and this one only tolerably. Past
+# plays at this level overrule the tag: somebody put that track in a real B/A/S
+# list on purpose. Sent for the B, A and S classes only.
+COMPETITION_PROMPT = """This is a higher-class event (B, A or S): prefer tracks whose tags name only the
+higher classes (no D, no C) — the "focus" query key finds exactly those. Avoid
+the ones tagged D or C as well unless their pop count says they have been
+played at this level before; those were chosen deliberately and are fine.
+"""
+
+
 def competition_task(style: str, age: str, dance_class: str,
-                     dances: list[str], rounds, brief: str) -> str:
-    """The 'what to build' half for a competition: rounds, heats, dances."""
+                     dances: list[str], rounds, brief: str,
+                     prompt: str = "") -> str:
+    """The 'what to build' half for a competition: rounds, heats, dances.
+
+    `prompt` is the user's edit of COMPETITION_PROMPT; empty means the shipped one."""
     lines = [f"Build the music for a {age} {dance_class}-class {style} competition.",
              "Rounds and how many songs of EVERY dance each one needs:"]
     lines.extend(f"  • {rc.name}: {rc.heats} heat(s) × "
@@ -837,78 +863,74 @@ def competition_task(style: str, age: str, dance_class: str,
     if note:
         lines.append(note)
     if dance_class in HIGHER_CLASSES:
-        # The tags column says which classes a track is cleared for. A tag that
-        # names only the higher classes was written for this level; one that
-        # also carries D and C is a title the lower classes dance well to and
-        # this one only tolerably. Past plays at this level overrule the tag:
-        # somebody put that track in a real B/A/S list on purpose.
-        lines.append(
-            f"This is a {dance_class}-class event: prefer tracks whose tags name"
-            " only the higher classes (no D, no C) — the \"focus\" query key"
-            " finds exactly those. Avoid the ones tagged D or C as well unless"
-            " their pop count says they have been played at this level before;"
-            " those were chosen deliberately and are fine.")
+        lines.append(prompt.strip() or COMPETITION_PROMPT.strip())
     if brief.strip():
         lines.append(f"\nExtra wishes for this event: {brief.strip()}")
     return "\n".join(lines)
 
 
-def wish_task(wishes: str, brief: str = "") -> str:
+# What a wish list is, in the user's reach: how the sheet is to be read and when
+# a wish may be answered with something else. The search steps below it are
+# mechanics (they name query keys the code understands), so they stay fixed.
+WISH_PROMPT = """The playlist IS the wish list: one track per wish and NOTHING else. Do not add a
+track to round the list out, to balance the dances, to fill a heat or to make
+it flow better — four wishes are a playlist of four tracks. The rules you were
+given say how to choose between the candidates for a wish; in this mode they
+never add one of their own.
+
+They are written the way the user found it easiest: one wish per line, a
+sentence describing what should be in the list, a whole sheet pasted in with a
+column per dance, or any mixture of those. Read them the way a colleague handed
+the same note would, and do not expect a fixed layout.
+
+What to look out for:
+  • A two-letter code beside a title names its dance, and in a table it can
+    stand in the header row for the whole column (lw = Slow Waltz /
+    Langsamer Walzer, t / ta = Tango, ww = Viennese Waltz / Wiener Walzer,
+    sf = Slowfox, qs = Quickstep, sb / sa = Samba, cc = Cha Cha,
+    rb / ru = Rumba, pd = Paso Doble, ji = Jive).
+  • The titles are SHORTENED and often misspelt — 'melacol?a lw' is the Slow
+    Waltz called Melancolía. Work out what was meant.
+  • ! or !! after a title marks one the user especially wants. Those must be in
+    the list; if one cannot be found at all, say so in "notes".
+  • A wish with no dance code takes the dance of its column, or of the sentence
+    it stands in. If nothing says, the track itself does.
+  • Anything that is not a title is an instruction about the list — follow it.
+
+Where a wish NAMES a track, pick the ONE catalog row that really is it. A track
+that merely sounds similar is not what was asked for — if a named wish is not
+in the library, leave it out and say so in "notes" instead of filling the gap
+with something else. Where a wish only DESCRIBES what is wanted, the choice is
+yours; say in "why" which wish that pick answers. Either way it stays one track
+per wish, and the playlist ends where the wishes end.
+"""
+
+# How the lookup is done: the query keys here are the ones run_queries reads.
+_WISH_SEARCH = (
+    'Use the "search" query key in step 1 to look each wished title up — a '
+    "short, distinctive part of the title (no accents, no punctuation) finds "
+    'it, and "dance" narrows it to the right dance. Ask for the wishes you are '
+    "least sure about with a wider search rather than a narrower one.\n\n"
+    'ONE query per wish, and put "limit": 8 on each of them. The row budget is '
+    "shared: at 60 rows a wish the later wishes get nothing back, and a wish "
+    "you never saw is a wish you cannot pick.")
+
+
+def wish_task(wishes: str, brief: str = "", prompt: str = "") -> str:
     """The 'what to build' half for a list of titles the user pasted.
 
     The wishes come off a sheet of paper, not out of a database: shortened,
     mistyped, sometimes only half a title, with the dance in a code next to it
     and the important ones marked with an exclamation mark. The model's job is
-    the lookup — find the library track each line means — and then the order."""
+    the lookup — find the library track each line means — and then the order.
+    `prompt` is the user's edit of WISH_PROMPT; empty means the shipped one."""
     lines = [
         "Build ONE flat playlist out of the wishes below, in the order they "
         "are written.",
         "",
-        "The playlist IS the wish list: one track per wish and NOTHING else. "
-        "Do not add a track to round the list out, to balance the dances, to "
-        "fill a heat or to make it flow better — four wishes are a playlist of "
-        "four tracks. The rules you were given say how to choose between the "
-        "candidates for a wish; in this mode they never add one of their own.",
+        prompt.strip() or WISH_PROMPT.strip(),
         "",
-        "They are written the way the user found it easiest: one wish per "
-        "line, a sentence describing what should be in the list, a whole "
-        "sheet pasted in with a column per dance, or any mixture of those. "
-        "Read them the way a colleague handed the same note would, and do not "
-        "expect a fixed layout.",
-        "",
-        "What to look out for:",
-        "  • A two-letter code beside a title names its dance, and in a table "
-        "it can stand in the header row for the whole column "
-        "(lw = Slow Waltz / Langsamer Walzer, t / ta = Tango, ww = Viennese "
-        "Waltz / Wiener Walzer, sf = Slowfox, qs = Quickstep, sb / sa = Samba, "
-        "cc = Cha Cha, rb / ru = Rumba, pd = Paso Doble, ji = Jive).",
-        "  • The titles are SHORTENED and often misspelt — 'melacol?a lw' is "
-        "the Slow Waltz called Melancolía. Work out what was meant.",
-        "  • ! or !! after a title marks one the user especially wants. Those "
-        "must be in the list; if one cannot be found at all, say so in "
-        '"notes".',
-        "  • A wish with no dance code takes the dance of its column, or of "
-        "the sentence it stands in. If nothing says, the track itself does.",
-        "  • Anything that is not a title is an instruction about the list — "
-        "follow it.",
-        "",
-        "Use the \"search\" query key in step 1 to look each wished title up — "
-        "a short, distinctive part of the title (no accents, no punctuation) "
-        "finds it, and \"dance\" narrows it to the right dance. Ask for the "
-        "wishes you are least sure about with a wider search rather than a "
-        "narrower one.",
-        "",
-        "ONE query per wish, and put \"limit\": 8 on each of them. The row "
-        "budget is shared: at 60 rows a wish the later wishes get nothing "
-        "back, and a wish you never saw is a wish you cannot pick.",
-        "",
-        "Where a wish NAMES a track, pick the ONE catalog row that really is "
-        "it. A track that merely sounds similar is not what was asked for — if "
-        "a named wish is not in the library, leave it out and say so in "
-        "\"notes\" instead of filling the gap with something else. Where a "
-        "wish only DESCRIBES what is wanted, the choice is yours; say in "
-        "\"why\" which wish that pick answers. Either way it stays one track "
-        "per wish, and the playlist ends where the wishes end.",
+        _WISH_SEARCH,
         "",
         "The wishes:",
         wishes.strip(),
@@ -916,6 +938,8 @@ def wish_task(wishes: str, brief: str = "") -> str:
     if brief.strip():
         lines.append(f"\nWhat this list is for: {brief.strip()}")
     return "\n".join(lines)
+
+
 
 
 # How many titles the model may swap per variant and competition. The drafts
@@ -1013,9 +1037,42 @@ def build_event_prompt(rules: str, task: str, catalog: str) -> tuple[str, str]:
     return system, user
 
 
-def flat_task(count: int, brief: str) -> str:
+# What a flat list is for. The rules are written for a competition, so each kind
+# says first that their rounds and finals do not apply here.
+FLAT_PROMPTS = {
+    "party": """\
+This is a party list, not a competition: whatever the rules say about rounds,
+heats and finals does not apply. People dance for fun and the floor has to stay
+full.
+• Prefer titles people know and like: a high "pop" count, well-known songs and
+  recordings. The strongest tracks are welcome anywhere, not saved for the end.
+• Mix the dances: Standard, Latin and social dances such as Discofox or Salsa
+  when the catalogue has them. Never more than three tracks of one dance in a
+  row, and every couple should get something to dance soon.
+• Keep the energy up, with a quieter track now and then so people can breathe.
+  Start friendly and let the end of the list be the high point.
+""",
+    "warmup": """\
+This is a warm-up list, not a competition: whatever the rules say about rounds,
+heats and finals does not apply. Couples warm up on the floor before their
+competition starts, so it has to feel like training and be easy to dance to.
+• Competition dances only, drawn in rounds of three dances, taking turns
+  between Standard (LW, TG, WW, SF, QS) and Latin (SA, CC, RB, PD, JI), so that
+  every dance comes up regularly.
+• Steady, moderate tempos from the middle of the TSO range. A clear beat matters
+  more than a famous song. A title tagged "eintanzen" is meant for this.
+• Keep the energy even, with no build-up and no climax.
+• Leave the strongest tracks to the competition: prefer titles with no "fin" or
+  "sem" count over the ones a final really used.
+""",
+}
+
+
+def flat_task(count: int, brief: str, kind: str, prompt: str = "") -> str:
+    """`prompt` is the user's edit of the kind's prompt; empty means the shipped one."""
     lines = [f"Build ONE flat playlist of about {count} tracks, in playing order.",
-             "No rounds, no heats — just the order they get played in."]
+             "No rounds, no heats — just the order they get played in.",
+             "", (prompt.strip() or FLAT_PROMPTS[kind].strip())]
     if brief.strip():
         lines.append(f"\nWhat this list is for: {brief.strip()}")
     return "\n".join(lines)
@@ -1087,7 +1144,7 @@ def parse_reply(text: str) -> dict:
         heat = item.get("heat")
         out.append({
             "n": n,
-            "round": str(item.get("round") or ""),
+            "round": str(item.get("round") or "")[:_LABEL_MAX],
             "heat": int(heat) if isinstance(heat, (int, str)) and str(heat).isdigit() else 0,
             # Free text from a model: kept short, and never parsed for anything.
             "why": " ".join(str(item.get("why") or "").split())[:_WHY_MAX],
@@ -1120,15 +1177,15 @@ def parse_swaps(text: str) -> dict:
         except (KeyError, TypeError, ValueError):
             continue
         swaps.append({
-            "variant": str(item.get("variant") or ""),
-            "round": str(item.get("round") or ""),
+            "variant": str(item.get("variant") or "")[:_LABEL_MAX],
+            "round": str(item.get("round") or "")[:_LABEL_MAX],
             "heat": heat,
-            "dance": str(item.get("dance") or "").upper(),
+            "dance": str(item.get("dance") or "").upper()[:_DANCE_MAX],
             "n": n,
             "why": " ".join(str(item.get("why") or "").split())[:_WHY_MAX],
         })
     notes = payload.get("notes")
-    notes = ({str(k): " ".join(str(v).split())[:_WHY_MAX * 2]
+    notes = ({str(k)[:_LABEL_MAX]: " ".join(str(v).split())[:_WHY_MAX * 2]
               for k, v in notes.items()} if isinstance(notes, dict) else {})
     return {"swaps": swaps, "notes": notes}
 
@@ -1291,7 +1348,11 @@ def _try_backend(call: Callable[[], str], label: str, *, on_step=None, sleep=tim
     Every attempt but the last is followed by a transcript note, so a run that
     is quietly waiting out a 529 does not look like a run that has hung. A
     stop cuts the wait short, and an answer that lands after it is dropped.
+
+    A model that went silent is asked once more at once: that is a stuck request
+    more often than a busy host. Silent twice, it is the other backend's turn.
     """
+    stalled = False
     for attempt, wait in enumerate(_RETRY_WAITS + (None,), start=1):
         _raise_if_cancelled(cancel)
         try:
@@ -1299,6 +1360,13 @@ def _try_backend(call: Callable[[], str], label: str, *, on_step=None, sleep=tim
             _raise_if_cancelled(cancel)
             return answer
         except Exception as exc:
+            if isinstance(exc, ai.NoOutput) and not stalled:
+                stalled = True
+                log.warning("🤖 %s went silent, asking once more\n"
+                            "error: %s", label, exc)
+                _step(on_step, "note", f"⏳ {label} — no output",
+                      f"{exc}\n\nAsking once more.")
+                continue
             if wait is None or not is_transient(exc):
                 raise
             log.warning("🤖 %s wobbled, asking again in %ds\n"
@@ -1320,41 +1388,40 @@ def _ask(system: str, user: str, *, model: str, config_dir: str,
          cancel=None) -> tuple[str, str]:
     """One question, whichever backend answers it. Returns (text, backend).
 
-    Tier 1 is `claude -p`; anything that goes wrong there — CLI missing, login
-    expired, a timeout — falls through to the OpenAI-compatible backend (that is
-    OpenRouter unless the config names another host). Each tier gets the retries
-    above first, so a passing 529 costs a wait, not the fallback. Only when BOTH
-    fail does this raise, and the message then names both failures.
+    Tier 1 is `claude -p`, unless ⚙ Settings → 🤖 AI puts the chosen model first;
+    anything that goes wrong there — CLI missing, login expired, a timeout —
+    falls through to the other one. The OpenAI-compatible backend is OpenRouter
+    unless the config names another host. Each tier gets the retries above
+    first, so a passing 529 costs a wait, not the fallback. Only when BOTH fail
+    does this raise, and the message then names both failures.
     """
-    failures = []
-    try:
-        raw = _try_backend(
-            lambda: call_claude_cli(system + "\n\n" + user, model=model,
-                                    timeout=timeout, config_dir=config_dir,
-                                    cancel=cancel),
-            "claude -p", on_step=on_step, sleep=sleep, cancel=cancel)
-        return raw, f"claude -p ({model})"
-    except Cancelled:
-        raise
-    except Exception as exc:
-        log.warning("🤖 claude -p failed: %s", exc)
-        failures.append(f"claude -p — {exc}")
-
     cfg = ai.load_openrouter_config()
     base = cfg.get("base_url", "")
     host = ai.api_host(base)
-    try:
-        raw = _try_backend(
-            lambda: ai.openrouter_chat(cfg["api_key"], cfg["model"],
-                                               system, user, timeout=timeout,
-                                               base_url=base, cancel=cancel),
-            host, on_step=on_step, sleep=sleep, cancel=cancel)
-        return raw, f"{host} ({cfg['model']})"
-    except Cancelled:
-        raise
-    except Exception as exc:
-        log.warning("🤖 %s failed: %s", host, exc)
-        failures.append(f"{host} — {exc}")
+
+    def by_cli() -> str:
+        return call_claude_cli(system + "\n\n" + user, model=model, timeout=timeout,
+                               config_dir=config_dir, cancel=cancel)
+
+    def by_host() -> str:
+        return ai.openrouter_chat(cfg["api_key"], cfg["model"], system, user,
+                                  timeout=timeout, base_url=base, cancel=cancel)
+
+    tiers = [("claude -p", by_cli, f"claude -p ({model})"),
+             (host, by_host, f"{host} ({cfg['model']})")]
+    if cfg.get("ask_first"):
+        tiers.reverse()
+
+    failures = []
+    for label, call, backend in tiers:
+        try:
+            return _try_backend(call, label, on_step=on_step, sleep=sleep,
+                                cancel=cancel), backend
+        except Cancelled:
+            raise
+        except Exception as exc:
+            log.warning("🤖 %s failed: %s", label, exc)
+            failures.append(f"{label} — {exc}")
 
     raise RuntimeError("Both backends failed.\n\n" + "\n\n".join(failures))
 

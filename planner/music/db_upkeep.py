@@ -339,7 +339,9 @@ def db_maintenance() -> dict:
     total = conn.execute("SELECT COUNT(*) FROM files").fetchone()[0]
     missing = sum(1 for (p,) in conn.execute("SELECT path FROM files")
                   if not Path(p).exists())
-    if total and missing > max(100, total // 2):
+    # Floor of 5, not 100: re-analysing a handful of files is cheap, but a small
+    # library on an unplugged drive must not be wiped just for being small.
+    if total and missing > max(5, total // 2):
         raise RuntimeError(
             f"{missing:,} of {total:,} registered files are missing — is the music "
             "drive mounted? Cleanup aborted so the cached analysis isn't wiped.")

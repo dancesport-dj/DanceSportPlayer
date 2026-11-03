@@ -822,4 +822,5 @@ class TableLoadMixin(PlaylistTableHost):
             lay.setContentsMargins(0, 0, 0, 0)
             lay.addWidget(btn, 0, Qt.AlignmentFlag.AlignCenter)
             self.setCellWidget(row, COL_REGEN, holder)
+        self._span_header(row, first)
         self.setRowHeight(row, 22)

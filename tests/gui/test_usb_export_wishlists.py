@@ -50,15 +50,17 @@ class DialogTest(unittest.TestCase):
         dlg._cb_wish.setChecked(True)
         self.assertTrue(dlg.include_wishlists())
 
-    def test_dropped_files_and_the_venue_pack_take_no_wishlist(self):
-        """Dragged-in files are the bundle exactly; the venue pack carries
-        every wishlist anyway."""
+    def test_it_goes_with_dragged_in_files_too(self):
         dlg = self.dialog(n_decks=2, n_wish=1)
         dlg._cb_wish.setChecked(True)
-        for rb in (dlg._rb_dropped, dlg._rb_venue):
-            rb.setChecked(True)
-            self.assertFalse(dlg._cb_wish.isEnabled())
-            self.assertFalse(dlg.include_wishlists())
+        dlg._cb_dropped.setChecked(True)
+        self.assertTrue(dlg.include_wishlists())
+
+    def test_it_is_enough_on_its_own(self):
+        dlg = self.dialog(n_wish=1)
+        self.assertFalse(dlg._ok.isEnabled())
+        dlg._cb_wish.setChecked(True)
+        self.assertTrue(dlg._ok.isEnabled())
 
 
 class ExportTest(unittest.TestCase):
@@ -67,7 +69,7 @@ class ExportTest(unittest.TestCase):
         host._deckset.decks = []
         host._deckset.day_decks = []
         host._deckset.wishlists = wishes
-        host._grid.deck_tabs.currentIndex.return_value = 0
+        host._deckset.warmup_table._row_meta.entries.return_value = []
         host._bundle_jobs_for_decks.return_value = ([], [])
         host._pick_bundle_dir.return_value = (Path("E:/Gala"), True)
         host.deck.side_effect = lambda t: t.deck
@@ -83,8 +85,12 @@ class ExportTest(unittest.TestCase):
     def run_export(self, host, include):
         ask = mock.Mock()
         ask.exec.return_value = QDialog.DialogCode.Accepted
-        ask.mode.return_value = "all"
+        ask.venue_pack.return_value = False
+        ask.include_decks.return_value = True
+        ask.include_day.return_value = True
+        ask.include_party.return_value = False
         ask.include_wishlists.return_value = include
+        ask.dropped_paths.return_value = []
         with mock.patch.object(main_export, "UsbExportDialog",
                                return_value=ask) as dlg_cls:
             main_export.ExportMixin._export_bundle(host)

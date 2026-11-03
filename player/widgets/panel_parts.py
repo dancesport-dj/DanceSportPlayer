@@ -7,6 +7,7 @@ Split off player/widgets/play_mode_panel.py, which keeps the panel itself.
 from PySide6.QtCore import (
     Property,
     QEasingCurve,
+    QEvent,
     QPoint,
     QPropertyAnimation,
     QRect,
@@ -15,12 +16,15 @@ from PySide6.QtCore import (
     Qt,
     Signal,
 )
-from PySide6.QtGui import QColor, QFontMetrics, QPainter, QPen
+from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen
 from PySide6.QtWidgets import (
     QAbstractButton,
+    QComboBox,
     QHBoxLayout,
+    QLabel,
     QLayout,
     QLineEdit,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -294,6 +298,110 @@ class Toggle(QAbstractButton):
         pt.drawText(QRectF(self.text_left(), 0, room, self.height()),
                     Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
                     fm.elidedText(self.text(), Qt.TextElideMode.ElideRight, room))
+
+
+class FitLabel(QLabel):
+    """A one-line label that never wraps. It fits its text in three steps:
+    1. at the normal size, indented under its switch (`setIndent`);
+    2. else at the normal size over the whole width, centred;
+    3. else over the whole width, centred, the font shrinking in 0.5 pt
+       steps (down to MIN_PT)."""
+
+    MIN_PT = 6.0
+
+    def __init__(self, text: str = "", parent=None):
+        super().__init__(text, parent)
+        self._base_pt = self.font().pointSizeF()
+        self._indent = 0
+        self.setWordWrap(False)
+        # Never ask the column for more width than it has: the text yields.
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+
+    def setIndent(self, px: int) -> None:
+        self._indent = int(px)
+        self._fit()
+
+    def setText(self, text: str) -> None:
+        super().setText(text)
+        self._fit()
+
+    def minimumSizeHint(self) -> QSize:
+        return QSize(0, super().minimumSizeHint().height())
+
+    def resizeEvent(self, ev) -> None:
+        super().resizeEvent(ev)
+        self._fit()
+
+    def _need(self, pt: float) -> int:
+        m = QFont(self.font())
+        m.setPointSizeF(pt)
+        m.setBold(True)   # the caption's stylesheet is bold: measure that
+        return QFontMetrics(m).horizontalAdvance(self.text())
+
+    def _fit(self) -> None:
+        if self._base_pt <= 0 or self.width() <= 0:
+            return
+        full = self.width()
+        pt = self._base_pt
+        if self._need(pt) <= full - self._indent:
+            indent, align = self._indent, Qt.AlignmentFlag.AlignLeft
+        else:
+            indent, align = 0, Qt.AlignmentFlag.AlignHCenter
+            while self._need(pt) > full and pt > self.MIN_PT:
+                pt -= 0.5
+        align |= Qt.AlignmentFlag.AlignVCenter
+        if self.contentsMargins().left() != indent:
+            self.setContentsMargins(indent, 0, 0, 0)
+        if self.alignment() != align:
+            self.setAlignment(align)
+        f = self.font()
+        if f.pointSizeF() != pt:
+            f.setPointSizeF(pt)
+            self.setFont(f)
+
+
+class RefreshingCombo(QComboBox):
+    """A combo that says when its list is about to open, so that the list can
+    be brought up to date first. A double click on its text opens it for
+    typing a value that is not on the list; Enter or leaving it says `typed`."""
+
+    opening = Signal()
+    typed = Signal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setEditable(True)
+        self.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        edit = self.lineEdit()
+        assert edit is not None
+        edit.setReadOnly(True)          # a plain pick-list until double-clicked
+        edit.installEventFilter(self)
+        edit.editingFinished.connect(self._endTyping)
+
+    def eventFilter(self, obj, event):
+        if obj is self.lineEdit() and event.type() == QEvent.Type.MouseButtonDblClick:
+            self.beginTyping()
+            return True
+        return super().eventFilter(obj, event)
+
+    def beginTyping(self):
+        edit = self.lineEdit()
+        assert edit is not None
+        edit.setReadOnly(False)
+        edit.setFocus()
+        edit.selectAll()
+
+    def _endTyping(self):
+        edit = self.lineEdit()
+        assert edit is not None
+        if edit.isReadOnly():
+            return          # editingFinished comes again on the focus-out
+        edit.setReadOnly(True)
+        self.typed.emit(edit.text())
+
+    def showPopup(self):
+        self.opening.emit()
+        super().showPopup()
 
 
 class InlineEdit(QLineEdit):

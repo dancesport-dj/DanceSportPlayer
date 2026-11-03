@@ -1,6 +1,7 @@
 """📜 Played titles: the evenings in the play log, each one's titles, and a CSV
 of an evening for a music report (GEMA and the like). See planner.playing.play_log."""
 import logging
+import sqlite3
 from pathlib import Path
 
 from PySide6.QtCore import Qt
@@ -23,10 +24,16 @@ from PySide6.QtWidgets import (
 
 from planner import i18n
 from planner.playing import play_log
+from planner.store import JsonStore
 from planner.terms import dance_name
 from shared.widgets import app_icon
 
 log = logging.getLogger("dancesport.gui.play_log")
+
+# One long cell (a composer list of a hundred characters) must not size its whole
+# column: a column fits its content up to this, longer text is cut and shows whole
+# in the tooltip.
+MAX_COLUMN_WIDTH = 240
 
 EMPTY_HINT = ("Nothing has been played yet. A title is logged in playing mode\n"
               "once it has run for 10 seconds, the moment its row greys out.")
@@ -53,11 +60,17 @@ class PlayLogDialog(QDialog):
         self.plays_table.verticalHeader().setVisible(False)
         self.plays_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.plays_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        # Draggable columns, sized to their content once (in _show_evening) —
-        # after that the widths are the operator's, whichever evening is shown.
-        self.plays_table.horizontalHeader().setSectionResizeMode(
-            QHeaderView.ResizeMode.Interactive)
-        self._sized = False
+        # Draggable columns. A column the operator dragged keeps that width (also
+        # the next time the dialog opens); every other one fits the evening shown.
+        head = self.plays_table.horizontalHeader()
+        head.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        self._store = JsonStore("play_log_dialog.json")
+        saved = self._store.read({})
+        self._dragged = {int(c): int(w) for c, w in
+                         (saved.get("widths") or {}).items() if str(c).isdigit()}
+        self._fitting = False
+        self._tracking = False
+        head.sectionResized.connect(self._on_section_resized)
         split.addWidget(self.plays_table)
         split.setSizes([260, 640])
         lay.addWidget(split, 1)
@@ -111,25 +124,45 @@ class PlayLogDialog(QDialog):
                      dance_name(p.dance, p.dance) or "", p.list_name,
                      f"{s // 60}:{s % 60:02d}")
             for c, text in enumerate(cells):
-                self.plays_table.setItem(r, c, QTableWidgetItem(text))
-        if plays and not self._sized and self.isVisible():
+                item = QTableWidgetItem(text)
+                item.setToolTip(text)
+                self.plays_table.setItem(r, c, item)
+        if plays and self.isVisible():
             self._fit_columns()
 
     def showEvent(self, event):
         super().showEvent(event)
-        if not self._sized and self.plays_table.rowCount():
+        if self.plays_table.rowCount():
             self._fit_columns()
 
+    def hideEvent(self, event):
+        super().hideEvent(event)
+        if self._tracking:
+            self._store.write({"widths": {str(c): w for c, w in self._dragged.items()}})
+
+    def _on_section_resized(self, column, _old, new):
+        if self._tracking and not self._fitting:
+            self._dragged[column] = new
+
     def _fit_columns(self):
-        """Content widths, and the room left over to the title (it used to
-        stretch) — once; after that the widths are the operator's."""
+        """Every column the operator did not drag fits its content up to
+        MAX_COLUMN_WIDTH; the room left over goes to the title (it used to stretch)."""
         table = self.plays_table
-        table.resizeColumnsToContents()
         head = table.horizontalHeader()
-        spare = table.viewport().width() - head.length()
-        if spare > 0:
-            head.resizeSection(2, head.sectionSize(2) + spare)
-        self._sized = True
+        self._fitting = True
+        try:
+            table.resizeColumnsToContents()
+            for c in range(table.columnCount()):
+                if c in self._dragged:
+                    head.resizeSection(c, self._dragged[c])
+                elif head.sectionSize(c) > MAX_COLUMN_WIDTH:
+                    head.resizeSection(c, MAX_COLUMN_WIDTH)
+            spare = table.viewport().width() - head.length()
+            if spare > 0 and 2 not in self._dragged:
+                head.resizeSection(2, head.sectionSize(2) + spare)
+        finally:
+            self._fitting = False
+        self._tracking = True
 
     def _save_csv(self):
         evening = self._current()
@@ -163,7 +196,15 @@ class PlayLogDialog(QDialog):
             % (f"{evening.start:%d.%m.%Y}", evening.count))
         if answer != QMessageBox.StandardButton.Yes:
             return
-        play_log.delete(evening)
+        try:
+            play_log.delete(evening)
+        except sqlite3.Error as exc:
+            log.warning("📜 Evening not deleted from the play log\n"
+                        "evening: %s\n"
+                        "error: %s", evening.start, exc)
+            QMessageBox.warning(self, "Delete evening",
+                                i18n.t("Could not delete the evening:") + "\n\n" + str(exc))
+            return
         log.info("🗑 Evening deleted from the play log\n"
                  "evening: %s\n"
                  "titles: %d", evening.start, evening.count)

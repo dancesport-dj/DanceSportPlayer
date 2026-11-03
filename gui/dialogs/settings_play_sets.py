@@ -331,7 +331,7 @@ class PlaySetsTabMixin(_DialogHost):
                 ("advance", "⏭  Auto-advance to next song", ""),
                 ("pause_off", "⏸  No pause between songs", ""),
                 ("announce", "🔈  Announce next dance", ""),
-                ("loudness", "🔊  Equalize volume (R128)", ""),
+                ("loudness", "🔊  Equalize volume", ""),
                 ("dblclick", "▶️  Double-click starts the title",
                  "On: a double-click in a deck plays the title at once.\n"
                  "Off: it is only cued on the player (loaded, shown,\n"
@@ -353,6 +353,10 @@ class PlaySetsTabMixin(_DialogHost):
                 chk.setToolTip(rules_name(i18n.t(tip)))
             blyt.addWidget(chk)
             boxes[key] = chk
+        # 🔈 As on the play panel: the call needs no gap. Clicked, so a stored
+        # set with both on opens as it was saved.
+        boxes["announce"].clicked.connect(
+            lambda on: on and boxes["pause_off"].setChecked(True))
         return boxes
 
     def _add_dance_len_grid(self, blyt, settings):

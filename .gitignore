@@ -84,3 +84,7 @@ assets/hochzeit/
 # slop-mop working directory (machine-local state)
 .slopmop/
 relay/relay-state.json
+
+# Model review notes and fix TODOs (local working notes)
+REVIEW-*.md
+TODO-*.md

@@ -176,6 +176,31 @@ def _awake_windows(on: bool) -> bool:
     return True
 
 
+def power_status() -> tuple[bool, int | None] | None:
+    """🔋 (on mains, battery percent or None when it is not known); None where
+    nobody can tell: off Windows, or when Windows does not know itself. A
+    desktop has no battery and reports mains."""
+    if sys.platform != "win32":
+        return None
+    import ctypes
+
+    class SystemPowerStatus(ctypes.Structure):
+        _fields_ = [("ACLineStatus", ctypes.c_ubyte),
+                    ("BatteryFlag", ctypes.c_ubyte),
+                    ("BatteryLifePercent", ctypes.c_ubyte),
+                    ("SystemStatusFlag", ctypes.c_ubyte),
+                    ("BatteryLifeTime", ctypes.c_ulong),
+                    ("BatteryFullLifeTime", ctypes.c_ulong)]
+
+    status = SystemPowerStatus()
+    if not ctypes.windll.kernel32.GetSystemPowerStatus(ctypes.byref(status)):
+        return None
+    if status.ACLineStatus not in (0, 1):   # 255: unknown
+        return None
+    percent = status.BatteryLifePercent
+    return status.ACLineStatus == 1, None if percent == 255 else percent
+
+
 # The macOS helper process while the screen is held, None while it is not.
 _CAFFEINATE: subprocess.Popen | None = None
 

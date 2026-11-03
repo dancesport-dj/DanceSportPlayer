@@ -137,9 +137,11 @@ class SkipReprobesTest(unittest.TestCase):
 
     def test_a_measurement_already_running_for_it_is_kept(self):
         self.win._await_loudness(self.next, False)     # the pause's preload
-        self.assertFalse(self.win._await_loudness(self.next, True))
+        # Played now: the running probe is waited for (#84), not measured twice.
+        self.assertTrue(self.win._await_loudness(self.next, True))
         self.assertFalse(_Worker.started[0].cancelled)
         self.assertEqual(len(_Worker.started), 1)
+        self.win._lufs_pending = None   # or its timer fires into a torn-down window
 
 
 if __name__ == "__main__":

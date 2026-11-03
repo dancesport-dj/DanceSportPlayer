@@ -121,6 +121,23 @@ class EventCompareTest(EventFixture, unittest.TestCase):
         self.assertFalse(dlg._tabs.tabText(0).startswith("∅ "))
         self.assertNotIn("no list of this competition", notes(0))
 
+    def test_a_models_note_is_shown_as_text_not_as_markup(self):
+        """#32: the note is model output (or from a plan file), and the label
+        reads the whole line as rich text: an <img> of a local file or a
+        look-alike heading would show up in the window the day is decided in."""
+        dlg = self.open()
+        evil = '<img src="file:///C:/secret.png"><h1>ALL CLEAR</h1>'
+        dlg._result.variants["variety"][0].notes = evil
+        line = dlg._notes(0)
+        self.assertNotIn("<img", line)
+        self.assertNotIn("<h1>", line)
+        self.assertIn("&lt;img", line)
+        self.assertTrue(line.count("<b>") >= 1)        # its own heading stays
+
+    def test_the_status_line_is_plain_text(self):
+        dlg = self.open(limit="<img src='file:///C:/x.png'>")
+        self.assertEqual(dlg._status.textFormat(), Qt.TextFormat.PlainText)
+
     def test_without_a_list_of_its_own_the_reference_is_like_similar_competitions(self):
         """Marcel: if there is no list from last year, label it like similar
         competitions — the class lists fill it."""
@@ -760,6 +777,34 @@ class EventCompareTest(EventFixture, unittest.TestCase):
         dlg.set_busy(True)
         self.assertFalse(dlg.can_drop(0, (0, 0), (1, 1)))
         self.assertFalse(dlg.drop_slot(0, (0, 0), (1, 1)))
+
+    def test_a_forged_slot_is_no_slot(self):
+        """#70: -1 reached the last row through Python's negative indexing."""
+        dlg = self.open()
+        rows, cols = len(dlg._slots[0]), len(dlg._profiles)
+        for src, dst in (((-1, 0), (1, 1)), ((0, 0), (-1, 1)), ((rows, 0), (1, 1)),
+                         ((0, 0), (1, cols)), ((0, -1), (1, 1)), ((0, cols), (1, 1))):
+            with self.subTest(src=src, dst=dst):
+                self.assertFalse(dlg.can_drop(0, src, dst))
+                self.assertFalse(dlg.drop_slot(0, src, dst))
+
+    def test_a_drag_payload_that_is_not_three_numbers_goes_nowhere(self):
+        from PySide6.QtCore import QMimeData, QPointF
+
+        from gui.dialogs.event_compare import SLOT_MIME, _SlotTable
+        table = _SlotTable(2, 2, 0, can_drop=lambda src, dst: True)
+        for raw in (b"", b"1,2", b"a,b,c", b"0,1,2,3", b"\xff\xfe"):
+            mime = QMimeData()
+            mime.setData(SLOT_MIME, raw)
+
+            class Ev:
+                def mimeData(self, mime=mime):
+                    return mime
+
+                def position(self):
+                    return QPointF(1, 1)
+            with self.subTest(raw=raw):
+                self.assertIsNone(table._target(Ev()))
 
     def test_a_dragged_title_that_breaks_the_day_needs_a_yes(self):
         dlg = self.open()

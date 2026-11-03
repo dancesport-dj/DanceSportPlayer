@@ -108,7 +108,7 @@ class PartyListTest(_Base):
         return types.SimpleNamespace(
             _library=types.SimpleNamespace(
                 lib=types.SimpleNamespace(entries=[entry]), cache=None),
-            _remap_index=mock.Mock(side_effect=RuntimeError)), entry
+            _file_finder=lambda: None), entry
 
     def test_a_cp1252_party_list_resolves_to_the_library(self):
         from gui.window.main_generate import GenerateMixin

@@ -11,6 +11,10 @@ import tempfile
 # machine the suite runs on (see player.audio.system_sounds.default_backend).
 os.environ.setdefault("DANCEPLAYLIST_KEEP_SYSTEM_SOUNDS", "1")
 
+# No test may read or overwrite the real key in the OS credential store
+# (planner.secret_store); the one test of the store itself switches it back on.
+os.environ.setdefault("DANCEPLAYLIST_NO_SECRET_STORE", "1")
+
 # Every temp folder of this test process — the modules' mkdtemp scratch, Qt's
 # temp files, those of the processes it starts — lands in one root, removed when
 # the run ends. The modules never remove their own.

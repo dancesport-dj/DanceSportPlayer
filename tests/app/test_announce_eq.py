@@ -167,6 +167,14 @@ class LeadTest(_Stubbed):
         self.assertEqual(set(chains), {
             eq.chain("clear") + f",adelay={eq.announce._PREROLL_MS}:all=1"})
 
+    def test_an_unmeasured_clip_keeps_the_probe_chain(self):
+        """The probe clip carries the pre-roll, so a measured lead of 0 means the
+        probe said nothing: the clip is not given the pre-roll a second time."""
+        with mock.patch.object(eq, "lead_of", return_value=0):
+            eq.apply_voice("ffmpeg", self.folder, "clear")
+        self.assertEqual(self.filters[-1], eq.chain("clear")
+                         + f",adelay={eq.announce._PREROLL_MS}:all=1")
+
     def test_a_clip_with_the_lead_already_is_only_treated(self):
         self.assertEqual(self.treat(eq.announce._PREROLL_MS), eq.chain("clear"))
 
@@ -302,6 +310,12 @@ class NoteTest(_Stubbed):
         # only "which preset" - a preset can be retuned, a baked clip cannot.
         for f in eq.PRESETS["clear"]:
             self.assertIn(f, said)
+
+    def test_an_off_preset_note_still_says_the_pre_roll_was_applied(self):
+        eq.apply_voice("ffmpeg", self.folder, "off")
+        said = self.note().read_text(encoding="utf-8")
+        self.assertIn("pre-roll", said)
+        self.assertIn(f"{eq.announce._PREROLL_MS} ms", said)
 
     def test_treating_it_again_replaces_the_note(self):
         eq.apply_voice("ffmpeg", self.folder, "clear")

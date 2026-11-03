@@ -25,6 +25,22 @@ werden nur die Tags neuer und geänderter Dateien, ohne Audio-Analyse, und das
 im Hintergrund: Fortschritt, ⏸ Pause und ⏹ Stopp stehen in der Statusleiste,
 wie beim Scan beim Start.
 
+**📁 Ordner** im Kopf zeigt die Ordner neben der Tabelle. Wähle einen, und die
+Tabelle listet nur die Titel direkt in diesem Ordner, nicht die aus seinen
+Unterordnern. **📁 Alle Ordner** listet wieder alles, und der Knopf führt zurück
+zur einfachen Liste. In dieser Ansicht blendet **🆕 Ungeplant** die geplante
+Datei selbst aus. Dieselbe Musik in einem anderen Ordner bleibt stehen und
+bekommt ein **♊** vor dem Titel. Die einfache Liste blendet auch diese Kopien
+aus.
+
+Der Baum lässt eine reine Laufwerkszeile weg, die ersten Ordner stehen also
+ganz oben. Das Feld darüber, **Ordner suchen…**, behält nur die Ordner, deren
+Name deinen Text enthält, und die Ordner darüber. Der Trichter-Knopf daneben
+funktioniert wie der Filterknopf einer Tabellenkalkulation: Er öffnet ein Menü,
+in dem **Nach Größe sortieren** den Ordner mit den meisten Titeln nach oben
+setzt und **Nach Name sortieren** die Vorgabe ist. Der Knopf bleibt gedrückt,
+solange eine andere Wahl als die Vorgabe gilt. Ordner tragen ein Ordner-Symbol.
+
 ![Der Bibliotheksbrowser](../img/library.png)
 
 | Filter | Zeigt |
@@ -103,8 +119,7 @@ Wähl links einen Ordner, dann erscheinen rechts seine Wiedergabelisten als Slot
 Jeder Slot zeigt:
 
 - den Namen der Wiedergabeliste,
-- die Zahl der Titel (♪),
-- die Tänze,
+- die Zahl der Titel (♪) und die Tänze,
 - die Runden, die sie enthält (VR = Vorrunde, ZR = Zwischenrunde,
   ER = Endrunde).
 
@@ -120,28 +135,22 @@ Jeder Slot zeigt:
 
 **▤** schaltet auf die Titel-Ansicht. Der Baum listet jetzt die Wiedergabelisten
 selbst, und rechts stehen die Titel der gewählten Wiedergabeliste in
-Abspielreihenfolge, mit Runde und Tanz. Runden stehen kurz da, so wie die
-Slots sie schreiben (VR, 1ZR, ER). Fahr mit der Maus darüber für den vollen
-Namen.
+Abspielreihenfolge, mit Runde und Tanz. Runden stehen kurz da (VR, 1ZR, ER);
+fahr mit der Maus darüber für den vollen Namen.
 
 ![Der Reiter Turniere, Titel-Ansicht](../img/tournaments-tracks.png)
 
 - **▶** oder die **Leertaste** spielt einen Titel ab, auf dem 🎧 Vorhör-Ausgang,
-  wenn einer gewählt ist. Ein Doppelklick tut dasselbe wie in
-  der 📚 Bibliothek (siehe oben).
+  wenn einer gewählt ist. Ein Doppelklick tut dasselbe wie in der 📚 Bibliothek.
 - Zieh Titel auf ein Deck, den Party-Bereich oder eine Wunschliste.
-- Die Leiste darunter zeigt die Zahl der Titel und die gesamte Spielzeit.
-  Titel, die die Bibliothek nicht kennt, werden mitgezählt, bringen aber keine
-  Zeit mit.
-- **Titel** zeigt den Titel-Tag der MP3, oder den bereinigten Dateinamen,
-  wenn der Tag leer ist. Wie in der Bibliothek blendet ein **Rechtsklick auf
-  den Spaltenkopf** Spalten ein oder aus (Titel bleibt immer), und die
-  Spaltenköpfe lassen sich in eine andere Reihenfolge ziehen. **Dateiname**
-  und **Gespielt** sind anfangs ausgeblendet: Dateiname zeigt den bereinigten
-  Namen der Datei, mit dem vollen Pfad im Tooltip, und Gespielt zählt die
-  Wiedergaben der letzten 24 Stunden wie in der Bibliothek. Der Reiter merkt
-  sich die Spalten.
-
-**▦** schaltet zurück auf die Slots.
+- Die Leiste darunter zeigt Titelzahl und Spielzeit (unbekannte Titel zählen
+  mit, ohne Zeit).
+- **Titel** zeigt den Titel-Tag der MP3 (leer: der bereinigte Dateiname). Wie
+  in der Bibliothek blendet ein **Rechtsklick auf den Spaltenkopf** Spalten
+  ein oder aus (Titel bleibt immer), die Köpfe lassen sich umsortieren.
+  **Dateiname** (voller Pfad im Tooltip) und **Gespielt** (Wiedergaben der
+  letzten 24 Stunden) sind anfangs ausgeblendet. Der Reiter merkt sich die
+  Spalten.
+- **▦** schaltet zurück auf die Slots.
 
 Weiter: [Wiedergabelisten](03-playlists.md)

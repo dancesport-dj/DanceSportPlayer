@@ -40,6 +40,7 @@ from player.audio.between_dances import BetweenDances
 from player.audio.fade_now import FadeNow
 from player.audio.mix import OutputMix
 from player.audio.playback_state import PlaybackState
+from player.audio.wake_hold import WakeHold
 from tests.qt_test_support import reap_widget
 
 _MUSIC = Path(tempfile.mkdtemp(prefix="dp_desk_pause_m_"))
@@ -305,10 +306,13 @@ class _MixinTest(unittest.TestCase):
             # wants the screen held, so it never reaches the OS.
             _play_panel = _AwakeOff()
             _presenter = None
-            _awake_held = False
+            _wake_hold = WakeHold()
 
             def _is_player_running(_self):
                 return False
+
+            def _stop_background_analysis(_self):
+                pass
 
             def _is_playing_mode(_self):
                 # ↩ marks are a big-player affair; nothing here holds any.

@@ -45,6 +45,18 @@ class NextDanceButtonTest(unittest.TestCase):
         self.app.processEvents()
         self.assertFalse(card._skip_pause_btn.isVisible())
 
+    def test_it_is_as_wide_as_the_extend_button(self):
+        card = self.card()
+        card.set_pause_active(True)
+        self.app.processEvents()
+        self.assertEqual(card._skip_pause_btn.width(), card._extend_btn.width())
+
+    def test_it_shows_only_its_icon(self):
+        btn = self.card()._skip_pause_btn
+        self.assertEqual(btn.text(), "")
+        self.assertFalse(btn.icon().isNull())
+        self.assertIn("next dance", btn.toolTip())
+
     def test_a_click_asks_for_the_next_title_like_skip(self):
         card = self.card()
         card.set_pause_active(True)

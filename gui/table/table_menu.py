@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QMenu, QMessageBox
 
-from gui.common import reveal_in_explorer
+from gui.common import platform_keys, reveal_in_explorer
 from gui.dialogs import SimilarTracksDialog
 from planner import i18n
 from planner.models import MusicEntry
@@ -22,6 +22,12 @@ if TYPE_CHECKING:
     from gui.window.hosts import PlaylistTableHost
 else:
     PlaylistTableHost = object
+
+
+def with_key(text: str, key: str) -> str:
+    """A menu caption with its keyboard shortcut at the right, both in the
+    app's language ("Ctrl+E" is "Strg+E" in German)."""
+    return i18n.t(text) + "	" + "+".join(i18n.t(part) for part in key.split("+"))
 
 
 def _source_stem(label: str) -> str:
@@ -95,24 +101,32 @@ class TableMenuMixin(PlaylistTableHost):
                 self._add_similar_actions(menu, handlers, entry, pb_dance, pb_round)
                 if pb_round and pb_dance:
                     planned_act = _mk_planned()
-            self._add_file_actions(menu, handlers, entry)
-            # Stars, classes, markers — for the selection when the click is
-            # inside it, like "Remove this title".
             edit_rows = self._title_rows_for(row)
-            edit_act = menu.addAction(
-                i18n.t("🏷  Edit tags of %d tracks…") % len(edit_rows)
-                if len(edit_rows) > 1 else i18n.t("🏷  Edit tags…"))
-            edit_act.setEnabled(bool(entry.path))
-            handlers[edit_act] = lambda: host.edit_entry_tags(
-                [self._row_meta[r].entry for r in sorted(edit_rows)])
+            # Where the title stands. Eintanzen list: two selected titles of one
+            # dance change places. A list with an order of its own has an end; a
+            # grid's title sits in its slot.
+            swap_here = self._two_songs_selected()
+            to_end_here = ((self._flat_mode or self._warmup)
+                           and not self._at_the_end(edit_rows))
+            if (swap_here or to_end_here) and not menu.isEmpty():
+                menu.addSeparator()
+            if swap_here:
+                swap_act = menu.addAction("⇅  Swap these two titles	Alt+S")
+                handlers[swap_act] = self._swap_selected
+            if to_end_here:
+                to_end_act = menu.addAction(
+                    i18n.t("⬇  Move %d selected titles to the end") % len(edit_rows)
+                    if len(edit_rows) > 1 else "⬇  Move to the end of the list")
+                handlers[to_end_act] = lambda: self._move_to_end(edit_rows)
             # Mark / unmark "for potential replace", with Reset-all directly
             # below it.
             if self._marks_allowed():
-                menu.addSeparator()
+                if not menu.isEmpty():
+                    menu.addSeparator()
                 is_marked = bool(entry.path and str(entry.path) in self._marked_paths)
-                mark_act = menu.addAction("🔁  Unmark (potential replace)\tCtrl+M"
+                mark_act = menu.addAction("🔁  Unmark (potential replace)	Ctrl+M"
                                           if is_marked
-                                          else "🔁  Mark for potential replace\tCtrl+M")
+                                          else "🔁  Mark for potential replace	Ctrl+M")
                 handlers[mark_act] = lambda: self._toggle_mark(
                     {ix.row() for ix in self.selectedIndexes()} or {row})
                 if self._marked_paths:
@@ -121,24 +135,31 @@ class TableMenuMixin(PlaylistTableHost):
             # 📌 Pin: a slot of a round keeps its title through ↻ / ↺.
             pin_meta = self._row_meta[row] if 0 <= row < len(self._row_meta) else None
             if pin_meta and pin_meta.round_name and not pin_meta.theme and entry.path:
-                menu.addSeparator()
+                if not menu.isEmpty():
+                    menu.addSeparator()
                 pin_act = menu.addAction(
                     i18n.t("📌  Unpin") if str(entry.path) in self._pinned_paths
                     else i18n.t("📌  Pin — keep this title when the round is re-rolled"))
                 handlers[pin_act] = lambda: self._toggle_pin(
                     {ix.row() for ix in self.selectedIndexes()} or {row})
+            if not menu.isEmpty():
+                menu.addSeparator()
+            self._add_file_actions(menu, handlers, entry)
+            # Stars, classes, markers — for the selection when the click is
+            # inside it, like "Remove this title".
+            edit_act = menu.addAction(with_key(
+                i18n.t("🏷  Edit tags of %d tracks…") % len(edit_rows)
+                if len(edit_rows) > 1 else "🏷  Edit tags…", "Ctrl+T"))
+            edit_act.setEnabled(bool(entry.path))
+            handlers[edit_act] = lambda: self._edit_tags_of(edit_rows)
             if self._flat_mode:
                 menu.addSeparator()
-                remove_act = menu.addAction("🗑  Remove from wishlist")
+                remove_act = menu.addAction(with_key("🗑  Remove from wishlist", "Del"))
                 # The same removal as the Delete key: played rows re-grey and
                 # the play frame moves where the rows now sit. Opened inside a
                 # selection, the whole selection goes, like a deck's 🗑.
-                handlers[remove_act] = lambda: self._remove_rows(edit_rows)
-            # Eintanzen list: two selected titles of one dance change places.
-            if self._two_songs_selected():
-                menu.addSeparator()
-                swap_act = menu.addAction("⇅  Swap these two titles\tAlt+S")
-                handlers[swap_act] = self._swap_selected
+                handlers[remove_act] = lambda: self._remove_rows(
+                    edit_rows, select_after=True)
 
         # Empty slot (no entry, so no "Find similar" above): still offer it, on top.
         if planning and planned_act is None and pb_round and pb_dance:
@@ -149,7 +170,12 @@ class TableMenuMixin(PlaylistTableHost):
         def _remove_titles(title_rows):
             if self._confirm_delete("Remove song",
                                     self._remove_songs_prompt(len(title_rows))):
-                self._clear_slots_at(title_rows)
+                self._clear_slots_at(title_rows, select_after=True)
+
+        def _remove_with_slots(title_rows):
+            if self._confirm_delete("Remove song",
+                                    self._remove_slots_prompt(len(title_rows))):
+                self._drop_running_order_rows(title_rows, select_after=True)
 
         # ── Dynamic-mode structure editing ─────────────────────────────────────
         # Two coherent groups so the menu reads logically: first GROW (➕ Add),
@@ -194,9 +220,14 @@ class TableMenuMixin(PlaylistTableHost):
             if want_title or on_round:
                 menu.addSeparator()
                 if want_title:
-                    remove_title_act = menu.addAction(
-                        self._remove_titles_caption(len(title_rows)))
+                    remove_title_act = menu.addAction(with_key(
+                        self._remove_titles_caption(len(title_rows)), "Del"))
                     handlers[remove_title_act] = lambda: _remove_titles(title_rows)
+                    if (len(title_rows) == 1 and round_here and dance_here
+                            and self._lone_in_round(rmeta)):
+                        remove_slot_act = menu.addAction(self._remove_slots_caption(1))
+                        handlers[remove_slot_act] = (
+                            lambda: self._remove_dance_from_round(round_here, dance_here))
                 if is_backup_row:
                     backup_act = menu.addAction("🗑  Remove this backup\tCtrl+Del")
                     handlers[backup_act] = lambda: self._remove_dynamic_backup(row)
@@ -228,9 +259,14 @@ class TableMenuMixin(PlaylistTableHost):
         elif entry is not None and not self._flat_mode:
             menu.addSeparator()
             title_rows = self._title_rows_for(row)
-            remove_title_act = menu.addAction(
-                self._remove_titles_caption(len(title_rows)))
+            remove_title_act = menu.addAction(with_key(
+                self._remove_titles_caption(len(title_rows)), "Del"))
             handlers[remove_title_act] = lambda: _remove_titles(title_rows)
+            # A party list's slot is only its row. A free order has no other way.
+            if self._warmup and not self._player_list:
+                remove_slot_act = menu.addAction(
+                    self._remove_slots_caption(len(title_rows)))
+                handlers[remove_slot_act] = lambda: _remove_with_slots(title_rows)
 
     def _add_similar_actions(self, menu, handlers, entry, pb_dance, pb_round):
         """🔎 ⭐ 🌱 Find similar: anywhere, in the wishlist, never played."""
@@ -261,11 +297,47 @@ class TableMenuMixin(PlaylistTableHost):
             handlers[act_fresh] = lambda: self._show_similar(
                 entry, fresh_only=True, slot=slot)
 
+    def _copy_entry_path(self, entry):
+        QApplication.clipboard().setText(str(entry.path))
+        show_toast(self, "📋  Path copied to clipboard")
+
+    def _edit_tags_of(self, rows):
+        self.host.edit_entry_tags([self._row_meta[r].entry for r in sorted(rows)])
+
+    def _menu_key(self, key, mods) -> bool:
+        """Ctrl+F finds a title. Ctrl+E shows the title in Explorer, Ctrl+T edits the tags of the
+        selection, Ctrl+Shift+C copies the path: the keys of the file entries
+        of the menu, on the first selected title. True when one was handled."""
+        ctrl, shift = Qt.KeyboardModifier.ControlModifier, Qt.KeyboardModifier.ShiftModifier
+        if key == Qt.Key.Key_F and mods & ctrl:
+            if not self._row_meta.has_songs():
+                return False
+            self._search_title()
+            return True
+        if key == Qt.Key.Key_E and mods == ctrl:
+            kind = "show"
+        elif key == Qt.Key.Key_T and mods == ctrl:
+            kind = "tags"
+        elif key == Qt.Key.Key_C and mods == ctrl | shift:
+            kind = "copy"
+        else:
+            return False
+        row, path = self._selected_song_row()
+        if row < 0 or not path:
+            return False
+        if kind == "show":
+            reveal_in_explorer(path, self)
+        elif kind == "tags":
+            self._edit_tags_of(self._title_rows_for(row))
+        else:
+            self._copy_entry_path(self._row_meta[row].entry)
+        return True
+
     def _add_file_actions(self, menu, handlers, entry):
         """📋 📂 🎵 🏷 Copy, show, check speed and re-read the file."""
         host = self.host
-        copy_act = menu.addAction("📋  Copy file path")
-        reveal_act = menu.addAction("📂  Show in Explorer")
+        copy_act = menu.addAction(with_key("📋  Copy file path", "Ctrl+Shift+C"))
+        reveal_act = menu.addAction(with_key("📂  Show in Explorer", "Ctrl+E"))
         if not entry.path:
             copy_act.setEnabled(False)
             copy_act.setText("📋  Copy file path (unavailable)")
@@ -279,13 +351,13 @@ class TableMenuMixin(PlaylistTableHost):
             retag_act.setEnabled(False)
             retag_act.setText("🏷  Re-read MP3 tags (unavailable)")
         if entry.path:
-            def _copy_path():
-                QApplication.clipboard().setText(str(entry.path))
-                show_toast(self, "📋  Path copied to clipboard")
-            handlers[copy_act] = _copy_path
+            handlers[copy_act] = lambda: self._copy_entry_path(entry)
             handlers[reveal_act] = lambda: reveal_in_explorer(entry.path, self)
             handlers[speed_act] = lambda: host.check_track_speed(entry)
             handlers[retag_act] = lambda: host.rescan_entry_tags(entry)
+            if str(entry.path) in self._resume_marks:
+                reset_act = menu.addAction("↩  Reset time marker")
+                handlers[reset_act] = lambda: host.clear_resume(entry.path)
 
     def _add_empty_slot_action(self, menu, handlers, row, rmeta):
         """⬆ lift a backup into an empty slot, or 🗑 drop a lone dead one."""
@@ -321,6 +393,23 @@ class TableMenuMixin(PlaylistTableHost):
             handlers[mode_act] = lambda: host.set_deck_mode(
                 "static" if (self._dynamic or self._player_list) else "dynamic")
 
+        # ↔ This wishlist gets the area, the others go down to tabs.
+        expand = host.wish_expand_caption() if self._flat_mode else None
+        if expand:
+            if not menu.isEmpty():
+                menu.addSeparator()
+            expand_act = menu.addAction(expand)
+            expand_act.setText(platform_keys(expand_act.text()))
+            handlers[expand_act] = host.expand_wishlist
+
+        # Find a title in THIS list and jump to it (re-run to step to the next match).
+        if self._row_meta.has_songs():
+            if not menu.isEmpty():
+                menu.addSeparator()
+            search_act = menu.addAction("🔍  Find a title or genre in this list…\tCtrl+F")
+            search_act.setText(platform_keys(search_act.text()))
+            handlers[search_act] = self._search_title
+
         # Save the whole list as an .m3u — always available (even on a header row).
         save_act = None
         if self._row_meta.has_songs():
@@ -338,6 +427,8 @@ class TableMenuMixin(PlaylistTableHost):
             menu.addSeparator()
         import_act = menu.addAction("📂  Import M3U…")
         handlers[import_act] = host.import_m3u_into
+        venue_act = menu.addAction("📥  Import venue pack…")
+        handlers[venue_act] = host.import_venue_pack
 
         # Wishlist: drop every track that's already sitting in an open playlist deck.
         clean_pl_act = None
@@ -368,13 +459,6 @@ class TableMenuMixin(PlaylistTableHost):
                 menu.addSeparator()
             dedupe_act = menu.addAction("♊  Remove duplicate titles in this list")
             handlers[dedupe_act] = self._remove_duplicate_titles
-
-        # Find a title in THIS list and jump to it (re-run to step to the next match).
-        if self._row_meta.has_songs():
-            if not menu.isEmpty():
-                menu.addSeparator()
-            search_act = menu.addAction("🔍  Find a title or genre in this list…\tCtrl+F")
-            handlers[search_act] = self._search_title
 
         # Empty the whole list (blank it again) — clearer than Del-on-header / Ctrl+A.
         if self.rowCount() > 0:

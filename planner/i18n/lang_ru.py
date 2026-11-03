@@ -598,7 +598,7 @@ CATALOG = {
     "all licences": "все лицензии",
     "Which library should this index cover?":
         "Какую библиотеку должен охватывать этот индекс?",
-    "What should go into the venue bundle?":
+    "What should be exported?":
         "Что должно войти в пакет для площадки?",
     "Settings saved.": "Настройки сохранены.",
     "Database cleanup done.": "Очистка базы данных завершена.",
@@ -606,6 +606,7 @@ CATALOG = {
     "Loading music library…": "Загрузка музыкальной библиотеки…",
     "Library: loading…": "Библиотека: загрузка…",
     "Generating playlist…": "Создание плейлиста…",
+    "Matching against your library…": "Сравнение с вашей библиотекой…",
     "Asking the model…": "Запрос к модели…",
     "Asking the model for a playlist…": "Запрос плейлиста у модели…",
     "Fetching the model list…": "Получение списка моделей…",
@@ -799,6 +800,13 @@ CATALOG = {
         "Насколько громко звучит музыка, пока играет пэд 🎛 картволла с\n🔈 приглушением музыки, в процентах её громкости, как у 🔉 Приглушать до.\n10 % — это около −20 dB: фанфары пробиваются. 30 % (около −10 dB)\nлишь отодвигает музыку. 0 % — тишина.",
     "A duck, here or a pad's on the 🎛 Cartwall tab, is a percentage of the music's volume, not of its loudness: 50 % ≈ −6 dB, 30 % ≈ −10 dB (sounds about half as loud), 20 % ≈ −14 dB, 10 % ≈ −20 dB.":
         "Приглушение, здесь или у пэда на вкладке 🎛 Cartwall, — процент от громкости музыки, а не от её воспринимаемой громкости: 50 % ≈ −6 dB, 30 % ≈ −10 dB (звучит примерно вдвое тише), 20 % ≈ −14 dB, 10 % ≈ −20 dB.",
+    "↩  Fade in at a time marker over:":
+        "↩  Плавный вход на метке времени за:",
+    "A title picked up at its ↩ time marker lands in the middle of the\n"
+    "music, so the big player brings it up over these seconds. A Paso\n"
+    "Doble always starts abruptly: the couples stand and go on the beat.\n"
+    "0 = off.":
+        "Трек, продолженный с ↩ метки времени, попадает в середину музыки,\nпоэтому большой плеер поднимает его за эти секунды. Пасодобль всегда\nначинается резко: пары стоят и идут в долю.\n0 = выкл.",
     "🌅  Fade each title in over:":
         "🌅  Плавно вводить каждый трек за:",
     "The big player starts every title at silence and brings it up\nover these seconds of music. Not a title a 🔀 crossfade brings in,\nwhich has its own ramp. Couples start on the first downbeat, so\nleave it off for a competition. 0 = off.":
@@ -1222,16 +1230,16 @@ CATALOG = {
         "папке плейлистов (списки пожеланий не включаются).\n"
         "Каждый файл называется по заголовку своего дека.",
     "Export playlists as a self-contained venue bundle — asks first\n"
-    "whether to take all open decks, only the 📅 tournament day, or\n"
-    "saved .m3u files dragged in, with the ⭐ wishlists if ticked.\n"
+    "what to take: open decks, the 📅 tournament day, the party list,\n"
+    "⭐ wishlists or saved .m3u files, in any combination.\n"
     "One sub-folder per playlist holding its tracks copied in numbered\n"
     "play order (0_0_1 - Title WW29.mp3) plus the playlist's .m3u — each\n"
     "folder plays in order even without the M3U, from any drive,\n"
     "laptop or UltraMixer at the venue (no path fixing needed there).\n"
     "Also offers the 📦 venue pack: this desk in one file for another PC.":
         "Экспортировать плейлисты как самодостаточный пакет для площадки — сначала спрашивает,\n"
-        "брать ли все открытые деки, только 📅 турнирный день или\n"
-        "перетащенные сохранённые файлы .m3u (⭐ списки пожеланий — если отмечено).\n"
+        "что брать: открытые деки, 📅 турнирный день, список вечеринки,\n"
+        "⭐ списки пожеланий или сохранённые файлы .m3u, в любом сочетании.\n"
         "По подпапке на плейлист с треками, скопированными в пронумерованном\n"
         "порядке воспроизведения (0_0_1 - Title WW29.mp3), плюс .m3u плейлиста — каждая\n"
         "папка играет по порядку даже без M3U, с любого диска,\n"
@@ -1790,10 +1798,10 @@ CATALOG = {
     "Resolve duplicates": "Разобрать дубликаты",
     "Sort the exported tracks by dance?\n"
     "\n"
-    "(LW, TG, WW, SF, QS, SB, CC, RB, PD, JV)":
+    "(%s)":
         "Отсортировать экспортированные треки по танцам?\n"
         "\n"
-        "(LW, TG, WW, SF, QS, SB, CC, RB, PD, JV)",
+        "(%s)",
     "The reference base must be a single .m3u playlist.":
         "Эталонной базой должен быть один плейлист .m3u.",
     "This list holds some titles more than once.<br><span style='color:#666'>For each title, pick the file to keep — the others are removed. <b>Keep all</b> leaves that title alone.</span>":
@@ -1886,7 +1894,7 @@ CATALOG = {
         "Избранная библиотека ещё не загружена.",
     "The whole-repository library isn't loaded yet. Drop a file (or build the librosa index over the repository) once to load it, then retry.":
         "Библиотека всего хранилища ещё не загружена. Перетащите один раз файл (или постройте индекс librosa по хранилищу), чтобы загрузить её, затем повторите.",
-    "Not on the Reference path": "Не на опорном пути",
+    "Titles saved with their own path": "Треки сохранены со своим путём",
     "Save Error": "Ошибка сохранения",
     "Save as M3U": "Сохранить как M3U",
     "This deck is empty.": "Этот дек пуст.",
@@ -2117,9 +2125,7 @@ CATALOG = {
         "🧹  Скрыть дубликаты (тот же трек без учёта меток DJ / танца / BPM)",
     "Clear playlist": "Очистить плейлист",
     "Clear wishlist": "Очистить список пожеланий",
-    "Find in list": "Найти в списке",
     "Find planned before": "Найти прежние планы",
-    "Find title:": "Найти название:",
     "No similar tracks found (audio features may be missing).":
         "Похожие треки не найдены (возможно, нет аудиопризнаков).",
     "Select exactly two titles of the same dance to swap them.":
@@ -2285,40 +2291,46 @@ CATALOG = {
     "The system counts idle time from the mouse and the keyboard,\n"
     "never from the speakers — so an hour of music with nobody touching\n"
     "the desk blanks the screen mid-heat, the beamer included. It goes\n"
-    "back to its normal timeouts as soon as neither is running.":
+    "back to its normal timeouts ten minutes after both have ended.":
         "Не включать заставку и не гасить экран, пока играет\n"
         "музыка или открыт экран ведущего.\n"
         "\n"
         "Система отсчитывает простой по мыши и клавиатуре,\n"
         "а не по колонкам — поэтому час музыки, когда никто не трогает\n"
         "пульт, гасит экран посреди захода, включая проектор. Обычные\n"
-        "таймауты возвращаются, как только ни то, ни другое не работает.",
+        "таймауты возвращаются через десять минут после того, как закончится и то, и другое.",
     "Off: the next song starts the moment the current one ends, with\n"
-    "no pause music and no announcement. The configured time is kept\n"
+    "no pause music. The configured time is kept\n"
     "for switching back.\n"
     "\n"
     "Needs ⏭ auto-advance — without it the next song waits for the\n"
     "operator anyway, so there is no gap to fill.":
         "Выкл.: следующий трек начинается в тот момент, когда закончился текущий,\n"
-        "без музыки в паузе и без объявления. Заданное время сохраняется\n"
+        "без музыки в паузе. Заданное время сохраняется\n"
         "на случай обратного переключения.\n"
         "\n"
         "Нужен ⏭ автопереход — без него следующий трек всё равно ждёт\n"
         "оператора, так что заполнять нечего.",
+    "🔈 The pause is off because the next dance is announced: the\n"
+    "call comes with the title and needs no gap. Switch the pause\n"
+    "back on to have both.":
+        "🔈 Пауза выключена, потому что объявляется следующий танец:\n"
+        "объявление звучит вместе с треком, и пауза ему не нужна. Включите\n"
+        "паузу снова, чтобы было и то, и другое.",
     "On: a double-click in a deck puts the title on the speakers at\n"
     "once — what a party wants.\n"
     "Off: it is only CUED on the player (loaded, shown, silent) and ⏯\n"
     "starts it — what a heat wants, where the music begins when the\n"
     "couples are on the floor and not a moment earlier.\n"
     "\n"
-    "Part of the play sets: 🏆 tournament switches it off, 🎉 party on.":
+    "Part of the play sets: off in every one of them until you switch it on.":
         "Вкл.: двойной щелчок в деке сразу выводит трек в колонки\n"
         "— то, что нужно вечеринке.\n"
         "Выкл.: трек лишь ГОТОВИТСЯ в плеере (загружен, показан, тихо), а ⏯\n"
         "запускает его — то, что нужно заходу, где музыка начинается, когда\n"
         "пары на паркете, и ни мгновением раньше.\n"
         "\n"
-        "Часть наборов воспроизведения: 🏆 турнир выключает, 🎉 вечеринка включает.",
+        "Часть наборов воспроизведения: выключено в каждом, пока вы не включите.",
     "On: a double-click in a deck plays the title at once.\n"
     "Off: it is only cued on the player (loaded, shown,\n"
     "silent) and ⏯ starts it — the heat begins when the\n"
@@ -2904,8 +2916,8 @@ CATALOG = {
         "гибрид: затухание, если ≥ 1:30",
     "What the title playing at the time does:\n\nPlay it to its end — the first title that ends at or after the\ntime is the last.\nFade out at the time — it fades out the moment the time comes.\nHybrid — it fades if it had played 1:30 by then, a younger\none plays to its end.\n\nA title that starts after the time always plays to its end.\nThis choice is remembered.":
         "Что делает трек, играющий в это время:\n\nДоиграть до конца — последний трек тот, который закончится\nв это время или позже.\nЗатухание в это время — он затухает, как только наступает время.\nГибрид — он затухает, если к тому времени играл 1:30;\nболее короткий доигрывает до конца.\n\nТрек, начавшийся после этого времени, всегда доигрывает до конца.\nЭтот выбор запоминается.",
-    "The first title that ends at or after this time is the last.\nA time already past today means after midnight.":
-        "Первый трек, который закончится в это время или позже, — последний.\nВремя, уже прошедшее сегодня, означает после полуночи.",
+    "The first title that ends at or after this time is the last.\nOnly times still to come are offered, on through midnight to about 2.":
+        "Первый трек, который закончится в это время или позже, — последний.\nПредлагается только ещё не наступившее время, после полуночи примерно до 2 часов.",
     "⏹  Stops after this title":
         "⏹  Остановка после этого трека",
     "⏹  Stops after %d titles":
@@ -2933,7 +2945,15 @@ CATALOG = {
     "Pause between songs:": "Пауза между треками:",
     "🔈  Announce next dance": "🔈  Объявлять следующий танец",
     "…with heat": "…с заходом",
-    "🔊  Equalize volume (R128)": "🔊  Выравнивать громкость (R128)",
+    "Endless repeat is on":
+        "Бесконечный повтор включён",
+    "🔁 This title starts again every time it ends, so the list\n"
+    "will not move on to the next one.\n\n"
+    "Switch endless repeat off?":
+        "🔁 Этот трек начинается заново каждый раз, когда заканчивается, поэтому\n"
+        "список не перейдёт к следующему.\n\n"
+        "Выключить бесконечный повтор?",
+    "🔊  Equalize volume": "🔊  Выравнивать громкость",
     "🖼  Show artwork — a cover next to the title on the player card":
         "🖼  Показывать обложку — картинка рядом с названием на карточке плеера",
     "〰  Show waveform — the title's waveform in place of the player card's seek bar":
@@ -2957,6 +2977,13 @@ CATALOG = {
         "золотой: нарастание · зелёная линия: где начинается трек.\n"
         "Щёлкните, чтобы перейти туда.",
     "▶️  Double-click starts the title": "▶️  Двойной щелчок запускает трек",
+    "Reset the time marker?": "Сбросить метку времени?",
+    "A title is playing. “%s” has a time marker at %s.\n"
+    "Stop the playing title and start it from where?":
+        "Играет трек. У «%s» есть метка времени на %s.\n"
+        "Остановить играющий трек и начать откуда?",
+    "At the marker": "С метки",
+    "From the beginning": "С начала",
     "🎚  TSO pitch to the heat tempo": "🎚  TSO: подтягивать к темпу захода",
     "↩  Remember where a title stopped": "↩  Запоминать, где трек остановился",
     "☀  Keep the screen awake": "☀  Не гасить экран",
@@ -3023,10 +3050,6 @@ CATALOG = {
     "Click a star in the ★ column": "Щелчок по звезде в столбце ★",
     "Rate the title; click the star the rating ends on to clear it":
         "Оценить трек; щелчок по звезде, на которой заканчивается оценка, сбрасывает её",
-    "Find a title or a genre in the focused list. A title steps to the next "
-    "match; a genre highlights every row of it at once":
-        "Найти название или жанр в активном списке. Название переходит к "
-        "следующему совпадению, жанр подсвечивает все свои строки сразу",
     "Esc  in the 🖥 presenter window": "Esc  в 🖥 окне ведущего",
     "This cheat sheet": "Эта шпаргалка",
     "Nothing found": "Ничего не найдено",
@@ -3262,6 +3285,8 @@ CATALOG = {
         "🎵  Музыка:",
     "🔈  Announcements:":
         "🔈  Объявления:",
+    "🔈  Announcements":
+        "🔈  Объявления",
     "System default (follows the OS)":
         "Системное по умолчанию (следует за системой)",
     "Same as the music":
@@ -4018,6 +4043,7 @@ CATALOG = {
         "композитор, танец, список и сколько звучал каждый трек — напр. для отчёта в авторское общество.",
     "🗑  Delete evening": "🗑  Удалить вечер",
     "Delete evening": "Удалить вечер",
+    "Could not delete the evening:": "Не удалось удалить вечер:",
     "%d title(s)": "Треков: %d",
     "Save played titles": "Сохранить сыгранные треки",
     "CSV files (*.csv);;All files (*)": "Файлы CSV (*.csv);;Все файлы (*)",
@@ -4043,6 +4069,10 @@ CATALOG = {
         "⚠ Треков не на опорном пути: %d\n"
         "%s\n"
         "они сохранены со своим путём:",
+    "⚠ %d title(s) are not on disk any more\n"
+    "and were saved with their old path:":
+        "⚠ Треков больше нет на диске: %d\n"
+        "они сохранены со старым путём:",
     "💾 Saved %d playlist → %s": "💾 Сохранено плейлистов: %d → %s",
     "💾 Saved %d playlists → %s": "💾 Сохранено плейлистов: %d → %s",
     "Saved %d playlist(s) to:\n"
@@ -4489,10 +4519,6 @@ CATALOG = {
     "All open playlists (%d decks)": "Все открытые плейлисты (деков: %d)",
     "%d file added.": "Добавлено файлов: %d.",
     "%d files added.": "Добавлено файлов: %d.",
-    "📅 Tournament day only (%d playlist)":
-        "📅 Только турнирный день (плейлистов: %d)",
-    "📅 Tournament day only (%d playlists)":
-        "📅 Только турнирный день (плейлистов: %d)",
     "Dance: %s": "Танец: %s",
     "%s (%d beats/bar)": "%s (долей в такте: %d)",
     "'%s' is not a valid round pattern for %s %s — use heat counts like 6-3-2-1.":
@@ -4652,6 +4678,12 @@ CATALOG = {
         "Очистите часть пэдов или выберите сетку побольше для остальных.",
     "🔇 Only stillness left from %s — song ended.":
         "🔇 С %s только тишина — трек закончен.",
+    "Stop the analysis of the new titles; the title in work still ends":
+        "Остановить анализ новых треков; текущий трек будет дообработан",
+    "🔬 Analyzing new titles…":
+        "🔬 Анализ новых треков…",
+    "📊 Measuring loudness…":
+        "📊 Измерение громкости…",
     "🔇 Skipped %ss of leading silence.": "🔇 Пропущено %s с тишины в начале.",
     "⚠️ Sample not found: %s": "⚠️ Сэмпл не найден: %s",
     "\n▶ Queue: place %d — Ctrl+click takes it out":
@@ -5432,6 +5464,14 @@ CATALOG = {
         "Пока играет музыка или открыт экран ведущего, экран, проектор и компьютер не засыпают.",
     "☀ Keep the screen awake is off — an hour nobody touches the desk blanks the screen and the beamer, and may put the computer to sleep.":
         "☀ «Не гасить экран» выключено — час без касания пульта гасит экран и проектор и может усыпить компьютер.",
+    "🔋  Power":
+        "🔋  Питание",
+    "🔌 On mains power":
+        "🔌 От сети",
+    "🔋 On battery: plug in the charger":
+        "🔋 От батареи: подключите зарядное устройство",
+    "🔋 On battery, %d %%: plug in the charger":
+        "🔋 От батареи, %d %%: подключите зарядное устройство",
     "🔴  Not ready — a sound output is not connected.":
         "🔴  Не готово — аудиовыход не подключён.",
     "⚙  Choose outputs…":
@@ -5609,6 +5649,8 @@ CATALOG = {
         "Только Wi-Fi: телефон должен быть в той же сети Wi-Fi, что и этот ПК, или в его точке доступа.\nТуннель Cloudflare: публичный адрес https тоже ведёт к этому ПК —\nбез учётной записи и без настройки роутера; он меняется при каждом запуске, а\nPIN становится 8-значным. Нужна бесплатная программа cloudflared.",
     "The https address works on mobile data too, and on any Wi-Fi. It is new on every start — scan the fresh QR code. Whoever has the address still needs the PIN.":
         "Адрес https работает и через мобильный интернет, и в любой сети Wi-Fi. При каждом запуске он новый — отсканируйте свежий QR-код. Тому, у кого есть адрес, всё равно нужен PIN.",
+    "On Wi-Fi the PIN travels unencrypted: anyone on the same network can read it. On a network you do not trust, use the Cloudflare tunnel.":
+        "В сети Wi-Fi PIN передаётся без шифрования: любой в этой же сети может его прочитать. В сети, которой вы не доверяете, используйте туннель Cloudflare.",
     "● Running — port %d, waiting for Cloudflare…":
         "● Работает — порт %d, ожидание Cloudflare…",
     "Connecting… the code to scan shows up as soon as the phone can reach the desk.":
@@ -5815,4 +5857,103 @@ CATALOG = {
         "Снизить до:",
     "How low the play-length fade takes it before it comes\nback up, in % of the music's level. 0 = all the way down.\nAt most the level it comes back at.":
         "Насколько затухание по длительности опускает его, прежде чем\nон снова поднимется, в % от уровня музыки. 0 = до тишины.\nНе выше уровня, на котором он возвращается.",
+    "Already in this list":
+        "Уже в этом списке",
+    "“%s” is already in this list.":
+        "«%s» уже есть в этом списке.",
+    "Replace: it moves here and “%s” leaves the list.":
+        "Заменить: трек встанет сюда, а «%s» уйдёт из списка.",
+    "Replace: it moves here from its old place.":
+        "Заменить: трек переместится сюда со своего места.",
+    "Swap: it changes places with “%s”.":
+        "Поменять: он поменяется местами с «%s».",
+    "Move it to this slot?":
+        "Переместить на это место?",
+    "Move it here":
+        "Переместить сюда",
+    "Swap positions":
+        "Поменять местами",
+    "Do nothing":
+        "Ничего не делать",
+    "Add here too":
+        "Добавить и сюда",
+    "Add here too: it plays here and stays at its old place as well.":
+        "Добавить и сюда: трек сыграет здесь и останется на прежнем месте.",
+    "🗑  Remove this title and its slot":
+        "🗑  Удалить этот трек вместе с местом",
+    "🗑  Remove %d selected titles and their slots":
+        "🗑  Удалить выбранные треки (%d) вместе с местами",
+    "Remove this song and its slot?":
+        "Удалить этот трек вместе с местом?",
+    "Remove %d songs and their slots?":
+        "Удалить треки (%d) вместе с местами?",
+    "⬇  Move to the end of the list": "⬇  Переместить в конец списка",
+    "⬇  Move %d selected titles to the end":
+        "⬇  Переместить выбранные треки в конец (%d)",
+    "Reset the played titles (grey)":
+        "Сбросить сыгранные треки (серые)",
+    "Drag to change the width. Double-click for the automatic width.":
+        "Перетащите, чтобы изменить ширину. Двойной щелчок — автоматическая ширина.",
+    "↔  Expand this wishlist\tCtrl+Shift+E":
+        "↔  Увеличить этот список пожеланий\tCtrl+Shift+E",
+    "↔  Show all wishlists again\tCtrl+Shift+E":
+        "↔  Снова показать все списки пожеланий\tCtrl+Shift+E",
+    "The focused wishlist gets the whole area, the others fold to tabs; again: all open":
+        "Активный список пожеланий занимает всю область, остальные сворачиваются во вкладки; ещё раз — все открыты",
+    "Find a title or a genre in the focused list. Enter steps to the next match, Shift + Enter back; Esc closes the bar":
+        "Найти название или жанр в активном списке. Enter переходит к следующему совпадению, Shift + Enter назад; Esc закрывает панель",
+    "Find title (Ctrl+F)":
+        "Найти название (Ctrl+F)",
+    "Genre / dance":
+        "Жанр / танец",
+    "Previous match (Shift+Enter)":
+        "Предыдущее совпадение (Shift+Enter)",
+    "Next match (Enter)":
+        "Следующее совпадение (Enter)",
+    "A word of the title, the tag title or the file name":
+        "Слово из названия, названия в теге или имени файла",
+    "Highlights every row of the list whose dance or genre matches -\nleave empty to search titles only.":
+        "Выделяет все строки списка с подходящим танцем или жанром —\nоставьте пустым, чтобы искать только названия.",
+    "📅 Tournament day (%d playlist)":
+        "📅 Турнирный день (плейлистов: %d)",
+    "📅 Tournament day (%d playlists)":
+        "📅 Турнирный день (плейлистов: %d)",
+    "🎉 Practice / party list (%d title)":
+        "🎉 Список практики / вечеринки (треков: %d)",
+    "🎉 Practice / party list (%d titles)":
+        "🎉 Список практики / вечеринки (треков: %d)",
+    "🤖 AI":
+        "🤖 ИИ",
+    "The 🤖 AI Playlist runs on the claude CLI. OpenRouter is the second way to reach a model: any model in its list, on your own key.":
+        "🤖 ИИ-плейлист работает через claude CLI. OpenRouter — второй путь к модели: любая модель из его списка с вашим ключом.",
+    "API key:":
+        "Ключ API:",
+    "From openrouter.ai/keys. Kept on this PC only, never in a venue pack.":
+        "С openrouter.ai/keys. Хранится только на этом ПК, никогда не попадает в пакет площадки.",
+    "The exact model ID. Load models fills this list from the host;\ntype any part of a name to find it.":
+        "Точный ID модели. Кнопка загрузки заполняет этот список с сервера;\nвведите часть названия, чтобы найти её.",
+    "Ask this model first — the claude CLI becomes the fallback":
+        "Сначала спрашивать эту модель — claude CLI становится резервом",
+    "Off: the claude CLI answers, this model steps in when that fails.\nOn: this model answers, the CLI steps in when it fails.":
+        "Выкл.: отвечает claude CLI, эта модель подключается при сбое.\nВкл.: отвечает эта модель, CLI подключается при сбое.",
+    "Could not fetch the model list: %s":
+        "Не удалось получить список моделей: %s",
+    "Asks %s on %s first, the claude CLI after that. ⚙ Settings → 🤖 AI changes it.":
+        "Сначала спрашивает %s на %s, затем claude CLI. Меняется в ⚙ Настройки → 🤖 ИИ.",
+    "🎉  Party list":
+        "🎉  Список для вечеринки",
+    "🤸  Warm-up list":
+        "🤸  Список для разминки",
+    "Each kind asks the model for something else: a party list for a\nfull floor, a warm-up list for couples before their competition.":
+        "Каждый вид задаёт модели своё: список для вечеринки — для\nполного зала, для разминки — для пар перед турниром.",
+    '🤖  OpenRouter connection':
+        '🤖  Подключение к OpenRouter',
+    '📁 Folders':
+        '📁 Папки',
+    '📁 All folders':
+        '📁 Все папки',
+    'Show the folders beside the list: choosing one lists only the titles\ndirectly in it. Here 🆕 Unplanned hides the planned file itself, and\nthe same music in another folder stays, marked with ♊.':
+        'Показывает папки рядом со списком: выбранная папка показывает только\nтреки, лежащие прямо в ней. Здесь 🆕 Не запланированные скрывает сам\nзапланированный файл, а та же музыка в другой папке остаётся с меткой ♊.',
+    '♊ The same music is planned from another folder':
+        '♊ Та же музыка запланирована из другой папки',
 }

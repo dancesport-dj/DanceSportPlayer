@@ -509,10 +509,6 @@ class LoadedWindow(unittest.TestCase):
             (QFileDialog, "getSaveFileName", staticmethod(lambda *_a, **_kw: ("", ""))),
             (QFileDialog, "getExistingDirectory", staticmethod(lambda *_a, **_kw: "")),
             (QInputDialog, "getText", staticmethod(lambda *_a, **_kw: ("", False))),
-            # 🔍 Find in list is a dialog of its own since the genre row: it is
-            # exec()ed modally, so a monkey Ctrl+F must answer it as cancelled.
-            (gui.dialogs.FindInListDialog, "exec",
-             lambda _self: QDialog.DialogCode.Rejected),
             (QColorDialog, "getColor", staticmethod(lambda *_a, **_kw: QColor())),
             (QDesktopServices, "openUrl", staticmethod(lambda *_a, **_kw: False)),
             (QProcess, "startDetached", staticmethod(lambda *_a, **_kw: False)),
@@ -527,6 +523,9 @@ class LoadedWindow(unittest.TestCase):
               for name in ("connect", "connect_ex", "bind", "sendto")),
             # Ticking 🐞 Send error reports in ⚙ Settings must not start Sentry.
             (shared.error_reports, "available", lambda: False),
+            # Thirty seconds into the walk this would load librosa, and the
+            # seconds it takes come out of the steps timed for the music.
+            (dancesport_gui.MainWindow, "_analyze_new_titles", lambda _self: None),
             # A CLI and a key on every machine, so both AI backends get as far
             # as the refusals above (CI has neither; this machine has both).
             (llm, "resolve_claude_bin", lambda: "claude"),
@@ -548,6 +547,12 @@ class LoadedWindow(unittest.TestCase):
         cls.gui = dancesport_gui
 
     def setUp(self):
+        # Its own state dir (autosave, deck modes): a window restores the list
+        # the last one left, so a walk would start on another walk's desk.
+        state = tempfile.mkdtemp(prefix="dp_monkey_state_")
+        p = mock.patch.dict(os.environ, {"DANCEPLAYLIST_STATE_DIR": state})
+        p.start()
+        self.addCleanup(p.stop)
         self._before = set(QApplication.topLevelWidgets())
         self.win = self.gui.MainWindow()
         self.addCleanup(self._reap_all)
@@ -747,15 +752,13 @@ class ClickThrough(LoadedWindow):
         cls.answers = _FirstOffered()
 
     def setUp(self):
-        # A scenario starts from a clean desk: its own state dir (autosave,
-        # deck modes) and its own output folder. A playlist an earlier scenario
+        # A scenario starts from a clean desk: besides the state dir of every
+        # window here, its own output folder. A playlist an earlier scenario
         # saved there counts towards popularity and steers the next draw.
         self.out = Path(tempfile.mkdtemp(prefix="dp_click_out_"))
-        state = tempfile.mkdtemp(prefix="dp_click_state_")
         dirs = {k: str(self.out) for k in
                 ("save_dir", "playlist_dir", "import_dir", "open_dir")}
-        for p in (mock.patch.dict(os.environ, {"DANCEPLAYLIST_STATE_DIR": state}),
-                  mock.patch.dict(self.settings, dirs),
+        for p in (mock.patch.dict(self.settings, dirs),
                   *(mock.patch.object(m, "OUTPUT_DIR", self.out)
                     for m in _output_dir_modules())):
             p.start()

@@ -6,7 +6,7 @@ keeps the panel's layout, its state and the values the player reads.
 """
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt, QTime
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -17,7 +17,6 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSizePolicy,
     QSpinBox,
-    QTimeEdit,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -33,7 +32,14 @@ from planner.playing.play_sets import (
     XFADE_MIN_SECS,
     upgrade_xfade,
 )
-from player.widgets.panel_parts import InlineEdit, Rows, Toggle, row_box
+from player.widgets.panel_parts import (
+    FitLabel,
+    InlineEdit,
+    RefreshingCombo,
+    Rows,
+    Toggle,
+    row_box,
+)
 from shared.widgets import hsep
 from shared.xfade_view import CrossfadeCurveButton, CrossfadeView
 
@@ -230,7 +236,8 @@ class PlayModeSetupMixin(PlayModePanelHost):
             "(falls back to 🐂 auto-detection on the next play).")
         self.pd_clear_btn.clicked.connect(self.pdClearRequested.emit)
         pd_learn_row.addWidget(self.pd_clear_btn)
-        self.pd_sub_box.add(row_box(pd_learn_row))
+        self.pd_learn_box = row_box(pd_learn_row)
+        self.pd_sub_box.add(self.pd_learn_box)
 
         # ✏️ Edit mode: while it's on nothing cuts the Paso Doble, so a later
         # crash can actually be reached, heard and marked. Without it the very
@@ -295,12 +302,6 @@ class PlayModeSetupMixin(PlayModePanelHost):
         # The caption IS the switch — unchecked, songs run back to back and the
         # configured time stays in the box for switching back.
         self.pause_check = Toggle("Pause between songs:")
-        self.pause_check.setToolTip(
-            "Off: the next song starts the moment the current one ends, with\n"
-            "no pause music and no announcement. The configured time is kept\n"
-            "for switching back.\n\n"
-            "Needs ⏭ auto-advance — without it the next song waits for the\n"
-            "operator anyway, so there is no gap to fill.")
         self.pause_check.setChecked(bool(settings.get("pause_enabled", False)))
         self.pause_check.toggled.connect(self._on_pause_on)
         pause_row.addWidget(self.pause_check)
@@ -357,12 +358,15 @@ class PlayModeSetupMixin(PlayModePanelHost):
         self.stop_count_lbl.setToolTip(
             "Titles still to end, the one playing now included.")
         stop_row.addWidget(self.stop_count_lbl)
-        self.stop_time_edit = QTimeEdit(QTime(23, 0))
-        self.stop_time_edit.setDisplayFormat("HH:mm")
-        self.stop_time_edit.setToolTip(
+        # Filled when "At …" is chosen and whenever the list opens: only
+        # times still to come are offered, and the panel may stand for hours.
+        self.stop_time_combo = RefreshingCombo()
+        self.stop_time_combo.setMaxVisibleItems(12)
+        self.stop_time_combo.setToolTip(
             "The first title that ends at or after this time is the last.\n"
-            "A time already past today means after midnight.")
-        stop_row.addWidget(self.stop_time_edit)
+            "Only times still to come are offered, on through midnight to about 2.\n"
+            "Double-click the time to type any other.")
+        stop_row.addWidget(self.stop_time_combo)
         # How the "At …" time ends the title on air — unlike the rule this is
         # a preference, and saved.
         self.stop_at_mode_combo = QComboBox()
@@ -499,6 +503,8 @@ class PlayModeSetupMixin(PlayModePanelHost):
         # not persisted: a session that ends in Manual starts in Manual, and
         # there is nothing left to restore.
         self._announce_before_manual = False
+        # …and the pause the call took off, for the same round trip.
+        self._pause_before_announce = False
         lyt.addWidget(self.announce_check)
 
         # What goes with the call: none of it is worth a line when nothing is
@@ -514,12 +520,12 @@ class PlayModeSetupMixin(PlayModePanelHost):
         self._announce_wait = bool(settings.get("announce_wait", False))
         self._announce_lead = bool(settings.get("announce_lead", False))
         self._announce_heat_only = bool(settings.get("announce_heat_only", False))
-        self.announce_style_lbl = QLabel("")
+        self.announce_style_lbl = FitLabel("")
         # Under the first word of the switch's caption, past its 🔈 — not
         # centred across the column.
-        self.announce_style_lbl.setContentsMargins(
-            self.announce_check.word_left(), 0, 0, 0)
-        self.announce_style_lbl.setWordWrap(True)   # the panel can be 250px
+        self.announce_style_lbl.setIndent(self.announce_check.word_left())
+        # The panel can be 250px: too long for the indent, the text takes the
+        # whole width centred, and only then shrinks to stay on one row.
         self.announce_style_lbl.setStyleSheet("color:#b8860b; font-weight:bold;")
         self.announce_style_lbl.setToolTip(
             i18n.t("The voice, the heat number and whether the dance is\n"
@@ -533,7 +539,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
     def _setup_play_options(self, lyt, settings):
         """Loudness, cover art, double-click and pick-up-where-left."""
         # ── Loudness equalization (EBU R128) ──
-        self.loudness_check = Toggle("🔊  Equalize volume (R128)")
+        self.loudness_check = Toggle("🔊  Equalize volume")
         self.loudness_check.setToolTip(
             "Compensate loudness differences between tracks on playback:\n"
             "each song's measured EBU R128 loudness is pulled towards a common\n"
@@ -554,7 +560,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
             "Off: it is only CUED on the player (loaded, shown, silent) and ⏯\n"
             "starts it — what a heat wants, where the music begins when the\n"
             "couples are on the floor and not a moment earlier.\n\n"
-            "Part of the play sets: 🏆 tournament switches it off, 🎉 party on.")
+            "Part of the play sets: off in every one of them until you switch it on.")
         self.dblclick_check.setChecked(bool(settings.get("dblclick_plays", False)))
         lyt.addWidget(self.dblclick_check)
 
@@ -684,8 +690,13 @@ class PlayModeSetupMixin(PlayModePanelHost):
         # list in step with what's actually connected.
         app = QGuiApplication.instance()
         if isinstance(app, QGuiApplication):
-            app.screenAdded.connect(lambda _s: self._fill_screens())
-            app.screenRemoved.connect(lambda _s: self._fill_screens())
+            # Bound methods, not lambdas: Qt drops the connection with the
+            # panel, a lambda would outlive it and be called on a dead object.
+            app.screenAdded.connect(self._on_screens_changed)
+            app.screenRemoved.connect(self._on_screens_changed)
+
+    def _on_screens_changed(self, _screen=None):
+        self._fill_screens()
 
     def _setup_awake_and_countdown(self, lyt, settings):
         """☀ The screensaver hold and the live countdown."""
@@ -697,7 +708,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
             "The system counts idle time from the mouse and the keyboard,\n"
             "never from the speakers — so an hour of music with nobody touching\n"
             "the desk blanks the screen mid-heat, the beamer included. It goes\n"
-            "back to its normal timeouts as soon as neither is running.")
+            "back to its normal timeouts ten minutes after both have ended.")
         self.awake_check.setChecked(bool(settings.get("keep_awake", True)))
         lyt.addWidget(self.awake_check)
 
@@ -759,13 +770,18 @@ class PlayModeSetupMixin(PlayModePanelHost):
         self.advance_check.clicked.connect(self._follow_advance_with_announce)
         self.repeat_check.toggled.connect(lambda _: self.settingsChanged.emit())
         # Not settingsChanged: the stop rule is never saved.
-        self.stop_combo.currentIndexChanged.connect(lambda _: self._on_stop_rule())
+        self.stop_combo.currentIndexChanged.connect(lambda _: self._on_stop_mode())
         self.stop_count_spin.valueChanged.connect(lambda _: self._on_stop_rule())
-        self.stop_time_edit.timeChanged.connect(lambda _: self._on_stop_rule())
+        self.stop_time_combo.activated.connect(lambda _: self._on_stop_rule())
+        self.stop_time_combo.opening.connect(self._fill_stop_times)
+        self.stop_time_combo.typed.connect(self._on_stop_time_typed)
         self.stop_at_mode_combo.currentIndexChanged.connect(
             lambda _: self.settingsChanged.emit())
         self.pause_spin.valueChanged.connect(lambda _: self.settingsChanged.emit())
         self.announce_check.toggled.connect(self.announce_sub_box.setVisible)
+        self.announce_check.toggled.connect(lambda _: self._sync_pause_tip())
+        # clicked, not toggled: a stored or applied set with both on stays so.
+        self.announce_check.clicked.connect(self._follow_announce_with_pause)
         self.announce_check.toggled.connect(lambda _: self.settingsChanged.emit())
         self.loudness_check.toggled.connect(lambda _: self.settingsChanged.emit())
         self.awake_check.toggled.connect(lambda _: self.settingsChanged.emit())
@@ -774,6 +790,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
         self.remember_check.toggled.connect(lambda _: self.settingsChanged.emit())
         self._refresh_len_lbl()
         self._sync_pause_row()
+        self._sync_pause_tip()
         self._show_stop_rule()
         self.pd_sub_box.setVisible(self.pd_check.isChecked())
         self.announce_sub_box.setVisible(self.announce_check.isChecked())

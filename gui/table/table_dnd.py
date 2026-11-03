@@ -2,6 +2,7 @@
 
 Mixin of PlaylistTable — extracted 1:1 from gui/table/playlist_table.py in the
 big-module split; behaviour unchanged."""
+import copy
 import logging
 import re
 from pathlib import Path
@@ -51,6 +52,31 @@ log = logging.getLogger("dancesport.gui.playlist_table")
 # here isinstance-check drag sources against it at call time.
 if not TYPE_CHECKING:
     PlaylistTable = None
+
+# What the question about a title the list already holds can offer.
+_HELD_BUTTONS = {"add": "Add", "move": "Replace",
+                 "replace": "Replace", "swap": "Swap"}
+
+
+class _DropSnapshot:
+    """What a drop event told, kept for after it is over: the answer of the
+    "already in this list" box comes later, when the event itself is gone."""
+
+    def __init__(self, e):
+        try:
+            self._source = e.source()
+        except Exception:
+            self._source = None
+        try:
+            self._mods = e.modifiers()
+        except Exception:
+            self._mods = QApplication.keyboardModifiers()
+
+    def source(self):
+        return self._source
+
+    def modifiers(self):
+        return self._mods
 
 
 class TableDragDropMixin(PlaylistTableHost):
@@ -848,7 +874,8 @@ class TableDragDropMixin(PlaylistTableHost):
         e.setDropAction(Qt.DropAction.CopyAction)
         e.accept()
         pre_planned = self._planned_keys()
-        self._dynamic_drop(e, self._dynamic_drop_row(e), replace=self._drop_ctrl(e))
+        if self._dynamic_drop(e, self._dynamic_drop_row(e), replace=self._drop_ctrl(e)):
+            return
         # dragging from another deck / wishlist is a MOVE
         self._move_from_drag_source(e, pre_planned=pre_planned)
 
@@ -876,7 +903,8 @@ class TableDragDropMixin(PlaylistTableHost):
                 show_toast(self, (i18n.t("➕  Added %d track(s)") if self._player_list
                                    else i18n.t("➕  Added %d track(s) — rounds re-cut"))
                             % added)
-            else:
+            elif not (len(paths) == 1
+                      and self._settle_held_insert(paths[0], self._drop_index(e), e)):
                 show_toast(self, "Already in the list — nothing added")
             return
         if not paths or not (0 <= row < len(self._row_meta)):
@@ -918,7 +946,7 @@ class TableDragDropMixin(PlaylistTableHost):
                 if (m and not m.theme and not m.backup
                         and m.entry is None
                         and (dance is None or m.dance == dance)):
-                    if self._replace_row_with_path(r, p):
+                    if self._replace_row_with_path(r, p, aimed=False):
                         placed.append(r)
                     break
         return placed
@@ -950,13 +978,18 @@ class TableDragDropMixin(PlaylistTableHost):
             return self.host.entry_for(path)
         return lib.entry_for(path, self._cache)
 
-    def _replace_row_with_path(self, row: int, path: Path) -> bool:
+    def _replace_row_with_path(self, row: int, path: Path, aimed: bool = True) -> bool:
         """Replace the song in `row` with a dropped track. Returns True if the slot was
         actually replaced (so a wishlist source can then MOVE the track out).
 
         The track may come from the Similar-Tracks window (already in the library)
         or be dragged in from outside it (VLC / Windows Explorer) — in which case a
-        fresh entry is built from the file's tags/filename."""
+        fresh entry is built from the file's tags/filename.
+
+        `aimed`: the user pointed this track at this row. A track the list already
+        holds is then asked about (`_settle_held_slot`, which leaves the source
+        alone); the extra tracks of a multi-drop were aimed at nothing and just
+        stay out."""
         try:
             meta = self._row_meta[row]
             if not meta or (meta.theme and not meta.warmup):
@@ -992,6 +1025,11 @@ class TableDragDropMixin(PlaylistTableHost):
             # same audio counts, whichever drive or folder the copy lies in.
             if meta.dance not in ALLOW_REPEAT and self._holds_same_audio(
                     new_entry, [m.entry for r, m in self._row_meta.numbered() if r != row]):
+                held_row = (self._held_row(new_entry, row)
+                            if aimed and self._swappable(meta) else None)
+                if held_row is not None:
+                    self._settle_held_slot(held_row, row)
+                    return False
                 QMessageBox.information(
                     self, "Already planned",
                     i18n.t("“%s” is already used in this playlist.") % new_entry.title
@@ -1020,6 +1058,154 @@ class TableDragDropMixin(PlaylistTableHost):
         except Exception as exc:
             QMessageBox.critical(self, "Replace Error", str(exc))
             return False
+
+    # ── A dropped title this list already holds: ask what it should do ──────────
+
+    def _swappable(self, m) -> bool:
+        """Can this row's title change places? A '↳ backup N' row and a theme row
+        live outside the grid; in a warm-up list every row is its own place."""
+        return self._warmup or not (m.backup or m.theme)
+
+    def _held_row(self, entry: MusicEntry | None, row: int = -1) -> int | None:
+        """The row holding `entry`'s audio, other than `row`, or None. Only a
+        title that can change places counts: the question offers nothing else."""
+        held = [(r, m.entry) for r, m in self._row_meta.numbered()
+                if r != row and self._swappable(m)]
+        same = self._holds_same_audio(entry, [e for _r, e in held])
+        return next((r for r, e in held if e is same), None)
+
+    def _ask_held_drop(self, title: str, lines: list[str], choices: list[str],
+                       done) -> None:
+        """Ask what a dropped title this list already holds should do. The box does
+        not block: the player stays usable while it is up. `lines[i]` is the hint
+        (tooltip) of `choices[i]`. `done` gets the choice picked, "" for Cancel."""
+        old = getattr(self, "_held_box", None)
+        if old is not None:
+            old.close()                     # one question at a time
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Question)
+        box.setWindowTitle(i18n.t("Already in this list"))
+        box.setText(i18n.t("“%s” is already in this list.") % title)
+        buttons = []
+        for c, hint in zip(choices, lines, strict=False):
+            btn = box.addButton(i18n.t(_HELD_BUTTONS[c]), QMessageBox.ButtonRole.AcceptRole)
+            btn.setToolTip(hint)
+            buttons.append((btn, c))
+        box.setDefaultButton(box.addButton(i18n.t("Cancel"), QMessageBox.ButtonRole.RejectRole))
+        box.setWindowModality(Qt.WindowModality.NonModal)
+        box.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        self._held_box = box
+
+        def finished(_code):
+            self._held_box = None
+            done(next((c for b, c in buttons if box.clickedButton() is b), ""))
+
+        box.finished.connect(finished)
+        box.show()
+
+    def _settle_held_slot(self, held_row: int, row: int) -> None:
+        """A title dropped ONTO `row` sits in `held_row` already. A Replace runs as
+        a swap whose other half then leaves, so a running title's marker goes with
+        it. For the same reason the running title itself can't be replaced: its
+        leaving would stop the music, and a replace never cuts the floor."""
+        held = self._row_meta[held_row].entry
+        target = self._row_meta[row].entry
+        lines, choices = [i18n.t("Move it to this slot?")], ["move"]
+        if target is not None:
+            lines, choices = [i18n.t("Swap: it changes places with “%s”.") % target.title], ["swap"]
+            if row != self._current_play_row:
+                lines.insert(0, i18n.t("Replace: it moves here and “%s” leaves the list.")
+                             % target.title)
+                choices.insert(0, "replace")
+        before = self._row_meta.entries()
+
+        def settle(choice):
+            # The list may have moved on while the box was up: then the rows
+            # asked about are not these any more.
+            if not choice:
+                return
+            if self._row_meta.entries() != before:
+                show_toast(self, i18n.t("The list changed meanwhile — nothing done"))
+                return
+            if self._warmup:
+                self._swap_song_rows(row, held_row)
+            else:
+                self._move_or_swap_rows(held_row, row)
+            # A slot refuses a title of another dance: then nothing moved, and the
+            # old place still holds the only copy.
+            if choice == "replace" and self._row_meta[row].entry is held:
+                self._clear_slots_at({held_row})
+            if choice == "replace":
+                self._pulse_entry(held, held_row)   # the same flash a swap gives
+
+        self._ask_held_drop(held.title, lines, choices, settle)
+
+    def _settle_held_insert(self, path: Path, at: int, e) -> bool:
+        """One title dropped at the gap `at` of a party list that already holds it.
+        A plain drop there inserts and overwrites nothing, so a Replace only moves
+        the title. While playing the floor may want it twice, so that is offered
+        too; planning keeps to one copy. True when that was asked, False when
+        there is nothing to ask: the title is dropped back where it stands, or the
+        list can't place it."""
+        dropped = self._entry_for(path)
+        held_row = self._held_row(dropped)
+        if held_row is None:
+            return False
+        rows = self._row_meta.song_rows()
+        pos = self._song_pos_at(at)
+        if rows[pos:pos + 1] == [held_row]:
+            return False
+        lines, choices = [i18n.t("Replace: it moves here from its old place.")], ["replace"]
+        if pos < len(rows):
+            lines.append(i18n.t("Swap: it changes places with “%s”.")
+                         % self._row_meta[rows[pos]].entry.title)
+            choices.append("swap")
+        if self._play_hl_enabled:
+            lines.insert(0, i18n.t("Add here too: it plays here and stays at its "
+                                   "old place as well."))
+            choices.insert(0, "add")
+        held = self._row_meta[held_row].entry
+        snap = _DropSnapshot(e)
+        before = self._row_meta.entries()
+
+        def settle(choice):
+            if not choice:
+                return
+            if self._row_meta.entries() != before:
+                show_toast(self, i18n.t("The list changed meanwhile — nothing done"))
+                return
+            if choice == "add":
+                # Its own object: the rows of the two are told apart by identity.
+                twin = copy.copy(dropped)
+                cur = self._row_meta.entries()
+                self._reload_warmup(cur[:pos] + [twin] + cur[pos:])
+                self._focus_rows([r for r, m in self._row_meta.numbered() if m.entry is twin])
+                self._move_from_drag_source(snap)
+            elif choice == "swap":
+                self._swap_song_rows(rows[pos], held_row)
+            elif choice == "replace":
+                entries = self._row_meta.entries()
+                old = rows.index(held_row)
+                entries.insert(pos - (old < pos), entries.pop(old))
+                self._apply_song_reorder(entries, select=[held])
+                self._pulse_entry(held, held_row)   # the same flash a swap gives
+
+        self._ask_held_drop(held.title, lines, choices, settle)
+        return True
+
+    def _pulse_entry(self, entry, old_row: int | None = None) -> None:
+        """Flash the row `entry` sits in now, so the eye finds where a Replace
+        put it, and `old_row`, the place it came from. The landing row is
+        looked up by identity: the rows may have shifted meanwhile."""
+        def flash():
+            rows = [r for r, m in self._row_meta.numbered() if m.entry is entry][:1]
+            if old_row is not None and old_row < self.rowCount() and old_row not in rows:
+                rows.append(old_row)
+            if rows:
+                self.pulse_rows(rows)
+        # After the slot move's own deferred redraw (and its swap flash), so
+        # the Replace is the flash that stays.
+        QTimer.singleShot(0, flash)
 
     # ── Dance-header drag: reorder whole dance sections ─────────────────────────
 
@@ -1136,6 +1322,8 @@ class TableDragDropMixin(PlaylistTableHost):
                     self.sync_play_glyph()
                 self.setCurrentCell(dst, _COL_TITLE)
                 self.setFocus(Qt.FocusReason.OtherFocusReason)
+                if dst_entry is not None:      # a swap: show both places
+                    self.pulse_rows([src, dst])
                 self._notify_changed()
             QTimer.singleShot(0, _after)
         except Exception as exc:

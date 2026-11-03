@@ -239,7 +239,8 @@ _PULSE_STEP_MS = 25
 _PULSE_MAX = 200   # never fully opaque, so the caption stays legible
 
 _SWATCH = 14             # edge of the colour square in the 🎨 menus
-_PAD_MIN_W = 44
+_PAD_MIN_W = 32
+_LEVEL_MIN_W = 30        # the wall's fader, squeezed to the bare handle's travel
 
 
 def _luma(colour: str) -> float:
@@ -328,6 +329,7 @@ class CartPadButton(QFrame):
         self._page_names: list[str] = []  # the wall's pages, for 📄 Move to page
         self._queue_rank = 0             # ▶ place in the wall's queue, 0 = none
         self._queue_running = False      # the pad the queue's run fired last
+        self._queue_alone = False        # nothing else is queued
         self._held = False               # ⏸ a 🎶 pad paused under a title
         self._time_text = ""             # the big middle line, without its ⏸
         self._fg = _text_on(_PLAY_BG)    # the pad's text colour, for the ⏸
@@ -441,13 +443,14 @@ class CartPadButton(QFrame):
     def selected(self) -> bool:
         return self._selected
 
-    def set_queue(self, rank: int, running: bool) -> None:
-        """▶ Where the pad stands in the wall's queue (0 = not in it), and
-        whether it is the one the queue's run fired last."""
-        if (rank, running) == (self._queue_rank, self._queue_running):
+    def set_queue(self, rank: int, running: bool, alone: bool = False) -> None:
+        """▶ Where the pad stands in the wall's queue (0 = not in it), whether
+        it is the one the queue's run fired last, and whether it is the only one
+        queued: then it follows itself, so its 🔁 still holds."""
+        state = (rank, running, alone)
+        if state == (self._queue_rank, self._queue_running, self._queue_alone):
             return
-        self._queue_rank = rank
-        self._queue_running = running
+        self._queue_rank, self._queue_running, self._queue_alone = state
         self._restyle()
 
     def set_held(self, held: bool) -> None:
@@ -499,7 +502,7 @@ class CartPadButton(QFrame):
         if self._scrub is None:       # mid-drag the band shows the mouse
             self._frac = max(0.0, min(1.0, frac))
         # Inside the ▶ queue's run the pad plays once, so it counts down.
-        if self._pad.loop and not self._queue_running:
+        if self._pad.loop and (not self._queue_running or self._queue_alone):
             self._set_time("∞")
         elif ms_left < 0:
             self._set_time("--:--")
@@ -555,7 +558,7 @@ class CartPadButton(QFrame):
 
         title = pc.pad_title(self._pad)
         marks = ""
-        if self._pad.loop and queued:
+        if self._pad.loop and queued and not self._queue_alone:
             # Every tap on a queued pad starts the run, and the run never loops.
             marks += f" {loop_overridden_html()}"
         elif self._pad.loop:
@@ -640,7 +643,8 @@ class CartPadButton(QFrame):
             return (i18n.t("\n▶ Queue: place %d — Ctrl+click takes it out")
                     % self._queue_rank
                     + (i18n.t("\n🔁 Loop is off in the queue: it plays once")
-                       if self._pad is not None and self._pad.loop else ""))
+                       if self._pad is not None and self._pad.loop
+                       and not self._queue_alone else ""))
         return i18n.t("\nCtrl+click: into the ▶ queue")
 
     def paintEvent(self, e):
@@ -856,6 +860,7 @@ class CartwallWidget(QWidget):
     fadeChanged = Signal(int)              # the wall-wide fade-out, in ms
     dockRequested = Signal()               # 📌 put me back into the main window
     padsMoved = Signal(object)             # {old key: new key} — turn / reshape
+    padCleared = Signal(object)            # key — its pad was cleared: stop the voice
     keysRequested = Signal()               # ⌨ the Keys window, on the wall's tab
     settingsRequested = Signal()           # ⚙ Settings, on its 🎛 Cartwall tab
     levelChanged = Signal(float)           # 🔊 the wall's own fader, 0…1
@@ -882,6 +887,7 @@ class CartwallWidget(QWidget):
         self._buttons: dict[tuple[int, int, int], CartPadButton] = {}
         self._shortcuts: list[QShortcut] = []
         self._edit = False      # ✏ locked: pads fire, the wall cannot be changed
+        self._vol_buttons = True    # ⚙ the − / + beside the fader
 
         outer = QVBoxLayout(self)
         # Without this the layout stamps its own minimumSize onto the widget and
@@ -932,7 +938,9 @@ class CartwallWidget(QWidget):
         self._next_btn.setToolTip("Next page")
         self._next_btn.clicked.connect(lambda: self.step_page(1))
         self._page_lbl = ClickableLabel("")
-        self._page_lbl.setMinimumWidth(70)
+        # The page name is typed text (or comes from the file): never markup.
+        self._page_lbl.setTextFormat(Qt.TextFormat.PlainText)
+        self._page_lbl.setMinimumWidth(16)
         self._page_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._page_lbl.setToolTip("Double-click to rename this page")
         self._page_lbl.double_clicked.connect(self._rename_page)
@@ -1059,7 +1067,8 @@ class CartwallWidget(QWidget):
         self._level = ClickSlider(Qt.Orientation.Horizontal)
         self._level.setRange(0, 100)
         self._level.setValue(100)
-        self._level.setFixedWidth(90)
+        self._level.setMinimumWidth(_LEVEL_MIN_W)
+        self._level.setMaximumWidth(90)
         self._level.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._level.setToolTip(
             "Cartwall volume — every pad, apart from the music volume.\n"
@@ -1077,7 +1086,33 @@ class CartwallWidget(QWidget):
         self._level_lbl.setAlignment(Qt.AlignmentFlag.AlignRight
                                      | Qt.AlignmentFlag.AlignVCenter)
         row.addWidget(self._level_lbl)
+        # Set by hand, or the box's full row would be the whole wall's floor:
+        # _fit_tools takes the extras away, but only once the dock got there.
+        box.setMinimumWidth(self._mute_btn.sizeHint().width() + row.spacing() + _LEVEL_MIN_W)
         return box
+
+    def _fit_tools(self) -> None:
+        """A dock too narrow for the whole fader: the − / + and the readout go
+        and ⏹ drops its words, so the pads alone decide how narrow the wall gets."""
+        layout = self.layout()
+        level_parent = self._level.parentWidget()
+        level_layout = level_parent.layout() if level_parent is not None else None
+        assert layout is not None and level_layout is not None
+        margins = layout.contentsMargins()
+        parts = [self._mute_btn, self._level, self._level_lbl]
+        if self._vol_buttons:
+            parts += [self._level_down_btn, self._level_up_btn]
+        whole = (sum(p.sizeHint().width() for p in parts)
+                 + level_layout.spacing() * (len(parts) - 1))
+        fits = self.width() - margins.left() - margins.right() >= whole
+        self._stop_btn.setText("⏹  Stop all" if fits else "⏹")
+        self._level_lbl.setVisible(fits)
+        self._level_down_btn.setVisible(fits and self._vol_buttons)
+        self._level_up_btn.setVisible(fits and self._vol_buttons)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._fit_tools()
 
     def _level_step_btn(self, text: str, delta: int, word: str) -> QToolButton:
         """One of the − / + buttons beside the wall's fader."""
@@ -1096,8 +1131,8 @@ class CartwallWidget(QWidget):
 
     def set_vol_buttons_shown(self, on: bool) -> None:
         """➕ The − / + from ⚙ Sound & player, the same switch as the card's."""
-        self._level_down_btn.setVisible(on)
-        self._level_up_btn.setVisible(on)
+        self._vol_buttons = on
+        self._fit_tools()
 
     def set_muted(self, on: bool, emit: bool = False) -> None:
         """🔇 The wall silenced, or back at its fader's level."""
@@ -1344,7 +1379,8 @@ class CartwallWidget(QWidget):
         ranks = pc.queue_ranks(self._pages)
         running = self._run[0] if self._run is not None else None
         for key, button in self._buttons.items():
-            button.set_queue(ranks.get((key[0], key[1:]), 0), key == running)
+            button.set_queue(ranks.get((key[0], key[1:]), 0), key == running,
+                             len(ranks) == 1)
 
     # ── playback feedback ────────────────────────────────────────────────────
     def set_playing(self, key, playing: bool) -> None:
@@ -1596,6 +1632,8 @@ class CartwallWidget(QWidget):
     def _rename_page(self) -> None:
         """'Page 1' says nothing on a wall that has a fanfare page and a
         ceremony page. The name is already in the model — this puts it there."""
+        if not self._edit:      # the double-click is wired while ✏ is locked too
+            return
         page = self._pages[self._page]
         name, ok = QInputDialog.getText(
             self, "Rename page", "Page name:", QLineEdit.EchoMode.Normal,
@@ -1794,8 +1832,16 @@ class CartwallWidget(QWidget):
 
     def _on_pad_dropped(self, src_cell, dst_key) -> None:
         page, row, col = dst_key
+        before = [pc.Page(p.name, dict(p.pads)) for p in self._pages]
         pc.move_pad(self._pages, self._page, src_cell, page, (row, col))
+        # Both pads of a swap changed cell: the voice, the lamp and the
+        # selection go with the pad, not with the cell it left.
+        moved = self._follow_pads(before)
+        self._selected = {moved.get(k, k) for k in self._selected}
+        self._paint_selection()
         self.refresh_missing()
+        if moved:
+            self.padsMoved.emit(moved)
         self.changed.emit()
 
     def _on_move_to_page(self, key, dst: int) -> None:
@@ -1825,6 +1871,11 @@ class CartwallWidget(QWidget):
         for page, row, col in self._scope(key):
             pc.clear_pad(self._pages, page, (row, col))
             self._selected.discard((page, row, col))
+            # Its voice goes with it: a pad assigned to the cell later must not
+            # come up lit with nothing playing.
+            self._live.discard((page, row, col))
+            self._held.discard((page, row, col))
+            self.padCleared.emit((page, row, col))
         self._paint_selection()
         self.refresh_missing()
         self.changed.emit()

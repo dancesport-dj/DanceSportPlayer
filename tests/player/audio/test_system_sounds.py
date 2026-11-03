@@ -74,6 +74,18 @@ class WindowsTest(unittest.TestCase):
         self.assertTrue(guard.active)
         self.assertIsNone(guard.record, "nothing for a crash repair to undo")
 
+    def test_no_system_sounds_session_yet_is_not_reported_as_muted(self):
+        """#17: the session only exists once the OS has played a sound. Until
+        then nothing is muted, and the next call has to try again."""
+        w = _FakeWin32([])
+        guard = SystemSoundGuard(WindowsBackend(w))
+        self.assertFalse(guard.hold(True))
+        self.assertFalse(guard.active)
+        w.muted[1] = False          # the first chime of the evening creates it
+        self.assertTrue(guard.hold(True))
+        self.assertTrue(guard.active)
+        self.assertTrue(w.muted[1])
+
     def test_holding_twice_sweeps_once(self):
         w = _FakeWin32([False])
         guard = SystemSoundGuard(WindowsBackend(w))
@@ -246,6 +258,12 @@ class _Desk:
 
 @mock.patch("player.audio.audio_device.save_settings")
 class DeskTest(unittest.TestCase):
+
+    def test_settings_that_are_not_there_yet_do_not_break_the_mode_switch(self, _save):
+        """#20.12: every other reader wraps the getter in `or {}`."""
+        desk = _Desk(_FakeWin32([False]), playing=False, busy=False)
+        desk.device._settings = lambda: None
+        desk.device.watch_system_sounds()
 
     def test_playing_mode_mutes_even_between_titles(self, _save):
         w = _FakeWin32([False])

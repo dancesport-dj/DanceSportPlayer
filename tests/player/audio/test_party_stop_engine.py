@@ -11,8 +11,8 @@ import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
-from PySide6.QtCore import QTime
 from PySide6.QtMultimedia import QMediaPlayer
 
 from player.audio.between_dances import BetweenDances
@@ -39,7 +39,7 @@ class StopRowTest(_Fixture):
         p = self.panel(auto_advance=True)
         self.assertEqual(p.stop_combo.currentData(), "never")
         self.assertFalse(p.stop_count_spin.isVisible())
-        self.assertFalse(p.stop_time_edit.isVisible())
+        self.assertFalse(p.stop_time_combo.isVisible())
         self.assertEqual(p.stop_text(), "")
 
     def test_it_leaves_the_panel_without_auto_advance(self):
@@ -69,12 +69,132 @@ class StopRowTest(_Fixture):
         self.assertTrue(p.stop_title_ended(datetime.now()))
         self.assertEqual(p.stop_combo.currentData(), "never")
 
-    def test_a_time_shows_its_clock(self):
+    def _offers(self, *times):
+        """The list the clock would give, the way `stop_time_choices` does."""
+        slots = [datetime(2026, 10, 24, *map(int, t.split(":"))) for t in times]
+        patcher = mock.patch("player.widgets.play_mode_panel.stop_time_choices",
+                             return_value=slots)
+        self.addCleanup(patcher.stop)
+        return patcher.start()
+
+    def _pick(self, p, text):
+        """What a click on a line of the open list does."""
+        at = p.stop_time_combo.findText(text)
+        p.stop_time_combo.setCurrentIndex(at)
+        p.stop_time_combo.activated.emit(at)
+
+    def _times(self, p):
+        return [p.stop_time_combo.itemText(i) for i in range(p.stop_time_combo.count())]
+
+    def test_a_time_shows_its_list_on_23_00(self):
+        self._offers("22:30", "23:00", "23:30")
         p = self.panel(auto_advance=True)
-        p.stop_time_edit.setTime(QTime(23, 30))
         self.choose(p, "time")
-        self.assertTrue(p.stop_time_edit.isVisible())
+        self.assertTrue(p.stop_time_combo.isVisible())
+        self.assertEqual(self._times(p), ["22:30", "23:00", "23:30"])
+        self.assertEqual(p.stop_text(), "⏹  Stops at 23:00")
+
+    def test_past_23_00_it_opens_on_the_first_time_left(self):
+        self._offers("23:25", "23:30")
+        p = self.panel(auto_advance=True)
+        self.choose(p, "time")
+        self.assertEqual(p.stop_text(), "⏹  Stops at 23:25")
+
+    def test_picking_a_time_arms_it(self):
+        self._offers("22:30", "23:00", "23:30")
+        p = self.panel(auto_advance=True)
+        self.choose(p, "time")
+        self._pick(p, "23:30")
         self.assertEqual(p.stop_text(), "⏹  Stops at 23:30")
+
+    def _type(self, p, text):
+        """What a double click, typing and Enter do."""
+        combo = p.stop_time_combo
+        combo.beginTyping()
+        combo.lineEdit().setText(text)
+        combo.lineEdit().editingFinished.emit()
+
+    def test_a_double_click_opens_the_field_for_typing(self):
+        self._offers("22:30", "23:00")
+        p = self.panel(auto_advance=True)
+        self.choose(p, "time")
+        self.assertTrue(p.stop_time_combo.lineEdit().isReadOnly())
+        p.stop_time_combo.beginTyping()
+        self.assertFalse(p.stop_time_combo.lineEdit().isReadOnly())
+
+    def test_a_typed_time_arms_even_off_the_list(self):
+        self._offers("22:30", "23:00")
+        p = self.panel(auto_advance=True)
+        self.choose(p, "time")
+        self._type(p, "23:17")
+        self.assertEqual(p.stop_text(), "⏹  Stops at 23:17")
+        self.assertEqual(p.stop_time_combo.currentText(), "23:17")
+        self.assertTrue(p.stop_time_combo.lineEdit().isReadOnly())
+        self.assertEqual(self._times(p), ["22:30", "23:00"])
+
+    def test_a_typed_time_survives_the_list_opening(self):
+        self._offers("22:30", "23:00")
+        p = self.panel(auto_advance=True)
+        self.choose(p, "time")
+        self._type(p, "23:17")
+        p.stop_time_combo.showPopup()
+        p.stop_time_combo.hidePopup()
+        self.assertEqual(p.stop_time_combo.currentText(), "23:17")
+        self.assertEqual(p.stop_text(), "⏹  Stops at 23:17")
+
+    def test_nonsense_typed_keeps_the_time_there_was(self):
+        self._offers("22:30", "23:00")
+        p = self.panel(auto_advance=True)
+        self.choose(p, "time")
+        self._type(p, "soon")
+        self.assertEqual(p.stop_time_combo.currentText(), "23:00")
+        self.assertEqual(p.stop_text(), "⏹  Stops at 23:00")
+
+    def test_the_first_time_left_can_replace_one_gone_by(self):
+        """Armed for 23:00, opened at 23:02: the list stands on 23:05 already,
+        and clicking the line it stands on still has to arm it."""
+        offer = self._offers("22:30", "23:00")
+        p = self.panel(auto_advance=True)
+        self.choose(p, "time")
+        offer.return_value = [datetime(2026, 10, 24, 23, 5),
+                              datetime(2026, 10, 24, 23, 10)]
+        p.stop_time_combo.showPopup()
+        p.stop_time_combo.hidePopup()
+        self._pick(p, "23:05")
+        self.assertEqual(p.stop_text(), "⏹  Stops at 23:05")
+
+    def test_the_list_follows_the_clock_when_it_opens(self):
+        """A panel set up at six still offers the truth at eleven."""
+        offer = self._offers("22:30", "23:00", "23:30")
+        p = self.panel(auto_advance=True)
+        self.choose(p, "time")
+        offer.return_value = [datetime(2026, 10, 24, 23, 0),
+                              datetime(2026, 10, 24, 23, 5)]
+        p.stop_time_combo.showPopup()
+        p.stop_time_combo.hidePopup()
+        self.assertEqual(self._times(p), ["23:00", "23:05"])
+
+    def test_opening_the_list_does_not_arm_anything(self):
+        offer = self._offers("22:30", "23:00", "23:30")
+        p = self.panel(auto_advance=True)
+        self.choose(p, "time")
+        self._pick(p, "23:30")
+        armed = p._party_stop.at
+        offer.return_value = [datetime(2026, 10, 24, 23, 30),
+                              datetime(2026, 10, 24, 23, 35)]
+        changes = []
+        p.stopRuleChanged.connect(lambda: changes.append(1))
+        p.stop_time_combo.showPopup()
+        p.stop_time_combo.hidePopup()
+        self.assertEqual(changes, [])
+        self.assertEqual(p._party_stop.at, armed)
+        self.assertEqual(p.stop_time_combo.currentText(), "23:30")
+
+    def test_the_real_list_is_there_at_any_hour(self):
+        p = self.panel(auto_advance=True)
+        self.choose(p, "time")
+        self.assertGreater(p.stop_time_combo.count(), 0)
+        self.assertTrue(p.stop_text().startswith("⏹  Stops at "))
 
     def test_without_auto_advance_the_rule_is_asleep(self):
         p = self.panel(auto_advance=True)

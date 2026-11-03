@@ -191,10 +191,20 @@ def name_published(host: str) -> bool | None:
     qid = secrets.randbelow(1 << 16)
     for server in _NAMESERVERS:
         try:
+            ip = socket.gethostbyname(server)
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-                sock.settimeout(_DNS_ASK_SECS)
-                sock.sendto(dns_query(host, qid), (server, 53))
-                reply = sock.recv(512)
+                sock.sendto(dns_query(host, qid), (ip, 53))
+                # Only the nameserver's own packet counts: anyone on the LAN
+                # can guess a 16-bit id, and a flood must not stretch the wait.
+                deadline = time.monotonic() + _DNS_ASK_SECS
+                while True:
+                    left = deadline - time.monotonic()
+                    if left <= 0:
+                        raise TimeoutError   # the next server, as for a silent one
+                    sock.settimeout(left)
+                    reply, peer = sock.recvfrom(512)
+                    if peer[0] == ip:
+                        break
         except OSError:
             continue
         return dns_answered(reply, qid)
@@ -246,14 +256,20 @@ class Tunnel:
     def _read(self, proc: subprocess.Popen) -> None:
         if proc.stdout is None:
             return
-        for line in io.TextIOWrapper(proc.stdout, encoding="utf-8", errors="replace"):
-            text = line.rstrip()
-            self._call(self._on_line, text)
-            found = _URL_RE.search(text)
-            if found and not self.url:
-                self.url = found.group(0)
-                threading.Thread(target=self._announce, args=(proc, self.url),
-                                 daemon=True, name="guest-tunnel-dns").start()
+        try:
+            for line in io.TextIOWrapper(proc.stdout, encoding="utf-8", errors="replace"):
+                text = line.rstrip()
+                self._call(self._on_line, text)
+                found = _URL_RE.search(text)
+                if found and not self.url:
+                    self.url = found.group(0)
+                    threading.Thread(target=self._announce, args=(proc, self.url),
+                                     daemon=True, name="guest-tunnel-dns").start()
+        except Exception as exc:
+            # A tunnel nobody reads can't be followed: end it, so on_exit tells.
+            log.warning("🌐 Guest tunnel output unreadable\n"
+                        "error: %s", exc)
+            proc.kill()
         code = proc.wait()
         log.info("🌐 Guest tunnel ended\n"
                  "exit code: %s", code)

@@ -305,12 +305,14 @@ def _silencedetect(ffmpeg: str, path: Path) -> str | None:
     flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
     try:
         proc = subprocess.run(
-            [ffmpeg, "-hide_banner", "-nostats", "-i", str(path), "-map", "a:0",
+            [ffmpeg, "-hide_banner", "-nostats", "-nostdin", "-i", str(path), "-map", "a:0",
              "-af", f"silencedetect=noise={_TRIM_NOISE_DB}dB:d={_TRIM_MIN_SECS}",
              "-f", "null", "-"],
             capture_output=True, text=True, errors="replace",
             timeout=20, creationflags=flags)
     except (OSError, subprocess.TimeoutExpired):
+        return None
+    if proc.returncode != 0:    # died half way: its silences are only a prefix
         return None
     return proc.stderr
 

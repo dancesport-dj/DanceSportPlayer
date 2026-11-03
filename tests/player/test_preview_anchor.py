@@ -69,6 +69,16 @@ class PreviewAnchorTest(unittest.TestCase):
         self._scroll(80)
         self.assertEqual(self.ov.pos(), top)
 
+    def test_the_next_song_is_really_moved_to_its_own_row(self):
+        """On an already visible overlay move() delivers its moveEvent at once, which
+        put it back at the old anchor: it stayed beside the wrong title (#91)."""
+        self.ov.show_for(self.table, 8, "some song")
+        first = self.ov.pos()
+        self.ov.show_for(self.table, 0, "the next one")
+        self.assertNotEqual(self.ov.pos(), first)
+        self.assertEqual(self.ov.pos().y(),
+                         self.table.rowViewportPosition(0) + self.table.rowHeight(0) + 2)
+
 
 if __name__ == "__main__":
     unittest.main()

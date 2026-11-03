@@ -37,6 +37,7 @@ from PySide6.QtWidgets import (
     QStyleOptionViewItem,
     QTableWidget,
     QTableWidgetItem,
+    QWidget,
 )
 
 from gui.common import (
@@ -192,6 +193,36 @@ class _NumberHeader(QHeaderView):
         painter.restore()
 
 
+class _NumberGrip(QWidget):
+    """The handle on the Nb. column's right edge, which a vertical header does
+    not have of its own. Drag: the user's width. Double-click: the counter's."""
+
+    def __init__(self, table: PlaylistTable):
+        super().__init__(table)
+        self._table = table
+        self._grabbed = None   # the width less the mouse's x, while dragging
+        self.setCursor(Qt.CursorShape.SplitHCursor)
+        self.setToolTip("Drag to change the width. Double-click for the automatic width.")
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._grabbed = self._table.nb_width() - event.globalPosition().x()
+
+    def mouseMoveEvent(self, event):
+        if self._grabbed is not None:
+            self._table.set_nb_width(round(self._grabbed + event.globalPosition().x()))
+
+    def mouseReleaseEvent(self, _event):
+        if self._grabbed is not None:
+            self._grabbed = None
+            self._table._notify_widths()
+
+    def mouseDoubleClickEvent(self, _event):
+        self._grabbed = None
+        self._table.set_nb_width(None)
+        self._table._notify_widths()
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Playlist Table
 # ─────────────────────────────────────────────────────────────────────────────
@@ -222,6 +253,7 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         self._find_rows: list[int] = []
         self._find_saved: dict[tuple[int, int], QBrush] = {}
         self._last_find_query: tuple[str, str] | None = None
+        self._find_bar = None     # 🔍 made on the first Ctrl+F
         # Songs the user flagged "for potential replace" (dynamic decks), keyed by file
         # path so the orange mark survives structural re-renders. Persisted per deck
         # in the autosave/undo snapshot ("marked" key of _serialize_playlist_state).
@@ -291,6 +323,7 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         self._nogroup = False
         # 🔢 Numbers view: the Nb. column (vertical header) counts the titles.
         self._numbered = False
+        self._nb_width = None   # the user's Nb. width; None: the counter's
         # Warm-up ("Eintanzen") list: a flat, own-category list whose rows carry a
         # 'warmup' tag so ↺ re-rolls a timbre-matched, TSO-conform track of the same
         # dance and a drop can replace a slot (set by load_warmup).
@@ -479,6 +512,7 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         self._rating_cb: Callable | None = None
         # The header menu's reset of the 🔁 play counters — the window owns them.
         self._play_counts_cb: Callable[[], None] | None = None
+        self._played_reset_cb: Callable[[], None] | None = None
         # Which kind of list this table is — "playlist" (a deck), "wishlist" or
         # "party" (the Eintanzen panel). Set by the window that builds them; the
         # column ticks are remembered per kind, not per table.
@@ -534,6 +568,8 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         self._nb_label.setFont(self.horizontalHeader().font())
         self._nb_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self._nb_label.hide()
+        self._nb_grip = _NumberGrip(self)
+        self._nb_grip.hide()
 
     def _configure_view(self):
         """Selection, drag-and-drop, scrolling and the click / double-click wiring."""
@@ -628,6 +664,7 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             self.sync_play_glyph()
         else:
             self._play_uid = None
+        self._grey_played_rows()   # the rows were filled before the ids came back
 
     def sync_play_glyph(self, playing: bool | None = None):
         """Keep the running row's ■/▶ in step with the player: ■ while the music
@@ -867,8 +904,8 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
     def dblclick_plays(self) -> bool:
         """True where a double-click STARTS the title, False where it only cues
         it on the player — the ▶️ box on the Playing panel, part of the play
-        sets: 🏆 tournament cues (the heat starts on ⏯, when the couples
-        stand), 🎉 party plays. Default: it cues. It is this list's own."""
+        sets. Default in all of them: it cues (a 🏆 heat starts on ⏯, when the
+        couples stand). It is this list's own."""
         vals = self.host.list_vals()
         if vals is not None:
             return bool(vals["dblclick"])
@@ -896,6 +933,29 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             QMessageBox.StandardButton.No)
         return ans == QMessageBox.StandardButton.Yes
 
+    def _ask_resume_mark(self, title: str, ms: int) -> str | None:
+        """A title is playing and `title` has a ↩ time marker at `ms`: where
+        does it start? "mark", "top" (the marker goes) or None. Starting it
+        stops the running title, so this one question stands in for the stop
+        question. Defaults to Cancel, so a stray Enter keeps the music on."""
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Question)
+        box.setWindowTitle(i18n.t("Reset the time marker?"))
+        box.setText(i18n.t("A title is playing. “%s” has a time marker at %s.\n"
+                           "Stop the playing title and start it from where?")
+                    % (title, fmt_track_secs(ms // 1000)))
+        # From the beginning is the usual case, so it sits first. Both are
+        # Accept buttons: the button order then follows the order added here.
+        top_btn = box.addButton(i18n.t("From the beginning"),
+                                QMessageBox.ButtonRole.AcceptRole)
+        mark_btn = box.addButton(i18n.t("At the marker"),
+                                 QMessageBox.ButtonRole.AcceptRole)
+        box.setDefaultButton(box.addButton(i18n.t("Cancel"),
+                                           QMessageBox.ButtonRole.RejectRole))
+        box.exec()
+        clicked = box.clickedButton()
+        return "mark" if clicked is mark_btn else "top" if clicked is top_btn else None
+
     def _on_row_double_clicked(self, row: int, _col: int):
         """Playing mode PLAYS the row (or cues it — see `dblclick_plays`);
         planning mode plays it here like its ▶ (mini player and all) — or opens
@@ -916,6 +976,8 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         A double-click on ANOTHER row stops the playing title just the same,
         whether it plays or cues the new one — so while music is on it asks
         first, unless the list's ❓ play value says not to (`dblclick_asks`).
+        Where that title has a ↩ marker and would start, the question is where
+        it starts (`_ask_resume_mark`), and ❓ does not waive that one.
         """
         if not (0 <= row < len(self._row_meta) and self._row_meta[row]):
             return
@@ -934,7 +996,15 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             return
         if row == self._current_play_row:
             return          # never touch the title that is on the speakers
-        if (self.host.is_player_running() and self.dblclick_asks()
+        running = self.host.is_player_running()
+        mark_ms = self._resume_marks.get(str(entry.path))
+        if running and mark_ms and self.dblclick_plays():
+            choice = self._ask_resume_mark(entry.title, mark_ms)
+            if choice is None:
+                return
+            if choice == "top":
+                self.host.clear_resume(entry.path)
+        elif (running and self.dblclick_asks()
                 and not self._ask_stop_playing(entry.title)):
             return
         if self.dblclick_plays():
@@ -986,6 +1056,7 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         new_col = self.horizontalHeader().logicalIndex(0)
         old_col = self._hdr_text_col.get(row, 0)
         if new_col != old_col:
+            self.setSpan(row, old_col, 1, 1)
             previous = self.item(row, old_col)
             if previous is not None:
                 previous.setText("")
@@ -993,6 +1064,16 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         it = self.item(row, new_col)
         if it is not None:
             it.setText(text)
+        self._span_header(row, new_col)
+
+    def _span_header(self, row: int, first: int):
+        """Give a header's label the band to run along, or it is cut at its own
+        column: from the left edge up to the row's ↺, wherever that was dragged,
+        and to the end on a row without one."""
+        width = self.columnCount()
+        if self.cellWidget(row, COL_REGEN) is not None:
+            width = max(1, self.horizontalHeader().visualIndex(COL_REGEN))
+        self.setSpan(row, first, 1, width)
 
     def _on_header_click(self, row: int, _col: int):
         if row in self._round_hdr_rows or row in self._dance_hdr_rows:
@@ -1523,8 +1604,13 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             self._grey_row_if_played(r, m)
 
     def _grey_row_if_played(self, r: int, m: Row):
-        if (not self._play_hl_enabled or m.path_str not in self._played_paths
-                or r == self._current_play_row):   # the running row keeps its colors (blue marker)
+        if not self._play_hl_enabled or m.path_str not in self._played_paths:
+            return
+        if r == self._current_play_row:
+            # The running row keeps its colors (blue marker). A title played
+            # before, or one a re-fill greyed before its id came back, gets
+            # them back here.
+            self._ungrey_row(r)
             return
         grey = QColor("#a8aeb8")
         for c in range(self.columnCount()):
@@ -1532,6 +1618,13 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             if it is not None and (r, c) not in self._played_saved:
                 self._played_saved[(r, c)] = it.foreground()
                 it.setForeground(grey)
+
+    def _ungrey_row(self, r: int):
+        for c in range(self.columnCount()):
+            brush = self._played_saved.pop((r, c), None)
+            it = self.item(r, c)
+            if brush is not None and it is not None:
+                it.setForeground(brush)
 
     def _ungrey_played_rows(self):
         """Back to planning mode: restore the original row colors."""
@@ -1564,6 +1657,8 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         super().resizeEvent(event)
         self._fill_title_column()
         self._update_play_row_hl()
+        if self._find_bar is not None:
+            self._find_bar.place()
 
     def next_song_row(self, row: int, step: int) -> tuple[int, Path | None]:
         """First row holding a real song before/after `row` (step = -1 / +1),

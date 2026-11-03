@@ -6,6 +6,7 @@ depend on — BPM/dance/year/Christmas detection, ID3 comment & class-tag readin
 title cleaning and tempo-fit formatting. Pinned by test_parsing.py.
 """
 import logging
+import math
 import re
 import unicodedata
 from pathlib import Path
@@ -342,7 +343,8 @@ def read_tags_once(path: Path) -> tuple:
         audio = None
     secs = 0
     if audio is not None and audio.info is not None:
-        secs = int(round(audio.info.length))
+        length = audio.info.length
+        secs = int(round(length)) if math.isfinite(length) else 0   # a damaged header says nan/inf
     if audio is not None and type(audio.tags) is ID3:
         return audio.tags, secs
     foreign = as_id3(audio.tags) if audio is not None else None

@@ -222,6 +222,23 @@ class DeskFindingsTest(unittest.TestCase):
         f = readiness.awake_finding(False)
         self.assertEqual((f.level, f.fix), (WARN, "awake"))
 
+    def test_mains_power_is_green(self):
+        f = readiness.power_finding((True, 43))
+        self.assertEqual((f.key, f.level, f.fix), ("power", OK, None))
+
+    def test_a_battery_is_yellow_and_says_how_full(self):
+        f = readiness.power_finding((False, 43))
+        self.assertEqual((f.key, f.level, f.fix), ("power", WARN, None))
+        self.assertIn("43 %", f.detail)
+
+    def test_a_battery_that_does_not_say_how_full_still_warns(self):
+        f = readiness.power_finding((False, None))
+        self.assertEqual(f.level, WARN)
+        self.assertNotIn("%", f.detail)
+
+    def test_power_nobody_can_tell_leaves_its_line_out(self):
+        self.assertIsNone(readiness.power_finding(None))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

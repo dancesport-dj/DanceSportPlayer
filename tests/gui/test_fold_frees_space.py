@@ -14,6 +14,7 @@ that panel was squeezed to a strip instead.
 import os
 import tempfile
 import unittest
+from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
@@ -36,6 +37,12 @@ class FoldFreesSpaceTest(unittest.TestCase):
         QSettings.setDefaultFormat(QSettings.Format.IniFormat)
         QSettings.setPath(QSettings.Format.IniFormat,
                           QSettings.Scope.UserScope, cls._qs_dir)
+        # A window of an earlier test module leaves its layout.ini (and the lists
+        # it autosaved) in the shared state dir; this window would restore them.
+        patcher = mock.patch.dict(os.environ, {
+            "DANCEPLAYLIST_STATE_DIR": tempfile.mkdtemp(prefix="dp_fold_space_state_")})
+        patcher.start()
+        cls.addClassCleanup(patcher.stop)
         cls.app = QApplication.instance() or QApplication([])
         cls.gui = stub_window_startup(cls, {"app_mode": "both"})
 

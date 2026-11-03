@@ -38,6 +38,10 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("dancesport.gui.audio")
 
+# 📝 A card waking up reports a change every second or so. Measured in a real
+# session.log: 68 of 69 gaps inside a burst were 3 s or less, the longest 5 s.
+_OUTPUT_BURST_MS = 5000
+
 
 class AudioDevice:
     """🔊 Put every source on its output, 🔇 hand the card back while nothing
@@ -89,6 +93,8 @@ class AudioDevice:
         # outputs already reported missing (said once, until they are back).
         self._applied: dict[str, tuple[bytes, int]] = {}
         self._missing: set[str] = set()
+        # Changes left out of the log since a burst's first line; None between bursts.
+        self._burst_folded: int | None = None
         if player is not None:
             self._devices = devices or QMediaDevices
             # 🔇 Started by the silence that starts the idle clock: one look
@@ -97,12 +103,38 @@ class AudioDevice:
             self._idle_timer = QTimer(player if isinstance(player, QObject) else None)
             self._idle_timer.setSingleShot(True)
             self._idle_timer.timeout.connect(self.watch_idle)
+            # 📝 Fixed from a burst's first line: one that never stops still
+            # leaves a line in the log every window.
+            self._burst_timer = QTimer(player if isinstance(player, QObject) else None)
+            self._burst_timer.setSingleShot(True)
+            self._burst_timer.setInterval(_OUTPUT_BURST_MS)
+            self._burst_timer.timeout.connect(self._close_output_burst)
             dev = self._devices.defaultAudioOutput()
             self.out_id = None if dev is None or dev.isNull() else dev.id()
             # The output was built on the default: only a choice moves it.
             if audio_out is not None:
                 self._applied["music"] = (device_id(audio_out.device()), 0)
             self.sync()
+
+    def _log_outputs_kept(self, default: str):
+        """The first change of a burst gets its line at once, for the second
+        it happened in; _close_output_burst gives the end and the count, so a
+        stutter anywhere between the two still points here."""
+        if self._burst_folded is not None:
+            self._burst_folded += 1
+            return
+        log.info("🔊 Audio outputs changed\n"
+                 "default: %s (kept)\n"
+                 "outputs: %d", default, len(self._devices.audioOutputs()))
+        self._burst_folded = 0
+        self._burst_timer.start()
+
+    def _close_output_burst(self):
+        folded, self._burst_folded = self._burst_folded, None
+        if folded:
+            log.info("🔊 Audio outputs changed again\n"
+                     "times: %d\n"
+                     "outputs: %d", folded, len(self._devices.audioOutputs()))
 
     def on_outputs_changed(self):
         """A device came or went, or the default switched → put every source
@@ -115,10 +147,7 @@ class AudioDevice:
             if dev.id() == self.out_id:
                 # The list changed around a default that stayed put. On the
                 # record anyway: a stutter at the same second points here.
-                log.info("🔊 Audio outputs changed\n"
-                         "default: %s (kept)\n"
-                         "outputs: %d", dev.description(),
-                         len(self._devices.audioOutputs()))
+                self._log_outputs_kept(dev.description())
             else:
                 self.out_id = dev.id()
                 log.info("🔊 Default audio device changed → %s", dev.description())
@@ -455,7 +484,7 @@ class AudioDevice:
         between dances go out over the PA too — and whenever anything of ours
         is audible in planning. Called from `on_activity` and the mode
         switch; `player.audio.system_sounds` does the muting."""
-        want = (bool(self._settings().get("mute_system_sounds", True))
+        want = (bool((self._settings() or {}).get("mute_system_sounds", True))
                 and (self._is_playing_mode() or self.busy()))
         self.hold_system_sounds(want)
 

@@ -21,6 +21,7 @@ from player.audio.between_dances import BetweenDances
 from player.audio.fade_now import FadeNow
 from player.audio.playback_state import PlaybackState
 from player.audio.resume_marks import ResumeMarks
+from player.audio.wake_hold import WakeHold
 
 TRACK = Path(r"C:\music\track.mp3")
 OTHER = Path(r"C:\music\other.mp3")
@@ -136,7 +137,7 @@ class _FakeWindow:
         # …and what `_on_playback_state` walks past on its way to the ↩ line.
         self._fade_timer = _FakeTimer()
         self._presenter = None
-        self._awake_held = False
+        self._wake_hold = WakeHold()
         self._playback.dance = "WW"
         self._pd_stop_at = None
 
@@ -163,6 +164,9 @@ class _FakeWindow:
         return True
 
     def _refresh_loudness_gain(self):
+        pass
+
+    def _stop_background_analysis(self):
         pass
 
 
@@ -218,6 +222,16 @@ class ResumeMarkTest(unittest.TestCase):
         w._resume.at[str(TRACK)] = 42_000
         w._remember_stop_point()
         self.assertEqual(w._resume.at, {str(TRACK): 42_000})
+
+    def test_leaving_before_the_pickup_seek_ran_keeps_the_mark(self):
+        # The title was started from its 30 s mark, but the media is not open
+        # yet, so position() still reads 0. Switching away in that window used
+        # to note 0 and wipe the mark - the row then showed no badge.
+        w = self.Win(pos_ms=0)
+        w._resume.at[str(TRACK)] = 30_000
+        w._resume_seek_ms = 30_000
+        w._remember_stop_point()
+        self.assertEqual(w._resume.at, {str(TRACK): 30_000})
 
     def test_with_nothing_loaded_there_is_nothing_to_note(self):
         w = self.Win(pos_ms=63_000)

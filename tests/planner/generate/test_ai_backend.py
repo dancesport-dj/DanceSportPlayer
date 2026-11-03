@@ -226,6 +226,17 @@ class ModelListTest(unittest.TestCase):
             got = ai.openrouter_free_models(base_url=MAMMOUTH)
         self.assertEqual(got, ["free/one:free", "paid/one"])
 
+    def test_the_whole_list_holds_the_paid_ones_too(self):
+        """9.1: a paid model could not be picked, the list ended at the free."""
+        _seen, fake = _capture(self._LIST)
+        with mock.patch("urllib.request.urlopen", fake):
+            self.assertEqual(ai.openrouter_models(),
+                             ["free/one:free", "paid/one"])
+
+    def test_the_whole_list_refuses_plain_http_too(self):
+        with self.assertRaises(RuntimeError):
+            ai.openrouter_models("k", base_url="http://api.mammouth.ai/v1")
+
 
 class ConfigTest(unittest.TestCase):
 
@@ -259,6 +270,58 @@ class ConfigTest(unittest.TestCase):
         ai.save_openrouter_config("k", "m")
         self.assertEqual(self._store.write.call_args[0][0]["base_url"],
                          ai.DEFAULT_API_BASE)
+
+    def test_the_order_is_saved(self):
+        self._store.read.return_value = {}
+        ai.save_openrouter_config("k", "m", MAMMOUTH, ask_first=True)
+        self.assertTrue(self._store.write.call_args[0][0]["ask_first"])
+
+    def test_a_save_that_does_not_name_the_order_keeps_it(self):
+        """The suggestion dialog saves key, model and host, nothing else."""
+        self._store.read.return_value = {"ask_first": True}
+        ai.save_openrouter_config("k", "m", MAMMOUTH)
+        self.assertTrue(self._store.write.call_args[0][0]["ask_first"])
+
+
+class BackendOrderTest(unittest.TestCase):
+    """9.1: with the CLI working, the chosen model was never asked at all."""
+
+    def setUp(self):
+        from planner.generate import llm as planner_llm
+        self.L = planner_llm
+        self.cfg = {"api_key": "k", "model": "x/y", "base_url": MAMMOUTH,
+                    "ask_first": True}
+
+    def _ask(self, cli, chat):
+        with mock.patch.object(self.L, "call_claude_cli", cli), \
+             mock.patch.object(ai, "load_openrouter_config",
+                               return_value=self.cfg), \
+             mock.patch.object(ai, "openrouter_chat", chat):
+            return self.L._ask("s", "u", model="opus", config_dir="", timeout=5)
+
+    def test_the_chosen_model_answers_first(self):
+        cli, chat = mock.Mock(return_value="cli"), mock.Mock(return_value="api")
+        self.assertEqual(self._ask(cli, chat), ("api", "api.mammouth.ai (x/y)"))
+        cli.assert_not_called()
+
+    def test_the_cli_is_then_the_fallback(self):
+        cli = mock.Mock(return_value="cli")
+        chat = mock.Mock(side_effect=RuntimeError("HTTP 401: bad key"))
+        self.assertEqual(self._ask(cli, chat), ("cli", "claude -p (opus)"))
+
+    def test_both_failing_still_names_both(self):
+        cli = mock.Mock(side_effect=RuntimeError("no cli"))
+        chat = mock.Mock(side_effect=RuntimeError("HTTP 401: bad key"))
+        with self.assertRaises(RuntimeError) as ctx:
+            self._ask(cli, chat)
+        self.assertIn("claude -p", str(ctx.exception))
+        self.assertIn("api.mammouth.ai", str(ctx.exception))
+
+    def test_left_alone_the_cli_comes_first(self):
+        self.cfg.pop("ask_first")
+        cli, chat = mock.Mock(return_value="cli"), mock.Mock(return_value="api")
+        self.assertEqual(self._ask(cli, chat), ("cli", "claude -p (opus)"))
+        chat.assert_not_called()
 
 
 class BackendLabelTest(unittest.TestCase):

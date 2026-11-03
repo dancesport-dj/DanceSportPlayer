@@ -23,6 +23,7 @@ from PySide6.QtCore import (
     Signal,
 )
 from PySide6.QtGui import (
+    QActionGroup,
     QDrag,
     QStandardItemModel,
 )
@@ -38,6 +39,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMenu,
     QProgressBar,
+    QSplitter,
     QStyle,
     QStyledItemDelegate,
     QStyleOptionComboBox,
@@ -67,6 +69,7 @@ from gui.common import (
     set_header_tip,
     stopwatch_header,
 )
+from gui.library_folders import FolderTree, funnel_icon
 from gui.table.star_rating import RATING_ROLE, StarDelegate
 from planner import i18n
 from planner.generate.warmup import warmup_code
@@ -477,6 +480,9 @@ class LibraryBrowser(QWidget):
     wholeLibraryDropped = Signal()        # ⭐ clicked while 🌐 still loads — stop waiting
     wholeRescanWanted = Signal()          # 🔄 clicked — MainWindow walks the repository again
     playCountsResetWanted = Signal()      # 🔁 the header menu's reset — MainWindow does it
+    folderViewChanged = Signal(bool)      # 📁 tree beside the table? — persisted
+
+    DUPLICATE_MARK = "♊"   # 📁 the same music is planned from another folder
 
     # Dance codes per style (S-class = the full dance set), for the combo's group filters.
     _STYLE_DANCES = {style: set(DEFAULT_DANCES[style]["S"])
@@ -501,6 +507,9 @@ class LibraryBrowser(QWidget):
         # Paths of tracks already used in the open playlist decks; fed by
         # MainWindow so the 🆕 "Unplanned" filter can hide them.
         self._planned_paths: set = set()
+        # …the ones among them that are a copy of a planned file, not that file.
+        self._planned_copies: set = set()
+        self._marked: set = set()   # the rows on screen that carry DUPLICATE_MARK
 
         v = QVBoxLayout(self)
         v.setContentsMargins(0, 0, 0, 0)
@@ -525,7 +534,47 @@ class LibraryBrowser(QWidget):
         cv.addLayout(flt)
 
         self._build_table()
-        cv.addWidget(self._table, stretch=1)
+        self._folders = FolderTree()
+        self._folders.folderChosen.connect(self._refilter)
+        body = QSplitter(Qt.Orientation.Horizontal)
+        body.setChildrenCollapsible(False)
+        self._folder_search = QLineEdit()
+        self._folder_search.setClearButtonEnabled(True)
+        self._folder_search.setPlaceholderText(i18n.t("Find a folder…"))
+        self._folder_search.textChanged.connect(self._folders.set_search)
+        # Like the filter funnel in a spreadsheet: one icon, a menu behind it, and the
+        # button stays pressed while something other than the default is chosen.
+        self._folder_filter = QToolButton()
+        self._folder_filter.setIcon(funnel_icon())
+        self._folder_filter.setCheckable(True)
+        self._folder_filter.setToolTip(i18n.t("Sort the folders"))
+        self._folder_filter.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        sort_menu = QMenu(self._folder_filter)
+        sort_group = QActionGroup(sort_menu)
+        for caption, mode in ((i18n.t("Sort by name"), "name"),
+                              (i18n.t("Sort by size"), "count")):
+            act = sort_menu.addAction(caption)
+            act.setData(mode)
+            act.setCheckable(True)
+            act.setChecked(mode == "name")
+            sort_group.addAction(act)
+        sort_group.triggered.connect(self._on_folder_sort)
+        self._folder_filter.setMenu(sort_menu)
+        self._folder_pane = QWidget()
+        self._folder_pane.setVisible(False)
+        fp = QVBoxLayout(self._folder_pane)
+        fp.setContentsMargins(0, 0, 0, 0)
+        fp.setSpacing(2)
+        search_row = QHBoxLayout()
+        search_row.setSpacing(2)
+        search_row.addWidget(self._folder_search, stretch=1)
+        search_row.addWidget(self._folder_filter)
+        fp.addLayout(search_row)
+        fp.addWidget(self._folders)
+        body.addWidget(self._folder_pane)
+        body.addWidget(self._table)
+        body.setStretchFactor(1, 1)
+        cv.addWidget(body, stretch=1)
         v.addWidget(self._content, stretch=1)
 
         # Debounced re-filter so typing doesn't rebuild 3k rows per keystroke.
@@ -588,8 +637,20 @@ class LibraryBrowser(QWidget):
         self._rescan_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._rescan_btn.clicked.connect(self.wholeRescanWanted)
         self._sync_source_btn()
+        self._folder_btn = _HdrButton()
+        self._folder_btn.setCheckable(True)
+        self._folder_btn.setText("📁 Folders")
+        self._folder_btn.setToolTip(
+            "Show the folders beside the list: choosing one lists only the titles\n"
+            "directly in it. Here 🆕 Unplanned hides the planned file itself, and\n"
+            "the same music in another folder stays, marked with ♊.")
+        self._folder_btn.setStyleSheet(hdr_btn_qss)
+        self._folder_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._folder_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._folder_btn.clicked.connect(self._on_folder_btn)
         hh.addWidget(self._source_btn)
         hh.addWidget(self._rescan_btn)
+        hh.addWidget(self._folder_btn)
         self._count_lbl = QLabel("")
         self._count_lbl.setStyleSheet("color:#666;")
         hh.addWidget(self._count_lbl)
@@ -1041,15 +1102,32 @@ class LibraryBrowser(QWidget):
             btn.setToolTip("Listing the favorites library.\n"
                            "Click to list the whole music repository instead.")
 
+    def set_folder_view(self, on: bool):
+        """📁 The folder tree beside the table, or the whole list alone."""
+        self._folder_btn.setChecked(on)
+        self._folder_pane.setVisible(on)
+        self._refilter()
+
+    def _on_folder_sort(self, action):
+        mode = action.data()
+        self._folders.set_sort(mode)
+        self._folder_filter.setChecked(mode != "name")
+
+    def _on_folder_btn(self, on: bool):
+        self.set_folder_view(on)
+        self.folderViewChanged.emit(on)
+
     def _on_unplanned_toggled(self, on: bool):
         # Ask MainWindow to (re)build the planned-path set, then refilter.
         self.unplannedToggled.emit(bool(on))
         self._refilter()
 
-    def set_planned_paths(self, paths):
+    def set_planned_paths(self, paths, copies=()):
         """MainWindow feeds the set of file paths already used in the open decks
-        so the 🆕 Unplanned filter can hide them."""
+        so the 🆕 Unplanned filter can hide them. `copies` are those that only
+        share their music with a planned file: the folder view keeps and marks them."""
         self._planned_paths = set(paths or ())
+        self._planned_copies = set(copies)
         if self._unplanned_chk.isChecked():
             self._refilter()
 
@@ -1081,6 +1159,7 @@ class LibraryBrowser(QWidget):
             chk.blockSignals(True)
             chk.setChecked(False)
             chk.blockSignals(False)
+        self._folders.choose_all()
         if self._folded:
             self.set_folded(False)
         self._refilter()
@@ -1098,9 +1177,17 @@ class LibraryBrowser(QWidget):
         stale_before = (date.today().year - int(plays[-1])) if plays.startswith("stale") else None
         unplanned_only = self._unplanned_chk.isChecked()
         class_only = self._class_only_chk.isChecked()
+        folder_view = self._folder_btn.isChecked()
+        if folder_view and not self._folders.shows(self._entries):
+            self._folders.set_titles(self._entries)
+        folder = self._folders.folder() if folder_view else ""
+        # The folder view hides per file; a copy elsewhere stays, marked.
+        hidden = self._planned_paths - self._planned_copies if folder_view \
+            else self._planned_paths
+        self._marked = self._planned_copies if folder_view and unplanned_only else set()
         rows = []
-        for e in self._entries:
-            if unplanned_only and path_key(e.path) in self._planned_paths:
+        for e in self._folders.titles(folder) if folder else self._entries:
+            if unplanned_only and path_key(e.path) in hidden:
                 continue
             if plays:
                 pop = e.popularity or 0
@@ -1292,7 +1379,9 @@ class LibraryBrowser(QWidget):
             put(i, center, align)
             cell(r, 1, self._dance_label(e))
             cell(r, 2, getattr(e, "tag_artist", None) or "")   # Artist sits LEFT of Title
-            cell(r, 3, display_title(e))
+            marked = self._marked and path_key(e.path) in self._marked
+            cell(r, 3, f"{self.DUPLICATE_MARK} {display_title(e)}" if marked
+                 else display_title(e))
             cell(r, 4, str(e.bpm) if e.bpm else "", e.bpm or -1)
             secs = int(getattr(e, "duration", 0) or 0)
             cell(r, 5, fmt_track_secs(secs) if secs else "", secs)
@@ -1338,6 +1427,9 @@ class LibraryBrowser(QWidget):
             return ""
         if col == 0:
             return i18n.t("Play / stop this track")
+        if col == 3 and path_key(e.path) in self._marked:
+            return (i18n.t("♊ The same music is planned from another folder")
+                    + "\n\n" + entry_tooltip(e))
         if col in (2, 3):
             return entry_tooltip(e)
         if col == 4:

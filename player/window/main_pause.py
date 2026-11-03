@@ -212,14 +212,16 @@ class PauseMusicMixin(MainWindowHost):
 
         Playing mode (a preview while planning is an audition), 🔈 on, and the
         list in play on ⏭ Auto — ✋ Manual means the hall has its own announcer.
-        And no pause: with one the call goes INTO the pause, which is a gap of
-        its own, timed by `_announce_lead`. And no 🔀 crossfade mixing the
+        And not out of a pause: that call went INTO the pause, a gap of its
+        own timed by `_announce_lead`. A title no pause came before, the
+        first of a list or a click on a row, has had no call yet, whatever
+        the pause is set to. And no 🔀 crossfade mixing the
         title in: the call would run over both, it comes when the crossover
         is through (`_step_crossfade`)."""
         return bool(self._is_playing_mode()
                     and self._pv("announce")
                     and self._playing_advance()
-                    and not self._engine_pause_secs() > 0
+                    and not self._playback.called_in_pause
                     and self._between.xfade.state is None
                     and self._playback.dance)
 

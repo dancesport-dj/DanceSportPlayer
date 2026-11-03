@@ -81,13 +81,13 @@ class RemoveTitleMenuTest(unittest.TestCase):
     def test_a_static_deck_offers_it(self):
         t = self._table(running_order=False)
         texts = self._menu(t, self._song_row(t))
-        self.assertIn("🗑  Remove this title (keep slot)", texts)
+        self.assertIn("🗑  Remove this title (keep slot)	Del", texts)
 
     def test_a_running_order_says_the_title_simply_goes(self):
         """No slot is left behind there, so it must not promise one."""
         t = self._table(running_order=True)
         texts = self._menu(t, self._song_row(t))
-        self.assertIn("🗑  Remove this title", texts)
+        self.assertIn("🗑  Remove this title	Del", texts)
         self.assertNotIn("🗑  Remove this title (keep slot)", texts)
 
     def test_a_selection_is_removed_as_a_whole(self):
@@ -99,7 +99,7 @@ class RemoveTitleMenuTest(unittest.TestCase):
             t.selectRow(r)
             t.setSelectionMode(t.SelectionMode.MultiSelection)
         texts = self._menu(t, rows[0])
-        self.assertIn(f"🗑  Remove {len(rows)} selected titles (keep slots)",
+        self.assertIn(f"🗑  Remove {len(rows)} selected titles (keep slots)	Del",
                       texts)
 
     def test_right_clicking_outside_the_selection_takes_only_that_row(self):

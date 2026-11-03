@@ -18,7 +18,7 @@ from pathlib import Path
 from PySide6.QtCore import QThread, Signal
 
 from planner.config import INSTALL_DIR
-from planner.music.db import SILENCE_NOISE_DB
+from planner.music.db import SILENCE_NOISE_DB, SILENCE_TAIL_MIN_SECS
 
 log = logging.getLogger("dancesport.workers")
 
@@ -161,7 +161,7 @@ def measure_loudness(ffmpeg: str, path: Path,
     one, measured over the fragment that decoded, so it counts only when
     ffmpeg exits cleanly."""
     res = _ffmpeg_probe(
-        [ffmpeg, "-hide_banner", "-nostats", "-i", str(path),
+        [ffmpeg, "-hide_banner", "-nostats", "-nostdin", "-i", str(path),
          "-map", "a:0", "-af", "ebur128=peak=true", "-f", "null", "-"],
         path, "📊 Loudness probe failed", on_proc)
     if res is None or res[0] != 0:
@@ -189,7 +189,7 @@ def decode_pcm_mono(path: Path, sr: int = 22050, on_proc=None):
     flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
     try:
         proc = subprocess.Popen(
-            [ffmpeg, "-hide_banner", "-nostats", "-v", "quiet",
+            [ffmpeg, "-hide_banner", "-nostats", "-nostdin", "-v", "quiet",
              "-i", str(path), "-map", "a:0", "-ac", "1", "-ar", str(sr),
              "-f", "f32le", "-"],
             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
@@ -236,6 +236,9 @@ def waveform_peaks(samples, bins: int) -> list[float]:
     return [round(float(v), 4) for v in peaks / top]
 
 
+_RMS_BLOCK = 256     # frames squared and averaged per step
+
+
 def _rms_envelope(y, frame_length: int = 2048, hop_length: int = 512):
     """Per-frame RMS of `y` — what `librosa.feature.rms` returns for its own
     defaults, reproduced so the highlight thresholds below keep their meaning.
@@ -248,57 +251,119 @@ def _rms_envelope(y, frame_length: int = 2048, hop_length: int = 512):
     if y.size == 0:
         return np.empty(0, dtype=np.float32)
     pad = frame_length // 2
-    padded = np.pad(np.asarray(y, dtype=np.float64), pad, mode="constant")
+    padded = np.pad(np.asarray(y, dtype=np.float32), pad, mode="constant")
     n_frames = 1 + (padded.size - frame_length) // hop_length
     if n_frames <= 0:
         return np.empty(0, dtype=np.float32)
     frames = np.lib.stride_tricks.sliding_window_view(
         padded, frame_length)[::hop_length][:n_frames]
-    return np.sqrt(np.mean(frames * frames, axis=1)).astype(np.float32)
+    # A few hundred frames at a time, in float64: the whole (frames x 2048)
+    # float64 matrix was ~200 MB for a four-minute track.
+    out = np.empty(n_frames, dtype=np.float32)
+    for start in range(0, n_frames, _RMS_BLOCK):
+        block = frames[start:start + _RMS_BLOCK].astype(np.float64)
+        out[start:start + _RMS_BLOCK] = np.sqrt(np.mean(block * block, axis=1))
+    return out
 
 
 # ── Silence detection (ffmpeg silencedetect) ────────────────────────────────
 # The threshold lives in planner.music.db: the stored spans are keyed on it, so the
 # database drops what an older one probed. 2 s minimum keeps musical breaks
-# (Paso Doble stops!) out of the spans.
+# (Paso Doble stops!) out of the spans; only a span that reaches the end of the
+# file, within the slack of the container's length, may be shorter.
 _SILENCE_NOISE_DB = SILENCE_NOISE_DB
 _SILENCE_MIN_SECS = 2.0
+_SILENCE_END_SLACK = 0.25
 _SILENCE_START_RE = re.compile(r"silence_start:\s*(-?\d+(?:\.\d+)?)")
 _SILENCE_END_RE = re.compile(r"silence_end:\s*(-?\d+(?:\.\d+)?)")
 _FF_DURATION_RE = re.compile(r"Duration:\s*(\d+):(\d\d):(\d\d(?:\.\d+)?)")
 
 
+def ffmpeg_duration(stderr: str) -> float | None:
+    """The stream length ffmpeg printed, in seconds, or None."""
+    m = _FF_DURATION_RE.search(stderr or "")
+    if not m:
+        return None
+    h, mi, s = m.groups()
+    return int(h) * 3600 + int(mi) * 60 + float(s)
+
+
 def parse_silences(stderr: str) -> list:
-    """Silence spans [[start, end], …] from ffmpeg silencedetect stderr.
+    """Silence spans [[start, end], …] from ffmpeg silencedetect stderr, every
+    one it reports: the announcement clips ask for far shorter ones than a title.
 
     A file that ENDS silent leaves the last silence_start unclosed — close it
     at the stream duration parsed from the same output."""
     text = stderr or ""
-    starts = [float(m) for m in _SILENCE_START_RE.findall(text)]
-    ends = [float(m) for m in _SILENCE_END_RE.findall(text)]
-    if len(starts) > len(ends):
-        m = _FF_DURATION_RE.search(text)
-        if m:
-            h, mi, s = m.groups()
-            ends.append(int(h) * 3600 + int(mi) * 60 + float(s))
-        else:
-            starts = starts[:len(ends)]
-    # ffmpeg can report an end with no start; such a stray end pairs with nothing.
-    return [[max(0.0, s), e] for s, e in zip(starts, ends, strict=False) if e > s]
+    # One pass in output order: an end closes the start before it. An end with
+    # no start before it (ffmpeg can report one) pairs with nothing and must
+    # not shift the spans after it.
+    found = sorted([(m.start(), float(m.group(1)), True) for m in _SILENCE_START_RE.finditer(text)]
+                   + [(m.start(), float(m.group(1)), False) for m in _SILENCE_END_RE.finditer(text)])
+    spans = []
+    open_start = None
+    for _pos, value, is_start in found:
+        if is_start:
+            open_start = value
+        elif open_start is not None:
+            spans.append((open_start, value))
+            open_start = None
+    if open_start is not None:
+        total = ffmpeg_duration(text)
+        if total is not None:
+            spans.append((open_start, total))
+    return [[max(0.0, s), e] for s, e in spans if e > s]
+
+
+def parse_title_silences(stderr: str) -> list:
+    """`parse_silences` for a title: its probe asks for the shorter tail minimum,
+    so what is short and does not run to the end is dropped here."""
+    total = ffmpeg_duration(stderr)
+    return [[s, e] for s, e in parse_silences(stderr)
+            if e - s >= _SILENCE_MIN_SECS
+            or (total is not None and e >= total - _SILENCE_END_SLACK)]
 
 
 def detect_silences(ffmpeg: str, path: Path, on_proc=None) -> list | None:
-    """Silent stretches ≥2 s in one file as [[start, end], …] (empty list — no
+    """Silent stretches in one file, ≥2 s or a shorter one that runs to its end,
+    as [[start, end], …] (empty list — no
     silence), or None on failure. Decode-only ffmpeg pass, read-only."""
     res = _ffmpeg_probe(
-        [ffmpeg, "-hide_banner", "-nostats", "-i", str(path),
+        [ffmpeg, "-hide_banner", "-nostats", "-nostdin", "-i", str(path),
          "-map", "a:0",
-         "-af", f"silencedetect=noise={_SILENCE_NOISE_DB}dB:d={_SILENCE_MIN_SECS}",
+         "-af", f"silencedetect=noise={_SILENCE_NOISE_DB}dB:d={SILENCE_TAIL_MIN_SECS}",
          "-f", "null", "-"],
         path, "🔇 Silence probe failed", on_proc)
     if res is None or res[0] != 0:
         return None
-    return parse_silences(res[1])
+    return parse_title_silences(res[1])
+
+
+# ── Hard end (ffmpeg volumedetect) ──────────────────────────────────────────
+# A title cut off in full sound: "Warum hast du nicht nein gesagt" reads 0 dB in
+# its last 20 ms, the loudest of 150 random library tracks −36 dB. A window of
+# 50 ms already flagged a title that is quiet by the time it stops.
+_HARD_END_TAIL_SECS = 0.02
+_HARD_END_DB = -30.0
+_MAX_VOLUME_RE = re.compile(r"max_volume:\s*(-?\d+(?:\.\d+)?) dB")
+
+
+def parse_hard_end(stderr: str) -> bool | None:
+    """Whether ffmpeg volumedetect stderr shows the level still up, or None when
+    the output holds no measure."""
+    m = _MAX_VOLUME_RE.search(stderr or "")
+    return float(m.group(1)) >= _HARD_END_DB if m else None
+
+
+def detect_hard_end(ffmpeg: str, path: Path) -> bool | None:
+    """Whether one file stops while its music is still up, or None on failure."""
+    res = _ffmpeg_probe(
+        [ffmpeg, "-hide_banner", "-nostats", "-nostdin", "-sseof", f"-{_HARD_END_TAIL_SECS}",
+         "-i", str(path), "-map", "a:0", "-af", "volumedetect", "-f", "null", "-"],
+        path, "✂️ Hard end probe failed")
+    if res is None or res[0] != 0:
+        return None
+    return parse_hard_end(res[1])
 
 
 # ── Noise floor (ffmpeg astats) ─────────────────────────────────────────────
@@ -330,7 +395,7 @@ def measure_noise_floor(ffmpeg: str, path: Path) -> float | None:
     flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
     try:
         proc = subprocess.run(
-            [ffmpeg, "-hide_banner", "-nostats", "-i", str(path),
+            [ffmpeg, "-hide_banner", "-nostats", "-nostdin", "-i", str(path),
              "-map", "a:0", "-af", "astats=measure_perchannel=none",
              "-f", "null", "-"],
             capture_output=True, text=True, errors="replace",
@@ -381,6 +446,22 @@ class SilenceWorker(QThread):
             self.error.emit(str(self._path), "silence probe failed")
         else:
             self.done.emit(str(self._path), spans)
+
+
+class HardEndWorker(QThread):
+    """Asks how one file ends. A moment's work, so there is nothing to cancel;
+    no answer leaves the title without the fade."""
+    done = Signal(str, bool)   # (path as str, stops in full sound)
+
+    def __init__(self, path: Path, ffmpeg: str, parent=None):
+        super().__init__(parent)
+        self._path = Path(path)
+        self._ffmpeg = ffmpeg
+
+    def run(self):
+        hard = detect_hard_end(self._ffmpeg, self._path)
+        if hard is not None:
+            self.done.emit(str(self._path), hard)
 
 
 class LoudnessWorker(QThread):
@@ -558,7 +639,10 @@ def fill_phrased_highlights(times: list, name: str, final_crash: bool) -> list:
     tagged = _PHRASING_3_RE.search(name) or _SPANISH_GIPSY_RE.search(name)
     if not (tagged or ok1 or ok2):
         return times
-    return [h1 if ok1 else round(p1, 2), h2 if ok2 else round(p2, 2), h3]
+    # A count that falls before the start of the file is no highlight (#13): the
+    # edit is too short for the phrasing, so what the search found stays.
+    return [h1 if ok1 or p1 < 0 else round(p1, 2),
+            h2 if ok2 or p2 < 0 else round(p2, 2), h3]
 
 
 class PdHighlightWorker(QThread):
@@ -570,6 +654,7 @@ class PdHighlightWorker(QThread):
     def __init__(self, path: Path, parent=None):
         super().__init__(parent)
         self._path = Path(path)
+        self.path = self._path
         self._cancel = False
         self._proc = None
 

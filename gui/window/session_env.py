@@ -37,18 +37,30 @@ WISH_KEYS = ("wishlist", "wishlist2", "wishlist3", "wishlist4")
 ALL_DECK_KEYS = DECK_KEYS + DAY_KEYS
 
 
+def _dict(value) -> dict:
+    """The autosave is accepted on its version number alone, so any part of it
+    can hold the wrong type: a part of the wrong type holds nothing."""
+    return value if isinstance(value, dict) else {}
+
+
+def _list(value) -> list:
+    return value if isinstance(value, list) else []
+
+
 def deck_paths(deck_env: dict | None) -> list:
     """Every track path a serialized deck holds, incl. the stacked backups."""
+    deck_env = _dict(deck_env)
     if not deck_env:
         return []
     if deck_env.get("mode") == "Theme":
-        return [p for p in (deck_env.get("theme_entries") or []) if p]
+        return [p for p in _list(deck_env.get("theme_entries")) if p]
     out = []
-    for r in (deck_env.get("rounds") or []):
-        for cols in (r.get("grid") or {}).values():
-            out += [v for v in cols.values() if v]
-        for paths in (r.get("backups") or {}).values():
-            out += list(paths)
+    for r in _list(deck_env.get("rounds")):
+        r = _dict(r)
+        for cols in _dict(r.get("grid")).values():
+            out += [v for v in _dict(cols).values() if v]
+        for paths in _dict(r.get("backups")).values():
+            out += _list(paths)
     return out
 
 
@@ -56,12 +68,14 @@ def deck_slots(deck_env: dict | None) -> dict:
     """Every FILLED grid slot of a serialized deck → its track:
     (round_name, h_idx, d_idx) → path. A theme deck has no grid → empty."""
     slots = {}
+    deck_env = _dict(deck_env)
     if not deck_env or deck_env.get("mode") == "Theme":
         return slots
-    for r in (deck_env.get("rounds") or []):
+    for r in _list(deck_env.get("rounds")):
+        r = _dict(r)
         rn = str(r.get("name") or "")
-        for h, cols in (r.get("grid") or {}).items():
-            for d, p in cols.items():
+        for h, cols in _dict(r.get("grid")).items():
+            for d, p in _dict(cols).items():
                 if p:
                     slots[(rn, str(h), str(d))] = p
     return slots
@@ -96,7 +110,7 @@ class SessionEnv:
     """One saved session, asked questions instead of indexed by key."""
 
     def __init__(self, data: dict | None = None):
-        self.raw = data or {}
+        self.raw = _dict(data)
 
     def __bool__(self) -> bool:
         return bool(self.raw)
@@ -115,8 +129,8 @@ class SessionEnv:
         """(key, paths) for everything held as a plain running order — the four
         wishlists and the Eintanzen panel — where position, not slot, is what a
         track can move within."""
-        out = [(k, [p for p in (self.raw.get(k) or []) if p]) for k in WISH_KEYS]
-        warm = (self.raw.get("warmup") or {}).get("paths") or []
+        out = [(k, [p for p in _list(self.raw.get(k)) if p]) for k in WISH_KEYS]
+        warm = _list(_dict(self.raw.get("warmup")).get("paths"))
         out.append(("warmup", [p for p in warm if p]))
         return out
 

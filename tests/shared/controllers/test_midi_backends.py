@@ -68,6 +68,20 @@ class CoreMidiPacketTest(unittest.TestCase):
         self.assertEqual(midi_coremidi.packet_list_bytes(ctypes.addressof(buf), True),
                          self.PACKETS)
 
+    def test_a_count_and_lengths_that_overrun_the_list_stop_the_walk(self):
+        """#56: both were trusted as read. No MIDIPacketList is larger than
+        64 KB, so the walk ends there instead of reading on into whatever
+        follows the buffer."""
+        size = 3 * midi_coremidi._LIST_MAX
+        buf = ctypes.create_string_buffer(size)
+        struct.pack_into("=I", buf, 0, 0xFFFFFFFF)
+        pkt = midi_coremidi._LIST_FIRST
+        while pkt + midi_coremidi._PACKET_DATA + 0xFFFF <= size:
+            struct.pack_into("=H", buf, pkt + 8, 0xFFFF)
+            pkt += midi_coremidi._PACKET_DATA + 0xFFFF
+        got = midi_coremidi.packet_list_bytes(ctypes.addressof(buf), False)
+        self.assertLessEqual(sum(len(p) for p in got), midi_coremidi._LIST_MAX)
+
     def test_coremidi_is_absent_off_macos(self):
         if sys.platform == "darwin":
             self.skipTest("macOS has CoreMIDI")

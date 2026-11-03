@@ -16,6 +16,7 @@ import gc
 import hashlib
 import json
 import logging
+import math
 import os
 import sqlite3
 import threading
@@ -44,6 +45,7 @@ from planner.music.analysis import (
     AUDIO_FEAT_DIM,
     HAS_LIBROSA,
     PROBE_NO_BACKEND,
+    AnalysisCancelled,
     AudioFeatures,
     analyze_file,
     probe_decode_backend,
@@ -238,6 +240,12 @@ _DANCE_DETECT_VERSION = 12
 # tape rip, so that is where the line sits. Stored spans note the threshold they
 # were probed at (_invalidate_stale_silences); moving it re-probes the library.
 SILENCE_NOISE_DB = -50
+# The shortest stillness that counts when it runs to the end of the file. No
+# break can sit there, and “A New Life” fades 1.9 s under the threshold. Below
+# 1.5 s the skip has no moment left to act in (its 0.3 s and 0.7 s margins).
+SILENCE_TAIL_MIN_SECS = 1.5
+# What a stored span was probed with; anything else is probed again.
+SILENCE_PROBE_KEY = f"{SILENCE_NOISE_DB}/{SILENCE_TAIL_MIN_SECS}"
 
 # Metadata columns shared by scan_meta + global_meta (order matters for row packing).
 # `duration` (track length, whole seconds) and `tag_album` were appended later —
@@ -632,13 +640,13 @@ def _invalidate_stale_silences(conn: sqlite3.Connection) -> None:
     still playing. The next play (or the bulk probe) fills them in again."""
     row = conn.execute(
         "SELECT value FROM app_meta WHERE key = 'silence_noise_db'").fetchone()
-    current = str(SILENCE_NOISE_DB)
+    current = SILENCE_PROBE_KEY
     if row is not None and row[0] == current:
         return
     n = conn.execute("SELECT COUNT(*) FROM silences").fetchone()[0]
     conn.execute("DELETE FROM silences")
     if n:
-        log.info("  ♻️  Silence threshold %s dB: cleared %s probed tracks "
+        log.info("  ♻️  Silence probe %s: cleared %s probed tracks "
                  "→ will re-probe on play", current, n)
     conn.execute(
         "INSERT OR REPLACE INTO app_meta (key, value) VALUES ('silence_noise_db', ?)",
@@ -1105,16 +1113,23 @@ class AudioCache:
                 del self._data[fp]
                 dropped += 1
         conn = _db()
-        conn.executemany(
-            "INSERT OR REPLACE INTO features (fp, bpm, centroid, rms, mfcc) VALUES (?,?,?,?,?)",
-            rows,
-        )
-        for key, fp in self._fp.items():
-            path, _, mt = key.rpartition('::')
-            conn.execute(
-                "INSERT OR REPLACE INTO fingerprints (file_id, mtime, fp) VALUES (?,?,?)",
-                (file_id(path or key), _key_mtime(mt), fp))
-        conn.commit()
+        # One transaction: the connection autocommits, so each row below would
+        # otherwise be a commit of its own - up to 50k of them.
+        conn.execute("BEGIN")
+        try:
+            conn.executemany(
+                "INSERT OR REPLACE INTO features (fp, bpm, centroid, rms, mfcc) VALUES (?,?,?,?,?)",
+                rows,
+            )
+            for key, fp in self._fp.items():
+                path, _, mt = key.rpartition('::')
+                conn.execute(
+                    "INSERT OR REPLACE INTO fingerprints (file_id, mtime, fp) VALUES (?,?,?)",
+                    (file_id(path or key), _key_mtime(mt), fp))
+        except BaseException:
+            conn.execute("ROLLBACK")
+            raise
+        conn.execute("COMMIT")
         with contextlib.suppress(OSError):
             CACHE_FILE.rename(CACHE_FILE.with_suffix('.json.bak'))
         log.info("  ♻️  Audio cache migrated JSON v%s → SQLite v%s: "
@@ -1444,9 +1459,18 @@ class AudioCache:
         conn = _db()
         known = {fp for (fp,) in conn.execute("SELECT DISTINCT fp FROM fingerprints")}
         n = hits = 0
+        if not isinstance(marks, list):
+            return 0, 0
         for m in marks:
+            # The file comes from another PC: check every entry before it is stored.
+            if not isinstance(m, dict):
+                continue
             fp, times, afp = m.get("fp"), m.get("times"), m.get("afp")
-            if not fp or not isinstance(times, list):
+            if (not isinstance(fp, str) or not fp
+                    or not (afp is None or isinstance(afp, str))
+                    or not isinstance(times, list)
+                    or not all(isinstance(t, (int, float)) and not isinstance(t, bool)
+                               and math.isfinite(t) and t >= 0 for t in times)):
                 continue
             targets = {fp}
             if afp:
@@ -1750,9 +1774,14 @@ class AudioCache:
                 self.save()
                 return i - 1 - errors, errors, True
             try:
-                feat = self._analyze_file(e.path, tempo_prior(e.dance, e.bpm))
+                feat = self._analyze_file(e.path, tempo_prior(e.dance, e.bpm),
+                                          should_cancel=should_cancel)
                 self.put(e.path, feat)
                 e.features = feat
+            except AnalysisCancelled:
+                # Stopped inside this title: it is not counted, not an error.
+                self.save()
+                return i - 1 - errors, errors, True
             except Exception as exc:
                 errors += 1
                 log.error("  ✗ analysis failed: %s: %s", e.path.name, exc)

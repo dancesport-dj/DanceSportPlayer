@@ -171,12 +171,12 @@ class EmbeddingStoreTest(_Base):
         store.save()
         a, nowhere = Path("/m/a.mp3"), Path("/m/zz.mp3")
         self.assertEqual(store.fingerprint(a), "fa")
-        self.assertEqual(store.get(a, _M), [0.5, 0.25])
+        self.assertEqual(list(store.get(a, _M)), [0.5, 0.25])
         self.assertIsNone(store.get(nowhere, _M))
         self.assertIsNone(store.get(Path("/m/b.mp3"), _M))
-        self.assertEqual(store.get_by_fp("fa", _M), [0.5, 0.25])
+        self.assertEqual(list(store.get_by_fp("fa", _M)), [0.5, 0.25])
         self.assertIsNone(store.get_by_fp(None, _M))
-        self.assertEqual(store.recorded(a, _M), [0.5, 0.25])
+        self.assertEqual(list(store.recorded(a, _M)), [0.5, 0.25])
         self.assertTrue(store.has("fa", _M))
         self.assertFalse(store.has("fa", ae.MODEL_CHROMA))
         self.assertEqual(store.count(_M), 1)
@@ -192,7 +192,22 @@ class EmbeddingStoreTest(_Base):
         self.assertEqual(again.fps(_M), {"fa", "fb"})   # keys alone, no mirror yet
         self.assertNotIn(_M, again._mirror)
         self.assertEqual(again.count(ae.MODEL_CHROMA), 1)
-        self.assertEqual(again.get_by_fp("fb", _M), [2.0])
+        self.assertEqual(list(again.get_by_fp("fb", _M)), [2.0])
+
+    def test_the_mirror_holds_compact_float32_arrays(self):
+        """Embedding mirror: 7.5k vectors as lists of Python floats took ~90 MB,
+        as float32 arrays ~13 MB. Same values, still usable as numpy input."""
+        import numpy as np
+        first = ae.EmbeddingStore(self.cache)
+        first.put("fa", _M, [0.5, 0.25])
+        first.save()
+        again = ae.EmbeddingStore(self.cache)
+        for store in (first, again):
+            vec = store.get_by_fp("fa", _M)
+            self.assertEqual(vec.typecode, "f")
+            self.assertEqual(list(vec), [0.5, 0.25])
+            self.assertEqual(len(vec), 2)
+            self.assertEqual(np.asarray(vec, dtype=float).tolist(), [0.5, 0.25])
 
 
 @unittest.skipUnless(importlib.util.find_spec("torch"), "MERT runs on torch")

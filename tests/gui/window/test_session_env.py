@@ -82,6 +82,27 @@ class DeckPathsTest(unittest.TestCase):
         self.assertEqual(deck_slots({"mode": "Theme", "theme_entries": [A]}), {})
 
 
+class DamagedEnvTest(unittest.TestCase):
+    """#22/#28: the file is accepted on its version number alone, so any key
+    can hold the wrong type. Asking what it holds must not raise."""
+
+    def test_wrong_containers_hold_nothing(self):
+        for bad in ("oops", {"x": 1}, 7):
+            env = {"deck_a": {"rounds": bad}, "deck_b": bad, "wishlist": bad,
+                   "warmup": bad, "day_a": {"rounds": [bad], "mode": "Theme",
+                                            "theme_entries": bad}}
+            with self.subTest(bad=bad):
+                s = SessionEnv(env)
+                self.assertEqual(sum(s.all_paths().values()), 0)
+                s.holds_tracks()
+                self.assertEqual(deck_slots(env["deck_a"]), {})
+
+    def test_a_good_part_survives_a_bad_neighbour(self):
+        env = {"deck_a": _deck({0: A}), "deck_b": {"rounds": "oops"},
+               "wishlist": [B]}
+        self.assertEqual(sorted(SessionEnv(env).all_paths()), sorted([A, B]))
+
+
 class EnvWalkTest(unittest.TestCase):
     """Asking a snapshot about itself instead of indexing it by key."""
 

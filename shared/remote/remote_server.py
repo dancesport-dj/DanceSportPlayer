@@ -59,7 +59,11 @@ MAX_FAILS = 5
 _LOCK_SECS = 60
 GLOBAL_MAX_FAILS = 30          # wrong PINs from all addresses together…
 _GLOBAL_WINDOW_SECS = 600      # …within this long pause new logins
-_IDLE_SECS = 600
+_PAUSED_GAP_SECS = 10          # …to one guess per this long, not to none
+MAX_CONNECTIONS = 200          # open at once, each holding a thread
+_HEADER_SECS = 15              # a stranger: the request line and the headers
+MAX_TRACKED = 1000             # addresses the lockout table remembers
+_IDLE_SECS = 600               # a phone that has shown the right PIN
 _MAX_BODY = 1024
 _BODY_SECS = 5                 # the whole body, not each read of it
 PIN_DIGITS = 4
@@ -149,9 +153,18 @@ def read_body(handler: BaseHTTPRequestHandler, size: int, secs: float) -> bytes 
     return b"".join(chunks)
 
 
+_LAN_TTL = 5.0                  # seconds an answer is reused
+_LAN_CACHE: dict = {}           # {"at": monotonic time, "addrs": [...]}
+
+
 def lan_addresses() -> list[str]:
     """This PC's IPv4 addresses on the local network — what the phone types in.
-    The route-to-the-internet one first: that is the Wi-Fi the phone is on."""
+    The route-to-the-internet one first: that is the Wi-Fi the phone is on.
+    Kept for a few seconds: the window asks at every guest event, and the host
+    name lookup can take a while on a bad resolver."""
+    now = time.monotonic()
+    if _LAN_CACHE and now - _LAN_CACHE["at"] < _LAN_TTL:
+        return list(_LAN_CACHE["addrs"])
     found = []
     with contextlib.suppress(OSError):
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -163,7 +176,23 @@ def lan_addresses() -> list[str]:
     for a in found:
         if a not in out and lan_client(a) and not a.startswith("127."):
             out.append(a)
-    return out
+    _LAN_CACHE.update(at=now, addrs=out)
+    return list(out)
+
+
+def guest_key(addr: str) -> str:
+    """Whose budget a request spends: an IPv4 address as it is, an IPv6 one
+    by its /64 — a phone holds the whole network and may pick a new address
+    per request."""
+    try:
+        ip = ipaddress.ip_address(addr.split("%", 1)[0])
+    except ValueError:
+        return addr
+    if isinstance(ip, ipaddress.IPv6Address):
+        if ip.ipv4_mapped is not None:
+            return str(ip.ipv4_mapped)
+        return str(ipaddress.IPv6Network((ip, 64), strict=False))
+    return str(ip)
 
 
 class _Server(ThreadingHTTPServer):
@@ -173,12 +202,25 @@ class _Server(ThreadingHTTPServer):
     # still listening, splitting the phones between the two, instead of
     # the "port taken" error. Elsewhere it only skips TIME_WAIT.
     allow_reuse_address = sys.platform != "win32"
+    slots: threading.BoundedSemaphore
+
+    def process_request(self, request, client_address):
+        if not self.slots.acquire(blocking=False):
+            self.shutdown_request(request)      # past the cap: no thread
+            return
+        super().process_request(request, client_address)
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self.slots.release()
 
 
 class _Handler(BaseHTTPRequestHandler):
     server_version = "DanceSportPlayerRemote"
     sys_version = ""
-    timeout = _IDLE_SECS        # a client that never speaks frees its thread
+    timeout = _HEADER_SECS      # a client that never speaks frees its thread
 
     def log_message(self, format, *args):  # the console is not the log
         log.debug("📱 %s %s", self.client_address[0], format % args)
@@ -201,9 +243,12 @@ class _Handler(BaseHTTPRequestHandler):
                              "default-src 'none'; script-src 'unsafe-inline'; "
                              "style-src 'unsafe-inline'; connect-src 'self'; "
                              "frame-ancestors 'none'")
-        self.end_headers()
-        if body:
-            self.wfile.write(body)
+        try:
+            self.end_headers()
+            if body:
+                self.wfile.write(body)
+        except OSError:      # the phone left before the answer: nobody to tell
+            self.close_connection = True
 
     def _phone(self) -> str:
         """Who is asking: the address, or behind the tunnel the phone's own."""
@@ -225,6 +270,7 @@ class _Handler(BaseHTTPRequestHandler):
         if verdict != 200:
             self._send(verdict)
             return False
+        self.connection.settimeout(_IDLE_SECS)   # the PIN was right: a phone may idle
         return True
 
     def do_GET(self):
@@ -261,6 +307,7 @@ class _Handler(BaseHTTPRequestHandler):
             read_body(self, size, _BODY_SECS)
             self.close_connection = True
             return
+        self.app.logged_in(self._phone())     # a right PIN, whichever call brought it
         raw = read_body(self, size, _BODY_SECS)
         if raw is None:
             return
@@ -315,6 +362,7 @@ class RemoteServer:
         # Every wrong PIN, any address; the tunnel's apart, so the internet
         # cannot pause logins on the venue's own network.
         self._recent_fails: dict[bool, deque[float]] = {False: deque(), True: deque()}
+        self._next_slot = {False: 0.0, True: 0.0}   # when a paused network weighs the next login
         self._httpd: ThreadingHTTPServer | None = None
         self._thread: threading.Thread | None = None
 
@@ -331,6 +379,7 @@ class RemoteServer:
         httpd = _Server((self._host, self._want_port), _Handler)
         httpd.daemon_threads = True
         httpd.remote = self
+        httpd.slots = threading.BoundedSemaphore(MAX_CONNECTIONS)
         self._httpd = httpd
         self._thread = threading.Thread(target=httpd.serve_forever, args=(0.1,), daemon=True,
                                         name="phone-remote")
@@ -362,8 +411,9 @@ class RemoteServer:
     def logged_in(self, ip: str) -> None:
         """A right PIN from `ip`: an event the first time only."""
         with self._lock:
-            first = ip not in self._seen
-            self._seen.add(ip)
+            key = guest_key(ip)
+            first = key not in self._seen
+            self._seen.add(key)
         if first:
             self.note("login", ip)
 
@@ -388,12 +438,14 @@ class RemoteServer:
     def check_pin(self, ip: str, given: str, via_tunnel: bool = False) -> int:
         """200 for the right PIN; 401 for a wrong one; 429 while `ip` is locked
         out — after MAX_FAILS wrong ones, for a minute, doubling every time —
-        and, for an address not logged in yet, while the network has sent
-        GLOBAL_MAX_FAILS wrong PINs within _GLOBAL_WINDOW_SECS. The tunnel and
+        and, for an address not logged in yet, once the network has sent
+        GLOBAL_MAX_FAILS wrong PINs within _GLOBAL_WINDOW_SECS: then one PIN
+        per _PAUSED_GAP_SECS is weighed and the rest get 429. The tunnel and
         the local network each count their own. No PIN at all is a 401 that
         counts as no guess: the page never asks without one."""
         now = time.monotonic()
         paused_all = False
+        ip = guest_key(ip)      # a phone may take a new IPv6 address per guess
         with self._lock:
             fails, until, rounds = self._fails.get(ip, (0, 0.0, 0))
             if now < until:
@@ -401,10 +453,15 @@ class RemoteServer:
             recent = self._recent_fails[via_tunnel]
             while recent and recent[0] <= now - _GLOBAL_WINDOW_SECS:
                 recent.popleft()
-            if len(recent) >= GLOBAL_MAX_FAILS and ip not in self._seen:
+            paused = len(recent) >= GLOBAL_MAX_FAILS and ip not in self._seen
+            if paused and now < self._next_slot[via_tunnel]:
                 return 429
             if not given:
                 return 401
+            if paused:
+                # One guess per slot: thirty wrong PINs from a stranger cost the
+                # DJ's new phone seconds, not the whole window.
+                self._next_slot[via_tunnel] = now + _PAUSED_GAP_SECS
             if hmac.compare_digest(given.encode("utf-8"), self._pin.encode("utf-8")):
                 self._fails.pop(ip, None)
                 return 200
@@ -412,6 +469,7 @@ class RemoteServer:
             recent.append(now)
             paused_all = len(recent) == GLOBAL_MAX_FAILS
             if paused_all:
+                self._next_slot[via_tunnel] = now + _PAUSED_GAP_SECS
                 log.warning("📱 Phone remote: %d wrong PINs from the network\n"
                             "new logins paused for: %ds", GLOBAL_MAX_FAILS,
                             _GLOBAL_WINDOW_SECS)
@@ -424,6 +482,8 @@ class RemoteServer:
                             "from: %s\n"
                             "locked for: %ds", MAX_FAILS, ip, int(until - now))
             self._fails[ip] = (fails, until, rounds)
+            if len(self._fails) > MAX_TRACKED:     # the lockouts that have run out
+                self._fails = {k: v for k, v in self._fails.items() if v[1] > now}
         # Outside the lock: the listener may take its time.
         if paused_all:
             self.note("locked_all", "", str(_GLOBAL_WINDOW_SECS))

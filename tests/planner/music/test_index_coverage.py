@@ -283,6 +283,7 @@ class PlanBusyTest(unittest.TestCase):
 
         class _Win(gmg.AllCacheMixin):
             _librosa_unavailable = staticmethod(probe)
+            _stop_background_analysis = staticmethod(lambda: None)
 
         _FakeBusy.log = []
         with mock.patch.object(gmg, "BusyDialog", _FakeBusy), \
@@ -857,6 +858,7 @@ class BuildAllReasonTest(unittest.TestCase):
         win = _report_window(self.gmg, ["librosa"])
         win._library = types.SimpleNamespace(cache=object())
         win._on_index_progress = lambda *a: None
+        win._stop_background_analysis = lambda: None
         with mock.patch.object(self.gmg, "AudioAnalyzer") as analyzer, \
                 mock.patch.object(self.gmg, "BusyDialog"):
             win._allcache_run_librosa([types.SimpleNamespace(features=None)])

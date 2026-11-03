@@ -402,6 +402,13 @@ def queued(pages: list[Page]) -> list[tuple[int, Cell, CartPad]]:
     return sorted(found, key=lambda hit: (hit[2].queue, hit[0], hit[1]))
 
 
+def background_pads(pages: list[Page]) -> list[tuple[int, Cell, CartPad]]:
+    """Every 🎶 background pad as (page, cell, pad), page by page, cell by cell."""
+    found = [(idx, cell, pad) for idx, page in enumerate(pages)
+             for cell, pad in page.pads.items() if pad.background]
+    return sorted(found, key=lambda hit: (hit[0], hit[1]))
+
+
 def queue_ranks(pages: list[Page]) -> dict[tuple[int, Cell], int]:
     """{(page, cell): 1, 2, …} — the number the pad's ≡ badge shows."""
     return {(idx, cell): n

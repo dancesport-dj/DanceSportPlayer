@@ -11,6 +11,8 @@ Extracted from player/window/main_player.py as a MainWindow mixin.
 import logging
 from typing import TYPE_CHECKING
 
+from PySide6.QtWidgets import QMessageBox
+
 from planner import i18n
 from planner.playing.play_sets import (
     DANCE_SECS_KEY,
@@ -41,10 +43,10 @@ log = logging.getLogger("dancesport.gui.player")
 # ⭐ A wishlist takes neither set: it holds requests and background music, so
 # each title plays to its own end and nothing starts by itself — the next one
 # is picked by hand. No voice and no TSO pitch either: these are songs, not a
-# heat. A double-click plays at once, the way a request is answered.
+# heat. A double-click only cues, as in every preset.
 _WISHLIST_VALS = {"secs": 0, "fade": 3.0, "fade_inside": True,
                   "advance": False, "pause_off": True,
-                  "loudness": True, "announce": False, "dblclick": True,
+                  "loudness": True, "announce": False, "dblclick": False,
                   "dblclick_ask": True, "xfade": XFADE_DEFAULT_SECS, "xfade_on": False,
                   "xfade_curve": "equal", "tso": False}
 
@@ -383,12 +385,32 @@ class PlayValuesMixin(MainWindowHost):
             self._play_panel.advance_check.setChecked(bool(on))
         table.refresh_advance_toggle()
         self._autosave_playlist()
+        if on:
+            self._offer_loop_off(table)
 
     def _wire_advance_switch(self):
         """Repaint the corner switch when the panel's ⏭ moves — it is the same
         value whenever the panel shows that list."""
         self._play_panel.advance_check.toggled.connect(
             lambda _: self._refresh_advance_toggles())
+        # `clicked`, not `toggled`: a play set arriving is nobody's decision.
+        self._play_panel.advance_check.clicked.connect(
+            lambda on: on and self._offer_loop_off(self._panel_list()))
+
+    def _offer_loop_off(self, table):
+        """🔁 Auto was switched on for `table`. While the title repeats it never
+        ends, so nothing would advance: ask whether the repeat should go."""
+        if not self._looping() or table is not self._engine_list():
+            return
+        answer = QMessageBox.question(
+            self, i18n.t("Endless repeat is on"),
+            i18n.t("🔁 This title starts again every time it ends, so the list\n"
+                   "will not move on to the next one.\n\n"
+                   "Switch endless repeat off?"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes)
+        if answer == QMessageBox.StandardButton.Yes and self._big_player is not None:
+            self._big_player.set_loop_mode(False)
 
     def _refresh_advance_toggles(self):
         """Repaint the corner switch on every list."""

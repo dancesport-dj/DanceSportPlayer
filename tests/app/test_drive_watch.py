@@ -105,6 +105,14 @@ class DriveWatchTest(unittest.TestCase):
         new = r"G:\gone.mp3"
         self.assertIsNone(self.watch.step({"C:", "F:"}, {STICK, LOCAL, new}, {new}))
 
+    def test_a_drive_appearing_after_an_empty_first_look_is_new(self):
+        # An empty drive list is still a baseline, not "no look yet".
+        watch = DriveWatch()
+        self.assertIsNone(watch.step(set(), set(), set()))
+        change = watch.step({"F:"}, set(), set())
+        assert change is not None
+        self.assertEqual(change.new_drives, {"F:"})
+
     def test_a_drive_nothing_plays_from_is_only_logged(self):
         change = self.watch.step({"C:", "F:", "H:"}, {STICK, LOCAL}, set())
         assert change is not None

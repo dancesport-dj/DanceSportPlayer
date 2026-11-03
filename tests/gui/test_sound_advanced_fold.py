@@ -36,8 +36,8 @@ class AdvancedFoldTest(unittest.TestCase):
     def test_the_rows_live_in_the_folded_box(self):
         dlg = self._dlg({})
         for spin in (dlg._duck_spin, dlg._duck_down_spin, dlg._duck_up_spin,
-                     dlg._fade_in_spin, dlg._hand_fade_spin,
-                     dlg._pre_roll_spin):
+                     dlg._fade_in_spin, dlg._resume_fade_spin,
+                     dlg._hand_fade_spin, dlg._pre_roll_spin):
             self.assertTrue(dlg._advanced_box.isAncestorOf(spin))
         self.assertFalse(dlg._advanced_btn.isChecked())
         self.assertTrue(dlg._advanced_box.isHidden())

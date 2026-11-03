@@ -4,6 +4,7 @@ Extracted from dancesport_planner.py (logical split): export_m3u / export_flat_m
 and the round/heat-aware import_playlist_m3u that reconstructs a deck from a saved
 .m3u (final-round backups → extra heats).
 """
+import contextlib
 import logging
 import re
 from collections import Counter
@@ -84,6 +85,12 @@ def m3u_suffix() -> str:
     return M3U_FORMATS[_m3u_format][1]
 
 
+def _one_line(title: str) -> str:
+    """A tag title on one line: a newline in it would start a line the
+    importers read as a track path."""
+    return " ".join(str(title).split())
+
+
 def export_m3u(playlist: Playlist, dances: list[str], basename: str,
                dance_class: str = "C", timestamp: bool = True,
                progress_cb: Callable[[int, int, str], None] | None = None,
@@ -116,7 +123,7 @@ def export_m3u(playlist: Playlist, dances: list[str], basename: str,
                     entry = heat[d_idx]
                     if entry:
                         bpm_s = fmt_bpm(entry.bpm, dance, dance_class)
-                        f.write(f"#EXTINF:{entry.duration},{entry.title}{bpm_s}\n")
+                        f.write(f"#EXTINF:{entry.duration},{_one_line(entry.title)}{bpm_s}\n")
                         f.write(f"{path_for(entry.path) if path_for else entry.path}\n")
                         done += 1
                         if progress_cb:
@@ -162,7 +169,7 @@ def export_flat_m3u(entries: list[MusicEntry], basename: str,
             dn = DANCE_NAMES.get(e.dance or '', e.dance or '')
             tag = f" [{dn}]" if dn else ""
             yr = f" ({e.year})" if e.year else ""
-            f.write(f"#EXTINF:{e.duration},{e.title}{tag}{yr}\n")
+            f.write(f"#EXTINF:{e.duration},{_one_line(e.title)}{tag}{yr}\n")
             f.write(f"{path_for(e.path) if path_for else e.path}\n")
             if progress_cb:
                 progress_cb(i, total, e.title)
@@ -186,10 +193,17 @@ def _index_prefix(i: int) -> str:
     return "_".join(f"{i:03d}")
 
 
+_TITLE_MAX = 100     # a file name is limited to 255, and a whole path to 260 on Windows
+
+
 def _safe_filename(name: str) -> str:
     """Strip filesystem-hostile characters from a title used as a filename."""
     name = re.sub(r'[<>:"/\\|?*]', "_", name.strip())
-    return re.sub(r"\s+", " ", name).strip()
+    name = re.sub(r"\s+", " ", name).strip()
+    if len(name) > _TITLE_MAX:
+        cut = name[:_TITLE_MAX]
+        name = (cut.rsplit(" ", 1)[0] if " " in cut else cut).rstrip()
+    return name
 
 
 _BPM_TAG_RE = re.compile(r"\s*\[(?:T(\d+)\*?|\?BPM)\]")
@@ -270,7 +284,7 @@ def numbered_folder_m3u(m3u_path: Path,
         if not src.is_file():
             missing += 1
             continue
-        if src.parent == folder:
+        if path_key(src.parent) == path_key(folder):
             copied.append(src)     # already in the bundle, already numbered
             lines[i] = src.name    # an absolute line would tie it to this drive
             continue
@@ -286,7 +300,8 @@ def numbered_folder_m3u(m3u_path: Path,
             log.warning("🧳 Copy failed\n"
                         "source: %s\n"
                         "error: %s", src, exc)
-            (folder / name).unlink(missing_ok=True)
+            with contextlib.suppress(OSError):   # locked as well: nothing more to do
+                (folder / name).unlink(missing_ok=True)
             missing += 1
             continue
         copied.append(folder / name)

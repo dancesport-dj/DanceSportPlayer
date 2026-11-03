@@ -106,6 +106,10 @@ class TrackLoadMixin(MainWindowHost):
         backend. Only ever entered through the rate limit above."""
         if not self._player:
             return
+        if path is not None and start:
+            # 🔬 Before anything is loaded, not when the music is already playing:
+            # a show must not hear the machine at work under its first note.
+            self._stop_background_analysis()
         self._last_load_at = time.monotonic()
         t0 = time.perf_counter()
         self._playback.token += 1
@@ -239,6 +243,8 @@ class TrackLoadMixin(MainWindowHost):
         self._play_panel.set_pd_loaded(self._playback.dance == "PD")   # 🎯 ✖ ✏️
         self._played_marked = False   # fresh track — re-arm the 10 s rule
         self._playback.offset_ms = 0      # …and no silence skipped on it yet
+        self._playback.called_in_pause = self._between.leads_in
+        self._between.leads_in = False
         self._sync_dance_len()        # 🏆 this dance's own length, where it has one
         # ↩ Seeking here would be thrown away — the media is not open yet.
         # `_on_media_status` performs it the moment it is.
@@ -611,6 +617,11 @@ class TrackLoadMixin(MainWindowHost):
             self._clear_resume(path)
             return
         if self._player.playbackState() == QMediaPlayer.PlaybackState.StoppedState:
+            return
+        if self._resume_seek_ms is not None:
+            # The pick-up seek has not run yet (the media is still opening), so
+            # position() reads 0 - noting that would wipe the mark we came in
+            # with. The title never moved off it: the mark stands.
             return
         self._note_resume(path, self._player.position(), self._player.duration())
 

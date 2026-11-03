@@ -287,6 +287,14 @@ class BudgetTest(unittest.TestCase):
         self.assertFalse(budget.spend("::ffff:192.168.1.20"))     # the same, mapped
 
 
+class ReadCapacityTest(unittest.TestCase):
+    def test_every_phone_the_server_holds_can_keep_polling_for_a_window(self):
+        """#9: the shared read budget ran dry at about 100 phones, and then
+        every guest got 429 until the window rolled over."""
+        polls = gs._WINDOW_SECS // 20 + 2       # the page polls every 20 s, plus its first loads
+        self.assertGreaterEqual(gs.ALL_READS, gs.MAX_CONNECTIONS * polls)
+
+
 class CodeTest(unittest.TestCase):
     def test_a_code_is_easy_to_read_off(self):
         codes = {gs.new_code() for _ in range(50)}

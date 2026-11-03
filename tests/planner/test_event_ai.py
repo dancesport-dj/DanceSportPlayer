@@ -239,6 +239,31 @@ class EventAiTest(EventFixture, unittest.TestCase):
                 [p.entry for p in self.picks(out[profile][0])],
                 [p.entry for p in self.picks(variants[profile][0])])
 
+    def test_cancelling_does_not_wait_for_the_questions_still_out(self):
+        """#20.9: one question raises Cancelled while another is still being
+        answered; the `with` block waited for it (shutdown(wait=True)), so the
+        Cancel button hung until the slowest model call returned."""
+        import time
+
+        from planner.generate import llm
+        self.with_new_titles()
+        cands, variants = self.day("HGR S STD 2-1\nJug A STD 2-1")
+        release = threading.Event()
+        self.addCleanup(release.set)
+        calls = []
+
+        def ask(system, user):
+            calls.append(1)
+            if len(calls) == 1:
+                raise llm.Cancelled()
+            release.wait(10)
+            return "{}", "fake"
+
+        started = time.monotonic()
+        with self.assertRaises(llm.Cancelled):
+            event_plan.refine_with_ai(variants, cands, ask=ask)
+        self.assertLess(time.monotonic() - started, 3)
+
     def test_an_answer_without_json_leaves_the_plan(self):
         self.with_new_titles()
         cands, variants = self.day("HGR S STD 2-1")

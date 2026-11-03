@@ -80,6 +80,8 @@ class EintanzenClickTest(ClickThrough):
             self.assertTrue({"LW", "TG", "QS"} & set(dances), f"no Standard: {dances}")
             self.assertTrue({"CC", "RB", "JI"} & set(dances), f"no Latin: {dances}")
             self.assertNotIn("WW", dances[:12], "a Viennese Waltz came early")
+            hint = win._hints_lbl.text()
+            self.assertEqual(hint.count("🤸"), 1, f"the logo is doubled: {hint}")
             # Late Paso Doble: none in the first 40 titles. This library has
             # only 30, so the Pasos are what is left when every other Latin
             # title has played: the floor never goes silent. A last Samba may

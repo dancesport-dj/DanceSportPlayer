@@ -271,7 +271,10 @@ class RemoteDialog(QDialog):
             return i18n.t("The https address works on mobile data too, and on any "
                           "Wi-Fi. It is new on every start — scan the fresh QR code. "
                           "Whoever has the address still needs the PIN.")
-        return (i18n.t("Nothing turns up in the log when the phone tries? Then a firewall "
+        return (i18n.t("On Wi-Fi the PIN travels unencrypted: anyone on the same network "
+                       "can read it. On a network you do not trust, use the Cloudflare "
+                       "tunnel.") + "\n\n"
+                + i18n.t("Nothing turns up in the log when the phone tries? Then a firewall "
                        "on this PC drops it: allow the program below for private networks "
                        "(Windows Defender Firewall, or your security suite's own, e.g. "
                        "Norton → Firewall → Program Control). The phone must be on the "

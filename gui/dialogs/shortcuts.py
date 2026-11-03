@@ -7,6 +7,7 @@ import html
 
 from PySide6.QtWidgets import QDialog, QHBoxLayout, QLineEdit, QPushButton, QTextBrowser, QVBoxLayout
 
+from gui.common import platform_keys
 from planner import i18n
 from planner.playing import controller as pctl
 
@@ -44,6 +45,8 @@ def shortcut_rows(desk_keys=None):
                                        "selected at once"),
         ("Ctrl + Shift + Del", "Clear the focused playlist / wishlist "
                                "(confirmed), wherever the cursor is"),
+        ("Ctrl + Shift + E", "The focused wishlist gets the whole area, the others "
+                             "fold to tabs; again: all open"),
         ("Ctrl + Del", "Dynamic deck: remove the whole heat under the cursor "
                        "(on a ↳ backup row: just that backup)"),
         ("Ctrl + M", "Dynamic deck or free running order: mark / unmark the "
@@ -56,8 +59,11 @@ def shortcut_rows(desk_keys=None):
         ("Ctrl + A  in 🏆 Tournaments", "Mark every slot of the folder, or "
                                        "every entry of the tree — Del and a "
                                        "drag then take them all"),
-        ("Ctrl + F", "Find a title or a genre in the focused list. A title steps "
-                     "to the next match; a genre highlights every row of it at once"),
+        ("Ctrl + E", "Show the selected title in Explorer"),
+        ("Ctrl + T", "Edit the tags of the selected title(s)"),
+        ("Ctrl + Shift + C", "Copy the file path of the selected title"),
+        ("Ctrl + F", "Find a title or a genre in the focused list. Enter steps to "
+                     "the next match, Shift + Enter back; Esc closes the bar"),
         ("Esc  in the 🖥 presenter window", "Close the presenter screen"),
         ("F12  /  Ctrl + Alt + S", "Open ⚙ Settings"),
         ("F1", "This cheat sheet"),
@@ -129,7 +135,7 @@ def shortcut_sheet_html(desk_keys=None, query: str = "") -> str:
             heading = (f"<tr><td colspan=2 style='background:#dbe6f4;'>"
                        f"<b>{esc(i18n.t(left))}</b></td></tr>")
             continue
-        key, what = _key_t(left), i18n.t(right)
+        key, what = platform_keys(_key_t(left)), platform_keys(i18n.t(right))
         if needle and needle not in f"{key}\n{what}".casefold():
             continue
         if heading:

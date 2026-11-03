@@ -168,14 +168,19 @@ class PartySetTsoTest(unittest.TestCase):
         """Party songs come off all sorts of CDs — they must not jump in level."""
         self.assertIs(PARTY_SET["loudness"], True)
 
-    def test_a_double_click_plays_at_a_party(self):
-        """Someone asks for a song: double-click, and it runs."""
-        self.assertIs(PARTY_SET["dblclick"], True)
+    def test_a_double_click_only_cues_at_a_party_too(self):
+        """Off in every preset: a stray double-click must not start the music.
+        Whoever wants it switches it on, and the set keeps that."""
+        self.assertIs(PARTY_SET["dblclick"], False)
 
     def test_a_double_click_only_cues_at_a_tournament(self):
         """A heat starts on ⏯, when the couples stand — not the moment the
         operator picks the next title out of the deck."""
         self.assertIs(TOURNAMENT_SET["dblclick"], False)
+
+    def test_a_wishlist_only_cues_too(self):
+        from player.window.main_play_values import _WISHLIST_VALS
+        self.assertIs(_WISHLIST_VALS["dblclick"], False)
 
     def test_both_sets_ask_before_a_double_click_stops_a_title(self):
         """❓ On by default in both: a stray double-click must not cut the
@@ -184,6 +189,7 @@ class PartySetTsoTest(unittest.TestCase):
         self.assertIs(dblclick_ask_of({}, "tournament"), True)
 
     def test_the_two_sets_switch_it_over(self):
+        self.desk._settings["party_set"] = {"dblclick": True}
         self.desk._set_party_mode(True)
         self.assertIs(self.desk._play_panel.play_set()["dblclick"], True)
         self.desk._apply_tournament_set()

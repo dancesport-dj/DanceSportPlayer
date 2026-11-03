@@ -337,17 +337,12 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
             QApplication.processEvents()
 
         # A list carried over from another machine names the library at ITS drive
-        # (and on a Mac `F:\…` cannot exist at all) — the same re-rooting 🧭 Fix
-        # paths uses resolves those lines, and the report below says what moved.
-        try:
-            _, _, remapper = self._remap_index()
-        except Exception:
-            remapper = None
-
+        # (and on a Mac `F:\…` cannot exist at all) — the same look playback takes
+        # resolves those lines, and the report below says what moved.
         try:
             res = import_playlist_m3u(path, self._library.lib, self._library.cache,
                                       progress_cb=_prog,
-                                      remapper=remapper or None)
+                                      remapper=self._file_finder())
         except Exception as exc:
             dlg.finish()
             self.statusBar().showMessage(i18n.t("Import failed: %s") % exc)

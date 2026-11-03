@@ -25,10 +25,17 @@ log = logging.getLogger("dancesport.workers")
 from planner import i18n
 from planner.event import event_plan
 from planner.generate import llm
-from planner.generate.ai import openrouter_chat, openrouter_free_models
+from planner.generate.ai import (
+    match_suggestions_to_library,
+    openrouter_chat,
+    openrouter_free_models,
+    openrouter_models,
+)
 from planner.generate.warmup import build_class_warmup, build_warmup_playlist
 from planner.models import ALLOW_REPEAT, ScanCancelled
+from planner.music import analysis as planner_analysis
 from planner.music import custom_field
+from planner.music.analysis import probe_decode_backend
 from planner.music.db import AudioCache
 from planner.music.db_upkeep import db_maintenance, reset_database
 from planner.music.library import MusicLibrary
@@ -37,7 +44,15 @@ from planner.music.scan_caches import GlobalScanCache
 from planner.playlist.planned import path_key
 from planner.playlist.playlist_text import read_playlist_text
 from planner.system_info import lower_thread_priority
-from shared.audio.audio_probes import detect_pd_highlights, detect_silences, measure_loudness
+from shared.audio.audio_probes import (
+    decode_pcm_mono,
+    detect_pd_highlights,
+    detect_silences,
+    measure_loudness,
+)
+
+# librosa 1.0 reads through libsndfile only: .m4a and .wma go through ffmpeg.
+planner_analysis.fallback_decoder = decode_pcm_mono
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Orphaned workers
@@ -459,6 +474,24 @@ class AudioAnalyzer(QThread):
             self.report.emit({"ok": ok, "errors": errors - skipped,
                               "skipped": skipped, "reasons": reasons})
             self.done.emit(ok, errors - skipped)
+
+
+class BackgroundAnalyzer(AudioAnalyzer):
+    """🔬 The same analysis with nobody waiting for it: below the music in
+    priority, and the decode probe the button does up front runs on this
+    thread, because on the window's it would hold up whoever just came to
+    start the music. A machine that cannot decode ends here, in the log."""
+
+    def run(self):
+        lower_thread_priority()
+        probe = self._entries[0].path
+        why = probe_decode_backend(probe)
+        if why is not None:
+            log.warning("🔬 Background analysis skipped\n"
+                        "reason: %s\n"
+                        "probe: %s", why, probe)
+            return
+        super().run()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1117,20 +1150,38 @@ class OpenRouterChatWorker(QThread):
             self.error.emit(str(exc))
 
 
-class OpenRouterModelsWorker(QThread):
-    """Fetches the host's model list off the UI thread (free ones only when the
-    host is OpenRouter — nobody else prices that list)."""
+class SuggestionMatchWorker(QThread):
+    """Fuzzy-matches the model's suggestions against the library off the UI
+    thread: a big library takes seconds."""
     done = Signal(object)
     error = Signal(str)
 
-    def __init__(self, api_key, parent=None, base_url=""):
+    def __init__(self, lib, suggestions, parent=None):
         super().__init__(parent)
-        self._key = api_key
-        self._base = base_url
+        self._lib, self._suggestions = lib, suggestions
 
     def run(self):
         try:
-            self.done.emit(openrouter_free_models(self._key, base_url=self._base))
+            self.done.emit(match_suggestions_to_library(self._lib, self._suggestions))
+        except Exception as exc:
+            self.error.emit(str(exc))
+
+
+class OpenRouterModelsWorker(QThread):
+    """Fetches the host's model list off the UI thread: all of it, or with
+    `free_only` the free ones (only OpenRouter prices that list)."""
+    done = Signal(object)
+    error = Signal(str)
+
+    def __init__(self, api_key, parent=None, base_url="", free_only=True):
+        super().__init__(parent)
+        self._key = api_key
+        self._base = base_url
+        self._fetch = openrouter_free_models if free_only else openrouter_models
+
+    def run(self):
+        try:
+            self.done.emit(self._fetch(self._key, base_url=self._base))
         except Exception as exc:
             self.error.emit(str(exc))
 

@@ -46,6 +46,16 @@ class PlaylistArtTest(unittest.TestCase):
         self.m3u.write_text("#EXTM3U\n#EXTIMG:gone.png\n", encoding="utf-8")
         self.assertEqual(playlist_art(self.m3u), self.dir / "cover.jpg")
 
+    def test_a_network_reference_is_never_opened(self):
+        # A UNC path or a URL in a playlist from a stranger would make this PC
+        # open a connection to their host: refused, and no fallback either.
+        _png(self.dir / "cover.jpg")
+        for ref in ("\\\\host\\share\\x.jpg", "//host/share/x.jpg",
+                    "http://host/x.jpg", "file://host/x.jpg"):
+            self.m3u.write_text(f"#EXTM3U\n#EXTIMG:{ref}\n", encoding="utf-8")
+            with self.subTest(ref=ref):
+                self.assertIsNone(playlist_art(self.m3u))
+
     def test_an_image_of_the_same_name_beside_it_counts(self):
         _png(self.dir / "cover.jpg")
         same = _png(self.dir / (self.m3u.stem + ".jpg"))
@@ -55,6 +65,32 @@ class PlaylistArtTest(unittest.TestCase):
     def test_a_cover_file_in_the_folder_counts(self):
         _png(self.dir / "folder.png")
         self.assertEqual(playlist_art(self.m3u), self.dir / "folder.png")
+
+    def test_the_playlist_is_read_once_until_it_changes(self):
+        """#29: cover() asks on every paint and track change, and each ask
+        read and scanned the whole file."""
+        from unittest import mock
+
+        from player.widgets import artwork
+        _png(self.dir / "logo.png")
+        _png(self.dir / "other.png")
+        self.m3u.write_text("#EXTM3U\n#EXTIMG:logo.png\n", encoding="utf-8")
+        real = artwork.read_playlist_text
+        with mock.patch.object(artwork, "read_playlist_text", side_effect=real) as read:
+            for _ in range(3):
+                self.assertEqual(playlist_art(self.m3u), self.dir / "logo.png")
+            self.assertEqual(read.call_count, 1)
+            self.m3u.write_text("#EXTM3U\n#EXTIMG:other.png\n", encoding="utf-8")
+            self.assertEqual(playlist_art(self.m3u), self.dir / "other.png")
+            self.assertEqual(read.call_count, 2)
+
+    def test_a_picture_that_appears_later_is_still_found(self):
+        """Only the parsing is remembered: whether the named file exists is
+        asked again every time."""
+        self.m3u.write_text("#EXTM3U\n#EXTIMG:late.png\n", encoding="utf-8")
+        self.assertIsNone(playlist_art(self.m3u))
+        _png(self.dir / "late.png")
+        self.assertEqual(playlist_art(self.m3u), self.dir / "late.png")
 
 
 class CoverTest(unittest.TestCase):

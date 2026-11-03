@@ -190,6 +190,8 @@ def body_of(svg: str) -> str:
 
 
 def main():
+    if len(sys.argv) < 2:
+        sys.exit("usage: python -m tools.assets.make_iconset OUTPUT.py")
     out, missing = {}, []
     for name, bi in sorted(WANT.items()):
         try:
@@ -200,6 +202,7 @@ def main():
             continue
         vb = re.search(r'viewBox="([^"]+)"', svg)
         out[name] = (bi, vb.group(1) if vb else "0 0 16 16", body_of(svg))
+    fetched = len(out)
     for name, (vb, body) in EXTRA.items():
         out[name] = ("drawn for this app — not a Bootstrap icon", vb, body)
     out = dict(sorted(out.items()))
@@ -207,7 +210,7 @@ def main():
         print("MISSING:")
         for m in missing:
             print("  ", m)
-    print(f"got {len(out)}/{len(WANT)}")
+    print(f"got {fetched}/{len(WANT)}")
     if missing:
         sys.exit(1)
     with open(sys.argv[1], "w", encoding="utf-8") as fh:

@@ -77,6 +77,7 @@ from planner.music.parsing import (  # auto-resolved
     title_for,
     title_marks_instrumental,
 )
+from planner.music.paths import foreign_name
 from planner.music.playlist_index import (
     PlaylistIndexMixin,
     dq,
@@ -311,7 +312,7 @@ class _ReadAhead:
         self._submit_next()
         try:
             return future.result()
-        except OSError:
+        except Exception:       # not only OSError: the scan thread reads it again
             return None, None
 
 
@@ -596,7 +597,9 @@ class MusicLibrary(PlaylistIndexMixin):
                             reused += 1
                             was_reused = True
                         else:
-                            entry = self._make_entry(mp3, scan_cache)
+                            entry = self._make_entry_or_none(mp3, scan_cache)
+                            if entry is None:
+                                continue
                             global_cache.put(mp3, {**entry_meta(entry),
                                                    'duration': entry.duration or _NO_LENGTH})
                             self.entries.append(entry)
@@ -604,7 +607,10 @@ class MusicLibrary(PlaylistIndexMixin):
                         fps, tags = ahead.take(mp3)
                         if fps is not None:
                             cache.read_ahead[str(mp3)] = fps
-                        self.entries.append(self._make_entry(mp3, scan_cache, tags))
+                        entry = self._make_entry_or_none(mp3, scan_cache, tags)
+                        if entry is None:
+                            continue
+                        self.entries.append(entry)
                     if progress_cb is not None and (idx % 25 == 0 or idx == total):
                         progress_cb(idx, total, mp3, was_reused)
                 clock.step(total, None)
@@ -733,6 +739,17 @@ class MusicLibrary(PlaylistIndexMixin):
         note_class_tag_use(self.entries)   # only the main library is edited
         return list(touched.values())
 
+    def _make_entry_or_none(self, path: Path, scan_cache: ScanCache,
+                            tags_read: tuple | None = None) -> MusicEntry | None:
+        """`_make_entry`, but one file that breaks the tag reader is skipped and
+        logged: it must not end the scan (the caches would never be saved)."""
+        try:
+            return self._make_entry(path, scan_cache, tags_read)
+        except Exception:
+            log.warning("⚠️ File skipped, its tags could not be read\n"
+                        "file: %s", path, exc_info=True)
+            return None
+
     def _make_entry(self, path: Path, scan_cache: ScanCache,
                     tags_read: tuple | None = None) -> MusicEntry:
         # tags_read: what `_read_tags_once` gave the scan's read-ahead pool.
@@ -742,8 +759,10 @@ class MusicLibrary(PlaylistIndexMixin):
             cached = _heal_cached(path, cached, scan_cache)
             return MusicEntry(path=path, **cached)
 
-        # Slow path: read ID3 tags (happens once per file, then cached)
-        name = path.stem
+        # Slow path: read ID3 tags (happens once per file, then cached).
+        # The name is cut by hand: on macOS a Windows path is ONE filename to
+        # `Path`, so `path.stem` would title the row with the whole backslash line.
+        name = Path(foreign_name(path)).stem
         file_dance = detect_dance(name)
         other = None
 
@@ -844,7 +863,8 @@ class MusicLibrary(PlaylistIndexMixin):
             self._scan_cache = ScanCache(cache)
         return self._scan_cache
 
-    def rescan_tags(self, entry: MusicEntry, cache: AudioCache) -> dict[str, tuple]:
+    def rescan_tags(self, entry: MusicEntry, cache: AudioCache,
+                    file: Path | None = None) -> dict[str, tuple]:
         """Re-read ONE file's ID3 tags and push the result onto `entry` in place.
 
         For the track whose tags were edited (mp3tag & co.) while the app was
@@ -852,8 +872,10 @@ class MusicLibrary(PlaylistIndexMixin):
         and the library hold the very SAME MusicEntry objects, so the fields are
         written onto the entry — and onto the library's own entry for that path
         when that is a different object — rather than returned as a replacement.
+        `file` is where the audio really is when the row keeps a path from
+        another machine (`resolve_file`); the entry's own path stays as it was.
         Returns {field: (old, new)} for everything the re-read changed."""
-        path = Path(entry.path)
+        path = Path(file or entry.path)
         scan_cache = self._get_scan_cache(cache)
         scan_cache.forget(path)
         fresh = self._make_entry(path, scan_cache)

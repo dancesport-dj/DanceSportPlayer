@@ -32,7 +32,7 @@ class AudibleTrackSecsTest(unittest.TestCase):
         self.assertEqual(audible_track_secs(330, [[120, 130]]), 330)
 
     def test_a_stretch_too_short_for_the_skip_is_ignored(self):
-        self.assertEqual(audible_track_secs(330, [[328.5, 330]]), 330)
+        self.assertEqual(audible_track_secs(330, [[328.6, 330]]), 330)
 
     def test_both_edges_go(self):
         self.assertEqual(audible_track_secs(330, [[0, 5], [300, 330]]), 295)
@@ -67,7 +67,7 @@ class EdgeSilenceSecsTest(unittest.TestCase):
 
     def test_a_stretch_too_short_for_the_skip_is_no_edge(self):
         from planner.playlist.checks import edge_silence_secs
-        self.assertEqual(edge_silence_secs(330, [[328.5, 330]]), (0.0, 0.0))
+        self.assertEqual(edge_silence_secs(330, [[328.6, 330]]), (0.0, 0.0))
 
     def test_it_agrees_with_the_play_time_it_backs(self):
         from planner.playlist.checks import edge_silence_secs

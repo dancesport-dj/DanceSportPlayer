@@ -48,6 +48,11 @@ class _ReadyBase(unittest.TestCase):
         self.dir = Path(tempfile.mkdtemp(prefix="dp_ready_music_"))
         self.addCleanup(shutil.rmtree, self.dir, True)
         self.win._library.cache = None   # no measurements known: only files + duplicates
+        # This machine's battery is not part of these evenings; the line has
+        # its own tests in tests.player.audio.test_power_status.
+        patcher = mock.patch("gui.window.main_music.power_status", return_value=None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
         # A machine with several outputs and no pre-listen card chosen would
         # make every evening yellow here; the line has its own test below.
         shared = mock.patch.object(self.win._audio_device, "cue_shares_music",

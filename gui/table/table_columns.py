@@ -29,6 +29,11 @@ if TYPE_CHECKING:
 else:
     PlaylistTableHost = object
 
+# The Nb. gutter among the saved widths, only once the user has set one.
+_NB_COL = -1
+_NB_MIN_WIDTH = 16
+_NB_MAX_WIDTH = 120
+
 
 class TableColumnsMixin(PlaylistTableHost):
     """Shown and hidden columns, their widths and menu, and the Nb. gutter."""
@@ -198,6 +203,10 @@ class TableColumnsMixin(PlaylistTableHost):
         """`cb()` when the header menu resets the 🔁 play counters."""
         self._play_counts_cb = cb
 
+    def set_played_reset_callback(self, cb):
+        """`cb()` when the header menu takes the grey off the played titles."""
+        self._played_reset_cb = cb
+
     def set_widths_callback(self, cb):
         """`cb(kind, widths)` when the user has finished dragging a handle."""
         self._widths_cb = cb
@@ -206,16 +215,22 @@ class TableColumnsMixin(PlaylistTableHost):
         """Every column's width except Title's, which is the leftover and is
         recomputed on each resize. A hidden column reports the width it had, not
         the 0 Qt gives a hidden section."""
-        return {c: (self._col_width.get(c, 0) if self.isColumnHidden(c)
-                    else self.columnWidth(c))
-                for c in range(_N_COLS) if c != _COL_TITLE}
+        widths = {c: (self._col_width.get(c, 0) if self.isColumnHidden(c)
+                      else self.columnWidth(c))
+                  for c in range(_N_COLS) if c != _COL_TITLE}
+        if self._nb_width is not None:
+            widths[_NB_COL] = self._nb_width
+        return widths
 
     def set_column_widths(self, widths):
         """Apply saved widths. JSON has no integer keys, so string ones count."""
         self._filling = True          # our own doing, not a drag: don't re-save
+        nb_width = None
         try:
             for key, w in (widths or {}).items():
                 c, w = int(key), int(w)
+                if c == _NB_COL:
+                    nb_width = w
                 if c == _COL_TITLE or not 0 <= c < _N_COLS or w <= 0:
                     continue
                 if self.isColumnHidden(c):
@@ -224,6 +239,7 @@ class TableColumnsMixin(PlaylistTableHost):
                     self.setColumnWidth(c, w)
         finally:
             self._filling = False
+        self.set_nb_width(nb_width)
         self._fill_title_column()
 
     def hidden_columns(self) -> list[int]:
@@ -275,6 +291,11 @@ class TableColumnsMixin(PlaylistTableHost):
             reset = menu.addAction("Reset the play counters")
             reset.setEnabled(play_counts.any_counted())
             reset.triggered.connect(lambda: cb())
+        played_cb = self._played_reset_cb
+        if played_cb is not None:
+            played = menu.addAction("Reset the played titles (grey)")
+            played.setEnabled(bool(self._played_paths))
+            played.triggered.connect(lambda: played_cb())
         add_custom_mapping_action(menu, self)
         return menu
 
@@ -298,19 +319,39 @@ class TableColumnsMixin(PlaylistTableHost):
     def set_numbered(self, on: bool):
         """Show or hide the Nb. column of the 🔢 Numbers view."""
         self._numbered = on
-        vh = self.verticalHeader()
-        fm = self._nb_label.fontMetrics()
-        vh.setFixedWidth(max(fm.horizontalAdvance("Nb."), fm.horizontalAdvance("999")) + 14)
-        vh.setVisible(on)
+        self.verticalHeader().setVisible(on)
         self._nb_label.setVisible(on)
+        self._nb_grip.setVisible(on)
+        self.updateGeometries()
+
+    def nb_width(self) -> int:
+        """The Nb. column's width: the user's, or what the highest number needs."""
+        if self._nb_width is not None:
+            return self._nb_width
+        fm = self._nb_label.fontMetrics()
+        digits = "9" * len(str(len(self._row_meta.song_rows())))
+        return max(fm.horizontalAdvance("Nb."), fm.horizontalAdvance(digits)) + 14
+
+    def set_nb_width(self, width: int | None):
+        """The user's Nb. width; None hands it back to the counter."""
+        self._nb_width = (None if width is None
+                          else min(max(width, _NB_MIN_WIDTH), _NB_MAX_WIDTH))
         self.updateGeometries()
 
     def updateGeometries(self):
+        grip = getattr(self, "_nb_grip", None)
+        if grip is None:             # still being built
+            super().updateGeometries()
+            return
+        # Before Qt's own pass, which leaves the header's width to the viewport.
+        vh = self.verticalHeader()
+        if self._numbered:
+            vh.setFixedWidth(self.nb_width())
         super().updateGeometries()
-        if getattr(self, "_nb_label", None) is not None:
-            f = self.frameWidth()
-            self._nb_label.setGeometry(f, f, self.verticalHeader().width(),
-                                       self.horizontalHeader().height())
+        f = self.frameWidth()
+        top = self.horizontalHeader().height()
+        self._nb_label.setGeometry(f, f, vh.width(), top)
+        grip.setGeometry(f + vh.width() - 5, f, 5, top + self.viewport().height())
 
     def song_number_label(self, row: int) -> str:
         """The Nb. text of a table row: the title's place in the list, counted

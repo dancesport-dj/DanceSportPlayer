@@ -740,5 +740,21 @@ class AnnouncerClipEndTest(_ClipRunBase):
         self.assertEqual(self.played, ["next_dance.mp3", "LW.mp3"])
 
 
+class SilenceProbeExitTest(unittest.TestCase):
+    """#12: ffmpeg that failed half way still prints a Duration line and the
+    silences it saw before dying; trimming a clip on that cuts the word."""
+
+    def _run(self, code):
+        proc = mock.Mock(returncode=code, stderr="Duration: 00:00:02.00, start")
+        with mock.patch.object(announce.subprocess, "run", return_value=proc):
+            return announce._silencedetect("ffmpeg", Path("clip.mp3"))
+
+    def test_a_failed_probe_gives_nothing(self):
+        self.assertIsNone(self._run(1))
+
+    def test_a_good_probe_gives_its_stderr(self):
+        self.assertIn("Duration", self._run(0))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -193,6 +193,7 @@ class _Win(QWidget):
     _library_paths = man.AnalysisMixin._library_paths
     _run_library_pass = man.AnalysisMixin._run_library_pass
     _analyze_audio = man.AnalysisMixin._analyze_audio
+    _stop_background_analysis = staticmethod(lambda: None)
     _analyze_loudness = man.AnalysisMixin._analyze_loudness
     _analyze_silences = man.AnalysisMixin._analyze_silences
     _analyze_vocals = man.AnalysisMixin._analyze_vocals

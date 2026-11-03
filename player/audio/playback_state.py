@@ -20,6 +20,8 @@ class PlaybackState:
     # Bumped on EVERY play/stop, so a watchdog or late callback that carries
     # an older token silently no-ops once the operator has moved on.
     token: int = 0
+    # It came out of a pause with seconds to it, so the pause named its dance.
+    called_in_pause: bool = False
     # File time the 🔇 stillness skip jumped over on this title. It counts as
     # position but nobody danced to it, so the timed cut subtracts it again
     # (see audible_played_secs) — otherwise a silent intro shortens the round.
@@ -30,6 +32,9 @@ class PlaybackState:
     # 🌅 Seconds of music this title fades in over, 0 = it starts at full
     # level — kept for the waveform after the fade-in is through.
     fade_in_secs: float = 0.0
+    # ✂️ What this session learned about how titles end, path → stops in full
+    # sound. A title not in here gets asked when it is loaded.
+    hard_ends: dict[str, bool] = field(default_factory=dict)
     # ⏩ The pre-roll seek still owed once the media is open (ms); 0 = none.
     pre_roll_ms: int = 0
     # Titles that would not play this session, path → the backend's reason.

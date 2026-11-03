@@ -5,18 +5,34 @@ Windows counts idle time from the mouse and the keyboard, never from what comes
 out of the speakers — so a tournament that nobody touches for an hour blanks
 the screen and starts the screensaver, on the presenter beamer as well. The
 desk holds the timeout off while music plays or the presenter screen stands,
-and hands it back the moment neither does — on Windows through
+and hands it back a while after neither does — on Windows through
 SetThreadExecutionState, on macOS through a caffeinate that dies with the app,
 on Linux through the desktop's screensaver service on D-Bus.
+
+The hold outlasts the music by a while. A track switch passes through Stopped
+and a dance floor waits between titles, and macOS measures idle time since the
+last touch: handing the hold back there blanks a screen nobody touched for an
+hour at once, and the next title's hold does not switch it back on.
 
 Run:  py -m unittest tests.player.window.test_wake_lock -v
 """
 
+import os
+import tempfile
 import unittest
+from unittest import mock
 
-from player.window import main_player
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
+                      tempfile.mkdtemp(prefix="dp_wake_lock_"))
+
+from PySide6.QtWidgets import QApplication
+
+from player.audio import wake_hold
+from player.audio.wake_hold import WakeHold
 from player.window.main_player import PlayerControlMixin
 from shared.audio import playback
+from tests.qt_test_support import reap_widget, stub_window_startup
 
 
 class _Panel:
@@ -30,22 +46,26 @@ class _Panel:
 class WakeLockTest(unittest.TestCase):
     """`_refresh_wake_lock` against the two things that can want the screen."""
 
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
     def setUp(self):
         self.calls = []
-        real = main_player.keep_display_awake
+        real = wake_hold.keep_display_awake
 
         def fake(on):
             self.calls.append(on)
             return self.answer
 
         self.answer = True
-        main_player.keep_display_awake = fake
-        self.addCleanup(setattr, main_player, "keep_display_awake", real)
+        wake_hold.keep_display_awake = fake
+        self.addCleanup(setattr, wake_hold, "keep_display_awake", real)
 
         self.win = PlayerControlMixin.__new__(PlayerControlMixin)
         self.win._play_panel = _Panel()
         self.win._presenter = None
-        self.win._awake_held = False
+        self.win._wake_hold = WakeHold()
         self.playing = False
         self.win._is_player_running = lambda: self.playing
 
@@ -53,7 +73,7 @@ class WakeLockTest(unittest.TestCase):
         self.playing = True
         self.win._refresh_wake_lock()
         self.assertEqual(self.calls, [True])
-        self.assertTrue(self.win._awake_held)
+        self.assertTrue(self.win._wake_hold.held)
 
     def test_a_standing_presenter_screen_holds_it_without_music(self):
         """The beamer shows the running order between heats too — blanking it
@@ -63,12 +83,48 @@ class WakeLockTest(unittest.TestCase):
         self.assertEqual(self.calls, [True])
 
     def test_with_neither_the_machine_gets_its_timeouts_back(self):
+        """Once the gap has outlasted any pause between titles."""
         self.playing = True
         self.win._refresh_wake_lock()
         self.playing = False
         self.win._refresh_wake_lock()
+        self.win._wake_hold.release.timeout.emit()
         self.assertEqual(self.calls, [True, False])
-        self.assertFalse(self.win._awake_held)
+        self.assertFalse(self.win._wake_hold.held)
+
+    def test_the_hold_outlasts_the_end_of_the_music(self):
+        """The gap between two titles, with nobody at the machine: macOS counts
+        idle time since the last touch, so letting go here blanks the screen."""
+        self.playing = True
+        self.win._refresh_wake_lock()
+        self.playing = False
+        self.win._refresh_wake_lock()
+        self.assertEqual(self.calls, [True])
+        self.assertTrue(self.win._wake_hold.held)
+        self.assertTrue(self.win._wake_hold.release.isActive())
+
+    def test_the_next_title_keeps_the_hold_it_never_lost(self):
+        self.playing = True
+        self.win._refresh_wake_lock()
+        self.playing = False
+        self.win._refresh_wake_lock()
+        self.playing = True
+        self.win._refresh_wake_lock()
+        self.assertEqual(self.calls, [True])
+        self.assertFalse(self.win._wake_hold.release.isActive())
+
+    def test_more_edges_in_the_gap_do_not_push_the_release_back(self):
+        self.playing = True
+        self.win._refresh_wake_lock()
+        self.playing = False
+        self.win._refresh_wake_lock()
+        self.win._wake_hold.release.start = self.fail
+        self.win._refresh_wake_lock()
+
+    def test_a_desk_that_never_played_starts_no_release(self):
+        self.win._refresh_wake_lock()
+        self.assertEqual(self.calls, [])
+        self.assertFalse(self.win._wake_hold.release.isActive())
 
     def test_the_switch_off_means_off(self):
         self.win._play_panel = _Panel(awake=False)
@@ -82,6 +138,17 @@ class WakeLockTest(unittest.TestCase):
         self.win._play_panel._awake = False
         self.win._refresh_wake_lock()
         self.assertEqual(self.calls, [True, False])
+
+    def test_switching_it_off_in_the_gap_releases_at_once(self):
+        self.playing = True
+        self.win._refresh_wake_lock()
+        self.playing = False
+        self.win._refresh_wake_lock()
+        self.win._play_panel._awake = False
+        self.win._refresh_wake_lock()
+        self.assertEqual(self.calls, [True, False])
+        self.assertFalse(self.win._wake_hold.held)
+        self.assertFalse(self.win._wake_hold.release.isActive())
 
     def test_only_the_changes_reach_the_os(self):
         """Every playback edge calls in, and a track switch passes through
@@ -97,9 +164,43 @@ class WakeLockTest(unittest.TestCase):
         self.answer = False
         self.playing = True
         self.win._refresh_wake_lock()
-        self.assertFalse(self.win._awake_held)
+        self.assertFalse(self.win._wake_hold.held)
         self.win._refresh_wake_lock()
         self.assertEqual(self.calls, [True, True])
+
+
+class WakeLockWindowTest(unittest.TestCase):
+    """The release on the real window: the timer has to be there and wired."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+        cls.gui = stub_window_startup(cls, {"app_mode": "both"})
+
+    def setUp(self):
+        self.win = self.gui.MainWindow()
+        self.win._loading_dlg.accept()
+        self.addCleanup(reap_widget, self.win)
+        self.calls = []
+        patcher = mock.patch.object(
+            wake_hold, "keep_display_awake",
+            lambda on: self.calls.append(on) or True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_the_release_timer_hands_the_screen_back(self):
+        self.win._wake_hold.held = True
+        self.win._refresh_wake_lock()
+        self.assertTrue(self.win._wake_hold.release.isActive())
+        self.assertEqual(self.calls, [])
+        self.win._wake_hold.release.stop()
+        self.win._wake_hold.release.timeout.emit()
+        self.assertEqual(self.calls, [False])
+        self.assertFalse(self.win._wake_hold.held)
+
+    def test_the_hold_lasts_longer_than_a_pause_between_titles(self):
+        self.assertGreaterEqual(self.win._wake_hold.release.interval(), 5 * 60_000)
+        self.assertTrue(self.win._wake_hold.release.isSingleShot())
 
 
 class _Caffeinate:

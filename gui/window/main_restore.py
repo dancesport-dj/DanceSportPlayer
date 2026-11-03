@@ -143,6 +143,7 @@ class RestoreMixin(MainWindowHost):
             else:
                 path = entry.path
         self._restoring = True
+        applied = True
         try:
             for table in decks:
                 self._blank_deck(table, keep_playing=True)
@@ -153,13 +154,18 @@ class RestoreMixin(MainWindowHost):
                 wl.load_wishlist([], play_cb=self._play_or_stop, suggester=None)
             self._restore_env(data, wish_default=True)
         except Exception as exc:
+            applied = False
             self.statusBar().showMessage(i18n.t("Could not apply snapshot: %s") % exc)
         finally:
             self._restoring = False
         if held is not None:
             self._readopt_playing(held, path, near)
         self._update_wish_counts()
-        save_autosave(data)
+        # A snapshot that did not come back must not replace the file: the
+        # desk is half-wiped, and the file is the one honest copy left.
+        if applied:
+            save_autosave(data)
+        return applied
 
     def _readopt_playing(self, table, path, near: int):
         """Put the marker back on the title still playing after `_apply_env`
@@ -222,6 +228,8 @@ class RestoreMixin(MainWindowHost):
         # deck names (applied only at the end) and clobber the real titles.
         self._restoring = True
         failed = None
+        lost = {}
+        unreadable = False
         try:
             if data.get("version") == 1:
                 # Legacy single-playlist file → restore into deck A.
@@ -231,13 +239,19 @@ class RestoreMixin(MainWindowHost):
                 self._set_active_table(self._deckset.tableA)
             else:
                 self._restore_env(data, deck_modes=True)
+            # Whatever did not come back would be gone from the file with the
+            # first edit, so the file as it was is kept aside first. Inside
+            # the guard: a damaged file must not crash the start a second time.
+            now = self._build_env()
+            unreadable = now is None   # _build_env already said why
+            if not unreadable:
+                lost = SessionEnv(data).all_paths() - SessionEnv(now).all_paths()
         except Exception as exc:
             failed = exc
         finally:
             self._restoring = False
-        # Whatever did not come back would be gone from the file with the first
-        # edit, so the file as it was is kept aside first.
-        lost = SessionEnv(data).all_paths() - SessionEnv(self._build_env()).all_paths()
+        if unreadable:
+            return
         if failed is not None or lost:
             kept = keep_autosave_copy()
             why = (i18n.t("Could not restore saved playlist: %s") % failed if failed is not None

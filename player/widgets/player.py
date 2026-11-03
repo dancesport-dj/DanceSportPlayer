@@ -42,10 +42,13 @@ from player.widgets.player_parts import (
     CARD_INK,
     COUNTDOWN_CSS,
     OVERLAY_INK,
+    TEMPO_SETTLE_MS,
     TEMPO_STEP,
+    TEMPO_STEP_SETTLE_MS,
     WAIT_COUNT_CSS,
     ClickSlider,
     fmt_ms,
+    heard_percent,
     takt_text,
 )
 from player.widgets.player_setup import BigPlayerSetupMixin
@@ -88,6 +91,7 @@ class PreviewOverlay(QFrame):
     prevRequested = Signal()     # ⏮ → MainWindow plays the previous song row
     nextRequested = Signal()     # ⏭ → MainWindow plays the next song row
     duckPressed = Signal()   # 🔉 → MainWindow: full → duck → mute → full
+    duckLifted = Signal()    # 🔉 a hand on the slider ended a duck or a mute
 
     def __init__(self, player: QMediaPlayer, audio_out: QAudioOutput,
                  get_vol: Callable[[], float] | None = None,
@@ -218,7 +222,7 @@ class PreviewOverlay(QFrame):
         self._vol.setRange(0, 100)
         self._vol.setFixedWidth(50)
         self._vol.setToolTip("Volume")
-        self._vol.valueChanged.connect(lambda v: self._set_vol(v / 100.0))
+        self._vol.valueChanged.connect(self._on_vol_changed)
         bot.addWidget(self._vol)
         lyt.addLayout(bot)
 
@@ -255,10 +259,10 @@ class PreviewOverlay(QFrame):
         self._full_title = title
         self.resize(min(380, max(260, vp.width() - 12)), self.sizeHint().height())
         self._elide_title()
-        self._vol.blockSignals(True)
-        self._vol.setValue(round(self._get_vol() * 100))
-        self._vol.blockSignals(False)
-        self.set_ducked(self._ducked)
+        self.set_ducked(self._ducked, self._muted)
+        # No anchor while it is placed: on a visible overlay move() delivers its
+        # moveEvent at once, which would put it straight back at the old spot.
+        self._anchor = None
         if self._user_pos is not None:
             self.move(self._clamped(self._user_pos))
         else:
@@ -378,10 +382,22 @@ class PreviewOverlay(QFrame):
         self._duck_btn.setIcon(icon(_duck_icon(self._ducked, self._muted),
                                     12, OVERLAY_INK))
         self._duck_btn.setChecked(self._ducked)
+        self._vol.blockSignals(True)
+        self._vol.setValue(heard_percent(self._get_vol(), self._ducked, self._muted,
+                                         self._duck_pct))
+        self._vol.blockSignals(False)
 
     def set_duck_level(self, pct: int):
         """🔉 The level from ⚙ Settings, named on the button."""
+        self._duck_pct = pct
         self._duck_btn.setToolTip(i18n.t("Duck to %d %%, again to mute, again back to full") % pct)
+
+    def _on_vol_changed(self, v: int):
+        """The slider shows what is heard, so a hand on it sets that: the
+        master goes there and a duck or a mute is over."""
+        self._set_vol(v / 100.0)
+        if self._ducked:
+            self.duckLifted.emit()
 
     def _gear_menu(self, anchor: QToolButton):
         menu = QMenu(self)
@@ -408,6 +424,7 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
     fadeOutRequested = Signal()            # 🔉↓ → fade the playing song out now
     panicRequested = Signal()              # 🛑 → fade to silence and HOLD (no advance)
     duckPressed = Signal()                 # 🔉 → full → duck → mute on everything audible
+    duckLifted = Signal()                  # 🔉 a hand on the slider ended a duck or a mute
     fileDropped = Signal(str)              # a track dropped onto the card → play it
 
     def __init__(self, player: QMediaPlayer, audio_out=None,
@@ -1007,7 +1024,11 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
     def _nudge_tempo(self, delta: int):
         """Step the fader by one − / + click. setValue clamps to the range, so
         holding a button at either end simply stops there."""
-        self._tempo.setValue(self._tempo.value() + delta)
+        self._stepping = True        # the wait for a button run, see _on_tempo
+        try:
+            self._tempo.setValue(self._tempo.value() + delta)
+        finally:
+            self._stepping = False
 
     def _on_tempo(self, _value: int):
         self._refresh_tempo_lbl()   # readout follows the fader instantly
@@ -1026,7 +1047,9 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
             # for. Wheel / arrow keys keep the short debounce.
             self._tempo_apply.start(
                 QApplication.doubleClickInterval() + 60
-                if self._tempo.click_pending() else 220)
+                if self._tempo.click_pending()
+                else TEMPO_STEP_SETTLE_MS if getattr(self, "_stepping", False)
+                else TEMPO_SETTLE_MS)
 
     def _on_tempo_released(self):
         self._tempo_apply.stop()
@@ -1082,7 +1105,11 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
     # ── Master volume ──
 
     def _on_vol_changed(self, v: int):
+        """The slider shows what is heard, so a hand on it sets that: the
+        master goes there and a duck or a mute is over."""
         self._set_vol(v / 100.0)
+        if self._ducked:
+            self.duckLifted.emit()
         self._refresh_vol_lbl()
 
     def _refresh_vol_lbl(self):
@@ -1113,10 +1140,11 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
             self._duck_btn.setProperty("muted", self._muted)
             self._duck_btn.style().unpolish(self._duck_btn)
             self._duck_btn.style().polish(self._duck_btn)
-        self._refresh_vol_lbl()
+        self.set_volume_value(self._get_vol())
 
     def set_duck_level(self, pct: int):
         """🔉 The level from ⚙ Settings, named on the button."""
+        self._duck_pct = pct
         self._duck_btn.setToolTip(i18n.t("Duck to %d %%, again to mute, again back to full") % pct)
 
     def set_button_scale(self, pct: int):
@@ -1142,9 +1170,10 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
 
     def set_volume_value(self, vol: float):
         """Show a volume set elsewhere (settings restore, preview overlay slider)
-        without echoing it back through _set_vol."""
+        without echoing it back through _set_vol. During a 🔉 duck the slider
+        stands at what is heard."""
         self._vol.blockSignals(True)
-        self._vol.setValue(max(0, min(100, round(vol * 100))))
+        self._vol.setValue(heard_percent(vol, self._ducked, self._muted, self._duck_pct))
         self._vol.blockSignals(False)
         self._refresh_vol_lbl()
 

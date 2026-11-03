@@ -122,7 +122,7 @@ class DriveWatch:
         first = self.drives is None
         change = DriveChange(
             gone_drives=set(self.drives or ()) - drives,
-            new_drives=set(drives - (self.drives or drives)),
+            new_drives=set(drives - (drives if self.drives is None else self.drives)),
             missing=(missing & self.checked) - self.gone,
             back=(self.gone & checked) - missing,
             rehomed={p: f for p, f in elsewhere.items()

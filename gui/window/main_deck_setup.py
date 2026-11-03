@@ -38,6 +38,21 @@ else:
     MainWindowHost = object
 
 
+def hiddenColumnsFor(saved: dict, kind: str) -> list[int]:
+    """The columns a kind of list hides: the saved choice, or the default.
+
+    A hand-edited or damaged gui_settings.json must not stop the window from
+    opening, so anything that is not a list of numbers falls back (#24).
+    """
+    default = list(DEFAULT_HIDDEN_COLUMNS.get(kind, []))
+    if kind not in saved:
+        return default
+    try:
+        return [int(c) for c in saved[kind]]
+    except (TypeError, ValueError):
+        return default
+
+
 class _ToolbarRow(QWidget):
     """The toolbar strip, which reports when its OWN width changes.
 
@@ -129,8 +144,7 @@ class DeckSetupMixin(MainWindowHost):
                              ("party", [self._deckset.warmup_table])):
             # A saved empty list is a decision (Heat ticked back on), not an
             # absent setting — only the missing key falls back to the default.
-            hidden = ([int(c) for c in saved_cols[kind]] if kind in saved_cols
-                      else DEFAULT_HIDDEN_COLUMNS.get(kind, []))
+            hidden = hiddenColumnsFor(saved_cols, kind)
             widths = saved_widths.get(kind) or {}
             short = bool(saved_short.get(kind, False))
             order = saved_order.get(kind)
@@ -174,6 +188,7 @@ class DeckSetupMixin(MainWindowHost):
             t.set_dance_names_callback(self._on_dance_names_changed)
             t.set_rating_callback(self._set_entry_rating)
             t.set_play_counts_callback(self._reset_play_counts)
+            t.set_played_reset_callback(self._reset_played_titles)
             # ⏭/✋ in the deck's bottom-right corner — THIS deck's auto-advance
             # answer, within reach while a round runs. The panel's switch is
             # what it falls back to (see _deck_advance).
@@ -197,8 +212,8 @@ class DeckSetupMixin(MainWindowHost):
          btn_print) = self._make_action_buttons()
         self._make_view_buttons()
         for b in (self._collapse_btn, self._fold_decks_btn,
-                  btn_save_all, btn_bundle, self._save_state_btn, btn_clear_all,
-                  self._check_btn, btn_day, btn_warmup,
+                  btn_save_all, btn_bundle, self._save_state_btn,
+                  btn_clear_all, self._check_btn, btn_day, btn_warmup,
                   btn_print, self._dual_btn, self._compact_btn, self._dual_wish_btn,
                   self._warmup_toggle_btn, self._lib_btn, self._cart_btn):
             b.setFixedHeight(24)
@@ -321,8 +336,8 @@ class DeckSetupMixin(MainWindowHost):
         btn_bundle = QPushButton("🧳  USB export")
         btn_bundle.setToolTip(
             "Export playlists as a self-contained venue bundle — asks first\n"
-            "whether to take all open decks, only the 📅 tournament day, or\n"
-            "saved .m3u files dragged in, with the ⭐ wishlists if ticked.\n"
+            "what to take: open decks, the 📅 tournament day, the party list,\n"
+            "⭐ wishlists or saved .m3u files, in any combination.\n"
             "One sub-folder per playlist holding its tracks copied in numbered\n"
             "play order (0_0_1 - Title WW29.mp3) plus the playlist's .m3u — each\n"
             "folder plays in order even without the M3U, from any drive,\n"
@@ -688,6 +703,7 @@ class DeckSetupMixin(MainWindowHost):
         self._lib_browser.columnWidthsChanged.connect(self._on_lib_column_widths)
         self._lib_browser.columnsChanged.connect(self._on_lib_columns_hidden)
         self._lib_browser.danceNamesChanged.connect(self._on_lib_dance_names)
+        self._lib_browser.folderViewChanged.connect(self._on_lib_folder_view)
         self._lib_browser.playCountsResetWanted.connect(self._reset_play_counts)
         self._lib_browser._table.seek_cb = self._prehear_seek   # Ctrl+←/→ seeks ∓30 s
         saved_widths = self._settings.get("library_col_widths")
@@ -701,6 +717,8 @@ class DeckSetupMixin(MainWindowHost):
             self._lib_browser.set_hidden_columns([int(c) for c in saved_hidden])
         self._lib_browser.set_short_dances(
             bool(self._settings.get("library_short_dances")))
+        self._lib_browser.set_folder_view(
+            bool(self._settings.get("library_folder_view")))
         # 🏆 The tournament tree shares the pane as a second tab: both are ways
         # of finding music to drag onto a deck, and the desk has the vertical
         # space for one of them, not two.

@@ -17,9 +17,11 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QObject, QPointF, QRectF, Qt, Signal
+from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPolygonF
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QToolTip, QWidget
+
+from player.widgets.player_parts import fmt_ms
 
 if TYPE_CHECKING:
     from planner.music.db import AudioCache
@@ -150,6 +152,7 @@ class WaveformStrip(QWidget):
         super().__init__(parent)
         self.setFixedHeight(34)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setMouseTracking(True)     # the time under the mouse
         self.setToolTip(
             "The waveform of the title — what has played is blue, all of it\n"
             "red in the final seconds. The broad orange bar is where it plays.\n"
@@ -267,6 +270,9 @@ class WaveformStrip(QWidget):
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
+        if self._span > 0:
+            QToolTip.showText(event.globalPosition().toPoint(),
+                              fmt_ms(self.ms_for(event.position().x())), self)
         if self._scrubbing:
             self._scrub_to(event)
             return
@@ -287,6 +293,15 @@ class WaveformStrip(QWidget):
         self._move_head(ms)
         self.scrubbed.emit(ms)
         event.accept()
+
+    def event(self, event):
+        """A moving mouse gets the bare time; at rest the explanation joins it."""
+        if event.type() == QEvent.Type.ToolTip and self._span > 0:
+            time = fmt_ms(self.ms_for(event.pos().x()))
+            QToolTip.showText(event.globalPos(),
+                              f"{time}\n\n{self.toolTip()}", self)
+            return True
+        return super().event(event)
 
     def paintEvent(self, event):
         p = QPainter(self)

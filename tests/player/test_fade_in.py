@@ -25,7 +25,7 @@ from PySide6.QtWidgets import QApplication, QWidget
 
 from player.audio.between_dances import BetweenDances
 from player.audio.fade_now import FadeNow
-from player.audio.mix import OutputMix, fade_in_secs
+from player.audio.mix import OutputMix, fade_in_secs, resume_fade_secs
 from player.audio.playback_state import PlaybackState
 from player.window.main_player import PlayerControlMixin
 from tests.qt_test_support import reap_widget
@@ -89,6 +89,120 @@ class _Desk(PlayerControlMixin, QWidget):
 
     def _track_duration(self, path: Path) -> float:
         return 180.0
+
+
+class ResumeFadeSettingTest(unittest.TestCase):
+
+    def test_one_second_by_default(self):
+        self.assertEqual(resume_fade_secs({}), 1.0)
+
+    def test_zero_is_off_and_stays_off(self):
+        self.assertEqual(resume_fade_secs({"resume_fade_secs": 0}), 0.0)
+        self.assertEqual(resume_fade_secs({"resume_fade_secs": 0.0}), 0.0)
+
+    def test_the_pick_counts(self):
+        self.assertEqual(resume_fade_secs({"resume_fade_secs": 2.5}), 2.5)
+
+    def test_bounded(self):
+        self.assertEqual(resume_fade_secs({"resume_fade_secs": 600}), 10.0)
+        self.assertEqual(resume_fade_secs({"resume_fade_secs": -3}), 0.0)
+
+    def test_a_broken_value_is_the_default(self):
+        self.assertEqual(resume_fade_secs({"resume_fade_secs": "soon"}), 1.0)
+        self.assertEqual(resume_fade_secs({"resume_fade_secs": None}), 1.0)
+
+
+class ResumeFadeTest(unittest.TestCase):
+    """↩ A title picked up at its time marker lands in the middle of the music:
+    it comes up instead of starting at full level."""
+
+    MARK = 65_000
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def _desk(self, secs=0.0, mark=MARK, dance="WW", playing_mode=True, **settings):
+        desk = _Desk(secs=secs, playing_mode=playing_mode)
+        desk._settings.update(settings)
+        desk._resume_seek_ms = mark
+        desk._playback.dance = dance
+        self.addCleanup(reap_widget, desk)
+        return desk
+
+    def test_a_marked_title_fades_in_by_default(self):
+        desk = self._desk()
+        desk._arm_fade_in(TRACK)
+        self.assertEqual(desk._playback.fade_in_from, 0.0)
+        self.assertEqual(desk._playback.fade_in_secs, 1.0)
+        self.assertEqual(desk._mix.fade_in, 0.0)
+
+    def test_its_own_time_counts_over_the_one_of_every_title(self):
+        desk = self._desk(secs=4.0, resume_fade_secs=2.0)
+        desk._arm_fade_in(TRACK)
+        self.assertEqual(desk._playback.fade_in_secs, 2.0)
+
+    def test_switched_off_a_marked_title_starts_at_once(self):
+        desk = self._desk(resume_fade_secs=0)
+        desk._arm_fade_in(TRACK)
+        self.assertIsNone(desk._playback.fade_in_from)
+        self.assertEqual(desk._mix.fade_in, 1.0)
+
+    def test_switched_off_the_fade_of_every_title_still_applies(self):
+        desk = self._desk(secs=4.0, resume_fade_secs=0)
+        desk._arm_fade_in(TRACK)
+        self.assertEqual(desk._playback.fade_in_secs, 4.0)
+
+    def test_a_title_without_a_marker_is_not_touched(self):
+        desk = self._desk(mark=None)
+        desk._arm_fade_in(TRACK)
+        self.assertIsNone(desk._playback.fade_in_from)
+
+    def test_a_paso_doble_starts_abruptly(self):
+        """The couples stand on the floor and go on the beat."""
+        desk = self._desk(dance="PD", resume_fade_secs=2.0)
+        desk._arm_fade_in(TRACK)
+        self.assertIsNone(desk._playback.fade_in_from)
+        self.assertEqual(desk._mix.fade_in, 1.0)
+
+    def test_a_paso_doble_at_its_marker_ignores_the_fade_of_every_title(self):
+        desk = self._desk(secs=4.0, dance="PD")
+        desk._arm_fade_in(TRACK)
+        self.assertIsNone(desk._playback.fade_in_from)
+
+    def test_a_paso_doble_from_the_top_keeps_the_fade_of_every_title(self):
+        desk = self._desk(secs=4.0, mark=None, dance="PD")
+        desk._arm_fade_in(TRACK)
+        self.assertEqual(desk._playback.fade_in_secs, 4.0)
+
+    def test_the_overlay_stays_at_full_level(self):
+        desk = self._desk(playing_mode=False)
+        desk._arm_fade_in(TRACK)
+        self.assertIsNone(desk._playback.fade_in_from)
+
+    def test_a_crossfade_keeps_its_own_ramp(self):
+        desk = self._desk()
+        desk._between.xfade.state = "fading"
+        desk._between.xfade.incoming = TRACK
+        desk._arm_fade_in(TRACK)
+        self.assertIsNone(desk._playback.fade_in_from)
+
+    def test_it_counts_from_the_marker_not_from_the_top_of_the_file(self):
+        """The seek raises the offset by the same ms: nothing has been heard
+        yet, so the ramp starts at silence there."""
+        desk = self._desk()
+        desk._arm_fade_in(TRACK)
+        desk._playback.offset_ms += self.MARK
+        desk.media.pos = self.MARK
+        desk._step_fade_in()
+        self.assertEqual(desk._mix.fade_in, 0.0)
+        desk.media.pos = self.MARK + 500
+        desk._step_fade_in()
+        self.assertAlmostEqual(desk._mix.fade_in, 0.5)
+        desk.media.pos = self.MARK + 1000
+        desk._step_fade_in()
+        self.assertEqual(desk._mix.fade_in, 1.0)
+        self.assertIsNone(desk._playback.fade_in_from)
 
 
 class FadeInSettingTest(unittest.TestCase):
@@ -218,6 +332,20 @@ class FadeInSettingDialogTest(unittest.TestCase):
         dlg._fade_in_spin.setValue(3.5)
         self.assertEqual(dlg.values()["fade_in_secs"], 3.5)
 
+    def test_the_marker_fade_starts_at_one_second(self):
+        dlg = self._dialog({})
+        self.assertEqual(dlg._resume_fade_spin.value(), 1.0)
+        self.assertEqual(dlg.values()["resume_fade_secs"], 1.0)
+
+    def test_the_marker_fade_can_be_switched_off(self):
+        dlg = self._dialog({"resume_fade_secs": 2.0})
+        self.assertEqual(dlg._resume_fade_spin.value(), 2.0)
+        dlg._resume_fade_spin.setValue(0.0)
+        self.assertEqual(dlg.values()["resume_fade_secs"], 0.0)
+        reopened = self._dialog(dlg.values())
+        self.assertEqual(reopened._resume_fade_spin.value(), 0.0)
+        self.assertEqual(reopened._resume_fade_spin.text(), "off")
+
     def test_its_text_is_translated(self):
         # Widget text reaches the catalog through the text hook, not a t()
         # call, so test_i18n_catalog_keys never sees it.
@@ -225,7 +353,10 @@ class FadeInSettingDialogTest(unittest.TestCase):
         dlg = self._dialog({})
         for text in (dlg._fade_in_spin.toolTip(),
                      dlg._fade_in_spin.specialValueText(),
-                     "🌅  Fade each title in over:"):
+                     "🌅  Fade each title in over:",
+                     dlg._resume_fade_spin.toolTip(),
+                     dlg._resume_fade_spin.specialValueText(),
+                     "↩  Fade in at a time marker over:"):
             with self.subTest(text=text[:20]):
                 self.assertIn(text, CATALOG)
 

@@ -228,6 +228,7 @@ from player.audio.on_air_note import NOTE
 from player.audio.playback_state import PlaybackState
 from player.audio.resume_marks import ResumeMarks
 from player.audio.system_sounds import SystemSoundGuard
+from player.audio.wake_hold import WakeHold
 from player.dialogs.play_log_dialog import PlayLogDialog
 from player.presenter.presenter import (  # facade re-export
     PresenterWindow,
@@ -276,6 +277,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
     def __init__(self):
         super().__init__()
         self.setWindowTitle("DanceSport Planner & Player")
+        self.setAcceptDrops(True)   # a .dpvenue venue pack dropped on the window
         self.resize(1500, 900)
         # A 🎨 look draws the deck title strips and the mode switch its own way.
         self._look_parts = theme.look_parts()
@@ -561,6 +563,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
             self._preview.prevRequested.connect(lambda: self._preview_skip(-1))
             self._preview.nextRequested.connect(lambda: self._preview_skip(+1))
             self._preview.duckPressed.connect(self._cycle_desk_duck)
+            self._preview.duckLifted.connect(self._lift_desk_duck)
             self._preview.set_duck_level(desk_duck_pct(self._settings))
 
     def _setup_left_panel(self):
@@ -607,7 +610,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         # TimetableDialog.now_offset().
         self._now_offset = None
         # ☀ Whether the screensaver is currently held off (see _refresh_wake_lock).
-        self._awake_held = False
+        self._wake_hold = WakeHold(self)
         self._play_panel.presenterToggled.connect(self._toggle_presenter)
         self._play_panel.presenterScreenChanged.connect(self._move_presenter)
         # The monitor a presenter stands on can be unplugged mid-evening.
@@ -684,6 +687,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
             self._big_player.fadeOutRequested.connect(self._fade_out_now)
             self._big_player.panicRequested.connect(self._fade_and_hold)
             self._big_player.duckPressed.connect(self._cycle_desk_duck)
+            self._big_player.duckLifted.connect(self._lift_desk_duck)
             self._big_player.set_duck_level(desk_duck_pct(self._settings))
             self._big_player.fileDropped.connect(self._on_player_drop)
             self._big_player.resume_cb = self._resume_tap
@@ -771,8 +775,14 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         self._save_state_sc.activated.connect(self._save_state_now)
         # Ctrl+Shift+Del — empty the focused playlist / wishlist (confirmed),
         # from anywhere in the window; Del does it only with nothing selected.
+        # A Mac has only the key above Return.
         self._clear_sc = QShortcut(QKeySequence("Ctrl+Shift+Del"), self)
+        self._clear_sc.setKeys([QKeySequence("Ctrl+Shift+Del"),
+                                QKeySequence("Ctrl+Shift+Backspace")])
         self._clear_sc.activated.connect(self._clear_focused)
+        # Ctrl+Shift+E — ↔ the focused wishlist gets the area, or all come back.
+        QShortcut(QKeySequence("Ctrl+Shift+E"), self).activated.connect(
+            self._expand_focused_wishlist)
         self._update_wish_counts()   # seed the badges before the first edit
 
         # Ctrl+Z / Ctrl+Y (+ Ctrl+Shift+Z) — undo/redo editing steps.
@@ -1563,7 +1573,7 @@ def _open_session_log():
     try:
         _fh = logging.FileHandler(session_path, mode="w", encoding="utf-8")
         _fh.setFormatter(logging.Formatter("%(asctime)s %(levelname).1s %(message)s",
-                                           datefmt="%H:%M:%S"))
+                                           datefmt="%Y-%m-%d %H:%M:%S"))
         logging.getLogger().addHandler(_fh)
     except Exception as exc:
         log.debug("📝 Could not open the session log: %s", exc)

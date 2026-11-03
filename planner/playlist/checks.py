@@ -339,8 +339,9 @@ def is_final_round(round_name: str = "", tier: RoundTier | str = "") -> bool:
 # reach to count as the head or the tail of the track. Mirrors the playing side
 # (player.window.main_audio._maybe_skip_silence): a span is only skipped when it is at
 # least _SKIP_MIN long, a tail is anything that runs to within _TAIL_GAP of the
-# end, and a head is anything starting in the first _HEAD_GAP.
-_SKIP_MIN = 2.0
+# end, and a head is anything starting in the first _HEAD_GAP. The probe keeps
+# nothing under 2 s except a tail, so _SKIP_MIN is the shortest tail it reports.
+_SKIP_MIN = 1.5
 _TAIL_GAP = 1.5
 _HEAD_GAP = 0.5
 

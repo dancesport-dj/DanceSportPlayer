@@ -128,6 +128,14 @@ class RemoteDialogTest(unittest.TestCase):
             dlg = self._dlg(_Host())
         self.assertIn(r"C:\Python\python.exe", dlg._hint.text())
 
+    def test_the_wifi_hint_says_the_pin_is_readable_on_that_network(self):
+        """#2: the page is plain http and sends the PIN about once a second."""
+        dlg = self._dlg(_Host())
+        self.assertIn("unencrypted", dlg._hint.text())
+        self.assertIn("tunnel", dlg._hint.text())
+        dlg._mode.setCurrentIndex(dlg._mode.findData("tunnel"))
+        self.assertNotIn("unencrypted", dlg._hint.text())
+
     def test_the_window_picks_the_tunnel_and_the_public_address_comes_first(self):
         """Marcel: "for normal remote control also the option to use cloudflare,
         for cases where i have internet but not in same network as my pc"."""

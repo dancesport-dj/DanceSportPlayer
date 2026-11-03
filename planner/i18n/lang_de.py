@@ -673,7 +673,7 @@ CATALOG = {
     "all licences": "alle Lizenzen",
     "Which library should this index cover?":
         "Welche Bibliothek soll dieser Index abdecken?",
-    "What should go into the venue bundle?":
+    "What should be exported?":
         "Was soll in das Hallen-Paket?",
 
     # ── Status messages ──────────────────────────────────────────────────────
@@ -683,6 +683,7 @@ CATALOG = {
     "Loading music library…": "Musikbibliothek wird geladen…",
     "Library: loading…": "Bibliothek: wird geladen…",
     "Generating playlist…": "Wiedergabeliste wird erzeugt…",
+    "Matching against your library…": "Abgleich mit deiner Bibliothek…",
     "Asking the model…": "Modell wird gefragt…",
     "Asking the model for a playlist…": "Modell wird nach einer Wiedergabeliste gefragt…",
     "Fetching the model list…": "Modellliste wird geholt…",
@@ -875,6 +876,13 @@ CATALOG = {
         "Wie laut die Musik bleibt, während ein 🎛 Cartwall-Pad mit 🔈 Musik\nabsenken spielt, in Prozent ihrer Lautstärke wie bei 🔉 Absenken auf.\n10 % sind etwa −20 dB: eine Fanfare setzt sich durch. 30 % (etwa −10 dB)\nnimmt die Musik nur zurück. 0 % ist Stille.",
     "A duck, here or a pad's on the 🎛 Cartwall tab, is a percentage of the music's volume, not of its loudness: 50 % ≈ −6 dB, 30 % ≈ −10 dB (sounds about half as loud), 20 % ≈ −14 dB, 10 % ≈ −20 dB.":
         "Eine Absenkung, hier oder die eines Pads im Reiter 🎛 Cartwall, ist ein Prozentsatz der Lautstärke der Musik, nicht ihrer empfundenen Lautheit: 50 % ≈ −6 dB, 30 % ≈ −10 dB (klingt etwa halb so laut), 20 % ≈ −14 dB, 10 % ≈ −20 dB.",
+    "↩  Fade in at a time marker over:":
+        "↩  An einer Zeitmarke einblenden über:",
+    "A title picked up at its ↩ time marker lands in the middle of the\n"
+    "music, so the big player brings it up over these seconds. A Paso\n"
+    "Doble always starts abruptly: the couples stand and go on the beat.\n"
+    "0 = off.":
+        "Ein Titel, der an seiner ↩ Zeitmarke weiterläuft, setzt mitten in der\nMusik ein, also blendet ihn der große Player über diese Sekunden auf.\nEin Paso Doble setzt immer abrupt ein: Die Paare stehen und gehen auf\nden Schlag los. 0 = aus.",
     "🌅  Fade each title in over:":
         "🌅  Jeden Titel einblenden über:",
     "The big player starts every title at silence and brings it up\nover these seconds of music. Not a title a 🔀 crossfade brings in,\nwhich has its own ramp. Couples start on the first downbeat, so\nleave it off for a competition. 0 = off.":
@@ -1177,11 +1185,24 @@ CATALOG = {
     "🏆  Tournament set": "🏆  Turnier-Set",
     "🏆 Tournament only": "🏆 Nur Turnier",
     "🏷  Re-read MP3 tags": "🏷  MP3-Tags neu einlesen",
+    "↩  Reset time marker": "↩  Zeitmarke zurücksetzen",
     "🏷  Re-read MP3 tags (unavailable)":
         "🏷  MP3-Tags neu einlesen (nicht verfügbar)",
     "🐂  Analyze PD highlights…": "🐂  PD-Highlights analysieren…",
     "🎯  Mark highlight now":
         "🎯  Highlight markieren",
+    "Clear highlights": "Highlights löschen",
+    "Show the selected title in Explorer": "Den gewählten Titel im Explorer zeigen",
+    "Edit the tags of the selected title(s)": "Die Tags der gewählten Titel bearbeiten",
+    "Copy the file path of the selected title": "Den Dateipfad des gewählten Titels kopieren",
+    "Remove %d songs?": "%d Titel entfernen?",
+    "Remove this song?": "Diesen Titel entfernen?",
+    "Remove with slot": "Mit Slot entfernen",
+    "Keep slot": "Slot behalten",
+    "Forget the highlights of this title?\n\n"
+    "Manual marks are lost; 🐂 auto-detection runs again.":
+        "Die Highlights dieses Titels vergessen?\n\n"
+        "Manuelle Marken gehen verloren; 🐂 die Automatik läuft wieder.",
     "🎯 Highlights cleared — 🐂 auto-detection will run again.":
         "🎯 Highlights gelöscht — 🐂 die Automatik läuft wieder.",
     "🎯 Last mark deleted — 🐂 auto-detection takes over again.":
@@ -1312,17 +1333,16 @@ CATALOG = {
         "Wiedergabelisten-Ordner exportieren (Wunschlisten sind nicht dabei).\n"
         "Jede Datei wird nach ihrem Decktitel benannt.",
     "Export playlists as a self-contained venue bundle — asks first\n"
-    "whether to take all open decks, only the 📅 tournament day, or\n"
-    "saved .m3u files dragged in, with the ⭐ wishlists if ticked.\n"
+    "what to take: open decks, the 📅 tournament day, the party list,\n"
+    "⭐ wishlists or saved .m3u files, in any combination.\n"
     "One sub-folder per playlist holding its tracks copied in numbered\n"
     "play order (0_0_1 - Title WW29.mp3) plus the playlist's .m3u — each\n"
     "folder plays in order even without the M3U, from any drive,\n"
     "laptop or UltraMixer at the venue (no path fixing needed there).\n"
     "Also offers the 📦 venue pack: this desk in one file for another PC.":
         "Wiedergabelisten als eigenständiges Turnierpaket exportieren — fragt\n"
-        "zuerst, ob alle offenen Decks, nur der 📅 Turniertag oder\n"
-        "hineingezogene .m3u-Dateien genommen werden, auf Wunsch mit\n"
-        "den ⭐ Wunschlisten.\n"
+        "zuerst, was mit soll: offene Decks, der 📅 Turniertag, die Partyliste,\n"
+        "⭐ Wunschlisten oder gespeicherte .m3u-Dateien, in jeder Kombination.\n"
         "Ein Unterordner je Wiedergabeliste mit ihren Titeln, kopiert in\n"
         "nummerierter Spielreihenfolge (0_0_1 - Titel WW29.mp3), dazu die\n"
         ".m3u der Wiedergabeliste — jeder Ordner spielt auch ohne die M3U in der\n"
@@ -2043,10 +2063,10 @@ CATALOG = {
     "Resolve duplicates": "Duplikate auflösen",
     "Sort the exported tracks by dance?\n"
     "\n"
-    "(LW, TG, WW, SF, QS, SB, CC, RB, PD, JV)":
+    "(%s)":
         "Die exportierten Titel nach Tanz sortieren?\n"
         "\n"
-        "(LW, TG, WW, SF, QS, SB, CC, RB, PD, JV)",
+        "(%s)",
     "The reference base must be a single .m3u playlist.":
         "Die Referenzgrundlage muss eine einzelne .m3u-Wiedergabeliste sein.",
     "This list holds some titles more than once.<br><span "
@@ -2155,7 +2175,7 @@ CATALOG = {
         "Die Bibliothek des Gesamtbestands ist noch nicht geladen. Ziehe einmal "
         "eine Datei hinein (oder baue den librosa-Index über den Bestand), um sie "
         "zu laden, und versuche es dann erneut.",
-    "Not on the Reference path": "Nicht im Referenzpfad",
+    "Titles saved with their own path": "Titel mit eigenem Pfad gespeichert",
     "Save Error": "Speicherfehler",
     "Save as M3U": "Als M3U speichern",
     "This deck is empty.": "Dieses Deck ist leer.",
@@ -2435,14 +2455,9 @@ CATALOG = {
         "Tanz- / BPM-Angaben)",
     "Clear playlist": "Wiedergabeliste leeren",
     "Clear wishlist": "Wunschliste leeren",
-    "Find in list": "In der Liste suchen",
     "Find planned before": "Frühere Planungen finden",
-    "Find title:": "Titel suchen:",
     "A word of the title, the tag title or the file name":
         "Ein Wort aus dem Titel, dem Tag-Titel oder dem Dateinamen",
-    "Find genre / dance:": "Genre / Tanz suchen:",
-    "e.g. paso doble, PD, Boogie Woogie, Line Dance, salsa":
-        "z. B. Paso Doble, PD, Boogie Woogie, Line Dance, Salsa",
     "Highlights every row of the list whose dance or genre matches -\n"
     "leave empty to search titles only.":
         "Hebt alle Zeilen der Liste hervor, deren Tanz oder Genre passt –\n"
@@ -2626,34 +2641,40 @@ CATALOG = {
     "The system counts idle time from the mouse and the keyboard,\n"
     "never from the speakers — so an hour of music with nobody touching\n"
     "the desk blanks the screen mid-heat, the beamer included. It goes\n"
-    "back to its normal timeouts as soon as neither is running.":
+    "back to its normal timeouts ten minutes after both have ended.":
         "Bildschirmschoner und Display-Abschaltung aushebeln, solange Musik\n"
         "läuft oder der Moderationsbildschirm offen ist.\n"
         "\n"
         "Das System zählt die Leerlaufzeit an Maus und Tastatur, nie an den\n"
         "Lautsprechern — eine Stunde Musik, ohne dass jemand das Pult\n"
         "anfasst, macht also mitten in der Gruppe den Bildschirm dunkel, den\n"
-        "Beamer eingeschlossen. Sobald beides nicht mehr läuft, gelten wieder\n"
-        "die normalen Zeiten.",
+        "Beamer eingeschlossen. Zehn Minuten nachdem beides geendet hat, gelten\n"
+        "wieder die normalen Zeiten.",
     "Off: the next song starts the moment the current one ends, with\n"
-    "no pause music and no announcement. The configured time is kept\n"
+    "no pause music. The configured time is kept\n"
     "for switching back.\n"
     "\n"
     "Needs ⏭ auto-advance — without it the next song waits for the\n"
     "operator anyway, so there is no gap to fill.":
         "Aus: der nächste Titel beginnt in dem Moment, in dem der laufende\n"
-        "endet, ohne Pausenmusik und ohne Ansage. Die eingestellte Zeit bleibt\n"
+        "endet, ohne Pausenmusik. Die eingestellte Zeit bleibt\n"
         "für das Zurückschalten erhalten.\n"
         "\n"
         "Braucht den ⏭ Autovorlauf — ohne ihn wartet der nächste Titel\n"
         "ohnehin auf den Operator, es gibt also keine Lücke zu füllen.",
+    "🔈 The pause is off because the next dance is announced: the\n"
+    "call comes with the title and needs no gap. Switch the pause\n"
+    "back on to have both.":
+        "🔈 Die Pause ist aus, weil der nächste Tanz angesagt wird: Die\n"
+        "Ansage kommt mit dem Titel und braucht keine Lücke. Die Pause\n"
+        "lässt sich wieder einschalten, dann gilt beides.",
     "On: a double-click in a deck puts the title on the speakers at\n"
     "once — what a party wants.\n"
     "Off: it is only CUED on the player (loaded, shown, silent) and ⏯\n"
     "starts it — what a heat wants, where the music begins when the\n"
     "couples are on the floor and not a moment earlier.\n"
     "\n"
-    "Part of the play sets: 🏆 tournament switches it off, 🎉 party on.":
+    "Part of the play sets: off in every one of them until you switch it on.":
         "An: ein Doppelklick in einem Deck legt den Titel sofort auf die\n"
         "Lautsprecher — was eine Party will.\n"
         "Aus: er wird nur auf dem Player VORBEREITET (geladen, angezeigt,\n"
@@ -2661,7 +2682,7 @@ CATALOG = {
         "Musik beginnt, wenn die Paare auf der Fläche stehen, und keinen\n"
         "Moment früher.\n"
         "\n"
-        "Teil der Abspiel-Sets: 🏆 Turnier schaltet es aus, 🎉 Party ein.",
+        "Teil der Abspiel-Sets: in jedem aus, bis du es einschaltest.",
     "On: a double-click in a deck plays the title at once.\n"
     "Off: it is only cued on the player (loaded, shown,\n"
     "silent) and ⏯ starts it — the heat begins when the\n"
@@ -3308,8 +3329,34 @@ CATALOG = {
         "hybrid: ab 1:30 ausblenden",
     "What the title playing at the time does:\n\nPlay it to its end — the first title that ends at or after the\ntime is the last.\nFade out at the time — it fades out the moment the time comes.\nHybrid — it fades if it had played 1:30 by then, a younger\none plays to its end.\n\nA title that starts after the time always plays to its end.\nThis choice is remembered.":
         "Was der Titel tut, der zu der Zeit läuft:\n\nZu Ende spielen — der erste Titel, der um oder nach der\nUhrzeit endet, ist der letzte.\nUm die Zeit ausblenden — er wird ausgeblendet, sobald die Zeit da ist.\nHybrid — er wird ausgeblendet, wenn er bis dahin 1:30 lief, ein\nkürzer gelaufener spielt zu Ende.\n\nEin Titel, der nach der Uhrzeit beginnt, spielt immer zu Ende.\nDiese Auswahl wird gespeichert.",
-    "The first title that ends at or after this time is the last.\nA time already past today means after midnight.":
-        "Der erste Titel, der um oder nach dieser Uhrzeit endet, ist der letzte.\nEine heute schon vergangene Uhrzeit meint nach Mitternacht.",
+    "The first title that ends at or after this time is the last.\nOnly times still to come are offered, on through midnight to about 2.\nDouble-click the time to type any other.":
+        "Der erste Titel, der um oder nach dieser Uhrzeit endet, ist der letzte.\nNur noch kommende Uhrzeiten stehen zur Wahl, über Mitternacht bis etwa 2 Uhr.\nDoppelklick auf die Uhrzeit, um eine andere einzutippen.",
+    "The list changed meanwhile — nothing done":
+        "Die Liste hat sich inzwischen geändert — nichts getan.",
+    "Find a folder…":
+        "Ordner suchen…",
+    "Sort the folders":
+        "Ordner sortieren",
+    "Sort by name":
+        "Nach Name sortieren",
+    "Sort by size":
+        "Nach Größe sortieren",
+    "🏆 Competition prompt (added to the rules, sent for the B, A and S classes only):":
+        "🏆 Prompt für Turniere (zu den Regeln hinzugefügt, nur für die Klassen B, A und S):",
+    "📝 Wish-list prompt (added to the rules):":
+        "📝 Prompt für die Wunschliste (zu den Regeln hinzugefügt):",
+    "🎉 Party-list prompt (added to the rules):":
+        "🎉 Prompt für die Partyliste (zu den Regeln hinzugefügt):",
+    "🤸 Warm-up-list prompt (added to the rules):":
+        "🤸 Prompt für die Eintanzliste (zu den Regeln hinzugefügt):",
+    "Which tracks suit a higher-class event. It is sent with the task,\nafter the rules, for the B, A and S classes; the lower classes get\nnone. The rounds, heats, dances and tempos are added automatically.":
+        "Welche Titel zu einem Turnier der höheren Klassen passen. Er wird mit der Aufgabe\nnach den Regeln gesendet, für die Klassen B, A und S; die unteren Klassen\nbekommen keinen. Runden, Heats, Tänze und Tempi kommen automatisch dazu.",
+    "How the pasted wishes are read and when a wish may be answered with\nsomething else. The search steps are added automatically, because\nthe code depends on them.":
+        "Wie die eingefügten Wünsche gelesen werden und wann ein Wunsch durch\netwas anderes beantwortet werden darf. Die Suchschritte kommen automatisch\ndazu, denn der Code hängt von ihnen ab.",
+    "What a party list is for. It is sent with the task, after the rules,\nand says which of the rules do not apply. Each mode keeps its own text.":
+        "Wofür eine Partyliste da ist. Er wird mit der Aufgabe nach den Regeln\ngesendet und sagt, welche Regeln nicht gelten. Jeder Modus behält seinen Text.",
+    "What a warm-up list is for. It is sent with the task, after the\nrules, and says which of the rules do not apply. Each mode keeps\nits own text.":
+        "Wofür eine Eintanzliste da ist. Er wird mit der Aufgabe nach den\nRegeln gesendet und sagt, welche Regeln nicht gelten. Jeder Modus\nbehält seinen Text.",
     "⏹  Stops after this title":
         "⏹  Stoppt nach diesem Titel",
     "⏹  Stops after %d titles":
@@ -3338,8 +3385,16 @@ CATALOG = {
         "Pause zwischen Titeln:",
     "🔈  Announce next dance": "🔈  Nächsten Tanz ansagen",
     "…with heat": "…mit Gruppe",
-    "🔊  Equalize volume (R128)":
-        "🔊  Pegel angleichen (R128)",
+    "Endless repeat is on":
+        "Endlose Wiederholung ist an",
+    "🔁 This title starts again every time it ends, so the list\n"
+    "will not move on to the next one.\n\n"
+    "Switch endless repeat off?":
+        "🔁 Dieser Titel beginnt jedes Mal neu, wenn er endet, die Liste\n"
+        "geht also nicht zum nächsten weiter.\n\n"
+        "Endlose Wiederholung ausschalten?",
+    "🔊  Equalize volume":
+        "🔊  Pegel angleichen",
     "🖼  Show artwork — a cover next to the title on the player card":
         "🖼  Cover anzeigen — ein Bild neben dem Titel auf der Player-Karte",
     "〰  Show waveform — the title's waveform in place of the player card's seek bar":
@@ -3363,6 +3418,13 @@ CATALOG = {
         "Einblenden · grüne Linie: wo der Titel beginnt.\n"
         "Klick springt dorthin.",
     "▶️  Double-click starts the title": "▶️  Doppelklick startet den Titel",
+    "Reset the time marker?": "Zeitmarke zurücksetzen?",
+    "A title is playing. “%s” has a time marker at %s.\n"
+    "Stop the playing title and start it from where?":
+        "Ein Titel läuft. „%s“ hat eine Zeitmarke bei %s.\n"
+        "Laufenden Titel anhalten und ab wo starten?",
+    "At the marker": "An der Zeitmarke",
+    "From the beginning": "Von vorn",
     "❓  Ask before a double-click stops the title":
         "❓  Fragen, bevor ein Doppelklick den Titel anhält",
     "On: a double-click on another title while one is playing\n"
@@ -3470,10 +3532,9 @@ CATALOG = {
         "Den Titel bewerten; ein Klick auf den letzten vergebenen Stern löscht "
         "die Bewertung",
     "Ctrl + F": "Strg + F",
-    "Find a title or a genre in the focused list. A title steps to the next "
-    "match; a genre highlights every row of it at once":
-        "Einen Titel oder ein Genre in der aktiven Liste suchen. Ein Titel "
-        "springt zum nächsten Treffer, ein Genre hebt alle seine Zeilen hervor",
+    "Ctrl + E": "Strg + E",
+    "Ctrl + T": "Strg + T",
+    "Ctrl + Shift + C": "Strg + Umschalt + C",
     "Esc  in the 🖥 presenter window": "Esc  im 🖥 Moderations-Fenster",
     "This cheat sheet": "Diese Übersicht",
     "Nothing found": "Nichts gefunden",
@@ -3772,6 +3833,8 @@ CATALOG = {
         "🎵  Musik:",
     "🔈  Announcements:":
         "🔈  Ansagen:",
+    "🔈  Announcements":
+        "🔈  Ansagen",
     "System default (follows the OS)":
         "Systemstandard (folgt dem System)",
     "Same as the music":
@@ -4694,6 +4757,7 @@ CATALOG = {
         "🗑  Abend löschen",
     "Delete evening":
         "Abend löschen",
+    "Could not delete the evening:": "Der Abend konnte nicht gelöscht werden:",
     "%d title(s)":
         "%d Titel",
     "Save played titles":
@@ -4712,6 +4776,10 @@ CATALOG = {
         "  … und %d weitere",
     "⚠ %d title(s) are not on the Reference path\n%s\nand were saved with their own path:":
         "⚠ %d Titel liegen nicht auf dem Referenzpfad\n%s\nund wurden mit ihrem eigenen Pfad gespeichert:",
+    "⚠ %d title(s) are not on disk any more\n"
+    "and were saved with their old path:":
+        "⚠ %d Titel sind nicht mehr auf dem Datenträger\n"
+        "und wurden mit ihrem alten Pfad gespeichert:",
     "💾 Saved %d playlist → %s":
         "💾 %d Wiedergabeliste gespeichert → %s",
     "💾 Saved %d playlists → %s":
@@ -5090,10 +5158,6 @@ CATALOG = {
         "%d Datei hinzugefügt.",
     "%d files added.":
         "%d Dateien hinzugefügt.",
-    "📅 Tournament day only (%d playlist)":
-        "📅 Nur Turniertag (%d Wiedergabeliste)",
-    "📅 Tournament day only (%d playlists)":
-        "📅 Nur Turniertag (%d Wiedergabelisten)",
     "Dance: %s":
         "Tanz: %s",
     "%s (%d beats/bar)":
@@ -5203,6 +5267,12 @@ CATALOG = {
         "Die Cartwall ist voll: %d von %d Titeln wurden platziert.\nLeere einige Pads oder wähle ein größeres Raster für den Rest.",
     "🔇 Only stillness left from %s — song ended.":
         "🔇 Ab %s nur noch Stille — Titel beendet.",
+    "Stop the analysis of the new titles; the title in work still ends":
+        "Die Analyse der neuen Titel stoppen; der Titel in Arbeit wird noch fertig",
+    "🔬 Analyzing new titles…":
+        "🔬 Neue Titel werden analysiert…",
+    "📊 Measuring loudness…":
+        "📊 Lautstärke wird gemessen…",
     "🔇 Skipped %ss of leading silence.":
         "🔇 %s s Stille am Anfang übersprungen.",
     "⚠️ Sample not found: %s":
@@ -6160,6 +6230,14 @@ CATALOG = {
         "Solange Musik läuft oder der Präsentationsbildschirm offen ist, bleiben Bildschirm, Beamer und Computer wach.",
     "☀ Keep the screen awake is off — an hour nobody touches the desk blanks the screen and the beamer, and may put the computer to sleep.":
         "☀ Bildschirm wach halten ist aus — eine Stunde ohne Griff zum Pult schaltet Bildschirm und Beamer dunkel und kann den Computer schlafen legen.",
+    "🔋  Power":
+        "🔋  Stromversorgung",
+    "🔌 On mains power":
+        "🔌 Am Stromnetz",
+    "🔋 On battery: plug in the charger":
+        "🔋 Im Akkubetrieb: Ladegerät anschließen",
+    "🔋 On battery, %d %%: plug in the charger":
+        "🔋 Im Akkubetrieb, %d %%: Ladegerät anschließen",
     "🔴  Not ready — a sound output is not connected.":
         "🔴  Nicht bereit — ein Audioausgang ist nicht angeschlossen.",
     "⚙  Choose outputs…":
@@ -6337,6 +6415,8 @@ CATALOG = {
         "Nur WLAN: Das Handy muss im selben WLAN wie dieser PC sein oder in seinem Hotspot.\nCloudflare-Tunnel: eine öffentliche https-Adresse führt ebenfalls zu diesem PC —\nohne Konto und ohne Router-Einstellung; sie ändert sich bei jedem Start, und\ndie PIN wächst auf 8 Stellen. Braucht das kostenlose Programm cloudflared.",
     "The https address works on mobile data too, and on any Wi-Fi. It is new on every start — scan the fresh QR code. Whoever has the address still needs the PIN.":
         "Die https-Adresse funktioniert auch mit mobilen Daten und in jedem WLAN. Sie ist bei jedem Start neu — scanne den frischen QR-Code. Wer die Adresse hat, braucht trotzdem die PIN.",
+    "On Wi-Fi the PIN travels unencrypted: anyone on the same network can read it. On a network you do not trust, use the Cloudflare tunnel.":
+        "Im WLAN wird die PIN unverschlüsselt übertragen: Jeder im selben Netz kann sie mitlesen. In einem Netz, dem du nicht traust, nimm den Cloudflare-Tunnel.",
     "● Running — port %d, waiting for Cloudflare…":
         "● Läuft — Port %d, warte auf Cloudflare…",
     "Connecting… the code to scan shows up as soon as the phone can reach the desk.":
@@ -6545,4 +6625,105 @@ CATALOG = {
         "Absenken auf:",
     "How low the play-length fade takes it before it comes\nback up, in % of the music's level. 0 = all the way down.\nAt most the level it comes back at.":
         "Wie weit die Ausblendung am Ende der Spieldauer ihn absenkt, bevor er\nwieder hochkommt, in % der Musiklautstärke. 0 = ganz herunter.\nHöchstens die Lautstärke, mit der er wiederkommt.",
+    "Already in this list":
+        "Bereits in dieser Liste",
+    "“%s” is already in this list.":
+        "„%s“ ist bereits in dieser Liste.",
+    "Replace: it moves here and “%s” leaves the list.":
+        "Ersetzen: Der Titel kommt hierher und „%s“ fällt aus der Liste.",
+    "Replace: it moves here from its old place.":
+        "Ersetzen: Der Titel kommt von seinem alten Platz hierher.",
+    "Swap: it changes places with “%s”.":
+        "Tauschen: Er wechselt den Platz mit „%s“.",
+    "Move it to this slot?":
+        "In diesen Platz verschieben?",
+    "Move it here":
+        "Hierher verschieben",
+    "Swap positions":
+        "Plätze tauschen",
+    "Do nothing":
+        "Nichts tun",
+    "Add here too":
+        "Hier zusätzlich einfügen",
+    "Add here too: it plays here and stays at its old place as well.":
+        "Zusätzlich: Er läuft hier und bleibt auch an seinem alten Platz.",
+    "🗑  Remove this title and its slot":
+        "🗑  Diesen Titel samt Platz entfernen",
+    "🗑  Remove %d selected titles and their slots":
+        "🗑  %d ausgewählte Titel samt Plätzen entfernen",
+    "Remove this song and its slot?":
+        "Diesen Titel samt Platz entfernen?",
+    "Remove %d songs and their slots?":
+        "%d Titel samt Plätzen entfernen?",
+    "⬇  Move to the end of the list": "⬇  Ans Ende der Liste verschieben",
+    "⬇  Move %d selected titles to the end":
+        "⬇  %d gewählte Titel ans Ende verschieben",
+    "Reset the played titles (grey)":
+        "Gespielte Titel zurücksetzen (grau)",
+    "Drag to change the width. Double-click for the automatic width.":
+        "Ziehen ändert die Breite. Doppelklick stellt die automatische Breite wieder her.",
+    "↔  Expand this wishlist\tCtrl+Shift+E":
+        "↔  Diese Wunschliste vergrößern\tStrg+Umschalt+E",
+    "↔  Show all wishlists again\tCtrl+Shift+E":
+        "↔  Wieder alle Wunschlisten zeigen\tStrg+Umschalt+E",
+    "Ctrl + Shift + E":
+        "Strg + Umschalt + E",
+    "The focused wishlist gets the whole area, the others fold to tabs; again: all open":
+        "Die aktive Wunschliste bekommt den ganzen Bereich, die anderen klappen zu Reitern ein; noch einmal: alle offen",
+    "Find a title or a genre in the focused list. Enter steps to the next match, Shift + Enter back; Esc closes the bar":
+        "Einen Titel oder ein Genre in der aktiven Liste suchen. Enter springt zum nächsten Treffer, Umschalt + Enter zurück; Esc schließt die Leiste",
+    "Find title (Ctrl+F)":
+        "Titel suchen (Strg+F)",
+    "Genre / dance":
+        "Genre / Tanz",
+    "Previous match (Shift+Enter)":
+        "Voriger Treffer (Umschalt+Enter)",
+    "Next match (Enter)":
+        "Nächster Treffer (Enter)",
+    "📅 Tournament day (%d playlist)":
+        "📅 Turniertag (%d Wiedergabeliste)",
+    "📅 Tournament day (%d playlists)":
+        "📅 Turniertag (%d Wiedergabelisten)",
+    "🎉 Practice / party list (%d title)":
+        "🎉 Eintanzen- / Partyliste (%d Titel)",
+    "🎉 Practice / party list (%d titles)":
+        "🎉 Eintanzen- / Partyliste (%d Titel)",
+    "🤖 AI":
+        "🤖 KI",
+    "The 🤖 AI Playlist runs on the claude CLI. OpenRouter is the second way to reach a model: any model in its list, on your own key.":
+        "Die 🤖 KI-Playlist läuft über die claude-CLI. OpenRouter ist der zweite Weg zu einem Modell: jedes Modell aus seiner Liste, mit deinem eigenen Schlüssel.",
+    "API key:":
+        "API-Schlüssel:",
+    "From openrouter.ai/keys. Kept on this PC only, never in a venue pack.":
+        "Von openrouter.ai/keys. Bleibt nur auf diesem PC, nie in einem Venue-Paket.",
+    "The exact model ID. Load models fills this list from the host;\ntype any part of a name to find it.":
+        "Die genaue Modell-ID. Modelle laden füllt diese Liste vom Anbieter;\ntippe einen Teil des Namens, um es zu finden.",
+    "Ask this model first — the claude CLI becomes the fallback":
+        "Dieses Modell zuerst fragen — die claude-CLI wird zur Reserve",
+    "Off: the claude CLI answers, this model steps in when that fails.\nOn: this model answers, the CLI steps in when it fails.":
+        "Aus: Die claude-CLI antwortet, dieses Modell springt ein, wenn das scheitert.\nAn: Dieses Modell antwortet, die CLI springt ein, wenn es scheitert.",
+    "Could not fetch the model list: %s":
+        "Modellliste konnte nicht geladen werden: %s",
+    "Asks %s on %s first, the claude CLI after that. ⚙ Settings → 🤖 AI changes it.":
+        "Fragt zuerst %s auf %s, danach die claude-CLI. Änderbar unter ⚙ Einstellungen → 🤖 KI.",
+    "🎉  Party list":
+        "🎉  Partyliste",
+    "🤸  Warm-up list":
+        "🤸  Eintanzliste",
+    "Prompt for this kind of list (added to the rules):":
+        "Anweisung für diese Art Liste (zusätzlich zu den Regeln):",
+    "What a party list or a warm-up list is for. It is sent with the\ntask, after the rules, and says which of the rules do not apply.\nEach kind keeps its own text.":
+        "Wofür eine Partyliste oder eine Eintanzliste da ist. Sie geht mit der\nAufgabe nach den Regeln mit und sagt, welche Regeln nicht gelten.\nJede Art behält ihren eigenen Text.",
+    "Each kind asks the model for something else: a party list for a\nfull floor, a warm-up list for couples before their competition.":
+        "Jede Art bittet das Modell um etwas anderes: eine Partyliste für eine\nvolle Fläche, eine Eintanzliste für Paare vor ihrem Turnier.",
+    '🤖  OpenRouter connection':
+        '🤖  OpenRouter-Verbindung',
+    '📁 Folders':
+        '📁 Ordner',
+    '📁 All folders':
+        '📁 Alle Ordner',
+    'Show the folders beside the list: choosing one lists only the titles\ndirectly in it. Here 🆕 Unplanned hides the planned file itself, and\nthe same music in another folder stays, marked with ♊.':
+        'Zeigt die Ordner neben der Liste: Ein gewählter Ordner listet nur die\nTitel direkt darin. Hier blendet 🆕 Ungeplant die geplante Datei selbst\naus, dieselbe Musik in einem anderen Ordner bleibt und bekommt ♊.',
+    '♊ The same music is planned from another folder':
+        '♊ Dieselbe Musik ist aus einem anderen Ordner verplant',
 }

@@ -96,7 +96,7 @@ class FilterRowTest(unittest.TestCase):
         its second line underneath the table instead of above it."""
         self._at(self._one_line_width() // 2)
         bottom = max(w.y() + w.height() for w in self._row())
-        self.assertGreaterEqual(self.b._table.y(), bottom)
+        self.assertGreaterEqual(self.b._table.parentWidget().y(), bottom)
 
     def test_nothing_is_pushed_past_the_pane_edge(self):
         for width in (520, 700, 900, 1200, 1800):
@@ -154,6 +154,21 @@ class FlowStretchTest(unittest.TestCase):
         self._lay(600)
         self.assertEqual(a.width(), a.sizeHint().width())
         self.assertEqual(b.width(), b.sizeHint().width())
+
+    def test_a_control_that_can_shrink_does_on_a_narrow_line(self):
+        wide = QToolButton()
+        wide.setText("W" * 80)
+        wide.setMinimumWidth(40)
+        self.flow.addWidget(wide)
+        self._lay(120)
+        self.assertEqual(wide.width(), 120)
+
+    def test_a_control_of_a_fixed_width_keeps_it(self):
+        fixed = QToolButton()
+        fixed.setFixedWidth(300)
+        self.flow.addWidget(fixed)
+        self._lay(120)
+        self.assertEqual(fixed.width(), 300)
 
     def test_the_wrap_itself_still_happens(self):
         edits = [QLineEdit() for _ in range(4)]

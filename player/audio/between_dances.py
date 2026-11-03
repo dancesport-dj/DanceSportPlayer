@@ -62,6 +62,9 @@ class BetweenDances:
     # monotonic time the music is held back until after it (_ANNOUNCE_TAIL).
     announced: bool = False
     quiet_until: float = 0.0
+    # The pause just ended and its title is on the way; `_adopt_track` hands
+    # this to the title, which may still be waiting for its loudness.
+    leads_in: bool = False
     # After a 🏁 round-end stop: the next round's first song, started by
     # tapping the big player's ⏯ (see _start_next_round).
     round_start: tuple[PlaylistTable, int, Path] | None = None

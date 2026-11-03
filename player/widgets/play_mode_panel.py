@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
 )
 
 from planner import i18n
+from planner.playing.party_stop import parse_stop_time, stop_time_choices
 from planner.playing.play_sets import (
     LEN_MAX,
     LEN_STEP,
@@ -40,7 +41,7 @@ from player.presenter.presenter import (  # auto-resolved
     screen_choices,
 )
 from player.widgets.panel_parts import FlowLayout, InlineEdit, Rows, Toggle
-from player.widgets.play_mode_setup import PD_EDIT_QSS, PlayModeSetupMixin
+from player.widgets.play_mode_setup import PlayModeSetupMixin
 from shared.widgets import (
     hsep,
 )
@@ -80,18 +81,6 @@ _STRIP_QSS = (
     "QToolButton:hover { background:#3a4a68; }")
 
 # Down the side the system's disabled grey is barely off its live white, so
-# 🎯 ✖ ✏️ looked the same with or without a Paso Doble on the deck. Off is
-# the grey of a switched-off ⏻ switch there, so off reads the same across
-# the panel. Set on the tools themselves: a sheet on the panel would pull
-# every box down the side off its native look.
-def _side_tool_qss() -> str:
-    # Read per panel: the theme re-shades the switch's grey in place, so a
-    # value fixed at import would stay light on a dark page.
-    return ("QPushButton:disabled { color:#6b6f76;"
-            f" background:{Toggle._OFF_TRACK.name()};"
-            " border:1px solid #b3b8c0; border-radius:3px; }")
-
-
 class PlayModePanel(PlayModeSetupMixin, QWidget):
     """Tournament-floor controls: timed play length with auto fade-out.
 
@@ -316,10 +305,6 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         Only what a stylesheet cannot reach is set by hand: the readouts and
         the labels carry their own colours from the build."""
         self.setStyleSheet(_STRIP_QSS if self._wide else "")
-        tool = "" if self._wide else _side_tool_qss()
-        self.pd_learn_btn.setStyleSheet(tool)
-        self.pd_clear_btn.setStyleSheet(tool)
-        self.pd_edit_btn.setStyleSheet(PD_EDIT_QSS + tool)
         ink = "#7fb2f0" if self._wide else "#1565c0"
         self.len_lbl.setStyleSheet(
             "QLabel#playLen{font-size:34px; font-weight:bold;"
@@ -440,11 +425,11 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         a mis-tap must never jump from full length to 15 s."""
         secs = self._shown_secs()
         if direction > 0:
-            secs = 0 if secs == 0 or secs >= LEN_MAX else secs + LEN_STEP
+            secs = 0 if secs == 0 or secs + LEN_STEP > LEN_MAX else secs + LEN_STEP
         elif secs == 0:
             secs = LEN_MAX
         else:
-            secs = max(LEN_STEP, secs - LEN_STEP)
+            secs = max(LEN_TYPED_MIN, secs - LEN_STEP)
         self._set_len(secs)
 
     def _shown_secs(self) -> int:
@@ -561,9 +546,12 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
 
     def set_pd_loaded(self, on: bool):
         """The marking tools work on the Paso Doble on the deck: with another
-        title on it, or none, they are greyed out."""
-        for w in (self.pd_learn_btn, self.pd_clear_btn, self.pd_edit_btn):
-            w.setEnabled(on)
+        title on it, or none, they are not on the panel, and edit mode ends
+        with them (see _on_pd_on)."""
+        if not on:
+            self.set_pd_edit(False)
+        self.pd_learn_box.setVisible(on)
+        self.pd_edit_btn.setVisible(on)
 
     def set_pd_marks(self, marks: list[float]):
         """Rebuild the deletable mark chips. Only visible while editing."""
@@ -754,7 +742,23 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         """The pause was switched on or off: follow it in the row, and let the
         engine see a pause of 0 while it is off (the seconds stay stored)."""
         self._sync_pause_row()
+        self._sync_pause_tip()
         self.settingsChanged.emit()
+
+    def _sync_pause_tip(self):
+        """The pause switch says so when the call is why it is off."""
+        tip = i18n.t(
+            "Off: the next song starts the moment the current one ends, with\n"
+            "no pause music. The configured time is kept\n"
+            "for switching back.\n\n"
+            "Needs ⏭ auto-advance — without it the next song waits for the\n"
+            "operator anyway, so there is no gap to fill.")
+        if self.announce_check.isChecked() and not self.pause_check.isChecked():
+            tip = i18n.t(
+                "🔈 The pause is off because the next dance is announced: the\n"
+                "call comes with the title and needs no gap. Switch the pause\n"
+                "back on to have both.") + "\n\n" + tip
+        self.pause_check.setToolTip(tip)
 
     def _sync_pause_row(self):
         """Take off what cannot happen, grey out what merely has no effect.
@@ -873,6 +877,18 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
             self._announce_before_manual = self.announce_check.isChecked()
             self.announce_check.setChecked(False)
 
+    def _follow_announce_with_pause(self, announcing: bool):
+        """🔈 The call comes with the title, so it needs no gap: switching it
+        on takes the pause off, and switching it off puts the pause back. The
+        pause stays one click away for an operator who wants both."""
+        if announcing:
+            self._pause_before_announce = self.pause_check.isChecked()
+            self.pause_check.setChecked(False)
+            return
+        if self._pause_before_announce:
+            self.pause_check.setChecked(True)
+        self._pause_before_announce = False
+
     def repeat_list(self) -> bool:
         """Whether the end of the list is followed by its own beginning.
 
@@ -880,6 +896,45 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         anything, and the tick then stays checked but off the panel (the rule
         `pause_available` follows for the same reason)."""
         return self.auto_advance() and self.repeat_check.isChecked()
+
+    def _fill_stop_times(self):
+        """⏹ The "At …" list as the clock stands. The time picked stays while it
+        is still ahead; out of the box 23:00, past that the next one left."""
+        combo = self.stop_time_combo
+        kept = combo.currentText()
+        times = [at.strftime("%H:%M") for at in stop_time_choices(datetime.now())]
+        combo.clear()
+        combo.addItems(times)
+        armed = self._party_stop.at
+        typed = armed is not None and armed.strftime("%H:%M") == kept
+        combo.setCurrentText(
+            kept if kept in times or typed
+            else "23:00" if "23:00" in times else times[0])
+
+    def _on_stop_time_typed(self, text: str):
+        """⏹ A time typed in by double click: arm it, or - when it is no time -
+        let the field go back to the one it showed."""
+        parsed = parse_stop_time(text)
+        if parsed is None:
+            log.info("⏹ Stop time not understood\n"
+                     "typed: %s", text)
+            self._show_stop_time()
+            return
+        self.stop_time_combo.setCurrentText("%02d:%02d" % parsed)
+        self._on_stop_rule()
+
+    def _show_stop_time(self):
+        """Put back the time the rule stands on, or the first one offered."""
+        at = self._party_stop.at
+        shown = at.strftime("%H:%M") if at is not None else ""
+        self.stop_time_combo.setCurrentText(
+            shown or self.stop_time_combo.itemText(0))
+
+    def _on_stop_mode(self):
+        """⏹ Another kind of stop picked; "At …" brings a fresh list of times."""
+        if self.stop_combo.currentData() == "time":
+            self._fill_stop_times()
+        self._on_stop_rule()
 
     def _on_stop_rule(self):
         """⏹ A choice in the stop row: arm the rule it shows."""
@@ -890,8 +945,8 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         elif mode == "count":
             stop.arm_count(self.stop_count_spin.value())
         elif mode == "time":
-            at = self.stop_time_edit.time()
-            stop.arm_time(at.hour(), at.minute(), datetime.now())
+            hour, minute = self.stop_time_combo.currentText().split(":")
+            stop.arm_time(int(hour), int(minute), datetime.now())
         else:
             stop.clear()
         self._show_stop_rule()
@@ -911,7 +966,7 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         self.stop_count_spin.setVisible(mode == "count")
         self.stop_count_lbl.setText(i18n.t("%d left") % stop.left)
         self.stop_count_lbl.setVisible(mode == "count")
-        self.stop_time_edit.setVisible(mode == "time")
+        self.stop_time_combo.setVisible(mode == "time")
         self.stop_at_mode_combo.setVisible(mode == "time")
         self._sync_closing_row()
 

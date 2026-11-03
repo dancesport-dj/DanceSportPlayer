@@ -282,6 +282,21 @@ class TempoStepTest(_WindowTest):
         self.card._tempo_apply.timeout.emit()
         self.assertEqual(applied, [6 * player_parts.TEMPO_STEP])
 
+    def test_clicks_by_hand_land_as_one_change(self):
+        """Marcel: "rapid consecutive clicks apply only the last value once."
+        A hand manages about three clicks a second, so the wait for the next
+        one has to outlast 333 ms, not only a button's auto-repeat."""
+        self.plus.click()
+        self.assertGreaterEqual(self.card._tempo_apply.interval(), 400)
+
+    def test_clicks_a_second_apart_are_still_one_change(self):
+        """Marcel: "when i click - + once a second it still stucks." A button
+        step waits longer than a wheel notch (750 ms against 450 ms)."""
+        self.plus.click()
+        self.assertGreaterEqual(self.card._tempo_apply.interval(), 750)
+        self.card._tempo.setValue(self.card._tempo.value() + 1)   # a wheel notch
+        self.assertLess(self.card._tempo_apply.interval(), 750)
+
     def test_the_desk_keys_step_and_reset_it(self):
         """⌨ Ctrl+Shift+PgUp / PgDown are the + / − buttons from anywhere,
         Ctrl+Shift+Home the 0."""

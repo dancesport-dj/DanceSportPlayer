@@ -759,7 +759,7 @@ class DropOnDeckTest(_Base):
     def test_an_empty_deck_builds_from_the_drop(self):
         t = self.table()
         self.patch(t, "_can_dynamic_drop", return_value=True)
-        build = self.patch(t, "_dynamic_drop")
+        build = self.patch(t, "_dynamic_drop", return_value=None)
         move = self.patch(t, "_move_from_drag_source")
         self.patch(t, "_planned_keys", return_value={"k"})
         ev = _Ev(mime=_urls(self.mp3), y=5, mods=_CTRL)
