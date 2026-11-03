@@ -2916,8 +2916,8 @@ CATALOG = {
         "гибрид: затухание, если ≥ 1:30",
     "What the title playing at the time does:\n\nPlay it to its end — the first title that ends at or after the\ntime is the last.\nFade out at the time — it fades out the moment the time comes.\nHybrid — it fades if it had played 1:30 by then, a younger\none plays to its end.\n\nA title that starts after the time always plays to its end.\nThis choice is remembered.":
         "Что делает трек, играющий в это время:\n\nДоиграть до конца — последний трек тот, который закончится\nв это время или позже.\nЗатухание в это время — он затухает, как только наступает время.\nГибрид — он затухает, если к тому времени играл 1:30;\nболее короткий доигрывает до конца.\n\nТрек, начавшийся после этого времени, всегда доигрывает до конца.\nЭтот выбор запоминается.",
-    "The first title that ends at or after this time is the last.\nOnly times still to come are offered, on through midnight to about 2.":
-        "Первый трек, который закончится в это время или позже, — последний.\nПредлагается только ещё не наступившее время, после полуночи примерно до 2 часов.",
+    "The first title that ends at or after this time is the last.\nOnly times still to come are offered, on through midnight to about 2.\nDouble-click the time to type any other.":
+        "Первый трек, который закончится в это время или позже, — последний.\nПредлагается только ещё не наступившее время, после полуночи примерно до 2 часов.\nДвойной щелчок по времени — ввести другое.",
     "⏹  Stops after this title":
         "⏹  Остановка после этого трека",
     "⏹  Stops after %d titles":

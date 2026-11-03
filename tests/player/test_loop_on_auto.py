@@ -128,7 +128,8 @@ class ReloopWarningTest(unittest.TestCase):
         self.looping()
         self.answer(QMessageBox.StandardButton.No)
         self.desk._set_deck_advance(self.desk.table, True)
-        self.assertIsNone(QApplication.activeModalWidget())
+        # A splash another test left standing is not a second question.
+        self.assertNotIsInstance(QApplication.activeModalWidget(), QMessageBox)
         self.assertEqual(len(self.shown), 1)
 
     def test_another_list_going_to_auto_is_left_alone(self):

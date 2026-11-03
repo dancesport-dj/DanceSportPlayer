@@ -2905,8 +2905,8 @@ CATALOG = {
         "hybride: uitfaden bij ≥ 1:30 gespeeld",
     "What the title playing at the time does:\n\nPlay it to its end — the first title that ends at or after the\ntime is the last.\nFade out at the time — it fades out the moment the time comes.\nHybrid — it fades if it had played 1:30 by then, a younger\none plays to its end.\n\nA title that starts after the time always plays to its end.\nThis choice is remembered.":
         "Wat het nummer doet dat op het tijdstip speelt:\n\nTot het einde spelen — het eerste nummer dat om of na het\ntijdstip eindigt, is het laatste.\nUitfaden op het tijdstip — het faadt uit zodra het tijdstip er is.\nHybride — het faadt uit als het dan al 1:30 speelde, een\nkorter gespeeld nummer speelt tot het einde.\n\nEen nummer dat na het tijdstip begint, speelt altijd tot het einde.\nDeze keuze wordt onthouden.",
-    "The first title that ends at or after this time is the last.\nOnly times still to come are offered, on through midnight to about 2.":
-        "Het eerste nummer dat om of na dit tijdstip eindigt, is het laatste.\nAlleen tijden die nog komen staan in de lijst, over middernacht tot ongeveer 2 uur.",
+    "The first title that ends at or after this time is the last.\nOnly times still to come are offered, on through midnight to about 2.\nDouble-click the time to type any other.":
+        "Het eerste nummer dat om of na dit tijdstip eindigt, is het laatste.\nAlleen tijden die nog komen staan in de lijst, over middernacht tot ongeveer 2 uur.\nDubbelklik op het tijdstip om een ander in te typen.",
     "⏹  Stops after this title":
         "⏹  Stopt na dit nummer",
     "⏹  Stops after %d titles":

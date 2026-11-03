@@ -2915,8 +2915,8 @@ CATALOG = {
         "híbrido: fundido si sonó ≥ 1:30",
     "What the title playing at the time does:\n\nPlay it to its end — the first title that ends at or after the\ntime is the last.\nFade out at the time — it fades out the moment the time comes.\nHybrid — it fades if it had played 1:30 by then, a younger\none plays to its end.\n\nA title that starts after the time always plays to its end.\nThis choice is remembered.":
         "Qué hace el título que suena a esa hora:\n\nTocarlo hasta el final — el primer título que termine a esa\nhora o después es el último.\nFundido a la hora — se apaga en cuanto llega la hora.\nHíbrido — se apaga si para entonces sonó 1:30; uno más\nreciente suena hasta el final.\n\nUn título que empieza después de la hora siempre suena hasta el final.\nEsta elección se recuerda.",
-    "The first title that ends at or after this time is the last.\nOnly times still to come are offered, on through midnight to about 2.":
-        "El primer título que termine a esta hora o después es el último.\nSolo se ofrecen horas aún por llegar, pasada la medianoche hasta eso de las 2.",
+    "The first title that ends at or after this time is the last.\nOnly times still to come are offered, on through midnight to about 2.\nDouble-click the time to type any other.":
+        "El primer título que termine a esta hora o después es el último.\nSolo se ofrecen horas aún por llegar, pasada la medianoche hasta eso de las 2.\nDoble clic en la hora para escribir otra.",
     "⏹  Stops after this title":
         "⏹  Se detiene tras este título",
     "⏹  Stops after %d titles":
