@@ -300,6 +300,67 @@ class DamagedManifestTest(unittest.TestCase):
                 self.assertEqual(vp.read_pack(self._pack(music)).music, {})
 
 
+class PackLimitsTest(unittest.TestCase):
+    """#18: a pack from outside must not be able to exhaust memory or disk,
+    nor end in a TypeError the dialog does not catch."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name)
+        self.dest = self.root / "venue_music"
+
+    def _pack(self, files=(), music=None, docs=None, members=None):
+        src = self.root / "p.dpvenue"
+        with zipfile.ZipFile(src, "w") as z:
+            for name, data in (docs or {}).items():
+                z.writestr(name, data)
+            for arc, data in (members or {}).items():
+                z.writestr(arc, data)
+            z.writestr(vp.MANIFEST, json.dumps(
+                {"format": vp.FORMAT, "version": vp.VERSION, "files": files,
+                 "music": music}))
+        return src
+
+    def test_files_of_the_wrong_type_is_a_pack_error(self):
+        for files in (5, "gui_settings.json", {"gui_settings.json": 1},
+                      [["gui_settings.json"]], [7]):
+            with self.subTest(files=files):
+                with self.assertRaises(vp.VenuePackError):
+                    vp.read_pack(self._pack(files=files))
+
+    def test_an_oversized_document_is_refused_before_it_is_read(self):
+        src = self._pack(files=[vp.SETTINGS_FILE],
+                         docs={vp.SETTINGS_FILE: json.dumps({"a": "x" * 500})})
+        with mock.patch.object(vp, "MAX_DOC_BYTES", 100):
+            with self.assertRaises(vp.VenuePackError):
+                vp.read_pack(src)
+
+    def test_an_oversized_manifest_is_refused(self):
+        src = self._pack(music={"F:\\a.mp3": "music/x/a.mp3"})
+        with mock.patch.object(vp, "MAX_DOC_BYTES", 10):
+            with self.assertRaises(vp.VenuePackError):
+                vp.read_pack(src)
+
+    def test_too_many_tracks_are_refused(self):
+        music = {f"F:\\{i}.mp3": f"music/x/{i}.mp3" for i in range(3)}
+        src = self._pack(music=music, members=dict.fromkeys(music.values(), b"x"))
+        with mock.patch.object(vp, "MAX_TRACKS", 2):
+            with self.assertRaises(vp.VenuePackError):
+                vp.read_pack(src)
+            with self.assertRaises(vp.VenuePackError):
+                vp.extract_music(src, self.dest)
+
+    def test_music_bigger_than_the_free_disk_is_refused_before_writing(self):
+        src = self._pack(music={"F:\\a.mp3": "music/x/a.mp3"},
+                         members={"music/x/a.mp3": b"x" * 1000})
+        free = mock.Mock(free=500)
+        with mock.patch.object(vp.shutil, "disk_usage", return_value=free):
+            with self.assertRaises(vp.VenuePackError):
+                vp.extract_music(src, self.dest)
+        self.assertEqual([p for p in self.dest.rglob("*") if p.is_file()], [])
+
+
 class StagedImportTest(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()

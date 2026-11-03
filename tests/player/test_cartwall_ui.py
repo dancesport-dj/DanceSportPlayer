@@ -24,7 +24,7 @@ from PySide6.QtWidgets import QApplication, QStyleOptionToolButton, QToolButton,
 from planner.playing import cartwall as pc
 from player.dialogs import cart_pad_dialog as cpd
 from player.widgets import cartwall as gc
-from tests.qt_test_support import reap_widget
+from tests.qt_test_support import reap_widget, settle_wall_checks
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -148,6 +148,7 @@ class WallGridTest(_WallCase):
     def test_a_pad_whose_file_is_gone_is_marked_not_removed(self):
         self.w.set_wall(pc.DEFAULT_GRID,
                         [pc.Page(pads={(0, 0): pc.CartPad(path="X:\\gone.mp3")})])
+        settle_wall_checks(self.w)   # the file is looked for off the GUI thread
         button = self._pad_widget(0, 0)
         self.assertTrue(button._missing)
         self.assertTrue(button._title.text().startswith("⚠"))

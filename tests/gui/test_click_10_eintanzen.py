@@ -13,7 +13,7 @@ import unittest
 from pathlib import Path
 
 from PySide6.QtCore import QPointF
-from PySide6.QtWidgets import QLabel, QPushButton, QRadioButton, QSpinBox, QStackedWidget
+from PySide6.QtWidgets import QLabel, QPushButton, QRadioButton, QSpinBox
 
 # First: it points the app's state files at a temp folder before any app
 # module is imported.
@@ -36,8 +36,9 @@ class EintanzenClickTest(ClickThrough):
             if party:
                 self.click(find(QRadioButton, "🎉"))
             if max_tracks is not None:
-                page = dlg.findChild(QStackedWidget).currentWidget()
-                page.findChildren(QSpinBox)[0].setValue(max_tracks)
+                # the pages not shown are hidden: the first spin on show is the cap
+                next(w for w in dlg.findChildren(QSpinBox)
+                     if w.isVisibleTo(dlg)).setValue(max_tracks)
             self.click(find(QPushButton, "Generate"))
         op.answer(self.titled("🤸  Practice / party playlist"), fill)
         self.click(self.win._warmup_gen_btn)

@@ -10,6 +10,7 @@ first run — for a window nobody had open any more.
 """
 
 import os
+import tempfile
 import threading
 import unittest
 from pathlib import Path
@@ -46,7 +47,11 @@ class ReferenceCleanCancelTest(unittest.TestCase):
     def test_an_adopted_compare_stops_fingerprinting(self):
         cache = _SlowCache()
         tracks = [Path(f"C:/t/{n} (LW 29).mp3") for n in range(20)]
-        worker = ReferenceCleanWorker("missing-ref.m3u", tracks, cache,
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        ref = Path(tmp.name) / "ref.m3u"      # a reference that opens, with nothing in it
+        ref.write_text("#EXTM3U\n", encoding="utf-8")
+        worker = ReferenceCleanWorker(str(ref), tracks, cache,
                                       lambda p: [])
         done = []
         worker.done.connect(done.append)

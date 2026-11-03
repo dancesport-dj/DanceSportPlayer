@@ -33,6 +33,12 @@ else:
 
 log = logging.getLogger("dancesport.gui.remote")
 
+
+def command_log_line(cmd: str, arg) -> str:
+    """The log line of a phone command. The argument may carry a phone's own
+    text, so it is shown as its repr: no newline can start a fake line."""
+    return f"📱 Remote: {cmd}" + ("" if arg is None else f" {arg!r}")
+
 _PUBLISH_MS = 500
 _LOG_LINES = 300
 
@@ -332,7 +338,7 @@ class RemoteMixin(MainWindowHost):
 
     def _on_remote_command(self, cmd: str, arg):
         """A button on the phone — the same action as on the desk."""
-        log.info("📱 Remote: %s%s", cmd, "" if arg is None else f" {arg}")
+        log.info("%s", command_log_line(cmd, arg))
         if cmd == "toggle":
             self._presenter_play_pause()
         elif cmd == "next":

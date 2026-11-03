@@ -167,6 +167,15 @@ class PlainHttpTest(unittest.TestCase):
         self.assertFalse(self._sent(lambda: ai.openrouter_chat(
             "k", "m", "s", "u", base_url="http://api.mammouth.ai/v1")))
 
+    def test_a_model_list_that_is_not_the_expected_json_is_a_readable_error(self):
+        """A login page or a proxy's HTML read as 'Expecting value: line 1'."""
+        for body in (b"<html>sign in</html>", b"[1, 2]", b'{"data": 5}'):
+            resp = mock.MagicMock()
+            resp.__enter__.return_value.read.return_value = body
+            with self.subTest(body=body),                     mock.patch("urllib.request.urlopen", return_value=resp),                     self.assertRaises(ConnectionError) as ctx:
+                ai.openrouter_models("k", base_url="https://api.example.com/v1")
+            self.assertIn("api.example.com", str(ctx.exception))
+
     def test_the_model_list_refuses_plain_http(self):
         self.assertFalse(self._sent(lambda: ai.openrouter_free_models(
             "k", base_url="http://api.mammouth.ai/v1")))

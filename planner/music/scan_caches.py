@@ -67,6 +67,8 @@ class ScanCache:
         if not isinstance(payload, dict) or payload.get('version') != self.VERSION:
             return
         entries = payload.get('entries', {})
+        if not isinstance(entries, dict):
+            return
         conn = _db()
         placeholders = ",".join("?" * (1 + len(META_COLS)))
         imported = 0
@@ -211,6 +213,8 @@ class GlobalScanCache:
         if not isinstance(payload, dict) or payload.get('version') != self.VERSION:
             return
         entries = payload.get('entries', {})
+        if not isinstance(entries, dict):
+            return
         conn = _db()
         placeholders = ",".join("?" * (2 + len(META_COLS)))
         for p, rec in entries.items():

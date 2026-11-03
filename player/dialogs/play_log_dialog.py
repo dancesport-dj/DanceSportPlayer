@@ -65,9 +65,7 @@ class PlayLogDialog(QDialog):
         head = self.plays_table.horizontalHeader()
         head.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self._store = JsonStore("play_log_dialog.json")
-        saved = self._store.read({})
-        self._dragged = {int(c): int(w) for c, w in
-                         (saved.get("widths") or {}).items() if str(c).isdigit()}
+        self._dragged = self._saved_widths(self._store.read({}))
         self._fitting = False
         self._tracking = False
         head.sectionResized.connect(self._on_section_resized)
@@ -94,8 +92,26 @@ class PlayLogDialog(QDialog):
         self._evenings = []
         self._reload()
 
+    @staticmethod
+    def _saved_widths(saved) -> dict[int, int]:
+        """The dragged column widths, whatever the file holds (#50)."""
+        widths = saved.get("widths") if isinstance(saved, dict) else None
+        out = {}
+        for col, width in (widths.items() if isinstance(widths, dict) else ()):
+            try:
+                if str(col).isdigit() and int(width) > 0:
+                    out[int(col)] = int(width)
+            except (TypeError, ValueError):
+                continue
+        return out
+
     def _reload(self):
-        self._evenings = play_log.evenings()
+        try:
+            self._evenings = play_log.evenings()
+        except sqlite3.Error as exc:
+            log.warning("📜 Play log not readable\n"
+                        "error: %s", exc)
+            self._evenings = []
         self.evening_list.clear()
         for e in self._evenings:
             text = (f"{e.start:%d.%m.%Y}   {e.start:%H:%M}–{e.end:%H:%M}\n"
@@ -116,7 +132,12 @@ class PlayLogDialog(QDialog):
 
     def _show_evening(self, _row=None):
         evening = self._current()
-        plays = play_log.plays(evening) if evening else []
+        try:
+            plays = play_log.plays(evening) if evening else []
+        except sqlite3.Error as exc:
+            log.warning("📜 Evening not read from the play log\n"
+                        "error: %s", exc)
+            plays = []
         self.plays_table.setRowCount(len(plays))
         for r, (p, secs) in enumerate(zip(plays, play_log.durations(plays), strict=True)):
             s = int(round(secs))

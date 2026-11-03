@@ -38,7 +38,7 @@ from planner.generate.warmup import (
     warmup_rounds,
 )
 from planner.models import TEMPO_RANGES
-from planner.music.parsing import song_title_key
+from planner.music.parsing import song_title_key_of_stem
 from planner.playlist.checks import entry_takt, title_cluster_map
 from planner.terms import dance_name
 
@@ -361,7 +361,7 @@ def duplicate_findings(entries) -> list:
     # Near-duplicates: two different files of the same song. Only worth saying
     # when they are the same dance — a Jive "Beautiful" and a Slow Waltz
     # "Beautiful" are two songs that happen to share a name.
-    keys = [song_title_key(_title(e)) for e in entries]
+    keys = [song_title_key_of_stem(_title(e)) for e in entries]
     clusters = title_cluster_map(keys)
     grouped: dict = {}
     for row, key in enumerate(keys):

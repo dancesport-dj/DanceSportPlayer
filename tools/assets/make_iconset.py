@@ -189,9 +189,20 @@ def body_of(svg: str) -> str:
     return " ".join(inner.split())
 
 
+def useOsCerts():
+    """Verify HTTPS against the OS certificate store: behind a TLS-intercepting
+    proxy the CA is there, not in Python's bundle. Best effort."""
+    try:
+        import truststore
+        truststore.inject_into_ssl()
+    except Exception:  # noqa: S110 - not installed: the default bundle
+        pass
+
+
 def main():
     if len(sys.argv) < 2:
         sys.exit("usage: python -m tools.assets.make_iconset OUTPUT.py")
+    useOsCerts()
     out, missing = {}, []
     for name, bi in sorted(WANT.items()):
         try:

@@ -226,6 +226,8 @@ def find_clip(folders, stem: str) -> Path | None:
     Clip by clip, not folder by folder: an English set that has the dances
     but not yet the numbers still says the dance in English.
     """
+    if ".." in stem or any(c in stem for c in "/\\:"):
+        return None     # a name, never a path out of the folder
     for folder in folders:
         path = folder / f"{stem}.mp3"
         if path.is_file():

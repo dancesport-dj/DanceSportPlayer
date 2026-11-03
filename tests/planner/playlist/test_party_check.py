@@ -370,6 +370,13 @@ class DuplicateTest(unittest.TestCase):
                     song('TG')]
         self.assertEqual(texts(pc.party_findings(entries), pc.DUPLICATES), [])
 
+    def test_titles_with_a_dot_are_not_cut_at_the_dot(self):
+        # "Mr. Brightside" and "Mr. Sandman" both became the key "mr".
+        entries = listing('LW', 'TG', 'QS')
+        entries += [song('CC', title="Mr. Brightside"), song('RB'), song('JI')]
+        entries += [song('LW'), song('SF'), song('CC', title="Mr. Sandman")]
+        self.assertEqual(texts(pc.party_findings(entries), pc.DUPLICATES), [])
+
 
 class TaktTest(unittest.TestCase):
 

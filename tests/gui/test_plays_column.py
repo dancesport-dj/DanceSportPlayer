@@ -24,7 +24,14 @@ from PySide6.QtWidgets import QApplication
 from dancesport_planner import RoundConfig
 from gui.common import DEFAULT_HIDDEN_COLUMNS
 from gui.dialogs import migrate_column_settings
-from gui.library_browser import LIB_COL_COMMENT, LIB_COL_PLAYS, LibraryBrowser
+from gui.library_browser import (
+    LIB_COL_COMMENT,
+    LIB_COL_CREATED,
+    LIB_COL_MODIFIED,
+    LIB_COL_PLAYS,
+    LIB_COL_YEAR,
+    LibraryBrowser,
+)
 from gui.table.playlist_table import PlaylistTable
 from gui.table.table_actions import TableActionsMixin
 from planner.models import MusicEntry
@@ -139,8 +146,9 @@ class SavedLayoutTest(unittest.TestCase):
         s = {"columns_version": 6,
              "library_columns": list(range(15)), "library_hidden_columns": [14]}
         migrate_column_settings(s)
-        self.assertEqual(s["library_columns"], list(range(16)))
-        self.assertEqual(s["library_hidden_columns"], [LIB_COL_COMMENT, LIB_COL_PLAYS])
+        self.assertEqual(s["library_columns"], list(range(LIB_COL_YEAR + 1)))
+        self.assertEqual(s["library_hidden_columns"], [LIB_COL_COMMENT, LIB_COL_PLAYS,
+                          LIB_COL_CREATED, LIB_COL_MODIFIED, LIB_COL_YEAR])
 
     def test_a_layout_with_the_deck_column_only_gets_the_library_one(self):
         # columns_version 7 gave the decks Plays and the library nothing.
@@ -151,8 +159,9 @@ class SavedLayoutTest(unittest.TestCase):
         migrate_column_settings(s)
         self.assertEqual(s["hidden_columns"], {"playlist": [1, _COL_PLAYS]})
         self.assertEqual(s["column_order"]["playlist"], list(range(16)))
-        self.assertEqual(s["library_columns"], list(range(16)))
-        self.assertEqual(s["library_hidden_columns"], [LIB_COL_PLAYS])
+        self.assertEqual(s["library_columns"], list(range(LIB_COL_YEAR + 1)))
+        self.assertEqual(s["library_hidden_columns"], [LIB_COL_PLAYS, LIB_COL_CREATED,
+                          LIB_COL_MODIFIED, LIB_COL_YEAR])
 
 
 class LibraryPlaysTest(unittest.TestCase):
@@ -173,7 +182,7 @@ class LibraryPlaysTest(unittest.TestCase):
 
     def test_it_is_the_last_column(self):
         t = self.pane._table
-        self.assertEqual((LIB_COL_PLAYS, t.columnCount()), (15, 16))
+        self.assertEqual((LIB_COL_PLAYS, t.columnCount()), (15, LIB_COL_YEAR + 1))
         self.assertEqual(t.horizontalHeaderItem(LIB_COL_PLAYS).text(), "Plays")
 
     def test_the_cell_shows_the_count(self):

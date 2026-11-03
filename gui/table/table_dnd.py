@@ -913,10 +913,19 @@ class TableDragDropMixin(PlaylistTableHost):
         e.setDropAction(Qt.DropAction.CopyAction)
         e.accept()
         pre_planned = self._planned_keys()
-        placed_rows = [row] if self._replace_row_with_path(row, paths[0]) else []
+        plan = self._static_drop_plan(paths)
+        if plan is None:
+            return                              # cancelled: nothing was placed
+        paths, replaced_rows, add_too = plan
+        placed_rows = list(replaced_rows)
+        kw = {"decided": True} if add_too else {}
+        if paths:
+            if self._replace_row_with_path(row, paths[0], **kw):
+                placed_rows.insert(0, row)
+            if len(paths) > 1:
+                placed_rows += self._fill_empty_slots_with(paths[1:], row + 1, **kw)
         if len(paths) > 1:
-            placed_rows += self._fill_empty_slots_with(paths[1:], row + 1)
-            skipped = len(paths) - len(placed_rows)
+            skipped = len(paths) - sum(1 for r in placed_rows if r not in replaced_rows)
             if placed_rows:
                 msg = i18n.t("🎯  Placed %d track(s)") % len(placed_rows)
                 if skipped:
@@ -929,7 +938,42 @@ class TableDragDropMixin(PlaylistTableHost):
             # _fill_song_row repaints, so the red marks paint over the final bg.
             QTimer.singleShot(0, lambda: self._mark_drop_issues(placed_rows))
 
-    def _fill_empty_slots_with(self, paths: list[Path], start_row: int) -> list[int]:
+    def _static_drop_plan(self, paths: list[Path]):
+        """Titles dropped on a static deck that it holds already (same audio, name,
+        title or Chromaprint) are asked about once, before anything is placed:
+        Replace (the new file takes the old one's slot), Add too, Skip.
+        Returns (paths still to place, rows already filled by a Replace, whether
+        any "Add too" was said), or None when cancelled. One exact copy keeps
+        the held-title question of `_replace_row_with_path`."""
+        cur = [e for e in self._row_meta.entries() if e is not None]
+        if not cur:
+            return paths, [], False
+        found = [(p, e) for p, e in zip(paths, self._entries_for_paths(paths), strict=False)
+                 if e is not None]
+        pairs = [(p, *t) for p, e in found
+                 for t in self._drop_dup_pairs([e], cur)]
+        if len(paths) == 1 and pairs and pairs[0][3]:
+            return paths, [], False
+        answers = self._ask_drop_duplicates([t[1:] for t in pairs])
+        if answers is None:
+            return None
+        gone, replaced_rows, add_too = set(), [], False
+        for (p, _ent, held, _same), a in zip(pairs, answers, strict=True):
+            if a == "skip":
+                gone.add(p)
+            elif a == "add":
+                add_too = True
+            else:
+                held_row = next((r for r, m in self._row_meta.numbered()
+                                 if m.entry is held), None)
+                gone.add(p)
+                if held_row is not None and self._replace_row_with_path(
+                        held_row, p, aimed=False, decided=True):
+                    replaced_rows.append(held_row)
+        return [p for p in paths if p not in gone], replaced_rows, add_too
+
+    def _fill_empty_slots_with(self, paths: list[Path], start_row: int,
+                               decided: bool = False) -> list[int]:
         """Static deck multi-drop: place each extra track into the first EMPTY heat
         slot of its own dance, scanning from `start_row` downward and wrapping to
         the top. Tracks with no free slot are skipped. Returns the filled rows."""
@@ -946,7 +990,8 @@ class TableDragDropMixin(PlaylistTableHost):
                 if (m and not m.theme and not m.backup
                         and m.entry is None
                         and (dance is None or m.dance == dance)):
-                    if self._replace_row_with_path(r, p, aimed=False):
+                    kw = {"decided": True} if decided else {}
+                    if self._replace_row_with_path(r, p, aimed=False, **kw):
                         placed.append(r)
                     break
         return placed
@@ -978,7 +1023,8 @@ class TableDragDropMixin(PlaylistTableHost):
             return self.host.entry_for(path)
         return lib.entry_for(path, self._cache)
 
-    def _replace_row_with_path(self, row: int, path: Path, aimed: bool = True) -> bool:
+    def _replace_row_with_path(self, row: int, path: Path, aimed: bool = True,
+                               decided: bool = False) -> bool:
         """Replace the song in `row` with a dropped track. Returns True if the slot was
         actually replaced (so a wishlist source can then MOVE the track out).
 
@@ -989,7 +1035,10 @@ class TableDragDropMixin(PlaylistTableHost):
         `aimed`: the user pointed this track at this row. A track the list already
         holds is then asked about (`_settle_held_slot`, which leaves the source
         alone); the extra tracks of a multi-drop were aimed at nothing and just
-        stay out."""
+        stay out.
+
+        `decided`: the user chose Add too / Replace for a title the list holds
+        already (`_static_drop_plan`): it goes in without the refusal."""
         try:
             meta = self._row_meta[row]
             if not meta or (meta.theme and not meta.warmup):
@@ -1023,7 +1072,7 @@ class TableDragDropMixin(PlaylistTableHost):
 
             # Don't allow a song that's already planned elsewhere in this list — the
             # same audio counts, whichever drive or folder the copy lies in.
-            if meta.dance not in ALLOW_REPEAT and self._holds_same_audio(
+            if not decided and meta.dance not in ALLOW_REPEAT and self._holds_same_audio(
                     new_entry, [m.entry for r, m in self._row_meta.numbered() if r != row]):
                 held_row = (self._held_row(new_entry, row)
                             if aimed and self._swappable(meta) else None)

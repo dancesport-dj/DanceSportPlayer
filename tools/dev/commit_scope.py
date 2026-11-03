@@ -114,10 +114,11 @@ def plan(changes: list[tuple[str, int]]) -> tuple[list[tuple[str, str]] | None, 
 def staged_changes() -> list[tuple[str, int]]:
     """(path, added + deleted lines) for every staged file; renames as delete + add."""
     out = subprocess.run(
-        ["git", "diff", "--cached", "--numstat", "--no-renames"],
+        ["git", "diff", "--cached", "--numstat", "--no-renames", "-z"],
         capture_output=True, text=True, encoding="utf-8", check=True).stdout
     changes = []
-    for line in out.splitlines():
+    # -z: NUL between files, and no quoting of a name with non-ASCII characters.
+    for line in filter(None, out.split("\0")):
         added, deleted, path = line.split("\t", 2)
         lines = 0 if added == "-" else int(added) + int(deleted)
         changes.append((path, lines))

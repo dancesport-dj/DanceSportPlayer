@@ -60,11 +60,15 @@ def findBrowser() -> str | None:
     chosen = os.environ.get(BROWSER_ENV, "").strip()
     if chosen:
         return chosen
+    # The install folders first: a stray chrome on PATH is not the browser.
+    known = next((p for p in BROWSER_PATHS if Path(p).is_file()), None)
+    if known:
+        return known
     for name in BROWSER_NAMES:
         found = shutil.which(name)
         if found:
             return found
-    return next((p for p in BROWSER_PATHS if Path(p).is_file()), None)
+    return None
 
 
 def printCommand(browser: str, page: Path, pdf: Path, profile: Path) -> list[str]:
@@ -126,9 +130,16 @@ def isCurrent(manualDir: Path, outFile: Path) -> bool:
 def printOnce(browser: str, page: Path, pdf: Path) -> bool:
     """Print the page to the PDF; False (and why, in the log) when none came."""
     pdf.unlink(missing_ok=True)
-    with tempfile.TemporaryDirectory() as profile:
+    # The browser may still hold its profile files as it exits (Windows).
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as profile:
         cmd = printCommand(browser, page, pdf.resolve(), Path(profile))
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        except subprocess.TimeoutExpired:
+            pdf.unlink(missing_ok=True)
+            log.error("📕 The browser did not finish within 300 s\n"
+                      "browser: %s", browser)
+            return False
     if pdf.is_file() and pdf.stat().st_size:
         return True
     pdf.unlink(missing_ok=True)

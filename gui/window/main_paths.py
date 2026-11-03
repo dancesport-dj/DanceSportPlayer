@@ -404,7 +404,7 @@ class PathFixMixin(MainWindowHost):
             tot_fixable += fixable
             tot_unresolved += len(unresolved)
             mark = "🔧  " if fixable else ("⚠  " if unresolved else "✅  ")
-            grp = QGroupBox(f"{mark}📁  {m3u.name}")
+            grp = QGroupBox(f"{mark}📁  {m3u.name}".replace("&", "&&"))   # not a mnemonic
             gv = QVBoxLayout(grp)
             gv.addWidget(QLabel(
                 i18n.t("%d tracks — <span style='color:#2a7a45;'>%d valid</span> · "
@@ -470,7 +470,10 @@ class PathFixMixin(MainWindowHost):
         if errors:
             msg.append(i18n.t("⚠  Left unchanged:"))
             msg.extend("   • " + e for e in errors)
-        QMessageBox.information(self, "Fix paths", "\n".join(msg))
+        # Shown as text: the lines carry file names and error text.
+        QMessageBox.information(
+            self, "Fix paths",
+            "<p style='white-space:pre-wrap'>" + html.escape("\n".join(msg)) + "</p>")
         if fixed:
             # One fixed path lives in one file; more can share one or spread.
             if fixed == 1:

@@ -139,7 +139,7 @@ class CellTooltipTest(_GermanPane):
                          self.tip(0, 7))
 
     def test_the_added_cell(self):
-        self.assertEqual("Wann diese Datei in der Bibliothek angelegt wurde",
+        self.assertEqual("Wann die Bibliothek die Datei zum ersten Mal gesehen hat (das Importdatum)",
                          self.tip(0, 8))
 
     def test_the_last_cell_of_a_played_track(self):

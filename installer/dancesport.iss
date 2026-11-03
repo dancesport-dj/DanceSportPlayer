@@ -1,8 +1,8 @@
 ; Inno Setup script for the Windows installer, one per build flavor.
 ;
 ; Built by build_installer.bat from what build_exe.bat left in dist\, e.g.
-;   ISCC.exe /DFlavor=player /DAppVersion=1.7.0 installer\dancesport.iss
-; -> dist\installer\DanceSport-Player-1.7.0-setup.exe
+;   ISCC.exe /DFlavor=player /DAppVersion=1.8.0 installer\dancesport.iss
+; -> dist\installer\DanceSport-Player-1.8.0-setup.exe
 ;
 ; The install folder is the user's choice. Installed for all users (the
 ; default, admin rights for the setup only) under C:\Program Files, the app
@@ -103,6 +103,7 @@ Type: filesandordirs; Name: "{app}\_internal"
 Source: "{#Source}\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#Source}\_internal\*"; DestDir: "{app}\_internal"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#Source}\ffmpeg.exe"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "{#Source}\fpcalc.exe"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "{#Source}\Manual.pdf"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "{#Source}\Handbuch.pdf"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "{#Source}\Licenses\*"; DestDir: "{app}\Licenses"; Flags: ignoreversion skipifsourcedoesntexist

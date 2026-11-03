@@ -120,16 +120,20 @@ def load_openrouter_config() -> dict:
     return cfg
 
 
-def save_openrouter_config(api_key: str, model: str, base_url: str = '',
+def save_openrouter_config(api_key: str | None, model: str, base_url: str = '',
                            ask_first: bool | None = None) -> None:
     """Write the config. `ask_first` puts this model ahead of the claude CLI;
-    a save that leaves it out keeps what is stored."""
+    a save that leaves it out keeps what is stored. `api_key=None` leaves the
+    key where it is: one that came from the environment must not be copied into
+    the store by a change of model (#38)."""
     stored = OPENROUTER.read()
     cfg = dict(stored) if isinstance(stored, dict) else {}
     cfg.update({'model': model,
                 'base_url': (base_url or '').strip() or DEFAULT_API_BASE})
     # In the OS credential store when there is one; the file only as a fallback.
-    if not api_key:
+    if api_key is None:
+        pass
+    elif not api_key:
         secret_store.delete(KEY_NAME)
         cfg.pop('api_key', None)
     elif secret_store.put(KEY_NAME, api_key):
@@ -233,7 +237,10 @@ def _stream_reply(resp, host: str, deadline: float, stall: float) -> dict:
             ended = True
             break
         if line.startswith('data:'):
-            data = json.loads(line[5:])
+            try:
+                data = json.loads(line[5:])
+            except ValueError:
+                raise ConnectionError(f"{host} cut the answer off") from None
             choice = (data.get('choices') or [{}])[0]
             if 'error' in data or 'error' in choice:
                 return data
@@ -325,8 +332,14 @@ def _model_rows(api_key: str, timeout: int, base_url: str) -> list[dict]:
         req.add_unredirected_header('Authorization', f'Bearer {api_key}')
     with urllib.request.urlopen(req, timeout=timeout,  # nosec B310: user's endpoint
                                 context=tls_context()) as resp:
-        data = json.loads(resp.read().decode('utf-8'))
-    return data.get('data', [])
+        raw = resp.read()
+    try:
+        rows = json.loads(raw.decode('utf-8')).get('data', [])
+        if isinstance(rows, list) and all(isinstance(m, dict) for m in rows):
+            return rows
+    except (ValueError, AttributeError):
+        pass
+    raise ConnectionError(f"{api_host(base_url)} sent no model list")
 
 
 def openrouter_models(api_key: str = '', timeout: int = 30,

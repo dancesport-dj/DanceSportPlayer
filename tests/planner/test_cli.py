@@ -74,6 +74,13 @@ class HelpersTest(_CliTest):
         self.assertEqual(text.count("Invalid, try again."), 3)
         self.assertIn("5. Jive", text)
 
+    def test_zero_negative_and_repeated_numbers_are_refused(self):
+        """#58/#72: 0 picked the LAST dance, -1 too, and 1,1 listed one twice."""
+        dances, text = self.run_cli(["y", "0", "-1", "1,1", "1, 3"], cli.ask_dances,
+                                    "Latin", ["SA"])
+        self.assertEqual(dances, ["SA", "RB"])
+        self.assertEqual(text.count("Invalid, try again."), 3)
+
 
 class RoundsTest(_CliTest):
 
@@ -84,7 +91,7 @@ class RoundsTest(_CliTest):
         self.assertEqual([(rc.name, rc.heats, rc.tier, rc.prefer_fresh, rc.strategy)
                           for rc in rounds],
                          [("Vorrunde", 6, "early", False, "proven"),
-                          ("1. Zwischenrunde", 3, "pre_semi", True, "all"),
+                          ("1. Zwischenrunde", 3, "pre_semi", True, "mixed"),
                           ("Semifinale", 2, "semi", False, "proven"),
                           ("Finale", 1, "final", False, "top_proven")])
         self.assertIn("Fresh", text)

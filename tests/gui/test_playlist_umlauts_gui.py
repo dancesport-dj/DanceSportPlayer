@@ -90,6 +90,12 @@ class ReferenceCleanerTest(_Base):
         with self.assertRaises(PlaylistEncodingError):
             parse_m3u_blocks(self._undecodable())
 
+    def test_an_unreadable_reference_fails_the_run_not_an_empty_clean(self):
+        """A reference that could not be opened read as 'nothing to remove'."""
+        from gui.workers import parse_m3u_blocks
+        with self.assertRaises(OSError):
+            parse_m3u_blocks(self.track.parent / "missing_reference.m3u")
+
     def test_the_tournament_lists_are_read_by_a_reader_that_fails_too(self):
         from gui.window.main_dupes import DuplicateCheckMixin
         fake = types.SimpleNamespace(

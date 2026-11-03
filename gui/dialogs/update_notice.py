@@ -44,6 +44,7 @@ class UpdateNotice(QObject):
         box.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         box.setWindowTitle("New version")
         box.setIcon(QMessageBox.Icon.Information)
+        box.setTextFormat(Qt.TextFormat.PlainText)
         box.setText(i18n.t("Version %s is out.") % version)
         box.setInformativeText(
             i18n.t("You are running %s. The download page lists what "

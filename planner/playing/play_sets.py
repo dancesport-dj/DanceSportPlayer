@@ -125,7 +125,7 @@ def play_set_of(settings: dict, which: str) -> dict:
                 out[k] = v if v in XFADE_CURVES else fallback
             else:
                 out[k] = bool(v)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             out[k] = fallback
     return out
 
@@ -142,7 +142,7 @@ def upgrade_xfade(vals: dict) -> dict:
     out = dict(vals)
     try:
         secs = float(vals["xfade"] or 0)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         secs = 0.0
     out["xfade_on"] = secs > 0
     if secs <= 0:
@@ -176,7 +176,7 @@ def crossfade_secs(vals: dict) -> float:
         return 0.0
     try:
         return max(0.0, min(XFADE_MAX_SECS, float(vals.get("xfade", 0) or 0)))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return 0.0
 
 
@@ -225,7 +225,7 @@ def dance_secs_of(settings: dict) -> dict[str, int]:
     for dance, v in stored.items():
         try:
             secs = int(v)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             continue
         out[str(dance)] = (0 if secs <= 0
                            else max(LEN_TYPED_MIN, min(LEN_TYPED_MAX, secs)))

@@ -12,11 +12,14 @@ The audio pool the pads sound on is player.audio.cart_voices, the shortcut
 panel player.widgets.cart_keys, the pad and wall-fade dialogs (with the pad
 colours) player.dialogs.cart_pad_dialog.
 """
+import contextlib
 import functools
 import html
 import logging
 import math
 import os
+import threading
+import time
 from dataclasses import replace
 from pathlib import Path
 
@@ -304,6 +307,7 @@ class CartPadButton(QFrame):
     dropped_pad = Signal(object, object)  # source cell, this key
     edit_requested = Signal(object)
     clear_requested = Signal(object)
+    clear_one_requested = Signal(object)   # the ✕: this pad only, never the selection
     colour_requested = Signal(object, str)
     move_requested = Signal(object, int)  # key, the page it goes to
     shortcuts_requested = Signal()       # the ⌨ Keys window, on the wall's tab
@@ -377,7 +381,7 @@ class CartPadButton(QFrame):
         self._del_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._del_btn.setFixedSize(16, 16)
         self._del_btn.clicked.connect(
-            lambda: self.clear_requested.emit(self._key))
+            lambda: self.clear_one_requested.emit(self._key))
         self._del_btn.hide()
         # ▶ "≡ 2": second in the queue, "▶ 2" while the run plays it. In the
         # corner ✕ takes with ✏ on — the badge only shows with ✏ off.
@@ -411,6 +415,7 @@ class CartPadButton(QFrame):
         self._missing = missing
         if pad is None:
             self._playing = False
+            self._held, self._frac, self._scrub = False, 0.0, None   # #129
             self.set_fading(False)
         self._restyle()
 
@@ -427,6 +432,7 @@ class CartPadButton(QFrame):
         no drags, no right-click, no browse dialog on an empty pad — a wall you
         can rearrange by accident with a running heat is a hazard."""
         self._editable = bool(editable)
+        self._scrub = None          # a scrub cannot carry over into edit (#129)
         self.setAcceptDrops(self._editable)
         self._restyle()
 
@@ -585,11 +591,12 @@ class CartPadButton(QFrame):
             # Idle pads show how long the sample IS; a running one counts down.
             self._time_text = _duration_text(self._pad.path)
         self._key_lbl.setText(self._shortcut)
-        self.setToolTip(f"{title}\n{self._pad.path}"
-                        + (i18n.t("\nKey: %s") % self._shortcut
-                           if self._shortcut else "")
-                        + (i18n.t("\n⚠️ File not found") if self._missing else "")
-                        + self._queue_hint(queued))
+        # Escaped: Qt shows a tooltip that looks like markup as markup (#130).
+        self.setToolTip(html.escape(
+            f"{title}\n{self._pad.path}"
+            + (i18n.t("\nKey: %s") % self._shortcut if self._shortcut else "")
+            + (i18n.t("\n⚠️ File not found") if self._missing else "")
+            + self._queue_hint(queued), quote=False).replace("\n", "<br>"))
 
         if self._missing:
             bg, border = _GONE_BG, "#c9ced6"
@@ -700,7 +707,10 @@ class CartPadButton(QFrame):
         mime.setUrls([QUrl.fromLocalFile(str(self._pad.path))])
         drag = QDrag(self)
         drag.setMimeData(mime)
-        drag.exec(Qt.DropAction.MoveAction)
+        # Copy only: a Move dropped on Explorer or a mail window took the
+        # sample off the disk and every pad using it went red (#121). The
+        # wall's own drop accepts whatever action is proposed.
+        drag.exec(Qt.DropAction.CopyAction)
 
     def mouseReleaseEvent(self, e):
         if e.button() != Qt.MouseButton.LeftButton or self._press is None:
@@ -712,6 +722,8 @@ class CartPadButton(QFrame):
         if frac is not None and not e.modifiers() & Qt.KeyboardModifier.ControlModifier:
             self.seek_requested.emit(self._key, frac)
             return
+        if not self.rect().contains(e.position().toPoint()):
+            return      # pressed here, let go elsewhere: not a tap (#125)
         if self._pad is None:
             if self._editable:
                 self._browse()
@@ -858,6 +870,7 @@ class CartwallWidget(QWidget):
     previewVolume = Signal(object, float)  # key, level — heard while dragging
     previewFire = Signal(object, bool)     # key, on — ▶ in the pad dialog
     fadeChanged = Signal(int)              # the wall-wide fade-out, in ms
+    _filesChecked = Signal()               # the file check has new answers (#127)
     dockRequested = Signal()               # 📌 put me back into the main window
     padsMoved = Signal(object)             # {old key: new key} — turn / reshape
     padCleared = Signal(object)            # key — its pad was cleared: stop the voice
@@ -878,6 +891,11 @@ class CartwallWidget(QWidget):
         self._slot_keys = pc.SLOT_KEYS          # what each position answers to
         self._missing = set()
         self._exists = os.path.isfile  # what makes a pad not red, see set_file_check
+        self._seen = {}         # path -> (when, there): spares a dead share a stat per turn (#127)
+        self._unasked = set()   # paths whose answer is missing or stale: the worker asks
+        self._checking = False  # the worker thread is running
+        self._check_lock = threading.Lock()
+        self._filesChecked.connect(self._onFilesChecked)
         self._live = set()      # keys sounding right now, kept across rebuilds
         self._held = set()      # ⏸ of those, the 🎶 pads paused under a title
         # ▶ The queue's run while it plays: the key it fired last and that pad's
@@ -1230,6 +1248,7 @@ class CartwallWidget(QWidget):
         before = self._pages
         self._grid, self._pages = pc.transpose(self._grid, self._pages)
         moved = self._follow_pads(before)
+        self._selected = {moved.get(k, k) for k in self._selected}   # #128
         self._size_box.setCurrentIndex(
             pc.GRID_SIZES.index(self._grid)
             if self._grid in pc.GRID_SIZES else -1)
@@ -1327,6 +1346,52 @@ class CartwallWidget(QWidget):
         resolver, which also finds it under the Reference path and the search
         folders. A pad found there is not red; it fires that copy."""
         self._exists = exists
+        self._seen.clear()
+        self._unasked.clear()
+
+    _SEEN_FOR = 5.0     # seconds an answer of the file check is trusted
+
+    def _there(self, path) -> bool:
+        """The last answer for `path`; one not known yet reads as "there". A
+        missing or stale answer is asked for in the background — the check may
+        sit on a dead network share, and this runs where the buttons paint (#127)."""
+        hit = self._seen.get(path)
+        if hit is None or time.monotonic() - hit[0] >= self._SEEN_FOR:
+            with self._check_lock:
+                self._unasked.add(path)
+            self._startCheck()
+        return True if hit is None else hit[1]
+
+    def _startCheck(self) -> None:
+        with self._check_lock:
+            if self._checking:
+                return
+            self._checking = True
+        threading.Thread(target=self._checkRun, name="cartwall-files",
+                         daemon=True).start()
+
+    def _checkRun(self) -> None:
+        exists = self._exists
+        while True:
+            with self._check_lock:
+                if not self._unasked:
+                    with contextlib.suppress(RuntimeError):   # the wall is gone
+                        self._filesChecked.emit()
+                    self._checking = False
+                    return
+                path = self._unasked.pop()
+            try:
+                there = bool(exists(path))
+            except Exception:
+                log.exception("🎛 Cartwall file check failed\n"
+                              "path: %s", path)
+                there = True
+            self._seen[path] = (time.monotonic(), there)
+
+    def _onFilesChecked(self) -> None:
+        """Answers came in: re-mark the pads when one of them changed."""
+        if pc.missing_paths(self._pages, exists=self._there) != self._missing:
+            self.refresh_missing()
 
     def pad_at(self, key) -> pc.CartPad | None:
         page, row, col = key
@@ -1334,10 +1399,14 @@ class CartwallWidget(QWidget):
             return self._pages[page].pads.get((row, col))
         return None
 
-    def refresh_missing(self) -> None:
+    def refresh_missing(self, fresh: bool = False) -> None:
         """Re-sync every visible pad with the model — which files are gone, and
-        which key fires which cell after a move or a clear."""
-        self._missing = pc.missing_paths(self._pages, exists=self._exists)
+        which key fires which cell after a move or a clear. ``fresh`` asks the
+        disk again instead of trusting the last few seconds."""
+        if fresh:
+            # Stale, not gone: the old answer shows until the new one arrives.
+            self._seen = {p: (0.0, there) for p, (_, there) in self._seen.items()}
+        self._missing = pc.missing_paths(self._pages, exists=self._there)
         for key, button in self._buttons.items():
             page, row, col = key
             button.set_pad(self._pages[page].pads.get((row, col)),
@@ -1374,6 +1443,12 @@ class CartwallWidget(QWidget):
                  "queued: %s\n"
                  "length: %d", pc.cell_key((row, col)), on,
                  len(pc.queued(self._pages)))
+
+    def _paint_lamps(self) -> None:
+        """Light the cells whose pad sounds, after pads changed cells (#129)."""
+        for key, button in self._buttons.items():
+            button.set_playing(key in self._live)
+            button.set_held(key in self._held)
 
     def _paint_queue(self) -> None:
         ranks = pc.queue_ranks(self._pages)
@@ -1423,7 +1498,7 @@ class CartwallWidget(QWidget):
             button.setParent(None)
             button.deleteLater()
         self._buttons.clear()
-        self._missing = pc.missing_paths(self._pages, exists=self._exists)
+        self._missing = pc.missing_paths(self._pages, exists=self._there)
         page = self._pages[self._page]
         names = [self._page_name(i) for i in range(len(self._pages))]
         for row, col in pc.cells_in_order(self._grid):
@@ -1442,6 +1517,8 @@ class CartwallWidget(QWidget):
             button.dropped_pad.connect(self._on_pad_dropped)
             button.edit_requested.connect(self._on_edit)
             button.clear_requested.connect(self._on_clear)
+            button.clear_one_requested.connect(
+                lambda key: self._on_clear(key, only=True))
             button.colour_requested.connect(self._on_colour)
             button.set_page_names(names)
             button.move_requested.connect(self._on_move_to_page)
@@ -1591,6 +1668,7 @@ class CartwallWidget(QWidget):
         self._grid = grid
         self._page = min(self._page, len(self._pages) - 1)
         keys = self._follow_pads(before)
+        self._selected = {keys.get(k, k) for k in self._selected}   # #128
         self._rebuild()
         if keys:
             self.padsMoved.emit(keys)
@@ -1620,10 +1698,24 @@ class CartwallWidget(QWidget):
                     % (name, len(page.pads))
                     ) != QMessageBox.StandardButton.Yes:
                 return
+        before = list(self._pages)
+        gone = [(self._page, row, col) for (row, col) in page.pads]
         self._pages.pop(self._page)
         self._page = min(self._page, len(self._pages) - 1)
         self._selected.clear()
+        # The removed pads' own voices stop, or their cell lights for whichever
+        # pad moves up into it (#126).
+        self._live.difference_update(gone)
+        self._held.difference_update(gone)
+        if self._run is not None and self._run[0] in gone:
+            self._run = None
+        for key in gone:
+            self.padCleared.emit(key)
+        # The later pages moved up one: their voices and lamps go with them (#126).
+        moved = self._follow_pads(before)
         self._rebuild()
+        if moved:
+            self.padsMoved.emit(moved)
         log.info("🎛 Cartwall page removed\n"
                  "pages left: %d\n"
                  "pads left: %d", len(self._pages), pc.pad_count(self._pages))
@@ -1662,7 +1754,7 @@ class CartwallWidget(QWidget):
             pc.set_pad(self._pages, page, (row, col), updated)
             self.padRefreshed.emit(key, updated)
             touched = True
-        keys = tuple(slot_keys)
+        keys = pc.clean_slot_keys(slot_keys)
         if keys != self._slot_keys:
             self._slot_keys = keys
             touched = True
@@ -1763,6 +1855,7 @@ class CartwallWidget(QWidget):
         if self._live:
             self.stopAll.emit()
         self._selected.clear()
+        self._held.clear()
         self.set_wall(doc.grid, doc.pages, doc.page, doc.colour, doc.fade_ms,
                       doc.slot_keys)
         self.changed.emit()         # the import IS the edit that saves it
@@ -1840,6 +1933,7 @@ class CartwallWidget(QWidget):
         self._selected = {moved.get(k, k) for k in self._selected}
         self._paint_selection()
         self.refresh_missing()
+        self._paint_lamps()
         if moved:
             self.padsMoved.emit(moved)
         self.changed.emit()
@@ -1855,6 +1949,7 @@ class CartwallWidget(QWidget):
         self._selected -= set(moved)
         self._paint_selection()
         self.refresh_missing()
+        self._paint_lamps()
         if moved:
             self.padsMoved.emit(moved)
             self.changed.emit()
@@ -1867,8 +1962,8 @@ class CartwallWidget(QWidget):
                 i18n.t("“%s” is full: %d of %d pads were moved.")
                 % (self._page_name(dst), len(moved), len(scope)))
 
-    def _on_clear(self, key) -> None:
-        for page, row, col in self._scope(key):
+    def _on_clear(self, key, only: bool = False) -> None:
+        for page, row, col in ([key] if only else self._scope(key)):
             pc.clear_pad(self._pages, page, (row, col))
             self._selected.discard((page, row, col))
             # Its voice goes with it: a pad assigned to the cell later must not
@@ -1903,6 +1998,8 @@ class CartwallWidget(QWidget):
             # Whatever the dialog did to the live level, the pad's own trim wins
             # again the moment it closes.
             self.previewVolume.emit(key, pad.volume)
+        if self.pad_at(key) is not pad:
+            return      # the wall changed under the open dialog (#131)
         # The dialog knows nothing of the ▶ queue: the pad keeps its place in it.
         updated = replace(dlg.pad(), queue=pad.queue)
         pc.set_pad(self._pages, page, (row, col), updated)

@@ -14,7 +14,7 @@ from planner import i18n
 from planner.terms import dance_name
 from player.audio.mix import desk_duck_pct
 from player.presenter.presenter import PAUSE_TEXT, PresenterWindow
-from player.presenter.timetable import load_timetable, save_timetable
+from player.presenter.timetable import has_saved_timetable, load_timetable, save_timetable
 from player.window.main_pause import live_target
 from shared.audio.playback import audible_played_secs
 from shared.stores import save_settings
@@ -105,7 +105,7 @@ class PresenterMixin(MainWindowHost):
         pushed straight onto an open presenter screen — on the night there is
         no time to close and reopen it."""
         from player.presenter.timetable_dialog import TimetableDialog
-        dlg = TimetableDialog(load_timetable(), self,
+        dlg = TimetableDialog(load_timetable() if has_saved_timetable() else None, self,
                               now_offset=self._now_offset)
         dlg.changed.connect(lambda: self._preview_timetable(dlg))
         if dlg.exec() != QDialog.DialogCode.Accepted:

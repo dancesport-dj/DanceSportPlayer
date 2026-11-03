@@ -161,6 +161,11 @@ class ScrubTest(unittest.TestCase):
         self.assertEqual(frames[0]["abs_path"], r"~\DanceSport-Player\_internal\x.py")
         self.assertEqual(frames[1]["abs_path"], "~/Music/a.mp3")
 
+    def test_a_tuple_is_walked_too(self):
+        """Review #29: a path inside a tuple is scrubbed like one in a list."""
+        out = error_reports.scrub({"extra": {"argv": (r"C:\Users\Someone\a.m3u",)}})
+        self.assertNotIn("Someone", repr(out))
+
     def test_other_text_is_left_as_it_is(self):
         event = {"message": r"F:\my music\tanzcds\SA 50.mp3", "level": "error"}
         self.assertEqual(error_reports.scrub(dict(event)), event)

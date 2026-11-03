@@ -61,6 +61,7 @@ class SoundTabMixin(_DialogHost):
     """The 🔊 Sound & player tab of SettingsDialog."""
 
     _announce_test_cb: Callable[[str, bool, bool, bool], None] | None
+    _settings_in: dict   # the stored settings, set by SettingsDialog
 
     def _setup_sound_tab(self, settings, tabs):
         """🔊 Sound & player: the audio engine, what reaches the PA and the
@@ -133,6 +134,7 @@ class SoundTabMixin(_DialogHost):
         self._add_dblclick_rows(settings, plyt)
 
         plyt.addStretch()
+        self._sound_shown = self._sound_numbers()
         return tabs.addTab(sound_tab, "🔊 Sound && player")
 
     def _add_output_rows(self, settings, plyt):
@@ -690,12 +692,8 @@ class SoundTabMixin(_DialogHost):
                                    self._lead_chk.isChecked(),
                                    self._heat_only_chk.isChecked())
 
-    def _sound_values(self) -> dict:
-        """The tab's settings, for values()."""
+    def _sound_numbers(self) -> dict:
         return {
-            "audio_outputs": self._output_values(),
-            "preview_player": self._preview_chk.isChecked(),
-            "sound_advanced_open": self._advanced_btn.isChecked(),
             "duck_pct": self._duck_spin.value(),
             "fade_in_secs": self._fade_in_spin.value(),
             "resume_fade_secs": self._resume_fade_spin.value(),
@@ -703,6 +701,20 @@ class SoundTabMixin(_DialogHost):
             "duck_down_ms": round(self._duck_down_spin.value() * 1000),
             "duck_up_ms": round(self._duck_up_spin.value() * 1000),
             "pre_roll_secs": self._pre_roll_spin.value(),
+        }
+
+    def _sound_values(self) -> dict:
+        """The tab's settings, for values(). A number the spin clamped on
+        opening and nobody touched keeps what was stored (#78)."""
+        numbers = self._sound_numbers()
+        for key, shown in self._sound_shown.items():
+            if numbers[key] == shown and key in self._settings_in:
+                numbers[key] = self._settings_in[key]
+        return {
+            **numbers,
+            "audio_outputs": self._output_values(),
+            "preview_player": self._preview_chk.isChecked(),
+            "sound_advanced_open": self._advanced_btn.isChecked(),
             "dblclick_action": self._dblclick_combo.currentData(),
             "show_artwork": self._artwork_chk.isChecked(),
             "show_waveform": self._waveform_chk.isChecked(),

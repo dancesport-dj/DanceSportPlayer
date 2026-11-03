@@ -8,11 +8,16 @@ from pathlib import Path
 from planner.models import MusicEntry
 from planner.music.library import MusicLibrary
 from planner.playlist.m3u import (
+    _IMPORT_EXTINF_RE,
+    _dance_from_header,
     export_m3u,
     grid_from_running_order,
     import_playlist_m3u,
     m3u_marker_rounds,
     m3u_marker_rounds_in_order,
+    m3u_track_sizes,
+    playlist_line_path,
+    resolve_import_path,
     round_tiers,
     running_order_rounds,
     tier_for_round_name,
@@ -415,6 +420,68 @@ class MarkerRoundsTest(unittest.TestCase):
 
     def test_an_unreadable_file_carries_none(self):
         self.assertEqual(m3u_marker_rounds(Path("nope") / "gone.m3u"), {})
+
+
+class DanceFromHeaderTest(unittest.TestCase):
+    """Review #122: a section header of a social dance names that dance."""
+
+    def test_social_dances_are_found(self):
+        for name, code in (("Tango Argentino", "TANGOARG"), ("Salsa", "SALSA"),
+                           ("Discofox", "DISCOFOX"), ("Bachata", "BACHATA"),
+                           ("West Coast Swing", "WCS"), ("Kizomba", "KIZOMBA"),
+                           ("Forró", "FORRO"), ("Boogie Woogie", "BW"),
+                           ("Line Dance", "LD")):
+            self.assertEqual(_dance_from_header(name), code, name)
+
+    def test_the_competition_dances_stay(self):
+        self.assertEqual(_dance_from_header("Tango"), "TG")
+        self.assertEqual(_dance_from_header("Wiener Walzer"), "WW")
+        self.assertEqual(_dance_from_header("Cha-Cha"), "CC")
+
+
+class StrayTrackDanceTest(unittest.TestCase):
+    """Review #117: the EXTINF label names the dance of a track with no header."""
+
+    def test_the_label_places_a_track_whose_tags_do_not(self):
+        lib = _lib(MusicEntry(path=Path(r"C:\music	rack.mp3"), title="Song"))
+        p = _write_m3u(["#EXTM3U", "# ══ Vorrunde (1 Heat) ══",
+                        "#EXTINF:120,Song [Samba]", r"C:\music	rack.mp3"])
+        res = import_playlist_m3u(p, lib, None)
+        self.assertEqual(res["unknown"], 0)
+
+
+class ResolveAndLineTest(unittest.TestCase):
+
+    def test_a_real_file_without_a_cache_is_found(self):
+        """Review #123: a file that is there is not a ghost for want of a cache."""
+        d = Path(tempfile.mkdtemp(prefix="dp_m3u_"))
+        f = d / "Song.mp3"
+        f.write_bytes(b"ID3")
+        _ent, found, _hit = resolve_import_path(str(f), _lib(), None, "Song")
+        self.assertTrue(found)
+
+    def test_file_urls_are_paths(self):
+        """Review #135: file:///C:/x.mp3 is not relative to the playlist."""
+        base = Path("D:/lists")
+        self.assertEqual(playlist_line_path("file:///C:/m/x%20y.mp3", base),
+                         Path("C:/m/x y.mp3"))
+
+    def test_a_nul_in_a_line_sizes_as_zero(self):
+        """Review #135: a NUL in a path line raises ValueError, not OSError."""
+        p = _write_m3u(["#EXTM3U", "bad\x00name.mp3"])
+        self.assertEqual(m3u_track_sizes(p), [0])
+
+    def test_extinf_with_a_float_duration_or_attributes(self):
+        """Review #134: both forms still give the title."""
+        for line in ("#EXTINF:120.5,Song [T29]", '#EXTINF:-1 tvg-id="x",Song [T29]'):
+            m = _IMPORT_EXTINF_RE.match(line)
+            self.assertIsNotNone(m, line)
+            self.assertEqual(m.group(2), "Song [T29]")
+
+    def test_a_line_separator_in_a_title_is_not_a_line_break(self):
+        """Review #134: only \n ends a line of an m3u."""
+        p = _write_m3u(["#EXTM3U", "#EXTINF:120,Song\u2028Evil.mp3", "x.mp3"])
+        self.assertEqual(len(m3u_track_sizes(p)), 1)
 
 
 if __name__ == "__main__":

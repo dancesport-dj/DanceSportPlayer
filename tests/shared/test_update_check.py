@@ -106,6 +106,20 @@ class LatestReleaseTest(unittest.TestCase):
                                    return_value=_response(payload)):
                 self.assertIsNone(uc.latest_release())
 
+    def test_a_tag_that_is_not_a_version_is_none(self):
+        """Review #23: the tag goes into a message box; only a version passes."""
+        for tag in ("<b>click</b>", "v1", "latest", "1.2.3.4", "v1.2.x"):
+            with self.subTest(tag=tag), mock.patch.object(
+                    uc.urllib.request, "urlopen",
+                    return_value=_response({"tag_name": tag})):
+                self.assertIsNone(uc.latest_release())
+
+    def test_an_oversized_answer_is_none(self):
+        body = b'{"tag_name": "v9.0.0", "pad": "' + b"x" * (2 << 20) + b'"}'
+        with mock.patch.object(uc.urllib.request, "urlopen",
+                               return_value=_response(body)):
+            self.assertIsNone(uc.latest_release())
+
 
 class CheckInBackgroundTest(unittest.TestCase):
     def setUp(self):

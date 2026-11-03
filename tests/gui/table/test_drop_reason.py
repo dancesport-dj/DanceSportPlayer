@@ -14,6 +14,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 # Offscreen BEFORE any QApplication exists, and state files into a temp dir (the
 # gui modules resolve those at import time — see test_gui_smoke.py).
@@ -115,8 +116,9 @@ class DropReasonTest(unittest.TestCase):
 
     def test_one_lands_and_one_is_a_duplicate(self):
         t = self.deck()
-        seen = self.drop(t, [_wish("Something (WW 29).mp3", "Something"),
-                             _planned("LW", 1)])
+        with mock.patch.object(t, "_ask_soft_duplicate", return_value="skip"):
+            seen = self.drop(t, [_wish("Something (WW 29).mp3", "Something"),
+                                 _planned("LW", 1)])
         self.assertTrue(seen[-1].startswith("➕"), seen)
         self.assertIn("1", seen[-1])
 

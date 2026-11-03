@@ -61,16 +61,30 @@ CATALOG = {
     "Start after:": "Старт через:",
     "Stop after highlight:": "Стоп после кульминации:",
     "Max tracks:": "Макс. треков:",
+    "🏁  Competition training list (heats per dance, then the final)": "🏁  Тренировочный список турнира (туры по танцу, затем финал)",
+    "Dances (untick the ones you do not need):": "Танцы (снимите отметку с ненужных):",
+    "Heats per round:": "Заходов в раунде:",
+    "Rounds:": "Раундов:",
+    "Final heats:": "Заходов в финале:",
+    "Every dance gets this many tracks in a round, one per heat.": "Каждый танец получает в раунде столько треков, по одному на заход.",
+    "The last round is the final.": "Последний раунд — финал.",
+    "Heats per dance in the final.": "Заходов на танец в финале.",
+    "%d tracks: %d dances x %d heats": "%d треков: %d танцев x %d заходов",
+    "Competition Training": "Тренировка к соревнованию",
+    "Tick at least one dance.": "Отметьте хотя бы один танец.",
     "Proven": "Проверенные",
     "Top Proven": "Самые проверенные",
     "Fresh": "Новые",
+    "Rarely played": "Редко играемые",
     "Mostly Proven": "В основном проверенные",
     "Even Mix": "Ровная смесь",
     "Songs you have played before (fresh as fallback).":
         "Треки, которые вы уже ставили (новые — в запасе).",
     "Only your most-played songs.": "Только ваши самые частые треки.",
-    "Unused songs first (proven as fallback).":
-        "Сначала неиспользованные треки (проверенные — в запасе).",
+    "New songs first, at most 2 years in the library (proven as fallback).":
+        "Сначала новые треки, не старше 2 лет в библиотеке (проверенные — в запасе).",
+    "Rarely or never played songs first, whatever their age (proven as fallback).":
+        "Сначала редко или ни разу не игравшие треки, независимо от возраста (проверенные — в запасе).",
     "Proven + fresh together, but favors songs you have played before.":
         "Проверенные + новые вместе, но с предпочтением уже звучавших треков.",
     "Proven + fresh with no preference — equal chance, maximum variety.":
@@ -423,6 +437,7 @@ CATALOG = {
     "Parse schedule": "Загрузить расписание",
     "Filter by the instrumental tag": "Фильтр по отметке «инструментал»",
     "Short dance names  (LW, SB)": "Короткие названия танцев  (LW, SB)",
+    "Date only (no hour)": "Только дата (без времени)",
     "Auto re-roll round on strategy change":
         "Перетасовать тур при смене стратегии",
     "Re-analyze tracks that already have highlights":
@@ -819,8 +834,16 @@ CATALOG = {
         "Сбросить темп на ±0 % (или двойной щелчок по фейдеру)",
     "Volume adjustment of this track by Equalize volume (R128)":
         "Поправка громкости этого трека функцией «Выровнять громкость» (R128)",
-    "When this file was created in the library":
-        "Когда этот файл появился в библиотеке",
+    "When the library first saw the file (the date it was imported)":
+        "Когда библиотека впервые увидела файл (дата импорта)",
+    "When the file was created on disk (a copied file gets a new creation time)":
+        "Когда файл был создан на диске (у скопированного файла новое время создания)",
+    "When the file was last written, tag edits included":
+        "Когда файл последний раз записывался, включая правки тегов",
+    "Year from the MP3 tag; the file name only when the tag has none":
+        "Год из тега MP3; имя файла - только если в теге его нет",
+    "Created": "Создан",
+    "Modified": "Изменён",
     "Replace via the similar-tracks picker":
         "Заменить через выбор похожих треков",
     "Put the shipped rule set back.": "Вернуть поставляемый свод правил.",
@@ -3776,6 +3799,23 @@ CATALOG = {
     "🔁  Replaced %d, ➕ added %d track(s)":
         "🔁  Заменено: %d, ➕ добавлено треков: %d",
     "  (%s — skipped)": "  (%s — пропущено)",
+    "↩  %d same-title file(s) left out": "↩  пропущено файлов с тем же названием: %d",
+    "Duplicates in this list":
+        "Дубликаты в этом списке",
+    "Duplicate songs in this list, in running order.<br><span style='color:#666'>🟰 <b>Exact</b> = identical audio. ≈ <b>Similar</b> = same title, a different recording. Keep the ones you want; switch the others to <b>Replace</b> and pick a track for each, or to <b>Remove</b>.</span>":
+        "Повторяющиеся треки в этом списке, в порядке воспроизведения.<br><span style='color:#666'>🟰 <b>Точный</b> = одинаковое аудио. ≈ <b>Похожий</b> = то же название, другая запись. Оставьте нужные; остальные переключите на <b>Заменить</b> и выберите для каждого трек, или на <b>Удалить</b>.</span>",
+    "Duplicate songs across your open playlist(s), in playlist order.":
+        "Повторяющиеся треки в открытых плейлистах, в порядке плейлиста.",
+    "🎼  Comparing recordings…":
+        "🎼  Сравнение записей…",
+    "These dropped titles are in the list already. What should happen to each?": "Эти перетащенные треки уже есть в списке. Что сделать с каждым?",
+    "🟰  Same audio": "🟰  То же аудио",
+    "≈  Same title or recording": "≈  Тот же трек или запись",
+    "In the list: %s": "В списке: %s",
+    "Dropped: %s": "Перетащено: %s",
+    "Skip": "Пропустить",
+    "Tab moves through the titles · S = skip · R = replace · E / B = keep both": "Tab — переход по трекам · S = пропустить · R = заменить · E / B = оставить оба",
+    "K = keep · R = replace · D / X = remove": "K = оставить · R = заменить · D / X = удалить",
     "%d already planned": "уже запланировано: %d",
     "%d with no dance": "без танца: %d",
     "⚠  Couldn't tell what dance “%s” is — nothing added":
@@ -5956,4 +5996,101 @@ CATALOG = {
         'Показывает папки рядом со списком: выбранная папка показывает только\nтреки, лежащие прямо в ней. Здесь 🆕 Не запланированные скрывает сам\nзапланированный файл, а та же музыка в другой папке остаётся с меткой ♊.',
     '♊ The same music is planned from another folder':
         '♊ Та же музыка запланирована из другой папки',
+    '🎼 Same recording': '🎼 Одна и та же запись',
+    'A title is playing. Stop it and cue “%s”?':
+        'Сейчас играет трек. Остановить его и подготовить “%s”?',
+    'A title is playing. Stop it and start “%s”?':
+        'Сейчас играет трек. Остановить его и запустить “%s”?',
+    'Clear highlights':
+        'Удалить кульминации',
+    'Copy the file path of the selected title':
+        'Скопировать путь к файлу выбранного трека',
+    'Edit the tags of the selected title(s)':
+        'Изменить теги выбранных треков',
+    'Find a folder…':
+        'Найти папку…',
+    'Forget the highlights of this title?\n\nManual marks are lost; 🐂 auto-detection runs again.':
+        'Забыть кульминации этого трека?\n\nРучные метки будут потеряны; 🐂 автоопределение запустится снова.',
+    'How the pasted wishes are read and when a wish may be answered with\nsomething else. The search steps are added automatically, because\nthe code depends on them.':
+        'Как читаются вставленные пожелания и когда на пожелание можно ответить\nчем-то другим. Шаги поиска добавляются автоматически, потому что\nот них зависит код.',
+    'Keep slot':
+        'Оставить место',
+    'Remove with slot':
+        'Удалить вместе с местом',
+    'On: a double-click on another title while one is playing\nasks first — No keeps the music on the floor.\nOff: the new title takes over at once.':
+        'Вкл.: двойной щелчок по другому треку, пока играет один,\nсначала спрашивает — «Нет» оставляет музыку на площадке.\nВыкл.: новый трек сразу берёт эстафету.',
+    'Prompt for this kind of list (added to the rules):':
+        'Промпт для этого вида списка (добавляется к правилам):',
+    'Remove %d songs?':
+        'Удалить треков: %d?',
+    'Remove this song?':
+        'Удалить этот трек?',
+    'Show the selected title in Explorer':
+        'Показать выбранный трек в Проводнике',
+    'Sort by name':
+        'Сортировать по имени',
+    'Sort by size':
+        'Сортировать по размеру',
+    'Sort the folders':
+        'Сортировать папки',
+    'Stop the playing title?':
+        'Остановить играющий трек?',
+    'The list changed meanwhile — nothing done':
+        'Список тем временем изменился — ничего не сделано',
+    'What a party list is for. It is sent with the task, after the rules,\nand says which of the rules do not apply. Each mode keeps its own text.':
+        'Для чего нужен список для вечеринки. Отправляется вместе с заданием, после правил,\nи указывает, какие правила не действуют. У каждого режима свой текст.',
+    'What a party list or a warm-up list is for. It is sent with the\ntask, after the rules, and says which of the rules do not apply.\nEach kind keeps its own text.':
+        'Для чего нужен список для вечеринки или для разминки. Отправляется вместе с\nзаданием, после правил, и указывает, какие правила не действуют.\nУ каждого вида свой текст.',
+    'What a warm-up list is for. It is sent with the task, after the\nrules, and says which of the rules do not apply. Each mode keeps\nits own text.':
+        'Для чего нужен список для разминки. Отправляется вместе с заданием, после\nправил, и указывает, какие правила не действуют. У каждого режима\nсвой текст.',
+    'Which tracks suit a higher-class event. It is sent with the task,\nafter the rules, for the B, A and S classes; the lower classes get\nnone. The rounds, heats, dances and tempos are added automatically.':
+        'Какие треки подходят для турнира высших классов. Отправляется вместе с заданием,\nпосле правил, для классов B, A и S; у низших классов его нет.\nТуры, заходы, танцы и темпы добавляются автоматически.',
+    'change a value by hand, or press the other set':
+        'измените значение вручную или нажмите другой набор',
+    'double-click → asks before it stops a title':
+        'двойной щелчок → спрашивает, прежде чем остановить трек',
+    'double-click → stops a title without asking':
+        'двойной щелчок → останавливает трек без вопроса',
+    '↩  Reset time marker':
+        '↩  Сбросить метку времени',
+    '❓  Ask before a double-click stops the title':
+        '❓  Спрашивать, прежде чем двойной щелчок остановит трек',
+    '🎉  Party set off — earlier values back':
+        '🎉  Сет для вечеринки выключен — прежние значения возвращены',
+    '🎉  Party set stays on — no earlier values to go back to':
+        '🎉  Сет для вечеринки остаётся включённым — нет прежних значений, к которым можно вернуться',
+    '🏆  Tournament set off — earlier values back':
+        '🏆  Турнирный сет выключен — прежние значения возвращены',
+    '🏆  Tournament set stays on — no earlier values to go back to':
+        '🏆  Турнирный сет остаётся включённым — нет прежних значений, к которым можно вернуться',
+    '🎉 Party-list prompt (added to the rules):':
+        '🎉 Промпт для списка вечеринки (добавляется к правилам):',
+    '🏆 Competition prompt (added to the rules, sent for the B, A and S classes only):':
+        '🏆 Промпт для турниров (добавляется к правилам, отправляется только для классов B, A и S):',
+    '📝 Wish-list prompt (added to the rules):':
+        '📝 Промпт для списка пожеланий (добавляется к правилам):',
+    '🤸 Warm-up-list prompt (added to the rules):':
+        '🤸 Промпт для списка разминки (добавляется к правилам):',
+    '🔍  Find a title or genre in this list…\tCtrl+F':
+        '🔍  Найти трек или жанр в этом списке…\tCtrl+F',
+    '🔍  No title of “%s” in this list':
+        '🔍  В этом списке нет треков “%s”',
+    'Not a round pattern — fix it (e.g. 6-3-2-1).':
+        'Это не схема туров — исправьте (напр. 6-3-2-1).',
+    'Also find the same recording under different file names?\n\nThat reads the sound of %s track(s), about 0.2 s each. You can cancel anytime; results so far are kept.':
+        'Искать также одну и ту же запись под другими именами файлов?\n\nДля этого считывается звук %s трека(ов), примерно по 0,2 с на каждый. Можно отменить в любой момент; полученные результаты сохраняются.',
+    'The heats of a dance in a round sound alike: the first track is the\nanchor, the others are its nearest by timbre. The final and semifinal\nprefer the titles you played there before.':
+        'Заходы одного танца в туре звучат похоже: первый трек — якорь,\nостальные — ближайшие к нему по тембру. Финал и полуфинал\nпредпочитают треки, которые вы там уже играли.',
+    'Fresh titles in the early rounds:':
+        'Новые треки в ранних турах:',
+    'Share of the heats in the rounds before the semifinal that go to fresh titles. The semifinal and the final keep to the titles you know.':
+        'Доля заходов в турах до полуфинала, которые достаются новым трекам. Полуфинал и финал остаются на знакомых вам треках.',
+    'New (at most 2 years in the library)':
+        'Новые (не старше 2 лет в библиотеке)',
+    'Rarely played (any age)':
+        'Редко играемые (любого возраста)',
+    'Which titles count as fresh: new ones, or any title that was hardly ever played.':
+        'Какие треки считаются новыми: недавние или любой трек, который почти не играли.',
+    'Reading Chromaprints…':
+        'Чтение Chromaprint…',
 }

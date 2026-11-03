@@ -95,9 +95,10 @@ def ask_dances(style: str, default: list[str]) -> list[str]:
     while True:
         raw = input("  Numbers (comma-separated, e.g. 1,2,4): ").strip()
         try:
-            chosen = [all_d[int(x)-1] for x in raw.split(',') if x.strip()]
-            if chosen:
-                return chosen
+            nums = [int(x) for x in raw.split(',') if x.strip()]
+            if nums and all(1 <= n <= len(all_d) for n in nums) \
+                    and len(set(nums)) == len(nums):
+                return [all_d[n - 1] for n in nums]
         except (ValueError, IndexError):
             pass
         print("  Invalid, try again.")

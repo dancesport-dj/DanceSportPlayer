@@ -920,3 +920,31 @@ class WriteJsonAtomicTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ReleaseCandidateBuildTest(unittest.TestCase):
+    """build-rc.yml: the player flavor as an unpublished draft for testers."""
+
+    ROOT = Path(config.__file__).resolve().parent.parent
+
+    def setUp(self):
+        self.flow = (self.ROOT / ".github" / "workflows" / "build-rc.yml").read_text(
+            encoding="utf-8")
+
+    def test_only_started_by_hand(self):
+        self.assertIn("workflow_dispatch:", self.flow)
+        self.assertNotIn("push:", self.flow)
+        self.assertNotIn("tags:", self.flow)
+        self.assertNotIn("refs/tags", self.flow)
+
+    def test_the_release_is_a_draft_pinned_to_the_commit(self):
+        self.assertIn("--draft", self.flow)
+        self.assertIn('--target "$GITHUB_SHA"', self.flow)
+
+    def test_it_builds_the_player_flavor_only(self):
+        self.assertIn(r".\build_exe.bat player", self.flow)
+        self.assertIn("./build_app.sh player dmg", self.flow)
+        self.assertIn("./build_linux.sh player tar", self.flow)
+        self.assertIn("pip install -r requirements-player.lock", self.flow)
+        self.assertNotIn("requirements-full.lock", self.flow)
+        self.assertNotIn("build_exe.bat full", self.flow)

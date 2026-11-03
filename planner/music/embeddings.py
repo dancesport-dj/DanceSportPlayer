@@ -202,13 +202,21 @@ class EmbeddingStore:
 
     @staticmethod
     def _unpack(blob: bytes) -> array:
+        if len(blob) % 4:       # a cut-off blob, skipped by the callers
+            raise ValueError("embedding blob is not a whole number of floats")
         a = array('f'); a.frombytes(blob); return a
 
     def _load_model(self, model: str) -> dict[str, array]:
         if model not in self._mirror:
             rows = _db().execute(
                 "SELECT fp, vec FROM embeddings WHERE model = ?", (model,)).fetchall()
-            self._mirror[model] = {fp: self._unpack(v) for fp, v in rows}
+            vecs = {}
+            for fp, v in rows:
+                try:
+                    vecs[fp] = self._unpack(v)
+                except ValueError:
+                    continue
+            self._mirror[model] = vecs
         return self._mirror[model]
 
     def fps(self, model: str) -> set[str]:
@@ -519,6 +527,10 @@ def embedding_similar(
     # cosines bunch at ~0.9+ and everything shows ~100%. Centering + scaling per dim
     # removes that common bias and amplifies the within-pool differences that actually
     # separate tracks. Same principle as planner.music.similarity._pool_similarity for the librosa vector.
+    # A vector of another length (an old model's, a damaged row) cannot be compared.
+    cands = [(e, v) for e, v in cands if len(v) == len(src_vec)]
+    if not cands:
+        return []
     src = np.asarray(src_vec, dtype=float)
     M = np.asarray([v for _, v in cands], dtype=float)
     if len(cands) >= 4 and M.shape[1] == src.shape[0]:

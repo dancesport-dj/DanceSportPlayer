@@ -22,12 +22,19 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QFileDialog, QLabel, QMessageBox, QTableWidget
 
 from gui import common
+from gui.table.playlist_table import PlaylistTable
 from planner.music.analysis import AudioFeatures
 from shared.columns import _COL_TITLE
 
 # First: it points the app's state files at a temp folder before any app
 # module is imported.
 from tests.gui.monkey_support import ClickThrough, DropFrom, printable
+
+
+def _add_too(pairs):
+    """The demo library's 'Song 05' / 'Song 15' are one edit apart, so the Check
+    duplicates rule calls them one song; this test is about something else."""
+    return ["add"] * len(pairs)
 
 
 class ChecksClickTest(ClickThrough):
@@ -124,7 +131,8 @@ class ChecksClickTest(ClickThrough):
             dlg.close()
 
     def test_a_match_dragged_onto_a_slot_replaces_its_title(self):
-        with self.clicking() as op:
+        with self.clicking() as op, mock.patch.object(
+                PlaylistTable, "_ask_drop_duplicates", side_effect=_add_too):
             self.analysed()
             self.generate(rounds="1")
             row = self.song_rows()[0]
@@ -470,7 +478,8 @@ class ChecksClickTest(ClickThrough):
         self.assertEqual(copies(), rows[-1:])
 
     def test_wishlist_cleanup_drops_what_a_deck_already_plans(self):
-        with self.clicking() as op:
+        with self.clicking() as op, mock.patch.object(
+                PlaylistTable, "_ask_drop_duplicates", side_effect=_add_too):
             self.generate()
             self.click(self.button("Cycle the wishlist area"))
             deck, wish = self.win._deckset.table, self.win._deckset.wishlists[0]

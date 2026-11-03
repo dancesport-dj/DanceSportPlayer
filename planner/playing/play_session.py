@@ -42,7 +42,10 @@ def load(now: dt.datetime) -> Session | None:
                     [str(p) for p in raw.get("played") or []])
     except (KeyError, TypeError, ValueError):
         return None
-    age = now - s.saved_at
+    try:
+        age = now - s.saved_at.replace(tzinfo=None)   # a hand-edited "+02:00"
+    except TypeError:
+        return None
     if not dt.timedelta(0) <= age <= dt.timedelta(hours=GAP_HOURS):
         return None   # another evening
     return s if s.played else None

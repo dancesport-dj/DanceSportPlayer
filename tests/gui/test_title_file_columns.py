@@ -131,8 +131,8 @@ class MigrationTest(unittest.TestCase):
         s = {"columns_version": 3, "library_columns": list(order),
              "library_hidden_columns": [10, 11]}
         migrate_column_settings(s)
-        self.assertEqual(s["library_columns"], order + [12, 13, 14, 15])
-        self.assertEqual(s["library_hidden_columns"], [10, 11, 12, 13, 14, 15])
+        self.assertEqual(s["library_columns"], order + [12, 13, 14, 15, 16, 17, 18])
+        self.assertEqual(s["library_hidden_columns"], [10, 11, 12, 13, 14, 15, 16, 17, 18])
 
 
 if __name__ == "__main__":

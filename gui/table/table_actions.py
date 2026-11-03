@@ -922,6 +922,24 @@ class TableActionsMixin(TableMenuMixin):
             out.append(ent)
         return out
 
+    def _split_drop(self, cur: list, new_entries: list):
+        """(to_add, replaced) for a drop into a list holding `cur`, or None when
+        the user cancelled. Titles the list holds already (by audio, name, title
+        or Chromaprint, read silently) are asked about once, before anything is
+        added: Replace (the old file leaves), Add too, or Skip. One exact copy
+        of a held title is refused as ever."""
+        batch = self._not_yet_held([], new_entries)
+        pairs = self._drop_dup_pairs(batch, cur)
+        if len(new_entries) == 1 and pairs and pairs[0][2]:
+            return [], []
+        answers = self._ask_drop_duplicates(pairs)
+        if answers is None:
+            return None
+        chosen = {id(p[0]): (a, p[1]) for p, a in zip(pairs, answers, strict=True)}
+        to_add = [e for e in batch if chosen.get(id(e), ("",))[0] != "skip"]
+        replaced = [chosen[id(e)][1] for e in to_add if chosen.get(id(e), ("",))[0] == "replace"]
+        return to_add, replaced
+
     def _insert_drop_files(self, files: list[Path], at: int) -> int:
         """Insert dropped files into the flat Wishlist at gap `at` (0..rowCount),
         skipping tracks already present. Returns how many NEW tracks were inserted;
@@ -931,14 +949,19 @@ class TableActionsMixin(TableMenuMixin):
         if not new_entries:
             return 0
         cur = self._row_meta.entries()
-        to_add = self._not_yet_held(cur, new_entries)
+        plan = self._split_drop(cur, new_entries)
+        if plan is None:
+            return 0
+        to_add, replaced = plan
         self._drop_added = to_add
         self._drop_held = len(new_entries) - len(to_add)
         if not to_add:
             return 0
         at = max(0, min(at, len(cur)))
-        final = cur[:at] + to_add + cur[at:]
-        self._render_flat_entries(final)
+        gone = {id(e) for e in replaced}
+        at -= sum(1 for e in cur[:at] if id(e) in gone)
+        rest = [e for e in cur if id(e) not in gone]
+        self._render_flat_entries(rest[:at] + to_add + rest[at:])
         # The rebuild resets the scroll to the top — bring the just-dropped rows back
         # into view and select them so the focus stays where the user dropped them.
         self._focus_rows(range(at, at + len(to_add)))
@@ -963,11 +986,17 @@ class TableActionsMixin(TableMenuMixin):
         if not new_entries:
             return 0
         cur = self._row_meta.entries()
-        to_add = self._not_yet_held(cur, new_entries)
+        plan = self._split_drop(cur, new_entries)
+        if plan is None:
+            return 0
+        to_add, replaced = plan
         if not to_add:
             return 0
         idx = self._song_pos_at(at)
-        self._reload_warmup(cur[:idx] + to_add + cur[idx:])
+        gone = {id(e) for e in replaced}
+        idx -= sum(1 for e in cur[:idx] if id(e) in gone)
+        rest = [e for e in cur if id(e) not in gone]
+        self._reload_warmup(rest[:idx] + to_add + rest[idx:])
         # Show the wishes where they landed.
         self._focus_rows([r for r, m in self._row_meta.numbered()
                           if any(m.entry is en for en in to_add)])
@@ -999,7 +1028,8 @@ class TableActionsMixin(TableMenuMixin):
             self.load_warmup(entries, self._warmup_label, self._warmup_style,
                              self._warmup_class, self._warmup_relax,
                              self._play_cb, self._suggester,
-                             running_order=self._player_list)
+                             running_order=self._player_list,
+                             heat_plan=self._heat_plan)
         self._restore_scroll(scroll)
         # A rebuild dropped every row widget, and an in-place edit moved the rows
         # under the change — either way the ■ marker goes back on the track that

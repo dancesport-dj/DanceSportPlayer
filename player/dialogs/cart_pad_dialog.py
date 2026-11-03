@@ -326,7 +326,8 @@ class TypedValue(ClickableLabel):
         edit.hide()
         try:
             typed = float(text)
-        except ValueError:
+            value = int(round(typed * self._per_unit))
+        except (ValueError, OverflowError):    # "inf", "1e999", "nan"
             return
         # setValue clamps: 999 s of fade is not a fade, it is a stuck pad.
-        self._slider.setValue(int(round(typed * self._per_unit)))
+        self._slider.setValue(value)

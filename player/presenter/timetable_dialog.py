@@ -73,6 +73,7 @@ class TimetableDialog(QDialog):
         self.setWindowIcon(app_icon())
         self.setModal(True)
         self.resize(620, 700)
+        no_programme = table is None
         table = table if table is not None else Timetable()
 
         lay = QVBoxLayout(self)
@@ -113,7 +114,9 @@ class TimetableDialog(QDialog):
         head.setSectionResizeMode(_COL_NOTE, QHeaderView.ResizeMode.Stretch)
         lay.addWidget(self.table, 1)
 
-        for entry in (table.entries or [Entry(*e) for e in _EXAMPLE]):
+        # the examples are for a first start only: a programme somebody saved
+        # empty stays empty (#66)
+        for entry in ([Entry(*e) for e in _EXAMPLE] if no_programme else table.entries):
             self._add_row(entry)
 
         btn_row = QHBoxLayout()
@@ -197,7 +200,6 @@ class TimetableDialog(QDialog):
         # shift is recomputed from it only once somebody touches the clock.
         self._now_given = now_offset
         self._now_touched = False
-        self.now_check.toggled.connect(self._touch_clock)
         self.now_time.timeChanged.connect(self._touch_clock)
         now_row.addWidget(self.now_check)
         now_row.addWidget(self.now_time)
@@ -246,7 +248,7 @@ class TimetableDialog(QDialog):
                           what=self._cell(row, COL_WHAT),
                           note=self._cell(row, _COL_NOTE),
                           until=self._cell(row, COL_UNTIL))
-            if entry.time or entry.what:
+            if entry.time or entry.what or entry.until or entry.note:
                 entries.append(entry)
         return Timetable(title=self.title_ed.text().strip() or DEFAULT_TITLE,
                          entries=entries,
@@ -261,7 +263,7 @@ class TimetableDialog(QDialog):
         if not self.now_check.isChecked():
             return None
         if not self._now_touched:
-            return self._now_given
+            return self._now_given if self._now_given is not None else timedelta()
         t = self.now_time.time()
         return offset_for(time(t.hour(), t.minute()))
 

@@ -71,6 +71,8 @@ class AboutTextTest(unittest.TestCase):
                      # Every build has Qt's FFmpeg libraries; only the Windows
                      # one adds ffmpeg.exe, the GPL-3.0 build.
                      "FFmpeg (LGPL-2.1+, ffmpeg.exe GPL-3.0)",
+                     # fpcalc is a separate program the duplicate check calls.
+                     "Chromaprint (LGPL-2.1+, fpcalc for the duplicate check)",
                      "href='https://github.com/dancesport-dj/DanceSportPlayer/blob/main/"
                      "THIRD_PARTY_LICENSES.md'"):
             self.assertIn(part, text)

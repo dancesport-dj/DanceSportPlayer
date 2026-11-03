@@ -41,6 +41,11 @@ Doble highlights need ffmpeg. Install [Homebrew](https://brew.sh), then:
 
     brew install ffmpeg
 
+Check duplicates finds the same recording under different file names only with
+`fpcalc` (Chromaprint):
+
+    brew install chromaprint
+
 Settings and playlists are kept in
 `~/Library/Application Support/DanceSport-Planner-Player`.
 
@@ -89,6 +94,11 @@ Paso-Doble-Highlights brauchen ffmpeg. [Homebrew](https://brew.sh) installieren,
 dann:
 
     brew install ffmpeg
+
+„Duplikate prüfen“ findet dieselbe Aufnahme unter anderen Dateinamen nur mit
+`fpcalc` (Chromaprint):
+
+    brew install chromaprint
 
 Einstellungen und Playlisten liegen in
 `~/Library/Application Support/DanceSport-Planner-Player`.

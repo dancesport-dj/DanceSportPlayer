@@ -425,7 +425,8 @@ def _row(n: int, entry, dance_class, used_paths, sound=None) -> str:
     used = "yes" if _is_used(entry, used_paths) else "no"
     artist = (getattr(entry, "tag_artist", None) or "").strip()
     name = f"{artist} – {entry.title}" if artist else entry.title
-    snd = code_text((sound or {}).get(str(entry.path)))
+    name = " ".join(name.split())    # a newline would start a fake catalog row
+    snd =code_text((sound or {}).get(str(entry.path)))
     return (f"{n:4d} | {pool_dance(entry)} | {bpm} | {snd} | "
             f"{_pop_of(entry, dance_class)} | {_fin_of(entry)} | "
             f"{_sem_of(entry)} | {used} | "
@@ -627,16 +628,12 @@ def parse_queries(text: str) -> list[dict]:
     """Pull the query list out of step 1. [] when there is nothing usable —
     the caller then falls back to a default sweep rather than failing."""
     cleaned = _FENCE_RE.sub("", text or "").strip()
-    start, end = cleaned.find("{"), cleaned.rfind("}")
-    if start < 0 or end <= start:
+    # Each object on its own: a closing sentence with braces, or a corrected
+    # second answer, must not turn the whole reply into "nothing usable".
+    answers = [o for o in _json_objects(cleaned) if isinstance(o.get("queries"), list)]
+    if not answers:
         return []
-    try:
-        payload = json.loads(cleaned[start:end + 1])
-    except ValueError:
-        return []
-    queries = payload.get("queries")
-    if not isinstance(queries, list):
-        return []
+    queries = answers[-1]["queries"]
     return [q for q in queries if isinstance(q, dict)][:_QUERIES_MAX]
 
 
@@ -654,6 +651,13 @@ def _bpm_span(value):
         return float(text), float(text)
     except ValueError:
         return None
+
+
+def _flag(value) -> bool:
+    """A yes/no a model wrote: the string "false" is not a yes."""
+    if isinstance(value, str):
+        return value.strip().lower() not in ("", "false", "no", "0", "none", "null")
+    return bool(value)
 
 
 def _bound(value):
@@ -727,7 +731,7 @@ def _matches(entry, query: dict, dance_class, used_paths, sound=None) -> bool:
             return False
 
     if "instr" in query and (
-            bool(query["instr"]) != bool(getattr(entry, "is_instrumental", False))):
+            _flag(query["instr"]) != bool(getattr(entry, "is_instrumental", False))):
         return False
 
     if query.get("focus") and not class_focused(entry):
@@ -761,7 +765,7 @@ def run_queries(queries: list[dict], candidates, *, dance_class=None,
         _raise_if_cancelled(cancel)
         try:
             limit = int(query.get("limit") or _QUERY_LIMIT)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             limit = _QUERY_LIMIT
         limit = max(1, min(limit, _QUERY_MAX))
 
@@ -1139,13 +1143,16 @@ def parse_reply(text: str) -> dict:
             continue
         try:
             n = int(item["n"])
-        except (KeyError, TypeError, ValueError):
+        except (KeyError, TypeError, ValueError, OverflowError):
             continue
         heat = item.get("heat")
+        digits = str(heat) if isinstance(heat, (int, str)) else ""
         out.append({
             "n": n,
             "round": str(item.get("round") or "")[:_LABEL_MAX],
-            "heat": int(heat) if isinstance(heat, (int, str)) and str(heat).isdigit() else 0,
+            # isdecimal, not isdigit: "²" is a digit int() refuses; a long run of
+            # digits is not a heat either.
+            "heat": int(digits) if digits.isdecimal() and len(digits) < 6 else 0,
             # Free text from a model: kept short, and never parsed for anything.
             "why": " ".join(str(item.get("why") or "").split())[:_WHY_MAX],
         })
@@ -1174,7 +1181,7 @@ def parse_swaps(text: str) -> dict:
         try:
             n = int(item["n"])
             heat = int(item.get("heat") or 1)
-        except (KeyError, TypeError, ValueError):
+        except (KeyError, TypeError, ValueError, OverflowError):
             continue
         swaps.append({
             "variant": str(item.get("variant") or "")[:_LABEL_MAX],
@@ -1360,7 +1367,7 @@ def _try_backend(call: Callable[[], str], label: str, *, on_step=None, sleep=tim
             _raise_if_cancelled(cancel)
             return answer
         except Exception as exc:
-            if isinstance(exc, ai.NoOutput) and not stalled:
+            if isinstance(exc, ai.NoOutput) and not stalled and wait is not None:
                 stalled = True
                 log.warning("🤖 %s went silent, asking once more\n"
                             "error: %s", label, exc)

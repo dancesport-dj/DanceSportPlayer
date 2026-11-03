@@ -16,6 +16,7 @@ from planner.generate.scoring import (  # auto-resolved
     BONUS_CLASS_OK,
     BONUS_FRESH,
     BONUS_PROVEN,
+    FRESH_STRATEGIES,
     PENALTY_BELOW_TEMPO,
     PENALTY_CLASS_DILUTED,
     PENALTY_CLASS_MISMATCH,
@@ -27,6 +28,7 @@ from planner.generate.scoring import (  # auto-resolved
     class_dilutes,
     class_popularity,
     effective_popularity,
+    matches_fresh,
     prefer_late_rounds,
     resolve_strategy,
 )
@@ -263,8 +265,8 @@ class PlaylistSuggester:
                          and effective_popularity(e, dance_class) >= PROVEN_MIN_POP]
                         or [e for e in pool if class_popularity(e, dance_class) > 0]
                         or pool)
-            elif strat == Strategy.FRESH:
-                fresh = [e for e in base if e.popularity < PROVEN_MIN_POP]
+            elif strat in FRESH_STRATEGIES:
+                fresh = [e for e in base if matches_fresh(e, strat)]
                 pool = fresh or base
             else:   # mixed / all → whole base pool
                 pool = base
@@ -285,7 +287,7 @@ class PlaylistSuggester:
             available = prefer_late_rounds(available, tier)
 
         proven = [e for e in available if e.popularity >= PROVEN_MIN_POP]
-        fresh = [e for e in available if e.popularity < PROVEN_MIN_POP]
+        fresh = [e for e in available if matches_fresh(e, strat)]
         high_pop = [e for e in available if e.popularity >= PROVEN_MIN_POP * 2]
         mid_pop = proven
 
@@ -293,7 +295,7 @@ class PlaylistSuggester:
             pool = high_pop or mid_pop or proven or available
         elif strat == Strategy.PROVEN:
             pool = proven or available
-        elif strat == Strategy.FRESH:
+        elif strat in FRESH_STRATEGIES:
             pool = fresh or available
         else:   # mixed / all → proven + fresh together, widest in-tempo pool
             pool = available
@@ -391,7 +393,7 @@ class PlaylistSuggester:
                 s -= PENALTY_BELOW_TEMPO
             if anchor and e.features:
                 s += sims.get(str(e.path), 0.5) * W_TIMBRE
-            if strat == Strategy.FRESH and e.popularity < PROVEN_MIN_POP:
+            if strat in FRESH_STRATEGIES and matches_fresh(e, strat):
                 s += BONUS_FRESH
             if strat == Strategy.PROVEN and e.popularity >= PROVEN_MIN_POP:
                 s += BONUS_PROVEN
@@ -455,8 +457,8 @@ class PlaylistSuggester:
                 ep = effective_popularity(e, dance_class)
                 if strat == Strategy.ALL:
                     return 1.0
-                if strat == Strategy.FRESH:
-                    return 2.0 if e.popularity < PROVEN_MIN_POP else 0.4
+                if strat in FRESH_STRATEGIES:
+                    return 2.0 if matches_fresh(e, strat) else 0.4
                 if strat == Strategy.MIXED:
                     return 1.0 + min(ep, 3) * 0.4
                 return ep + 1.0

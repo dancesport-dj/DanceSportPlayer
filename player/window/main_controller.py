@@ -124,9 +124,13 @@ class ControllerMixin(MainWindowHost):
         cfg = {"kind": cfg.get("kind", ""), "device": cfg.get("device", ""),
                "profile": cfg.get("profile", ""),
                "bindings": pctl.clean_bindings(cfg.get("bindings"))}
+        old = self.controller_config()
         self._settings["controller"] = cfg
         save_settings(self._settings)
         self._ctl_map = pctl.ControllerMap(cfg["bindings"])
+        if (self._ctl_input is not None
+                and (old["kind"], old["device"]) == (cfg["kind"], cfg["device"])):
+            return   # a mapping edit: the open device stays open (#64)
         self._disconnect_controller()
         self._connect_controller()
 

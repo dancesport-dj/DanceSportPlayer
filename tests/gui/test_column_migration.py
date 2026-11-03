@@ -29,7 +29,7 @@ class MigrateColumnSettingsTest(unittest.TestCase):
                          {"wishlist": [1, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT, _COL_PLAYS, COL_REGEN]})
         self.assertEqual(s["column_widths"]["playlist"],
                          {"0": 119, "8": 60, str(COL_REGEN): 30})
-        self.assertEqual(s["library_hidden_columns"], [10, 11, 12, 13, 14, 15])
+        self.assertEqual(s["library_hidden_columns"], [10, 11, 12, 13, 14, 15, 16, 17, 18])
         self.assertEqual(s["library_col_widths"], {"0": 30, "9": 52})
         self.assertEqual(s["columns_version"], COLUMNS_VERSION)
 
@@ -50,12 +50,12 @@ class MigrateColumnSettingsTest(unittest.TestCase):
         order = [3, 2, 0, 1, 4, 5, 6, 7, 8, 9]
         s = {"library_columns": list(order)}
         migrate_column_settings(s)
-        self.assertEqual(s["library_columns"], order + [10, 11, 12, 13, 14, 15])
+        self.assertEqual(s["library_columns"], order + [10, 11, 12, 13, 14, 15, 16, 17, 18])
 
     def test_a_fresh_install_starts_with_the_rating_hidden(self):
         s = {"hidden_columns": {}, "library_hidden_columns": []}
         migrate_column_settings(s)
-        self.assertEqual(s["library_hidden_columns"], [10, 11, 12, 13, 14, 15])
+        self.assertEqual(s["library_hidden_columns"], [10, 11, 12, 13, 14, 15, 16, 17, 18])
 
 
 class CustomColumnMigrationTest(unittest.TestCase):
@@ -79,14 +79,14 @@ class CustomColumnMigrationTest(unittest.TestCase):
         s = {"columns_version": 2, "library_columns": list(order),
              "library_hidden_columns": [8]}
         migrate_column_settings(s)
-        self.assertEqual(s["library_columns"], order + [11, 12, 13, 14, 15])
-        self.assertEqual(s["library_hidden_columns"], [8, 11, 12, 13, 14, 15])
+        self.assertEqual(s["library_columns"], order + [11, 12, 13, 14, 15, 16, 17, 18])
+        self.assertEqual(s["library_hidden_columns"], [8, 11, 12, 13, 14, 15, 16, 17, 18])
 
     def test_a_shown_rating_stays_shown(self):
         s = {"columns_version": 2, "library_hidden_columns": [],
              "hidden_columns": {"playlist": []}}
         migrate_column_settings(s)
-        self.assertEqual(s["library_hidden_columns"], [11, 12, 13, 14, 15])
+        self.assertEqual(s["library_hidden_columns"], [11, 12, 13, 14, 15, 16, 17, 18])
         self.assertEqual(s["hidden_columns"], {"playlist": [_COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT, _COL_PLAYS]})
 
     def test_album_comes_in_hidden_in_front_of_regen(self):
@@ -102,8 +102,8 @@ class CustomColumnMigrationTest(unittest.TestCase):
                           "wishlist": [_COL_ALBUM, _COL_COMMENT, _COL_PLAYS, COL_REGEN]})
         self.assertEqual(s["column_widths"]["playlist"],
                          {str(_COL_FILE): 240, str(COL_REGEN): 30})
-        self.assertEqual(s["library_columns"], order + [13, 14, 15])
-        self.assertEqual(s["library_hidden_columns"], [12, 13, 14, 15])
+        self.assertEqual(s["library_columns"], order + [13, 14, 15, 16, 17, 18])
+        self.assertEqual(s["library_hidden_columns"], [12, 13, 14, 15, 16, 17, 18])
 
     def test_a_current_file_is_left_alone(self):
         s = {"columns_version": COLUMNS_VERSION, "hidden_columns": {"playlist": [10]}}

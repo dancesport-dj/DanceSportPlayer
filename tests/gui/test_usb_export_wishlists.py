@@ -91,6 +91,8 @@ class ExportTest(unittest.TestCase):
         ask.include_party.return_value = False
         ask.include_wishlists.return_value = include
         ask.dropped_paths.return_value = []
+        ask.deck_picks.return_value = []
+        ask.wish_picks.return_value = []
         with mock.patch.object(main_export, "UsbExportDialog",
                                return_value=ask) as dlg_cls:
             main_export.ExportMixin._export_bundle(host)

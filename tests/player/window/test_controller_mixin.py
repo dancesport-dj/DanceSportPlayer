@@ -232,13 +232,14 @@ class ControllerMixinTest(unittest.TestCase):
         QApplication.processEvents()
         self.assertTrue(desk.controller_status()[0])
 
-    def test_a_new_config_is_saved_and_reconnected(self):
+    def test_a_new_mapping_is_saved_and_keeps_the_open_device(self):
+        # #64: a mapping edit on the same device must not drop the connection.
         desk = self._desk()
         first = _FakeMidi.opened[0]
         desk.set_controller_config({"kind": "midi", "device": "nanoKONTROL2",
                                     "profile": "Mine", "bindings": {"next": "cc:0:44"}})
-        self.assertTrue(first.closed)
-        self.assertEqual(len(_FakeMidi.opened), 2)
+        self.assertFalse(first.closed)
+        self.assertEqual(len(_FakeMidi.opened), 1)
         main_controller.save_settings.assert_called()
         self.assertEqual(desk._settings["controller"]["profile"], "Mine")
         self._press(desk, 44)

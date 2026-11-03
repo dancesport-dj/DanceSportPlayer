@@ -27,7 +27,7 @@ from pathlib import Path, PurePath, PureWindowsPath
 from typing import Any
 
 from planner.config import write_json_atomic
-from planner.music.paths import PathRemapper, home_search_roots
+from planner.music.paths import PathRemapper, home_search_roots, is_local_file
 
 log = logging.getLogger("dancesport.venue_pack")
 
@@ -39,6 +39,9 @@ STAGE_DIR = "venue_import"
 STAGE_DONE = ".complete"   # written last: a stage without it was interrupted
 BACKUP_PREFIX = "before-venue-import-"
 SETTINGS_FILE = "gui_settings.json"
+# Limits on what a pack may declare: the sizes and counts come from the pack.
+MAX_DOC_BYTES = 64 << 20    # one JSON document (the manifest included)
+MAX_TRACKS = 50_000
 # The only documents a pack may bring: the names come from the pack itself,
 # and the app folder also holds the AI key and the planner config.
 PACK_FILES = (SETTINGS_FILE, "autosave_playlist.json", "cartwall.json")
@@ -127,10 +130,7 @@ def remap(obj: Any, mapping: dict) -> Any:
 
 
 def _exists(path: str) -> bool:
-    try:
-        return Path(path).is_file()
-    except OSError:
-        return False
+    return is_local_file(path)
 
 
 def relink(docs: dict, settings: dict) -> tuple[dict, int]:
@@ -229,19 +229,38 @@ def write_pack(dest: Path, docs: dict, include_music: bool,
 
 # ── Reading ──────────────────────────────────────────────────────────────────
 
+def _read_json(z: zipfile.ZipFile, name: str):
+    """One JSON member, read only when its declared size is sane: the size
+    comes from the pack, so it is checked before anything is inflated."""
+    info = z.getinfo(name)
+    if info.file_size > MAX_DOC_BYTES:
+        raise VenuePackError(f"entry too large: {name}")
+    with z.open(info) as f:
+        data = f.read(MAX_DOC_BYTES + 1)
+    if len(data) > MAX_DOC_BYTES:
+        raise VenuePackError(f"entry too large: {name}")
+    return json.loads(data.decode("utf-8"))
+
+
 def _manifest(z: zipfile.ZipFile) -> dict:
     try:
-        m = json.loads(z.read(MANIFEST).decode("utf-8"))
+        m = _read_json(z, MANIFEST)
     except (KeyError, ValueError) as exc:
         raise VenuePackError("no venue pack manifest") from exc
     if not isinstance(m, dict) or m.get("format") != FORMAT:
         raise VenuePackError("not a venue pack")
     if not isinstance(m.get("version"), int) or m["version"] > VERSION:
         raise VenuePackError("made by a newer version of the app")
+    files = m.get("files")
+    if files is not None and not (isinstance(files, list) and all(
+            isinstance(n, str) for n in files)):
+        raise VenuePackError("damaged file list")
     music = m.get("music")
     if music is not None and not (isinstance(music, dict) and all(
             isinstance(k, str) and isinstance(v, str) for k, v in music.items())):
         raise VenuePackError("damaged music list")
+    if music and len(music) > MAX_TRACKS:
+        raise VenuePackError("too many tracks")
     return m
 
 
@@ -257,7 +276,7 @@ def read_pack(src: Path) -> Pack:
                                 "file: %s", name)
                     continue
                 try:
-                    docs[name] = json.loads(z.read(name).decode("utf-8"))
+                    docs[name] = _read_json(z, name)
                 except (KeyError, ValueError) as exc:
                     raise VenuePackError(f"damaged entry: {name}") from exc
                 if name == SETTINGS_FILE and not isinstance(docs[name], dict):
@@ -294,6 +313,22 @@ def _landing(target: Path, info: zipfile.ZipInfo) -> Path:
     return cand
 
 
+def _check_room(z: zipfile.ZipFile, music: dict, dest_dir: Path) -> None:
+    """The declared size of the music against the free space, before a byte
+    is written: a pack saying 10 TB must not fill the disk first."""
+    infos = {i.filename: i.file_size for i in z.infolist()}
+    need = sum(infos.get(arc, 0) for arc in set(music.values()))
+    probe = dest_dir
+    while not probe.exists() and probe.parent != probe:
+        probe = probe.parent
+    try:
+        free = shutil.disk_usage(probe).free
+    except OSError:
+        return
+    if need > free:
+        raise VenuePackError("not enough free space for the music")
+
+
 def extract_music(src: Path, dest_dir: Path, progress=None, cancelled=None) -> dict:
     """Unpack the music under `dest_dir`; original path -> new path. A file
     already there with the same content is taken as the same file, so importing
@@ -304,6 +339,7 @@ def extract_music(src: Path, dest_dir: Path, progress=None, cancelled=None) -> d
     try:
         with zipfile.ZipFile(src) as z:
             music = _manifest(z).get("music") or {}
+            _check_room(z, music, dest_dir)
             for i, (orig, arc) in enumerate(music.items(), 1):
                 if cancelled and cancelled():
                     raise VenuePackCancelled()

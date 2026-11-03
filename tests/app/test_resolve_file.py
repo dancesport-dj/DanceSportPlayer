@@ -33,7 +33,7 @@ from planner.music.paths import resolve_file, search_roots
 from planner.playing import cartwall as pc
 from player.widgets.cartwall import CartwallWidget
 from player.window.main_cartwall import CartwallMixin
-from tests.qt_test_support import reap_widget
+from tests.qt_test_support import reap_widget, settle_wall_checks
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -203,6 +203,7 @@ class CartwallPadTest(_Base):
         wall = self._wall(FOREIGN)
         _Desk(self.settings, wall)._file_check_for_wall()
         wall.refresh_missing()
+        settle_wall_checks(wall)
         self.assertEqual(wall._missing, set())
 
     def test_a_pad_found_nowhere_stays_red_and_silent(self):
@@ -211,6 +212,7 @@ class CartwallPadTest(_Base):
         stub: Any = desk
         stub._file_check_for_wall()
         wall.refresh_missing()
+        settle_wall_checks(wall)
         self.assertEqual(wall._missing, {(0, (0, 0))})
         desk._on_pad_clicked((0, 0, 0))
         self.assertEqual(stub._cart_voices.fired, [])

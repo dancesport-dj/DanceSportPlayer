@@ -8,6 +8,7 @@ report.
 import importlib.util
 import logging
 
+import planner.config
 import planner.music.analysis
 import planner.music.db
 import planner.music.db_upkeep
@@ -52,7 +53,7 @@ _ALLCACHE_NAMES = {"audiofp": "audio fingerprints", "librosa": "librosa",
 
 
 def plan_allcache_steps(has_pd: bool, have_librosa: bool, have_ffmpeg: bool,
-                        have_mert: bool, have_chroma: bool) -> tuple:
+                        have_mert: bool, have_chroma: bool, player: bool = False) -> tuple:
     """(steps to run, what was left out and why) for the build-all pipeline.
 
     The playback caches come before the search indexes: they are the cheap ones
@@ -62,7 +63,9 @@ def plan_allcache_steps(has_pd: bool, have_librosa: bool, have_ffmpeg: bool,
     """
     steps = []
     skipped = []
-    if have_librosa:
+    if player:
+        pass       # the player build ships without librosa: not a gap to report
+    elif have_librosa:
         steps.append("librosa")
     else:
         # Grinding through the whole library only to fail on every single file
@@ -241,11 +244,13 @@ class AllCacheMixin(MainWindowHost):
             # it fails identically on every file: the pipeline used to churn through
             # the whole library, cache nothing and still report "all caches are
             # built", leaving "Find similar tracks" greyed out with no explanation.
-            why = self._librosa_unavailable(pool)
+            player = planner.config.player_build()
+            why = "" if player else self._librosa_unavailable(pool)
             say(i18n.t("🧱  Looking for ffmpeg and the AI backends…"))
             steps, skipped = plan_allcache_steps(
                 has_pd=any(e.dance == "PD" for e in pool),
                 have_librosa=not why,
+                player=player,
                 have_ffmpeg=bool(find_ffmpeg()),
                 have_mert=ae.mert_available(),
                 have_chroma=ae.chroma_available())
@@ -265,7 +270,8 @@ class AllCacheMixin(MainWindowHost):
         probe = next((e.path for e in pool), None)
         if probe is None:
             return ""
-        why = planner.music.analysis.probe_decode_backend(probe)
+        why = planner.music.analysis.probe_decode_backend_any(
+            [e.path for e in list(pool)[:3]])
         if why is None:
             return ""
         log.warning("🔬 Audio analysis unavailable\n"

@@ -236,6 +236,7 @@ def load_settings() -> dict:
         # each — it is a single pane, not one list per kind.
         "library_hidden_columns": [],
         "library_short_dances": False,
+        "library_date_only": False,
         "library_folder_view": False,
         "global_search": False,
         # 🏷 Titles without a class tag stay in generation unless ticked.
@@ -324,14 +325,15 @@ def audio_output_pairs() -> dict[str, int]:
 
 # Bumped when a column is added to the decks or the library: the column ticks,
 # widths and the library's order are saved by column INDEX.
-COLUMNS_VERSION = 8
+COLUMNS_VERSION = 11
 
 # The column each version added: (its index in the decks, in the library —
 # None where that side got none).
 # v2 ★ Rating, v3 Custom, v4 File name, v5 Album, v6 Comment, v7 Plays in the
-# decks, v8 Plays in the library.
+# decks, v8 Plays in the library, v9 Created, v10 Modified, v11 Year (library only).
 _ADDED_COLUMNS = {2: (9, 10), 3: (10, 11), 4: (11, 12), 5: (12, 13), 6: (13, 14),
-                  7: (14, None), 8: (None, 15)}
+                  7: (14, None), 8: (None, 15), 9: (None, 16), 10: (None, 17),
+                  11: (None, 18)}
 
 
 def migrate_column_settings(s: dict) -> dict:
@@ -1326,10 +1328,13 @@ class UsbExportDialog(QDialog):
     of a bundle, the 📦 venue pack (the one ⚙ Settings exports too): a button of
     its own, since it combines with nothing.
     `include_decks()`, `include_day()`, `include_party()`, `include_wishlists()`,
-    `venue_pack()` → bool; `dropped_paths()` → list[Path]."""
+    `venue_pack()` → bool; `dropped_paths()` → list[Path].
+    `deck_names` / `wish_names` (only the ones with titles): each gets a tick of
+    its own under its box; `deck_picks()` / `wish_picks()` → the ticked positions."""
 
     def __init__(self, parent=None, n_decks: int = 0, n_day: int = 0,
-                 day_selected: bool = False, n_wish: int = 0, n_party: int = 0):
+                 day_selected: bool = False, n_wish: int = 0, n_party: int = 0,
+                 deck_names=(), wish_names=()):
         super().__init__(parent)
         self.setWindowTitle("🧳 USB export")
         self.setMinimumWidth(440)
@@ -1351,9 +1356,23 @@ class UsbExportDialog(QDialog):
         boxes = ((self._cb_decks, n_decks), (self._cb_day, n_day),
                  (self._cb_party, n_party), (self._cb_wish, n_wish),
                  (self._cb_dropped, 1))
+        self._deck_ticks = []
+        self._wish_ticks = []
         for box, count in boxes:
             box.setEnabled(count > 0)
             lyt.addWidget(box)
+            for names, ticks, owner in ((deck_names, self._deck_ticks, self._cb_decks),
+                                        (wish_names, self._wish_ticks, self._cb_wish)):
+                if box is owner and len(names) > 1:
+                    for name in names:
+                        tick = QCheckBox(name)
+                        tick.setChecked(True)
+                        tick.setStyleSheet("margin-left:24px;")
+                        tick.toggled.connect(self._sync_state)
+                        owner.toggled.connect(tick.setEnabled)
+                        tick.setEnabled(owner.isChecked())
+                        lyt.addWidget(tick)
+                        ticks.append(tick)
         # What the export took before there were boxes; the party list and the
         # wishlists are asked for, unless the party list is all there is.
         if day_selected and n_day:
@@ -1418,7 +1437,18 @@ class UsbExportDialog(QDialog):
         return self._venue_pack
 
     def include_decks(self) -> bool:
-        return self._cb_decks.isChecked()
+        return self._cb_decks.isChecked() and self._any(self._deck_ticks)
+
+    @staticmethod
+    def _any(ticks) -> bool:
+        return not ticks or any(t.isChecked() for t in ticks)
+
+    def deck_picks(self) -> list[int]:
+        """Positions of the ticked playlists; all when there is no list of them."""
+        return [i for i, t in enumerate(self._deck_ticks) if t.isChecked()]
+
+    def wish_picks(self) -> list[int]:
+        return [i for i, t in enumerate(self._wish_ticks) if t.isChecked()]
 
     def include_day(self) -> bool:
         return self._cb_day.isChecked()
@@ -1427,7 +1457,7 @@ class UsbExportDialog(QDialog):
         return self._cb_party.isChecked()
 
     def include_wishlists(self) -> bool:
-        return self._cb_wish.isChecked()
+        return self._cb_wish.isChecked() and self._any(self._wish_ticks)
 
     def dropped_paths(self) -> list[Path]:
         if not self._cb_dropped.isChecked():

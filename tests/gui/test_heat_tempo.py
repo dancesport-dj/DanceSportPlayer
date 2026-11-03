@@ -152,6 +152,12 @@ class TaperTest(unittest.TestCase):
               "Finale": [[_e("WW", 58)]]}
         self.assertEqual(self._warns(pl), [])
 
+    def test_two_rounds_without_a_semifinal_do_not_warn(self):
+        # Review #59: a Vorrunde + Finale field has no semifinal at all.
+        pl = {"Vorrunde": [[_e("WW", 58)]],
+              "Finale": [[_e("WW", 58)]]}
+        self.assertEqual(self._warns(pl), [])
+
     def test_single_round_field_is_skipped(self):
         pl = {"Finale": [[_e("WW", 58)], [_e("WW", 58)]]}
         self.assertEqual(self._warns(pl), [])

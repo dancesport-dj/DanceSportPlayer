@@ -56,6 +56,7 @@ from player.window.main_audio import (
     DUCK_DOWN_MS,  # noqa: F401
     DUCK_UP_MS,  # noqa: F401
     AudioLevelMixin,
+    pendingWork,
 )
 from player.window.main_load import TrackLoadMixin
 from player.window.main_pause import PauseMusicMixin, live_target
@@ -1184,8 +1185,9 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
                             and self._library.cache.is_pd_manual(self._playback.path))
                    else "🐂")
             self._set_countdown(f"{tag}  {r // 60}:{r % 60:02d}")
-        elif (self._pd_worker is not None
-                and self._pd_worker.isRunning()):
+        elif (self._playback.path is not None
+                and (worker := pendingWork(self).pd_workers.get(str(self._playback.path)))
+                is not None and worker.isRunning()):
             self._set_countdown("🐂  detecting highlights…")
         else:
             self._set_countdown("🐂  plays to the end")
@@ -1607,6 +1609,11 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
             self._player.setPosition(ms)
             self._sync_big_player_limit()
         if status == QMediaPlayer.MediaStatus.EndOfMedia:
+            live = getattr(self._player, "mediaStatus", None)
+            if callable(live) and live() != QMediaPlayer.MediaStatus.EndOfMedia:
+                # #62: a queued end of the title just replaced — the player is
+                # already on the next one, which must not be stopped or unloaded.
+                return
             if self._is_playing_mode():
                 # ↩ Heard out — no mark. Only in the big player: the overlay is
                 # a pre-listen and never touches a mark, not even by running a

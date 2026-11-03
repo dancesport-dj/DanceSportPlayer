@@ -130,6 +130,16 @@ class TreeViewTest(unittest.TestCase):
         self.tree.set_sort("count")
         self.assertEqual(self.tree.folder(), key)
 
+    def test_toggling_the_sort_twice_leaves_the_labels_alone(self):
+        self.tree.set_titles([entry("D:/Root/Big/Mid/Leaf/a.mp3"), entry("D:/Root/Other/b.mp3"),
+                              entry("D:/Root/Other/c.mp3")])
+        before = self.names()
+        self.tree.set_sort("count")
+        self.tree.set_sort("name")
+        self.tree.set_sort("count")
+        self.tree.set_sort("name")
+        self.assertEqual(self.names(), before)
+
 
 class PaneTest(unittest.TestCase):
 

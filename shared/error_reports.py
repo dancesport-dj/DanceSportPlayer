@@ -99,6 +99,8 @@ def scrub(event: dict) -> dict:
             return {k: walk(v) for k, v in value.items()}
         if isinstance(value, list):
             return [walk(v) for v in value]
+        if isinstance(value, tuple):
+            return tuple(walk(v) for v in value)
         return value
 
     out = walk(event)

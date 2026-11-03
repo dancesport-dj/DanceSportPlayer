@@ -68,7 +68,8 @@ class ControllerBadgeTest(unittest.TestCase):
 
     def test_it_goes_when_the_controller_does(self):
         _FakeMidi.present = set()
-        self.win.set_controller_config(_NANO)
+        self.win._disconnect_controller()
+        self.win._connect_controller()
         self.assertTrue(self._badge().isHidden())
         _FakeMidi.present = {"nanoKONTROL2"}
         self.win._ctl_retry.timeout.emit()
@@ -84,6 +85,22 @@ class ControllerBadgeTest(unittest.TestCase):
         with mock.patch.object(self.win, "open_controller_window") as opened:
             self._badge().click()
         opened.assert_called_once_with()
+
+    def test_a_mapping_edit_keeps_the_open_device(self):
+        """Learning several pads in a row must not close and reopen the port (#64)."""
+        device = self.win._ctl_input
+        self.assertIsNotNone(device)
+        with mock.patch.object(self.win, "_disconnect_controller") as off,                 mock.patch.object(self.win, "_connect_controller") as on:
+            self.win.set_controller_config({**_NANO, "bindings": {"c1": "play"}})
+        off.assert_not_called()
+        on.assert_not_called()
+        self.assertIs(self.win._ctl_input, device)
+
+    def test_another_device_still_reconnects(self):
+        with mock.patch.object(self.win, "_disconnect_controller") as off,                 mock.patch.object(self.win, "_connect_controller") as on:
+            self.win.set_controller_config({**_NANO, "device": ""})
+        off.assert_called_once()
+        on.assert_called_once()
 
 
 if __name__ == "__main__":

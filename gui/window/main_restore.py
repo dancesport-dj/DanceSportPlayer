@@ -428,7 +428,8 @@ class RestoreMixin(MainWindowHost):
             self._deckset.warmup_table.load_warmup(
                 entries, label, state.get("style", "") or "",
                 state.get("dance_class", "S"), bool(state.get("relax", True)),
-                play_cb=self._play_or_stop, suggester=PlaylistSuggester(self._library.lib))
+                play_cb=self._play_or_stop, suggester=PlaylistSuggester(self._library.lib),
+                heat_plan=[tuple(r) for r in state.get("heat_plan") or []])
         self._set_deck_name(self._deckset.warmup_table, label)
         self._warmup_closed = bool(state.get("closed", False))
         self._grid.warmup_box.setVisible(not self._warmup_closed)

@@ -72,9 +72,21 @@ CATALOG = {
     "Start after:": "Start nach:",
     "Stop after highlight:": "Stopp nach Highlight:",
     "Max tracks:": "Maximale Titel:",
+    "🏁  Competition training list (heats per dance, then the final)": "🏁  Turnier-Trainingsliste (Runden pro Tanz, dann das Finale)",
+    "Dances (untick the ones you do not need):": "Tänze (nicht benötigte abwählen):",
+    "Heats per round:": "Heats pro Runde:",
+    "Rounds:": "Runden:",
+    "Final heats:": "Finalheats:",
+    "Every dance gets this many tracks in a round, one per heat.": "Jeder Tanz bekommt in einer Runde so viele Titel, einen pro Heat.",
+    "The last round is the final.": "Die letzte Runde ist das Finale.",
+    "Heats per dance in the final.": "Heats pro Tanz im Finale.",
+    "%d tracks: %d dances x %d heats": "%d Titel: %d Tänze x %d Heats",
+    "Competition Training": "Wettkampf-Training",
+    "Tick at least one dance.": "Hake mindestens einen Tanz an.",
     "Proven": "Bewährt",
     "Top Proven": "Top bewährt",
     "Fresh": "Frisch",
+    "Rarely played": "Selten",
     # Five of these combos stack in a panel laid out around the English
     # captions, so the German ones have to stay inside the widest of them.
     # What each strategy actually does is in its tooltip.
@@ -83,8 +95,10 @@ CATALOG = {
     "Songs you have played before (fresh as fallback).":
         "Titel, die du schon gespielt hast (frische als Ersatz).",
     "Only your most-played songs.": "Nur deine meistgespielten Titel.",
-    "Unused songs first (proven as fallback).":
-        "Ungespielte Titel zuerst (bewährte als Ersatz).",
+    "New songs first, at most 2 years in the library (proven as fallback).":
+        "Neue Titel zuerst, höchstens 2 Jahre in der Bibliothek (bewährte als Ersatz).",
+    "Rarely or never played songs first, whatever their age (proven as fallback).":
+        "Selten oder nie gespielte Titel zuerst, egal wie alt (bewährte als Ersatz).",
     "Proven + fresh together, but favors songs you have played before.":
         "Bewährte und frische zusammen, bevorzugt aber Titel, die du schon gespielt hast.",
     "Proven + fresh with no preference — equal chance, maximum variety.":
@@ -488,6 +502,7 @@ CATALOG = {
     "Parse schedule": "Zeitplan einlesen",
     "Filter by the instrumental tag": "Nach Instrumental-Kennzeichen filtern",
     "Short dance names  (LW, SB)": "Kurze Tanznamen  (LW, SB)",
+    "Date only (no hour)": "Nur Datum (ohne Uhrzeit)",
     "Auto re-roll round on strategy change":
         "Runde bei Strategiewechsel neu würfeln",
     "Re-analyze tracks that already have highlights":
@@ -895,8 +910,16 @@ CATALOG = {
         "Tempo auf ±0 % zurücksetzen (oder Doppelklick auf den Fader)",
     "Volume adjustment of this track by Equalize volume (R128)":
         "Lautstärkeanpassung dieses Titels durch Lautstärke angleichen (R128)",
-    "When this file was created in the library":
-        "Wann diese Datei in der Bibliothek angelegt wurde",
+    "When the library first saw the file (the date it was imported)":
+        "Wann die Bibliothek die Datei zum ersten Mal gesehen hat (das Importdatum)",
+    "When the file was created on disk (a copied file gets a new creation time)":
+        "Wann die Datei auf dem Datenträger erstellt wurde (eine kopierte Datei bekommt ein neues Erstelldatum)",
+    "When the file was last written, tag edits included":
+        "Wann die Datei zuletzt geschrieben wurde, Tag-Änderungen eingeschlossen",
+    "Year from the MP3 tag; the file name only when the tag has none":
+        "Jahr aus dem MP3-Tag; der Dateiname nur, wenn der Tag keins hat",
+    "Created": "Erstellt",
+    "Modified": "Geändert",
     "Replace via the similar-tracks picker":
         "Über die Auswahl ähnlicher Titel ersetzen",
     "Put the shipped rule set back.": "Mitgeliefertes Regelwerk wiederherstellen.",
@@ -4424,6 +4447,30 @@ CATALOG = {
         "🔁  %d ersetzt, ➕ %d Titel hinzugefügt",
     "  (%s — skipped)":
         "  (%s — übersprungen)",
+    "↩  %d same-title file(s) left out":
+        "↩  %d Datei(en) mit gleichem Titel weggelassen",
+    "Duplicates in this list":
+        "Duplikate in dieser Liste",
+    "Duplicate songs in this list, in running order.<br><span style='color:#666'>🟰 <b>Exact</b> = identical audio. ≈ <b>Similar</b> = same title, a different recording. Keep the ones you want; switch the others to <b>Replace</b> and pick a track for each, or to <b>Remove</b>.</span>":
+        "Doppelte Titel in dieser Liste, in Spielreihenfolge.<br><span style='color:#666'>🟰 <b>Exakt</b> = identisches Audio. ≈ <b>Ähnlich</b> = gleicher Titel, andere Aufnahme. Behalte die gewünschten; stelle die anderen auf <b>Ersetzen</b> und wähle je einen Titel, oder auf <b>Entfernen</b>.</span>",
+    "Duplicate songs across your open playlist(s), in playlist order.":
+        "Doppelte Titel in deinen offenen Playlists, in Playlist-Reihenfolge.",
+    "🎼  Comparing recordings…":
+        "🎼  Aufnahmen werden verglichen…",
+    "These dropped titles are in the list already. What should happen to each?":
+        "Diese abgelegten Titel sind schon in der Liste. Was soll mit jedem passieren?",
+    "🟰  Same audio":
+        "🟰  Gleiches Audio",
+    "≈  Same title or recording":
+        "≈  Gleicher Titel oder gleiche Aufnahme",
+    "In the list: %s":
+        "In der Liste: %s",
+    "Dropped: %s":
+        "Abgelegt: %s",
+    "Skip":
+        "Überspringen",
+    "Tab moves through the titles · S = skip · R = replace · E / B = keep both": "Tab wechselt zwischen den Titeln · S = überspringen · R = ersetzen · E / B = beide behalten",
+    "K = keep · R = replace · D / X = remove": "K = behalten · R = ersetzen · D / X = entfernen",
     "%d already planned":
         "%d schon eingeplant",
     "%d with no dance":
@@ -6726,4 +6773,23 @@ CATALOG = {
         'Zeigt die Ordner neben der Liste: Ein gewählter Ordner listet nur die\nTitel direkt darin. Hier blendet 🆕 Ungeplant die geplante Datei selbst\naus, dieselbe Musik in einem anderen Ordner bleibt und bekommt ♊.',
     '♊ The same music is planned from another folder':
         '♊ Dieselbe Musik ist aus einem anderen Ordner verplant',
+    '🎼 Same recording': '🎼 Gleiche Aufnahme',
+    'Also find the same recording under different file names?\n\nThat reads the sound of %s track(s), about 0.2 s each. You can cancel anytime; results so far are kept.':
+        'Auch dieselbe Aufnahme unter anderen Dateinamen finden?\n\nDafür wird der Klang von %s Titel(n) gelesen, etwa 0,2 s pro Titel. Du kannst jederzeit abbrechen; bisherige Ergebnisse bleiben erhalten.',
+    'Not a round pattern — fix it (e.g. 6-3-2-1).':
+        'Kein Rundenmuster — bitte korrigieren (z. B. 6-3-2-1).',
+    'The heats of a dance in a round sound alike: the first track is the\nanchor, the others are its nearest by timbre. The final and semifinal\nprefer the titles you played there before.':
+        'Die Läufe eines Tanzes in einer Runde klingen ähnlich: der erste Titel ist der\nAnker, die anderen sind seine nächsten Nachbarn im Klang. Finale und Semifinale\nbevorzugen die Titel, die du dort schon gespielt hast.',
+    'Fresh titles in the early rounds:':
+        'Frische Titel in den frühen Runden:',
+    'Share of the heats in the rounds before the semifinal that go to fresh titles. The semifinal and the final keep to the titles you know.':
+        'Anteil der Läufe in den Runden vor dem Semifinale, die an frische Titel gehen. Semifinale und Finale bleiben bei den Titeln, die du kennst.',
+    'New (at most 2 years in the library)':
+        'Neu (höchstens 2 Jahre in der Bibliothek)',
+    'Rarely played (any age)':
+        'Selten gespielt (jedes Alter)',
+    'Which titles count as fresh: new ones, or any title that was hardly ever played.':
+        'Welche Titel als frisch gelten: neue oder jeder Titel, der kaum je gespielt wurde.',
+    'Reading Chromaprints…':
+        'Chromaprints werden gelesen…',
 }

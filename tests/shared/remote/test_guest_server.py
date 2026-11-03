@@ -39,6 +39,11 @@ class ServerTest(unittest.TestCase):
         conn.close()
         return out
 
+    def test_a_204_carries_no_content_length(self):
+        status, headers, _ = self._req("POST", "/api/request", {"song": "a1b2c3d4"})
+        self.assertEqual(status, 204)
+        self.assertNotIn("Content-Length", headers)
+
     def test_the_page_needs_no_code_and_carries_the_labels(self):
         status, headers, body = self._req("GET", "/", code=None)
         self.assertEqual(status, 200)

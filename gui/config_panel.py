@@ -31,7 +31,7 @@ from gui.common import (
 )
 from planner import i18n, terms
 from planner.event.competition import CompetitionSpec, parse_competition_schedule
-from planner.generate.scoring import STRATEGIES, STRATEGY_HELP, STRATEGY_LABELS, resolve_strategy
+from planner.generate.scoring import FRESH_STRATEGIES, STRATEGIES, STRATEGY_HELP, STRATEGY_LABELS, resolve_strategy
 from planner.models import (
     DANCE_STYLES,
     DEFAULT_DANCES,
@@ -99,6 +99,7 @@ class ConfigPanel(QWidget):
         self._strategy_combos: dict[str, QComboBox] = {}
         self._scope_checks: dict[str, QCheckBox] = {}   # per-round 🎯 same-comp toggle
         self._last_parsed_rounds: str = ""   # guard against redundant re-parse
+        self.rounds_valid = True   # False while the rounds text does not parse (#76)
         # Will be populated in _update_dances
         self.dance_checks: dict[str, QCheckBox] = {}
 
@@ -513,14 +514,23 @@ class ConfigPanel(QWidget):
             self.dance_checks[d] = cb
             self.dances_layout.addWidget(cb)
 
+    def _flag_rounds(self, ok: bool):
+        """Mark the rounds field red when its text is not a round pattern."""
+        self.rounds_valid = ok
+        self.rounds_edit.setStyleSheet("" if ok else "border:1px solid #c0392b;")
+        self.rounds_edit.setToolTip("" if ok else i18n.t("Not a round pattern — fix it (e.g. 6-3-2-1)."))
+
     def _parse_rounds(self):
         raw = self.rounds_edit.text().strip()
         if raw == self._last_parsed_rounds:
+            self._flag_rounds(True)
             return   # text unchanged – keep existing combo selections
-        self._last_parsed_rounds = raw
         cfgs = rounds_from_pattern(raw)
         if not cfgs:
-            return
+            self._flag_rounds(False)   # the old rounds stay on screen, but generate refuses
+            return   # not remembered: retyping it must be judged again (#76)
+        self._flag_rounds(True)
+        self._last_parsed_rounds = raw
         self._round_cfgs = cfgs
 
         # Rebuild strategy UI
@@ -645,7 +655,7 @@ class ConfigPanel(QWidget):
             combo = self._strategy_combos.get(rc.name)
             if combo:
                 rc.strategy = Strategy.of(combo.currentData())
-                rc.prefer_fresh = (rc.strategy == Strategy.FRESH)   # keep legacy flag in sync
+                rc.prefer_fresh = (rc.strategy in FRESH_STRATEGIES)   # keep legacy flag in sync
         use_timbre = self.timbre_check.isChecked()
         return style, age, cls, dances, self._round_cfgs, use_timbre
 
@@ -766,7 +776,7 @@ class ConfigPanel(QWidget):
             combo = self._strategy_combos.get(rc.name)
             if combo:
                 rc.strategy = Strategy.of(combo.currentData())
-                rc.prefer_fresh = (rc.strategy == Strategy.FRESH)
+                rc.prefer_fresh = (rc.strategy in FRESH_STRATEGIES)
         return spec, self._round_cfgs, self.timbre_check.isChecked()
 
     def set_library_status(self, msg: str, enable_generate: bool = False,

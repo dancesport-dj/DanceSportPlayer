@@ -345,7 +345,7 @@ class CartwallMixin(MainWindowHost):
         if wall is not None:
             wall.set_background_pauses(pauses)   # the pad dialog's 🎶 wording
             wall.set_background_volume(pc.background_volume(self._settings))
-            wall.refresh_missing()   # the search folders may have changed
+            wall.refresh_missing(fresh=True)   # the search folders may have changed
 
     def _file_check_for_wall(self):
         """A pad is red only when 🧭's search finds its file nowhere either.

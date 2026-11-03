@@ -122,8 +122,15 @@ class SavingTest(AiTabCase):
         dlg = self.build()
         dlg._ai_model.setCurrentText("  x/y  ")
         dlg._ai_first.setChecked(True)
+        # the key field was not touched: None leaves the stored key alone (#38)
         self._save(dlg).assert_called_once_with(
-            CFG["api_key"], "x/y", CFG["base_url"], ask_first=True)
+            None, "x/y", CFG["base_url"], ask_first=True)
+
+    def test_a_typed_key_is_saved_with_the_edit(self):
+        dlg = self.build()
+        dlg._ai_key.setText("new-key")
+        self._save(dlg).assert_called_once_with(
+            "new-key", CFG["model"], CFG["base_url"], ask_first=False)
 
     def test_ok_writes_it(self):
         dlg = self.build()

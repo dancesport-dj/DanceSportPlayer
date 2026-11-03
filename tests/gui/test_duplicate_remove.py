@@ -19,7 +19,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_dup_remove_"))
 
-from PySide6.QtWidgets import QApplication, QComboBox, QMessageBox
+from PySide6.QtWidgets import QApplication, QComboBox, QGroupBox, QLabel, QMessageBox
 
 from gui.dialogs.duplicate_dialog import DuplicateResolveDialog
 from tests.gui.window.test_duplicate_check_scope import _Status, _waltz, _Win
@@ -111,6 +111,36 @@ class DuplicateRemoveTest(unittest.TestCase):
         self.assertEqual([e.title for e in wl.wishlist_entries()], ["Omega", "Delta"])
         self.assertEqual(str(wl.wishlist_entries()[0].path), str(_waltz("Omega").path))
 
+
+    def test_keys_pick_the_choice_of_the_focused_row_and_move_on(self):
+        from PySide6.QtCore import Qt
+        from PySide6.QtTest import QTest
+        wl = self.win._deckset.wishlists[0]
+        self.win.fill_list(wl, [_waltz("Omega"), _waltz("Omega", folder="other")])
+        dlg = self._dialog()
+        combo = next(c for c in dlg.findChildren(QComboBox) if c.findText("🗑  Remove") >= 0)
+        with mock.patch.object(combo, "focusNextChild") as advance:
+            QTest.keyClick(combo, Qt.Key.Key_D)
+        self.assertEqual(combo.currentData(), "remove")
+        advance.assert_called_once()
+
+
+class SingleListDialogTest(DuplicateRemoveTest):
+    """Opened by a drop that brought duplicates: this list only, no tabs."""
+
+    def test_one_list_without_tabs_or_list_names(self):
+        self.win.fill_deck(self.deck_a, [self.a, self.b, self.a])
+        report = self.win._deck_dup_report([self.deck_a])
+        self.assertEqual(report.get("cross"), [])
+        dlg = DuplicateResolveDialog(report, self.win, pick_fn=lambda e: None,
+                                     single_list=True)
+        self.addCleanup(reap_widget, dlg)
+        self.assertFalse(dlg._tabs.tabBar().isVisibleTo(dlg))
+        self.assertEqual(dlg._tabs.count(), 1)
+        titles = [g.title() for g in dlg.findChildren(QGroupBox)]
+        self.assertEqual([t for t in titles if t], [])
+        texts = [lbl.text() for lbl in dlg.findChildren(QLabel)]
+        self.assertFalse(any("Shared between" in t or "Doubled inside" in t for t in texts))
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

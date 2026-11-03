@@ -10,7 +10,7 @@ from collections import deque
 from pathlib import Path
 from types import SimpleNamespace
 
-from planner.generate.scoring import effective_popularity
+from planner.generate.scoring import effective_popularity, is_new_title, prefer_late_rounds
 from planner.models import (
     BELOW_TEMPO_EXT,
     DANCE_NAMES,
@@ -24,6 +24,7 @@ from planner.models import (
     fold_text,
     is_non_turnier,
 )
+from planner.music.similarity import timbre_similarity
 
 # ── Warm-up ("Eintanzen") playlist generator ────────────────────────────────
 # A long shuffled practice-floor playlist (NOT competition rounds): dances are
@@ -819,6 +820,154 @@ def build_class_warmup(entries, style, dance_class, *, max_tracks=200,
     if progress_cb:
         progress_cb(len(result), total)
     return result
+
+
+def competition_rounds(heats, rounds, final_heats):
+    """The heats of each round, as [(name, heats)]: `rounds` rounds of `heats`
+    heats, the last of them the final with `final_heats`. The names are the
+    German ones the screen translates ('Runde 1', 'Finale')."""
+    rounds = max(1, int(rounds))
+    plan = [(f"Runde {i}", max(1, int(heats))) for i in range(1, rounds)]
+    plan.append(("Finale", max(1, int(final_heats))))
+    return plan
+
+
+def competition_plan(dances, heats, rounds, final_heats, built):
+    """How `built` tracks of a competition training list fall into its rounds,
+    as [(name, heats, songs)] — a pool that ran dry cuts the plan on the last
+    whole heat."""
+    per_heat = len(dances)
+    left = built // per_heat if per_heat else 0
+    plan = []
+    for name, n in competition_rounds(heats, rounds, final_heats):
+        n = min(n, left)
+        if n:
+            plan.append((name, n, n * per_heat))
+        left -= n
+    return plan
+
+
+def build_competition_training(entries, style, dance_class, dances, heats,
+                               rounds=2, final_heats=1, *, relax=True,
+                               use_timbre=True, fresh_ratio=0.0,
+                               fresh_mode="fresh", progress_cb=None) -> list[MusicEntry]:
+    """Training list shaped like a competition: `rounds` rounds of `heats`
+    heats each, the last round being the final with `final_heats`. One heat is
+    one pass through `dances` with a track each, so 6 dances in a round of 3
+    heats and a final of 1 heat is 24 tracks. Every pick is TSO-conform for the
+    class, each track is used once and the most-played come first. A dance
+    whose pool runs dry ends the list on the last whole heat.
+
+    Inside a round the heats of one dance are played together, as at a
+    competition: SA SA SA CC CC CC … for three heats, not SA CC SA CC SA CC.
+
+    The heats of a dance in a round sound alike (`use_timbre`: the first
+    track is the anchor, the rest are its nearest by timbre). The final, and
+    the semifinal from three rounds on, prefer the titles played in that
+    round before (`prefer_late_rounds`); they are filled first so the earlier
+    rounds do not take those titles. `fresh_ratio` (0..1) is the share of the
+    heats in the earlier rounds that go to the least-played titles instead:
+    with `fresh_mode` "fresh" only new ones (at most two years in the
+    library), with "rarely" any age."""
+    wanted = sum(n for _name, n in competition_rounds(heats, rounds, final_heats))
+    queues: dict[str, deque] = {}
+    for d in dances:
+        pool = class_warmup_pool(entries, style, d, dance_class, relax=relax)
+        pool.sort(key=lambda e: (effective_popularity(e, dance_class),
+                                 random.random()), reverse=True)
+        queues[d] = deque(pool)
+    # Whole heats only: the shortest pool decides how many can be filled.
+    wanted = min([wanted] + [len(q) for q in queues.values()]) if queues else 0
+    total = wanted * len(queues)
+    plan = competition_plan(dances, heats, rounds, final_heats, total)
+    picked: dict[int, list] = {}
+    done = 0
+    last = len(plan) - 1
+    # The semifinal first, as the planner does: each asks for its own history
+    # before the other's, and the final must not find its shelf emptied.
+    late = [last - 1, last] if last >= 2 else [last] if plan else []
+    order = late + [i for i in reversed(range(len(plan))) if i not in late]
+    for i in order:
+        tier = ("final" if i == last
+                else "semi" if i == last - 1 and last >= 2 else "early")
+        round_tracks = []
+        for d in dances:
+            round_tracks += _pick_heats(queues[d], plan[i][1], tier, use_timbre,
+                                     fresh_ratio, fresh_mode)
+            done += plan[i][1]
+            if progress_cb:
+                progress_cb(done, total)
+        picked[i] = round_tracks
+    result = [e for i in range(len(plan)) for e in picked[i]]
+    if progress_cb:
+        progress_cb(len(result), total)
+    return result
+
+
+_TIMBRE_CANDIDATES = 80   # the most played tracks left that a heat compares
+
+
+def _ranked_by_timbre(anchor, tracks: list) -> list:
+    """`tracks` with the most alike to `anchor` first, as far as the timbre
+    metric reaches (the first `_TIMBRE_CANDIDATES`); the rest keep their order."""
+    if anchor.features is None:
+        return tracks
+    near = tracks[:_TIMBRE_CANDIDATES]
+    sims = timbre_similarity(anchor.features, near)
+    near = sorted(near, key=lambda e: -sims.get(str(e.path), 0.0))
+    return near + tracks[_TIMBRE_CANDIDATES:]
+
+
+def _pick_heats(queue: deque, n: int, tier: str, use_timbre: bool,
+                fresh: float = 0.0, fresh_mode: str = "fresh") -> list:
+    """The `n` tracks of one dance in one round, taken out of `queue` (the
+    most-played first): the round's best title, then the ones that sound most
+    like it. A final or semifinal picks from the titles played there before.
+    An early round gives `fresh` (0..1) of its heats to the least-played
+    titles instead, the nearest of those to the anchor."""
+    pool = list(queue)
+    cand = prefer_late_rounds(pool, tier)
+    n_fresh = round(n * fresh) if tier == "early" else 0
+    if n_fresh >= n:   # a full fresh share: not even the anchor is a known title
+        young = [e for e in reversed(pool) if fresh_mode == "rarely" or is_new_title(e)]
+        if young:
+            first = young[0]
+            rest = young[1:_TIMBRE_CANDIDATES + 1]
+            if n > 1 and use_timbre:
+                rest = _ranked_by_timbre(first, rest)
+            chosen = ([first] + rest)[:n]
+            taken = {id(e) for e in chosen}
+            chosen += [e for e in pool if id(e) not in taken][:n - len(chosen)]
+            taken = {id(e) for e in chosen}
+            queue.clear()
+            queue.extend(e for e in pool if id(e) not in taken)
+            return chosen
+    if n > 1:
+        n_fresh = min(n_fresh, n - 1)   # the anchor stays a title you know
+    first, rest = cand[0], cand[1:]
+    if n == 1 and n_fresh:
+        young = [e for e in reversed(pool) if fresh_mode == "rarely" or is_new_title(e)]
+        if young:
+            first = young[0]
+            rest = [e for e in pool if e is not first]
+    newest = []
+    if n > 1 and n_fresh:
+        tail = [e for e in reversed(pool) if e is not first
+                and (fresh_mode == "rarely" or is_new_title(e))][:_TIMBRE_CANDIDATES]
+        if use_timbre:
+            tail = _ranked_by_timbre(first, tail)
+        newest = tail[:n_fresh]
+        gone = {id(e) for e in newest}
+        rest = [e for e in rest if id(e) not in gone]
+    if n > 1 and use_timbre:
+        rest = _ranked_by_timbre(first, rest)
+    seen = {id(first)} | {id(e) for e in rest} | {id(e) for e in newest}
+    more = rest + [e for e in pool if id(e) not in seen]
+    chosen = [first] + newest + more[:n - 1 - len(newest)]
+    taken = {id(e) for e in chosen}
+    queue.clear()
+    queue.extend(e for e in pool if id(e) not in taken)
+    return chosen
 
 
 def entry_in_style(entry: MusicEntry, style: str | None) -> bool:

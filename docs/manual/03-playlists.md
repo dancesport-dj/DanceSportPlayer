@@ -133,7 +133,7 @@ that already holds it, and the list asks what to do:
 - **Cancel** leaves the list as it was.
 
 An empty slot offers **Replace** (the title moves here) instead of the first
-two. Several titles dropped at once skip the ones the list already holds.
+two. Several titles dropped at once are checked together, see below.
 
 The question does not block the app: the player stays usable while it is up,
 and the longer hints are tooltips on the buttons. **Replace** and **Swap** flash
@@ -145,6 +145,27 @@ In playing mode a drop into a party list also offers **Add**: the title plays
 here and stays at its old place as well. Once it has played, both rows turn
 grey, and a grey row still plays when its turn comes. In planning mode a list
 never gets a second copy.
+
+### Another recording of a title the list holds
+
+Files dropped onto a deck, a wishlist or a free-order list are checked against
+the list before anything is added. A title counts as held when the list has the
+same audio, the same file name or title, a similar title (the rule of
+**🔁 Check duplicates**, so "Friends and Lovers" matches "Friends and Lovers Cut
+Version"), or the same recording by its sound (this needs `fpcalc`).
+
+- **One such title**: a box with **Replace**, **Keep both** or **Keep
+  existing**. Keep existing drops the new file.
+- **Several titles**: one window with a row per title, the two file names on the
+  left and a choice on the right: **⏭ Skip** (the default), **🔁 Replace** or
+  **➕ Keep both**. **Tab** walks the rows and outlines the one with the focus.
+  **S** skips, **R** replaces, **E** or **B** keeps both, and the focus moves
+  on to the next row. **OK** carries the choices out; **Cancel** adds nothing
+  of the whole drop.
+
+Replace puts the new file where the old one was and removes the old one. One
+exact copy dropped alone is skipped quietly. An `.m3u` import keeps its own
+duplicate window.
 
 ## ⭐ Wishlists
 

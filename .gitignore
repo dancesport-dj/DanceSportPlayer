@@ -88,3 +88,7 @@ relay/relay-state.json
 # Model review notes and fix TODOs (local working notes)
 REVIEW-*.md
 TODO-*.md
+
+# Third-party fpcalc build (Chromaprint, see BUILD.md — download it, don't commit it)
+chromaprint-fpcalc-*/
+fpcalc.exe

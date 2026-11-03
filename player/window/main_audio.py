@@ -24,6 +24,7 @@ from player.audio.mix import (
     fade_in_secs,
     resume_fade_secs,
 )
+from player.audio.pending_work import PendingWork
 from shared.audio.audio_probes import (  # auto-resolved
     HardEndWorker,
     LoudnessWorker,
@@ -58,6 +59,11 @@ _SILENCE_SKIP_MIN = 1.5
 # Past the cap the title starts anyway and the gain is ramped in on the fly
 # (player.audio.mix decides how long that swell takes).
 _LUFS_WAIT_MS = 1000
+
+
+def pendingWork(host) -> PendingWork:
+    """The window's PendingWork; made on first use for a host that never built one."""
+    return vars(host).setdefault("_pending", PendingWork())
 
 
 class AudioLevelMixin(MainWindowHost):
@@ -315,6 +321,10 @@ class AudioLevelMixin(MainWindowHost):
         through `_resume_after_loudness` once the number is in.
         """
         self._lufs_pending = None   # any new load supersedes an older wait
+        # The wait ran out for this very title and its play is starting now:
+        # it must not wait again (the probe may run for minutes on a long file).
+        expired = pendingWork(self).lufs_expired == path
+        pendingWork(self).lufs_expired = None
         if not self._pv("loudness") or not self._library.cache:
             return False
         if str(path) in self._lufs_failed:
@@ -340,9 +350,10 @@ class AudioLevelMixin(MainWindowHost):
             if running.path == path:
                 # Already being measured — don't measure twice. A cue's probe that
                 # is still running when the title is played is waited for too.
-                if start:
+                if start and not expired:
                     wait_for_it()
-                return start
+                    return True
+                return False
             running.cancel()    # a skipped title's decode gives way, as above
         log.info("📊 Loudness measurement started (background)\n"
                  "file: %s\n"
@@ -368,17 +379,27 @@ class AudioLevelMixin(MainWindowHost):
             self._lufs_pending = None
             return
         self._lufs_pending = None
+        pendingWork(self).lufs_expired = path   # the wait is over, whatever the probe says
         self._load_track(path, True)
 
-    def _measure_peak(self, path: Path):
+    def _measure_peak(self, path: Path, landed: str | None = None):
         """A title with a loudness on record but no true peak, which only caps
         its gain once known. 📊 walks the library folder only, so a title from
         elsewhere gets it here, from its first play or preload, for the next
-        one. Nobody waits for it, and any measurement running goes first."""
+        one. Nobody waits for it, and any measurement running goes first; the
+        title is then remembered and measured when that one lands (#12).
+        `landed` is the path whose result just arrived: its worker is about to
+        finish and does not count as running."""
         ffmpeg = find_ffmpeg()
         running = self._lufs_worker
-        if not ffmpeg or (running is not None and running.isRunning()):
+        busy = (running is not None and running.isRunning()
+                and (landed is None or str(running.path) != landed))
+        if not ffmpeg:
             return
+        if busy:
+            pendingWork(self).peak_wanted = path
+            return
+        pendingWork(self).peak_wanted = None
         log.info("📊 True peak measurement started (background)\n"
                  "file: %s", path.name)
         self._say_measuring()
@@ -394,16 +415,20 @@ class AudioLevelMixin(MainWindowHost):
         The timeout is the fallback for a measurement cancelled without a signal."""
         self.statusBar().showMessage(i18n.t("📊 Measuring loudness…"), 30000)
 
-    def _done_measuring(self):
-        """Take the line down again, unless something else has since replaced it."""
+    def _done_measuring(self, landed: str | None = None):
+        """Take the line down again, unless something else has since replaced it.
+        Then the title whose true peak had to wait for the slot gets it (#12)."""
         bar = self.statusBar()
         if bar.currentMessage() == i18n.t("📊 Measuring loudness…"):
             bar.clearMessage()
+        wanted = pendingWork(self).peak_wanted
+        if wanted is not None and landed is not None:
+            self._measure_peak(wanted, landed=landed)
 
     def _on_track_peak(self, path_str: str, lufs: float, tp: float | None = None):
         """Stored only. The peak can cut the gain by several dB, and a title on
         the speakers keeps its level: the floor would hear the drop."""
-        self._done_measuring()
+        self._done_measuring(path_str)
         if tp is None:
             self._lufs_failed.add(path_str)   # asking again would not change it
             return
@@ -418,7 +443,7 @@ class AudioLevelMixin(MainWindowHost):
         """A measurement landed: store it, then either start the title that was
         waiting for it or — if that title is already running because the wait
         timed out — ramp its gain to where it should have started."""
-        self._done_measuring()
+        self._done_measuring(path_str)
         if self._library.cache:
             self._library.cache.put_lufs(Path(path_str), lufs, tp)
             self._library.cache.save()
@@ -436,7 +461,7 @@ class AudioLevelMixin(MainWindowHost):
     def _on_track_lufs_error(self, path_str: str, msg: str):
         """ffmpeg couldn't measure the file — remember that, so no later play
         of it waits for a number that will never come."""
-        self._done_measuring()
+        self._done_measuring(path_str)
         self._lufs_failed.add(path_str)
         log.warning("📊 Loudness measurement failed\n"
                     "file: %s\n"

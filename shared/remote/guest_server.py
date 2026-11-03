@@ -40,12 +40,14 @@ import threading
 import time
 import unicodedata
 from collections import deque
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import ThreadingHTTPServer
 from typing import cast
 from urllib.parse import urlsplit
 
 from shared.remote.guest_page import GUEST_CODE_HEADER, MAX_WISH, page_html
 from shared.remote.remote_server import (
+    LimitedHandler,
+    LimitedServer,
     desk_host,
     forwarded_client,
     guest_key,
@@ -116,26 +118,16 @@ class Budget:
             return True
 
 
-class _Server(ThreadingHTTPServer):
+class _Server(LimitedServer):
     """The HTTP server, holding the GuestServer its handlers answer to."""
     guests: GuestServer
-    slots: threading.BoundedSemaphore
     allow_reuse_address = sys.platform != "win32"   # as the remote: never share a port
 
-    def process_request(self, request, client_address):
-        if not self.slots.acquire(blocking=False):
-            self.shutdown_request(request)
-            return
-        super().process_request(request, client_address)
-
-    def process_request_thread(self, request, client_address):
-        try:
-            super().process_request_thread(request, client_address)
-        finally:
-            self.slots.release()
+    def tunnelled(self) -> bool:
+        return bool(self.guests.tunnel_host)
 
 
-class _Handler(BaseHTTPRequestHandler):
+class _Handler(LimitedHandler):
     server_version = "DanceSportPlayerGuests"
     sys_version = ""
     timeout = _IDLE_SECS
@@ -151,7 +143,8 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         if body:
             self.send_header("Content-Type", ctype)
-        self.send_header("Content-Length", str(len(body)))
+        if status != 204:   # no body, so no length either
+            self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "no-referrer")
@@ -277,6 +270,7 @@ class GuestServer:
         self._catalog = b'{"songs":[]}'
         self._now: dict = {}
         self._budget = Budget()
+        self._wrong = Budget()
         self._reads = Budget(per_guest=READS_PER_GUEST, all_guests=ALL_READS)
         self._httpd: ThreadingHTTPServer | None = None
         self._thread: threading.Thread | None = None
@@ -366,8 +360,8 @@ class GuestServer:
             return 410
         if secrets.compare_digest(given.encode("utf-8"), code.encode("utf-8")):
             return 200
-        if not self._budget.spend(guest):
-            return 429
+        if not self._wrong.spend(guest):    # its own buckets: strangers guessing
+            return 429                      # must not spend the guests' requests
         self.note("bad_code", guest)
         return 403
 

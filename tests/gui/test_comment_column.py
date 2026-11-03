@@ -87,7 +87,7 @@ class LibraryCommentTest(unittest.TestCase):
     def test_the_cell(self):
         t = self.pane._table
         self.assertEqual(LIB_COL_COMMENT, 14)
-        self.assertEqual(t.columnCount(), 16)   # 🔁 Plays came after it
+        self.assertEqual(t.columnCount(), 19)   # 🔁 Plays came after it
         self.assertEqual(t.horizontalHeaderItem(LIB_COL_COMMENT).text(), "Comment")
         self.assertEqual(t.item(0, LIB_COL_COMMENT).text(), "vocal AS")
         self.assertEqual(self.pane.cell_tooltip(0, LIB_COL_COMMENT), "vocal AS")
@@ -113,8 +113,8 @@ class SavedLayoutTest(unittest.TestCase):
                           "wishlist": [_COL_COMMENT, _COL_PLAYS, COL_REGEN]})
         self.assertEqual(s["column_widths"]["playlist"],
                          {str(_COL_ALBUM): 180, str(COL_REGEN): 30})
-        self.assertEqual(s["library_columns"], list(range(16)))
-        self.assertEqual(s["library_hidden_columns"], [13, 14, 15])
+        self.assertEqual(s["library_columns"], list(range(19)))
+        self.assertEqual(s["library_hidden_columns"], [13, 14, 15, 16, 17, 18])
 
     def test_a_dragged_deck_order_is_kept(self):
         """A deck order names every column, so one saved before Comment would

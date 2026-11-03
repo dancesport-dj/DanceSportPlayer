@@ -11,6 +11,7 @@ restart does not bring the old counts back). The log itself — the report for
 the music rights society — stays as it is.
 """
 
+import contextlib
 import datetime as dt
 
 from planner.music.db import _db
@@ -34,11 +35,16 @@ def load(now: dt.datetime | None = None) -> None:
                         (_RESET_KEY,)).fetchone()
     since = now - DAY
     if row:
-        since = max(since, dt.datetime.fromisoformat(row[0]))
+        with contextlib.suppress(TypeError, ValueError):
+            since = max(since, dt.datetime.fromisoformat(row[0]).replace(tzinfo=None))
     for raw, path in _db().execute(
             "SELECT started_at, path FROM play_log WHERE started_at >= ?",
             (since.replace(microsecond=0).isoformat(),)):
-        _plays.setdefault(path_key(path), []).append(dt.datetime.fromisoformat(raw))
+        try:      # one bad row must not leave the counts empty
+            when = dt.datetime.fromisoformat(raw).replace(tzinfo=None)
+        except (TypeError, ValueError):
+            continue
+        _plays.setdefault(path_key(path), []).append(when)
 
 
 def count(path, now: dt.datetime | None = None) -> int:

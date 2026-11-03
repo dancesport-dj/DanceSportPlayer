@@ -10,6 +10,7 @@ what is pinned down here.
 
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from tools.dev import commit_scope as cs
 
@@ -82,6 +83,19 @@ class PlanTest(unittest.TestCase):
         packages = {p.name for p in (ROOT / "tests").iterdir()
                     if p.is_dir() and (p / "__init__.py").exists()}
         self.assertEqual(packages, set(cs.AREAS))
+
+
+class StagedChangesTest(unittest.TestCase):
+
+    def test_a_non_ascii_path_comes_back_as_it_is_not_quoted(self):
+        """#55: without -z git printed "gui/\\303\\244.py" in quotes, and the
+        area of the file was no longer recognised."""
+        out = "3\t1\tgui/ä.py\x00-\t-\tspeech/a.mp3\x00"
+        with mock.patch.object(cs.subprocess, "run",
+                               return_value=mock.Mock(stdout=out)) as run:
+            changes = cs.staged_changes()
+        self.assertIn("-z", run.call_args.args[0])
+        self.assertEqual(changes, [("gui/ä.py", 4), ("speech/a.mp3", 0)])
 
 
 if __name__ == "__main__":

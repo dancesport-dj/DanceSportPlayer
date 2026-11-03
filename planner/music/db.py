@@ -38,9 +38,11 @@ except ImportError:
 from planner.config import (
     CACHE_FILE,
     audio_db_file,
+    player_build,
 )
 from planner.generate.warmup import others_dance_from_path
 from planner.models import DANCE_NAMES
+from planner.music import chroma_match
 from planner.music.analysis import (
     AUDIO_FEAT_DIM,
     HAS_LIBROSA,
@@ -48,10 +50,11 @@ from planner.music.analysis import (
     AnalysisCancelled,
     AudioFeatures,
     analyze_file,
-    probe_decode_backend,
+    probe_decode_backend_any,
     release_free_heap,
     tempo_prior,
 )
+from planner.music.chroma_match import Chroma
 from planner.music.parsing import detect_dance
 
 log = logging.getLogger("dancesport.db")
@@ -174,6 +177,7 @@ _FP_TABLES = {
     "waveforms": "peaks",
     "vocals": "vocal_share",
     "noise": "floor_db",
+    "chroma_fps": "words, duration",
     "tag_edits": "rating, classes_ok, is_instrumental, comment_tags, custom, "
                  "title, tag_artist, tag_album, year, genre, tag_comment",
 }
@@ -289,6 +293,18 @@ def meta_to_row(d: dict) -> tuple:
     )
 
 
+def _json_list(text) -> list | None:
+    """A JSON list from a cell, or None when the cell is empty or damaged.
+    None reads as "not read yet", so the file is simply read again."""
+    if not text:
+        return None
+    try:
+        value = json.loads(text)
+    except (TypeError, ValueError):
+        return None
+    return value if isinstance(value, list) else None
+
+
 def row_to_meta(row) -> dict:
     """Unpack a column tuple back into the metadata dict (exact original types)."""
     (title, dance, bpm, year, other_genre, classes_ok,
@@ -297,7 +313,7 @@ def row_to_meta(row) -> dict:
     return {
         'title': title, 'dance': dance, 'bpm': bpm, 'year': year,
         'other_genre': other_genre,
-        'classes_ok': json.loads(classes_ok) if classes_ok else None,
+        'classes_ok': _json_list(classes_ok),
         'is_instrumental': bool(is_instr),
         'is_xmas': bool(is_xmas),
         'tag_title': tag_title, 'tag_artist': tag_artist,
@@ -305,7 +321,7 @@ def row_to_meta(row) -> dict:
         'tag_album': tag_album,
         # NULL → None ("this row predates the column"), '[]' → [] ("read, no
         # markers"). _make_entry heals the None rows one ID3 read at a time.
-        'comment_tags': json.loads(comment_tags) if comment_tags else None,
+        'comment_tags': _json_list(comment_tags),
         'rating': rating,   # 1–5 stars from POPM, None = unrated
         # The mapped frame's text (planner.music.custom_field); NULL = not read
         # under the current mapping yet, '' = read, the file has none.
@@ -337,8 +353,17 @@ def file_id(path_str: str, create: bool = True) -> int | None:
         return row[0]
     if not create:
         return None
-    conn.execute("INSERT OR IGNORE INTO files (path) VALUES (?)", (path_str,))
+    conn.execute("INSERT OR IGNORE INTO files (path, first_seen) VALUES (?, ?)",
+                 (path_str, time.time()))
     return conn.execute("SELECT id FROM files WHERE path = ?", (path_str,)).fetchone()[0]
+
+
+def first_seen_by_path() -> dict[str, float]:
+    """str(path) -> when the library first registered the file (unix time).
+
+    Files known before the column existed have no time and are left out."""
+    return dict(_db().execute(
+        "SELECT path, first_seen FROM files WHERE first_seen IS NOT NULL"))
 
 
 def _ensure_schema(conn: sqlite3.Connection) -> None:
@@ -394,6 +419,7 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
         # lead-in silence, a tape or vinyl rip never gets below its own hiss —
         # that's the 🔇 Check-Music warning.
         "CREATE TABLE IF NOT EXISTS noise (fp TEXT PRIMARY KEY, floor_db REAL);"
+        "CREATE TABLE IF NOT EXISTS chroma_fps (fp TEXT PRIMARY KEY, words BLOB, duration REAL);"
         # Stars / classes / markers changed in the app's tag editor; they win over
         # the file's own tags (planner.music.tag_edits). NULL = the file's value.
         "CREATE TABLE IF NOT EXISTS tag_edits (fp TEXT PRIMARY KEY, rating INTEGER, "
@@ -431,6 +457,17 @@ def _migrate_meta_duration(conn: sqlite3.Connection) -> None:
         if cols and 'duration' not in cols:
             conn.execute(f"ALTER TABLE {table} ADD COLUMN duration INTEGER")
             log.info("  ♻️  %s: added duration column (track lengths fill in lazily)", table)
+
+
+def _migrate_files_first_seen(conn: sqlite3.Connection) -> None:
+    """Append `first_seen` to `files`: when the library first registered a path.
+
+    Rows from before the column stay NULL (nobody knows), which the library
+    shows as the file's creation time instead."""
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(files)").fetchall()]
+    if cols and 'first_seen' not in cols:
+        conn.execute("ALTER TABLE files ADD COLUMN first_seen REAL")
+        log.info("  ♻️  files: added first_seen column")
 
 
 def _migrate_pd_manual(conn: sqlite3.Connection) -> None:
@@ -921,6 +958,7 @@ def _init_db(conn: sqlite3.Connection) -> None:
                 migrate_meta_tag_bpm(conn)             # add tag_bpm col (after custom)
                 _migrate_meta_tag_comment(conn)         # add tag_comment col (after tag_bpm)
                 _migrate_meta_tag_genre(conn)           # add tag_genre col (after tag_comment)
+                _migrate_files_first_seen(conn)         # add first_seen to files
                 _migrate_pd_manual(conn)                # add manual flag to pd_highlights
                 _migrate_loudness_tp(conn)              # add tp col to loudness
                 _migrate_playlist_index_finals(conn)    # add fkeys col to playlist_index
@@ -945,6 +983,21 @@ def _init_db(conn: sqlite3.Connection) -> None:
 
 
 # ── Audio Feature Cache ────────────────────────────────────────────────────────
+MAX_MARK_TIMES = 64     # a Paso Doble has a handful of highlights
+MAX_FP_LEN = 128
+
+
+def valid_pd_mark(fp, times, afp=None) -> bool:
+    """Whether a Paso Doble mark that came from outside (a transfer file, a
+    backup) may be stored: non-empty fingerprint strings of sane length and a
+    short list of finite, non-negative times."""
+    return (isinstance(fp, str) and 0 < len(fp) <= MAX_FP_LEN
+            and (afp is None or (isinstance(afp, str) and len(afp) <= MAX_FP_LEN))
+            and isinstance(times, list) and len(times) <= MAX_MARK_TIMES
+            and all(isinstance(t, (int, float)) and not isinstance(t, bool)
+                    and math.isfinite(t) and t >= 0 for t in times))
+
+
 class AudioCache:
     """Content-addressed MFCC feature store backed by SQLite.
 
@@ -1014,18 +1067,24 @@ class AudioCache:
         ~10× smaller (4 bytes/value vs boxed floats) — with ~50k tracks the
         difference is hundreds of MB. Falls back to a list without numpy.
         """
+        if len(blob) % 4:       # a cut-off blob: frombuffer/frombytes would raise
+            return None
         if HAS_NUMPY:
             return np.frombuffer(blob, dtype=np.float32)
         a = array('f')
         a.frombytes(blob)
         return list(a)
 
-    def _feat_dict(self, row) -> dict:
-        """One `features` row (without its fp) as the in-memory feature dict."""
+    def _feat_dict(self, row) -> dict | None:
+        """One `features` row (without its fp) as the in-memory feature dict, or
+        None when its main blob is damaged (the title is then analysed again)."""
         bpm, centroid, rms, blob, mean_blob, cov_blob = row
+        mfcc = self._unpack_mfcc(blob)
+        if mfcc is None:
+            return None
         return {
             'bpm': bpm, 'centroid': centroid, 'rms': rms,
-            'mfcc': self._unpack_mfcc(blob),
+            'mfcc': mfcc,
             'mfcc_mean': self._unpack_mfcc(mean_blob) if mean_blob else None,
             'mfcc_cov': self._unpack_mfcc(cov_blob) if cov_blob else None,
         }
@@ -1042,17 +1101,16 @@ class AudioCache:
             "SELECT fp, tp FROM loudness WHERE tp IS NOT NULL").fetchall())
         for fp, times, manual in conn.execute(
                 "SELECT fp, times, manual FROM pd_highlights").fetchall():
-            try:
-                self._pd_hl[fp] = json.loads(times)
-            except (TypeError, ValueError):
+            hl = _json_list(times)
+            if hl is None:
                 continue
+            self._pd_hl[fp] = hl
             if manual:
                 self._pd_hl_manual.add(fp)
         for fp, spans in conn.execute("SELECT fp, spans FROM silences").fetchall():
-            try:
-                self._silences[fp] = json.loads(spans)
-            except (TypeError, ValueError):
-                continue
+            sp = _json_list(spans)
+            if sp is not None:
+                self._silences[fp] = sp
         self._vocal_share = dict(conn.execute("SELECT fp, vocal_share FROM vocals").fetchall())
         self._noise = dict(conn.execute("SELECT fp, floor_db FROM noise").fetchall())
         if not self._feat_fps and CACHE_FILE.exists():
@@ -1229,8 +1287,8 @@ class AudioCache:
         row = conn.execute(
             "SELECT bpm, centroid, rms, mfcc, mfcc_mean, mfcc_cov FROM features "
             "WHERE fp = ?", (fp,)).fetchone()
-        if row:
-            self._data[fp] = self._feat_dict(row)
+        if row and (d := self._feat_dict(row)) is not None:
+            self._data[fp] = d
             self._feat_fps.add(fp)
         for table, col, mirror in (("loudness", "lufs", self._lufs),
                                    ("loudness", "tp", self._tp),
@@ -1466,11 +1524,8 @@ class AudioCache:
             if not isinstance(m, dict):
                 continue
             fp, times, afp = m.get("fp"), m.get("times"), m.get("afp")
-            if (not isinstance(fp, str) or not fp
-                    or not (afp is None or isinstance(afp, str))
-                    or not isinstance(times, list)
-                    or not all(isinstance(t, (int, float)) and not isinstance(t, bool)
-                               and math.isfinite(t) and t >= 0 for t in times)):
+            if (not valid_pd_mark(fp, times, afp) or not isinstance(fp, str)
+                    or not isinstance(times, list)):
                 continue
             targets = {fp}
             if afp:
@@ -1563,6 +1618,38 @@ class AudioCache:
 
     # ── Noise floor (content-addressed, measured via ffmpeg astats) ──────────
 
+    # ── Chromaprint (content-addressed, ~4 KB each, so no in-memory mirror) ───
+
+    def get_chroma(self, path: Path, touch_disk: bool = True) -> Chroma | None:
+        """The stored Chromaprint of a track, or None when never fingerprinted.
+        `touch_disk=False` goes by `recorded_fingerprint` only — no stat, no hash."""
+        fp = self.fingerprint(path) if touch_disk else self.recorded_fingerprint(path)
+        if fp is None:
+            return None
+        row = _db().execute(
+            "SELECT words, duration FROM chroma_fps WHERE fp = ?", (fp,)).fetchone()
+        if row is None or not row[0]:
+            return None
+        return Chroma(float(row[1] or 0.0), chroma_match.unpack(row[0]))
+
+    def put_chroma(self, path: Path, words, duration: float) -> None:
+        fp = self.fingerprint(path)
+        if fp is None:
+            return
+        _db().execute(
+            "INSERT OR REPLACE INTO chroma_fps (fp, words, duration) VALUES (?,?,?)",
+            (fp, chroma_match.pack(words), float(duration)))
+        self._dirty = True
+
+    def chroma_keys(self) -> set:
+        """The content fingerprints that already have a Chromaprint on record."""
+        return {r[0] for r in _db().execute("SELECT fp FROM chroma_fps").fetchall()}
+
+    def all_chromas(self) -> dict:
+        """{content fp: words} of every stored Chromaprint."""
+        return {fp: chroma_match.unpack(blob) for fp, blob in
+                _db().execute("SELECT fp, words FROM chroma_fps").fetchall() if blob}
+
     def get_noise_floor(self, path: Path, touch_disk: bool = True) -> float | None:
         """Stored noise floor of a track in dBFS (−inf when it reaches true
         digital silence), or None when it was never probed.
@@ -1588,8 +1675,8 @@ class AudioCache:
             row = _db().execute(
                 "SELECT bpm, centroid, rms, mfcc, mfcc_mean, mfcc_cov FROM features "
                 "WHERE fp = ?", (fp,)).fetchone()
-            if row:
-                d = self._data[fp] = self._feat_dict(row)
+            if row and (d := self._feat_dict(row)) is not None:
+                self._data[fp] = d
         return d
 
     def load_all_features(self) -> None:
@@ -1599,8 +1686,8 @@ class AudioCache:
         per title was 1.2 s of its 54 000-title load, the one pass ~0.5 s."""
         for fp, *row in _db().execute(
                 "SELECT fp, bpm, centroid, rms, mfcc, mfcc_mean, mfcc_cov FROM features"):
-            if fp not in self._data:
-                self._data[fp] = self._feat_dict(row)
+            if fp not in self._data and (d := self._feat_dict(row)) is not None:
+                self._data[fp] = d
 
     def get(self, path: Path, hash_if_missing: bool = True,
             mtime: int | None = None) -> AudioFeatures | None:
@@ -1658,8 +1745,12 @@ class AudioCache:
         AudioAnalyzer worker thread.
         """
         if not HAS_LIBROSA:
-            log.warning("  ⚠️ librosa not installed – skipping audio analysis.\n"
-                        "  Install: pip install librosa")
+            if player_build():
+                # The player ships without librosa on purpose: nothing to install.
+                log.info("  ℹ️ Audio analysis is not part of the player build")
+            else:
+                log.warning("  ⚠️ librosa not installed – skipping audio analysis.\n"
+                            "  Install: pip install librosa")
             for e in entries:
                 e.features = None
             return
@@ -1701,7 +1792,8 @@ class AudioCache:
 
         # Probe: try loading 2 seconds of the first file to detect missing backends early
         probe = next((e.path for e in unique), None)
-        why = probe_decode_backend(probe) if probe else None
+        why = (probe_decode_backend_any([e.path for e in unique[:3]])
+               if probe else None)
         if why == PROBE_NO_BACKEND:
             log.error("  ✗ MP3 decoding unavailable – ffmpeg is not installed or not on PATH.\n"
                       "    Install ffmpeg, then restart:\n"

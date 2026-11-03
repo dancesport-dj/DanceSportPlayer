@@ -28,7 +28,7 @@ from PySide6.QtCore import QPoint
 from PySide6.QtGui import QContextMenuEvent
 from PySide6.QtWidgets import QApplication
 
-from gui.library_browser import LibraryBrowser
+from gui.library_browser import LIB_COL_MODIFIED, LIB_COL_YEAR, LibraryBrowser
 from planner.models import MusicEntry
 from tests.qt_test_support import reap_widget, stub_window_startup
 
@@ -36,7 +36,7 @@ _COL_PLAY, _COL_DANCE, _COL_ARTIST, _COL_TITLE, _COL_BPM = 0, 1, 2, 3, 4
 _COL_LEN, _COL_POP, _COL_CLASS, _COL_ADDED, _COL_LAST = 5, 6, 7, 8, 9
 _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT = 10, 11, 12, 13, 14
 _COL_PLAYS = 15
-_N_COLS = 16
+_N_COLS = 19
 
 
 def _e(dance, n, other_genre=None):
@@ -89,8 +89,8 @@ class LibraryHideColumnsTest(_LibTest):
         # ★ Rating, Custom, File name, Album, Comment and Plays start put away;
         # every other column is on.
         self.assertEqual([a.data() for a in ticks if not a.isChecked()],
-                         [_COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT,
-                          _COL_PLAYS])
+                         [_COL_ADDED, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM, _COL_COMMENT,
+                          _COL_PLAYS, LIB_COL_MODIFIED, LIB_COL_YEAR])
         menu.deleteLater()
 
     def test_right_clicking_the_header_opens_it(self):
@@ -126,8 +126,8 @@ class LibraryHideColumnsTest(_LibTest):
         act.trigger()
         self.assertTrue(lb._table.isColumnHidden(_COL_CLASS))
         # ★, Custom and File name were already off
-        self.assertEqual(seen, [[_COL_CLASS, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM,
-                                 _COL_COMMENT, _COL_PLAYS]])
+        self.assertEqual(seen, [[_COL_CLASS, _COL_ADDED, _COL_RATING, _COL_CUSTOM, _COL_FILE, _COL_ALBUM,
+                                 _COL_COMMENT, _COL_PLAYS, LIB_COL_MODIFIED, LIB_COL_YEAR]])
         menu.deleteLater()
 
     def test_what_is_hidden_reads_back(self):
@@ -157,6 +157,26 @@ class LibraryHideColumnsTest(_LibTest):
         lb.set_hidden_columns([_COL_BPM])
         self.assertEqual(lb._table.columnWidth(_COL_BPM), 0)
         self.assertEqual(lb.column_widths()[_COL_BPM], 77)
+
+    def test_saved_widths_survive_a_restart(self):
+        """#63: the saved Title width came back 400 -> 220, because the columns
+        shown again afterwards took their width from it a second time, and a
+        shown column that started hidden lost its saved width."""
+        lb = self.browser()
+        hidden = [c for c in lb.hidden_columns() if c != _COL_RATING]
+        saved = {_COL_TITLE: 400, _COL_RATING: 90}
+        lb.set_hidden_columns(hidden)       # the order main_deck_setup uses
+        lb.apply_column_widths(saved)
+        self.app.processEvents()
+        self.assertEqual(lb._table.columnWidth(_COL_TITLE), 400)
+        self.assertEqual(lb._table.columnWidth(_COL_RATING), 90)
+
+    def test_a_width_saved_for_a_hidden_column_comes_back_with_it(self):
+        lb = self.browser()
+        lb.apply_column_widths({_COL_RATING: 90})      # still hidden here
+        self.assertEqual(lb.column_widths()[_COL_RATING], 90)
+        lb.set_hidden_columns([c for c in lb.hidden_columns() if c != _COL_RATING])
+        self.assertEqual(lb._table.columnWidth(_COL_RATING), 90)
 
     def test_the_freed_width_goes_to_artist_and_title(self):
         """While the pane is still auto-filling, putting a column away must not
@@ -302,6 +322,14 @@ class LibraryColumnWiringTest(unittest.TestCase):
         self.assertTrue(self.written, "nothing was saved")
         win2 = self.window({"library_short_dances": True})
         self.assertTrue(win2._lib_browser.short_dances())
+
+    def test_date_only_is_saved_and_comes_back(self):
+        win = self.window()
+        win._lib_browser.dateOnlyChanged.emit(True)
+        self.assertTrue(win._settings["library_date_only"])
+        self.assertTrue(self.written, "nothing was saved")
+        win2 = self.window({"library_date_only": True})
+        self.assertTrue(win2._lib_browser.date_only())
 
     def test_the_folder_view_is_saved_and_comes_back(self):
         win = self.window()

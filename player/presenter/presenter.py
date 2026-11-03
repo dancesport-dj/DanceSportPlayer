@@ -140,7 +140,17 @@ def _qcolor(spec: str) -> QColor:
     return QColor(s)
 
 
-class ScrollLabel(QLabel):
+class _Label(QLabel):
+    """A QLabel that shows its text as text. The default AutoText would render
+    a file name or a typed programme line such as `<img src="file:///...">` as
+    rich text on the hall screen."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setTextFormat(Qt.TextFormat.PlainText)
+
+
+class ScrollLabel(_Label):
     """A line that scrolls sideways when it is too long for the screen.
 
     Nothing is cut off and nothing shrinks: the whole title reaches the floor,
@@ -338,13 +348,13 @@ class _TimetableView(QWidget):
         # want different heights, the way the print pieces set them.
         self._logo_lbls = []
         for _ in range(2):
-            lbl = QLabel()
+            lbl = _Label()
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             lbl.setVisible(False)
             lyt.addWidget(lbl)
             self._logo_lbls.append(lbl)
         self._logo_src = []     # the QPixmaps at full size, scaled per repaint
-        self.title_lbl = QLabel("")
+        self.title_lbl = _Label("")
         self.title_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lyt.addWidget(self.title_lbl)
         lyt.addSpacing(10)
@@ -361,8 +371,8 @@ class _TimetableView(QWidget):
         ml = QHBoxLayout(self._more)
         ml.setContentsMargins(0, 6, 0, 6)
         ml.setSpacing(18)
-        self._more_pad = QLabel("")
-        self._more_lbl = QLabel("…")
+        self._more_pad = _Label("")
+        self._more_lbl = _Label("…")
         ml.addWidget(self._more_pad)
         ml.addWidget(self._more_lbl, 1)
         self._col_lyt.addWidget(self._more)
@@ -398,19 +408,19 @@ class _TimetableView(QWidget):
         rl = QHBoxLayout(row)
         rl.setContentsMargins(0, 6, 0, 6)
         rl.setSpacing(18)
-        time_lbl = QLabel(entry.time)
+        time_lbl = _Label(entry.time)
         time_lbl.setAlignment(Qt.AlignmentFlag.AlignRight
                               | Qt.AlignmentFlag.AlignTop)
         col = QVBoxLayout()
         col.setContentsMargins(0, 0, 0, 0)
         col.setSpacing(0)
-        what_lbl = QLabel(entry.what)
+        what_lbl = _Label(entry.what)
         what_lbl.setSizePolicy(QSizePolicy.Policy.Ignored,
                                QSizePolicy.Policy.Preferred)
         col.addWidget(what_lbl)
         note_lbl = None
         if entry.note.strip():
-            note_lbl = QLabel(entry.note)
+            note_lbl = _Label(entry.note)
             note_lbl.setSizePolicy(QSizePolicy.Policy.Ignored,
                                    QSizePolicy.Policy.Preferred)
             col.addWidget(note_lbl)
@@ -780,7 +790,7 @@ class PresenterWindow(QWidget):
         lb = QVBoxLayout(self.last_wrap)
         lb.setContentsMargins(0, 0, 0, 0)
         lb.setSpacing(0)
-        self.last_hdr = QLabel(_hall("Last"))
+        self.last_hdr = _Label(_hall("Last"))
         self._tint(self.last_hdr, "sub", "color:{c};font-weight:600;")
         lb.addWidget(self.last_hdr)
         lb.addSpacing(6)
@@ -788,7 +798,7 @@ class PresenterWindow(QWidget):
         lrl = QHBoxLayout(last_row)
         lrl.setContentsMargins(0, 7, 0, 7)
         lrl.setSpacing(14)
-        self.last_num = QLabel("")     # blank, but as wide as the queue's "1"
+        self.last_num = _Label("")     # blank, but as wide as the queue's "1"
         lcol = QVBoxLayout()
         lcol.setContentsMargins(0, 0, 0, 0)
         lcol.setSpacing(0)
@@ -803,7 +813,7 @@ class PresenterWindow(QWidget):
         self.last_wrap.setVisible(False)
         box.addWidget(self.last_wrap)
 
-        self.next_hdr = QLabel(_hall("Next dances"))
+        self.next_hdr = _Label(_hall("Next dances"))
         self._tint(self.next_hdr, "sub", "color:{c};font-weight:600;")
         box.addWidget(self.next_hdr)
         box.addSpacing(6)
@@ -824,7 +834,7 @@ class PresenterWindow(QWidget):
             rl = QHBoxLayout(row)
             rl.setContentsMargins(0, 7, 0, 7)
             rl.setSpacing(14)
-            num = QLabel(str(i + 1))
+            num = _Label(str(i + 1))
             self._tint(num, "sub", "color:{c};font-family:Consolas,monospace;")
             num.setAlignment(Qt.AlignmentFlag.AlignRight
                              | Qt.AlignmentFlag.AlignVCenter)
@@ -875,7 +885,7 @@ class PresenterWindow(QWidget):
         self.time_btn.customContextMenuRequested.connect(
             lambda _p: self.timetableRequested.emit())
         self.time_btn.setVisible(False)
-        self.hint_lbl = QLabel(
+        self.hint_lbl = _Label(
             _hall("Esc closes  ·  double-click leaves full screen"))
         self._tint(self.hint_lbl, "div", "color:{c};")
         self.hint_lbl.setSizePolicy(QSizePolicy.Policy.Ignored,
@@ -905,11 +915,11 @@ class PresenterWindow(QWidget):
         card = QVBoxLayout(self.qr_card)
         card.setContentsMargins(0, 0, 0, 0)
         card.setSpacing(6)
-        self.qr_caption = QLabel(_hall("Song request? Scan here"))
+        self.qr_caption = _Label(_hall("Song request? Scan here"))
         self.qr_caption.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.qr_caption.setWordWrap(True)   # a 4:3 beamer leaves a narrow margin
         self._tint(self.qr_caption, "sub", "color:{c};font-weight:600;")
-        self.qr_lbl = QLabel()
+        self.qr_lbl = _Label()
         self.qr_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         card.addWidget(self.qr_caption)
         card.addWidget(self.qr_lbl)

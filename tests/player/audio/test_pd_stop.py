@@ -10,6 +10,7 @@ from types import SimpleNamespace
 from gui.decks.deck_set import DeckSet
 from player.audio.between_dances import BetweenDances
 from player.audio.fade_now import FadeNow
+from player.audio.pending_work import PendingWork
 from player.audio.playback_state import PlaybackState
 
 
@@ -251,7 +252,7 @@ class _TickDesk:
         self._mix = OutputMix()
         self._library = SimpleNamespace(cache=None)
         self._pd_stop_at = None
-        self._pd_worker = None
+        self._pending = PendingWork()
         self._between = BetweenDances()
         self._between.pending = None
         self._fade_now = FadeNow()

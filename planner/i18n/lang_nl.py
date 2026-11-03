@@ -56,16 +56,30 @@ CATALOG = {
     "Start after:": "Start na:",
     "Stop after highlight:": "Stop na hoogtepunt:",
     "Max tracks:": "Max. nummers:",
+    "🏁  Competition training list (heats per dance, then the final)": "🏁  Toernooi-trainingslijst (rondes per dans, dan de finale)",
+    "Dances (untick the ones you do not need):": "Dansen (vink uit wat je niet nodig hebt):",
+    "Heats per round:": "Heats per ronde:",
+    "Rounds:": "Rondes:",
+    "Final heats:": "Finaleheats:",
+    "Every dance gets this many tracks in a round, one per heat.": "Elke dans krijgt per ronde zoveel nummers, één per heat.",
+    "The last round is the final.": "De laatste ronde is de finale.",
+    "Heats per dance in the final.": "Heats per dans in de finale.",
+    "%d tracks: %d dances x %d heats": "%d nummers: %d dansen x %d heats",
+    "Competition Training": "Wedstrijdtraining",
+    "Tick at least one dance.": "Vink minstens één dans aan.",
     "Proven": "Beproefd",
     "Top Proven": "Top beproefd",
     "Fresh": "Nieuw",
+    "Rarely played": "Zelden gespeeld",
     "Mostly Proven": "Vooral beproefd",
     "Even Mix": "Gelijke mix",
     "Songs you have played before (fresh as fallback).":
         "Nummers die je al eerder hebt gedraaid (nieuwe als reserve).",
     "Only your most-played songs.": "Alleen je meest gedraaide nummers.",
-    "Unused songs first (proven as fallback).":
-        "Ongebruikte nummers eerst (beproefde als reserve).",
+    "New songs first, at most 2 years in the library (proven as fallback).":
+        "Nieuwe nummers eerst, hoogstens 2 jaar in de bibliotheek (beproefde als reserve).",
+    "Rarely or never played songs first, whatever their age (proven as fallback).":
+        "Zelden of nooit gedraaide nummers eerst, ongeacht hun leeftijd (beproefde als reserve).",
     "Proven + fresh together, but favors songs you have played before.":
         "Beproefd + nieuw samen, maar met voorkeur voor nummers die je al eerder hebt gedraaid.",
     "Proven + fresh with no preference — equal chance, maximum variety.":
@@ -419,6 +433,7 @@ CATALOG = {
     "Parse schedule": "Tijdschema inlezen",
     "Filter by the instrumental tag": "Filteren op het instrumentaal-kenmerk",
     "Short dance names  (LW, SB)": "Korte dansnamen  (LW, SB)",
+    "Date only (no hour)": "Alleen datum (geen tijd)",
     "Auto re-roll round on strategy change":
         "Ronde opnieuw loten bij strategiewissel",
     "Re-analyze tracks that already have highlights":
@@ -806,8 +821,16 @@ CATALOG = {
         "Tempo terugzetten op ±0 % (of dubbelklik op de fader)",
     "Volume adjustment of this track by Equalize volume (R128)":
         "Volumeaanpassing van dit nummer door Volume gelijktrekken (R128)",
-    "When this file was created in the library":
-        "Wanneer dit bestand in de bibliotheek is aangemaakt",
+    "When the library first saw the file (the date it was imported)":
+        "Wanneer de bibliotheek het bestand voor het eerst zag (de importdatum)",
+    "When the file was created on disk (a copied file gets a new creation time)":
+        "Wanneer het bestand op schijf is aangemaakt (een gekopieerd bestand krijgt een nieuwe aanmaakdatum)",
+    "When the file was last written, tag edits included":
+        "Wanneer het bestand voor het laatst is geschreven, inclusief tagwijzigingen",
+    "Year from the MP3 tag; the file name only when the tag has none":
+        "Jaar uit de MP3-tag; de bestandsnaam alleen als de tag geen jaar heeft",
+    "Created": "Aangemaakt",
+    "Modified": "Gewijzigd",
     "Replace via the similar-tracks picker":
         "Vervangen via de keuze van vergelijkbare nummers",
     "Put the shipped rule set back.":
@@ -3763,6 +3786,23 @@ CATALOG = {
     "🔁  Replaced %d, ➕ added %d track(s)":
         "🔁  %d vervangen, ➕ %d nummer(s) toegevoegd",
     "  (%s — skipped)": "  (%s — overgeslagen)",
+    "↩  %d same-title file(s) left out": "↩  %d bestand(en) met dezelfde titel weggelaten",
+    "Duplicates in this list":
+        "Dubbelen in deze lijst",
+    "Duplicate songs in this list, in running order.<br><span style='color:#666'>🟰 <b>Exact</b> = identical audio. ≈ <b>Similar</b> = same title, a different recording. Keep the ones you want; switch the others to <b>Replace</b> and pick a track for each, or to <b>Remove</b>.</span>":
+        "Dubbele nummers in deze lijst, in speelvolgorde.<br><span style='color:#666'>🟰 <b>Exact</b> = identieke audio. ≈ <b>Vergelijkbaar</b> = dezelfde titel, een andere opname. Houd de gewenste; zet de andere op <b>Vervangen</b> en kies voor elk een nummer, of op <b>Verwijderen</b>.</span>",
+    "Duplicate songs across your open playlist(s), in playlist order.":
+        "Dubbele nummers in je open playlists, in volgorde van de playlist.",
+    "🎼  Comparing recordings…":
+        "🎼  Opnames vergelijken…",
+    "These dropped titles are in the list already. What should happen to each?": "Deze neergezette titels staan al in de lijst. Wat moet er met elk gebeuren?",
+    "🟰  Same audio": "🟰  Dezelfde audio",
+    "≈  Same title or recording": "≈  Dezelfde titel of opname",
+    "In the list: %s": "In de lijst: %s",
+    "Dropped: %s": "Neergezet: %s",
+    "Skip": "Overslaan",
+    "Tab moves through the titles · S = skip · R = replace · E / B = keep both": "Tab loopt door de titels · S = overslaan · R = vervangen · E / B = beide behouden",
+    "K = keep · R = replace · D / X = remove": "K = houden · R = vervangen · D / X = verwijderen",
     "%d already planned": "%d al ingepland",
     "%d with no dance": "%d zonder dans",
     "⚠  Couldn't tell what dance “%s” is — nothing added":
@@ -5943,4 +5983,101 @@ CATALOG = {
         'Toont de mappen naast de lijst: een gekozen map toont alleen de nummers\ndie er direct in staan. Hier verbergt 🆕 Ongepland het geplande bestand\nzelf, en dezelfde muziek in een andere map blijft staan, gemarkeerd met ♊.',
     '♊ The same music is planned from another folder':
         '♊ Dezelfde muziek is gepland vanuit een andere map',
+    '🎼 Same recording': '🎼 Dezelfde opname',
+    'A title is playing. Stop it and cue “%s”?':
+        'Er speelt een nummer. Stoppen en “%s” klaarzetten?',
+    'A title is playing. Stop it and start “%s”?':
+        'Er speelt een nummer. Stoppen en “%s” starten?',
+    'Clear highlights':
+        'Hoogtepunten wissen',
+    'Copy the file path of the selected title':
+        'Het bestandspad van de gekozen titel kopiëren',
+    'Edit the tags of the selected title(s)':
+        'De tags van de gekozen titel(s) bewerken',
+    'Find a folder…':
+        'Een map zoeken…',
+    'Forget the highlights of this title?\n\nManual marks are lost; 🐂 auto-detection runs again.':
+        'De hoogtepunten van dit nummer vergeten?\n\nHandmatige markeringen gaan verloren; 🐂 de automatische herkenning draait opnieuw.',
+    'How the pasted wishes are read and when a wish may be answered with\nsomething else. The search steps are added automatically, because\nthe code depends on them.':
+        'Hoe de geplakte wensen worden gelezen en wanneer een wens met\niets anders beantwoord mag worden. De zoekstappen worden automatisch\ntoegevoegd, omdat de code ervan afhangt.',
+    'Keep slot':
+        'Plek behouden',
+    'Remove with slot':
+        'Met de plek verwijderen',
+    'On: a double-click on another title while one is playing\nasks first — No keeps the music on the floor.\nOff: the new title takes over at once.':
+        'Aan: een dubbelklik op een ander nummer terwijl er een speelt\nvraagt eerst — Nee laat de muziek op de vloer.\nUit: het nieuwe nummer neemt meteen over.',
+    'Prompt for this kind of list (added to the rules):':
+        'Prompt voor dit soort lijst (aan de regels toegevoegd):',
+    'Remove %d songs?':
+        '%d nummers verwijderen?',
+    'Remove this song?':
+        'Dit nummer verwijderen?',
+    'Show the selected title in Explorer':
+        'De gekozen titel in Verkenner tonen',
+    'Sort by name':
+        'Op naam sorteren',
+    'Sort by size':
+        'Op grootte sorteren',
+    'Sort the folders':
+        'De mappen sorteren',
+    'Stop the playing title?':
+        'Het spelende nummer stoppen?',
+    'The list changed meanwhile — nothing done':
+        'De lijst is intussen veranderd — niets gedaan',
+    'What a party list is for. It is sent with the task, after the rules,\nand says which of the rules do not apply. Each mode keeps its own text.':
+        'Waar een feestlijst voor dient. Hij wordt met de taak na de regels\nmeegestuurd en zegt welke regels niet gelden. Elke modus houdt zijn eigen tekst.',
+    'What a party list or a warm-up list is for. It is sent with the\ntask, after the rules, and says which of the rules do not apply.\nEach kind keeps its own text.':
+        'Waar een feestlijst of een oefenlijst voor dient. Hij wordt met de\ntaak na de regels meegestuurd en zegt welke regels niet gelden.\nElke soort houdt zijn eigen tekst.',
+    'What a warm-up list is for. It is sent with the task, after the\nrules, and says which of the rules do not apply. Each mode keeps\nits own text.':
+        'Waar een oefenlijst voor dient. Hij wordt met de taak na de\nregels meegestuurd en zegt welke regels niet gelden. Elke modus houdt\nzijn eigen tekst.',
+    'Which tracks suit a higher-class event. It is sent with the task,\nafter the rules, for the B, A and S classes; the lower classes get\nnone. The rounds, heats, dances and tempos are added automatically.':
+        "Welke nummers passen bij een toernooi van de hogere klassen. Hij wordt met de taak\nna de regels meegestuurd, voor de klassen B, A en S; de lagere klassen\nkrijgen er geen. De rondes, heats, dansen en tempo's komen automatisch erbij.",
+    'change a value by hand, or press the other set':
+        'een waarde met de hand wijzigen of op de andere set drukken',
+    'double-click → asks before it stops a title':
+        'dubbelklik → vraagt eerst voordat een nummer stopt',
+    'double-click → stops a title without asking':
+        'dubbelklik → stopt een nummer zonder te vragen',
+    '↩  Reset time marker':
+        '↩  Tijdmarkering terugzetten',
+    '❓  Ask before a double-click stops the title':
+        '❓  Vragen voordat een dubbelklik het nummer stopt',
+    '🎉  Party set off — earlier values back':
+        '🎉  Feestset uit — eerdere waarden terug',
+    '🎉  Party set stays on — no earlier values to go back to':
+        '🎉  Feestset blijft aan — geen eerdere waarden om naar terug te gaan',
+    '🏆  Tournament set off — earlier values back':
+        '🏆  Toernooiset uit — eerdere waarden terug',
+    '🏆  Tournament set stays on — no earlier values to go back to':
+        '🏆  Toernooiset blijft aan — geen eerdere waarden om naar terug te gaan',
+    '🎉 Party-list prompt (added to the rules):':
+        '🎉 Prompt voor de feestlijst (aan de regels toegevoegd):',
+    '🏆 Competition prompt (added to the rules, sent for the B, A and S classes only):':
+        '🏆 Prompt voor toernooien (aan de regels toegevoegd, alleen verstuurd voor de klassen B, A en S):',
+    '📝 Wish-list prompt (added to the rules):':
+        '📝 Prompt voor de wensenlijst (aan de regels toegevoegd):',
+    '🤸 Warm-up-list prompt (added to the rules):':
+        '🤸 Prompt voor de oefenlijst (aan de regels toegevoegd):',
+    '🔍  Find a title or genre in this list…\tCtrl+F':
+        '🔍  Een titel of genre in deze lijst zoeken…\tCtrl+F',
+    '🔍  No title of “%s” in this list':
+        '🔍  Geen titel van “%s” in deze lijst',
+    'Not a round pattern — fix it (e.g. 6-3-2-1).':
+        'Geen rondepatroon — verbeter het (bijv. 6-3-2-1).',
+    'Also find the same recording under different file names?\n\nThat reads the sound of %s track(s), about 0.2 s each. You can cancel anytime; results so far are kept.':
+        'Ook dezelfde opname onder andere bestandsnamen zoeken?\n\nDaarvoor wordt het geluid van %s nummer(s) gelezen, ongeveer 0,2 s per nummer. Je kunt altijd annuleren; resultaten tot dan toe blijven bewaard.',
+    'The heats of a dance in a round sound alike: the first track is the\nanchor, the others are its nearest by timbre. The final and semifinal\nprefer the titles you played there before.':
+        'De heats van een dans in een ronde klinken op elkaar: het eerste nummer is het\nanker, de andere zijn de dichtstbijzijnde qua timbre. De finale en halve finale\ngeven de voorkeur aan nummers die je daar eerder hebt gedraaid.',
+    'Fresh titles in the early rounds:':
+        'Nieuwe nummers in de eerste rondes:',
+    'Share of the heats in the rounds before the semifinal that go to fresh titles. The semifinal and the final keep to the titles you know.':
+        'Aandeel van de heats in de rondes vóór de halve finale dat naar nieuwe nummers gaat. De halve finale en de finale houden zich aan nummers die je kent.',
+    'New (at most 2 years in the library)':
+        'Nieuw (hoogstens 2 jaar in de bibliotheek)',
+    'Rarely played (any age)':
+        'Zelden gedraaid (elke leeftijd)',
+    'Which titles count as fresh: new ones, or any title that was hardly ever played.':
+        'Welke nummers als nieuw gelden: nieuwe, of elk nummer dat zelden is gedraaid.',
+    'Reading Chromaprints…':
+        'Chromaprints worden gelezen…',
 }

@@ -65,7 +65,12 @@ def _unpack(row) -> dict:
         if raw is None:
             continue
         if field in _LIST_FIELDS:
-            out[field] = json.loads(raw)
+            try:
+                value = json.loads(raw)
+            except (TypeError, ValueError):
+                continue        # one damaged cell must not lose every edit
+            if isinstance(value, list):
+                out[field] = value
         elif field == "is_instrumental":
             out[field] = bool(raw)
         else:

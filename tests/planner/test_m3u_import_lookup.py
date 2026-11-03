@@ -57,9 +57,10 @@ class M3uImportLookupTest(unittest.TestCase):
         self.assertIs(entry, lib.entries[0])
         self.assertTrue(found)
 
-    def test_a_file_whose_tags_fail_is_logged_and_kept_as_a_ghost(self):
-        """A file that is there but can't be read still fills the slot, and the
-        reason it came in as a ghost is in the debug log, not swallowed."""
+    def test_a_file_whose_tags_fail_is_logged_and_kept_as_a_bare_entry(self):
+        """A file that is there but can't be read still fills the slot as a
+        found, bare entry (it is on disk), and the reason the tag read failed is
+        in the debug log, not swallowed."""
         with tempfile.TemporaryDirectory() as tmp:
             song = Path(tmp) / "Tanguera (TG 32).mp3"
             song.write_bytes(b"")
@@ -70,7 +71,7 @@ class M3uImportLookupTest(unittest.TestCase):
                 # Any cache: without one an outside file is never read at all.
                 entry, found, _ = resolve_import_path(str(song), lib, mock.Mock(),
                                                        "Tanguera")
-        self.assertFalse(found)
+        self.assertTrue(found)
         self.assertEqual(entry.title, "Tanguera")
         text = "\n".join(logs.output)
         self.assertIn(str(song), text)

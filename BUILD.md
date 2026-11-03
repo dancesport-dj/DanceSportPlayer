@@ -167,7 +167,7 @@ The runners pin `python-version: "3.14.9"`, not `"3.14"`: a floating minor
 version makes every patch release of CPython rebuild the whole stdlib inside the
 bundle, which shows up as ~25 changed binaries in a release diff for no reason.
 
-The version number is `VERSION` in `planner/version.py` (`1.7.0`), and a build
+The version number is `VERSION` in `planner/version.py` (`1.8.0`), and a build
 without a tag gets it. A `v*` tag overrides it, so name the tag
 `vMAJOR.MINOR.PATCH` (`v1.2.0`); the app in the release then says `1.2.0`, the
 tag without its v. Keep `VERSION` in step after a release, so desk builds carry
@@ -300,6 +300,20 @@ keeps using the old folder.
 
 Files shipped *with* the app (`ffmpeg.exe`, `build_flavor.txt`) are looked up
 under `INSTALL_DIR` and stay next to the executable either way.
+
+## fpcalc (same-recording duplicates)
+
+🔁 Check duplicates can find one recording under different files (another
+encode, a cut copy) through its Chromaprint. That needs `fpcalc` from
+<https://acoustid.org/chromaprint> (the release zip
+`chromaprint-fpcalc-<version>-windows-x86_64`). It is not in the repository
+(gitignored). `find_fpcalc()` (shared/audio/chromaprint.py) checks next to the
+app / .exe, then an unpacked `chromaprint-fpcalc-*\` folder in the project
+root, then `PATH`, then the macOS package-manager prefixes. Without it the
+check simply does not offer the search. `build_exe.bat` copies `fpcalc.exe`
+next to the app like ffmpeg, and the GitHub Windows build fetches the pinned
+v1.6.2 zip (SHA-256 checked, `Fetch fpcalc` in `build-player.yml`; a new version
+needs its own hash). macOS: not bundled, `brew install chromaprint`.
 
 ## ffmpeg (analysis / loudness / silence)
 

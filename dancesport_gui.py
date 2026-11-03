@@ -225,6 +225,7 @@ from player.audio.cue_player import CuePlayer
 from player.audio.fade_now import FadeNow
 from player.audio.mix import OutputMix, desk_duck_pct, duck_ramp_ms
 from player.audio.on_air_note import NOTE
+from player.audio.pending_work import PendingWork
 from player.audio.playback_state import PlaybackState
 from player.audio.resume_marks import ResumeMarks
 from player.audio.system_sounds import SystemSoundGuard
@@ -260,7 +261,7 @@ from shared.appearance.icons import counted_emoji
 from shared.audio.audio_files import (
     set_browse_dir,
 )
-from shared.audio.audio_probes import LoudnessWorker, PdHighlightWorker, SilenceWorker
+from shared.audio.audio_probes import LoudnessWorker, SilenceWorker
 from shared.audio.playback import plain_output_name, prime_disconnect_notify, quiet_ffmpeg_log
 from shared.stores import (
     save_settings,
@@ -530,7 +531,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         # Set when ✏️ edit mode is switched off: the next time the highlight stop
         # is reached, pause there so the fresh mark can be checked by ear.
         self._pd_verify_stop = False
-        self._pd_worker: PdHighlightWorker | None = None
+        self._pending = PendingWork()
         # 🐂 The wait between the call and the first bar, while it runs:
         # (play token, path, deadline) plus its countdown ticker.
         self._pd_hold: tuple | None = None
@@ -1517,14 +1518,26 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
 # ─────────────────────────────────────────────────────────────────────────────
 # Entry point
 # ─────────────────────────────────────────────────────────────────────────────
-def _install_crash_log():
-    """💥 Hard crashes into crash.log; returns what the previous run left there."""
+def _take_instance_lock():
+    """🔒 A lock on the app folder: held, this is the first instance; not held,
+    another one is running and must not overwrite its diagnostics. The lock
+    lives as long as the returned object is referenced."""
+    from PySide6.QtCore import QLockFile
+    lock = QLockFile(str(planner.config.APP_DIR / "app.lock"))
+    lock.tryLock(0)
+    return lock
+
+
+def _install_crash_log(suffix=""):
+    """💥 Hard crashes into crash.log; returns what the previous run left there.
+    A second instance (`suffix`) writes crash.<suffix>.log instead."""
     # Capture hard crashes even with no console (pythonw / double-click launch):
     # a native fault (segfault / C++ abort) is dumped by faulthandler, and any
     # unhandled Python exception (which PySide6 can turn fatal) is logged too. Both
     # go to crash.log next to the app so we can see WHERE it died.
     import faulthandler
-    crash_path = planner.config.APP_DIR / "crash.log"
+    import threading
+    crash_path = planner.config.APP_DIR / f"crash{suffix}.log"
     # Read the PREVIOUS run's log before the "w" open below truncates it — a
     # non-empty file means the last session crashed (or hit an unhandled
     # exception) and nobody may have seen it.
@@ -1532,6 +1545,13 @@ def _install_crash_log():
     try:
         if crash_path.exists():
             prev_crash = crash_path.read_text(encoding="utf-8", errors="replace").strip()
+            if prev_crash:
+                # Windows writes its minidump a moment AFTER faulthandler's text.
+                from shared.crash_dump import latest_dump_text
+                dump = latest_dump_text(crash_path.stat().st_mtime - 5)
+                if dump:
+                    prev_crash += "\n\n=== Windows crash dump ===\n" + dump
+                    log.warning("💥 Crash dump of the previous session\n%s", dump)
     except Exception as exc:
         log.debug("💥 Could not read the previous crash.log: %s", exc)
     try:
@@ -1550,23 +1570,28 @@ def _install_crash_log():
             _crash_log.write("\n=== Uncaught Python exception ===\n" + text)
             _crash_log.flush()
     sys.excepthook = _log_uncaught
+
+    def _log_thread(args):
+        _log_uncaught(args.exc_type, args.exc_value, args.exc_traceback)
+    threading.excepthook = _log_thread
     return prev_crash
 
 
-def _open_session_log():
-    """📝 The running log into session.log; returns the previous run's log."""
+def _open_session_log(suffix=""):
+    """📝 The running log into session.log; returns the previous run's log.
+    A second instance (`suffix`) writes session.<suffix>.log instead."""
     # Breadcrumbs. A native fault (access violation) dumps only the Python stack,
     # and that stack is always the main thread parked in app.exec() — it says the
     # app died inside Qt, not WHAT it was doing. So the running log goes to
     # session.log next to crash.log, flushed line by line: its last entries name
     # the track that started, the worker that ran, the dialog that opened right
     # before the fault. The previous run is kept as session.prev.log.
-    session_path = planner.config.APP_DIR / "session.log"
+    session_path = planner.config.APP_DIR / f"session{suffix}.log"
     prev_session = ""
     try:
         if session_path.exists():
             prev_session = session_path.read_text(encoding="utf-8", errors="replace")
-            (planner.config.APP_DIR / "session.prev.log").write_text(
+            (planner.config.APP_DIR / f"session.prev{suffix}.log").write_text(
                 prev_session, encoding="utf-8")
     except Exception as exc:
         log.debug("📝 Could not keep the previous session log: %s", exc)
@@ -1655,8 +1680,10 @@ def run_gui():
     else:
         logging.basicConfig(level=logging.INFO, format="%(message)s")
 
-    prev_crash = _install_crash_log()
-    prev_session = _open_session_log()
+    instance_lock = _take_instance_lock()      # held for the whole run
+    second = ".second" if not instance_lock.isLocked() else ""
+    prev_crash = _install_crash_log(second)
+    prev_session = _open_session_log(second)
     _route_qt_messages()
     # 📥 A venue pack imported in the last session takes over now — before the
     # first read of the settings, and after the last window that could have

@@ -10,6 +10,7 @@ read as Vorrunde / Zwischenrunde / Finale, not as "Standardrunde 1 … 6". Eithe
 way the panel takes the file's name: it is showing that playlist now.
 """
 
+import json
 import os
 import tempfile
 import unittest
@@ -140,6 +141,19 @@ class WarmupImportTest(unittest.TestCase):
 
         self.win._restore_warmup_state({})       # empty it, as a restart would
         self.assertFalse(self.table._row_meta)
+        self.win._restore_warmup_state(state)
+        self.assertEqual(self.strips(), before)
+
+    def test_a_competition_training_list_keeps_its_heats_across_a_restart(self):
+        self._m3u("heats", ["SA"] * 3 + ["CC"] * 3 + ["SA", "CC"])
+        plan = [("Runde 1", 3, 6), ("Finale", 1, 2)]
+        self.table.load_warmup(list(self.lib.entries), "Competition Training", "Latin",
+                               "S", True, play_cb=None, suggester=None,
+                               heat_plan=plan)
+        before = self.strips()
+        self.assertEqual(before, ["Runde 1", "Finale"])
+        state = json.loads(json.dumps(self.win._warmup_state()))   # as autosave
+        self.win._restore_warmup_state({})
         self.win._restore_warmup_state(state)
         self.assertEqual(self.strips(), before)
 

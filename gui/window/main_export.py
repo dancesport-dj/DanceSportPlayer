@@ -541,7 +541,8 @@ class ExportMixin(MainWindowHost):
             try:
                 out = export_flat_m3u(warmup._row_meta.entries(),
                                       _uniq_name(title, practice_name()),
-                                      path_for=path_for)
+                                      path_for=path_for,
+                                      heat_rounds=warmup._heat_plan)
                 warmup._m3u_path = Path(out)
                 saved.append(Path(out).name)
             except Exception as exc:
@@ -631,12 +632,18 @@ class ExportMixin(MainWindowHost):
         ask = UsbExportDialog(
             self, n_decks=len(decks), n_day=len(day),
             day_selected=self._grid.deck_tabs.currentWidget() is self._grid.day_tabs,
-            n_wish=len(wishes), n_party=len(party_entries))
+            n_wish=len(wishes), n_party=len(party_entries),
+            deck_names=[self.deck(t).name or "Playlist" for t in decks],
+            wish_names=[self.deck(t).name or "Wishlist" for t in wishes])
         if ask.exec() != QDialog.DialogCode.Accepted:
             return
         if ask.venue_pack():
             self._export_venue_pack()
             return
+        if ask.include_decks() and ask.deck_picks():
+            decks = [decks[i] for i in ask.deck_picks()]
+        if ask.include_wishlists() and ask.wish_picks():
+            wishes = [wishes[i] for i in ask.wish_picks()]
         selected = (decks if ask.include_decks() else []) + (day if ask.include_day() else [])
         jobs, skipped = self._bundle_jobs_for_decks(selected)
         flat = []
@@ -954,7 +961,8 @@ class ExportMixin(MainWindowHost):
             export = lambda out: self._run_export(
                 "💾 Saving wishlist…" if is_wish else "💾 Saving playlist…",
                 lambda cb: export_flat_m3u(entries, basename, progress_cb=cb, out_path=out,
-                                           path_for=path_for))
+                                           path_for=path_for,
+                                           heat_rounds=getattr(table, "_heat_plan", None)))
         else:
             data = self._serialize_playlist_state(table)
             if not data:

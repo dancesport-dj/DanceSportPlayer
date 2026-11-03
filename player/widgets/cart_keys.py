@@ -73,6 +73,13 @@ class KeyPicker(QWidget):
 
     # ── value ──
     def sequence(self) -> str:
+        """The key the dialog takes: while Learn is armed the field is empty,
+        so the key it had stays until a new one is pressed."""
+        if self._before is not None:
+            return self._before
+        return self._shown()
+
+    def _shown(self) -> str:
         return self._edit.keySequence().toString()
 
     def set_sequence(self, text: str) -> None:
@@ -82,7 +89,7 @@ class KeyPicker(QWidget):
 
     # ── internals ──
     def _on_edit(self, _seq) -> None:
-        if self.sequence():
+        if self._shown():
             self._stop_learning()
         self.changed.emit()
 
@@ -97,7 +104,7 @@ class KeyPicker(QWidget):
         """Arm: the next key pressed is the key. Pressed again, it cancels
         and the key it had stays."""
         if self._before is None:
-            self._before = self.sequence()
+            self._before = self._shown()
             self.set_sequence("")
             self._learn.setText(i18n.t("Cancel"))
             self._learn.setChecked(True)

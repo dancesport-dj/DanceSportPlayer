@@ -13,6 +13,7 @@ import time
 from collections import defaultdict, deque
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeout
 from pathlib import Path
 from typing import Any
 
@@ -52,9 +53,11 @@ from planner.music.db import (  # auto-resolved
     AudioCache,
     ChunkedWrites,
     fingerprints,
+    first_seen_by_path,
 )
 from planner.music.parsing import (  # auto-resolved
     LIBRARY_EXTS,
+    FailedRead,
     _title_key,
     dance_from_folders,
     detect_bpm_tagged,
@@ -142,13 +145,14 @@ def library_mp3s(root: Path,
     return out
 
 
-def listed_mtimes(folders) -> dict[str, int]:
+def listed_mtimes(folders, created: dict[str, float] | None = None) -> dict[str, int]:
     """str(path) → mtime of every music file directly in `folders`, one listing each.
 
     The key to a recorded fingerprint holds the file's mtime; for the whole
     repository (54k titles) one stat per file was 4.6 s of a 14.5 s cache load,
     the listing gives the same mtime for free (see `_library_mp3s`). A folder
     that cannot be listed is left out, so its files fall back to the stat.
+    `created`, when given, receives each file's creation time the same way.
     """
     out: dict[str, int] = {}
     for folder in folders:
@@ -157,7 +161,11 @@ def listed_mtimes(folders) -> dict[str, int]:
                 for de in it:
                     if de.name.lower().endswith(LIBRARY_EXTS):
                         try:
-                            out[de.path] = int(de.stat().st_mtime)
+                            st = de.stat()
+                            out[de.path] = int(st.st_mtime)
+                            if created is not None:
+                                created[de.path] = (getattr(st, "st_birthtime", None)
+                                                    or st.st_ctime)
                         except OSError:
                             continue
         except OSError:
@@ -196,6 +204,11 @@ def _left_out(rel_parts: list[str], skip_special: bool) -> str | None:
 # pool reads this many files at once, at most _READ_AHEAD ahead of the scan.
 _READ_WORKERS = 8
 _READ_AHEAD = 32
+# A file whose read takes longer than this (an iCloud placeholder being fetched,
+# a stalled network share) is set aside and picked up after the rest, so one
+# slow file does not hold the scan - and the seven other readers - still.
+_STALL_SECS = 10.0
+_STALLED = object()
 
 # ⏱ A long first scan logged nothing between its first and its last line, so a
 # tester's session.log could not tell how far it got or which file it sat on.
@@ -204,6 +217,10 @@ _SLOW_FILE_SECS = 2.0
 
 # ⏸ How often a paused scan looks whether it may go on (or must end).
 _PAUSE_POLL_SECS = 0.2
+# A scan over slow files (iCloud-evicted, a network volume) reports by the clock
+# as well as by the count (_ScanClock already names the slow files).
+_PROGRESS_SECS = 1.0
+_LOG_EVERY = 500
 
 
 class _ScanClock:
@@ -241,6 +258,35 @@ class _ScanClock:
         """A pause is neither the file's time nor the scan's."""
         self.started += seconds
         self.tick += seconds
+
+
+class _ScanPulse:
+    """What a scan over slow files owes whoever watches it: progress by the
+    clock as well as by the count, and a log line now and then (the log
+    otherwise just stops)."""
+
+    def __init__(self, total: int) -> None:
+        self.total = total
+        self._last_report = time.perf_counter()
+
+    def before(self, idx: int, path) -> None:
+        if idx % _LOG_EVERY == 0:
+            log.info("  📂 Scanning\n"
+                     "files: %d / %d\n"
+                     "now: %s", idx, self.total, path)
+
+    def report(self, progress_cb, idx: int, path, reused: bool) -> None:
+        """Call `progress_cb` (when there is one) if a report is due."""
+        if progress_cb is not None and self.due(idx):
+            progress_cb(idx, self.total, path, reused)
+
+    def due(self, idx: int) -> bool:
+        """Report progress: every 25 files, at the end, or when the last report is old."""
+        now = time.perf_counter()
+        if idx % 25 and idx != self.total and now - self._last_report < _PROGRESS_SECS:
+            return False
+        self._last_report = now
+        return True
 
 
 def _hold(should_pause, should_quit, writes, clock) -> bool:
@@ -287,6 +333,7 @@ class _ReadAhead:
         self._read = read
         self._args = args
         self._window = deque()
+        self._late: dict = {}
         self._pool = (ThreadPoolExecutor(_READ_WORKERS, initializer=lower_thread_priority)
                       if paths else None)
         for _ in range(_READ_AHEAD):
@@ -303,17 +350,39 @@ class _ReadAhead:
 
     def __exit__(self, *exc) -> None:
         if self._pool is not None:
-            self._pool.shutdown(cancel_futures=True)
+            # Wait only when no read is stuck: a read hanging on an evicted file
+            # must not hold up the end of the scan (it touches no database, so
+            # it can run out alone).
+            stuck = any(not f.done() for f in self._late.values())
+            self._pool.shutdown(wait=not stuck, cancel_futures=True)
 
     def take(self, path):
+        """The file's read, or (_STALLED, None) when it is not done after
+        _STALL_SECS: `late` collects it then."""
         if not self._window or self._window[0][0] != path:
             return None, None
         _, future = self._window.popleft()
         self._submit_next()
         try:
-            return future.result()
+            return future.result(timeout=_STALL_SECS)
+        except FutureTimeout:
+            self._late[path] = future
+            return _STALLED, None
         except Exception:       # not only OSError: the scan thread reads it again
             return None, None
+
+    def late(self, path, should_quit: Callable[[], bool]):
+        """A set-aside file's read, once it finishes; (None, None) if the scan
+        is asked to quit first or the read failed."""
+        future = self._late.pop(path)
+        while True:
+            try:
+                return future.result(timeout=0.5)
+            except FutureTimeout:
+                if should_quit():
+                    return None, None
+            except Exception:
+                return None, None
 
 
 # ── Music Library ──────────────────────────────────────────────────────────────
@@ -411,6 +480,12 @@ def _heal_cached(path, cached, scan_cache):
     if cached.get('custom') is None and custom_field.source() is not None:
         cached = {**cached, 'custom': custom_field.read_file(path)}
         scan_cache.put(path, cached)
+    # 🩹 Christmas is a pure function of the name and the genre text, so rows
+    # flagged by the old substring match (Santana) are corrected on a hit.
+    xmas = is_christmas(Path(foreign_name(path)).stem, cached.get('tag_genre') or '')
+    if 'is_xmas' in cached and bool(cached['is_xmas']) != xmas:
+        cached = {**cached, 'is_xmas': xmas}
+        scan_cache.put(path, cached)
     if folder_dance:
         return {**cached, 'dance': folder_dance}
     return {**cached, 'other_genre': path_other} if path_other else cached
@@ -503,6 +578,7 @@ class MusicLibrary(PlaylistIndexMixin):
         scan_cache = self._get_scan_cache(cache)
         music_dir = music_dir or MUSIC_DIR
         added_ts: dict[str, float] = {}   # file path → creation time (see the walk below)
+        modified_ts: dict[str, float] = {}   # file path → modification time
         log.info("  📂 Scanning music library …  %s", music_dir)
         if not music_dir.exists():
             log.warning("  ⚠️ Music directory not found: %s", music_dir)
@@ -520,6 +596,7 @@ class MusicLibrary(PlaylistIndexMixin):
             found = library_mp3s(music_dir, mtimes)
             cache.listed_mtimes = mtimes
             added_ts = {str(p): ts for p, ts in found}
+            modified_ts = {str(p): mtimes[str(p)] for p, _ in found if str(p) in mtimes}
             all_mp3 = [p for p, _ in found]
             total = len(all_mp3)
             root = str(music_dir)
@@ -548,8 +625,11 @@ class MusicLibrary(PlaylistIndexMixin):
 
             with (ChunkedWrites() as writes,
                   _ReadAhead(unread, _read_new_file, cache, scan_cache) as ahead):
+                pulse = _ScanPulse(total)
+                deferred: list = []
                 for idx, mp3 in enumerate(all_mp3, 1):
-                    held = _hold(should_pause, should_quit, writes, clock)
+                    pulse.before(idx, mp3)
+                    _hold(should_pause, should_quit, writes, clock)
                     if should_stop is not None and should_stop():
                         stopped = True
                         log.info("  ⏹ Library scan stopped\n"
@@ -557,8 +637,7 @@ class MusicLibrary(PlaylistIndexMixin):
                         break
                     clock.step(idx - 1, mp3)
                     writes.step()
-                    if (should_cancel is not None and (held or idx % 25 == 0)
-                            and should_cancel()):
+                    if should_cancel is not None and should_cancel():
                         if global_cache is not None:
                             global_cache.save()   # keep what we scanned so far
                         scan_cache.save()
@@ -570,8 +649,7 @@ class MusicLibrary(PlaylistIndexMixin):
                             skipped_dirs.add(why)
                         if mp3 in hidden and global_cache is not None:
                             seen.add(str(mp3))   # hidden, not gone: its row stays
-                        if progress_cb is not None and (idx % 25 == 0 or idx == total):
-                            progress_cb(idx, total, mp3, True)
+                        pulse.report(progress_cb, idx, mp3, True)
                         continue
                     if global_cache is not None:
                         seen.add(str(mp3))
@@ -605,14 +683,21 @@ class MusicLibrary(PlaylistIndexMixin):
                             self.entries.append(entry)
                     else:
                         fps, tags = ahead.take(mp3)
+                        if fps is _STALLED:
+                            log.warning("  🧊 Reading is stuck, set aside for later\n"
+                                        "file: %s", mp3)
+                            deferred.append((idx, mp3))
+                            continue
                         if fps is not None:
                             cache.read_ahead[str(mp3)] = fps
                         entry = self._make_entry_or_none(mp3, scan_cache, tags)
                         if entry is None:
                             continue
                         self.entries.append(entry)
-                    if progress_cb is not None and (idx % 25 == 0 or idx == total):
-                        progress_cb(idx, total, mp3, was_reused)
+                    pulse.report(progress_cb, idx, mp3, was_reused)
+                if self._read_deferred(deferred, ahead, cache, scan_cache, writes,
+                                       total, progress_cb, should_cancel, should_quit):
+                    stopped = True
                 clock.step(total, None)
             if skipped_dirs:
                 log.info("  Skipped dirs: %s", ', '.join(sorted(skipped_dirs)))
@@ -626,9 +711,30 @@ class MusicLibrary(PlaylistIndexMixin):
                          reused, len(self.entries) - reused)
             self.apply_tag_edits(cache)
 
-        self._finish_scan(cache, learn, analyze, interactive, added_ts)
+        self._finish_scan(cache, learn, analyze, interactive, added_ts, modified_ts)
 
-    def _finish_scan(self, cache, learn, analyze, interactive, added_ts):
+    def _read_deferred(self, deferred, ahead, cache, scan_cache, writes, total,
+                       progress_cb, should_cancel, should_quit) -> bool:
+        """The files whose read was set aside as stuck, taken after the rest.
+        A cancel raises like the main loop; True when the scan was stopped."""
+        for idx, mp3 in deferred:
+            writes.step()
+            fps, tags = ahead.late(mp3, should_quit)
+            if should_cancel is not None and should_cancel():
+                scan_cache.save()
+                raise ScanCancelled(f"Scan cancelled after {idx}/{total} files")
+            if should_quit():
+                return True
+            if fps is not None:
+                cache.read_ahead[str(mp3)] = fps
+            entry = self._make_entry_or_none(mp3, scan_cache, tags)
+            if entry is not None:
+                self.entries.append(entry)
+            if progress_cb is not None:
+                progress_cb(idx, total, mp3, False)
+        return False
+
+    def _finish_scan(self, cache, learn, analyze, interactive, added_ts, modified_ts=None):
         """After the walk: learn the playlists, popularity and source, features."""
         if learn:
             log.info("  📜 Analyzing existing playlists … %s", playlist_dir())
@@ -636,11 +742,14 @@ class MusicLibrary(PlaylistIndexMixin):
             log.info("  📜 %s playlists analyzed (M3U files + tournament folders)", n)
 
         # Apply popularity + source info (popularity only meaningful when we learned playlists)
+        first_seen = first_seen_by_path()
         for e in self.entries:
             if learn:
                 self._apply_popularity(e)
             e.cluster = e.path.parent.name
-            e.added = added_ts.get(str(e.path))
+            e.created = added_ts.get(str(e.path))
+            e.added = first_seen.get(str(e.path)) or e.created
+            e.modified = (modified_ts or {}).get(str(e.path))
 
         # Audio feature extraction (with cache)
         if analyze:
@@ -666,7 +775,9 @@ class MusicLibrary(PlaylistIndexMixin):
         """
         self.entries = []
         rows = global_cache.all_entries()
-        mtimes = listed_mtimes({os.path.dirname(path_str) for path_str, _ in rows})
+        created: dict[str, float] = {}
+        mtimes = listed_mtimes({os.path.dirname(path_str) for path_str, _ in rows}, created)
+        first_seen = first_seen_by_path()
         cache.load_all_features()
         for path_str, meta in rows:
             if is_hidden_path(path_str):
@@ -680,6 +791,9 @@ class MusicLibrary(PlaylistIndexMixin):
                 entry.bpm = bpm
                 global_cache.put(p, {**meta, 'bpm': bpm})
             entry.cluster = p.parent.name
+            entry.modified = mtimes.get(str(p))
+            entry.created = created.get(str(p))
+            entry.added = first_seen.get(str(p)) or entry.created
             entry.features = cache.get(p, hash_if_missing=False,
                                        mtime=mtimes.get(str(p)))
             self.entries.append(entry)
@@ -771,7 +885,8 @@ class MusicLibrary(PlaylistIndexMixin):
         # filename guess, because the filename can false-positive — e.g. the title word
         # 'Ta' in 'Je Ne Serai Jamais Ta Parisienne' looks like the Tango code 'TA',
         # though its genre tag correctly says 'LW' (Slow Waltz).
-        tags, duration = tags_read or read_tags_once(path)
+        read = tags_read or read_tags_once(path)
+        tags, duration = read
         raw_genre = get_raw_genre_tag(path, tags) or ''
         genre_dance = None
         genre_other = None
@@ -847,6 +962,8 @@ class MusicLibrary(PlaylistIndexMixin):
             # "Pop; Rock" rather than with invisible separators.
             'tag_genre': raw_genre.replace('\0', '; ').strip() or None,
         }
+        if isinstance(read, FailedRead):
+            return MusicEntry(path=path, **data)    # not cached: the next scan reads it again
         # The folder's dance and the path's social label stay out of the row:
         # `_heal_cached` reads them off the path the file has at the time.
         scan_cache.put(path, {**data, 'dance': None if from_folder else dance,
@@ -877,8 +994,11 @@ class MusicLibrary(PlaylistIndexMixin):
         Returns {field: (old, new)} for everything the re-read changed."""
         path = Path(file or entry.path)
         scan_cache = self._get_scan_cache(cache)
+        read = read_tags_once(path)
+        if isinstance(read, FailedRead):
+            return {}       # the file is locked right now: keep what the row shows
         scan_cache.forget(path)
-        fresh = self._make_entry(path, scan_cache)
+        fresh = self._make_entry(path, scan_cache, read)
         scan_cache.save()
         _custom_classes(fresh)
         fp = cache.recorded_fingerprint(path) if cache is not None else None
@@ -987,6 +1107,8 @@ class MusicLibrary(PlaylistIndexMixin):
         known = self.entry_for(entry.path)
         if known is not None:
             entry.added = known.added
+            entry.created = known.created
+            entry.modified = known.modified
 
     @property
     def entries(self) -> list[MusicEntry]:

@@ -67,9 +67,10 @@ class ScanChunkedCommitsTest(unittest.TestCase):
         self.assertEqual(self.rows_seen_by_another_connection(), _FILES)
 
     def test_a_cancelled_scan_keeps_its_rows(self):
-        # Polled every 25 files: it stops before the 25th.
+        # Polled before every file: asked "yes" the 25th time, it stops before the 25th.
+        asked = []
         with self.assertRaises(ScanCancelled):
-            self.scan(should_cancel=lambda: True)
+            self.scan(should_cancel=lambda: asked.append(1) or len(asked) >= 25)
         self.assertFalse(pdb._db().in_transaction)
         self.assertEqual(self.rows_seen_by_another_connection(), 24)
 

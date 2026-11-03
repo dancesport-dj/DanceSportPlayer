@@ -72,6 +72,23 @@ class DialogTest(unittest.TestCase):
         self.assertEqual(self.picked(dlg), ["party"])
         self.assertTrue(dlg._ok.isEnabled())
 
+    def test_each_playlist_with_titles_has_its_own_tick(self):
+        dlg = self.dialog(n_decks=3, deck_names=["A", "B", "C"])
+        ticks = dlg._deck_ticks
+        self.assertEqual([t.text() for t in ticks], ["A", "B", "C"])
+        ticks[1].setChecked(False)
+        self.assertEqual(dlg.deck_picks(), [0, 2])
+        for t in ticks:
+            t.setChecked(False)
+        self.assertFalse(dlg.include_decks())
+
+    def test_wishlists_can_be_picked_too(self):
+        dlg = self.dialog(n_wish=2, wish_names=["W1", "W2"])
+        dlg._cb_wish.setChecked(True)
+        dlg._wish_ticks[0].setChecked(False)
+        self.assertEqual(dlg.wish_picks(), [1])
+        self.assertTrue(dlg.include_wishlists())
+
     def test_what_is_empty_cannot_be_ticked(self):
         dlg = self.dialog(n_decks=1)
         for box in (dlg._cb_day, dlg._cb_party, dlg._cb_wish):
@@ -144,6 +161,8 @@ class ExportTest(unittest.TestCase):
         ask.include_party.return_value = party
         ask.include_wishlists.return_value = wish
         ask.dropped_paths.return_value = list(dropped)
+        ask.deck_picks.return_value = []
+        ask.wish_picks.return_value = []
         with mock.patch.object(main_export, "UsbExportDialog", return_value=ask) as cls:
             main_export.ExportMixin._export_bundle(host)
         return cls

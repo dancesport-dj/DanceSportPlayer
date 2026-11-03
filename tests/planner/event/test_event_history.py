@@ -162,6 +162,19 @@ class EventHistoryTest(unittest.TestCase):
         hgr, = parse_competition_schedule("HGR S STD 2-1")
         self.assertFalse(competition_matches_file(hgr, Path("JACK_AND_JILL.m3u")))
 
+    def test_a_spec_without_a_level_skips_leveled_lists(self):
+        # Review #111: 'HGR S STD' must not draw from the 'HGR_II_*' list.
+        hgr, = parse_competition_schedule("HGR S STD 2-1")
+        self.assertTrue(competition_matches_file(hgr, Path("HGR_S_STD.m3u")))
+        self.assertFalse(competition_matches_file(hgr, Path("HGR_II_S_STD.m3u")))
+
+    def test_a_zero_count_keeps_its_round(self):
+        # Review #118: 'VR ZR ER 24-0-6' is three rounds, not two.
+        jj, = parse_competition_schedule(
+            "J & J (LW; TG; CC; RB) VR ZR ER 24-0-6")
+        self.assertEqual(jj.couples_per_round, [24, 0, 6])
+        self.assertEqual(len(jj.heats), 3)
+
     def test_the_warm_up_list_is_not_the_competition(self):
         self.hgr_2025()
         self.write("DanceConvention 2025/eintanzen_STD.m3u",

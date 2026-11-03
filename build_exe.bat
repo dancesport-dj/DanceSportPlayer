@@ -86,6 +86,18 @@ if exist "%FFMPEG%" (
   echo       The packaged app will ask for one on first start.
 )
 
+rem fpcalc (Chromaprint) is the same story: found next to the .exe first
+rem (shared.audio.chromaprint.find_fpcalc), not in the repository. Without it
+rem Check duplicates simply does not offer the same-recording search.
+set FPCALC=%~dp0fpcalc.exe
+if not exist "%FPCALC%" for /d %%D in ("%~dp0chromaprint-fpcalc-*") do if exist "%%D\fpcalc.exe" set FPCALC=%%D\fpcalc.exe
+if exist "%FPCALC%" (
+  copy /y "%FPCALC%" "%~dp0dist\%APP_NAME%\fpcalc.exe" >nul
+  echo Copied fpcalc.exe next to the app.
+) else (
+  echo NOTE: no fpcalc.exe found next to build_exe.bat - see BUILD.md.
+)
+
 rem The commit this build is made from: build_installer.bat builds again
 rem instead of wrapping an older folder under the current version.
 git rev-parse HEAD > "%~dp0dist\%APP_NAME%\build_commit.txt" 2>nul

@@ -7,6 +7,7 @@ pool-z-scored cosine `librosa` method), their KL→percent calibration, and the
 `_timbre_similarity` dispatcher shared by display and playlist scoring.
 """
 import contextlib
+import math
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -101,7 +102,8 @@ def _pool_similarity(anchor: AudioFeatures,
     # a feature-vector change, stale shorter vectors may still be around; they stay
     # neutral (0.5) rather than crashing the stack or skewing the standardization.
     feats = [(e, f) for e in entries
-             if (f := e.features) is not None and len(_feat_vector(f)) == dim]
+             if (f := e.features) is not None and len(_feat_vector(f)) == dim
+             and all(math.isfinite(x) for x in _feat_vector(f))]
     if not HAS_LIBROSA or not feats:
         return {str(e.path): 0.5 for e in entries}
     matrix = np.array(
@@ -141,8 +143,10 @@ def _gauss_of(f: AudioFeatures | None):
         if len(f.mfcc_mean) == k and len(f.mfcc_cov) == k * k:
             mu = np.asarray(f.mfcc_mean, dtype=float)
             cov = np.asarray(f.mfcc_cov, dtype=float).reshape(k, k)
-            with contextlib.suppress(np.linalg.LinAlgError):
-                triple = (mu, cov, np.linalg.inv(cov))
+            # A NaN/inf Gaussian would read as j == 0 (a perfect match) below.
+            if np.isfinite(mu).all() and np.isfinite(cov).all():
+                with contextlib.suppress(np.linalg.LinAlgError):
+                    triple = (mu, cov, np.linalg.inv(cov))
     f.gauss_cache = triple
     return triple
 
@@ -234,12 +238,18 @@ def _z_cosines(query, rows) -> list[float]:
     rows and the query — the pool-relative standardization `_pool_similarity`
     and `embedding_similar` use, so no single loud dimension decides."""
     m = np.vstack([np.asarray(rows, dtype=float), np.asarray(query, dtype=float)])
+    ok = np.isfinite(m).all(axis=1)        # one NaN row must not poison every column
+    out = np.zeros(len(rows))
+    if not ok[-1] or not ok[:-1].any():
+        return list(out)
+    m = m[ok]
     sd = m.std(axis=0)
     sd[sd < 1e-9] = 1.0
     z = (m - m.mean(axis=0)) / sd
     q, rest = z[-1], z[:-1]
     denom = np.linalg.norm(rest, axis=1) * float(np.linalg.norm(q))
-    return list(np.divide(rest @ q, denom, out=np.zeros(len(rest)), where=denom > 0))
+    out[ok[:-1]] = np.divide(rest @ q, denom, out=np.zeros(len(rest)), where=denom > 0)
+    return list(out)
 
 
 def _shares(scores: dict[str, float]) -> dict[str, float]:

@@ -61,6 +61,15 @@ from shared.widgets import (
 log = logging.getLogger("dancesport.gui")
 
 
+def _int_setting(settings: dict, key: str, default: int) -> int:
+    """A stored whole number, or the default when the file holds something
+    else — a hand-edited or damaged value must not stop Settings opening."""
+    try:
+        return int(settings.get(key, default))
+    except (TypeError, ValueError):
+        return default
+
+
 class SettingsDialog(LookTabMixin, SoundTabMixin, CartwallTabMixin,
                      PlaySetsTabMixin, AiTabMixin, QDialog):
     """Configure the library paths + global search (tab 1) and run every
@@ -769,12 +778,12 @@ class SettingsDialog(LookTabMixin, SoundTabMixin, CartwallTabMixin,
             return e
 
         self._min_time = mmss_edit(
-            int(settings.get("check_min_play_secs", 105)), 30, 600)
+            _int_setting(settings, "check_min_play_secs", 105), 30, 600)
         spin_row("⏱  Too short — at or below:", self._min_time,
                  "The cut must cover the 1:30–1:45 TSO play time; default 1:45.")
 
         self._max_time = mmss_edit(
-            int(settings.get("check_max_play_secs", 240)), 60, 900)
+            _int_setting(settings, "check_max_play_secs", 240), 60, 900)
         spin_row("⏳  Too long — above:", self._max_time,
                  "Only flagged when the ⏳ checkbox in the Music-check window is "
                  "on (Practice playlists); default 4:00.")
@@ -782,7 +791,7 @@ class SettingsDialog(LookTabMixin, SoundTabMixin, CartwallTabMixin,
         self._dev_spin = QSpinBox()
         self._dev_spin.setRange(1, 50)
         self._dev_spin.setSuffix(" %")
-        self._dev_spin.setValue(int(settings.get("check_tempo_dev_pct", 10)))
+        self._dev_spin.setValue(_int_setting(settings, "check_tempo_dev_pct", 10))
         spin_row("⚡  Tempo mismatch — deviation above:", self._dev_spin,
                  "Measured tempo vs the filename label (detector ×2, ×3, ×1.5 … "
                  "slips are excused first); default 10 %.")
@@ -790,7 +799,7 @@ class SettingsDialog(LookTabMixin, SoundTabMixin, CartwallTabMixin,
         self._noise_spin = QSpinBox()
         self._noise_spin.setRange(-90, -20)
         self._noise_spin.setSuffix(" dB")
-        self._noise_spin.setValue(int(settings.get("check_noise_floor_db", -50)))
+        self._noise_spin.setValue(_int_setting(settings, "check_noise_floor_db", -50))
         spin_row("🔇  Hiss — noise floor above:", self._noise_spin,
                  "How quiet a track must get somewhere. A clean file reaches its "
                  "lead-in silence, a tape rip never gets below its own hiss; "

@@ -1,0 +1,319 @@
+name: build-rc
+
+# Release candidate of the PLAYER flavor for me and a few testers: the same
+# builds as build-player.yml (Windows folder + setup, macOS .dmg, Linux tar.gz),
+# but nothing is published. A run creates an UNPUBLISHED draft release named
+# rc-<version>; it appears nowhere on the releases page, in the tags list or in
+# the "latest release" link, and only someone holding the link can reach it.
+# Treat the link as unlisted rather than private: GitHub documents no access
+# control on a draft's assets.
+#
+# Started by hand only (`workflow_dispatch`), never by a tag, so a candidate
+# cannot be mistaken for a release. The version is the workflow input
+# (e.g. 1.8.0-rc1, without a v).
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version of the candidate (e.g. 1.8.0-rc1, without a v)"
+        required: true
+        type: string
+      note:
+        description: "What testers should look at (one line, optional)"
+        required: false
+        type: string
+
+jobs:
+  # The manual as a PDF, English and German, printed once by the runner's
+  # Chrome and handed to every build: the ARM Linux runner has no browser
+  # to print it with, and printing it four times costs four times the time.
+  # The tool needs only the standard library, so the runner's python3 runs it.
+  manual:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The headings carry emoji; without a color emoji font they print as boxes.
+      - name: Emoji font
+        run: sudo apt-get install -y --no-install-recommends fonts-noto-color-emoji
+
+      - name: Print the manual
+        env:
+          DANCEPLAYLIST_VERSION: ${{ inputs.version }}
+        run: python3 -m tools.docs.build_manual_pdf
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: manual-pdf
+          path: |
+            docs/manual/manual.pdf
+            docs/manual/de/manual.pdf
+          if-no-files-found: error
+
+  windows:
+    needs: manual
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Both manual PDFs from the manual job, newer than the checkout: the
+      # build script copies them instead of printing again.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: manual-pdf
+          path: docs/manual
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14.9"
+          cache: pip
+
+      # build_exe.bat builds from .venv, like on the desk.
+      - name: Build venv
+        run: |
+          python -m venv .venv
+          .venv\Scripts\python.exe -m pip install --upgrade pip
+          .venv\Scripts\python.exe -m pip install -r requirements-player.lock
+
+      # Not in the repository (see BUILD.md): the essentials build, put where
+      # build_exe.bat looks for it, which copies it next to the .exe. Pinned to
+      # the version the desk builds with; gyan.dev itself keeps only the
+      # latest, its GitHub mirror keeps every release. The hash is that
+      # release's, as GitHub lists it: a new version needs its own here.
+      - name: Fetch ffmpeg
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://github.com/GyanD/codexffmpeg/releases/download/9.0.2/ffmpeg-9.0.2-essentials_build.zip -OutFile ffmpeg.zip
+          $hash = (Get-FileHash ffmpeg.zip -Algorithm SHA256).Hash
+          if ($hash -ne "60F467265B1E312373DBCD92200C2618A74850F98D3D078E94296BB3FA2047BA") {
+            throw "ffmpeg.zip is not the 9.0.2 release: SHA-256 $hash"
+          }
+          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg-unpacked
+          $exe = Get-ChildItem ffmpeg-unpacked -Recurse -Filter ffmpeg.exe | Select-Object -First 1
+          Copy-Item $exe.FullName ffmpeg.exe
+          .\ffmpeg.exe -hide_banner -version | Select-Object -First 1
+
+      - name: Build
+        env:
+          # Without it the build simply offers no error reports.
+          DANCEPLAYLIST_ERROR_DSN: ${{ secrets.DANCEPLAYLIST_ERROR_DSN }}
+          # The input overrides planner.version.VERSION, so the app says what
+          # the candidate is named.
+          DANCEPLAYLIST_VERSION: ${{ inputs.version }}
+        run: |
+          .\build_exe.bat player
+          foreach ($pdf in "Manual.pdf", "Handbuch.pdf") {
+            if (-not (Test-Path "dist/DanceSport-Player/$pdf")) { throw "no $pdf in the build" }
+          }
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: DanceSport-Player-windows
+          path: dist/DanceSport-Player/
+          if-no-files-found: error
+
+      # The same folder as a setup (installer/dancesport.iss), through the
+      # script a desk build uses. Inno Setup comes from Chocolatey when the
+      # runner image has none.
+      - name: Installer
+        env:
+          DANCEPLAYLIST_VERSION: ${{ inputs.version }}
+        run: |
+          if (-not (Get-Command ISCC.exe -ErrorAction SilentlyContinue) -and
+              -not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup -y --no-progress
+          }
+          .\build_installer.bat player
+          if ($LASTEXITCODE -ne 0) { throw "the installer build failed" }
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: DanceSport-Player-windows-setup
+          path: dist/installer/*.exe
+          if-no-files-found: error
+
+  macos:
+    # Apple silicon. No universal2: llvmlite/numba/soundfile have no universal
+    # wheels (BUILD.md), and the player build follows the same rule.
+    needs: manual
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Both manual PDFs from the manual job, newer than the checkout: the
+      # build script copies them instead of printing again.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: manual-pdf
+          path: docs/manual
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14.9"
+          cache: pip
+
+      - name: Build venv
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -r requirements-player.lock
+
+      # Lays out the .dmg window over the drawn hint (build_app.sh).
+      - name: create-dmg
+        run: brew install create-dmg
+
+      # Builds, signs ad hoc and wraps the .app in a .dmg. ffmpeg is not
+      # bundled on macOS (brew install ffmpeg on the machine that runs it).
+      - name: Build
+        env:
+          DANCEPLAYLIST_ERROR_DSN: ${{ secrets.DANCEPLAYLIST_ERROR_DSN }}
+          DANCEPLAYLIST_VERSION: ${{ inputs.version }}
+        run: |
+          ./build_app.sh player dmg
+          test -f build/dmg-DanceSport-Player/Manual.pdf
+          test -f build/dmg-DanceSport-Player/Handbuch.pdf
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: DanceSport-Player-macos
+          path: dist/DanceSport-Player.dmg
+          if-no-files-found: error
+
+  linux:
+    # The oldest runner on offer: the build runs on every distribution whose
+    # glibc is at least as new as the one it was built against. ARM needs
+    # 24.04: PySide6's aarch64 wheels want glibc 2.39.
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-22.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    needs: manual
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Both manual PDFs from the manual job, newer than the checkout: the
+      # build script copies them instead of printing again.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: manual-pdf
+          path: docs/manual
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14.9"
+          cache: pip
+
+      # The X11 libraries Qt's xcb platform plugin links against, and
+      # PulseAudio for its audio output. On the runner, PyInstaller finds and
+      # bundles them; a desktop has most of them anyway.
+      - name: System libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
+            libxcb-keysyms1 libxcb-render-util0 libxcb-xkb1 libxkbcommon-x11-0 \
+            libegl1 libpulse0
+
+      - name: Build venv
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -r requirements-player.lock
+
+      # Builds and packs the tar.gz (a tar keeps the executable bit, which an
+      # artifact zip would drop), before the start below writes its settings
+      # and logs next to the executable. ffmpeg is not bundled (the package
+      # manager has it).
+      - name: Build
+        env:
+          DANCEPLAYLIST_ERROR_DSN: ${{ secrets.DANCEPLAYLIST_ERROR_DSN }}
+          DANCEPLAYLIST_VERSION: ${{ inputs.version }}
+        run: |
+          ./build_linux.sh player tar
+          test -f dist/DanceSport-Player/Manual.pdf
+          test -f dist/DanceSport-Player/Handbuch.pdf
+
+      # Nobody runs this build on a desk before the release, so it at least
+      # has to start: still running after 20 s means it got to its window.
+      - name: Start once
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          status=0
+          timeout 20 dist/DanceSport-Player/DanceSport-Player || status=$?
+          [ "$status" -eq 124 ] || { echo "exited with $status"; exit 1; }
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: DanceSport-Player-linux-${{ matrix.arch }}
+          path: dist/DanceSport-Player-linux-${{ matrix.arch }}.tar.gz
+          if-no-files-found: error
+
+  draft:
+    needs: [windows, macos, linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: artifacts
+
+      # --draft is the whole point: nothing is published, no tag appears in the
+      # repository, and the release stays invisible to everyone without the
+      # link. --target pins it to the commit this run built.
+      - name: Draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          NOTE: ${{ inputs.note }}
+        run: |
+          mv artifacts/DanceSport-Player-windows artifacts/DanceSport-Player
+          cp docs/install/windows.md artifacts/DanceSport-Player/README.txt
+          (cd artifacts && zip -qr "../DanceSport-Player-$VERSION-windows.zip" DanceSport-Player)
+          mv artifacts/DanceSport-Player-windows-setup/DanceSport-Player-*-setup.exe              "DanceSport-Player-$VERSION-windows-setup.exe"
+          mv artifacts/DanceSport-Player-macos/DanceSport-Player.dmg "DanceSport-Player-$VERSION-macos.dmg"
+          for ARCH in x86_64 arm64; do
+            mv "artifacts/DanceSport-Player-linux-$ARCH/DanceSport-Player-linux-$ARCH.tar.gz"                "DanceSport-Player-$VERSION-linux-$ARCH.tar.gz"
+          done
+          sha256sum DanceSport-Player-"$VERSION"-* > SHA256SUMS
+          {
+            echo "Release candidate $VERSION of the player. Not a release."
+            echo
+            echo "Windows: the setup .exe, or unzip the whole folder and start"
+            echo "DanceSport-Player.exe. Windows may show \"Windows protected your"
+            echo "PC\" - More info, then Run anyway."
+            echo
+            echo "macOS: open the .dmg and drag the app onto Applications. The"
+            echo "app is unsigned, so the first start needs right-click, Open."
+            echo
+            echo "Linux: unpack the tar.gz for your CPU and start DanceSport-Player."
+            if [ -n "$NOTE" ]; then echo; echo "## What to look at"; echo; echo "$NOTE"; fi
+            echo
+            echo "---"
+            echo
+            echo "GitHub Actions run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+            echo '```'
+            cat SHA256SUMS
+            echo '```'
+          } > notes.md
+          gh release create "rc-$VERSION"             DanceSport-Player-"$VERSION"-* SHA256SUMS             --draft --prerelease --target "$GITHUB_SHA"             --title "Release candidate $VERSION (player)" --notes-file notes.md
+          # A draft has NO /releases/tag/<tag> page - it lives at an
+          # untagged-<hash> URL, so ask the API for it.
+          DRAFT_URL=$(gh release view "rc-$VERSION" --json url --jq .url)
+          {
+            echo "### Draft release created - not published"
+            echo
+            echo "Send this link to the testers:"
+            echo
+            echo "$DRAFT_URL"
+            echo
+            echo "It works only as long as the release is a draft. Publishing it"
+            echo "would make the candidate public - only do that deliberately."
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -275,6 +275,11 @@ def load_timetable() -> Timetable:
     return Timetable.from_dict(TIMETABLE.read())
 
 
+def has_saved_timetable() -> bool:
+    """Whether a programme was ever saved (even an empty one)."""
+    return bool(TIMETABLE.read())
+
+
 def save_timetable(table: Timetable) -> bool:
     ok = TIMETABLE.write(table.as_dict())
     if ok:

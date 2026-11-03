@@ -172,6 +172,11 @@ class TableHost:
         """How many of `entries` an open playlist deck already plans."""
         return self._call("_count_in_playlists", entries, default=0)
 
+    def check_duplicates(self, on_cancel=None):
+        """Open the duplicates overview for THIS list only (no tabs). `on_cancel`
+        runs when it is closed without ✅ Apply."""
+        self._call("_check_duplicates", on_cancel=on_cancel, table=self._table)
+
     # ── Playlists and the library ───────────────────────────────────────────
     def import_m3u_into(self):
         self._call("_import_m3u_into", self._table)

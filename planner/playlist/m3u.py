@@ -11,6 +11,7 @@ from collections import Counter
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 from planner.config import (  # auto-resolved
     OUTPUT_DIR,
@@ -28,6 +29,7 @@ from planner.models import (  # auto-resolved
     RoundConfig,
     RoundTier,
     default_round_name,
+    fold_text,
     tier_by_position,
 )
 from planner.music.db import (  # auto-resolved
@@ -44,6 +46,7 @@ from planner.music.parsing import (  # auto-resolved
 )
 from planner.music.paths import (  # auto-resolved
     foreign_name,
+    is_local_file,
 )
 from planner.playlist.planned import path_key
 from planner.playlist.playlist_text import PlaylistEncodingError, read_playlist_text
@@ -138,9 +141,16 @@ def export_flat_m3u(entries: list[MusicEntry], basename: str,
                     progress_cb: Callable[[int, int, str], None] | None = None,
                     out_dir: Path | None = None,
                     out_path: Path | None = None,
-                    path_for: Callable[[Path], Path] | None = None) -> Path:
+                    path_for: Callable[[Path], Path] | None = None,
+                    heat_rounds: list[tuple[str, int, int]] | None = None) -> Path:
     """Export a flat playlist – a simple ordered song list.
     `path_for` maps each track path before it is written, as in export_m3u.
+
+    `heat_rounds` is a competition training list's [(round, heats, songs)]: it
+    is written like a competition draw — a '# ══ Runde 1 (3 Heats) ══' marker per
+    round, a '# ── Samba ──' line per dance and '# Heat n' before each track — so
+    that an import gets the rounds and heats back (`m3u_marker_heats`). Ignored
+    when its song counts do not add up to the list.
 
     An Eintanzen / party list gets its ROUNDS written in as comments — the same
     'Standardrunde 1' / 'Lateinrunde 1' / 'Socialrunde 1' the panel heads its
@@ -159,6 +169,8 @@ def export_flat_m3u(entries: list[MusicEntry], basename: str,
         ts = datetime.now().strftime("%Y%m%d_%H%M_") if timestamp else ""
         out = target_dir / f"{ts}{basename}{m3u_suffix()}"
     total = len(entries)
+    if heat_rounds and sum(n for _name, _heats, n in heat_rounds) == total:
+        return _write_heat_rounds(out, entries, heat_rounds, path_for, progress_cb)
     round_at = _flat_round_starts(entries)
     with replacing_text(out, encoding=m3u_encoding()) as f:
         f.write("#EXTM3U\n")
@@ -173,6 +185,32 @@ def export_flat_m3u(entries: list[MusicEntry], basename: str,
             f.write(f"{path_for(e.path) if path_for else e.path}\n")
             if progress_cb:
                 progress_cb(i, total, e.title)
+    return out
+
+
+def _write_heat_rounds(out: Path, entries: list[MusicEntry],
+                       heat_rounds: list[tuple[str, int, int]],
+                       path_for, progress_cb) -> Path:
+    """A competition training list, written round by round (see export_flat_m3u).
+    Inside a round the entries run dance by dance, `heats` titles each."""
+    done, at = 0, 0
+    with replacing_text(out, encoding=m3u_encoding()) as f:
+        f.write("#EXTM3U\n")
+        for name, heats, songs in heat_rounds:
+            f.write(f"\n# ══ {name} ({heats} {'Heat' if heats == 1 else 'Heats'}) ══\n")
+            for i, e in enumerate(entries[at:at + songs]):
+                if i % heats == 0:
+                    dn = DANCE_NAMES.get(e.dance or '', e.dance or '')
+                    f.write(f"\n# ── {dn} ──\n")
+                if heats > 1:
+                    f.write(f"# Heat {i % heats + 1}\n")
+                yr = f" ({e.year})" if e.year else ""
+                f.write(f"#EXTINF:{e.duration},{_one_line(e.title)}{yr}\n")
+                f.write(f"{path_for(e.path) if path_for else e.path}\n")
+                done += 1
+                if progress_cb:
+                    progress_cb(done, len(entries), e.title)
+            at += songs
     return out
 
 
@@ -193,12 +231,23 @@ def _index_prefix(i: int) -> str:
     return "_".join(f"{i:03d}")
 
 
+def _split_lines(text: str) -> list[str]:
+    """The lines of an m3u: only LF, CRLF and CR end one. `splitlines()` also
+    cuts at U+2028, U+0085 and the control codes 0B/0C/1C-1E, so a title that holds
+    one would make a bogus track line."""
+    lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    if lines and lines[-1] == "":
+        lines.pop()
+    return lines
+
+
 _TITLE_MAX = 100     # a file name is limited to 255, and a whole path to 260 on Windows
 
 
 def _safe_filename(name: str) -> str:
     """Strip filesystem-hostile characters from a title used as a filename."""
     name = re.sub(r'[<>:"/\\|?*]', "_", name.strip())
+    name = re.sub(r"[\x00-\x1f\x7f]", "", name)    # control chars fail the copy
     name = re.sub(r"\s+", " ", name).strip()
     if len(name) > _TITLE_MAX:
         cut = name[:_TITLE_MAX]
@@ -220,12 +269,12 @@ def m3u_track_sizes(m3u_path: Path) -> list[int]:
     text, _encoding = read_playlist_text(m3u_path)
     folder = Path(m3u_path).parent
     sizes = []
-    for ln in text.splitlines():
+    for ln in _split_lines(text):
         if not ln.strip() or ln.lstrip().startswith("#"):
             continue
         try:
             sizes.append(_bundle_source(ln, folder).stat().st_size)
-        except OSError:
+        except (OSError, ValueError):
             sizes.append(0)
     return sizes
 
@@ -251,7 +300,7 @@ def numbered_folder_m3u(m3u_path: Path,
     # Written back in what it was read in: a BOM is kept, and not read as a
     # track line.
     text, encoding = read_playlist_text(m3u_path)
-    lines = text.splitlines()
+    lines = _split_lines(text)
     total = sum(1 for ln in lines
                 if ln.strip() and not ln.lstrip().startswith("#"))
     copied: list[Path] = []
@@ -294,13 +343,13 @@ def numbered_folder_m3u(m3u_path: Path,
         name = f"{_index_prefix(idx)} - {_safe_filename(title)}{tag}{src.suffix}"
         try:
             shutil.copy2(src, folder / name)
-        except OSError as exc:
+        except (OSError, ValueError) as exc:
             # A locked file or a full stick: leave no half copy, keep the
             # source line, and go on with the rest.
             log.warning("🧳 Copy failed\n"
                         "source: %s\n"
                         "error: %s", src, exc)
-            with contextlib.suppress(OSError):   # locked as well: nothing more to do
+            with contextlib.suppress(OSError, ValueError):   # locked as well: nothing more to do
                 (folder / name).unlink(missing_ok=True)
             missing += 1
             continue
@@ -325,7 +374,7 @@ _IMPORT_HEAT_RE = re.compile(r'^#\s*Heat\s*\d+\s*$', re.IGNORECASE)
 _IMPORT_NOSONG_RE = re.compile(r'^#\s*\(\s*no song found\s*\)\s*$', re.IGNORECASE)
 
 
-_IMPORT_EXTINF_RE = re.compile(r'^#EXTINF:\s*(-?\d+)\s*,(.*)$')
+_IMPORT_EXTINF_RE = re.compile(r'^#EXTINF:\s*(-?\d+)(?:\.\d+)?[^,]*,(.*)$')
 
 
 def _explicit_tier(name: str) -> RoundTier | None:
@@ -369,7 +418,15 @@ def round_tiers(names: list[str]) -> list[RoundTier]:
 def _dance_from_header(name: str) -> str | None:
     """Reverse-map a dance section header (e.g. 'Cha-Cha', 'Wiener Walzer') to a code."""
     code = GENRE_TO_DANCE.get(name.strip().lower())
-    return code or detect_dance(name)
+    if code:
+        return code
+    # The full dance name first: 'Tango Argentino' is not a Tango, and the
+    # social dances have no pattern of their own to detect.
+    folded = fold_text(name.strip())
+    for dance, full in DANCE_NAMES.items():
+        if fold_text(full) == folded:
+            return dance
+    return detect_dance(name)
 
 
 def _entry_dance_for_import(entry: MusicEntry, extinf_title: str) -> str | None:
@@ -395,6 +452,11 @@ def playlist_line_path(line: str, base: Path | None) -> Path:
     relative line — the 🧳 USB bundle writes bare filenames — taken as relative
     to the playlist's folder `base`. A line with a root of its own stays as is."""
     line = line.strip().strip('"')
+    if line[:5].lower() == "file:":
+        # file:///C:/x.mp3 -> C:/x.mp3, file:///home/x -> /home/x
+        line = unquote(urlparse(line).path)
+        if re.match(r"^/[A-Za-z]:", line):
+            line = line[1:]
     p = Path(line)
     if base is not None and not p.is_absolute() and not _ROOTED_LINE_RE.match(line):
         p = Path(base) / p
@@ -421,13 +483,21 @@ def resolve_import_path(path_str: str, lib: MusicLibrary, cache: AudioCache | No
     ent = lib.entry_for(p)    # exact, then case-folded — off the path index
     if ent is not None:
         return ent, True, None
+    on_disk = False
     try:
-        if cache is not None and p.is_file():
+        on_disk = is_local_file(p)
+        if cache is not None and on_disk:
             return lib.make_external_entry(p, cache), True, None
     except Exception as exc:
         log.debug("🎵 Could not build an external entry\n"
                   "file: %s\n"
                   "reason: %r", p, exc)
+    if on_disk:
+        # There, just not readable as an entry (no cache, or the tag read
+        # failed): a bare entry, still found, rather than a ghost.
+        name = foreign_name(path_str) or p.name
+        title = (extinf_title or "").strip() or Path(name).stem
+        return MusicEntry(path=p, title=title, dance=detect_dance(name)), True, None
     if remapper is not None:
         hit = remapper.remap(path_str)
         if hit is not None:
@@ -715,7 +785,7 @@ def m3u_marker_rounds_in_order(m3u_path) -> list[tuple[str, str]]:
     a paso doble played again in the semifinal — and then the path alone no
     longer says which round a given line belongs to."""
     try:
-        lines = read_playlist_text(m3u_path)[0].splitlines()
+        lines = _split_lines(read_playlist_text(m3u_path)[0])
     except OSError:
         return []
     except PlaylistEncodingError as exc:
@@ -740,6 +810,29 @@ def m3u_marker_rounds_in_order(m3u_path) -> list[tuple[str, str]]:
     return out
 
 
+_IMPORT_HEATS_RE = re.compile(r'^#\s*═+\s*(.*?)\s*\(\s*(\d+)\s*Heats?\s*\)\s*═+\s*$',
+                              re.IGNORECASE)
+
+
+def m3u_marker_heats(m3u_path) -> list[tuple[str, int, int]]:
+    """[(round name, heats, tracks)] read from the '# ══ Round (3 Heats) ══'
+    markers, in file order — a competition training list's rounds, back as
+    `export_flat_m3u(heat_rounds=…)` wrote them. Empty for a file without
+    markers."""
+    try:
+        lines = _split_lines(read_playlist_text(m3u_path)[0])
+    except (OSError, PlaylistEncodingError):
+        return []
+    rounds: list[list] = []
+    for raw in lines:
+        ln = raw.strip()
+        if m := _IMPORT_HEATS_RE.match(ln):
+            rounds.append([m.group(1).strip(), int(m.group(2)), 0])
+        elif ln and not ln.startswith('#') and rounds:
+            rounds[-1][2] += 1
+    return [(name, heats, n) for name, heats, n in rounds if n]
+
+
 def m3u_marker_rounds(m3u_path) -> dict[str, str]:
     """Round name per track path (lower-cased), read from the '# ══ Round ══'
     markers this app writes into its own exports. Empty for a file without them,
@@ -758,7 +851,7 @@ def read_m3u_tracks(m3u_path) -> list[tuple[Path, str]]:
     be read at all, so a browsing view can show it as empty rather than fail.
     """
     try:
-        lines = read_playlist_text(m3u_path)[0].splitlines()
+        lines = _split_lines(read_playlist_text(m3u_path)[0])
     except OSError:
         return []
     except PlaylistEncodingError as exc:
@@ -837,12 +930,12 @@ def _parse_structured(lines, lib, cache, remapper, base, _tick, _note_dance,
             remapped.append((ln, hit))
         if not found:
             missing += 1
-        pending_title = ""
+        label, pending_title = pending_title, ""
         if cur_round is None:
             # stray track before any header → start a generic round
             cur_round = {}
             rounds_ord.append(("Imported", cur_round))
-        dance = cur_dance or _entry_dance_for_import(entry, "")
+        dance = cur_dance or _entry_dance_for_import(entry, label)
         if dance is None:
             unknown += 1
             continue
@@ -926,7 +1019,7 @@ def import_playlist_m3u(m3u_path, lib: MusicLibrary, cache: AudioCache | None,
     earlier, `dropped` how many danceable tracks the round structure could not
     place. raw - unknown - dropped == total, so a grid that comes out smaller
     than the file can always say where the rest of it went."""
-    lines = read_playlist_text(m3u_path)[0].splitlines()
+    lines = _split_lines(read_playlist_text(m3u_path)[0])
     base = Path(m3u_path).parent
     structured = any(_IMPORT_ROUND_RE.match(ln.strip()) for ln in lines)
     missing = 0

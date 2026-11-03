@@ -26,12 +26,14 @@ from gui.dialogs import (  # auto-resolved
 from gui.table.playlist_table import (  # auto-resolved
     PlaylistTable,
 )
+from gui.workers import ChromaAnalyzer
 from planner import i18n
 from planner.models import ALLOW_REPEAT, MusicEntry
 from planner.music.parsing import song_title_keys
 from planner.playlist.checks import build_dropped_dup_report, dup_clashes
 from planner.playlist.planned import is_planned, path_key
 from planner.playlist.playlist_text import PlaylistEncodingError, read_playlist_text
+from shared.audio.chromaprint import find_fpcalc
 from shared.widgets import (
     show_toast,
 )
@@ -80,6 +82,20 @@ class DuplicateCheckMixin(MainWindowHost):
             except Exception as exc:
                 log.debug("🔑 No cached fingerprint for %s: %s", entry.path, exc)
         return f"p:{path_key(entry.path)}" if entry.path else None
+
+    def _chroma_words(self, path):
+        """The stored Chromaprint words of a track, or None when it has none
+        (the 🎼 pass was not run for it). From the recorded fingerprint only:
+        no disk access per track."""
+        cache = self._library.cache
+        if cache is None or not path:
+            return None
+        try:
+            got = cache.get_chroma(Path(path), touch_disk=False)
+        except Exception as exc:
+            log.debug("🎼 No Chromaprint for %s: %s", path, exc)
+            return None
+        return got.words if got is not None else None
 
     def _title_keys(self, entry) -> list[str]:
         """The candidate cleaned-title keys (track number / dance code / BPM stripped)
@@ -183,7 +199,7 @@ class DuplicateCheckMixin(MainWindowHost):
             else i18n.t("🧹  Removed %d titles already in another playlist")) % n)
         return n
 
-    def _check_duplicates(self):
+    def _check_duplicates(self, on_cancel=None, table=None):
         """Scan the playlists (see _dup_check_tables) for duplicate songs → open the
         resolve dialog, which lists them in playlist order (🔁 doubled inside one
         list, 🔀 shared between two)
@@ -202,23 +218,72 @@ class DuplicateCheckMixin(MainWindowHost):
             open_dlg.raise_()
             open_dlg.activateWindow()
             return
-        report = self._deck_dup_report()
-        # Always open the dialog (even with no deck duplicates) so its second tab —
-        # "drag loose files in to check them against each other" — stays reachable.
-        dlg = DuplicateResolveDialog(report, self, self._pick_dup_replacement,
-                                     drop_check_fn=self._check_dropped_duplicates,
-                                     ref_clean_factory=self._make_reference_clean_worker,
-                                     play_cb=self._play_or_stop, seek_cb=self._seek)
+        if table is None and self._offer_chroma_pass():
+            return
+        self._open_dup_dialog(on_cancel, table)
+
+    def _offer_chroma_pass(self) -> bool:
+        """Before the check: read the Chromaprint of the deck tracks that have
+        none, so one recording under different files is found too. True when
+        the pass was started (it opens the dialog when it ends); False when
+        there is nothing to read, fpcalc is missing or the answer was No."""
+        cache = getattr(self._library, "cache", None)
+        fpcalc = find_fpcalc()
+        if cache is None or not fpcalc:
+            return False
+        paths = []
+        for table in self._dup_check_tables():
+            paths += [Path(m.entry.path) for _r, m in table._row_meta.numbered()
+                      if getattr(m.entry, "path", None)]
+        paths = list(dict.fromkeys(p for p in paths if cache.get_chroma(p, touch_disk=False) is None))
+        if not paths:
+            return False
+        if QMessageBox.question(
+                self, "Check duplicates",
+                i18n.t("Also find the same recording under different file names?\n\n"
+                       "That reads the sound of %s track(s), about 0.2 s each. "
+                       "You can cancel anytime; results so far are kept.")
+                % len(paths)) != QMessageBox.StandardButton.Yes:
+            return False
+        worker = ChromaAnalyzer(cache, paths, fpcalc, self)
+        self._run_library_pass(worker, "Reading Chromaprints…", "🎼",
+                               "Chromaprint", "tracks read",
+                               after=lambda _ok: self._open_dup_dialog())
+        return True
+
+    def _open_dup_dialog(self, on_cancel=None, table=None):
+        if getattr(self, "_dup_dlg", None) is not None:
+            return
+        if table is not None:
+            # A drop brought duplicates into this one list: only its own, no tabs.
+            report = self._deck_dup_report([table])
+            if not report.get("within"):
+                return          # nothing to resolve there: the files stay
+            dlg = DuplicateResolveDialog(report, self, self._pick_dup_replacement,
+                                         play_cb=self._play_or_stop, seek_cb=self._seek,
+                                         single_list=True)
+        else:
+            report = self._deck_dup_report()
+            # Always open the dialog (even with no deck duplicates) so its second tab —
+            # "drag loose files in to check them against each other" — stays reachable.
+            dlg = DuplicateResolveDialog(report, self, self._pick_dup_replacement,
+                                         drop_check_fn=self._check_dropped_duplicates,
+                                         ref_clean_factory=self._make_reference_clean_worker,
+                                         play_cb=self._play_or_stop, seek_cb=self._seek)
         # show(), not exec(): on the tabs for dragged-in files it stays open beside
         # the decks (see _sync_modality), which can be worked on meanwhile —
         # `_apply_dup_resolutions` finds each copy where it sits by then.
         dlg.finished.connect(lambda result, d=dlg: self._on_dup_dialog_finished(d, result))
+        dlg._on_cancel = on_cancel
         self._dup_dlg = dlg
         dlg.show()
 
     def _on_dup_dialog_finished(self, dlg, result: int):
         self._dup_dlg = None
         resolutions = dlg.resolutions
+        on_cancel = getattr(dlg, "_on_cancel", None)
+        if on_cancel is not None and result != QDialog.DialogCode.Accepted:
+            on_cancel()
         # A child of this window: without this, every check leaves one behind.
         # A compare still running was adopted when the dialog finished.
         dlg.deleteLater()
@@ -242,7 +307,7 @@ class DuplicateCheckMixin(MainWindowHost):
                 tables.append(t)
         return tables
 
-    def _deck_dup_report(self) -> dict:
+    def _deck_dup_report(self, tables=None) -> dict:
         """Build the within/cross duplicate report (same shape as the dropped-files
         report) for the lists of _dup_check_tables, each one's songs in running
         order.
@@ -256,7 +321,7 @@ class DuplicateCheckMixin(MainWindowHost):
         no slot at all — nothing in them can be replaced."""
         self._dup_slots: list[tuple] = []
         files: list[tuple] = []
-        for table in self._dup_check_tables():
+        for table in (tables or self._dup_check_tables()):
             recs: list[dict] = []
             for pos, (row, m) in enumerate(table._row_meta.numbered(), 1):
                 e = m.entry
@@ -265,6 +330,7 @@ class DuplicateCheckMixin(MainWindowHost):
                              "path": str(e.path) if getattr(e, "path", None) else "",
                              "exact": self._exact_key(e), "tkeys": self._title_keys(e),
                              "dance": getattr(e, "dance", None) or None,
+                             "chroma": self._chroma_words(getattr(e, "path", None)),
                              "entry": e, "slot": len(self._dup_slots) - 1})
             files.append((self._deck_report_name(table), recs))
         return build_dropped_dup_report(files)
@@ -334,7 +400,8 @@ class DuplicateCheckMixin(MainWindowHost):
                         tkeys = []
                 recs.append({"idx": i, "title": title, "path": str(t),
                              "exact": exact, "tkeys": tkeys,
-                             "dance": getattr(entry, "dance", None) or None})
+                             "dance": getattr(entry, "dance", None) or None,
+                             "chroma": self._chroma_words(t)})
                 done += 1
                 if progress_cb and (done == 1 or done % 5 == 0 or done == total):
                     progress_cb(done, total)

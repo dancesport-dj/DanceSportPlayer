@@ -45,9 +45,14 @@ def load_user_themes() -> tuple[dict[str, dict], dict[str, list[str]]]:
         # The store answers for the file; this answers for its shape — it is
         # meant to be hand-edited, so anything can be in there.
         custom = data.get('custom_themes', {}) or {}
+        if not isinstance(custom, dict):
+            raise TypeError("custom_themes is not an object")
         for stem, names in (data.get('track_themes', {}) or {}).items():
+            if isinstance(names, str):
+                names = [names]     # list("abc") would split it into letters
             track[stem.lower()] = list(names)
     except Exception as exc:
+        custom = {}
         log.warning("⚠️ Malformed themes file\n"
                     "error: %s\n"
                     "instead: using built-in themes only", exc)

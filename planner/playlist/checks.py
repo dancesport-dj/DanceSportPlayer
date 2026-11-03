@@ -8,6 +8,7 @@ the ImportMixin methods are thin wrappers that fill in the GUI-side context
 
 from planner import i18n
 from planner.models import ALLOW_REPEAT, TEMPO_RANGES, RoundTier
+from planner.music import chroma_match
 from planner.terms import dance_name
 
 # ── ≈ Similar-song matching: Levenshtein on the cleaned title ──────────────────
@@ -263,6 +264,58 @@ def pair_dups(recs_a: list, recs_b: list) -> tuple:
     return exact, similar
 
 
+def _cross_recordings(recs_a: list, recs_b: list, skip: set) -> list:
+    """Chromaprint pairs with one track from each list, line order of the first."""
+    tag_a = [dict(r, _side="a") for r in recs_a]
+    tag_b = [dict(r, _side="b") for r in recs_b]
+    out = []
+    for x, y in recording_matches(tag_a + tag_b):
+        if x["_side"] == y["_side"]:
+            continue
+        a, b = (x, y) if x["_side"] == "a" else (y, x)
+        ra = next(r for r in recs_a if r["exact"] == a["exact"])
+        rb = next(r for r in recs_b if r["exact"] == b["exact"])
+        if frozenset((id(ra), id(rb))) not in skip and dance_compatible(ra, rb):
+            out.append((ra, rb))
+    out.sort(key=lambda p: p[0]["idx"])
+    return out
+
+
+def recording_matches(recs: list, skip=()) -> list:
+    """Pairs of `recs` that are one recording in different files, by Chromaprint:
+    [(rec_a, rec_b), …]. A record carries its fingerprint words as `chroma`; one
+    without is left out. Same file (`exact`) is the exact check's business, and a
+    pair whose ids are in `skip` is already reported by another check."""
+    reps: dict[str, dict] = {}
+    for r in recs:
+        if r.get("chroma") is not None and len(r["chroma"]):
+            reps.setdefault(r["exact"], r)
+    keyed = {k: r["chroma"] for k, r in reps.items()}
+    return [(reps[a], reps[b]) for a, b, _m in chroma_match.find_pairs(keyed)
+            if frozenset((id(reps[a]), id(reps[b]))) not in skip]
+
+
+def _recording_clusters(pairs: list) -> list:
+    """Chain pairs (a~b, b~c) into groups of records, in line order."""
+    parent: dict[int, int] = {}
+    recs: dict[int, dict] = {}
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+    for a, b in pairs:
+        for r in (a, b):
+            recs[id(r)] = r
+            parent.setdefault(id(r), id(r))
+        parent[find(id(a))] = find(id(b))
+    groups: dict[int, list] = {}
+    for k, r in recs.items():
+        groups.setdefault(find(k), []).append(r)
+    return [sorted(g, key=lambda r: r["idx"]) for g in groups.values()]
+
+
 def build_dropped_dup_report(files: list) -> dict:
     """Turn [(name, [rec,…]), …] into the tab-2 report. Each rec carries idx / title /
     path / exact (file identity) / tkeys (cleaned-title candidates). 'within' lists songs doubled
@@ -270,6 +323,7 @@ def build_dropped_dup_report(files: list) -> dict:
     within = []
     for name, recs in files:
         clusters = []
+        covered: set = set()
         by_exact: dict[str, list] = {}
         for r in recs:
             by_exact.setdefault(r["exact"], []).append(r)
@@ -287,6 +341,13 @@ def build_dropped_dup_report(files: list) -> dict:
                         continue
                     members = sorted(group, key=lambda r: r["idx"])
                     clusters.append({"kind": "similar", "members": members})
+                    covered.update(frozenset((id(x), id(y)))
+                                   for x in members for y in members if x is not y)
+        for members in _recording_clusters(recording_matches(recs, covered)):
+            dances = {r["dance"] for r in members if r.get("dance")}
+            if dances and dances <= ALLOW_REPEAT:
+                continue                  # PD repeats within a list are the norm
+            clusters.append({"kind": "recording", "members": members})
         if clusters:
             clusters.sort(key=lambda c: c["members"][0]["idx"])
             within.append({"file": name, "clusters": clusters})
@@ -300,9 +361,14 @@ def build_dropped_dup_report(files: list) -> dict:
         for j in range(i + 1, len(files)):
             exact, similar = pair_dups(_crossable(files[i][1]),
                                        _crossable(files[j][1]))
-            if exact or similar:
+            ra, rb = _crossable(files[i][1]), _crossable(files[j][1])
+            seen = {frozenset((id(p["a"]), id(p["b"]))) for p in exact + similar}
+            recording = [{"a": a, "b": b} for a, b in
+                         _cross_recordings(ra, rb, seen)]
+            if exact or similar or recording:
                 cross.append({"file_a": files[i][0], "file_b": files[j][0],
-                              "exact": exact, "similar": similar})
+                              "exact": exact, "similar": similar,
+                              "recording": recording})
     return {"within": within, "cross": cross}
 
 
@@ -322,7 +388,8 @@ def entry_takt(e, beats_per_bar: dict) -> int:
 # an imported .m3u carries a name ("Finale", "Final") but no tier. A semifinal
 # is called one too, in both languages, and is NOT the final.
 _FINAL_NAMES = ("final", "endrunde")
-_NOT_THE_FINAL = ("halb", "semi", "viertel", "achtel", "zwischen")
+_NOT_THE_FINAL = ("halb", "semi", "viertel", "achtel", "zwischen", "quarter",
+                  "eighth", "vor", "1/4", "1/8", "1/2")
 
 
 def is_final_round(round_name: str = "", tier: RoundTier | str = "") -> bool:
@@ -466,7 +533,7 @@ def track_issues(e, *, beats_per_bar: dict, tempo_ratios, tempo_pct: float,
     # A Paso Doble is played to the first highlight in the early rounds, so a
     # short one is normal there — only a final needs the whole España cañí.
     check_short = not ((e.dance or "") == "PD" and not in_final)
-    if check_short and 0 < eff <= mn:
+    if check_short and dur > 0 and eff <= mn:
         if sil >= 1.0:
             issues.append(i18n.t("⏱ Short: real play %s — %s file minus %ss silence (≤ %s)")
                           % (f"{eff // 60}:{eff % 60:02d}", f"{dur // 60}:{dur % 60:02d}",
@@ -550,7 +617,10 @@ def grid_structure_findings(pl: dict, dances: list[str],
                           (i18n.t("“%s”") % final_name, (final_name, 0, 0)),
                           (i18n.t(" has %d heats, expected 1.") % len(final_heats), None)])
         semi_name, semi_heats = rounds[-2]
-        if len(semi_heats) != 2:
+        # Only a field of 3+ rounds, or a round called one, has a semifinal.
+        has_semi = (len(rounds) >= 3
+                    or any(w in semi_name.lower() for w in ("halb", "semi")))
+        if has_semi and len(semi_heats) != 2:
             warns.append([(i18n.t("Semifinal "), None),
                           (i18n.t("“%s”") % semi_name, (semi_name, 0, 0)),
                           (i18n.t(" has %d heats, expected 2.") % len(semi_heats), None)])

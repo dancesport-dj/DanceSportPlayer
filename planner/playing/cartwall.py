@@ -67,6 +67,16 @@ PAD_COLOURS = {
     "Amber": "#c8871a",
 }
 
+_HEX_COLOUR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def clean_colour(value) -> str:
+    """A colour read from cartwall.json: `#rrggbb` or "". The wall travels in
+    venue packs and the colour goes into a style sheet, so anything else (CSS,
+    a `url(...)`) is dropped."""
+    return value if isinstance(value, str) and _HEX_COLOUR_RE.match(value) else ""
+
+
 # What a starting title does to a running 🎶 background pad, under ⚙ Settings
 # ▸ 🎛 Cartwall: "mute" keeps it looping silently under the music, "pause"
 # holds it once it is down and carries on from there when the music stops
@@ -105,7 +115,7 @@ DEFAULT_BG_HOLD_MS = 300
 def _bg_fade_ms(settings: dict, key: str, default: int) -> int:
     try:
         ms = int(settings.get(key, default))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return default
     return max(0, min(MAX_FADE_MS, ms))
 
@@ -133,7 +143,7 @@ def background_volume(settings: dict) -> float:
     volume to when 🎶 Background is ticked. A broken value reads as the default."""
     try:
         pct = int(settings.get("cart_bg_volume_pct", DEFAULT_BG_VOLUME_PCT))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         pct = DEFAULT_BG_VOLUME_PCT
     return max(0, min(100, pct)) / 100
 
@@ -641,21 +651,23 @@ def _pad_from_dict(data) -> CartPad | None:
         return None
     try:
         volume = float(data.get("volume", 1.0))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         volume = 1.0
     fade = data.get("fade_ms")
     if fade is not None:
         try:
             fade = max(0, min(MAX_FADE_MS, int(fade)))
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             fade = None     # unreadable → follow the wall, not a silent 0
     queue = data.get("queue", 0)
+    if isinstance(queue, float) and queue.is_integer():
+        queue = int(queue)      # 1.0 is a queue number too
     if not isinstance(queue, int) or isinstance(queue, bool) or queue < 0:
         queue = 0
     return CartPad(
         path=path,
         label=str(data.get("label", "") or ""),
-        colour=str(data.get("colour", "") or ""),
+        colour=clean_colour(data.get("colour")),
         volume=max(0.0, min(1.0, volume)),
         loop=bool(data.get("loop", False)),
         duck=bool(data.get("duck", True)),
@@ -753,15 +765,15 @@ def load_doc(data) -> WallDoc:
     pages = enforce_page_cap(pages, grid)
     try:
         page = int(data.get("page", 0))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         page = 0
     # A wall saved before the wall-wide colour existed opens in the standard
     # colour, not in some other grey nobody chose.
-    colour = str(data.get("default_colour", "") or DEFAULT_PAD_COLOUR)
+    colour = clean_colour(data.get("default_colour")) or DEFAULT_PAD_COLOUR
     try:
         fade = max(0, min(MAX_FADE_MS, int(data.get("fade_ms",
                                                     DEFAULT_FADE_MS))))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         fade = DEFAULT_FADE_MS
     # A wall saved before the slot keys were editable keeps Ctrl+1…Ctrl+9.
     slot_keys = (clean_slot_keys(data["slot_keys"]) if "slot_keys" in data
@@ -815,6 +827,6 @@ def read_wall(path) -> WallDoc:
     exactly like a bad cartwall.json — the caller must not put it on screen."""
     try:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    except (OSError, ValueError, RecursionError):
         return WallDoc(DEFAULT_GRID, new_wall(), 0, DEFAULT_PAD_COLOUR, False)
     return load_doc(data)

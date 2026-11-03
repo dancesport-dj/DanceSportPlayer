@@ -85,6 +85,21 @@ class MaintenanceTest(unittest.TestCase):
             self.assertEqual(self._rows(table), [], f"{table} kept a dead row")
         self.assertEqual(res["removed"]["files"], 1)
 
+    def test_a_manual_highlight_survives_its_fingerprint_going_stale(self):
+        """A mark the user set by hand is not recomputable, so it is not pruned."""
+        self.conn.execute("INSERT INTO pd_highlights (fp, times, manual) VALUES "
+                          "('fp-old-auto', '[1]', 0), ('fp-old-hand', '[2]', 1)")
+        upkeep.db_maintenance()
+        self.assertEqual([fp for (fp,) in self.conn.execute("SELECT fp FROM pd_highlights")],
+                         ["fp-old-hand"])
+
+    def test_a_json_cell_that_is_not_a_list_is_ignored_on_load(self):
+        self.conn.execute("INSERT INTO pd_highlights (fp, times, manual) VALUES ('a', '{}', 0)")
+        self.conn.execute("INSERT INTO silences (fp, spans) VALUES ('a', '5')")
+        cache = pdb.AudioCache()
+        self.assertEqual(cache._pd_hl, {})
+        self.assertEqual(cache._silences, {})
+
     def test_the_audio_fingerprint_of_a_deleted_track_goes_too(self):
         """It only exists to re-attach that fp's rows, which have just been dropped."""
         self._track("gone.mp3", "fp-dead", on_disk=False)

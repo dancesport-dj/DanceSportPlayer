@@ -32,6 +32,13 @@ It is configured with `--enable-gpl --enable-version3` and is therefore under
 **GPL-3.0**. It runs as a separate program; the app only calls it. Its source code is at
 <https://ffmpeg.org/download.html>, and its license text is `GPL-3.0.txt`.
 
+It may also contain `fpcalc.exe` from [Chromaprint](https://acoustid.org/chromaprint)
+1.6.2 (LGPL-2.1-or-later), which reads an audio fingerprint for the duplicate
+check. It runs as a separate program; the app only calls it. Its source is at
+<https://github.com/acoustid/chromaprint>. The release build carries its own
+copy of the audio decoding code of FFmpeg, whose licence terms for that build
+have not been checked here yet.
+
 mutagen is GPL-2.0-or-later, and the player build bundles and imports it, so the
 distributed build as a whole falls under the GPL's terms. The app's own MIT
 code is compatible with that, and its complete source is in this repository.

@@ -2,8 +2,10 @@
 
 Extracted 1:1 from gui/dialogs/__init__.py in the big-module split; gui.dialogs
 re-exports the class(es), so existing importers keep working unchanged."""
+import contextlib
 import html
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 from PySide6.QtCore import (
@@ -66,6 +68,7 @@ from gui.common import (  # noqa: F401  (shared primitives)
     reveal_in_explorer,
     sanitize_filename,
 )
+from gui.dialogs.row_keys import RowKeys
 from gui.workers import adopt_running
 from planner import i18n
 from planner.config import replacing_text
@@ -90,10 +93,17 @@ class DuplicateResolveDialog(QDialog):
     number the report gave each occurrence, which only the caller can turn back
     into a deck and a row."""
 
+    _on_cancel: Callable[[], None] | None = None   # set by the caller that opens it
+
     def __init__(self, deck_report: dict, parent, pick_fn, drop_check_fn=None,
-                 ref_clean_factory=None, play_cb=None, seek_cb=None):
+                 ref_clean_factory=None, play_cb=None, seek_cb=None,
+                 single_list=False):
         super().__init__(parent)
-        self.setWindowTitle("Check duplicates")
+        # One list only (opened by a drop that brought duplicates, not by the
+        # global check): no tabs, no list names, nothing shared between lists.
+        self._single_list = single_list
+        self.setWindowTitle(i18n.t("Duplicates in this list") if single_list
+                            else "Check duplicates")
         self.resize(900, 300)
         self.setMinimumWidth(760)
         self._pick_fn = pick_fn      # pick_fn(entry) -> MusicEntry | None
@@ -102,6 +112,8 @@ class DuplicateResolveDialog(QDialog):
         self._play_cb = play_cb      # play_cb(path|None): preview / stop a file
         self._play_btn = None         # the ▶ button currently showing ■ (playing)
         self._occ_state = []           # one record per resolvable occurrence
+        self._row_keys = RowKeys(self, {Qt.Key.Key_K: "keep", Qt.Key.Key_R: "replace",
+                                        Qt.Key.Key_D: "remove", Qt.Key.Key_X: "remove"})
         self._occ_seen = {}           # slot → state, dedup across sections
         self._cross_cliques = {}           # clique root → member copies (built per report)
         self._slot_clique = {}           # slot → clique root
@@ -110,6 +122,8 @@ class DuplicateResolveDialog(QDialog):
         self._ref_path = None         # tab-3 reference .m3u
         self._ref_worker = None         # running ReferenceCleanWorker (kept alive)
         self._ref_result = None         # last comparison result (awaiting export)
+        self._ref_gen = 0               # bumped when the inputs change: older results are stale (#74)
+        self._play_path = ""            # the file the ■ button started (#73)
         self.resolutions = []           # filled on accept
         self.finished.connect(lambda _=0: self._stop_preview())
         self.finished.connect(self._let_ref_worker_go)
@@ -137,6 +151,7 @@ class DuplicateResolveDialog(QDialog):
         if ref_clean_factory is not None:
             self._ref_tab_w = self._build_reference_tab()
             self._tabs.addTab(self._ref_tab_w, "🧹  Reference base")
+        self._tabs.tabBar().setVisible(not single_list)
         self._tabs.currentChanged.connect(self._update_tab_action)
         self._tabs.currentChanged.connect(self._sync_modality)
         root.addWidget(self._tabs, stretch=1)
@@ -212,6 +227,11 @@ class DuplicateResolveDialog(QDialog):
         within = report.get("within", [])
         cross = report.get("cross", [])
         head = QLabel(
+            "Duplicate songs in this list, in running order."
+            "<br><span style='color:#666'>🟰 <b>Exact</b> = identical audio. "
+            "≈ <b>Similar</b> = same title, a different recording. Keep the ones you "
+            "want; switch the others to <b>Replace</b> and pick a track for each, or "
+            "to <b>Remove</b>.</span>" if self._single_list else
             "Duplicate songs across your open playlist(s), in playlist order."
             "<br><span style='color:#666'>🟰 <b>Exact</b> = identical audio. "
             "≈ <b>Similar</b> = same title, a different recording. Keep the ones you "
@@ -233,7 +253,8 @@ class DuplicateResolveDialog(QDialog):
         iv = QVBoxLayout(inner)
         iv.setContentsMargins(2, 2, 2, 2)
         self._fill_report_layout(iv, within, cross,
-                                 "🔁  Doubled inside one playlist",
+                                 None if self._single_list
+                                 else "🔁  Doubled inside one playlist",
                                  "🔀  Shared between playlists", resolvable=True)
         iv.addStretch(1)
         scroll.setWidget(inner)
@@ -245,9 +266,10 @@ class DuplicateResolveDialog(QDialog):
         """Render a within/cross duplicate report into layout `iv`. Shared by tab 1
         (open decks, resolvable) and tab 2 (dropped files, read-only)."""
         if within:
-            iv.addWidget(self._section_heading(within_label))
+            if within_label:
+                iv.addWidget(self._section_heading(within_label))
             for fe in within:
-                iv.addWidget(self._within_box(fe, resolvable))
+                iv.addWidget(self._within_box(fe, resolvable, named=bool(within_label)))
         if cross:
             iv.addWidget(self._section_heading(shared_label))
             for pe in cross:
@@ -414,6 +436,7 @@ class DuplicateResolveDialog(QDialog):
 
     def _on_ref_inputs_changed(self):
         # Inputs changed → any earlier comparison is stale; hide the overview.
+        self._ref_gen += 1
         self._ref_result = None
         self._ref_summary.setText("")
         self._ref_overview.setVisible(False)
@@ -439,8 +462,9 @@ class DuplicateResolveDialog(QDialog):
         self._ref_compare_btn.setEnabled(False)
         worker = factory(self._ref_path, tour)
         worker.progress.connect(self._on_ref_progress)
-        worker.done.connect(self._on_ref_done)
-        worker.failed.connect(self._on_ref_failed)
+        gen = self._ref_gen
+        worker.done.connect(lambda r, g=gen: g == self._ref_gen and self._on_ref_done(r))
+        worker.failed.connect(lambda m, g=gen: g == self._ref_gen and self._on_ref_failed(m))
         worker.finished.connect(self._on_ref_worker_finished)
         self._ref_worker = worker
         worker.start()
@@ -573,17 +597,21 @@ class DuplicateResolveDialog(QDialog):
     def _dup_badge(kind: str) -> str:
         if kind == "exact":
             return "<span style='color:#b3261e; font-weight:bold;'>🟰 Exact copy</span>"
+        if kind == "recording":
+            return ("<span style='color:#6a1b9a; font-weight:bold;'>"
+                    + html.escape(i18n.t("🎼 Same recording")) + "</span>")
         return "<span style='color:#1565c0; font-weight:bold;'>≈ Similar title</span>"
 
-    def _within_box(self, fe: dict, resolvable: bool = False) -> QGroupBox:
-        box = QGroupBox(f"📁  {fe['file']}")
+    def _within_box(self, fe: dict, resolvable: bool = False,
+                    named: bool = True) -> QGroupBox:
+        box = QGroupBox(f"📁  {fe['file']}".replace("&", "&&") if named else "")   # not a mnemonic
         bv = QVBoxLayout(box)
         for cl in fe["clusters"]:
             idxs = " ↔ ".join(f"#{m['idx']}" for m in cl["members"])
             head = QLabel(f"{self._dup_badge(cl['kind'])} &nbsp; {idxs}")
             bv.addWidget(head)
             # Similar (not exact) → the files differ, so show each filename to compare.
-            similar = cl["kind"] == "similar"
+            similar = cl["kind"] in ("similar", "recording")
             for m in cl["members"]:
                 bv.addWidget(self._dup_track_widget(m, show_file=similar,
                                                     resolvable=resolvable))
@@ -605,7 +633,8 @@ class DuplicateResolveDialog(QDialog):
             grid.addWidget(self._col_header("Action"), 0, 2)
             grid.setColumnStretch(2, 2)
         r = 1
-        for kind, pairs in (("exact", pe["exact"]), ("similar", pe["similar"])):
+        for kind, pairs in (("exact", pe["exact"]), ("similar", pe["similar"]),
+                            ("recording", pe.get("recording") or [])):
             if not pairs:
                 continue
             badge = QLabel(f"{self._dup_badge(kind)} &nbsp; "
@@ -678,8 +707,10 @@ class DuplicateResolveDialog(QDialog):
             self._stop_preview()
             return
         if self._play_btn is not None:            # switch from another file
-            self._play_btn.setText("▶")
+            with contextlib.suppress(RuntimeError):
+                self._play_btn.setText("▶")
         self._play_btn = btn
+        self._play_path = path
         btn.setText("■")
         self._release_decks()
         self._play_cb(Path(path))
@@ -700,10 +731,11 @@ class DuplicateResolveDialog(QDialog):
         btn, self._play_btn = self._play_btn, None
         if btn is None or not self._play_cb:
             return
-        btn.setText("▶")
+        with contextlib.suppress(RuntimeError):     # the report was rebuilt: the button is gone (#73)
+            btn.setText("▶")
         host = self.parentWidget()
         deck_path = getattr(host.window(), "deck_path", None) if host else None
-        if deck_path is not None and deck_path() != Path(btn.property("path")):
+        if deck_path is not None and deck_path() != Path(self._play_path):
             return
         self._play_cb(None)
 
@@ -727,7 +759,7 @@ class DuplicateResolveDialog(QDialog):
 
         occ = {}
         for pe in cross or []:
-            for kind in ("exact", "similar"):
+            for kind in ("exact", "similar", "recording"):
                 for pr in pe.get(kind, []):
                     keys = []
                     for side, fname in ((pr.get("a"), pe.get("file_a")),
@@ -881,6 +913,8 @@ class DuplicateResolveDialog(QDialog):
         combo.addItem("🔁  Replace…", "replace")
         combo.addItem("🗑  Remove", "remove")
         combo.setFixedWidth(130)
+        combo.setToolTip(i18n.t("K = keep · R = replace · D / X = remove"))
+        self._row_keys.add(combo, w)
         row.addWidget(combo)
 
         repl_lbl = QLabel("")

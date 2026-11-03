@@ -104,6 +104,12 @@ class KeyPickerTest(unittest.TestCase):
         self.assertEqual(self.p.sequence(), "")
         self.assertEqual(len(seen), 1)
 
+    def test_a_key_still_being_learned_keeps_the_old_one_for_the_dialog(self):
+        """#80: OK while Learn was armed read the emptied field and wiped
+        the stored key."""
+        self.p._learn.click()
+        self.assertEqual(self.p.sequence(), "Ctrl+1")
+
     def test_a_learned_key_is_kept_and_reported(self):
         seen = []
         self.p.changed.connect(lambda: seen.append(True))
@@ -303,6 +309,34 @@ class CartPadWidgetTest(unittest.TestCase):
         _drop(self.w._buttons[(0, 1, 1)], mime)
         self.assertEqual(self.w._live, {(0, 1, 1)})
         self.assertEqual(moved, [{(0, 0, 0): (0, 1, 1), (0, 1, 1): (0, 0, 0)}])
+
+    def test_removing_a_page_stops_the_voices_of_its_own_pads(self):
+        """#126: a sounding pad on the removed page left its voice behind, and
+        the cell it had held lit up for the pad that moved into it."""
+        self.w.set_wall(pc.DEFAULT_GRID, [
+            pc.Page(pads={(0, 0): pc.CartPad(path="a.mp3")}),
+            pc.Page(pads={(0, 0): pc.CartPad(path="b.mp3")})])
+        self.w.set_playing((0, 0, 0), True)
+        cleared = []
+        self.w.padCleared.connect(cleared.append)
+        with mock.patch.object(gc.QMessageBox, "question",
+                               return_value=gc.QMessageBox.StandardButton.Yes):
+            self.w._remove_page()
+        self.assertEqual(cleared, [(0, 0, 0)])
+        self.assertEqual(self.w._live, set())
+        self.assertFalse(self.w._buttons[(0, 0, 0)]._playing)
+
+    def test_the_lamp_moves_with_a_dragged_pad(self):
+        """#129: the old cell went dark but the cell it landed on never lit."""
+        self.w.set_wall(pc.DEFAULT_GRID, [pc.Page(pads={
+            (0, 0): pc.CartPad(path="a.mp3"),
+            (1, 1): pc.CartPad(path="b.mp3")})])
+        self.w.set_playing((0, 0, 0), True)
+        mime = QMimeData()
+        mime.setData(gc._PAD_MIME, b"0,0")
+        _drop(self.w._buttons[(0, 1, 1)], mime)
+        self.assertTrue(self.w._buttons[(0, 1, 1)]._playing)
+        self.assertFalse(self.w._buttons[(0, 0, 0)]._playing)
 
     def test_a_drag_takes_the_source_out_of_the_selection(self):
         """#31: the swapped-in neighbour sat in the old cell, still selected,

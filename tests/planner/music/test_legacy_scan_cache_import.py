@@ -47,6 +47,9 @@ class ScanCacheImportTest(_Legacy):
         cache = self.load({f"{self.song}::{size + 1}": dict(_GOOD)})
         self.assertEqual(cache._data, {})
 
+    def test_entries_that_are_not_an_object_are_skipped(self):
+        self.assertEqual(self.load([1, 2])._data, {})
+
     def test_an_unchanged_file_is_imported(self):
         size = self.song.stat().st_size
         cache = self.load({f"{self.song}::{size}": dict(_GOOD)})
@@ -63,6 +66,13 @@ class GlobalImportTest(_Legacy):
         with mock.patch.object(scan_caches, "GLOBAL_SCAN_CACHE_FILE", file):
             cache = GlobalScanCache()
         self.assertEqual(list(cache._data), ["c"])
+
+    def test_entries_that_are_not_an_object_are_skipped(self):
+        file = self.write("global_scan_cache.json", {
+            "version": GlobalScanCache.VERSION, "entries": [1, 2]})
+        with mock.patch.object(scan_caches, "GLOBAL_SCAN_CACHE_FILE", file):
+            cache = GlobalScanCache()
+        self.assertEqual(cache._data, {})
 
 
 if __name__ == "__main__":

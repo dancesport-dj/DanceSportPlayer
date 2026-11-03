@@ -14,6 +14,7 @@ places its installers use. Downloading it is the user's choice, asked in the
 
 No Qt here: the callbacks run on the tunnel's reader thread.
 """
+import contextlib
 import hashlib
 import io
 import logging
@@ -50,7 +51,8 @@ _SHA256 = {
     "cloudflared-linux-amd64": "3bfc539f45d2620c71debb7a86be0efa737ed5ccbad9eb85c787116900e5c586",
     "cloudflared-linux-arm64": "2c65dfabf616c40efc7545d107d7a57ad5e21377e2964b7e88af19a238074a46",
 }
-_URL_RE = re.compile(r"https://[a-z0-9-]+\.trycloudflare\.com")
+# Not `api.`: an error line can name Cloudflare's own API host.
+_URL_RE = re.compile(r"https://(?!api\.)[a-z0-9-]+\.trycloudflare\.com")
 _CHUNK = 64 * 1024
 _STOP_SECS = 3
 # trycloudflare.com's own nameservers, and how long to wait for them to know
@@ -183,6 +185,23 @@ def dns_answered(reply: bytes, qid: int) -> bool:
     return rid == qid and bool(flags & 0x8000) and flags & 0xF == 0 and answers > 0
 
 
+def _address_of(name: str) -> str:
+    """`name`'s address, given up on after _DNS_ASK_SECS: gethostbyname has no
+    timeout of its own and the system resolver's can run to many seconds."""
+    found: list[str] = []
+
+    def look():
+        with contextlib.suppress(OSError):   # no such name: the same as no answer
+            found.append(socket.gethostbyname(name))
+
+    worker = threading.Thread(target=look, daemon=True)
+    worker.start()
+    worker.join(_DNS_ASK_SECS)
+    if not found:
+        raise TimeoutError(name)   # an OSError: the next server, as for a silent one
+    return found[0]
+
+
 def name_published(host: str) -> bool | None:
     """Whether trycloudflare.com's own nameservers know `host` yet; None when
     neither could be asked. Asked there, not through this PC's resolver: a
@@ -191,7 +210,7 @@ def name_published(host: str) -> bool | None:
     qid = secrets.randbelow(1 << 16)
     for server in _NAMESERVERS:
         try:
-            ip = socket.gethostbyname(server)
+            ip = _address_of(server)
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
                 sock.sendto(dns_query(host, qid), (ip, 53))
                 # Only the nameserver's own packet counts: anyone on the LAN
@@ -288,10 +307,10 @@ class Tunnel:
         if self._proc is not proc or proc.poll() is not None:
             return   # stopped or ended while waiting: on_exit tells
         log.info("🌐 Guest tunnel up\n"
-                 "url: %s\n"
                  "name published: %s after %.1f s",
-                 url, {True: "yes", False: "not yet", None: "unknown"}[published],
+                 {True: "yes", False: "not yet", None: "unknown"}[published],
                  time.monotonic() - started)
+        log.debug("🌐 Guest tunnel address: %s", url)   # the guests' key: not in INFO (#20)
         self._call(self._on_url, url)
 
     @staticmethod

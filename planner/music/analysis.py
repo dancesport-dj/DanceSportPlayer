@@ -265,6 +265,20 @@ def probe_decode_backend(path: Path) -> str | None:
     return PROBE_FAILED
 
 
+def probe_decode_backend_any(paths, probe=None, tries: int = 3) -> str | None:
+    """The verdict over the first few of `paths` (#61): None as soon as one
+    decodes. A missing librosa or backend holds for every file and ends it at
+    once; a plain failure may be that one file, so the next is tried, and only
+    `tries` failures in a row make it the library's."""
+    probe = probe or probe_decode_backend
+    why = None
+    for path in list(paths)[:tries]:
+        why = probe(path)
+        if why is None or why in (PROBE_NO_LIBROSA, PROBE_NO_BACKEND):
+            return why
+    return why
+
+
 def release_free_heap() -> None:
     """Hand already-freed heap pages back to the operating system.
 

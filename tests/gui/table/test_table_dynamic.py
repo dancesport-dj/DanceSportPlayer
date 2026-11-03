@@ -267,6 +267,62 @@ class MoveFromSourceTest(_Base):
         clear.assert_called_once()
 
 
+class SoftDuplicateBatchTest(_Base):
+    """A drop holding titles the deck plans already is asked about once, before
+    anything is placed: Replace / Add too / Skip each, Cancel drops the lot."""
+
+    def setUp(self):
+        self.toasts()
+        self.t = self.deck(capacity=(3, 3))
+        self.t._notify_changed = lambda *a, **kw: None
+        self.t._confirm_cross_style = lambda entries: True
+        self.ask = self.patch(self.t, "_ask_drop_duplicates", return_value=[])
+
+    def drop(self, entries, answers=None):
+        self.ask.return_value = answers if answers is not None else []
+        self.t._collect_drop_entries = lambda e: list(entries)
+        with mock.patch.object(dyn.QTimer, "singleShot", lambda _ms, fn: fn()):
+            self.t._dynamic_drop(None, 0)
+
+    def planned(self):
+        return [e.title for e in self.t._iter_planned_entries()]
+
+    def test_two_duplicates_are_asked_once_before_anything_is_added(self):
+        self.drop([_e("LW", 1, "copy2"), _e("TG", 2, "copy2")], ["skip", "skip"])
+        self.ask.assert_called_once()
+        self.assertEqual(len(self.ask.call_args.args[0]), 2)
+        self.assertEqual(len(self.planned()), 4)
+
+    def test_add_too_places_the_copies(self):
+        self.drop([_e("LW", 1, "copy2"), _e("TG", 2, "copy2")], ["add", "add"])
+        self.assertEqual(self.planned().count("LW 1"), 2)
+        self.assertEqual(self.planned().count("TG 2"), 2)
+
+    def test_replace_swaps_the_planned_file(self):
+        self.drop([_e("LW", 1, "copy2")], ["replace"])
+        planned = list(self.t._iter_planned_entries())
+        self.assertEqual([e.title for e in planned].count("LW 1"), 1)
+        self.assertTrue(any(e.path.parent.name == "copy2" for e in planned))
+
+    def test_skip_leaves_the_deck_as_it_was(self):
+        self.drop([_e("LW", 1, "copy2"), _e("LW", 9)], ["skip"])
+        self.assertFalse(any(e.path.parent.name == "copy2"
+                             for e in self.t._iter_planned_entries()))
+
+    def test_cancel_adds_nothing_of_the_drop(self):
+        before = self.planned()
+        self.ask.return_value = None
+        self.t._collect_drop_entries = lambda e: [_e("LW", 1, "copy2"), _e("LW", 9)]
+        with mock.patch.object(dyn.QTimer, "singleShot", lambda _ms, fn: fn()):
+            self.t._dynamic_drop(None, 0)
+        self.assertEqual(self.planned(), before)
+
+    def test_one_exact_copy_alone_is_skipped_quietly(self):
+        self.drop([_e("LW", 1)])
+        self.assertEqual(self.planned().count("LW 1"), 1)
+        self.assertEqual(self.ask.call_args.args[0] if self.ask.called else [], [])
+
+
 class PlaceOneTest(_Base):
 
     def setUp(self):

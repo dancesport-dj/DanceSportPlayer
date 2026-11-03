@@ -3,18 +3,22 @@
 Mixin of PlaylistTable — extracted 1:1 from gui/table/playlist_table.py in the
 big-module split; behaviour unchanged."""
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import (
+    Qt,
     QTimer,
 )
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QMessageBox,
+    QProgressDialog,
 )
 
 import planner.models
+from gui.dialogs.drop_duplicates_dialog import ADD, REPLACE, SKIP, DropDuplicatesDialog
 from planner import i18n
 from planner.models import (
     ALLOW_REPEAT,
@@ -25,8 +29,11 @@ from planner.models import (
     round_names,
     tier_by_position,
 )
-from planner.music.parsing import detect_dance, song_title_key
+from planner.music import chroma_match
+from planner.music.parsing import detect_dance, song_title_key, song_title_keys
+from planner.playlist.checks import title_cluster_map
 from planner.terms import dance_name
+from shared.audio.chromaprint import find_fpcalc, fingerprint_file
 from shared.widgets import (
     show_toast,
 )
@@ -316,6 +323,71 @@ class DynamicModeMixin(PlaylistTableHost):
             log.debug("🔑 No fingerprint for %s: %s", p, exc)
         return keys
 
+    def _prime_chroma(self, entries) -> None:
+        """Read the Chromaprint of every track in `entries` that has none yet, so
+        a drop can tell a cut or re-encoded copy from a different song. Silent:
+        no question, only a progress bar when it takes a while. Nothing happens
+        without fpcalc or a cache; a file fpcalc cannot read is left out."""
+        fpcalc = find_fpcalc()
+        if fpcalc is None or self._cache is None:
+            return
+        todo: list[Path] = []
+        for e in entries:
+            p = getattr(e, "path", None)
+            if not p or Path(p) in todo:
+                continue
+            try:
+                if self._cache.get_chroma(Path(p)) is None:
+                    todo.append(Path(p))
+            except Exception as exc:
+                log.debug("🎼 No Chromaprint lookup for %s: %s", p, exc)
+        if not todo:
+            return
+        progress = None
+        if len(todo) > 2:
+            progress = QProgressDialog(i18n.t("🎼  Comparing recordings…"), "",
+                                       0, len(todo), self)
+            progress.setCancelButton(None)
+            progress.setWindowModality(Qt.WindowModality.WindowModal)
+            progress.setMinimumDuration(400)
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            futures = [pool.submit(fingerprint_file, fpcalc, p) for p in todo]
+            for i, (p, fut) in enumerate(zip(todo, futures, strict=True), 1):
+                got = fut.result()
+                if got is not None:
+                    self._cache.put_chroma(p, got.words, got.duration)
+                if progress is not None:
+                    progress.setValue(i)
+
+    def _chroma_twin(self, entry: MusicEntry | None, entries) -> MusicEntry | None:
+        """The first of `entries` that is the same recording as `entry` by
+        Chromaprint (a cut, a re-encode), or None. Stored fingerprints only, no
+        disk access: `_prime_chroma` fills them. A different known dance is
+        never a twin."""
+        mine = self._chroma_of(entry)
+        if mine is None:
+            return None
+        dance = getattr(entry, "dance", None) or ""
+        for e in entries:
+            other_dance = getattr(e, "dance", None) or ""
+            if e is entry or (dance and other_dance and dance != other_dance):
+                continue
+            other = self._chroma_of(e)
+            if other is not None and chroma_match.is_same(
+                    chroma_match.compare(mine.words, other.words)):
+                return e
+        return None
+
+    def _chroma_of(self, entry: MusicEntry | None):
+        p = getattr(entry, "path", None) if entry is not None else None
+        if not p or self._cache is None:
+            return None
+        try:
+            return self._cache.get_chroma(Path(p), touch_disk=False)
+        except Exception as exc:
+            log.debug("🎼 No Chromaprint for %s: %s", p, exc)
+            return None
+
     @staticmethod
     def _title_key(entry: MusicEntry | None) -> tuple | None:
         """(dance, cleaned title) — the song a file holds, going by its name (track
@@ -396,17 +468,75 @@ class DynamicModeMixin(PlaylistTableHost):
         same = self._holds_same_audio(entry, planned)
         if same is not None:
             return ("hard", same)
-        fname = Path(p).name.lower()
-        title = self._title_key(entry)
-        name_hit = next((e for e in planned
-                         if Path(str(e.path)).name.lower() == fname
-                         or self._same_title(title, self._title_key(e))), None)
-        return ("soft", name_hit) if name_hit is not None else None
+        twin = self._soft_twin(entry, planned)
+        return ("soft", twin) if twin is not None else None
 
-    def _ask_soft_duplicate(self, entry: MusicEntry, existing: MusicEntry) -> str:
+    def _soft_twin(self, entry: MusicEntry, entries) -> MusicEntry | None:
+        """The first of `entries` that carries `entry`'s file name or title, or
+        that Chromaprint says is the same recording (a cut, a re-encode). Not the
+        same audio file: that is `_holds_same_audio`."""
+        fname = Path(str(entry.path)).name.lower()
+        title = self._title_key(entry)
+        hit = next((e for e in entries
+                    if Path(str(e.path)).name.lower() == fname
+                    or self._same_title(title, self._title_key(e))), None)
+        if hit is None:
+            hit = self._similar_title_twin(entry, entries)
+        return hit if hit is not None else self._chroma_twin(entry, entries)
+
+    def _similar_title_twin(self, entry: MusicEntry, entries) -> MusicEntry | None:
+        """The first of `entries` whose title names the same song as `entry`'s by
+        the Check duplicates rule (similar titles cluster: 'Friends and Lovers'
+        and 'Friends and Lovers Cut Version'), in a dance that does not conflict."""
+        mine = song_title_keys(str(entry.path))
+        if not mine:
+            return None
+        dance = getattr(entry, "dance", None) or ""
+        cands = [(e, song_title_keys(str(e.path))) for e in entries
+                 if e is not entry and getattr(e, "path", None)
+                 and not (dance and getattr(e, "dance", None)
+                          and dance != e.dance)]
+        cmap = title_cluster_map(list(mine) + [k for _e, ks in cands for k in ks])
+        wanted = {cmap[k] for k in mine}
+        return next((e for e, ks in cands if wanted & {cmap[k] for k in ks}), None)
+
+    def _drop_dup_pairs(self, new_entries, held) -> list[tuple]:
+        """(dropped entry, entry the list holds, same_audio) for every dropped
+        title `held` has already: the same audio, or the same name / title /
+        recording (`_soft_twin`, Chromaprints read silently first)."""
+        held = [e for e in held if e is not None and getattr(e, "path", None)]
+        self._prime_chroma(list(new_entries) + held)
+        out = []
+        for ent in new_entries:
+            if not getattr(ent, "path", None):
+                continue
+            same = self._holds_same_audio(ent, held)
+            if same is not None:
+                out.append((ent, same, True))
+                continue
+            twin = self._soft_twin(ent, held)
+            if twin is not None:
+                out.append((ent, twin, False))
+        return out
+
+    def _ask_drop_duplicates(self, pairs: list) -> list[str] | None:
+        """Ask, before anything is added: Replace / Keep both / Skip for each pair.
+        The answers in order, or None when cancelled (the drop is dropped). One
+        title alone gets the Replace / Keep both / Keep existing box, several the dialog."""
+        if not pairs:
+            return []
+        if len(pairs) == 1:
+            return [self._ask_soft_duplicate(pairs[0][0], pairs[0][1], offer_both=True)]
+        dlg = DropDuplicatesDialog(self.host.dialog_parent() or self, pairs)
+        if dlg.exec() != DropDuplicatesDialog.DialogCode.Accepted:
+            return None
+        return dlg.choices()
+
+    def _ask_soft_duplicate(self, entry: MusicEntry, existing: MusicEntry,
+                            offer_both: bool = False) -> str:
         """A track whose FILENAME or title matches one already in the deck but is a
         DIFFERENT file (path + fingerprint differ) — ask the user to replace the existing
-        track or keep it. Returns 'replace' or 'skip'."""
+        track or keep it. Returns 'replace' or 'skip' ('add' with `offer_both`)."""
         fname = Path(str(entry.path)).name if getattr(entry, "path", None) else (entry.title or "this track")
         held = Path(str(existing.path)).name if getattr(existing, "path", None) else ""
         box = QMessageBox(self)
@@ -420,10 +550,15 @@ class DynamicModeMixin(PlaylistTableHost):
                                "“%s” looks like the same title in another file.") % (held, fname))
         box.setInformativeText("Replace the existing track with this one?")
         repl_btn = box.addButton("Replace", QMessageBox.ButtonRole.AcceptRole)
+        both_btn = (box.addButton(i18n.t("Keep both"), QMessageBox.ButtonRole.AcceptRole)
+                    if offer_both else None)
         skip_btn = box.addButton("Keep existing", QMessageBox.ButtonRole.RejectRole)
         box.setDefaultButton(skip_btn)
         box.exec()
-        return "replace" if box.clickedButton() is repl_btn else "skip"
+        clicked = box.clickedButton()
+        if clicked is repl_btn:
+            return "replace"
+        return "add" if both_btn is not None and clicked is both_btn else "skip"
 
     def _replace_planned_entry(self, old: MusicEntry, new: MusicEntry) -> bool:
         """Swap `old` (matched by identity) for `new` wherever it sits — heat or backup."""
@@ -565,7 +700,8 @@ class DynamicModeMixin(PlaylistTableHost):
         return detect_dance(name) or detect_dance(getattr(entry, "title", "") or "")
 
     def _dynamic_place_one(self, entry: MusicEntry, target_row: int,
-                           prefer_existing: bool = False) -> str:
+                           prefer_existing: bool = False,
+                           decided: bool = False) -> str:
         """Place one track into the dynamic grid. Returns "" if it was placed,
         otherwise WHY it was not: "dance" (no dance to file it under) or "dup"
         (this list already holds it). The caller says so once for the whole
@@ -575,7 +711,10 @@ class DynamicModeMixin(PlaylistTableHost):
         `prefer_existing` (the extra tracks of a multi-drop) fills any EXISTING
         empty slot of this dance, deck-wide, before falling back to extending a
         round — so dropping N tracks tops up N empty slots instead of stacking
-        new heats."""
+        new heats.
+
+        `decided`: the user chose "Add too" for a title the list holds already
+        (`_ask_drop_duplicates`): it is not skipped or asked about again."""
         dance = self._drop_dance(entry)
         if not dance:
             return "dance"
@@ -583,10 +722,12 @@ class DynamicModeMixin(PlaylistTableHost):
         dup = self._find_duplicate(entry)
         if dup is not None:
             kind, existing = dup
-            if kind == "hard":
+            if decided:
+                pass                  # the user said to add it too
+            elif kind == "hard":
                 return "dup"
             # soft duplicate (same filename, different file) → let the user decide
-            if self._ask_soft_duplicate(entry, existing) == "replace":
+            elif self._ask_soft_duplicate(entry, existing) == "replace":
                 if self._replace_planned_entry(existing, entry):
                     show_toast(self, i18n.t("🔁  Replaced “%s” with “%s”")
                                 % (existing.title, entry.title))
@@ -1164,6 +1305,15 @@ class DynamicModeMixin(PlaylistTableHost):
         placed = replaced = 0
         skipped: dict[str, list] = {}   # why it stayed out → the tracks
         landed = []   # the entry objects that actually went into the grid
+        # Titles the deck holds already (same audio, name, title or recording):
+        # asked once, before anything is placed — Replace / Add too / Skip.
+        self._prime_chroma(list(entries) + list(self._iter_planned_entries()))
+        chosen = self._ask_deck_duplicates(entries, bool(replace_first))
+        if chosen is None:
+            return
+        entries = [en for en in entries if chosen.get(id(en), ("",))[0] != SKIP]
+        if not entries:
+            return
         for i, ent in enumerate(entries):
             if i == 0 and replace_first:
                 # A cancelled dance-mismatch / blocked duplicate just drops the track;
@@ -1175,7 +1325,14 @@ class DynamicModeMixin(PlaylistTableHost):
                 continue
             # Only the first track is aimed at the cursor slot; the rest top up the
             # deck's existing empty slots of their dance before any heat is added.
-            why = self._dynamic_place_one(ent, target_row, prefer_existing=(i > 0))
+            answer, held = chosen.get(id(ent), ("", None))
+            if answer == REPLACE and self._replace_planned_entry(held, ent):
+                placed += 1
+                replaced += 1
+                landed.append(ent)
+                continue
+            why = self._dynamic_place_one(ent, target_row, prefer_existing=(i > 0),
+                                          decided=answer in (ADD, REPLACE))
             if why:
                 skipped.setdefault(why, []).append(ent)
             else:
@@ -1202,6 +1359,27 @@ class DynamicModeMixin(PlaylistTableHost):
             show_toast(self, msg)
         elif skipped:
             show_toast(self, self._nothing_added(skipped))
+
+    def _ask_deck_duplicates(self, entries: list, skip_first: bool):
+        """{id(dropped): (answer, entry the deck holds)} for the dropped titles the
+        deck plans already, asked once; None when cancelled. One exact copy is not
+        asked: it is skipped quietly. `skip_first`: the first title replaces a slot
+        (Ctrl + drop) and has its own guard."""
+        pairs = []
+        for i, ent in enumerate(entries):
+            dance = self._drop_dance(ent)
+            if (i == 0 and skip_first) or not dance:
+                continue
+            ent.dance = dance
+            dup = self._find_duplicate(ent)
+            if dup is not None:
+                pairs.append((ent, dup[1], dup[0] == "hard"))
+        if len(entries) == 1 and pairs and pairs[0][2]:
+            pairs = []
+        answers = self._ask_drop_duplicates(pairs)
+        if answers is None:
+            return None
+        return {id(p[0]): (a, p[1]) for p, a in zip(pairs, answers, strict=True)}
 
     def _dynamic_held_drop(self, entry: MusicEntry, row: int) -> bool:
         """One title dropped on a FILLED slot of a deck that holds its audio in

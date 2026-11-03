@@ -24,6 +24,7 @@ from PySide6.QtWidgets import QApplication
 import planner.music.db as pdb
 from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry, RoundConfig
+from planner.music.chroma_match import Chroma
 from tests.db_support import use_scratch_db
 from tests.qt_test_support import reap_widget, stub_window_startup
 
@@ -117,6 +118,99 @@ class AddIsRefusedTest(_ScratchDbTest):
         self.assertEqual(t._insert_drop_files([f], t.rowCount()), 0)
         self.assertEqual(self.songs(t), [str(c)])
 
+    def answer(self, answers):
+        """Stands in for the Replace / Add too / Skip dialog: `answers` (or None =
+        Cancel) is what the user picks, whatever is asked."""
+        patcher = mock.patch.object(PlaylistTable, "_ask_drop_duplicates",
+                                    return_value=answers)
+        self.addCleanup(patcher.stop)
+        return patcher.start()
+
+    def wishlist_with(self, *held):
+        t = self.table()
+        t.load_wishlist([self.entry(p) for p in held], play_cb=None, suggester=None)
+        t._resolve_drop_entries = lambda files: [self.entry(Path(p)) for p in files]
+        return t
+
+    def player_list_with(self, *held):
+        t = self.table()
+        t.load_player_list([self.entry(p) for p in held], "Order", play_cb=None)
+        t._resolve_drop_entries = lambda files: [self.entry(Path(p)) for p in files]
+        return t
+
+    def two_pairs(self):
+        other = _mp3(bytes(reversed(_AUDIO)))
+        c1, c2 = self.file("C", "A (LW 1)"), self.file("C", "B (LW 2)", other)
+        f1, f2 = self.file("F", "A (LW 1)"), self.file("F", "B (LW 2)", other)
+        return c1, c2, f1, f2
+
+    def test_two_copies_in_one_drop_are_asked_about_before_anything_is_added(self):
+        c1, c2, f1, f2 = self.two_pairs()
+        t = self.wishlist_with(c1, c2)
+        ask = self.answer(["skip", "skip"])
+        self.assertEqual(t._insert_drop_files([f1, f2], t.rowCount()), 0)
+        ask.assert_called_once()
+        pairs = ask.call_args.args[0]
+        self.assertEqual([(str(p[0].path), str(p[1].path), p[2]) for p in pairs],
+                         [(str(f1), str(c1), True), (str(f2), str(c2), True)])
+        self.assertEqual(self.songs(t), [str(c1), str(c2)])
+
+    def test_add_too_puts_the_copies_in(self):
+        c1, c2, f1, f2 = self.two_pairs()
+        t = self.wishlist_with(c1, c2)
+        self.answer(["add", "add"])
+        self.assertEqual(t._insert_drop_files([f1, f2], t.rowCount()), 2)
+        self.assertEqual(self.songs(t), [str(c1), str(c2), str(f1), str(f2)])
+
+    def test_replace_swaps_the_held_file_for_the_dropped_one(self):
+        c1, c2, f1, f2 = self.two_pairs()
+        t = self.wishlist_with(c1, c2)
+        self.answer(["replace", "skip"])
+        self.assertEqual(t._insert_drop_files([f1, f2], t.rowCount()), 1)
+        self.assertEqual(self.songs(t), [str(c2), str(f1)])
+
+    def test_cancel_adds_nothing_of_the_drop(self):
+        c1, c2, f1, _f2 = self.two_pairs()
+        new = self.file("F", "Fly Me (LW 3)", _AUDIO[::-1])
+        t = self.wishlist_with(c1, c2)
+        self.answer(None)
+        self.assertEqual(t._insert_drop_files([f1, new], t.rowCount()), 0)
+        self.assertEqual(self.songs(t), [str(c1), str(c2)])
+
+    def test_a_player_list_drop_is_asked_and_can_add_too(self):
+        c1, c2, f1, f2 = self.two_pairs()
+        t = self.player_list_with(c1, c2)
+        ask = self.answer(["add", "skip"])
+        self.assertEqual(t._insert_warmup_files([f1, f2], t.rowCount()), 1)
+        ask.assert_called_once()
+        self.assertEqual(self.songs(t), [str(c1), str(c2), str(f1)])
+
+    def test_a_player_list_replace_leaves_the_old_file_out(self):
+        c1, c2, f1, f2 = self.two_pairs()
+        t = self.player_list_with(c1, c2)
+        self.answer(["skip", "replace"])
+        self.assertEqual(t._insert_warmup_files([f1, f2], t.rowCount()), 1)
+        self.assertEqual(self.songs(t), [str(c1), str(f2)])
+
+    def test_one_copy_among_others_is_asked_about_alone(self):
+        c1 = self.file("C", "A (LW 1)")
+        c2 = self.file("C", "B (LW 2)", _mp3(bytes(reversed(_AUDIO))))
+        f1 = self.file("F", "A (LW 1)")
+        t = self.wishlist_with(c1)
+        ask = self.answer(["skip"])
+        self.assertEqual(t._insert_drop_files([f1, c2], t.rowCount()), 1)
+        self.assertEqual(len(ask.call_args.args[0]), 1)
+        self.assertEqual(self.songs(t), [str(c1), str(c2)])
+
+    def test_one_exact_copy_alone_is_refused_quietly(self):
+        c1 = self.file("C", "A (LW 1)")
+        f1 = self.file("F", "A (LW 1)")
+        t = self.wishlist_with(c1)
+        ask = self.answer(["add"])
+        self.assertEqual(t._insert_drop_files([f1], t.rowCount()), 0)
+        ask.assert_not_called()
+        self.assertEqual(self.songs(t), [str(c1)])
+
     def test_a_retagged_renamed_copy_is_a_sure_duplicate(self):
         """Tags edited on one drive only: the bytes differ, the audio does not.
         A different file name as well leaves nothing but the audio to go by."""
@@ -149,6 +243,142 @@ class AddIsRefusedTest(_ScratchDbTest):
         t.load_player_list([self.entry(c)], "Order", play_cb=None)
         t._resolve_drop_entries = lambda files: [self.entry(Path(p)) for p in files]
         self.assertEqual(t._insert_warmup_files([other], t.rowCount()), 1)
+
+
+class ChromaOnDropTest(_ScratchDbTest):
+    """A drop reads the Chromaprints silently: a cut or re-encoded copy whose name
+    shares nothing with the planned title still counts as that title."""
+
+    _RNG = __import__("numpy").random.default_rng(7)
+    SONG = _RNG.integers(0, 2 ** 32, 600, dtype="uint64").astype("uint32")
+    OTHER = _RNG.integers(0, 2 ** 32, 600, dtype="uint64").astype("uint32")
+
+    def setUp(self):
+        super().setUp()
+        self.words = {}
+        self.fingerprinted = []
+
+        def fake(_fpcalc, path, on_proc=None):
+            self.fingerprinted.append(Path(path).name)
+            words = self.words.get(Path(path).name)
+            return None if words is None else Chroma(150.0, words)
+        for target, value in (
+                ("gui.table.table_dynamic.find_fpcalc", lambda: "fpcalc"),
+                ("gui.table.table_dynamic.fingerprint_file", fake)):
+            patcher = mock.patch(target, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def twin_files(self):
+        """C: the planned title; F: a cut of it under a name nothing like it."""
+        c = self.file("C", "Friends and Lovers (LW 1)")
+        f = self.file("F", "Track 07 (LW 1)", _AUDIO[::-1])
+        self.words[c.name] = self.SONG
+        self.words[f.name] = self.SONG[60:540]      # starts 7 s late, ends early
+        return c, f
+
+    def test_a_drop_reads_the_fingerprints_without_asking(self):
+        c, f = self.twin_files()
+        t = self.static_deck([[self.entry(c)], [None]])
+        t._prime_chroma([self.entry(f), self.entry(c)])
+        self.assertCountEqual(self.fingerprinted, [c.name, f.name])
+        t._prime_chroma([self.entry(f), self.entry(c)])      # stored now
+        self.assertEqual(len(self.fingerprinted), 2)
+
+    def test_a_cut_under_another_name_is_a_possible_duplicate_of_the_deck(self):
+        c, f = self.twin_files()
+        t = self.static_deck([[self.entry(c)], [None]])
+        self.assertIsNone(t._find_duplicate(self.entry(f)))      # nothing read yet
+        t._prime_chroma([self.entry(f), self.entry(c)])
+        dup = t._find_duplicate(self.entry(f))
+        self.assertEqual(dup[0] if dup else None, "soft")
+
+    def test_another_song_is_no_duplicate(self):
+        c, _f = self.twin_files()
+        g = self.file("F", "Moon River (LW 2)", _AUDIO[::-1])
+        self.words[g.name] = self.OTHER
+        t = self.static_deck([[self.entry(c)], [None]])
+        t._prime_chroma([self.entry(g), self.entry(c)])
+        self.assertIsNone(t._find_duplicate(self.entry(g)))
+
+    def test_a_cut_dropped_on_a_wishlist_can_replace_the_song(self):
+        c, f = self.twin_files()
+        t = self.table()
+        t.load_wishlist([self.entry(c)], play_cb=None, suggester=None)
+        t._resolve_drop_entries = lambda files: [self.entry(Path(p)) for p in files]
+        with mock.patch.object(PlaylistTable, "_ask_drop_duplicates",
+                               return_value=["replace"]) as ask:
+            self.assertEqual(t._insert_drop_files([f], t.rowCount()), 1)
+        pairs = ask.call_args.args[0]
+        self.assertEqual([(str(p[1].path), p[2]) for p in pairs], [(str(c), False)])
+        self.assertEqual(self.songs(t), [str(f)])
+
+    def test_a_cut_version_by_name_is_caught_in_free_order_without_chroma(self):
+        """'... Cut Version' is no '_cut' the title key strips, but the Check
+        duplicates rule clusters the two titles; so does the drop."""
+        c = self.file("C", "Friends and Lovers (SW 12)")
+        f = self.file("F", "Friends and Lovers Cut Version (SW 12)", _AUDIO[::-1])
+        t = self.table()
+        t.load_player_list([self.entry(c, "SW")], "Order", play_cb=None)
+        t._resolve_drop_entries = lambda files: [self.entry(Path(p), "SW") for p in files]
+        with mock.patch("gui.table.table_dynamic.find_fpcalc", lambda: None), \
+                mock.patch.object(PlaylistTable, "_ask_drop_duplicates",
+                                  return_value=["skip"]) as ask:
+            self.assertEqual(t._insert_warmup_files([f], t.rowCount()), 0)
+        ask.assert_called_once()
+        self.assertEqual(self.songs(t), [str(c)])
+
+    def static_plan(self, t, f, answers):
+        t._entry_for = lambda p: self.entry(Path(p))
+        with mock.patch.object(PlaylistTable, "_ask_drop_duplicates",
+                               return_value=answers) as ask:
+            return t._static_drop_plan([f]), ask
+
+    def test_a_cut_dropped_on_a_static_deck_can_replace_the_song(self):
+        c, f = self.twin_files()
+        t = self.static_deck([[self.entry(c)], [None]])
+        plan, ask = self.static_plan(t, f, ["replace"])
+        ask.assert_called_once()
+        self.assertEqual(plan[0], [])
+        self.assertEqual(len(plan[1]), 1)
+        self.assertEqual(self.songs(t), [str(f)])
+
+    def test_a_cut_on_a_static_deck_can_be_added_too(self):
+        c, f = self.twin_files()
+        t = self.static_deck([[self.entry(c)], [None]])
+        plan, _ask = self.static_plan(t, f, ["add"])
+        self.assertEqual(plan, ([f], [], True))
+        self.assertEqual(self.songs(t), [str(c)])
+
+    def test_a_cut_on_a_static_deck_can_be_skipped(self):
+        c, f = self.twin_files()
+        t = self.static_deck([[self.entry(c)], [None]])
+        plan, _ask = self.static_plan(t, f, ["skip"])
+        self.assertEqual(plan, ([], [], False))
+        self.assertEqual(self.songs(t), [str(c)])
+
+    def test_cancelling_the_static_question_places_nothing(self):
+        c, f = self.twin_files()
+        t = self.static_deck([[self.entry(c)], [None]])
+        plan, _ask = self.static_plan(t, f, None)
+        self.assertIsNone(plan)
+        self.assertEqual(self.songs(t), [str(c)])
+
+    def test_one_exact_copy_on_a_static_deck_keeps_the_held_title_question(self):
+        c = self.file("C", "Moon River (LW 29)")
+        f = self.file("F", "Moon River (LW 29)")
+        t = self.static_deck([[self.entry(c)], [None]])
+        plan, ask = self.static_plan(t, f, ["add"])
+        self.assertEqual(plan, ([f], [], False))
+        ask.assert_not_called()
+
+    def test_without_fpcalc_nothing_is_read_and_nothing_breaks(self):
+        c, f = self.twin_files()
+        t = self.static_deck([[self.entry(c)], [None]])
+        with mock.patch("gui.table.table_dynamic.find_fpcalc", lambda: None):
+            t._prime_chroma([self.entry(f), self.entry(c)])
+        self.assertEqual(self.fingerprinted, [])
+        self.assertIsNone(t._find_duplicate(self.entry(f)))
 
 
 class CleanupTest(_ScratchDbTest):
@@ -526,3 +756,41 @@ class ChoiceDialogTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class DropDuplicatesDialogKeysTest(unittest.TestCase):
+    """S / R / E / B set the choice of the row that has the focus."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def test_s_r_w_mark_the_focused_row_and_tab_moves_on(self):
+        from PySide6.QtCore import Qt
+        from PySide6.QtTest import QTest
+
+        from gui.dialogs.drop_duplicates_dialog import DropDuplicatesDialog
+        ent = MusicEntry(path=Path("x/a.mp3"), title="a", dance="LW", bpm=None)
+        dlg = DropDuplicatesDialog(None, [(ent, ent, False), (ent, ent, True)])
+        self.addCleanup(dlg.deleteLater)
+        dlg.show()
+        first, second = dlg._combos
+        self.assertEqual(dlg.choices(), ["skip", "skip"])
+        with mock.patch.object(first, "focusNextChild") as advance:
+            QTest.keyClick(first, Qt.Key.Key_R)
+        advance.assert_called_once()
+        QTest.keyClick(second, Qt.Key.Key_E)
+        self.assertEqual(dlg.choices(), ["replace", "add"])
+        QTest.keyClick(second, Qt.Key.Key_S)
+        QTest.keyClick(second, Qt.Key.Key_B)
+        self.assertEqual(dlg.choices(), ["replace", "add"])
+        QTest.keyClick(second, Qt.Key.Key_S)
+        self.assertEqual(dlg.choices(), ["replace", "skip"])
+        from PySide6.QtCore import QEvent
+        from PySide6.QtGui import QFocusEvent
+        QApplication.sendEvent(first, QFocusEvent(QEvent.Type.FocusIn))
+        outline = dlg._keys._outlines[dlg._keys._rows[first]]
+        self.assertFalse(outline.isHidden())
+        self.assertEqual(dlg._keys._rows[first].styleSheet(), "")
+        QApplication.sendEvent(first, QFocusEvent(QEvent.Type.FocusOut))
+        self.assertTrue(outline.isHidden())

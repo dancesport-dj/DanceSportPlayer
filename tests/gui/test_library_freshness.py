@@ -12,7 +12,7 @@ import tempfile
 import time
 import unittest
 import unittest.mock
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -158,7 +158,7 @@ class LibraryColumnTest(unittest.TestCase):
         raise AssertionError(f"{title} is not in the table")
 
     def test_added_shows_the_date_the_file_appeared(self):
-        expected = date.fromtimestamp(_NEW_UNUSED.added).isoformat()
+        expected = datetime.fromtimestamp(_NEW_UNUSED.added).strftime("%Y-%m-%d %H:%M")
         self.assertEqual(self._cell("brand new", _COL_ADDED).text(), expected)
 
     def test_last_played_shows_the_year(self):

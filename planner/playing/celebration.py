@@ -32,7 +32,7 @@ def celebrate_pct(settings: dict) -> int:
     """🥇 How loud the title comes back, % of the music's level."""
     try:
         pct = int(settings.get("celebrate_pct", CELEBRATE_PCT))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return CELEBRATE_PCT
     return max(CELEBRATE_PCT_MIN, min(100, pct))
 
@@ -43,7 +43,7 @@ def celebrate_dip_pct(settings: dict) -> int:
     it comes back at: a dip lies below where it rises to."""
     try:
         dip = int(settings.get("celebrate_dip_pct", CELEBRATE_DIP_PCT))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return CELEBRATE_DIP_PCT
     return max(0, min(celebrate_pct(settings), dip))
 
@@ -51,7 +51,7 @@ def celebrate_dip_pct(settings: dict) -> int:
 def _secs(settings: dict, key: str, default: float) -> float:
     try:
         secs = float(settings.get(key, default))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return default
     return max(0.0, min(CELEBRATE_MAX_SECS, secs))
 

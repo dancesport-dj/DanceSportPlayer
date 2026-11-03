@@ -80,6 +80,8 @@ fi
 # ffmpeg is not bundled (the repo carries the Windows build only). It is needed
 # for the library analysis, the loudness scan and the silence detection.
 command -v ffmpeg >/dev/null 2>&1 || echo "NOTE: no ffmpeg on PATH — brew install ffmpeg"
+# Same for fpcalc (Chromaprint), which only the same-recording duplicate search needs.
+command -v fpcalc >/dev/null 2>&1 || echo "NOTE: no fpcalc on PATH — brew install chromaprint"
 
 # The .dmg window with a background that says where to drag the app and how to
 # allow its first start (tools/assets/dmg_background.py), the icons placed on it by

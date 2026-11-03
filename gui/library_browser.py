@@ -7,7 +7,7 @@ import gc
 import logging
 import time
 from collections.abc import Callable
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, cast
 
@@ -99,12 +99,16 @@ _LIB_COL_PLAY = 0
 _LIB_COL_DANCE = 1
 LIB_COL_TITLE = 3
 LIB_COL_LEN = 5
+LIB_COL_ADDED = 8       # when the library first saw the file (hidden; Created shows the disk date)
 LIB_COL_RATING = 10   # ★ came last: the sections are movable, a saved order is by index
 LIB_COL_CUSTOM = 11   # …and Custom after it
 LIB_COL_FILE = 12     # …and the cleaned-up file name after that
 LIB_COL_ALBUM = 13    # …and the ID3 album tag
 LIB_COL_COMMENT = 14  # …and the comment as the file has it
-LIB_COL_PLAYS = 15    # …and 🔁 how often it played in the last 24 h, last
+LIB_COL_PLAYS = 15    # …and 🔁 how often it played in the last 24 h
+LIB_COL_CREATED = 16  # …and the file's creation date and time
+LIB_COL_MODIFIED = 17  # …and when the file was last written (tags included)
+LIB_COL_YEAR = 18     # …and the year the tag (else the file name) gives, last
 # 🏷 The editor's field a double-click on a column opens on (TagEditDialog's
 # `focus`); the dance is read from the genre tag.
 _LIB_TAG_FIELDS = {_LIB_COL_DANCE: "genre", 2: "artist", LIB_COL_TITLE: "title",
@@ -120,6 +124,14 @@ _FILL_BUDGET = 0.025
 # A fill still running after this long shows its count at the table's foot;
 # a short one (the favorites) never flashes it.
 _PROGRESS_AFTER = 0.3
+
+
+def _stamp(ts: float | None, date_only: bool = False) -> str:
+    """A file time as `2026-11-03 14:05` (`2026-11-03` when only the day is
+    wanted), empty when unknown."""
+    if not ts:
+        return ""
+    return datetime.fromtimestamp(ts).strftime("%Y-%m-%d" if date_only else "%Y-%m-%d %H:%M")
 
 
 def _classes_label(e: MusicEntry) -> str:
@@ -474,6 +486,7 @@ class LibraryBrowser(QWidget):
     # dict through untouched (int keys preserved).
     columnWidthsChanged = Signal(object)  # {logical col -> width px} — persisted
     columnsChanged = Signal(list)         # columns ticked away — persisted
+    dateOnlyChanged = Signal(bool)        # time columns written as the day only? - persisted
     danceNamesChanged = Signal(bool)      # Dance column written short? — persisted
     unplannedToggled = Signal(bool)       # 🆕 filter on? — MainWindow feeds it the planned set
     wholeLibraryWanted = Signal()         # 🌐 clicked — MainWindow loads the global index
@@ -490,7 +503,7 @@ class LibraryBrowser(QWidget):
     # Narrow columns keep their width while Artist/Title share the rest — the
     # 🏆 pane's default has no Added/Last, so this list carries them.
     _FIXED_COL_W = {0: 30, 1: 90, 4: 52, 5: 52, 6: 52, 7: 70, 8: 82, 9: 52, 10: 72,
-                    11: 90, 12: 220, 13: 180, 14: 180, 15: 52}
+                    11: 90, 12: 220, 13: 180, 14: 180, 15: 52, 16: 120, 17: 120, 18: 52}
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -749,10 +762,11 @@ class LibraryBrowser(QWidget):
 
     def _build_table(self):
         """The track table: its columns, header menu, widths and clicks."""
-        self._table = LibTable(0, 16)
+        self._table = LibTable(0, 19)
         self._table.setHorizontalHeaderLabels(
             ["▶", "Dance", "Artist", "Title", "BPM", "⏱", "Pop", "Class",
-             "Added", "Last", "★", "Custom", "Filename", "Album", "Comment", "Plays"])
+             "Added", "Last", "★", "Custom", "Filename", "Album", "Comment", "Plays",
+             "Created", "Modified", "Year"])
         set_header_tip(self._table, LIB_COL_CUSTOM, CUSTOM_HEADER_TIP)
         set_header_tip(
             self._table, LIB_COL_RATING,
@@ -769,7 +783,7 @@ class LibraryBrowser(QWidget):
         hh2.setStretchLastSection(False)
         hh2.setMinimumSectionSize(24)
         for c, w in enumerate((30, 90, 200, 280, 52, 52, 52, 70, 82, 52, 72, 90, 220, 180, 180,
-                               52)):
+                               52, 120, 120, 52)):
             self._table.setColumnWidth(c, w)
         # Until the user drags a handle (or saved widths are restored), the
         # columns stretch to fill the whole pane on every resize.
@@ -777,9 +791,11 @@ class LibraryBrowser(QWidget):
         self._filling = False
         self._col_width: dict[int, int] = {}   # width a column had when it was hidden
         self._short_dances = False             # Dance column: "LW", not "Langsamer Walzer"
-        self.set_hidden_columns([LIB_COL_RATING, LIB_COL_CUSTOM, LIB_COL_FILE,
+        self._date_only = False                # Added / Created / Modified: the day, not the hour
+        self.set_hidden_columns([LIB_COL_ADDED, LIB_COL_RATING, LIB_COL_CUSTOM, LIB_COL_FILE,
                                 LIB_COL_ALBUM, LIB_COL_COMMENT,
-                                LIB_COL_PLAYS])   # wait until asked for
+                                LIB_COL_PLAYS, LIB_COL_MODIFIED,
+                                LIB_COL_YEAR])   # wait until asked for
         self._table.resize_cb = self._on_table_resized
         # Right-click the header to tick columns away or shorten the dance names.
         hh2.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -879,7 +895,10 @@ class LibraryBrowser(QWidget):
             except (TypeError, ValueError):
                 continue
             if 0 <= col < self._table.columnCount() and px >= 24:
-                self._table.setColumnWidth(col, px)
+                if self._table.isColumnHidden(col):
+                    self._col_width[col] = px   # it comes back with this width (#63)
+                else:
+                    self._table.setColumnWidth(col, px)
                 applied = True
         hh.blockSignals(False)
         if applied:   # saved layout wins — stop auto-stretching to the pane
@@ -974,6 +993,32 @@ class LibraryBrowser(QWidget):
             model.dataChanged.emit(model.index(0, _LIB_COL_DANCE),
                                    model.index(t.rowCount() - 1, _LIB_COL_DANCE))
 
+    def date_only(self) -> bool:
+        return self._date_only
+
+    def set_date_only(self, on: bool):
+        """Write the Added / Created / Modified columns as the day alone, or
+        with the hour."""
+        on = bool(on)
+        if on == self._date_only:
+            return
+        self._date_only = on
+        t = self._table
+        by_path = {str(e.path): e for e in self._entries}
+        for r in range(t.rowCount()):
+            play_it = t.item(r, _LIB_COL_PLAY)
+            if play_it is None:
+                continue
+            e = by_path.get(str(play_it.data(Qt.ItemDataRole.UserRole)))
+            if e is None:
+                continue
+            for col, ts in ((LIB_COL_ADDED, getattr(e, "added", None)),
+                            (LIB_COL_CREATED, getattr(e, "created", None)),
+                            (LIB_COL_MODIFIED, getattr(e, "modified", None))):
+                cell = t.item(r, col)
+                if cell is not None:
+                    cell.setText(_stamp(ts, on))
+
     def _dance_label(self, e) -> str:
         """What the Dance column says for a track: the full name, or the Σ
         line's short code when the user has asked for it. A social track has no
@@ -1009,6 +1054,10 @@ class LibraryBrowser(QWidget):
         short.setCheckable(True)
         short.setChecked(self._short_dances)
         short.triggered.connect(self._toggle_short_dances)
+        day = menu.addAction("Date only (no hour)")
+        day.setCheckable(True)
+        day.setChecked(self._date_only)
+        day.triggered.connect(self._toggle_date_only)
         reset = menu.addAction("Reset the play counters")
         reset.setEnabled(play_counts.any_counted())
         reset.triggered.connect(lambda: self.playCountsResetWanted.emit())
@@ -1023,6 +1072,10 @@ class LibraryBrowser(QWidget):
             hidden.add(col)
         self.set_hidden_columns(sorted(hidden))
         self.columnsChanged.emit(self.hidden_columns())
+
+    def _toggle_date_only(self, on: bool):
+        self.set_date_only(on)
+        self.dateOnlyChanged.emit(self._date_only)
 
     def _toggle_short_dances(self, on: bool):
         self.set_short_dances(on)
@@ -1239,7 +1292,7 @@ class LibraryBrowser(QWidget):
                 if text not in hay:
                     continue
             rows.append(e)
-        self._populate(rows)
+        self._populate(rows, self._keep_state())
         self._count_lbl.setText(
             i18n.t("(%d/%d tracks)") % (len(rows), len(self._entries))
             if self._entries else "")
@@ -1268,13 +1321,17 @@ class LibraryBrowser(QWidget):
         self._fill_started = time.perf_counter()
         self._fill_step(self._fill_gen, entries, 0, time.time(), keep)
 
-    def _on_sort_changed(self, *_):
-        """A header click: the same rows again, in the new order, keeping the
-        selection and the ■ marker that Qt's own sort used to carry along."""
+    def _keep_state(self):
+        """(selected paths, playing path) for `_populate` to put back (#75)."""
         selected = {str(self._row_path(i.row()))
                     for i in self._table.selectionModel().selectedRows()}
         row = self.current_play_row()
-        self._populate(self._shown, (selected, str(self._row_path(row)) if row >= 0 else None))
+        return selected, (str(self._row_path(row)) if row >= 0 else None)
+
+    def _on_sort_changed(self, *_):
+        """A header click: the same rows again, in the new order, keeping the
+        selection and the ■ marker that Qt's own sort used to carry along."""
+        self._populate(self._shown, self._keep_state())
 
     def _sort_key(self, col: int) -> Callable[[MusicEntry], Any]:
         """What column `col` sorts by: the text it shows, or for the number
@@ -1296,6 +1353,9 @@ class LibraryBrowser(QWidget):
             LIB_COL_ALBUM: lambda e: getattr(e, "tag_album", None) or "",
             LIB_COL_COMMENT: lambda e: (getattr(e, "tag_comment", None) or "").lower(),
             LIB_COL_PLAYS: lambda e: play_counts.count(e.path),
+            LIB_COL_CREATED: lambda e: getattr(e, "created", None) or 0,
+            LIB_COL_MODIFIED: lambda e: getattr(e, "modified", None) or 0,
+            LIB_COL_YEAR: lambda e: getattr(e, "year", None) or 0,
         }[col]
 
     def _fill_step(self, gen: int, entries: list[MusicEntry], start: int, now: float, keep):
@@ -1337,11 +1397,11 @@ class LibraryBrowser(QWidget):
             gc.enable()
         if end > start:
             model.dataChanged.emit(model.index(start, 0),
-                                   model.index(end - 1, LIB_COL_PLAYS))
+                                   model.index(end - 1, LIB_COL_YEAR))
         if selected:
             sel = QItemSelection()
             for r in selected:
-                sel.select(model.index(r, 0), model.index(r, LIB_COL_PLAYS))
+                sel.select(model.index(r, 0), model.index(r, LIB_COL_YEAR))
             t.selectionModel().select(sel, QItemSelectionModel.SelectionFlag.Select)
         if end < len(entries):
             if time.perf_counter() - self._fill_started >= _PROGRESS_AFTER:
@@ -1390,7 +1450,7 @@ class LibraryBrowser(QWidget):
             cell(r, 7, _classes_label(e))
             put(idx(r, 7), center, align)
             ts = getattr(e, "added", None) or 0
-            cell(r, 8, date.fromtimestamp(ts).isoformat() if ts else "", ts,
+            cell(r, LIB_COL_ADDED, _stamp(ts, self._date_only), ts,
                  C_NEW_FG if ts and ts >= now - 90 * 86400 else None)   # new: last 3 months
             last = getattr(e, "last_played", None)
             cell(r, 9, str(last) if last else ("—" if not pop else "?"), last or 0,
@@ -1401,6 +1461,12 @@ class LibraryBrowser(QWidget):
             cell(r, LIB_COL_COMMENT, getattr(e, "tag_comment", None) or "")
             plays = play_counts.count(e.path)
             cell(r, LIB_COL_PLAYS, str(plays) if plays else "", plays)
+            created = getattr(e, "created", None)
+            cell(r, LIB_COL_CREATED, _stamp(created, self._date_only), created or 0)
+            modified = getattr(e, "modified", None)
+            cell(r, LIB_COL_MODIFIED, _stamp(modified, self._date_only), modified or 0)
+            year = getattr(e, "year", None)
+            cell(r, LIB_COL_YEAR, str(year) if year else "", year or 0)
 
     def refilter(self):
         """Filter the rows again: what puts a title in a category changed."""
@@ -1437,8 +1503,10 @@ class LibraryBrowser(QWidget):
         if col == 7:
             return (i18n.t("Class tags from the MP3 comment field")
                     if getattr(e, "classes_ok", None) else "")
-        if col == 8:
-            return i18n.t("When this file was created in the library")
+        if col == LIB_COL_ADDED:
+            return i18n.t("When the library first saw the file (the date it was imported)")
+        if col == LIB_COL_CREATED:
+            return i18n.t("When the file was created on disk (a copied file gets a new creation time)")
         if col == 9:
             return i18n.t(
                 "Newest playlist carrying this track" if getattr(e, "last_played", None)
@@ -1450,6 +1518,10 @@ class LibraryBrowser(QWidget):
             return str(e.path)
         if col == LIB_COL_COMMENT:
             return getattr(e, "tag_comment", None) or ""
+        if col == LIB_COL_MODIFIED:
+            return i18n.t("When the file was last written, tag edits included")
+        if col == LIB_COL_YEAR:
+            return i18n.t("Year from the MP3 tag; the file name only when the tag has none")
         return ""
 
     def _put_tag_cells(self, row: int, e: MusicEntry):

@@ -18,6 +18,21 @@ def qapp():
     return QApplication.instance() or QApplication([])
 
 
+def settle_wall_checks(wall, timeout=3.0):
+    """Let the cartwall's background file check finish and deliver its answer
+    (#127: a pad's file is looked for off the GUI thread)."""
+    import time
+    end = time.monotonic() + timeout
+    app = qapp()
+    while time.monotonic() < end:
+        app.processEvents()
+        if not wall._checking:
+            app.processEvents()
+            return
+        time.sleep(0.005)
+    raise AssertionError("the cartwall file check never finished")
+
+
 def reap_widget(w):
     """Destroy `w` now, rather than whenever an event loop next runs.
 

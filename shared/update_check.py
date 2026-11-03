@@ -17,6 +17,7 @@ does).
 import http.client
 import json
 import logging
+import re
 import threading
 import urllib.request
 from urllib.parse import urlsplit
@@ -65,6 +66,10 @@ def _release_page(url) -> str:
     return RELEASES_PAGE
 
 
+_MAX_BYTES = 1 << 20
+_TAG_RE = re.compile(r"v?\d+(\.\d+){1,2}")
+
+
 def latest_release(timeout: float = _TIMEOUT_SECS) -> tuple[str, str] | None:
     """(version, release page) of the latest GitHub release, or None when
     GitHub cannot be reached or answers something else."""
@@ -75,15 +80,15 @@ def latest_release(timeout: float = _TIMEOUT_SECS) -> tuple[str, str] | None:
     try:
         with urllib.request.urlopen(request, timeout=timeout,  # nosec B310: fixed https URL
                                     context=tls_context()) as resp:
-            data = json.load(resp)
+            data = json.loads(resp.read(_MAX_BYTES))   # a cut-off body is not JSON
     except (OSError, ValueError, http.client.HTTPException) as exc:
         log.info("🔔 Update check failed: %s", exc)
         return None
     if not isinstance(data, dict):
         return None
     tag = str(data.get("tag_name") or "").strip()
-    if not tag:
-        return None
+    if not _TAG_RE.fullmatch(tag):
+        return None     # the tag is shown in a message box: only a version
     return tag.removeprefix("v"), _release_page(data.get("html_url"))
 
 

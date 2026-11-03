@@ -231,7 +231,10 @@ _PATH_CFG = _load_path_config()
 
 def _configured_dir(env_key: str, cfg_key: str, default: Path) -> Path:
     val = os.environ.get(env_key) or _PATH_CFG.get(cfg_key)
-    return Path(val).expanduser() if val else default
+    # A hand-edited number or list must not stop the app at import.
+    if not isinstance(val, str) or not val.strip():
+        return default
+    return Path(val).expanduser()
 
 
 def default_music_dir() -> Path:

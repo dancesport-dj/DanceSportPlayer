@@ -41,7 +41,7 @@ from gui.workers import (  # auto-resolved
     WarmupBuilder,
 )
 from planner import i18n
-from planner.generate.scoring import STRATEGY_LABELS
+from planner.generate.scoring import FRESH_STRATEGIES, STRATEGY_LABELS
 from planner.generate.suggester import PlaylistSuggester, generate_hints, source_gap_hint
 from planner.generate.warmup import reshuffle_warmup
 from planner.models import ALLOW_REPEAT, MusicEntry, Strategy, is_non_turnier
@@ -241,7 +241,7 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
             QMessageBox.warning(self, "No Dances",
                                 "Please select at least one dance.")
             return
-        if not rounds:
+        if not rounds or not self._cfg.rounds_valid:
             QMessageBox.warning(self, "No Rounds",
                                 "Enter a valid round pattern (e.g. 6-3-2-1).")
             return
@@ -650,11 +650,11 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
         if rc is None:
             return
         rc.strategy = Strategy.of(strategy)
-        rc.prefer_fresh = (strategy == Strategy.FRESH)
+        rc.prefer_fresh = (strategy in FRESH_STRATEGIES)
 
         # Auto re-roll off → keep the grid, just store the strategy for the ↺ buttons.
         if not self._cfg.auto_reroll_check.isChecked():
-            self._deckset.table.update_strategy(round_name, strategy, strategy == Strategy.FRESH)
+            self._deckset.table.update_strategy(round_name, strategy, strategy in FRESH_STRATEGIES)
             label = i18n.t(STRATEGY_LABELS.get(Strategy.of(strategy), strategy))
             self.statusBar().showMessage(
                 i18n.t("%s: strategy set to %s — ↺ a song or dance to apply")
@@ -717,7 +717,7 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
         if rc is None:
             return
         rc.strategy = Strategy.of(strategy)
-        rc.prefer_fresh = (strategy == Strategy.FRESH)
+        rc.prefer_fresh = (strategy in FRESH_STRATEGIES)
 
         names = list(self._playlist.keys())
 
@@ -725,7 +725,7 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
         # buttons draw from: the new strategy AND the current 🎯 scope (this
         # competition's history pool when ticked, full library when unticked).
         if not self._cfg.auto_reroll_check.isChecked():
-            self._deckset.table.update_strategy(round_name, strategy, strategy == Strategy.FRESH)
+            self._deckset.table.update_strategy(round_name, strategy, strategy in FRESH_STRATEGIES)
             try:
                 ri = names.index(round_name)
             except ValueError:
@@ -861,9 +861,16 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
 
     def _ask_warmup_options(self):
         """The 🤸 dialog for this window's library — see `ask_warmup_options`."""
+        wishes = [(self.deck(t).name or "⭐  Wishlist", len(t.wishlist_entries()))
+                  for t in self._wishlists_with_titles()]
         return ask_warmup_options(
             self, self._library.lib.entries if self._library.lib else [],
-            self._settings.get("library_dir", "") or "")
+            self._settings.get("library_dir", "") or "", wishes,
+            memory=self._settings)
+
+    def _wishlists_with_titles(self):
+        """The open ⭐ wishlists that hold at least one title, in tab order."""
+        return [t for t in self._deckset.wishlists if t.wishlist_entries()]
 
     def _entries_from_m3u_file(self, path, progress_cb=None) -> list[MusicEntry]:
         """Resolve every track line of an .m3u to a library MusicEntry (built as
@@ -918,8 +925,9 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
                 return
         elif opts["source"] == "wishlists":
             src, seen = [], set()
-            for t in self._deckset.wishlists:
-                for e in t._row_meta.entries():
+            filled = self._wishlists_with_titles()
+            for i in opts.get("wishlist_picks", range(len(filled))):
+                for e in filled[i].wishlist_entries():
                     if str(e.path) not in seen:
                         seen.add(str(e.path))
                         src.append(e)
@@ -948,6 +956,10 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
                           max_tracks=opts["max_tracks"],
                           fresh_ratio=opts["fresh_ratio"], relax=opts["relax"])
             label = f"{practice_name()} {opts['style']} {opts['dance_class']}"
+        elif opts["mode"] == "competition":
+            params = dict(opts["competition"], relax=True)
+            label = (f"{i18n.t('Competition Training')} "
+                     f"{params['style']} {params['dance_class']}")
         else:
             params = dict(opts["etds"])
             label = "Party"
@@ -990,10 +1002,19 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
             return
 
         opts = getattr(self, "_warmup_opts", {}) or {}
+        heat_plan = []
         style = opts.get("style", "Latin")
         dance_class = opts.get("dance_class", "S")
         relax = bool(opts.get("relax", True))
-        if opts.get("mode") == "class":
+        if opts.get("mode") == "competition":
+            comp = opts["competition"]
+            style, dance_class = comp["style"], comp["dance_class"]
+            list_label = self._warmup_title(
+                f"{i18n.t('Competition Training')} {style} {dance_class}")
+            heat_plan = planner.generate.warmup.competition_plan(
+                comp["dances"], comp["heats"], comp["rounds"],
+                comp["final_heats"], len(entries))
+        elif opts.get("mode") == "class":
             list_label = self._warmup_title(
                 f"{practice_name()} {style} {dance_class}")
         else:
@@ -1004,6 +1025,7 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
         target.load_warmup(
             entries, list_label, style, dance_class, relax,
             play_cb=self._play_or_stop, suggester=PlaylistSuggester(self._library.lib),
+            heat_plan=heat_plan,
         )
         self._set_deck_name(target, list_label)
         self._warmup_closed = False
@@ -1016,7 +1038,7 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
         dance_mix = ", ".join(f"{dance_name(d, d)}×{n}"
                               for d, n in mix.most_common())
         how = (i18n.t("↺ swaps with a title from the end, drag-drop replaces")
-               if opts.get("mode") != "class"
+               if opts.get("mode") not in ("class", "competition")
                else i18n.t("↺ / drag-drop to replace by timbre"))
         # The title already carries the 🤸 logo; the hint adds its own.
         self._show_hints([i18n.t("🤸 %s: %d tracks  (%s)  — %s")
@@ -1098,7 +1120,15 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
             # Competition rounds only: a warm-up list has its own cut in
             # `load_warmup`, which re-runs after every drop instead of holding on
             # to the rounds the file arrived with.
-            sections = self._player_round_sections(m3u_path, entries, warmup=False)
+            # A competition training list (rounds with several heats) keeps its
+            # rounds and heat counts, but only when every title loaded, or the
+            # strips would be cut in the wrong places.
+            heat_plan = planner.playlist.m3u.m3u_marker_heats(m3u_path)
+            if (not any(r[1] > 1 for r in heat_plan)
+                    or sum(r[2] for r in heat_plan) != len(entries)):
+                heat_plan = []
+            sections = (None if heat_plan else
+                        self._player_round_sections(m3u_path, entries, warmup=False))
             if sections:
                 table.load_player_list(
                     entries, list_label, play_cb=self._play_or_stop,
@@ -1107,12 +1137,14 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
                 table.load_warmup(
                     entries, list_label, style="", dance_class="S", relax=True,
                     play_cb=self._play_or_stop, suggester=PlaylistSuggester(self._library.lib),
+                    heat_plan=heat_plan,
                 )
             log.info("🤸 Practice panel loaded\n"
                      "file: %s\n"
                      "tracks: %s\n"
                      "rounds: %s", Path(m3u_path).name, len(entries),
-                     ", ".join(dict.fromkeys(sections.values()))
+                     ", ".join(dict.fromkeys(sections.values() if sections
+                                             else (r[0] for r in heat_plan)))
                      or "none — cut where a dance repeats")
         finally:
             dlg.finish()

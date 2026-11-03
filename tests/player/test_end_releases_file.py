@@ -55,6 +55,16 @@ class EndReleasesFileTest(unittest.TestCase):
         w._queue_auto_advance = lambda: setattr(w._between, "pending", ("t", 1, "next.mp3"))
         self.assertEqual(self.end(w), [])
 
+    def test_a_late_end_of_the_previous_title_leaves_the_new_one_alone(self):
+        """#62: the player already holds the next title (its status is not the
+        end any more), so a queued EndOfMedia of the old one must do nothing."""
+        from PySide6.QtMultimedia import QMediaPlayer
+        w = self.Win()
+        w._player = _SourcePlayer()
+        w._player.mediaStatus = lambda: QMediaPlayer.MediaStatus.LoadingMedia
+        w._on_media_status(QMediaPlayer.MediaStatus.EndOfMedia)
+        self.assertEqual(w._player.sources, [])
+
     def test_hand_marking_keeps_the_title_loaded(self):
         w = self.Win()
         w._play_panel = _EditingPanel()

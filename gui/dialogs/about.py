@@ -61,9 +61,10 @@ def about_html(name: str, version: str) -> str:
         *([(i18n.t("Model"), f"MERT (m-a-p) · CC BY-NC 4.0 · "
                              f"{_link(MERT_URL, 'huggingface.co')}")]
           if mert_available() else []),
-        # Two lines, so the longest row doesn't widen the dialog.
+        # Three short lines, so the longest row doesn't widen the dialog.
         (i18n.t("Libraries"), "Qt / PySide6 (LGPL-3.0) · mutagen (GPL-2.0+)<br>"
-                              "FFmpeg (LGPL-2.1+, ffmpeg.exe GPL-3.0) · "
+                              "FFmpeg (LGPL-2.1+, ffmpeg.exe GPL-3.0)<br>"
+                              "Chromaprint (LGPL-2.1+, fpcalc for the duplicate check) · "
                               f"{_link(THIRD_PARTY_URL, i18n.t('all licences'))}"),
     )
     body = "".join(f"<tr><td style='padding-right:12px;'><b>{label}</b></td>"

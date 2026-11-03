@@ -281,13 +281,27 @@ class TableLoadMixin(PlaylistTableHost):
         dance-major order (all Walzer, then all Tango, …) into one strip per
         song, so a running order never uses it."""
         if not self._player_list:
-            return warmup_rounds(entries)
+            cut = self._heat_rounds(entries)
+            return cut if cut else warmup_rounds(entries)
         rounds: list[tuple[str, list[MusicEntry]]] = []
         for section, e in zip(self._player_section_labels(entries), entries, strict=True):
             if not rounds or rounds[-1][0] != section:
                 rounds.append((section, []))
             rounds[-1][1].append(e)
         return rounds
+
+    def _heat_rounds(self, entries: list[MusicEntry]) -> list:
+        """A competition training list cut into the rounds it was planned
+        with, [(round, [entries])] — or [] when it has no plan or an edit left
+        it with another number of titles (the order rule cuts it then)."""
+        plan = self._heat_plan
+        if not plan or sum(songs for _name, _heats, songs in plan) != len(entries):
+            return []
+        cut, start = [], 0
+        for name, _heats, songs in plan:
+            cut.append((name, entries[start:start + songs]))
+            start += songs
+        return cut
 
     def _section_title(self, section: str, songs: list[MusicEntry]) -> str:
         """The ─── strip over a section: what it is, and what is in it."""
@@ -301,13 +315,16 @@ class TableLoadMixin(PlaylistTableHost):
             title = (f"{terms.round_name(section)}   "
                      f"({len(songs)} {song_s}{r_time})")
         else:
-            title = f"{terms.round_name(section)}   (1 heat,  {len(songs)} {song_s}{r_time})"
+            heats = next((h for name, h, _n in self._heat_plan if name == section), 1)
+            heat_s = "heat" if heats == 1 else "heats"
+            title = (f"{terms.round_name(section)}   "
+                     f"({heats} {heat_s},  {len(songs)} {song_s}{r_time})")
         return f"    ───  {title}  ───"
 
     def load_warmup(self, entries: list[MusicEntry], label: str,
                     style: str, dance_class: str, relax: bool,
                     play_cb, suggester: PlaylistSuggester | None,
-                    running_order: bool = False):
+                    running_order: bool = False, heat_plan: list | None = None):
         """Load a flat warm-up ("Eintanzen") list as its OWN category. Like a theme,
         but each row keeps a 'warmup' tag so the ↺ button re-rolls a timbre-matched,
         TSO-conform track of the same dance and a drag-drop can replace a slot.
@@ -316,7 +333,11 @@ class TableLoadMixin(PlaylistTableHost):
         (see `load_player_list`) — the panel then heads its strips with the rounds
         instead of cutting a fresh one wherever a dance repeats. A plain warm-up
         list clears that again, so a panel that held an order once doesn't keep
-        grouping the next Eintanzen list by rounds it no longer has."""
+        grouping the next Eintanzen list by rounds it no longer has.
+
+        `heat_plan` is a competition training list's [(round, heats, songs)]:
+        its strips are those rounds, not one strip per pass through the dances."""
+        self._heat_plan = list(heat_plan or [])
         self._player_list = bool(running_order)
         if not running_order:
             self._player_sections = {}

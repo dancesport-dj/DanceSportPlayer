@@ -77,6 +77,12 @@ class ServerTest(unittest.TestCase):
         conn.close()
         return out
 
+    def test_a_204_carries_no_content_length(self):
+        """HTTP: a 204 has no body, so it names no length either."""
+        status, headers, _ = self._req("POST", "/api/cmd", {"cmd": "next"})
+        self.assertEqual(status, 204)
+        self.assertNotIn("Content-Length", headers)
+
     def test_the_page_needs_no_pin_and_carries_the_labels(self):
         status, headers, body = self._req("GET", "/", pin=None)
         self.assertEqual(status, 200)

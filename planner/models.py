@@ -583,6 +583,7 @@ class Strategy(StrEnum):
     PROVEN = "proven"
     TOP_PROVEN = "top_proven"
     FRESH = "fresh"
+    RARELY = "rarely"
     MIXED = "mixed"
     ALL = "all"
 
@@ -661,8 +662,10 @@ class MusicEntry:
     class_plays: dict[str, int] | None = None  # start class → distinct playlists played in
     final_plays: int = 0  # of those playlists, how many played it in the FINAL round
     semi_plays: int = 0   # …and how many in the SEMIFINAL — the other round that matters
-    added: float | None = None  # file creation time (unix) — when it entered the library
+    added: float | None = None  # when the library first saw the file (unix); creation time if unknown
+    created: float | None = None  # file creation time (unix), as the disk has it
     last_played: int | None = None  # newest year among the playlists it appears in
+    modified: float | None = None  # file modification time (unix) — last write, tags included
 
     def __post_init__(self):
         # The scan caches mark "probed, the header gives no length" as -1 so

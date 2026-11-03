@@ -70,6 +70,7 @@ _MARKER = "# i18n: data"
 # Texts that read the same in German: names, and words German borrowed. The
 # catalog may not map them to themselves, so they are listed here instead.
 _SAME_IN_GERMAN = {
+    "Chromaprint",
     "DanceSport Planner & Player",
     "Cartwall", "🎛  Cartwall", "🎛 Cartwall", "🏷  Tags", "Slot %d", "Pool", "TSO",
     "Name:", "⏭  Auto", "🔈  Test", "♪ Takt", "≈ Takt", "— Standard —",

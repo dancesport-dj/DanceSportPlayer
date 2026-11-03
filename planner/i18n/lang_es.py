@@ -59,16 +59,30 @@ CATALOG = {
     "Start after:": "Empezar tras:",
     "Stop after highlight:": "Parar tras el clímax:",
     "Max tracks:": "Máx. temas:",
+    "🏁  Competition training list (heats per dance, then the final)": "🏁  Lista de entrenamiento de torneo (rondas por baile, luego la final)",
+    "Dances (untick the ones you do not need):": "Bailes (desmarca los que no necesites):",
+    "Heats per round:": "Mangas por ronda:",
+    "Rounds:": "Rondas:",
+    "Final heats:": "Mangas de la final:",
+    "Every dance gets this many tracks in a round, one per heat.": "Cada baile recibe esta cantidad de temas por ronda, uno por manga.",
+    "The last round is the final.": "La última ronda es la final.",
+    "Heats per dance in the final.": "Mangas por baile en la final.",
+    "%d tracks: %d dances x %d heats": "%d temas: %d bailes x %d mangas",
+    "Competition Training": "Entrenamiento de competición",
+    "Tick at least one dance.": "Marca al menos un baile.",
     "Proven": "Probados",
     "Top Proven": "Los más probados",
     "Fresh": "Nuevos",
+    "Rarely played": "Poco tocadas",
     "Mostly Proven": "Sobre todo probados",
     "Even Mix": "Mezcla equilibrada",
     "Songs you have played before (fresh as fallback).":
         "Temas que ya has puesto antes (nuevos como reserva).",
     "Only your most-played songs.": "Solo tus temas más puestos.",
-    "Unused songs first (proven as fallback).":
-        "Primero temas sin usar (probados como reserva).",
+    "New songs first, at most 2 years in the library (proven as fallback).":
+        "Primero temas nuevos, de como máximo 2 años en la biblioteca (probados como reserva).",
+    "Rarely or never played songs first, whatever their age (proven as fallback).":
+        "Primero temas poco o nunca puestos, sin importar su antigüedad (probados como reserva).",
     "Proven + fresh together, but favors songs you have played before.":
         "Probados + nuevos juntos, pero prefiere temas que ya has puesto.",
     "Proven + fresh with no preference — equal chance, maximum variety.":
@@ -425,6 +439,7 @@ CATALOG = {
     "Parse schedule": "Leer el horario",
     "Filter by the instrumental tag": "Filtrar por la marca de instrumental",
     "Short dance names  (LW, SB)": "Nombres de baile cortos  (LW, SB)",
+    "Date only (no hour)": "Solo fecha (sin hora)",
     "Auto re-roll round on strategy change":
         "Volver a sortear la ronda al cambiar de estrategia",
     "Re-analyze tracks that already have highlights":
@@ -818,8 +833,16 @@ CATALOG = {
         "Restablecer el tempo a ±0 % (o doble clic en el fader)",
     "Volume adjustment of this track by Equalize volume (R128)":
         "Ajuste de volumen de este tema por Igualar volumen (R128)",
-    "When this file was created in the library":
-        "Cuándo se creó este archivo en la biblioteca",
+    "When the library first saw the file (the date it was imported)":
+        "Cuándo vio la biblioteca el archivo por primera vez (la fecha de importación)",
+    "When the file was created on disk (a copied file gets a new creation time)":
+        "Cuándo se creó el archivo en el disco (un archivo copiado recibe una nueva fecha de creación)",
+    "When the file was last written, tag edits included":
+        "Cuándo se escribió el archivo por última vez, incluidos los cambios de etiquetas",
+    "Year from the MP3 tag; the file name only when the tag has none":
+        "Año de la etiqueta MP3; el nombre del archivo solo si la etiqueta no lo tiene",
+    "Created": "Creado",
+    "Modified": "Modificado",
     "Replace via the similar-tracks picker":
         "Reemplazar mediante el selector de temas similares",
     "Put the shipped rule set back.": "Restaurar el reglamento incluido.",
@@ -3817,6 +3840,23 @@ CATALOG = {
     "🔁  Replaced %d, ➕ added %d track(s)":
         "🔁  Reemplazados %d, ➕ añadido(s) %d tema(s)",
     "  (%s — skipped)": "  (%s — omitido)",
+    "↩  %d same-title file(s) left out": "↩  %d archivo(s) con el mismo título omitido(s)",
+    "Duplicates in this list":
+        "Duplicados en esta lista",
+    "Duplicate songs in this list, in running order.<br><span style='color:#666'>🟰 <b>Exact</b> = identical audio. ≈ <b>Similar</b> = same title, a different recording. Keep the ones you want; switch the others to <b>Replace</b> and pick a track for each, or to <b>Remove</b>.</span>":
+        "Canciones duplicadas en esta lista, en orden de reproducción.<br><span style='color:#666'>🟰 <b>Exacto</b> = audio idéntico. ≈ <b>Similar</b> = mismo título, otra grabación. Conserva las que quieras; pon las demás en <b>Reemplazar</b> y elige un tema para cada una, o en <b>Quitar</b>.</span>",
+    "Duplicate songs across your open playlist(s), in playlist order.":
+        "Canciones duplicadas en tus listas abiertas, en el orden de la lista.",
+    "🎼  Comparing recordings…":
+        "🎼  Comparando grabaciones…",
+    "These dropped titles are in the list already. What should happen to each?": "Estos títulos soltados ya están en la lista. ¿Qué hacer con cada uno?",
+    "🟰  Same audio": "🟰  Mismo audio",
+    "≈  Same title or recording": "≈  Mismo título o grabación",
+    "In the list: %s": "En la lista: %s",
+    "Dropped: %s": "Soltado: %s",
+    "Skip": "Omitir",
+    "Tab moves through the titles · S = skip · R = replace · E / B = keep both": "Tab recorre los títulos · S = omitir · R = reemplazar · E / B = conservar ambos",
+    "K = keep · R = replace · D / X = remove": "K = conservar · R = reemplazar · D / X = quitar",
     "%d already planned": "%d ya previstos",
     "%d with no dance": "%d sin baile",
     "⚠  Couldn't tell what dance “%s” is — nothing added":
@@ -6007,4 +6047,101 @@ CATALOG = {
         'Muestra las carpetas junto a la lista: al elegir una se listan solo\nlos temas que están directamente en ella. Aquí 🆕 Sin planificar oculta\nel archivo planificado, y la misma música en otra carpeta se queda,\nmarcada con ♊.',
     '♊ The same music is planned from another folder':
         '♊ La misma música está planificada desde otra carpeta',
+    '🎼 Same recording': '🎼 Misma grabación',
+    'A title is playing. Stop it and cue “%s”?':
+        'Suena un tema. ¿Detenerlo y preparar “%s”?',
+    'A title is playing. Stop it and start “%s”?':
+        'Suena un tema. ¿Detenerlo e iniciar “%s”?',
+    'Clear highlights':
+        'Borrar clímax',
+    'Copy the file path of the selected title':
+        'Copiar la ruta de archivo del título seleccionado',
+    'Edit the tags of the selected title(s)':
+        'Editar las etiquetas de los títulos seleccionados',
+    'Find a folder…':
+        'Buscar una carpeta…',
+    'Forget the highlights of this title?\n\nManual marks are lost; 🐂 auto-detection runs again.':
+        '¿Olvidar los clímax de este tema?\n\nSe pierden las marcas manuales; la 🐂 detección automática vuelve a ejecutarse.',
+    'How the pasted wishes are read and when a wish may be answered with\nsomething else. The search steps are added automatically, because\nthe code depends on them.':
+        'Cómo se leen los deseos pegados y cuándo un deseo puede responderse con\notra cosa. Los pasos de búsqueda se añaden automáticamente, porque\nel código depende de ellos.',
+    'Keep slot':
+        'Conservar el hueco',
+    'Remove with slot':
+        'Quitar con el hueco',
+    'On: a double-click on another title while one is playing\nasks first — No keeps the music on the floor.\nOff: the new title takes over at once.':
+        'Encendido: un doble clic en otro título mientras suena uno\npregunta antes — No deja la música en la pista.\nApagado: el nuevo título toma el relevo al instante.',
+    'Prompt for this kind of list (added to the rules):':
+        'Prompt para este tipo de lista (se añade a las reglas):',
+    'Remove %d songs?':
+        '¿Quitar %d temas?',
+    'Remove this song?':
+        '¿Quitar este tema?',
+    'Show the selected title in Explorer':
+        'Mostrar el título seleccionado en el Explorador',
+    'Sort by name':
+        'Ordenar por nombre',
+    'Sort by size':
+        'Ordenar por tamaño',
+    'Sort the folders':
+        'Ordenar las carpetas',
+    'Stop the playing title?':
+        '¿Detener el tema en reproducción?',
+    'The list changed meanwhile — nothing done':
+        'La lista cambió mientras tanto — no se hizo nada',
+    'What a party list is for. It is sent with the task, after the rules,\nand says which of the rules do not apply. Each mode keeps its own text.':
+        'Para qué sirve una lista de fiesta. Se envía con la tarea, después de las reglas,\ny dice qué reglas no se aplican. Cada modo conserva su propio texto.',
+    'What a party list or a warm-up list is for. It is sent with the\ntask, after the rules, and says which of the rules do not apply.\nEach kind keeps its own text.':
+        'Para qué sirve una lista de fiesta o de calentamiento. Se envía con la\ntarea, después de las reglas, y dice qué reglas no se aplican.\nCada tipo conserva su propio texto.',
+    'What a warm-up list is for. It is sent with the task, after the\nrules, and says which of the rules do not apply. Each mode keeps\nits own text.':
+        'Para qué sirve una lista de calentamiento. Se envía con la tarea, después de\nlas reglas, y dice qué reglas no se aplican. Cada modo conserva\nsu propio texto.',
+    'Which tracks suit a higher-class event. It is sent with the task,\nafter the rules, for the B, A and S classes; the lower classes get\nnone. The rounds, heats, dances and tempos are added automatically.':
+        'Qué temas encajan en un torneo de las clases superiores. Se envía con la tarea,\ndespués de las reglas, para las clases B, A y S; las clases inferiores\nno lo reciben. Las rondas, grupos, bailes y tempos se añaden automáticamente.',
+    'change a value by hand, or press the other set':
+        'cambia un valor a mano o pulsa el otro set',
+    'double-click → asks before it stops a title':
+        'doble clic → pregunta antes de detener un tema',
+    'double-click → stops a title without asking':
+        'doble clic → detiene un tema sin preguntar',
+    '↩  Reset time marker':
+        '↩  Restablecer la marca de tiempo',
+    '❓  Ask before a double-click stops the title':
+        '❓  Preguntar antes de que un doble clic detenga el tema',
+    '🎉  Party set off — earlier values back':
+        '🎉  Set de fiesta desactivado — vuelven los valores anteriores',
+    '🎉  Party set stays on — no earlier values to go back to':
+        '🎉  El set de fiesta sigue activo — no hay valores anteriores a los que volver',
+    '🏆  Tournament set off — earlier values back':
+        '🏆  Set de torneo desactivado — vuelven los valores anteriores',
+    '🏆  Tournament set stays on — no earlier values to go back to':
+        '🏆  El set de torneo sigue activo — no hay valores anteriores a los que volver',
+    '🎉 Party-list prompt (added to the rules):':
+        '🎉 Prompt de la lista de fiesta (se añade a las reglas):',
+    '🏆 Competition prompt (added to the rules, sent for the B, A and S classes only):':
+        '🏆 Prompt de torneo (se añade a las reglas, solo se envía para las clases B, A y S):',
+    '📝 Wish-list prompt (added to the rules):':
+        '📝 Prompt de la lista de deseos (se añade a las reglas):',
+    '🤸 Warm-up-list prompt (added to the rules):':
+        '🤸 Prompt de la lista de calentamiento (se añade a las reglas):',
+    '🔍  Find a title or genre in this list…\tCtrl+F':
+        '🔍  Buscar un título o género en esta lista…\tCtrl+F',
+    '🔍  No title of “%s” in this list':
+        '🔍  Ningún título de “%s” en esta lista',
+    'Not a round pattern — fix it (e.g. 6-3-2-1).':
+        'No es un patrón de rondas — corrígelo (p. ej. 6-3-2-1).',
+    'Also find the same recording under different file names?\n\nThat reads the sound of %s track(s), about 0.2 s each. You can cancel anytime; results so far are kept.':
+        '¿Buscar también la misma grabación con otros nombres de archivo?\n\nPara ello se lee el sonido de %s tema(s), unos 0,2 s cada uno. Puedes cancelar en cualquier momento; los resultados obtenidos se conservan.',
+    'The heats of a dance in a round sound alike: the first track is the\nanchor, the others are its nearest by timbre. The final and semifinal\nprefer the titles you played there before.':
+        'Las tandas de un baile en una ronda suenan parecido: el primer tema es el\nancla, los demás son sus más cercanos por timbre. La final y la semifinal\nprefieren los temas que ya pusiste allí.',
+    'Fresh titles in the early rounds:':
+        'Temas nuevos en las primeras rondas:',
+    'Share of the heats in the rounds before the semifinal that go to fresh titles. The semifinal and the final keep to the titles you know.':
+        'Parte de las tandas de las rondas anteriores a la semifinal que van a temas nuevos. La semifinal y la final se quedan con los temas que conoces.',
+    'New (at most 2 years in the library)':
+        'Nuevos (como máximo 2 años en la biblioteca)',
+    'Rarely played (any age)':
+        'Poco puestos (de cualquier antigüedad)',
+    'Which titles count as fresh: new ones, or any title that was hardly ever played.':
+        'Qué temas cuentan como nuevos: los recientes, o cualquier tema que casi nunca se ha puesto.',
+    'Reading Chromaprints…':
+        'Leyendo Chromaprints…',
 }

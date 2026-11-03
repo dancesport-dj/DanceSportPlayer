@@ -81,6 +81,22 @@ jobs:
           Copy-Item $exe.FullName ffmpeg.exe
           .\ffmpeg.exe -hide_banner -version | Select-Object -First 1
 
+      # Chromaprint's fpcalc, for the same-recording duplicate search. Like
+      # ffmpeg: pinned, put where build_exe.bat looks for it. The hash is the one
+      # GitHub lists for the v1.6.2 asset; a new version needs its own here.
+      - name: Fetch fpcalc
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://github.com/acoustid/chromaprint/releases/download/v1.6.2/chromaprint-fpcalc-1.6.2-windows-x86_64.zip -OutFile fpcalc.zip
+          $hash = (Get-FileHash fpcalc.zip -Algorithm SHA256).Hash
+          if ($hash -ne "B74369726676670AF3AB0EADFF45F960CF969FDF4A87A971BA37EAF8D530E874") {
+            throw "fpcalc.zip is not the 1.6.2 release: SHA-256 $hash"
+          }
+          Expand-Archive fpcalc.zip -DestinationPath fpcalc-unpacked
+          $exe = Get-ChildItem fpcalc-unpacked -Recurse -Filter fpcalc.exe | Select-Object -First 1
+          Copy-Item $exe.FullName fpcalc.exe
+          .\fpcalc.exe -version
+
       - name: Build
         env:
           # Without it the build simply offers no error reports.
@@ -151,7 +167,8 @@ jobs:
         run: brew install create-dmg
 
       # Builds, signs ad hoc and wraps the .app in a .dmg. ffmpeg is not
-      # bundled on macOS (brew install ffmpeg on the machine that runs it).
+      # bundled on macOS (brew install ffmpeg on the machine that runs it);
+      # nor is fpcalc (brew install chromaprint).
       - name: Build
         env:
           DANCEPLAYLIST_ERROR_DSN: ${{ secrets.DANCEPLAYLIST_ERROR_DSN }}

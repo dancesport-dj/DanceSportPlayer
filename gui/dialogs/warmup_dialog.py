@@ -19,17 +19,39 @@ from PySide6.QtWidgets import (
     QPushButton,
     QRadioButton,
     QSpinBox,
-    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
 import planner.models
-from gui.dialogs import M3uDropDialog
+from gui.dialogs import M3uDropDialog, load_settings, save_settings
 from gui.dialogs.warmup_estimate import WarmupEstimateBox
 from planner import i18n
 from planner.generate.warmup import WARMUP_MODE, warmup_lengths
 from planner.terms import dance_name
+
+
+class _CurrentPageStack(QWidget):
+    """Shows one page at a time and is as tall as that page. A QStackedWidget
+    is as tall as its tallest page, hidden ones included (also in its
+    height-for-width), so the party page left an empty band under Practice.
+    Here the pages not shown are hidden, and hidden widgets leave the layout."""
+
+    def __init__(self):
+        super().__init__()
+        self._lyt = QVBoxLayout(self)
+        self._lyt.setContentsMargins(0, 0, 0, 0)
+
+    def addWidget(self, page):
+        self._lyt.addWidget(page)
+        page.setVisible(self._lyt.count() == 1)
+
+    def setCurrentIndex(self, index):
+        for i in range(self._lyt.count()):
+            item = self._lyt.itemAt(i)
+            if item is not None and (page := item.widget()) is not None:
+                page.setVisible(i == index)
+        self.updateGeometry()
 
 
 def _add_mode_box(dlg, lyt):
@@ -40,12 +62,17 @@ def _add_mode_box(dlg, lyt):
                             "(round-robin through the class's dances)")
     rb_etds = QRadioButton("🎉  Party playlist "
                            "(alternating 3-dance rounds, all dances)")
+    rb_comp = QRadioButton("🏁  Competition training list "
+                           "(heats per dance, then the final)")
+    rb_comp.setObjectName("mode_competition")
     rb_class.setChecked(True)
     mode_grp = QButtonGroup(dlg)
     mode_grp.addButton(rb_class, 0)
     mode_grp.addButton(rb_etds, 1)
+    mode_grp.addButton(rb_comp, 2)
     mode_lyt.addWidget(rb_class)
     mode_lyt.addWidget(rb_etds)
+    mode_lyt.addWidget(rb_comp)
     lyt.addWidget(mode_box)
     return rb_class, mode_grp
 
@@ -114,19 +141,20 @@ def _build_etds_page(entries):
     ep.addWidget(QLabel("Dances come in alternating 3-dance rounds "
                         "(not competition rounds)."))
 
-    def chk(parent_lyt, text, checked, tip=""):
+    def chk(parent_lyt, text, checked, tip="", name=""):
         c = QCheckBox(text)
+        c.setObjectName(name)
         c.setChecked(checked)
         if tip:
             c.setToolTip(tip)
         parent_lyt.addWidget(c)
         return c
 
-    c_std = chk(ep, "Standard dances", True)
-    c_lat = chk(ep, "Latin dances", True)
+    c_std = chk(ep, "Standard dances", True, name="party_std")
+    c_lat = chk(ep, "Latin dances", True, name="party_lat")
     c_mode = chk(ep, "Social Modetänze (Discofox, Salsa, Bachata, WCS, …)", True,
                  "Interleave short social-dance rounds — needs those tracks "
-                 "in your library.")
+                 "in your library.", name="party_modetaenze")
     # Indented sub-selection: which social dances may appear.
     mode_box = QVBoxLayout()
     mode_box.setContentsMargins(24, 0, 0, 0)
@@ -135,6 +163,7 @@ def _build_etds_page(entries):
     _mode_default_on = {"DISCOFOX", "SALSA"}
     for code in WARMUP_MODE:
         cb = QCheckBox(dance_name(code, code))
+        cb.setObjectName(f"party_mode_{code}")
         cb.setChecked(code in _mode_default_on)
         mode_box.addWidget(cb)
         mode_checks[code] = cb
@@ -146,10 +175,12 @@ def _build_etds_page(entries):
     c_mode.toggled.connect(lambda *_: sync_modetaenze())
     sync_modetaenze()
 
-    c_paso = chk(ep, "No Paso Doble", False)
-    c_latfirst = chk(ep, "Start with a Latin round", False)
-    c_lww = chk(ep, "Late Wiener Walzer (hold back early / not back-to-back)", True)
-    c_lpd = chk(ep, "Late Paso Doble (not in the first ~40 songs)", True)
+    c_paso = chk(ep, "No Paso Doble", False, name="party_nopaso")
+    c_latfirst = chk(ep, "Start with a Latin round", False, name="party_latfirst")
+    c_lww = chk(ep, "Late Wiener Walzer (hold back early / not back-to-back)", True,
+               name="party_lww")
+    c_lpd = chk(ep, "Late Paso Doble (not in the first ~40 songs)", True,
+               name="party_lpd")
     erow = QHBoxLayout()
     erow.addWidget(QLabel("Max tracks:"))
     etds_max_spin = QSpinBox()
@@ -194,7 +225,143 @@ def _build_etds_page(entries):
             etds_options)
 
 
-def _build_source_box(dlg):
+def _build_competition_page():
+    """Page 2, a competition training list: heats of the class's dances, then
+    the final. Returns the page and a function giving its settings."""
+    page = QWidget()
+    pl = QVBoxLayout(page)
+    pl.setContentsMargins(0, 0, 0, 0)
+    row1 = QHBoxLayout()
+    row1.addWidget(QLabel("Style:"))
+    style_combo = QComboBox()
+    style_combo.setObjectName("comp_style")
+    for s in ("Standard", "Latin"):
+        style_combo.addItem(s, s)
+    style_combo.setCurrentText("Latin")
+    row1.addWidget(style_combo)
+    row1.addSpacing(12)
+    row1.addWidget(QLabel("Class:"))
+    class_combo = QComboBox()
+    class_combo.setObjectName("comp_class")
+    for c in ("D", "C", "B", "A", "S"):
+        class_combo.addItem(c, c)
+    class_combo.setCurrentText("S")
+    row1.addWidget(class_combo)
+    row1.addStretch(1)
+    pl.addLayout(row1)
+
+    pl.addWidget(QLabel("Dances (untick the ones you do not need):"))
+    dance_row = QHBoxLayout()
+    pl.addLayout(dance_row)
+    checks: dict[str, QCheckBox] = {}
+
+    row2 = QHBoxLayout()
+    row2.addWidget(QLabel("Heats per round:"))
+    heats_spin = QSpinBox()
+    heats_spin.setObjectName("comp_heats")
+    heats_spin.setRange(1, 20)
+    heats_spin.setValue(3)
+    heats_spin.setToolTip("Every dance gets this many tracks in a round, one per heat.")
+    row2.addWidget(heats_spin)
+    row2.addSpacing(12)
+    row2.addWidget(QLabel("Rounds:"))
+    rounds_spin = QSpinBox()
+    rounds_spin.setObjectName("comp_rounds")
+    rounds_spin.setRange(1, 10)
+    rounds_spin.setValue(2)
+    rounds_spin.setToolTip("The last round is the final.")
+    row2.addWidget(rounds_spin)
+    row2.addSpacing(12)
+    row2.addWidget(QLabel("Final heats:"))
+    final_spin = QSpinBox()
+    final_spin.setObjectName("comp_final")
+    final_spin.setRange(1, 20)
+    final_spin.setValue(1)
+    final_spin.setToolTip("Heats per dance in the final.")
+    row2.addWidget(final_spin)
+    row2.addStretch(1)
+    pl.addLayout(row2)
+    timbre_chk = QCheckBox("Use Timbre Similarity")
+    timbre_chk.setObjectName("comp_timbre")
+    timbre_chk.setChecked(True)
+    timbre_chk.setToolTip(
+        "The heats of a dance in a round sound alike: the first track is the\n"
+        "anchor, the others are its nearest by timbre. The final and semifinal\n"
+        "prefer the titles you played there before.")
+    pl.addWidget(timbre_chk)
+    fresh_row = QHBoxLayout()
+    fresh_row.addWidget(QLabel("Fresh titles in the early rounds:"))
+    comp_fresh = QSpinBox()
+    comp_fresh.setObjectName("comp_fresh")
+    comp_fresh.setRange(0, 100)
+    comp_fresh.setSingleStep(10)
+    comp_fresh.setSuffix(" %")
+    comp_fresh.setToolTip("Share of the heats in the rounds before the semifinal "
+                          "that go to fresh titles. The semifinal and the "
+                          "final keep to the titles you know.")
+    fresh_row.addWidget(comp_fresh)
+    fresh_mode = QComboBox()
+    fresh_mode.setObjectName("comp_fresh_mode")
+    fresh_mode.addItem("New (at most 2 years in the library)", "fresh")
+    fresh_mode.addItem("Rarely played (any age)", "rarely")
+    fresh_mode.setToolTip("Which titles count as fresh: new ones, or any title "
+                          "that was hardly ever played.")
+    fresh_row.addWidget(fresh_mode)
+    fresh_row.addStretch(1)
+    pl.addLayout(fresh_row)
+    total_lbl = QLabel()
+    total_lbl.setStyleSheet("color:#555;")
+    pl.addWidget(total_lbl)
+
+    def dances():
+        return [d for d, cb in checks.items() if cb.isChecked()]
+
+    def heat_count():
+        return (rounds_spin.value() - 1) * heats_spin.value() + final_spin.value()
+
+    def refresh_total():
+        n = len(dances())
+        total_lbl.setText(i18n.t("%d tracks: %d dances x %d heats")
+                          % (n * heat_count(), n, heat_count()))
+
+    def refill():
+        while dance_row.count():
+            item = dance_row.takeAt(0)
+            gone = item.widget() if item is not None else None
+            if gone is not None:
+                gone.setParent(None)   # gone now, not at the next event loop
+                gone.deleteLater()
+        checks.clear()
+        defaults = planner.models.DEFAULT_DANCES.get(
+            style_combo.currentData(), {}).get(class_combo.currentData(), [])
+        for d in defaults:
+            cb = QCheckBox(dance_name(d, d))
+            cb.setObjectName(f"dance_{d}")
+            cb.setChecked(True)
+            cb.toggled.connect(lambda *_: refresh_total())
+            dance_row.addWidget(cb)
+            checks[d] = cb
+        dance_row.addStretch(1)
+        refresh_total()
+    refill()
+    style_combo.currentIndexChanged.connect(lambda *_: refill())
+    class_combo.currentIndexChanged.connect(lambda *_: refill())
+    heats_spin.valueChanged.connect(lambda *_: refresh_total())
+    rounds_spin.valueChanged.connect(lambda *_: refresh_total())
+    final_spin.valueChanged.connect(lambda *_: refresh_total())
+
+    def settings():
+        return dict(style=style_combo.currentData(),
+                    dance_class=class_combo.currentData(),
+                    dances=dances(), heats=heats_spin.value(),
+                    rounds=rounds_spin.value(), final_heats=final_spin.value(),
+                    use_timbre=timbre_chk.isChecked(),
+                    fresh_ratio=comp_fresh.value() / 100.0,
+                    fresh_mode=fresh_mode.currentData())
+    return page, settings
+
+
+def _build_source_box(dlg, wishlists=()):
     """Where the titles come from: ⭐ Favorites, wishlists or an .m3u."""
     src_box = QGroupBox("Draw tracks from")
     src_lyt = QVBoxLayout(src_box)
@@ -215,9 +382,20 @@ def _build_source_box(dlg):
     src_grp.addButton(rb_wish, 2)
     src_lyt.addWidget(rb_lib)
     unused_chk = QCheckBox("    Only tracks not already in my open playlists")
+    unused_chk.setObjectName("source_unused")
     unused_chk.setChecked(True)
     src_lyt.addWidget(unused_chk)
     src_lyt.addWidget(rb_wish)
+    # One tick per wishlist that has titles; the rest are not offered.
+    rb_wish.setEnabled(bool(wishlists))
+    wish_checks = []
+    for name, count in wishlists:
+        cb = QCheckBox(f"{name} ({count})")
+        cb.setChecked(True)
+        cb.setEnabled(False)
+        cb.setStyleSheet("margin-left:24px;")
+        src_lyt.addWidget(cb)
+        wish_checks.append(cb)
     m3u_row = QHBoxLayout()
     m3u_row.addWidget(rb_m3u)
     m3u_edit = QLineEdit()
@@ -229,17 +407,19 @@ def _build_source_box(dlg):
     m3u_row.addWidget(m3u_btn)
     src_lyt.addLayout(m3u_row)
     return (src_box, rb_lib, rb_m3u, rb_wish, src_grp, unused_chk, m3u_edit,
-            m3u_btn)
+            m3u_btn, wish_checks)
 
 
-def _wire_source(dlg, library_dir, rb_lib, rb_m3u, src_grp, unused_chk,
-                 m3u_edit, m3u_btn):
+def _wire_source(dlg, library_dir, rb_lib, rb_m3u, rb_wish, src_grp, unused_chk,
+                 m3u_edit, m3u_btn, wish_checks):
     """The source box's enabling, its Browse… and a dropped playlist."""
     def sync_source():
         use_m3u = rb_m3u.isChecked()
         m3u_edit.setEnabled(use_m3u)
         m3u_btn.setEnabled(use_m3u)
         unused_chk.setEnabled(rb_lib.isChecked())
+        for cb in wish_checks:
+            cb.setEnabled(rb_wish.isChecked())
     src_grp.idToggled.connect(lambda *_: sync_source())
     sync_source()
 
@@ -274,13 +454,69 @@ def _add_buttons(dlg, lyt):
     lyt.addLayout(bb)
 
 
-def ask_warmup_options(parent, entries: list, library_dir: str):
+_STATE_KEY = "warmup_dialog"
+
+
+def _restore_choices(dlg, mode_grp, src_grp, state):
+    """Put back what the last accepted dialog had: the mode, the source, the
+    ticks and the competition's style, class and counts. Anything missing or
+    no longer valid keeps its default."""
+    if not isinstance(state, dict):
+        return
+    for grp, key in ((mode_grp, "mode"), (src_grp, "source")):
+        btn = grp.button(state.get(key)) if isinstance(state.get(key), int) else None
+        if btn is not None and btn.isEnabled():
+            btn.setChecked(True)
+    saved = state.get("fields")
+    if not isinstance(saved, dict):
+        return
+    # Combos first: a new style or class rebuilds the dance ticks.
+    for kind in (QComboBox, QSpinBox, QCheckBox):
+        for w in dlg.findChildren(kind):
+            name = w.objectName()
+            if not name or name not in saved:
+                continue
+            val = saved[name]
+            if kind is QComboBox and isinstance(val, str):
+                i = w.findData(val)
+                if i >= 0:
+                    w.setCurrentIndex(i)
+            elif kind is QSpinBox and isinstance(val, int) and not isinstance(val, bool):
+                w.setValue(val)
+            elif kind is QCheckBox and isinstance(val, bool):
+                w.setChecked(val)
+
+
+def _choices(dlg, mode_grp, src_grp):
+    fields = {}
+    for kind in (QComboBox, QSpinBox, QCheckBox):
+        for w in dlg.findChildren(kind):
+            name = w.objectName()
+            if not name:
+                continue
+            if kind is QComboBox:
+                fields[name] = w.currentData()
+            elif kind is QSpinBox:
+                fields[name] = w.value()
+            else:
+                fields[name] = w.isChecked()
+    return dict(mode=mode_grp.checkedId(), source=src_grp.checkedId(),
+                fields=fields)
+
+
+def ask_warmup_options(parent, entries: list, library_dir: str, wishlists=(),
+                       memory: dict | None = None):
     """Dialog for the warm-up / party-playlist generator. Returns a settings
     dict (see keys below) or None if the user cancelled.
 
     Two modes: a per-class WARM-UP (the class's dances round-robin, TSO-conform,
     popular + fresh mix) and the ETDS PARTY playlist (alternating 3-dance rounds).
-    Either can draw from the whole library or a chosen .m3u file."""
+    Either can draw from the whole library or a chosen .m3u file.
+    `wishlists`: (name, title count) of each wishlist that has titles; the
+    answer's `wishlist_picks` holds the positions of the ticked ones.
+    `memory`: the settings dict the window keeps and saves later. The choices
+    go into that one, or a save of it would drop them again."""
+    memory = load_settings() if memory is None else memory
     dlg = M3uDropDialog(parent)
     dlg.setWindowTitle("🤸  Practice / party playlist")
     lyt = QVBoxLayout(dlg)
@@ -288,7 +524,7 @@ def ask_warmup_options(parent, entries: list, library_dir: str):
     # ── Mode ──────────────────────────────────────────────────────────────
     rb_class, mode_grp = _add_mode_box(dlg, lyt)
 
-    stack = QStackedWidget()
+    stack = _CurrentPageStack()
     lyt.addWidget(stack)
 
     # ── Page 0: per-class warm-up ───────────────────────────────────────────
@@ -301,9 +537,13 @@ def ask_warmup_options(parent, entries: list, library_dir: str):
      etds_options) = _build_etds_page(entries)
     stack.addWidget(etds_page)
 
+    # ── Page 2: competition training list ───────────────────────────────────────
+    comp_page, comp_settings = _build_competition_page()
+    stack.addWidget(comp_page)
+
     # ── Source (shared) ──────────────────────────────────────────────────────
     (src_box, rb_lib, rb_m3u, rb_wish, src_grp, unused_chk, m3u_edit,
-     m3u_btn) = _build_source_box(dlg)
+     m3u_btn, wish_checks) = _build_source_box(dlg, wishlists)
     lyt.addWidget(src_box)
 
     # ── Wiring ────────────────────────────────────────────────────────────────
@@ -321,38 +561,64 @@ def ask_warmup_options(parent, entries: list, library_dir: str):
     refresh_dances()
     style_combo.currentIndexChanged.connect(refresh_dances)
     class_combo.currentIndexChanged.connect(refresh_dances)
-    mode_grp.idToggled.connect(
-        lambda _id, on: stack.setCurrentIndex(mode_grp.checkedId()))
 
-    _wire_source(dlg, library_dir, rb_lib, rb_m3u, src_grp, unused_chk,
-                 m3u_edit, m3u_btn)
+    def show_page():
+        stack.setCurrentIndex(mode_grp.checkedId())
+        stack.updateGeometry()
+        dlg.adjustSize()   # shrink or grow to the page now shown
+    mode_grp.idToggled.connect(lambda *_: show_page())
+
+    _wire_source(dlg, library_dir, rb_lib, rb_m3u, rb_wish, src_grp, unused_chk,
+                 m3u_edit, m3u_btn, wish_checks)
 
     _add_buttons(dlg, lyt)
 
-    accepted = dlg.exec() == QDialog.DialogCode.Accepted
+    _restore_choices(dlg, mode_grp, src_grp, memory.get(_STATE_KEY))
+    show_page()
+
+    is_class = rb_class.isChecked
+    is_comp = lambda: mode_grp.checkedId() == 2   # noqa: E731
+    use_m3u = rb_m3u.isChecked
+
+    def problem():
+        """What is missing, or None. Asked while the dialog is still open: a
+        message after it closed lost every setting made (#77)."""
+        if use_m3u() and not m3u_edit.text().strip():
+            return "Choose an .m3u file first."
+        if is_comp() and not comp_settings()["dances"]:
+            return "Tick at least one dance."
+        if not is_class() and not is_comp() and not (c_std.isChecked() or c_lat.isChecked()):
+            return "Pick at least Standard or Latin dances."
+        if rb_wish.isChecked() and not any(cb.isChecked() for cb in wish_checks):
+            return "Tick at least one wishlist."
+        return None
+
+    while True:
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            estimate.stop()
+            return None
+        message = problem()
+        if message is None:
+            break
+        QMessageBox.warning(dlg, "Practice", message)
     estimate.stop()
-    if not accepted:
-        return None
+    memory[_STATE_KEY] = _choices(dlg, mode_grp, src_grp)
+    save_settings(memory)
 
-    is_class = rb_class.isChecked()
-    use_m3u = rb_m3u.isChecked()
+    class_mode = rb_class.isChecked()
+    comp_mode = mode_grp.checkedId() == 2
+    m3u_mode = rb_m3u.isChecked()
     m3u_path = m3u_edit.text().strip()
-    if use_m3u and not m3u_path:
-        QMessageBox.warning(parent, "Practice", "Choose an .m3u file first.")
-        return None
-    if not is_class and not (c_std.isChecked() or c_lat.isChecked()):
-        QMessageBox.warning(parent, "Practice",
-                            "Pick at least Standard or Latin dances.")
-        return None
-
-    source = ("m3u" if use_m3u
+    picks = [i for i, cb in enumerate(wish_checks) if cb.isChecked()]
+    source = ("m3u" if m3u_mode
               else "wishlists" if rb_wish.isChecked()
               else "library")
     return dict(
-        mode="class" if is_class else "etds",
+        mode="class" if class_mode else "competition" if comp_mode else "etds",
         source=source,
-        m3u_path=m3u_path if use_m3u else None,
+        m3u_path=m3u_path if m3u_mode else None,
         unused_only=unused_chk.isChecked() and source == "library",
+        wishlist_picks=picks,
         # class mode
         style=style_combo.currentData(),
         dance_class=class_combo.currentData(),
@@ -361,4 +627,6 @@ def ask_warmup_options(parent, entries: list, library_dir: str):
         relax=True,
         # etds mode
         etds=dict(etds_options(), max_tracks=etds_max_spin.value() or None),
+        # competition mode
+        competition=comp_settings(),
     )

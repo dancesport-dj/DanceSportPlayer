@@ -56,6 +56,21 @@ class PlayLogDialogTest(unittest.TestCase):
         self.assertEqual(dlg.plays_table.item(0, 3).text(), "Composer a")
         self.assertEqual(dlg.plays_table.item(0, 6).text(), "3:00")
 
+    def test_a_damaged_widths_file_does_not_stop_the_dialog(self):
+        """#50: int(w) / .items() on whatever the file held."""
+        for saved in ({"widths": {"0": "wide"}}, {"widths": [1, 2]}, [1, 2], "x"):
+            (self.dir / "play_log_dialog.json").write_text(
+                __import__("json").dumps(saved), encoding="utf-8")
+            self.dialog()
+
+    def test_an_unreadable_log_shows_a_message_instead_of_raising(self):
+        self.fill()
+        dlg = self.dialog()
+        with mock.patch.object(play_log_dialog.play_log, "plays",
+                               side_effect=__import__("sqlite3").Error("locked")):
+            dlg._show_evening()
+        self.assertEqual(dlg.plays_table.rowCount(), 0)
+
     def test_save_as_csv_writes_the_selected_evening(self):
         self.fill()
         dlg = self.dialog()

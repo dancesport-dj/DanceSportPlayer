@@ -62,6 +62,8 @@ _GLOBAL_WINDOW_SECS = 600      # …within this long pause new logins
 _PAUSED_GAP_SECS = 10          # …to one guess per this long, not to none
 MAX_CONNECTIONS = 200          # open at once, each holding a thread
 _HEADER_SECS = 15              # a stranger: the request line and the headers
+HEADER_TOTAL_SECS = 20         # …all of them together, however they trickle in
+MAX_PER_ADDRESS = 30           # open at once from one address
 MAX_TRACKED = 1000             # addresses the lockout table remembers
 _IDLE_SECS = 600               # a phone that has shown the right PIN
 _MAX_BODY = 1024
@@ -195,29 +197,106 @@ def guest_key(addr: str) -> str:
     return str(ip)
 
 
-class _Server(ThreadingHTTPServer):
-    """The HTTP server, holding the RemoteServer its handlers answer to."""
-    remote: RemoteServer
-    # On Windows SO_REUSEADDR lets a second socket share a port that is
-    # still listening, splitting the phones between the two, instead of
-    # the "port taken" error. Elsewhere it only skips TIME_WAIT.
-    allow_reuse_address = sys.platform != "win32"
+class LimitedServer(ThreadingHTTPServer):
+    """A threaded server that caps the open connections, and those of one
+    address (a stranger opening sockets must not take every slot). The
+    tunnel's connections all come from the loopback address, so while a
+    tunnel is up that address is not counted."""
     slots: threading.BoundedSemaphore
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._per_addr: dict[str, int] = {}
+        self._per_addr_lock = threading.Lock()
+
+    def tunnelled(self) -> bool:
+        return False
+
+    def _counted(self, ip: str) -> bool:
+        return not (self.tunnelled() and ip in ("127.0.0.1", "::1"))
+
+    def _take(self, ip: str) -> bool:
+        if not self._counted(ip):
+            return True
+        with self._per_addr_lock:
+            if self._per_addr.get(ip, 0) >= MAX_PER_ADDRESS:
+                return False
+            self._per_addr[ip] = self._per_addr.get(ip, 0) + 1
+            return True
+
+    def _give(self, ip: str) -> None:
+        if not self._counted(ip):
+            return
+        with self._per_addr_lock:
+            left = self._per_addr.get(ip, 0) - 1
+            if left > 0:
+                self._per_addr[ip] = left
+            else:
+                self._per_addr.pop(ip, None)
+
     def process_request(self, request, client_address):
+        ip = client_address[0]
+        if not self._take(ip):
+            self.shutdown_request(request)      # one address past its share
+            return
         if not self.slots.acquire(blocking=False):
+            self._give(ip)
             self.shutdown_request(request)      # past the cap: no thread
             return
-        super().process_request(request, client_address)
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self.slots.release()
+            self._give(ip)
+            raise
 
     def process_request_thread(self, request, client_address):
         try:
             super().process_request_thread(request, client_address)
         finally:
             self.slots.release()
+            self._give(client_address[0])
 
 
-class _Handler(BaseHTTPRequestHandler):
+class LimitedHandler(BaseHTTPRequestHandler):
+    """The request line and headers must be in within HEADER_TOTAL_SECS in
+    all: the handler's own timeout is per read, so a byte every few seconds
+    would hold the thread for ever."""
+
+    def setup(self):
+        super().setup()
+        self._header_timer = threading.Timer(HEADER_TOTAL_SECS, self._cut_off)
+        self._header_timer.daemon = True
+        self._header_timer.start()
+
+    def _cut_off(self):
+        with contextlib.suppress(OSError):
+            self.connection.shutdown(socket.SHUT_RDWR)
+
+    def parse_request(self):
+        try:
+            return super().parse_request()
+        finally:
+            self._header_timer.cancel()
+
+    def finish(self):
+        self._header_timer.cancel()
+        super().finish()
+
+
+class _Server(LimitedServer):
+    """The HTTP server, holding the RemoteServer its handlers answer to."""
+    remote: RemoteServer
+    # On Windows SO_REUSEADDR lets a second socket share a port that is
+    # still listening, splitting the phones between the two, instead of
+    # the "port taken" error. Elsewhere it only skips TIME_WAIT.
+    allow_reuse_address = sys.platform != "win32"
+
+    def tunnelled(self) -> bool:
+        return bool(self.remote.tunnel_host)
+
+
+class _Handler(LimitedHandler):
     server_version = "DanceSportPlayerRemote"
     sys_version = ""
     timeout = _HEADER_SECS      # a client that never speaks frees its thread
@@ -233,7 +312,8 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         if body:
             self.send_header("Content-Type", ctype)
-        self.send_header("Content-Length", str(len(body)))
+        if status != 204:   # no body, so no length either
+            self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "no-referrer")

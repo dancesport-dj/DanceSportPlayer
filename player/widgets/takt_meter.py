@@ -33,6 +33,9 @@ _KORREKTUR_WARN_PCT = 2.5
 # A gap this many times the running mean interval is a pause in the tapping,
 # not a bar: the reading starts over from the tap after it.
 _PAUSE_FACTOR = 2.5
+# With a single tap there is no mean yet: a gap this long (seconds) is already
+# slower than any dance (10 Takte a minute), so that tap was a stray one.
+_MAX_FIRST_GAP = 6.0
 
 
 class TapTempoMeter:
@@ -47,6 +50,8 @@ class TapTempoMeter:
         self._taps = []
 
     def tap(self, now: float) -> float | None:
+        if len(self._taps) == 1 and now - self._taps[0] > _MAX_FIRST_GAP:
+            self._taps = []
         if len(self._taps) >= 2:
             mean = (self._taps[-1] - self._taps[0]) / (len(self._taps) - 1)
             if now - self._taps[-1] > _PAUSE_FACTOR * mean:

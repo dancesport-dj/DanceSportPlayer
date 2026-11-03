@@ -31,11 +31,15 @@ from planner.generate.ai import (
     openrouter_free_models,
     openrouter_models,
 )
-from planner.generate.warmup import build_class_warmup, build_warmup_playlist
+from planner.generate.warmup import (
+    build_class_warmup,
+    build_competition_training,
+    build_warmup_playlist,
+)
 from planner.models import ALLOW_REPEAT, ScanCancelled
 from planner.music import analysis as planner_analysis
 from planner.music import custom_field
-from planner.music.analysis import probe_decode_backend
+from planner.music.analysis import probe_decode_backend, probe_decode_backend_any
 from planner.music.db import AudioCache
 from planner.music.db_upkeep import db_maintenance, reset_database
 from planner.music.library import MusicLibrary
@@ -50,6 +54,7 @@ from shared.audio.audio_probes import (
     detect_silences,
     measure_loudness,
 )
+from shared.audio.chromaprint import fingerprint_file
 
 # librosa 1.0 reads through libsndfile only: .m4a and .wma go through ffmpeg.
 planner_analysis.fallback_decoder = decode_pcm_mono
@@ -485,7 +490,8 @@ class BackgroundAnalyzer(AudioAnalyzer):
     def run(self):
         lower_thread_priority()
         probe = self._entries[0].path
-        why = probe_decode_backend(probe)
+        why = probe_decode_backend_any((e.path for e in self._entries[:3]),
+                                       probe=probe_decode_backend)
         if why is not None:
             log.warning("🔬 Background analysis skipped\n"
                         "reason: %s\n"
@@ -523,6 +529,15 @@ class WarmupBuilder(QThread):
                 dance_class = params.pop("dance_class")
                 res = build_class_warmup(
                     self._entries, style, dance_class,
+                    progress_cb=lambda d, t: self.progress.emit(d, t),
+                    **params)
+            elif self._mode == "competition":
+                params = dict(self._params)
+                style = params.pop("style")
+                dance_class = params.pop("dance_class")
+                dances = params.pop("dances")
+                res = build_competition_training(
+                    self._entries, style, dance_class, dances,
                     progress_cb=lambda d, t: self.progress.emit(d, t),
                     **params)
             else:
@@ -946,6 +961,29 @@ class LoudnessAnalyzer(LibraryPass):
         return True
 
 
+class ChromaAnalyzer(LibraryPass):
+    """Reads the Chromaprint (fpcalc) of every track that has none yet, so the
+    duplicate check can find one recording under different files."""
+
+    fail_hint = "fpcalc could not read it"
+    label = "🎼 Chromaprint"
+    workers = 4
+
+    def __init__(self, cache: AudioCache, paths: list, fpcalc: str, parent=None):
+        super().__init__(cache, paths, parent)
+        self.fpcalc = fpcalc
+
+    def todo(self) -> list:
+        return [p for p in self.paths if self.cache.get_chroma(p) is None]
+
+    def compute(self, path: Path):
+        return fingerprint_file(self.fpcalc, path)
+
+    def store(self, path: Path, result) -> bool:
+        self.cache.put_chroma(path, result.words, result.duration)
+        return True
+
+
 class VocalShareAnalyzer(LibraryPass):
     """Measures the Demucs vocal-stem share for entries not yet in the vocals
     table (🎙️ Analyze vocals — needs the optional demucs install).
@@ -1195,11 +1233,9 @@ def parse_m3u_blocks(m3u: Path) -> list:
     #EXTINF header and the path line], 'path': absolute Path, 'title': str|None}.
     A leading '#EXTM3U' is dropped from the blocks (re-emitted once on write).
     Relative paths are resolved against the playlist's own folder. Raises
-    PlaylistEncodingError for a file it can't decode: the run fails with it."""
-    try:
-        lines = read_playlist_text(m3u)[0].splitlines()
-    except OSError:
-        return []
+    PlaylistEncodingError for a file it can't decode and OSError for one it can't
+    open: the run fails with it, an unreadable reference is not "nothing to remove"."""
+    lines = read_playlist_text(m3u)[0].splitlines()
     base = Path(m3u).parent
     blocks: list = []
     buf: list = []

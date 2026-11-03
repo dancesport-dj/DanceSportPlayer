@@ -190,6 +190,7 @@ class PersistenceMixin(ExportMixin, UndoMixin, RestoreMixin):
             "style": getattr(t, "_warmup_style", "") or "",
             "dance_class": getattr(t, "_warmup_class", "") or "S",
             "relax": bool(getattr(t, "_warmup_relax", True)),
+            "heat_plan": [list(r) for r in getattr(t, "_heat_plan", None) or []],
             "label": getattr(t, "_warmup_label", "") or self._warmup_default_name(),
             "folded": bool(getattr(self, "_warmup_folded", False)),
             "closed": bool(getattr(self, "_warmup_closed", False)),

@@ -104,6 +104,7 @@ def _measure_finding(key: str, title: str, todo: list[Path], total: int,
 def _dup_count(report: dict) -> int:
     within = sum(len(w.get("clusters") or ()) for w in report.get("within") or ())
     cross = sum(len(c.get("exact") or ()) + len(c.get("similar") or ())
+                + len(c.get("recording") or ())
                 for c in report.get("cross") or ())
     return within + cross
 

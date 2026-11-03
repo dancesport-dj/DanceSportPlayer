@@ -392,6 +392,7 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
         v.setContentsMargins(0, 0, 0, 0)
         v.setSpacing(2)
         hdr = QLabel()
+        hdr.setTextFormat(Qt.TextFormat.PlainText)      # a deck name is text
         hdr.setStyleSheet(self._DECK_HDR_IDLE)
         hdr.setToolTip("Click to focus · right-click or double-click to rename")
         plain_tooltip(hdr)

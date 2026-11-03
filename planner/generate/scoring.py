@@ -5,6 +5,7 @@ weights/bonuses, the class-aware popularity weighting and the round strategy
 table + resolver used by MusicLibrary._pick / regenerate.
 """
 import logging
+import time
 
 from planner.models import MusicEntry, RoundTier, Strategy
 
@@ -161,7 +162,8 @@ def prefer_late_rounds(pool: list, tier: RoundTier | str) -> list:
 # Selectable per round. Each decides which candidate songs a round may draw from.
 #   proven     – songs you have really played (popularity >= _PROVEN_MIN_POP), fresh fallback
 #   top_proven – only your most-played songs (>= 2× the proven threshold → proven fallback)
-#   fresh      – barely/never-used songs (popularity < _PROVEN_MIN_POP) first, proven fallback
+#   fresh      – barely/never-used songs that are new (at most FRESH_MAX_AGE_DAYS in the library) first
+#   rarely     – barely/never-used songs of any age (popularity < _PROVEN_MIN_POP) first
 #   mixed      – proven + fresh together, ranked by fit (proven naturally leads)
 #   all        – widest in-tempo pool, no proven/fresh preference at all
 # Under proven / top_proven the FINAL and the SEMIFINAL additionally prefer the
@@ -169,13 +171,14 @@ def prefer_late_rounds(pool: list, tier: RoundTier | str) -> list:
 # The five, in the order the combos list them. `Strategy.DEFAULT` ("") is not
 # one of them: it means "nothing chosen", not "a sixth pick".
 STRATEGIES = (Strategy.PROVEN, Strategy.TOP_PROVEN, Strategy.FRESH,
-              Strategy.MIXED, Strategy.ALL)
+              Strategy.RARELY, Strategy.MIXED, Strategy.ALL)
 
 
 STRATEGY_LABELS = {
     Strategy.PROVEN: "Proven",
     Strategy.TOP_PROVEN: "Top Proven",
     Strategy.FRESH: "Fresh",
+    Strategy.RARELY: "Rarely played",
     Strategy.MIXED: "Mostly Proven",
     Strategy.ALL: "Even Mix",
 }
@@ -185,10 +188,37 @@ STRATEGY_HELP = {
     Strategy.PROVEN: "Songs you have played before (fresh as fallback).",
     Strategy.TOP_PROVEN: "Only your most-played songs.",
     # (In a final or semifinal, both prefer what you have played in that round.)
-    Strategy.FRESH: "Unused songs first (proven as fallback).",
+    Strategy.FRESH: "New songs first, at most 2 years in the library (proven as fallback).",
+    Strategy.RARELY: "Rarely or never played songs first, whatever their age (proven as fallback).",
     Strategy.MIXED: "Proven + fresh together, but favors songs you have played before.",
     Strategy.ALL: "Proven + fresh with no preference — equal chance, maximum variety.",
 }
+
+
+FRESH_MAX_AGE_DAYS = 730   # a "fresh" title is at most two years in the library
+
+
+def is_new_title(entry: MusicEntry, now: float | None = None) -> bool:
+    """True when the title came into the library at most `FRESH_MAX_AGE_DAYS`
+    ago. The older of the two dates the library knows (first seen, file
+    creation) decides, so a re-copied file is not new; no date means not new."""
+    dates = [d for d in (entry.added, entry.created) if d]
+    if not dates:
+        return False
+    now = time.time() if now is None else now
+    return now - min(dates) <= FRESH_MAX_AGE_DAYS * 86400
+
+
+def matches_fresh(entry: MusicEntry, strat: Strategy | str,
+                  now: float | None = None) -> bool:
+    """Whether `entry` is what the fresh-leaning strategy `strat` looks for:
+    barely played, and for 'fresh' also new."""
+    if entry.popularity >= PROVEN_MIN_POP:
+        return False
+    return strat != Strategy.FRESH or is_new_title(entry, now)
+
+
+FRESH_STRATEGIES = (Strategy.FRESH, Strategy.RARELY)   # lean to barely played titles
 
 
 def resolve_strategy(tier: RoundTier | str, prefer_fresh: bool,

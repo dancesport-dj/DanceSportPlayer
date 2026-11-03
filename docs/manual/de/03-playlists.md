@@ -149,8 +149,8 @@ Deck oder den Party-Bereich, der ihn schon hat, fragt die Liste nach:
 - **Abbrechen** lässt die Liste, wie sie war.
 
 Ein leerer Platz bietet statt der ersten beiden **Ersetzen** an (der Titel
-zieht hierher). Ziehst du mehrere Titel auf einmal, bleiben die schon
-vorhandenen weg.
+zieht hierher). Ziehst du mehrere Titel auf einmal, werden sie gemeinsam
+geprüft, siehe unten.
 
 Die Frage sperrt die App nicht: Der Player bleibt bedienbar, die längeren
 Hinweise stehen als Tooltips an den Knöpfen. **Ersetzen** und **Swap** lassen
@@ -162,6 +162,28 @@ Im Spielmodus bietet ein Ablegen in einer Partyliste außerdem **Add** an: Der
 Titel läuft hier und bleibt auch an seinem alten Platz. Ist er gespielt, werden
 beide Zeilen grau, und eine graue Zeile läuft trotzdem, wenn sie an der Reihe
 ist. Im Planungsmodus bekommt eine Liste nie eine zweite Kopie.
+
+### Eine andere Aufnahme eines Titels, den die Liste hat
+
+Dateien, die du auf ein Deck, eine Wunschliste oder eine Liste in freier
+Reihenfolge ziehst, werden gegen die Liste geprüft, bevor etwas hinzukommt. Ein
+Titel gilt als vorhanden, wenn die Liste dasselbe Audio, denselben Dateinamen
+oder Titel, einen ähnlichen Titel (die Regel von **🔁 Doppelte prüfen**, also
+passt „Friends and Lovers“ zu „Friends and Lovers Cut Version“) oder dieselbe
+Aufnahme nach dem Klang hat (dafür braucht es `fpcalc`).
+
+- **Ein solcher Titel**: ein Fenster mit **Ersetzen**, **Beide behalten** oder
+  **Vorhandenen behalten**. Vorhandenen behalten verwirft die neue Datei.
+- **Mehrere Titel**: ein Fenster mit einer Zeile je Titel, links die beiden
+  Dateinamen, rechts die Wahl: **⏭ Überspringen** (Vorgabe), **🔁 Ersetzen**
+  oder **➕ Beide behalten**. **Tab** läuft durch die Zeilen und umrahmt die mit
+  dem Fokus. **S** überspringt, **R** ersetzt, **E** oder **B** behält beide,
+  danach springt der Fokus zur nächsten Zeile. **OK** führt die Wahl aus,
+  **Abbrechen** fügt vom ganzen Ablegen nichts hinzu.
+
+Ersetzen setzt die neue Datei an die Stelle der alten und entfernt die alte.
+Eine einzelne exakte Kopie wird still übersprungen. Der .m3u-Import behält sein
+eigenes Duplikatfenster.
 
 ## ⭐ Wunschlisten
 

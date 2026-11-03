@@ -151,9 +151,9 @@ class _SlotTile(QFrame):
         # the whole event or one round of it.
         self._round_lbl = QLabel()
         self._round_lbl.setStyleSheet("color:#4c5563; font-size:10px;")
-        box.addWidget(self._name_lbl)
-        box.addWidget(self._sub_lbl)
-        box.addWidget(self._round_lbl)
+        for lbl in (self._name_lbl, self._sub_lbl, self._round_lbl):
+            lbl.setTextFormat(Qt.TextFormat.PlainText)    # names come from files
+            box.addWidget(lbl)
         # Elided by hand: a QLabel would just clip, and the tail of "Turnier 3
         # Sen I S" is the half that says which tournament it is.
         self._name_lbl.setText(self._name_lbl.fontMetrics().elidedText(

@@ -16,6 +16,7 @@ from PySide6.QtWidgets import QMessageBox
 from planner import i18n
 from planner.playing import cartwall as pc
 from player.audio.pd_stop import pd_stop_at
+from player.window.main_audio import pendingWork
 from shared.audio.audio_probes import PdHighlightWorker  # auto-resolved
 
 if TYPE_CHECKING:
@@ -230,15 +231,18 @@ class PdStopMixin(MainWindowHost):
         # Nothing known yet: arm the standard phrase positions now so the track
         # has a stop while the detection runs (re-armed for real when it lands).
         self._arm_pd_stop(path)
-        running = self._pd_worker
-        if running is not None and running.isRunning() and running.path == path:
+        running = pendingWork(self).pd_workers.get(str(path))
+        if running is not None and running.isRunning():
             return   # this very track is already being detected
         # Another track's detection may still run: this one needs its own, or it
-        # keeps the generic guess for its whole playback. Each reports under its path.
+        # keeps the generic guess for its whole playback. Each reports under its
+        # path, and is kept under it, so a replay finds its own (#11, #81).
+        pendingWork(self).pd_workers = {k: v for k, v in pendingWork(self).pd_workers.items()
+                                    if v.isRunning()}
         w = PdHighlightWorker(path, parent=self)
         w.done.connect(self._on_pd_highlights)
         w.error.connect(self._on_pd_error)
-        self._pd_worker = w
+        pendingWork(self).pd_workers[str(path)] = w
         w.start()
 
     def _arm_pd_stop(self, path: Path):

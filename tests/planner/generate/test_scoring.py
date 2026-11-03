@@ -1,5 +1,6 @@
 """Tests for planner.generate.scoring: round-strategy resolution and the class-aware
 popularity weighting used for proven-gating and ranking."""
+import time
 import unittest
 from pathlib import Path
 
@@ -10,10 +11,12 @@ from planner.generate.scoring import (
     class_focused,
     class_popularity,
     effective_popularity,
+    is_new_title,
+    matches_fresh,
     prefer_late_rounds,
     resolve_strategy,
 )
-from planner.models import MusicEntry
+from planner.models import MusicEntry, Strategy
 
 
 def _e(popularity=0, class_plays=None, final_plays=0, semi_plays=0):
@@ -36,6 +39,44 @@ class ResolveStrategyTest(unittest.TestCase):
     def test_early_tier_uses_prefer_fresh_flag(self):
         self.assertEqual(resolve_strategy("early", True, None), "fresh")
         self.assertEqual(resolve_strategy("early", False, None), "proven")
+
+
+class FreshStrategyTest(unittest.TestCase):
+    """'Fresh' is a new title (at most two years in the library), 'rarely' is
+    any title that was nearly never played, however old."""
+
+    def setUp(self):
+        self.now = time.time()
+        self.new = _e(popularity=0)
+        self.new.added = self.now - 100 * 86400
+        self.old = _e(popularity=0)
+        self.old.added = self.now - 3 * 365 * 86400
+        self.undated = _e(popularity=0)
+
+    def test_a_title_is_new_for_two_years(self):
+        self.assertTrue(is_new_title(self.new, self.now))
+        self.assertFalse(is_new_title(self.old, self.now))
+
+    def test_the_older_of_added_and_created_counts(self):
+        self.new.created = self.now - 3 * 365 * 86400
+        self.assertFalse(is_new_title(self.new, self.now))
+
+    def test_an_undated_title_is_not_new(self):
+        self.assertFalse(is_new_title(self.undated, self.now))
+
+    def test_fresh_wants_new_and_rarely_does_not(self):
+        self.assertTrue(matches_fresh(self.new, Strategy.FRESH, self.now))
+        self.assertFalse(matches_fresh(self.old, Strategy.FRESH, self.now))
+        self.assertTrue(matches_fresh(self.old, Strategy.RARELY, self.now))
+
+    def test_a_played_title_is_neither(self):
+        self.new.popularity = 40
+        self.assertFalse(matches_fresh(self.new, Strategy.FRESH, self.now))
+        self.assertFalse(matches_fresh(self.new, Strategy.RARELY, self.now))
+
+    def test_rarely_is_an_explicit_strategy(self):
+        self.assertEqual(resolve_strategy("early", False, "rarely"), "rarely")
+        self.assertEqual(Strategy.of("rarely"), Strategy.RARELY)
 
 
 class PreferLateRoundsTest(unittest.TestCase):

@@ -331,6 +331,7 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         self._warmup_style = ""
         self._warmup_class = ""
         self._warmup_relax = True
+        self._heat_plan: list = []   # competition training: [(round, heats, songs)]
         self._warmup_label = ""
         # Player-only install: this deck holds the flat running order of the
         # evening (set by load_player_list). It rides on the warm-up list's

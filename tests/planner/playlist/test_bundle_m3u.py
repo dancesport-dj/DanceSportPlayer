@@ -234,6 +234,31 @@ class NumberedFolderM3uTest(unittest.TestCase):
         self.assertEqual(missing, 1)
         self.assertEqual([p.name for p in copied], ["0_0_2 - Song B RB26.mp3"])
 
+    def test_control_characters_in_a_title_are_stripped(self):
+        """Review #45/#133: a NUL or bell in an EXTINF title must not abort the copy."""
+        a = self._mp3("cha/Song A (CC 30).mp3")
+        m3u = self._m3u("comp.m3u", ["#EXTINF:120,Song\x00 A\x07", str(a)])
+        copied, missing = numbered_folder_m3u(m3u)
+        self.assertEqual(missing, 0)
+        self.assertEqual([p.name for p in copied], ["0_0_1 - Song A CC30.mp3"])
+
+    def test_a_value_error_from_the_copy_counts_as_missing(self):
+        """Review #45: ValueError is handled like OSError, the rest still copies."""
+        a = self._mp3("cha/Song A (CC 30).mp3")
+        b = self._mp3("rumba/Song B (RB 26).mp3")
+        m3u = self._m3u("comp.m3u", [str(a), str(b)])
+        real_copy = shutil.copy2
+
+        def copy2(src, dst):
+            if Path(src) == a:
+                raise ValueError("embedded null byte")
+            return real_copy(src, dst)
+
+        with mock.patch("shutil.copy2", copy2):
+            copied, missing = numbered_folder_m3u(m3u)
+        self.assertEqual(missing, 1)
+        self.assertEqual(len(copied), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

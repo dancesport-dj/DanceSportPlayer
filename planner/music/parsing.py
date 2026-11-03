@@ -325,6 +325,12 @@ def _ape_of(path: Path) -> ID3 | None:
         return None
 
 
+class FailedRead(tuple):
+    """`read_tags_once`'s answer when the file system refused (an AV lock, a
+    cloud placeholder): (None, 0) like an untagged file, but it must not be
+    cached as one, or the tags never come back until the file changes."""
+
+
 def read_tags_once(path: Path) -> tuple:
     """(ID3 tag or None, duration in whole seconds) from ONE parse of the file.
 
@@ -337,6 +343,10 @@ def read_tags_once(path: Path) -> tuple:
         return None, 0
     try:
         audio = MutagenFile(path)
+    except OSError:
+        log.debug("🏷 File could not be opened, tags not read\n"
+                  "file: %s", path, exc_info=True)
+        return FailedRead((None, 0))
     except Exception:
         log.debug("🏷 Mutagen could not open the file\n"
                   "file: %s", path, exc_info=True)
@@ -757,7 +767,8 @@ def get_tag_bpm(path: Path, tags=_UNREAD) -> float | None:
     try:
         if tags is not None and 'TBPM' in tags:
             val = str(tags['TBPM']).strip()
-            return float(val) if val else None
+            bpm = float(val) if val else None
+            return bpm if bpm is not None and math.isfinite(bpm) else None   # "nan"/"1e999"
     except Exception:
         log.debug("🥁 BPM tag unreadable\n"
                   "file: %s", path, exc_info=True)
@@ -785,10 +796,17 @@ def detect_year(name: str, path: Path, tags=_UNREAD) -> int | None:
     return int(m.group(1)) if m else None
 
 
+# A name only counts when the word starts where a word starts (not Chanoel) and,
+# for the short ones, ends there too: Santana, Noelle, Kerstin, Adventure are
+# not Christmas. Underscores separate words in file names, so they are no letters.
 _XMAS_NAME_PAT = re.compile(
-    r'christmas|weihnacht|jingle.bell|silent.night|santa|rudolph|frosty|'
-    r'sleigh|advent|heilige.nacht|stille.nacht|oh.tannenbaum|navidad|noel|'
-    r'feliz.natal|buon.natale|kerst',
+    r'(?<![^\W_])(?:'
+    r'christmas|weihnacht|jingle.bell|silent.night|rudolph|frosty|'
+    r'sleigh|heilige.nacht|stille.nacht|oh.tannenbaum|navidad|'
+    r'feliz.natal|buon.natale|'
+    r'santa(?:.s)?[ ._-]+(?:claus|baby|tell|is|coming|comin|helper|workshop)|'
+    r'advent(?:s\w*)?(?![^\W_])|noel(?![^\W_])|kerst(?:mis|lied\w*|fest)?(?![^\W_])'
+    r')',
     re.IGNORECASE,
 )
 

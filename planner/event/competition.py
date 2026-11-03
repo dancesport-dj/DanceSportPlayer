@@ -43,6 +43,20 @@ def _ends_word(seg: str, j: int) -> bool:
             or (seg[j].isupper() and seg[j - 1].islower()))
 
 
+_ALLE_GLUE_RE = re.compile(r'(?:std|lat|rest|neu)', re.IGNORECASE)
+_REST_GLUE_RE = re.compile(r'e?(?:auswahl|liste)', re.IGNORECASE)
+
+
+def _rest_marker_at(stem: str, m: re.Match) -> bool:
+    """Is this "rest" the leftover-list marker (a word start, glued to a
+    capital such as DCReste, or followed by auswahl/liste) and not a name
+    that merely contains it?"""
+    i, j = m.start(), m.end()
+    if _starts_word(stem, i):
+        return stem[j:j + 3].lower() != 'aur'
+    return (stem[i].isupper() and stem[i - 1].isupper()) or bool(_REST_GLUE_RE.match(stem, j))
+
+
 def _has_old_marker(seg: str) -> bool:
     return any(_starts_word(seg, m.start()) and _ends_word(seg, m.end())
                for m in _OLD_MARKER_RE.finditer(seg))
@@ -119,12 +133,16 @@ def is_superseded_playlist(m3u: Path) -> bool:
         return True
     if 'zusammen' in name or 'merged' in name:
         return True
-    if "komplett" in name or any(_starts_word(stem, m.start())
-                                 for m in re.finditer(r'alll?e', stem, re.IGNORECASE)):
+    # "alle" is a word of its own or glued to the next list word (alleSTD,
+    # allestd, allerest) — not Allegro, Allen or Allee.
+    if "komplett" in name or any(
+            _starts_word(stem, m.start())
+            and (_ends_word(stem, m.end()) or _ALLE_GLUE_RE.match(stem, m.end()))
+            for m in re.finditer(r'alll?e', stem, re.IGNORECASE)):
         return True
-    # A "rest" list — but not a name that merely ends in -rest (Bukarest, Forrest).
-    if any(_starts_word(stem, m.start()) or not _ends_word(stem, m.end())
-           for m in re.finditer(r'rest', stem, re.IGNORECASE)):
+    # A "rest" list — a word of its own (or glued to an acronym or to "auswahl"),
+    # not Bukarest, Forrest, Prestige or Restaurant.
+    if any(_rest_marker_at(stem, m) for m in re.finditer(r'rest', stem, re.IGNORECASE)):
         return True
     if _has_working_marker(name) or is_working_collection_path(m3u):
         return True
@@ -267,7 +285,9 @@ def is_working_collection_path(m3u_path: Path) -> bool:
     fertig, Selektionen…). Its parent folders — not just its stem — mark it as a
     non-final draft, so it stays out of the 'find planned before' history even when
     the stem itself reads like a real competition."""
-    return any(_has_working_marker(part) for part in m3u_path.parent.parts)
+    folders = folders_below(str(m3u_path), str(playlist_dir()))
+    parts = m3u_path.parent.parts if folders is None else folders
+    return any(_has_working_marker(part) for part in parts)
 
 
 def is_competition_file(stem: str) -> bool:
@@ -476,10 +496,13 @@ def parse_competition_schedule(
 
         per_round = None
         if named_rounds:
-            per_round = [n for n in numbers if n >= 1]
+            # A 0 stays: it keeps the counts aligned with the named rounds, and
+            # still takes one heat because `rounds_from_pattern` rejects 0.
+            per_round = list(numbers)
             # Capped where `rounds_from_pattern` stops: a larger count drops the
             # whole competition.
-            heats = [min(30, -(-n // max(1, max_couples_per_heat))) for n in per_round]
+            heats = [max(1, min(30, -(-n // max(1, max_couples_per_heat))))
+                     for n in per_round]
         else:
             heats = [h for h in numbers if 1 <= h <= 30]
         if not heats:
@@ -557,6 +580,8 @@ def competition_matches_file(spec: CompetitionSpec, m3u_path: Path) -> bool:
         file_levels = {t for t in toks if t in _ROMAN_LEVELS}
         if not (spec_levels & file_levels):
             return False
+    elif any(t in _ROMAN_LEVELS for t in toks):
+        return False    # a line naming no level never draws a leveled list
 
     spec_class = comp_class(spec.label)
     if spec_class is not None:

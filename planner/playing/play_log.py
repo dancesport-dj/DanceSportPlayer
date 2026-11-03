@@ -79,7 +79,10 @@ def evenings(gap_hours: float = GAP_HOURS) -> list[Evening]:
     first = last = None
     count = 0
     for (raw,) in _db().execute("SELECT started_at FROM play_log ORDER BY started_at"):
-        when = dt.datetime.fromisoformat(raw)
+        try:      # one bad row must not lose the whole report
+            when = dt.datetime.fromisoformat(raw)
+        except (TypeError, ValueError):
+            continue
         if first is not None and last is not None and when - last > gap:
             out.append(Evening(first, last, count))
             first, count = None, 0
@@ -96,8 +99,14 @@ def plays(evening: Evening) -> list[Play]:
     rows = _db().execute(
         f"SELECT {_COLS} FROM play_log WHERE started_at BETWEEN ? AND ? "  # nosec B608: constant names
         "ORDER BY started_at", (_stamp(evening.start), _stamp(evening.end)))
-    return [Play(dt.datetime.fromisoformat(r[0]), r[1], r[2], r[3], r[4], r[5], r[6] or 0.0,
-                 r[7] or "") for r in rows]
+    out = []
+    for r in rows:
+        try:
+            when = dt.datetime.fromisoformat(r[0])
+        except (TypeError, ValueError):
+            continue
+        out.append(Play(when, r[1], r[2], r[3], r[4], r[5], r[6] or 0.0, r[7] or ""))
+    return out
 
 
 def delete(evening: Evening) -> None:

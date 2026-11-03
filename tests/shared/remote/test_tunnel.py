@@ -186,6 +186,18 @@ class NoSslBuildTest(unittest.TestCase):
         self.assertEqual(done.returncode, 0, done.stderr)
 
 
+class UrlPatternTest(unittest.TestCase):
+    """Review #20: only the quick tunnel's own address is the public address."""
+
+    def test_cloudflares_api_host_is_not_a_tunnel(self):
+        line = "ERR Post https://api.trycloudflare.com/tunnel failed"
+        self.assertIsNone(tunnel._URL_RE.search(line))
+
+    def test_the_tunnel_name_still_matches(self):
+        found = tunnel._URL_RE.search("INF |  https://moon-river.trycloudflare.com  |")
+        self.assertEqual(found.group(0), "https://moon-river.trycloudflare.com")
+
+
 class TunnelTest(unittest.TestCase):
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp(prefix="dp_cf_run_"))
@@ -211,6 +223,20 @@ class TunnelTest(unittest.TestCase):
         t.argv = [sys.executable, str(self.script), *args]
         self.addCleanup(t.stop)
         return t, got
+
+    def test_the_address_is_not_written_to_the_info_log(self):
+        """The link is the guests' key; error reports carry INFO lines (#20)."""
+        t, got = self._tunnel()
+        with self.assertLogs("dancesport.guests", level="DEBUG") as cap:
+            t.start()
+            self.assertTrue(got["url"].wait(10))
+            t.stop()
+            self.assertTrue(got["exit"].wait(10))
+        info = [r.getMessage() for r in cap.records if r.levelno >= 20]
+        self.assertTrue(any("Guest tunnel up" in m for m in info))
+        self.assertFalse(any("trycloudflare" in m for m in info), info)
+        self.assertTrue(any("trycloudflare" in r.getMessage()
+                            for r in cap.records if r.levelno == 10))
 
     def test_the_public_address_is_read_off_its_output(self):
         t, got = self._tunnel()
@@ -256,6 +282,17 @@ class TunnelTest(unittest.TestCase):
             t.start()
             self.assertTrue(got["url"].wait(10))
         self.assertEqual(len(self.urls), 1)
+
+    def test_a_nameserver_name_that_never_resolves_is_given_up_on(self):
+        """The lookup of the nameserver itself ran before the deadline and
+        could stall for the resolver's own long timeout, twice."""
+        gate = threading.Event()
+        self.addCleanup(gate.set)
+        began = time.monotonic()
+        with mock.patch.object(tunnel, "_DNS_ASK_SECS", 0.1),                 mock.patch.object(tunnel.socket, "gethostbyname",
+                                  side_effect=lambda name: gate.wait(5) and "1.1.1.1"):
+            self.assertIsNone(tunnel.name_published("x.trycloudflare.com"))
+        self.assertLess(time.monotonic() - began, 2)
 
     def test_a_dns_that_cannot_be_asked_does_not_hold_it_back(self):
         t, got = self._tunnel(resolves=lambda host: None)

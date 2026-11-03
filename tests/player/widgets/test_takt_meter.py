@@ -58,6 +58,14 @@ class TapTempoMeterTest(unittest.TestCase):
         self.assertIsNone(m.tap(20.0), "the first tap after the pause")
         self.assertAlmostEqual(m.tap(22.0), 30.0)
 
+    def test_a_stray_tap_then_a_long_pause_starts_over(self):
+        """#79: with one tap there is no mean yet, so the minute-long gap
+        was read as a tempo of 1 Takt a minute."""
+        m = TapTempoMeter()
+        m.tap(0.0)
+        self.assertIsNone(m.tap(60.0))
+        self.assertAlmostEqual(m.tap(62.0), 30.0)
+
     def test_one_tap_is_not_a_rate_yet(self):
         m = TapTempoMeter()
         self.assertIsNone(m.tap(0.0))

@@ -164,6 +164,15 @@ class PeakBackfillTest(unittest.TestCase):
         self.assertFalse(other.cancelled)
         self.assertEqual(_Worker.started, [])
 
+    def test_a_peak_skipped_for_a_busy_slot_runs_when_it_frees(self):
+        """#12: the title was dropped for good if another measurement ran."""
+        other = _Worker(r"C:\music\SB\New (SB 50).mp3", "ffmpeg")
+        self.win._lufs_worker = other
+        self.win._await_loudness(self.path, True)
+        self.assertEqual(_Worker.started, [])
+        self.win._on_track_lufs(str(other.path), -14.0, -1.0)
+        self.assertEqual([w.path for w in _Worker.started], [self.path])
+
     def test_a_new_title_outranks_a_running_peak(self):
         self.win._await_loudness(self.path, True)
         peak = _Worker.started[0]

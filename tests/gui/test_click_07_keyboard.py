@@ -19,6 +19,7 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
 from gui.dialogs import load_autosave
+from gui.table.playlist_table import PlaylistTable
 
 # First: it points the app's state files at a temp folder before any app
 # module is imported.
@@ -30,6 +31,12 @@ def files(*paths) -> QMimeData:
     mime = QMimeData()
     mime.setUrls([QUrl.fromLocalFile(str(p)) for p in paths])
     return mime
+
+
+def _add_too(pairs):
+    """The demo library's 'Song 05' / 'Song 15' are one edit apart, so the Check
+    duplicates rule calls them one song; this test is about something else."""
+    return ["add"] * len(pairs)
 
 
 class KeyboardClickTest(ClickThrough):
@@ -125,7 +132,8 @@ class KeyboardClickTest(ClickThrough):
             self.assertEqual(hidden(mine), [False] * len(mine))
 
     def test_ctrl_on_a_drop_replaces_the_title_in_a_dynamic_slot(self):
-        with self.clicking():
+        with self.clicking(), mock.patch.object(
+                PlaylistTable, "_ask_drop_duplicates", side_effect=_add_too):
             self.generate(rounds="1")
             table = self.win._deckset.table
             self.click(self.button("Static deck"))

@@ -68,12 +68,17 @@ class _Folder:
 
     def merged(self) -> _Folder:
         """This folder, joined with its subfolder while it holds nothing else."""
-        node = self
+        node, name = self, self.name
         while node.count == 0 and len(node.children) == 1:
             child = next(iter(node.children.values()))
-            child.name = str(Path(node.name, child.name))
+            name = str(Path(name, child.name))
             node = child
-        return node
+        if node is self:
+            return self
+        # A copy: renaming the child itself would stack the names again on every rebuild.
+        out = _Folder(node.key, name, node.path)
+        out.count, out.children = node.count, node.children
+        return out
 
 
 class FolderTree(QTreeWidget):

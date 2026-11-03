@@ -467,7 +467,9 @@ class MainWindowSmokeTest(unittest.TestCase):
         QTest.keyClick(lib, Qt.Key.Key_Return)
         lib.space_cb.assert_called_once_with(1)
 
-    def test_a_picked_title_goes_to_the_end_of_the_wishlist(self):
+    @mock.patch("gui.table.playlist_table.PlaylistTable._ask_drop_duplicates",
+                side_effect=lambda pairs: ["add"] * len(pairs))   # empty files look alike
+    def test_a_picked_title_goes_to_the_end_of_the_wishlist(self, _ask):
         entries = self._library_of(3)
         self.win.show()
         self.win._deckset.deck_count = 2

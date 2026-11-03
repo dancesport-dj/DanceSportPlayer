@@ -71,6 +71,19 @@ class BuildManualPdfTest(unittest.TestCase):
         with mock.patch.dict(os.environ, {bp.BROWSER_ENV: "/opt/my/chrome"}):
             self.assertEqual(bp.findBrowser(), "/opt/my/chrome")
 
+    def test_a_known_install_folder_beats_a_name_on_the_path(self):
+        """#56: a stray chrome.exe earlier on PATH was picked over the install."""
+        with mock.patch.dict(os.environ, {bp.BROWSER_ENV: ""}),                 mock.patch.object(bp, "BROWSER_PATHS", ("/known/chrome",)),                 mock.patch.object(bp.Path, "is_file", return_value=True),                 mock.patch.object(bp.shutil, "which", return_value="/stray/chrome"):
+            self.assertEqual(bp.findBrowser(), "/known/chrome")
+
+    def test_a_browser_that_hangs_is_a_failure_not_a_traceback(self):
+        """#84: the 300 s timeout escaped as TimeoutExpired."""
+        def hang(cmd, **kwargs):
+            raise bp.subprocess.TimeoutExpired(cmd, 300)
+        with mock.patch.object(bp, "findBrowser", return_value="chrome"),                 mock.patch.object(bp.subprocess, "run", hang),                 self.assertLogs(bm.log, "INFO") as logs:
+            self.assertEqual(bp.buildPdf(self.dir, self.pdf), 1)
+        self.assertIn("did not finish", "\n".join(logs.output))
+
     def test_the_print_has_no_browser_header_or_footer(self):
         # The footer would print the file's path, the build machine's user folder in it.
         cmd = bp.printCommand("chrome", self.dir / "manual.html", self.pdf, self.dir / "p")

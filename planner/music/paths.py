@@ -116,6 +116,20 @@ def _is_file(path) -> bool:
         return False
 
 
+def is_local_file(path) -> bool:
+    """`is_file()` for a path that came out of someone else's playlist or pack.
+
+    A `\\\\host\\share` or `//host/…` line, or a `scheme://` one, is refused
+    before any filesystem call: Windows would open an SMB session for it (the
+    user's NTLM hash goes to the host) and the calling thread hangs on a dead
+    one. A library kept on a NAS is not affected, its entries never come
+    through here."""
+    text = str(path).strip().strip('"')
+    if text.startswith(("\\\\", "//")) or "://" in text:
+        return False
+    return _is_file(text)
+
+
 class PathRemapper:
     """Re-roots a foreign track path under the folders this PC keeps music in.
 
@@ -163,8 +177,10 @@ class PathRemapper:
         # left of `F:\my music\…` is `my music\…`, and `~/Music/my music/…` is
         # exactly where it lands on the Mac.
         tails.extend(parts[-n:] for n in range(len(parts), 0, -1))
-        # A '..' could climb out of the root: such a tail is never a candidate.
-        cands = [root.joinpath(*tail) for tail in tails if ".." not in tail]
+        # A '..' could climb out of the root, and a part like 'D:' re-roots a
+        # Windows join onto that drive: such a tail is never a candidate.
+        cands = [root.joinpath(*tail) for tail in tails
+                 if ".." not in tail and not any(":" in part for part in tail)]
         seen: set[str] = set()
         for cand in cands:
             key = str(cand).lower()

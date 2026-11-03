@@ -139,5 +139,6 @@ class AiTabMixin(_DialogHost):
         now = self.ai_values()
         if now == self._ai_given:
             return
-        ai.save_openrouter_config(now["api_key"], now["model"], now["base_url"],
+        key = now["api_key"] if now["api_key"] != self._ai_given["api_key"] else None
+        ai.save_openrouter_config(key, now["model"], now["base_url"],
                                   ask_first=now["ask_first"])

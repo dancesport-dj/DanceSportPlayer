@@ -115,6 +115,12 @@ class PlayLengthTest(unittest.TestCase):
         issues = _issues(_e("WW", 59, duration=180), min_secs=200)
         self.assertEqual(issues, ["⏱ Short: 3:00 (≤ 3:20 play length)"])
 
+    def test_a_fully_silent_file_is_flagged(self):
+        # Review #114: 100 % stillness leaves 0 s of play, which is the worst case.
+        issues = _issues(_e("WW", 59, duration=150), silence_secs=150.0)
+        self.assertEqual(len(issues), 1)
+        self.assertIn("Short", issues[0])
+
     def test_unknown_duration_is_not_short(self):
         self.assertEqual(_issues(_e("WW", 59, duration=0)), [])
 
@@ -153,6 +159,12 @@ class FinalRoundTest(unittest.TestCase):
         self.assertFalse(is_final_round("Halbfinale"))
         self.assertFalse(is_final_round("Semifinal"))
         self.assertFalse(is_final_round("Viertelfinale"))
+
+    def test_english_early_rounds_are_not_the_final(self):
+        # Review #110: "quarter" and friends, and the fractions, are no final.
+        for name in ("Quarterfinal", "Quarter-Final", "Eighth final", "1/4 Final",
+                     "1/8 Final", "1/2 Final", "Vorfinale"):
+            self.assertFalse(is_final_round(name), name)
 
     def test_anything_else_is_not_the_final(self):
         self.assertFalse(is_final_round("Vorrunde"))

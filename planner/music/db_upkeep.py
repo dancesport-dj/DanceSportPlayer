@@ -5,6 +5,7 @@ of Database maintenance."""
 
 import contextlib
 import datetime
+import json
 import logging
 import os
 import platform
@@ -12,7 +13,7 @@ import sqlite3
 from pathlib import Path
 
 from planner.config import audio_db_file
-from planner.music.db import _db, bulk_writes_held
+from planner.music.db import _db, bulk_writes_held, valid_pd_mark
 from planner.music.embeddings import MODELS as EMBEDDING_MODELS
 
 log = logging.getLogger("dancesport.db")
@@ -205,6 +206,14 @@ def backup_safely(refresh: bool = False) -> None:
                  "file: %s", written)
 
 
+def _valid_stored_mark(fp, times) -> bool:
+    """A mark row of a backup file: the times are JSON text."""
+    try:
+        return valid_pd_mark(fp, json.loads(times))
+    except (TypeError, ValueError):
+        return False
+
+
 def restore_user_data(src: Path) -> tuple[int, int, int]:
     """Merge a `backup_user_data` file back in: its tag edits and hand-set PD
     highlights replace this DB's rows for the same tracks, and also land on
@@ -232,6 +241,7 @@ def restore_user_data(src: Path) -> tuple[int, int, int]:
                      if bak_play_cols else [])
     except sqlite3.DatabaseError as exc:
         raise ValueError(f"{src} is no user data backup: {exc}") from exc
+    marks = [(fp, times) for fp, times in marks if _valid_stored_mark(fp, times)]
     conn = _db()
     local_cols = {r[1] for r in conn.execute("PRAGMA table_info(tag_edits)")}
     if edit_cols[:1] != ["fp"] or not set(edit_cols) <= local_cols:
@@ -276,7 +286,7 @@ RESET_GROUPS: dict[str, tuple[tuple[str, str], ...]] = {
              ("audio_fps", ""), ("playlist_index", ""),
              ("app_meta", "key LIKE 'playlist_index_dance:%'")),
     "analysis": (("features", ""), ("embeddings", ""), ("loudness", ""), ("silences", ""),
-                 ("waveforms", ""), ("vocals", ""), ("noise", ""),
+                 ("waveforms", ""), ("vocals", ""), ("noise", ""), ("chroma_fps", ""),
                  ("pd_highlights", "manual = 0")),
     "user": (("tag_edits", ""), ("pd_highlights", "manual = 1"), ("play_log", "")),
 }
@@ -354,12 +364,14 @@ def db_maintenance() -> dict:
         # fp+model; the others one per fp) — drop rows no live file points at.
         live_fps = {fp for (fp,) in conn.execute("SELECT DISTINCT fp FROM fingerprints")}
         for table in ("embeddings", "loudness", "pd_highlights", "silences", "waveforms",
-                      "vocals", "noise"):
+                      "vocals", "noise", "chroma_fps"):
             if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
                             (table,)).fetchone() is None:
                 removed[table] = 0
                 continue
-            dead_fps = [fp for (fp,) in conn.execute(f"SELECT DISTINCT fp FROM {table}")  # nosec B608: constant names
+            # A hand-set highlight cannot be recomputed, so it is never pruned.
+            keep_manual = " WHERE manual = 0" if table == "pd_highlights" else ""
+            dead_fps = [fp for (fp,) in conn.execute(f"SELECT DISTINCT fp FROM {table}{keep_manual}")  # nosec B608: constant names
                         if fp not in live_fps]
             before = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]  # nosec B608: constant names
             conn.executemany(f"DELETE FROM {table} WHERE fp = ?",  # nosec B608: constant names

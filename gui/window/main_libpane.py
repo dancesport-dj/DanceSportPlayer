@@ -81,6 +81,10 @@ class LibraryPaneMixin(MainWindowHost):
         self._settings["library_short_dances"] = bool(short)
         save_settings(self._settings)
 
+    def _on_lib_date_only(self, on: bool):
+        self._settings["library_date_only"] = bool(on)
+        save_settings(self._settings)
+
     def _on_columns_changed(self, kind: str, hidden: list):
         """A column was ticked off (or back on) in a header's right-click menu.
 
