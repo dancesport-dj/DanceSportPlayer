@@ -181,6 +181,8 @@ Aufnahme nach dem Klang hat (dafür braucht es `fpcalc`).
   danach springt der Fokus zur nächsten Zeile. **OK** führt die Wahl aus,
   **Abbrechen** fügt vom ganzen Ablegen nichts hinzu.
 
+![Das Fenster für mehrere abgelegte Titel](../img/drop-duplicates.png)
+
 Ersetzen setzt die neue Datei an die Stelle der alten und entfernt die alte.
 Eine einzelne exakte Kopie wird still übersprungen. Der .m3u-Import behält sein
 eigenes Duplikatfenster.

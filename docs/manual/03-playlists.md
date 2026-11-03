@@ -163,6 +163,8 @@ Version"), or the same recording by its sound (this needs `fpcalc`).
   on to the next row. **OK** carries the choices out; **Cancel** adds nothing
   of the whole drop.
 
+![The window for several dropped titles](img/drop-duplicates.png)
+
 Replace puts the new file where the old one was and removes the old one. One
 exact copy dropped alone is skipped quietly. An `.m3u` import keeps its own
 duplicate window.
