@@ -59,6 +59,14 @@ from shared.audio.chromaprint import fingerprint_file
 # librosa 1.0 reads through libsndfile only: .m4a and .wma go through ffmpeg.
 planner_analysis.fallback_decoder = decode_pcm_mono
 
+# A QThread runs on the platform's default stack unless told otherwise: 512 KiB
+# on macOS. numba compiles librosa's kernels on whichever thread first touches
+# them, and LLVM's arm64 code generator ran off the bottom of that stack (the
+# Full .app's crash of 2026-11-04). Every thread that can reach librosa, numba
+# or torch asks for what CPython gives its own threads on macOS. It is address
+# space, not memory: only the pages the thread really uses get committed.
+AUDIO_STACK_SIZE = 16 * 1024 * 1024
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Orphaned workers
 # ─────────────────────────────────────────────────────────────────────────────
@@ -427,6 +435,7 @@ class AudioAnalyzer(QThread):
 
     def __init__(self, cache: AudioCache, entries: list, parent=None, force: bool = False):
         super().__init__(parent)
+        self.setStackSize(AUDIO_STACK_SIZE)
         self._cache = cache
         self._entries = entries
         self._cancel = False
@@ -728,6 +737,7 @@ class LibraryPass(QThread):
 
     def __init__(self, cache: AudioCache, paths: list, parent=None):
         super().__init__(parent)
+        self.setStackSize(AUDIO_STACK_SIZE)
         self.cache = cache
         self.paths = paths
         self._cancel = False
@@ -1071,6 +1081,7 @@ class EmbeddingIndexWorker(QThread):
 
     def __init__(self, store, model: str, entries: list, parent=None):
         super().__init__(parent)
+        self.setStackSize(AUDIO_STACK_SIZE)
         self._store, self._model, self._entries = store, model, entries
         self._cancel = False
 
@@ -1140,6 +1151,7 @@ class EmbeddingRankWorker(QThread):
 
     def __init__(self, fn, parent=None):
         super().__init__(parent)
+        self.setStackSize(AUDIO_STACK_SIZE)
         self._fn = fn
 
     def run(self):
@@ -1157,6 +1169,7 @@ class SimilarFromFileWorker(QThread):
 
     def __init__(self, lib, cache, path: str, n: int = 12, min_display: float = 0.0, parent=None):
         super().__init__(parent)
+        self.setStackSize(AUDIO_STACK_SIZE)
         self._lib, self._cache, self._path, self._n = lib, cache, Path(path), n
         self._min_display = min_display
 

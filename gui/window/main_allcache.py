@@ -27,6 +27,7 @@ from gui.common import (
     BusyDialog,
 )
 from gui.workers import (  # auto-resolved
+    AUDIO_STACK_SIZE,
     AudioAnalyzer,
     AudioFpAnalyzer,
     EmbeddingIndexWorker,
@@ -109,6 +110,7 @@ class _BusyWorker(QThread):
 
     def __init__(self, fn, parent=None):
         super().__init__(parent)
+        self.setStackSize(AUDIO_STACK_SIZE)   # the decode probe runs librosa here
         self._fn = fn
         self.result: Any = None       # the return value, or the exception
 
