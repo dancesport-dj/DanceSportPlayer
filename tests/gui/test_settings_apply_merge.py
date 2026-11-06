@@ -85,6 +85,24 @@ class SettingsApplyMergeTest(_SettingsCase):
         self.assertEqual(self.win._settings.get("check_tempo_dev_pct"), 7)
 
 
+class SettingsWriteFailureTest(_SettingsCase):
+    """A write that did not land closed the dialog as if all were well; the
+    values then lasted until the next start only."""
+
+    def test_a_failed_write_is_said_out_loud(self):
+        with mock.patch.object(main_global, "save_settings", lambda s: False), \
+                mock.patch.object(main_global.QMessageBox, "warning") as warn:
+            self.win._open_settings()
+        warn.assert_called_once()
+        self.assertEqual(self.win._settings.get("check_tempo_dev_pct"), 7)
+
+    def test_a_good_write_says_nothing(self):
+        with mock.patch.object(main_global, "save_settings", lambda s: True), \
+                mock.patch.object(main_global.QMessageBox, "warning") as warn:
+            self.win._open_settings()
+        warn.assert_not_called()
+
+
 class _ButtonDialog(_Dialog):
     """…and then a button that closes the dialog to run something: like the
     real one, it calls back from inside exec(), the dialog's values in hand."""

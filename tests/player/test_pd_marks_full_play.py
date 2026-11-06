@@ -3,7 +3,7 @@
 
 Run:  py -m unittest tests.player.test_pd_marks_full_play -v
 
-A final's pick plays the Paso Doble to its end (Settings → 🎛 Play sets, "full
+A final's pick plays the Paso Doble to its end (Settings → 🎛 Playsets, "full
 for finals"), so no stop is armed. The card drew no marks then, and the ✏️ chip
 row read "no marks" — the stored highlights are only loaded for a stop, so a
 title with three detected highlights looked as if it had none, and a hand mark

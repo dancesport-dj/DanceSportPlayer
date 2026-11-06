@@ -589,7 +589,7 @@ class NoStrayWindowsTest(_Qt):
 
 
 class PlaySetsTabTest(_Qt):
-    """🎛 Play sets — the defaults behind the 🏆 / 🎉 buttons of the ▶ panel."""
+    """🎛 Playsets — the defaults behind the 🏆 / 🎉 buttons of the ▶ panel."""
 
     def _dlg(self, settings):
         dlg = SettingsDialog(settings)
@@ -600,8 +600,22 @@ class PlaySetsTabTest(_Qt):
     def _tab(dlg):
         tabs = dlg.findChild(QTabWidget)
         idx = [i for i in range(tabs.count())
-               if tabs.tabText(i).endswith("Play sets")][0]
+               if tabs.tabText(i).endswith("Playsets")][0]
         return tabs, idx
+
+    def test_its_texts_state_the_waits_and_the_three_sets_as_they_are(self):
+        from PySide6.QtWidgets import QLabel
+
+        from planner.playing.play_sets import PARTY_PD, TRAINING_PD
+        dlg = self._dlg({})
+        texts = [w.text() for w in dlg.findChildren(QLabel)]
+        note = [t for t in texts if "Each set carries its own Paso Doble" in t]
+        self.assertEqual(len(note), 1)
+        self.assertIn("waits %g s" % PARTY_PD["pd_delay"], note[0])
+        self.assertIn("🏃 %g s" % TRAINING_PD["pd_delay"], note[0])
+        intro = [t for t in texts if t.startswith("<b>🎛 Playsets</b>")]
+        self.assertEqual(len(intro), 1)
+        self.assertNotIn("two buttons", intro[0])
 
     def test_the_built_in_sets_are_what_it_starts_on(self):
         from planner.playing.play_sets import PARTY_PD, PARTY_SET, TOURNAMENT_PD, TOURNAMENT_SET
@@ -615,6 +629,90 @@ class PlaySetsTabTest(_Qt):
             # 🐂 Each set's Paso Doble, kept beside the set's dict.
             self.assertEqual({k: got.pop(k) for k in pd}, pd)
             self.assertEqual(got, built_in)
+
+    def test_reset_puts_the_tab_back_on_the_shipped_values(self):
+        from planner.playing.play_sets import PARTY_SET
+        dlg = self._dlg({"party_set": dict(PARTY_SET, secs=45),
+                         "celebrate_mode": "all", "single_set_button": False})
+        dlg._confirm_reset = lambda: True
+        self.assertEqual(dlg.values()["party_set"]["secs"], 45)
+        dlg._play_sets_reset_btn.click()
+        vals = dlg.values()
+        self.assertEqual(vals["party_set"]["secs"], PARTY_SET["secs"])
+        self.assertEqual(vals["celebrate_mode"], "off")
+        self.assertIs(vals["single_set_button"], True)
+
+    def test_reset_asks_first_and_no_leaves_everything(self):
+        from planner.playing.play_sets import PARTY_SET
+        dlg = self._dlg({"party_set": dict(PARTY_SET, secs=45)})
+        dlg._confirm_reset = lambda: False
+        dlg._play_sets_reset_btn.click()
+        self.assertEqual(dlg.values()["party_set"]["secs"], 45)
+
+    def test_the_sound_tab_reset_takes_the_fades_but_not_the_play_sets_or_paths(self):
+        from planner.playing.play_sets import PARTY_SET
+        dlg = self._dlg({"party_set": dict(PARTY_SET, secs=45),
+                         "fade_in_secs": 3, "hand_fade_secs": 4,
+                         "resume_fade_secs": 5, "duck_pct": 40,
+                         "duck_down_ms": 800, "pre_roll_secs": 2,
+                         "library_dir": "D:/music"})
+        dlg._confirm_reset_sound = lambda: True
+        dlg._sound_reset_btn.click()
+        vals = dlg.values()
+        self.assertEqual(vals["party_set"]["secs"], 45)
+        self.assertEqual((vals["fade_in_secs"], vals["hand_fade_secs"],
+                          vals["resume_fade_secs"], vals["duck_pct"],
+                          vals["duck_down_ms"], vals["duck_up_ms"],
+                          vals["pre_roll_secs"]),
+                         (0, 0, 2.0, 10, 2000, 2000, 0))
+        self.assertEqual(vals["library_dir"], "D:/music")
+
+    def test_the_sound_tab_reset_also_takes_a_stored_value_the_spin_shows_rounded(self):
+        dlg = self._dlg({"duck_down_ms": 2049})
+        dlg._confirm_reset_sound = lambda: True
+        dlg._sound_reset_btn.click()
+        self.assertEqual(dlg.values()["duck_down_ms"], 2000)
+
+    def test_the_cartwall_tab_reset_puts_every_value_back(self):
+        dlg = self._dlg({"cart_duck_pct": 60, "cart_fade_ms": 4000,
+                         "cart_bg_volume_pct": 90, "cart_bg_mode": "pause",
+                         "cart_bg_overlap": True, "library_dir": "D:/music"})
+        dlg._reset_cartwall_values()
+        fresh = self._dlg({}).values()
+        vals = dlg.values()
+        for key in ("cart_duck_pct", "cart_fade_ms", "cart_bg_volume_pct",
+                    "cart_bg_mode", "cart_bg_overlap", "cart_wall_colour"):
+            self.assertEqual(vals[key], fresh[key], key)
+        self.assertEqual(vals["library_dir"], "D:/music")
+
+    def test_the_cartwall_tab_reset_asks_first_and_no_leaves_everything(self):
+        from PySide6.QtWidgets import QMessageBox
+        dlg = self._dlg({"cart_duck_pct": 60})
+        real = QMessageBox.question
+        QMessageBox.question = staticmethod(
+            lambda *a, **k: QMessageBox.StandardButton.No)
+        self.addCleanup(setattr, QMessageBox, "question", real)
+        dlg._cart_reset_btn.click()
+        self.assertEqual(dlg.values()["cart_duck_pct"], 60)
+
+    def test_one_button_for_all_sets_is_on_by_default(self):
+        self.assertTrue(self._dlg({})._single_set_chk.isChecked())
+
+    def test_the_sound_tab_reset_asks_first_and_no_leaves_everything(self):
+        dlg = self._dlg({"fade_in_secs": 3})
+        dlg._confirm_reset_sound = lambda: False
+        dlg._sound_reset_btn.click()
+        self.assertEqual(dlg.values()["fade_in_secs"], 3)
+
+    def test_the_dialog_has_no_combined_reset_button_any_more(self):
+        self.assertFalse(hasattr(self._dlg({}), "_reset_all_btn"))
+
+    def test_reset_can_be_done_twice(self):
+        dlg = self._dlg({})
+        dlg._confirm_reset = lambda: True
+        dlg._play_sets_reset_btn.click()
+        dlg._play_sets_reset_btn.click()
+        self.assertIn("party_set", dlg.values())
 
     def test_the_tso_pitch_is_one_of_them(self):
         """🎚 On for a heat, where every title of a round is pitched to the

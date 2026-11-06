@@ -138,6 +138,30 @@ Der Reiter **🔊 Ton & Player**.
 | **▶ Player-Position** | Wo die Player-Karte steht: *neben den Wiedergabelisten*, am Kopf des Wiedergabe-Bereichs, oder *über den Wiedergabelisten*, als ein breiter Streifen über den Decks. |
 | **📂 Doppelklick auf einen Titel in 📚 der Bibliothek** | Zuletzt auf dem Reiter, unter **📚 Bibliothek**, weil es um die Bibliothek geht, nicht um den Player. Was ein Doppelklick beim Planen in 📚 der Bibliothek und in den Listen unter 🏆 Turniere tut: **Nichts** (ab Werk; ▶ spielt den Titel), **In externem Player öffnen** (das Programm, mit dem dein System Musik abspielt, auf dem Mac Musik; dann auch für eine Deckzeile beim Planen und in den Dialogen) oder **Tags bearbeiten** (der [🏷 Tags-Editor](05-tags.md#den-editor-öffnen), geöffnet auf dem Feld der Spalte, auf die du doppelgeklickt hast; dort wählst du, was Speichern in die Datei schreibt). Beim Planen spielt ein Doppelklick auf eine Deckzeile den Titel im Mini-Player, außer *In externem Player öffnen* ist gewählt. Rechtsklick bietet immer alles davon, und im Abspielmodus spielt oder legt ein Doppelklick den Titel immer bereit. |
 
+### 🥇 Feier: Die Musik spielt weiter
+
+Eine eigene Gruppe auf dem Reiter, über den Ansagezeilen. Hat die Spieldauer
+einen Titel ausgeblendet, kann er als Hintergrund wieder hochkommen, während
+die Paare feiern: Der Schalter **🥇 Feier** im
+[Wiedergabe-Bereich](04-playing.md) schaltet das für eine Liste ein, und für
+die Finals des 🏆 Sets tun es [⚙ Einstellungen ▸ 🎛 Spiel-Sets](#spiel-sets).
+Diese fünf Zahlen bestimmen, wie es klingt:
+
+| Einstellung | Macht |
+|---|---|
+| **Lautstärke** | Wie laut er wiederkommt, in % der Lautstärke der Musik: 50 % ab Werk, mindestens 5 %. |
+| **Absenken auf** | Wie weit die Ausblendung am Ende der Spieldauer ihn zuerst absenkt: 5 % ab Werk, 0 % ganz hinunter, höchstens die Lautstärke, mit der er wiederkommt. |
+| **Ausblenden über** | Wie lange er an seinem Ende braucht, um zu verklingen, durch 🔉↓ oder bevor der nächste Tanz des Finales startet: 3,0 s ab Werk. |
+| **Halten** | Wie lange er unten bleibt: 3,0 s ab Werk, 0 s kommt sofort hoch. |
+| **Einblenden über** | Wie lange er braucht, um wieder hochzukommen: 3,0 s ab Werk. |
+
+Die drei Zeiten reichen bis 10 s.
+
+**↺ Auf Standard zurücksetzen**, unten rechts im Reiter, setzt diese Zahlen,
+die Absenk- und Ausblendzeiten darunter und ⏩ jeden Titel so weit drin
+starten auf die Werte zurück, mit denen die App ausgeliefert wird, nach einer
+Rückfrage. Das Audio-Backend und die Ausgänge bleiben, wie sie sind.
+
 ### ▸ Erweitert: Absenken und Ausblendzeiten
 
 Unter den Zeilen zur Stimme eingeklappt: die meisten Abende laufen mit den
@@ -147,9 +171,9 @@ es.
 | Einstellung | Macht |
 |---|---|
 | **🔉 Absenken auf** | Wie weit 🔊 Absenken alles leiser macht, auf der Player-Karte, im Mini-Player und auf dem Präsentationsbildschirm: 10 % ab Werk (etwa −20 dB), 0 % (Stille) bis 90 %. Eine Änderung gilt auch für ein Absenken, das gerade an ist. |
-| **🔈 Unter Ansage oder Pad absenken über … wieder hoch über** | Wie schnell die Musik Platz macht, wenn die Ansage spricht oder ein 🎛 Cartwall-Pad spielt, und wie schnell sie danach zurückkommt: ab Werk 0,2 s hinunter und 0,6 s hinauf, je 0,1 bis 5 s. Der Knopf 🔉 Absenken selbst wirkt sofort. |
+| **🔈 Unter Ansage oder Pad absenken über … wieder hoch über** | Wie schnell die Musik Platz macht, wenn die Ansage spricht oder ein 🎛 Cartwall-Pad spielt, und wie schnell sie danach zurückkommt: ab Werk 2 s hinunter und 2 s hinauf, je 0,1 bis 5 s. Der Knopf 🔉 Absenken selbst wirkt sofort. |
 | **🌅 Jeden Titel einblenden über** | Ab Werk aus. Der große Player startet jeden Titel in der Stille und blendet ihn über 0,5 bis 10 s Musik ein. Ein Titel, den ein 🔀 Überblenden hereinholt, behält seine eigene Rampe. Paare starten auf dem ersten Taktschlag, lass es für ein Turnier also aus. |
-| **↩ An einer Zeitmarke einblenden über** | Ab Werk 1 s. Ein Titel, der an seiner ↩ Zeitmarke weiterläuft, kommt über 0,5 bis 10 s Musik hoch, statt mit voller Lautstärke einzusetzen. *aus* überlässt es 🌅 darüber. Ein Paso Doble setzt an seiner Zeitmarke immer abrupt ein, egal was 🌅 sagt: Die Paare stehen und gehen auf den Schlag los. |
+| **↩ An einer Zeitmarke einblenden über** | Ab Werk 2 s. Ein Titel, der an seiner ↩ Zeitmarke weiterläuft, kommt über 0,5 bis 10 s Musik hoch, statt mit voller Lautstärke einzusetzen. *aus* überlässt es 🌅 darüber. Ein Paso Doble setzt an seiner Zeitmarke immer abrupt ein, egal was 🌅 sagt: Die Paare stehen und gehen auf den Schlag los. |
 | **🔉↓ Von Hand ausblenden über** | Wie lange 🔉↓ Jetzt ausblenden, 🛑 Ausblenden und halten, ein ⏹ Stopp zu einer Uhrzeit und das Ausblenden vor dem Beenden dauern, bis 10 s. Ab Werk *wie das Ausblenden der Liste*. Das Ausblenden am Ende der Spieldauer behält immer die eigene Ausblendzeit der Liste. |
 | **⏩ Jeden Titel so weit drin starten** | Ab Werk aus. Der große Player überspringt die ersten 1 bis 30 s jedes Titels, und diese Sekunden zählen nicht zur Spieldauer. Ein Titel, der an seiner ↩ Marke weiterläuft, startet stattdessen dort, und ein stilles Intro wird zusätzlich übersprungen. |
 
@@ -276,8 +300,8 @@ gesichert, **♻ Sicherung der eigenen Daten zurückholen…** holt sie zurück.
 
 ## Spiel-Sets
 
-Der Reiter **🎛 Spiel-Sets** legt fest, was die Knöpfe **🏆 Turnier-Set** und
-**🎉 Party-Set** im Wiedergabe-Bereich anwenden (siehe
+Der Reiter **🎛 Spiel-Sets** legt fest, was die Knöpfe **🏆 Turnier-Set**,
+**🎉 Party-Set** und **🏃 Trainings-Set** im Wiedergabe-Bereich anwenden (siehe
 [Kapitel 4](04-playing.md#abspiel-sets)).
 
 ![Einstellungen, Reiter Spiel-Sets](../img/settings-play-sets.png)
@@ -286,6 +310,13 @@ Eine Liste, die auf einem Set steht, zieht mit, wenn du das Set hier
 änderst: jeder Wert, den sie noch vom Set hat, nimmt den neuen an, und ein
 Wert, den du an der Liste von Hand geändert hast, bleibt. Die Decks folgen
 dem 🏆 Set, der 🤸 Party-Bereich dem 🎉 Set.
+
+Der Haken **Ein Knopf für alle Sets, benannt nach dem aktiven** ist von Haus
+aus gesetzt; ohne ihn zeigt der Wiedergabe-Bereich einen Knopf je Set.
+**↺ Auf Standard zurücksetzen**, unten rechts im Reiter, setzt jedes Set auf
+die Werte zurück, mit denen die App ausgeliefert wird, nach einer Rückfrage.
+Die Reiter 🔊 Ton & Player und 🎛 Cartwall haben denselben Knopf für ihre
+eigenen Zahlen.
 
 Für jedes Set:
 
@@ -298,8 +329,10 @@ Für jedes Set:
   darin.
 - **🔀 Überblenden**: ein Schalter und 0,5 bis 10 s in Schritten von einer
   halben Sekunde, mit demselben Kurvenknopf (gleiche Leistung, geradlinig oder
-  S-Kurve) und Bild wie im Wiedergabe-Bereich. Ab Werk in beiden Sets aus,
+  S-Kurve) und Bild wie im Wiedergabe-Bereich. Ab Werk in allen Sets aus,
   eingeschaltet mit 4 s und gleicher Leistung.
+- **Pause zwischen Titeln** (nur im 🏃 Set): wie lange die Pause dauert, ab Werk
+  25 s.
 - **⏭ Automatisch weiter**,
   **⏸ Keine Pause zwischen den Titeln**, **🔈 Nächsten Tanz ansagen**,
   **🔊 Lautstärke angleichen**, **▶️ Doppelklick startet den Titel**,
@@ -337,12 +370,12 @@ zeigt die Längen dieser Wahl. Beide gelten, egal welche gerade zu sehen ist.
   z. B. *Wiener Walzer, Finale — eigene Länge*. Eine Liste ohne Runden,
   etwa eine Partyliste, nimmt nur die Längen pro Tanz.
 
-Beide Sets haben auch den 🐂 Paso Doble: **Stopp nach Highlight** (und nach
-welchem) und **Start nach**. Von Haus aus ist im Turnier-Set der Stopp aus,
+Jedes Set hat auch den 🐂 Paso Doble: **Stopp nach Highlight** (und nach
+welchem) und **Start nach**, in halben Sekunden. Von Haus aus ist im Turnier-Set der Stopp aus,
 weil die Erkennung nicht zuverlässig genug ist, um einen Paso Doble im
 Turnier zu schneiden, und Start nach steht auf 0 s. Das Party-Set stoppt
 nach dem 2. Highlight und wartet 1 s, damit die Paare ihre Ausgangsposition
-einnehmen können.
+einnehmen können; das Trainings-Set tut dasselbe und wartet 2 s.
 
 **🥇 Finale: Die Musik spielt weiter** gehört zum Turnier-Set. Hat die
 Spieldauer einen Titel des Finales ausgeblendet, kommt er als Hintergrund
@@ -351,16 +384,12 @@ Titel startet oder die Datei endet. Zwischen zwei Tänzen des Finales spielt
 er statt der ⏸ Pausenmusik. Eine Runde ist das Finale, wenn sie *Finale*,
 *Final* oder *Endrunde* heißt.
 
-| Einstellung | Macht |
-|---|---|
-| **Aus / Nach dem letzten Tanz des Finales / Nach jedem Tanz des Finales** | Welche Titel des Finales wieder hochkommen. Ab Werk aus. |
-| **Lautstärke** | Wie laut er wiederkommt, in % der Lautstärke der Musik: 60 % ab Werk. |
-| **Absenken auf** | Wie weit die Ausblendung am Ende der Spieldauer ihn zuerst absenkt: 5 % ab Werk, 0 % ganz hinunter, höchstens die Lautstärke, mit der er wiederkommt. |
-| **Halten** | Wie lange er unten bleibt: 2,0 s ab Werk, 0 s kommt sofort hoch. |
-| **Einblenden über** | Wie lange er braucht, um wieder hochzukommen: 3,0 s ab Werk. |
-| **Ausblenden über** | Wie lange er an seinem Ende braucht, um zu verklingen, durch 🔉↓ oder bevor der nächste Tanz des Finales startet: 3,0 s ab Werk. |
-
-Die drei Zeiten reichen bis 10 s.
+Das Feld hat eine Auswahl, **Aus / Nach dem letzten Tanz des Finales /
+Nach jedem Tanz des Finales**, ab Werk aus. Sie gilt für eine Liste im
+🏆 Set, deren Schalter **🥇 Feier** im Wiedergabe-Bereich niemand angeklickt
+hat; ein Klick auf den Schalter geht vor, ein oder aus. Wie laut er
+wiederkommt, wie tief er absinkt und die Zeiten stehen in
+[⚙ Einstellungen ▸ 🔊 Ton & Player ▸ 🥇 Feier](06-settings.md#-feier-die-musik-spielt-weiter).
 
 **🎚 TSO-Zieltakt** steht direkt unter dem Turnier-Set. Es legt pro Tanz
 fest, auf welches Tempo der Knopf TSO eine Gruppe zieht:

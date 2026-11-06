@@ -22,8 +22,8 @@ CATALOG = {
     "Fade every running pad out (Esc)": "Alle lopende pads uitfaden (Esc)",
     "Fade between music and timetable every":
         "Wisselen tussen muziek en tijdschema elke",
-    "    Only tracks not already in my open playlists":
-        "    Alleen nummers die nog in geen open afspeellijst staan",
+    "Select all":
+        "Alles selecteren",
     "Close": "Sluiten",
     "Replace": "Vervangen",
     "Reset": "Herstellen",
@@ -630,8 +630,6 @@ CATALOG = {
     "Could not fetch models (using fallback list).":
         "Modellen konden niet worden opgehaald (reservelijst wordt gebruikt).",
     "Load the music library first.": "Laad eerst de muziekbibliotheek.",
-    "Nothing to clear — all playlists are empty.":
-        "Niets te legen — alle afspeellijsten zijn leeg.",
     "Nothing to export — all playlists are empty.":
         "Niets te exporteren — alle afspeellijsten zijn leeg.",
     "Nothing to save — all playlists are empty.":
@@ -737,14 +735,13 @@ CATALOG = {
     "click the tab (or this arrow) to open it again.":
         "Het paneel %s inklappen tot zijn koptab —\n"
         "klik op de tab (of deze pijl) om het weer te openen.",
-    "Close the preview and stop playback  (Ctrl+X)":
-        "Voorbeeld sluiten en afspelen stoppen  (Ctrl+X)",
+    "Close the preview and stop playback  (Ctrl+X / Esc)":
+        "Voorbeeld sluiten en afspelen stoppen  (Ctrl+X / Esc)",
     "Close the tournament day — clears all 📅 day decks":
         "De toernooidag sluiten — leegt alle 📅 dagdecks",
     "Back to this slot's default key":
         "Terug naar de standaardtoets van deze plek",
     "Export or import this wall": "Deze Cartwall exporteren of importeren",
-    "Duck to 20 % / back to full": "Dempen naar 20 % / terug naar vol",
     "🔉  Duck to:": "🔉  Dempen naar:",
     "How loud everything stays while 🔉 Duck is pressed on the player\ncard, the mini player or the presenter screen: low enough to talk\nover, loud enough to keep the floor moving. 0 % is silence.":
         "Hoe luid alles blijft terwijl 🔉 Dempen is ingedrukt op de spelerkaart,\nde minispeler of het presentatiescherm: zacht genoeg om eroverheen te\npraten, luid genoeg om de vloer te laten dansen. 0 % is stilte.",
@@ -843,7 +840,7 @@ CATALOG = {
         "Kies een lengte of typ er een: m:ss, seconden of 'volledig'",
     "%s — its own length":
         "%s — eigen lengte",
-    "This dance has its own play length in the 🏆 tournament set\n(⚙ Settings → 🎛 Play sets). − / + and typing change it there.":
+    "This dance has its own play length in the 🏆 tournament set\n(⚙ Settings → 🎛 Playsets). − / + and typing change it there.":
         "Deze dans heeft een eigen speellengte in de 🏆 toernooiset\n(⚙ Instellingen → 🎛 Speelsets). − / + en typen wijzigen hem daar.",
     "<b>⏱ Per dance</b> — a dance given a length of its own is cut there instead, as long as a list plays this set's length. The ▶ Playing panel names the dance under its length.":
         "<b>⏱ Per dans</b> — een dans met een eigen lengte wordt daar afgekapt, zolang een lijst de lengte van deze set speelt. Het ▶ Afspeelpaneel noemt de dans onder zijn lengte.",
@@ -975,8 +972,6 @@ CATALOG = {
     "🔍  Compare": "🔍  Vergelijken",
     "🔍  Filter title / artist / comment tag…":
         "🔍  Titel / artiest / commentaar filteren…",
-    "🔍  Find a title in this list…\tCtrl+F":
-        "🔍  Een titel in deze lijst zoeken…\tCtrl+F",
     "🆕 Last 30 days": "🆕 Laatste 30 dagen",
     "🆕 Last 90 days": "🆕 Laatste 90 dagen",
     "🆕 Last 12 months": "🆕 Laatste 12 maanden",
@@ -1099,7 +1094,6 @@ CATALOG = {
     "🧹  Remove": "🧹  Verwijderen",
     "🧹  Remove tracks already in a playlist":
         "🧹  Nummers verwijderen die al in een afspeellijst staan",
-    "🧹 Cleared all playlists.": "🧹 Alle afspeellijsten geleegd.",
     "🧹 Tournament-day playlists cleared.":
         "🧹 Afspeellijsten van de toernooidag geleegd.",
     "🧳  USB export": "🧳  USB-export",
@@ -1152,7 +1146,7 @@ CATALOG = {
         "🎼  Chroma-index voor covers / remixes opbouwen…",
     "🎚️  Open playlists": "🎚️  Open afspeellijsten",
     "🎚️  Timbre + Rhythm (librosa)": "🎚️  Timbre + ritme (librosa)",
-    "🎛 Play sets": "🎛 Speelsets",
+    "🎛 Playsets": "🎛 Speelsets",
     "🎛 No free pad voice — every voice holds a looping pad.":
         "🎛 Geen vrije padstem — elke stem houdt een lopende pad vast.",
     "🎤 Vocal": "🎤 Zang",
@@ -1234,12 +1228,6 @@ CATALOG = {
         "Rechtsklik loopt achteruit.\n"
         "Uit verbergt het helemaal, ook bij meerdere decks.\n"
         "Dubbelklik op een deck- of wensenlijsttitel om hem te hernoemen.",
-    "Empty every playlist deck (wishlists are kept).\n"
-    "Tip: Del on a deck's title clears just that one playlist;\n"
-    "Del on a wishlist's title clears that wishlist.":
-        "Alle afspeellijstdecks leegmaken (wensenlijsten blijven).\n"
-        "Tip: Del op de titel van een deck leegt alleen die afspeellijst;\n"
-        "Del op de titel van een wensenlijst leegt die wensenlijst.",
     "Export every non-empty playlist deck to its own .m3u in the\n"
     "playlist folder at once (wishlists are not included).\n"
     "Each file is named after its deck title.":
@@ -1497,8 +1485,8 @@ CATALOG = {
         "<b>🎚 Accentkleur</b> — het blauw waaromheen de knoppen, schuifregelaars en het ▶ spelerpaneel zijn opgebouwd:",
     "<b>🎚 TSO pitch target</b> — which takt the 🎚 button pitches a heat to. <i>Middle of the round</i> puts the round on one takt: the takt most of its titles are on where a step of one gets the rest there cheaply (T30+T31+T31 Cha-Chas → 31), the middle of its takte where it does not (T24+T25+T25 Rumbas → 24.5, T50+T52+T52 Quicksteps → 51). Nothing moves more than a takt. A fixed takt puts every title of that dance on the same tempo instead — worth setting on the slow dances, where one takt out of 24 is twice the pitch shift one takt out of 50 is.":
         "<b>🎚 TSO-toonhoogtedoel</b> — naar welke maatslag de 🎚 knop een heat trekt. <i>Midden van de ronde</i> zet de ronde op één maatslag: de maatslag waarop de meeste titels staan, als een stap van één de rest er goedkoop heen brengt (T30+T31+T31 Cha-Cha's → 31), anders het midden van de maatslagen (T24+T25+T25 Rumba's → 24,5, T50+T52+T52 Quicksteps → 51). Niets verschuift meer dan één maatslag. Een vaste maatslag zet in plaats daarvan elke titel van die dans op hetzelfde tempo — de moeite waard bij de langzame dansen, waar één maat van 24 twee keer zoveel toonhoogteverschuiving is als één maat van 50.",
-    "<b>🎛 Play sets</b> — the two buttons on the ▶ Playing panel put the controls on these values in one press:":
-        "<b>🎛 Speelsets</b> — de twee knoppen op het paneel ▶ Afspelen zetten de bediening met één druk op deze waarden:",
+    "<b>🎛 Playsets</b> — the set buttons on the ▶ Playing panel put the controls on these values in one press:":
+        "<b>🎛 Speelsets</b> — de setknoppen op het paneel ▶ Afspelen zetten de bediening met één druk op deze waarden:",
     "<b>🎨 Theme</b> — the classic light or dark, or one of the looks:":
         "<b>🎨 Thema</b> — het klassieke licht of donker, of een van de looks:",
     "<b>🎵 Check music</b> — thresholds used by the tournament checks (open decks and dragged-in files):":
@@ -1636,8 +1624,8 @@ CATALOG = {
         "Alleen-lezen; draait op de achtergrond en kan worden afgemaakt.",
     "Takes effect after restarting the app. If the sound stays away afterwards, switch back here — the setting is only read at start, so nothing else in the app depends on it.":
         "Werkt na een herstart van de app. Blijft het geluid daarna weg, schakel hier dan terug — de instelling wordt alleen bij het starten gelezen, dus verder hangt niets in de app ervan af.",
-    "🐂 Each set carries its own Paso Doble values. Under 🏆 the highlight stop is <i>off</i> by default: the detection is not good enough yet to cut a competition Paso Doble on, and a heat stopped in the wrong bar is danced twice. Under 🎉 it stops after the 2nd highlight and waits 3 s, so the couples can take their position.":
-        "Elke set heeft zijn eigen 🐂 Paso Doble-waarden. Onder 🏆 staat de stop op het hoogtepunt standaard <i>uit</i>: de herkenning is nog niet goed genoeg om een wedstrijd-Paso Doble daarop af te kappen, en een ronde die in de verkeerde maat stopt wordt twee keer gedanst. Onder 🎉 stopt hij na het 2e hoogtepunt en wacht 3 s, zodat de paren hun positie kunnen innemen.",
+    "🐂 Each set carries its own Paso Doble values. Under 🏆 the highlight stop is <i>off</i> by default: the detection is not good enough yet to cut a competition Paso Doble on, and a heat stopped in the wrong bar is danced twice. Under 🎉 it stops after the 2nd highlight and waits 1 s, under 🏃 2 s, so the couples can take their position.":
+        "Elke set heeft zijn eigen 🐂 Paso Doble-waarden. Onder 🏆 staat de stop op het hoogtepunt standaard <i>uit</i>: de herkenning is nog niet goed genoeg om een wedstrijd-Paso Doble daarop af te kappen, en een ronde die in de verkeerde maat stopt wordt twee keer gedanst. Onder 🎉 stopt hij na het 2e hoogtepunt en wacht 1 s, onder 🏃 2 s, zodat de paren hun positie kunnen innemen.",
     "Shut the music off at the chosen highlight instead of\nthe play length. On by default: at a party the\nPaso Doble ends on its 2nd highlight.":
         "De muziek op het gekozen hoogtepunt stoppen in plaats van\nop de speelduur. Standaard aan: op een feest eindigt de\nPaso Doble op zijn 2e hoogtepunt.",
     "Hold a Paso Doble back this long before the music\nstarts, so the couples can take their position.":
@@ -2038,7 +2026,6 @@ CATALOG = {
         "Stel in Instellingen een referentiepad of een zoekmap in voordat je neergezette afspeellijsten corrigeert.",
     "⚠  No <b>search folder</b> set — open Settings and name the base folder(s) the music lives in on this PC.":
         "⚠  Geen <b>zoekmap</b> ingesteld — open Instellingen en geef de basismap(pen) op waarin de muziek op deze pc staat.",
-    "Clear all playlists": "Alle afspeellijsten leegmaken",
     "Nothing to print — no songs found.":
         "Niets af te drukken — geen nummers gevonden.",
     "Print playlist": "Afspeellijst afdrukken",
@@ -2390,7 +2377,7 @@ CATALOG = {
     "\n"
     "Lit gold while the panel stands on those values, the way 🎉 is lit\n"
     "purple during a party. Switches the 🎉 party set off. What exactly\n"
-    "it sets is yours to change: ⚙ Settings → 🎛 Play sets.\n"
+    "it sets is yours to change: ⚙ Settings → 🎛 Playsets.\n"
     "\n"
     "Clicked while lit, it switches itself off: the list goes back to\n"
     "the values it had before the set was pressed.":
@@ -2461,7 +2448,7 @@ CATALOG = {
     "Applied by itself as soon as you play from the 🤸 Practice /\n"
     "party list, and switched back when a tournament deck takes over —\n"
     "a toast says what changed either way. What exactly it sets is\n"
-    "yours to change: ⚙ Settings → 🎛 Play sets.\n"
+    "yours to change: ⚙ Settings → 🎛 Playsets.\n"
     "\n"
     "Clicked while lit, it switches itself off: the list goes back to\n"
     "the values it had before the set was pressed.":
@@ -2980,13 +2967,15 @@ CATALOG = {
     "red in the final seconds. The broad orange bar is where it plays.\n"
     "Shaded: silence the player skips · thin orange: Paso Doble\n"
     "highlights · red-tinted: the fade-out of a timed cut · gold: the\n"
-    "fade-in · green line: where the title starts.\n"
+    "fade-in · green line: where the title starts · golden line: where\n"
+    "a final's title faded out into the celebration.\n"
     "Click to jump there.":
         "De golfvorm van het nummer — wat al gespeeld is, is blauw, in de\n"
         "laatste seconden alles rood. De brede oranje balk is waar het speelt.\n"
         "Gearceerd: stilte die de speler overslaat · dun oranje: hoogtepunten\n"
         "van de Paso Doble · roodachtig: de fade-out van een getimede knip · goud:\n"
-        "de fade-in · groene lijn: waar het nummer begint.\n"
+        "de fade-in · groene lijn: waar het nummer begint · gouden lijn:\n"
+        "waar een nummer van de finale uitfadede naar de viering.\n"
         "Klik om daarheen te springen.",
     "▶️  Double-click starts the title": "▶️  Dubbelklik start het nummer",
     "Reset the time marker?": "Tijdmarkering wissen?",
@@ -3786,7 +3775,6 @@ CATALOG = {
     "🔁  Replaced %d, ➕ added %d track(s)":
         "🔁  %d vervangen, ➕ %d nummer(s) toegevoegd",
     "  (%s — skipped)": "  (%s — overgeslagen)",
-    "↩  %d same-title file(s) left out": "↩  %d bestand(en) met dezelfde titel weggelaten",
     "Duplicates in this list":
         "Dubbelen in deze lijst",
     "Duplicate songs in this list, in running order.<br><span style='color:#666'>🟰 <b>Exact</b> = identical audio. ≈ <b>Similar</b> = same title, a different recording. Keep the ones you want; switch the others to <b>Replace</b> and pick a track for each, or to <b>Remove</b>.</span>":
@@ -4274,15 +4262,13 @@ CATALOG = {
     "They are already planned in: %s":
         "%d titels uit %s verwijderen?\n"
         "Ze zijn al ingepland in: %s",
-    "Empty %d playlist? This can't be undone.":
-        "%d afspeellijst leegmaken? Dit kan niet ongedaan worden gemaakt.",
-    "Empty %d playlists? This can't be undone.":
-        "%d afspeellijsten leegmaken? Dit kan niet ongedaan worden gemaakt.",
     "↩  Restored your worked playlist for “%s” — %d songs":
         "↩  Je bewerkte afspeellijst voor ‘%s’ is hersteld — %d nummers",
     "this competition": "deze wedstrijd",
     "⚠  Session not saved — the snapshot failed: %r":
         "⚠  Sessie niet opgeslagen — de momentopname is mislukt: %r",
+    "⚠  Session NOT saved — the autosave file could not be written. Check the disk and try again.":
+        "⚠  Sessie NIET opgeslagen — het autosave-bestand kon niet worden geschreven. Controleer de schijf en probeer het opnieuw.",
     "Could not write the PDF:\n"
     "%s":
         "Het pdf-bestand kon niet worden geschreven:\n"
@@ -5844,7 +5830,7 @@ CATALOG = {
         'Muziekverzameling scannen',
     'Another task (a library scan or an analysis) is writing to the database. Let it finish, then try again.':
         'Een andere taak (een bibliotheekscan of een analyse) schrijft naar de database. Laat die eerst klaar zijn en probeer het dan opnieuw.',
-    "The Paso Doble pick for %s in ⚙ Settings → 🎛 Play sets\n(played in full reads as the 3rd highlight). A change here\nholds for this list only.":
+    "The Paso Doble pick for %s in ⚙ Settings → 🎛 Playsets\n(played in full reads as the 3rd highlight). A change here\nholds for this list only.":
         "De Paso Doble-keuze voor %s in ⚙ Instellingen → 🎛 Speelsets\n(volledig gespeeld telt als het 3e hoogtepunt). Een wijziging hier\ngeldt alleen voor deze lijst.",
     "🐂 Paso Doble → each round's own pick":
         "🐂 Paso Doble → weer de keuze van elke ronde",
@@ -5898,12 +5884,6 @@ CATALOG = {
         "Wisselen: hij wisselt van plaats met “%s”.",
     "Move it to this slot?":
         "Naar deze plek verplaatsen?",
-    "Move it here":
-        "Hierheen verplaatsen",
-    "Swap positions":
-        "Plaatsen wisselen",
-    "Do nothing":
-        "Niets doen",
     "Add here too":
         "Hier ook toevoegen",
     "Add here too: it plays here and stays at its old place as well.":
@@ -6006,8 +5986,6 @@ CATALOG = {
         'Met de plek verwijderen',
     'On: a double-click on another title while one is playing\nasks first — No keeps the music on the floor.\nOff: the new title takes over at once.':
         'Aan: een dubbelklik op een ander nummer terwijl er een speelt\nvraagt eerst — Nee laat de muziek op de vloer.\nUit: het nieuwe nummer neemt meteen over.',
-    'Prompt for this kind of list (added to the rules):':
-        'Prompt voor dit soort lijst (aan de regels toegevoegd):',
     'Remove %d songs?':
         '%d nummers verwijderen?',
     'Remove this song?':
@@ -6026,8 +6004,6 @@ CATALOG = {
         'De lijst is intussen veranderd — niets gedaan',
     'What a party list is for. It is sent with the task, after the rules,\nand says which of the rules do not apply. Each mode keeps its own text.':
         'Waar een feestlijst voor dient. Hij wordt met de taak na de regels\nmeegestuurd en zegt welke regels niet gelden. Elke modus houdt zijn eigen tekst.',
-    'What a party list or a warm-up list is for. It is sent with the\ntask, after the rules, and says which of the rules do not apply.\nEach kind keeps its own text.':
-        'Waar een feestlijst of een oefenlijst voor dient. Hij wordt met de\ntaak na de regels meegestuurd en zegt welke regels niet gelden.\nElke soort houdt zijn eigen tekst.',
     'What a warm-up list is for. It is sent with the task, after the\nrules, and says which of the rules do not apply. Each mode keeps\nits own text.':
         'Waar een oefenlijst voor dient. Hij wordt met de taak na de\nregels meegestuurd en zegt welke regels niet gelden. Elke modus houdt\nzijn eigen tekst.',
     'Which tracks suit a higher-class event. It is sent with the task,\nafter the rules, for the B, A and S classes; the lower classes get\nnone. The rounds, heats, dances and tempos are added automatically.':
@@ -6080,4 +6056,129 @@ CATALOG = {
         'Welke nummers als nieuw gelden: nieuwe, of elk nummer dat zelden is gedraaid.',
     'Reading Chromaprints…':
         'Chromaprints worden gelezen…',
+    'Skip greyed titles':
+        'Grijze titels overslaan',
+    'Leave out the titles another deck already holds — planned or\nplayed (played ones stay in their deck, greyed). The deck this\nrun fills does not count: its content is being replaced.':
+        'Laat titels weg die een ander deck al bevat (gepland of\ngespeeld; gespeelde blijven grijs in hun deck). Het deck dat\ndeze run vult telt niet mee: de inhoud wordt vervangen.',
+    '📁  Chosen library folders':
+        '📁  Gekozen bibliotheekmappen',
+    'Choose…':
+        'Kiezen…',
+    '%d folders chosen':
+        '%d mappen gekozen',
+    'No folder chosen':
+        'Geen map gekozen',
+    'Draw from these folders':
+        'Uit deze mappen putten',
+    'Each folder counts for the titles directly in it,\nnot for the folders below it.':
+        'Elke map telt voor de titels die er direct in staan,\nniet voor de mappen eronder.',
+    '(main folder)':
+        '(hoofdmap)',
+    '📁 %s — %d titles':
+        '📁 %s — %d titels',
+    'Manual — every row can be dragged anywhere, like a playlist.\nClick to get the automatic party list back.':
+        'Handmatig: elke rij kan overal naartoe worden gesleept, zoals in een afspeellijst.\nKlik om de automatische feestlijst terug te krijgen.',
+    'Manual — keep the list as it is and edit it by hand:\nevery row can be dragged anywhere, like a playlist.\nClick again to get the automatic list back.':
+        'Handmatig: laat de lijst zoals hij is en bewerk hem met de hand:\nelke rij kan overal naartoe worden gesleept, zoals in een afspeellijst.\nKlik nogmaals om de automatische lijst terug te krijgen.',
+    '✋ Automatic — the party list is grouped by its rules again':
+        '✋ Automatisch: de feestlijst is weer gegroepeerd volgens zijn regels',
+    '✋ Manual — every row can be dragged anywhere':
+        '✋ Handmatig: elke rij kan overal heen gesleept worden',
+    '📁 the chosen folders':
+        '📁 de gekozen mappen',
+    'One button for all sets, named for the one that is on':
+        'Eén knop voor alle sets, genoemd naar de actieve',
+    'The play set the panel stands on — 🏆 tournament (gold) or\n🎉 party (purple). A click switches over to the other one; with\nneither on, to the tournament set. What each sets is yours to\nchange: ⚙ Settings → 🎛 Playsets.':
+        'De afspeelset waarop het paneel staat: 🏆 toernooi (goud) of\n🎉 feest (paars). Een klik schakelt over naar de andere; is er geen\naan, dan naar de toernooiset. Wat elke set instelt, wijzig je in\n⚙ Instellingen → 🎛 Afspeelsets.',
+    '🏆 / 🎉 / 🏃  Play set':
+        '🏆 / 🎉 / 🏃  Afspeelset',
+    'pause → %s s':
+        'pauze → %s s',
+    '🏃  Training set':
+        '🏃  Trainingsset',
+    'Play a training: every title to its end, one after the other,\nwith a pause of 25 s in between to talk and take position, and\nthe Paso Doble starting 2 s after it is called. What exactly it\nsets is yours to change: ⚙ Settings → 🎛 Playsets.\n\nClicked while lit, it switches itself off: the list goes back to\nthe values it had before the set was pressed.':
+        'Een training afspelen: elke titel tot het einde, na elkaar, met 25 s\npauze ertussen om te praten en op te stellen, en de Paso Doble start\n2 s na het afroepen. Wat de set precies instelt, wijzig je in\n⚙ Instellingen → 🎛 Afspeelsets.\n\nAls je erop klikt terwijl hij brandt, gaat hij uit: de lijst keert terug\nnaar de waarden van daarvoor.',
+    '🏃  Training set — %s':
+        '🏃  Trainingsset — %s',
+    '🏃  Training set stays on — no earlier values to go back to':
+        '🏃  Trainingsset blijft aan — geen eerdere waarden om naar terug te gaan',
+    '🏃  Training set off — earlier values back':
+        '🏃  Trainingsset uit — eerdere waarden terug',
+    '🏃  Training set applied':
+        '🏃  Trainingsset toegepast',
+    "A party's way of playing with a pause between the titles to talk and take position, and a short wait before a Paso Doble.":
+        'De speelwijze van een feest met pauze tussen de titels om te praten en op te stellen, en een korte wachttijd voor een Paso Doble.',
+    "Every title of this list plays on after the play length: the\nmusic comes back up while the couples celebrate.\nWorks only with a play length set, not with 'full'.":
+        "Elke titel van deze lijst speelt na de speeltijd door: de\nmuziek komt weer omhoog terwijl de paren vieren.\nWerkt alleen met een ingestelde speeltijd, niet met 'volledig'.",
+    '↺ Reset to defaults':
+        '↺ Standaardwaarden herstellen',
+    'Puts everything on this tab back on the values the program\nships with. Nothing is saved until you press OK.':
+        'Zet alles op dit tabblad terug op de waarden waarmee het\nprogramma wordt geleverd. Pas na OK wordt er opgeslagen.',
+    'Reset to defaults':
+        'Standaardwaarden herstellen',
+    'Put every value on the 🎛 Playsets tab back on the default? Nothing is saved until you press OK.':
+        'Alle waarden op het tabblad 🎛 Speelsets terugzetten naar de standaardwaarden? Pas na OK wordt er opgeslagen.',
+    "<b style='color:#d32f2f; font-size:16px'>⚠ LOUD MUSIC ON A HEADSET</b><br><br>The music is set to <b>%d %%</b> on <b>%s</b> (system volume %d %%). That can damage your hearing. Playback waits for your choice.":
+        "<b style='color:#d32f2f; font-size:16px'>⚠ LUIDE MUZIEK OP EEN KOPTELEFOON</b><br><br>De muziek staat op <b>%d %%</b> op <b>%s</b> (systeemvolume %d %%). Dat kan je gehoor beschadigen. Het afspelen wacht op je keuze.",
+    'You are asked again only if it gets louder than what you choose now.':
+        'Je wordt alleen opnieuw gevraagd als het luider wordt dan wat je nu kiest.',
+    'Reduce to %d %%':
+        'Verlagen naar %d %%',
+    'Keep %d %%':
+        '%d %% houden',
+    '⚠ Loud music on a headset (%d %%): can damage your hearing':
+        '⚠ Luide muziek op een koptelefoon (%d %%): kan je gehoor beschadigen',
+    "Level, dip and times: 🔊 Sound & player.":
+        "Niveau, daling en tijden: 🔊 Geluid & speler.",
+    "🥇 Celebration — the music plays on":
+        "🥇 Viering — de muziek speelt door",
+    "🥇  Celebration: music plays on":
+        "🥇  Viering: de muziek speelt door",
+    "After the play length has faded a title out, it can come back up\nas background while the couples celebrate. Which titles do:\nthe 🥇 switch on the ▶ panel, and for the 🏆 tournament set's\nfinals ⚙ Settings → 🎛 Playsets.":
+        "Nadat de speelduur een titel heeft weggefaded, kan hij als\nachtergrond terugkomen terwijl de paren vieren. Welke titels:\nde 🥇 schakelaar in het ▶ paneel en, voor de finales van de\n🏆 toernooiset, ⚙ Instellingen → 🎛 Speelsets.",
+    "Clear all":
+        "Alles leegmaken",
+    "What should be emptied? This can't be undone.":
+        "Wat moet er leeggemaakt worden? Dit kan niet ongedaan worden gemaakt.",
+    "🧹  All playlists (%d filled)":
+        "🧹  Alle afspeellijsten (%d gevuld)",
+    "⭐  All wishlists (%d filled)":
+        "⭐  Alle wensenlijsten (%d gevuld)",
+    "🤸  Party / competition list (%d titles)":
+        "🤸  Party-/wedstrijdlijst (%d titels)",
+    "Put every value on the 🎛 Cartwall tab back on the default? Nothing is saved until you press OK.":
+        "Alle waarden op het tabblad 🎛 Cartwall terugzetten naar de standaard? Er wordt pas iets opgeslagen als je op OK drukt.",
+    "Put the fade times, the duck and the pre-roll back on the default? Nothing is saved until you press OK.":
+        "De fadetijden, de ducking en de voorloop terugzetten naar de standaard? Er wordt pas iets opgeslagen als je op OK drukt.",
+    "Every title of that source is already in a deck.":
+        "Elke titel van die bron staat al in een deck.",
+    "The chosen folders hold no titles.":
+        "De gekozen mappen bevatten geen titels.",
+    "Choose at least one library folder first.":
+        "Kies eerst minstens één bibliotheekmap.",
+    "Puts everything on this tab back on the values the program\nships with. Pads keep their own settings. Nothing is saved\nuntil you press OK.":
+        "Zet alles op dit tabblad terug op de waarden waarmee het programma\nwordt geleverd. Pads behouden hun eigen instellingen. Er wordt pas\niets opgeslagen als je op OK drukt.",
+    "Puts the fade times, the duck and the pre-roll back on the values the program ships with. Nothing is saved until you press OK.":
+        "Zet de fadetijden, de ducking en de voorloop terug op de waarden waarmee het programma wordt geleverd. Er wordt pas iets opgeslagen als je op OK drukt.",
+    "Draw only from the titles in the library folders you tick. A folder counts for the titles directly in it, not below it.":
+        "Alleen trekken uit de titels van de aangevinkte bibliotheekmappen. Een map telt voor de titels die er direct in staan, niet voor die eronder.",
+    "Leave out the titles another deck already holds — planned or played (played ones stay in their deck, greyed).":
+        "Titels weglaten die een ander deck al bevat — gepland of gespeeld (gespeelde blijven grijs in hun deck staan).",
+    "Ask what to empty: all playlists (ticked), all wishlists and the\nparty / competition list (both unticked, so they are kept).\nTip: Del on a deck's title clears just that one playlist;\nDel on a wishlist's title clears that wishlist.":
+        "Vraagt wat er leeggemaakt moet worden: alle afspeellijsten (aangevinkt), alle wensenlijsten en\nde party-/wedstrijdlijst (beide niet aangevinkt, dus ze blijven behouden).\nTip: Del op de titel van een deck maakt alleen die ene afspeellijst leeg;\nDel op de titel van een wensenlijst maakt die wensenlijst leeg.",
+    "Nothing to clear — all lists are empty.":
+        "Niets om leeg te maken — alle lijsten zijn leeg.",
+    "🧹 Cleared the chosen lists.":
+        "🧹 De gekozen lijsten zijn leeggemaakt.",
+    "%s already exists.\n\nReplace it?":
+        "%s bestaat al.\n\nVervangen?",
+    "The settings could not be saved.\n\nThey apply until the app is closed. Is the settings folder writable and the disk not full?":
+        "De instellingen konden niet worden opgeslagen.\n\nZe gelden tot de app wordt afgesloten. Is de instellingenmap beschrijfbaar en de schijf niet vol?",
+    "“%s” already exists and holds files.\nReplace writes the playlists over the files of the same name; other files in it stay.\nKeep both saves into a new folder.":
+        "„%s” bestaat al en bevat bestanden.\nVervangen schrijft de afspeellijsten over de bestanden met dezelfde naam; andere bestanden blijven staan.\nBeide bewaren slaat op in een nieuwe map.",
+    "Already running": "Draait al",
+    "DanceSport Planner & Player is already running.\nSwitch to its window; a second copy would overwrite its playlist.":
+        "DanceSport Planner & Player draait al.\nGa naar dat venster; een tweede kopie zou de afspeellijst overschrijven.",
+    "Check failed — %s":
+        "Controle mislukt — %s",
 }

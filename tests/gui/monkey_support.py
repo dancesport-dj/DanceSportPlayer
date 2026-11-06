@@ -770,6 +770,7 @@ class ClickThrough(LoadedWindow):
     @contextmanager
     def clicking(self):
         op = Operator(self._roots)
+        outer, self._operator = getattr(self, "_operator", None), op
         with ExceptionTrap(op) as trap:
             op.start()
             try:
@@ -777,6 +778,7 @@ class ClickThrough(LoadedWindow):
                     yield op
             finally:
                 op.stop()
+                self._operator = outer
         if trap.caught:
             self.fail("an exception escaped:\n\n" + "\n\n".join(trap.caught))
         self.assertEqual(op.script, [], "a scripted dialog or menu never opened")
@@ -912,6 +914,17 @@ class ClickThrough(LoadedWindow):
                     QDialogButtonBox.StandardButton.Ok))
         op.answer(self.titled("⚙  Settings"), act)
         self.click(self.win._cfg.settings_btn)
+        self.assertTrue(self.wait_until(lambda: not op.script), op.script)
+
+    def clear_all(self):
+        """🧹 Clear all with its default ticks (the playlists), confirmed."""
+        op = getattr(self, "_operator", None)
+        if op is None:
+            with self.clicking() as op:
+                return self.clear_all()
+        op.answer(self.titled("Clear all"), lambda dlg: self.click(
+            dlg.box.button(QDialogButtonBox.StandardButton.Ok)))
+        self.click(self.button("Ask what to empty"))
         self.assertTrue(self.wait_until(lambda: not op.script), op.script)
 
     def import_list(self, path: Path):

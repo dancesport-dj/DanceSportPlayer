@@ -92,3 +92,11 @@ TODO-*.md
 # Third-party fpcalc build (Chromaprint, see BUILD.md — download it, don't commit it)
 chromaprint-fpcalc-*/
 fpcalc.exe
+
+# Machine-local run state: instance lock and the private play history
+app.lock
+play_session.json
+play_log_dialog.json
+
+# Planner manual PDF (built, like docs/manual/**/manual.pdf)
+docs/manual-planner/manual.pdf

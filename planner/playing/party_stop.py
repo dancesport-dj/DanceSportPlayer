@@ -27,7 +27,7 @@ def stop_time_choices(now: datetime) -> list[datetime]:
     slot = now.replace(second=0, microsecond=0)
     slot += timedelta(minutes=5 - slot.minute % 5)
     last = slot.replace(hour=1, minute=55)
-    if slot.hour >= 2:
+    if slot.hour >= 6:   # still tonight; in the small hours `last` is behind us
         last += timedelta(days=1)
     last = max(last, slot + timedelta(hours=2))
     choices = []

@@ -94,6 +94,7 @@ from planner.music.scan_caches import (
 from planner.music.similarity import (  # auto-resolved
     timbre_similarity,
 )
+from planner.music.title_twins import title_twins as build_title_twins
 from planner.playlist.playlist_text import PlaylistEncodingError, playlist_files, read_playlist_text
 from planner.system_info import UsageMeter, lower_thread_priority
 
@@ -108,7 +109,8 @@ _GENRE_CATEGORY_RE = re.compile(r'^(?:ballroom|standard|latin|latein)\s+', re.IG
 ANCHOR_DEFAULT: Any = object()
 
 def library_mp3s(root: Path,
-                  mtimes: dict[str, int] | None = None) -> list[tuple[Path, float]]:
+                  mtimes: dict[str, int] | None = None,
+                  unlisted: list[str] | None = None) -> list[tuple[Path, float]]:
     """Every music file (LIBRARY_EXTS) under `root` with the time it was
     created (breadth-first).
 
@@ -119,18 +121,32 @@ def library_mp3s(root: Path,
     column shows: a copied file gets a fresh creation time at its destination,
     while its mtime still carries whenever the tags were last written.
     `mtimes`, when given, receives that mtime per path, for the scan's cache keys.
+    `unlisted`, when given, receives every folder or file the walk could not read:
+    what is missing from the result is then not known to be gone.
     """
     out: list[tuple[Path, float]] = []
     queue = deque([str(root)])
+    # A junction is a directory to `is_dir(follow_symlinks=False)`, so one that
+    # points back at a parent would be walked until the path gets too long.
+    # Where junctions lead is remembered; a plain folder never needs the lookup.
+    walked = {os.path.normcase(os.path.realpath(root))}
     while queue:   # level by level; pathlib's own rglob order is no more meaningful
+        folder = queue.popleft()
         try:
-            with os.scandir(queue.popleft()) as it:
+            with os.scandir(folder) as it:
                 entries = list(it)
         except OSError:
+            if unlisted is not None:
+                unlisted.append(folder)
             continue
         for de in entries:
             try:
                 if de.is_dir(follow_symlinks=False):
+                    if de.is_junction():
+                        real = os.path.normcase(os.path.realpath(de.path))
+                        if real in walked:
+                            continue
+                        walked.add(real)
                     queue.append(de.path)
                 elif de.name.lower().endswith(LIBRARY_EXTS):
                     st = de.stat()
@@ -141,6 +157,8 @@ def library_mp3s(root: Path,
                     if mtimes is not None:
                         mtimes[de.path] = int(st.st_mtime)
             except OSError:
+                if unlisted is not None:
+                    unlisted.append(de.path)
                 continue
     return out
 
@@ -492,6 +510,9 @@ def _heal_cached(path, cached, scan_cache):
 
 
 class MusicLibrary(PlaylistIndexMixin):
+    # Set by the window once the audio cache is open (read with getattr).
+    audio_cache: Any
+
     def __init__(self):
         self._entries_version = 0
         self.entries = []
@@ -517,6 +538,13 @@ class MusicLibrary(PlaylistIndexMixin):
         self._by_path: dict[str, MusicEntry] = {}
         self._by_path_ci: dict[str, MusicEntry] = {}
         self._path_idx_key: tuple[int, int] | None = None
+        # The files filed under another name for one song (`title_twins`), kept for
+        # as long as `entries` stays as it is — a suggester is made per action.
+        self._title_twin_map: dict[str, frozenset[str]] = {}
+        self._title_twin_key: tuple[int, int] | None = None
+        # dance → its entries, for `by_dance`; same staleness key as the two above.
+        self._by_dance_map: dict[str, list[MusicEntry]] = {}
+        self._by_dance_key: tuple[int, int] | None = None
         # Reused across make_external_entry() calls so restoring a playlist full
         # of external tracks doesn't reload the whole scan_meta table per track.
         self._scan_cache: ScanCache | None = None
@@ -593,7 +621,8 @@ class MusicLibrary(PlaylistIndexMixin):
             # The walk already has every file's mtime: lent to the cache, it
             # spares the fingerprint lookups a stat per file (two, in fact).
             mtimes: dict[str, int] = {}
-            found = library_mp3s(music_dir, mtimes)
+            unlisted: list[str] = []
+            found = library_mp3s(music_dir, mtimes, unlisted)
             cache.listed_mtimes = mtimes
             added_ts = {str(p): ts for p, ts in found}
             modified_ts = {str(p): mtimes[str(p)] for p, _ in found if str(p) in mtimes}
@@ -704,7 +733,11 @@ class MusicLibrary(PlaylistIndexMixin):
             log.info("  🎶 %s MP3 files found", len(self.entries))
             scan_cache.save()
             if global_cache is not None:
-                if not stopped:     # a file not reached is not a file gone
+                if unlisted:        # a folder not listed is not a folder gone
+                    log.warning("⚠️ Folders could not be listed, the cache is not pruned\n"
+                                "folders: %d\n"
+                                "first: %s", len(unlisted), unlisted[0])
+                elif not stopped:     # a file not reached is not a file gone
                     global_cache.prune(seen)
                 global_cache.save()
                 log.info("  ♻️  %s reused from global cache, %s (re)scanned",
@@ -1140,6 +1173,21 @@ class MusicLibrary(PlaylistIndexMixin):
             self._path_idx_key = key
         return self._by_path, self._by_path_ci
 
+    def title_twins(self) -> dict[str, frozenset[str]]:
+        """{path: other paths that are the same song under another name}, rebuilt
+        when `entries` is replaced or changes size (see `_path_index`). The first
+        build takes seconds on a big library, so it is the library's, not a
+        suggester's: those are made per Generate, Restore and Theme."""
+        key = (self._entries_version, len(self.entries))
+        if self._title_twin_key != key:
+            try:
+                self._title_twin_map = build_title_twins(self.entries)
+            except Exception as exc:
+                log.warning("🎵 Title twins unavailable: %s", exc)
+                self._title_twin_map = {}
+            self._title_twin_key = key
+        return self._title_twin_map
+
     def entry_for(self, path: Path | str, cache: AudioCache | None = None, *,
                   require_file: bool = False) -> MusicEntry | None:
         """The library entry for `path`, or None.
@@ -1172,7 +1220,17 @@ class MusicLibrary(PlaylistIndexMixin):
             return None
 
     def by_dance(self, dance: str) -> list[MusicEntry]:
-        return [e for e in self.entries if e.dance == dance]
+        """The entries of one dance, in library order. The suggester asks once per
+        pick, so the split by dance is made once per `entries` (see `_path_index`)
+        and the caller gets its own list."""
+        key = (self._entries_version, len(self.entries))
+        if self._by_dance_key != key:
+            groups: dict[str, list[MusicEntry]] = {}
+            for e in self.entries:
+                if e.dance is not None:
+                    groups.setdefault(e.dance, []).append(e)
+            self._by_dance_map, self._by_dance_key = groups, key
+        return list(self._by_dance_map.get(dance, ()))
 
     def restricted_to(self, entries: list[MusicEntry]) -> MusicLibrary:
         """A view of this library holding only `entries` — everything a pick is

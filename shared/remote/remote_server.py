@@ -54,7 +54,7 @@ log = logging.getLogger("dancesport.remote")
 DEFAULT_PORT = 8765
 PIN_HEADER = "X-Remote-Pin"
 COMMANDS = frozenset({"toggle", "next", "prev", "fade", "hold", "pad", "stop_pads",
-                      "announce", "seek", "xfade", "advance", "jump"})
+                      "announce", "seek", "xfade", "advance", "jump", "volume"})
 MAX_FAILS = 5
 _LOCK_SECS = 60
 GLOBAL_MAX_FAILS = 30          # wrong PINs from all addresses together…
@@ -125,7 +125,12 @@ def forwarded_client(peer: str, headers, tunnel_host: str) -> str:
     forwarded = (headers.get("CF-Connecting-IP") or "").strip()
     if (tunnel_host and forwarded
             and ipaddress.ip_address(peer.split("%", 1)[0]).is_loopback):
-        return forwarded[:64]
+        # Parsed, so the lockouts and budgets keyed on it never see a value that
+        # is no address, nor one address under two spellings.
+        try:
+            return str(ipaddress.ip_address(forwarded))
+        except ValueError:
+            return peer
     return peer
 
 
@@ -395,17 +400,18 @@ class _Handler(LimitedHandler):
             msg = json.loads(raw.decode("utf-8"))
             cmd = msg["cmd"]
             arg = (msg.get("pad") if cmd == "pad" else msg.get("to") if cmd == "seek"
+                   else msg.get("level") if cmd == "volume"
                    else (msg.get("to"), msg.get("title")) if cmd == "jump" else None)
         except (ValueError, KeyError, TypeError, AttributeError):
             self._send(400)
             return
         if (not isinstance(cmd, str) or cmd not in COMMANDS
                 or (cmd == "pad" and (type(arg) is not int or arg < 0))
-                or (cmd == "seek" and not _bar_point(arg))
+                or (cmd in ("seek", "volume") and not _bar_point(arg))
                 or (cmd == "jump" and not _next_pick(arg))):
             self._send(400)
             return
-        if cmd == "seek" and isinstance(arg, (int, float)):   # _bar_point checked it
+        if cmd in ("seek", "volume") and isinstance(arg, (int, float)):   # _bar_point checked it
             arg = float(arg)
         self.app.note("cmd", self._phone(), cmd if arg is None else f"{cmd} {arg}")
         self.app.on_command(cmd, arg)
@@ -502,10 +508,16 @@ class RemoteServer:
         self.tunnel_host = urlsplit(url).hostname or ""
 
     def set_pin(self, pin: str) -> None:
-        """A new PIN at once; phones that knew the old one must log in again."""
+        """A new PIN at once; phones that knew the old one must log in again.
+        Wrong guesses at the old PIN say nothing about the new one, so every
+        lockout and pause they caused is lifted with it."""
         with self._lock:
             self._pin = str(pin)
             self._seen.clear()
+            self._fails.clear()
+            for recent in self._recent_fails.values():
+                recent.clear()
+            self._next_slot = {False: 0.0, True: 0.0}
 
     def publish(self, state: dict) -> None:
         with self._lock:

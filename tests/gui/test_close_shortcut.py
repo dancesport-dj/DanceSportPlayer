@@ -176,6 +176,25 @@ class CloseShortcutTest(unittest.TestCase):
         for kind in (QEvent.Type.Show, QEvent.Type.Paint):
             self.assertFalse(self.win.eventFilter(item, QEvent(kind)))
 
+    def test_escape_closes_the_mini_player_and_stops_it(self):
+        from unittest import mock
+        self.win._preview.show()
+        self.app.processEvents()
+        esc = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Escape,
+                        Qt.KeyboardModifier.NoModifier)
+        with mock.patch.object(self.win, "_on_stop_btn") as stop, \
+                mock.patch.object(QApplication, "activeWindow", return_value=self.win):
+            self.assertTrue(self.win.eventFilter(self.win, esc))
+            stop.assert_called_once()
+
+    def test_escape_without_a_mini_player_is_left_alone(self):
+        from unittest import mock
+        self.win._preview.hide()
+        esc = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Escape,
+                        Qt.KeyboardModifier.NoModifier)
+        with mock.patch.object(QApplication, "activeWindow", return_value=self.win):
+            self.assertFalse(self.win.eventFilter(self.win, esc))
+
 
 if __name__ == "__main__":
     unittest.main()

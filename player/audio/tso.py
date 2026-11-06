@@ -18,7 +18,7 @@ class TsoTarget(NamedTuple):
 
 
 def tso_band_of(settings: dict, dance: str) -> planner.models.TsoBand:
-    """Where in its TSO band this dance is pitched — ⚙ Settings → 🎛 Play sets.
+    """Where in its TSO band this dance is pitched — ⚙ Settings → 🎛 Playsets.
 
     Unset dances keep the heat mean, which is what the button did before the
     setting existed."""
@@ -70,7 +70,7 @@ def tso_target(bpms: list, dance: str, own_bpm: float,
     # Where in the TSO band the dance is danced: by default the round's own
     # takt pulled into the range (raise a too-slow Rumba/Paso Doble to the
     # legal minimum, cap a too-fast one), or the fixed lower / middle / upper
-    # takt this dance is set to in ⚙ Settings → 🎛 Play sets.
+    # takt this dance is set to in ⚙ Settings → 🎛 Playsets.
     target = danced_at
     if lo is not None and hi is not None:     # the dance has a band
         target = planner.models.tso_band_target(lo, hi, danced_at, band)

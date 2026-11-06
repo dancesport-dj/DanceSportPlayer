@@ -90,6 +90,9 @@ class _Desk(QObject, PlayerControlMixin):
 
     PATH = Path(r"C:\music\walzer.mp3")
 
+    def _sync_celebrate_btn(self):
+        pass
+
     def __init__(self, panel, table, announcer):
         QObject.__init__(self)
         self._play_panel = panel
@@ -292,6 +295,19 @@ class AnnounceWaitTest(unittest.TestCase):
             self.assertFalse(desk._announce_start_first(_Entry()), wait)
             desk._maybe_announce_start(_Entry())
             self.assertEqual(desk._announcer.spoken, [], wait)
+
+    def test_the_first_title_under_a_crossfade_still_waits_for_the_call(self):
+        """Tier 1 #5: no crossfade reaches the first title of a list, so the
+        'before the music' choice holds for it although a crossfade is on."""
+        desk, _t = self.desk(wait=True)
+        desk._play_panel.xfade_check.setChecked(True)
+        desk._play_panel.advance_check.setChecked(True)
+        self.assertFalse(desk._play_panel.announce_wait())   # the line says 'over'
+        self.assertTrue(desk._announce_start_first(_Entry()))
+        self.assertEqual(desk._announcer.spoken, [("LW", True)])
+        desk._maybe_announce_start(_Entry())
+        self.assertEqual(desk._announcer.spoken, [("LW", True)],
+                         "named a second time over the music")
 
     def test_nothing_waits_for_a_call_that_is_switched_off(self):
         desk, _t = self.desk(wait=True, announce=False)

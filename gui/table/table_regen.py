@@ -55,6 +55,21 @@ class TableRegenMixin(PlaylistTableHost):
         return (ctx.get("cls") or self._dance_class,
                 ctx.get("style") or self._style)
 
+    def _follow_reroll(self, row: int):
+        """The playing row got a new pick. At the desk the music on the floor
+        keeps running and the ■ stays. In a planning preview nobody is on the
+        floor: the new pick sounds instead, so the ■ never sits on a row whose
+        music is another title (it would take a second click to hear it). A
+        title that was only cued stays cued."""
+        if row != self._current_play_row:
+            return
+        entry = self._row_meta[row].entry
+        if self.pauses_on_stop() or self._player_stopped() or entry is None or not self._play_cb:
+            self.sync_play_glyph()
+            return
+        self.sync_play_glyph(True)
+        self._play_cb(entry.path)
+
     def _store_pick(self, meta, new_entry):
         """Put a new title (a re-roll's pick, a drop) where the row's title
         lives and onto the row.
@@ -127,8 +142,8 @@ class TableRegenMixin(PlaylistTableHost):
                 QMessageBox.information(self, "Regenerate", "No alternative song found.")
                 return
 
-            # Update metadata + live playlist. A playing title keeps playing: the
-            # cursor stays on the slot, so the evening runs on from here.
+            # Update metadata + live playlist. The cursor stays on the slot, so
+            # the evening runs on from here (see _follow_reroll for the music).
             self._store_pick(meta, new_entry)
 
             # Defer row redraw so it happens after the clicked signal returns.
@@ -137,8 +152,7 @@ class TableRegenMixin(PlaylistTableHost):
 
             def _after():
                 self._fill_song_row(row, meta, bg)
-                if row == self._current_play_row:
-                    self.sync_play_glyph()
+                self._follow_reroll(row)
                 # Keep the row selected AND the keyboard focus on the table so the
                 # Space / Ctrl+R / Ctrl+N shortcuts keep firing after a re-roll.
                 self.setCurrentCell(row, _COL_TITLE)
@@ -269,8 +283,7 @@ class TableRegenMixin(PlaylistTableHost):
 
         def _after():
             self._fill_song_row(row, meta, bg)
-            if row == self._current_play_row:
-                self.sync_play_glyph()
+            self._follow_reroll(row)
             self.setCurrentCell(row, _COL_TITLE)
             self.setFocus(Qt.FocusReason.OtherFocusReason)
             self._notify_changed()
@@ -343,9 +356,10 @@ class TableRegenMixin(PlaylistTableHost):
                     meta = self._row_meta[r]
                     bg = C_ROW_EVEN if meta.h_idx % 2 == 0 else C_ROW_ODD
                     self._fill_song_row(r, meta, bg)
-                # A playing title keeps playing; its row gets its ■ back.
+                # A playing title keeps playing at the desk; a preview plays
+                # the new pick. Either way the row gets its ■ back.
                 if self._current_play_row in target_rows:
-                    self.sync_play_glyph()
+                    self._follow_reroll(self._current_play_row)
                 # Keep keyboard focus on the table so shortcuts keep working.
                 self.setFocus(Qt.FocusReason.OtherFocusReason)
                 self._notify_changed()
@@ -423,7 +437,7 @@ class TableRegenMixin(PlaylistTableHost):
                     bg = C_ROW_EVEN if meta.h_idx % 2 == 0 else C_ROW_ODD
                     self._fill_song_row(r, meta, bg)
                 if self._current_play_row in all_rows:
-                    self.sync_play_glyph()
+                    self._follow_reroll(self._current_play_row)
                 self.setFocus(Qt.FocusReason.OtherFocusReason)
                 self._notify_changed()
             QTimer.singleShot(0, _redraw)

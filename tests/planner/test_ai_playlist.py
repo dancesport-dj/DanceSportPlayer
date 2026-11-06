@@ -340,6 +340,17 @@ class GridTest(unittest.TestCase):
                            {"n": 1, "round": "Vorrunde", "heat": 1}])
         self.assertEqual(self._filled(grid), 1)
 
+    def test_two_files_of_one_song_are_one_pick(self):
+        """The grid deduped on the path, so a song that is in the library twice
+        (another folder, another copy) could fill two heats of the same dance."""
+        twins = [MusicEntry(path=Path(f"C:/lib/{folder}/Moon River (SA 51).mp3"),
+                            title="Moon River", dance="SA", bpm=51)
+                 for folder in ("a", "b")]
+        grid = llm.assemble_grid([{"n": 1, "round": "Vorrunde", "heat": 1},
+                                  {"n": 2, "round": "Vorrunde", "heat": 2}],
+                                 twins, DANCES, self.rounds)
+        self.assertEqual(self._filled(grid), 1)
+
     def test_a_mislabelled_pick_does_not_double_a_track(self):
         """The same number twice — once unplaceable, once in a real slot —
         must not put one Samba into two heats."""

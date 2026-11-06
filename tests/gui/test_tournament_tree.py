@@ -284,6 +284,23 @@ class PaneFilingTest(_PaneCase):
         self.assertEqual(tiles.TourneyTree._m3u_urls(mime),
                          [Path(r"C:\lists\t1.m3u")])
 
+    def test_an_m3u8_is_taken_from_a_drop_as_well(self):
+        mime = QMimeData()
+        mime.setUrls([QUrl.fromLocalFile(r"C:\lists\t1.M3U8")])
+        self.assertEqual(tiles.TourneyTree._m3u_urls(mime),
+                         [Path(r"C:\lists\t1.M3U8")])
+
+    def test_an_m3u8_in_a_dropped_folder_is_a_playlist_of_it(self):
+        from gui.tournament_tree import TournamentTree
+
+        class Walker:
+            _folder_node = TournamentTree._folder_node
+
+        (self.dir / "t1.m3u").write_text("a.mp3\n", encoding="utf-8")
+        (self.dir / "t2.m3u8").write_text("b.mp3\n", encoding="utf-8")
+        node = Walker()._folder_node(self.dir)
+        self.assertEqual(sorted(c["name"] for c in node["children"]), ["t1", "t2"])
+
     def test_a_folder_is_taken_from_a_drop_too(self):
         mime = QMimeData()
         mime.setUrls([QUrl.fromLocalFile(str(self.dir))])

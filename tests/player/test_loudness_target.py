@@ -94,6 +94,11 @@ class TruePeakCapTest(unittest.TestCase):
     def test_a_deeper_cut_is_not_lifted(self):
         self.assertAlmostEqual(_db(_gain(-9.0, tp=-0.2)), -5.0, places=6)
 
+    def test_a_bogus_peak_cannot_mute_a_song(self):
+        """A true peak of +20 dBTP is a broken measurement; the −12 dB floor
+        holds for it as it does for a broken loudness."""
+        self.assertAlmostEqual(_db(_gain(-9.0, tp=20.0)), -12.0, places=6)
+
     def test_no_peak_on_record_caps_nothing(self):
         self.assertAlmostEqual(_db(_gain(-20.0, tp=None)), 6.0, places=6)
 

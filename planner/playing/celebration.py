@@ -13,10 +13,10 @@ The settings and the rule live here, without players or widgets, so the
 from planner.playing.play_sets import round_kind
 
 CELEBRATE_MODES = ("off", "last", "all")
-CELEBRATE_PCT = 60   # 🥇 how loud it comes back, % of the music's level
+CELEBRATE_PCT = 50   # 🥇 how loud it comes back, % of the music's level
 CELEBRATE_PCT_MIN = 5
 CELEBRATE_DIP_PCT = 5   # 🥇 how low the play-length fade takes it first
-CELEBRATE_HOLD_SECS = 2.0   # …how long it stays there
+CELEBRATE_HOLD_SECS = 3.0   # …how long it stays there
 CELEBRATE_UP_SECS = 3.0   # …over how long it comes up
 CELEBRATE_DOWN_SECS = 3.0   # …and goes down again at its end
 CELEBRATE_MAX_SECS = 10.0

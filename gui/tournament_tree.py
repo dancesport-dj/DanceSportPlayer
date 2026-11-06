@@ -12,6 +12,7 @@ Two grips on the same thing: drag a tournament out to load the whole round onto
 a deck, or pick it and drag single tracks out of the list below it.
 """
 import logging
+import os
 import re
 import threading
 from collections.abc import Callable
@@ -1044,16 +1045,22 @@ class TournamentTree(QWidget):
         self._tree.setCurrentItem(item)
         self._add_m3u_files(self._target_children(), paths)
 
-    def _folder_node(self, folder: Path, tick=None) -> dict | None:
+    def _folder_node(self, folder: Path, tick=None, walked=None) -> dict | None:
         """A dropped folder as a branch: sub-folders become folders, .m3u files
         become playlists — folders first, then files, as Explorer shows them.
         None when there is no playlist under it at all — a music folder would
         otherwise arrive as an empty skeleton.
 
         `tick(folder)` is called for every folder read, so the walk can say
-        where it is instead of looking hung."""
+        where it is instead of looking hung.
+
+        `walked` holds where junctions and directory symlinks led so far:
+        `is_dir()` follows either, and a link back to a parent would be read
+        until Python gave up."""
         if tick is not None:
             tick(folder)
+        if walked is None:
+            walked = {os.path.normcase(os.path.realpath(folder))}
         children: list[dict] = []
         try:
             items = sorted(folder.iterdir(),
@@ -1065,10 +1072,15 @@ class TournamentTree(QWidget):
             return None
         for p in items:
             if p.is_dir():
-                sub = self._folder_node(p, tick)
+                if p.is_junction() or p.is_symlink():
+                    real = os.path.normcase(os.path.realpath(p))
+                    if real in walked:
+                        continue
+                    walked.add(real)
+                sub = self._folder_node(p, tick, walked)
                 if sub is not None:
                     children.append(sub)
-            elif p.name.lower().endswith(".m3u"):
+            elif p.name.lower().endswith((".m3u", ".m3u8")):
                 children.append({"name": p.stem, "m3u": str(p)})
         return {"name": folder.name, "children": children} if children else None
 

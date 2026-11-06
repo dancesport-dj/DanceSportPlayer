@@ -45,7 +45,8 @@ class UnplannedPathCaseTest(unittest.TestCase):
             _library=SimpleNamespace(
                 cache=None, lib=SimpleNamespace(entries=[planned, other]), global_lib=None),
             _lib_browser=browser,
-            _visible_deck_tables=lambda: [deck])
+            _visible_deck_tables=lambda: [deck],
+            _planned_source_tables=lambda: [deck])
         win._deck_dedup_index = functools.partial(
             DuplicateCheckMixin._deck_dedup_index, win)
 
@@ -76,7 +77,8 @@ class UnplannedPathCaseTest(unittest.TestCase):
             _library=SimpleNamespace(cache=None, lib=SimpleNamespace(entries=[]),
                                      global_lib=None),
             _lib_browser=browser,
-            _visible_deck_tables=lambda: [deck])
+            _visible_deck_tables=lambda: [deck],
+            _planned_source_tables=lambda: [deck])
         win._deck_dedup_index = functools.partial(
             DuplicateCheckMixin._deck_dedup_index, win)
         browser._unplanned_chk.blockSignals(True)
@@ -114,7 +116,8 @@ class UnplannedPathCaseTest(unittest.TestCase):
             _library=SimpleNamespace(cache=cache, lib=SimpleNamespace(entries=[on_deck]),
                                      global_lib=SimpleNamespace(entries=[copy, other])),
             _lib_browser=browser,
-            _visible_deck_tables=lambda: [deck])
+            _visible_deck_tables=lambda: [deck],
+            _planned_source_tables=lambda: [deck])
         win._deck_dedup_index = functools.partial(
             DuplicateCheckMixin._deck_dedup_index, win)
         browser.unplannedToggled.connect(

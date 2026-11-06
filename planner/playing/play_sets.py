@@ -45,10 +45,17 @@ TOURNAMENT_SET = {"secs": 105, "fade": 3, "fade_inside": False,
                    "dblclick": False, "xfade": XFADE_DEFAULT_SECS,
                    "xfade_on": False, "xfade_curve": "equal"}
 
-# Both sets are only defaults: ⚙ Settings → 🎛 Play sets writes the user's own
+# 🏃 …and a training: the party's way of playing, but with a pause of 25 s
+# between the titles to talk, change and take position — the only set that
+# carries `pause_secs`, the pause's length.
+TRAINING_SET = dict(PARTY_SET, pause_off=False, pause_secs=25)
+PAUSE_MAX_SECS = 120   # the panel's own spin box
+
+# Every set is only a default: ⚙ Settings → 🎛 Playsets writes the user's own
 # values under these keys, one dict per set.
 _SET_KEYS = {"party": ("party_set", PARTY_SET),
-             "tournament": ("tournament_set", TOURNAMENT_SET)}
+             "tournament": ("tournament_set", TOURNAMENT_SET),
+             "training": ("training_set", TRAINING_SET)}
 # …and the 🏆 set's per-dance lengths, see `dance_secs_of`. Shipped as Marcel
 # plays a heat: 1:30 for the Waltzes, the Quickstep and the Jive, 1:37 for the
 # rest. The Paso Doble plays in full (0) — Marcel: "default tournent set for
@@ -75,13 +82,13 @@ ROUND_PD_PICKS = (0, 1, 2)
 # different dance at whatever tempo it was recorded at. Kept out of the dicts
 # above because the toggle sits on the player card and not on the panel, so it
 # cannot ride along in `apply_play_set` — it IS stored in the same set, though.
-_SET_TSO = {"party": False, "tournament": True}
+_SET_TSO = {"party": False, "tournament": True, "training": False}
 
 # ❓ …and whether a double-click on another title asks before it stops the one
 # playing: on in both, a stray click cuts the floor at a party as at a heat.
 # Kept out of the dicts above like the TSO pitch: Marcel wants no switch for it
 # on the panel, so `apply_play_set` has no place for it. Stored in the same set.
-_SET_ASK = {"party": True, "tournament": True}
+_SET_ASK = {"party": True, "tournament": True, "training": True}
 
 # 🐂 …and the Paso Doble of a heat: no stop at the highlight — Marcel: "it can
 # be buggy", and a heat stopped in the wrong bar is danced twice — after the
@@ -94,7 +101,9 @@ TOURNAMENT_PD = {"pd_stop": False, "pd_n": 2, "pd_delay": 0}
 # playing paso till second highlight and wait 3 seconds before starting" —
 # the couples take their position. Later: "set start after default to 1s".
 PARTY_PD = {"pd_stop": True, "pd_n": 2, "pd_delay": 1}
-_SET_PD = {"party": PARTY_PD, "tournament": TOURNAMENT_PD}
+# 🏃 …and of a training: the music starts 2 s after the Paso Doble is called.
+TRAINING_PD = dict(PARTY_PD, pd_delay=2)
+_SET_PD = {"party": PARTY_PD, "tournament": TOURNAMENT_PD, "training": TRAINING_PD}
 # The ranges of the panel's own spin boxes (player.widgets.play_mode_setup).
 _PD_RANGES = {"pd_n": (1, 3), "pd_delay": (0, 60)}
 
@@ -119,6 +128,8 @@ def play_set_of(settings: dict, which: str) -> dict:
                 # Clamped to the spin box's own range: a hand-edited 99 would
                 # otherwise ramp a whole heat down to nothing.
                 out[k] = max(0.0, min(10.0, float(v)))
+            elif k == "pause_secs":
+                out[k] = max(0, min(PAUSE_MAX_SECS, int(v)))
             elif k == "xfade":
                 out[k] = max(XFADE_MIN_SECS, min(XFADE_MAX_SECS, float(v)))
             elif k == "xfade_curve":
@@ -194,7 +205,10 @@ def migrate_play_sets(s: dict) -> dict:
     default is that default as often as a choice — it is lifted; any other
     stored value was chosen and stays. Runs once: an old value picked after
     the update is kept."""
-    version = int(s.get("play_sets_version") or 1)
+    try:
+        version = int(s.get("play_sets_version") or 1)
+    except (TypeError, ValueError):
+        version = 1
     if version >= PLAY_SETS_VERSION:
         return s
     stored = s.get("tournament_set")
@@ -288,7 +302,7 @@ def round_pd_n_of(settings: dict) -> dict[str, int]:
 
 
 def tso_of(settings: dict, which: str) -> bool:
-    """Where the play set wants the TSO pitch — ⚙ Settings → 🎛 Play sets.
+    """Where the play set wants the TSO pitch — ⚙ Settings → 🎛 Playsets.
 
     Read apart from `play_set_of` because the panel's `apply_play_set` has no
     place for it: the toggle lives on the player card.
@@ -300,7 +314,7 @@ def tso_of(settings: dict, which: str) -> bool:
 
 def dblclick_ask_of(settings: dict, which: str) -> bool:
     """❓ Whether the set asks before a double-click stops the playing title —
-    ⚙ Settings → 🎛 Play sets. Read apart from `play_set_of`, like `tso_of`."""
+    ⚙ Settings → 🎛 Playsets. Read apart from `play_set_of`, like `tso_of`."""
     stored = settings.get(_SET_KEYS[which][0])
     stored = stored if isinstance(stored, dict) else {}
     return bool(stored.get("dblclick_ask", _SET_ASK[which]))
@@ -309,7 +323,7 @@ def dblclick_ask_of(settings: dict, which: str) -> bool:
 def pd_of(settings: dict, which: str = "tournament") -> dict:
     """🐂 The 🏆 tournament / 🎉 party set's Paso Doble: `pd_stop` at a
     highlight, after the `pd_n`th, and `pd_delay` seconds of 'Start after' —
-    ⚙ Settings → 🎛 Play sets. Per field, like `play_set_of`: a value of the
+    ⚙ Settings → 🎛 Playsets. Per field, like `play_set_of`: a value of the
     wrong type falls back to the default, one out of range is pulled into the
     panel's."""
     stored = settings.get(_SET_KEYS[which][0])
@@ -318,7 +332,11 @@ def pd_of(settings: dict, which: str = "tournament") -> dict:
     out["pd_stop"] = bool(stored.get("pd_stop", out["pd_stop"]))
     for k, (lo, hi) in _PD_RANGES.items():
         with contextlib.suppress(TypeError, ValueError):
-            out[k] = max(lo, min(hi, int(stored.get(k, out[k]))))
+            v = stored.get(k, out[k])
+            # 'Start after' runs in half seconds, the pick in whole highlights.
+            v = round(float(v) * 2) / 2 if k == "pd_delay" else int(v)
+            v = max(lo, min(hi, v))
+            out[k] = int(v) if v == int(v) else v
     return out
 
 
@@ -331,6 +349,11 @@ LEN_MAX = 150
 # anyway, so anything longer is what "full" is for.
 LEN_TYPED_MIN = 5
 LEN_TYPED_MAX = 20 * 60
+
+
+def _ascii_digits(text: str) -> bool:
+    """`isdigit()` is also true for "²", which `int()` then refuses."""
+    return text.isascii() and text.isdigit()
 
 
 def parse_play_length(text: str) -> int | None:
@@ -347,10 +370,10 @@ def parse_play_length(text: str) -> int | None:
         return 0
     if ":" in text:
         mins, _, secs = text.partition(":")
-        if not mins.strip().isdigit() or not secs.strip().isdigit():
+        if not _ascii_digits(mins.strip()) or not _ascii_digits(secs.strip()):
             return None
         total = int(mins) * 60 + int(secs)
-    elif text.isdigit():
+    elif _ascii_digits(text):
         total = int(text)
     else:
         return None

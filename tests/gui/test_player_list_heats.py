@@ -65,6 +65,23 @@ class PlayerListHeatsTest(unittest.TestCase):
         # One heat per dance: nothing to tell apart.
         self.assertEqual(heats["Finale-LW1"], "")
 
+    def test_a_training_list_with_a_heat_plan_shows_its_heats(self):
+        """A competition training list (m3u with '# == Round (3 Heats) ==' markers)
+        heads its strips '(3 heats, 6 songs)' from the plan — and left the Heat
+        column blank, because only a player list with known rounds painted it."""
+        rounds = (_round("Vorrunde", ["LW", "TG"], 3)
+                  + _round("Finale", ["LW", "TG"], 1))
+        t = PlaylistTable()
+        self.addCleanup(reap_widget, t)
+        t.load_warmup([e for _, e in rounds], "Training", style="", dance_class="S",
+                      relax=True, play_cb=lambda *a: None, suggester=None,
+                      heat_plan=[("Vorrunde", 3, 6), ("Finale", 1, 2)])
+        heats = self.heats(t)
+        self.assertEqual(heats["Vorrunde-LW1"], "Heat 1")
+        self.assertEqual(heats["Vorrunde-LW3"], "Heat 3")
+        self.assertEqual(heats["Vorrunde-TG2"], "Heat 2")
+        self.assertEqual(heats["Finale-LW1"], "")
+
     def test_a_list_without_rounds_names_no_heats(self):
         """Without known rounds the strips name dances, and a run of seven
         Paso Dobles is seven Paso Dobles, not seven heats."""

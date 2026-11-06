@@ -506,6 +506,20 @@ class CleanTitleTest(unittest.TestCase):
     def test_strips_pitch_suffixes(self):
         self.assertEqual(clean_title("Besame Mucho_gepitched"), "Besame Mucho")
 
+    def test_glued_edit_markers_are_still_stripped(self):
+        for name in ("Besame Mucho_pitch", "Besame Mucho (SF29)dpit",
+                     "Besame Mucho_downpitch", "Besame Mucho downpitch",
+                     "Besame Mucho_cut", "Besame Mucho normalisiert"):
+            with self.subTest(name):
+                self.assertEqual(clean_title(name), "Besame Mucho")
+
+    def test_a_word_that_merely_contains_a_marker_is_left_alone(self):
+        """'pitch', 'andV' and 'dpit' were removed wherever they occurred."""
+        for name in ("Pitch Perfect Medley", "Brandvorst", "Landvogt",
+                     "Windpit", "Pitchfork Rebellion", "Top Pitch"):
+            with self.subTest(name):
+                self.assertEqual(clean_title(name), name)
+
 
 class VersionBaseKeysTest(unittest.TestCase):
     """A remix, cover or other version names the song it is a version of —

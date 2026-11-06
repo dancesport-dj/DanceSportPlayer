@@ -51,6 +51,30 @@ class QuitBackupTest(unittest.TestCase):
         self.assertEqual(order.mock_calls,
                          [mock.call.stop_workers(), mock.call.backup_safely(refresh=True)])
 
+    def test_a_failing_shutdown_step_does_not_skip_the_rest(self):
+        """One step raising must not leave a QThread running (that aborts the
+        process with 0xC0000409) or skip the backup."""
+        win = dg.MainWindow.__new__(dg.MainWindow)
+        QMainWindow.__init__(win)
+        self.addCleanup(win.deleteLater)
+        order = mock.Mock()
+        win.save_on_quit = mock.Mock(side_effect=OSError("disk full"))
+        win._announcer = mock.Mock()
+        win._cartwall_shutdown = mock.Mock(side_effect=RuntimeError("boom"))
+        win._taskbar_shutdown = mock.Mock()
+        win._stop_remote = mock.Mock()
+        win._controller_shutdown = mock.Mock()
+        win._audio_device = mock.Mock()
+        win._stop_workers = order.stop_workers
+        win._fade_now = FadeNow()
+        win._quit_after_fade = mock.Mock(return_value=False)
+        with mock.patch.object(dg, "backup_safely", order.backup_safely):
+            win.closeEvent(QCloseEvent())
+        self.assertEqual(order.mock_calls,
+                         [mock.call.stop_workers(), mock.call.backup_safely(refresh=True)])
+        win._taskbar_shutdown.assert_called_once()
+
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -38,6 +38,15 @@ else:
     MainWindowHost = object
 
 
+def savedWhole(value, default: int) -> int:
+    """A stored whole number, or `default` when the file holds something else —
+    a hand-edited or damaged setting must not stop the window opening."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def hiddenColumnsFor(saved: dict, kind: str) -> list[int]:
     """The columns a kind of list hides: the saved choice, or the default.
 
@@ -350,7 +359,8 @@ class DeckSetupMixin(MainWindowHost):
             "(This also happens automatically on every edit and on close.)")
         btn_clear_all = QPushButton("🧹  Clear all")
         btn_clear_all.setToolTip(
-            "Empty every playlist deck (wishlists are kept).\n"
+            "Ask what to empty: all playlists (ticked), all wishlists and the\n"
+            "party / competition list (both unticked, so they are kept).\n"
             "Tip: Del on a deck's title clears just that one playlist;\n"
             "Del on a wishlist's title clears that wishlist.")
         # One button for every check, its tools in a menu like ❔'s.
@@ -419,7 +429,7 @@ class DeckSetupMixin(MainWindowHost):
         # 🔢 numbers (no grouping, plus an Nb. column counting the titles).
         self._compact_btn = QPushButton("🗜  Compact")
         self._compact_btn.setCheckable(True)
-        self._compact_state = int(self._settings.get("compact", 0) or 0)
+        self._compact_state = savedWhole(self._settings.get("compact", 0) or 0, 0)
         if self._compact_state not in (0, 1, 2, 3):
             self._compact_state = 0
         self._compact_btn.setToolTip(
@@ -436,7 +446,7 @@ class DeckSetupMixin(MainWindowHost):
             t._nogroup = self._compact_state >= 2
             t.set_numbered(self._compact_state >= 3)
         # Wishlist area cycle button: off → 1 → 2 → 3 → 4 wishlists → 4 stacked 2×2.
-        self._wish_state = int(self._settings.get("wish_state", 1))
+        self._wish_state = savedWhole(self._settings.get("wish_state", 1), 1)
         if self._wish_state not in (0, 1, 2, 3, 4):
             self._wish_state = 1
         # 2×2 grid only applies with 4 wishlists; ignore a stale flag at other counts.

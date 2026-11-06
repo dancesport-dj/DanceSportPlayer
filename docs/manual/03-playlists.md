@@ -184,7 +184,7 @@ the floor, a new album you want to try.
   The same entry and key open them all again.
 - The bar underneath counts the titles and how many are new (never played).
 
-Wishlists are kept by **🧹 Clear all**.
+Wishlists are kept by **🧹 Clear all** unless you tick them in its question.
 
 ## Loading and saving
 
@@ -199,6 +199,12 @@ Wishlists are kept by **🧹 Clear all**.
 
 On import, a deck recognises rounds, dances and heats by itself, including a
 final with extra backup titles. A wishlist appends the tracks as a flat list.
+
+Before a file or a deck is written over, the app asks. **📂 Import M3U…**
+asks before it replaces a deck that holds titles, and **💾 Save as M3U…**
+asks *Replace it?* when the name you typed gets its `.m3u` from the app and
+that file exists already. A title that an `.m3u` lists five times stays five
+rows in a player list.
 
 ### The playlist file format
 

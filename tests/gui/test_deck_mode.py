@@ -134,6 +134,18 @@ class DeckModeTest(_DeckModeBase):
         self.assertEqual(list(self.table._playlist), ["Vorrunde", "Finale"])
         self.assertEqual(self.songs(), ["LW 1", "TG 2", "LW 3", "TG 4"])
 
+    def test_pins_and_marks_survive_the_trip_back(self):
+        """Free order paints them from the same sets; the grid load reset them
+        and the autosave then stored the empty sets."""
+        pinned, marked = {str(self.entries[0].path)}, {str(self.entries[1].path)}
+        self.table._pinned_paths = set(pinned)
+        self.table._marked_paths = set(marked)
+        self.win._set_deck_mode(self.table, "free")
+        self.assertEqual(self.table._pinned_paths, pinned)
+        self.win._set_deck_mode(self.table, "static")
+        self.assertEqual(self.table._pinned_paths, pinned)
+        self.assertEqual(self.table._marked_paths, marked)
+
     def test_going_back_to_dynamic_arrives_dynamic(self):
         self.win._set_deck_mode(self.table, "free")
         self.win._set_deck_mode(self.table, "dynamic")

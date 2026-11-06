@@ -4,6 +4,8 @@ pitch target and the lengths per dance and per round.
 Split off gui/dialogs/settings_dialog.py: building the tab, and reading
 its settings back for SettingsDialog.values().
 """
+from typing import Any
+
 from PySide6.QtCore import QSignalBlocker
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -13,30 +15,26 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QMessageBox,
+    QPushButton,
+    QScrollArea,
     QSizePolicy,
     QSpinBox,
     QStackedWidget,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 
-from gui.dialogs.settings_look import _DialogHost
+from gui.dialogs.settings_look import _DialogHost, add_reset_footer
 from planner import i18n
 from planner.models import TEMPO_RANGES, TsoBand
-from planner.playing.celebration import (
-    CELEBRATE_MAX_SECS,
-    CELEBRATE_PCT_MIN,
-    celebrate_dip_pct,
-    celebrate_down_secs,
-    celebrate_hold_secs,
-    celebrate_mode,
-    celebrate_pct,
-    celebrate_up_secs,
-)
+from planner.playing.celebration import celebrate_mode
 from planner.playing.play_sets import (
     DANCE_SECS_KEY,
     LEN_MAX,
     LEN_STEP,
+    PAUSE_MAX_SECS,
     ROUND_DANCE_SECS_KEY,
     ROUND_KINDS,
     ROUND_PD_KEY,
@@ -57,17 +55,24 @@ from shared.xfade_view import CrossfadeCurveButton, CrossfadeView
 
 
 class PlaySetsTabMixin(_DialogHost):
-    """The 🎛 Play sets tab of SettingsDialog."""
+    """The 🎛 Playsets tab of SettingsDialog."""
+
+    _tabs: QTabWidget  # set by SettingsDialog, which builds the tab bar
 
     def _setup_play_sets_tab(self, settings, tabs):
-        """🎛 Play sets: what the two buttons on the ▶ panel apply."""
+        """🎛 Playsets: what the two buttons on the ▶ panel apply."""
         # ═══ Tab 4: Play sets — what the two buttons on the ▶ panel apply ═══
         sets_tab = QWidget()
         tlyt = QVBoxLayout(sets_tab)
         tlyt.setSpacing(8)
         tlyt.addWidget(QLabel(
-            "<b>🎛 Play sets</b> — the two buttons on the ▶ Playing panel put "
+            "<b>🎛 Playsets</b> — the set buttons on the ▶ Playing panel put "
             "the controls on these values in one press:"))
+
+        self._single_set_chk = QCheckBox(
+            "One button for all sets, named for the one that is on")
+        self._single_set_chk.setChecked(settings.get("single_set_button", True) is not False)
+        tlyt.addWidget(self._single_set_chk)
 
         self._set_widgets = {}
         for which, caption, blurb in (
@@ -76,7 +81,10 @@ class PlaySetsTabMixin(_DialogHost):
                  "after a party list has pulled the panel somewhere else."),
                 ("party", "🎉  Party set",
                  "Applied by itself as soon as you play from the 🤸 Practice / "
-                 "party list, and switched back when a tournament deck takes over.")):
+                 "party list, and switched back when a tournament deck takes over."),
+                ("training", "🏃  Training set",
+                 "A party's way of playing with a pause between the titles to "
+                 "talk and take position, and a short wait before a Paso Doble.")):
             self._add_play_set_box(tlyt, settings, which, caption, blurb)
             # 🎚 The pitch target belongs to the heat: right under 🏆.
             if which == "tournament":
@@ -87,14 +95,52 @@ class PlaySetsTabMixin(_DialogHost):
             "highlight stop is <i>off</i> by default: the detection is not good "
             "enough yet to cut a competition Paso Doble on, and a heat stopped "
             "in the wrong bar is danced twice. Under 🎉 it stops after the 2nd "
-            "highlight and waits 3 s, so the couples can take their position.")
+            "highlight and waits 1 s, under 🏃 2 s, so the couples can take "
+            "their position.")
         pd_note.setWordWrap(True)
         pd_note.setStyleSheet("color:#666; font-size:11px;")
         tlyt.addWidget(pd_note)
 
-        tlyt.addStretch()
-        sets_idx = tabs.addTab(sets_tab, "🎛 Play sets")
+        self._play_sets_reset_btn = QPushButton("↺ Reset to defaults")
+        self._play_sets_reset_btn.setToolTip(
+            "Puts everything on this tab back on the values the program\n"
+            "ships with. Nothing is saved until you press OK.")
+        self._play_sets_reset_btn.clicked.connect(self._reset_play_sets)
+        add_reset_footer(tlyt, self._play_sets_reset_btn)
+        self._play_sets_page = sets_tab
+        sets_idx = tabs.addTab(sets_tab, "🎛 Playsets")
         return sets_idx
+
+    def _confirm_reset(self) -> bool:
+        return QMessageBox.question(
+            self, i18n.t("Reset to defaults"),
+            i18n.t("Put every value on the 🎛 Playsets tab back on the "
+                   "default? Nothing is saved until you press OK."),
+        ) == QMessageBox.StandardButton.Yes
+
+    def _reset_play_sets(self) -> None:
+        """↺ Build the tab again from no settings at all: every field falls
+        back to the value the program ships with."""
+        if not self._confirm_reset():
+            return
+        self._rebuild_play_sets()
+
+    def _rebuild_play_sets(self) -> None:
+        for i in range(self._tabs.count()):
+            page = self._tabs.widget(i)
+            if isinstance(page, QScrollArea) and page.widget() is self._play_sets_page:
+                break
+        else:
+            return
+        scratch = QTabWidget()
+        self._setup_play_sets_tab({}, scratch)
+        fresh = scratch.widget(0)
+        scratch.removeTab(0)
+        if fresh is None:
+            return
+        page.setWidget(fresh)
+        self._play_sets_page = fresh
+        scratch.deleteLater()
 
     def _add_play_set_box(self, tlyt, settings, which, caption, blurb):
         """🏆/🎉 One play set's box: length, fades, crossfade and switches."""
@@ -159,6 +205,17 @@ class PlaySetsTabMixin(_DialogHost):
                                     "xfade_curve": curves,
                                     "boxes": boxes, "secs": cur["secs"]}
         self._set_widgets[which]["pd"] = self._add_pd_row(blyt, settings, which)
+        if "pause_secs" in cur:
+            prow = QHBoxLayout()
+            prow.addWidget(QLabel("Pause between songs:"))
+            pause = QSpinBox()
+            pause.setRange(0, PAUSE_MAX_SECS)
+            pause.setSuffix(" s")
+            pause.setValue(int(cur["pause_secs"]))
+            prow.addWidget(pause)
+            prow.addStretch(1)
+            blyt.addLayout(prow)
+            self._set_widgets[which]["pause"] = pause
         if which == "tournament":
             self._add_dance_len_grid(blyt, settings)
             # 🥇 Only a competition has a final to play on after.
@@ -194,56 +251,10 @@ class PlaySetsTabMixin(_DialogHost):
                         "is named Finale, Final or Endrunde.")
         self._celebrate_mode = mode
         row.addWidget(mode)
-        row.addSpacing(12)
-        row.addWidget(QLabel("Level:"))
-        pct = QSpinBox()
-        pct.setRange(CELEBRATE_PCT_MIN, 100)
-        pct.setSuffix(" %")
-        pct.setValue(celebrate_pct(settings))
-        pct.setToolTip("How loud it comes back, in % of the music's level.")
-        self._celebrate_pct = pct
-        row.addWidget(pct)
-        row.addSpacing(12)
-        row.addWidget(QLabel("Dip to:"))
-        dip = QSpinBox()
-        dip.setRange(0, 100)
-        dip.setSuffix(" %")
-        dip.setValue(celebrate_dip_pct(settings))
-        dip.setToolTip("How low the play-length fade takes it before it comes\n"
-                       "back up, in % of the music's level. 0 = all the way down.\n"
-                       "At most the level it comes back at.")
-        self._celebrate_dip = dip
-        row.addWidget(dip)
-        spins = []
-        for caption, value, tip in (
-                ("Hold:", celebrate_hold_secs(settings),
-                 "How long it stays at its dip before it comes back up.\n"
-                 "0 = it comes up at once."),
-                ("Up over:", celebrate_up_secs(settings),
-                 "How long it takes to come back up. 0 = at once."),
-                ("Down over:", celebrate_down_secs(settings),
-                 "How long it takes to go down when 🔉↓ fades it.")):
-            row.addSpacing(12)
-            row.addWidget(QLabel(caption))
-            spin = QDoubleSpinBox()
-            spin.setRange(0.0, CELEBRATE_MAX_SECS)
-            spin.setDecimals(1)
-            spin.setSingleStep(0.5)
-            spin.setSuffix(" s")
-            spin.setValue(value)
-            spin.setToolTip(tip)
-            row.addWidget(spin)
-            spins.append(spin)
-        self._celebrate_hold, self._celebrate_up, self._celebrate_down = spins
         row.addStretch(1)
         blyt.addLayout(row)
-
-        def sync(*_):
-            on = mode.currentData() != "off"
-            for w in (pct, dip, *spins):
-                w.setEnabled(on)
-        mode.currentIndexChanged.connect(sync)
-        sync()
+        blyt.addWidget(QLabel(i18n.t(
+            "Level, dip and times: 🔊 Sound & player.")))
         set_lyt.addWidget(box)
 
     def _add_pd_row(self, blyt, settings, which):
@@ -270,7 +281,9 @@ class PlaySetsTabMixin(_DialogHost):
         row.addWidget(n)
         row.addSpacing(12)
         row.addWidget(QLabel("Start after:"))
-        delay = QSpinBox()
+        delay = QDoubleSpinBox()
+        delay.setDecimals(1)
+        delay.setSingleStep(0.5)
         delay.setRange(0, 60)
         delay.setSuffix(" s")
         delay.setValue(pd["pd_delay"])
@@ -607,7 +620,8 @@ class PlaySetsTabMixin(_DialogHost):
     def _play_sets_values(self) -> dict:
         """The tab's settings, for values(): the pitch targets, the lengths
         per dance and per round, and the two sets."""
-        vals = {}
+        vals: dict[str, Any] = {
+            "single_set_button": self._single_set_chk.isChecked()}
         # Only the dances that are NOT on the heat mean: the default is what
         # the button does without the setting, and writing ten "mean" entries
         # would freeze today's default into the settings file.
@@ -629,11 +643,6 @@ class PlaySetsTabMixin(_DialogHost):
                               for kind, c in self._round_pd_combos.items()
                               if c.currentData() is not None}
         vals["celebrate_mode"] = self._celebrate_mode.currentData()
-        vals["celebrate_pct"] = self._celebrate_pct.value()
-        vals["celebrate_dip_pct"] = self._celebrate_dip.value()
-        vals["celebrate_hold_secs"] = self._celebrate_hold.value()
-        vals["celebrate_up_secs"] = self._celebrate_up.value()
-        vals["celebrate_down_secs"] = self._celebrate_down.value()
         for which, w in self._set_widgets.items():
             vals[f"{which}_set"] = dict(
                 {k: chk.isChecked() for k, chk in w["boxes"].items()},
@@ -642,6 +651,8 @@ class PlaySetsTabMixin(_DialogHost):
                 xfade=w["xfade"].value(),
                 xfade_on=w["xfade_on"].isChecked(),
                 xfade_curve=w["xfade_curve"].curve())
+            if "pause" in w:
+                vals[f"{which}_set"]["pause_secs"] = w["pause"].value()
             if "pd" in w:
                 stop, n, delay = w["pd"]
                 vals[f"{which}_set"].update(pd_stop=stop.isChecked(),

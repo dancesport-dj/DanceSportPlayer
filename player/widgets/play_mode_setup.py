@@ -113,7 +113,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
         self.len_dance_lbl.setStyleSheet("color:#b8860b; font-weight:bold;")
         self.len_dance_lbl.setToolTip(
             i18n.t("This dance has its own play length in the 🏆 tournament set\n"
-                   "(⚙ Settings → 🎛 Play sets). − / + and typing change it there."))
+                   "(⚙ Settings → 🎛 Playsets). − / + and typing change it there."))
         self.len_dance_lbl.hide()
         len_col = QVBoxLayout()
         len_col.setSpacing(0)
@@ -194,11 +194,13 @@ class PlayModeSetupMixin(PlayModePanelHost):
         # Paso Doble that starts on the word is danced from the wrong bar.
         pd_call_row = QHBoxLayout()
         pd_call_row.addWidget(QLabel("Start after:"))
-        self.pd_delay_spin = QSpinBox()
+        self.pd_delay_spin = QDoubleSpinBox()
+        self.pd_delay_spin.setDecimals(1)
+        self.pd_delay_spin.setSingleStep(0.5)
         self.pd_delay_spin.setRange(0, 60)
         self.pd_delay_spin.setSuffix(" s")
         self.pd_delay_spin.setValue(
-            max(0, min(60, int(settings.get("pd_start_delay", 0)))))
+            max(0.0, min(60.0, float(settings.get("pd_start_delay", 0)))))
         self.pd_delay_spin.setToolTip(
             "Hold a Paso Doble back this long before the music starts, so the\n"
             "couples reach their position after the dance is called. Applies\n"
@@ -578,7 +580,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
 
         lyt.addWidget(hsep())
 
-    def _setup_play_set_buttons(self, lyt):
+    def _setup_play_set_buttons(self, lyt, settings):
         """🏆/🎉 The tournament and party play-set buttons."""
         # ── 🏆 Tournament play set: the competition values in one press ──
         # Above the party button on purpose: it is the one you reach for when a
@@ -594,7 +596,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
             "and no spoken announcement — the settings a heat is run with.\n\n"
             "Lit gold while the panel stands on those values, the way 🎉 is lit\n"
             "purple during a party. Switches the 🎉 party set off. What exactly\n"
-            "it sets is yours to change: ⚙ Settings → 🎛 Play sets.\n"
+            "it sets is yours to change: ⚙ Settings → 🎛 Playsets.\n"
             "\n"
             "Clicked while lit, it switches itself off: the list goes back to\n"
             "the values it had before the set was pressed.")
@@ -616,7 +618,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
             "Applied by itself as soon as you play from the 🤸 Practice /\n"
             "party list, and switched back when a tournament deck takes over —\n"
             "a toast says what changed either way. What exactly it sets is\n"
-            "yours to change: ⚙ Settings → 🎛 Play sets.\n"
+            "yours to change: ⚙ Settings → 🎛 Playsets.\n"
             "\n"
             "Clicked while lit, it switches itself off: the list goes back to\n"
             "the values it had before the set was pressed.")
@@ -625,6 +627,109 @@ class PlayModeSetupMixin(PlayModePanelHost):
             " font-weight:bold; border-radius:3px; }")
         self.party_btn.toggled.connect(self.partySetToggled.emit)
         lyt.addWidget(self.party_btn)
+
+        # ── 🏃 Training play set: a party's way, with a pause to talk in ──
+        self.training_btn = QPushButton("🏃  Training set")
+        self.training_btn.setCheckable(True)
+        self.training_btn.setFixedHeight(26)
+        self.training_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.training_btn.setToolTip(
+            "Play a training: every title to its end, one after the other,\n"
+            "with a pause of 25 s in between to talk and take position, and\n"
+            "the Paso Doble starting 2 s after it is called. What exactly it\n"
+            "sets is yours to change: ⚙ Settings → 🎛 Playsets.\n"
+            "\n"
+            "Clicked while lit, it switches itself off: the list goes back to\n"
+            "the values it had before the set was pressed.")
+        self.training_btn.setStyleSheet(
+            "QPushButton:checked { background:#2e7d32; color:white;"
+            " font-weight:bold; border-radius:3px; }")
+        self.training_btn.toggled.connect(self.trainingSetToggled.emit)
+        lyt.addWidget(self.training_btn)
+
+        # One button instead of the pair: the face of the same two, naming the
+        # set that is on. The pair stays the model, so every light, signal and
+        # test keeps working; ⚙ Settings can bring the pair back.
+        self.set_toggle_btn = QPushButton()
+        self.set_toggle_btn.setFixedHeight(26)
+        self.set_toggle_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.set_toggle_btn.setToolTip(
+            "The play set the panel stands on — 🏆 tournament (gold) or\n"
+            "🎉 party (purple). A click switches over to the other one; with\n"
+            "neither on, to the tournament set. What each sets is yours to\n"
+            "change: ⚙ Settings → 🎛 Playsets.")
+        self.set_toggle_btn.clicked.connect(self._on_set_toggle)
+        self._build_celebrate_btn(lyt)
+        self.tournament_btn.toggled.connect(self._sync_set_toggle)
+        self.party_btn.toggled.connect(self._sync_set_toggle)
+        self.training_btn.toggled.connect(self._sync_set_toggle)
+        lyt.addWidget(self.set_toggle_btn)
+        self.set_single_set_button(settings.get("single_set_button", True) is not False)
+
+    def _build_celebrate_btn(self, lyt):
+        """🥇 Whether every title of the list on the panel plays on after the
+        play length - a value of the list, like the others. Hidden while
+        the length is "full": there is no cut to play on after."""
+        self.celebrate_btn = Toggle("🥇  Celebration: music plays on")
+        self.celebrate_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        # `clicked`, not `toggled`: showing the state must not look like a click.
+        self.celebrate_btn.clicked.connect(
+            lambda checked=False: self.celebrateToggled.emit(checked))
+        # Parent it first: setVisible(True) on a parentless widget opens it as
+        # a window of its own.
+        lyt.addWidget(self.celebrate_btn)
+        self._sync_celebrate_enabled()
+
+    def set_celebrate(self, on: bool):
+        """🥇 Show the list's state, without a click."""
+        self.celebrate_btn.setChecked(bool(on))
+
+    def _sync_celebrate_enabled(self):
+        """🥇 Hidden with a play length of "full": there is no cut to play on
+        after, like the crossover rows that only show where they matter."""
+        btn = getattr(self, "celebrate_btn", None)
+        if btn is None:
+            return
+        cut = self._shown_secs() != 0
+        btn.setVisible(cut)
+        btn.setToolTip(i18n.t(
+            "Every title of this list plays on after the play length: the\n"
+            "music comes back up while the couples celebrate.\n"
+            "Works only with a play length set, not with 'full'."))
+
+    def set_single_set_button(self, on: bool):
+        """One toggle (the default) or the 🏆 / 🎉 pair, from ⚙ Settings."""
+        self.set_toggle_btn.setVisible(on)
+        self.tournament_btn.setVisible(not on)
+        self.party_btn.setVisible(not on)
+        self.training_btn.setVisible(not on)
+        self._sync_set_toggle()
+
+    def _sync_set_toggle(self, *_):
+        """The single button's text and colour follow the set that is on."""
+        if self.party_btn.isChecked():
+            text, bg = "🎉  Party set", "#7b1fa2"
+        elif self.training_btn.isChecked():
+            text, bg = "🏃  Training set", "#2e7d32"
+        elif self.tournament_btn.isChecked():
+            text, bg = "🏆  Tournament set", "#b8860b"
+        else:
+            self.set_toggle_btn.setText("🏆 / 🎉 / 🏃  Play set")
+            self.set_toggle_btn.setStyleSheet("")
+            return
+        self.set_toggle_btn.setText(text)
+        self.set_toggle_btn.setStyleSheet(
+            "QPushButton { background:%s; color:white; font-weight:bold;"
+            " border-radius:3px; }" % bg)
+
+    def _on_set_toggle(self, *_):
+        """A click goes over to the other set (tournament when none is on)."""
+        if self.tournament_btn.isChecked():
+            self.party_btn.click()
+        elif self.party_btn.isChecked():
+            self.training_btn.click()
+        else:
+            self.tournament_btn.click()
 
     def _setup_presenter(self, lyt, settings):
         """🖥 The presenter screen: switch, palette and monitor."""

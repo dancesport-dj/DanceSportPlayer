@@ -125,7 +125,7 @@ class DuplicateCheckMixin(MainWindowHost):
         one against them."""
         paths: set = set()
         fps: set = set()
-        for t in self._visible_deck_tables():
+        for t in self._planned_source_tables():
             if exclude is not None and t is exclude:
                 continue
             entries = t._row_meta.entries()
@@ -162,7 +162,7 @@ class DuplicateCheckMixin(MainWindowHost):
         """
         if table is None or getattr(table, "_flat_mode", False):
             return 0
-        others = [t for t in self._visible_deck_tables()
+        others = [t for t in self._planned_source_tables()
                   if t is not table and t._row_meta.has_songs()]
         if not others:
             show_toast(self, "✅  No other open playlist to compare against")
@@ -189,7 +189,10 @@ class DuplicateCheckMixin(MainWindowHost):
                  else i18n.t("Remove %d titles from %s?\nThey are already planned in: %s"))
                 % (n, here, against)):
             return 0
-        table._clear_slots_at(set(rows))
+        if table._warmup:
+            table._drop_running_order_rows(set(rows))   # a party list has no grid
+        else:
+            table._clear_slots_at(set(rows))
         log.info("🧹 Deck cleaned against the other open playlists\n"
                  "deck: %s\n"
                  "removed: %d\n"

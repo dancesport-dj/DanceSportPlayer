@@ -133,6 +133,20 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(self._req("POST", "/api/cmd", b'{"cmd": "seek", "to": NaN}')[0], 400)
         self.assertEqual(len(self.calls), 2)
 
+    def test_a_volume_carries_a_level_from_zero_to_one(self):
+        self.assertEqual(self._req("POST", "/api/cmd", {"cmd": "volume", "level": 0.4})[0], 204)
+        self.assertEqual(self._req("POST", "/api/cmd", {"cmd": "volume", "level": 1})[0], 204)
+        self.assertEqual(self.calls, [("volume", 0.4), ("volume", 1.0)])
+        for bad in ("x", True, -0.1, 1.5, None):
+            self.assertEqual(self._req("POST", "/api/cmd", {"cmd": "volume", "level": bad})[0],
+                             400)
+        self.assertEqual(len(self.calls), 2)
+
+    def test_the_page_has_a_volume_slider_that_sends_its_level(self):
+        html = page_html({})
+        self.assertIn('id="vol"', html)
+        self.assertIn('cmd: "volume"', html)
+
     def test_a_tapped_next_title_carries_its_place_and_name(self):
         """📱 The name comes along so a list that moved on meanwhile can't
         start a different title from the same place."""
@@ -330,6 +344,23 @@ class FailureBudgetTest(unittest.TestCase):
         with mock.patch.object(rs.time, "monotonic", return_value=later):
             self.assertEqual(self.srv.check_pin("10.0.0.97", ""), 401)
             self.assertEqual(self.srv.check_pin("10.0.0.99", "4711"), 200)
+
+    def test_a_new_pin_starts_from_a_clean_slate(self):
+        """The DJ sets a new PIN because the old one was guessed at, or to let a
+        new phone in. Wrong guesses at the old PIN must not keep refusing the
+        new one: neither the network pause, nor a per-address lockout."""
+        self._flood()
+        self.assertEqual(self.srv.check_pin("10.0.0.99", "4711"), 429)
+        self.srv.set_pin("2468")
+        self.assertEqual(self.srv.check_pin("10.0.0.99", "2468"), 200)
+
+    def test_a_new_pin_lifts_a_lockout_of_one_address_too(self):
+        with mock.patch.multiple(rs, MAX_FAILS=2):
+            self.srv.check_pin("10.0.0.7", "0000")
+            self.srv.check_pin("10.0.0.7", "0000")
+            self.assertEqual(self.srv.check_pin("10.0.0.7", "4711"), 429)
+            self.srv.set_pin("2468")
+            self.assertEqual(self.srv.check_pin("10.0.0.7", "2468"), 200)
 
     def test_the_pause_is_reported_once(self):
         self._flood()

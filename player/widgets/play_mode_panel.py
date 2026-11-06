@@ -103,6 +103,8 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
     remoteRequested = Signal()           # 📱 the phone remote's window
     partySetToggled = Signal(bool)       # 🎉 party play set on/off
     tournamentSetRequested = Signal()    # 🏆 back to the competition values
+    celebrateToggled = Signal(bool)       # 🥇 the playing title's switch
+    trainingSetToggled = Signal(bool)    # 🏃 training play set on/off
     rememberToggled = Signal(bool)       # ↩ remembering where a title stopped on/off
     settingsRequested = Signal()         # ⚙ — only shown in a player-only install
     stopRuleChanged = Signal()           # ⏹ the stop rule was set, counted down or spent
@@ -128,7 +130,7 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         self._setup_auto_advance(lyt, settings)
         self._setup_announce(lyt, settings)
         self._setup_play_options(lyt, settings)
-        self._setup_play_set_buttons(lyt)
+        self._setup_play_set_buttons(lyt, settings)
         self._setup_presenter(lyt, settings)
         self._setup_awake_and_countdown(lyt, settings)
         self._setup_gear(lyt)
@@ -655,7 +657,8 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
                        xfade: float | None = None,
                        xfade_on: bool | None = None,
                        xfade_curve: str | None = None,
-                       fade_inside: bool | None = None) -> list[str]:
+                       fade_inside: bool | None = None,
+                       pause_secs: int | None = None) -> list[str]:
         """Put them onto the given values and report what really changed,
         phrased for a toast ("play length → full"). `loudness`, `announce`,
         `fade`, `dblclick` and the crossfade's are optional: a list stored
@@ -685,6 +688,10 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
             self.pause_check.setChecked(not pause_off)
             changed.append(i18n.t("pause between songs → off (no break music)")
                            if pause_off else i18n.t("pause between songs → on"))
+        if pause_secs is not None and int(pause_secs) != self.pause_spin.value():
+            self.pause_spin.setValue(int(pause_secs))   # kept even while it is off
+            if not pause_off:
+                changed.append(i18n.t("pause → %s s") % int(pause_secs))
         if loudness is not None and loudness != self.loudness_check.isChecked():
             self.loudness_check.setChecked(loudness)
             changed.append(i18n.t("equalize volume → on") if loudness
@@ -722,8 +729,20 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         self.party_btn.blockSignals(True)
         self.party_btn.setChecked(bool(on))
         self.party_btn.blockSignals(False)
+        self._sync_set_toggle()
         if on:
-            self.set_tournament_on(False)   # the two sets are never both on
+            self.set_tournament_on(False)   # the sets are never two at once
+            self.set_training_on(False)
+
+    def set_training_on(self, on: bool):
+        """Light the 🏃 button while the panel stands on the training values."""
+        self.training_btn.blockSignals(True)
+        self.training_btn.setChecked(bool(on))
+        self.training_btn.blockSignals(False)
+        if on:
+            self.set_party_on(False)
+            self.set_tournament_on(False)
+        self._sync_set_toggle()
 
     def set_tournament_on(self, on: bool):
         """Light the 🏆 button while the panel stands on the tournament values.
@@ -734,6 +753,7 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         self.tournament_btn.blockSignals(True)
         self.tournament_btn.setChecked(bool(on))
         self.tournament_btn.blockSignals(False)
+        self._sync_set_toggle()
 
     def tournament_on(self) -> bool:
         return self.tournament_btn.isChecked()
@@ -793,13 +813,16 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         self.len_lbl.setText("full" if secs == 0
                              else f"{secs // 60}:{secs % 60:02d}")
         self.len_plus.setEnabled(secs != 0)
+        self._sync_celebrate_enabled()
         dance = self._dance_len
-        self.len_dance_lbl.setVisible(dance is not None or self._plays_on)
+        # 🥇 With "full" nothing is cut, so there is nothing to play on after.
+        plays_on = self._plays_on and secs != 0
+        self.len_dance_lbl.setVisible(dance is not None or plays_on)
         if dance is not None:
             self.len_dance_lbl.setText(
-                i18n.t("%s — its own length, then plays on" if self._plays_on
+                i18n.t("%s — its own length, then plays on" if plays_on
                        else "%s — its own length") % dance[1])
-        elif self._plays_on:
+        elif plays_on:
             self.len_dance_lbl.setText(i18n.t("Plays on after its length"))
 
     # ── Values read by MainWindow's playback engine ──
@@ -1028,9 +1051,10 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
 
     def announce_wait(self) -> bool:
         """Whether the music waits for the start call instead of coming in
-        under it, as ⚙ Settings has it. Never while titles cross over: a
-        title the crossfade does not reach (the first, the one after a 🐂
-        highlight) is named over its first bars like the rest."""
+        under it, as ⚙ Settings has it. Never while titles cross over: the
+        crossfade names the title it mixes in over the bars of the one before.
+        A title it does not reach (the first, the one after a 🐂 highlight)
+        still waits: that call uses `announce_wait_setting_on`."""
         return self._announce_wait and not self._crossfade_runs()
 
     def announce_wait_setting_on(self) -> bool:
@@ -1133,22 +1157,22 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         spin.setValue(int(n) or 3)
         spin.blockSignals(False)
         spin.setToolTip(
-            i18n.t("The Paso Doble pick for %s in ⚙ Settings → 🎛 Play sets\n"
+            i18n.t("The Paso Doble pick for %s in ⚙ Settings → 🎛 Playsets\n"
                    "(played in full reads as the 3rd highlight). A change here\n"
                    "holds for this list only.") % round_label)
 
-    def pd_start_delay(self) -> int:
+    def pd_start_delay(self) -> float:
         """Seconds a Paso Doble waits after the call before the music starts
-        (0 = start at once)."""
+        (0 = start at once), in half seconds."""
         return self.pd_delay_spin.value()
 
-    def set_pd_start_delay(self, secs: int) -> list[str]:
+    def set_pd_start_delay(self, secs: float) -> list[str]:
         """Set 'Start after' and report it the way `apply_play_set` does — the
         🏆 tournament set puts it at 0 s, the chairman's call being the wait."""
-        if int(secs) == self.pd_delay_spin.value():
+        if float(secs) == self.pd_delay_spin.value():
             return []
-        self.pd_delay_spin.setValue(int(secs))
-        return [i18n.t("🐂 Paso Doble start after → %s s") % int(secs)]
+        self.pd_delay_spin.setValue(float(secs))
+        return [i18n.t("🐂 Paso Doble start after → %s s") % f"{float(secs):g}"]
 
     def set_loudness_available(self, available: bool, missing: int = 0):
         """Equalize-volume is only offerable when every playlist track has a

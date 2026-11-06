@@ -38,7 +38,7 @@ from planner.generate import ai
 from planner.generate.scoring import HIGHER_CLASSES, class_focused, effective_popularity
 from planner.generate.warmup import class_warmup_pool, warmup_code
 from planner.models import ALLOW_REPEAT, DANCE_NAMES, TEMPO_RANGES, is_non_turnier
-from planner.music.parsing import norm_title
+from planner.music.parsing import norm_title, song_use_keys
 from planner.music.sound import code_text, sound_codes
 from planner.playlist.planned import path_key
 
@@ -157,7 +157,8 @@ def resolve_claude_bin() -> str | None:
     if override and os.path.isfile(override):
         return override
     found = shutil.which("claude")
-    if found:
+    # Never one in the current folder: Windows' lookup tries that first.
+    if found and os.path.realpath(os.path.dirname(found)) != os.path.realpath(os.getcwd()):
         return found
     for candidate in _CLAUDE_BIN_FALLBACKS:
         path = os.path.expanduser(candidate)
@@ -1231,6 +1232,13 @@ def pick_reasons(picks, candidates, notes: str = "") -> str:
     return "\n".join(lines + body)
 
 
+def song_marks(entry) -> set[str]:
+    """What makes two catalog rows the same song: the file, and the song keys
+    of its name (a copy of the song in another folder shares those)."""
+    return {str(entry.path),
+            *("title:" + k for k in song_use_keys(entry.path.name))}
+
+
 def assemble_grid(picks, candidates, dances: list[str], rounds) -> dict:
     """Model answer → the round → heat → dance grid a deck loads (Playlist).
 
@@ -1253,7 +1261,7 @@ def assemble_grid(picks, candidates, dances: list[str], rounds) -> dict:
         e = candidates[n - 1]
         if e.dance not in dance_idx:
             continue
-        if str(e.path) in used and e.dance not in ALLOW_REPEAT:
+        if e.dance not in ALLOW_REPEAT and used & song_marks(e):
             continue
         di = dance_idx[e.dance]
         heats = grid.get(by_name.get(p["round"].strip().lower(), ""))
@@ -1263,10 +1271,10 @@ def assemble_grid(picks, candidates, dances: list[str], rounds) -> dict:
         else:
             leftovers.append(e)
             continue
-        used.add(str(e.path))
+        used |= song_marks(e)
 
     for e in leftovers:
-        if str(e.path) in used and e.dance not in ALLOW_REPEAT:
+        if e.dance not in ALLOW_REPEAT and used & song_marks(e):
             continue
         di = dance_idx[e.dance]
         for rc in rounds:
@@ -1274,7 +1282,7 @@ def assemble_grid(picks, candidates, dances: list[str], rounds) -> dict:
             for heat in grid[rc.name]:
                 if heat[di] is None:
                     heat[di] = e
-                    used.add(str(e.path))
+                    used |= song_marks(e)
                     placed = True
                     break
             if placed:

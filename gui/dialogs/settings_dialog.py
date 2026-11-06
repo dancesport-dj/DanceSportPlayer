@@ -4,7 +4,7 @@ index builds, playback, the look and the app mode, one tab each.
 Split out of gui/dialogs/__init__.py, which keeps the settings persistence
 (load_settings, the path fallbacks, the choice tables) this dialog reads.
 The 🎨 Look tab is a mixin of its own, in gui/dialogs/settings_look.py,
-and so are 🔊 Sound & player, 🎛 Play sets and 🤖 AI, in settings_sound.py,
+and so are 🔊 Sound & player, 🎛 Playsets and 🤖 AI, in settings_sound.py,
 settings_play_sets.py and settings_ai.py.
 """
 import logging

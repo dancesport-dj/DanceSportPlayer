@@ -389,7 +389,7 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         self._hdr_press: tuple[int, QPoint] | None = None   # pressed dance header (row, pos)
         # Notified (by MainWindow) after every grid edit so the working playlist can
         # be autosaved. Set via set_change_callback(); fired through _notify_changed().
-        self._change_cb: Callable[[], None] | None = None
+        self._change_cb: Callable[[], object] | None = None
 
     def _build_drag_overlays(self):
         """Drag auto-scroll, the drop line / row highlight and the playing-row marker."""
@@ -720,7 +720,7 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         if row >= 0:
             self._on_row_double_clicked(row, col)
 
-    def set_change_callback(self, cb: Callable[[], None] | None):
+    def set_change_callback(self, cb: Callable[[], object] | None):
         """Register a callback fired after every grid edit (for autosave)."""
         self._change_cb = cb
 

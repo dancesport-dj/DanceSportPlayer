@@ -92,7 +92,7 @@ class EqualizeLabelTest(_PanelTest):
 
 class NoDoubleClickAskSwitchTest(_PanelTest):
     """❓ 'Ask before a double-click stops the playing title' has no switch on
-    the panel: it is set per play set in ⚙ Settings → 🎛 Play sets only."""
+    the panel: it is set per play set in ⚙ Settings → 🎛 Playsets only."""
 
     def test_the_panel_has_no_switch_for_it(self):
         self.assertFalse(hasattr(self.panel(), "dblclick_ask_check"))
@@ -245,7 +245,7 @@ class GreySecondsTest(_PanelTest):
         self.assertGreater(abs(grey.lightness() - live.lightness()), 12,
                            (grey.name(), live.name()))
 
-    def test_the_pause_seconds_grey_out_with_the_pause(self):
+    def test_the_pause_seconds_grey_out_with_the_pause(self):  # overconfidence:short-test-ok - asserts in the helper
         for wide in (False, True):
             with self.subTest(wide=wide):
                 p = self.panel(auto_advance=True, pause_enabled=False)

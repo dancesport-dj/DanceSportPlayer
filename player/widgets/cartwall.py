@@ -265,6 +265,11 @@ def _text_on(colour: str) -> str:
 
 
 _DURATIONS: dict[str, int] = {}      # path → whole seconds, 0 = unknown
+# path → when an unreadable file may be asked again (time.monotonic). A share
+# that is down answers only after its network timeout, and the wall restyles
+# every pad several times — asking each time froze the window.
+_UNKNOWN_UNTIL: dict[str, float] = {}
+_RETRY_UNKNOWN_SECS = 30.0
 
 
 def _duration_text(path: str) -> str:
@@ -274,11 +279,17 @@ def _duration_text(path: str) -> str:
     and re-reading sixteen headers each time would be felt."""
     secs = _DURATIONS.get(path)
     if secs is None:
+        if time.monotonic() < _UNKNOWN_UNTIL.get(path, 0.0):
+            return "--:--"
         secs = read_duration(Path(path))
         if secs:
-            # Only a real length is remembered: a 0 means the file was missing or
-            # unreadable, and a stick that comes back must show its lengths again.
+            # A real length is remembered for good. A 0 means the file was
+            # missing or unreadable: it is asked again after a while, so a stick
+            # that comes back shows its lengths again.
             _DURATIONS[path] = secs
+            _UNKNOWN_UNTIL.pop(path, None)
+        else:
+            _UNKNOWN_UNTIL[path] = time.monotonic() + _RETRY_UNKNOWN_SECS
     return fmt_ms(secs * 1000) if secs > 0 else "--:--"
 
 
@@ -1375,9 +1386,12 @@ class CartwallWidget(QWidget):
         while True:
             with self._check_lock:
                 if not self._unasked:
-                    with contextlib.suppress(RuntimeError):   # the wall is gone
-                        self._filesChecked.emit()
+                    # Cleared first, so nothing the emit raises can leave the
+                    # check switched off. A wall going away under the worker
+                    # raises a RuntimeError, or a TypeError from Qt's meta call.
                     self._checking = False
+                    with contextlib.suppress(RuntimeError, TypeError):
+                        self._filesChecked.emit()
                     return
                 path = self._unasked.pop()
             try:

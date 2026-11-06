@@ -41,7 +41,7 @@ class FixPathsClickTest(ClickThrough):
         known = set(self.saved_files())
         self.click(self.win._cfg.save_btn)
         [saved] = [p for p in self.saved_files() if p not in known]
-        self.click(self.button("Empty every playlist deck"))
+        self.clear_all()
         music = self.settings["library_dir"]
         text = saved.read_text(encoding="utf-8-sig")
         moved = text.replace(music, to)

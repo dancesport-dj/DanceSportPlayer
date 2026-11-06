@@ -672,6 +672,42 @@ class LoadOffersCleanupTest(_ScratchDbTest):
         self.assertEqual(len(asked), 1)
         self.assertEqual(len(table._row_meta.entries()), 3)
 
+    def repeats_m3u(self) -> Path:
+        """One file listed five times, another once: six track lines."""
+        moon = self.file("C", "Moon River (LW 29)")
+        fly = self.file("C", "Fly Me (TG 32)", _AUDIO[::-1])
+        for p, d in ((moon, "LW"), (fly, "TG")):
+            self.win._library.lib.entries.append(
+                MusicEntry(path=p, title=p.stem, dance=d, duration=180))
+        m = self.dir / "repeats.m3u"
+        m.write_text("#EXTM3U\n" + "\n".join(map(str, [moon, fly, moon, moon, moon, moon])),
+                     encoding="utf-8")
+        return m
+
+    def test_no_keeps_every_repeat_in_the_player_list(self):
+        """Marcel: "Es sollte ausnahmslos alle übernehmen, auch wenn sie 5 oder
+        6 mal drin sind." The read itself dropped the repeats, so the question
+        came too late for a "No" to keep them."""
+        table = self.win._deckset.decks[0]
+        asked = self.answer(table, False)
+        self.win._load_player_list_from_m3u(table, self.repeats_m3u())
+        self.assertEqual(len(asked), 1)
+        self.assertEqual(len(table._row_meta.entries()), 6)
+
+    def test_no_keeps_every_repeat_in_the_eintanzen_panel(self):
+        table = self.win._deckset.warmup_table
+        asked = self.answer(table, False)
+        self.win._load_warmup_from_m3u(table, self.repeats_m3u())
+        self.assertEqual(len(asked), 1)
+        self.assertEqual(len(table._row_meta.entries()), 6)
+
+    def test_no_keeps_every_repeat_in_the_deck_import(self):
+        table = self.win._deckset.table
+        asked = self.answer(table, False)
+        self.win._import_playlist_path(str(self.repeats_m3u()))
+        self.assertEqual(len(asked), 1)
+        self.assertEqual(len(list(table._iter_planned_entries())), 6)
+
 
 class ChoiceDialogTest(unittest.TestCase):
     """The per-title choice itself: one radio per file plus "Keep all"."""

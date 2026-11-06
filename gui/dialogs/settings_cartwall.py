@@ -15,12 +15,15 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QMessageBox,
+    QPushButton,
     QSpinBox,
     QVBoxLayout,
     QWidget,
 )
 
-from gui.dialogs.settings_look import _DialogHost
+from gui.dialogs.settings_look import _DialogHost, add_reset_footer
+from planner import i18n
 from planner.playing import cartwall as pc
 from shared.audio.playback import duck_db_text
 
@@ -233,8 +236,38 @@ class CartwallTabMixin(_DialogHost):
         blyt.addWidget(self._cart_bg_pd_check)
         clyt.addWidget(bg_box)
 
-        clyt.addStretch()
+        self._cart_reset_btn = QPushButton("↺ Reset to defaults")
+        self._cart_reset_btn.setToolTip(
+            "Puts everything on this tab back on the values the program\n"
+            "ships with. Pads keep their own settings. Nothing is saved\n"
+            "until you press OK.")
+        self._cart_reset_btn.clicked.connect(self._reset_cartwall)
+        add_reset_footer(clyt, self._cart_reset_btn)
         return tabs.addTab(cart_tab, "🎛 Cartwall")
+
+    def _reset_cartwall(self) -> None:
+        if QMessageBox.question(
+                self, i18n.t("Reset to defaults"),
+                i18n.t("Put every value on the 🎛 Cartwall tab back on the "
+                       "default? Nothing is saved until you press OK."),
+        ) == QMessageBox.StandardButton.Yes:
+            self._reset_cartwall_values()
+
+    def _reset_cartwall_values(self) -> None:
+        """↺ Every field of the tab on what the program ships with."""
+        none: dict = {}
+        self._cart_duck_spin.setValue(10)
+        self._cart_fade_spin.setValue(pc.DEFAULT_FADE_MS / 1000)
+        self._cart_colour_combo.setCurrentIndex(
+            max(0, self._cart_colour_combo.findData(pc.DEFAULT_PAD_COLOUR)))
+        self._cart_bg_vol_spin.setValue(round(pc.background_volume(none) * 100))
+        self._cart_bg_fire_spin.setValue(pc.background_fire_fade_ms(none) / 1000)
+        self._cart_bg_combo.setCurrentIndex(1 if pc.background_pauses(none) else 0)
+        self._cart_bg_out_spin.setValue(pc.background_fade_out_ms(none) / 1000)
+        self._cart_bg_overlap_check.setChecked(pc.background_overlaps(none))
+        self._cart_bg_hold_spin.setValue(pc.background_hold_ms(none) / 1000)
+        self._cart_bg_fade_spin.setValue(pc.background_fade_in_ms(none) / 1000)
+        self._cart_bg_pd_check.setChecked(pc.background_quiet_in_pd_wait(none))
 
     def _add_wall_rows(self, settings, clyt):
         """⏱ The fade-out and 🖌 the colour every pad follows by default —

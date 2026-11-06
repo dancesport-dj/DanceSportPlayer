@@ -75,5 +75,45 @@ class NewerWallFileTest(unittest.TestCase):
         self.assertEqual(self._on_disk()["version"], pc.CARTWALL_VERSION)
 
 
+class UnreadableWallFileTest(unittest.TestCase):
+    """A cartwall.json that is there but cannot be read is not an empty wall."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.broken = "{not json"
+        stores.CARTWALL.path.write_text(self.broken, encoding="utf-8")
+        self.addCleanup(stores.CARTWALL.remove)
+        self.host = _Host()
+        self.addCleanup(reap_widget, self.host)
+
+    def _on_disk(self):
+        return stores.CARTWALL.path.read_text(encoding="utf-8")
+
+    def test_the_startup_dock_restore_does_not_write_over_it(self):
+        for area in (Qt.DockWidgetArea.TopDockWidgetArea,
+                     Qt.DockWidgetArea.LeftDockWidgetArea):
+            self.host._on_cart_dock_moved(area)
+        self.assertEqual(self._on_disk(), self.broken)
+
+    def test_saving_everything_does_not_write_over_it_either(self):
+        self.host._save_cartwall(edit=False)
+        self.assertEqual(self._on_disk(), self.broken)
+
+    def test_an_edit_of_the_wall_is_starting_over(self):
+        self.host._cartwall.changed.emit()
+        self.assertEqual(json.loads(self._on_disk())["version"],
+                         pc.CARTWALL_VERSION)
+
+    def test_a_missing_file_is_just_a_first_start(self):
+        stores.CARTWALL.remove()
+        self.host._load_cartwall()
+        self.host._save_cartwall(edit=False)
+        self.assertEqual(json.loads(self._on_disk())["version"],
+                         pc.CARTWALL_VERSION)
+
+
 if __name__ == "__main__":
     unittest.main()

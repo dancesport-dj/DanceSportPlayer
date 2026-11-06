@@ -64,6 +64,9 @@ class RowKeys(QObject):
                 idx = obj.findData(self._keys[ev.key()])
                 if idx >= 0:
                     obj.setCurrentIndex(idx)
+                    # setCurrentIndex stays silent; the owner listens to
+                    # `activated` (a Replace… opens its picker from there).
+                    obj.activated.emit(idx)
                     obj.focusNextChild()          # on to the next row
                 return True
         return super().eventFilter(obj, ev)

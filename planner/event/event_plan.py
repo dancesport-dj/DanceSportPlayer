@@ -31,7 +31,12 @@ from planner.generate import llm
 from planner.generate.scoring import class_popularity, effective_popularity
 from planner.generate.warmup import class_warmup_pool
 from planner.models import ALLOW_REPEAT, DEFAULT_DANCES, MusicEntry, RoundConfig, rounds_from_pattern
-from planner.music.parsing import is_version, song_title_keys, version_base_keys
+from planner.music.parsing import (
+    is_version,
+    song_title_keys,
+    song_use_keys,
+    version_base_keys,
+)
 from planner.music.similarity import SoundAlike
 from planner.music.sound import sound_codes
 from planner.playlist.playlist_text import playlist_files, read_playlist_text
@@ -480,12 +485,12 @@ def gather_candidates(lib, spec: CompetitionSpec, editions: list[Path], *,
                        + [p for rnd in reversed(klass) for p in rnd[d]])
         known_paths = {str(p.entry.path) for p in known}
         # Another copy of a song already played is neither new nor rare.
-        known_songs = {k for p in known for k in song_title_keys(p.entry.path.name)}
+        known_songs = {k for p in known for k in song_use_keys(p.entry.path.name)}
         tiers: dict[str, set[str]] = {}     # path → {"new", "rare"}
         for e in fits[d]:
             path = str(e.path)
             if (path in own or path in known_paths
-                    or known_songs.intersection(song_title_keys(e.path.name))):
+                    or known_songs.intersection(song_use_keys(e.path.name))):
                 continue
             plays = class_popularity(e, cls)
             if plays <= RARE_MAX_PLAYS:
@@ -501,8 +506,7 @@ def gather_candidates(lib, spec: CompetitionSpec, editions: list[Path], *,
                     best[path] = (sim, e, a.entry)
         _add_tier_picks(new, rare, d, best, tiers, cls, similar, originals)
         library[d] = [Pick(e, "library", "")
-                      for e in most_played(class_warmup_pool(
-                          lib.entries, _dance_style(spec, d), d, cls))
+                      for e in most_played(fits[d])
                       if str(e.path) not in own]
 
     rounds = rounds_from_pattern("-".join(str(h) for h in spec.heats))
@@ -595,6 +599,14 @@ def _renew_event_titles(c, grid, n, dances, free, used_round, placed, used_day):
         if twin.entry.dance not in ALLOW_REPEAT:
             used_day.add(path)
         heat[j] = replace(twin, replaces=pick)
+        # The title it took out plays nowhere now - a later competition whose
+        # history holds it may have it. (A repeating dance can still sit in
+        # another round, so `placed` keeps it.)
+        gone = str(pick.entry.path)
+        used_round[r].discard(gone)
+        if pick.entry.dance not in ALLOW_REPEAT:
+            used_day.discard(gone)
+            placed.discard(gone)
         budget -= 1
 
 

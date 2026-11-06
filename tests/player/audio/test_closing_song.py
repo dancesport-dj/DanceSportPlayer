@@ -245,6 +245,9 @@ class ClosingAdoptTest(unittest.TestCase):
                 self._between = BetweenDances()
                 self._play_panel = SimpleNamespace(set_pd_loaded=lambda on: None)
 
+            def _sync_celebrate_btn(self):
+                pass
+
             def _resolve_entry(self, path):
                 return None
 

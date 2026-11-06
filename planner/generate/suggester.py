@@ -9,6 +9,7 @@ import math
 import random
 import secrets
 from collections import Counter, defaultdict
+from pathlib import Path
 from typing import Any
 
 from planner import i18n
@@ -50,6 +51,7 @@ from planner.models import (  # auto-resolved
     Strategy,
     is_non_turnier,
 )
+from planner.music.chroma_twins import twin_paths
 from planner.music.db import (  # auto-resolved
     AudioFeatures,
 )
@@ -59,6 +61,7 @@ from planner.music.library import (  # auto-resolved
 )
 from planner.music.parsing import (  # auto-resolved
     bpm_fit,
+    song_use_keys,
 )
 from planner.music.similarity import (  # auto-resolved
     STRONG_TIMBRE,
@@ -84,6 +87,24 @@ class _SoftUses(set):
     def add(self, path):
         super().add(path)
         self.order.append(path)
+
+
+_TITLE_MARK = "title:"
+
+
+def mark_used(used: set, entry: MusicEntry, twins=None) -> None:
+    """Record `entry` as played: its file AND its title, so another recording
+    of the same song (a different DJ's "Le Le Le") is not drawn again."""
+    used.add(str(entry.path))
+    used.update(_TITLE_MARK + k for k in song_use_keys(entry.path.name))
+    if twins:
+        used.update(twins.get(str(entry.path), ()))
+
+
+def is_used(entry: MusicEntry, used) -> bool:
+    if str(entry.path) in used:
+        return True
+    return any(_TITLE_MARK + k in used for k in song_use_keys(entry.path.name))
 
 
 def _next_cycle(bpm_ok: list[MusicEntry], soft_used) -> list[MusicEntry]:
@@ -114,6 +135,60 @@ class PlaylistSuggester:
         # Each pick's timbre similarity to its round's anchor, for display — kept
         # here per (round, path), not on the library entry every deck shares.
         self._sims: dict[tuple[str | None, str], float | None] = {}
+        self._twin_map: dict[str, frozenset[str]] = {}
+        self._twins_at = -1
+        self._merged: dict[str, frozenset[str]] = {}
+        self._merged_from: tuple | None = None
+
+    def twins(self) -> dict[str, frozenset[str]]:
+        """{path: other paths that are the same song}: the files holding the same
+        recording (stored Chromaprints) plus the files filed under another name for
+        it (`title_twins`: "Title - Artist" against "NN - Title - DANCE"). The merge
+        is kept until either side changes, since every pick asks for it."""
+        if self.lib is None:
+            return {}
+        chroma = self._chroma_twins()
+        titles = self.lib.title_twins()
+        if not titles:
+            return chroma
+        # The maps themselves, not ids: the library keeps its map for as long as it
+        # is current, and a rebuilt one is another object.
+        if (self._merged_from is None or self._merged_from[0] is not titles
+                or self._merged_from[1] != self._twins_at):
+            merged = dict(titles)
+            for path, others in chroma.items():
+                merged[path] = merged.get(path, frozenset()) | others
+            self._merged, self._merged_from = merged, (titles, self._twins_at)
+        return self._merged
+
+    def _chroma_twins(self) -> dict[str, frozenset[str]]:
+        """{path: other paths holding the same recording}, from the stored
+        Chromaprints (see planner.music.chroma_twins). Rebuilt when the index
+        has grown since; empty while the library has no audio cache."""
+        cache = getattr(self.lib, "audio_cache", None)
+        if cache is None or self.lib is None:
+            return {}
+        try:
+            count = getattr(cache, "chroma_count", None)
+            size = count() if count is not None else len(cache.chroma_keys())
+            if self._twins_at != size:
+                self._twin_map = twin_paths(cache, [e.path for e in self.lib.entries])
+                self._twins_at = size
+        except Exception as exc:
+            log.warning("🎼 Chroma twins unavailable: %s", exc)
+            return {}
+        return self._twin_map
+
+    def expand_used(self, paths) -> set:
+        """A no-repeat set from the paths already planned elsewhere: each path,
+        its title and every file that is the same recording."""
+        used: set = set()
+        twins = self.twins()
+        for p in paths or ():
+            used.add(str(p))
+            used.update(twins.get(str(p), ()))
+            used.update(_TITLE_MARK + k for k in song_use_keys(Path(str(p)).name))
+        return used
 
     def _library(self) -> MusicLibrary:
         """The library a draw comes from; a suggester without one cannot draw."""
@@ -137,7 +212,7 @@ class PlaylistSuggester:
         # `exclude` seeds the no-repeat set with paths already used elsewhere
         # (the day planner's cross-competition pool). ALLOW_REPEAT dances (PD)
         # are exempt automatically — their pools never consult `used`.
-        used: set = set(exclude or ())   # strict no-repeat (non-ALLOW_REPEAT dances)
+        used: set = self.expand_used(exclude)   # strict no-repeat (non-ALLOW_REPEAT dances)
         pd_used: set = _SoftUses()   # soft no-repeat for PD – prefer variety, allow reuse
         result: Playlist = {}
 
@@ -188,7 +263,7 @@ class PlaylistSuggester:
                     if dance in ALLOW_REPEAT:
                         pd_used.add(str(entry.path))
                     else:
-                        used.add(str(entry.path))
+                        mark_used(used, entry, self.twins())
                 heat.append(entry)
             heats_data.append(heat)
         self._anchors[rc.name] = anchor
@@ -211,8 +286,10 @@ class PlaylistSuggester:
         re-rolled round does not duplicate them. `candidates` is that round's
         history pool ('past competitions'); empty dances fall back to the full
         library inside `_get_pool`."""
+        # The caller's set holds paths and titles; a cut copy or a title twin of
+        # a song planned in another round is as planned as the song.
         return self._suggest_round(
-            rc, dances, dance_class, used,
+            rc, dances, dance_class, used | self.expand_used(used),
             _SoftUses(pd_used or ()),
             use_timbre=use_timbre, style=style, candidates=candidates,
         )
@@ -276,7 +353,7 @@ class PlaylistSuggester:
         # All fallbacks stay within `available`, so a song's path is never reused
         # (hard no-repeat for non-PD dances). When `available` runs dry the pool is
         # empty → the slot stays blank rather than duplicating an earlier pick.
-        available = [e for e in bpm_ok if str(e.path) not in used]
+        available = [e for e in bpm_ok if not is_used(e, used)]
 
         # A FINAL — and a SEMIFINAL — is picked from what that round has used.
         # This has to happen BEFORE the play-count cuts below, not after:
@@ -505,6 +582,8 @@ class PlaylistSuggester:
         # planned songs there: a re-roll prefers a PD the list doesn't have yet
         # and still repeats one when the library has no other.
         soft = exclude if dance in ALLOW_REPEAT else None
+        # A cut or re-encoded copy of a planned song is as planned as the song.
+        exclude = exclude | self.expand_used(exclude)
         chosen, sim = self._pick(dance, dance_class, tier, exclude, anchor=anchor,
                                  soft_used=soft,
                                  prefer_fresh=prefer_fresh, strategy=strategy,
@@ -548,13 +627,14 @@ class PlaylistSuggester:
         `anchor_entry` (the track being replaced) with a popularity + jitter tie-break.
         `style` may be None / unknown (ETDS party) — then every style is tried."""
         dance_class = dance_class or "S"
+        exclude = set(exclude) | self.expand_used(exclude)
         styles = [style] if style in ("Standard", "Latin", "Others") \
             else ["Standard", "Latin", "Others"]
         pool: list[MusicEntry] = []
         for st in styles:
             pool = [e for e in class_warmup_pool(self._library().entries, st, dance,
                                                  dance_class, relax=relax)
-                    if str(e.path) not in exclude]
+                    if not is_used(e, exclude)]
             if pool:
                 break
         if not pool:

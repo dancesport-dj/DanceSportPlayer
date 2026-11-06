@@ -17,6 +17,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from planner import store as planner_store
 from planner.store import JsonStore, state_dir
@@ -70,6 +71,61 @@ class ReadTest(_StoreCase):
                 self.store.read()
         self.assertEqual(sorted(p.read_text(encoding="utf-8") for p in self._kept()),
                          ["{one", "{two"])
+
+    def test_only_the_newest_kept_copies_are_left(self):
+        """Every failed read leaves a copy aside and nothing removed them: a
+        file that broke on every start filled the folder one copy at a time."""
+        keep = planner_store.KEEP_UNREADABLE
+        for n in range(keep + 3):
+            old = self.store.path.with_name(
+                f"thing.unreadable-20200101-0000{n:02d}.json")
+            old.write_text(f"{{old{n}", encoding="utf-8")
+        self.store.path.write_text("{new", encoding="utf-8")
+        with self.assertLogs("dancesport.store", "WARNING"):
+            self.store.read()
+        kept = sorted(p.read_text(encoding="utf-8") for p in self._kept())
+        self.assertEqual(len(kept), keep)
+        self.assertIn("{new", kept)
+        self.assertNotIn("{old0", kept)
+
+    def test_a_file_that_could_not_be_opened_is_kept_when_the_next_save_comes(self):
+        """A sync client or a scanner holding the file fails the read and the
+        copy-aside alike, so nothing was kept at read time, and the save of the
+        defaults that follows replaced the file that was never damaged."""
+        self.store.write({"a": 1})
+        real = Path.read_text
+
+        def locked(path, *args, **kwargs):
+            if path.name == "thing.json":
+                raise PermissionError(13, "in use by another process")
+            return real(path, *args, **kwargs)
+
+        with mock.patch.object(Path, "read_text", locked), \
+                mock.patch.object(planner_store.shutil, "copy2",
+                                  side_effect=PermissionError(13, "in use")), \
+                self.assertLogs("dancesport.store", "WARNING"):
+            self.assertEqual(self.store.read([]), [])
+        self.store.write({"defaults": True})
+        [kept] = self._kept()
+        self.assertEqual(json.loads(kept.read_text(encoding="utf-8")), {"a": 1})
+
+    def test_a_good_read_after_a_locked_one_keeps_nothing(self):
+        self.store.write({"a": 1})
+        real = Path.read_text
+        calls = []
+
+        def locked_once(path, *args, **kwargs):
+            if path.name == "thing.json" and not calls:
+                calls.append(1)
+                raise PermissionError(13, "in use by another process")
+            return real(path, *args, **kwargs)
+
+        with mock.patch.object(Path, "read_text", locked_once), \
+                self.assertLogs("dancesport.store", "WARNING"):
+            self.store.read([])
+        self.assertEqual(self.store.read([]), {"a": 1})
+        self.store.write({"a": 2})
+        self.assertEqual(self._kept(), [])
 
     def test_umlauts_survive_the_round_trip(self):
         """The files hold dance titles — cp1252 is not an option."""

@@ -47,6 +47,7 @@ from planner.music.parsing import (  # auto-resolved
 from planner.music.paths import (  # auto-resolved
     foreign_name,
     is_local_file,
+    is_network_path,
 )
 from planner.playlist.planned import path_key
 from planner.playlist.playlist_text import PlaylistEncodingError, read_playlist_text
@@ -272,8 +273,9 @@ def m3u_track_sizes(m3u_path: Path) -> list[int]:
     for ln in _split_lines(text):
         if not ln.strip() or ln.lstrip().startswith("#"):
             continue
+        src = _bundle_source(ln, folder)
         try:
-            sizes.append(_bundle_source(ln, folder).stat().st_size)
+            sizes.append(0 if is_network_path(src) else src.stat().st_size)
         except (OSError, ValueError):
             sizes.append(0)
     return sizes
@@ -330,7 +332,8 @@ def numbered_folder_m3u(m3u_path: Path,
         title = _BPM_TAG_RE.sub("", raw_title).strip() or src.stem
         if progress_cb:
             progress_cb(idx, total, title)
-        if not src.is_file():
+        # The list may be someone else's: a network line is no file to open.
+        if is_network_path(src) or not src.is_file():
             missing += 1
             continue
         if path_key(src.parent) == path_key(folder):
@@ -830,6 +833,8 @@ def m3u_marker_heats(m3u_path) -> list[tuple[str, int, int]]:
             rounds.append([m.group(1).strip(), int(m.group(2)), 0])
         elif ln and not ln.startswith('#') and rounds:
             rounds[-1][2] += 1
+    if any(heats < 1 for _name, heats, _n in rounds):
+        return []   # a hand-edited '(0 Heats)': no plan, rather than a divide by zero
     return [(name, heats, n) for name, heats, n in rounds if n]
 
 

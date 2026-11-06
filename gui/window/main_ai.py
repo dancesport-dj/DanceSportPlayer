@@ -275,9 +275,9 @@ class AiPlaylistMixin(MainWindowHost):
                 if not (1 <= n <= len(candidates)):
                     continue
                 e = candidates[n - 1]
-                if str(e.path) in seen:
+                if seen & llm.song_marks(e):
                     continue
-                seen.add(str(e.path))
+                seen |= llm.song_marks(e)
                 entries.append(e)
             if not entries:
                 QMessageBox.information(

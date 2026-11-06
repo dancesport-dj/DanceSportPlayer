@@ -24,6 +24,21 @@ class CleanupTest(unittest.TestCase):
         self.assertEqual(len(set(seen)), 2)
         self.assertFalse(any(p.exists() for p in seen))
 
+    def test_a_render_never_touches_the_real_data_folder(self):
+        """STATE_DIR alone moves only the JSON stores; the window start-up also
+        opens audio_features.db and writes backups under the data folder."""
+        seen = []
+
+        def fake_run(cmd, cwd=None, env=None):
+            seen.append(Path(env["DANCEPLAYLIST_DATA_DIR"]))
+            self.assertTrue(seen[-1].is_dir())
+            return subprocess.CompletedProcess(cmd, 0)
+
+        with mock.patch.object(tp.subprocess, "run", side_effect=fake_run),                 mock.patch.dict("os.environ", {"DANCEPLAYLIST_DATA_DIR": "C:/real"}):
+            self.assertEqual(tp.main(["light"]), 0)
+        self.assertNotEqual(str(seen[0]), "C:/real")
+        self.assertFalse(seen[0].exists())
+
     def test_a_render_without_a_key_is_refused(self):
         self.assertEqual(tp.main(["--one"]), 2)
 

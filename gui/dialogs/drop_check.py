@@ -3,6 +3,7 @@
 dialogs. Drop .m3u playlists or audio files in, curate the list, and see the
 check's results below, with a progress bar and a Cancel for long passes."""
 
+import logging
 import time
 from pathlib import Path
 
@@ -22,6 +23,9 @@ from gui.common import (
     DroppedFilesList,
     MultiFileDropZone,
 )
+from planner import i18n
+
+log = logging.getLogger("dancesport.gui.drop_check")
 
 
 class _DropCheckCancelled(Exception):
@@ -148,6 +152,14 @@ class FileDropCheckPanel(QWidget):
                        if n else QLabel("Drop playlists above to check them."))
             except _DropCheckCancelled:
                 out = QLabel("Check cancelled — drop or ➕ add files to run it again.")
+            except Exception as exc:
+                # Not left to the Qt slot: the results below would stay those of
+                # the previous pass, and the host would never hear it ended.
+                log.exception("🔎 The drop check failed\n"
+                              "files: %s\n"
+                              "error: %s", n, exc)
+                out = QLabel(i18n.t("Check failed — %s") % exc)
+                out.setWordWrap(True)
             widget, summary = out if isinstance(out, tuple) else (out, {})
             summary.setdefault("files", n)
             self._results.setWidget(widget)

@@ -209,7 +209,10 @@ class AnalysisMixin(MainWindowHost):
         bar.start(len(missing))
         self._analyzer.progress.connect(bar.set_progress)
         self._analyzer.done.connect(self._on_background_analysis_done)
-        for ended in (self._analyzer.done, self._analyzer.cancelled, self._analyzer.error):
+        # `finished` too: a machine that cannot decode ends the thread without
+        # any of the three signals, and the bar would stay up until the next start.
+        for ended in (self._analyzer.done, self._analyzer.cancelled, self._analyzer.error,
+                      self._analyzer.finished):
             ended.connect(bar.finish)
         self._analyzer.start()
 

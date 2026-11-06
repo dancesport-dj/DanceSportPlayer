@@ -55,9 +55,9 @@ _WISHLIST_VALS = {"secs": 0, "fade": 3.0, "fade_inside": True,
 ROUND_PD_OWN_KEY = "pd_round_n"
 
 # A list's values the panel has no control for: 🎚 the TSO pitch sits on the
-# player card, ❓ the double-click ask only in ⚙ Settings → 🎛 Play sets, and
+# player card, ❓ the double-click ask only in ⚙ Settings → 🎛 Playsets, and
 # 🐂 the list's own round picks, which the spin shows only over their round.
-OFF_PANEL_KEYS = ("tso", "dblclick_ask", ROUND_PD_OWN_KEY)
+OFF_PANEL_KEYS = ("tso", "dblclick_ask", ROUND_PD_OWN_KEY, "celebrate")
 
 
 class PlayValuesMixin(MainWindowHost):
@@ -102,6 +102,9 @@ class PlayValuesMixin(MainWindowHost):
                 vals["tso"] = tso_of(settings, kind)
                 vals["dblclick_ask"] = dblclick_ask_of(settings, kind)
             table._play_vals = vals
+        # 🥇 None = the hand has not touched the switch: the 🏆 set's finals
+        # follow ⚙ Settings, every other list celebrates nowhere.
+        table._play_vals.setdefault("celebrate", None)
         return table._play_vals
 
     def _engine_list(self):
@@ -327,6 +330,7 @@ class PlayValuesMixin(MainWindowHost):
             self._sync_card_tso(vals["tso"], table)
         self._refresh_set_lights()
         self._sync_dance_len()
+        self._sync_celebrate_btn()
         # Other values on the panel get the toast 🎉/🏆 get. Not while the
         # window is not up: start-up binds the panel too, and nobody clicked.
         if changed and self.isVisible():
@@ -339,6 +343,8 @@ class PlayValuesMixin(MainWindowHost):
         name = self.deck(table).title
         if self._on_play_set("party"):
             return i18n.t("🎉  Party set — %s") % name
+        if self._on_play_set("training"):
+            return i18n.t("🏃  Training set — %s") % name
         if self._on_play_set("tournament"):
             return i18n.t("🏆  Tournament set — %s") % name
         return i18n.t("🎚  Own settings — %s") % name
@@ -477,8 +483,19 @@ class PlayValuesMixin(MainWindowHost):
 
         The TSO pitch is not part of the answer: its toggle sits on the player
         card, so neither `play_set()` nor `play_set_of` carries it."""
-        return same_play_values(self._play_panel.play_set(),
-                                play_set_of(self._settings, which))
+        want = play_set_of(self._settings, which)
+        # 🏃 Only the training set carries a pause length of its own.
+        pause = want.pop("pause_secs", None)
+        if pause is not None and self._play_panel.pause_setting_secs() != pause:
+            return False
+        if pause is not None:
+            # 🏃 The training set also owns its Paso Doble values: a party
+            # panel with the pause ticked by hand to the same seconds is not it.
+            p, pd = self._play_panel, pd_of(self._settings, which)
+            if ((p.pd_highlight_stop(), p.pd_highlight_n(), p.pd_start_delay())
+                    != (pd["pd_stop"], pd["pd_n"], pd["pd_delay"])):
+                return False
+        return same_play_values(self._play_panel.play_set(), want)
 
     def _refresh_set_lights(self) -> None:
         """Light the button of the set the panel is standing ON — every time a
@@ -491,8 +508,10 @@ class PlayValuesMixin(MainWindowHost):
         Both dark is an answer too: the panel is on the operator's own values.
         """
         party = self._on_play_set("party")
+        training = not party and self._on_play_set("training")
         self._play_panel.set_party_on(party)
-        if not party:
+        self._play_panel.set_training_on(training)
+        if not party and not training:
             self._play_panel.set_tournament_on(self._on_play_set("tournament"))
 
     def _put_set_on(self, which: str) -> list[str]:
@@ -518,16 +537,31 @@ class PlayValuesMixin(MainWindowHost):
                         dblclick_ask=dblclick_ask_of(settings, which))
 
         warmup = self._deckset.warmup_table
+        p = self._play_panel
+        # 🏃 Asked before anything moves: was the panel standing on the OLD
+        # training set, its pause and its Paso Doble start included?
+        old_training = play_set_of(old, "training")
+        pause = old_training.pop("pause_secs")
+        pd_old = pd_of(old, "training")
+        panel_training = (
+            p.pause_setting_secs() == pause
+            and same_play_values(p.play_set(), old_training)
+            and (p.pd_highlight_stop(), p.pd_highlight_n(), p.pd_start_delay())
+            == (pd_old["pd_stop"], pd_old["pd_n"], pd_old["pd_delay"]))
         for t in self._deckset.all_tables:
             if t._play_vals is None or any(t is w for w in self._deckset.wishlists):
                 continue
             which = "party" if t is warmup else "tournament"
+            # 🏃 Only the list the panel shows can be lit "training": the pause
+            # and the Paso Doble start are the panel's, and a party list holds
+            # the very same list values, so those alone cannot tell them apart.
+            if panel_training and t is self._panel_list():
+                which = "training"
             before, after = whole(old, which), whole(new, which)
             for k, v in before.items():
                 if t._play_vals.get(k) == v:
                     t._play_vals[k] = after[k]
             t.refresh_advance_toggle()
-        p = self._play_panel
         which = "party" if self._panel_list() is warmup else "tournament"
         before, after = pd_of(old, which), pd_of(new, which)
         if p.pd_highlight_stop() == before["pd_stop"]:
@@ -540,6 +574,18 @@ class PlayValuesMixin(MainWindowHost):
         if panel_list is not None:
             self._panel_table = None
             self._bind_panel(panel_list)
+        if panel_training:
+            # Not `_put_set_on`: its Paso Doble step also drops the list's own
+            # round picks, which a plain settings save must leave alone.
+            p.apply_play_set(**play_set_of(self._settings, "training"))
+            self._set_party_tso(tso_of(self._settings, "training"))
+            self._set_list_ask(dblclick_ask_of(self._settings, "training"))
+            pd = pd_of(self._settings, "training")
+            p.set_pd_highlight_stop(pd["pd_stop"])
+            p.set_pd_highlight_n(pd["pd_n"])
+            p.set_pd_start_delay(pd["pd_delay"])
+            self._refresh_set_lights()
+        self._sync_celebrate_btn()   # 🥇 the setting may have moved
 
     def _remember_before_set(self) -> None:
         """Keep what the list on the panel stands on right before a set is
@@ -551,7 +597,8 @@ class PlayValuesMixin(MainWindowHost):
         t = self._panel_list()
         p = self._play_panel
         before = dict(p.play_set(), pd_stop=p.pd_highlight_stop(),
-                      pd_n=p.pd_highlight_n(), pd_delay=p.pd_start_delay())
+                      pd_n=p.pd_highlight_n(), pd_delay=p.pd_start_delay(),
+                      pause_secs=p.pause_setting_secs())
         if t is None:
             before["tso"] = self._card_tso()
             p._before_set = before
@@ -571,24 +618,27 @@ class PlayValuesMixin(MainWindowHost):
         before = getattr(owner, "_before_set", None)
         if before is None:
             changed = self._put_set_on(which)
-            head = (i18n.t("🎉  Party set stays on — no earlier values to go back to")
-                    if which == "party" else
-                    i18n.t("🏆  Tournament set stays on — no earlier values to go back to"))
+            head = {"party": i18n.t("🎉  Party set stays on — no earlier values to go back to"),
+                    "training": i18n.t("🏃  Training set stays on — no earlier values to go back to"),
+                    "tournament": i18n.t("🏆  Tournament set stays on — no earlier values to go back to"),
+                    }[which]
             lines = [i18n.t("change a value by hand, or press the other set")]
             self._report_set(head, lines + changed)
             return
         owner._before_set = None
         p = self._play_panel
-        changed = p.apply_play_set(**{k: before[k] for k in p.play_set()})
+        changed = p.apply_play_set(**{k: before[k] for k in p.play_set()},
+                                   pause_secs=before.get("pause_secs"))
         changed += self._set_party_tso(before["tso"])
         if "dblclick_ask" in before:
             changed += self._set_list_ask(before["dblclick_ask"])
         changed += (p.set_pd_highlight_stop(before["pd_stop"])
                     + p.set_pd_highlight_n(before["pd_n"])
                     + p.set_pd_start_delay(before["pd_delay"]))
-        head = (i18n.t("🎉  Party set off — earlier values back")
-                if which == "party" else
-                i18n.t("🏆  Tournament set off — earlier values back"))
+        head = {"party": i18n.t("🎉  Party set off — earlier values back"),
+                "training": i18n.t("🏃  Training set off — earlier values back"),
+                "tournament": i18n.t("🏆  Tournament set off — earlier values back"),
+                }[which]
         self._report_set(head, changed or [i18n.t("nothing to change")])
 
     def _report_set(self, head: str, lines: list[str]) -> None:
@@ -616,6 +666,20 @@ class PlayValuesMixin(MainWindowHost):
             self._remember_before_set()
         changed = self._put_set_on("party")
         self._report_set(i18n.t("🎉  Party set applied"),
+                         changed or [i18n.t("nothing to change")])
+
+    def _set_training_mode(self, on: bool) -> None:
+        """🏃 clicked: put the list on the panel on the training settings (a
+        party's way with a pause of 25 s between the titles, the 🐂 Paso Doble
+        starting 2 s after the call) — or, when the lit button is clicked off,
+        back on what it had before."""
+        if not on:
+            self._leave_set("training")
+            return
+        if not self._on_play_set("training"):
+            self._remember_before_set()
+        changed = self._put_set_on("training")
+        self._report_set(i18n.t("🏃  Training set applied"),
                          changed or [i18n.t("nothing to change")])
 
     def _apply_tournament_set(self):

@@ -83,7 +83,9 @@ class Entry:
         None when the end is a clock time or blank."""
         if not self.until.strip() or _clock(self.until) is not None:
             return None
-        digits = "".join(c for c in self.until if c.isdigit())
+        if ":" in self.until or "." in self.until:
+            return None   # a clock spelling that is no time ("25:00"), not a length
+        digits = "".join(c for c in self.until if c.isascii() and c.isdigit())
         return int(digits) if digits else None
 
     def as_dict(self) -> dict:

@@ -19,6 +19,7 @@ from PySide6.QtCore import QThread, Signal
 
 from planner.config import INSTALL_DIR
 from planner.music.db import SILENCE_NOISE_DB, SILENCE_TAIL_MIN_SECS
+from planner.music.paths import is_probeable
 
 log = logging.getLogger("dancesport.workers")
 
@@ -106,10 +107,7 @@ def _probeable(path) -> bool:
     ghost entry carrying the URL. Such a target is refused instead of reaching
     `-i`. A missing file already produced None (ffmpeg just failed), so this
     only skips the pointless decode attempt."""
-    try:
-        return Path(path).is_file()
-    except OSError:
-        return False
+    return is_probeable(path)
 
 
 def _ffmpeg_probe(args: list, path: Path, what: str,

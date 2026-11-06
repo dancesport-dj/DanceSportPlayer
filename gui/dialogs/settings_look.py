@@ -42,6 +42,14 @@ else:
     _DialogHost = object
 
 
+def add_reset_footer(layout, button) -> None:
+    """Pins a tab's reset button to the bottom, right-aligned under a rule,
+    away from the settings it would wipe."""
+    layout.addStretch()
+    layout.addWidget(hsep())
+    layout.addWidget(button, 0, Qt.AlignmentFlag.AlignRight)
+
+
 class LookTabMixin(_DialogHost):
     """The 🎨 Look tab of SettingsDialog."""
 
@@ -305,11 +313,16 @@ class LookTabMixin(_DialogHost):
         look = self._selected_own()
         if look is None:
             return
-        answer = QMessageBox.question(
-            self, "Delete look",
+        # An instance, not the static: the name may come from an imported file,
+        # and the static's auto format renders markup in it. The statics are
+        # translated by a hook, so title and text are translated here.
+        box = QMessageBox(
+            QMessageBox.Icon.Question, i18n.t("Delete look"),
             i18n.t("Delete the look “%s”? This cannot be undone; "
-                   "an exported file of it stays.") % look.caption)
-        if answer != QMessageBox.StandardButton.Yes:
+                   "an exported file of it stays.") % look.caption,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, self)
+        box.setTextFormat(Qt.TextFormat.PlainText)
+        if box.exec() != QMessageBox.StandardButton.Yes.value:
             return
         if not user_looks.remove(look.key):
             self._not_saved()

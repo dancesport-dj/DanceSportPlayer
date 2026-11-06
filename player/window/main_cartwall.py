@@ -18,7 +18,7 @@ from player.audio.cart_voices import CartVoices
 from player.audio.mix import cart_duck_level
 from player.widgets.cartwall import CartwallWidget
 from player.window.main_pause import live_target
-from shared.stores import load_cartwall_file, save_cartwall_file, save_settings
+from shared.stores import CARTWALL, load_cartwall_file, save_cartwall_file, save_settings
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -430,9 +430,13 @@ class CartwallMixin(MainWindowHost):
 
     # ── persistence ──────────────────────────────────────────────────────────
     def _load_cartwall(self):
-        doc = pc.load_doc(load_cartwall_file())
-        self._cart_file_foreign = not doc.ok
-        if not doc.ok:
+        raw = load_cartwall_file()
+        doc = pc.load_doc(raw)
+        # None is both "no file yet" and "a file that could not be read" — only
+        # the first is a clean slate.
+        unreadable = raw is None and CARTWALL.exists()
+        self._cart_file_foreign = not doc.ok or unreadable
+        if self._cart_file_foreign:
             log.warning("🎛 cartwall.json is not a wall this build understands\n"
                         "action: starting empty, and NOT overwriting the file")
         self._file_check_for_wall()

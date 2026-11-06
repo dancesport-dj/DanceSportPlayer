@@ -114,6 +114,41 @@ class PartyPanelExportTest(unittest.TestCase):
         return [ln for ln in self._lines(m3u)
                 if ln.strip() and not ln.startswith("#")]
 
+    def _save_as_typed(self, typed: str, answer):
+        """Save as with `typed` in the dialog; the file the suffix turns it into
+        already exists and holds KEEP. (The question box, and what it was asked.)"""
+        from PySide6.QtWidgets import QMessageBox
+
+        from gui.window import main_export
+        target = main_export.with_m3u_suffix(_TMP / typed)
+        target.write_text("KEEP", encoding="utf-8")
+        with mock.patch.object(main_export.QFileDialog, "getSaveFileName",
+                               return_value=(str(_TMP / typed), "")),                 mock.patch.object(main_export, "save_settings"),                 mock.patch.object(main_export.QMessageBox, "warning"),                 mock.patch.object(main_export.QMessageBox, "information"),                 mock.patch.object(main_export.QMessageBox, "question",
+                                  return_value=getattr(
+                                      QMessageBox.StandardButton, answer)) as ask:
+            self.win._on_table_save_requested(self.table)
+        return target, ask
+
+    def test_a_name_the_suffix_turns_into_an_existing_file_asks_first(self):
+        """The native dialog looked for "Playlist v1.2", found nothing and asked
+        nothing — and the .m3u next to it was replaced."""
+        target, ask = self._save_as_typed("Playlist v1.2", "No")
+        ask.assert_called_once()
+        self.assertIn(target.name, ask.call_args.args[2])
+        self.assertEqual(target.read_text(encoding="utf-8"), "KEEP")
+
+    def test_answering_yes_replaces_it(self):
+        target, ask = self._save_as_typed("Playlist v1.3", "Yes")
+        ask.assert_called_once()
+        self.assertNotEqual(target.read_text(encoding="utf-8-sig"), "KEEP")
+
+    def test_a_name_already_ending_in_m3u_is_left_to_the_dialog(self):
+        """The native dialog has asked about that exact file already."""
+        from gui.window import main_export
+        suffix = main_export.m3u_suffix()
+        _, ask = self._save_as_typed(f"Playlist v1.4{suffix}", "No")
+        ask.assert_not_called()
+
     def test_the_panel_writes_its_rounds(self):
         out = self.save_as("party.m3u")
         self.assertEqual(self._comments(out),

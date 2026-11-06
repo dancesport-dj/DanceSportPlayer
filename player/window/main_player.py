@@ -406,6 +406,7 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
             # 🥇 Past its cut the title plays on to the file's end: no cut and
             # no fade left to mark, the bar and the waveform span all of it.
             self._big_player.set_limit(None, "trophy", to_end=True)
+            self._big_player.set_celebrate_mark(self._playback.celebrate_at_ms)
             self._big_player.set_pd_marks(self._unarmed_pd_marks())
         elif self._pd_runs_to_its_highlight():
             # Auto-detection leaves None where a highlight wasn't found.
@@ -993,24 +994,71 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         left = (dur - player.position()) / 1000 - HARD_END_LEAD_SECS
         return max(0.0, min(1.0, left / HARD_END_FADE_SECS))
 
+    def _on_celebrate_toggled(self, on: bool) -> None:
+        """🥇 The switch on the ▶ panel: the hand's word for the list on the
+        panel - every title plays on after the play length, or none does -
+        over what the 🏆 set and ⚙ Settings give its finals."""
+        t = self._panel_list()
+        if t is None:
+            return
+        self._list_vals(t)["celebrate"] = bool(on)
+        self._autosave_playlist()
+        self._sync_big_player_limit()
+
+    def _sync_celebrate_btn(self) -> None:
+        """🥇 Show on the switch what the list on the panel does."""
+        panel = getattr(self, "_play_panel", None)
+        show = getattr(panel, "set_celebrate", None)
+        t = self._panel_list()
+        if show is None or t is None:
+            return
+        playing, row = self._playing_row()
+        if playing is not t:
+            row = t.currentRow()   # the row ▶ would start next
+        show(self._celebration_of(t, row))
+
+    def _celebration_of(self, t, row: int) -> bool:
+        """🥇 Does the title at `row` of list `t` play on? The hand's switch
+        for the list when it was touched; else, on the 🏆 set, what ⚙ Settings
+        gives that round (like a dance's own length); else no."""
+        if t is None:
+            return False
+        hand = self._list_vals(t).get("celebrate")
+        if hand is not None:
+            return bool(hand)
+        if not self._on_tournament_length(t):
+            return False
+        place = self._round_place_at(t, row)
+        return place is not None and celebrates(celebrate_mode(self._settings), *place)
+
     def _celebration_due(self) -> bool:
         """🥇 Does the title playing come back up after its play-length fade?
         Only under ✋ Manual: under ⏭ Auto the ⏸ pause and its music follow
         each title, so it ends as always."""
-        mode = celebrate_mode(self._settings)
-        if (mode == "off" or self._playback.path is None
-                or self._player is None or self._looping()
-                or self._playing_advance()):
-            return False
-        t, row = self._playing_row()
+        return not (self._playback.path is None or not self._celebration_choice()
+                    or self._player is None or self._looping()
+                    or self._playing_advance())
+
+    def _round_place(self):
+        """(round name, is it the round's last dance) of the title playing,
+        or None while no row is marked."""
+        return self._round_place_at(*self._playing_row())
+
+    def _round_place_at(self, t, row):
+        """The same for row `row` of list `t`."""
         if t is None or t._row_meta.at(row) is None:
-            return False
+            return None
         # By `round_at`: an imported running order names its rounds in the
         # ─── strips, not on the rows.
         rnd = t.round_at(row)
         nrow, _npath = t.next_song_row(row, +1)
         last = nrow < 0 or t._row_meta.at(nrow) is None or t.round_at(nrow) != rnd
-        return celebrates(mode, rnd, last)
+        return rnd, last
+
+    def _celebration_choice(self) -> bool:
+        """🥇 What the title playing does: see `_celebration_of`."""
+        t, row = self._playing_row()
+        return self._celebration_of(t, row)
 
     def _cut_fade_floor(self) -> float:
         """🥇 How low the play-length fade takes the title playing (0…1): to
@@ -1028,6 +1076,8 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
             return False
         path = self._playback.path
         self._playback.celebrate = (self._playback.token, time.monotonic())
+        self._playback.celebrate_at_ms = (
+            self._player.position() if self._player is not None else None)
         log.info("🥇 The final's title plays on\n"
                  "file: %s", path.name if path else "?")
         self._sync_big_player_limit()   # the card runs on to the file's end

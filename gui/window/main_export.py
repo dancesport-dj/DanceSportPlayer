@@ -149,16 +149,39 @@ def _folder_name(name: str) -> str:
     return re.sub(r'[<>:"/\\|?*]', "_", name).strip().rstrip(". ")
 
 
+_BUNDLE_TRACK_RE = re.compile(r"\d(_\d)+ - ")   # "0_0_1 - Title WW29.mp3"
+
+
+def with_m3u_suffix(path: Path) -> Path:
+    """`path` as a playlist file: ".m3u"/".m3u8" stay, anything else is APPENDED —
+    "Playlist v1.2" is a name with a dot in it, not a file type to replace."""
+    if path.suffix.lower() in (".m3u", ".m3u8"):
+        return path
+    return path.with_name(path.name + m3u_suffix())
+
+
 def _is_bundle_dir(folder: Path) -> bool:
-    """Whether `folder` holds no more than a USB export writes — playlist
-    folders, each with its M3U — so Replace deletes nothing else. Hidden
-    entries (a Mac's ``._`` files) don't count."""
+    """Whether `folder` holds no more than a USB export writes, so Replace
+    deletes nothing else: playlist folders, each with exactly one M3U named
+    after it and otherwise only tracks the export numbered (``0_0_1 - …``).
+    A person's own library of playlist folders, with its music under the
+    songs' own names, is not one. Hidden entries (a Mac's ``._`` files)
+    don't count."""
     try:
         for p in folder.iterdir():
             if p.name.startswith("."):
                 continue
-            if not p.is_dir() or not any(f.suffix.lower() in (".m3u", ".m3u8")
-                                         for f in p.iterdir()):
+            if not p.is_dir():
+                return False
+            m3us = []
+            for f in p.iterdir():
+                if f.name.startswith("."):
+                    continue
+                if f.suffix.lower() in (".m3u", ".m3u8"):
+                    m3us.append(f)
+                elif f.is_dir() or not _BUNDLE_TRACK_RE.match(f.name):
+                    return False
+            if len(m3us) != 1 or m3us[0].stem != p.name:
                 return False
     except OSError:
         return False
@@ -857,6 +880,33 @@ class ExportMixin(MainWindowHost):
         sub = (sanitize_filename(title) if title
                else f"Tournament_day_{date.today().isoformat()}")
         target = Path(root) / sub
+        if target.is_dir() and any(target.iterdir()):
+            # An earlier save of this day: its files are written over, and the
+            # ones of competitions the plan has dropped since stay beside them.
+            box = QMessageBox(self)
+            box.setWindowTitle("Save tournament day")
+            box.setIcon(QMessageBox.Icon.Question)
+            box.setText(i18n.t("“%s” already exists and holds files.\n"
+                               "Replace writes the playlists over the files of the "
+                               "same name; other files in it stay.\n"
+                               "Keep both saves into a new folder.") % target)
+            box.setStandardButtons(QMessageBox.StandardButton.Yes
+                                   | QMessageBox.StandardButton.No
+                                   | QMessageBox.StandardButton.Cancel)
+            box.button(QMessageBox.StandardButton.Yes).setText("Replace")
+            box.button(QMessageBox.StandardButton.No).setText("Keep both")
+            box.setDefaultButton(QMessageBox.StandardButton.No)
+            answer = box.exec()
+            if answer == QMessageBox.StandardButton.Yes:
+                pass
+            elif answer == QMessageBox.StandardButton.No:
+                n = 2
+                while (Path(root) / f"{sub}_{n}").exists():
+                    n += 1
+                sub = f"{sub}_{n}"
+                target = Path(root) / sub
+            else:
+                return
         target.mkdir(parents=True, exist_ok=True)
         saved, errors = [], []
         written: list[Path] = []
@@ -1001,9 +1051,17 @@ class ExportMixin(MainWindowHost):
             "M3U playlists (*.m3u *.m3u8);;All files (*)")
         if not chosen:
             return
-        out_path = Path(chosen)
-        if out_path.suffix.lower() not in (".m3u", ".m3u8"):
-            out_path = out_path.with_suffix(m3u_suffix())
+        out_path = with_m3u_suffix(Path(chosen))
+        # The dialog asked about the name as typed. A suffix added here can land
+        # on a file it never looked at — "Playlist v1.2" next to "Playlist v1.2.m3u".
+        if out_path != Path(chosen) and out_path.exists():
+            ans = QMessageBox.question(
+                self, "Save as M3U",
+                i18n.t("%s already exists.\n\nReplace it?") % out_path.name,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No)
+            if ans != QMessageBox.StandardButton.Yes:
+                return
         # Remember the folder the user chose for next time.
         if isinstance(getattr(self, "_settings", None), dict):
             self._settings["save_dir"] = str(out_path.parent)

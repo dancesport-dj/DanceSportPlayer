@@ -700,6 +700,7 @@ class _QtDesk(QObject, _Desk):
     """The desk on real players, wired the way MainWindow wires its deck."""
 
     _spare_deck = CrossfadeMixin._spare_deck   # a QObject can parent the real one
+    _headset_play_gate = staticmethod(lambda: False)   # no headset in this desk
 
     def __init__(self):
         QObject.__init__(self)

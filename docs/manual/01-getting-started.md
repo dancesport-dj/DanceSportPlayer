@@ -100,7 +100,7 @@ Hover over one for its full name.
 | ▴ Fold decks | Folds every deck and wishlist to a header tab. |
 | 💾 Save all | Writes every non-empty deck to its own `.m3u`. |
 | 📌 Save state | Saves the whole session now. This also happens by itself on every edit and on close. |
-| 🧹 Clear all | Empties every deck. Wishlists are kept. |
+| 🧹 Clear all | Asks what to empty: the playlists (ticked), the wishlists, and the 🤸 Party list. A kind with nothing in it is greyed, and OK needs a tick. |
 | 🚦 Check ▾ | **🚦 Ready?**, the check before the evening, see [chapter 4](04-playing.md#-ready-before-the-evening). The full app adds 🔁 Check duplicates, 🎵 Check music and 🧭 Fix paths to this menu. |
 | ⧉ *n* playlists | Cycles through the number of decks on screen. A right click goes backwards. |
 | 🗜 Compact | Cycles the header view: full → compact → no groups → numbered. Drag the right edge of the numbers to change their width; double-click it for the automatic width. |
@@ -147,6 +147,11 @@ the window closes when the last one is silent. Meanwhile a small window
 says *🔉 Fading out the music… The app closes in a moment.*, its bar
 filling up with the fade. A second ✕ during the fade closes at once. With nothing sounding, the app closes at
 once.
+
+Only one copy of the app runs at a time, because two would write the same
+autosave and the one closed last would win. A second start says *DanceSport
+Planner & Player is already running* and closes again; switch to the first
+window.
 
 ## The player build
 

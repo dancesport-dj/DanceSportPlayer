@@ -10,7 +10,7 @@ import time
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QPainter
-from PySide6.QtWidgets import QApplication, QSlider, QStyle, QWidget
+from PySide6.QtWidgets import QApplication, QSlider, QStyle, QStyleOptionSlider, QWidget
 
 # Edge length of the 🖼 cover on the player card — as tall as the title block
 # next to it, so switching it on doesn't grow the card.
@@ -145,9 +145,20 @@ class ClickSlider(_NoWheelSlider):
             p.drawRoundedRect(self._x_for(m) - w // 2, (h - 10) // 2, w, 10, 1, 1)
         p.end()
 
+    def _on_handle(self, pos) -> bool:
+        opt = QStyleOptionSlider()
+        self.initStyleOption(opt)
+        handle = self.style().subControlRect(
+            QStyle.ComplexControl.CC_Slider, opt,
+            QStyle.SubControl.SC_SliderHandle, self)
+        return handle.contains(pos)
+
     def mousePressEvent(self, event):
+        # A press on the handle is a grab: Qt's own press below starts the drag
+        # from where the handle is. Only a press on the track jumps.
         if (event.button() == Qt.MouseButton.LeftButton
-                and self.maximum() > self.minimum()):
+                and self.maximum() > self.minimum()
+                and not self._on_handle(event.position().toPoint())):
             val = QStyle.sliderValueFromPosition(
                 self.minimum(), self.maximum(),
                 round(event.position().x()), max(1, self.width()))

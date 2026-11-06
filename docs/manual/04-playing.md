@@ -49,7 +49,7 @@ structure.
   While a title is playing, the double-click asks first (**Stop the playing
   title?**), and **No** keeps the music on. Whether it asks is set per play
   set, with **❓ Ask before a double-click stops the title** in
-  [⚙ Settings ▸ 🎛 Play sets](06-settings.md#play-sets); on in both.
+  [⚙ Settings ▸ 🎛 Playsets](06-settings.md#play-sets); on in both.
   Where the double-click would start a title with a ↩ time marker, the
   question is **Reset the time marker?** instead, and it always comes: **From
   the beginning**, **At the marker**, or **Cancel**, which is the
@@ -134,6 +134,9 @@ The stretch before it is dimmed. With 🌅 fade-in on, the fade-in is tinted
 click or drag on the waveform by hand takes the green line away: the
 title no longer starts where it marked.
 
+A **gold line**, the colour of the cup, marks where a title faded out into
+the 🥇 celebration.
+
 - **Point** at it to see the time under the mouse, before you click.
 - **Click** it to jump to that spot. **Drag** along it to scrub: the playhead
   and the times follow the mouse, and the music jumps when you let go. A drag
@@ -187,7 +190,7 @@ its last second.
 at a highlight, the musical break the couples dance to.
 
 - **Stop after highlight** picks which one, usually the 2nd.
-  Where a round has its own pick in ⚙ Settings → 🎛 Play sets, the number
+  Where a round has its own pick in ⚙ Settings → 🎛 Playsets, the number
   shows that pick while the list plays the 🏆 set's length (a round in
   *full* reads as 3). Turning it there changes the pick for this list
   alone; turning it back, or putting the 🏆 set on again, follows the
@@ -293,6 +296,18 @@ With the switch off, a Paso Doble is an ordinary title.
   another title during the fade cuts the old title off at once. Every playlist keeps its own
   value.
 
+- **🥇 Celebration: music plays on**: after the play length has faded a
+  title out, it dips and comes back up as background while the couples
+  celebrate, until **🔉↓** fades it, the next title starts or the file ends.
+  A switch of the list like the others, kept per playlist and off to begin
+  with. It needs a play length: with *full* nothing is cut, so the switch
+  is gone. It follows ✋ Manual only: under ⏭ Auto the ⏸ pause and its
+  music follow each title, and a title ends as always. The
+  [waveform](#-the-waveform) marks where the title went over with a gold
+  line, and the gold line under the digits reads *Plays on after its
+  length*. Level, dip and times are in
+  [⚙ Settings ▸ 🔊 Sound & player ▸ 🥇 Celebration](06-settings.md#-celebration-the-music-plays-on).
+
 ### 🔈 Announce next dance
 
 The app says the next dance out loud. Out of the box it names just the
@@ -339,7 +354,11 @@ practice evening.
 
 ### Play sets
 
-Two buttons switch the whole panel over in one go:
+Three sets switch the whole panel over in one go. Out of the box the panel
+shows one button, named for the set that is on: gold 🏆, purple 🎉, green 🏃.
+A click goes over to the next set (🏆, 🎉, 🏃, and round again), and puts the
+🏆 set on when none is. A tick in [⚙ Settings ▸ 🎛 Playsets](06-settings.md#play-sets)
+brings back one button per set.
 
 - **🏆 Tournament set**: 1:45 play length, then a 2.5 s fade-out after it, no
   pause, no crossfade, no auto-advance, no announcement, equalized volume.
@@ -352,13 +371,17 @@ Two buttons switch the whole panel over in one go:
   after 1 s. It is applied by itself when you play
   from the 🤸 Party panel, and switched back when a tournament deck takes
   over.
+- **🏃 Training set**: the party's way of playing with the pause back on: 25 s
+  between the titles, to talk and take position. The 🐂 Paso Doble stops
+  after its 2nd highlight and starts 2 s after the call. Its pause length is
+  set in the Playsets tab.
 
-Click a lit set again to switch it off: the list goes back to the values it
+On the separate buttons, click a lit set again to switch it off: the list goes back to the values it
 stood on before you pressed it. With nothing to go back to, for example after
 the app was restarted, the set stays on and a note says so.
 
 What each set contains is yours to change, in
-[⚙ Settings ▸ 🎛 Play sets](06-settings.md#play-sets).
+[⚙ Settings ▸ 🎛 Playsets](06-settings.md#play-sets).
 
 The tournament set can also give a dance **its own play length**, for
 example 1:30 for the Viennese Waltz and 1:37 for the Tango. While a list plays
@@ -370,25 +393,26 @@ from the set. Change the list's length by hand and from then on its one
 length applies to every dance. Out of the box the 🏆 set plays 1:30 for
 the Waltz, Viennese Waltz, Quickstep and Jive, and 1:37 for the Tango,
 Slow Foxtrot, Samba, Cha-Cha-Cha and Rumba. The Paso Doble plays in full, or
-to its highlight, see [⚙ Settings ▸ 🎛 Play sets](06-settings.md#play-sets).
+to its highlight, see [⚙ Settings ▸ 🎛 Playsets](06-settings.md#play-sets).
 
 **🥇 Final: the music plays on.** In the final the couples like to dance
-on, or to celebrate, after the play length is up. With this switched on in
-the 🏆 set (⚙ Settings ▸ 🎛 Play sets), a title of the final fades out at
-its play length as always, dips to 5 % and comes back up at 60 % as
-background, until **🔉↓** fades it, the next title starts or the file ends.
-Pick **After the last dance of the final** or **After every dance of the
-final**; it is **Off** out of the box. Between two dances of the final it
-plays in place of the ⏸ pause music. A round counts as the final when it is
-named *Finale*, *Final* or *Endrunde*. The Playing panel then reads
-*its own length, then plays on*. Level, dip, hold and the times up and down
-are set beside the switch.
+on, or to celebrate, after the play length is up. A list on the 🏆 set that
+nobody has touched follows ⚙ Settings ▸ 🎛 Playsets: pick **After the last
+dance of the final** or **After every dance of the final** there; it is
+**Off** out of the box. A click on the list's **🥇 Celebration** switch wins
+over that, on or off. Any other list plays on only when its switch is on.
+Between two dances of the final it plays in place of the ⏸ pause music. A
+round counts as the final when it is named *Finale*, *Final* or *Endrunde*.
+The Playing panel then reads *its own length, then plays on*.
 
 ### 🖥 Presenter
 
 **🖥 Presenter** opens a second, full-screen window for a beamer or a monitor
 turned towards the floor. It shows the running title with its dance and the
-next three titles.
+next three titles. When the playing row has a heat, the dance line names it:
+*Langsamer Walzer · Heat 2*, or *Gruppe 2* with the German names kept. A
+dance played once in its round shows the dance alone. The phone remote reads
+the same line.
 
 ![The presenter screen](img/presenter.png)
 
@@ -413,7 +437,9 @@ a title while the hall hears the music. Pick that output in
 - **▶** in the 📚 Library and in the 🏆 Tournaments pane then plays on the
   pre-listen output. The music keeps running.
 - The pre-listen has a mini player of its own, with a seek bar, ⏮ / ⏭ and
-  its volume. **✕** on it stops only the pre-listen.
+  its volume, which is the master volume: the slider shows and sets the
+  same level as the player's. **✕** on it stops only the pre-listen;
+  **Esc** stops and closes it too, like **Ctrl + X**.
 - **Ctrl+←/→** seeks the pre-listen by 30 s while it plays, from the panes
   and windows that pre-listen. On a deck row they still seek the music.
 - **▶** on a deck row still starts the music for the hall.
@@ -426,6 +452,35 @@ a title while the hall hears the music. Pick that output in
   pane still plays in that mini player, on the music's own output and
   alongside the music. The main player and its card are left alone. A deck's
   ▶ stops it.
+
+## 🎧 Loud music on a headset
+
+A volume that suits the PA can hurt in a headset. What reaches the ears is the
+player's fader times the system's volume slider, so 100 % in the app on a
+system slider at 7 % is fine, and 100 % on both is not. When a title is about
+to play on an output worn on the head and that product is above 70 %, the
+desk holds the music and asks first:
+
+- **⚠ LOUD MUSIC ON A HEADSET** names the output and both volumes. Nothing
+  plays until you answer.
+- **Reduce to …** comes twice and sets the player's fader so that fader times
+  slider comes to the level on the button. With the fader at 100 % the
+  buttons offer 30 % and 50 %, below that 50 % and 70 %. **Enter** and
+  **Esc** take the higher one.
+- **Keep …** plays at the volume it was.
+
+You are asked once per level: what you chose is remembered until the app
+closes, and only a louder setting asks again. Going back up to a level that
+was asked about shows a red toast while music plays. The check runs when a
+title starts, when the outputs change, when settings are applied and when the
+fader comes to rest.
+
+Which outputs count: Windows reports the kind of each output, so headphones
+and headsets are asked about and an audio interface, HDMI or S/PDIF never. On
+a Mac or Linux, and where a driver says only "speakers", the output's name
+decides (headset, headphones, Kopfhörer, AirPods and the like). A Mac's
+built-in jack may feed a speaker as well, so it is asked about only with
+everything at 100 %.
 
 ## 🎛 The cartwall
 
@@ -564,6 +619,8 @@ as the PC. There is no app to install. From the phone you can:
   is playing, or during a pause between dances, it simply starts;
 - play and pause, go to the previous or next title;
 - fade out, or fade out and hold;
+- set the music's volume with the slider below the fade buttons. It follows a
+  change made at the desk;
 - switch **🔈 Announce next dance** on or off. It is the same switch as on
   the Playing panel, so its voice and timing follow;
 - switch between **⏭ Auto** and **✋ Manual**, and **🔀 Crossfade** on or

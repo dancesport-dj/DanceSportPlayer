@@ -34,7 +34,7 @@ from gui.dialogs import (  # auto-resolved
 )
 from gui.print_sheet import deck_print_html
 from planner import i18n
-from planner.config import OUTPUT_DIR
+from planner.config import OUTPUT_DIR, replacing_file
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -118,21 +118,27 @@ class PrintMixin(MainWindowHost):
                                f"{sanitize_filename(name)}.pdf")
         try:
             OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-            writer = QPdfWriter(str(target))
-            writer.setPageSize(QPageSize(QPageSize.PageSizeId.A4))
-            writer.setPageMargins(QMarginsF(12, 12, 12, 12),
-                                  QPageLayout.Unit.Millimeter)
-            # 96 dpi: the document lays out in CSS-pixel terms, so the 100%-
-            # wide table really spans the printable width (at the default
-            # 1200 dpi it rendered into a tiny corner of the page).
-            writer.setResolution(96)
-            doc = QTextDocument()
-            font = QFont("Segoe UI")
-            font.setPointSize(11)
-            doc.setDefaultFont(font)
-            doc.setHtml("".join(parts))
-            doc.setPageSize(QSizeF(writer.width(), writer.height()))
-            doc.print_(writer)
+            # QPdfWriter empties its file when painting begins: a second print
+            # on one day, or a write that dies half-way, would have left a
+            # cut-off PDF where a whole one was. It writes to a temp file that
+            # replaces the target once it is complete.
+            with replacing_file(target) as tmp:
+                writer = QPdfWriter(str(tmp))
+                writer.setPageSize(QPageSize(QPageSize.PageSizeId.A4))
+                writer.setPageMargins(QMarginsF(12, 12, 12, 12),
+                                      QPageLayout.Unit.Millimeter)
+                # 96 dpi: the document lays out in CSS-pixel terms, so the 100%-
+                # wide table really spans the printable width (at the default
+                # 1200 dpi it rendered into a tiny corner of the page).
+                writer.setResolution(96)
+                doc = QTextDocument()
+                font = QFont("Segoe UI")
+                font.setPointSize(11)
+                doc.setDefaultFont(font)
+                doc.setHtml("".join(parts))
+                doc.setPageSize(QSizeF(writer.width(), writer.height()))
+                doc.print_(writer)
+                del writer   # closes the file before it is swapped in
         except Exception as exc:
             QMessageBox.critical(self, "Print playlist",
                                  i18n.t("Could not write the PDF:\n%s") % exc)

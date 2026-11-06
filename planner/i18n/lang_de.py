@@ -32,8 +32,8 @@ CATALOG = {
     "Fade every running pad out (Esc)": "Alle laufenden Pads ausblenden (Esc)",
     "Fade between music and timetable every":
         "Zwischen Musik und Zeitplan wechseln alle",
-    "    Only tracks not already in my open playlists":
-        "    Nur Titel, die noch in keiner offenen Wiedergabeliste sind",
+    "Select all":
+        "Alle auswählen",
     "Close": "Schließen",
     "Replace": "Ersetzen",
     "Reset": "Zurücksetzen",
@@ -717,8 +717,6 @@ CATALOG = {
     "Could not fetch models (using fallback list).":
         "Modelle konnten nicht geladen werden (Ersatzliste wird genutzt).",
     "Load the music library first.": "Bitte zuerst die Musikbibliothek laden.",
-    "Nothing to clear — all playlists are empty.":
-        "Nichts zu leeren — alle Wiedergabelisten sind leer.",
     "Nothing to export — all playlists are empty.":
         "Nichts zu exportieren — alle Wiedergabelisten sind leer.",
     "Nothing to save — all playlists are empty.":
@@ -829,13 +827,12 @@ CATALOG = {
     "click the tab (or this arrow) to open it again.":
         "Den %s-Bereich auf seinen Kopf-Reiter einklappen —\n"
         "auf den Reiter (oder diesen Pfeil) klicken öffnet ihn wieder.",
-    "Close the preview and stop playback  (Ctrl+X)":
-        "Vorschau schließen und Wiedergabe stoppen  (Strg+X)",
+    "Close the preview and stop playback  (Ctrl+X / Esc)":
+        "Vorschau schließen und Wiedergabe stoppen  (Strg+X / Esc)",
     "Close the tournament day — clears all 📅 day decks":
         "Turniertag schließen — leert alle 📅 Tagesdecks",
     "Back to this slot's default key": "Zurück zur Standardtaste dieses Platzes",
     "Export or import this wall": "Diese Cartwall exportieren oder importieren",
-    "Duck to 20 % / back to full": "Auf 20 % absenken / zurück auf voll",
     "🔉  Duck to:": "🔉  Absenken auf:",
     "How loud everything stays while 🔉 Duck is pressed on the player\ncard, the mini player or the presenter screen: low enough to talk\nover, loud enough to keep the floor moving. 0 % is silence.":
         "Wie laut alles bleibt, während 🔉 Absenken auf der Player-Karte,\ndem Mini-Player oder dem Präsentationsbildschirm gedrückt ist: leise\ngenug zum Drüberreden, laut genug, dass die Fläche weitertanzt. 0 % ist Stille.",
@@ -931,7 +928,7 @@ CATALOG = {
         "Länge wählen oder eingeben: m:ss, Sekunden oder 'komplett'",
     "%s — its own length":
         "%s — eigene Länge",
-    "This dance has its own play length in the 🏆 tournament set\n(⚙ Settings → 🎛 Play sets). − / + and typing change it there.":
+    "This dance has its own play length in the 🏆 tournament set\n(⚙ Settings → 🎛 Playsets). − / + and typing change it there.":
         "Dieser Tanz hat im 🏆 Turnier-Set eine eigene Spiellänge\n(⚙ Einstellungen → 🎛 Spiel-Sets). − / + und Eintippen ändern sie dort.",
     "<b>⏱ Per dance</b> — a dance given a length of its own is cut there instead, as long as a list plays this set's length. The ▶ Playing panel names the dance under its length.":
         "<b>⏱ Pro Tanz</b> — ein Tanz mit eigener Länge wird stattdessen dort geschnitten, solange eine Liste die Länge dieses Sets spielt. Der Bereich ▶ Abspielen nennt den Tanz unter seiner Länge.",
@@ -1063,8 +1060,6 @@ CATALOG = {
     "🔍  Compare": "🔍  Vergleichen",
     "🔍  Filter title / artist / comment tag…":
         "🔍  Titel / Interpret / Kommentar filtern…",
-    "🔍  Find a title in this list…\tCtrl+F":
-        "🔍  Titel in dieser Liste suchen…\tStrg+F",
     "🔍  Find a title or genre in this list…\tCtrl+F":
         "🔍  Titel oder Genre in dieser Liste suchen…\tStrg+F",
     "🆕 Last 30 days": "🆕 Letzte 30 Tage",
@@ -1184,7 +1179,6 @@ CATALOG = {
     "🧹  Remove": "🧹  Entfernen",
     "🧹  Remove tracks already in a playlist":
         "🧹  Titel entfernen, die schon in einer Wiedergabeliste sind",
-    "🧹 Cleared all playlists.": "🧹 Alle Wiedergabelisten geleert.",
     "🧹 Tournament-day playlists cleared.": "🧹 Turniertag-Wiedergabelisten geleert.",
     "🧳  USB export": "🧳  USB-Export",
     "🧳 USB export": "🧳 USB-Export",
@@ -1250,7 +1244,7 @@ CATALOG = {
         "🎼  Chroma-Cover- / Remix-Index aufbauen…",
     "🎚️  Open playlists": "🎚️  Offene Wiedergabelisten",
     "🎚️  Timbre + Rhythm (librosa)": "🎚️  Timbre + Rhythmus (librosa)",
-    "🎛 Play sets": "🎛 Spiel-Sets",
+    "🎛 Playsets": "🎛 Spiel-Sets",
     "🎛 No free pad voice — every voice holds a looping pad.":
         "🎛 Keine freie Pad-Stimme — jede Stimme hält ein laufendes Pad.",
     "🎤 Vocal": "🎤 Gesang",
@@ -1343,12 +1337,6 @@ CATALOG = {
         "Rechtsklick läuft rückwärts.\n"
         "Aus blendet ihn ganz aus, auch bei mehreren Decks.\n"
         "Doppelklick auf einen Deck-/Wunschlistentitel benennt ihn um.",
-    "Empty every playlist deck (wishlists are kept).\n"
-    "Tip: Del on a deck's title clears just that one playlist;\n"
-    "Del on a wishlist's title clears that wishlist.":
-        "Alle Wiedergabelisten-Decks leeren (Wunschlisten bleiben erhalten).\n"
-        "Tipp: Entf auf dem Titel eines Decks leert nur diese eine Wiedergabeliste,\n"
-        "Entf auf dem Titel einer Wunschliste leert diese Wunschliste.",
     "Export every non-empty playlist deck to its own .m3u in the\n"
     "playlist folder at once (wishlists are not included).\n"
     "Each file is named after its deck title.":
@@ -1695,9 +1683,9 @@ CATALOG = {
         "fester Takt bringt stattdessen jeden Titel dieses Tanzes auf dasselbe "
         "Tempo — lohnt sich bei den langsamen Tänzen, wo ein Takt von 24 doppelt "
         "so viel Tonhöhenänderung ist wie ein Takt von 50.",
-    "<b>🎛 Play sets</b> — the two buttons on the ▶ Playing panel put the "
+    "<b>🎛 Playsets</b> — the set buttons on the ▶ Playing panel put the "
     "controls on these values in one press:":
-        "<b>🎛 Abspiel-Sets</b> — die zwei Knöpfe im Bereich ▶ Abspielen stellen "
+        "<b>🎛 Abspiel-Sets</b> — die Set-Knöpfe im Bereich ▶ Abspielen stellen "
         "die Bedienelemente mit einem Druck auf diese Werte:",
     "<b>🎨 Theme</b> — the classic light or dark, or one of the looks:":
         "<b>🎨 Erscheinungsbild</b> — das klassische Hell oder Dunkel oder "
@@ -1882,8 +1870,8 @@ CATALOG = {
         "Wirkt nach einem Neustart der App. Bleibt der Ton danach weg, hier wieder "
         "zurückschalten — die Einstellung wird nur beim Start gelesen, sonst hängt "
         "nichts in der App daran.",
-    "🐂 Each set carries its own Paso Doble values. Under 🏆 the highlight stop is <i>off</i> by default: the detection is not good enough yet to cut a competition Paso Doble on, and a heat stopped in the wrong bar is danced twice. Under 🎉 it stops after the 2nd highlight and waits 3 s, so the couples can take their position.":
-        "Jedes Set hat seine eigenen 🐂 Paso-Doble-Werte. Unter 🏆 ist der Höhepunkt-Stopp von Haus aus <i>aus</i>: die Erkennung ist noch nicht gut genug, um einen Turnier-Paso darauf zu schneiden, und eine im falschen Takt gestoppte Gruppe wird zweimal getanzt. Unter 🎉 stoppt er nach dem 2. Höhepunkt und wartet 3 s, damit die Paare ihre Ausgangsposition einnehmen können.",
+    "🐂 Each set carries its own Paso Doble values. Under 🏆 the highlight stop is <i>off</i> by default: the detection is not good enough yet to cut a competition Paso Doble on, and a heat stopped in the wrong bar is danced twice. Under 🎉 it stops after the 2nd highlight and waits 1 s, under 🏃 2 s, so the couples can take their position.":
+        "Jedes Set hat seine eigenen 🐂 Paso-Doble-Werte. Unter 🏆 ist der Höhepunkt-Stopp von Haus aus <i>aus</i>: die Erkennung ist noch nicht gut genug, um einen Turnier-Paso darauf zu schneiden, und eine im falschen Takt gestoppte Gruppe wird zweimal getanzt. Unter 🎉 stoppt er nach dem 2. Höhepunkt und wartet 1 s, unter 🏃 2 s, damit die Paare ihre Ausgangsposition einnehmen können.",
     "Shut the music off at the chosen highlight instead of\nthe play length. On by default: at a party the\nPaso Doble ends on its 2nd highlight.":
         "Die Musik am gewählten Höhepunkt abschalten statt an der\nSpiellänge. Von Haus aus an: auf einer Party endet der\nPaso Doble an seinem 2. Höhepunkt.",
     "Hold a Paso Doble back this long before the music\nstarts, so the couples can take their position.":
@@ -2353,7 +2341,6 @@ CATALOG = {
     "folder(s) the music lives in on this PC.":
         "⚠  Kein <b>Suchordner</b> gesetzt — öffne die Einstellungen und nenne die "
         "Basisordner, in denen die Musik auf diesem PC liegt.",
-    "Clear all playlists": "Alle Wiedergabelisten leeren",
     "Nothing to print — no songs found.":
         "Nichts zu drucken — keine Titel gefunden.",
     "Print playlist": "Wiedergabeliste drucken",
@@ -2754,7 +2741,7 @@ CATALOG = {
     "\n"
     "Lit gold while the panel stands on those values, the way 🎉 is lit\n"
     "purple during a party. Switches the 🎉 party set off. What exactly\n"
-    "it sets is yours to change: ⚙ Settings → 🎛 Play sets.\n"
+    "it sets is yours to change: ⚙ Settings → 🎛 Playsets.\n"
     "\n"
     "Clicked while lit, it switches itself off: the list goes back to\n"
     "the values it had before the set was pressed.":
@@ -2824,7 +2811,7 @@ CATALOG = {
     "Applied by itself as soon as you play from the 🤸 Practice /\n"
     "party list, and switched back when a tournament deck takes over —\n"
     "a toast says what changed either way. What exactly it sets is\n"
-    "yours to change: ⚙ Settings → 🎛 Play sets.\n"
+    "yours to change: ⚙ Settings → 🎛 Playsets.\n"
     "\n"
     "Clicked while lit, it switches itself off: the list goes back to\n"
     "the values it had before the set was pressed.":
@@ -3432,13 +3419,15 @@ CATALOG = {
     "red in the final seconds. The broad orange bar is where it plays.\n"
     "Shaded: silence the player skips · thin orange: Paso Doble\n"
     "highlights · red-tinted: the fade-out of a timed cut · gold: the\n"
-    "fade-in · green line: where the title starts.\n"
+    "fade-in · green line: where the title starts · golden line: where\n"
+    "a final's title faded out into the celebration.\n"
     "Click to jump there.":
         "Die Wellenform des Titels — was schon lief, ist blau, in den letzten\n"
         "Sekunden alles rot. Der breite orange Balken zeigt, wo er gerade läuft.\n"
         "Schattiert: Stille, die der Player überspringt · dünn orange: Paso-Doble-\n"
         "Höhepunkte · rötlich: das Ausblenden einer Zeitbegrenzung · gold: das\n"
-        "Einblenden · grüne Linie: wo der Titel beginnt.\n"
+        "Einblenden · grüne Linie: wo der Titel beginnt · goldene Linie: wo ein\n"
+        "Finaltitel in die Feier hinein ausgeblendet wurde.\n"
         "Klick springt dorthin.",
     "▶️  Double-click starts the title": "▶️  Doppelklick startet den Titel",
     "Reset the time marker?": "Zeitmarke zurücksetzen?",
@@ -4447,8 +4436,6 @@ CATALOG = {
         "🔁  %d ersetzt, ➕ %d Titel hinzugefügt",
     "  (%s — skipped)":
         "  (%s — übersprungen)",
-    "↩  %d same-title file(s) left out":
-        "↩  %d Datei(en) mit gleichem Titel weggelassen",
     "Duplicates in this list":
         "Duplikate in dieser Liste",
     "Duplicate songs in this list, in running order.<br><span style='color:#666'>🟰 <b>Exact</b> = identical audio. ≈ <b>Similar</b> = same title, a different recording. Keep the ones you want; switch the others to <b>Replace</b> and pick a track for each, or to <b>Remove</b>.</span>":
@@ -4992,16 +4979,14 @@ CATALOG = {
         "%d Titel aus %s entfernen?\nEr ist schon eingeplant in: %s",
     "Remove %d titles from %s?\nThey are already planned in: %s":
         "%d Titel aus %s entfernen?\nSie sind schon eingeplant in: %s",
-    "Empty %d playlist? This can't be undone.":
-        "%d Wiedergabeliste leeren? Das lässt sich nicht rückgängig machen.",
-    "Empty %d playlists? This can't be undone.":
-        "%d Wiedergabelisten leeren? Das lässt sich nicht rückgängig machen.",
     "↩  Restored your worked playlist for “%s” — %d songs":
         "↩  Deine bearbeitete Wiedergabeliste für „%s“ ist wiederhergestellt — %d Titel",
     "this competition":
         "dieses Turnier",
     "⚠  Session not saved — the snapshot failed: %r":
         "⚠  Sitzung nicht gespeichert — der Schnappschuss ist fehlgeschlagen: %r",
+    "⚠  Session NOT saved — the autosave file could not be written. Check the disk and try again.":
+        "⚠  Sitzung NICHT gespeichert — die Autosave-Datei konnte nicht geschrieben werden. Prüfe den Datenträger und versuche es erneut.",
     "Could not write the PDF:\n%s":
         "Das PDF konnte nicht geschrieben werden:\n%s",
     "🖨 Playlist saved — %s":
@@ -6630,7 +6615,7 @@ CATALOG = {
         'Musikbestand durchsuchen',
     'Another task (a library scan or an analysis) is writing to the database. Let it finish, then try again.':
         'Eine andere Aufgabe (ein Bibliotheks-Scan oder eine Analyse) schreibt gerade in die Datenbank. Lass sie fertig werden und versuch es dann noch einmal.',
-    "The Paso Doble pick for %s in ⚙ Settings → 🎛 Play sets\n(played in full reads as the 3rd highlight). A change here\nholds for this list only.":
+    "The Paso Doble pick for %s in ⚙ Settings → 🎛 Playsets\n(played in full reads as the 3rd highlight). A change here\nholds for this list only.":
         "Der Paso-Doble-Wert für %s in ⚙ Einstellungen → 🎛 Spiel-Sets\n(ganz gespielt zählt als 3. Highlight). Eine Änderung hier\ngilt nur für diese Liste.",
     "🐂 Paso Doble → each round's own pick":
         "🐂 Paso Doble → wieder der Wert jeder Runde",
@@ -6684,12 +6669,6 @@ CATALOG = {
         "Tauschen: Er wechselt den Platz mit „%s“.",
     "Move it to this slot?":
         "In diesen Platz verschieben?",
-    "Move it here":
-        "Hierher verschieben",
-    "Swap positions":
-        "Plätze tauschen",
-    "Do nothing":
-        "Nichts tun",
     "Add here too":
         "Hier zusätzlich einfügen",
     "Add here too: it plays here and stays at its old place as well.":
@@ -6757,10 +6736,6 @@ CATALOG = {
         "🎉  Partyliste",
     "🤸  Warm-up list":
         "🤸  Eintanzliste",
-    "Prompt for this kind of list (added to the rules):":
-        "Anweisung für diese Art Liste (zusätzlich zu den Regeln):",
-    "What a party list or a warm-up list is for. It is sent with the\ntask, after the rules, and says which of the rules do not apply.\nEach kind keeps its own text.":
-        "Wofür eine Partyliste oder eine Eintanzliste da ist. Sie geht mit der\nAufgabe nach den Regeln mit und sagt, welche Regeln nicht gelten.\nJede Art behält ihren eigenen Text.",
     "Each kind asks the model for something else: a party list for a\nfull floor, a warm-up list for couples before their competition.":
         "Jede Art bittet das Modell um etwas anderes: eine Partyliste für eine\nvolle Fläche, eine Eintanzliste für Paare vor ihrem Turnier.",
     '🤖  OpenRouter connection':
@@ -6792,4 +6767,131 @@ CATALOG = {
         'Welche Titel als frisch gelten: neue oder jeder Titel, der kaum je gespielt wurde.',
     'Reading Chromaprints…':
         'Chromaprints werden gelesen…',
+    'Skip greyed titles':
+        'Ausgegraute Titel überspringen',
+    'Leave out the titles another deck already holds — planned or\n'
+    'played (played ones stay in their deck, greyed). The deck this\n'
+    'run fills does not count: its content is being replaced.':
+        'Titel auslassen, die ein anderes Deck schon enthält – geplant oder\n'
+        'gespielt (gespielte bleiben ausgegraut in ihrem Deck). Das Deck,\n'
+        'das dieser Lauf füllt, zählt nicht: sein Inhalt wird ersetzt.',
+    '📁  Chosen library folders':
+        '📁  Gewählte Bibliotheksordner',
+    'Choose…':
+        'Wählen…',
+    '%d folders chosen':
+        '%d Ordner gewählt',
+    'No folder chosen':
+        'Kein Ordner gewählt',
+    'Draw from these folders':
+        'Aus diesen Ordnern ziehen',
+    'Each folder counts for the titles directly in it,\nnot for the folders below it.':
+        'Jeder Ordner zählt für die Titel direkt darin,\nnicht für die Ordner darunter.',
+    '(main folder)':
+        '(Hauptordner)',
+    '📁 %s — %d titles':
+        '📁 %s – %d Titel',
+    'Manual — every row can be dragged anywhere, like a playlist.\nClick to get the automatic party list back.':
+        'Manuell – jede Zeile lässt sich frei verschieben, wie in einer Playlist.\nKlicken, um die automatische Partyliste zurückzubekommen.',
+    'Manual — keep the list as it is and edit it by hand:\nevery row can be dragged anywhere, like a playlist.\nClick again to get the automatic list back.':
+        'Manuell – die Liste so lassen und von Hand bearbeiten:\njede Zeile lässt sich frei verschieben, wie in einer Playlist.\nNochmal klicken, um die automatische Liste zurückzubekommen.',
+    '✋ Automatic — the party list is grouped by its rules again':
+        '✋ Automatisch – die Partyliste ist wieder nach ihren Regeln gruppiert',
+    '✋ Manual — every row can be dragged anywhere':
+        '✋ Manuell – jede Zeile lässt sich frei verschieben',
+    '📁 the chosen folders':
+        '📁 die gewählten Ordner',
+    'One button for all sets, named for the one that is on':
+        'Ein Knopf für alle Sets, benannt nach dem aktiven',
+    'The play set the panel stands on — 🏆 tournament (gold) or\n🎉 party (purple). A click switches over to the other one; with\nneither on, to the tournament set. What each sets is yours to\nchange: ⚙ Settings → 🎛 Playsets.':
+        'Das Play-Set, auf dem das Panel steht – 🏆 Turnier (Gold) oder\n🎉 Party (Lila). Ein Klick wechselt zum anderen; ist keines an,\nzum Turnier-Set. Was jedes setzt, ändern Sie unter\n⚙ Einstellungen → 🎛 Play-Sets.',
+    '🏆 / 🎉 / 🏃  Play set':
+        '🏆 / 🎉 / 🏃  Play-Set',
+    'pause → %s s':
+        'Pause → %s s',
+    '🏃  Training set':
+        '🏃  Trainings-Set',
+    'Play a training: every title to its end, one after the other,\nwith a pause of 25 s in between to talk and take position, and\nthe Paso Doble starting 2 s after it is called. What exactly it\nsets is yours to change: ⚙ Settings → 🎛 Playsets.\n\nClicked while lit, it switches itself off: the list goes back to\nthe values it had before the set was pressed.':
+        'Ein Training spielen: jeder Titel bis zum Ende, einer nach dem anderen,\nmit 25 s Pause dazwischen zum Reden und Aufstellen, und der Paso Doble\nstartet 2 s nach dem Aufruf. Was genau es setzt, ändern Sie unter\n⚙ Einstellungen → 🎛 Play-Sets.\n\nBei Klick im leuchtenden Zustand schaltet es sich aus: die Liste geht\nzurück auf die Werte von vor dem Druck.',
+    '🏃  Training set — %s':
+        '🏃  Trainings-Set – %s',
+    '🏃  Training set stays on — no earlier values to go back to':
+        '🏃  Trainings-Set bleibt an – keine früheren Werte zum Zurückgehen',
+    '🏃  Training set off — earlier values back':
+        '🏃  Trainings-Set aus – frühere Werte zurück',
+    '🏃  Training set applied':
+        '🏃  Trainings-Set angewendet',
+    "A party's way of playing with a pause between the titles to talk and take position, and a short wait before a Paso Doble.":
+        'Spielweise einer Party mit Pause zwischen den Titeln zum Reden und Aufstellen und einer kurzen Wartezeit vor dem Paso Doble.',
+    "Every title of this list plays on after the play length: the\nmusic comes back up while the couples celebrate.\nWorks only with a play length set, not with 'full'.":
+        "Jeder Titel dieser Liste läuft nach der Spielzeit weiter: die\nMusik kommt wieder hoch, während die Paare feiern.\nFunktioniert nur mit eingestellter Spielzeit, nicht mit 'komplett'.",
+    '↺ Reset to defaults':
+        '↺ Auf Standard zurücksetzen',
+    'Puts everything on this tab back on the values the program\nships with. Nothing is saved until you press OK.':
+        'Setzt alles auf diesem Reiter auf die Werte zurück,\nmit denen das Programm ausgeliefert wird. Gespeichert wird erst mit OK.',
+    'Reset to defaults':
+        'Auf Standard zurücksetzen',
+    'Put every value on the 🎛 Playsets tab back on the default? Nothing is saved until you press OK.':
+        'Alle Werte auf dem Reiter 🎛 Play-Sets auf den Standard zurücksetzen? Gespeichert wird erst mit OK.',
+    "<b style='color:#d32f2f; font-size:16px'>⚠ LOUD MUSIC ON A HEADSET</b><br><br>The music is set to <b>%d %%</b> on <b>%s</b> (system volume %d %%). That can damage your hearing. Playback waits for your choice.":
+        "<b style='color:#d32f2f; font-size:16px'>⚠ LAUTE MUSIK AUF EINEM KOPFHÖRER</b><br><br>Die Musik steht auf <b>%d %%</b> an <b>%s</b> (Systemlautstärke %d %%). Das kann dein Gehör schädigen. Die Wiedergabe wartet auf deine Wahl.",
+    "You are asked again only if it gets louder than what you choose now.":
+        "Du wirst nur erneut gefragt, wenn es lauter wird als das, was du jetzt wählst.",
+    "Reduce to %d %%": "Auf %d %% senken",
+    "Keep %d %%": "%d %% beibehalten",
+    "⚠ Loud music on a headset (%d %%): can damage your hearing":
+        "⚠ Laute Musik auf einem Kopfhörer (%d %%): kann das Gehör schädigen",
+    "Clear all":
+        "Alles leeren",
+    "What should be emptied? This can't be undone.":
+        "Was soll geleert werden? Das lässt sich nicht rückgängig machen.",
+    "🧹  All playlists (%d filled)":
+        "🧹  Alle Playlists (%d gefüllt)",
+    "⭐  All wishlists (%d filled)":
+        "⭐  Alle Wunschlisten (%d gefüllt)",
+    "🤸  Party / competition list (%d titles)":
+        "🤸  Party-/Turnierliste (%d Titel)",
+    "Put every value on the 🎛 Cartwall tab back on the default? Nothing is saved until you press OK.":
+        "Alle Werte im Tab 🎛 Cartwall auf den Standard zurücksetzen? Gespeichert wird erst mit OK.",
+    "Put the fade times, the duck and the pre-roll back on the default? Nothing is saved until you press OK.":
+        "Überblendzeiten, Ducking und Vorlauf auf den Standard zurücksetzen? Gespeichert wird erst mit OK.",
+    "Every title of that source is already in a deck.":
+        "Jeder Titel dieser Quelle liegt schon in einem Deck.",
+    "The chosen folders hold no titles.":
+        "Die gewählten Ordner enthalten keine Titel.",
+    "Choose at least one library folder first.":
+        "Wähle zuerst mindestens einen Bibliotheksordner.",
+    "Level, dip and times: 🔊 Sound & player.":
+        "Lautstärke, Absenkung und Zeiten: 🔊 Sound & Player.",
+    "🥇 Celebration — the music plays on":
+        "🥇 Feier — die Musik läuft weiter",
+    "🥇  Celebration: music plays on":
+        "🥇  Feier: Musik spielt weiter",
+    "After the play length has faded a title out, it can come back up\nas background while the couples celebrate. Which titles do:\nthe 🥇 switch on the ▶ panel, and for the 🏆 tournament set's\nfinals ⚙ Settings → 🎛 Playsets.":
+        "Nachdem die Spieldauer einen Titel ausgeblendet hat, kann er als\nHintergrund wieder hochkommen, während die Paare feiern. Welche Titel:\nder 🥇 Schalter im ▶ Bereich, und beim 🏆 Turnier-Set für\ndie Finals ⚙ Einstellungen → 🎛 Spiel-Sets.",
+    "Puts everything on this tab back on the values the program\nships with. Pads keep their own settings. Nothing is saved\nuntil you press OK.":
+        "Setzt alles auf diesem Reiter auf die Werte zurück, mit denen das\nProgramm ausgeliefert wird. Pads behalten ihre eigenen Einstellungen.\nGespeichert wird erst mit OK.",
+    "Puts the fade times, the duck and the pre-roll back on the values the program ships with. Nothing is saved until you press OK.":
+        "Setzt Überblendzeiten, Ducking und Vorlauf auf die Werte zurück, mit denen das Programm ausgeliefert wird. Gespeichert wird erst mit OK.",
+    "Draw only from the titles in the library folders you tick. A folder counts for the titles directly in it, not below it.":
+        "Nur aus den Titeln der angehakten Bibliotheksordner ziehen. Ein Ordner zählt für die Titel direkt darin, nicht darunter.",
+    "Leave out the titles another deck already holds — planned or played (played ones stay in their deck, greyed).":
+        "Titel auslassen, die ein anderes Deck schon enthält – geplant oder gespielt (gespielte bleiben ausgegraut in ihrem Deck).",
+    "Ask what to empty: all playlists (ticked), all wishlists and the\nparty / competition list (both unticked, so they are kept).\nTip: Del on a deck's title clears just that one playlist;\nDel on a wishlist's title clears that wishlist.":
+        "Fragt, was geleert werden soll: alle Wiedergabelisten (angehakt), alle Wunschlisten\nund die Party-/Turnierliste (beide nicht angehakt, bleiben also erhalten).\nTipp: Entf auf dem Titel eines Decks leert nur diese eine Wiedergabeliste,\nEntf auf dem Titel einer Wunschliste leert diese Wunschliste.",
+    "Nothing to clear — all lists are empty.":
+        "Nichts zu leeren — alle Listen sind leer.",
+    "🧹 Cleared the chosen lists.":
+        "🧹 Die gewählten Listen geleert.",
+    "%s already exists.\n\nReplace it?":
+        "%s existiert bereits.\n\nErsetzen?",
+    "The settings could not be saved.\n\nThey apply until the app is closed. Is the settings folder writable and the disk not full?":
+        "Die Einstellungen konnten nicht gespeichert werden.\n\nSie gelten, bis die App geschlossen wird. Ist der Einstellungsordner beschreibbar und die Platte nicht voll?",
+    "“%s” already exists and holds files.\nReplace writes the playlists over the files of the same name; other files in it stay.\nKeep both saves into a new folder.":
+        "„%s“ existiert bereits und enthält Dateien.\nErsetzen schreibt die Playlists über die Dateien gleichen Namens; andere Dateien darin bleiben.\nBeide behalten speichert in einen neuen Ordner.",
+    "Already running": "Läuft bereits",
+    "DanceSport Planner & Player is already running.\nSwitch to its window; a second copy would overwrite its playlist.":
+        "DanceSport Planner & Player läuft bereits.\nWechsle zu diesem Fenster; eine zweite Kopie würde dessen Playlist überschreiben.",
+    "Check failed — %s":
+        "Prüfung fehlgeschlagen — %s",
 }

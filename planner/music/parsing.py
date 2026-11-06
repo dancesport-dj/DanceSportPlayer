@@ -162,6 +162,52 @@ def song_title_key_of_stem(raw: str) -> str:
 _DASH_SPLIT_RE = re.compile(r'\s+-\s+')
 
 
+def song_use_keys(name: str) -> list[str]:
+    """Keys for the STRICT no-repeat (a song already played, planned or excluded): the
+    full title key plus, for a spaced ' - ' name, the key of the title side (the last
+    part, after the DJ-export 'Artist - Title' delimiter). Unlike `song_title_keys`
+    the artist side is left out: with it, one used track would make every other track
+    by that artist count as used. The duplicate finder keeps the wider list."""
+    keys: list[str] = []
+    full = song_title_key(name)
+    if full:
+        keys.append(full)
+    stem = Path(name).stem
+    if _DASH_SPLIT_RE.search(stem):
+        side = _side_key(_DASH_SPLIT_RE.split(stem))
+        if side and side not in keys:
+            keys.append(side)
+    return keys
+
+
+def _side_key(parts: list[str], part_keys: list[str] | None = None) -> str | None:
+    """The key of the last dash part that still reads as a title: a tail like
+    'Samba', 'rumba remix' or 'DJ Mitya' is skipped, and so is the first part (the
+    artist or a dance prefix like 'LW - ') — a tag shared by hundreds of files must
+    not become a key that ties them together. `part_keys` are the parts' keys when
+    the caller has them already."""
+    for i in range(len(parts) - 1, 0, -1):
+        k = part_keys[i] if part_keys else song_title_key_of_stem(parts[i])
+        if _is_title_key(k, parts[i]):
+            return k
+    return None
+
+
+# A part that opens with a tempo code glued by a hyphen to the words behind it, the
+# 'CC 31-Ross Mitchell' of 'Title - CC 31-Ross Mitchell': the words are the artist.
+_CODE_ARTIST_TAIL_RE = re.compile(r'\s*[A-Za-z]{1,3} ?\d{1,3}\s*-\s*\S')
+
+
+def _is_title_key(key: str, part: str) -> bool:
+    """False for a dash part that is a tag, not a song title."""
+    return (len(key) >= 3 and any(c.isalpha() for c in key)
+            and key != 'bpm' and not key.startswith('dj ')
+            and not _DANCE_WORD_KEY_RE.fullmatch(key)
+            and not _TEMPO_CODE_KEY_RE.fullmatch(key)
+            and not _CODE_ARTIST_TAIL_RE.match(part)
+            and not _VERSION_WORD_RE.search(part))
+
+
 def song_title_keys(name: str) -> list[str]:
     """Candidate dedup keys for a track: the full title key, PLUS — when the name has
     a spaced ' - ' (the DJ-export Artist–Title delimiter) — a key for each side. A
@@ -177,10 +223,44 @@ def song_title_keys(name: str) -> list[str]:
     stem = Path(name).stem
     if _DASH_SPLIT_RE.search(stem):
         for part in _DASH_SPLIT_RE.split(stem):
-            k = song_title_key(part)
+            k = song_title_key_of_stem(part)   # a part is no file name: its dots stay
             if k and k not in keys:
                 keys.append(k)
     return keys
+
+
+_TEMPO_CODE_KEY_RE = re.compile(r'[a-z]{1,3} ?\d{1,3}( ?bpm)?|\d{1,3} ?(?:bpm|kb(?:ps)?)')
+
+
+def song_extra_keys(name: str) -> list[str]:
+    """The dash-part keys `song_title_keys` has and `song_use_keys` leaves out: an
+    artist for an 'Artist - Title' name, the title for a 'Title - Artist' one. Dance
+    words and tempo codes ('QS50') are dropped, they tie unrelated songs together.
+    Which of the two an extra key is can't be told from one name; `title_twins` asks
+    the whole library."""
+    return song_use_and_extra_keys(name)[1]
+
+
+def song_use_and_extra_keys(name: str) -> tuple[list[str], list[str]]:
+    """`song_use_keys(name)` and `song_extra_keys(name)` in one pass over the name:
+    the library-wide twin map asks for both of 58k names, and the two calls ran the
+    key cleaning three times over."""
+    full = song_title_key(name)
+    use = [full] if full else []
+    stem = Path(name).stem
+    if not _DASH_SPLIT_RE.search(stem):
+        return use, []
+    parts = _DASH_SPLIT_RE.split(stem)
+    part_keys = [song_title_key_of_stem(part) for part in parts]
+    side = _side_key(parts, part_keys)
+    if side and side not in use:
+        use.append(side)
+    extra: list[str] = []
+    for k in part_keys:
+        if (k not in use and k not in extra and len(k) >= 3 and any(c.isalpha() for c in k)
+                and not _DANCE_WORD_KEY_RE.fullmatch(k) and not _TEMPO_CODE_KEY_RE.fullmatch(k)):
+            extra.append(k)
+    return use, extra
 
 
 # A remix, cover or other version of a song: the word, a bracket that holds it
@@ -766,7 +846,7 @@ def get_tag_bpm(path: Path, tags=_UNREAD) -> float | None:
     tags = _id3_of(path, tags)
     try:
         if tags is not None and 'TBPM' in tags:
-            val = str(tags['TBPM']).strip()
+            val = str(tags['TBPM']).strip().replace(',', '.')   # '128,5' from a German locale
             bpm = float(val) if val else None
             return bpm if bpm is not None and math.isfinite(bpm) else None   # "nan"/"1e999"
     except Exception:
@@ -977,8 +1057,13 @@ _CT_CODE_NUM = re.compile(
     r'\b(?:' + _DANCE_CODE_RE + r')[\s-]*\d{2,3}[a-z]*\b', re.IGNORECASE)
 _CT_NAME_NUM = re.compile(
     r'\b(?:' + _DANCE_NAME_RE + r')[\s-]*\d{2,3}[a-z]*\b', re.IGNORECASE)
+# 'andV', 'dpit' and 'pitch' are short enough to sit inside real words
+# ('Pitch Perfect', 'Brandvorst'), so they count only when glued to what
+# precedes them (a digit, '_', '-' or a closing bracket), the way the tool
+# that writes them appends them.
 _CT_EDIT_MARKERS = re.compile(
-    r'(_cut|_gepitched.*|normalisiert|andV|dpit|andereVersion|pitch|downpitch|tempoangepasst)',
+    r'(_cut|_gepitched.*|normalisiert|andereVersion|downpitch|tempoangepasst'
+    r'|(?<=[\d_)\]-])(?:andV|dpit|pitch))',
     re.IGNORECASE)
 _CT_EMPTY_BRACKETS = re.compile(r'[(\[]\s*[)\]]')
 _CT_MULTI_WS = re.compile(r'[\s_]{2,}')
@@ -1061,13 +1146,19 @@ def bpm_fit(bpm: int | None, lo: int, hi: int) -> float:
     return 0.0
 
 
-_NON_ALNUM_RE = re.compile(r'[^a-z0-9]+')
+# Anything that is not a letter or digit of ANY script ('_' counts as a separator).
+_NON_ALNUM_RE = re.compile(r'[\W_]+')
+# Latin letters with no combining form, so NFKD leaves them whole.
+_NO_DECOMPOSITION = str.maketrans({'ø': 'o', 'ł': 'l', 'đ': 'd', 'ð': 'd', 'þ': 'th',
+                                   'ß': 'ss', 'æ': 'ae', 'œ': 'oe', 'ı': 'i'})
 
 
 def norm_title(s: str) -> str:
     # Transliterate accents to ASCII first (é→e, ó→o, ñ→n…) so a title tagged
     # 'Ai Que Dó' and a filename 'Ai Que Do' normalise to the SAME key — otherwise
     # the accented char was dropped wholesale ('dó'→'d') and the two never matched.
-    s = unicodedata.normalize('NFKD', s.lower())
+    # Other scripts (Cyrillic, Greek …) stay as they are: dropping them made every
+    # such title the same empty key.
+    s = unicodedata.normalize('NFKD', s.lower().translate(_NO_DECOMPOSITION))
     s = ''.join(c for c in s if not unicodedata.combining(c))
     return _NON_ALNUM_RE.sub(' ', s).strip()

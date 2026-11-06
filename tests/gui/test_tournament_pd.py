@@ -167,5 +167,26 @@ class SettingsTabTest(unittest.TestCase):
         self.assertEqual(dlg.values()["tournament_set"]["pd_delay"], 0)
 
 
+class HalfSecondStartTest(unittest.TestCase):
+    """Tier 3 #11: 'Start after' for the Paso Doble goes in half seconds."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def test_the_panel_keeps_a_half_second(self):
+        panel = PlayModePanel({"pd_start_delay": 1.5})
+        self.addCleanup(reap_widget, panel)
+        self.assertEqual(panel.pd_start_delay(), 1.5)
+        panel.set_pd_start_delay(2.5)
+        self.assertEqual(panel.pd_start_delay(), 2.5)
+
+    def test_a_set_keeps_a_half_second(self):
+        self.assertEqual(pd_of({"party_set": {"pd_delay": 2.5}}, "party")["pd_delay"], 2.5)
+
+    def test_a_length_between_the_steps_is_rounded_to_the_half(self):
+        self.assertEqual(pd_of({"party_set": {"pd_delay": 2.3}}, "party")["pd_delay"], 2.5)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -165,7 +165,7 @@ class PlanningClickTest(ClickThrough):
     def test_clear_all_empties_every_deck(self):
         with self.clicking():
             self.generate()
-            self.click(self.button("Empty every playlist deck"))
+            self.clear_all()
             self.assertEqual([t.rowCount() for t in self.win._deckset.decks
                               if t.rowCount()], [])
 

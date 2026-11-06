@@ -126,6 +126,24 @@ class PackRoundTripTest(unittest.TestCase):
         self.assertEqual(len(set(pack.music.values())), 2)
         self.assertIn("LW/Moon.mp3", pack.music[self.a])
 
+    def test_a_track_that_cannot_be_read_is_reported_not_fatal(self):
+        """A file locked or removed between the check and the copy used to
+        abort the whole export; the rest of the pack is still worth having."""
+        dest = self.root / "venue.dpvenue"
+        real = zipfile.ZipFile.write
+
+        def flaky(zf, filename, *args, **kwargs):
+            if str(filename) == self.a:
+                raise PermissionError("locked")
+            return real(zf, filename, *args, **kwargs)
+
+        with mock.patch.object(zipfile.ZipFile, "write", flaky):
+            res = vp.write_pack(dest, self.docs, include_music=True)
+        self.assertEqual(res.tracks, 1)
+        self.assertEqual(sorted(res.missing), sorted([self.a, self.gone]))
+        pack = vp.read_pack(dest)
+        self.assertEqual(set(pack.music), {self.b})
+
     def test_music_extracts_and_the_docs_point_at_it(self):
         dest = self.root / "venue.dpvenue"
         vp.write_pack(dest, self.docs, include_music=True)
@@ -402,11 +420,66 @@ class StagedImportTest(unittest.TestCase):
         self.assertFalse((self.state / "openrouter_config.json").exists())
         self.assertFalse((self.state / "planner_config.json").exists())
 
+    def test_a_staging_that_dies_keeps_the_previous_stage(self):
+        """S4: the old stage was removed before the new documents were
+        written, so a full disk lost an import that was still waiting."""
+        vp.stage_import(self.pack, self.state, music_dir=None)
+        stage = self.state / vp.STAGE_DIR
+        before = sorted(p.name for p in stage.iterdir())
+        real = Path.write_text
+
+        def dies(path, *args, **kwargs):
+            if path.suffix == ".json":
+                raise OSError("disk full")
+            return real(path, *args, **kwargs)
+
+        with mock.patch.object(Path, "write_text", dies):
+            with self.assertRaises(OSError):
+                vp.stage_import(self.pack, self.state, music_dir=None)
+        self.assertEqual(sorted(p.name for p in stage.iterdir()), before)
+        self.assertTrue((stage / vp.STAGE_DONE).exists())
+        self.assertEqual(
+            [p.name for p in self.state.iterdir() if p.name.startswith(vp.STAGE_DIR)],
+            [vp.STAGE_DIR])
+
     def test_stage_changes_nothing_live_until_applied(self):
         vp.stage_import(self.pack, self.state, music_dir=None)
         self.assertTrue(vp.has_pending(self.state))
         self.assertEqual(self._read("gui_settings.json")["zoom"], 1)
         self.assertEqual(self._read("autosave_playlist.json"), {})
+
+    def test_a_bom_in_the_live_settings_does_not_lose_this_machines_folders(self):
+        """The app reads its settings with utf-8-sig; an editor that saved a BOM
+        made the merge see no local settings, and the pack's folders won."""
+        (self.state / "gui_settings.json").write_bytes(
+            b"\xef\xbb\xbf" + json.dumps({"library_dir": r"C:\here", "zoom": 1}).encode())
+        vp.stage_import(self.pack, self.state, music_dir=None)
+        vp.apply_pending(self.state)
+        self.assertEqual(self._read_sig("gui_settings.json"),
+                         {"library_dir": r"C:\here", "zoom": 3})
+
+    def test_unreadable_live_settings_are_not_replaced_by_the_pack(self):
+        live = self.state / "gui_settings.json"
+        live.write_text("{not json", encoding="utf-8")
+        vp.stage_import(self.pack, self.state, music_dir=None)
+        applied = vp.apply_pending(self.state)
+        self.assertNotIn("gui_settings.json", applied)
+        self.assertEqual(live.read_text(encoding="utf-8"), "{not json")
+        self.assertEqual(self._read("autosave_playlist.json"), {"rows": [self.a]})
+
+    def test_a_bom_in_the_packs_settings_is_read(self):
+        bom = self.root / "bom.dpvenue"
+        body = b"\xef\xbb\xbf" + json.dumps({"zoom": 7}).encode()
+        with zipfile.ZipFile(bom, "w") as z:
+            z.writestr("gui_settings.json", body)
+            z.writestr(vp.MANIFEST, json.dumps(
+                {"format": vp.FORMAT, "version": vp.VERSION,
+                 "files": ["gui_settings.json"]}))
+        pack = vp.stage_import(bom, self.state, music_dir=None)
+        self.assertEqual(pack.docs["gui_settings.json"], {"zoom": 7})
+
+    def _read_sig(self, name):
+        return json.loads((self.state / name).read_text(encoding="utf-8-sig"))
 
     def test_apply_replaces_merges_and_keeps_a_backup(self):
         vp.stage_import(self.pack, self.state, music_dir=None)

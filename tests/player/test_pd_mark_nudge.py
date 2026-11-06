@@ -54,7 +54,7 @@ class ChipNudgeTest(unittest.TestCase):
         return hits[0]
 
     def test_the_chip_shows_tenths(self):
-        self._button("0:44.3  ✕")
+        self.assertEqual(self._button("0:44.3  ✕").text(), "0:44.3  ✕")
 
     def test_minus_and_plus_ask_for_a_tenth(self):
         self._button("−").click()

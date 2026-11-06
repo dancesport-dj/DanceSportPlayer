@@ -78,6 +78,31 @@ class RunTests(unittest.TestCase):
         with mock.patch.object(cp.subprocess, "Popen", side_effect=OSError("nope")):
             self.assertIsNone(cp.fingerprint_file("fpcalc", self.song))
 
+    def test_a_timeout_kills_fpcalc_and_gives_none(self):
+        proc = FakeProc()
+        proc.communicate = mock.Mock(side_effect=[
+            cp.subprocess.TimeoutExpired("fpcalc", 1), ("", "")])
+        proc.kill = mock.Mock()
+        with mock.patch.object(cp.subprocess, "Popen", return_value=proc):
+            self.assertIsNone(cp.fingerprint_file("fpcalc", self.song))
+        proc.kill.assert_called_once()
+
+    def test_an_unreadable_path_is_none(self):
+        with mock.patch.object(cp.Path, "is_file", side_effect=OSError("denied")), \
+                mock.patch.object(cp.subprocess, "Popen") as popen:
+            self.assertIsNone(cp.fingerprint_file("fpcalc", self.song))
+        popen.assert_not_called()
+
+
+class MalformedOutputTests(unittest.TestCase):
+    def test_a_garbled_duration_counts_as_zero(self):
+        got = cp.parse_output("DURATION=abc\nFINGERPRINT=1,2\n")
+        self.assertEqual(got.duration, 0.0)
+        self.assertEqual(list(got.words), [1, 2])
+
+    def test_a_garbled_fingerprint_is_none(self):
+        self.assertIsNone(cp.parse_output("DURATION=3\nFINGERPRINT=1,x,3\n"))
+
 
 class FindTests(unittest.TestCase):
     def test_bundled_beats_path_and_cwd_is_ignored(self):
@@ -90,6 +115,24 @@ class FindTests(unittest.TestCase):
                     mock.patch.object(cp, "_FPCALC_CANDIDATES", ()), \
                     mock.patch.object(cp.shutil, "which", return_value=str(Path.cwd() / "fpcalc.exe")):
                 self.assertIsNone(cp.find_fpcalc())
+
+    def test_fpcalc_on_path_is_used(self):
+        with tempfile.TemporaryDirectory() as d:
+            exe = Path(d) / "fpcalc.exe"
+            exe.write_bytes(b"")
+            with mock.patch.object(cp, "_BUNDLED_FPCALC", ()), \
+                    mock.patch.object(cp, "_FPCALC_CANDIDATES", ()), \
+                    mock.patch.object(cp.shutil, "which", return_value=str(exe)):
+                self.assertEqual(cp.find_fpcalc(), str(exe))
+
+    def test_a_package_manager_prefix_is_the_last_resort(self):
+        with tempfile.TemporaryDirectory() as d:
+            exe = Path(d) / "fpcalc"
+            exe.write_bytes(b"")
+            with mock.patch.object(cp, "_BUNDLED_FPCALC", ()), \
+                    mock.patch.object(cp, "_FPCALC_CANDIDATES", (exe,)), \
+                    mock.patch.object(cp.shutil, "which", return_value=None):
+                self.assertEqual(cp.find_fpcalc(), str(exe))
 
     def test_none_when_nowhere(self):
         with mock.patch.object(cp, "_BUNDLED_FPCALC", ()), \

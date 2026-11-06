@@ -1228,6 +1228,8 @@ class DynamicModeMixin(PlaylistTableHost):
         if self._round_skip_dances:
             self._round_skip_dances = {
                 mapping.get(r, r): v for r, v in self._round_skip_dances.items()}
+        if self._round_ctx:
+            self._round_ctx = {mapping.get(r, r): v for r, v in self._round_ctx.items()}
 
     def _dance_style(self, dance: str | None) -> str | None:
         """Competition style ('Standard'/'Latin'/'Others') a dance code belongs to,
@@ -1418,20 +1420,36 @@ class DynamicModeMixin(PlaylistTableHost):
                     % dups[0].title)
         return i18n.t("Nothing added — %s") % self._skipped_tail(skipped)
 
+    def _reloadKwargs(self, rounds: list[RoundConfig]) -> dict:
+        """The per-deck state `load()` resets unless it is handed back: pins, marks,
+        hidden dances, the stacked day-plan context, the per-round history pools
+        and the .m3u the deck came from.
+        Every in-place re-render (view toggle, column reorder, dynamic rebuild) passes
+        this, or the autosave stores the emptied state."""
+        pools = ([self._round_pools_by_name.get(rc.name, []) for rc in rounds]
+                 if self._round_pools_by_name else None)
+        return dict(
+            round_pools=pools,
+            round_skip_dances=self._round_skip_dances or None,
+            round_ctx=self._round_ctx or None,
+            marked=set(self._marked_paths),
+            pinned=set(self._pinned_paths),
+            m3u_path=self._m3u_path,
+        )
+
     def _rebuild_dynamic(self):
         """Re-render the dynamic grid from the working `_playlist` + backups.
         Keeps the current scroll offset so edits don't jump the view to the top."""
         scroll = self.verticalScrollBar().value()
+        rounds = self._dynamic_round_configs()
         self.load(
             self._playlist or {}, list(self._dynamic_dances),
-            self._dynamic_round_configs(), self._dance_class,
+            rounds, self._dance_class,
             play_cb=self._play_cb, suggester=self._suggester,
             use_timbre=self._use_timbre, style=self._style,
             dynamic=True, capacity=list(self._dynamic_capacity),
             backups=dict(self._dynamic_backups),
-            round_skip_dances={k: set(v) for k, v in self._round_skip_dances.items()},
-            marked=set(self._marked_paths),
-            pinned=set(self._pinned_paths),
+            **self._reloadKwargs(rounds),
         )
         self._restore_scroll(scroll)
 
@@ -1476,12 +1494,10 @@ class DynamicModeMixin(PlaylistTableHost):
             self._rebuild_dynamic()
         else:
             rounds = list(self._loaded_rounds)
-            pools = ([self._round_pools_by_name.get(rc.name, []) for rc in rounds]
-                     if self._round_pools_by_name else None)
             self.load(self._playlist, list(self._loaded_dances), rounds,
                       self._dance_class, play_cb=self._play_cb,
                       suggester=self._suggester, use_timbre=self._use_timbre,
-                      style=self._style, round_pools=pools)
+                      style=self._style, **self._reloadKwargs(rounds))
         if self._reselect_song(keep):
             return   # _focus_row scrolled the song into view already
         self._restore_scroll(scroll)

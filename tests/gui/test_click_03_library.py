@@ -97,7 +97,7 @@ class LibraryClickTest(ClickThrough):
         known = set(self.saved_files())
         self.click(self.win._cfg.save_btn)
         [saved] = [p for p in self.saved_files() if p not in known]
-        self.click(self.button("Empty every playlist deck"))
+        self.clear_all()
         self.assertEqual(self.titles(), [])
         return saved, titles
 

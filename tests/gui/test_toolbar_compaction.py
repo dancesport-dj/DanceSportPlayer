@@ -105,6 +105,25 @@ class ToolbarCompactionTest(unittest.TestCase):
             "window, and the window did not move"
             % (bar.width(), win._toolbar_full_width, win._toolbar_compact))
 
+    def test_stale_widths_do_not_leave_truncated_labels(self):
+        """macOS: the widths were measured before the font was in place, came
+        out too small, and the row sat at full labels with "USB expo" cut
+        short. What the buttons need NOW decides, not only the stored widths."""
+        win = self.window()
+        full = win._toolbar_full_width
+        bar_w = int(full * 0.6)
+        self.splitter(win).setSizes([win.width() - bar_w, bar_w])
+        self.settle()
+        self.assertGreaterEqual(win._toolbar_compact, 1)
+        win._toolbar_full_width = win._toolbar_l1_width = 10
+        win._toolbar_l2_width = 10
+        win._update_toolbar_compact()
+        self.settle()
+        self.assertGreaterEqual(
+            win._toolbar_compact, 1,
+            "the bar is %d px, its labels need %d, and the row kept them"
+            % (win._toolbar_widget.width(), full))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -110,13 +110,15 @@ def find_cloudflared(dirs: tuple[Path, ...] | None = None) -> Path | None:
         if candidate.is_file():
             return candidate
     found = shutil.which("cloudflared")
-    if found:
+    # Never one in the current folder: Windows' lookup tries that first.
+    if found and Path(found).resolve().parent != Path.cwd().resolve():
         return Path(found)
     return next((c for c in _INSTALL_CANDIDATES if c.is_file()), None)
 
 
 def _open(url: str, timeout: float):
-    return urllib.request.urlopen(url, timeout=timeout, context=tls_context())
+    return urllib.request.urlopen(url, timeout=timeout,  # nosec B310: fixed https URL
+                                  context=tls_context())
 
 
 def download(dest_dir: Path, progress=None, opener=_open) -> Path:
@@ -148,7 +150,7 @@ def download(dest_dir: Path, progress=None, opener=_open) -> Path:
         _unpack(part)
     target = dest_dir / binary_name()
     if sys.platform != "win32":
-        os.chmod(part, 0o755)
+        os.chmod(part, 0o700)
     os.replace(part, target)
     log.info("🌐 cloudflared downloaded\n"
              "file: %s", target)

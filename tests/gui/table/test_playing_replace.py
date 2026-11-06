@@ -6,7 +6,9 @@ Run:  py -m unittest tests.gui.table.test_playing_replace -v
 ↺, a drop onto the row and a 🔁 replace used to do three different things to
 the title that was playing: the re-rolls switched playback to the new pick,
 the drop and the 🔁 stopped the music, the 🧭 reference swap kept it going.
-Now every one of them keeps the sounding title playing. The row shows the new
+Now every one of them keeps the sounding title playing at the desk. In a
+planning preview the re-rolls play the new pick instead, so the ■ never sits
+on a row whose music is another title. The row shows the new
 title and keeps its ■: auto-advance, next-up and the 🏁 round end all count on
 from the play cursor, so clearing it would end the evening after this title.
 """
@@ -129,30 +131,84 @@ class PlayingReplaceTest(unittest.TestCase):
         self.assertEqual(t._current_play_row, row)
         self.assertEqual(t.play_glyph(row), "■")
 
-    def test_the_song_reroll_keeps_playing(self):
+    def at_desk(self, t):
+        """The big player is next to the grid: the row's button pauses."""
+        for target, name in ((type(t), "pauses_on_stop"),
+                             (type(t.host), "is_player_running")):
+            p = mock.patch.object(target, name, return_value=True)
+            p.start()
+            self.addCleanup(p.stop)
+
+    def assert_switched(self, t, row, old_title):
+        """A planning preview: the new pick sounds, the ■ is its own."""
+        _app.processEvents()
+        new = t._row_meta[row].entry
+        self.assertNotEqual(new.title, old_title)
+        self.assertEqual(self.calls, [new.path], "the new pick was not played")
+        self.assertEqual(t._current_play_row, row)
+        self.assertEqual(t.play_glyph(row), "■")
+
+    def test_the_song_reroll_keeps_playing_at_the_desk(self):
         t = self.deck()
+        self.at_desk(t)
         row = self.start(t, "LW 1")
         t._regen(row)
         self.assert_kept_playing(t, row, "LW 1")
 
-    def test_the_warmup_reroll_keeps_playing(self):
+    def test_the_warmup_reroll_keeps_playing_at_the_desk(self):
         t = self.warmup()
+        self.at_desk(t)
         row = self.start(t, "TG 2")
         t._regen(row)
         self.assert_kept_playing(t, row, "TG 2")
 
-    def test_the_dance_reroll_keeps_playing(self):
+    def test_the_dance_reroll_keeps_playing_at_the_desk(self):
         t = self.deck()
+        self.at_desk(t)
         row = self.start(t, "TG 2")
         meta = t._row_meta[row]
         t._regen_dance(meta.round_name, meta.d_idx, meta.dance)
         self.assert_kept_playing(t, row, "TG 2")
 
-    def test_the_round_reroll_keeps_playing(self):
+    def test_the_round_reroll_keeps_playing_at_the_desk(self):
         t = self.deck()
+        self.at_desk(t)
         row = self.start(t, "LW 3")
         t._regen_round(t._row_meta[row].round_name)
         self.assert_kept_playing(t, row, "LW 3")
+
+    def test_the_song_reroll_plays_the_new_pick_in_a_preview(self):
+        t = self.deck()
+        row = self.start(t, "LW 1")
+        t._regen(row)
+        self.assert_switched(t, row, "LW 1")
+
+    def test_the_warmup_reroll_plays_the_new_pick_in_a_preview(self):
+        t = self.warmup()
+        row = self.start(t, "TG 2")
+        t._regen(row)
+        self.assert_switched(t, row, "TG 2")
+
+    def test_the_dance_reroll_plays_the_new_pick_in_a_preview(self):
+        t = self.deck()
+        row = self.start(t, "TG 2")
+        meta = t._row_meta[row]
+        t._regen_dance(meta.round_name, meta.d_idx, meta.dance)
+        self.assert_switched(t, row, "TG 2")
+
+    def test_the_round_reroll_plays_the_new_pick_in_a_preview(self):
+        t = self.deck()
+        row = self.start(t, "LW 3")
+        t._regen_round(t._row_meta[row].round_name)
+        self.assert_switched(t, row, "LW 3")
+
+    def test_a_cued_row_is_not_started_by_a_reroll_in_a_preview(self):
+        t = self.deck()
+        row = self.start(t, "LW 1")
+        with mock.patch.object(type(t), "_player_stopped", return_value=True):
+            t._regen(row)
+            _app.processEvents()
+        self.assertEqual(self.calls, [])
 
     def test_a_drop_onto_the_playing_row_keeps_playing(self):
         t = self.deck()

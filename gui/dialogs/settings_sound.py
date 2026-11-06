@@ -34,8 +34,22 @@ from gui.dialogs import (
     audio_output_pairs,
     media_backend_of,
 )
-from gui.dialogs.settings_look import _DialogHost
+from gui.dialogs.settings_look import _DialogHost, add_reset_footer
 from planner import i18n
+from planner.playing.celebration import (
+    CELEBRATE_DIP_PCT,
+    CELEBRATE_DOWN_SECS,
+    CELEBRATE_HOLD_SECS,
+    CELEBRATE_MAX_SECS,
+    CELEBRATE_PCT,
+    CELEBRATE_PCT_MIN,
+    CELEBRATE_UP_SECS,
+    celebrate_dip_pct,
+    celebrate_down_secs,
+    celebrate_hold_secs,
+    celebrate_pct,
+    celebrate_up_secs,
+)
 from shared.audio.playback import (
     AUDIO_IDLE_S,
     SYSTEM_DEFAULT,
@@ -133,7 +147,12 @@ class SoundTabMixin(_DialogHost):
         plyt.addWidget(hsep())
         self._add_dblclick_rows(settings, plyt)
 
-        plyt.addStretch()
+        self._sound_reset_btn = QPushButton("↺ Reset to defaults")
+        self._sound_reset_btn.setToolTip(
+            "Puts the fade times, the duck and the pre-roll back on the values"
+            " the program ships with. Nothing is saved until you press OK.")
+        self._sound_reset_btn.clicked.connect(self._reset_sound)
+        add_reset_footer(plyt, self._sound_reset_btn)
         self._sound_shown = self._sound_numbers()
         return tabs.addTab(sound_tab, "🔊 Sound && player")
 
@@ -275,9 +294,67 @@ class SoundTabMixin(_DialogHost):
         player, the announcement voice, ▸ Advanced and where the master
         player stands."""
         self._add_card_rows(settings, plyt)
+        self._add_celebrate_rows(settings, plyt)
         self._add_voice_rows(settings, plyt)
         self._add_advanced_rows(settings, plyt)
         self._add_position_rows(settings, plyt)
+
+    def _add_celebrate_rows(self, settings, plyt):
+        """🥇 How the final's music plays on: how loud it comes back, how low
+        the play-length fade takes it first, and the times. Which titles do it
+        is decided on 🎛 Playsets (the final) and by the 🥇 switch on the ▶
+        panel."""
+        plyt.addWidget(hsep())
+        head = QLabel(i18n.t("🥇 Celebration — the music plays on"))
+        head.setToolTip(i18n.t(
+            "After the play length has faded a title out, it can come back up\n"
+            "as background while the couples celebrate. Which titles do:\n"
+            "the 🥇 switch on the ▶ panel, and for the 🏆 tournament set's\n"
+            "finals ⚙ Settings → 🎛 Playsets."))
+        plyt.addWidget(head)
+        row = QHBoxLayout()
+        self._celebrate_pct = QSpinBox()
+        self._celebrate_pct.setRange(CELEBRATE_PCT_MIN, 100)
+        self._celebrate_dip = QSpinBox()
+        self._celebrate_dip.setRange(0, 100)
+        for spin in (self._celebrate_pct, self._celebrate_dip):
+            spin.setSuffix(" %")
+        self._celebrate_pct.setValue(celebrate_pct(settings))
+        self._celebrate_dip.setValue(celebrate_dip_pct(settings))
+        self._celebrate_pct.setToolTip(i18n.t(
+            "How loud it comes back, in % of the music's level."))
+        self._celebrate_dip.setToolTip(i18n.t(
+            "How low the play-length fade takes it before it comes\n"
+            "back up, in % of the music's level. 0 = all the way down.\n"
+            "At most the level it comes back at."))
+        row.addWidget(QLabel("Level:"))
+        row.addWidget(self._celebrate_pct)
+        row.addSpacing(12)
+        row.addWidget(QLabel("Dip to:"))
+        row.addWidget(self._celebrate_dip)
+        spins = []
+        for caption, value, tip in (
+                ("Down over:", celebrate_down_secs(settings),
+                 "How long it takes to go down when 🔉↓ fades it."),
+                ("Hold:", celebrate_hold_secs(settings),
+                 "How long it stays at its dip before it comes back up.\n"
+                 "0 = it comes up at once."),
+                ("Up over:", celebrate_up_secs(settings),
+                 "How long it takes to come back up. 0 = at once.")):
+            row.addSpacing(12)
+            row.addWidget(QLabel(caption))
+            spin = QDoubleSpinBox()
+            spin.setRange(0.0, CELEBRATE_MAX_SECS)
+            spin.setDecimals(1)
+            spin.setSingleStep(0.5)
+            spin.setSuffix(" s")
+            spin.setValue(value)
+            spin.setToolTip(i18n.t(tip))
+            row.addWidget(spin)
+            spins.append(spin)
+        self._celebrate_down, self._celebrate_hold, self._celebrate_up = spins
+        row.addStretch(1)
+        plyt.addLayout(row)
 
     def _add_advanced_rows(self, settings, plyt):
         """⚙ The duck and the fade times, folded away below ▸ Advanced: most
@@ -402,7 +479,7 @@ class SoundTabMixin(_DialogHost):
         plyt.addWidget(self._duck_note)
 
         # ── 🔈 How fast a voice or a pad ducks the music, and lets it back ──
-        # 200 and 600 are player.audio.mix's DUCK_DOWN_MS and DUCK_UP_MS,
+        # 2000 and 2000 are player.audio.mix's DUCK_DOWN_MS and DUCK_UP_MS,
         # 5000 its _DUCK_RAMP_MAX_MS. Shown in seconds like the fade rows; the
         # settings file keeps milliseconds.
         ramp_tip = (
@@ -416,8 +493,8 @@ class SoundTabMixin(_DialogHost):
         ramp_row.addWidget(self._duck_down_lbl)
         self._duck_down_spin = QDoubleSpinBox()
         self._duck_up_spin = QDoubleSpinBox()
-        for spin, key, default in ((self._duck_down_spin, "duck_down_ms", 200),
-                                   (self._duck_up_spin, "duck_up_ms", 600)):
+        for spin, key, default in ((self._duck_down_spin, "duck_down_ms", 2000),
+                                   (self._duck_up_spin, "duck_up_ms", 2000)):
             spin.setRange(0.1, 5.0)
             spin.setSingleStep(0.1)
             spin.setDecimals(1)
@@ -462,7 +539,7 @@ class SoundTabMixin(_DialogHost):
         plyt.addLayout(fade_in_row)
 
         # ── ↩ A title picked up at its time marker fades in ──
-        # 1 s is player.audio.mix's RESUME_FADE_SECS.
+        # 2 s is player.audio.mix's RESUME_FADE_SECS.
         resume_fade_row = QHBoxLayout()
         resume_fade_row.addWidget(QLabel("↩  Fade in at a time marker over:"))
         self._resume_fade_spin = QDoubleSpinBox()
@@ -477,9 +554,9 @@ class SoundTabMixin(_DialogHost):
             "Doble always starts abruptly: the couples stand and go on the beat.\n"
             "0 = off.")
         try:
-            self._resume_fade_spin.setValue(float(settings.get("resume_fade_secs", 1.0)))
+            self._resume_fade_spin.setValue(float(settings.get("resume_fade_secs", 2.0)))
         except (TypeError, ValueError):
-            self._resume_fade_spin.setValue(1.0)
+            self._resume_fade_spin.setValue(2.0)
         resume_fade_row.addWidget(self._resume_fade_spin)
         resume_fade_row.addStretch(1)
         plyt.addLayout(resume_fade_row)
@@ -703,6 +780,34 @@ class SoundTabMixin(_DialogHost):
             "pre_roll_secs": self._pre_roll_spin.value(),
         }
 
+    def _confirm_reset_sound(self) -> bool:
+        return QMessageBox.question(
+            self, i18n.t("Reset to defaults"),
+            i18n.t("Put the fade times, the duck and the pre-roll back on the "
+                   "default? Nothing is saved until you press OK."),
+        ) == QMessageBox.StandardButton.Yes
+
+    def _reset_sound(self) -> None:
+        if self._confirm_reset_sound():
+            self._reset_sound_numbers()
+
+    def _reset_sound_numbers(self) -> None:
+        """↺ The duck, the fades and the pre-roll back on what ships."""
+        self._duck_spin.setValue(10)
+        self._fade_in_spin.setValue(0.0)
+        self._resume_fade_spin.setValue(2.0)
+        self._hand_fade_spin.setValue(0.0)
+        self._duck_down_spin.setValue(2.0)
+        self._duck_up_spin.setValue(2.0)
+        self._pre_roll_spin.setValue(0)
+        self._celebrate_pct.setValue(CELEBRATE_PCT)
+        self._celebrate_dip.setValue(CELEBRATE_DIP_PCT)
+        self._celebrate_hold.setValue(CELEBRATE_HOLD_SECS)
+        self._celebrate_up.setValue(CELEBRATE_UP_SECS)
+        self._celebrate_down.setValue(CELEBRATE_DOWN_SECS)
+        # Nothing stored is "kept" any more (#78): the spins now say what ships.
+        self._sound_shown = {}
+
     def _sound_values(self) -> dict:
         """The tab's settings, for values(). A number the spin clamped on
         opening and nobody touched keeps what was stored (#78)."""
@@ -729,4 +834,9 @@ class SoundTabMixin(_DialogHost):
             "media_backend": self._backend_combo.currentData(),
             "release_audio_idle": self._release_audio_chk.isChecked(),
             "mute_system_sounds": self._mute_sys_chk.isChecked(),
+            "celebrate_pct": self._celebrate_pct.value(),
+            "celebrate_dip_pct": self._celebrate_dip.value(),
+            "celebrate_hold_secs": self._celebrate_hold.value(),
+            "celebrate_up_secs": self._celebrate_up.value(),
+            "celebrate_down_secs": self._celebrate_down.value(),
         }

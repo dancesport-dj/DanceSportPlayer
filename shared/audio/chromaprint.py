@@ -15,6 +15,7 @@ from pathlib import Path
 
 from planner.config import INSTALL_DIR
 from planner.music.chroma_match import Chroma, parse_raw
+from planner.music.paths import is_probeable
 
 log = logging.getLogger("dancesport.chroma")
 
@@ -86,10 +87,7 @@ def fingerprint_file(fpcalc: str, path, on_proc=None) -> Chroma | None:
     `on_proc` is handed the Popen as soon as it exists, so a worker can kill it
     when the pass is cancelled. A path that is no file on disk is never given to
     fpcalc: it would read a `http://…` line of an imported playlist as a URL."""
-    try:
-        if not Path(path).is_file():
-            return None
-    except OSError:
+    if not is_probeable(path):
         return None
     flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
     args = [fpcalc, "-raw", "-length", str(LENGTH_SECS), os.path.abspath(path)]

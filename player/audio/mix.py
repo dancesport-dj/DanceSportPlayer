@@ -14,8 +14,8 @@ pushes it.
 ANNOUNCE_DUCK = 0.3     # the music and the 🎶 beds while the announcement runs
 CART_DUCK_PCT = 10        # …and while a 🎛 cartwall pad plays: ≈ −20 dB, not −10
 CART_DUCK = CART_DUCK_PCT / 100
-DUCK_DOWN_MS = 200       # how long the music takes to get out of the way…
-DUCK_UP_MS = 600         # …and how long it takes to come back, unhurried
+DUCK_DOWN_MS = 2000      # how long the music takes to get out of the way…
+DUCK_UP_MS = 2000        # …and how long it takes to come back, unhurried
 _DUCK_RAMP_MAX_MS = 5000  # ⚙ either set longer is no duck, it is a fade
 DESK_DUCK_PCT = 10        # 🔉 what the desk's duck button pulls everything to…
 DESK_DUCK = DESK_DUCK_PCT / 100
@@ -25,7 +25,7 @@ _GAIN_RAMP_MS = 500       # a late loudness correction is a swell, not a step
 # 🌅 The longest fade-in a title gets: past that it is an intro nobody hears.
 FADE_IN_MAX_SECS = 10.0
 # ↩ What a title picked up at its time marker fades in over, out of the box.
-RESUME_FADE_SECS = 1.0
+RESUME_FADE_SECS = 2.0
 # 🔉↓ 🛑 ⏹ ✕ The longest fade by hand, as long as the playlist's own may be.
 HAND_FADE_MAX_SECS = 10.0
 
@@ -183,6 +183,12 @@ class OutputMix:
         title's own fade went into `tail_gain`.)"""
         return _clamped(self.base * self.tail_gain * out * self.fade
                         * self.duck * self.desk)
+
+    def mini(self) -> float:
+        """The mini players (the library's pre-listen) follow the music fader
+        and the desk duck: the main slider is the master for them. Not the
+        deck track's fade or loudness gain, which belong to its title."""
+        return _clamped(self.base * self.desk)
 
     def cartwall(self) -> float:
         """🎛 The pads follow their own fader and the 🔉 desk duck only.

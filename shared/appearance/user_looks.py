@@ -191,6 +191,11 @@ def export(look: looks.Look, path: Path) -> None:
     config.write_json_atomic(Path(path), {FILE_MARK: VERSION, **to_dict(look)})
 
 
+# A look is a few dozen colour tokens: well under 10 KB. Anything near this is
+# not one.
+MAX_FILE_BYTES = 1_000_000
+
+
 class NotSaved(OSError):
     """The look was fine but looks.json could not be written."""
 
@@ -200,10 +205,15 @@ def import_file(path: Path) -> looks.Look:
     already taken gets a number. ValueError when the file is not a look,
     OSError when it cannot be read, NotSaved (taken out again) when it
     cannot be kept."""
+    if Path(path).stat().st_size > MAX_FILE_BYTES:
+        raise ValueError("too big for a look")
     try:
-        data = json.loads(Path(path).read_text(encoding="utf-8"))
+        data = json.loads(Path(path).read_text(encoding="utf-8-sig"))
     except json.JSONDecodeError as exc:
         raise ValueError(f"not JSON: {exc}") from exc
+    except (RecursionError, MemoryError) as exc:
+        # Neither is a ValueError, and the import runs inside a Qt slot.
+        raise ValueError("not a look: nested or sized beyond reason") from exc
     if not isinstance(data, dict) or FILE_MARK not in data:
         raise ValueError("not an exported look")
     look = from_dict(data)

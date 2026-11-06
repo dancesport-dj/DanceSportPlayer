@@ -44,6 +44,7 @@ from planner.playing.celebration import (
     celebrate_up_secs,
     celebrates,
 )
+from player.audio.between_dances import BetweenDances
 from player.audio.fade_now import FadeNow
 from player.audio.mix import OutputMix
 from player.audio.playback_state import PlaybackState
@@ -63,8 +64,8 @@ class SettingTest(unittest.TestCase):
         self.assertEqual(celebrate_mode({"celebrate_mode": "all"}), "all")
 
     def test_the_level(self):
-        # Marcel: 40 % was too quiet to celebrate to; 60 % out of the box.
-        self.assertEqual(celebrate_pct({}), 60)
+        # Marcel: 40 % was too quiet to celebrate to; 50 % out of the box.
+        self.assertEqual(celebrate_pct({}), 50)
         self.assertEqual(celebrate_pct({}), CELEBRATE_PCT)
         self.assertEqual(celebrate_pct({"celebrate_pct": 60}), 60)
         self.assertEqual(celebrate_pct({"celebrate_pct": "x"}), CELEBRATE_PCT)
@@ -78,14 +79,14 @@ class SettingTest(unittest.TestCase):
         self.assertEqual(celebrate_down_secs({"celebrate_down_secs": 99}), 10.0)
         self.assertEqual(celebrate_down_secs({"celebrate_down_secs": -1}), 0.0)
 
-    def test_it_holds_at_the_dip_for_two_seconds(self):
+    def test_it_holds_at_the_dip_for_three_seconds(self):
         """Marcel: it came straight back up; give the couples a moment at the
         dip first."""
-        self.assertEqual(celebrate_hold_secs({}), 2.0)
+        self.assertEqual(celebrate_hold_secs({}), 3.0)
         self.assertEqual(celebrate_hold_secs({}), CELEBRATE_HOLD_SECS)
         self.assertEqual(celebrate_hold_secs({"celebrate_hold_secs": 0}), 0.0)
         self.assertEqual(celebrate_hold_secs({"celebrate_hold_secs": 99}), 10.0)
-        self.assertEqual(celebrate_hold_secs({"celebrate_hold_secs": "x"}), 2.0)
+        self.assertEqual(celebrate_hold_secs({"celebrate_hold_secs": "x"}), 3.0)
 
     def test_which_titles(self):
         for mode, last, want in (("off", True, False), ("off", False, False),
@@ -106,11 +107,11 @@ class SettingTest(unittest.TestCase):
         self.assertAlmostEqual(celebrate_level(0.0, 0.0, 40), 0.4)
 
     def test_the_defaults(self):
-        """Marcel: out of the box it comes back at 60 %, dips to 5 %, holds
-        there 2 s, comes up over 3 s and goes down over 3 s."""
+        """Marcel: out of the box it comes back at 50 %, dips to 5 %, holds
+        there 3 s, comes up over 3 s and goes down over 3 s."""
         self.assertEqual((celebrate_pct({}), celebrate_dip_pct({}),
                           celebrate_hold_secs({}), celebrate_up_secs({}),
-                          celebrate_down_secs({})), (60, 5, 2.0, 3.0, 3.0))
+                          celebrate_down_secs({})), (50, 5, 3.0, 3.0, 3.0))
 
     def test_the_dip(self):
         """F21: how low the play-length fade takes it before it comes back.
@@ -155,6 +156,9 @@ class _Table:
         self._row_meta = _Rows(rounds)
         self._current_play_row = row
 
+    def currentRow(self):
+        return self._current_play_row
+
     def round_at(self, row):
         m = self._row_meta.at(row)
         return m.round_name if m is not None else ""
@@ -196,6 +200,10 @@ class _Desk:
     _celebrating = PlayerControlMixin._celebrating
     _celebration_tick = PlayerControlMixin._celebration_tick
     _celebration_due = PlayerControlMixin._celebration_due
+    _celebration_choice = PlayerControlMixin._celebration_choice
+    _round_place = PlayerControlMixin._round_place
+    _round_place_at = PlayerControlMixin._round_place_at
+    _celebration_of = PlayerControlMixin._celebration_of
     _cut_fade_floor = PlayerControlMixin._cut_fade_floor
     _sync_big_player_limit = PlayerControlMixin._sync_big_player_limit
     _fade_out_now = PlayerControlMixin._fade_out_now
@@ -204,6 +212,8 @@ class _Desk:
     def __init__(self, settings, rounds, row, advance=False):
         self._settings = settings
         self._deckset = SimpleNamespace(all_tables=[_Table(rounds, row)])
+        # 🥇 The list's own switch; the old settings word only seeds it here.
+        self._vals = {"celebrate": settings.get("celebrate_mode", "off") != "off"}
         self._advance = advance
         self._player = _Media()
         self._playback = PlaybackState()
@@ -215,6 +225,20 @@ class _Desk:
         self._big_player = None
         self._fade_timer = SimpleNamespace(start=lambda: None)
         self._countdown = ""
+
+    def _engine_list(self):
+        return self._deckset.all_tables[0]
+
+    def _on_tournament_length(self, table):
+        return True
+
+    _panel_list = _engine_list
+
+    def _list_vals(self, table):
+        return self._vals
+
+    def _autosave_playlist(self):
+        pass
 
     def _looping(self):
         return False
@@ -247,24 +271,121 @@ class PlaysOnTest(unittest.TestCase):
         self.assertFalse(d._begin_celebration())
         self.assertFalse(d._celebrating())
 
-    def test_the_last_dance_of_the_final(self):
-        for mode in ("last", "all"):
-            with self.subTest(mode=mode):
-                d = _Desk({"celebrate_mode": mode}, FINAL, 4)
+    def test_any_dance_of_any_round_plays_on(self):
+        for rounds, row in ((FINAL, 4), (FINAL, 2), (SEMI_THEN_FINAL, 2)):
+            with self.subTest(row=row, rounds=rounds[0]):
+                d = _Desk({"celebrate_mode": "all"}, rounds, row)
                 self.assertTrue(d._begin_celebration())
                 self.assertTrue(d._celebrating())
 
-    def test_not_the_last_dance_of_another_round(self):
-        d = _Desk({"celebrate_mode": "all"}, SEMI_THEN_FINAL, 4)
-        self.assertFalse(d._begin_celebration())
 
-    def test_last_only_leaves_the_other_dances_alone(self):
-        d = _Desk({"celebrate_mode": "last"}, FINAL, 2)
-        self.assertFalse(d._begin_celebration())
+class SwitchTest(unittest.TestCase):
+    """🥇 The switch is the list's: on, every title of it plays on."""
 
-    def test_every_dance_of_the_final_plays_on_until_the_next_title(self):
-        d = _Desk({"celebrate_mode": "all"}, FINAL, 2)
+    def test_on_makes_every_title_play_on(self):
+        d = _Desk({}, SEMI_THEN_FINAL, 2)
+        self.assertFalse(d._celebration_due())
+        d._vals["celebrate"] = True
+        self.assertTrue(d._celebration_due())
         self.assertTrue(d._begin_celebration())
+
+    def test_off_beats_nothing_else_it_is_just_off(self):
+        d = _Desk({"celebrate_mode": "all"}, FINAL, 2)
+        self.assertTrue(d._celebration_due())
+        d._vals["celebrate"] = False
+        self.assertFalse(d._celebration_due())
+
+    def test_auto_still_wins(self):
+        d = _Desk({}, FINAL, 2, advance=True)
+        d._vals["celebrate"] = True
+        self.assertFalse(d._celebration_due())
+
+
+class _Panel:
+    """The ▶ panel's 🥇 button as Qt drives it: a click flips the check first,
+    then tells the desk."""
+
+    def __init__(self):
+        self.on = False
+        self.desk = None
+
+    def set_pd_loaded(self, on):
+        pass
+
+    def set_celebrate(self, on):
+        self.on = on
+
+    def click(self):
+        self.on = not self.on
+        self.desk._on_celebrate_toggled(self.on)
+
+
+class _LoadingDesk(_Desk):
+    """The same desk, loading titles through the real `_adopt_track`."""
+
+    _adopt_track = TrackLoadMixin._adopt_track
+    _sync_celebrate_btn = PlayerControlMixin._sync_celebrate_btn
+    _on_celebrate_toggled = PlayerControlMixin._on_celebrate_toggled
+
+    def __init__(self, settings, rounds, row):
+        super().__init__(settings, rounds, row)
+        self._play_panel = _Panel()
+        self._play_panel.desk = self
+        self._playback.path = None
+        self._playback.closing = None
+        self._between = BetweenDances()
+        self._last_played = None
+
+    def _resolve_entry(self, path):
+        return None
+
+    def _row_dance(self, path):
+        return "WW"
+
+    def _sync_dance_len(self):
+        pass
+
+    def _resume_mark_for(self, path):
+        return 0
+
+    def _pre_roll_ms_for(self, path):
+        return 0
+
+    def _refresh_resume_marks(self, path):
+        pass
+
+    def _sync_taskbar_title(self):
+        pass
+
+    def load(self, row):
+        """Mark the row, then load its title — as a click on the row does."""
+        self._deckset.all_tables[0]._current_play_row = row
+        self._adopt_track(Path(f"C:/m/{row}.mp3"))
+
+
+class ShownTest(unittest.TestCase):
+    """🥇 What the switch shows: the list's value, whatever title is loaded."""
+
+    def test_it_shows_the_lists_value(self):
+        d = _LoadingDesk({"celebrate_mode": "all"}, FINAL, 2)
+        d._sync_celebrate_btn()
+        self.assertTrue(d._play_panel.on)
+        d._vals["celebrate"] = False
+        d._sync_celebrate_btn()
+        self.assertFalse(d._play_panel.on)
+
+    def test_a_click_is_for_the_whole_list(self):
+        d = _LoadingDesk({}, SEMI_THEN_FINAL, 2)
+        d.load(2)
+        d._play_panel.click()
+        self.assertTrue(d._vals["celebrate"])
+        self.assertTrue(d._celebration_due())
+        d.load(7)   # another round, same list: still on
+        self.assertTrue(d._play_panel.on)
+        self.assertTrue(d._celebration_due())
+        d._play_panel.click()
+        self.assertFalse(d._vals["celebrate"])
+        self.assertFalse(d._celebration_due())
 
 
 class AutoTest(unittest.TestCase):
@@ -327,10 +448,9 @@ class AutoTest(unittest.TestCase):
         self.assertAlmostEqual(d._cut_fade_floor(), 0.2)
 
     def test_the_cut_fades_a_title_that_just_ends_all_the_way(self):
-        for settings, row in (({"celebrate_dip_pct": 20}, 4),
-                              ({"celebrate_mode": "last",
-                                "celebrate_dip_pct": 20}, 2)):
-            with self.subTest(settings=settings, row=row):
+        settings = {"celebrate_dip_pct": 20}   # the list's switch is off
+        for row in (4, 2):
+            with self.subTest(row=row):
                 self.assertEqual(_Desk(settings, FINAL, row)._cut_fade_floor(), 0.0)
 
     def test_fade_out_now_takes_its_own_seconds_from_its_level(self):
@@ -357,6 +477,9 @@ class _Big:
 
     def set_pd_marks(self, marks, armed=None):
         pass
+
+    def set_celebrate_mark(self, ms):
+        self.mark = ms
 
     def set_wave_overlay(self, silences, fade_start_ms, start_ms=0,
                          fade_in_end_ms=None):
@@ -400,7 +523,7 @@ class CardTest(unittest.TestCase):
 
     def test_a_title_that_just_ends_says_nothing(self):
         for settings, row, advance in (({}, 4, False),
-                                       ({"celebrate_mode": "last"}, 2, False),
+                                       ({}, 2, False),
                                        ({"celebrate_mode": "all"}, 2, True)):
             with self.subTest(settings=settings, row=row, advance=advance):
                 d = _CardDesk(settings, FINAL, row, advance=advance)
@@ -413,6 +536,13 @@ class CardTest(unittest.TestCase):
         self.assertTrue(d._begin_celebration())
         self.assertEqual(d._big_player.limit, (None, "trophy", True, None))
         self.assertIsNone(d._big_player.fade_at)
+
+    def test_the_card_is_told_where_it_went_to_the_celebration(self):
+        d = _CardDesk({"celebrate_mode": "last"}, FINAL, 4)
+        d._player.position = lambda: 88_000
+        self.assertTrue(d._begin_celebration())
+        self.assertEqual(d._playback.celebrate_at_ms, 88_000)
+        self.assertEqual(d._big_player.mark, 88_000)
 
     def test_a_running_order_names_its_final_in_the_strips(self):
         """An imported running order keeps the round in its ─── strips, not
@@ -516,7 +646,7 @@ class PanelTest(_WindowCase):
 
     def setUp(self):
         super().setUp()
-        self.win._settings["celebrate_mode"] = "last"
+        self.win._list_vals(self.b)["celebrate"] = True
 
     def test_the_last_dance_of_the_final_plays_on(self):
         self.b._row_meta.append(Row(dance="WW", round_name="Endrunde"))
@@ -531,10 +661,72 @@ class PanelTest(_WindowCase):
         self.assertEqual(self.panel.len_dance_lbl.text(),
                          "Plays on after its length")
 
-    def test_another_round_says_nothing_of_it(self):
+    def test_another_round_plays_on_too(self):
         self.b._row_meta.append(Row(dance="WW", round_name="Semifinal"))
         self.play(self.b, "WW")
+        self.assertIn("then plays on", self.panel.len_dance_lbl.text())
+
+    def test_a_list_with_the_switch_off_says_nothing_of_it(self):
+        self.win._list_vals(self.b)["celebrate"] = False
+        self.b._row_meta.append(Row(dance="WW", round_name="Endrunde"))
+        self.play(self.b, "WW")
         self.assertNotIn("plays on", self.panel.len_dance_lbl.text())
+
+    def test_the_switch_is_hidden_with_a_full_length(self):
+        self.play(self.b, "LW")
+        self.panel._secs = 0
+        self.panel.set_dance_len("", "", None)
+        self.assertTrue(self.panel.celebrate_btn.isHidden())
+        self.panel._secs = 90
+        self.panel.set_dance_len("", "", None)
+        self.assertFalse(self.panel.celebrate_btn.isHidden())
+
+    def test_a_full_length_says_nothing_of_playing_on(self):
+        """Nothing is cut with 'full', so the golden line must not promise it."""
+        self.play(self.b, "WW")
+        self.panel._secs = 0
+        self.panel.set_dance_len("", "", None, plays_on=True)
+        self.assertTrue(self.panel.len_dance_lbl.isHidden())
+        self.panel.set_dance_len("WW", "Waltz", 0, plays_on=True)
+        self.assertNotIn("plays on", self.panel.len_dance_lbl.text())
+        self.panel._secs = 90
+        self.panel.set_dance_len("", "", None, plays_on=True)
+        self.assertIn("lays on", self.panel.len_dance_lbl.text())
+
+    def test_untouched_the_tournament_set_follows_settings_in_a_final(self):
+        """Like a dance's own length: the set decides until the hand does."""
+        self.win._settings["celebrate_mode"] = "last"
+        self.win._list_vals(self.b)["celebrate"] = None
+        places = {0: ("Endrunde", False), 1: ("Endrunde", True)}
+        self.win._round_place_at = lambda t, row: places[row]
+        self.assertFalse(self.win._celebration_of(self.b, 0))
+        self.assertTrue(self.win._celebration_of(self.b, 1))
+
+    def test_the_hand_overrides_the_set_either_way(self):
+        self.win._settings["celebrate_mode"] = "all"
+        self.win._round_place_at = lambda t, row: ("Endrunde", False)
+        self.win._list_vals(self.b)["celebrate"] = None
+        self.assertTrue(self.win._celebration_of(self.b, 0))
+        self.win._list_vals(self.b)["celebrate"] = False
+        self.assertFalse(self.win._celebration_of(self.b, 0))
+        self.win._list_vals(self.b)["celebrate"] = True
+        self.assertTrue(self.win._celebration_of(self.b, 2))
+
+    def test_off_the_tournament_set_only_the_switch_counts(self):
+        self.win._settings["celebrate_mode"] = "all"
+        self.b._row_meta.append(Row(dance="LW", round_name="Endrunde"))
+        self.win._list_vals(self.b)["secs"] = 61   # a length of its own
+        self.win._list_vals(self.b)["celebrate"] = None
+        self.assertFalse(self.win._celebration_of(self.b, 0))
+        self.win._list_vals(self.b)["celebrate"] = True
+        self.assertTrue(self.win._celebration_of(self.b, 0))
+
+    def test_the_switch_follows_the_list_clicked(self):
+        a = self.win._deckset.tableA
+        self.win._on_table_focused(a)
+        self.assertFalse(self.panel.celebrate_btn.isChecked())
+        self.win._on_table_focused(self.b)
+        self.assertTrue(self.panel.celebrate_btn.isChecked())
 
     def test_its_text_is_translated(self):
         from planner.i18n.lang_de import CATALOG
@@ -544,11 +736,8 @@ class PanelTest(_WindowCase):
                 self.assertIn(text, CATALOG)
 
 
-HOLD_TIP = ("How long it stays at its dip before it comes back up.\n"
-            "0 = it comes up at once.")
-
-
 class DialogTest(unittest.TestCase):
+    """🎛 Playsets keeps the mode; the numbers are on 🔊 Sound & player."""
 
     @classmethod
     def setUpClass(cls):
@@ -561,54 +750,13 @@ class DialogTest(unittest.TestCase):
         return dlg
 
     def test_off_by_default(self):
-        vals = self._dialog({}).values()
-        self.assertEqual(vals["celebrate_mode"], "off")
-        self.assertEqual(vals["celebrate_pct"], CELEBRATE_PCT)
-        self.assertEqual(vals["celebrate_up_secs"], CELEBRATE_UP_SECS)
-        self.assertEqual(vals["celebrate_down_secs"], CELEBRATE_DOWN_SECS)
-        self.assertEqual(vals["celebrate_dip_pct"], CELEBRATE_DIP_PCT)
-        self.assertEqual(vals["celebrate_hold_secs"], CELEBRATE_HOLD_SECS)
+        self.assertEqual(self._dialog({}).values()["celebrate_mode"], "off")
 
-    def test_the_hold_is_saved(self):
-        dlg = self._dialog({"celebrate_mode": "last", "celebrate_hold_secs": 1.5})
-        self.assertEqual(dlg._celebrate_hold.value(), 1.5)
-        dlg._celebrate_hold.setValue(4.0)
-        self.assertEqual(dlg.values()["celebrate_hold_secs"], 4.0)
-
-    def test_the_hold_is_translated(self):
-        for lang in ("de", "es", "nl", "ru"):
-            catalog = __import__(f"planner.i18n.lang_{lang}",
-                                 fromlist=["CATALOG"]).CATALOG
-            for text in ("Hold:", HOLD_TIP):
-                with self.subTest(lang=lang, text=text[:10]):
-                    self.assertTrue(text in catalog)
-
-    def test_the_dip_is_saved_beside_the_level(self):
-        dlg = self._dialog({"celebrate_mode": "last", "celebrate_dip_pct": 15})
-        self.assertEqual(dlg._celebrate_dip.value(), 15)
-        dlg._celebrate_dip.setValue(25)
-        self.assertEqual(dlg.values()["celebrate_dip_pct"], 25)
-
-    def test_the_picks_are_saved(self):
-        dlg = self._dialog({"celebrate_mode": "last", "celebrate_pct": 55,
-                            "celebrate_up_secs": 4, "celebrate_down_secs": 2})
+    def test_the_mode_is_saved(self):
+        dlg = self._dialog({"celebrate_mode": "last"})
         self.assertEqual(dlg._celebrate_mode.currentData(), "last")
-        self.assertEqual(dlg._celebrate_pct.value(), 55)
         dlg._celebrate_mode.setCurrentIndex(dlg._celebrate_mode.findData("all"))
-        dlg._celebrate_down.setValue(6.0)
-        vals = dlg.values()
-        self.assertEqual(vals["celebrate_mode"], "all")
-        self.assertEqual(vals["celebrate_up_secs"], 4.0)
-        self.assertEqual(vals["celebrate_down_secs"], 6.0)
-
-    def test_the_level_and_times_follow_the_switch(self):
-        dlg = self._dialog({})
-        self.assertFalse(dlg._celebrate_pct.isEnabled())
-        dlg._celebrate_mode.setCurrentIndex(dlg._celebrate_mode.findData("last"))
-        self.assertTrue(dlg._celebrate_pct.isEnabled())
-        self.assertTrue(dlg._celebrate_down.isEnabled())
-        self.assertTrue(dlg._celebrate_dip.isEnabled())
-        self.assertTrue(dlg._celebrate_hold.isEnabled())
+        self.assertEqual(dlg.values()["celebrate_mode"], "all")
 
     def test_it_sits_in_the_tournament_set(self):
         """F20: the final plays on in a competition; the 🎉 party set has no
@@ -624,13 +772,71 @@ class DialogTest(unittest.TestCase):
         from planner.i18n.lang_de import CATALOG
         dlg = self._dialog({})
         texts = [dlg._celebrate_box.title(), dlg._celebrate_hint.text(),
-                 dlg._celebrate_mode.toolTip(), dlg._celebrate_dip.toolTip(),
-                 "Dip to:"]
+                 dlg._celebrate_mode.toolTip(),
+                 "Level, dip and times: 🔊 Sound & player."]
         texts += [dlg._celebrate_mode.itemText(i)
                   for i in range(dlg._celebrate_mode.count())]
         for text in texts:
             with self.subTest(text=text[:20]):
                 self.assertIn(text, CATALOG)
+
+
+class SoundTabTest(unittest.TestCase):
+    """The numbers live in ⚙ Settings → 🔊 Sound & player."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def _dialog(self, settings):
+        from gui.dialogs.settings_dialog import SettingsDialog
+        dlg = SettingsDialog(settings)
+        self.addCleanup(reap_widget, dlg)
+        return dlg
+
+    def test_defaults_when_nothing_is_stored(self):
+        vals = self._dialog({}).values()
+        self.assertEqual(vals["celebrate_pct"], CELEBRATE_PCT)
+        self.assertEqual(vals["celebrate_dip_pct"], CELEBRATE_DIP_PCT)
+        self.assertEqual(vals["celebrate_hold_secs"], CELEBRATE_HOLD_SECS)
+        self.assertEqual(vals["celebrate_up_secs"], CELEBRATE_UP_SECS)
+        self.assertEqual(vals["celebrate_down_secs"], CELEBRATE_DOWN_SECS)
+
+    def test_the_numbers_are_shown_and_saved(self):
+        dlg = self._dialog({"celebrate_pct": 55, "celebrate_dip_pct": 15,
+                            "celebrate_hold_secs": 1.5, "celebrate_up_secs": 4,
+                            "celebrate_down_secs": 2})
+        self.assertEqual(dlg._celebrate_pct.value(), 55)
+        self.assertEqual(dlg._celebrate_dip.value(), 15)
+        self.assertEqual(dlg._celebrate_hold.value(), 1.5)
+        dlg._celebrate_hold.setValue(4.0)
+        dlg._celebrate_down.setValue(6.0)
+        vals = dlg.values()
+        self.assertEqual(vals["celebrate_pct"], 55)
+        self.assertEqual(vals["celebrate_hold_secs"], 4.0)
+        self.assertEqual(vals["celebrate_up_secs"], 4.0)
+        self.assertEqual(vals["celebrate_down_secs"], 6.0)
+
+    def test_reset_puts_them_back(self):
+        dlg = self._dialog({"celebrate_pct": 55, "celebrate_hold_secs": 5})
+        dlg._reset_sound_numbers()
+        self.assertEqual(dlg._celebrate_pct.value(), CELEBRATE_PCT)
+        self.assertEqual(dlg._celebrate_hold.value(), CELEBRATE_HOLD_SECS)
+
+    def test_its_text_is_translated(self):
+        from planner.i18n.lang_de import CATALOG
+        for text in ("Level:", "Dip to:", "Hold:", "Up over:", "Down over:",
+                     "🥇 Celebration — the music plays on"):
+            with self.subTest(text=text[:20]):
+                self.assertIn(text, CATALOG)
+
+    def test_its_heading_is_plain_text_not_bold(self):
+        from PySide6.QtWidgets import QLabel
+        dlg = self._dialog({})
+        heads = [lbl for lbl in dlg.findChildren(QLabel)
+                 if "Celebration" in lbl.text() and "plays on" in lbl.text()]
+        self.assertEqual(len(heads), 1)
+        self.assertNotIn("<b>", heads[0].text())
 
 
 if __name__ == "__main__":

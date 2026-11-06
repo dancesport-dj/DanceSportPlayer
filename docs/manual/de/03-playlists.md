@@ -205,7 +205,7 @@ willst: Wünsche von der Fläche, ein neues Album, das du ausprobieren willst.
 - Die Leiste darunter zählt die Titel und wie viele davon neu (nie gespielt)
   sind.
 
-**🧹 Leeren** lässt die Wunschlisten stehen.
+**🧹 Leeren** lässt die Wunschlisten stehen, solange du sie in der Rückfrage nicht anhakst.
 
 ## Laden und speichern
 
@@ -221,6 +221,12 @@ willst: Wünsche von der Fläche, ein neues Album, das du ausprobieren willst.
 Beim Import erkennt ein Deck Runden, Tänze und Gruppen von selbst, auch ein
 Finale mit zusätzlichen Ersatztiteln. Eine Wunschliste hängt die Titel als
 flache Liste an.
+
+Bevor eine Datei oder ein Deck überschrieben wird, fragt die App. **📂 M3U
+importieren…** fragt, bevor es ein Deck mit Titeln ersetzt, und **💾 Speichern
+als M3U…** fragt *Ersetzen?*, wenn der Name, den du getippt hast, sein `.m3u`
+von der App bekommt und diese Datei schon da ist. Ein Titel, den eine `.m3u`
+fünfmal nennt, bleibt in einer Player-Liste fünf Zeilen.
 
 ### Das Wiedergabelisten-Dateiformat
 

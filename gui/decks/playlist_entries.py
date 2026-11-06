@@ -10,6 +10,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QUrl
 
+from planner.music.paths import is_foreign_network
 from planner.playlist.m3u import playlist_line_path
 
 
@@ -31,9 +32,11 @@ def playlist_paths(lines: list[str], base: Path | None = None) -> list[Path]:
 
 
 def resolve_playlist_entries(paths: list[Path], lib, cache, remapper=None,
-                             progress_cb=None) -> list:
+                             progress_cb=None, keep_repeats: bool = False) -> list:
     """Each path as the library's entry for it (built as an external entry when
-    the library has none). Order preserved, duplicates dropped.
+    the library has none). Order preserved, duplicates dropped, unless
+    `keep_repeats`: a list loaded as the running order keeps a title as often
+    as the file lists it, and the duplicate question after the load decides.
 
     A list carried over from another machine — or written before the library
     moved — names the library at ITS drive, and none of those lines resolve
@@ -52,6 +55,8 @@ def resolve_playlist_entries(paths: list[Path], lib, cache, remapper=None,
             progress_cb(i, total, f"{len(out)} tracks")
         tp = str(path)
         ent = by_path.get(tp) or by_lower.get(tp.lower())
+        if ent is None and is_foreign_network(tp):
+            continue    # someone else's UNC/URL line: no SMB session for it
         if ent is None and remapper:
             hit = remapper.remap(Path(tp))
             if hit is not None:
@@ -62,7 +67,7 @@ def resolve_playlist_entries(paths: list[Path], lib, cache, remapper=None,
                 ent = lib.make_external_entry(Path(tp), cache)
             except Exception:
                 ent = None
-        if ent is not None and str(ent.path) not in seen:
+        if ent is not None and (keep_repeats or str(ent.path) not in seen):
             seen.add(str(ent.path))
             out.append(ent)
     return out

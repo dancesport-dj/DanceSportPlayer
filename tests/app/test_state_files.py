@@ -59,7 +59,7 @@ class StateDirRedirectTest(unittest.TestCase):
         self.assertEqual(data["library_dir"], "X:\\nowhere")
 
     def test_a_changed_play_set_survives_the_file(self):
-        """🎛 Play sets are settings like any other: written on OK, read on start."""
+        """🎛 Playsets are settings like any other: written on OK, read on start."""
         mine = {"secs": 45, "advance": False, "pause_off": False,
                 "announce": True, "loudness": False}
         stores.save_settings({"party_set": mine})

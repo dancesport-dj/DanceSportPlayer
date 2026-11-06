@@ -483,7 +483,7 @@ def parse_competition_schedule(
         i = len(parts) - 1
         while i >= 0:
             p = parts[i].strip()
-            if p.isdigit():
+            if p.isascii() and p.isdigit():
                 numbers.insert(0, int(p))
             elif p:
                 break

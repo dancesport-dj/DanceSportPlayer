@@ -189,5 +189,42 @@ class PaneTest(unittest.TestCase):
         self.assertFalse(self.browser._folder_search.isVisible())
 
 
+class FolderDragTest(unittest.TestCase):
+    """A whole folder, subfolders included, can be dragged into a playlist."""
+
+    def tree(self):
+        QApplication.instance() or QApplication([])
+        t = FolderTree()
+        self.addCleanup(reap_widget, t)
+        t.set_titles(LIBRARY)
+        return t
+
+    def item(self, tree, text):
+        return next(i for i in tree.all_items() if i.text(0).startswith(text))
+
+    def names(self, mime):
+        return [Path(u.toLocalFile()).name for u in mime.urls()]
+
+    def test_a_folder_brings_its_own_titles(self):
+        tree = self.tree()
+        mime = tree.folder_mime(self.item(tree, "Samples"))
+        self.assertEqual(self.names(mime), ["e.mp3", "f.mp3", "g.mp3"])
+
+    def test_a_parent_folder_brings_the_subfolders_too(self):
+        tree = self.tree()
+        mime = tree.folder_mime(self.item(tree, "tanzcds"))
+        self.assertEqual(self.names(mime), ["a.mp3", "b.mp3", "c.mp3"])
+
+    def test_all_folders_is_not_draggable(self):
+        tree = self.tree()
+        self.assertIsNone(tree.folder_mime(tree.topLevelItem(0)))
+
+    def test_a_folder_name_prefix_is_not_a_subfolder(self):
+        tree = self.tree()
+        tree.set_titles(LIBRARY + [entry("D:/Downloads/Samples2/h.mp3")])
+        mime = tree.folder_mime(self.item(tree, "Samples  ("))
+        self.assertEqual(self.names(mime), ["e.mp3", "f.mp3", "g.mp3"])
+
+
 if __name__ == "__main__":
     unittest.main()

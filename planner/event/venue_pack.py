@@ -208,9 +208,15 @@ def write_pack(dest: Path, docs: dict, include_music: bool,
                 if cancelled and cancelled():
                     raise VenuePackCancelled()
                 arc = _arcname(t, taken)
-                z.write(t, arc, compress_type=zipfile.ZIP_STORED)
-                music[t] = arc
-                res.tracks += 1
+                try:
+                    z.write(t, arc, compress_type=zipfile.ZIP_STORED)
+                except OSError:
+                    # Locked or gone since the check above: reported as
+                    # missing, the rest of the pack is still worth having.
+                    res.missing.append(t)
+                else:
+                    music[t] = arc
+                    res.tracks += 1
                 if progress:
                     progress(i, len(present))
             if cancelled and cancelled():
@@ -239,7 +245,7 @@ def _read_json(z: zipfile.ZipFile, name: str):
         data = f.read(MAX_DOC_BYTES + 1)
     if len(data) > MAX_DOC_BYTES:
         raise VenuePackError(f"entry too large: {name}")
-    return json.loads(data.decode("utf-8"))
+    return json.loads(data.decode("utf-8-sig"))
 
 
 def _manifest(z: zipfile.ZipFile) -> dict:
@@ -395,12 +401,21 @@ def stage_import(src: Path, state_dir: Path, music_dir: Path | None,
         mapping = extract_music(src, music_dir, progress, cancelled)
         docs = {name: remap(obj, mapping) for name, obj in docs.items()}
     stage = Path(state_dir) / STAGE_DIR
-    shutil.rmtree(stage, ignore_errors=True)
-    stage.mkdir(parents=True)
-    for name, obj in docs.items():
-        (stage / PurePath(name).name).write_text(
-            json.dumps(obj, indent=2, ensure_ascii=False), encoding="utf-8")
-    (stage / STAGE_DONE).write_text("", encoding="utf-8")
+    # Built next to the old stage and swapped in once complete: a crash or a
+    # full disk half way must not take an import that is still waiting with it.
+    building = stage.with_name(STAGE_DIR + ".new")
+    shutil.rmtree(building, ignore_errors=True)
+    building.mkdir(parents=True)
+    try:
+        for name, obj in docs.items():
+            (building / PurePath(name).name).write_text(
+                json.dumps(obj, indent=2, ensure_ascii=False), encoding="utf-8")
+        (building / STAGE_DONE).write_text("", encoding="utf-8")
+        shutil.rmtree(stage, ignore_errors=True)
+        building.rename(stage)
+    except BaseException:
+        shutil.rmtree(building, ignore_errors=True)
+        raise
     return pack
 
 
@@ -423,7 +438,7 @@ def apply_pending(state_dir: Path) -> list[str]:
     docs = {}
     for src in sorted(p for p in stage.iterdir() if p.name in PACK_FILES):
         try:
-            docs[src.name] = json.loads(src.read_text(encoding="utf-8"))
+            docs[src.name] = json.loads(src.read_text(encoding="utf-8-sig"))
         except (OSError, ValueError) as exc:
             log.warning("⚠️ Venue import entry skipped\n"
                         "file: %s\n"
@@ -437,10 +452,23 @@ def apply_pending(state_dir: Path) -> list[str]:
         del docs[SETTINGS_FILE]
     live_settings = state_dir / SETTINGS_FILE
     try:
-        local = json.loads(live_settings.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+        local = json.loads(live_settings.read_text(encoding="utf-8-sig"))
+    except FileNotFoundError:
         local = {}
-    local = local if isinstance(local, dict) else {}
+    except (OSError, ValueError):
+        local = None
+    if local is not None and not isinstance(local, dict):
+        local = None
+    if local is None:
+        # This machine's folders are in a file that did not read: merging into
+        # nothing would put the pack's folders in their place.
+        if SETTINGS_FILE in docs:
+            log.warning("⚠️ Venue import entry skipped\n"
+                        "file: %s\n"
+                        "error: this machine's settings are unreadable, not merged",
+                        SETTINGS_FILE)
+            del docs[SETTINGS_FILE]
+        local = {}
     if SETTINGS_FILE in docs:
         docs[SETTINGS_FILE] = merge_settings(local, docs[SETTINGS_FILE])
     docs, relinked = relink(docs, docs.get(SETTINGS_FILE, local))

@@ -2,6 +2,7 @@
 
 Extracted 1:1 from gui/dialogs/__init__.py in the big-module split; gui.dialogs
 re-exports the class(es), so existing importers keep working unchanged."""
+import html
 import logging
 from datetime import date
 from pathlib import Path
@@ -639,7 +640,7 @@ class SimilarTracksDialog(QDialog):
         if self._history_title is not None:
             self.setWindowTitle(self._history_title)
             self._head.setText(
-                f"<b>{self._history_title}</b>"
+                f"<b>{html.escape(self._history_title)}</b>"
                 f"<br><span style='color:#666'>"
                 + i18n.t("%d track(s) you planned for this dance &amp; round in past "
                          "competitions — best competition match first (see Class) — ▶ to preview, "
@@ -649,7 +650,7 @@ class SimilarTracksDialog(QDialog):
         elif source is not None:
             self.setWindowTitle(i18n.t("Similar to: %s") % source.title[:50])
             self._head.setText(
-                f"<b>{source.title[:60]}</b>"
+                f"<b>{html.escape(source.title[:60])}</b>"
                 f"<br><span style='color:#666'>"
                 + head_tpl % (len(results), dance_name(source.dance, source.dance or ''))
                 + f"</span>{hidden_note}"

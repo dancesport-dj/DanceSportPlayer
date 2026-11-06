@@ -260,7 +260,7 @@ class WidePanelTest(unittest.TestCase):
         self.assertEqual(panel.fade_secs(), 4.5)
         for w in (panel.len_plus, panel.fade_spin, panel.pd_check,
                   panel.advance_check, panel.announce_check,
-                  panel.loudness_check, panel.tournament_btn,
+                  panel.loudness_check, panel.set_toggle_btn,
                   panel.presenter_btn, panel.awake_check,
                   panel.countdown_lbl):
             self.assertTrue(w.isVisibleTo(panel), w)

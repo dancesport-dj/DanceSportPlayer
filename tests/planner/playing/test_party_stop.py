@@ -77,6 +77,15 @@ class StopTimeChoicesTest(unittest.TestCase):
         self.assertEqual(got[0], "01:45")
         self.assertEqual(got[-1], "03:45")
 
+    def test_after_two_at_night_it_is_two_hours_not_a_whole_day(self):
+        """The list ran to 01:55 of the NEXT day from 02:00 on - 286 entries at
+        02:05, against its own "never tomorrow morning"."""
+        got = self.hhmm(stop_time_choices(datetime(2026, 10, 25, 2, 5)))
+        self.assertEqual(got[0], "02:10")
+        self.assertEqual(got[-1], "04:10")
+        got = self.hhmm(stop_time_choices(datetime(2026, 10, 25, 5, 50)))
+        self.assertEqual(got[-1], "07:55")
+
     def test_every_minute_of_the_day_has_a_list_that_holds(self):
         """Never empty, always ahead of the clock, no time twice, and each one
         lands on the moment it was offered as."""

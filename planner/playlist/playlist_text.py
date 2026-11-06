@@ -11,6 +11,7 @@ import os
 import shutil
 from pathlib import Path
 
+from planner.config import replacing_file
 from planner.playlist.planned import path_key
 
 _BOMS = ((b"\xef\xbb\xbf", "utf-8-sig"),
@@ -70,7 +71,8 @@ def rewrite_playlist_paths(m3u: Path, remapper) -> int:
 
     The file is written back in the encoding it was read in — about 500 of
     the tournament playlists are cp1252 — and the original is kept next to
-    it as `<name>.bak`. A file that decodes as neither UTF-8 nor cp1252
+    it as `<name>.bak` (the first one only: a later pass never overwrites an
+    existing `.bak`, which would replace the original by a fixed copy). A file that decodes as neither UTF-8 nor cp1252
     (PlaylistEncodingError), or a new path its encoding cannot hold
     (UnicodeEncodeError), raises before anything is written."""
     raw, encoding = read_playlist_text(m3u)
@@ -92,8 +94,14 @@ def rewrite_playlist_paths(m3u: Path, remapper) -> int:
     if changed:
         data = "".join(lines).encode(encoding)
         m3u = Path(m3u)
-        shutil.copy2(m3u, m3u.with_name(m3u.name + ".bak"))
-        tmp = m3u.with_name(m3u.name + ".tmp")
-        tmp.write_bytes(data)
-        os.replace(tmp, m3u)
+        backup = m3u.with_name(m3u.name + ".bak")
+        if not backup.exists():   # the FIRST original is the one worth keeping
+            shutil.copy2(m3u, backup)
+        # A temp file of its own (two writers must not share one) that is
+        # synced before it replaces the playlist, so a power cut cannot leave
+        # the rename ahead of the data.
+        with replacing_file(m3u) as tmp, open(tmp, "wb") as f:
+            f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
     return changed

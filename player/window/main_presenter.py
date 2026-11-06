@@ -4,6 +4,7 @@ the ones to come, its timetable, its theme and the monitor it stands on.
 Extracted from player/window/main_player.py as a MainWindow mixin.
 """
 import logging
+import re
 import time
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -11,12 +12,13 @@ from typing import TYPE_CHECKING
 from PySide6.QtWidgets import QDialog
 
 from planner import i18n
-from planner.terms import dance_name
+from planner.terms import dance_name, hall_language
 from player.audio.mix import desk_duck_pct
 from player.presenter.presenter import PAUSE_TEXT, PresenterWindow
 from player.presenter.timetable import has_saved_timetable, load_timetable, save_timetable
 from player.window.main_pause import live_target
 from shared.audio.playback import audible_played_secs
+from shared.columns import COL_HEAT
 from shared.stores import save_settings
 from shared.widgets import show_toast
 
@@ -314,6 +316,26 @@ class PresenterMixin(MainWindowHost):
         heard = max(0.0, min(1.0, fraction)) * (played + left)
         self._player.setPosition(int(round(self._playback.offset_ms + heard * rate * 1000)))
 
+    def _presenter_heat_suffix(self) -> str:
+        """' · Heat 2' for the running title when its row names a heat (the
+        Heat column of a competition list), '' otherwise — a dance played once
+        in its round, a party list, a backup row. Added to the dance line, so
+        the hall and the phone both read it."""
+        table, row = self._playing_row()
+        if table is None:
+            return ""
+        item = table.item(row, COL_HEAT)
+        text = item.text().strip() if item is not None else ""
+        # A backup row writes "↳ backup 1" into that cell: not a heat.
+        if not text or text.startswith("↳"):
+            return ""
+        # The hall's words, like the dance beside it: "Gruppe 2" where the
+        # German names are kept, whatever language the table is in.
+        number = re.search(r"\d+$", text)
+        if number:
+            text = i18n.translate("Heat %d", hall_language()) % int(number.group())
+        return f" · {text}"
+
     def _presenter_state(self) -> tuple[str, str, tuple[str, str, bool, float],
                                         list[tuple[str, str]], tuple[str, str]]:
         """What the presenter screen shows: (dance, title, times, next songs,
@@ -327,8 +349,8 @@ class PresenterMixin(MainWindowHost):
             table, row, path = target
             now = (self._row_dance_name(table, row), path.stem)
         elif self._playback.path is not None:
-            now = (dance_name(self._playback.dance, self._playback.dance),
-                   self._playback.path.stem)
+            now = (dance_name(self._playback.dance, self._playback.dance)
+                   + self._presenter_heat_suffix(), self._playback.path.stem)
         else:
             now = ("", "")
         return (now[0], now[1], self._presenter_times(),

@@ -17,6 +17,7 @@ from planner.music.parsing import (
     norm_title,
     song_title_key,
     song_title_keys,
+    song_use_keys,
 )
 
 
@@ -56,6 +57,23 @@ class SongTitleKeyTest(unittest.TestCase):
     def test_norm_title_folds_accents(self):
         self.assertEqual(norm_title("Señorita"), norm_title("Senorita"))
 
+    def test_norm_title_folds_letters_that_do_not_decompose(self):
+        """ø, ł, ß, æ have no combining form: they used to be dropped and
+        left a space in the middle of the word ('s ren odz')."""
+        self.assertEqual(norm_title("Søren Łódź"), "soren lodz")
+        self.assertEqual(norm_title("Straße"), "strasse")
+        self.assertEqual(norm_title("Æon"), "aeon")
+
+    def test_norm_title_keeps_non_latin_scripts(self):
+        """A Cyrillic or Greek title normalised to '' — every one of them was
+        the same key as every other."""
+        self.assertEqual(norm_title("Привет, Мир!"), "привет мир")
+        self.assertNotEqual(norm_title("Привет"), norm_title("Прощай"))
+        self.assertEqual(norm_title("Αγάπη"), "αγαπη")
+
+    def test_norm_title_still_splits_on_punctuation_and_underscores(self):
+        self.assertEqual(norm_title("Rock_n-Roll (Live)!"), "rock n roll live")
+
 
 class SongTitleKeysTest(unittest.TestCase):
     """Candidate key LISTS: dash-split sides are extra candidates, never the
@@ -82,6 +100,68 @@ class SongTitleKeysTest(unittest.TestCase):
     def test_plain_name_has_single_key(self):
         keys = song_title_keys("La Cumparsita (TG 33)")
         self.assertEqual(keys, [song_title_key("La Cumparsita (TG 33)")])
+
+
+class SongUseKeysTest(unittest.TestCase):
+    """The strict no-repeat keys: the full key plus the title side only. The
+    artist side must never count as 'used' (the duplicate finder keeps it)."""
+
+    def test_artist_side_is_not_a_use_key(self):
+        keys = song_use_keys("Michael Buble - Sway.mp3")
+        self.assertIn(song_title_key("Michael Buble - Sway.mp3"), keys)
+        self.assertIn(song_title_key("Sway"), keys)
+        self.assertNotIn(song_title_key("Michael Buble"), keys)
+
+    def test_two_tracks_of_one_artist_share_no_use_key(self):
+        self.assertFalse(set(song_use_keys("Michael Buble - Sway.mp3"))
+                         & set(song_use_keys("Michael Buble - Home.mp3")))
+
+    def test_other_recording_of_the_song_still_shares_a_use_key(self):
+        self.assertTrue(set(song_use_keys("Michael Buble - Sway.mp3"))
+                        & set(song_use_keys("Sway (RB 30).mp3")))
+
+    def test_plain_name_has_single_use_key(self):
+        self.assertEqual(song_use_keys("La Cumparsita (TG 33).mp3"),
+                         [song_title_key("La Cumparsita (TG 33).mp3")])
+
+
+class UseKeyJunkTest(unittest.TestCase):
+    """Real library names: the part after the last ' - ' is often no title at all
+    (a dance word, a tempo, a remix or DJ tag). Such a part must never become a key
+    that ties together every file carrying the same tag."""
+
+    def test_junk_last_parts_give_only_the_full_key(self):
+        for name in ("Prince Royce - Samba.mp3",
+                     "Kygo - Hot Stuff - 50.mp3",
+                     "Brian Evans _ Croonerman - QS50.mp3",
+                     "Casa - Song - (Samba 51BPM).mp3",
+                     "Samba - EO..mp3",
+                     "Zaz - Paris - DJ Mitya.mp3"):
+            with self.subTest(name=name):
+                self.assertLessEqual(len(song_use_keys(name)), 2)
+                self.assertNotIn("samba", song_use_keys(name))
+                self.assertNotIn("qs50", song_use_keys(name))
+                self.assertNotIn("dj mitya", song_use_keys(name))
+
+    def test_two_files_with_the_same_junk_tail_share_no_key(self):
+        self.assertFalse(set(song_use_keys("A One - Samba.mp3"))
+                         & set(song_use_keys("B Two - Samba.mp3")))
+
+    def test_a_remix_tag_is_skipped_for_the_title_before_it(self):
+        self.assertIn(song_title_key("Paris"),
+                      song_use_keys("Zaz - Paris - rumba remix - (Dj Mitya).mp3"))
+
+    def test_a_dance_prefix_is_not_the_title_side(self):
+        self.assertEqual(song_use_keys("LW - Autumn.mp3")[-1], song_title_key("Autumn"))
+        self.assertNotIn("lw", song_use_keys("LW - Autumn.mp3"))
+
+
+class DashPartKeyTest(unittest.TestCase):
+    def test_a_dot_inside_a_dash_part_is_not_an_extension(self):
+        for keys in (song_title_keys("Artist - Mr. Brightside.mp3"),
+                     song_use_keys("Artist - Mr. Brightside.mp3")):
+            self.assertIn("mr brightside", keys)
+            self.assertNotIn("mr", keys)
 
 
 if __name__ == "__main__":

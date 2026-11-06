@@ -10,6 +10,7 @@ from pathlib import Path
 import numpy as np
 
 import planner.music.db as pdb
+from planner.music import chroma_match
 from planner.music import db_upkeep as upkeep
 from tests.db_support import use_scratch_db
 
@@ -44,9 +45,40 @@ class ChromaStoreTest(unittest.TestCase):
         self.assertEqual(cache.chroma_keys(), {fp})
         self.assertTrue(np.array_equal(cache.all_chromas()[fp], self.words))
 
+    def test_the_count_is_the_number_of_keys_without_reading_them(self):
+        cache = pdb.AudioCache()
+        self.assertEqual(cache.chroma_count(), 0)
+        cache.put_chroma(self.song, self.words, 215.0)
+        other = self.dir / "b.mp3"
+        other.write_bytes(b"y" * 5000)
+        cache.put_chroma(other, self.words, 100.0)
+        self.assertEqual(cache.chroma_count(), len(cache.chroma_keys()))
+        self.assertEqual(cache.chroma_count(), 2)
+
     def test_the_row_follows_a_retag_and_a_reset(self):
         self.assertIn("chroma_fps", pdb._FP_TABLES)
         self.assertIn(("chroma_fps", ""), upkeep.RESET_GROUPS["analysis"])
+
+    def damage(self, cache, blob=b"123456"):
+        """The stored words cut off mid-word, as a half-written row leaves them."""
+        cache.put_chroma(self.song, self.words, 215.0)
+        pdb._db().execute("UPDATE chroma_fps SET words = ?", (blob,))
+
+    def test_a_damaged_blob_reads_as_no_fingerprint(self):
+        cache = pdb.AudioCache()
+        self.damage(cache)
+        self.assertIsNone(cache.get_chroma(self.song))
+
+    def test_a_damaged_blob_does_not_hide_the_good_rows(self):
+        cache = pdb.AudioCache()
+        other = self.dir / "b.mp3"
+        other.write_bytes(b"y" * 5000)
+        cache.put_chroma(other, self.words, 100.0)
+        self.damage(cache)
+        pdb._db().execute("UPDATE chroma_fps SET words = ? WHERE fp = ?",
+                          (chroma_match.pack(self.words), cache.fingerprint(other)))
+        everything = cache.all_chromas()
+        self.assertEqual(list(everything), [cache.fingerprint(other)])
 
 
 if __name__ == "__main__":

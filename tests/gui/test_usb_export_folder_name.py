@@ -218,7 +218,40 @@ class ReplaceTest(unittest.TestCase):
     def an_older_export(self):
         (self.gala / "Final").mkdir()
         (self.gala / "Final" / "Final.m3u8").write_text("#EXTM3U\n", encoding="utf-8")
-        (self.gala / "Final" / "01 a.mp3").write_bytes(b"x")
+        (self.gala / "Final" / "0_0_1 - a.mp3").write_bytes(b"x")
+
+    def a_playlist_library(self):
+        """Folders of music with a playlist each, the way a person keeps them."""
+        (self.gala / "Final").mkdir()
+        (self.gala / "Final" / "Final.m3u8").write_text("#EXTM3U\n", encoding="utf-8")
+        (self.gala / "Final" / "Moon River.mp3").write_bytes(b"x")
+
+    def test_a_library_of_playlist_folders_is_not_an_older_export(self):
+        # Marcel's review: a folder of playlist folders, each with its m3u and its
+        # music, was offered Replace and rmtree'd with the music in it.
+        self.a_playlist_library()
+        self.assertIsNone(self.pick())
+        self.assertNotIn("Replace", _Box.last.buttons)
+        self.assertTrue((self.gala / "Final" / "Moon River.mp3").exists())
+
+    def test_a_playlist_file_not_named_after_its_folder_is_no_export(self):
+        self.an_older_export()
+        (self.gala / "Final" / "Final.m3u8").rename(self.gala / "Final" / "other.m3u8")
+        self.assertIsNone(self.pick())
+        self.assertTrue((self.gala / "Final" / "0_0_1 - a.mp3").exists())
+
+    def test_a_folder_inside_a_playlist_folder_is_no_export(self):
+        self.an_older_export()
+        (self.gala / "Final" / "Scans").mkdir()
+        self.assertIsNone(self.pick())
+
+    def test_the_exporters_own_output_is_still_replaceable(self):
+        self.an_older_export()
+        (self.gala / "Final" / "0_1_2 - b WW29.mp3").write_bytes(b"x")
+        (self.gala / "Second").mkdir()
+        (self.gala / "Second" / "Second.m3u").write_text("#EXTM3U\n", encoding="utf-8")
+        (self.gala / "Final" / "._0_0_1 - a.mp3").write_bytes(b"x")   # a Mac's leftover
+        self.assertEqual(self.pick(), (self.gala, True))
 
     def test_the_question_names_the_full_path(self):
         self.an_older_export()

@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 
 import planner.models
 from gui.dialogs import M3uDropDialog, load_settings, save_settings
+from gui.dialogs.folder_scope_dialog import ask_library_folders
 from gui.dialogs.warmup_estimate import WarmupEstimateBox
 from planner import i18n
 from planner.generate.warmup import WARMUP_MODE, warmup_lengths
@@ -381,10 +382,6 @@ def _build_source_box(dlg, wishlists=()):
     src_grp.addButton(rb_m3u, 1)
     src_grp.addButton(rb_wish, 2)
     src_lyt.addWidget(rb_lib)
-    unused_chk = QCheckBox("    Only tracks not already in my open playlists")
-    unused_chk.setObjectName("source_unused")
-    unused_chk.setChecked(True)
-    src_lyt.addWidget(unused_chk)
     src_lyt.addWidget(rb_wish)
     # One tick per wishlist that has titles; the rest are not offered.
     rb_wish.setEnabled(bool(wishlists))
@@ -406,6 +403,30 @@ def _build_source_box(dlg, wishlists=()):
     m3u_row.addWidget(m3u_edit, stretch=1)
     m3u_row.addWidget(m3u_btn)
     src_lyt.addLayout(m3u_row)
+    # 📁 A fourth source: only the titles in the library folders ticked in a list.
+    rb_folders = QRadioButton("📁  Chosen library folders")
+    rb_folders.setToolTip(
+        "Draw only from the titles in the library folders you tick."
+        " A folder counts for the titles directly in it, not below it.")
+    src_grp.addButton(rb_folders, 3)
+    folders_row = QHBoxLayout()
+    folders_row.addWidget(rb_folders)
+    dlg.folders_chosen = []
+    dlg.folders_lbl = QLabel(i18n.t("No folder chosen"))
+    dlg.folders_btn = QPushButton("Choose…")
+    dlg.folders_btn.setEnabled(False)
+    folders_row.addWidget(dlg.folders_lbl, stretch=1)
+    folders_row.addWidget(dlg.folders_btn)
+    src_lyt.addLayout(folders_row)
+    dlg.rb_folders = rb_folders
+    # Whatever the source: leave out what another deck holds already.
+    unused_chk = QCheckBox("Skip greyed titles")
+    unused_chk.setObjectName("source_unused")
+    unused_chk.setChecked(True)
+    unused_chk.setToolTip(
+        "Leave out the titles another deck already holds — planned or"
+        " played (played ones stay in their deck, greyed).")
+    src_lyt.addWidget(unused_chk)
     return (src_box, rb_lib, rb_m3u, rb_wish, src_grp, unused_chk, m3u_edit,
             m3u_btn, wish_checks)
 
@@ -417,9 +438,11 @@ def _wire_source(dlg, library_dir, rb_lib, rb_m3u, rb_wish, src_grp, unused_chk,
         use_m3u = rb_m3u.isChecked()
         m3u_edit.setEnabled(use_m3u)
         m3u_btn.setEnabled(use_m3u)
-        unused_chk.setEnabled(rb_lib.isChecked())
+        dlg.folders_btn.setEnabled(dlg.rb_folders.isChecked())
         for cb in wish_checks:
             cb.setEnabled(rb_wish.isChecked())
+            # Ticked-looking boxes under another choice read as part of it.
+            cb.setVisible(rb_wish.isChecked())
     src_grp.idToggled.connect(lambda *_: sync_source())
     sync_source()
 
@@ -438,6 +461,16 @@ def _wire_source(dlg, library_dir, rb_lib, rb_m3u, rb_wish, src_grp, unused_chk,
         sync_source()
         m3u_edit.setText(path)
     dlg.m3uDropped.connect(on_m3u_dropped)
+
+    def choose_folders():
+        picked = ask_library_folders(dlg, library_dir, dlg.library_entries,
+                                     dlg.folders_chosen)
+        if picked is not None:
+            dlg.folders_chosen = picked
+            n = len(picked)
+            dlg.folders_lbl.setText(i18n.t("%d folders chosen") % n if n
+                                    else i18n.t("No folder chosen"))
+    dlg.folders_btn.clicked.connect(choose_folders)
 
 
 def _add_buttons(dlg, lyt):
@@ -518,6 +551,7 @@ def ask_warmup_options(parent, entries: list, library_dir: str, wishlists=(),
     go into that one, or a save of it would drop them again."""
     memory = load_settings() if memory is None else memory
     dlg = M3uDropDialog(parent)
+    dlg.library_entries = entries   # for the 📁 folder list
     dlg.setWindowTitle("🤸  Practice / party playlist")
     lyt = QVBoxLayout(dlg)
 
@@ -612,12 +646,14 @@ def ask_warmup_options(parent, entries: list, library_dir: str, wishlists=(),
     picks = [i for i, cb in enumerate(wish_checks) if cb.isChecked()]
     source = ("m3u" if m3u_mode
               else "wishlists" if rb_wish.isChecked()
+              else "folders" if dlg.rb_folders.isChecked()
               else "library")
     return dict(
         mode="class" if class_mode else "competition" if comp_mode else "etds",
         source=source,
         m3u_path=m3u_path if m3u_mode else None,
-        unused_only=unused_chk.isChecked() and source == "library",
+        unused_only=unused_chk.isChecked(),
+        folders=list(dlg.folders_chosen) if source == "folders" else [],
         wishlist_picks=picks,
         # class mode
         style=style_combo.currentData(),

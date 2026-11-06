@@ -366,7 +366,7 @@ def _svg_file(name: str, body: str, size: int) -> str:
     svg = (f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" '
            f'height="{size}" viewBox="0 0 {size} {size}">{body}</svg>')
     folder = Path(tempfile.gettempdir()) / "danceplaylist_theme"
-    path = folder / f"{name}_{hashlib.sha1(svg.encode()).hexdigest()[:8]}.svg"
+    path = folder / f"{name}_{hashlib.sha1(svg.encode(), usedforsecurity=False).hexdigest()[:8]}.svg"
     if not path.exists():
         folder.mkdir(parents=True, exist_ok=True)
         part = path.with_name(f"{path.name}.{os.getpid()}.tmp")

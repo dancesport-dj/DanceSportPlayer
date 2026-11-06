@@ -60,7 +60,7 @@ class TourneyTree(QTreeWidget):
             if not u.isLocalFile():
                 continue
             p = Path(u.toLocalFile())
-            if p.is_dir() or p.name.lower().endswith(".m3u"):
+            if p.is_dir() or p.name.lower().endswith((".m3u", ".m3u8")):
                 out.append(p)
         return out
 

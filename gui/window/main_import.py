@@ -140,13 +140,19 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
 
         # A deck of a player-only install takes the file as its flat running
         # order — there is no draw in it to reconstruct.
+        # Every import below REPLACES the list: ask first when it holds tracks,
+        # as a dropped file does.
         if table.plays_flat():
+            if not table._confirm_m3u_replaces(Path(paths[0])):
+                return
             self._load_player_list_from_m3u(table, paths[0])
             return
 
         # The Eintanzen panel takes a single .m3u as a flat warm-up list (not a
         # round/heat import, and never into a deck).
         if getattr(table, "_warmup", False):
+            if not table._confirm_m3u_replaces(Path(paths[0])):
+                return
             self._load_warmup_from_m3u(table, paths[0])
             return
 
@@ -165,6 +171,8 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
                             % (added, len(paths)))
             else:
                 show_toast(self, "📂  Nothing new — all tracks already in the wishlist")
+            return
+        if not table._confirm_m3u_replaces(Path(path)):
             return
         self._set_active_table(table)   # deck import always targets the clicked deck
         self._import_playlist_path(path)

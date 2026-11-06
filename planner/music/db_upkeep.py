@@ -54,8 +54,16 @@ def cleanup_orphans(prune_features: bool = False) -> dict:
     """
     conn = _db()
     drives: dict[str, bool] = {}
-    dead_ids = [fid for (fid, path) in conn.execute("SELECT id, path FROM files").fetchall()
-                if _vanished(Path(path), drives)]
+    rows = conn.execute("SELECT id, path FROM files").fetchall()
+    dead_ids = [fid for (fid, path) in rows if _vanished(Path(path), drives)]
+    # `_vanished` takes a drive that answers for one that lost the music, so an
+    # empty share or a renamed folder reads as a whole library deleted. Same
+    # limit as db_maintenance: re-analysing a handful is cheap, a library is not.
+    if rows and len(dead_ids) > max(5, len(rows) // 2):
+        raise RuntimeError(
+            f"{len(dead_ids):,} of {len(rows):,} registered files are missing — is "
+            "the music drive mounted? Cleanup aborted so the cached analysis "
+            "isn't wiped.")
     # One transaction: a crash half-way leaves the DB as it was, not half
     # cleaned, and the deletes share one commit instead of one each. IMMEDIATE:
     # a deferred one that reads first fails at its first DELETE, without
@@ -312,8 +320,8 @@ def reset_database(groups) -> dict:
                     continue
                 for table, where in parts:
                     if table in tables:
-                        sql = f"DELETE FROM {table}" + (f" WHERE {where}" if where else "")
-                        removed[table] = removed.get(table, 0) + conn.execute(sql).rowcount  # nosec B608: constant names
+                        sql = f"DELETE FROM {table}" + (f" WHERE {where}" if where else "")  # nosec B608: constant names
+                        removed[table] = removed.get(table, 0) + conn.execute(sql).rowcount
         except BaseException:
             conn.execute("ROLLBACK")
             raise

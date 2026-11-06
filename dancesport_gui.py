@@ -106,6 +106,7 @@ from planner.dances import BEATS_PER_BAR
 from planner.generate.suggester import PlaylistSuggester
 from planner.music.db_upkeep import apply_settings as apply_backup_folder
 from planner.music.db_upkeep import backup_safely
+from planner.music.paths import set_own_shares
 from planner.version import app_version
 
 log = logging.getLogger("dancesport.gui")
@@ -229,6 +230,7 @@ from player.audio.audio_device import AudioDevice
 from player.audio.between_dances import BetweenDances
 from player.audio.cue_player import CuePlayer
 from player.audio.fade_now import FadeNow
+from player.audio.gated_player import GatedMediaPlayer
 from player.audio.mix import OutputMix, desk_duck_pct, duck_ramp_ms
 from player.audio.on_air_note import NOTE
 from player.audio.pending_work import PendingWork
@@ -313,6 +315,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
 
         # Settings + lazily-built whole-repo library (for global search)
         self._settings = load_settings()
+        set_own_shares(self._settings)
         # Point the popularity learning at the configured tournament-playlists
         # folder BEFORE the library scan learns from it.
         if self._settings.get("playlist_dir"):
@@ -381,7 +384,8 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
             save_settings(self._settings)
         if HAS_MULTIMEDIA:
             quiet_ffmpeg_log()
-            self._player = QMediaPlayer(self)
+            self._player = GatedMediaPlayer(self)
+            self._player.gate = self._headset_play_gate
             self._audio_out = QAudioOutput(self)
             self._player.setAudioOutput(self._audio_out)
             prime_disconnect_notify(self._player, self._audio_out)
@@ -395,7 +399,10 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         # player of its own: the shared one runs the hall's music.
         cue = CuePlayer(self) if self._player is not None else None
         if cue is not None:
-            cue.view = PreviewOverlay(cue.media_player, cue.audio_output, duck=False)
+            cue.view = PreviewOverlay(
+                cue.media_player, cue.audio_output, duck=False,
+                get_vol=lambda: self._mix.base,
+                set_vol=self._set_base_volume)
             cue.view.closeRequested.connect(cue.stop)
             cue.view.disableRequested.connect(self._disable_preview)
             cue.view.prevRequested.connect(lambda: self._cue_skip(-1))
@@ -446,6 +453,12 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
             self._device_watch.start()
         # 🔊 The badge follows the card; one chosen in ⚙ Settings, on OK.
         self._media_devices.audioOutputsChanged.connect(self._sync_sound_badge)
+        # 🎧 A headset plugged in (or the first look at start) with the music
+        # loud: lowered, and the operator asked. Connected after the card's own
+        # handler, so the music is on its new output when this looks.
+        self._media_devices.audioOutputsChanged.connect(
+            lambda: QTimer.singleShot(0, self, self._guard_headset_volume))
+        QTimer.singleShot(1500, self, self._guard_headset_volume)
         # 🔇 The silence after the start counts too, once the window stands.
         QTimer.singleShot(0, self, self._audio_device.on_activity)
 
@@ -507,6 +520,9 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         self._vol_save_timer.setSingleShot(True)
         self._vol_save_timer.setInterval(600)
         self._vol_save_timer.timeout.connect(self._save_master_volume)
+        # 🎧 The fader came to rest (600 ms after the last move): a headset
+        # must not be left loud, whoever moved it — slider, key or phone.
+        self._vol_save_timer.timeout.connect(self._guard_headset_volume)
         # ⏸ Auto-advance: the pause after a song ends and the title it leads
         # into (or, after a 🏁 round-end stop, the next round's first song).
         self._between = BetweenDances()
@@ -643,6 +659,8 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         # a moment ago — so they need no memory of their own.
         self._refresh_set_lights()
         self._play_panel.partySetToggled.connect(self._set_party_mode)
+        self._play_panel.trainingSetToggled.connect(self._set_training_mode)
+        self._play_panel.celebrateToggled.connect(self._on_celebrate_toggled)
         self._play_panel.tournamentSetRequested.connect(self._apply_tournament_set)
         self._play_panel.rememberToggled.connect(self._set_remember_pos)
         self._play_panel.stopRuleChanged.connect(self._refresh_next_up)
@@ -668,6 +686,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         self._cfg.settings_requested.connect(self._open_settings)
         self._cfg.build_all_requested.connect(self._build_all_caches)
         self._cfg.m3u_source_requested.connect(self._browse_source_m3u)
+        self._cfg.folders_source_requested.connect(self._choose_source_folders)
         self._cfg.round_strategy_changed.connect(self._on_strategy_changed)
         self._cfg.replay_competition_changed.connect(self._on_replay_competition_changed)
         self._cfg.schedule_parsed.connect(self._on_schedule_parsed)
@@ -1274,31 +1293,43 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         if self._quit_after_fade():   # 🔉 the music fades out first
             event.ignore()
             return
-        self.save_on_quit()
-        NOTE.remove()   # 🆘 a clean quit: nothing to pick up next start
-        NOTE.flush()
-        EVENING.flush()   # ▶ the evening's last greyed title
+        # One step failing must not skip the rest: a QThread still running when
+        # its window goes down aborts the process (see _stop_workers).
+        step = self._quitStep
+        step(self.save_on_quit)
+        step(NOTE.remove)   # 🆘 a clean quit: nothing to pick up next start
+        step(NOTE.flush)
+        step(EVENING.flush)   # ▶ the evening's last greyed title
         # Before the widgets go: the announcer's engine is a child of this
         # window and reports one last state change as it is torn down, and a
         # looping cartwall pad still holds its file open.
-        self._announcer.shutdown()
+        step(self._announcer.shutdown)
         # A window of its own, so it does not follow this one down by itself.
         log_dlg = getattr(self, "_ai_log", None)
         if log_dlg:
-            log_dlg.close()
-        self._cartwall_shutdown()
-        self._taskbar_shutdown()
-        self._stop_remote()
-        self._guest_shutdown()
-        self._controller_shutdown()
-        self._drive_watch_shutdown()
-        self._audio_device.hold_system_sounds(False)
-        self._stop_workers()
+            step(log_dlg.close)
+        step(self._cartwall_shutdown)
+        step(self._taskbar_shutdown)
+        step(self._stop_remote)
+        step(self._guest_shutdown)
+        step(self._controller_shutdown)
+        step(self._drive_watch_shutdown)
+        step(self._audio_device.hold_system_sounds, False)
+        step(self._stop_workers)
         # The start's backup is from before this session: write today's again,
         # with the evening's plays, once nothing else is writing to the DB.
-        backup_safely(refresh=True)
+        step(backup_safely, refresh=True)
         super().closeEvent(event)
         self._restart_if_asked()   # ⚙ a setting that needs a fresh start
+
+    @staticmethod
+    def _quitStep(fn, *args, **kwargs):
+        """Run one step of closing; a failure is logged, not allowed to skip
+        the steps behind it."""
+        try:
+            fn(*args, **kwargs)
+        except Exception:
+            log.exception("⚠ Closing: %s failed", getattr(fn, "__name__", fn))
 
     def _stop_workers(self):
         """Let every background worker finish before this window takes its
@@ -1358,6 +1389,18 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         else:
             level = 2
         self._apply_toolbar_compact(level)
+        # The stored widths can be too small (measured before the platform's
+        # font was in place): what the buttons ask for NOW decides too, so no
+        # label is ever left cut short where icons would have fitted.
+        while level < 2 and self._toolbar_needed_width() > w:
+            level += 1
+            self._apply_toolbar_compact(level)
+
+    def _toolbar_needed_width(self) -> int:
+        """What the visible toolbar buttons take at the current level."""
+        vis = [b for b in self._toolbar_btns if not b.isHidden()]
+        return sum(max(b.minimumWidth(), min(b.sizeHint().width(), b.maximumWidth()))
+                   for b in vis) + 4 * (len(vis) + 1) + 24 + 24
 
     def _show_shortcuts(self):
         """F1 / ❔: the cheat sheet — see `gui.dialogs.shortcuts`."""
@@ -1427,6 +1470,17 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         """📜 Played titles — see `player.dialogs.play_log_dialog`."""
         PlayLogDialog(self).exec()
 
+    def _closeMiniPlayer(self):
+        """Close the visible mini player and stop it; False if none is showing."""
+        cue = self._cue_player()
+        if cue is not None and cue.view.isVisible():
+            cue.stop()                # 🎧 the pre-listen's mini player
+            return True
+        if self._preview and self._preview.isVisible():
+            self._on_stop_btn()       # close mini player + stop playback
+            return True
+        return False
+
     def eventFilter(self, obj, event):
         """App-wide Ctrl+X / Ctrl+W → close the active dialog; on the main window it only
         dismisses the preview mini player (stop + hide) and NEVER quits the app.
@@ -1493,6 +1547,14 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
                         self._space_at = now
                         self._big_player.toggle_play()
                     return True
+            # Esc closes a visible mini player too (and only then, so it keeps its
+            # other jobs). Never while typing: Esc there belongs to the field.
+            if (event.key() == Qt.Key.Key_Escape
+                    and event.modifiers() == Qt.KeyboardModifier.NoModifier
+                    and QApplication.activeWindow() is self
+                    and not isinstance(QApplication.focusWidget(), _TYPED_INTO)
+                    and self._closeMiniPlayer()):
+                return True
             if (event.key() in (Qt.Key.Key_X, Qt.Key.Key_W)
                     and (event.modifiers() & Qt.KeyboardModifier.ControlModifier)
                     and not (event.modifiers() & (Qt.KeyboardModifier.ShiftModifier
@@ -1506,11 +1568,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
                              or not isinstance(fw, _TYPED_INTO))):
                     win = QApplication.activeWindow()
                     if win is self:
-                        cue = self._cue_player()
-                        if cue is not None and cue.view.isVisible():
-                            cue.stop()            # 🎧 the pre-listen's mini player
-                        elif self._preview and self._preview.isVisible():
-                            self._on_stop_btn()   # close mini player + stop playback
+                        self._closeMiniPlayer()
                         return True               # swallow — never close the app
                     if win is not None:
                         win.close()
@@ -1532,6 +1590,24 @@ def _take_instance_lock():
     lock = QLockFile(str(planner.config.APP_DIR / "app.lock"))
     lock.tryLock(0)
     return lock
+
+
+def _already_running(lock) -> bool:
+    """🔒 True, after saying so, when `lock` is not held: another instance owns
+    the app folder. Two of them restored and rewrote one autosave, so the one
+    closed last won and the other's playlist was gone. Before anything else
+    touches that folder (logs, a pending venue pack)."""
+    if lock.isLocked():
+        return False
+    log.warning("🔒 Another instance is already running\n"
+                "this one exits without touching the app folder")
+    _app = QApplication.instance() or QApplication(sys.argv)   # kept alive for the box
+    i18n.apply_settings(load_settings())      # the language, no more is set up yet
+    QMessageBox.information(
+        None, i18n.t("Already running"),
+        i18n.t("DanceSport Planner & Player is already running.\n"
+               "Switch to its window; a second copy would overwrite its playlist."))
+    return True
 
 
 def _install_crash_log(suffix=""):
@@ -1687,9 +1763,10 @@ def run_gui():
         logging.basicConfig(level=logging.INFO, format="%(message)s")
 
     instance_lock = _take_instance_lock()      # held for the whole run
-    second = ".second" if not instance_lock.isLocked() else ""
-    prev_crash = _install_crash_log(second)
-    prev_session = _open_session_log(second)
+    if _already_running(instance_lock):
+        exit_app(0)
+    prev_crash = _install_crash_log()
+    prev_session = _open_session_log()
     _route_qt_messages()
     # 📥 A venue pack imported in the last session takes over now — before the
     # first read of the settings, and after the last window that could have

@@ -83,10 +83,10 @@ class FoldFreesSpaceTest(unittest.TestCase):
         self.assertGreater(self.size_of(win, win._grid.wish_split), 4 * strip)
         self.assertEqual(self.size_of(win, win._grid.warmup_box), warm)
 
-    def test_folding_the_wishlist(self):
+    def test_folding_the_wishlist(self):  # overconfidence:short-test-ok - asserts in the helper
         self.check_wishlist_fold(warmup=False)
 
-    def test_folding_the_wishlist_beside_the_warmup_panel(self):
+    def test_folding_the_wishlist_beside_the_warmup_panel(self):  # overconfidence:short-test-ok - asserts in the helper
         self.check_wishlist_fold(warmup=True)
 
     def check_deck_fold(self, warmup):
@@ -105,10 +105,10 @@ class FoldFreesSpaceTest(unittest.TestCase):
         self.assertGreater(self.size_of(win, win._grid.deck_tabs), 4 * strip)
         self.assertEqual(win._grid.deck_tabs.minimumHeight(), 0)
 
-    def test_folding_every_deck(self):
+    def test_folding_every_deck(self):  # overconfidence:short-test-ok - asserts in the helper
         self.check_deck_fold(warmup=False)
 
-    def test_folding_every_deck_beside_the_warmup_panel(self):
+    def test_folding_every_deck_beside_the_warmup_panel(self):  # overconfidence:short-test-ok - asserts in the helper
         self.check_deck_fold(warmup=True)
 
 

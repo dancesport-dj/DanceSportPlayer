@@ -205,6 +205,34 @@ class MaintenanceTest(unittest.TestCase):
             upkeep.db_maintenance()
         self.assertEqual(len(self._rows("features")), 20)
 
+    def test_build_all_does_not_wipe_a_library_whose_folder_is_there_but_empty(self):
+        """Build ALL calls cleanup_orphans alone, without db_maintenance's guard.
+        A drive that is mounted with the music gone from it (an empty share, a
+        renamed folder) answers for its drive, so every row read as deleted."""
+        for i in range(200):
+            self._track(f"gone{i}.mp3", f"fp{i}", on_disk=False)
+        with self.assertRaises(RuntimeError):
+            upkeep.cleanup_orphans()
+        self.assertEqual(len(self._rows("files")), 200)
+        self.assertEqual(len(self._rows("fingerprints")), 200)
+
+    def test_a_few_deleted_files_are_still_cleaned(self):
+        for i in range(30):
+            self._track(f"here{i}.mp3", f"fp-live{i}")
+        for i in range(3):
+            self._track(f"gone{i}.mp3", f"fp-dead{i}", on_disk=False)
+        self.assertEqual(upkeep.cleanup_orphans()["files"], 3)
+        self.assertEqual(len(self._rows("files")), 30)
+
+    def test_a_library_that_lost_half_its_files_is_not_cleaned_silently(self):
+        for i in range(20):
+            self._track(f"here{i}.mp3", f"fp-live{i}")
+        for i in range(21):
+            self._track(f"gone{i}.mp3", f"fp-dead{i}", on_disk=False)
+        with self.assertRaises(RuntimeError):
+            upkeep.cleanup_orphans()
+        self.assertEqual(len(self._rows("files")), 41)
+
     def test_it_reports_what_it_freed(self):
         self._track("here.mp3", "fp-live")
         res = upkeep.db_maintenance()

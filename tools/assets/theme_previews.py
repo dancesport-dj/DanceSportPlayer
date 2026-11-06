@@ -31,6 +31,8 @@ def _render(key: str) -> None:
     # The state dir comes from the parent in main(), which removes it: os._exit
     # below skips every cleanup.
     os.environ.setdefault("DANCEPLAYLIST_STATE_DIR", tempfile.mkdtemp(prefix="dp_preview_"))
+    # The JSON stores follow STATE_DIR; the DB, backups and caches follow DATA_DIR.
+    os.environ.setdefault("DANCEPLAYLIST_DATA_DIR", os.environ["DANCEPLAYLIST_STATE_DIR"])
     sys.path.insert(0, str(ROOT))
     from PySide6.QtCore import QRect, Qt
     from PySide6.QtWidgets import QApplication
@@ -152,7 +154,8 @@ def main(argv: list[str]) -> int:
         try:
             done = subprocess.run([sys.executable, "-m", "tools.assets.theme_previews",
                                    "--one", key], cwd=ROOT,
-                                  env=dict(env, DANCEPLAYLIST_STATE_DIR=state))
+                                  env=dict(env, DANCEPLAYLIST_STATE_DIR=state,
+                                           DANCEPLAYLIST_DATA_DIR=state))
         finally:
             shutil.rmtree(state, ignore_errors=True)
         if done.returncode != 0:

@@ -84,6 +84,7 @@ class ConfigPanel(QWidget):
     settings_requested = Signal()
     build_all_requested = Signal()       # 🧱 next to the status counts
     m3u_source_requested = Signal()      # 'Browse…' next to the .m3u source
+    folders_source_requested = Signal()  # 'Choose…' next to the folder source
     round_strategy_changed = Signal(str, str)   # (round_name, strategy_key)
     replay_competition_changed = Signal(int)    # selected competition index
     schedule_parsed = Signal()        # a fresh schedule was parsed
@@ -169,6 +170,7 @@ class ConfigPanel(QWidget):
         self.source_combo.addItem("⭐  Favorites library", "library")
         self.source_combo.addItem("⭐  Open wishlists", "wishlists")
         self.source_combo.addItem("📂  An .m3u playlist file", "m3u")
+        self.source_combo.addItem("📁  Chosen library folders", "folders")
         self.source_combo.setToolTip(
             "Which titles ⚡ Generate may pick from.\n"
             "Favorites library — everything scanned from your library folder.\n"
@@ -188,7 +190,25 @@ class ConfigPanel(QWidget):
         m3u_hl.addWidget(source_m3u_btn)
         self._source_m3u_row.setVisible(False)
         clyt.addWidget(self._source_m3u_row)
+        self._source_folders: list[str] = []
+        self._source_folders_row = QWidget()
+        fol_hl = QHBoxLayout(self._source_folders_row)
+        fol_hl.setContentsMargins(0, 0, 0, 0)
+        self._source_folders_lbl = QLabel()
+        fol_hl.addWidget(self._source_folders_lbl, stretch=1)
+        source_folders_btn = QPushButton("Choose…")
+        source_folders_btn.setFixedWidth(70)
+        source_folders_btn.clicked.connect(self.folders_source_requested)
+        fol_hl.addWidget(source_folders_btn)
+        self._source_folders_row.setVisible(False)
+        clyt.addWidget(self._source_folders_row)
         self.source_combo.currentIndexChanged.connect(self._on_source_changed)
+        self.skip_planned_cb = QCheckBox("Skip greyed titles")
+        self.skip_planned_cb.setToolTip(
+            "Leave out the titles another deck already holds — planned or\n"
+            "played (played ones stay in their deck, greyed). The deck this\n"
+            "run fills does not count: its content is being replaced.")
+        clyt.addWidget(self.skip_planned_cb)
 
         # ── Dance style ──
         clyt.addWidget(_lbl("Dance Style:"))
@@ -730,7 +750,13 @@ class ConfigPanel(QWidget):
 
     def _on_source_changed(self, _idx: int = 0):
         """Only the .m3u source needs a path, so its row shows with it."""
-        self._source_m3u_row.setVisible(self.get_source()[0] == "m3u")
+        kind = self.get_source()[0]
+        self._source_m3u_row.setVisible(kind == "m3u")
+        self._source_folders_row.setVisible(kind == "folders")
+
+    def skip_planned(self) -> bool:
+        """Whether ⚡ Generate leaves out the titles other decks already hold."""
+        return self.skip_planned_cb.isChecked()
 
     def get_source(self) -> tuple[str, str]:
         """(kind, m3u_path) for ⚡ Generate: kind is 'library' (the default),
@@ -738,6 +764,21 @@ class ConfigPanel(QWidget):
         kind = self.source_combo.currentData() or "library"
         path = self.source_m3u_edit.text().strip() if kind == "m3u" else ""
         return kind, path
+
+    def get_source_folders(self) -> list[str]:
+        """The library folders picked for the 'folders' source (names relative
+        to the library, "" being its main folder)."""
+        return list(self._source_folders)
+
+    def set_source_folders(self, folders: list[str]):
+        """Fill in the folders picked in the dialog and select that source."""
+        self._source_folders = list(folders)
+        n = len(self._source_folders)
+        self._source_folders_lbl.setText(
+            i18n.t("%d folders chosen") % n if n else i18n.t("No folder chosen"))
+        i = self.source_combo.findData("folders")
+        if i >= 0:
+            self.source_combo.setCurrentIndex(i)
 
     def set_source_m3u(self, path: str):
         """Fill in a browsed/dropped .m3u and select that source."""
@@ -751,6 +792,8 @@ class ConfigPanel(QWidget):
         pool the user picked in some earlier session."""
         self.source_combo.setCurrentIndex(0)
         self.source_m3u_edit.clear()
+        self._source_folders = []
+        self._source_folders_lbl.setText(i18n.t("No folder chosen"))
 
     def get_mode(self) -> str:
         return self.mode_combo.currentData()

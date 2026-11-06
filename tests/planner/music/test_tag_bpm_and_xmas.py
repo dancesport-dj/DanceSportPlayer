@@ -20,6 +20,16 @@ class TagBpmTests(unittest.TestCase):
     def test_normal_value_is_kept(self):
         self.assertEqual(self.bpm("128"), 128.0)
 
+    def test_a_decimal_comma_is_read(self):
+        """A tagger on a German locale writes '128,5'; it was dropped."""
+        self.assertEqual(self.bpm("128,5"), 128.5)
+        self.assertEqual(self.bpm(" 128.5 "), 128.5)
+
+    def test_a_value_that_is_no_single_number_is_no_bpm(self):
+        for text in ("120/121", "", "fast", "1,000,5"):
+            with self.subTest(text=text):
+                self.assertIsNone(self.bpm(text))
+
 
 class XmasNameTests(unittest.TestCase):
     def test_names_that_only_contain_the_word_are_not_christmas(self):

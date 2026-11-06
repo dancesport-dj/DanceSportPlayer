@@ -335,6 +335,9 @@ class _WiredDesk:
         self._big_player.set_volume_value(base)
         self._preview._vol.setValue(round(base * 100))
 
+    def _cue_player(self):
+        return None
+
     def _apply_volume(self):
         """Nothing audible to push to here."""
 
@@ -380,6 +383,26 @@ class DuckMovesTheSliderTest(unittest.TestCase):
             self.card._duck_btn.click()
         self.assertEqual(self.sliders(), (80, 80))
         self.assertEqual(self.card._vol_lbl.text(), "80%")
+
+    def test_a_new_master_moves_the_mini_player_slider_at_once(self):
+        """The big player's slider (or the controller) moves the master while
+        the mini player is up: its slider follows, not only on the next show."""
+        self.desk._set_base_volume(0.3)
+        self.assertEqual(self.sliders(), (30, 30))
+
+    def test_the_library_mini_player_slider_is_the_master_too(self):
+        """🎧 The pre-listen's own mini player: its slider moves with the
+        master, and a hand on it sets the master."""
+        view = PreviewOverlay(QMediaPlayer(), QAudioOutput(), duck=False,
+                              get_vol=lambda: self.desk._mix.base,
+                              set_vol=self.desk._set_base_volume)
+        self.addCleanup(reap_widget, view)
+        self.desk._cue_player = lambda: SimpleNamespace(view=view)
+        self.desk._set_base_volume(0.3)
+        self.assertEqual(view._vol.value(), 30)
+        view._vol.setValue(55)
+        self.assertAlmostEqual(self.desk._mix.base, 0.55)
+        self.assertEqual(self.card._vol.value(), 55)
 
     def test_the_duck_leaves_the_master_alone(self):
         self.card._duck_btn.click()

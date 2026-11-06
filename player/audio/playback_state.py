@@ -53,6 +53,9 @@ class PlaybackState:
     # 🥇 (token, monotonic start) while a title of the final plays on after
     # its fade; a load or stop moves the token on, which ends it.
     celebrate: tuple | None = None
+    # 🥇 Where in the file (ms) the fade reached its dip and it went to the
+    # celebration: the green line on the waveform.
+    celebrate_at_ms: int | None = None
     # 🌙 The closing song after a planned ⏹ stop while it is on the deck;
     # None once another title takes over.
     closing: Path | None = None

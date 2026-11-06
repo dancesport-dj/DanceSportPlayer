@@ -207,6 +207,21 @@ class FinishTest(unittest.TestCase):
         for _ in range(20):
             _app.processEvents()
 
+    def test_a_machine_that_cannot_decode_does_not_leave_the_bar_up(self):
+        """The worker ends without done / cancelled / error when the decode
+        probe fails, and the bar was only hidden by those three."""
+        host = _Host(_entries(2))
+        self.addCleanup(host.deleteLater)
+        host._library.cache = _Cache()
+        with mock.patch.object(workers, "probe_decode_backend",
+                               return_value="no backend"):
+            host._analyze_new_titles()
+            self.assertFalse(host._library.background_bar.isHidden())
+            self.assertTrue(host._analyzer.wait(5000))
+            for _ in range(20):
+                _app.processEvents()
+        self.assertTrue(host._library.background_bar.isHidden())
+
     def test_the_results_reach_the_library(self):
         host = self.host_with_worker(_Cache())
         self.finish(host)

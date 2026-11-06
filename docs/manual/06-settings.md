@@ -7,7 +7,7 @@ when you click **OK**. Theme, accent colour, language and the audio backend
 are read at start: for those the app asks for a restart.
 
 The tabs, in order: **⚙ General**, **📁 Paths**, **🎨 Look**, **🔊 Sound &
-player**, **🎛 Cartwall**, **⚗ Analysis**, **🎛 Play sets** and **📦 Venue
+player**, **🎛 Cartwall**, **⚗ Analysis**, **🎛 Playsets** and **📦 Venue
 pack**. The full app adds **🎵 Checks**, the thresholds of its music check;
 the player hides it. Opened again, the settings come back on the tab they
 were closed on, until the app is closed.
@@ -128,6 +128,29 @@ The **🔊 Sound & player** tab.
 | **▶ Player position** | Where the player card stands: *beside the playlists*, at the head of the Playing panel, or *above the playlists*, as one wide strip over the decks. |
 | **📂 Double-click on a title in 📚 the library** | Last on the tab, under **📚 Library**, since it is about the library, not the player. What a double-click does in 📚 the library and the 🏆 Tournaments lists while planning: **Nothing** (the default; ▶ plays the title), **Open external player** (the program your system plays music with, on a Mac Music; then also for a deck row while planning and in the dialogs) or **Edit tags** (the [🏷 Tags editor](05-tags.md#opening-the-editor), opened on the field of the column you double-clicked; you choose there what Save writes into the file). While planning, a double-click on a deck row plays the title in the mini player unless *Open external player* is chosen. Right-click offers all of it either way, and in Playing mode a double-click always plays or cues the title. |
 
+### 🥇 Celebration: the music plays on
+
+A group of its own on the tab, above the announcement rows. After the play
+length has faded a title out, it can come back up as background while the
+couples celebrate: the **🥇 Celebration** switch of the
+[Playing panel](04-playing.md) turns that on for a list, and for the
+finals of the 🏆 set [⚙ Settings ▸ 🎛 Playsets](#play-sets) does. These five
+numbers say how it sounds:
+
+| Setting | Does |
+|---|---|
+| **Level** | How loud it comes back, in % of the music's level: 50 % by default, at least 5 %. |
+| **Dip to** | How low the play-length fade takes it first: 5 % by default, 0 % all the way down, at most the level it comes back at. |
+| **Down over** | How long it takes to go down at its end, by 🔉↓ or before the next dance of the final starts: 3.0 s by default. |
+| **Hold** | How long it stays at its dip: 3.0 s by default, 0 s comes up at once. |
+| **Up over** | How long it takes to come back up: 3.0 s by default. |
+
+The three times run up to 10 s.
+
+**↺ Reset to defaults**, at the bottom right of the tab, puts these numbers,
+the duck and fade times below and ⏩ start each title this far in back on what
+the app ships with, after asking. The audio backend and the outputs stay as they are.
+
 ### ▸ Advanced: duck and fade times
 
 Folded away under the voice rows: most evenings run on the defaults. A
@@ -136,9 +159,9 @@ click on **▸ Advanced: duck and fade times** opens it.
 | Setting | Does |
 |---|---|
 | **🔉 Duck to** | How far 🔊 Duck pulls everything down on the player card, the mini player and the presenter screen: 10 % by default (about −20 dB), 0 % (silence) to 90 %. A change reaches a duck that is on right now. |
-| **🔈 Duck under a voice or pad over … back up over** | How fast the music gets out of the way when the announcer speaks or a 🎛 cartwall pad plays, and how fast it comes back after: 0.2 s down and 0.6 s up by default, 0.1 to 5 s each. The 🔉 Duck button itself is immediate. |
+| **🔈 Duck under a voice or pad over … back up over** | How fast the music gets out of the way when the announcer speaks or a 🎛 cartwall pad plays, and how fast it comes back after: 2 s down and 2 s up by default, 0.1 to 5 s each. The 🔉 Duck button itself is immediate. |
 | **🌅 Fade each title in over** | Off by default. The main player starts every title at silence and brings it up over 0.5 to 10 s of music. A title that a 🔀 crossfade brings in keeps its own ramp. Couples start on the first downbeat, so leave it off for a competition. |
-| **↩ Fade in at a time marker over** | 1 s by default. A title picked up at its ↩ time marker comes up over 0.5 to 10 s of music instead of starting at full level. *off* leaves it to 🌅 above. A Paso Doble always starts abruptly at its marker, whatever 🌅 says: the couples stand and go on the beat. |
+| **↩ Fade in at a time marker over** | 2 s by default. A title picked up at its ↩ time marker comes up over 0.5 to 10 s of music instead of starting at full level. *off* leaves it to 🌅 above. A Paso Doble always starts abruptly at its marker, whatever 🌅 says: the couples stand and go on the beat. |
 | **🔉↓ Fade by hand over** | How long 🔉↓ Fade out now, 🛑 Fade out and hold, a ⏹ stop at a time and the fade before quitting take, up to 10 s. Out of the box *as the list's fade-out*. The fade at the end of the play length always keeps the list's own fade-out time. |
 | **⏩ Start each title this far in** | Off by default. The main player skips the first 1 to 30 s of every title, and those seconds don't count against the play length. A title picked up at its ↩ mark starts there instead, and a silent intro is still skipped on top. |
 
@@ -256,15 +279,21 @@ whatever you pick, so **♻ Restore user data backup…** brings it back.
 
 ## Play sets
 
-The **🎛 Play sets** tab sets what the **🏆 Tournament set** and **🎉 Party
-set** buttons of the Playing panel apply (see
+The **🎛 Playsets** tab sets what the **🏆 Tournament set**, **🎉 Party
+set** and **🏃 Training set** buttons of the Playing panel apply (see
 [chapter 4](04-playing.md#play-sets)).
 
-![Settings, Play sets tab](img/settings-play-sets.png)
+![Settings, Playsets tab](img/settings-play-sets.png)
 
 A list that stands on a set follows it when you change the set here: every
 value it still has from the set takes the new one, and a value you changed by
 hand on the list stays. The decks follow the 🏆 set, the 🤸 Party panel the 🎉 set.
+
+The tick **One button for all sets, named for the one that is on** is on by
+default; unticked, the Playing panel shows a button per set. **↺ Reset to
+defaults**, at the bottom right of the tab, puts every set back on the values
+the app ships with, after asking. The 🔊 Sound & player and 🎛 Cartwall tabs
+have the same button for their own numbers.
 
 For each set:
 
@@ -275,8 +304,10 @@ For each set:
   length, the 🎉 set within it.
 - **🔀 Crossfade**: a switch, and 0.5 to 10 s in half-second steps, with the
   same curve button (equal power, linear or S-curve) and picture as on the
-  Playing panel. Off in both sets out of the box, at 4 s with equal power
+  Playing panel. Off in every set out of the box, at 4 s with equal power
   once switched on.
+- **Pause between songs** (the 🏃 set only): how long the pause lasts, 25 s
+  out of the box.
 - **⏭ Auto-advance**, **⏸ No pause between songs**, **🔈 Announce next
   dance**, **🔊 Equalize volume**, **▶️ Double-click starts the title**,
   **❓ Ask before a double-click stops the title** and
@@ -312,11 +343,12 @@ choice. Both count, whichever one is on screen.
   digits, e.g. *Viennese Waltz, Final — its own length*. A list without
   rounds, such as a party list, only uses the per-dance lengths.
 
-Both sets also carry the 🐂 Paso Doble: **stop after highlight** (and which
-one) and **Start after**. Out of the box the tournament set has the stop
+Every set also carries the 🐂 Paso Doble: **stop after highlight** (and which
+one) and **Start after**, in half seconds. Out of the box the tournament set has the stop
 off, since the detection is not reliable enough to cut a competition Paso
 Doble, and Start after at 0 s. The party set stops after the 2nd highlight
-and waits 1 s, so the couples can take their position.
+and waits 1 s, so the couples can take their position; the training set
+does the same and waits 2 s.
 
 **🥇 Final: the music plays on** belongs to the tournament set. After the
 play length has faded a title of the final out, it comes back up as
@@ -325,16 +357,12 @@ title starts or the file ends. Between two dances of the final it plays
 in place of the ⏸ pause music. A round is the final when it is named
 *Finale*, *Final* or *Endrunde*.
 
-| Setting | Does |
-|---|---|
-| **Off / After the last dance of the final / After every dance of the final** | Which titles of the final come back up. Off by default. |
-| **Level** | How loud it comes back, in % of the music's level: 60 % by default. |
-| **Dip to** | How low the play-length fade takes it first: 5 % by default, 0 % all the way down, at most the level it comes back at. |
-| **Hold** | How long it stays at its dip: 2.0 s by default, 0 s comes up at once. |
-| **Up over** | How long it takes to come back up: 3.0 s by default. |
-| **Down over** | How long it takes to go down at its end, by 🔉↓ or before the next dance of the final starts: 3.0 s by default. |
-
-The three times run up to 10 s.
+The box holds one choice, **Off / After the last dance of the final /
+After every dance of the final**, off by default. It applies to a list on
+the 🏆 set whose **🥇 Celebration** switch on the Playing panel nobody has
+clicked; a click on the switch wins, on or off. How loud it comes back,
+how low it dips and the times are in
+[⚙ Settings ▸ 🔊 Sound & player ▸ 🥇 Celebration](06-settings.md#-celebration-the-music-plays-on).
 
 **🎚 WDSF CR pitch target** sits right under the tournament set. It sets,
 per dance, the tempo the CR button pitches a heat to:

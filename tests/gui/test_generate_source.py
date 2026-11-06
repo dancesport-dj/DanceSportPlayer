@@ -45,20 +45,26 @@ class _Dlg:
 
 
 class _Cfg:
-    def __init__(self, source):
+    def __init__(self, source, folders=()):
         self._source = source
+        self._folders = list(folders)
 
     def get_source(self):
         return self._source
+
+    def get_source_folders(self):
+        return list(self._folders)
 
 
 class _Win:
     """MainWindow reduced to what `_source_library` reads."""
 
-    def __init__(self, source, lib_entries, wishlists=(), m3u_entries=()):
+    def __init__(self, source, lib_entries, wishlists=(), m3u_entries=(),
+                 folders=()):
         self._library = SimpleNamespace(lib=MusicLibrary())
         self._library.lib.entries = list(lib_entries)
-        self._cfg = _Cfg(source)
+        self._settings = {"library_dir": "C:/lib"}
+        self._cfg = _Cfg(source, folders)
         self._deckset = DeckSet()
         self._deckset.wishlists = list(wishlists)
         self._m3u_entries = list(m3u_entries)
@@ -126,6 +132,27 @@ class GenerateSourceTest(unittest.TestCase):
         lib, _label, problem = win._source_library()
         self.assertIsNone(lib)
         self.assertIn("Choose an .m3u file", problem)
+
+    def test_the_folder_source_carries_only_titles_directly_in_them(self):
+        win = _Win(("folders", ""), [_entry("A", "SA"), _entry("B", "CC")],
+                   folders=["lateincd/sa"])
+        lib, label, problem = win._source_library()
+        self.assertEqual(self._titles(lib), ["A"])
+        self.assertEqual(self._titles(win._library.lib), ["A", "B"])   # untouched
+        self.assertIn("📁", label)
+        self.assertEqual(problem, "")
+
+    def test_no_folder_chosen_stops_the_run(self):
+        win = _Win(("folders", ""), [_entry("A")])
+        lib, _label, problem = win._source_library()
+        self.assertIsNone(lib)
+        self.assertIn("Choose", problem)
+
+    def test_a_folder_with_no_titles_stops_the_run(self):
+        win = _Win(("folders", ""), [_entry("A")], folders=["elsewhere"])
+        lib, _label, problem = win._source_library()
+        self.assertIsNone(lib)
+        self.assertIn("no titles", problem)
 
     def test_the_restricted_view_answers_by_dance_from_the_pool_alone(self):
         """The suggester picks per dance — the whole point of the view."""

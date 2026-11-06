@@ -33,6 +33,7 @@ from planner import i18n, terms
 from planner.generate.suggester import PlaylistSuggester
 from planner.generate.warmup import warmup_code, warmup_rounds
 from planner.models import MusicEntry, RoundConfig, RoundTier, Strategy
+from planner.music.paths import is_network_path, is_own_share
 from planner.playlist.m3u import running_order_rounds
 from planner.terms import dance_name
 from shared.columns import _COL_TITLE, _N_COLS, COL_HEAT, COL_REGEN
@@ -77,13 +78,15 @@ class TableLoadMixin(PlaylistTableHost):
         round_ctx: dict | None = None,
         marked: set | None = None,
         pinned: set | None = None,
+        m3u_path: Path | None = None,
     ):
         self._playlist = playlist
         self._warmup = False
         self._player_list = False
         # 🖼 A fresh load is not the imported .m3u any more — the importer sets
-        # this again right after, so the deck's cover follows what it holds.
-        self._m3u_path = None
+        # this again right after, so the deck's cover follows what it holds. Only
+        # an in-place re-render of the same deck hands the file back.
+        self._m3u_path = m3u_path
         self._dance_class = dance_class
         self._play_cb = play_cb
         self._suggester = suggester
@@ -579,12 +582,19 @@ class TableLoadMixin(PlaylistTableHost):
         a title among the same dance in its round. Like the strips, a pure
         function of the order, so a drop renumbers its round. A dance played
         once in its round (a final, a party round) names no heat, and without
-        known rounds there are none to count in."""
+        known rounds there are none to count in. A training list loaded with a
+        heat plan counts in the plan's rounds."""
         self._player_heat_text = {}
-        if not (self._player_list and self._player_sections):
-            return
         rows = self._row_meta.numbered()
-        labels = self._player_section_labels([m.entry for _, m in rows])
+        entries = [m.entry for _, m in rows]
+        if self._player_list and self._player_sections:
+            labels = self._player_section_labels(entries)
+        elif cut := self._heat_rounds(entries):
+            # A competition training list: the plan its strips are cut from
+            # (“3 heats”) is the rounds, and the order inside one is the same.
+            labels = [name for name, seg in cut for _ in seg]
+        else:
+            return
         keys = [(lbl, m.dance) for lbl, (_, m) in zip(labels, rows, strict=True)]
         total = Counter(keys)
         seen: Counter = Counter()
@@ -703,7 +713,10 @@ class TableLoadMixin(PlaylistTableHost):
                 u = QUrl(s)
                 if u.isLocalFile():
                     s = u.toLocalFile()
-            tp = self.host.resolve_file(Path(s.strip('"')))
+            raw = s.strip('"')
+            if is_network_path(raw) and not is_own_share(raw, self.host.settings()):
+                continue   # someone else's UNC line: opening it leaks the NTLM hash
+            tp = self.host.resolve_file(Path(raw))
             entry = self._entry_for(tp)
             if entry is not None:
                 before = len(self._row_meta)

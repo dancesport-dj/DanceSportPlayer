@@ -74,6 +74,21 @@ class SecondInstanceTest(unittest.TestCase):
                 self.assertTrue(first.isLocked())
                 self.assertFalse(second.isLocked())
 
+    def test_a_second_instance_says_so_and_does_not_start(self):
+        """Both instances restored and rewrote one autosave_playlist.json, so the
+        last to close won and the other's playlist was gone."""
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            with mock.patch.object(planner.config, "APP_DIR", Path(tmp)):
+                first = dancesport_gui._take_instance_lock()
+                self.addCleanup(first.unlock)
+                second = dancesport_gui._take_instance_lock()
+                with mock.patch.object(dancesport_gui.QMessageBox, "information") as told, \
+                        mock.patch.object(dancesport_gui.i18n, "apply_settings"):
+                    self.assertFalse(dancesport_gui._already_running(first))
+                    told.assert_not_called()
+                    self.assertTrue(dancesport_gui._already_running(second))
+                    told.assert_called_once()
+
     def test_an_exception_in_a_thread_is_logged(self):
         import faulthandler
         import sys

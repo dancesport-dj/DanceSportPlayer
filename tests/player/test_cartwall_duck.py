@@ -99,7 +99,9 @@ class DuckReasonTest(unittest.TestCase):
 
     def test_down_is_faster_than_up(self):
         """A pad must not bury its own first transient; the music comes back
-        slowly so the return is not itself an event."""
+        slowly so the return is not itself an event. Out of the box both take
+        2 s, so this sets the 200 / 600 ms pair it is about."""
+        self.m.set_duck_ramps(200, 600)
         self.m.duck_reason("cartwall", True)
         self.m.step()
         down = 1.0 - self.m.duck
@@ -108,7 +110,7 @@ class DuckReasonTest(unittest.TestCase):
         self.m.step()
         up = self.m.duck - CART_DUCK
         self.assertGreater(down, up)
-        self.assertAlmostEqual(down / up, DUCK_UP_MS / DUCK_DOWN_MS, places=3)
+        self.assertAlmostEqual(down / up, 600 / 200, places=3)
 
     def steps_to_settle(self):
         for n in range(1, 1000):

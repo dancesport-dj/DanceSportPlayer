@@ -1628,7 +1628,7 @@ class AudioCache:
             return None
         row = _db().execute(
             "SELECT words, duration FROM chroma_fps WHERE fp = ?", (fp,)).fetchone()
-        if row is None or not row[0]:
+        if row is None or not row[0] or len(row[0]) % 4:   # empty or cut off
             return None
         return Chroma(float(row[1] or 0.0), chroma_match.unpack(row[0]))
 
@@ -1645,10 +1645,16 @@ class AudioCache:
         """The content fingerprints that already have a Chromaprint on record."""
         return {r[0] for r in _db().execute("SELECT fp FROM chroma_fps").fetchall()}
 
+    def chroma_count(self) -> int:
+        """How many Chromaprints are on record: `len(chroma_keys())` without
+        reading every key, for callers that only ask whether the index grew."""
+        return int(_db().execute("SELECT COUNT(*) FROM chroma_fps").fetchone()[0])
+
     def all_chromas(self) -> dict:
         """{content fp: words} of every stored Chromaprint."""
         return {fp: chroma_match.unpack(blob) for fp, blob in
-                _db().execute("SELECT fp, words FROM chroma_fps").fetchall() if blob}
+                _db().execute("SELECT fp, words FROM chroma_fps").fetchall()
+                if blob and not len(blob) % 4}
 
     def get_noise_floor(self, path: Path, touch_disk: bool = True) -> float | None:
         """Stored noise floor of a track in dBFS (−inf when it reaches true

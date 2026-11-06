@@ -75,7 +75,7 @@ class _Panel:
     def apply_play_set(self, secs, advance, pause_off, loudness=None,
                        announce=None, fade=None, dblclick=None,
                        xfade=None, xfade_on=None, xfade_curve=None,
-                       fade_inside=None) -> list:
+                       fade_inside=None, pause_secs=None) -> list:
         new = {"secs": secs, "advance": advance, "pause_off": pause_off}
         if loudness is not None:
             new["loudness"] = loudness
@@ -96,6 +96,9 @@ class _Panel:
         changed = [k for k, v in new.items() if self._set.get(k) != v]
         self._set.update(new)
         return changed
+
+    def pause_setting_secs(self) -> int:
+        return 15
 
     def pd_highlight_stop(self) -> bool:
         return self.pd_stop
@@ -120,6 +123,9 @@ class _Panel:
         self.party_on = on
         if on:
             self.tournament_lit = False
+
+    def set_training_on(self, on: bool):
+        pass
 
     def set_tournament_on(self, on: bool):
         self.tournament_lit = on
@@ -184,7 +190,7 @@ class PartySetTsoTest(unittest.TestCase):
 
     def test_both_sets_ask_before_a_double_click_stops_a_title(self):
         """❓ On by default in both: a stray double-click must not cut the
-        title on the floor. ⚙ Settings → 🎛 Play sets can switch it off."""
+        title on the floor. ⚙ Settings → 🎛 Playsets can switch it off."""
         self.assertIs(dblclick_ask_of({}, "party"), True)
         self.assertIs(dblclick_ask_of({}, "tournament"), True)
 
@@ -216,7 +222,7 @@ class PartySetTsoTest(unittest.TestCase):
         self.assertTrue(desk._big_player.tso_mode())
 
     def test_the_operator_can_configure_that_pitch_away(self):
-        """⚙ Settings → 🎛 Play sets → 🏆 → 🎚 TSO."""
+        """⚙ Settings → 🎛 Playsets → 🏆 → 🎚 TSO."""
         self.desk._settings["tournament_set"] = dict(TOURNAMENT_SET, tso=False)
         self.desk._set_party_mode(True)
         self.desk._apply_tournament_set()
@@ -235,7 +241,7 @@ class PartySetTsoTest(unittest.TestCase):
         self.assertEqual(self.desk._play_panel.play_set(), TOURNAMENT_SET)
 
     def test_a_party_can_be_configured_to_keep_the_pitch(self):
-        """⚙ Settings → 🎛 Play sets → 🎉 → 🎚 TSO: the operator's word wins."""
+        """⚙ Settings → 🎛 Playsets → 🎉 → 🎚 TSO: the operator's word wins."""
         self.desk._settings["party_set"] = dict(PARTY_SET, tso=True)
         self.desk._set_party_mode(True)
         self.assertTrue(self.desk._big_player.tso_mode())
@@ -511,7 +517,7 @@ class WhichSetIsOnTest(unittest.TestCase):
         self.assertEqual(self.lights(), (False, False))
 
     def test_a_configured_set_is_what_they_are_measured_against(self):
-        """⚙ Settings → 🎛 Play sets moved the goalposts, so the light moves."""
+        """⚙ Settings → 🎛 Playsets moved the goalposts, so the light moves."""
         self.desk._apply_tournament_set()
         self.desk._settings["tournament_set"] = dict(TOURNAMENT_SET, secs=120)
         self.desk._refresh_set_lights()
@@ -527,7 +533,7 @@ class WhichSetIsOnTest(unittest.TestCase):
 
 
 class PlaySetDefaultsTest(unittest.TestCase):
-    """Both sets are only defaults — ⚙ Settings → 🎛 Play sets overrides them."""
+    """Both sets are only defaults — ⚙ Settings → 🎛 Playsets overrides them."""
 
     @classmethod
     def setUpClass(cls):

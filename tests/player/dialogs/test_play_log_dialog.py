@@ -61,7 +61,8 @@ class PlayLogDialogTest(unittest.TestCase):
         for saved in ({"widths": {"0": "wide"}}, {"widths": [1, 2]}, [1, 2], "x"):
             (self.dir / "play_log_dialog.json").write_text(
                 __import__("json").dumps(saved), encoding="utf-8")
-            self.dialog()
+            with self.subTest(saved=saved):
+                self.assertEqual(self.dialog().evening_list.count(), 0)
 
     def test_an_unreadable_log_shows_a_message_instead_of_raising(self):
         self.fill()

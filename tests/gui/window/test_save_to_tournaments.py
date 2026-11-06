@@ -183,6 +183,65 @@ class SaveToTournamentsTest(unittest.TestCase):
             self.win._save_day_plan_m3us()
         self.assertEqual(len({p.name.casefold() for p in written}), 2)
 
+    def _save_day_into(self, root, answer):
+        """Save a one-competition day into `root` while the folder question is
+        answered with `answer`; returns (files written, times asked)."""
+        from gui.window import main_export
+        day = self.win._deckset.day_decks[0]
+        day.load_player_list([_entry("s1")], "Day", play_cb=None)
+        self.win._day_tab_title = "Tag"
+        written, asked = [], []
+
+        def export(_pl, _dances, base, _cls, out_path, path_for):
+            out_path.write_text("#EXTM3U\n", encoding="utf-8")
+            written.append(out_path)
+            return str(out_path)
+
+        def exec_(box):
+            asked.append(box.text())
+            return answer
+
+        with mock.patch.object(main_export.QFileDialog, "getExistingDirectory",
+                               return_value=str(root)), \
+                mock.patch.object(self.win, "_serialize_playlist_state",
+                                  return_value={"rounds": []}), \
+                mock.patch.object(self.win, "_deck_export_jobs",
+                                  return_value=[("Final", {}, [], "S")]), \
+                mock.patch.object(main_export, "export_m3u", export), \
+                mock.patch.object(QMessageBox, "exec", exec_):
+            self.win._save_day_plan_m3us()
+        # The summary box after a save goes through exec() too.
+        return written, [t for t in asked if "already exists" in t]
+
+    def _earlier_day(self):
+        root = Path(tempfile.mkdtemp(prefix="dp_save_tree_again_"))
+        (root / "Tag").mkdir()
+        (root / "Tag" / "Old.m3u").write_text("#EXTM3U\n", encoding="utf-8")
+        return root
+
+    def test_a_day_folder_with_files_in_it_is_asked_about(self):
+        root = self._earlier_day()
+        written, asked = self._save_day_into(root, QMessageBox.StandardButton.Cancel)
+        self.assertEqual(len(asked), 1)
+        self.assertEqual(written, [])
+
+    def test_replace_writes_into_the_folder_that_is_there(self):
+        root = self._earlier_day()
+        written, _ = self._save_day_into(root, QMessageBox.StandardButton.Yes)
+        self.assertEqual([p.parent for p in written], [root / "Tag"])
+
+    def test_keep_both_writes_into_a_folder_of_its_own(self):
+        root = self._earlier_day()
+        written, _ = self._save_day_into(root, QMessageBox.StandardButton.No)
+        self.assertEqual([p.parent for p in written], [root / "Tag_2"])
+        self.assertEqual([p.name for p in (root / "Tag").iterdir()], ["Old.m3u"])
+
+    def test_a_new_day_folder_is_not_asked_about(self):
+        root = Path(tempfile.mkdtemp(prefix="dp_save_tree_new_"))
+        written, asked = self._save_day_into(root, QMessageBox.StandardButton.Cancel)
+        self.assertEqual(asked, [])
+        self.assertEqual(len(written), 1)
+
     def test_the_day_tab_menu_offers_it_beside_the_save(self):
         from gui.window import main_decks
         seen = []

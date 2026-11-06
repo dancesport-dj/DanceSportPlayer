@@ -359,7 +359,7 @@ class RunningOrderRoundTest(unittest.TestCase):
 
 
 class SettingsGridTest(unittest.TestCase):
-    """⚙ Settings → 🎛 Play sets: a length per round and dance in the 🏆 box."""
+    """⚙ Settings → 🎛 Playsets: a length per round and dance in the 🏆 box."""
 
     @classmethod
     def setUpClass(cls):

@@ -4,6 +4,7 @@ import struct
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from shared import crash_dump
 
@@ -57,6 +58,24 @@ class CrashDumpTest(unittest.TestCase):
             self.assertEqual(crash_dump.latest_dump_text(10**10, folder), "")
             new.write_bytes(b"junk")
             self.assertIn("could not be read", crash_dump.latest_dump_text(2000, folder))
+
+    def test_a_dump_that_vanishes_between_listing_and_stat_is_skipped(self):
+        """Another process may delete a dump while it is being looked at."""
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            gone = folder / "python.exe.1.dmp"
+            kept = folder / "python.exe.2.dmp"
+            for p in (gone, kept):
+                p.write_bytes(_dump())
+            real = Path.stat
+
+            def stat(self, *args, **kwargs):
+                if self.name == gone.name:
+                    raise FileNotFoundError(self.name)
+                return real(self, *args, **kwargs)
+            with mock.patch.object(Path, "stat", stat):
+                self.assertEqual(crash_dump.latest_dump_text(0, folder)[:16],
+                                 "python.exe.2.dmp")
 
 
 if __name__ == "__main__":

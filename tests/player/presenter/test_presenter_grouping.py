@@ -7,6 +7,7 @@ import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
 # Offscreen BEFORE any QApplication, state files into a temp dir (the gui
 # modules resolve those at import time — see test_gui_smoke.py).
@@ -19,6 +20,7 @@ from planner.models import MusicEntry, RoundConfig
 from player.audio.between_dances import BetweenDances
 from player.audio.playback_state import PlaybackState
 from player.presenter.presenter import PAUSE_TEXT
+from player.window import main_presenter
 from tests.qt_test_support import qapp, reap_widget
 
 
@@ -221,6 +223,21 @@ class PresenterStateTest(unittest.TestCase):
         dance, title, _times, _nxt, _last = self.win._presenter_state()
         self.assertEqual(dance, "Langsamer Walzer")
         self.assertEqual(title, "LW1")
+
+    def test_running_title_names_its_heat_when_the_row_has_one(self):
+        from PySide6.QtWidgets import QTableWidgetItem
+
+        from shared.columns import COL_HEAT
+        songs, _ = _rows(self.t)
+        self._play(songs[0])
+        self.t.setItem(songs[0], COL_HEAT, QTableWidgetItem("Heat 2"))
+        self.assertEqual(self.win._presenter_state()[0], "Langsamer Walzer · Heat 2")
+        # Kept German names: the heat is a Gruppe, whatever the table says.
+        with mock.patch.object(main_presenter, "hall_language", return_value="de"):
+            self.assertEqual(self.win._presenter_state()[0], "Langsamer Walzer · Gruppe 2")
+        # A backup row's marker in that cell is no heat.
+        self.t.item(songs[0], COL_HEAT).setText("↳ backup 1")
+        self.assertEqual(self.win._presenter_state()[0], "Langsamer Walzer")
 
     def test_the_next_three_follow_the_playing_row(self):
         songs, _ = _rows(self.t)

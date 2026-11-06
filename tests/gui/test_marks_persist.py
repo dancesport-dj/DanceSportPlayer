@@ -102,6 +102,20 @@ class MarkPersistenceTest(unittest.TestCase):
         state = self.win._serialize_playlist_state(self.table)
         self.assertEqual(state["marked"], [str(self.rum.path)])
 
+    def test_marking_asks_for_an_autosave(self):
+        """A mark was only saved when some later edit happened to autosave."""
+        calls = []
+        self.table._change_cb = lambda: calls.append(1)
+        self.table._toggle_mark({self._song_row(self.cha)})
+        self.assertEqual(len(calls), 1)
+
+    def test_clearing_all_marks_asks_for_an_autosave(self):
+        self.table._toggle_mark({self._song_row(self.cha)})
+        calls = []
+        self.table._change_cb = lambda: calls.append(1)
+        self.table._reset_all_marks()
+        self.assertEqual(len(calls), 1)
+
     # ----- restore ------------------------------------------------------------
 
     def test_marks_come_back_after_a_wipe_and_restore(self):

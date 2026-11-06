@@ -23,8 +23,8 @@ CATALOG = {
         "Плавно заглушить все играющие пэды (Esc)",
     "Fade between music and timetable every":
         "Переключаться между музыкой и расписанием каждые",
-    "    Only tracks not already in my open playlists":
-        "    Только треки, которых ещё нет в моих открытых плейлистах",
+    "Select all":
+        "Выбрать все",
     "Close": "Закрыть",
     "Replace": "Заменить",
     "Reset": "Сбросить",
@@ -640,8 +640,6 @@ CATALOG = {
         "Не удалось получить модели (используется резервный список).",
     "Load the music library first.":
         "Сначала загрузите музыкальную библиотеку.",
-    "Nothing to clear — all playlists are empty.":
-        "Нечего очищать — все плейлисты пусты.",
     "Nothing to export — all playlists are empty.":
         "Нечего экспортировать — все плейлисты пусты.",
     "Nothing to save — all playlists are empty.":
@@ -747,15 +745,14 @@ CATALOG = {
     "click the tab (or this arrow) to open it again.":
         "Свернуть панель %s до вкладки заголовка —\n"
         "щелчок по вкладке (или этой стрелке) откроет её снова.",
-    "Close the preview and stop playback  (Ctrl+X)":
-        "Закрыть предпрослушивание и остановить воспроизведение  (Ctrl+X)",
+    "Close the preview and stop playback  (Ctrl+X / Esc)":
+        "Закрыть предпрослушивание и остановить воспроизведение  (Ctrl+X / Esc)",
     "Close the tournament day — clears all 📅 day decks":
         "Закрыть турнирный день — очищает все 📅 деки дня",
     "Back to this slot's default key":
         "Вернуть стандартную клавишу этой ячейки",
     "Export or import this wall":
         "Экспортировать или импортировать этот Cartwall",
-    "Duck to 20 % / back to full": "Приглушить до 20 % / вернуть на полную",
     "🔉  Duck to:": "🔉  Приглушать до:",
     "How loud everything stays while 🔉 Duck is pressed on the player\ncard, the mini player or the presenter screen: low enough to talk\nover, loud enough to keep the floor moving. 0 % is silence.":
         "Насколько громко всё звучит, пока нажата 🔉 на карточке плеера,\nв мини-плеере или на экране презентации: достаточно тихо, чтобы\nговорить поверх, и достаточно громко, чтобы зал продолжал танцевать.\n0 % — тишина.",
@@ -855,7 +852,7 @@ CATALOG = {
         "Выберите длительность или введите: м:сс, секунды или 'полностью'",
     "%s — its own length":
         "%s — своя длительность",
-    "This dance has its own play length in the 🏆 tournament set\n(⚙ Settings → 🎛 Play sets). − / + and typing change it there.":
+    "This dance has its own play length in the 🏆 tournament set\n(⚙ Settings → 🎛 Playsets). − / + and typing change it there.":
         "У этого танца своя длительность в 🏆 турнирном наборе\n(⚙ Настройки → 🎛 Наборы воспроизведения). − / + и ввод меняют её там.",
     "<b>⏱ Per dance</b> — a dance given a length of its own is cut there instead, as long as a list plays this set's length. The ▶ Playing panel names the dance under its length.":
         "<b>⏱ По танцам</b> — танец со своей длительностью обрезается на ней, пока список играет длительность этого набора. Панель ▶ Воспроизведение называет танец под его длительностью.",
@@ -985,8 +982,6 @@ CATALOG = {
     "🔍  Compare": "🔍  Сравнить",
     "🔍  Filter title / artist / comment tag…":
         "🔍  Фильтр по названию / исполнителю / комментарию…",
-    "🔍  Find a title in this list…\tCtrl+F":
-        "🔍  Найти трек в этом списке…\tCtrl+F",
     "🆕 Last 30 days": "🆕 Последние 30 дней",
     "🆕 Last 90 days": "🆕 Последние 90 дней",
     "🆕 Last 12 months": "🆕 Последние 12 месяцев",
@@ -1106,7 +1101,6 @@ CATALOG = {
     "🧹  Remove": "🧹  Удалить",
     "🧹  Remove tracks already in a playlist":
         "🧹  Удалить треки, которые уже есть в плейлисте",
-    "🧹 Cleared all playlists.": "🧹 Все плейлисты очищены.",
     "🧹 Tournament-day playlists cleared.":
         "🧹 Плейлисты турнирного дня очищены.",
     "🧳  USB export": "🧳  USB-экспорт",
@@ -1158,7 +1152,7 @@ CATALOG = {
         "🎼  Построить chroma-индекс каверов / ремиксов…",
     "🎚️  Open playlists": "🎚️  Открытые плейлисты",
     "🎚️  Timbre + Rhythm (librosa)": "🎚️  Тембр + ритм (librosa)",
-    "🎛 Play sets": "🎛 Игровые сеты",
+    "🎛 Playsets": "🎛 Игровые сеты",
     "🎛 No free pad voice — every voice holds a looping pad.":
         "🎛 Нет свободного голоса для пэда — каждый голос занят зацикленным пэдом.",
     "🎤 Vocal": "🎤 Вокал",
@@ -1240,12 +1234,6 @@ CATALOG = {
         "Правый щелчок — в обратную сторону.\n"
         "Выкл. скрывает её полностью, даже при нескольких деках.\n"
         "Двойной щелчок по заголовку дека или списка пожеланий переименовывает его.",
-    "Empty every playlist deck (wishlists are kept).\n"
-    "Tip: Del on a deck's title clears just that one playlist;\n"
-    "Del on a wishlist's title clears that wishlist.":
-        "Очистить все деки плейлистов (списки пожеланий сохраняются).\n"
-        "Совет: Del на заголовке дека очищает только этот плейлист;\n"
-        "Del на заголовке списка пожеланий очищает этот список.",
     "Export every non-empty playlist deck to its own .m3u in the\n"
     "playlist folder at once (wishlists are not included).\n"
     "Each file is named after its deck title.":
@@ -1503,8 +1491,8 @@ CATALOG = {
         "<b>🎚 Акцентный цвет</b> — синий, вокруг которого построены кнопки, ползунки и панель плеера ▶:",
     "<b>🎚 TSO pitch target</b> — which takt the 🎚 button pitches a heat to. <i>Middle of the round</i> puts the round on one takt: the takt most of its titles are on where a step of one gets the rest there cheaply (T30+T31+T31 Cha-Chas → 31), the middle of its takte where it does not (T24+T25+T25 Rumbas → 24.5, T50+T52+T52 Quicksteps → 51). Nothing moves more than a takt. A fixed takt puts every title of that dance on the same tempo instead — worth setting on the slow dances, where one takt out of 24 is twice the pitch shift one takt out of 50 is.":
         "<b>🎚 Целевой такт TSO</b> — к какому такту кнопка 🎚 подтягивает заход. <i>Середина тура</i> ставит тур на один такт: на такт, на котором стоит большинство его треков, если шаг в один такт дёшево приводит туда остальные (Ча-ча-ча T30+T31+T31 → 31), иначе на середину его тактов (Румбы T24+T25+T25 → 24,5, Квикстепы T50+T52+T52 → 51). Ничто не сдвигается больше чем на такт. Фиксированный такт вместо этого ставит каждый трек этого танца на один темп — имеет смысл для медленных танцев, где один такт из 24 даёт вдвое больший сдвиг высоты, чем один такт из 50.",
-    "<b>🎛 Play sets</b> — the two buttons on the ▶ Playing panel put the controls on these values in one press:":
-        "<b>🎛 Игровые сеты</b> — две кнопки на панели ▶ Воспроизведение одним нажатием ставят элементы управления на эти значения:",
+    "<b>🎛 Playsets</b> — the set buttons on the ▶ Playing panel put the controls on these values in one press:":
+        "<b>🎛 Игровые сеты</b> — кнопки сетов на панели ▶ Воспроизведение одним нажатием ставят элементы управления на эти значения:",
     "<b>🎨 Theme</b> — the classic light or dark, or one of the looks:":
         "<b>🎨 Тема</b> — классическая светлая или тёмная либо один из стилей:",
     "<b>🎵 Check music</b> — thresholds used by the tournament checks (open decks and dragged-in files):":
@@ -1643,8 +1631,8 @@ CATALOG = {
         "Только чтение; работает в фоне, можно дать ему закончить.",
     "Takes effect after restarting the app. If the sound stays away afterwards, switch back here — the setting is only read at start, so nothing else in the app depends on it.":
         "Вступает в силу после перезапуска приложения. Если звука после этого нет, переключите здесь обратно — настройка читается только при запуске, больше ничего в приложении от неё не зависит.",
-    "🐂 Each set carries its own Paso Doble values. Under 🏆 the highlight stop is <i>off</i> by default: the detection is not good enough yet to cut a competition Paso Doble on, and a heat stopped in the wrong bar is danced twice. Under 🎉 it stops after the 2nd highlight and waits 3 s, so the couples can take their position.":
-        "У каждого набора свои значения 🐂 пасодобля. В 🏆 стоп на кульминации по умолчанию <i>выключен</i>: распознавание пока недостаточно надёжно, чтобы обрывать по нему турнирный пасодобль, а заход, остановленный не в том такте, танцуют дважды. В 🎉 он останавливается после 2-й кульминации и ждёт 3 с, чтобы пары заняли исходную позицию.",
+    "🐂 Each set carries its own Paso Doble values. Under 🏆 the highlight stop is <i>off</i> by default: the detection is not good enough yet to cut a competition Paso Doble on, and a heat stopped in the wrong bar is danced twice. Under 🎉 it stops after the 2nd highlight and waits 1 s, under 🏃 2 s, so the couples can take their position.":
+        "У каждого набора свои значения 🐂 пасодобля. В 🏆 стоп на кульминации по умолчанию <i>выключен</i>: распознавание пока недостаточно надёжно, чтобы обрывать по нему турнирный пасодобль, а заход, остановленный не в том такте, танцуют дважды. В 🎉 он останавливается после 2-й кульминации и ждёт 1 с, в 🏃 2 с, чтобы пары заняли исходную позицию.",
     "Shut the music off at the chosen highlight instead of\nthe play length. On by default: at a party the\nPaso Doble ends on its 2nd highlight.":
         "Выключать музыку на выбранной кульминации, а не по\nдлительности. По умолчанию включено: на вечеринке\nпасодобль заканчивается на 2-й кульминации.",
     "Hold a Paso Doble back this long before the music\nstarts, so the couples can take their position.":
@@ -2045,7 +2033,6 @@ CATALOG = {
         "Прежде чем исправлять перетащенные плейлисты, задайте в Настройках опорный путь или папку поиска.",
     "⚠  No <b>search folder</b> set — open Settings and name the base folder(s) the music lives in on this PC.":
         "⚠  <b>Папка поиска</b> не задана — откройте Настройки и укажите базовые папки, где на этом ПК лежит музыка.",
-    "Clear all playlists": "Очистить все плейлисты",
     "Nothing to print — no songs found.":
         "Нечего печатать — треки не найдены.",
     "Print playlist": "Печать плейлиста",
@@ -2398,7 +2385,7 @@ CATALOG = {
     "\n"
     "Lit gold while the panel stands on those values, the way 🎉 is lit\n"
     "purple during a party. Switches the 🎉 party set off. What exactly\n"
-    "it sets is yours to change: ⚙ Settings → 🎛 Play sets.\n"
+    "it sets is yours to change: ⚙ Settings → 🎛 Playsets.\n"
     "\n"
     "Clicked while lit, it switches itself off: the list goes back to\n"
     "the values it had before the set was pressed.":
@@ -2469,7 +2456,7 @@ CATALOG = {
     "Applied by itself as soon as you play from the 🤸 Practice /\n"
     "party list, and switched back when a tournament deck takes over —\n"
     "a toast says what changed either way. What exactly it sets is\n"
-    "yours to change: ⚙ Settings → 🎛 Play sets.\n"
+    "yours to change: ⚙ Settings → 🎛 Playsets.\n"
     "\n"
     "Clicked while lit, it switches itself off: the list goes back to\n"
     "the values it had before the set was pressed.":
@@ -2991,13 +2978,15 @@ CATALOG = {
     "red in the final seconds. The broad orange bar is where it plays.\n"
     "Shaded: silence the player skips · thin orange: Paso Doble\n"
     "highlights · red-tinted: the fade-out of a timed cut · gold: the\n"
-    "fade-in · green line: where the title starts.\n"
+    "fade-in · green line: where the title starts · golden line: where\n"
+    "a final's title faded out into the celebration.\n"
     "Click to jump there.":
         "Волна трека — сыгранное окрашено синим, в последние секунды\n"
         "всё красное. Широкая оранжевая полоса — где он играет.\n"
         "Заштриховано: тишина, которую плеер пропускает · тонкий оранжевый:\n"
         "кульминации пасодобля · красноватый: затухание обрезки по времени ·\n"
-        "золотой: нарастание · зелёная линия: где начинается трек.\n"
+        "золотой: нарастание · зелёная линия: где начинается трек · золотая линия:\n"
+        "где трек финала затух и перешёл к торжеству.\n"
         "Щёлкните, чтобы перейти туда.",
     "▶️  Double-click starts the title": "▶️  Двойной щелчок запускает трек",
     "Reset the time marker?": "Сбросить метку времени?",
@@ -3799,7 +3788,6 @@ CATALOG = {
     "🔁  Replaced %d, ➕ added %d track(s)":
         "🔁  Заменено: %d, ➕ добавлено треков: %d",
     "  (%s — skipped)": "  (%s — пропущено)",
-    "↩  %d same-title file(s) left out": "↩  пропущено файлов с тем же названием: %d",
     "Duplicates in this list":
         "Дубликаты в этом списке",
     "Duplicate songs in this list, in running order.<br><span style='color:#666'>🟰 <b>Exact</b> = identical audio. ≈ <b>Similar</b> = same title, a different recording. Keep the ones you want; switch the others to <b>Replace</b> and pick a track for each, or to <b>Remove</b>.</span>":
@@ -4278,15 +4266,13 @@ CATALOG = {
     "They are already planned in: %s":
         "Удалить треки (%d) из %s?\n"
         "Они уже запланированы в: %s",
-    "Empty %d playlist? This can't be undone.":
-        "Очистить плейлисты (%d)? Это нельзя отменить.",
-    "Empty %d playlists? This can't be undone.":
-        "Очистить плейлисты (%d)? Это нельзя отменить.",
     "↩  Restored your worked playlist for “%s” — %d songs":
         "↩  Ваш доработанный плейлист для «%s» восстановлен — треков: %d",
     "this competition": "этот турнир",
     "⚠  Session not saved — the snapshot failed: %r":
         "⚠  Сеанс не сохранён — снимок не удался: %r",
+    "⚠  Session NOT saved — the autosave file could not be written. Check the disk and try again.":
+        "⚠  Сеанс НЕ сохранён — не удалось записать файл автосохранения. Проверьте диск и повторите попытку.",
     "Could not write the PDF:\n"
     "%s":
         "Не удалось записать PDF:\n"
@@ -5855,7 +5841,7 @@ CATALOG = {
         'Сканировать фонотеку',
     'Another task (a library scan or an analysis) is writing to the database. Let it finish, then try again.':
         'Другая задача (сканирование библиотеки или анализ) сейчас пишет в базу данных. Дождитесь её завершения и попробуйте снова.',
-    "The Paso Doble pick for %s in ⚙ Settings → 🎛 Play sets\n(played in full reads as the 3rd highlight). A change here\nholds for this list only.":
+    "The Paso Doble pick for %s in ⚙ Settings → 🎛 Playsets\n(played in full reads as the 3rd highlight). A change here\nholds for this list only.":
         "Выбор пасодобля для %s в ⚙ Настройки → 🎛 Наборы воспроизведения\n(целиком — то же, что 3-я кульминация). Изменение здесь\nдействует только для этого списка.",
     "🐂 Paso Doble → each round's own pick":
         "🐂 Пасодобль → снова выбор каждого раунда",
@@ -5909,12 +5895,6 @@ CATALOG = {
         "Поменять: он поменяется местами с «%s».",
     "Move it to this slot?":
         "Переместить на это место?",
-    "Move it here":
-        "Переместить сюда",
-    "Swap positions":
-        "Поменять местами",
-    "Do nothing":
-        "Ничего не делать",
     "Add here too":
         "Добавить и сюда",
     "Add here too: it plays here and stays at its old place as well.":
@@ -6019,8 +5999,6 @@ CATALOG = {
         'Удалить вместе с местом',
     'On: a double-click on another title while one is playing\nasks first — No keeps the music on the floor.\nOff: the new title takes over at once.':
         'Вкл.: двойной щелчок по другому треку, пока играет один,\nсначала спрашивает — «Нет» оставляет музыку на площадке.\nВыкл.: новый трек сразу берёт эстафету.',
-    'Prompt for this kind of list (added to the rules):':
-        'Промпт для этого вида списка (добавляется к правилам):',
     'Remove %d songs?':
         'Удалить треков: %d?',
     'Remove this song?':
@@ -6039,8 +6017,6 @@ CATALOG = {
         'Список тем временем изменился — ничего не сделано',
     'What a party list is for. It is sent with the task, after the rules,\nand says which of the rules do not apply. Each mode keeps its own text.':
         'Для чего нужен список для вечеринки. Отправляется вместе с заданием, после правил,\nи указывает, какие правила не действуют. У каждого режима свой текст.',
-    'What a party list or a warm-up list is for. It is sent with the\ntask, after the rules, and says which of the rules do not apply.\nEach kind keeps its own text.':
-        'Для чего нужен список для вечеринки или для разминки. Отправляется вместе с\nзаданием, после правил, и указывает, какие правила не действуют.\nУ каждого вида свой текст.',
     'What a warm-up list is for. It is sent with the task, after the\nrules, and says which of the rules do not apply. Each mode keeps\nits own text.':
         'Для чего нужен список для разминки. Отправляется вместе с заданием, после\nправил, и указывает, какие правила не действуют. У каждого режима\nсвой текст.',
     'Which tracks suit a higher-class event. It is sent with the task,\nafter the rules, for the B, A and S classes; the lower classes get\nnone. The rounds, heats, dances and tempos are added automatically.':
@@ -6093,4 +6069,129 @@ CATALOG = {
         'Какие треки считаются новыми: недавние или любой трек, который почти не играли.',
     'Reading Chromaprints…':
         'Чтение Chromaprint…',
+    'Skip greyed titles':
+        'Пропускать серые треки',
+    'Leave out the titles another deck already holds — planned or\nplayed (played ones stay in their deck, greyed). The deck this\nrun fills does not count: its content is being replaced.':
+        'Не брать треки, которые уже есть в другой деке (запланированные или\nсыгранные; сыгранные остаются в своей деке серыми). Дека, которую\nзаполняет этот запуск, не считается: её содержимое заменяется.',
+    '📁  Chosen library folders':
+        '📁  Выбранные папки библиотеки',
+    'Choose…':
+        'Выбрать…',
+    '%d folders chosen':
+        'Выбрано папок: %d',
+    'No folder chosen':
+        'Папка не выбрана',
+    'Draw from these folders':
+        'Брать из этих папок',
+    'Each folder counts for the titles directly in it,\nnot for the folders below it.':
+        'Папка учитывается по трекам, лежащим прямо в ней,\nа не по вложенным папкам.',
+    '(main folder)':
+        '(главная папка)',
+    '📁 %s — %d titles':
+        '📁 %s — треков: %d',
+    'Manual — every row can be dragged anywhere, like a playlist.\nClick to get the automatic party list back.':
+        'Вручную: любую строку можно перетащить куда угодно, как в плейлисте.\nНажмите, чтобы вернуть автоматический список вечеринки.',
+    'Manual — keep the list as it is and edit it by hand:\nevery row can be dragged anywhere, like a playlist.\nClick again to get the automatic list back.':
+        'Вручную: оставить список как есть и править его самому:\nлюбую строку можно перетащить куда угодно, как в плейлисте.\nНажмите ещё раз, чтобы вернуть автоматический список.',
+    '✋ Automatic — the party list is grouped by its rules again':
+        '✋ Автоматически: список вечеринки снова сгруппирован по своим правилам',
+    '✋ Manual — every row can be dragged anywhere':
+        '✋ Вручную: любую строку можно перетащить куда угодно',
+    '📁 the chosen folders':
+        '📁 выбранные папки',
+    'One button for all sets, named for the one that is on':
+        'Одна кнопка для всех наборов, с названием включённого',
+    'The play set the panel stands on — 🏆 tournament (gold) or\n🎉 party (purple). A click switches over to the other one; with\nneither on, to the tournament set. What each sets is yours to\nchange: ⚙ Settings → 🎛 Playsets.':
+        'Набор воспроизведения, на котором стоит панель: 🏆 турнир (золотой) или\n🎉 вечеринка (фиолетовый). Щелчок переключает на другой; если ни один\nне включён — на турнирный. Что задаёт каждый, меняется в\n⚙ Настройки → 🎛 Наборы воспроизведения.',
+    '🏆 / 🎉 / 🏃  Play set':
+        '🏆 / 🎉 / 🏃  Набор',
+    'pause → %s s':
+        'пауза → %s с',
+    '🏃  Training set':
+        '🏃  Тренировочный набор',
+    'Play a training: every title to its end, one after the other,\nwith a pause of 25 s in between to talk and take position, and\nthe Paso Doble starting 2 s after it is called. What exactly it\nsets is yours to change: ⚙ Settings → 🎛 Playsets.\n\nClicked while lit, it switches itself off: the list goes back to\nthe values it had before the set was pressed.':
+        'Играть тренировку: каждый трек до конца, один за другим, с паузой\n25 с между ними, чтобы поговорить и встать в позицию, а Пасодобль\nначинается через 2 с после вызова. Что именно он задаёт, меняется в\n⚙ Настройки → 🎛 Наборы воспроизведения.\n\nЕсли нажать на включённую кнопку, она выключится: список вернётся\nк прежним значениям.',
+    '🏃  Training set — %s':
+        '🏃  Тренировочный набор — %s',
+    '🏃  Training set stays on — no earlier values to go back to':
+        '🏃  Тренировочный набор остаётся включённым — нет прежних значений',
+    '🏃  Training set off — earlier values back':
+        '🏃  Тренировочный набор выключен — прежние значения возвращены',
+    '🏃  Training set applied':
+        '🏃  Тренировочный набор применён',
+    "A party's way of playing with a pause between the titles to talk and take position, and a short wait before a Paso Doble.":
+        'Режим вечеринки с паузой между треками, чтобы поговорить и встать в позицию, и короткой задержкой перед Пасодоблем.',
+    "Every title of this list plays on after the play length: the\nmusic comes back up while the couples celebrate.\nWorks only with a play length set, not with 'full'.":
+        "Каждый трек этого списка играет дальше после времени воспроизведения:\nмузыка снова становится громче, пока пары празднуют.\nРаботает только при заданном времени воспроизведения, не при 'полностью'.",
+    '↺ Reset to defaults':
+        '↺ Сбросить к значениям по умолчанию',
+    'Puts everything on this tab back on the values the program\nships with. Nothing is saved until you press OK.':
+        'Возвращает всё на этой вкладке к значениям, с которыми\nпоставляется программа. Ничего не сохраняется, пока вы не нажмёте OK.',
+    'Reset to defaults':
+        'Сбросить к значениям по умолчанию',
+    'Put every value on the 🎛 Playsets tab back on the default? Nothing is saved until you press OK.':
+        'Вернуть все значения на вкладке 🎛 Наборы воспроизведения к значениям по умолчанию? Ничего не сохраняется, пока вы не нажмёте OK.',
+    "<b style='color:#d32f2f; font-size:16px'>⚠ LOUD MUSIC ON A HEADSET</b><br><br>The music is set to <b>%d %%</b> on <b>%s</b> (system volume %d %%). That can damage your hearing. Playback waits for your choice.":
+        "<b style='color:#d32f2f; font-size:16px'>⚠ ГРОМКАЯ МУЗЫКА В НАУШНИКАХ</b><br><br>Музыка установлена на <b>%d %%</b> на <b>%s</b> (громкость системы %d %%). Это может повредить слух. Воспроизведение ждёт вашего выбора.",
+    'You are asked again only if it gets louder than what you choose now.':
+        'Вас спросят снова, только если станет громче, чем вы выберете сейчас.',
+    'Reduce to %d %%':
+        'Снизить до %d %%',
+    'Keep %d %%':
+        'Оставить %d %%',
+    '⚠ Loud music on a headset (%d %%): can damage your hearing':
+        '⚠ Громкая музыка в наушниках (%d %%): может повредить слух',
+    "Level, dip and times: 🔊 Sound & player.":
+        "Уровень, спад и время: 🔊 Звук и плеер.",
+    "🥇 Celebration — the music plays on":
+        "🥇 Торжество — музыка продолжается",
+    "🥇  Celebration: music plays on":
+        "🥇  Торжество: музыка продолжается",
+    "After the play length has faded a title out, it can come back up\nas background while the couples celebrate. Which titles do:\nthe 🥇 switch on the ▶ panel, and for the 🏆 tournament set's\nfinals ⚙ Settings → 🎛 Playsets.":
+        "После того как длительность воспроизведения плавно убрала трек,\nон может вернуться фоном, пока пары празднуют. Какие треки:\nпереключатель 🥇 на панели ▶ и, для финалов\nтурнирного набора 🏆, ⚙ Настройки → 🎛 Игровые сеты.",
+    "Clear all":
+        "Очистить всё",
+    "What should be emptied? This can't be undone.":
+        "Что нужно очистить? Это нельзя отменить.",
+    "🧹  All playlists (%d filled)":
+        "🧹  Все плейлисты (заполнено: %d)",
+    "⭐  All wishlists (%d filled)":
+        "⭐  Все списки пожеланий (заполнено: %d)",
+    "🤸  Party / competition list (%d titles)":
+        "🤸  Список вечеринки / соревнования (%d треков)",
+    "Put every value on the 🎛 Cartwall tab back on the default? Nothing is saved until you press OK.":
+        "Вернуть все значения на вкладке 🎛 Cartwall к стандартным? Ничего не сохраняется, пока вы не нажмёте OK.",
+    "Put the fade times, the duck and the pre-roll back on the default? Nothing is saved until you press OK.":
+        "Вернуть времена затухания, приглушение и пред-ролл к стандартным? Ничего не сохраняется, пока вы не нажмёте OK.",
+    "Every title of that source is already in a deck.":
+        "Каждый трек этого источника уже есть в деке.",
+    "The chosen folders hold no titles.":
+        "В выбранных папках нет треков.",
+    "Choose at least one library folder first.":
+        "Сначала выберите хотя бы одну папку библиотеки.",
+    "Puts everything on this tab back on the values the program\nships with. Pads keep their own settings. Nothing is saved\nuntil you press OK.":
+        "Возвращает всё на этой вкладке к значениям, с которыми поставляется\nпрограмма. Пэды сохраняют свои настройки. Ничего не сохраняется,\nпока вы не нажмёте OK.",
+    "Puts the fade times, the duck and the pre-roll back on the values the program ships with. Nothing is saved until you press OK.":
+        "Возвращает времена затухания, приглушение и пред-ролл к значениям, с которыми поставляется программа. Ничего не сохраняется, пока вы не нажмёте OK.",
+    "Draw only from the titles in the library folders you tick. A folder counts for the titles directly in it, not below it.":
+        "Брать только треки из отмеченных папок библиотеки. Папка учитывается по трекам непосредственно в ней, а не ниже.",
+    "Leave out the titles another deck already holds — planned or played (played ones stay in their deck, greyed).":
+        "Пропускать треки, которые уже есть в другой деке — запланированные или сыгранные (сыгранные остаются в своей деке, серыми).",
+    "Ask what to empty: all playlists (ticked), all wishlists and the\nparty / competition list (both unticked, so they are kept).\nTip: Del on a deck's title clears just that one playlist;\nDel on a wishlist's title clears that wishlist.":
+        "Спрашивает, что очистить: все плейлисты (отмечено), все списки пожеланий и\nсписок вечеринки / соревнования (оба не отмечены, поэтому сохраняются).\nСовет: Del на названии деки очищает только этот плейлист;\nDel на названии списка пожеланий очищает этот список.",
+    "Nothing to clear — all lists are empty.":
+        "Нечего очищать — все списки пусты.",
+    "🧹 Cleared the chosen lists.":
+        "🧹 Выбранные списки очищены.",
+    "%s already exists.\n\nReplace it?":
+        "%s уже существует.\n\nЗаменить?",
+    "The settings could not be saved.\n\nThey apply until the app is closed. Is the settings folder writable and the disk not full?":
+        "Не удалось сохранить настройки.\n\nОни действуют до закрытия приложения. Папка настроек доступна для записи, а диск не переполнен?",
+    "“%s” already exists and holds files.\nReplace writes the playlists over the files of the same name; other files in it stay.\nKeep both saves into a new folder.":
+        "«%s» уже существует и содержит файлы.\n«Заменить» перезаписывает файлы с теми же именами; остальные файлы остаются.\n«Оставить оба» сохраняет в новую папку.",
+    "Already running": "Уже запущено",
+    "DanceSport Planner & Player is already running.\nSwitch to its window; a second copy would overwrite its playlist.":
+        "DanceSport Planner & Player уже запущен.\nПереключитесь на его окно: вторая копия перезапишет его плейлист.",
+    "Check failed — %s":
+        "Проверка не удалась — %s",
 }

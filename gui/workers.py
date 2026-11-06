@@ -40,6 +40,7 @@ from planner.models import ALLOW_REPEAT, ScanCancelled
 from planner.music import analysis as planner_analysis
 from planner.music import custom_field
 from planner.music.analysis import probe_decode_backend, probe_decode_backend_any
+from planner.music.chroma_twins import twin_paths
 from planner.music.db import AudioCache
 from planner.music.db_upkeep import db_maintenance, reset_database
 from planner.music.library import MusicLibrary
@@ -524,14 +525,17 @@ class WarmupBuilder(QThread):
     done = Signal(object)              # list[MusicEntry]
     error = Signal(str)
 
-    def __init__(self, entries, mode, params, parent=None):
+    def __init__(self, entries, mode, params, parent=None, cache=None):
         super().__init__(parent)
         self._entries = list(entries)
         self._mode = mode
         self._params = dict(params)
+        self._cache = cache   # for the Chroma twins of a competition training
 
     def run(self):
         try:
+            twins = (twin_paths(self._cache, [e.path for e in self._entries])
+                     if self._mode in ("class", "competition", "etds") else None)
             if self._mode == "class":
                 params = dict(self._params)
                 style = params.pop("style")
@@ -539,7 +543,7 @@ class WarmupBuilder(QThread):
                 res = build_class_warmup(
                     self._entries, style, dance_class,
                     progress_cb=lambda d, t: self.progress.emit(d, t),
-                    **params)
+                    twins=twins, **params)
             elif self._mode == "competition":
                 params = dict(self._params)
                 style = params.pop("style")
@@ -548,12 +552,12 @@ class WarmupBuilder(QThread):
                 res = build_competition_training(
                     self._entries, style, dance_class, dances,
                     progress_cb=lambda d, t: self.progress.emit(d, t),
-                    **params)
+                    twins=twins, **params)
             else:
                 res = build_warmup_playlist(
                     self._entries,
                     progress_cb=lambda d, t: self.progress.emit(d, t),
-                    **self._params)
+                    twins=twins, **self._params)
             self.done.emit(res)
         except Exception as exc:
             log.exception("🤸 warm-up build failed")

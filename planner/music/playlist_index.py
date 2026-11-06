@@ -69,7 +69,8 @@ def _is_warmup_list_name(name: str) -> bool:
 _TreeFile = tuple[Path, str]
 
 
-def _playlist_tree() -> tuple[list[_TreeFile], list[_TreeFile]]:
+def _playlist_tree(unlisted: list[str] | None = None
+                   ) -> tuple[list[_TreeFile], list[_TreeFile]]:
     """One walk over PLAYLIST_DIR returning its .m3u files and its music files
     (LIBRARY_EXTS: MP3, FLAC, M4A, Ogg, Opus) with a change signature each.
 
@@ -77,15 +78,20 @@ def _playlist_tree() -> tuple[list[_TreeFile], list[_TreeFile]]:
     `os.scandir` pass costs ~0.03 s for 2100 files INCLUDING the stat, because a
     Windows directory entry already carries mtime and size — so the signature that
     tells `PlaylistIndexCache` what actually changed is essentially free.
+    `unlisted`, when given, receives every folder or file the walk could not
+    read: what is missing from the result is then not known to be gone.
     """
     m3us: list[_TreeFile] = []
     mp3s: list[_TreeFile] = []
     stack = [str(playlist_dir())]
     while stack:
+        folder = stack.pop()
         try:
-            with os.scandir(stack.pop()) as it:
+            with os.scandir(folder) as it:
                 entries = list(it)
         except OSError:
+            if unlisted is not None:
+                unlisted.append(folder)
             continue
         for de in entries:
             try:
@@ -99,6 +105,8 @@ def _playlist_tree() -> tuple[list[_TreeFile], list[_TreeFile]]:
                     st = de.stat()
                     bucket.append((Path(de.path), f"{st.st_mtime_ns}:{st.st_size}"))
             except OSError:
+                if unlisted is not None:
+                    unlisted.append(de.path)
                 continue
     m3us.sort()
     mp3s.sort()
@@ -238,7 +246,8 @@ class PlaylistIndexMixin:
         if not root.exists():
             return count
         self._refresh_stem_dance()   # so lines qualify by the file's calculated dance
-        m3us, mp3s = _playlist_tree()
+        unlisted: list[str] = []
+        m3us, mp3s = _playlist_tree(unlisted)
         cache = PlaylistIndexCache(root, self._dance_map_digest())
         seen: set[str] = set()
         failed = 0
@@ -266,7 +275,12 @@ class PlaylistIndexMixin:
             log.info("  ⚠️ %s playlist(s) skipped while learning, see the debug log",
                      failed)
         count += self._learn_playlist_folders(cache, seen, m3us, mp3s)
-        cache.prune(seen)
+        if unlisted:     # a folder not listed is not a folder gone
+            log.warning("⚠️ Playlist folders could not be listed, the index is not pruned\n"
+                        "folders: %d\n"
+                        "first: %s", len(unlisted), unlisted[0])
+        else:
+            cache.prune(seen)
         cache.save()
         return count
 

@@ -640,6 +640,44 @@ class ColourSwatchTest(unittest.TestCase):
         self.assertLess(gc._luma(_hex(gc._PLAYED_BAND)),
                         gc._luma(gc._PLAY_BG))
 
+
+class UnreadableLengthTest(unittest.TestCase):
+    """A sample on a share that is down answered "unknown" at the price of a
+    network timeout, and every restyle of every pad asked again."""
+
+    PATH = "Z:/nas/music/gone.mp3"
+
+    def setUp(self):
+        gc._DURATIONS.pop(self.PATH, None)
+        gc._UNKNOWN_UNTIL.pop(self.PATH, None)
+        self.addCleanup(gc._DURATIONS.pop, self.PATH, None)
+        self.addCleanup(gc._UNKNOWN_UNTIL.pop, self.PATH, None)
+
+    def test_an_unreadable_file_is_not_asked_again_at_once(self):
+        with mock.patch.object(gc, "read_duration", return_value=0) as read:
+            for _ in range(5):
+                self.assertEqual(gc._duration_text(self.PATH), "--:--")
+        self.assertEqual(read.call_count, 1)
+
+    def test_it_is_asked_again_after_a_while(self):
+        clock = [0.0]
+        with mock.patch.object(gc, "read_duration", return_value=0) as read, \
+                mock.patch.object(gc.time, "monotonic", side_effect=lambda: clock[0]):
+            gc._duration_text(self.PATH)
+            gc._duration_text(self.PATH)
+            clock[0] = 1000.0
+            gc._duration_text(self.PATH)
+        self.assertEqual(read.call_count, 2)
+
+    def test_a_stick_that_comes_back_shows_its_length(self):
+        with mock.patch.object(gc, "read_duration", return_value=0), \
+                mock.patch.object(gc.time, "monotonic", return_value=0.0):
+            gc._duration_text(self.PATH)
+        with mock.patch.object(gc, "read_duration", return_value=192), \
+                mock.patch.object(gc.time, "monotonic", return_value=1000.0):
+            self.assertEqual(gc._duration_text(self.PATH), "03:12")
+
+
 class PadLengthTest(unittest.TestCase):
     """'as in playin cartwall show length in cart' — an idle pad says how long
     its sample is, and only a running one counts down."""

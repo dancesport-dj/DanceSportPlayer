@@ -47,6 +47,30 @@ class RestrictedToTest(unittest.TestCase):
         # back into the whole library.
         self.assertEqual(view.by_dance("TG"), [])
 
+    def test_by_dance_does_not_walk_the_library_on_every_call(self):
+        """The suggester asks per pick; on a 58k library each call was a full scan."""
+        lib = self._lib()
+        lib.by_dance("SA")
+        seen = []
+
+        class Counting(list):
+            def __iter__(self):
+                seen.append(1)
+                return super().__iter__()
+
+        lib._entries = Counting(lib._entries)   # same version: the cache must hold
+        for _ in range(5):
+            lib.by_dance("SA")
+        self.assertEqual(seen, [])
+
+    def test_by_dance_follows_a_replaced_list_and_cannot_be_edited_from_outside(self):
+        lib = self._lib()
+        lib.by_dance("SA").clear()          # a caller's list is its own
+        self.assertEqual(len(lib.by_dance("SA")), 2)
+        lib.entries = [_entry("z", "TG")]
+        self.assertEqual(lib.by_dance("SA"), [])
+        self.assertEqual([e.title for e in lib.by_dance("TG")], ["z"])
+
     def test_the_path_index_is_rebuilt_for_the_subset(self):
         lib = self._lib()
         lib.entry_for(Path("C:/lib/lateincd/SA/a.mp3"))     # builds the full index

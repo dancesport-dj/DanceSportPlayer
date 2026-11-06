@@ -93,8 +93,8 @@ class _Desk(PlayerControlMixin, QWidget):
 
 class ResumeFadeSettingTest(unittest.TestCase):
 
-    def test_one_second_by_default(self):
-        self.assertEqual(resume_fade_secs({}), 1.0)
+    def test_two_seconds_by_default(self):
+        self.assertEqual(resume_fade_secs({}), 2.0)
 
     def test_zero_is_off_and_stays_off(self):
         self.assertEqual(resume_fade_secs({"resume_fade_secs": 0}), 0.0)
@@ -108,8 +108,8 @@ class ResumeFadeSettingTest(unittest.TestCase):
         self.assertEqual(resume_fade_secs({"resume_fade_secs": -3}), 0.0)
 
     def test_a_broken_value_is_the_default(self):
-        self.assertEqual(resume_fade_secs({"resume_fade_secs": "soon"}), 1.0)
-        self.assertEqual(resume_fade_secs({"resume_fade_secs": None}), 1.0)
+        self.assertEqual(resume_fade_secs({"resume_fade_secs": "soon"}), 2.0)
+        self.assertEqual(resume_fade_secs({"resume_fade_secs": None}), 2.0)
 
 
 class ResumeFadeTest(unittest.TestCase):
@@ -134,7 +134,7 @@ class ResumeFadeTest(unittest.TestCase):
         desk = self._desk()
         desk._arm_fade_in(TRACK)
         self.assertEqual(desk._playback.fade_in_from, 0.0)
-        self.assertEqual(desk._playback.fade_in_secs, 1.0)
+        self.assertEqual(desk._playback.fade_in_secs, 2.0)
         self.assertEqual(desk._mix.fade_in, 0.0)
 
     def test_its_own_time_counts_over_the_one_of_every_title(self):
@@ -190,7 +190,7 @@ class ResumeFadeTest(unittest.TestCase):
     def test_it_counts_from_the_marker_not_from_the_top_of_the_file(self):
         """The seek raises the offset by the same ms: nothing has been heard
         yet, so the ramp starts at silence there."""
-        desk = self._desk()
+        desk = self._desk(resume_fade_secs=1.0)
         desk._arm_fade_in(TRACK)
         desk._playback.offset_ms += self.MARK
         desk.media.pos = self.MARK
@@ -332,10 +332,10 @@ class FadeInSettingDialogTest(unittest.TestCase):
         dlg._fade_in_spin.setValue(3.5)
         self.assertEqual(dlg.values()["fade_in_secs"], 3.5)
 
-    def test_the_marker_fade_starts_at_one_second(self):
+    def test_the_marker_fade_starts_at_two_seconds(self):
         dlg = self._dialog({})
-        self.assertEqual(dlg._resume_fade_spin.value(), 1.0)
-        self.assertEqual(dlg.values()["resume_fade_secs"], 1.0)
+        self.assertEqual(dlg._resume_fade_spin.value(), 2.0)
+        self.assertEqual(dlg.values()["resume_fade_secs"], 2.0)
 
     def test_the_marker_fade_can_be_switched_off(self):
         dlg = self._dialog({"resume_fade_secs": 2.0})

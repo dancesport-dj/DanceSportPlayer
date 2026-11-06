@@ -3,4 +3,5 @@
 ai_prompt  # noqa: F821  facade re-export in dancesport_planner
 OPENROUTER_URL  # noqa: F821  facade re-export in dancesport_planner
 OPENROUTER_MODELS_URL  # noqa: F821  facade re-export in dancesport_planner
+TSO_BANDS  # noqa: F821  facade re-export in dancesport_planner
 supportedActions  # noqa: F821  Qt startDrag override parameter in gui/common.py

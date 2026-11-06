@@ -21,6 +21,7 @@ On a Mac, read **Cmd** for **Ctrl** below: **Cmd + F** finds a title. The app's 
 | **Ctrl + Shift + S** | Save the whole session: decks, wishlists, layout. |
 | **Ctrl + Z / Ctrl + Y** | Undo / redo. **Ctrl + Shift + Z** also redoes. |
 | **Ctrl + X** or **Ctrl + W** | Close the active dialog. |
+| **Esc** with a mini player up | Stop and close the preview mini player, like **Ctrl + X**. Not while a text field has the focus. |
 | **Del** | Remove the selected titles from a deck or wishlist, after asking. In a party list the question is **Remove with slot** / **Keep slot** / **Cancel**. The cursor then lands on the row that moved up into the spot. |
 | **Del** with nothing selected | Clear that whole playlist or wishlist, after asking. The same when every title is selected. |
 | **Ctrl + Shift + Del** | Clear the focused playlist or wishlist, after asking, wherever the cursor is. |

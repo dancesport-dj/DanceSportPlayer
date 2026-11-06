@@ -178,6 +178,33 @@ class SourceSelectorTest(unittest.TestCase):
         panel._source_m3u_row.findChild(QPushButton).click()
         self.assertEqual(seen, [True])
 
+    def test_chosen_folders_select_the_folder_source(self):
+        panel = self._panel()
+        panel.set_source_folders(["", "vlt/vlt"])
+        self.assertEqual(panel.get_source(), ("folders", ""))
+        self.assertEqual(panel.get_source_folders(), ["", "vlt/vlt"])
+
+    def test_the_folder_row_only_shows_for_the_folder_source(self):
+        panel = self._panel()
+        panel.show()
+        self.assertFalse(panel._source_folders_row.isVisible())
+        panel.source_combo.setCurrentIndex(panel.source_combo.findData("folders"))
+        self.assertTrue(panel._source_folders_row.isVisible())
+
+    def test_the_choose_button_asks_the_window_for_folders(self):
+        panel = self._panel()
+        seen = []
+        panel.folders_source_requested.connect(lambda: seen.append(True))
+        panel._source_folders_row.findChild(QPushButton).click()
+        self.assertEqual(seen, [True])
+
+    def test_clearing_a_deck_forgets_the_chosen_folders(self):
+        panel = self._panel()
+        panel.set_source_folders(["vlt"])
+        panel.reset_to_defaults()
+        self.assertEqual(panel.get_source(), ("library", ""))
+        self.assertEqual(panel.get_source_folders(), [])
+
     def test_clearing_a_deck_puts_the_source_back_to_the_library(self):
         """reset_to_defaults runs on a cleared deck — a pool picked for the last
         playlist must not quietly plan the next one."""
@@ -260,6 +287,21 @@ class IndexGapMarkingTest(unittest.TestCase):
         panel = self._panel()
         panel.set_library_status("librosa: Favorites 1/9", n_unanalyzed=8)
         self.assertIn("#c77700", panel.status_lbl.text())
+
+
+class SkipPlannedTickTest(unittest.TestCase):
+    """Tier 4 #14: the tick that leaves greyed titles out of a draw."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def test_off_until_ticked(self):
+        panel = ConfigPanel()
+        self.addCleanup(reap_widget, panel)
+        self.assertFalse(panel.skip_planned())
+        panel.skip_planned_cb.setChecked(True)
+        self.assertTrue(panel.skip_planned())
 
 
 if __name__ == "__main__":

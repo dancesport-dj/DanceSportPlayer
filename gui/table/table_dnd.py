@@ -1298,14 +1298,10 @@ class TableDragDropMixin(PlaylistTableHost):
             return
         scroll = self.verticalScrollBar().value()
         rounds = list(self._loaded_rounds)
-        pools = ([self._round_pools_by_name.get(rc.name, []) for rc in rounds]
-                 if self._round_pools_by_name else None)
         self.load(self._playlist, new, rounds, self._dance_class,
                   play_cb=self._play_cb, suggester=self._suggester,
                   use_timbre=self._use_timbre, style=self._style,
-                  round_pools=pools,
-                  round_skip_dances=self._round_skip_dances or None,
-                  round_ctx=self._round_ctx or None)
+                  **self._reloadKwargs(rounds))
         self._restore_scroll(scroll)
 
     # ── Internal drag: move/swap a track between slots (e.g. across rounds) ─────

@@ -914,6 +914,12 @@ class NestedPointTest(unittest.TestCase):
         self.assertIsNone(Entry("19:30", "Tanz", until="01:00").length())
         self.assertIsNone(Entry("19:30", "Tanz", until="").length())
 
+    def test_a_clock_time_that_does_not_exist_is_no_length(self):
+        """"25:00" and "01:60" were read as 2500 and 160 minutes."""
+        for until in ("25:00", "01:60", "24.00", "1.5"):
+            with self.subTest(until=until):
+                self.assertIsNone(Entry("19:30", "Tanz", until=until).length())
+
     def test_the_point_inside_takes_the_accent_while_it_runs(self):
         t = self._party()
         self.assertEqual(t.current_index(_at(19, 10)), 0)   # party only

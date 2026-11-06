@@ -889,7 +889,7 @@ class Bubble(QFrame):
         super().__init__(parent)
         bg, border, head = self._SKIN.get(role, self._SKIN["received"])
         self.setStyleSheet(
-            f"_Bubble {{ background:{bg}; border:1px solid {border};"
+            f"Bubble {{ background:{bg}; border:1px solid {border};"
             f" border-radius:10px; }}")
         self.setSizePolicy(QSizePolicy.Policy.Maximum,
                            QSizePolicy.Policy.Preferred)
@@ -961,7 +961,7 @@ class ThinkingBubble(QFrame):
     def __init__(self, speaker: str, what: str, parent=None):
         super().__init__(parent)
         self.setStyleSheet(
-            "_ThinkingBubble { background:#ffffff; border:1px solid #d7dbe2;"
+            "ThinkingBubble { background:#ffffff; border:1px solid #d7dbe2;"
             " border-radius:10px; }")
         self.setSizePolicy(QSizePolicy.Policy.Maximum,
                            QSizePolicy.Policy.Preferred)

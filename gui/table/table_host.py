@@ -159,7 +159,7 @@ class TableHost:
         return hasattr(self._win(), "_clean_deck_against_others")
 
     def visible_deck_tables(self):
-        return self._win()._visible_deck_tables()
+        return self._win()._planned_source_tables()
 
     def clean_deck_against_others(self):
         self._call("_clean_deck_against_others", self._table)

@@ -434,6 +434,7 @@ class TableActionsMixin(TableMenuMixin):
         else:
             show_toast(self, (i18n.t("🔁  Unmarked %d track") if n == 1
                                else i18n.t("🔁  Unmarked %d tracks")) % n)
+        self._notify_changed()
         return True
 
     def _reset_all_marks(self):
@@ -447,6 +448,7 @@ class TableActionsMixin(TableMenuMixin):
             if m and m.entry is not None and str(getattr(m.entry, "path", "")) in cleared:
                 self._refill_row(r, m)
         show_toast(self, "🔁  Cleared all replacement marks")
+        self._notify_changed()
 
     def keyPressEvent(self, event):
         """Space / Enter: play/stop the selected song.  Ctrl+←/→: seek ∓30 s.

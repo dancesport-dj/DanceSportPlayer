@@ -38,6 +38,21 @@ class DupClashesTest(unittest.TestCase):
         taken = [_rec("Beautiful", dance=None)]
         self.assertEqual(dup_clashes([_rec("Beautiful", exact="p:y")], taken), {0})
 
+    def test_a_title_first_name_clashes_with_its_dance_sorted_twin(self):
+        # "Title - Artist" files (a Werner Tauber series, Matt Monro, ...) get the
+        # artist as their strict no-repeat key; the wide keys of this check still
+        # pair them with the same song filed under "NN - Title - DANCE NN".
+        pairs = [("01 Be my love - Werner Tauber", "01 - Be My Love - SF 30", "SF"),
+                 ("19-Charade - Matt Monro (LW 29)", "01 - Charade LW29", "LW"),
+                 ("Happy Birthday - Birthday Allstars", "13 Happy Birthday", None)]
+        for title_first, twin, dance in pairs:
+            self.assertEqual(dup_clashes([_rec(title_first, dance)], [_rec(twin, dance)]),
+                             {0}, title_first)
+
+    def test_the_same_song_in_another_dance_is_no_clash(self):
+        self.assertEqual(dup_clashes([_rec("19-Charade - Matt Monro (LW 29)", "LW")],
+                                     [_rec("08- Charade-WW-60", "WW")]), set())
+
     def test_nothing_taken_nothing_clashes(self):
         self.assertEqual(dup_clashes([_rec("Moon River")], []), set())
 

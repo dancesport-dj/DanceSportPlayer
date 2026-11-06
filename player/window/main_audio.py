@@ -4,15 +4,21 @@ Split off player/window/main_player.py — everything that decides HOW LOUD the 
 where a track really starts, as a MainWindow mixin. The sound card itself (which
 one, held or handed back, the OS's own sounds) is player/audio/audio_device.py.
 """
+import html
 import logging
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import (
+    Qt,
     QTimer,
 )
+from PySide6.QtMultimedia import QMediaPlayer
+from PySide6.QtWidgets import QMessageBox
 
 from planner import i18n
+from player.audio.headset_guard import WARN, HeadsetGuard, lower_volume, safe_volume
 from player.audio.mix import (
     ANNOUNCE_DUCK,  # noqa: F401 — re-exported: the level arithmetic moved out
     DESK_DUCK,  # noqa: F401
@@ -39,6 +45,7 @@ from shared.audio.playback import (
 from shared.stores import (  # auto-resolved
     save_settings,
 )
+from shared.widgets import show_toast
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -73,6 +80,9 @@ class AudioLevelMixin(MainWindowHost):
         """Push what the mix says each output should be at, right now."""
         if self._player and self._audio_out is not None:
             self._audio_out.setVolume(self._mix.deck())
+        cue = self._cue_player()
+        if cue is not None:
+            cue.audio_output.setVolume(self._mix.mini())
         if self._cart_voices is not None:
             self._cart_voices.set_level(self._mix.cartwall())
             self._cart_voices.set_bed_duck(self._mix.duck)
@@ -166,10 +176,125 @@ class AudioLevelMixin(MainWindowHost):
         The card's dB follows too: how much of a boost is heard depends on it."""
         self._mix.set_base(v)
         self._apply_volume()
+        cue = self._cue_player()
+        for mini in (self._preview, getattr(cue, "view", None)):
+            if mini is not None:
+                mini.set_volume_value(self._mix.base)
         if self._big_player:
             self._big_player.set_volume_value(self._mix.base)
             self._big_player.set_gain(self._mix.heard_gain())
         self._vol_save_timer.start()
+
+    def _headset_play_gate(self) -> bool:
+        """🎧 In front of every play(): True holds the play back. Nothing is
+        started and the volume is not touched; the question comes next
+        (a moment later, not inside the caller) and starts the music itself
+        once it is answered. A level that was asked about already only gets
+        the red toast, and the play goes on."""
+        if os.environ.get("DANCEPLAYLIST_NO_HEADSET_GUARD"):
+            return False
+        if vars(self).get("_headset_dialog"):
+            return True   # the question is open: whoever plays now waits with it
+        guard = vars(self).setdefault("_headset_guard", HeadsetGuard())
+        name = self._audio_device.music_output_name()
+        master, form = self._audio_device.music_output_state()
+        found = guard.assess(name, self._mix.base, master, form)
+        if found is None:
+            return False
+        if found == WARN:
+            self._warn_loud_headset(name, master)
+            return False
+        if not vars(self).get("_headset_asking"):
+            vars(self)["_headset_asking"] = True
+            QTimer.singleShot(0, self, lambda: self._guard_headset_volume(True))
+        return True
+
+    def _warn_loud_headset(self, name: str, master: float):
+        """🎧 The red toast: music is loud on a headset. Nothing is stopped."""
+        level = round(self._mix.base * master * 100)
+        log.warning("🎧 Loud music on a headset\n"
+                    "output: %s\n"
+                    "system volume: %d%%\n"
+                    "app volume: %d%%", name, round(master * 100), round(self._mix.base * 100))
+        show_toast(self, i18n.t("⚠ Loud music on a headset (%d %%): can damage your "
+                                "hearing") % level, 6000, error=True)
+
+    def _guard_headset_volume(self, start=False):
+        """🎧 The music is on a headset and louder than 70 %. Before it starts
+        (`start`, a play the gate held back) ask: reduce to a safe level or
+        keep this one, the volume untouched until the answer, then the music
+        starts. Music that is playing already is never stopped or touched: a
+        red toast warns once per level (a fader move, another output, new
+        settings). A dialog is asked only for a level louder than any asked
+        about before this run (player.audio.headset_guard)."""
+        vars(self)["_headset_asking"] = False
+        if os.environ.get("DANCEPLAYLIST_NO_HEADSET_GUARD"):
+            return
+        if start and vars(self).get("_headset_dialog"):
+            return   # one question at a time: its answer starts the music
+        player = self._player
+        if player is None:
+            return
+        guard = vars(self).setdefault("_headset_guard", HeadsetGuard())
+        name = self._audio_device.music_output_name()
+        master, form = self._audio_device.music_output_state()
+        before = self._mix.base
+        found = guard.assess(name, before, master, form)
+        if found is None or found == WARN:
+            if found == WARN and (start or player.playbackState()
+                                  == QMediaPlayer.PlaybackState.PlayingState):
+                self._warn_loud_headset(name, master)
+            if start:
+                player.play()
+            return
+        if not start:
+            if player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
+                guard.remember(before * master)   # warned: this level counts as asked
+                self._warn_loud_headset(name, master)
+            return
+        safe = safe_volume(master, before)
+        lower = lower_volume(master, before)
+        log.warning("🎧 Loud music on a headset\n"
+                    "output: %s\n"
+                    "system volume: %d%%\n"
+                    "app volume: %d%% (asking: keep or %d%%)", name, round(master * 100),
+                    round(before * 100), round(safe * master * 100))
+        # While the box is open `_headset_dialog` keeps every other play() and
+        # the load watchdog out. No icon: the Warning icon makes Windows play
+        # its alert sound on the app's own audio session (not the System Sounds
+        # one, so that mute misses it) at the headset's full volume. The red
+        # heading carries the warning.
+        vars(self)["_headset_dialog"] = True
+        try:
+            box = QMessageBox(self)
+            box.setIcon(QMessageBox.Icon.NoIcon)
+            box.setWindowFlag(Qt.WindowType.FramelessWindowHint)   # no grey title bar: the red box is all
+            box.setText(i18n.t("<b style='color:#d32f2f; font-size:16px'>⚠ LOUD MUSIC ON A "
+                               "HEADSET</b><br><br>The music is set to <b>%d %%</b> on "
+                               "<b>%s</b> (system volume %d %%). That can damage your "
+                               "hearing. Playback waits for your choice.")
+                        % (round(before * 100), html.escape(name), round(master * 100)))
+            box.setInformativeText(i18n.t("You are asked again only if it gets louder than "
+                                          "what you choose now."))
+            box.setStyleSheet("QMessageBox { background:#fff0f0; border:3px solid #d32f2f; }")
+            lower_ = box.addButton(i18n.t("Reduce to %d %%") % round(lower * master * 100),
+                                   QMessageBox.ButtonRole.AcceptRole)   # lowest on the left
+            reduce_ = box.addButton(i18n.t("Reduce to %d %%") % round(safe * master * 100),
+                                    QMessageBox.ButtonRole.AcceptRole)
+            keep = box.addButton(i18n.t("Keep %d %%") % round(before * 100),
+                                 QMessageBox.ButtonRole.DestructiveRole)
+            box.setDefaultButton(reduce_)
+            box.setEscapeButton(reduce_)
+            box.exec()
+        finally:
+            vars(self)["_headset_dialog"] = False
+        answer = box.clickedButton()
+        guard.remember(before * master)   # the level asked about, whatever the answer
+        if answer is lower_:
+            self._set_base_volume(lower)
+        elif answer is not keep:
+            self._set_base_volume(safe)
+        player.play()
 
     def _set_cart_volume(self, v: float):
         """🎛 The cartwall's own fader (its slider, a controller fader, the desk
@@ -205,10 +330,11 @@ class AudioLevelMixin(MainWindowHost):
             return 1.0
         if lufs is None:
             return 1.0
-        gain_db = max(-12.0, min(9.0, TARGET_LUFS - lufs))
+        gain_db = TARGET_LUFS - lufs
         if tp is not None:
             gain_db = min(gain_db, TRUE_PEAK_CEILING - tp)
-        return 10 ** (gain_db / 20)
+        # Clamp last, so a broken peak cannot cut past the floor either.
+        return 10 ** (max(-12.0, min(9.0, gain_db)) / 20)
 
     def _refresh_loudness_gain(self):
         """Take the 🔊 Equalize volume box as it stands NOW for the loaded track.

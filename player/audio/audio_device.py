@@ -7,6 +7,7 @@ the system-sound mute) and gets everything else it looks at handed in, so it is
 built and tested without a window.
 """
 import logging
+import sys
 import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING
@@ -278,6 +279,39 @@ class AudioDevice:
             return None
         dev = self._chosen_device(want, choice.get("name"))
         return None if dev is None else dev.description()
+
+    def music_output_name(self) -> str:
+        """The name of the output the music plays on right now — the chosen
+        card, or the system default it follows. "" without one."""
+        if not self._player:
+            return ""
+        dev = self.target("music")
+        return "" if dev is None or dev.isNull() else dev.description()
+
+    def music_output_state(self) -> tuple[float, int | None]:
+        """(system volume slider 0..1, Windows form factor) of the music's
+        output. The slider is the other half of how loud it is in the ears, 1.0
+        where it cannot be read; the form factor says headphones / headset /
+        line level / speakers and is None off Windows. Windows reads the very
+        device; macOS and Linux the default output."""
+        if not self._player:
+            return 1.0, None
+        form = None
+        try:
+            if sys.platform == "win32":
+                from player.audio.master_volume_win32 import endpoint_info
+                dev = self.target("music")
+                raw = b"" if dev is None or dev.isNull() else bytes(dev.id().data())
+                level, form = endpoint_info(raw.decode("utf-8", "ignore"))
+            elif sys.platform == "darwin":
+                from player.audio.master_volume_mac import master_volume
+                level = master_volume()
+            else:
+                from player.audio.master_volume_linux import master_volume
+                level = master_volume()
+        except (ImportError, OSError, ValueError):
+            return 1.0, None
+        return (1.0 if level is None else level), form
 
     def single_output(self) -> bool:
         """Whether this machine has one audio output at most — then there is

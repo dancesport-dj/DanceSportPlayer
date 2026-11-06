@@ -138,8 +138,9 @@ class LowerThreadPriorityTest(unittest.TestCase):
         with mock.patch.object(system_info.sys, "platform", "linux"), \
                 mock.patch.object(system_info.os, "PRIO_PROCESS", 0, create=True), \
                 mock.patch.object(system_info.os, "setpriority", create=True,
-                                  side_effect=PermissionError):
+                                  side_effect=PermissionError) as setpriority:
             system_info.lower_thread_priority()
+        setpriority.assert_called_once()
 
 
 if __name__ == "__main__":

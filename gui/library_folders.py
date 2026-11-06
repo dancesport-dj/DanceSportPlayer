@@ -4,11 +4,12 @@ The tree is built from the folders of the titles it is given. Folders are told
 apart by `path_key`, so a capital letter does not split one into two, and a
 folder holding nothing but one subfolder shares that subfolder's line.
 """
+import os
 from collections.abc import Iterator
 from pathlib import Path
 
-from PySide6.QtCore import QPointF, Qt, Signal
-from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPixmap, QPolygonF
+from PySide6.QtCore import QMimeData, QPointF, Qt, QUrl, Signal
+from PySide6.QtGui import QColor, QDrag, QFont, QIcon, QPainter, QPixmap, QPolygonF
 from PySide6.QtWidgets import QApplication, QTreeWidget, QTreeWidgetItem
 
 from planner import i18n
@@ -96,6 +97,8 @@ class FolderTree(QTreeWidget):
         self._search = ""
         self._sort = "name"
         self._folder_icon = _glyph_icon("📁")
+        self._press_item: QTreeWidgetItem | None = None
+        self.setDragEnabled(True)
         self.currentItemChanged.connect(lambda *_: self.folderChosen.emit())
 
     def shows(self, entries: list[MusicEntry]) -> bool:
@@ -190,7 +193,7 @@ class FolderTree(QTreeWidget):
         item.setIcon(0, self._folder_icon)
         if not node.count:
             # Nothing of its own: a click would only empty the table.
-            item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+            item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsDragEnabled)
         if parent is None:
             self.addTopLevelItem(item)
             item.setExpanded(True)
@@ -216,6 +219,37 @@ class FolderTree(QTreeWidget):
     def titles(self, key: str) -> list[MusicEntry]:
         """The titles directly in folder `key`."""
         return self._titles.get(key, [])
+
+    def mousePressEvent(self, event):
+        # A heading folder cannot be selected, so a drag starts from the line under the mouse.
+        self._press_item = self.itemAt(event.position().toPoint())
+        super().mousePressEvent(event)
+
+    def folder_mime(self, item: QTreeWidgetItem | None) -> QMimeData | None:
+        """The titles in `item`'s folder and all folders below it, as a file drop
+        (what a playlist accepts); None for 'All folders' or nothing."""
+        key = item.data(0, _KEY_ROLE) if item is not None else ""
+        if not key:
+            return None
+        below = key + os.sep
+        keys = sorted(k for k in self._titles if k == key or k.startswith(below))
+        paths = [e.path for k in keys for e in sorted(self._titles[k], key=lambda e: e.path.name.lower())]
+        if not paths:
+            return None
+        mime = QMimeData()
+        mime.setUrls([QUrl.fromLocalFile(str(p)) for p in paths])
+        mime.setText(chr(10).join(str(p) for p in paths))
+        return mime
+
+    def startDrag(self, _actions):
+        mime = self.folder_mime(self._press_item)
+        if mime is None:
+            return
+        drag = QDrag(self)
+        drag.setMimeData(mime)
+        # No Move: the shell would take the folder's MP3s out of the library.
+        drag.exec(Qt.DropAction.CopyAction | Qt.DropAction.LinkAction,
+                  Qt.DropAction.CopyAction)
 
     def choose_all(self):
         """Back to every folder, without a signal: the caller filters anyway."""

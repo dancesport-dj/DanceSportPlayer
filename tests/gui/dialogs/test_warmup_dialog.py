@@ -99,7 +99,7 @@ class WarmupDialogTest(unittest.TestCase):
             return ACCEPTED
         opts = answered(drop_then_generate)
         self.assertEqual((opts["source"], opts["m3u_path"], opts["unused_only"]),
-                         ("m3u", "C:/lists/party.m3u", False))
+                         ("m3u", "C:/lists/party.m3u", True))
 
     def test_practice_leaves_no_gap_under_the_stack(self):
         # The stack used to take the height of its tallest page (the party's,
@@ -231,6 +231,20 @@ class WarmupDialogTest(unittest.TestCase):
             return ACCEPTED
         opts = answered(act, [("W1", 3), ("W2", 5)])
         self.assertEqual((opts["source"], opts["wishlist_picks"]), ("wishlists", [1]))
+
+    def test_the_wishlist_ticks_show_only_while_their_choice_is_picked(self):
+        """Tier 3 #10: they stood there ticked under the Favorites choice."""
+        seen = {}
+
+        def act(dlg):
+            boxes = [cb for cb in dlg.findChildren(QCheckBox)
+                     if cb.text().startswith(("W1", "W2"))]
+            seen["favorites"] = [cb.isHidden() for cb in boxes]
+            wish_radio(dlg).setChecked(True)
+            seen["wishlists"] = [cb.isHidden() for cb in boxes]
+            return REJECTED
+        answered(act, [("W1", 3), ("W2", 5)])
+        self.assertEqual(seen, dict(favorites=[True, True], wishlists=[False, False]))
 
     def test_unticking_every_wishlist_asks_for_one(self):
         def act(dlg):

@@ -116,11 +116,11 @@ class MenuOrderTest(unittest.TestCase):
     def test_a_line_stands_between_any_two_groups(self):
         for name, t in self.lists().items():
             entries = self.menu(t)
-            for above, below in pairwise(entries):
-                if above is None or below is None or _group(above) == _group(below):
-                    continue
-                with self.subTest(list=name, above=above, below=below):
-                    self.fail("no line between two groups")
+            touching = [(above, below) for above, below in pairwise(entries)
+                        if above is not None and below is not None
+                        and _group(above) != _group(below)]
+            with self.subTest(list=name):
+                self.assertEqual(touching, [])
 
     def test_the_wishlist_removes_where_a_deck_removes(self):
         """Below the file, not between it and the move."""

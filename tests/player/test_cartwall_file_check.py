@@ -62,6 +62,30 @@ class OffThreadFileCheckTest(unittest.TestCase):
         self.assertTrue(button._title.text().startswith("⚠"))
         self.assertIsNotNone(w.pad_at((0, 0, 0)))
 
+    def test_a_signal_that_cannot_be_sent_does_not_stop_the_checks(self):
+        """A wall going away under the worker made the emit raise a TypeError
+        (not the RuntimeError that was expected); it escaped the thread and left
+        `_checking` set, so no pad was ever checked again."""
+        class Broken:
+            def emit(self):
+                raise TypeError("Unknown return type used in call of meta function")
+
+        w = _wall(lambda p: True)
+        self.addCleanup(reap_widget, w)
+        settle_wall_checks(w)
+        escaped = []
+        hook = threading.excepthook
+        threading.excepthook = lambda args: escaped.append(args.exc_value)
+        self.addCleanup(setattr, threading, "excepthook", hook)
+        w._filesChecked = Broken()
+        w._unasked.add("again.mp3")
+        w._startCheck()
+        end = time.monotonic() + 3.0
+        while time.monotonic() < end and not (escaped or not w._checking):
+            time.sleep(0.005)
+        self.assertEqual(escaped, [])
+        self.assertFalse(w._checking)
+
 
 if __name__ == "__main__":
     unittest.main()

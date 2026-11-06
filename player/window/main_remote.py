@@ -331,6 +331,7 @@ class RemoteMixin(MainWindowHost):
                 "playing": not self._is_player_stopped(),
                 "announce": bool(panel.announce_next()),
                 "advance": advancing,
+                "volume": float(self._mix.base),
                 # 🔀 None where titles cannot cross: the desk hides the row then.
                 "xfade": (bool(panel.xfade_on())
                           if advancing and not panel.pause_available() else None),
@@ -364,6 +365,9 @@ class RemoteMixin(MainWindowHost):
         elif cmd == "seek":
             if isinstance(arg, (int, float)):    # the server sends a float
                 self._seek_fraction(arg)
+        elif cmd == "volume":
+            if isinstance(arg, (int, float)):    # the server sends a float
+                self._set_base_volume(float(arg))
         elif cmd == "stop_pads":
             self._on_cart_stop_all()
         elif cmd == "pad":

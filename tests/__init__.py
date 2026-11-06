@@ -15,6 +15,10 @@ os.environ.setdefault("DANCEPLAYLIST_KEEP_SYSTEM_SOUNDS", "1")
 # (planner.secret_store); the one test of the store itself switches it back on.
 os.environ.setdefault("DANCEPLAYLIST_NO_SECRET_STORE", "1")
 
+# A test window must not pop the modal headset-volume warning of the machine the
+# suite runs on (player.audio.headset_guard); the guard's own tests switch it on.
+os.environ.setdefault("DANCEPLAYLIST_NO_HEADSET_GUARD", "1")
+
 # Every temp folder of this test process — the modules' mkdtemp scratch, Qt's
 # temp files, those of the processes it starts — lands in one root, removed when
 # the run ends. The modules never remove their own.

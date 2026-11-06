@@ -684,6 +684,16 @@ class RoundStructureTest(_Base):
         t._resync_dynamic_rounds()
         self.assertEqual(t._dynamic_capacity, [])
 
+    def test_a_resync_moves_the_day_plan_context_with_its_round(self):
+        """Renamed rounds kept their competition context under the old name: a
+        re-roll, the saved deck and the report then lost it."""
+        t = self.table()
+        t._playlist = {"A": [[None]], "B": [[None]], "C": [[None]]}
+        t._round_ctx = {"C": {"comp": "HGR S STD", "cls": "S"}, "A": {"comp": "x"}}
+        t._resync_dynamic_rounds()
+        self.assertEqual(t._round_ctx, {"Finale": {"comp": "HGR S STD", "cls": "S"},
+                                        "Vorrunde": {"comp": "x"}})
+
 
 class CrossStyleTest(_Base):
 

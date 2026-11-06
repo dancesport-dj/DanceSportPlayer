@@ -46,6 +46,7 @@ _FADE = QColor(216, 160, 160, 110)      # the card's fade-out colour, see-throug
 # starts: a green line, the head it skips dimmed like skipped silence.
 _FADE_IN = QColor(240, 200, 110, 120)
 _START = QColor("#4caf50")
+_TROPHY = QColor("#ffc107")   # the 🥇 cup: where it went to the celebration
 # The final seconds: the seek bar's red end warning, on the strip too.
 _PLAYED_END = QColor("#e53935")
 _AHEAD_END = QColor("#7a3035")
@@ -158,7 +159,8 @@ class WaveformStrip(QWidget):
             "red in the final seconds. The broad orange bar is where it plays.\n"
             "Shaded: silence the player skips · thin orange: Paso Doble\n"
             "highlights · red-tinted: the fade-out of a timed cut · gold: the\n"
-            "fade-in · green line: where the title starts.\n"
+            "fade-in · green line: where the title starts · golden line: where\n"
+            "a final's title faded out into the celebration.\n"
             "Click to jump there.")
         self._peaks: list[float] | None = None
         self._span = 0          # ms the strip spans (the seek bar's maximum)
@@ -170,6 +172,7 @@ class WaveformStrip(QWidget):
         self._fade_at: int | None = None
         self._start_at = 0      # ms where the title starts, 0 = the top
         self._fade_in_end: int | None = None    # ms the fade-in is through
+        self._celebrate_at: int | None = None   # ms it went to the celebration
         self._ending = False    # in the final seconds: drawn red
         self._heights: tuple | None = None     # (key, per-pixel heights)
         self._scrubbing = False     # the mouse holds the playhead
@@ -219,6 +222,14 @@ class WaveformStrip(QWidget):
         self._fade_in_end = (int(fade_in_end_ms)
                              if fade_in_end_ms is not None else None)
         self.update()
+
+    def set_celebrate_mark(self, ms):
+        """🥇 Where the title faded out and went to the celebration (file ms,
+        None = it did not)."""
+        ms = int(ms) if ms is not None else None
+        if ms != self._celebrate_at:
+            self._celebrate_at = ms
+            self.update()
 
     def set_ending(self, on: bool):
         """Red while the title is in its final seconds, like the seek bar."""
@@ -334,6 +345,9 @@ class WaveformStrip(QWidget):
             p.setBrush(grad)
             p.drawRect(QRectF(xa, 0, w - xa, h))
         self._paint_start(p, h)
+        if self._celebrate_at is not None and 0 < self._celebrate_at <= self._span:
+            p.setBrush(_TROPHY)
+            p.drawRect(QRectF(self.x_for(self._celebrate_at) - 1, 0, 2, h))
         for m in self._marks:
             if not 0 <= m <= self._span:
                 continue

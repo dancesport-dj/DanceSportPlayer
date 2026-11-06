@@ -103,7 +103,7 @@ auf ihr Symbol. Fahr mit der Maus darüber, dann siehst du den vollen Namen.
 | ▴ Decks | Klappt jedes Deck und jede Wunschliste zu einem Reiter ein. |
 | 💾 Speichern | Schreibt jedes nicht leere Deck in seine eigene `.m3u`. |
 | 📌 Zustand | Speichert jetzt die ganze Sitzung. Das passiert auch von selbst bei jeder Änderung und beim Schließen. |
-| 🧹 Leeren | Leert jedes Deck. Wunschlisten bleiben erhalten. |
+| 🧹 Leeren | Fragt, was geleert werden soll: die Wiedergabelisten (angehakt), die Wunschlisten und die 🤸 Party-Liste. Eine Art ohne Inhalt ist ausgegraut, und OK braucht einen Haken. |
 | 🚦 Prüfen ▾ | **🚦 Bereit?**, der Check vor dem Abend, siehe [Kapitel 4](04-playing.md#-bereit-vor-dem-abend). Die volle App ergänzt das Menü um 🔁 Doppelte prüfen, 🎵 Musik prüfen und 🧭 Pfade reparieren. |
 | ⧉ *n* Listen | Schaltet durch die Anzahl der Decks auf dem Bildschirm. Ein Rechtsklick geht rückwärts. |
 | 🗜 Kompakt | Schaltet die Kopfzeilen durch: voll → kompakt → ohne Gruppen → nummeriert. Ziehe den rechten Rand der Nummern, um ihre Breite zu ändern; ein Doppelklick dort stellt die automatische Breite wieder her. |
@@ -155,6 +155,11 @@ das letzte still ist. Solange sagt ein kleines Fenster *🔉 Die Musik wird
 ausgeblendet… Die App schließt gleich.*, sein Balken füllt sich mit dem
 Ausblenden. Ein zweites ✕ während des Ausblendens schließt sofort.
 Klingt nichts, schließt die App sofort.
+
+Die App läuft nur einmal gleichzeitig, denn zwei würden dieselbe Autosicherung
+schreiben, und die zuletzt geschlossene gewänne. Ein zweiter Start sagt
+*DanceSport Planner & Player läuft bereits* und schließt wieder; wechsle zum
+ersten Fenster.
 
 ## Der Player-Build
 

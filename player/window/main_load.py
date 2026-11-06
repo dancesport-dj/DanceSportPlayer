@@ -212,6 +212,7 @@ class TrackLoadMixin(MainWindowHost):
         self._playback.dance = ""
         self._playback.path = None
         self._play_panel.set_pd_loaded(False)
+        self._sync_celebrate_btn()
         self._played_marked = False
         self._playback.offset_ms = 0
         self._sync_dance_len()        # 🏆 the panel's length: the picked row's again
@@ -246,6 +247,7 @@ class TrackLoadMixin(MainWindowHost):
                 if ent is not None else ""))
         self._playback.path = path
         self._play_panel.set_pd_loaded(self._playback.dance == "PD")   # 🎯 ✖ ✏️
+        self._sync_celebrate_btn()
         self._played_marked = False   # fresh track — re-arm the 10 s rule
         self._playback.offset_ms = 0      # …and no silence skipped on it yet
         self._playback.called_in_pause = self._between.leads_in
@@ -367,6 +369,11 @@ class TrackLoadMixin(MainWindowHost):
         """Watchdog for `_play_or_stop`: verify playback really started; one
         retry, then a clean stop + status message. Stale tokens no-op."""
         if not self._player or token != self._playback.token:
+            return
+        if vars(self).get("_headset_asking") or vars(self).get("_headset_dialog"):
+            # A play held for the loud-headset question is waiting, not stuck:
+            # reloading it would only issue a second play() into the question.
+            QTimer.singleShot(2000, self, lambda: self._check_playback(token, path, retried))
             return
         if self._player.playbackState() != QMediaPlayer.PlaybackState.StoppedState:
             return   # playing — or deliberately paused by the user
@@ -591,6 +598,7 @@ class TrackLoadMixin(MainWindowHost):
         the ground it skipped is played now — the ⏳ cut counts it again. A
         🥇 final's title playing on starts over too: cut at its length again."""
         self._playback.celebrate = None
+        self._playback.celebrate_at_ms = None
         self._resume_seek_ms = None
         self._clear_resume(self._playback.path)
         self._playback.offset_ms = 0

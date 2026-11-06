@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import QTimer, QUrl
 
 from planner.playing.play_sets import crossfade_curve, crossfade_secs
+from player.audio.gated_player import GatedMediaPlayer
 from shared.audio.playback import (
     audible_played_secs,
     crossfade_levels,
@@ -180,7 +181,8 @@ class CrossfadeMixin(MainWindowHost):
         """The second player, built on first use — most evenings never fade."""
         xf = self._between.xfade
         if xf.player is None and HAS_MULTIMEDIA:
-            xf.player = QMediaPlayer(self)
+            xf.player = GatedMediaPlayer(self)   # it becomes the deck: gated like it
+            xf.player.gate = self._headset_play_gate
             xf.out = QAudioOutput(self)
             xf.player.setAudioOutput(xf.out)
             prime_disconnect_notify(xf.player, xf.out)

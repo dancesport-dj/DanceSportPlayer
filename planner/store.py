@@ -26,9 +26,11 @@ it answers read / write / remove. What each store means is still the caller's
 envelope version — but where the file is, how it is encoded, how it survives a
 crash and what happens when it cannot be read are asked once here.
 """
+import glob
 import json
 import logging
 import os
+import re
 import shutil
 import time
 from pathlib import Path
@@ -37,6 +39,9 @@ from typing import Any
 from planner import config
 
 log = logging.getLogger("dancesport.store")
+
+# Copies of an unreadable file kept per store; older ones are removed.
+KEEP_UNREADABLE = 5
 
 
 def state_dir() -> Path:
@@ -79,6 +84,8 @@ class JsonStore:
         # What happens instead when the file cannot be read — the tail of the
         # warning, so the log says what the operator will actually see.
         self.note = note
+        # The last read could not open the file (see `read`).
+        self._unopened = False
 
     @classmethod
     def at(cls, path, *, note: str = "using defaults") -> JsonStore:
@@ -103,8 +110,23 @@ class JsonStore:
         """
         path = self.path
         try:
-            return json.loads(path.read_text(encoding="utf-8"))
+            data = json.loads(path.read_text(encoding="utf-8-sig"))
+            self._unopened = False
+            return data
         except FileNotFoundError:
+            self._unopened = False
+            return default
+        except OSError as exc:
+            # Held by a sync client or a scanner: the file may be fine, and the
+            # copy-aside would fail under the same hold. It is made by the next
+            # write, which is the moment the file is at risk.
+            self._unopened = True
+            log.warning("⚠️ Could not open stored state\n"
+                        "file: %s\n"
+                        "error: %s\n"
+                        "instead: %s\n"
+                        "kept as: copied aside before the next save", path.name, exc,
+                        self.note)
             return default
         except Exception as exc:
             log.warning("⚠️ Could not read stored state\n"
@@ -133,11 +155,40 @@ class JsonStore:
             shutil.copy2(path, kept)
         except OSError:
             return None
+        JsonStore._prune_unreadable(path)
         return kept.name
+
+    @staticmethod
+    def _prune_unreadable(path: Path) -> None:
+        """Remove all but the newest KEEP_UNREADABLE copies kept aside for `path`:
+        a file that breaks on every start would otherwise fill the folder."""
+        stamp = re.compile(r"\.unreadable-(\d{8}-\d{6})(?:-(\d+))?$")
+        found = []
+        try:
+            for other in path.parent.glob(f"{glob.escape(path.stem)}.unreadable-*{path.suffix}"):
+                m = stamp.search(other.stem)
+                if m:
+                    found.append(((m.group(1), int(m.group(2) or 1)), other))
+        except OSError:
+            return
+        found.sort(key=lambda item: item[0])
+        for _, other in found[:-KEEP_UNREADABLE]:
+            try:
+                other.unlink()
+            except OSError as exc:
+                log.warning("⚠️ Old kept copy could not be removed\n"
+                            "file: %s\n"
+                            "error: %s", other.name, exc)
 
     def write(self, obj) -> bool:
         """Write the file atomically. Never raises: nothing the app persists is
         worth losing the user's next click over. False when it did not land."""
+        if self._unopened:
+            self._unopened = False
+            kept = self._keep_unreadable(self.path) if self.path.exists() else None
+            if kept is None and self.path.exists():
+                log.warning("⚠️ Stored state could not be kept aside before it is replaced\n"
+                            "file: %s", self.name)
         try:
             config.write_json_atomic(self.path, obj)
             return True

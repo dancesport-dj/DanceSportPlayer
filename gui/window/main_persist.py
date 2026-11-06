@@ -11,9 +11,6 @@ from PySide6.QtCore import (
     QSettings,
     Qt,
 )
-from PySide6.QtWidgets import (
-    QMessageBox,
-)
 
 from gui.common import (
     CART_DOCK_SHARE,
@@ -23,6 +20,7 @@ from gui.dialogs import (  # auto-resolved
     AUTOSAVE_VERSION,
     save_autosave,
 )
+from gui.dialogs.clear_all_dialog import ask_clear_all
 from gui.table.playlist_table import (  # auto-resolved
     PlaylistTable,
 )
@@ -67,27 +65,56 @@ class PersistenceMixin(ExportMixin, UndoMixin, RestoreMixin):
     """
 
     def _clear_all_playlists(self):
-        """🧹 Clear-all: empty every playlist deck after one confirm. Wishlists are
-        left untouched (clear those individually with Del on their header)."""
+        """🧹 Clear all: ask which kinds of list to empty (playlists ticked, wishlists
+        and the party / competition list not), then empty exactly those."""
         decks = [t for t in self._deckset.decks + self._deckset.day_decks if t.rowCount() > 0]
-        if not decks:
-            self.statusBar().showMessage("Nothing to clear — all playlists are empty.")
+        wishes = [t for t in self._deckset.wishlists if t.rowCount() > 0]
+        party = self._deckset.warmup_table
+        party_titles = len(party._row_meta.entries()) if self._warmup_has_content() else 0
+        if not (decks or wishes or party_titles):
+            self.statusBar().showMessage("Nothing to clear — all lists are empty.")
             return
-        n = len(decks)
-        ans = QMessageBox.question(
-            self, "Clear all playlists",
-            (i18n.t("Empty %d playlist? This can't be undone.") if n == 1
-             else i18n.t("Empty %d playlists? This can't be undone.")) % n,
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if ans != QMessageBox.StandardButton.Yes:
+        choice = ask_clear_all(self, len(decks), len(wishes), party_titles)
+        if choice is None:
             return
-        for t in self._deckset.decks + self._deckset.day_decks:
-            self._blank_deck(t)
-        self._apply_deck_view()   # clearing the day plan also retires the 📅 tab
+        do_decks, do_wishes, do_party = choice
+        if do_decks:
+            for t in self._deckset.decks + self._deckset.day_decks:
+                self._blank_deck(t)
+            self._deckset.deck_count = self._used_view(self._deckset.decks, (1, 2, 4, 8))
+            self._apply_deck_view()   # clearing the day plan also retires the 📅 tab
+        if do_wishes:
+            for t in wishes:
+                if t._current_play_row >= 0:
+                    self._play_or_stop(None)
+                t._render_flat_entries([])
+                t.host.reset_wishlist_name()
+            self._wish_state = self._used_view(self._deckset.wishlists, (1, 2, 3, 4))
+            self._update_wish_area()
+        if do_party and party_titles:
+            self._clear_party_list()
         self._autosave_playlist()
-        self.statusBar().showMessage("🧹 Cleared all playlists.")
+        self.statusBar().showMessage("🧹 Cleared the chosen lists.")
+
+    @staticmethod
+    def _used_view(tables, sizes):
+        """Smallest view in `sizes` that still shows every non-empty list of `tables`;
+        the first size (one list) stays open even when everything is empty."""
+        last = max((i + 1 for i, t in enumerate(tables) if t.rowCount() > 0), default=1)
+        return next((n for n in sizes if n >= last), sizes[-1])
+
+    def _clear_party_list(self):
+        """Empty the 🤸 party / competition list and hide its panel."""
+        t = self._deckset.warmup_table
+        if t._current_play_row >= 0:
+            self._play_or_stop(None)
+        t._warmup = False
+        t.setRowCount(0)
+        t._row_meta.clear()
+        self._warmup_folded = False
+        self._warmup_closed = False
+        self._grid.warmup_box.setVisible(False)
+        self._sync_warmup_toggle()
 
     def _stash_active_replay(self):
         """Stash the currently shown replay grid (if any) before another mode's
@@ -120,7 +147,13 @@ class PersistenceMixin(ExportMixin, UndoMixin, RestoreMixin):
             return
         dances = work["dances"]
         rounds = work["rounds"]
-        playlist = self._playlist_from_grid(work["grid"].get("rounds") or [], len(dances))
+        grid = work["grid"]
+        playlist = self._playlist_from_grid(grid.get("rounds") or [], len(dances))
+        # The marks, pins and hidden dances live in the snapshot, not in the
+        # rebuilt playlist - hand them back as a restore from disk does.
+        round_skip_dances = {r["name"]: set(r["skip_dances"])
+                             for r in grid.get("rounds") or []
+                             if r.get("skip_dances")}
 
         self._suggester = PlaylistSuggester(self._library.lib)
         self._playlist = playlist
@@ -142,6 +175,9 @@ class PersistenceMixin(ExportMixin, UndoMixin, RestoreMixin):
             play_cb=self._play_or_stop, suggester=self._suggester,
             use_timbre=self._replay_use_timbre, style=self._style,
             round_pools=self._effective_replay_pools(),
+            round_skip_dances=round_skip_dances,
+            marked={str(p) for p in (grid.get("marked") or [])},
+            pinned={str(p) for p in (grid.get("pinned") or [])},
         )
         self._cfg.save_btn.setEnabled(True)
         total = sum(1 for hl in playlist.values()
@@ -281,8 +317,12 @@ class PersistenceMixin(ExportMixin, UndoMixin, RestoreMixin):
                 i18n.t("⚠  Session not saved — the snapshot failed: %r") % (exc,))
             return None
 
-    def _autosave_playlist(self):
-        """Persist both decks + the wishlist (called after every grid edit)."""
+    def _autosave_playlist(self) -> bool:
+        """Persist both decks + the wishlist (called after every grid edit).
+
+        False when the session should have been written and was not (the
+        snapshot failed or the file did not land); True otherwise, including
+        when there was nothing worth writing."""
         self._update_wish_counts()
         self._sync_loudness_available()   # playlist content changed → re-gate 🔊
         # Keep the library's 🆕 Unplanned filter in sync with deck contents.
@@ -290,10 +330,10 @@ class PersistenceMixin(ExportMixin, UndoMixin, RestoreMixin):
         # While an undo/redo restore is in flight, don't snapshot the half-applied
         # state — _apply_env saves the authoritative snapshot itself.
         if getattr(self, "_restoring", False):
-            return
+            return True
         env = self._build_env()
         if env is None:
-            return
+            return False
         modes = env.get("deck_modes") or {}
         before = self._undo_timeline.current
         if (SessionEnv(env).holds_tracks()
@@ -306,18 +346,29 @@ class PersistenceMixin(ExportMixin, UndoMixin, RestoreMixin):
                 or any(m != "static" for m in modes.values())
                 # …or an empty 📅 tab under a name typed by hand.
                 or env.get("day_tab_keep")):
-            save_autosave(env)
+            landed = save_autosave(env)
+        else:
+            landed = True
         self._push_undo(env)
+        return landed
 
     def _save_state_now(self):
         """📌 toolbar button: persist the whole working session right now — every
         deck/wishlist plus the window layout — instead of relying on the implicit
         save-on-edit / save-on-close."""
-        self._autosave_playlist()
+        landed = self._autosave_playlist()
         self._save_layout()
         # The wall writes itself on every edit already; 📌 covers it too so the
         # button means what it says — nothing in the session is left unwritten.
         self._save_cartwall(edit=False)
+        if landed is False:
+            # The file did not land (disk full, held open by a scanner): the
+            # previous autosave is still the one on disk. Say so, don't claim.
+            msg = i18n.t("⚠  Session NOT saved — the autosave file could not "
+                         "be written. Check the disk and try again.")
+            self.statusBar().showMessage(msg)
+            show_toast(self, msg)
+            return
         msg = "📌 Session saved — decks, wishlists, 🎛 cartwall and layout."
         self.statusBar().showMessage(msg)
         show_toast(self, msg)

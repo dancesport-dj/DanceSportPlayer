@@ -215,7 +215,7 @@ def player_build() -> bool:
 
 def _load_path_config() -> dict:
     try:
-        cfg = json.loads(PATH_CONFIG_FILE.read_text(encoding='utf-8'))
+        cfg = json.loads(PATH_CONFIG_FILE.read_text(encoding='utf-8-sig'))
         if not isinstance(cfg, dict):
             raise ValueError("top-level value must be a JSON object")
         return cfg
@@ -361,6 +361,22 @@ def replacing_text(path: Path, encoding: str = "utf-8") -> Iterator[TextIO]:
             yield f
             f.flush()
             os.fsync(f.fileno())
+        _replace(tmp, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
+        raise
+
+@contextmanager
+def replacing_file(path: Path) -> Iterator[Path]:
+    """A temp path next to `path` for a writer that wants a file name, not a
+    handle (QPdfWriter). Swapped in with os.replace when the block ends cleanly;
+    an exception leaves the old file and no temp behind. The writer must be
+    done with the file — closed or deleted — before the block ends."""
+    fd, tmp = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=path.parent)
+    os.close(fd)
+    try:
+        yield Path(tmp)
         _replace(tmp, path)
     except BaseException:
         with contextlib.suppress(OSError):

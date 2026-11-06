@@ -17,7 +17,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from planner.playlist.m3u import numbered_folder_m3u
+from planner.playlist.m3u import m3u_track_sizes, numbered_folder_m3u
 
 
 class NumberedFolderM3uTest(unittest.TestCase):
@@ -258,6 +258,34 @@ class NumberedFolderM3uTest(unittest.TestCase):
             copied, missing = numbered_folder_m3u(m3u)
         self.assertEqual(missing, 1)
         self.assertEqual(len(copied), 1)
+
+    def test_a_network_line_in_a_foreign_list_is_never_touched(self):
+        """A UNC line makes Windows open an SMB session (the NTLM hash goes to
+        the host) and hangs on a dead one; the import refuses it, so must this."""
+        a = self._mp3("cha/Song A (CC 30).mp3")
+        unc = r"\\evil-host\share\Song X.mp3"
+        m3u = self._m3u("comp.m3u", [unc, str(a)])
+        real_is_file, real_stat = Path.is_file, Path.stat
+        touched = []
+
+        def is_file(self_, *args, **kw):
+            if str(self_).startswith(("\\\\", "//")):
+                touched.append(str(self_))
+            return real_is_file(self_, *args, **kw)
+
+        def stat(self_, *args, **kw):
+            if str(self_).startswith(("\\\\", "//")):
+                touched.append(str(self_))
+            return real_stat(self_, *args, **kw)
+
+        with mock.patch.object(Path, "is_file", is_file),                 mock.patch.object(Path, "stat", stat):
+            sizes = m3u_track_sizes(m3u)
+            copied, missing = numbered_folder_m3u(m3u)
+        self.assertEqual(touched, [])
+        self.assertEqual(sizes[0], 0)
+        self.assertEqual(missing, 1)
+        self.assertEqual(len(copied), 1)
+        self.assertEqual(m3u.read_text(encoding="utf-8").splitlines()[0], unc)
 
 
 if __name__ == "__main__":

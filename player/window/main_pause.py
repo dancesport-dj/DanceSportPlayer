@@ -249,7 +249,11 @@ class PauseMusicMixin(MainWindowHost):
         True when the call was actually made and the music is now waiting. A
         call that could not be made (no clips, no speech engine) holds nothing
         back — a title that never starts is worse than one announced over."""
-        if not self._play_panel.announce_wait() or not self._wants_start_call():
+        # The saved choice, not the one the panel names under a crossfade: a
+        # title that starts here is one no crossover mixes in (`_wants_start_call`
+        # leaves those out), the first of a list among them.
+        if (not self._play_panel.announce_wait_setting_on()
+                or not self._wants_start_call()):
             return False
         return bool(self._speak_start_call())
 
@@ -286,7 +290,8 @@ class PauseMusicMixin(MainWindowHost):
         Not under ⏳: there the call was made before the music started, by
         `_announce_start_first`, and naming it again would be the call arriving
         after the thing it announced."""
-        if self._play_panel.announce_wait() or not self._wants_start_call():
+        if (self._play_panel.announce_wait_setting_on()
+                or not self._wants_start_call()):
             return
         self._speak_start_call()
 

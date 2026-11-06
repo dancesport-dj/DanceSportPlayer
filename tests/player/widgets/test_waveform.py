@@ -173,6 +173,23 @@ class StripTest(unittest.TestCase):
                            plain.pixelColor(64, 17).red())
         self.assertEqual(img.pixelColor(150, 17), plain.pixelColor(150, 17))
 
+    def test_the_celebration_is_a_golden_line_where_it_faded_out(self):
+        """Marcel: once a final's title plays on and the whole waveform is
+        shown, a golden line (the cup) marks where it faded out into the celebration."""
+        w = self.strip()
+        w.set_peaks([1.0] * 300)
+        w.set_position(200_000)
+        plain = w.grab().toImage()
+        w.set_celebrate_mark(90_000)    # x = 180
+        img = w.grab().toImage()
+        line = img.pixelColor(180, 17)
+        self.assertGreater(line.red(), line.blue() + 100)     # gold, not green
+        self.assertGreater(line.green(), line.blue() + 100)
+        self.assertGreater(line.red(), line.green())
+        self.assertEqual(img.pixelColor(100, 17), plain.pixelColor(100, 17))
+        w.set_celebrate_mark(None)
+        self.assertEqual(w.grab().toImage(), plain)
+
     def test_a_title_from_the_top_has_no_start_line(self):
         w = self.strip()
         w.set_peaks([1.0] * 300)

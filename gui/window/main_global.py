@@ -66,6 +66,7 @@ from planner.models import (
 from planner.music.analysis import HAS_LIBROSA
 from planner.music.db import AudioCache
 from planner.music.library import MusicLibrary
+from planner.music.paths import set_own_shares
 from planner.music.vocals import (
     apply_vocal_shares,
     learn_instrumental_probs,
@@ -136,6 +137,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
     def _on_library_loaded(self, lib: MusicLibrary, cache: AudioCache):
         self._library.lib = lib
         self._library.cache = cache
+        lib.audio_cache = cache   # the picker rules out chroma twins with it
         note_class_tag_use(lib.entries)   # 🏷 'No class' only where classes are used
         n = len(lib.entries)
         comp = sum(1 for e in lib.entries if e.dance is not None)
@@ -805,7 +807,13 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         dlg.deleteLater()
         old = self._settings
         self._settings = new
-        save_settings(new)
+        set_own_shares(new)
+        if save_settings(new) is False:
+            QMessageBox.warning(
+                self, i18n.t("⚙  Settings"),
+                i18n.t("The settings could not be saved.\n\n"
+                       "They apply until the app is closed. Is the settings "
+                       "folder writable and the disk not full?"))
         self._follow_play_sets(old, new)   # 🎛 lists on a set edited move with it
         self._autosave_playlist()
         planner.playlist.m3u.set_m3u_format(new.get("m3u_format"))
@@ -817,6 +825,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
                 or new.get("ceremony_folders") != old.get("ceremony_folders")):
             self._lib_browser.refilter()   # 🏅 the category filter at once
         self._audio_device.sync()   # 🔊 a changed output choice, at once
+        self._guard_headset_volume()   # 🎧 …and if it is a headset, not too loud
         self._audio_device.on_activity()   # 🔇🔕 a switch flipped there
         self._sync_sound_badge()
         self._sync_dance_len()      # 🏆 per-dance lengths edited: the panel shows them
@@ -825,6 +834,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         self._set_waveform_shown(bool(new.get("show_waveform", True)))
         self._set_time_format(new.get("time_format"))
         self._set_vol_buttons_shown(new.get("vol_buttons", True) is not False)
+        self._play_panel.set_single_set_button(new.get("single_set_button", True) is not False)
         self.apply_duck_level()     # 🔉 the buttons name it; a held duck moves to it
         self.apply_cart_settings()  # 🎶 background pads: stop or mute under a title
         self.apply_cart_wall(wall)  # ⏱ 🖌 the wall's fade-out and colour

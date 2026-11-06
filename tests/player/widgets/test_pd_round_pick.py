@@ -3,7 +3,7 @@
 
 Run:  py -m unittest tests.player.widgets.test_pd_round_pick -v
 
-⚙ Settings → 🎛 Play sets gives each kind of round its Paso Doble pick — a
+⚙ Settings → 🎛 Playsets gives each kind of round its Paso Doble pick — a
 final in full, a Vorrunde after the 2nd — and that pick, not the panel's spin,
 decides the stop. The spin still read "2" over a final played in full. It now
 shows what applies: the round's highlight, and a final in full as the 3rd

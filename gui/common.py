@@ -926,7 +926,8 @@ class PathListWidget(QListWidget):
     """A list whose items can be dragged OUT as file URLs (the full path is held in
     each item's tooltip), so a dropped title can be dragged on into another zone — e.g.
     promoting one of the listed playlists into the reference-base field. Dragging an
-    item out removes it from this list (move), reported via `draggedOut`."""
+    item to a target inside the app removes it from this list, reported via
+    `draggedOut`; the file itself is only ever offered for Copy|Link."""
     draggedOut = Signal(list)   # full paths of the items dragged out
 
     def __init__(self, parent=None):
@@ -942,9 +943,13 @@ class PathListWidget(QListWidget):
         md.setUrls([QUrl.fromLocalFile(p) for p in paths])
         drag = QDrag(self)
         drag.setMimeData(md)
-        drag.exec(Qt.DropAction.MoveAction)
-        # Dragging a title out of the list removes it from here (move semantics).
-        self.draggedOut.emit(paths)
+        # No Move: the shell would take the real file (like LibTable: Copy|Link).
+        result = drag.exec(Qt.DropAction.CopyAction | Qt.DropAction.LinkAction,
+                           Qt.DropAction.CopyAction)
+        # The title leaves this list only when it was dropped on a target inside the
+        # app (the reference field) — not on Esc, on nothing, or in the Explorer.
+        if result != Qt.DropAction.IgnoreAction and drag.target() is not None:
+            self.draggedOut.emit(paths)
 
 
 class DroppedFilesList(QWidget):

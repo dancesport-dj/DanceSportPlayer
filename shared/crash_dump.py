@@ -65,10 +65,16 @@ def latest_dump_text(since: float, folder: Path | None = None) -> str:
     folder = folder or dump_dir()
     if folder is None or not folder.is_dir():
         return ""
-    found = [p for p in folder.glob("python*.dmp") if p.stat().st_mtime >= since]
+    found = []
+    for p in folder.glob("python*.dmp"):
+        try:
+            found.append((p.stat().st_mtime, p))
+        except OSError:
+            continue   # deleted while we were looking
+    found = [(m, p) for m, p in found if m >= since]
     if not found:
         return ""
-    newest = max(found, key=lambda p: p.stat().st_mtime)
+    newest = max(found, key=lambda mp: mp[0])[1]
     try:
         return "%s: %s" % (newest.name, describe(newest.read_bytes()))
     except (OSError, ValueError, struct.error):

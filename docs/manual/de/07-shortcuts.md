@@ -21,6 +21,7 @@ Auf dem Mac gilt unten **Cmd** statt **Strg**: **Cmd + F** sucht einen Titel. Di
 | **Strg + Umschalt + S** | Die ganze Sitzung speichern: Decks, Wunschlisten, Layout. |
 | **Strg + Z / Strg + Y** | Rückgängig / Wiederholen. **Strg + Umschalt + Z** wiederholt auch. |
 | **Strg + X** oder **Strg + W** | Den aktiven Dialog schließen. |
+| **Esc** bei einem Mini-Player | Den Vorhör-Mini-Player stoppen und schließen, wie **Strg + X**. Nicht, solange ein Textfeld den Fokus hat. |
 | **Entf** | Die markierten Titel nach einer Rückfrage aus einem Deck oder einer Wunschliste entfernen. In einer Partyliste lautet die Frage **Mit Slot entfernen** / **Slot behalten** / **Abbrechen**. Danach steht der Cursor auf der Zeile, die an die Stelle nachgerückt ist. |
 | **Entf** ohne Markierung | Die ganze Wiedergabeliste oder Wunschliste nach einer Rückfrage leeren. Genauso, wenn jeder Titel markiert ist. |
 | **Strg + Umschalt + Entf** | Die aktive Wiedergabeliste oder Wunschliste nach einer Rückfrage leeren, egal wo der Cursor steht. |

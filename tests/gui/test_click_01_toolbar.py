@@ -243,7 +243,7 @@ class ToolbarClickTest(ClickThrough):
         with self.clicking(), mock.patch.object(QMessageBox, "question", yes):
             self.generate(rounds="1")
             titles = self.titles()
-            self.click(self.button("Empty every playlist deck"))
+            self.clear_all()
             self.assertEqual(self.titles(), [], "🧹 left titles")
             text = AUTOSAVE.path.read_text(encoding="utf-8")
             self.assertFalse([t for t in titles if t in text], "the autosave kept the list")

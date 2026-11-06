@@ -148,5 +148,36 @@ class CompetitionTrainingTest(unittest.TestCase):
         self.assertEqual([e.title for e in res], ["SA0", "CC0", "RB0"])
 
 
+class OneRecordingPerSongTest(unittest.TestCase):
+    """A song is on a training list once, whoever recorded it."""
+
+    @staticmethod
+    def pool(*names):
+        return [MusicEntry(path=Path(f"C:/m/lateincd/{n}.mp3"), title=n, dance="SA",
+                           popularity=20 - i) for i, n in enumerate(names)]
+
+    def build(self, pool, **kw):
+        return build_competition_training(pool, "Latin", "S", ["SA"], 2, 1, 2, **kw)
+
+    def test_two_recordings_of_one_title_are_not_in_one_heat(self):
+        pool = self.pool("1-04 La Cintura (SB 50)cut", "1-04 La Cintura (SB 50)",
+                         "Bamboleo")
+        titles = [e.title for e in self.build(pool)]
+        self.assertEqual(len(titles), 2)
+        self.assertEqual(sum("Cintura" in t for t in titles), 1, titles)
+
+    def test_chroma_twins_under_different_names_are_not_both_played(self):
+        pool = self.pool("Alpha Song", "Zulu Tune", "Mango Dance")
+        a, b = (str(e.path) for e in pool[:2])
+        titles = [e.title for e in self.build(
+            pool, twins={a: frozenset({b}), b: frozenset({a})})]
+        self.assertEqual(len(titles), 2)
+        self.assertEqual(sum(t in ("Alpha Song", "Zulu Tune") for t in titles), 1, titles)
+
+    def test_without_twins_different_names_are_both_played(self):
+        pool = self.pool("Alpha Song", "Zulu Tune")
+        self.assertEqual(len(self.build(pool)), 2)
+
+
 if __name__ == "__main__":
     unittest.main()

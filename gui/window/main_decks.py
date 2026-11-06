@@ -485,6 +485,21 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
         self._warmup_check_btn.clicked.connect(
             lambda _=False: self._check_party_list())
         hb.addWidget(self._warmup_check_btn)
+        # ✋ the list as a running order edited by hand: any row dragged
+        # anywhere, nothing re-cut or re-rolled. A switch: pressed = manual,
+        # a second click builds the automatic grouping again. On the LEFT of
+        # the header, where a deck's 🔒/🔓/✋ mode button sits.
+        manual_btn = QToolButton()
+        manual_btn.setText("✋")
+        manual_btn.setAutoRaise(True)
+        manual_btn.setCheckable(True)
+        manual_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        manual_btn.clicked.connect(
+            lambda _=False: self._warmup_toggle_manual(manual_btn))
+        hb.insertWidget(0, manual_btn)
+        table.loaded.connect(lambda *_: self._sync_warmup_manual_btn(manual_btn))
+        table.cleared.connect(lambda *_: self._sync_warmup_manual_btn(manual_btn))
+        self._sync_warmup_manual_btn(manual_btn)
         # Connected after the window's own cleared handler, so it sees the
         # list already wiped.
         table.loaded.connect(self._sync_warmup_shuffle_btn)
@@ -799,6 +814,12 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
             dynamic=dynamic,
             capacity=[int(getattr(r, "heats", 0) or 0) for r in res["rounds"]],
             backups=res["backups"],
+            # Keyed by path, so they hold across the rebuilt rounds — the free
+            # list painted its rows from them, and the load resets what it is not
+            # handed. (Round-keyed state is not: the rounds were re-derived.)
+            marked=set(table._marked_paths),
+            pinned=set(table._pinned_paths),
+            m3u_path=table._m3u_path,
         )
         return lost
 
@@ -1376,6 +1397,16 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
             tables += [self._deckset.tableE, self._deckset.tableF, self._deckset.tableG, self._deckset.tableH]
         if self._day_plan_active():
             tables += self._deckset.day_decks
+        return tables
+
+    def _planned_source_tables(self) -> list[PlaylistTable]:
+        """Every list that counts as "already planned": the playlists in view and
+        the party / competition list, while it is open and holds titles."""
+        tables = list(self._visible_deck_tables())
+        party = self._deckset.warmup_table
+        if (self._warmup_has_content() and not self._warmup_closed
+                and party._row_meta.has_songs()):
+            tables.append(party)
         return tables
 
     def _checkable_deck_tables(self) -> list[PlaylistTable]:

@@ -204,7 +204,7 @@ class PanelTest(_WindowCase):
 
 
 class SettingsGridTest(unittest.TestCase):
-    """⚙ Settings → 🎛 Play sets: a length per dance in the 🏆 box."""
+    """⚙ Settings → 🎛 Playsets: a length per dance in the 🏆 box."""
 
     @classmethod
     def setUpClass(cls):

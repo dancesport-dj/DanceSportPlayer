@@ -28,6 +28,7 @@ DEFAULT_LABELS = {
     "manual": "Manual",
     "pads": "Cartwall",
     "stop_pads": "Stop all pads",
+    "volume": "Volume",
 }
 
 _PAGE = """<!doctype html>
@@ -79,6 +80,7 @@ button.on { background:#1f4f8a; outline:2px solid var(--accent); }
 #pads { display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:8px; }
 #pads button { font-size:14px; min-height:58px; padding:6px; overflow-wrap:anywhere; }
 #pads button.live { outline:3px solid var(--warn); }
+#vol { width:100%; height:36px; accent-color:var(--accent); margin:0; }
 #login { text-align:center; }
 #login button { display:inline-flex; }   /* a flex box ignores text-align */
 #login input { font:inherit; font-size:28px; text-align:center; letter-spacing:.3em;
@@ -113,6 +115,8 @@ button.on { background:#1f4f8a; outline:2px solid var(--accent); }
     <button data-cmd="hold" class="small warn"><span class="panic">__I_panic__</span><span
       id="b_hold"></span></button>
   </div>
+  <section class="card"><h2><span id="l_volume"></span> <span id="v_pct"></span></h2>
+    <input id="vol" type="range" min="0" max="100" step="1" value="0"></section>
   <div class="row"><button data-cmd="announce" class="small" id="b_announce"
     aria-pressed="false">__I_speak__<span id="l_announce"></span></button></div>
   <div class="row s"><button data-cmd="advance" class="small" id="b_advance"
@@ -141,6 +145,7 @@ const fromQr = /^#pin=([0-9]{1,8})$/.exec(location.hash);
 if (fromQr) { savePin(fromQr[1]); history.replaceState(null, "", location.pathname); }
 $("l_pin").textContent = L.pin; $("go").textContent = L.enter;
 $("l_next").textContent = L.next; $("l_pads").textContent = L.pads;
+$("l_volume").textContent = L.volume;
 $("b_fade").textContent = L.fade;
 $("b_hold").textContent = L.hold;
 $("l_announce").textContent = L.announce;
@@ -172,6 +177,11 @@ function showBar(f) {
   const pc = (100 * Math.max(0, Math.min(1, f))).toFixed(1) + "%";
   $("fill").style.width = pc; $("knob").style.left = pc;
 }
+let volDrag = false;
+function showVol(f) {
+  const pc = Math.round(100 * Math.max(0, Math.min(1, f)));
+  $("vol").value = pc; $("v_pct").textContent = pc + "%";
+}
 function render(s) {
   $("dance").textContent = s.dance || "";
   $("song").textContent = s.title || L.nothing;
@@ -194,6 +204,8 @@ function render(s) {
   $("b_xfade").classList.toggle("on", !!xf);
   $("b_xfade").setAttribute("aria-pressed", xf ? "true" : "false");
   if (held === null) showBar(s.fraction || 0);
+  // Volume: the poll leaves the slider alone while a finger is on it.
+  if (!volDrag && typeof s.volume === "number") showVol(s.volume);
   const nx = $("next"); nx.replaceChildren();
   (s.next || []).forEach(([dance, title], i) => {
     const d = document.createElement("div"), sp = document.createElement("span");
@@ -256,6 +268,19 @@ seek.addEventListener("pointerup", (e) => {
   send({ cmd: "seek", to: held }).finally(() => { held = null; });
 });
 seek.addEventListener("pointercancel", () => { seek.classList.remove("drag"); held = null; });
+// Sent while the thumb moves (at most every 150 ms) and once more on release.
+const vol = $("vol");
+let volSent = 0;
+function sendVol(final) {
+  const now = Date.now();
+  if (!final && now - volSent < 150) return;
+  volSent = now;
+  send({ cmd: "volume", level: Number(vol.value) / 100 });
+}
+vol.addEventListener("input", () => {
+  volDrag = true; $("v_pct").textContent = vol.value + "%"; sendVol(false);
+});
+vol.addEventListener("change", () => { sendVol(true); volDrag = false; });
 $("go").addEventListener("click", () => { savePin($("pin").value.trim()); poll(); });
 $("pin").addEventListener("keydown", (e) => { if (e.key === "Enter") $("go").click(); });
 poll(); setInterval(poll, 1000);

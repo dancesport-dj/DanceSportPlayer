@@ -94,7 +94,7 @@ OTHER_GENRE_LABELS: dict[str, str] = {
 
 
 # 🎚 Where inside its TSO band the 🎚 button pitches a heat — ⚙ Settings →
-# 🎛 Play sets, one choice per dance.
+# 🎛 Playsets, one choice per dance.
 class TsoBand(StrEnum):
     """Which takt of its TSO band a dance is pitched to.
 

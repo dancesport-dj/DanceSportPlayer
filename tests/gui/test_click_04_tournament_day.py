@@ -69,7 +69,7 @@ class TournamentDayClickTest(ClickThrough):
             self.assertEqual(len(saved), 2, [p.name for p in saved])
             back = []
             for path in saved:
-                self.click(self.button("Empty every playlist deck"))
+                self.clear_all()
                 self.win._grid.deck_tabs.setCurrentIndex(0)
                 self.import_list(path)
                 self.assertTrue(self.wait_until(lambda: self.titles()), path.name)

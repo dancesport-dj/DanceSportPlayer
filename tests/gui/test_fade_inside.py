@@ -6,7 +6,7 @@ Run:  py -m unittest tests.gui.test_fade_inside -v
 A play length of 1:45 with a 3 s fade used to mean: the ramp starts at 1:42
 and the title is silent at 1:45. Marcel wanted the other reading too — the
 title plays its full 1:45 and then fades — as a tick box beside the fade-out,
-on the ▶ Playing panel and in each play set (⚙ Settings → 🎛 Play sets), so
+on the ▶ Playing panel and in each play set (⚙ Settings → 🎛 Playsets), so
 the 🏆 set's per-dance lengths follow it as well. The 🎉 set fades inside by
 default, the 🏆 set after the length (see test_play_set_defaults).
 """

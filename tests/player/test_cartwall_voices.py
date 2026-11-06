@@ -748,7 +748,8 @@ class BackgroundPadTest(_VoiceCase):
         from player.audio.mix import ANNOUNCE_DUCK, OutputMix
         from player.window.main_audio import AudioLevelMixin
         desk = SimpleNamespace(_player=None, _audio_out=None,
-                               _cart_voices=self.v, _mix=OutputMix())
+                               _cart_voices=self.v, _mix=OutputMix(),
+                               _cue_player=lambda: None)
         self.v.fire((0, 0, 0), _pad("bed.mp3", background=True))
         self._rise_levels()
         desk._mix.duck = ANNOUNCE_DUCK      # the ramp under the call landed

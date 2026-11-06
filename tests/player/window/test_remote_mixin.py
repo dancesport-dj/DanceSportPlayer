@@ -29,6 +29,7 @@ def _host(pads=None, page=0, live=()):
     host._cartwall = wall
     host._cart_voices.is_playing.side_effect = lambda key: key in live
     host._remote_pad_keys = []
+    host._mix.base = 0.6
     return host
 
 
@@ -117,6 +118,14 @@ class CommandTest(unittest.TestCase):
         host = _host()
         RemoteMixin._on_remote_command(host, "seek", 0.25)
         host._seek_fraction.assert_called_once_with(0.25)
+
+    def test_state_carries_the_music_volume(self):
+        self.assertAlmostEqual(RemoteMixin._remote_state(_host())["volume"], 0.6)
+
+    def test_volume_sets_the_base_volume(self):
+        host = _host()
+        RemoteMixin._on_remote_command(host, "volume", 0.4)
+        host._set_base_volume.assert_called_once_with(0.4)
 
     def test_announce_flips_the_play_panels_toggle(self):
         """🔈 The same switch as the desk's, clicked the same way, so the

@@ -56,6 +56,8 @@ class _Desk(AudioLevelMixin):
         self._mix = OutputMix(base=0.5)
         self._mix.load_gain(2.0)
         self._big_player = _Card()
+        self._preview = None
+        self._cue_player = lambda: None
         self._playback = type("P", (), {"path": Path("x.mp3")})()
         self._vol_save_timer = type("T", (), {"start": lambda _s: None})()
 

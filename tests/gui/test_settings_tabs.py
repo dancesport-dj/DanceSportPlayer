@@ -100,7 +100,7 @@ class SettingsTabsTest(unittest.TestCase):
         before but make sure in the height they are visible on small
         screens" — as wide as a length needs, however wide the dialog is,
         and full height on a laptop screen: the page scrolls instead."""
-        self.tabs.setCurrentWidget(self.page("🎛 Play sets"))
+        self.tabs.setCurrentWidget(self.page("🎛 Playsets"))
         for size in ((1600, 1000), (700, 450)):
             self.dlg.resize(*size)
             self.dlg.show()
@@ -183,7 +183,7 @@ class LastTabTest(unittest.TestCase):
     def test_a_tab_the_app_mode_hides_falls_back_to_general(self):
         dlg, tabs = self.open()
         sets = next(i for i in range(tabs.count())
-                    if tabs.tabText(i) == "🎛 Play sets")
+                    if tabs.tabText(i) == "🎛 Playsets")
         tabs.setCurrentIndex(sets)
         dlg.reject()
         _, tabs = self.open({"app_mode": "planner"})

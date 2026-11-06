@@ -24,6 +24,7 @@ from planner.models import (
     fold_text,
     is_non_turnier,
 )
+from planner.music.parsing import song_use_keys
 from planner.music.similarity import timbre_similarity
 
 # ── Warm-up ("Eintanzen") playlist generator ────────────────────────────────
@@ -539,15 +540,17 @@ def warmup_mode_round(result, pools, mode_dances, *, first=False,
 
 
 def _warmup_pools(entries, include_standard, include_latin, include_modetaenze,
-                  modetaenze, no_paso):
+                  modetaenze, no_paso, twins=None):
     """The shuffled tracks per warm-up dance, and the Modetänze that may play."""
     pools: dict[str, list] = {}
     for e in entries:
         code = warmup_code(e)
         if code:
             pools.setdefault(code, []).append(e)
-    for lst in pools.values():
+    seen: set = set()   # one recording per song across all the dances
+    for d, lst in pools.items():
         random.shuffle(lst)
+        pools[d] = _one_per_song(lst, seen, twins)
     if no_paso:
         pools.pop('PD', None)
     if not include_standard:
@@ -567,7 +570,8 @@ def _warmup_pools(entries, include_standard, include_latin, include_modetaenze,
 def build_warmup_playlist(entries, *, include_standard=True, include_latin=True,
                           include_modetaenze=False, modetaenze=None, no_paso=False,
                           start_with_latin=False, late_ww=True, late_pd=True,
-                          max_tracks=None, progress_cb=None) -> list[MusicEntry]:
+                          max_tracks=None, progress_cb=None,
+                          twins=None) -> list[MusicEntry]:
     """Build a warm-up ('Eintanzen') playlist from `entries` — a flat, ordered
     list of MusicEntry, each track used once. Dances are drawn in alternating
     3-dance Standard / Latin rounds with optional Modetanz interludes.
@@ -578,9 +582,13 @@ def build_warmup_playlist(entries, *, include_standard=True, include_latin=True,
     manageable); None / 0 means use every eligible track. `progress_cb(done,
     total)` is called as tracks are placed (`total` is the number of tracks the
     active sections can contribute, capped at `max_tracks`), so a big library
-    shows a real progress bar instead of an indeterminate pulse."""
+    shows a real progress bar instead of an indeterminate pulse.
+
+    A song is on the list once: a second recording with the same title, or a
+    Chroma twin (`twins`, planner.music.chroma_twins), is left out."""
     pools, mode_dances = _warmup_pools(entries, include_standard, include_latin,
-                                       include_modetaenze, modetaenze, no_paso)
+                                       include_modetaenze, modetaenze, no_paso,
+                                       twins)
 
     def section_has(section):
         return any(pools.get(d) for d in section)
@@ -761,7 +769,7 @@ def class_warmup_pool(entries, style, dance, dance_class, *,
 
 def build_class_warmup(entries, style, dance_class, *, max_tracks=200,
                        fresh_ratio=0.25, relax=True,
-                       progress_cb=None) -> list[MusicEntry]:
+                       progress_cb=None, twins=None) -> list[MusicEntry]:
     """Warm-up playlist for ONE tournament class (e.g. Latin 'S'): the class's
     dances (DEFAULT_DANCES[style][dance_class]) repeated round-robin —
     SA, CC, RB, PD, JI, SA, CC, … — each track used once, every track TSO-conform.
@@ -774,7 +782,8 @@ def build_class_warmup(entries, style, dance_class, *, max_tracks=200,
     the truly-fresh ones run out) instead of just topping up the favourites — the
     old hard proven/fresh split capped "fresh" at however few pop<5 tracks existed.
     Stops at `max_tracks` or when the pools run dry. `progress_cb(done, total)` is
-    called as slots fill.
+    called as slots fill. A song is on the list once: a second recording with
+    the same title, or a Chroma twin (`twins`), is left out.
     """
     dances = DEFAULT_DANCES.get(style, {}).get(dance_class)
     if not dances:
@@ -785,11 +794,12 @@ def build_class_warmup(entries, style, dance_class, *, max_tracks=200,
     # jitter so two runs aren't byte-identical). Proven picks come off the left
     # (most-played), fresh picks off the right (least-played / never used).
     queues: dict[str, deque] = {}
+    seen: set = set()
     for d in dances:
         pool = class_warmup_pool(entries, style, d, dance_class, relax=relax)
         pool.sort(key=lambda e: (effective_popularity(e, dance_class),
                                  random.random()), reverse=True)
-        queues[d] = deque(pool)
+        queues[d] = deque(_one_per_song(pool, seen, twins))
 
     avail_total = sum(len(q) for q in queues.values())
     total = min(int(max_tracks), avail_total)
@@ -847,10 +857,31 @@ def competition_plan(dances, heats, rounds, final_heats, built):
     return plan
 
 
+def _one_per_song(pool: list, seen: set, twins) -> list:
+    """`pool` without a second recording of a song: the first of each title
+    stays (the most played, as the pool is sorted), and so does nothing whose
+    title or whose Chroma twin (`twins`, {path: other paths}) `seen` already
+    holds. `seen` is shared across the dances of one list."""
+    kept = []
+    for e in pool:
+        if getattr(e, "path", None) is None:   # the length estimate's stand-ins
+            kept.append(e)
+            continue
+        path = str(e.path)
+        keys = {path, *(twins or {}).get(path, ()),
+                *("title:" + k for k in song_use_keys(e.path.name))}
+        if any(k in seen for k in keys):
+            continue
+        seen |= keys
+        kept.append(e)
+    return kept
+
+
 def build_competition_training(entries, style, dance_class, dances, heats,
                                rounds=2, final_heats=1, *, relax=True,
                                use_timbre=True, fresh_ratio=0.0,
-                               fresh_mode="fresh", progress_cb=None) -> list[MusicEntry]:
+                               fresh_mode="fresh", progress_cb=None,
+                               twins=None) -> list[MusicEntry]:
     """Training list shaped like a competition: `rounds` rounds of `heats`
     heats each, the last round being the final with `final_heats`. One heat is
     one pass through `dances` with a track each, so 6 dances in a round of 3
@@ -868,14 +899,18 @@ def build_competition_training(entries, style, dance_class, dances, heats,
     rounds do not take those titles. `fresh_ratio` (0..1) is the share of the
     heats in the earlier rounds that go to the least-played titles instead:
     with `fresh_mode` "fresh" only new ones (at most two years in the
-    library), with "rarely" any age."""
+    library), with "rarely" any age.
+
+    A song is on the list once, whoever recorded it: a second file with the
+    same title, or one of the `twins` (planner.music.chroma_twins), is left out."""
     wanted = sum(n for _name, n in competition_rounds(heats, rounds, final_heats))
     queues: dict[str, deque] = {}
+    seen: set = set()
     for d in dances:
         pool = class_warmup_pool(entries, style, d, dance_class, relax=relax)
         pool.sort(key=lambda e: (effective_popularity(e, dance_class),
                                  random.random()), reverse=True)
-        queues[d] = deque(pool)
+        queues[d] = deque(_one_per_song(pool, seen, twins))
     # Whole heats only: the shortest pool decides how many can be filled.
     wanted = min([wanted] + [len(q) for q in queues.values()]) if queues else 0
     total = wanted * len(queues)

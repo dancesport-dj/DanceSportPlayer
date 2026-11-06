@@ -45,6 +45,19 @@ class CompetitionTrainingM3uTest(unittest.TestCase):
         out = self.export([("Runde 1", 3, 9)])
         self.assertEqual(m3u_marker_heats(out), [])
 
+    def test_a_round_marked_zero_heats_is_not_a_plan(self):
+        """A hand-edited '(0 Heats)' marker used to come back as a plan and
+        then divide by zero when the list was written out again."""
+        src = Path(tempfile.mkdtemp(prefix="dp_ctm3u_")) / "zero.m3u8"
+        src.write_text("#EXTM3U\n# ══ Runde 1 (0 Heats) ══\nC:/m/a.mp3\nC:/m/b.mp3\n"
+                       "# ══ Runde 2 (3 Heats) ══\nC:/m/c.mp3\nC:/m/d.mp3\nC:/m/e.mp3\n",
+                       encoding="utf-8")
+        plan = m3u_marker_heats(src)
+        self.assertEqual(plan, [])
+        out = Path(tempfile.mkdtemp(prefix="dp_ctm3u_")) / "again.m3u8"
+        export_flat_m3u(_entries(), "x", out_path=out, heat_rounds=plan)
+        self.assertEqual(len(read_m3u_tracks(out)), len(_entries()))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

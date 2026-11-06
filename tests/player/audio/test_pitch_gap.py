@@ -112,6 +112,9 @@ class _Panel:
         # wait" by itself — the announcement has its own tests.
         return False
 
+    def announce_wait_setting_on(self) -> bool:
+        return False
+
     def pd_editing(self) -> bool:
         return False
 

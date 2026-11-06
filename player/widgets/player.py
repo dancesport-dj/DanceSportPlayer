@@ -160,7 +160,7 @@ class PreviewOverlay(QFrame):
         top.setSpacing(4)
         close_btn = QToolButton()
         icon_button(close_btn, "close", 11, OVERLAY_INK)
-        close_btn.setToolTip("Close the preview and stop playback  (Ctrl+X)")
+        close_btn.setToolTip("Close the preview and stop playback  (Ctrl+X / Esc)")
         close_btn.clicked.connect(self.closeRequested.emit)
         top.addWidget(close_btn)
         self._primary_btns.append((close_btn, 11))   # ✕ is the mini player's stop
@@ -389,6 +389,14 @@ class PreviewOverlay(QFrame):
         self._duck_btn.setChecked(self._ducked)
         self._vol.blockSignals(True)
         self._vol.setValue(heard_percent(self._get_vol(), self._ducked, self._muted,
+                                         self._duck_pct))
+        self._vol.blockSignals(False)
+
+    def set_volume_value(self, vol: float):
+        """Show a master volume set elsewhere (the big player's slider, the
+        controller) without echoing it back through _set_vol."""
+        self._vol.blockSignals(True)
+        self._vol.setValue(heard_percent(vol, self._ducked, self._muted,
                                          self._duck_pct))
         self._vol.blockSignals(False)
 
@@ -1201,6 +1209,8 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
         resolves to the very end — e.g. a PD whose finale highlight is the
         song's own ending. `then` is drawn after an armed limit for what
         follows it — the 🥇 trophy of a final's title that plays on."""
+        if glyph != "trophy":
+            self._wave.set_celebrate_mark(None)
         self._limit_ms = int(ms) if ms else None
         self._limit_glyph = glyph
         self._limit_then = then
@@ -1208,6 +1218,10 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
         self._apply_range()
         self._update_time(self._player.position())
         self._refresh_limit()
+
+    def set_celebrate_mark(self, ms: int | None):
+        """🥇 Mark on the waveform where the title went to the celebration."""
+        self._wave.set_celebrate_mark(ms)
 
     def _end_ms(self) -> int:
         """Where playback ACTUALLY ends: the armed limit, else the track end."""

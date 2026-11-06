@@ -1126,13 +1126,14 @@ def _rotate_autosave_backups() -> None:
         log.warning("⚠️ Autosave backup rotation failed: %s", exc)
 
 
-def save_autosave(state: dict) -> None:
+def save_autosave(state: dict) -> bool:
     """Persist the current working-playlist state (best-effort, never raises).
 
     Written atomically so a crash mid-save can't corrupt the previous autosave;
-    time-spaced backup copies (.1 … .5) keep older session states recoverable."""
+    time-spaced backup copies (.1 … .5) keep older session states recoverable.
+    False when the file did not land — the caller decides what to tell the user."""
     _rotate_autosave_backups()
-    AUTOSAVE.write(state)
+    return AUTOSAVE.write(state)
 
 
 def autosave_kept_path() -> Path:
@@ -1145,12 +1146,23 @@ def keep_autosave_copy() -> Path | None:
     """Copy the autosave aside before the thinned-out desk of an incomplete
     restore gets written over it — F: unplugged at launch drops every track on
     it, and the .1 … .5 chain rotates the good file out within half an hour.
+    A copy is never overwritten: the next launch with the drive still gone sees
+    the thinned desk the last one wrote back, so it goes to `….2.json`, `….3.json`
+    and so on (unless an existing copy already holds exactly these bytes).
     Returns the copy, or None when there was nothing to copy."""
     if not AUTOSAVE.exists():
         return None
-    kept = autosave_kept_path()
+    first = autosave_kept_path()
     try:
         import shutil
+        live = AUTOSAVE.path.read_bytes()
+        kept = first
+        n = 1
+        while kept.exists():
+            if kept.read_bytes() == live:
+                return kept
+            n += 1
+            kept = first.with_name(f"{first.stem}.{n}{first.suffix}")
         shutil.copy2(AUTOSAVE.path, kept)
     except OSError as exc:
         log.warning("⚠️ Could not keep the autosave aside: %s", exc)
@@ -1168,6 +1180,12 @@ def load_autosave() -> dict | None:
         for key in validate_env(data):
             logging.warning("🗂️ Autosave: dropped %r, it has the wrong type", key)
         return data
+    if isinstance(data, dict):
+        # A newer build's file: not restored, and the first edit would write the
+        # default desk over it. (An unparseable file is kept aside by the store.)
+        kept = keep_autosave_copy()
+        logging.warning("🗂️ Autosave: version %r is not known to this build\n"
+                        "kept as: %s", data.get("version"), kept)
     return None
 
 
@@ -1519,6 +1537,10 @@ class M3uDropDialog(QDialog):
     path via m3uDropped — so e.g. the Eintanzen dialog can be filled by dragging a
     playlist onto it instead of clicking Browse…."""
     m3uDropped = Signal(str)
+    # Set by the 🤸 dialog (gui/dialogs/warmup_dialog.py) that builds it.
+    library_entries: list
+    rb_folders: QRadioButton
+    folders_chosen: list
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -1765,6 +1787,20 @@ class TournamentDayDialog(QDialog):
         } for _, style_cb, age_cb, cls_cb, pat_ed in self._rows]
 
 
+_SORT_ROLE = Qt.ItemDataRole.UserRole + 1
+
+
+class _NumberSortItem(QTableWidgetItem):
+    """A cell that shows text ("100 %  (10/10)") but sorts by the number kept
+    under `_SORT_ROLE`, so 50 % comes before 100 %."""
+
+    def __lt__(self, other):
+        mine, theirs = self.data(_SORT_ROLE), other.data(_SORT_ROLE)
+        if mine is None or theirs is None:
+            return super().__lt__(other)
+        return mine < theirs
+
+
 class LibraryGapsDialog(QDialog):
     """📊 Library gaps: one stats row per dance × start class — pool size,
     tempo compliance, proven/fresh split and staleness — with red/orange marks
@@ -1822,8 +1858,13 @@ class LibraryGapsDialog(QDialog):
                 (f"{stale_pct:.0f} %  ({r['stale']}/{r['pool']})",
                  self._C_WARN if stale_pct > 50 else None),
             ]
+            # The percentage columns sort by their number, not their text;
+            # "no tempo known" ranks below every real percentage.
+            numbers = {5: -1.0 if tempo_pct is None else tempo_pct, 9: stale_pct}
             for c, (val, color) in enumerate(cells):
-                it = QTableWidgetItem()
+                it = _NumberSortItem() if c in numbers else QTableWidgetItem()
+                if c in numbers:
+                    it.setData(_SORT_ROLE, numbers[c])
                 if isinstance(val, int):
                     it.setData(Qt.ItemDataRole.EditRole, val)
                 else:

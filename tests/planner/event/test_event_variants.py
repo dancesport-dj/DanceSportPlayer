@@ -204,6 +204,23 @@ class EventVariantTest(EventFixture, unittest.TestCase):
         self.assertIs(final[2].suggestion.anchor, er[2])
         self.assertIsNone(final[0].suggestion)       # swapped already
 
+    def test_a_title_renewed_away_is_free_for_the_next_competition(self):
+        """The title a swap took out of the first competition stayed blocked for
+        the day, although nobody plays it any more: a later competition whose own
+        history holds it went without."""
+        vr, er = self.event_list("DanceConvention 2025/HGR_S_STD.m3u", "DC")
+        self.write("DanceConvention 2025/HGR_II_S_STD.m3u", vr + er)
+        for anchor in er:
+            for i in range(3):
+                new = self.entry(f"New {i} {anchor.dance}", anchor.dance)
+                self.sounds_like[new.title] = (new, anchor, 0.9 - i / 100)
+        first, second = self.plan("HGR S STD 2-1\nHGR II S STD 2-1", "last_year_renewed")
+        gone = {str(p.replaces.entry.path) for p in self.picks(first) if p.replaces}
+        self.assertTrue(gone)
+        self.assertEqual(gone, {str(p.entry.path) for p in self.picks(second)} & gone)
+        played = [str(p.entry.path) for c in (first, second) for p in self.picks(c)]
+        self.assertEqual(len(played), len(set(played)))
+
     def test_a_suggestion_is_nowhere_else_in_the_day(self):
         self.with_new_titles()
         comps = self.plan("HGR S STD 2-1\nHGR II S STD 2-1", "last_year_renewed")
@@ -281,6 +298,18 @@ class EventVariantTest(EventFixture, unittest.TestCase):
         return event_plan.gather_candidates(
             self.lib, spec, event_plan.past_editions("danceconvention", root=self.root),
             similar=self.similar)
+
+    def test_the_class_pool_is_made_once_per_dance(self):
+        """The library tier asked class_warmup_pool again for what `fits` held."""
+        from unittest import mock
+        self.with_rare_titles()
+        real = event_plan.class_warmup_pool
+        with mock.patch.object(event_plan, "class_warmup_pool",
+                               side_effect=real) as pool:
+            c = self.cands()
+        asked = [(call.args[2], call.args[3]) for call in pool.call_args_list]
+        self.assertEqual(len(asked), len(set(asked)), asked)
+        self.assertTrue(c.library["LW"])
 
     def test_rarely_played_is_at_most_twice_at_the_class(self):
         """Titles the class has hardly heard: never, once or twice — the most

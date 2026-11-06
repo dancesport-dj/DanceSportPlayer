@@ -294,15 +294,33 @@ class SettingsOwnLooksTest(_Clean):
         self.assertEqual(looks.get(mine.key).caption, "Renamed")
         self.assertEqual(dlg.selected_theme(), mine.key)
 
+    def test_a_look_name_is_asked_about_as_text_not_markup(self):
+        """An imported look names itself; "<img src=...>" in that name must not
+        be rendered by the confirmation box (Qt's auto format does)."""
+        mine = self.made(name="Hall <b>at</b> night")
+        dlg = self.dlg({"theme": mine.key})
+        seen = []
+
+        def fake_exec(box):
+            seen.append((box.textFormat(), box.text()))
+            return QMessageBox.StandardButton.No.value
+
+        with mock.patch.object(settings_look.QMessageBox, "exec", fake_exec):
+            dlg._delete_look()
+        self.assertEqual(len(seen), 1)
+        self.assertEqual(seen[0][0], Qt.TextFormat.PlainText)
+        self.assertIn("Hall <b>at</b> night", seen[0][1])
+        self.assertIsNotNone(looks.get(mine.key))
+
     def test_delete_asks_first(self):
         mine = self.made()
         dlg = self.dlg({"theme": mine.key})
-        with mock.patch.object(settings_look.QMessageBox, "question",
-                               return_value=QMessageBox.StandardButton.No):
+        with mock.patch.object(settings_look.QMessageBox, "exec",
+                               return_value=QMessageBox.StandardButton.No.value):
             dlg._delete_look()
         self.assertIsNotNone(looks.get(mine.key))
-        with mock.patch.object(settings_look.QMessageBox, "question",
-                               return_value=QMessageBox.StandardButton.Yes):
+        with mock.patch.object(settings_look.QMessageBox, "exec",
+                               return_value=QMessageBox.StandardButton.Yes.value):
             dlg._delete_look()
         self.assertIsNone(looks.get(mine.key))
         self.assertEqual(dlg.selected_theme(), "light")
@@ -357,8 +375,8 @@ class SettingsOwnLooksTest(_Clean):
         mine = self.made()
         dlg = self.dlg({"theme": mine.key})
         self._unwritable()
-        with mock.patch.object(settings_look.QMessageBox, "question",
-                               return_value=QMessageBox.StandardButton.Yes), \
+        with mock.patch.object(settings_look.QMessageBox, "exec",
+                               return_value=QMessageBox.StandardButton.Yes.value), \
                 mock.patch.object(settings_look.QMessageBox, "warning") as warned:
             dlg._delete_look()
         self.assertEqual(warned.call_args.args[1], "Look not saved")
@@ -370,8 +388,8 @@ class SettingsOwnLooksTest(_Clean):
         theme.set_active(mine.key)
         dlg = self.dlg({"theme": mine.key})
         self._unwritable()
-        with mock.patch.object(settings_look.QMessageBox, "question",
-                               return_value=QMessageBox.StandardButton.Yes), \
+        with mock.patch.object(settings_look.QMessageBox, "exec",
+                               return_value=QMessageBox.StandardButton.Yes.value), \
                 mock.patch.object(settings_look.QMessageBox, "warning"):
             dlg._delete_look()
         self.assertEqual([lk.key for lk in user_looks.mine()], [mine.key])

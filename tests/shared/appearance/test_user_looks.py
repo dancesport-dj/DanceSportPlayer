@@ -9,6 +9,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
@@ -174,6 +175,29 @@ class OwnLookFileTest(_Clean):
         path.write_text("{", encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "not JSON"):
             user_looks.import_file(path)
+
+    def test_a_deeply_nested_file_is_refused_not_raised(self):
+        """json.loads raises RecursionError, which is no ValueError: it went
+        out of the Qt slot that called the import."""
+        path = Path(self._state) / "deep.json"
+        path.write_text("[" * 200000 + "]" * 200000, encoding="utf-8")
+        with self.assertRaises(ValueError):
+            user_looks.import_file(path)
+
+    def test_a_file_far_bigger_than_any_look_is_not_read(self):
+        path = Path(self._state) / "huge.json"
+        path.write_text('{"%s": 1, "pad": "%s"}' % (user_looks.FILE_MARK, "x" * 2_000_000),
+                        encoding="utf-8")
+        with mock.patch.object(Path, "read_text", side_effect=AssertionError("read")):
+            with self.assertRaisesRegex(ValueError, "too big"):
+                user_looks.import_file(path)
+
+    def test_a_memory_error_while_reading_is_refused_too(self):
+        path = Path(self._state) / "any.json"
+        path.write_text("{}", encoding="utf-8")
+        with mock.patch.object(Path, "read_text", side_effect=MemoryError):
+            with self.assertRaises(ValueError):
+                user_looks.import_file(path)
 
 
 if __name__ == "__main__":

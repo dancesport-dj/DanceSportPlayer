@@ -224,6 +224,39 @@ class IncompleteRestoreTest(_WindowCase):
         win._autosave_playlist()          # the first edit after the launch
         self.assertEqual(self.kept.read_bytes(), self.before)
 
+    def test_a_second_incomplete_restore_does_not_overwrite_the_first_copy(self):
+        """The first copy is the full session. The desk the first launch wrote
+        back is the thinned one; a second launch with the drive still gone
+        copied THAT over it."""
+        win = self._launch({"version": 4, "wishlist": [HERE, GONE]})
+        win._autosave_playlist()
+        full = self.before
+        self.assertEqual(self.kept.read_bytes(), full)
+
+        thin = {"version": 4, "wishlist": [HERE], "note": "thinned"}
+        win2 = self._launch({**thin, "wishlist": [HERE, GONE]})
+        win2._autosave_playlist()
+        self.assertEqual(self.kept.read_bytes(), full)
+        others = [p for p in self.kept.parent.glob(
+            self.kept.stem + "*.json") if p != self.kept]
+        self.addCleanup(lambda: [p.unlink(missing_ok=True) for p in others])
+        self.assertEqual([p.read_bytes() for p in others], [self.before])
+
+    def test_the_same_session_kept_twice_is_one_copy(self):
+        self._launch({"version": 4, "wishlist": [HERE, GONE]})
+        first = dialogs.keep_autosave_copy()
+        again = dialogs.keep_autosave_copy()
+        self.assertEqual(first, again)
+        self.assertEqual(list(self.kept.parent.glob(self.kept.stem + "*.json")),
+                         [self.kept])
+
+    def test_an_autosave_of_an_unknown_version_is_kept_aside(self):
+        """A newer build's file is not restored, and the first edit would write
+        the default desk over it."""
+        win = self._launch({"version": 99, "wishlist": [HERE]})
+        win._autosave_playlist()
+        self.assertEqual(self.kept.read_bytes(), self.before)
+
     def test_a_complete_restore_keeps_no_copy(self):
         win = self._launch({"version": 4, "wishlist": [HERE]})
         # Red on CI only (64d53d2), never here: the status bar says whether

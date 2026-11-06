@@ -111,6 +111,20 @@ class WishlistM3uTest(_Base):
         table._append_m3u(m3u)
         self.assertEqual(seen, [self.real])
 
+    def test_a_network_line_of_someone_elses_m3u_is_not_opened(self):
+        win = _Window(self.settings)
+        self.addCleanup(reap_widget, win)
+        table = PlaylistTable()
+        QVBoxLayout(win).addWidget(table)
+        seen = []
+        stub: Any = table
+        stub._entry_for = lambda path: seen.append(Path(path))
+        stub._append_entry = lambda entry, notify=True: None
+        m3u = self.tmp / "wish.m3u"
+        m3u.write_text("#EXTM3U\n\\\\evil-host\\share\\x.mp3\n", encoding="utf-8")
+        table._append_m3u(m3u)
+        self.assertEqual(seen, [])
+
 
 class _Lib:
     def __init__(self, known):

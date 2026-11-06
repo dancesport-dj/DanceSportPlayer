@@ -34,7 +34,7 @@ class SettingTest(unittest.TestCase):
 
     def test_the_defaults_unless_set(self):
         self.assertEqual(duck_ramp_ms({}), (DUCK_DOWN_MS, DUCK_UP_MS))
-        self.assertEqual((DUCK_DOWN_MS, DUCK_UP_MS), (200, 600))
+        self.assertEqual((DUCK_DOWN_MS, DUCK_UP_MS), (2000, 2000))
 
     def test_the_times_set(self):
         self.assertEqual(
@@ -129,8 +129,8 @@ class DialogTest(unittest.TestCase):
             with self.subTest(spin=name):
                 self.assertEqual(spin.suffix(), dlg._fade_in_spin.suffix())
                 self.assertEqual(spin.decimals(), dlg._fade_in_spin.decimals())
-        self.assertEqual(dlg._duck_down_spin.value(), 0.2)
-        self.assertEqual(dlg._duck_up_spin.value(), 0.6)
+        self.assertEqual(dlg._duck_down_spin.value(), 2.0)
+        self.assertEqual(dlg._duck_up_spin.value(), 2.0)
 
     def test_its_text_is_translated(self):
         from planner.i18n.lang_de import CATALOG

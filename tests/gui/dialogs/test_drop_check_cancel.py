@@ -80,6 +80,29 @@ class DropPanelCancelTest(unittest.TestCase):
         self.assertTrue(panel._cancel_btn.isHidden())
         self.assertEqual(summaries[-1], {"files": 1})
 
+    def test_a_check_that_fails_does_not_leave_the_old_results_up(self):
+        """Only a cancel was caught: any other error left the last pass's results
+        on screen, as if they belonged to the files now listed, and the host never
+        heard that the pass had ended."""
+        panel = self._panel(lambda paths, cb: QLabel("old results"))
+        panel.refresh()
+        self.assertEqual(panel._results.widget().text(), "old results")
+
+        def broken(paths, progress_cb):
+            raise OSError("share went away")
+
+        panel._run_fn = broken
+        summaries = []
+        panel.resultsReady.connect(summaries.append)
+        with self.assertLogs("dancesport.gui.drop_check", "ERROR"):
+            panel.refresh()
+        text = panel._results.widget().text()
+        self.assertNotIn("old results", text)
+        self.assertIn("share went away", text)
+        self.assertEqual(summaries, [{"files": 1}])
+        self.assertFalse(panel._busy)
+        self.assertTrue(panel._cancel_btn.isHidden())
+
     def test_the_next_drop_runs_again(self):
         runs = []
 

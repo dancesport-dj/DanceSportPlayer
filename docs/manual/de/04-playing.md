@@ -143,6 +143,9 @@ keine Goldtönung, denn die Überblendung blendet ihn ein. Ein Klick oder
 Ziehen von Hand in der Wellenform nimmt die grüne Linie weg: der Titel
 beginnt dann nicht mehr dort, wo sie stand.
 
+Eine **goldene Linie**, die Farbe des Pokals, markiert, wo ein Titel in die
+🥇 Feier hinein ausgeblendet wurde.
+
 - **Zeigst** du darauf, siehst du die Zeit unter der Maus, noch vor dem Klick.
 - Ein **Klick** springt an diese Stelle. **Ziehen** spult: Abspielkopf und
   Zeiten folgen der Maus, und die Musik springt beim Loslassen. Über den
@@ -314,6 +317,20 @@ Mit ausgeschaltetem Schalter ist ein Paso Doble ein gewöhnlicher Titel.
   auf einen anderen Titel während der Überblendung schneidet den alten
   Titel sofort ab. Jede Wiedergabeliste behält ihren eigenen Wert.
 
+- **🥇 Feier: Musik spielt weiter**: Nachdem die Spieldauer einen
+  Titel ausgeblendet hat, sinkt er ab und kommt als Hintergrund wieder
+  hoch, während die Paare feiern, bis **🔉↓** ihn ausblendet, der nächste
+  Titel startet oder die Datei endet. Ein Schalter der Liste wie die
+  anderen, pro Wiedergabeliste gemerkt und ab Werk aus. Er braucht eine
+  Spieldauer: bei *komplett* wird nichts gekürzt, dann ist der Schalter
+  weg. Er folgt nur ✋ Manuell: unter ⏭ Auto folgen ⏸ Pause und ihre Musik
+  jedem Titel, und ein Titel endet wie immer. Die
+  [Wellenform](#-die-wellenform) markiert mit einer goldenen Linie, wo der
+  Titel in die Feier überging, und die goldene Zeile unter den Ziffern
+  sagt *Spielt nach der Länge weiter*. Lautstärke, Absenken und Zeiten
+  stehen in
+  [⚙ Einstellungen ▸ 🔊 Ton & Player ▸ 🥇 Feier](06-settings.md#-feier-die-musik-spielt-weiter).
+
 ### 🔈 Nächsten Tanz ansagen
 
 Die App sagt den nächsten Tanz laut an. Ab Werk nennt sie nur den Tanz,
@@ -363,7 +380,12 @@ Die App sagt den nächsten Tanz laut an. Ab Werk nennt sie nur den Tanz,
 
 ### Abspiel-Sets
 
-Zwei Knöpfe stellen den ganzen Bereich auf einmal um:
+Drei Sets stellen den ganzen Bereich auf einmal um. Von Haus aus zeigt der
+Bereich einen Knopf, benannt nach dem Set, das an ist: golden 🏆, violett 🎉,
+grün 🏃. Ein Klick geht zum nächsten Set (🏆, 🎉, 🏃 und wieder von vorn) und
+schaltet das 🏆 Set an, wenn keins an ist. Ein Haken in
+[⚙ Einstellungen ▸ 🎛 Spiel-Sets](06-settings.md#spiel-sets) bringt einen
+Knopf je Set zurück.
 
 - **🏆 Turnier-Set**: 1:45 Spieldauer, danach 2,5 s Ausblenden, keine Pause,
   kein Überblenden, kein automatisches Weiterschalten, keine Ansage, angeglichene Lautstärke.
@@ -375,8 +397,12 @@ Zwei Knöpfe stellen den ganzen Bereich auf einmal um:
   Der 🐂 Paso Doble stoppt nach seinem 2. Highlight und startet nach 1 s.
   Es wird von selbst angewandt, wenn du aus dem 🤸 Party-Bereich spielst, und
   zurückgeschaltet, wenn ein Turnier-Deck übernimmt.
+- **🏃 Trainings-Set**: die Spielweise der Party mit der Pause wieder an:
+  25 s zwischen den Titeln, zum Reden und Aufstellen. Der 🐂 Paso Doble stoppt
+  nach seinem 2. Highlight und startet 2 s nach dem Aufruf. Die Länge der Pause
+  stellst du im Reiter Spiel-Sets ein.
 
-Ein leuchtendes Set schaltest du mit einem zweiten Klick wieder aus: die
+Bei den einzelnen Knöpfen schaltest du ein leuchtendes Set mit einem zweiten Klick wieder aus: die
 Liste kehrt zu den Werten zurück, auf denen sie vorher stand. Gibt es nichts
 zum Zurückkehren, etwa nach einem Neustart der App, bleibt das Set an, und ein
 Hinweis sagt das.
@@ -398,23 +424,24 @@ komplett oder bis zu seinem Highlight, siehe
 [⚙ Einstellungen ▸ 🎛 Spiel-Sets](06-settings.md#spiel-sets).
 
 **🥇 Finale: Die Musik spielt weiter.** Im Finale tanzen die Paare gern
-weiter oder feiern, wenn die Spieldauer um ist. Ist das im 🏆 Set
-eingeschaltet (⚙ Einstellungen ▸ 🎛 Spiel-Sets), blendet ein Titel des
-Finales an seiner Spieldauer aus wie immer, sinkt auf 5 % und kommt mit
-60 % als Hintergrund wieder hoch, bis **🔉↓** ihn ausblendet, der nächste
-Titel startet oder die Datei endet. Wähle **Nach dem letzten Tanz des
-Finales** oder **Nach jedem Tanz des Finales**; von Haus aus steht es auf
-**Aus**. Zwischen zwei Tänzen des Finales spielt er statt der ⏸ Pausenmusik.
-Eine Runde gilt als Finale, wenn sie *Finale*, *Final* oder *Endrunde*
-heißt. Der Wiedergabe-Bereich zeigt dann *eigene Länge, spielt dann weiter*.
-Lautstärke, Absenken, Halten und die Zeiten hoch und runter stehen neben dem
-Schalter.
+weiter oder feiern, wenn die Spieldauer um ist. Eine Liste im 🏆 Set, an
+der niemand etwas angefasst hat, folgt ⚙ Einstellungen ▸ 🎛 Spiel-Sets:
+Wähle dort **Nach dem letzten Tanz des Finales** oder **Nach jedem Tanz
+des Finales**; von Haus aus steht es auf **Aus**. Ein Klick auf den
+Schalter **🥇 Feier** der Liste geht vor, ein oder aus. Jede andere Liste
+spielt nur weiter, wenn ihr Schalter an ist. Zwischen zwei Tänzen des
+Finales spielt er statt der ⏸ Pausenmusik. Eine Runde gilt als Finale,
+wenn sie *Finale*, *Final* oder *Endrunde* heißt. Der Wiedergabe-Bereich
+zeigt dann *eigene Länge, spielt dann weiter*.
 
 ### 🖥 Präsentation
 
 **🖥 Präsentation** öffnet ein zweites Vollbildfenster für einen Beamer oder
 einen Monitor, der zur Fläche zeigt. Es zeigt den laufenden Titel mit seinem
-Tanz und die nächsten drei Titel.
+Tanz und die nächsten drei Titel. Hat die laufende Zeile eine Gruppe, nennt die
+Tanzzeile sie: *Langsamer Walzer · Heat 2* oder *Gruppe 2*, mit den deutschen
+Namen. Ein Tanz, der in seiner Runde nur einmal gespielt wird, zeigt den Tanz
+allein. Die Handy-Fernbedienung liest dieselbe Zeile.
 
 ![Der Präsentationsbildschirm](../img/presenter.png)
 
@@ -441,7 +468,9 @@ Titel vor, während der Saal die Musik hört. Wähl diesen Ausgang unter
 - **▶** in der 📚 Bibliothek und im Bereich 🏆 Turniere spielt dann auf dem
   Vorhör-Ausgang. Die Musik läuft weiter.
 - Das Vorhören hat einen eigenen Mini-Player mit Suchbalken, ⏮ / ⏭ und
-  Lautstärke. **✕** darauf stoppt nur das Vorhören.
+  Lautstärke, die zugleich die Hauptlautstärke ist: Der Regler zeigt und
+  setzt denselben Pegel wie der des Players. **✕** darauf stoppt nur das
+  Vorhören; **Esc** stoppt und schließt es ebenfalls, wie **Strg + X**.
 - **Strg+←/→** springt im Vorhören um 30 s, solange es läuft, in den
   Bereichen und Fenstern, die vorhören. Auf einer Deck-Zeile springen sie
   weiter in der Musik.
@@ -455,6 +484,35 @@ Titel vor, während der Saal die Musik hört. Wähl diesen Ausgang unter
   🏆 Turniere trotzdem in diesem Mini-Player, auf dem Ausgang der Musik und
   neben ihr. Der Haupt-Player und seine Karte bleiben, wie sie sind. Ein ▶ im
   Deck stoppt es.
+
+## 🎧 Laute Musik auf einem Kopfhörer
+
+Eine Lautstärke, die für die Beschallung passt, kann im Kopfhörer wehtun. Im
+Ohr kommt der Regler des Players mal der Systemregler an, 100 % in der App bei
+7 % am Systemregler sind also in Ordnung, 100 % auf beiden nicht. Soll ein
+Titel auf einem Ausgang spielen, der am Kopf getragen wird, und liegt dieses
+Produkt über 70 %, hält das Pult die Musik an und fragt zuerst:
+
+- **⚠ LAUTE MUSIK AUF EINEM KOPFHÖRER** nennt den Ausgang und beide
+  Lautstärken. Bis du antwortest, spielt nichts.
+- **Auf … senken** gibt es zweimal und stellt den Regler des Players so, dass
+  Regler mal Systemregler auf den Wert am Knopf kommt. Steht der Regler auf
+  100 %, bieten die Knöpfe 30 % und 50 % an, darunter 50 % und 70 %.
+  **Enter** und **Esc** nehmen den höheren.
+- **… beibehalten** spielt in der Lautstärke, die es war.
+
+Gefragt wirst du einmal je Stufe: Was du gewählt hast, gilt, bis die App
+schließt, und erst eine lautere Einstellung fragt erneut. Wer wieder auf eine
+Stufe hochgeht, nach der schon gefragt wurde, sieht nur einen roten Hinweis,
+solange Musik spielt. Geprüft wird, wenn ein Titel startet, die Ausgänge
+wechseln, Einstellungen angewendet werden und der Regler zur Ruhe kommt.
+
+Welche Ausgänge zählen: Windows meldet die Art jedes Ausgangs, Kopfhörer und
+Headsets werden also abgefragt, ein Audio-Interface, HDMI oder S/PDIF nie. Auf
+einem Mac oder unter Linux, und wo ein Treiber nur „Lautsprecher“ sagt,
+entscheidet der Name des Ausgangs (Headset, Kopfhörer, AirPods und ähnliche).
+Die eingebaute Buchse eines Macs kann auch einen Lautsprecher speisen, darum
+wird dort nur gefragt, wenn alles auf 100 % steht.
 
 ## 🎛 Die Cartwall
 
@@ -610,6 +668,8 @@ kannst du:
   Tänzen, startet er einfach;
 - abspielen und pausieren, zum vorigen oder nächsten Titel gehen;
 - ausblenden, oder ausblenden und halten;
+- die Lautstärke der Musik mit dem Regler unter den Ausblend-Knöpfen
+  einstellen. Er folgt einer Änderung am Pult;
 - **🔈 Nächsten Tanz ansagen** ein- oder ausschalten. Es ist derselbe
   Schalter wie im Wiedergabe-Bereich, Stimme und Zeitpunkt folgen also;
 - zwischen **⏭ Auto** und **✋ Manuell** wechseln und **🔀 Überblenden**

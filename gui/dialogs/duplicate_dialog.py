@@ -715,6 +715,13 @@ class DuplicateResolveDialog(QDialog):
         self._release_decks()
         self._play_cb(Path(path))
 
+    def _pick_replacement(self, entry):
+        """Open the replacement picker. A title being previewed stops first: it
+        would play on under the picker with its ■ still showing, and the new
+        title's ▶ then needed a second click."""
+        self._stop_preview()
+        return self._pick_fn(entry)
+
     def _release_decks(self):
         """The preview takes the decks' shared player over — the row that was
         running has to give its ■ back, or it keeps claiming the music (as in
@@ -862,7 +869,7 @@ class DuplicateResolveDialog(QDialog):
             i = st["combo"].currentData()
             if not isinstance(i, int) or i < 0:   # Keep all, or a Remove
                 return
-            new = self._pick_fn(st["members"][i]["entry"])
+            new = self._pick_replacement(st["members"][i]["entry"])
             if new is not None:
                 st["replacement"] = new
                 st["repl_lbl"].setText(self._repl_text(new))
@@ -963,7 +970,7 @@ class DuplicateResolveDialog(QDialog):
         return f"→ {prefix}{entry.title[:40]}"
 
     def _choose_replacement(self, st: dict, auto: bool = False):
-        new = self._pick_fn(st["occ"]["entry"])
+        new = self._pick_replacement(st["occ"]["entry"])
         if new is not None:
             st["replacement"] = new
             st["repl_lbl"].setText(self._repl_text(new))

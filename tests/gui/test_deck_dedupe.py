@@ -41,6 +41,7 @@ class _Table:
     the point of the test: `cleared` stays None on a deck nobody may touch."""
 
     _flat_mode = False
+    _warmup = False
 
     def __init__(self, entries, confirm=True):
         self._row_meta = RunningOrder(
@@ -71,6 +72,9 @@ class DeckCleanTest(unittest.TestCase):
                 self._tables = list(tables)
 
             def _visible_deck_tables(self):
+                return self._tables
+
+            def _planned_source_tables(self):
                 return self._tables
 
             def deck(self, table):

@@ -80,6 +80,13 @@ class FindTest(unittest.TestCase):
                 mock.patch.object(tunnel, "_INSTALL_CANDIDATES", ()):
             self.assertIsNone(tunnel.find_cloudflared(self.dirs))
 
+    def test_a_copy_in_the_current_folder_is_not_taken_from_the_path(self):
+        """Windows' lookup tries the current folder first; a cloudflared.exe
+        planted there would otherwise open the tunnel."""
+        planted = str(Path.cwd() / tunnel.binary_name())
+        with mock.patch.object(tunnel.shutil, "which", return_value=planted),                 mock.patch.object(tunnel, "_INSTALL_CANDIDATES", ()):
+            self.assertIsNone(tunnel.find_cloudflared(self.dirs))
+
     def test_an_installed_copy_off_the_path_is_found(self):
         # An app started from Finder, or before the installer touched PATH,
         # misses an installed cloudflared on the PATH: the install places count.

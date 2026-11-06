@@ -82,7 +82,8 @@ class FolderBase(unittest.TestCase):
             _library=SimpleNamespace(cache=cache, lib=SimpleNamespace(entries=self.entries),
                                      global_lib=None),
             _lib_browser=self.browser,
-            _visible_deck_tables=lambda: [deck])
+            _visible_deck_tables=lambda: [deck],
+            _planned_source_tables=lambda: [deck])
         win._deck_dedup_index = functools.partial(
             DuplicateCheckMixin._deck_dedup_index, win)
         LibraryPaneMixin._refresh_library_planned_filter(win)

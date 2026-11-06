@@ -104,7 +104,12 @@ def resolve_file(path, settings) -> Path | None:
     copy `search_roots` holds, else None. It only finds; the stored path is
     the caller's and stays as it was, so a stick that comes back under its
     old letter is used again."""
-    if _is_file(path):
+    if is_network_path(path):
+        if is_own_share(path, settings) and _is_file(path):
+            return Path(path)
+        # Someone else's UNC line: no stat on it (see `is_local_file`).
+        # Its folder names may still match a copy under the local search roots.
+    elif _is_file(path):
         return Path(path)
     return FileFinder(search_roots(settings)).remap(path)
 
@@ -124,10 +129,61 @@ def is_local_file(path) -> bool:
     user's NTLM hash goes to the host) and the calling thread hangs on a dead
     one. A library kept on a NAS is not affected, its entries never come
     through here."""
-    text = str(path).strip().strip('"')
-    if text.startswith(("\\\\", "//")) or "://" in text:
+    if is_network_path(path):
         return False
-    return _is_file(text)
+    return _is_file(str(path).strip().strip('"'))
+
+
+def is_network_path(path) -> bool:
+    """A UNC (`//host/share`, either slash) path, or a `scheme://` one."""
+    text = str(path).strip().strip('"')
+    return text.startswith(("\\\\", "//")) or "://" in text
+
+
+def _slashes(path) -> str:
+    return str(path).strip().strip('"').replace("\\", "/").rstrip("/").lower()
+
+
+def is_own_share(path, settings) -> bool:
+    """True when a network `path` lies under a share the user configured themself:
+    the library or global folder, the Referenzpfad or a search folder. A library kept
+    on a NAS has to resolve; a UNC line from someone else's file does not."""
+    settings = settings or {}
+    roots = [settings.get("library_dir"), settings.get("global_dir"),
+             settings.get("reference_path"), *(settings.get("remap_paths") or [])]
+    target = _slashes(path)
+    for root in roots:
+        base = _slashes(root) if root else ""
+        if base.startswith("//") and (target == base or target.startswith(base + "/")):
+            return True
+    return False
+
+
+_own_shares: dict = {}
+
+
+def set_own_shares(settings) -> None:
+    """Remember which network folders the user configured themself, for the
+    callers that have no settings at hand (the audio probes, the playlist
+    reader). Called wherever the settings are loaded or replaced."""
+    global _own_shares
+    settings = settings or {}
+    _own_shares = {key: settings.get(key) for key in
+                   ("library_dir", "global_dir", "reference_path", "remap_paths")}
+
+
+def is_foreign_network(path) -> bool:
+    """A network path that is NOT under a share the user configured."""
+    return is_network_path(path) and not is_own_share(path, _own_shares)
+
+
+def is_probeable(path) -> bool:
+    """True when `path` is a real file that is safe to stat and to hand to
+    ffmpeg/fpcalc: never a foreign UNC or URL line (see `is_local_file`), but
+    a library on a configured NAS share is."""
+    if is_foreign_network(path):
+        return False
+    return _is_file(str(path).strip().strip('"'))
 
 
 class PathRemapper:

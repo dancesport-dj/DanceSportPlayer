@@ -43,7 +43,7 @@ class _FakeBuilder:
     """Stands in for WarmupBuilder — remembers the pool it was handed."""
     last = None
 
-    def __init__(self, src, mode, params, parent=None):
+    def __init__(self, src, mode, params, parent=None, cache=None):
         _FakeBuilder.last = list(src)
         self.progress = self.done = self.error = self.finished = _Signal()
 
@@ -80,6 +80,7 @@ class _Win:
         self._deckset = DeckSet()
         self._deckset.wishlists = []
         self._opts = opts
+        self._settings = {"library_dir": "C:/lib"}
         self._planned = list(planned)
 
     _generate_warmup = gen.GenerateMixin._generate_warmup
@@ -92,6 +93,9 @@ class _Win:
         # One open deck holding the planned tracks.
         meta = type("M", (), {"entries": lambda _s: list(self._planned)})()
         return [type("D", (), {"_row_meta": meta})()]
+
+    def _planned_source_tables(self):
+        return self._visible_deck_tables()
 
     def statusBar(self):
         return _Bar()
@@ -162,6 +166,19 @@ class WarmupSourceTest(unittest.TestCase):
         got = self._run([planned, _entry("SA 2")],
                         dict(_PARTY, unused_only=True), planned=[planned])
         self.assertEqual(got, ["SA 2"])
+
+    def test_skip_greyed_also_applies_to_the_chosen_folders(self):
+        planned = _entry("SA 1")
+        opts = dict(_PARTY, source="folders", unused_only=True,
+                    folders=["lateincd/SA"])
+        got = self._run([planned, _entry("SA 2")], opts, planned=[planned])
+        self.assertEqual(got, ["SA 2"])
+
+    def test_the_folders_source_keeps_to_the_chosen_folders(self):
+        opts = dict(_PARTY, source="folders", folders=["lateincd/SA"])
+        got = self._run([_entry("SA 1"), _entry("Rumba 1", "lateincd/RU")],
+                        opts)
+        self.assertEqual(got, ["SA 1"])
 
 
 if __name__ == "__main__":

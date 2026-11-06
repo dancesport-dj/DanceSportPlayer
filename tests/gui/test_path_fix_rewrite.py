@@ -11,6 +11,7 @@ for good — with no copy to go back to.
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from planner.playlist.playlist_text import (
     PlaylistEncodingError,
@@ -66,6 +67,22 @@ class RewriteKeepsTheTextTest(unittest.TestCase):
         backup = self.m3u.with_name(self.m3u.name + ".bak")
         self.assertEqual(backup.read_bytes(), before)
 
+    def test_a_second_fix_keeps_the_first_original(self):
+        """The .bak is the only way back to what the user had. A second fix
+        pass copied the already-rewritten file over it."""
+        before = self._write("#EXTM3U\n" + _OLD + "\n", "cp1252")
+        _rewrite(self.m3u)
+        newer = r"G:\other\tanzcds\LW\Mondschein über Wien (LW 29).mp3"
+
+        class _Again:
+            def remap(self, path):
+                return Path(newer) if str(path) == _NEW else None
+
+        self.assertEqual(rewrite_playlist_paths(self.m3u, _Again()), 1)
+        self.assertIn(newer, self.m3u.read_bytes().decode("cp1252"))
+        backup = self.m3u.with_name(self.m3u.name + ".bak")
+        self.assertEqual(backup.read_bytes(), before)
+
     def test_an_undecodable_playlist_is_left_alone(self):
         before = self.m3u.write_bytes(b"#EXTM3U\n\x81\x8d " + _OLD.encode("cp1252")
                                       + b"\n") and self.m3u.read_bytes()
@@ -81,6 +98,25 @@ class RewriteKeepsTheTextTest(unittest.TestCase):
             _rewrite(self.m3u, _Remapper(r"F:\my music\Łódź.mp3"))
         self.assertEqual(self.m3u.read_bytes(), before)
         self.assertFalse(self.m3u.with_name(self.m3u.name + ".bak").exists())
+
+    def test_another_writers_temp_file_is_not_shared(self):
+        """The temp name was fixed (<name>.tmp), so two writers on the same
+        playlist wrote into one file and one of them swapped in the mix."""
+        self._write("#EXTM3U\n" + _OLD + "\n", "cp1252")
+        other = self.m3u.with_name(self.m3u.name + ".tmp")
+        other.write_bytes(b"the other writer's half-written text")
+        _rewrite(self.m3u)
+        self.assertEqual(other.read_bytes(), b"the other writer's half-written text")
+        self.assertIn(_NEW, self.m3u.read_bytes().decode("cp1252"))
+        leftovers = [p.name for p in self.dir.iterdir()
+                     if p.name.endswith(".tmp") and p != other]
+        self.assertEqual(leftovers, [])
+
+    def test_the_text_is_synced_before_it_replaces_the_playlist(self):
+        self._write("#EXTM3U\n" + _OLD + "\n", "cp1252")
+        with mock.patch("planner.playlist.playlist_text.os.fsync") as fsync:
+            _rewrite(self.m3u)
+        fsync.assert_called_once()
 
 
 class ReRootedTest(unittest.TestCase):
