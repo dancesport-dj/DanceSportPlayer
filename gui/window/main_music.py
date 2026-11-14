@@ -24,10 +24,12 @@ from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QDialog,
+    QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
     QPushButton,
+    QScrollArea,
     QTableWidget,
     QTableWidgetItem,
     QTabWidget,
@@ -60,6 +62,7 @@ from shared.audio.playback import power_status
 from shared.columns import (
     _COL_TITLE,
 )
+from shared.plain_text import plain_tip
 from shared.widgets import (
     show_toast,
 )
@@ -92,6 +95,20 @@ class _MusicReportDialog(QDialog):
     def reset_play_marker(self):
         """An all-clear report has no ▶ to reset; a suspects table replaces this."""
         self._play_state["row"] = -1
+
+    def done(self, result: int):
+        # Close and Escape both end here. The window deletes itself on close, and a
+        # close delivered by a drop check's progress tick would take the panel away
+        # under the running pass (9.B): stop the pass, close once it has ended.
+        panel = getattr(self, "_music_panel", None)
+        if panel is not None and panel.busy():
+            panel.cancel()
+            if not getattr(self, "_close_pending", False):
+                self._close_pending = True
+                panel.resultsReady.connect(lambda *_: self.done(result),
+                                           Qt.ConnectionType.SingleShotConnection)
+            return
+        super().done(result)
 
 
 class MusicCheckMixin(TagEditMixin):
@@ -498,7 +515,7 @@ class MusicCheckMixin(TagEditMixin):
         power (left out where nobody can tell)."""
         dev = self._audio_device
         out = [readiness.outputs_finding(dev.unplugged(), dev.cue_on_music(),
-                                         dev.cue_shares_music())]
+                                         dev.cue_shares_music(), dev.rehearsal_profile())]
         connected, _shown = self.controller_status()
         ctl = readiness.controller_finding(self.controller_config()["device"], connected)
         if ctl is not None:
@@ -830,7 +847,7 @@ class MusicCheckMixin(TagEditMixin):
                     f = it.font()
                     f.setStrikeOut(True)
                     it.setFont(f)
-                it.setToolTip(note)
+                it.setToolTip(plain_tip(note))
             self.statusBar().showMessage(note)
             show_toast(self, note)
 
@@ -911,7 +928,7 @@ class MusicCheckMixin(TagEditMixin):
         t.setCellWidget(r, 0, pb)
         pl_txt = ", ".join(pnames)
         pl_it = QTableWidgetItem(pl_txt)
-        pl_it.setToolTip(i18n.t("In playlist: %s") % pl_txt)
+        pl_it.setToolTip(plain_tip(i18n.t("In playlist: %s") % pl_txt))
         t.setItem(r, 1, pl_it)
         tip = entry_tooltip(e)
         dance_it = QTableWidgetItem(dance_name(e.dance, e.dance or "?"))
@@ -1031,11 +1048,11 @@ class MusicCheckMixin(TagEditMixin):
             pb.clicked.connect(lambda _=False, p=e.path, b=pb: on_play(p, b))
             t.setCellWidget(r, 0, pb)
             pl_it = QTableWidgetItem(pname)
-            pl_it.setToolTip(pname)
+            pl_it.setToolTip(plain_tip(pname))
             t.setItem(r, 1, pl_it)
             t.setItem(r, 2, QTableWidgetItem(dance_name(e.dance, e.dance or "?")))
             title_it = QTableWidgetItem(e.title or "")
-            title_it.setToolTip(str(e.path))
+            title_it.setToolTip(plain_tip(e.path))
             t.setItem(r, 3, title_it)
             lab = QTableWidgetItem(f"T{e.bpm}" if getattr(e, "bpm", 0) else "—")
             lab.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -1226,6 +1243,17 @@ class MusicCheckMixin(TagEditMixin):
         song_rows = self._deckset.warmup_table._row_meta.song_rows()
         targets: list[int] = []
 
+        # The panels scroll, the head and the buttons stay: a list of 400
+        # titles can hold hundreds of findings.
+        area = QScrollArea()
+        area.setWidgetResizable(True)
+        area.setFrameShape(QFrame.Shape.NoFrame)
+        body = QWidget()
+        body_lyt = QVBoxLayout(body)
+        body_lyt.setContentsMargins(0, 0, 0, 0)
+        area.setWidget(body)
+        lyt.addWidget(area, 1)
+
         def panel(title, group, bg, border):
             lines = []
             for f in group:
@@ -1244,7 +1272,7 @@ class MusicCheckMixin(TagEditMixin):
                               "border-radius:4px; padding:6px;")
             lbl.linkActivated.connect(
                 lambda href: self._reveal_warmup_row(targets[int(href)]))
-            lyt.addWidget(lbl)
+            body_lyt.addWidget(lbl)
 
         for category, title, bg, border in self._PARTY_GROUPS:
             group = [f for f in findings if f.category == category]
@@ -1255,9 +1283,9 @@ class MusicCheckMixin(TagEditMixin):
             ok = QLabel("✅  Nothing to report — the list reads like one the "
                         "party builder would have made.")
             ok.setWordWrap(True)
-            lyt.addWidget(ok)
+            body_lyt.addWidget(ok)
 
-        lyt.addStretch(1)
+        body_lyt.addStretch(1)
         row = QHBoxLayout()
         row.addStretch(1)
         again = QPushButton("↻  Check again")
@@ -1268,5 +1296,7 @@ class MusicCheckMixin(TagEditMixin):
         row.addWidget(close)
         lyt.addLayout(row)
 
-        dlg.resize(760, 420)
+        screen = self.screen().availableGeometry()
+        dlg.resize(760, min(max(420, body.sizeHint().height() + 120),
+                            screen.height() - 80))
         dlg.show()

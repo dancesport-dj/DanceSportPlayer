@@ -148,5 +148,45 @@ class DropPanelCancelTest(unittest.TestCase):
         self.assertEqual(visible, [False, True])
 
 
+class CloseDuringPassTest(unittest.TestCase):
+    """Review 9.B: the 🎵 window deletes itself on close, and a close delivered by
+    a tick's processEvents took the panel away under the running pass: the next
+    tick raised, the check logged a failure and _refresh raised into the slot."""
+
+    def _run_closing(self, how):
+        from PySide6.QtCore import QEvent, Qt
+
+        from gui.window.main_music import _MusicReportDialog
+        dlg = _MusicReportDialog()
+        dlg.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        panel = FileDropCheckPanel("info", run_fn=lambda ps, cb: QLabel(""), parent=dlg)
+        dlg._music_panel = panel
+        panel._files.add_paths(["C:/t/a.m3u"])
+        dlg.show()
+        seen = []
+
+        def run(paths, progress_cb):
+            QTimer.singleShot(0, lambda: how(dlg))
+            for done in range(1, 41):
+                progress_cb(done, 40)
+                seen.append(done)
+            return QLabel("all done")
+
+        panel._run_fn = run
+        with self.assertNoLogs("dancesport.gui.drop_check", "ERROR"):
+            panel.refresh()
+        self.assertLess(len(seen), 40, "the close stopped the pass")
+        QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete.value)
+        QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete.value)
+        import shiboken6
+        self.assertFalse(shiboken6.isValid(dlg), "the window closed once the pass ended")
+
+    def test_close_waits_for_the_pass(self):
+        self._run_closing(lambda dlg: dlg.close())
+
+    def test_escape_waits_for_the_pass(self):
+        self._run_closing(lambda dlg: dlg.reject())
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

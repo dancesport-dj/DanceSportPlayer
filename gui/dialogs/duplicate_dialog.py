@@ -75,6 +75,7 @@ from planner.config import replacing_text
 from planner.music.parsing import detect_bpm, detect_dance
 from planner.playlist.planned import path_key
 from planner.terms import dance_name
+from shared.plain_text import plain_label, plain_tip
 
 log = logging.getLogger("dancesport.gui")
 
@@ -168,6 +169,10 @@ class DuplicateResolveDialog(QDialog):
         btns.addWidget(self._action_btn)
         root.addLayout(btns)
         self._update_tab_action()
+        # Enter applies: the Keep / Replace choices are made above, and Apply
+        # is the answer almost every time the dialog comes up.
+        if self._action_btn.isVisibleTo(self) and self._action_btn.isEnabled():
+            self._action_btn.setFocus()
         self._sync_modality()
 
     def _sync_modality(self, *_):
@@ -208,6 +213,8 @@ class DuplicateResolveDialog(QDialog):
             btn.setEnabled(True)
         else:
             btn.setVisible(False)
+        # Enter does the tab's action when it has one on show.
+        btn.setDefault(not btn.isHidden() and btn.isEnabled())
 
     def _on_tab_action(self):
         w = self._tabs.currentWidget()
@@ -372,7 +379,7 @@ class DuplicateResolveDialog(QDialog):
         self._ref_zone = MultiFileDropZone()
         self._ref_zone.filesDropped.connect(self._on_ref_dropped)
         lyt.addWidget(self._ref_zone)
-        self._ref_lbl = QLabel("No reference playlist yet.")
+        self._ref_lbl = plain_label("No reference playlist yet.")   # later holds a file name
         self._ref_lbl.setStyleSheet("color:#556; font-size:11px;")
         lyt.addWidget(self._ref_lbl)
 
@@ -520,7 +527,7 @@ class DuplicateResolveDialog(QDialog):
                 it = QTableWidgetItem(text)
                 it.setForeground(QColor(colour))
                 if c == 4:
-                    it.setToolTip(str(path))
+                    it.setToolTip(plain_tip(path))
                 self._ref_overview.setItem(r, c, it)
         self._ref_overview.resizeColumnsToContents()
         hh = self._ref_overview.horizontalHeader()
@@ -652,7 +659,7 @@ class DuplicateResolveDialog(QDialog):
 
     @staticmethod
     def _col_header(text: str) -> QLabel:
-        lbl = QLabel(text)
+        lbl = plain_label(text)   # carries a playlist's file name
         lbl.setStyleSheet("font-weight:bold; font-size:11px; color:#2c3e60;")
         lbl.setWordWrap(True)
         return lbl
@@ -670,7 +677,7 @@ class DuplicateResolveDialog(QDialog):
         # Escaped like every other tooltip built from track metadata (see
         # _entry_tooltip): a tooltip is rich text too, so an <img> in a title
         # would be fetched.
-        lbl.setToolTip(html.escape(
+        lbl.setToolTip(plain_tip(
             f"{rec.get('title', '')}\n{rec.get('path', '')}".strip()))
         lbl.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         lbl.setStyleSheet("font-size:11px;")
@@ -910,7 +917,7 @@ class DuplicateResolveDialog(QDialog):
             row.addWidget(btn, 0, Qt.AlignmentFlag.AlignTop)
         lbl = QLabel(f"<b>{prefix}</b> &nbsp; {title}")
         lbl.setWordWrap(True)
-        lbl.setToolTip(rec.get("path", ""))
+        lbl.setToolTip(plain_tip(rec.get("path", "")))
         lbl.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         lbl.setStyleSheet("font-size:11px; margin-left:10px;")
         row.addWidget(lbl, stretch=2)
@@ -958,7 +965,7 @@ class DuplicateResolveDialog(QDialog):
         head = f"<b>{prefix}</b> &nbsp; " if prefix else ""
         lbl = QLabel(f"{head}{title}")
         lbl.setWordWrap(True)
-        lbl.setToolTip(path_tip)
+        lbl.setToolTip(plain_tip(path_tip))
         lbl.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         lbl.setStyleSheet("font-size:11px; margin-left:10px;")
         return lbl

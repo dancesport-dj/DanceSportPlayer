@@ -77,6 +77,42 @@ class ScanSlowFilesTest(unittest.TestCase):
         self.assertEqual(len(names), _FILES)
         self.assertEqual(names[-1], slow)
 
+    def test_the_wait_for_a_set_aside_file_holds_no_write_lock(self):
+        # Review 5.A: the scan waited for the stuck file inside its open write
+        # transaction, so every other writer (the play log on the GUI thread,
+        # tag edits) waited out its busy timeout and failed.
+        import sqlite3
+        slow = "Waltz 03 LW 29.mp3"
+        real_read = library._read_new_file
+        real_late = library._ReadAhead.late
+        waiting = threading.Event()
+        other_writer = []
+
+        def late(self_, path, should_quit):
+            waiting.set()
+            return real_late(self_, path, should_quit)
+
+        def read(path, *args):
+            if path.name == slow:
+                waiting.wait(10)
+                conn = sqlite3.connect(self.dir / "scratch.db", timeout=0.5)
+                try:
+                    conn.execute("BEGIN IMMEDIATE")
+                    conn.rollback()
+                    other_writer.append("wrote")
+                except sqlite3.OperationalError as exc:
+                    other_writer.append(str(exc))
+                finally:
+                    conn.close()
+            return real_read(path, *args)
+
+        with mock.patch.object(library, "_STALL_SECS", 0.2), \
+                mock.patch.object(library, "_read_new_file", read), \
+                mock.patch.object(library._ReadAhead, "late", late):
+            lib = self.scan()
+        self.assertEqual(other_writer, ["wrote"])
+        self.assertEqual(len(lib.entries), _FILES)
+
     def test_the_late_read_can_still_be_cancelled(self):
         release = threading.Event()
         self.addCleanup(release.set)

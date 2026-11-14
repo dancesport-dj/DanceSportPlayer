@@ -8,7 +8,7 @@ import unittest
 from unittest import mock
 
 from shared.remote import guest_server as gs
-from shared.remote.guest_page import GUEST_CODE_HEADER, MAX_WISH, page_html
+from shared.remote.guest_page import GUEST_CODE_HEADER, MAX_WISH, guest_page_html
 
 SONGS = [("a1b2c3d4", "Moon River", "Andy Williams", "Slow Waltz"),
          ("0f0f0f0f", "Senorita", "Shawn Mendes", "Samba")]
@@ -317,28 +317,28 @@ class CodeTest(unittest.TestCase):
 
 class PageTest(unittest.TestCase):
     def test_the_code_is_taken_from_the_address(self):
-        html = page_html({})
+        html = guest_page_html({})
         self.assertIn('hash.get("e")', html)
         self.assertIn(f'"{GUEST_CODE_HEADER}": code', html)
         self.assertIn(f'maxlength="{MAX_WISH}"', html)
 
     def test_every_address_is_relative(self):
-        html = page_html({})
+        html = guest_page_html({})
         for path in ("api/catalog", "api/now", "api/request"):
             self.assertIn(f'"{path}"', html)
         self.assertNotIn('"/api/', html)
 
     def test_a_translation_cannot_break_out(self):
-        html = page_html({"title": "</script><b>", "send": "</script>x"})
+        html = guest_page_html({"title": "</script><b>", "send": "</script>x"})
         self.assertNotIn("</script><b>", html)
         self.assertIn("<title>&lt;/script&gt;&lt;b&gt;</title>", html)
         self.assertEqual(html.count("</script>"), 1)
 
     def test_server_text_goes_onto_the_page_as_text(self):
-        self.assertNotIn("innerHTML", page_html({}))
+        self.assertNotIn("innerHTML", guest_page_html({}))
 
     def test_up_next_is_a_tab_beside_the_requests(self):
-        html = page_html({"tab_request": "Wünschen", "tab_next": "Gleich danach"})
+        html = guest_page_html({"tab_request": "Wünschen", "tab_next": "Gleich danach"})
         self.assertIn('id="tab_request"', html)
         self.assertIn('id="tab_next"', html)
         self.assertIn('"tab_next": "Gleich danach"', html)

@@ -84,8 +84,9 @@ class FakeBusy:
 class FakeWorker:
     made = []
 
-    def __init__(self, src, mode, params, parent, cache=None):
+    def __init__(self, src, mode, params, parent, cache=None, title_twins=None):
         self.args = (src, mode, params)
+        self.title_twins = title_twins
         self.progress, self.done, self.error, self.finished = Sig(), Sig(), Sig(), Sig()
         self.started = False
         FakeWorker.made.append(self)
@@ -442,6 +443,14 @@ class TournamentDayTest(Case):
         self.assertTrue(skipped[1].endswith("— no songs"))
         self.assertEqual(len(used_today), 1)
 
+    def test_a_deck_that_will_not_load_does_not_leave_the_busy_box_up(self):
+        """BusyDialog is application-modal: left open by an exception, nothing
+        in the window could be clicked again."""
+        self.h._load_day_deck.side_effect = RuntimeError("grid broke")
+        with self.assertRaises(RuntimeError):
+            self.plan([self.good])
+        self.assertTrue(FakeBusy.made[0].finished)
+
     def test_a_day_of_nothing_loads_no_deck(self):
         self.plan([self.bad])
         self.h._load_day_deck.assert_not_called()
@@ -548,6 +557,14 @@ class ReplayGenerateTest(Case):
         self.run_replay(bad)
         self.assertEqual(self.box.critical.call_args.args[1], "Generate Error")
         self.h._adopt_replay_spec.assert_not_called()
+
+    def test_a_failure_after_the_suggester_does_not_leave_generate_grey(self):
+        self.h._adopt_replay_spec.side_effect = RuntimeError("no spec")
+        with self.assertRaises(RuntimeError):
+            self.run_replay()
+        self.assertEqual(
+            self.h._cfg.generate_btn.setEnabled.call_args_list[-1],
+            mock.call(True))
 
     def test_a_seeded_run_tags_each_track_with_the_lists_it_came_from(self):
         self.run_replay()
@@ -840,6 +857,28 @@ class M3uLoadTest(Case):
         self.assertEqual(dlg.progress, [(1, 2, "x")])
         gen.QApplication.processEvents.assert_called_once()
 
+    def sized_m3u(self, size):
+        import tempfile
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = Path(tmp.name) / "big.m3u"
+        path.write_bytes(b"x" * size)
+        return str(path)
+
+    def test_a_big_list_gets_its_dialog_before_the_read_starts(self):
+        # The delayed show is a timer, and a read that blocks never lets it
+        # fire: the window froze with nothing to look at until the first tick.
+        h = _host("_m3u_progress")
+        dlg, _tick = h._m3u_progress(self.sized_m3u(gen.BIG_M3U_BYTES))
+        self.assertEqual(dlg.shown_after, 0)
+        gen.QApplication.processEvents.assert_called_once()
+
+    def test_a_small_list_still_waits_before_showing_a_dialog(self):
+        h = _host("_m3u_progress")
+        dlg, _tick = h._m3u_progress(self.sized_m3u(gen.BIG_M3U_BYTES - 1))
+        self.assertEqual(dlg.shown_after, 250)
+        gen.QApplication.processEvents.assert_not_called()
+
     def test_marked_rounds_win_over_the_derived_ones(self):
         a, b = _e("A"), _e("B")
         marked = {gen.path_key(a.path): "Vorrunde", gen.path_key(b.path): "Finale"}
@@ -886,7 +925,7 @@ class M3uLoadTest(Case):
 
 class WarmupPanelM3uTest(Case):
     def load(self, entries, heat_plan=(), sections=None):
-        h = _host("_load_warmup_from_m3u")
+        h = _host("_load_warmup_from_m3u", "_show_loaded_warmup")
         h._entries_from_m3u_file.return_value = entries
         busy = FakeBusy()
         h._m3u_progress.return_value = (busy, lambda *a, **k: None)
@@ -969,6 +1008,12 @@ class WarmupBuildTest(Case):
         self.assertEqual(worker.error.slots, [h._on_warmup_error])
         worker.progress.slots[0](3, 9)
         self.assertEqual(busy.progress, [(3, 9)])
+
+    def test_the_worker_gets_the_librarys_title_twins(self):
+        """The generator knows a song filed under two names by the library's
+        title twins; a warm-up list must too."""
+        h = self.start(self.options())
+        self.assertEqual(FakeWorker.made[0].title_twins, h._library.lib.title_twins)
 
     def test_a_competition_training_is_relaxed_and_named_for_the_class(self):
         opts = self.options(mode="competition",

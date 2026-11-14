@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from planner.music.paths import is_own_share, resolve_file
+from planner.music.paths import is_network_path, is_own_share, resolve_file
 
 UNC = r"\\evil-host\share\x.mp3"
 
@@ -19,6 +19,17 @@ class ResolveFileNetworkTest(unittest.TestCase):
             with mock.patch.object(Path, "is_file") as spy:
                 self.assertIsNone(resolve_file(line, {}), line)
             spy.assert_not_called()
+
+    def test_mixed_slash_unc_forms_count_as_network(self):
+        # Windows reads /\host\share and \/host/share as UNC too (run-2 #1).
+        for line in (r"/\host\share\x.mp3", r"\/host/share/x.mp3",
+                     r' "/\host\share\x.mp3"'):
+            self.assertTrue(is_network_path(line), line)
+            with mock.patch.object(Path, "is_file") as spy:
+                self.assertIsNone(resolve_file(line, {}), line)
+            spy.assert_not_called()
+        self.assertFalse(is_network_path(r"C:\music\x.mp3"))
+        self.assertFalse(is_network_path("/home/me/x.mp3"))
 
     def test_a_share_the_user_configured_still_resolves(self):
         settings = {"library_dir": r"\\nas\music"}

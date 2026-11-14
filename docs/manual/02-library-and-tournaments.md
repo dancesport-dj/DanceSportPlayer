@@ -24,7 +24,9 @@ changed files, no audio analysis, and runs in the background: its progress,
 
 **📁 Folders** in the header shows the folders beside the table. Choose one and
 the table lists only the titles directly in that folder, not those in its
-subfolders. **📁 All folders** lists everything again, and the button goes back
+subfolders. A folder line without a count holds no titles of its own: choose
+it and the table lists the titles of every folder below it.
+**📁 All folders** lists everything again, and the button goes back
 to the plain list. In this view **🆕 Unplanned** hides the planned file itself.
 The same music in another folder stays listed and gets a **♊** in front of its
 title. The plain list hides those copies too.
@@ -36,6 +38,10 @@ like a spreadsheet's filter button: it opens a menu, where **Sort by size** puts
 the folder with the most titles first and **Sort by name** is the default. The
 button stays pressed while another choice than the default is active. Folders
 wear a folder icon.
+
+Drag a folder line into a deck, the Party panel or a wishlist to add its
+titles and those of every subfolder below it, as a drop of those files would.
+**📁 All folders** cannot be dragged.
 
 ![The library browser](img/library.png)
 
@@ -86,18 +92,34 @@ a season, a weekend, a venue, a competition. The folders are only labels. The
 ### Filling the tree
 
 - Drop `.m3u` files or a whole folder from Explorer onto the tree.
-- **📁** creates a folder: a day, a venue, a competition.
+- **📁** creates a folder: a day, a venue, a competition. A level holds one
+  folder of each name: a second one, however it is capitalised, is refused
+  with a notice. The same name one level down is fine.
 - **＋** adds playlist files to the selected folder. Right-click the tree ▸
   **📂 Add a folder of playlists…** files a whole folder from disk as a
   branch, with every `.m3u` under it, the same way a folder dropped from
   Explorer is filed.
+- A branch filed from a folder on disk stays linked to it: it shows **🔗**
+  instead of 📁, and its tooltip names the path. Right-click it ▸
+  **🔄 Refresh from disk** reads the folder again: new playlists are filed,
+  deleted ones go, and a name you gave the branch stays. A folder that is gone
+  or holds no playlist any more leaves the branch as it was.
+- A new folder or playlist is picked right away, and the way to it is
+  unfolded. A right-click on the empty part of the tree files into the top
+  level, even when a folder was picked before.
+- **Drag entries within the tree** to rearrange them. Drop on the middle of a
+  folder to put it inside, on the top or bottom edge of a row to put it before
+  or after that row, and on the empty space below to put it at the end of the
+  top level. Folders move with everything in them; a folder cannot go into
+  itself or into a folder it holds. A drop on a deck still loads the playlist.
 - **✎** (or **F2**) renames the selected entry. **🗑** (or **Del**) removes
   it from the tree. The file on disk is not touched. In the slots view these
   act on the picked slot; click the folder row to act on the folder.
 - **Ctrl + A** marks everything: every slot of the folder, or every entry of
   the tree in the tracks view. **Del** and **🗑** then remove all marked
   entries after one question.
-- **⊟** collapses every folder, which helps with a long season.
+- **⊟**, right after the playlist count, collapses every folder, which helps
+  with a long season.
 - From a deck: right-click ▸ **🏆 Save and add to Tournaments…** saves the
   playlist and files it here. It goes into the selected folder, next to the
   selected playlist, or at the root. The new entry is picked and shown right
@@ -116,9 +138,14 @@ Each slot shows:
 - **Drag a slot onto a deck** to load that playlist there. Dragging one of
   several marked slots carries them all; they go into the free decks, one
   each. A plain click narrows the marking to one slot.
-- **Double-click a slot** to load it onto the focused deck.
+- **Double-click a slot** to load it onto the focused deck. The deck comes on
+  screen and takes the keyboard, also when only the Party panel was showing.
 - **Right-click a slot** for ▶ Load onto the focused deck, 🎵 Show its tracks,
   ✎ Rename and 🗑 Remove from tree.
+- **📥 Load into…** on the same menu sends the playlist to a list of your
+  choice: Playlist 1–4, Wishlist 1–2 or Party. It asks what a drop on that
+  list would ask, then brings the list on screen. A playlist row in the
+  tracks view has the same entry.
 
 ### Tracks view
 

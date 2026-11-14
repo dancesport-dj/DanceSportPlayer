@@ -211,6 +211,29 @@ class PartyCheckUiTest(unittest.TestCase):
         self.assertIn("⏱ Length", texts)
         self.assertNotIn("👯 Duplicates", texts)
 
+    def test_a_long_report_scrolls_and_keeps_its_buttons_on_screen(self):
+        """Marcel, 2026-11-13: "party check shows in its dialog a long list
+        which is not scrollable, also the buttons at bottom are not visible
+        because dialog is too long". The panels scroll; the head and the
+        buttons stay put, and the dialog fits the screen."""
+        from PySide6.QtWidgets import QPushButton, QScrollArea
+        host, _t = self.table(('LW', 'TG', 'QS'))
+        findings = [pc._finding(pc.SPACING, (f"WW too early, row {i}.", 0))
+                    for i in range(300)]
+        host._show_party_report(findings, 400)
+        dlg = host._party_dlg
+        self.addCleanup(reap_widget, dlg)
+        QApplication.processEvents()
+        screen = dlg.screen().availableGeometry()
+        self.assertLessEqual(dlg.frameGeometry().height(), screen.height())
+        area = dlg.findChild(QScrollArea)
+        self.assertIsNotNone(area, "the panels are not in a scroll area")
+        panels = [w for w in area.widget().findChildren(QLabel) if "<a href=" in w.text()]
+        self.assertTrue(panels, "the finding panels are outside the scroll area")
+        for button in dlg.findChildren(QPushButton):
+            self.assertTrue(dlg.rect().contains(button.geometry()),
+                            "%s is cut off" % button.text())
+
     def test_checking_an_empty_panel_opens_nothing(self):
         host, t = self.table(('LW', 'TG', 'QS'))
         t.setRowCount(0)

@@ -17,6 +17,7 @@ from PySide6.QtCore import QObject, QTimer
 from planner import i18n
 from player.audio.mix import OutputMix
 from player.audio.system_sounds import SystemSoundGuard
+from shared.audio import profiles
 from shared.audio.playback import (
     AUDIO_IDLE_S,
     OUTPUT_SOURCES,
@@ -252,6 +253,31 @@ class AudioDevice:
             return None
         return self.target("cue")
 
+    def switch_profile(self, name: str) -> bool:
+        """🎧 Put every source on profile `name`'s outputs at once (see
+        shared.audio.profiles). False, with nothing moved, for a name that
+        does not exist. A save that does not land still switches: the choice
+        holds until the app closes."""
+        settings = self._settings()
+        if settings is None or not profiles.switch_profile(settings, name):
+            return False
+        saved = save_settings(settings)
+        log.info("🎧 Audio profile switched\n"
+                 "profile: %s\n"
+                 "rehearsal: %s\n"
+                 "saved: %s", name, profiles.is_private(settings, name), saved)
+        self.sync()
+        return True
+
+    def rehearsal_profile(self) -> str | None:
+        """🔇 The active profile's name while it is a rehearsal one (the hall
+        hears nothing), else None — for the warnings in 🚦 Ready? and on
+        entering Playing mode."""
+        settings = self._settings()
+        if not settings or not profiles.is_private(settings):
+            return None
+        return profiles.active_profile(settings)
+
     def unplugged(self) -> list[tuple[str, str]]:
         """(source, name) of every chosen output that is not plugged in now,
         🎧 pre-listen included — for 🚦 Ready?, so it warns nothing."""
@@ -321,9 +347,11 @@ class AudioDevice:
     def cue_on_music(self) -> bool:
         """Whether a 🎧 pre-listen would be refused right now: its output, or
         the default it falls back to, is the one the music plays on — and
-        another one exists to choose."""
+        another one exists to choose. Never on a rehearsal profile: there the
+        music is on the headphones too, so the preview shares nothing with a
+        hall."""
         if (not self._player or not self._choice("cue").get("id")
-                or self.single_output()):
+                or self.single_output() or self.rehearsal_profile()):
             return False
         cue, music = self._lookup("cue"), self._lookup("music")
         if cue is None or music is None:
@@ -334,9 +362,10 @@ class AudioDevice:
     def cue_shares_music(self) -> bool:
         """Whether 🎧 pre-listen is left on "Same as the music" while another
         output exists to choose: then every preview is heard where the music
-        is, 📚 and 🏆 on the pre-listen player, the rest on the deck's."""
+        is, 📚 and 🏆 on the pre-listen player, the rest on the deck's. Not on
+        a rehearsal profile, where that is the headphones."""
         return (bool(self._player) and not self._choice("cue").get("id")
-                and not self.single_output())
+                and not self.single_output() and not self.rehearsal_profile())
 
     def missing(self, source: str) -> bool:
         """Whether `source`'s chosen output was not plugged in when last

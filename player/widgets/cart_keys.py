@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 
 from planner import i18n
 from planner.playing import cartwall as pc
+from shared.plain_text import plain_label, plain_tip
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -186,7 +187,7 @@ class CartKeysPanel(QWidget):
                 self._pad_names[(page, *cell)] = f"{name} (p{page + 1})"
                 caption = QLabel(f"p{page + 1}  {name}")
                 caption.setTextFormat(Qt.TextFormat.PlainText)    # a pad name is not markup
-                caption.setToolTip(pad.path)
+                caption.setToolTip(plain_tip(pad.path))
                 pad_lyt.addWidget(caption, line, 0)
                 pad_lyt.addWidget(picker, line, 1)
                 pad_lyt.addWidget(warn, line, 2)
@@ -301,7 +302,7 @@ def _pad_name(pad: pc.CartPad) -> str:
 def _warning_label() -> QLabel:
     """A row's clash note: wrapped at a fixed width, so a long one does not
     widen the dialog past its own window."""
-    warn = QLabel("")
+    warn = plain_label()      # it names a pad, and a pad label is no markup (4.C)
     warn.setStyleSheet("color:#b26a00; font-size:11px;")
     warn.setWordWrap(True)
     warn.setFixedWidth(220)

@@ -12,6 +12,7 @@ import shutil
 from pathlib import Path
 
 from planner.config import replacing_file
+from planner.music.paths import is_foreign_network
 from planner.playlist.planned import path_key
 
 _BOMS = ((b"\xef\xbb\xbf", "utf-8-sig"),
@@ -57,11 +58,26 @@ def rerooted(path: Path, remapper) -> Path | None:
 
     Covers broken references AND valid-but-off-root paths (normalised to the
     search folders); a path that is already canonical — the remap equals it,
-    case aside — is left alone."""
+    case aside — is left alone.
+
+    The remapper matches down to the bare file name, which is fine for a
+    broken path but not for one that plays: other/Album/Track01.mp3 must not
+    become an unrelated ref/Track01.mp3. A working path only moves to a file in
+    a folder of the same name."""
     remap = remapper.remap(path)
     if remap is None or path_key(remap) == path_key(path):
         return None
+    if _plays(path) and Path(remap).parent.name.lower() != path.parent.name.lower():
+        return None
     return remap
+
+
+def _plays(path: Path) -> bool:
+    try:
+        # someone else's UNC/URL line: no SMB session for it
+        return not is_foreign_network(path) and path.is_file()
+    except OSError:
+        return False
 
 
 def rewrite_playlist_paths(m3u: Path, remapper) -> int:

@@ -15,6 +15,10 @@ on:
         type: string
         default: ""
 
+# Read only: checkout is all these jobs do with the token (review T5).
+permissions:
+  contents: read
+
 jobs:
   monkey:
     strategy:
@@ -33,7 +37,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install pip==26.2.1
           python -m pip install -r requirements.lock
           python -m pip install -r requirements-dev.txt
 

@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
     QLabel,
+    QMessageBox,
     QSizePolicy,
     QToolButton,
     QVBoxLayout,
@@ -42,6 +43,7 @@ from player.presenter.presenter import (  # auto-resolved
 )
 from player.widgets.panel_parts import FlowLayout, InlineEdit, Rows, Toggle
 from player.widgets.play_mode_setup import PlayModeSetupMixin
+from shared.plain_text import plain_tip
 from shared.widgets import (
     hsep,
 )
@@ -108,6 +110,7 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
     rememberToggled = Signal(bool)       # ↩ remembering where a title stopped on/off
     settingsRequested = Signal()         # ⚙ — only shown in a player-only install
     stopRuleChanged = Signal()           # ⏹ the stop rule was set, counted down or spent
+    announceDanceWanted = Signal(bool)   # 🔈 the call should name the dance (True: with its heat)
 
     def __init__(self, settings: dict, parent=None):
         super().__init__(parent)
@@ -341,6 +344,46 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         self._announce_heat_only = bool(heat_only)
         self._refresh_announce_style()
 
+    def warn_heat_only(self, on: bool):
+        """🔢 The 🔈 switch was clicked on while the call says only the heat.
+
+        A practice-evening setting that is easy to forget at a party: the call
+        is made, and no dance is ever named. Asks once: only the dance (the
+        default), the dance with its heat, or leave it at only the heat. The
+        first two are handed to the window, which owns the settings."""
+        if not on or not self._announce_heat_only:
+            return
+        choice = self._ask_heat_choice()
+        if choice != "heat":
+            self.announceDanceWanted.emit(choice == "dance_heat")
+
+    def _heat_choice_box(self):
+        """The question as a box, with its buttons by choice: only the dance
+        first and the default, Escape leaves the setting as it is."""
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Question)
+        box.setWindowTitle(i18n.t("Only the heat is announced"))
+        box.setText(i18n.t("The announcement is set to say only the heat (“Heat 1”),\n"
+                           "not the dance.\n\n"
+                           "What should it say?"))
+        role = QMessageBox.ButtonRole.AcceptRole
+        buttons = {
+            "dance": box.addButton(i18n.t("Only the dance"), role),
+            "dance_heat": box.addButton(i18n.t("Dance with heat"), role),
+            "heat": box.addButton(i18n.t("Only the heat"), role),
+        }
+        box.setDefaultButton(buttons["dance"])
+        box.setEscapeButton(buttons["heat"])
+        return box, buttons
+
+    def _ask_heat_choice(self) -> str:
+        """Which button was pressed: dance, dance_heat or heat."""
+        box, buttons = self._heat_choice_box()
+        box.exec()
+        clicked = box.clickedButton()
+        box.deleteLater()
+        return next((k for k, b in buttons.items() if b is clicked), "heat")
+
     def _refresh_announce_style(self):
         """The line under 🔈 that names the voice: 'Mixed voices · with heat
         · over the music'. The lead is left out while titles cross over —
@@ -391,7 +434,7 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
             fm = self.closing_lbl.fontMetrics()
             self.closing_lbl.setText(fm.elidedText(
                 Path(self._closing_song).stem, Qt.TextElideMode.ElideRight, 160))
-            self.closing_lbl.setToolTip(self._closing_song)
+            self.closing_lbl.setToolTip(plain_tip(self._closing_song))
         else:
             self.closing_lbl.setText("none")
             self.closing_lbl.setToolTip("")
@@ -766,19 +809,14 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         self.settingsChanged.emit()
 
     def _sync_pause_tip(self):
-        """The pause switch says so when the call is why it is off."""
-        tip = i18n.t(
+        """What the pause switch does when it is off. The call is made in the
+        pause, so it never switches the pause off or blames it."""
+        self.pause_check.setToolTip(i18n.t(
             "Off: the next song starts the moment the current one ends, with\n"
             "no pause music. The configured time is kept\n"
             "for switching back.\n\n"
             "Needs ⏭ auto-advance — without it the next song waits for the\n"
-            "operator anyway, so there is no gap to fill.")
-        if self.announce_check.isChecked() and not self.pause_check.isChecked():
-            tip = i18n.t(
-                "🔈 The pause is off because the next dance is announced: the\n"
-                "call comes with the title and needs no gap. Switch the pause\n"
-                "back on to have both.") + "\n\n" + tip
-        self.pause_check.setToolTip(tip)
+            "operator anyway, so there is no gap to fill."))
 
     def _sync_pause_row(self):
         """Take off what cannot happen, grey out what merely has no effect.
@@ -899,18 +937,6 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         else:
             self._announce_before_manual = self.announce_check.isChecked()
             self.announce_check.setChecked(False)
-
-    def _follow_announce_with_pause(self, announcing: bool):
-        """🔈 The call comes with the title, so it needs no gap: switching it
-        on takes the pause off, and switching it off puts the pause back. The
-        pause stays one click away for an operator who wants both."""
-        if announcing:
-            self._pause_before_announce = self.pause_check.isChecked()
-            self.pause_check.setChecked(False)
-            return
-        if self._pause_before_announce:
-            self.pause_check.setChecked(True)
-        self._pause_before_announce = False
 
     def repeat_list(self) -> bool:
         """Whether the end of the list is followed by its own beginning.
@@ -1156,10 +1182,10 @@ class PlayModePanel(PlayModeSetupMixin, QWidget):
         spin.blockSignals(True)
         spin.setValue(int(n) or 3)
         spin.blockSignals(False)
-        spin.setToolTip(
+        spin.setToolTip(plain_tip(
             i18n.t("The Paso Doble pick for %s in ⚙ Settings → 🎛 Playsets\n"
                    "(played in full reads as the 3rd highlight). A change here\n"
-                   "holds for this list only.") % round_label)
+                   "holds for this list only.") % round_label))
 
     def pd_start_delay(self) -> float:
         """Seconds a Paso Doble waits after the call before the music starts

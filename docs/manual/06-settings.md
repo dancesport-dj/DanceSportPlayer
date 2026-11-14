@@ -12,6 +12,11 @@ pack**. The full app adds **🎵 Checks**, the thresholds of its music check;
 the player hides it. Opened again, the settings come back on the tab they
 were closed on, until the app is closed.
 
+When the settings cannot be written (the settings folder is read-only or the
+disk is full), the status bar says *⚠️ The settings could not be saved* every
+time, and the first time in a session a box says so too and names the file.
+The changes still apply until the app is closed.
+
 ## General
 
 The **⚙ General** tab.
@@ -149,7 +154,8 @@ The three times run up to 10 s.
 
 **↺ Reset to defaults**, at the bottom right of the tab, puts these numbers,
 the duck and fade times below and ⏩ start each title this far in back on what
-the app ships with, after asking. The audio backend and the outputs stay as they are.
+the app ships with, after asking, and puts the player back beside the
+playlists. The audio backend and the outputs stay as they are.
 
 ### ▸ Advanced: duck and fade times
 
@@ -159,10 +165,12 @@ click on **▸ Advanced: duck and fade times** opens it.
 | Setting | Does |
 |---|---|
 | **🔉 Duck to** | How far 🔊 Duck pulls everything down on the player card, the mini player and the presenter screen: 10 % by default (about −20 dB), 0 % (silence) to 90 %. A change reaches a duck that is on right now. |
-| **🔈 Duck under a voice or pad over … back up over** | How fast the music gets out of the way when the announcer speaks or a 🎛 cartwall pad plays, and how fast it comes back after: 2 s down and 2 s up by default, 0.1 to 5 s each. The 🔉 Duck button itself is immediate. |
+| **🔈 Duck under a voice or pad over … back up over** | How fast the music gets out of the way when the announcer speaks or a 🎛 cartwall pad plays, and how fast it comes back after: 2 s down and 2 s up by default, 0.1 to 5 s each. The 🔉 Duck button has its own, shorter fade, see 🔇 below. |
 | **🌅 Fade each title in over** | Off by default. The main player starts every title at silence and brings it up over 0.5 to 10 s of music. A title that a 🔀 crossfade brings in keeps its own ramp. Couples start on the first downbeat, so leave it off for a competition. |
 | **↩ Fade in at a time marker over** | 2 s by default. A title picked up at its ↩ time marker comes up over 0.5 to 10 s of music instead of starting at full level. *off* leaves it to 🌅 above. A Paso Doble always starts abruptly at its marker, whatever 🌅 says: the couples stand and go on the beat. |
 | **🔉↓ Fade by hand over** | How long 🔉↓ Fade out now, 🛑 Fade out and hold, a ⏹ stop at a time and the fade before quitting take, up to 10 s. Out of the box *as the list's fade-out*. The fade at the end of the play length always keeps the list's own fade-out time. |
+| **✂️ Fade a title that ends abruptly over** | 2 s by default, 0.5 to 5 s, or *off*. A title whose file stops in full sound, cut off with no decay, is taken down over this long, so the hall hears a fade instead of a cut. A title that ends on its own decay, like a gong, is left alone. |
+| **🔇 Fade the duck and mute buttons over** | 0.3 s by default, up to 2 s; 0 switches at once. How long the player's 🔊 duck and mute steps and the cartwall's 🔊 take to go down and to come back. |
 | **⏩ Start each title this far in** | Off by default. The main player skips the first 1 to 30 s of every title, and those seconds don't count against the play length. A title picked up at its ↩ mark starts there instead, and a silent intro is still skipped on top. |
 
 ### 🔈 Outputs
@@ -197,8 +205,38 @@ lists can be picked, on Windows, macOS and Linux.
   finds the card again by its name, as long as only one plugged-in card
   has it.
 - While the card chosen for the 🎵 music is plugged in, the status bar
-  shows a small **🔊** with its name. A click on it opens this tab.
-- The choice applies when you click OK, without a restart.
+  shows its name. A click on it opens this tab.
+- A change of an output is kept and applied at once, without a restart and
+  without OK (see the profiles below).
+
+#### 🎧 Audio profiles
+
+A profile is a saved set of the outputs above. Two always exist and cannot
+be deleted:
+
+- **Main**, the hall: the music on the PA, the pre-listen on the headphones.
+- **Rehearsal**, for preparing the evening: everything on the headphones,
+  and the hall hears nothing of it.
+
+**💾 Save as…** stores the outputs as shown under a new name, a hall profile
+of your own. **🗑 Delete** drops one of yours, after asking, and Main takes
+over with its outputs; for Main and Rehearsal it is greyed. The **Profile**
+box switches. Changing an output edits the profile shown. An edit, a
+**Save as…** and a **Delete** are kept and applied at once, so a Cancel or a
+crash cannot lose a device you set up; picking another profile waits for OK.
+A settings file without an active profile opens on Main.
+
+The status bar shows the active profile: **🔊** for a hall profile, **🎧**
+for Rehearsal. A click on it opens the list of profiles, no trip through
+⚙ Settings; with two, the other one already sits under the pointer, so two
+clicks switch. At the foot of the list sits the red
+[**⏹ Stop all music**](04-playing.md#-stop-all-silence-at-once).
+
+The active profile is kept across a restart, Rehearsal included. So that a
+forgotten Rehearsal cannot silence the hall:
+
+- 🚦 Ready? turns the sound outputs red while it is on.
+- Starting to play shows a red message naming it.
 
 ## Cartwall
 
@@ -212,7 +250,10 @@ own. *Planner only* mode hides it.
 
 | Setting | Does |
 |---|---|
-| **🔈 While a 🔈 pad plays, the music ducks to** | How loud the music stays while a cartwall pad that pulls the music down plays: 10 % by default (about −20 dB, so a fanfare cuts through), 0 % (silence) to 90 %. Like 🔉 Duck to on the 🔊 Sound & player tab, it is a share of the music's volume, not of its loudness; the dialog shows the dB next to it. |
+| **🔈 While a pad plays, the main music ducks to** | How loud the music stays while a cartwall pad that pulls the music down plays: 10 % by default (about −20 dB, so a fanfare cuts through), 0 % (silence) to 90 %. Like 🔉 Duck to on the 🔊 Sound & player tab, it is a share of the music's volume, not of its loudness; the dialog shows the dB next to it. |
+| **🔈 While a pad pulling the other pads down plays, they duck to** | How loud a title running on another pad stays while a pad set to **🔈 Pull the other pads down** plays, as a share of that pad's own volume: 10 % by default (about −20 dB), 0 % (silence) to 90 %. It comes back to its volume when the pad is over. Apart from the music duck above. |
+| **🔁 At a pad's loop point** | How a pad on 🔁 endless repeat goes round again at the end of its file: **Crossover** (the default; the next round starts on a second voice shortly before the end, the old round fades out while the new one fades in), **Fade out and restart** (the pad fades itself out, then starts again at full level) or **Hard stop and restart** (it jumps straight back). Every round starts where the music does, past a longer silence at the top of the file. |
+| **🔁 …blend or dip over** | How long the crossover, or the dip before the restart, lasts, counted back from the end of the file and never more than a third of it: 3.0 s for the crossover, 1.0 s for the fade-out, 0 s to 15 s. 0 s restarts at once. Switching the mode puts in that mode's default unless you had set your own. **Own crossover** in a pad's **Settings…** overrides it for that pad. |
 | **⏱ Tapped again or ⏹ — fade the pad out over** | How long a pad takes to let go when it is clicked again or ⏹ Stop all fades the wall: 1.0 s by default, 0 s (it stops at once) up to 8 s. A 🎶 Background pad follows it too. **Own fade-out** in a pad's **Settings…** overrides it for that pad. |
 | **🖌 Default wall colour** | The colour of every pad left on 🎨 Colour ▸ **Wall default**: white by default. A pad given a colour of its own keeps it. |
 
@@ -229,8 +270,8 @@ own. *Planner only* mode hides it.
 | **🌅 …then fade the pad back in over** | How long it then takes to come back to full volume: 2.0 s by default. |
 | **🐂 Keep the pad down while a Paso Doble waits to start** | On by default. With *Start after* set for the 🐂 Paso Doble, the deck stands still between the call and the first bar while the couples walk on; the pad stays down through that wait, as if the music already played. It also stays down in the pause before a Paso Doble. Off, it comes back in the wait like after any other title. |
 
-Every time on this tab runs from 0 s to 8 s in steps of 0.1 s; 0 s means
-straight away, without a fade.
+Every other time on this tab runs from 0 s to 8 s in steps of 0.1 s; 0 s
+means straight away, without a fade.
 
 The fade-out and the colour belong to the wall rather than to the PC, so a
 cartwall carried to another PC in a [venue pack](#venue-pack) brings them
@@ -311,7 +352,16 @@ For each set:
 - **⏭ Auto-advance**, **⏸ No pause between songs**, **🔈 Announce next
   dance**, **🔊 Equalize volume**, **▶️ Double-click starts the title**,
   **❓ Ask before a double-click stops the title** and
-  **🎚 WDSF CR pitch to the heat tempo**.
+  **🎚 WDSF CR pitch to the heat tempo**. The 🎉 set has **🛋 Relaxed: hold
+  each dance to its top tempo** in its place, off out of the box.
+
+Inside the 🎉 set's box, **🛋 Relaxed top tempo** sets what the
+[🛋 Relaxed button](04-playing.md#the-player-card) holds each dance to at a
+party, in whole tempo steps: a title recorded faster is slowed down to it, a
+slower one is left alone, and *No limit* leaves the dance as recorded. Every
+dance the app knows is listed. Out of the box the Jive has T41, the
+Quickstep T50, the Viennese Waltz T58 and the Discofox T30; every other dance
+has no limit.
 
 The tournament set also has one list of lengths per dance, with a selector
 on top, **⏱ Lengths**: **Per dance — the standard** or **Per round —
@@ -385,12 +435,16 @@ keys. If you want, the music they use goes in too.
 - **📦 Export venue pack…** writes the file. A progress window shows how far
   it is and can cancel it. The suggested name is `venue-<date>.dpvenue`, or
   `venue-<date>-with-music.dpvenue` when the music goes in.
-- **📥 Import venue pack…** on the other PC loads it. It takes over the
-  settings, decks and cartwall at the next start; what it replaces is kept in
+- **📥 Import venue pack…** on the other PC loads it. It first asks what the
+  pack should replace on this PC: **⚙ Settings**, **🎼 Decks and playlists**
+  and **🎛 Cartwall — pads and keys**, all ticked. It takes over what you
+  keep ticked at the next start; what it replaces is kept in
   a `before-venue-import` folder next to them. Music in the pack is unpacked
   into a folder you pick, and every deck and pad is pointed at it.
 
 Folder settings, such as the library, playlist and save-as folders, the
-presenter screen and the audio backend, stay with each PC.
+presenter screen, the audio backend, the sound outputs and the audio
+profiles, stay with each PC. So do the backup folder and the two consents,
+the update check and the error reports.
 
 Next: [Keyboard and mouse](07-shortcuts.md)

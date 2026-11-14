@@ -187,7 +187,9 @@ def warmup_swap_partner(entries, index, rng=random) -> int | None:
     """Index of the title ↺ swaps entries[index] with on a party list, or None.
 
     Same dance only. A leftover (see warmup_leftover_start) comes first, else
-    any title from the last third of the list, picked at random."""
+    any title from the last third of the list, picked at random. With none of
+    the dance that late, the last one there is: only the title that already is
+    the dance's last has no partner."""
     code = warmup_code(entries[index])
     if not code:
         return None
@@ -195,7 +197,9 @@ def warmup_swap_partner(entries, index, rng=random) -> int | None:
     start = warmup_leftover_start(entries)
     pool = ([i for i in same if i >= start]
             or [i for i in same if i >= (2 * len(entries)) // 3])
-    return rng.choice(pool) if pool else None
+    if pool:
+        return rng.choice(pool)
+    return same[-1] if same and same[-1] > index else None
 
 
 def reshuffle_warmup(entries, *, start_with_latin=None, late_ww=True,
@@ -547,10 +551,8 @@ def _warmup_pools(entries, include_standard, include_latin, include_modetaenze,
         code = warmup_code(e)
         if code:
             pools.setdefault(code, []).append(e)
-    seen: set = set()   # one recording per song across all the dances
-    for d, lst in pools.items():
+    for lst in pools.values():
         random.shuffle(lst)
-        pools[d] = _one_per_song(lst, seen, twins)
     if no_paso:
         pools.pop('PD', None)
     if not include_standard:
@@ -564,6 +566,12 @@ def _warmup_pools(entries, include_standard, include_latin, include_modetaenze,
         mode_dances = [d for d in WARMUP_MODE if d in allowed]
     else:
         mode_dances = []
+    # One recording per song across the dances that play: one left out above
+    # (or a Modetanz not on) must not take a song from one that plays.
+    seen: set = set()
+    for d, lst in pools.items():
+        if d not in WARMUP_MODE or d in mode_dances:
+            pools[d] = _one_per_song(lst, seen, twins)
     return pools, mode_dances
 
 
@@ -980,11 +988,6 @@ def _pick_heats(queue: deque, n: int, tier: str, use_timbre: bool,
     if n > 1:
         n_fresh = min(n_fresh, n - 1)   # the anchor stays a title you know
     first, rest = cand[0], cand[1:]
-    if n == 1 and n_fresh:
-        young = [e for e in reversed(pool) if fresh_mode == "rarely" or is_new_title(e)]
-        if young:
-            first = young[0]
-            rest = [e for e in pool if e is not first]
     newest = []
     if n > 1 and n_fresh:
         tail = [e for e in reversed(pool) if e is not first

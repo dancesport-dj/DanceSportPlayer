@@ -163,6 +163,50 @@ class WindowKeysTest(_WindowTest):
         self.assertEqual(self.win._desk_keys["hold"].key(),
                          QKeySequence(pctl.KEY_DEFAULTS["hold"]))
 
+    def test_the_gemuetlich_key_flips_the_card_s_button_on_a_party_list(self):
+        card = self.win._big_player
+        card.show_gemuetlich(True)
+        card.set_gemuetlich_mode(False)
+        self.win._on_desk_key("gemuetlich")
+        self.assertTrue(card.gemuetlich_mode())
+        self.win._on_desk_key("gemuetlich")
+        self.assertFalse(card.gemuetlich_mode())
+
+    def test_the_gemuetlich_key_does_nothing_while_the_button_is_away(self):
+        card = self.win._big_player
+        card.show_gemuetlich(False)
+        card.set_gemuetlich_mode(False)
+        self.win._on_desk_key("gemuetlich")
+        self.assertFalse(card.gemuetlich_mode())
+
+    def test_a_hidden_tso_keeps_its_value_but_does_not_apply(self):
+        card = self.win._big_player
+        card.set_tso_mode(True)
+        card.show_gemuetlich(False)
+        self.assertTrue(card.tso_applies())
+        card.show_gemuetlich(True)   # the party list: 🛋 replaces TSO
+        self.assertTrue(card.tso_mode())
+        self.assertFalse(card.tso_applies())
+
+    def test_a_hidden_gemuetlich_keeps_its_value_but_does_not_apply(self):
+        card = self.win._big_player
+        card.set_gemuetlich_mode(True)
+        card.show_gemuetlich(True)
+        self.assertTrue(card.gemuetlich_applies())
+        card.show_gemuetlich(False)   # a tournament list: TSO is on show instead
+        self.assertTrue(card.gemuetlich_mode())
+        self.assertFalse(card.gemuetlich_applies())
+
+    def test_the_button_is_the_icon_and_its_tooltip_names_the_key(self):
+        card = self.win._big_player
+        self.assertEqual(card._gem_btn.text(), "🛋")
+        self.assertIn("Relaxed", card._gem_btn.toolTip())
+        self.assertNotIn("Gemütlich", card._gem_btn.toolTip())
+        self.assertIn("Ctrl + Shift + G", card._gem_btn.toolTip())
+        self.win.set_desk_keys({"gemuetlich": ["F13"]})
+        self.assertIn("F13", card._gem_btn.toolTip())
+        self.assertNotIn("Ctrl + Shift + G", card._gem_btn.toolTip())
+
     def test_every_key_of_an_action_is_on_its_shortcut(self):
         self.win.set_desk_keys({"fade": ["F13", "F14"]})
         self.assertEqual(self.win._desk_keys["fade"].keys(),

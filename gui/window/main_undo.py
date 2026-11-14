@@ -21,6 +21,7 @@ from gui.window.session_env import (
     deck_slots,
 )
 from planner import i18n
+from shared.plain_text import plain_tip
 from shared.widgets import (
     show_toast,
 )
@@ -149,8 +150,8 @@ class UndoMixin(MainWindowHost):
             btn.setText(f"↶ {n_undo}" if n_undo else "↶")
             if n_undo:
                 desc = self._describe_env_change(timeline.current, timeline.next_undo())
-                btn.setToolTip(i18n.t("Undo: %s\n%s step(s) available  ·  Ctrl+Z")
-                               % (desc, n_undo))
+                btn.setToolTip(plain_tip(i18n.t("Undo: %s\n%s step(s) available  ·  Ctrl+Z")
+                                         % (desc, n_undo)))
             else:
                 btn.setToolTip("Nothing to undo yet")
         btn = getattr(self, "_redo_btn", None)
@@ -159,7 +160,7 @@ class UndoMixin(MainWindowHost):
             btn.setText(f"↷ {n_redo}" if n_redo else "↷")
             if n_redo:
                 desc = self._describe_env_change(timeline.current, timeline.next_redo())
-                btn.setToolTip(i18n.t("Redo: %s\n%s step(s) available  ·  Ctrl+Y")
-                               % (desc, n_redo))
+                btn.setToolTip(plain_tip(i18n.t("Redo: %s\n%s step(s) available  ·  Ctrl+Y")
+                                         % (desc, n_redo)))
             else:
                 btn.setToolTip("Nothing to redo")

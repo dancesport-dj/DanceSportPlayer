@@ -362,6 +362,30 @@ class PlaceOneTest(_Base):
         t._dynamic_place_one(_e("LW", 8), 999)
         autofill.assert_called_once()
 
+    # Full review 2026-11-11 #4: the autofill filed the track into a round that
+    # hides its dance, so it was neither shown nor saved.
+
+    def test_autofill_passes_a_round_that_hides_the_dance(self):
+        t = self.deck(playlist={"Vorrunde": [[_e("LW", 1), None]],
+                                "Finale": [[_e("LW", 3), None]]})
+        t._round_skip_dances = {"Vorrunde": {"TG"}}
+        t._dynamic_place_one(_e("TG", 9), -1)
+        self.assertEqual(self.titles(t, "Vorrunde"), [["LW 1", None]])
+        self.assertEqual(self.titles(t, "Finale"), [["LW 3", "TG 9"]])
+        t._rebuild_dynamic()
+        self.row_of(t, "TG 9")
+
+    def test_a_dance_hidden_everywhere_comes_back_in_the_first_round(self):
+        t = self.deck()
+        self.confirm(t)
+        t._remove_dance_everywhere("TG")
+        t._dynamic_place_one(_e("TG", 9), -1)
+        t._rebuild_dynamic()
+        self.row_of(t, "TG 9")
+        self.assertEqual(self.titles(t, "Vorrunde"), [["LW 1", "TG 9"]])
+        self.assertEqual(t._round_skip_dances["Finale"], {"TG"})
+        self.assertFalse(t._round_skip_dances.get("Vorrunde"))
+
 
 class ReplaceSlotTest(_Base):
 
@@ -651,6 +675,16 @@ class RoundStructureTest(_Base):
         self.assertEqual(t._insert_dynamic_round(self.row_of(t, "LW 1")), "Zwischenrunde")
         self.assertEqual(self.titles(t, "Zwischenrunde"), [[None, None]])
         self.assertEqual(self.titles(t, "Finale"), [["LW 3", "TG 4"]])
+
+    def test_the_deck_keeps_the_dict_it_was_loaded_with(self):
+        # The window keeps the same dict as the deck's context; a new dict here
+        # left it stale, and a strategy re-roll then reloaded the old rounds.
+        playlist = {"Vorrunde": [[_e("LW", 1), _e("TG", 2)]],
+                    "Finale": [[_e("LW", 3), _e("TG", 4)]]}
+        t = self.deck(playlist)
+        t._insert_dynamic_round(self.row_of(t, "LW 1"))
+        self.assertIs(t._playlist, playlist)
+        self.assertEqual(list(playlist), ["Vorrunde", "Zwischenrunde", "Finale"])
 
     def test_no_round_is_added_to_a_static_deck_and_an_empty_one_starts(self):
         t = self.deck()

@@ -178,7 +178,7 @@ class TableRegenMixin(PlaylistTableHost):
         k = warmup_swap_partner(self._row_meta.entries(), song_rows.index(row))
         if k is None:
             dance = self._row_meta[row].dance
-            show_toast(self, i18n.t("↺  No other %s near the end of the list")
+            show_toast(self, i18n.t("↺  This is the last %s in the list, nothing to swap with")
                         % dance_name(dance, dance), error=True)
             return
         partner = song_rows[k]

@@ -8,6 +8,7 @@ the 🐂 PD stop (player.window.main_pd), the ⏸ pause (player.window.main_paus
 MainWindow keeps importing this one name.
 """
 import logging
+import os
 import sqlite3
 import time
 from datetime import datetime, timedelta
@@ -15,8 +16,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import (
+    QThread,
     QTimer,
     QUrl,
+    Signal,
 )
 from PySide6.QtGui import (
     QColor,
@@ -38,10 +41,22 @@ from planner.playing.celebration import (
     celebrate_up_secs,
     celebrates,
 )
+from planner.playing.play_sets import gemuetlich_max_of
 from planner.playlist.checks import trailing_silence_secs
 from planner.terms import dance_name
-from player.audio.mix import hand_fade_secs
-from player.audio.tso import round_strip, round_takte, tso_band_of, tso_target
+from player.audio.mix import hand_fade_secs, hard_end_fade_secs
+from player.audio.mp3_repair import repaired_copy
+from player.audio.tso import (
+    doubtful_for_gemuetlich,
+    doubtful_for_tso,
+    gemuetlich_target,
+    pitch_takt,
+    round_strip,
+    round_takte,
+    tso_band_of,
+    tso_range_of,
+    tso_target,
+)
 from player.widgets.player_parts import (  # auto-resolved
     set_time_format,
     takt_text,
@@ -78,6 +93,7 @@ from shared.stores import (  # auto-resolved
     save_settings,
 )
 from shared.widgets import (
+    WARN_TOAST_MS,
     show_toast,
 )
 
@@ -99,6 +115,58 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("dancesport.gui.player")
 
+
+def log_song_action(host, what: str, *extra: str):
+    """The one line for something the operator did with the song: what, which
+    file, where it stood, then `extra` lines (a fade's length). A function, not
+    a method: the desk fakes of the tests borrow the mixin's methods one by one.
+    A log line must never be what breaks a fade, so what is missing reads 00:00."""
+    player = getattr(host, "_player", None)
+
+    def ms(name: str) -> int:
+        read = getattr(player, name, None)
+        return read() if read is not None else -1
+
+    path = host._playback.path
+    log.info("%s\nfile: %s\nposition: %s / %s" + "\n%s" * len(extra),
+             what, path.name if path else "?", fmt_clock(ms("position")),
+             fmt_clock(ms("duration")), *extra)
+
+
+def fmt_clock(ms: int) -> str:
+    """Milliseconds → mm:ss.mmm for the log (h:mm:ss.mmm from an hour on). The
+    player's own labels (`fmt_ms`) drop the milliseconds; a log has to keep them,
+    since a fade or a cut is reconstructed to the tenth of a second."""
+    ms = max(0, int(ms))
+    secs, milli = divmod(ms, 1000)
+    mins, sec = divmod(secs, 60)
+    hours, mins = divmod(mins, 60)
+    if hours:
+        return f"{hours}:{mins:02d}:{sec:02d}.{milli:03d}"
+    return f"{mins:02d}:{sec:02d}.{milli:03d}"
+
+
+def fade_state_lines(host) -> tuple[str, ...]:
+    """The fades under way when the song was played or paused, one line each:
+    the 🌅 fade-in with its length and how far up it is, the 🔉↓ fade-out with its
+    length and what is left, the 🔀 crossfade with its length and how far the
+    incoming title is up. "fade: none" when none runs, so a line without one
+    is never a question. Reads with getattr: a log line must not break."""
+    lines = []
+    xfade = getattr(getattr(host, "_between", None), "xfade", None)
+    if xfade is not None and getattr(xfade, "state", None) == "fading":
+        up = getattr(getattr(host, "_mix", None), "fade_in", 1.0)
+        lines.append("crossfade: %.1fs, %d%% in" % (xfade.length, round(up * 100)))
+    playback = getattr(host, "_playback", None)
+    secs = getattr(playback, "fade_in_secs", 0.0) or 0.0
+    if getattr(playback, "fade_in_from", None) is not None and secs > 0:
+        up = getattr(getattr(host, "_mix", None), "fade_in", 1.0)
+        lines.append("fade in: %.1fs, %d%% up" % (secs, round(up * 100)))
+    fade = getattr(host, "_fade_now", None)
+    if fade is not None and getattr(fade, "running", False):
+        lines.append("fade out: %.1fs, %.1fs left" % (fade.total, max(0.0, fade.remaining())))
+    return tuple(lines) or ("fade: none",)
+
 # 🧊 How long the position may stand still while the player says it plays
 # before _watch_stall steps in.
 _STALL_MS = 5000
@@ -106,11 +174,31 @@ _STALL_MS = 5000
 # ramp's final step has landed before the players go.
 _QUIT_FADE_MARGIN_MS = 200
 
-# ✂️ A file that stops in full sound is taken down over this long, and is gone one
-# play tick before it stops: aimed at the end itself, the last tick could leave
-# the cut standing at a fifth of the level.
-HARD_END_FADE_SECS = 1.0
+# ✂️ A file that stops in full sound is taken down over `hard_end_fade_secs` (a
+# setting), and is gone this long before it stops: aimed at the end itself, the
+# last tick could leave the cut standing at a fifth of the level.
 HARD_END_LEAD_SECS = 0.2
+
+
+class _RepairWorker(QThread):
+    """🔧 Makes a misread title's repaired copy in the background. `done`
+    carries the worker (with the title, the play token and the backend's
+    length at the start) and the copy, None when there is none."""
+    done = Signal(object, object)
+
+    def __init__(self, path: Path, src: Path, token: int, backend_ms: int, parent=None):
+        super().__init__(parent)
+        self.path, self.src, self.token, self.backend_ms = path, src, token, backend_ms
+
+    def run(self):
+        try:
+            copy = repaired_copy(self.src)
+        except Exception as exc:          # a thread must answer, whatever happens
+            log.warning("🔧 Repair failed\n"
+                        "file: %s\n"
+                        "error: %s", self.src.name, exc)
+            copy = None
+        self.done.emit(self, copy)
 
 
 class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
@@ -201,8 +289,10 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         # 🔀 Another channel pair of the music's card is not the music's.
         if (music is None or (device_id(dev), pair)
                 != (device_id(music), self._audio_device.pair("music"))
-                or self._audio_device.single_output()):
+                or self._audio_device.single_output()
+                or self._audio_device.rehearsal_profile()):
             # With one output there is no other to choose: it is the default.
+            # On a rehearsal profile the music is on the headphones as well.
             cue.play(path, dev, pair)
             return
         # The music's own output: the preview would go out on the PA.
@@ -298,6 +388,11 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
             # shows — don't display both.
             if self._preview:
                 self._preview.hide()
+            # 🔇 A rehearsal profile left on: the hall would hear nothing.
+            rehearsal = self._audio_device.rehearsal_profile()
+            if rehearsal:
+                show_toast(self, i18n.t("🔇 Rehearsal profile %s is on — the hall hears nothing.")
+                           % rehearsal, 4000, error=True)
         else:
             # Leaving Playing mode mid-fade: let the song run on at full volume.
             self._mix.fade = 1.0
@@ -494,6 +589,11 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         would otherwise follow it."""
         return self._big_player is not None and self._big_player.loop_mode()
 
+    def _loop_runs_full(self) -> bool:
+        """🔁 on and not answered with "play length": the title runs its file."""
+        bp = self._big_player
+        return self._looping() and bp is not None and not bp.loop_cut()
+
     def _list_starts_again(self, t) -> tuple[PlaylistTable, int, Path] | None:
         """The list has run out: with 🔁 on, its own first song is what comes
         next. Off — the tournament case — nothing does.
@@ -688,6 +788,12 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
                 t.flash_rows(flash, QColor(187, 222, 251))
                 return
         self._between.pending = nxt
+        if self._looping() or nrow <= row:
+            log.info("🔁 Repeat\n"
+                     "what: %s\n"
+                     "next: %s",
+                     "this title" if self._looping() else "the list from the top",
+                     Path(nxt[2]).name)
         self._between.round_start = None
         self._between.announced = False   # one spoken cue per pause
         self._between.quiet_until = 0.0   # …and the quiet the hall gets after it
@@ -747,14 +853,18 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
             return
         t, nrow, npath = nxt
         self._between.leads_in = self._between.shown
+        # ↩ The list walking on has nobody to ask where a marked title starts
+        # (a click does): from the top, as "From the beginning" would.
+        self._clear_resume(npath)
         t._on_play_click(nrow, npath)   # handles the ▶/■ markers + playback
         t.scroll_row_into_play_view(nrow)
 
     def _on_player_next(self):
         """⏭ on the big player: during a running auto-advance pause, skip the
         rest of the pause and start the next song; the wall's 🎶 beds dip
-        under it on their own. A call still to come is kept: the pause only
-        runs up to it (`_skip_to_call`). Outside a pause, just step the deck
+        under it on their own. A call still to come is kept: it starts at
+        once and the title follows it (`_skip_to_call`). Outside a pause,
+        just step the deck
         to the next row."""
         if self._between.pending is not None:
             if self._skip_to_call():
@@ -784,6 +894,8 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         if self._fade_now.running:
             # A second press must not restart the ramp: that put the volume
             # back to full. On a 🛑 ramp it only turns the hold into an end.
+            if self._fade_now.hold:
+                log_song_action(self, "🔉 Fade stop turned into a fade out")
             self._fade_now.hold = False
             return
         if self._celebrating():
@@ -795,6 +907,7 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         else:
             self._fade_now.start(hand_fade_secs(self._settings, self._pv("fade")),
                                  level=self._mix.fade)
+        log_song_action(self, "🔉 Fade out", "fade: %.1fs" % self._fade_now.total)
         self._set_fade_indicator(True)
         self._fade_timer.start()   # make sure the tick is running to drive it
 
@@ -895,10 +1008,12 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
                 self._fade_now.cancel()
                 self._set_fade_indicator(False)
                 if hold:
-                    # 🛑 Panic: stay on this song at this position. ⏯ resumes at
-                    # the normal level — pushed when it runs again, not here:
-                    # the pause lands late and the buffer would play it loud.
+                    # 🛑 Panic: stay on this song at this position. ⏯ brings it
+                    # back up like a time-marker start — the level is pushed
+                    # when it runs again, not here: the pause lands late and
+                    # the buffer would play it loud.
                     self._fade_now.hold = False
+                    self._arm_pickup_fade_in()
                     self._player.pause()
                     # 🔀 A fading title holds now, not when the pause lands:
                     # its next ramp step would push the whole level below.
@@ -981,9 +1096,13 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
 
     def _hard_end_level(self) -> float:
         """✂️ The level the end of the file allows (0…1): full, unless it stops in
-        full sound. A loop is left alone, its seam is meant to run through."""
+        full sound. A loop is left alone, its seam is meant to run through, and
+        so is every title while the fade is set to off."""
         if (not self._playback.hard_ends.get(str(self._playback.path))
                 or self._looping()):
+            return 1.0
+        fade = hard_end_fade_secs(self._settings)
+        if fade == 0:
             return 1.0
         player = self._player
         if player is None:
@@ -992,7 +1111,7 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         if dur <= 0:
             return 1.0
         left = (dur - player.position()) / 1000 - HARD_END_LEAD_SECS
-        return max(0.0, min(1.0, left / HARD_END_FADE_SECS))
+        return max(0.0, min(1.0, left / fade))
 
     def _on_celebrate_toggled(self, on: bool) -> None:
         """🥇 The switch on the ▶ panel: the hand's word for the list on the
@@ -1344,17 +1463,27 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
             return False
         meta = deck._row_meta[deck._current_play_row]
         ent = meta.entry
-        if ent is None or not getattr(ent, "bpm", 0):
+        own = pitch_takt(ent) if ent is not None else 0
+        if ent is None or not own:
             if not auto:
                 self.statusBar().showMessage(
                     "This title has no detected tempo — can't equalize.", 5000)
             return False
         dance = ent.dance
+        band = tso_range_of(dance)
+        if not ent.bpm and band is not None and doubtful_for_tso(dance, own):
+            lo, hi = band
+            self._warn_doubtful_measure(
+                ent, terms.rules_name(
+                    i18n.t("⚠ %s measured at T%s, outside the TSO band "
+                           "T%s–T%s: probably a wrong measure, not pitched"),
+                    short=True) % (dance, own, takt_text(lo), takt_text(hi)))
+            return False
         row = deck._current_play_row
         hdr = round_strip(deck, row)
         counts, danced_at, target = tso_target(
-            round_takte(deck, row, dance), dance, ent.bpm,
-            tso_band_of(self._settings, dance))
+            round_takte(deck, row, dance), dance, own,
+            tso_band_of(self._settings, dance), measured=not ent.bpm)
         played_at = self._big_player.set_tempo_to_target(target)
         if played_at is None:
             if not auto:
@@ -1380,23 +1509,76 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
                  "playing: T%s → T%s (%s)",
                  dance, meta.round_name or heading or "—", takte or "—",
                  takt_text(danced_at),
-                 takt_text(target), ent.bpm, takt_text(played_at),
+                 takt_text(target), own, takt_text(played_at),
                  ent.title or ent.path.name)
         src = (i18n.t("the %s %s of this round") % (takte, dance_name(dance, dance))
                if len(counts) > 1 else i18n.t("this %s") % dance_name(dance, dance))
         self.statusBar().showMessage(
             terms.rules_name(i18n.t("🎚 TSO tempo: %s %s → T%s (target T%s from %s)"),
                              short=True)
-            % (dance, ent.bpm, takt_text(played_at), takt_text(target), src), 6000)
+            % (dance, own, takt_text(played_at), takt_text(target), src), 6000)
         return True
 
-    def _on_timed_end(self, reason: str = "play length"):
-        """Play length reached — stop the song like a natural end.
+    def _warn_doubtful_measure(self, ent, text: str) -> None:
+        """Tell the user, once per load, that a "?" title's measured tempo was
+        too far off to pitch from. The load tries to pitch twice when the
+        first try set nothing, and would say it twice."""
+        if self._playback.doubt_token == self._playback.token:
+            return
+        self._playback.doubt_token = self._playback.token
+        log.info("⚠ Measured tempo not trusted, title left as it is\n"
+                 "file: %s\n"
+                 "measured: %s",
+                 ent.title or ent.path.name, text)
+        show_toast(self, text, WARN_TOAST_MS)
 
-        `reason` is only for the log: four different rules end a title this way
-        and, from the hall, all four look identical — the music stops. When one
-        of them fires where it should not have, the breadcrumb is what tells
-        them apart afterwards."""
+    def _hold_gemuetlich(self, auto: bool = False) -> bool:
+        """🛋 Gemütlich: slow the playing title to the top tempo its dance has
+        in ⚙ Settings → 🎛 Playsets when it was recorded faster. Never
+        faster, and a title at or under the top is left as it is.
+
+        Returns whether a tempo was set — `_pitch_before_play` needs to know
+        whether to try again once the row is marked as playing."""
+        if not self._big_player or self._playback.path is None:
+            return False
+        deck = next((t for t in self._deckset.all_tables
+                     if t._current_play_row >= 0), None)
+        if deck is None or not (0 <= deck._current_play_row < len(deck._row_meta)):
+            return False
+        meta = deck._row_meta[deck._current_play_row]
+        ent = meta.entry
+        if ent is None:
+            return False
+        # A social title known by its folder only has no .dance; the row it
+        # plays in has, the same one it was announced as.
+        dance = ent.dance or meta.dance
+        top = gemuetlich_max_of(self._settings, dance)
+        takt = pitch_takt(ent, dance)
+        target = gemuetlich_target(takt, top)
+        if target is None or top is None:
+            return False
+        if not ent.bpm and doubtful_for_gemuetlich(takt, top):
+            self._warn_doubtful_measure(
+                ent, i18n.t("⚠ %s measured at T%s, far over the T%s limit: "
+                            "probably a wrong measure, not slowed")
+                % (dance, takt, takt_text(top)))
+            return False
+        played_at = self._big_player.set_tempo_to_target(target)
+        if played_at is None:
+            return False
+        log.info("🛋 Gemütlich slowed a title\n"
+                 "dance: %s\n"
+                 "playing: T%s → T%s (top T%s)\n"
+                 "file: %s",
+                 dance, takt, takt_text(played_at), takt_text(top),
+                 ent.title or ent.path.name)
+        self.statusBar().showMessage(
+            i18n.t("🛋 Relaxed: %s T%s → T%s")
+            % (dance, takt, takt_text(played_at)), 6000)
+        return True
+
+    def _log_song_end(self, reason: str):
+        """The one 'Song ended' line: why, which file, and where it was."""
         log.info("⏹ Song ended\n"
                  "reason: %s\n"
                  "file: %s\n"
@@ -1405,6 +1587,94 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
                  self._playback.path.name if self._playback.path else "?",
                  self._player.position() if self._player else -1,
                  self._player.duration() if self._player else -1)
+
+    def _ended_before_it_began(self) -> bool:
+        """The backend says "end of file" within seconds of the start, for a
+        title whose length it measures wildly off the library's. That is not a
+        title that ended: ffmpeg took a CBR mp3 for an MPEG program stream, gave
+        it a length of some 77 000 s and "finished" it at once, without an
+        error. (Windows Media Foundation reads such a file fine.)"""
+        path, t0 = self._playback.path, self._playback.play_t0
+        lib = getattr(getattr(self, "_library", None), "lib", None)
+        entry = lib.entry_for(path) if lib is not None and path is not None else None
+        if (entry is None or not entry.duration or entry.duration < 10
+                or t0 is None or self._player is None
+                or time.perf_counter() - t0 > 5):
+            return False
+        known_ms = entry.duration * 1000
+        return abs(self._player.duration() - known_ms) > max(5000, known_ms / 4)
+
+    def _fail_unread_title(self):
+        """Give the title a repaired copy to play from, once. Failing that, tell
+        what the silent skip used to hide and move on like any title that would
+        not play."""
+        path = self._playback.path
+        if path is None:
+            return
+        backend_ms = self._player.duration() if self._player else -1
+        if str(path) not in self._playback.repaired:
+            # The copy reads and writes the whole file: off the GUI thread, so
+            # a large title on a slow drive does not freeze the window. The
+            # player sits at the end of the misread file meanwhile.
+            repairs = pendingWork(self).repairs
+            if str(path) in repairs:
+                return
+            w = _RepairWorker(path, resolve_file(path, self._settings) or path,
+                              self._playback.token, backend_ms, parent=self)
+            w.done.connect(self._on_repair_done)
+            w.finished.connect(w.deleteLater)
+            repairs[str(path)] = w
+            w.start()
+            return
+        self._title_unreadable(path, backend_ms)
+
+    def _on_repair_done(self, worker, copy):
+        path = worker.path
+        pendingWork(self).repairs.pop(str(path), None)
+        if self._playback.token != worker.token or self._playback.path != path:
+            # Another title by now. The copy stays on disk, and the title's
+            # next load opens it at once (main_load, cached_copy).
+            return
+        if copy is None:
+            self._title_unreadable(path, worker.backend_ms)
+            return
+        self._keep_repaired(path, copy)
+        log.warning("🔧 Title read wrongly by the audio engine\n"
+                    "file: %s\n"
+                    "backend length: %d ms\n"
+                    "replaying from a repaired copy: %s",
+                    path.name, worker.backend_ms, copy)
+        self._play_or_stop(path)
+
+    def _title_unreadable(self, path, backend_ms: int):
+        """No copy to play from: tell what the silent skip used to hide and
+        move on like any title that would not play."""
+        lib = getattr(getattr(self, "_library", None), "lib", None)
+        log.error("🔇 Title ended before it began\n"
+                  "file: %s\n"
+                  "backend length: %d ms\n"
+                  "library length: %s s",
+                  path.name, backend_ms,
+                  getattr(lib.entry_for(path) if lib else None, "duration", "?"))
+        hands_over = self._failover_target() is not None   # before the reset
+        self._playback_failed(
+            path, i18n.t("the audio engine cannot read the file"),
+            i18n.t("⚠ Could not play: %s") % path.name)
+        if not hands_over:   # a failover toasts for itself
+            hint = (i18n.t("\nTry ⚙ Settings ▸ Sound ▸ 🔊 Audio backend ▸ Windows.")
+                    if os.environ.get("QT_MEDIA_BACKEND") == "ffmpeg" else "")
+            show_toast(self, i18n.t("⚠ “%s” could not be played — the audio "
+                                    "engine cannot read the file.") % path.stem + hint,
+                       WARN_TOAST_MS, error=True)
+
+    def _on_timed_end(self, reason: str = "play length"):
+        """Play length reached — stop the song like a natural end.
+
+        `reason` is only for the log: four different rules end a title this way
+        and, from the hall, all four look identical — the music stops. When one
+        of them fires where it should not have, the breadcrumb is what tells
+        them apart afterwards."""
+        self._log_song_end(reason)
         if reason != "crossfade":
             # 🔀 Any other end ends a running crossfade too — a 🔉↓ that ran
             # out took the fading title down with it.
@@ -1508,20 +1778,31 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
                 # the operator selected. No scroll: the decks run autoScroll off.
                 table.setCurrentCell(row, _COL_TITLE)
 
-    def _preview_skip(self, step: int):
+    def _preview_skip(self, step: int, asked: bool = False):
         """⏮/⏭ on the preview overlay / big player: play the previous / next
         song row of whichever table is currently playing (headers are skipped).
         Falls back to the event plan's column, then the library pane, when the
-        preview started there."""
+        preview started there. `asked`: the ↩ marker question was answered
+        already (a crossfade ⏭ asks before it swaps the decks)."""
+        target = None
+        for t in self._deckset.all_tables:
+            if t._current_play_row >= 0:
+                target = (t, *t.next_song_row(t._current_play_row, step))
+                break
+        # The title the skip lands on may carry a ↩ time marker: ask where it
+        # starts BEFORE anything is cut, so a Cancel leaves the running title
+        # and the announcement alone.
+        if not asked and target and target[1] >= 0 and not target[0]._confirm_marked_start(
+                target[1], target[2]):
+            return
         # Whatever is being said belongs to the title we are leaving. Fast
         # skipping used to stack one announcement per step and read them all
         # out over the music that finally stayed.
         self._announcer.stop()
-        for t in self._deckset.all_tables:
-            row = t._current_play_row
-            if row < 0:
-                continue
-            nrow, npath = t.next_song_row(row, step)
+        if self._playback.path is not None:
+            log_song_action(self, "⏭ Song skipped", "step: %+d" % step)
+        if target:
+            t, nrow, npath = target
             if nrow >= 0:
                 t._on_play_click(nrow, npath)   # handles ▶/■ markers + playback
                 t.scroll_row_into_play_view(nrow)
@@ -1536,6 +1817,10 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         (countdown, fade ramp, PD highlight stop) if a stop had halted it — and
         the running row's ■/▶ follows the player, whoever pressed pause."""
         playing = state == QMediaPlayer.PlaybackState.PlayingState
+        if playing:
+            log_song_action(self, "▶ Song playing", *fade_state_lines(self))
+        elif state == QMediaPlayer.PlaybackState.PausedState:
+            log_song_action(self, "⏸ Song paused", *fade_state_lines(self))
         self._xfade_follow(state)   # 🔀 a fading title pauses and runs with it
         self._refresh_wake_lock()
         if playing:
@@ -1574,6 +1859,8 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
 
     def _on_stop_btn(self):
         """Stop button in the player bar — also resets every deck's play buttons."""
+        if self._player and self._playback.path is not None:
+            self._log_song_end("stopped by hand")
         self._stop_play_timer()
         self._end_crossfade()   # ⏹ is silence: the tail too
         # ⏹ means silence: a load the ⏭ rate limit still holds back must not
@@ -1593,6 +1880,21 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         self._now_playing.setText("No song selected")
         if self._big_player:
             self._big_player.set_now("")
+
+    def _stop_all_sound(self):
+        """⏹ The profile chooser's red stop: silence, now. The music stops as ⏹
+        stops it (its crossfade tail, a spoken call, a pending advance and a
+        🛑 ramp go with it), and only then the cartwall is cut, tails, held
+        beds and all: a pause still pending could lift a bed again. The
+        🎧 pre-listen goes too: it may play on the hall's output."""
+        log.info("⏹ Stop all sound")
+        self._on_stop_btn()
+        cue = self._cue_player()
+        if cue is not None:
+            cue.stop()
+        if self._cart_voices is not None:
+            self._cartwall.end_queue_run()
+            self._cart_voices.cut_all()
 
     def _seek(self, delta_ms: int):
         """Seek the player by delta_ms (clamped to [0, duration]). Used by the
@@ -1635,7 +1937,7 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
                                QMediaPlayer.MediaStatus.BufferedMedia)):
             # ⏱ Click → decodable media: everything after our own blocking work.
             self._playback.ready_logged = True
-            log.info("⏱ Media ready\n"
+            log.debug("⏱ Media ready\n"
                      "file: %s\n"
                      "total: %.0f ms",
                      self._playback.path.name if self._playback.path else "?",
@@ -1669,6 +1971,10 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
                 # #62: a queued end of the title just replaced — the player is
                 # already on the next one, which must not be stopped or unloaded.
                 return
+            if self._ended_before_it_began():
+                self._fail_unread_title()
+                return
+            self._log_song_end("end of file")
             if self._is_playing_mode():
                 # ↩ Heard out — no mark. Only in the big player: the overlay is
                 # a pre-listen and never touches a mark, not even by running a

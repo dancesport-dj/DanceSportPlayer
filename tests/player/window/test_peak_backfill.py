@@ -43,8 +43,9 @@ class _Worker:
 
     started = []
 
-    def __init__(self, path, _ffmpeg, parent=None):
+    def __init__(self, path, _ffmpeg, key=None, parent=None):
         self.path = Path(path)
+        self.key = key if key is not None else str(path)
         self.done = _Signal()
         self.error = _Signal()
         self.cancelled = False
@@ -85,7 +86,8 @@ class _Cache:
         return 1
 
 
-class PeakBackfillTest(unittest.TestCase):
+class _WindowCase(unittest.TestCase):
+    """A real window, the cache and the worker stood in for."""
 
     @classmethod
     def setUpClass(cls):
@@ -116,6 +118,9 @@ class PeakBackfillTest(unittest.TestCase):
             p.start()
             self.addCleanup(p.stop)
         self.path = Path(r"C:\music\SB\Old (SB 50).mp3")
+
+
+class PeakBackfillTest(_WindowCase):
 
     def test_no_peak_is_measured_and_nobody_waits(self):
         self.assertFalse(self.win._await_loudness(self.path, True))
@@ -203,6 +208,49 @@ class PeakBackfillTest(unittest.TestCase):
         _Worker.started[0].done.emit(str(self.path), -13.9, -0.5)
         self.assertEqual(self.win.statusBar().currentMessage(),
                          "🔇 Skipped 3s of leading silence.")
+
+
+class FoundElsewhereTest(_WindowCase):
+    """A playlist line whose file is found elsewhere (the stick came back as
+    another drive, a copy under a search root) was measured at the stored path:
+    ffmpeg failed, and the title played unlevelled and without its true-peak cap.
+    The measurement reads the file the deck plays and reports under the stored
+    path, the key every reader looks the numbers up by."""
+
+    def setUp(self):
+        super().setUp()
+        self.found = Path(r"G:\SB\Old (SB 50).mp3")
+        p = mock.patch("player.window.main_audio.resolve_file", return_value=self.found)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_a_first_measurement_reads_the_found_file(self):
+        self.cache.lufs = None
+        self.assertTrue(self.win._await_loudness(self.path, True))
+        self.win._lufs_pending = None   # or its timer fires into a torn-down window
+        self.assertEqual([(w.path, w.key) for w in _Worker.started],
+                         [(self.found, str(self.path))])
+
+    def test_a_peak_measurement_reads_the_found_file(self):
+        self.win._await_loudness(self.path, True)
+        self.assertEqual([(w.path, w.key) for w in _Worker.started],
+                         [(self.found, str(self.path))])
+
+    def test_a_running_measurement_of_the_title_is_recognised(self):
+        """The one-at-a-time guard compares the title, not the file read."""
+        self.cache.lufs = None
+        self.win._lufs_worker = _Worker(self.found, "ffmpeg", key=str(self.path))
+        self.assertTrue(self.win._await_loudness(self.path, True))
+        self.win._lufs_pending = None
+        self.assertFalse(self.win._lufs_worker.cancelled)
+        self.assertEqual(_Worker.started, [])
+
+    def test_the_landed_measurement_does_not_hold_the_next_peak_back(self):
+        """#12: the worker whose result just arrived is not counted as busy."""
+        self.win._lufs_worker = _Worker(self.found, "ffmpeg", key=str(self.path))
+        other = Path(r"C:\music\SB\New (SB 50).mp3")
+        self.win._measure_peak(other, landed=str(self.path))
+        self.assertEqual(len(_Worker.started), 1)
 
 
 if __name__ == "__main__":

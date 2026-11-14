@@ -116,6 +116,30 @@ class GuestDeskTest(unittest.TestCase):
         self.assertTrue(st["running"])
         self.assertEqual(st["code"], self._server().code)
 
+    def test_a_scan_that_lands_later_reaches_the_guest_page(self):
+        """Review 3.E: the catalogue was taken once, at server start. Switched
+        on while the startup scan still ran, the page offered nothing until
+        the server was switched off and on."""
+        self.win._library.lib = None
+        self._start()
+        self.assertEqual(json.loads(self._server().catalog_json())["songs"], [])
+        self.win._library.lib = types.SimpleNamespace(entries=[self.moon, self.samba])
+        self.win._guest_library_changed()
+        ids = [row[0] for row in json.loads(self._server().catalog_json())["songs"]]
+        self.assertCountEqual(ids, [song_id(self.moon), song_id(self.samba)])
+
+    def test_the_scan_hook_is_wired_to_the_library_loader(self):
+        import inspect
+
+        import dancesport_gui
+        src = inspect.getsource(dancesport_gui)
+        self.assertTrue("finished_ok.connect(self._guest_library_changed)" in src,
+                        "the loader does not tell the guest desk")
+
+    def test_a_scan_without_a_guest_server_starts_nothing(self):
+        self.win._guest_library_changed()
+        self.assertIsNone(self.desk.server)
+
     def test_a_request_lands_in_the_inbox_and_counts_up(self):
         self._start()
         self.assertEqual(self._post({"song": song_id(self.moon)}), 204)

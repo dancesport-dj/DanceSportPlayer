@@ -63,6 +63,31 @@ class DuckReasonTest(unittest.TestCase):
         self.m.duck_reason("announce", False)
         self.assertEqual(self.m.duck_target, 1.0)
 
+    def test_the_sliders_follow_a_pads_pull_until_the_music_is_back_at_full(self):
+        """Review F2: a pad ends while an announcement still holds the music.
+        The sliders keep showing what is heard, the announcement's depth now,
+        instead of jumping to full over music that is still down; they come
+        back with the music. Only a pull an announcement starts on its own
+        leaves them standing still."""
+        def settle():
+            for _ in range(10_000):
+                if self.m.settled:
+                    return
+                self.m.step()
+        self.m.duck_reason("cartwall", True)
+        self.m.duck_reason("announce", True)
+        settle()
+        self.assertAlmostEqual(self.m.pad_pull, CART_DUCK)
+        self.m.duck_reason("cartwall", False)
+        settle()
+        self.assertAlmostEqual(self.m.pad_pull, ANNOUNCE_DUCK)
+        self.m.duck_reason("announce", False)
+        settle()
+        self.assertEqual(self.m.pad_pull, 1.0)
+        self.m.duck_reason("announce", True)
+        settle()
+        self.assertEqual(self.m.pad_pull, 1.0, "an announcement alone moves no slider")
+
     def test_a_pad_pulls_deeper_than_the_announcer(self):
         """A fanfare over music that only sat back 10 dB was lost in it: the
         pad takes the music down about 20 dB, the voice keeps its softer duck."""
@@ -144,6 +169,51 @@ class DuckReasonTest(unittest.TestCase):
             self.m.step()
         self.assertTrue(self.m.settled)
         self.assertEqual(self.m.duck, ANNOUNCE_DUCK)
+
+
+class MutedWallDuckTest(unittest.TestCase):
+    """🔇 A muted wall is not heard, so a ducking pad on it must not pull the
+    music down. The announcer's duck is its own and stays."""
+
+    def test_a_pad_on_a_muted_wall_does_not_duck(self):
+        m = OutputMix()
+        m.set_cart_muted(True)
+        m.duck_reason("cartwall", True)
+        self.assertEqual(m.duck_target, 1.0)
+
+    def test_muting_while_a_pad_ducks_lifts_the_duck(self):
+        m = OutputMix()
+        m.duck_reason("cartwall", True)
+        m.set_cart_muted(True)
+        self.assertEqual(m.duck_target, 1.0)
+
+    def test_unmuting_while_the_pad_still_runs_ducks_again(self):
+        m = OutputMix()
+        m.set_cart_muted(True)
+        m.duck_reason("cartwall", True)
+        m.set_cart_muted(False)
+        self.assertEqual(m.duck_target, CART_DUCK)
+
+    def test_the_announcer_still_ducks_on_a_muted_wall(self):
+        m = OutputMix()
+        m.set_cart_muted(True)
+        m.duck_reason("cartwall", True)
+        m.duck_reason("announce", True)
+        self.assertEqual(m.duck_target, ANNOUNCE_DUCK)
+
+    def test_a_new_pad_depth_does_not_duck_a_muted_wall(self):
+        m = OutputMix()
+        m.set_cart_muted(True)
+        m.duck_reason("cartwall", True)
+        m.set_cart_duck(0.4)
+        self.assertEqual(m.duck_target, 1.0)
+
+    def test_muting_asks_for_the_ramp(self):
+        m = OutputMix()
+        m.duck_reason("cartwall", True)
+        m.duck = CART_DUCK
+        m.set_cart_muted(True)
+        self.assertFalse(m.settled, "the music has to climb back")
 
 
 class OutputLevelTest(unittest.TestCase):

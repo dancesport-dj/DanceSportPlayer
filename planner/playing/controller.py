@@ -38,6 +38,7 @@ ACTIONS = (
     ("hold", "🛑  Fade out and hold"),
     ("duck", "🔉  Duck the music on / off"),
     ("announce", "🔈  Announce the next dance on / off"),
+    ("gemuetlich", "🛋  Relaxed on / off"),
     ("volume", "🔊  Music volume (fader or knob)"),
     ("vol_up", "🔼  Music volume up"),
     ("vol_down", "🔽  Music volume down"),
@@ -51,6 +52,7 @@ ACTIONS = (
     ("tempo_down", "⏬  Tempo down"),
     ("tempo_reset", "🎯  Tempo back to ±0 %"),
     ("stop_pads", "⏹  Stop all pads"),
+    ("stop_all", "⏹  Stop all music at once, without a fade"),
 ) + tuple((f"deck:{n}", f"🎯  Focus playlist {n}") for n in range(1, DECK_COUNT + 1)) \
   + tuple((f"wish:{n}", f"🎯  Focus wishlist {n}") for n in range(1, WISH_COUNT + 1)) \
   + (("lib", "📚  Focus the library"),
@@ -75,12 +77,13 @@ KEY_ACTIONS = tuple(a for a in ACTION_IDS
 KEY_DEFAULTS = {"toggle": "Ctrl+Shift+P", "next": "Ctrl+Shift+Right",
                 "prev": "Ctrl+Shift+Left", "fade": "Ctrl+Shift+F",
                 "hold": "Ctrl+Shift+H", "duck": "Ctrl+Shift+D",
-                "announce": "Ctrl+Shift+A", "vol_up": "Ctrl+Shift+Up",
+                "announce": "Ctrl+Shift+A", "gemuetlich": "Ctrl+Shift+G",
+                "vol_up": "Ctrl+Shift+Up",
                 "vol_down": "Ctrl+Shift+Down", "cart_vol_up": "Ctrl+Alt+Up",
                 "cart_vol_down": "Ctrl+Alt+Down", "cart_page_prev": "Ctrl+Alt+Left",
                 "cart_page_next": "Ctrl+Alt+Right", "tempo_up": "Ctrl+Shift+PgUp",
                 "tempo_down": "Ctrl+Shift+PgDown", "tempo_reset": "Ctrl+Shift+Home",
-                "stop_pads": "Ctrl+Shift+X",
+                "stop_pads": "Ctrl+Shift+X", "stop_all": "Shift+Esc",
                 **{f"deck:{n}": f"Alt+{n}" for n in range(1, DECK_COUNT + 1)},
                 **{f"wish:{n}": f"Alt+{k}" for n, k in enumerate("QWER", 1)},
                 "lib": "Alt+L", "browse_up": "Alt+Up", "browse_down": "Alt+Down",
@@ -118,6 +121,7 @@ RESERVED_KEYS = {
     "Ctrl+T": "Edit the tags of the selected title(s)",
     "Ctrl+Shift+C": "Copy the file path of the selected title",
     "Alt+S": "Warm-up list: swap the two selected titles of one dance",
+    "Alt+End": "Party list / wishlist: send the selected titles to the end",
     "F1": "This cheat sheet",
     "F11": "Fullscreen on / off — with date and time in the status bar",
     "F12": "Open ⚙ Settings",
@@ -296,7 +300,7 @@ def load_profile(path) -> dict:
             "bindings": clean_bindings(doc["bindings"])}
 
 
-def save_profile(path, name: str, device: str, bindings: dict) -> None:
+def save_controller_profile(path, name: str, device: str, bindings: dict) -> None:
     doc = {"version": PROFILE_VERSION, "name": name, "device": device,
            "bindings": clean_bindings(bindings)}
     Path(path).write_text(json.dumps(doc, indent=2, ensure_ascii=False),

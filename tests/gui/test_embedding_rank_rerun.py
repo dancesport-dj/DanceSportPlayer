@@ -46,6 +46,18 @@ class RankRerunTest(unittest.TestCase):
         dlg._on_embed_error.assert_not_called()
 
 
+    def test_a_switch_while_ranking_drops_the_running_rank(self):
+        # Switched to librosa or playlist mode inside the 300 ms before the busy
+        # dialog blocks: the MERT answer filled the table under the new method.
+        dlg, busies, workers = self.start_two()
+        dlg._lib = None                     # _recompute stops right after the drop
+        SimilarTracksDialog._recompute(dlg)
+        busies[1].finish.assert_called_once_with()
+        self.assertIsNone(dlg._emb_busy)
+        workers[1].done.connect.call_args.args[0]("src", ["stale"])
+        dlg._on_embedding_ranked.assert_not_called()
+
+
 class ChainedDropTest(unittest.TestCase):
     """A dropped file waits while an embedding index build or rank is running (#73)."""
 

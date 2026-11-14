@@ -17,7 +17,7 @@ import unittest
 from planner.i18n.lang_de import CATALOG as GERMAN
 
 # Key names and separators only: Ctrl + Shift + PgUp, F12 / Ctrl + Alt + S ...
-SHORTCUT = re.compile(r"^(?:Ctrl|Shift|Alt|Del|Enter|Home|PgUp|PgDown|F\d+|[A-Z0-9]|[←→↑↓…/+ ])+$")
+SHORTCUT = re.compile(r"^(?:Ctrl|Shift|Alt|Del|Esc|Enter|Home|PgUp|PgDown|F\d+|[A-Z0-9]|[←→↑↓…/+ ])+$")
 
 SAME_IN_LANGUAGE = {
     "es": frozenset({

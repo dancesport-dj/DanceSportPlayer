@@ -62,7 +62,7 @@ class CartwallTabMixin(_DialogHost):
         # ── 🔈 How far a cartwall pad pulls the music down ──
         # 10 and 90 are player.audio.mix's CART_DUCK_PCT and its cap.
         cart_duck_row = QHBoxLayout()
-        cart_duck_row.addWidget(QLabel("🔈  While a 🔈 pad plays, the music ducks to:"))
+        cart_duck_row.addWidget(QLabel("🔈  While a pad plays, the main music ducks to:"))
         self._cart_duck_spin = QSpinBox()
         self._cart_duck_spin.setRange(0, 90)
         self._cart_duck_spin.setSingleStep(5)
@@ -85,6 +85,72 @@ class CartwallTabMixin(_DialogHost):
         cart_duck_row.addWidget(self._cart_duck_db)
         cart_duck_row.addStretch(1)
         alyt.addLayout(cart_duck_row)
+
+        # ── 🔈 How far a pad pulls the OTHER PADS down ──
+        pad_duck_row = QHBoxLayout()
+        pad_duck_row.addWidget(QLabel("🔈  While a pad pulling the other pads down plays, they duck to:"))
+        self._cart_pad_duck_spin = QSpinBox()
+        self._cart_pad_duck_spin.setRange(0, 90)
+        self._cart_pad_duck_spin.setSingleStep(5)
+        self._cart_pad_duck_spin.setSuffix(" %")
+        self._cart_pad_duck_spin.setToolTip(
+            "How loud a title running on another pad stays while a pad set to\n"
+            "pull the other pads down plays, in percent of that pad's own\n"
+            "volume. It comes back to its volume when the pad is over.\n"
+            "Apart from the music duck above. 10 % is about −20 dB, 0 % is silence.")
+        try:
+            pad_duck_pct = int(settings.get("cart_pad_duck_pct", 10))
+        except (TypeError, ValueError):
+            pad_duck_pct = 10
+        self._cart_pad_duck_db = QLabel()
+        self._cart_pad_duck_spin.valueChanged.connect(
+            lambda pct: self._cart_pad_duck_db.setText(duck_db_text(pct)))
+        self._cart_pad_duck_spin.setValue(pad_duck_pct)
+        self._cart_pad_duck_db.setText(duck_db_text(self._cart_pad_duck_spin.value()))
+        pad_duck_row.addWidget(self._cart_pad_duck_spin)
+        pad_duck_row.addWidget(self._cart_pad_duck_db)
+        pad_duck_row.addStretch(1)
+        alyt.addLayout(pad_duck_row)
+
+        # ── 🔁 How a looping pad meets the end of its file ──
+        loop_row = QHBoxLayout()
+        loop_row.addWidget(QLabel("🔁  At a pad's loop point:"))
+        self._cart_loop_mode_combo = QComboBox()
+        for label, key in (("Crossover", "crossover"),
+                           ("Fade out and restart", "fade"),
+                           ("Hard stop and restart", "hard")):
+            self._cart_loop_mode_combo.addItem(label, key)
+        self._cart_loop_mode_combo.setToolTip(
+            "Crossover: the next round starts on a second voice shortly before the\n"
+            "file ends; the old round fades out while the new one fades in.\n"
+            "Fade out and restart: the pad fades itself out, then starts again\n"
+            "from the top at full level.\n"
+            "Hard stop and restart: the pad jumps straight back to the start.\n"
+            "How long that takes is set below.")
+        self._cart_loop_mode_combo.setCurrentIndex(
+            self._cart_loop_mode_combo.findData(pc.loop_mode(settings)))
+        loop_row.addWidget(self._cart_loop_mode_combo)
+        loop_row.addStretch(1)
+        alyt.addLayout(loop_row)
+        cross_row = QHBoxLayout()
+        cross_row.addWidget(QLabel("🔁  …blend or dip over:"))
+        self._cart_cross_spin = QDoubleSpinBox()
+        self._cart_cross_spin.setRange(0.0, pc.MAX_CROSS_MS / 1000)
+        self._cart_cross_spin.setDecimals(1)
+        self._cart_cross_spin.setSingleStep(0.5)
+        self._cart_cross_spin.setSuffix(" s")
+        self._cart_cross_spin.setToolTip(
+            "How long the crossover, or the dip before the restart, lasts,\n"
+            "counted back from the end of the file (never more than a third\n"
+            "of it). 0 restarts at once. A pad can override this in its own\n"
+            "settings.")
+        self._cart_cross_spin.setValue(pc.cross_ms(settings) / 1000)
+        self._cart_loop_mode_prev = pc.loop_mode(settings)
+        self._cart_loop_mode_combo.currentIndexChanged.connect(
+            self._on_cart_loop_mode)
+        cross_row.addWidget(self._cart_cross_spin)
+        cross_row.addStretch(1)
+        alyt.addLayout(cross_row)
         self._add_wall_rows(settings, alyt)
         clyt.addWidget(all_box)
 
@@ -253,10 +319,24 @@ class CartwallTabMixin(_DialogHost):
         ) == QMessageBox.StandardButton.Yes:
             self._reset_cartwall_values()
 
+    def _on_cart_loop_mode(self) -> None:
+        """A spin that still sits on the old mode's default moves to the
+        new mode's (3 s crossover, 1 s fade); a length someone typed stays."""
+        mode = self._cart_loop_mode_combo.currentData()
+        if (round(self._cart_cross_spin.value() * 1000)
+                == pc.default_cross_ms(self._cart_loop_mode_prev)):
+            self._cart_cross_spin.setValue(pc.default_cross_ms(mode) / 1000)
+        self._cart_loop_mode_prev = mode
+
     def _reset_cartwall_values(self) -> None:
         """↺ Every field of the tab on what the program ships with."""
         none: dict = {}
         self._cart_duck_spin.setValue(10)
+        self._cart_pad_duck_spin.setValue(10)
+        self._cart_loop_mode_combo.setCurrentIndex(
+            self._cart_loop_mode_combo.findData(pc.loop_mode(none)))
+        self._cart_cross_spin.setValue(
+            pc.default_cross_ms(self._cart_loop_mode_combo.currentData()) / 1000)
         self._cart_fade_spin.setValue(pc.DEFAULT_FADE_MS / 1000)
         self._cart_colour_combo.setCurrentIndex(
             max(0, self._cart_colour_combo.findData(pc.DEFAULT_PAD_COLOUR)))
@@ -315,6 +395,9 @@ class CartwallTabMixin(_DialogHost):
         """The tab's settings, for values() — CART_WALL_KEYS among them."""
         return {
             "cart_duck_pct": self._cart_duck_spin.value(),
+            "cart_pad_duck_pct": self._cart_pad_duck_spin.value(),
+            "cart_loop_mode": self._cart_loop_mode_combo.currentData(),
+            "cart_cross_ms": int(round(self._cart_cross_spin.value() * 1000)),
             "cart_bg_mode": self._cart_bg_combo.currentData(),
             "cart_bg_volume_pct": self._cart_bg_vol_spin.value(),
             "cart_bg_fire_fade_ms": int(round(self._cart_bg_fire_spin.value() * 1000)),

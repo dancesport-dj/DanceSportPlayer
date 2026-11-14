@@ -727,6 +727,22 @@ class PresenterPageTest(unittest.TestCase):
         w._fade_in()                              # a late end of the fade-out
         self.assertFalse(w.timetable_shown(), "no swap after all")
 
+    def test_clearing_the_programme_mid_fade_turns_back_to_the_music(self):
+        """Review 4.D: cleared during the fade towards it, the screen was not
+        on the timetable yet, so nothing turned it back, and the fade landed
+        on an empty page with the 🕒 button gone."""
+        w = _presenter()
+        self.addCleanup(reap_widget, w)
+        w.set_timetable(_evening())
+        w.show()
+        self.addCleanup(w.hide)
+
+        w.show_timetable(True)                    # …fading out the music page
+        w.set_timetable(None)
+        self.assertFalse(w._timetable_wanted())
+        w._fade_in()                              # a late end of the fade-out
+        self.assertFalse(w.timetable_shown())
+
     def test_the_t_key_toggles(self):
         from PySide6.QtCore import Qt
         from PySide6.QtGui import QKeyEvent

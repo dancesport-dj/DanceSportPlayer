@@ -28,6 +28,8 @@ Auf dem Mac gilt unten **Cmd** statt **Strg**: **Cmd + F** sucht einen Titel. Di
 | **Strg + Umschalt + E** | Die aktive Wunschliste bekommt den ganzen Bereich, die anderen klappen zu Reitern ein; noch einmal gedrückt: alle offen. |
 | **Strg + M** | Die markierten Titel kennzeichnen oder die Kennzeichnung entfernen (orange Zeile), zum Beispiel als Titel, die später getauscht werden sollen. **Strg + 1** macht dasselbe, solange die Cartwall ausgeblendet ist. |
 | **Alt + S** | Die zwei markierten Titel desselben Tanzes im Party-Bereich tauschen. |
+| **Alt + Ende** | Die markierten Titel ans Ende der Liste schicken, wie der Eintrag im Kontextmenü. |
+| **Strg + Umschalt + G** | 🛋 Gemütlich an / aus, solange 🛋 bei einer Party-Liste zu sehen ist. |
 | **F2** im Baum 🏆 Turniere | Den Eintrag umbenennen. **Entf** entfernt ihn aus dem Baum. |
 | **Strg + A** in 🏆 Turniere | Jeden Slot des Ordners oder jeden Eintrag des Baums markieren. **Entf** und Ziehen nehmen dann alle mit. |
 | **Strg + F** | Öffnet die Suchleiste über der aktiven Liste (**Cmd + F** auf dem Mac); noch einmal gedrückt, schließt es die Leiste, auch aus der Liste. Beim Tippen färben sich die Treffer sofort ein, und **Enter** springt zum ersten; danach springt **Enter** zum nächsten Treffer, **Umschalt + Enter** zurück, **Esc** schließt sie, auch aus der Liste. **Tab** / **Umschalt + Tab** wechseln zwischen Titel- und Genrefeld, **Strg + X** leert das Feld (beide Felder, wenn es auf der Liste gedrückt wird). |

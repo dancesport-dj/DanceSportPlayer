@@ -251,7 +251,7 @@ class AnnounceNextLeadInTest(unittest.TestCase):
         win._between = BetweenDances()
         win._between.pending = (_Deck("RB"), 0, "x.mp3")
         win._announcer = _Speaker()
-        win._pv = lambda key: True
+        win._list_vals = lambda deck: {"announce": True}
         win._deck_advance = lambda deck: True
         win._maybe_announce_next()
         return win

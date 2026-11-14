@@ -124,7 +124,7 @@ class WindowAppliesTest(_ClassTagsInUse):
     def test_saving_applies_it_at_once(self):
         win = self._window({"app_mode": "both"})
         for name, value in (("SettingsDialog", _Dialog),
-                            ("save_settings", lambda s: None)):
+                            ("save_settings", lambda s, **_: None)):
             patch = mock.patch.object(main_global, name, value)
             patch.start()
             self.addCleanup(patch.stop)

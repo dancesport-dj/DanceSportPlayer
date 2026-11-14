@@ -77,9 +77,10 @@ class _Desk:
     _cycle_desk_duck = AudioLevelMixin._cycle_desk_duck
     _show_desk_duck = AudioLevelMixin._show_desk_duck
     apply_duck_level = AudioLevelMixin.apply_duck_level
+    _start_mix_ramp = AudioLevelMixin._start_mix_ramp
 
     def __init__(self, pct):
-        self._settings = {"duck_pct": pct}
+        self._settings = {"duck_pct": pct, "desk_fade_ms": 0}
         self._mix = OutputMix()
         self._big_player = self._preview = self._presenter = None
         self.applied = 0
@@ -314,9 +315,11 @@ class _WiredDesk:
     _show_desk_duck = AudioLevelMixin._show_desk_duck
     _set_base_volume = AudioLevelMixin._set_base_volume
     apply_duck_level = AudioLevelMixin.apply_duck_level
+    _start_mix_ramp = AudioLevelMixin._start_mix_ramp
+    _show_pull = AudioLevelMixin._show_pull
 
     def __init__(self, pct=10, base=0.8):
-        self._settings = {"duck_pct": pct}
+        self._settings = {"duck_pct": pct, "desk_fade_ms": 0}
         self._mix = OutputMix()
         self._mix.set_base(base)
         self._presenter = None
@@ -343,6 +346,9 @@ class _WiredDesk:
 
     def heard(self):
         return self._mix.base * self._mix.desk
+
+    def heard_with_pull(self):
+        return self._mix.base * self._mix.desk * self._mix.duck
 
 
 class DuckMovesTheSliderTest(unittest.TestCase):
@@ -523,3 +529,148 @@ class PresenterDuckTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class _PullDesk(_WiredDesk):
+    """The wired desk with the real ramp step, so a pad's pull reaches the
+    sliders the way it does in the window."""
+
+    _step_volume_ramp = AudioLevelMixin._step_volume_ramp
+    _set_duck_reason = AudioLevelMixin._set_duck_reason
+    _show_pull = AudioLevelMixin._show_pull
+
+    def __init__(self, base=0.8):
+        super().__init__(base=base)
+        self._ramp_timer = SimpleNamespace(
+            isActive=lambda: False, start=lambda: None, stop=lambda: None)
+        self._player = None
+        self._audio_out = None
+
+    def settle(self):
+        while not self._mix.settled:
+            self._step_volume_ramp()
+        self._step_volume_ramp()
+
+
+class PadPullMovesTheSliderTest(unittest.TestCase):
+    """Marcel: "when a pad ducks the main music i want the slider of main music
+    also to move". The slider shows what is heard, the pad's pull included."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.desk = _PullDesk()
+        self.addCleanup(reap_widget, self.desk._big_player)
+        self.addCleanup(reap_widget, self.desk._preview)
+        self.card = self.desk._big_player
+        self.overlay = self.desk._preview
+
+    def sliders(self):
+        return self.card._vol.value(), self.overlay._vol.value()
+
+    def test_a_pad_brings_both_sliders_down_and_lifts_them_again(self):
+        self.desk._set_duck_reason("cartwall", True)
+        self.desk.settle()
+        self.assertEqual(self.sliders(), (8, 8))
+        self.desk._set_duck_reason("cartwall", False)
+        self.desk.settle()
+        self.assertEqual(self.sliders(), (80, 80))
+
+    def test_the_slider_walks_with_the_ramp(self):
+        self.desk._set_duck_reason("cartwall", True)
+        self.desk._step_volume_ramp()
+        first = self.card._vol.value()
+        self.assertLess(first, 80)
+        self.assertGreater(first, 8)
+
+    def test_an_announcement_ducks_the_music_but_not_the_slider(self):
+        # Marcel: "it now also moves by normal 3 second fades, that was not
+        # intended, only for ducking" - the announcer pulls the music at
+        # every title start; the slider is for a pad's pull alone.
+        self.desk._set_duck_reason("announce", True)
+        self.desk._step_volume_ramp()
+        self.assertLess(self.desk._mix.duck, 1.0, "the music is pulled")
+        self.assertEqual(self.sliders(), (80, 80))
+        self.desk.settle()
+        self.assertEqual(self.sliders(), (80, 80))
+        self.desk._set_duck_reason("announce", False)
+        self.desk.settle()
+        self.assertEqual(self.sliders(), (80, 80))
+
+    def test_a_pad_still_moves_the_slider_during_an_announcement(self):
+        self.desk._set_duck_reason("announce", True)
+        self.desk._set_duck_reason("cartwall", True)
+        self.desk.settle()
+        self.assertLess(self.card._vol.value(), 80)
+        self.desk._set_duck_reason("cartwall", False)
+        self.desk._set_duck_reason("announce", False)
+        self.desk.settle()
+        self.assertEqual(self.sliders(), (80, 80))
+
+    def test_the_pull_leaves_the_master_alone(self):
+        self.desk._set_duck_reason("cartwall", True)
+        self.desk.settle()
+        self.assertAlmostEqual(self.desk._mix.base, 0.8)
+
+    def test_a_hand_on_the_slider_overrides_the_pull(self):
+        """Marcel: "when the slider is adjusted allow the user to overwrite the
+        behaviour by adjust the slider manually". Dragged to 50 is heard at 50,
+        not 50 under the pad's pull."""
+        self.desk._set_duck_reason("cartwall", True)
+        self.desk.settle()
+        self.card._vol.setValue(50)
+        self.assertAlmostEqual(self.desk._mix.base, 0.5)
+        self.assertEqual(self.desk._mix.duck, 1.0)
+        self.assertAlmostEqual(self.desk.heard_with_pull(), 0.5)
+        self.assertEqual(self.sliders(), (50, 50))
+
+    def test_the_override_holds_while_the_pad_plays(self):
+        self.desk._set_duck_reason("cartwall", True)
+        self.desk.settle()
+        self.card._vol.setValue(50)
+        self.desk.settle()
+        self.assertEqual(self.desk._mix.duck, 1.0)
+        self.assertEqual(self.sliders(), (50, 50))
+
+    def test_the_overlay_slider_overrides_it_too(self):
+        self.desk._set_duck_reason("cartwall", True)
+        self.desk.settle()
+        self.overlay._vol.setValue(40)
+        self.assertEqual(self.desk._mix.duck, 1.0)
+        self.assertAlmostEqual(self.desk._mix.base, 0.4)
+
+    def test_the_next_pad_pulls_again_after_an_override(self):
+        self.desk._set_duck_reason("cartwall", True)
+        self.desk.settle()
+        self.card._vol.setValue(50)
+        self.desk._set_duck_reason("cartwall", False)
+        self.desk.settle()
+        self.desk._set_duck_reason("cartwall", True)
+        self.desk.settle()
+        self.assertEqual(self.sliders(), (5, 5))
+
+    def test_a_hand_without_a_pull_leaves_the_mix_alone(self):
+        self.card._vol.setValue(30)
+        self.assertFalse(self.desk._mix.duck_overridden)
+        self.assertEqual(self.desk._mix.duck, 1.0)
+
+    def test_the_readout_is_the_heard_percent_not_duck(self):
+        self.desk._set_duck_reason("cartwall", True)
+        self.desk.settle()
+        self.assertEqual(self.card._vol_lbl.text(), "8%")
+
+    def test_the_overlay_opens_on_what_is_heard(self):
+        table = QTableView()
+        self.addCleanup(reap_widget, table)
+        self.desk._set_duck_reason("cartwall", True)
+        self.desk.settle()
+        self.overlay.show_for(table, 0, "Titel")
+        self.assertEqual(self.overlay._vol.value(), 8)
+
+    def test_a_master_set_elsewhere_stays_pulled_on_the_slider(self):
+        self.desk._set_duck_reason("cartwall", True)
+        self.desk.settle()
+        self.desk._set_base_volume(0.5)
+        self.assertEqual(self.card._vol.value(), 5)

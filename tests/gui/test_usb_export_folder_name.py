@@ -203,7 +203,7 @@ class ReplaceTest(unittest.TestCase):
         _Box.click = "Replace"
         _Box.errors = []
 
-    def pick(self):
+    def pick(self, in_use=()):
         ask = mock.Mock()
         ask.exec.return_value = QDialog.DialogCode.Accepted
         ask.into_root.return_value = False
@@ -213,7 +213,7 @@ class ReplaceTest(unittest.TestCase):
              mock.patch.object(main_export.os.path, "ismount", return_value=False), \
              mock.patch.object(main_export, "UsbBundleFolderDialog", return_value=ask), \
              mock.patch.object(main_export, "QMessageBox", _Box):
-            return ExportMixin._pick_bundle_dir(mock.Mock(), "Gala")
+            return ExportMixin._pick_bundle_dir(mock.Mock(), "Gala", in_use)
 
     def an_older_export(self):
         (self.gala / "Final").mkdir()
@@ -262,6 +262,20 @@ class ReplaceTest(unittest.TestCase):
         self.an_older_export()
         self.assertEqual(self.pick(), (self.gala, True))
         self.assertEqual(list(self.gala.iterdir()), [])
+
+    def test_an_export_reading_from_the_old_bundle_cannot_replace_it(self):
+        # Full review 2026-11-11 #2: a deck loaded from the stick, exported
+        # back to it - Replace deleted the tracks before they were copied.
+        self.an_older_export()
+        track = self.gala / "Final" / "0_0_1 - a.mp3"
+        self.assertIsNone(self.pick(in_use=[track]))
+        self.assertNotIn("Replace", _Box.last.buttons)
+        self.assertTrue(track.exists())
+
+    def test_a_source_beside_the_old_bundle_does_not_block_it(self):
+        self.an_older_export()
+        beside = self.dir / "Gala other" / "x.mp3"
+        self.assertEqual(self.pick(in_use=[beside, None]), (self.gala, True))
 
     def test_a_folder_that_is_no_export_cannot_be_replaced(self):
         (self.gala / "taxes.xlsx").write_bytes(b"x")

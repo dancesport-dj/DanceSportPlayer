@@ -14,6 +14,7 @@ from PySide6.QtCore import QTimer, QUrl
 from PySide6.QtWidgets import QMessageBox
 
 from planner import i18n
+from planner.music.paths import resolve_file
 from planner.playing import cartwall as pc
 from player.audio.pd_stop import pd_stop_at
 from player.window.main_audio import pendingWork
@@ -239,7 +240,10 @@ class PdStopMixin(MainWindowHost):
         # path, and is kept under it, so a replay finds its own (#11, #81).
         pendingWork(self).pd_workers = {k: v for k, v in pendingWork(self).pd_workers.items()
                                     if v.isRunning()}
-        w = PdHighlightWorker(path, parent=self)
+        # The file the deck plays: not at the stored path when it was found on
+        # another drive or as a copy. Reported under the stored path.
+        w = PdHighlightWorker(resolve_file(path, self._settings) or path,
+                              key=str(path), parent=self)
         w.done.connect(self._on_pd_highlights)
         w.error.connect(self._on_pd_error)
         pendingWork(self).pd_workers[str(path)] = w

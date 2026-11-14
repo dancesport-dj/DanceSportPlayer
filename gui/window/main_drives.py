@@ -72,7 +72,7 @@ class _DeviceFilter(QAbstractNativeEventFilter):
         return False, 0
 
 
-def _look(hub, track_paths, pad_paths, settings):
+def _probe_drives(hub, track_paths, pad_paths, settings):
     """The probe thread. A title or pad counts as there when `resolve_file`
     finds it — on its own drive, the same path on another one, or 🧭's copy:
     that is what plays, so a stick back as G: is no loss."""
@@ -128,7 +128,7 @@ class DriveWatchMixin(MainWindowHost):
         wall = getattr(self, "_cartwall", None)
         pads = ({pad.path for page in wall.pages() for pad in page.pads.values()}
                 if wall is not None else set())
-        hub.probe = threading.Thread(target=_look, name="drive-probe",
+        hub.probe = threading.Thread(target=_probe_drives, name="drive-probe",
                                      args=(hub, tracks, pads, dict(self._settings)),
                                      daemon=True)
         hub.probe.start()

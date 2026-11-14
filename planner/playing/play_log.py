@@ -23,6 +23,8 @@ from planner.music.db import _db
 from planner.terms import dance_name
 
 GAP_HOURS = 4
+# The List value of a cartwall pad: a pad fires over whatever else is playing.
+CARTWALL_LIST = "Cartwall"
 _COLS = "started_at, path, artist, title, dance, list_name, length, composer"
 
 log = logging.getLogger("dancesport.play_log")
@@ -114,13 +116,23 @@ def delete(evening: Evening) -> None:
                   (_stamp(evening.start), _stamp(evening.end)))
 
 
+def list_names(plays_: list[Play]) -> list[str]:
+    """The distinct, non-empty List values, in order of first appearance."""
+    return list(dict.fromkeys(p.list_name for p in plays_ if p.list_name))
+
+
 def durations(plays_: list[Play]) -> list[float]:
-    """Seconds each title ran: up to the next start, at most its own length."""
+    """Seconds each title ran: up to the next start, at most its own length.
+
+    A cartwall pad fires over a running title, so it is neither the next start
+    of that title nor cut short by one: it ran as long as it was heard."""
+    songs = [i for i, p in enumerate(plays_) if p.list_name != CARTWALL_LIST]
+    nxt = dict(zip(songs, songs[1:], strict=False))
     out = []
     for i, p in enumerate(plays_):
         own = p.length or 0.0
-        if i + 1 < len(plays_):
-            gap = (plays_[i + 1].started_at - p.started_at).total_seconds()
+        if i in nxt:
+            gap = (plays_[nxt[i]].started_at - p.started_at).total_seconds()
             own = min(gap, own) if own else gap
         out.append(own)
     return out
@@ -139,15 +151,19 @@ def _text(value: str | None) -> str:
     return "'" + value if value[:1] in ("=", "+", "-", "@", "\t", "\r") else value
 
 
-def to_csv(plays_: list[Play], file: Path) -> None:
+def to_csv(plays_: list[Play], file: Path, only_list: str | None = None) -> None:
     """The evening as a `;`-separated UTF-8 file with BOM, so Excel opens it
-    with the umlauts intact on a German Windows."""
+    with the umlauts intact on a German Windows. `only_list` keeps just that
+    List's rows; durations are worked out on the whole evening first."""
+    secs_of = durations(plays_)
+    rows = [(p, s) for p, s in zip(plays_, secs_of, strict=True)
+            if only_list is None or p.list_name == only_list]
     with Path(file).open("w", encoding="utf-8-sig", newline="") as f:
         w = csv.writer(f, delimiter=";")
         w.writerow([i18n.t(c) for c in
                     ("Date", "Start", "Artist", "Title", "Composer", "Dance", "List",
                      "Duration")])
-        for p, secs in zip(plays_, durations(plays_), strict=True):
+        for p, secs in rows:
             w.writerow([p.started_at.date().isoformat(),
                         p.started_at.time().isoformat("seconds"),
                         _text(p.artist), _text(p.title), _text(p.composer),

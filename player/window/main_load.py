@@ -20,10 +20,12 @@ from PySide6.QtWidgets import QMessageBox
 
 import planner.generate.warmup
 from planner import i18n, terms
-from planner.music.paths import resolve_file
+from planner.music.paths import is_network_path, is_own_share, resolve_file
 from planner.playing import cartwall as pc
 from planner.terms import dance_name
+from player.audio.mp3_repair import cached_copy
 from player.audio.on_air_note import NOTE
+from player.audio.tso import pitch_takt
 from player.window.main_pause import live_target
 from shared.audio.playback import pre_roll_secs
 from shared.stores import ON_AIR, save_settings
@@ -60,8 +62,34 @@ class TrackLoadMixin(MainWindowHost):
     def _source_url(self, path) -> QUrl:
         """What the backend opens for a title: its file, else the same path
         on another drive (the stick came back as G:) or 🧭's copy. Everything
-        else — the row, the caches, the saved list — keeps the stored path."""
-        return QUrl.fromLocalFile(str(resolve_file(path, self._settings) or path))
+        else — the row, the caches, the saved list — keeps the stored path.
+        A title the backend misread opens as its repaired copy.
+        A network line from someone else's playlist that found no local copy
+        opens nothing (an empty URL): the raw path would make the backend open
+        an SMB session for it."""
+        found = resolve_file(path, self._settings)
+        if found is None and is_network_path(path) \
+                and not is_own_share(path, self._settings):
+            return QUrl()
+        copy = self._playback.repaired.get(str(path))
+        if copy is None and found is not None:
+            # A copy an earlier session made: use it from the first load, instead
+            # of letting the original end at once and repairing it again.
+            copy = cached_copy(found)
+            if copy is not None:
+                self._keep_repaired(path, copy)
+        return QUrl.fromLocalFile(str(copy or found or path))
+
+    def _keep_repaired(self, path, copy: Path) -> None:
+        """🔧 The title plays from `copy` this session. The first time, the
+        window says which file is damaged: the copy only papers over it, and
+        goes when unused for a week (mp3_repair.prune_copies)."""
+        if str(path) in self._playback.repaired:
+            return
+        self._playback.repaired[str(path)] = copy
+        show_toast(self, i18n.t("🔧 “%s” is damaged and plays from a repaired copy — "
+                                "replace the file at its source.") % Path(path).stem,
+                   WARN_TOAST_MS)
 
     def deck_path(self) -> Path | None:
         """The title the player is on, or about to load: a load held back by
@@ -157,14 +185,18 @@ class TrackLoadMixin(MainWindowHost):
             # to here has happened — the file is open, pitched and levelled;
             # only the play() waits.
             hold = self._pd_start_hold() if start else 0.0
-            # ⏳ The other way round: the dance is called into silence and the
-            # music follows the voice. Asked BEFORE the play(), because that is
-            # the play() it holds back.
-            waiting = bool(start and not hold
+            # 🎶 A background pad still heard fades out first, unless
+            # ⚙ Settings ▸ 🎛 Cartwall lets the title start over it...
+            bed = self._bed_first_ms() if start and not hold else 0
+            # ⏳ ...and the other way round: the dance is called into silence
+            # and the music follows the voice. Asked BEFORE the play(), because
+            # that is the play() it holds back. Over a bed that is still up the
+            # call waits for the dip too (`_release_after_bed`): spoken now, it
+            # would run over the bed, the music the hall was not to hear.
+            waiting = bool(start and not hold and not bed
                            and self._announce_start_first(ent))
-            # 🎶 …and a background pad still heard fades out first, unless
-            # ⚙ Settings ▸ 🎛 Cartwall lets the title start over it.
-            bed = self._bed_first_ms() if start and not hold and not waiting else 0
+            if waiting:
+                self._hold_bed_for_call()
             if start and not hold and not waiting and not bed:
                 self._player.play()
             if self._big_player:
@@ -188,9 +220,10 @@ class TrackLoadMixin(MainWindowHost):
             # start can be blamed on us or on the decoder without guessing.
             self._playback.play_t0 = t0
             self._playback.ready_logged = False
-            log.info("⏱ Play requested\n"
+            log.debug("⏱ %s requested\n"
                      "file: %s\n"
-                     "blocking: %.0f ms", path.name, 1000 * (time.perf_counter() - t0))
+                     "blocking: %.0f ms", "Play" if start else "Cue", path.name,
+                     1000 * (time.perf_counter() - t0))
         if getattr(self, "_cart_voices", None) is not None:
             # 🎶 A cue or an unload changes no playback state, so the wall
             # would not hear that a Paso Doble now waits for ⏯, or no longer
@@ -284,11 +317,18 @@ class TrackLoadMixin(MainWindowHost):
         pitched = False
         if self._big_player:
             self._big_player.set_takt(
-                ent.bpm if ent is not None and getattr(ent, "bpm", 0) else None)
+                (pitch_takt(ent, self._playback.dance)
+                 if ent is not None else 0) or None)
             self._big_player.set_current_dance(self._playback.dance or None)
             self._big_player.on_new_track()   # zero the fader if armed…
             self._big_player.apply_tempo()    # …then push the resulting rate
-            if start and self._big_player.tso_mode() and self._is_playing_mode():
+            # 🛋 first, and TSO only where its button is on show: the party list
+            # replaces it with 🛋, and a title raised to the round's mean
+            # (T42 → T43) is what gemütlich is there to prevent.
+            if (start and self._big_player.gemuetlich_applies()
+                    and self._is_playing_mode()):
+                pitched = self._hold_gemuetlich(auto=True)
+            elif start and self._big_player.tso_applies() and self._is_playing_mode():
                 pitched = self._equalize_heat_tempo(auto=True)
         return pitched
 
@@ -310,9 +350,11 @@ class TrackLoadMixin(MainWindowHost):
             # playing once it has told us, so on some paths the early one
             # above found nothing to pitch against. Costs a gap — but a
             # wrongly pitched heat costs more.
-            if (not pitched and start and self._big_player.tso_mode()
-                    and self._is_playing_mode()):
-                self._equalize_heat_tempo(auto=True)
+            if (not pitched and start and self._is_playing_mode()):
+                if self._big_player.gemuetlich_applies():
+                    self._hold_gemuetlich(auto=True)
+                elif self._big_player.tso_applies():
+                    self._equalize_heat_tempo(auto=True)
 
     def _bed_first_ms(self) -> int:
         """🎶 How long a starting title waits for a background pad to fade
@@ -327,6 +369,18 @@ class TrackLoadMixin(MainWindowHost):
             voices.set_music_playing(True)
         return ms
 
+    def _hold_bed_for_call(self):
+        """⏳ The deck is stopped while the dance is called, which would bring a
+        background pad up for exactly that long: the hall gets the call into
+        silence, then the music. Held down like a bed that is still dipping;
+        `_release_after_call` lets go. A cartwall that lets the title start over
+        the bed lets the call run over it too."""
+        voices = getattr(self, "_cart_voices", None)
+        if voices is None or pc.background_overlaps(self._settings):
+            return
+        self._playback.bed_wait = self._playback.token
+        voices.set_music_playing(True)
+
     def _release_after_bed(self, token: int, path: Path, ent):
         """The bed is down: start the title, named over its first bars as
         ever. A stop or the next title meanwhile hands the bed back to the
@@ -335,6 +389,12 @@ class TrackLoadMixin(MainWindowHost):
             self._playback.bed_wait = None
         if token != self._playback.token:
             self._cart_follow_deck(None)
+            return
+        if self._announce_start_first(ent):
+            # The bed is down: the dance is called into the silence, and the
+            # bed stays down until the voice is through.
+            self._hold_bed_for_call()
+            self._wait_for_announcement(path)
             return
         self._release_held_start(token, path)
         self._maybe_announce_start(ent)
@@ -431,14 +491,20 @@ class TrackLoadMixin(MainWindowHost):
                   "error: %s\n"
                   "file: %s", error_string or "unknown", src)
         reason = error_string or i18n.t("unknown error")
-        self._playback_failed(Path(src) if src else None, reason,
+        # The backend may have opened a repaired copy or the file on another
+        # drive; the rows and the "would not play" mark know the stored path (3.B).
+        row_path = self._playback.path
+        booked = (row_path if row_path is not None and src
+                  and self._source_url(row_path).toLocalFile() == src
+                  else Path(src) if src else None)
+        self._playback_failed(booked, reason,
                               i18n.t("⚠ Playback failed: %s") % reason)
         # A row checks for its file only when it is filled: one deleted or
         # renamed since then still looks fine. Repaint its rows (→ red ❗) and
         # say so where it is seen — the status line alone went unnoticed.
-        if src and not Path(src).exists():
+        if booked is not None and not Path(src).exists():
             for t in self._deckset.all_tables:
-                t.refresh_paths([Path(src)])
+                t.refresh_paths([booked])
             show_toast(self, i18n.t("⚠ File not found on disk:\n%s") % Path(src),
                        WARN_TOAST_MS, error=True)
 
@@ -494,6 +560,7 @@ class TrackLoadMixin(MainWindowHost):
         if nxt is None:
             return
         t, nrow, npath = nxt
+        self._clear_resume(npath)   # ↩ nobody to ask: from the top, like an advance
         t._on_play_click(nrow, npath)
         t.scroll_row_into_play_view(nrow)
 

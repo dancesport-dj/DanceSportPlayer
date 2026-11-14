@@ -66,6 +66,13 @@ else:
 
 log =logging.getLogger("dancesport.gui.generate")
 
+# An .m3u of about this size (roughly 80 tracks) or more reads tags and looks
+# up files for long enough that its progress dialog must be up before the read.
+BIG_M3U_BYTES = 8_000
+# The same for rows dropped on the empty panel: building that many blocks the
+# window long enough that the dialog's delayed show would never fire.
+BIG_DROP_ROWS = 80
+
 
 class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
     """Playlist generation: rounds, replay, themes, warm-up and strategy."""
@@ -402,46 +409,48 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
         done = 0
         decks_used = 0
         skipped: list[str] = []
-        for deck, comp_list in assign:
-            parts: list[dict] = []
-            for comp in comp_list:
-                c_style, c_age, c_cls = comp["style"], comp["age"], comp["cls"]
-                label = self._favorites_deck_name(c_age, c_cls, c_style)
-                busy.set_progress(done, len(comps), label)
-                QApplication.processEvents()
-                done += 1
+        try:
+            for deck, comp_list in assign:
+                parts: list[dict] = []
+                for comp in comp_list:
+                    c_style, c_age, c_cls = comp["style"], comp["age"], comp["cls"]
+                    label = self._favorites_deck_name(c_age, c_cls, c_style)
+                    busy.set_progress(done, len(comps), label)
+                    QApplication.processEvents()
+                    done += 1
 
-                dances = planner.models.DEFAULT_DANCES.get(c_style, {}).get(c_cls) or []
-                rounds = planner.models.rounds_from_pattern(comp["pattern"])
-                if not dances or not rounds:
-                    skipped.append(label)
+                    dances = planner.models.DEFAULT_DANCES.get(c_style, {}).get(c_cls) or []
+                    rounds = planner.models.rounds_from_pattern(comp["pattern"])
+                    if not dances or not rounds:
+                        skipped.append(label)
+                        continue
+                    try:
+                        suggester = PlaylistSuggester(self._library.lib)
+                        playlist = suggester.suggest(
+                            c_cls, rounds, dances,
+                            use_timbre=use_timbre, style=c_style,
+                            exclude=used_today,
+                        )
+                    except Exception as exc:
+                        log.warning("📅 Day plan: %s failed: %s", label, exc)
+                        skipped.append(f"{label} — {exc}")
+                        continue
+
+                    # Everything just planned is spent for the REST of the day (PD may repeat).
+                    self._mark_day_played(playlist, used_today)
+                    parts.append({"label": label, "playlist": playlist,
+                                  "dances": dances, "rounds": rounds,
+                                  "cls": c_cls, "style": c_style, "age": c_age,
+                                  "suggester": suggester})
+                    built += 1
+
+                if not parts:
                     continue
-                try:
-                    suggester = PlaylistSuggester(self._library.lib)
-                    playlist = suggester.suggest(
-                        c_cls, rounds, dances,
-                        use_timbre=use_timbre, style=c_style,
-                        exclude=used_today,
-                    )
-                except Exception as exc:
-                    log.warning("📅 Day plan: %s failed: %s", label, exc)
-                    skipped.append(f"{label} — {exc}")
-                    continue
+                decks_used += 1
+                self._load_day_deck(deck, parts, use_timbre)
 
-                # Everything just planned is spent for the REST of the day (PD may repeat).
-                self._mark_day_played(playlist, used_today)
-                parts.append({"label": label, "playlist": playlist,
-                              "dances": dances, "rounds": rounds,
-                              "cls": c_cls, "style": c_style, "age": c_age,
-                              "suggester": suggester})
-                built += 1
-
-            if not parts:
-                continue
-            decks_used += 1
-            self._load_day_deck(deck, parts, use_timbre)
-
-        busy.finish()
+        finally:
+            busy.finish()
 
         self._report_day_plan(targets, built, used_today, decks_used, skipped)
 
@@ -569,45 +578,46 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
         if not seeded:
             round_pools = None
 
-        # One FULL-library suggester drives generation, the per-round pools, ↺ and
-        # live strategy re-rolls. Candidates restrict each round to its history;
-        # `_get_pool` falls back to the full library for a dance history never used.
-        suggester = PlaylistSuggester(self._library.lib)
-
-        # Live-regen context: a strategy-combo / 🎯-scope change re-rolls one round.
-        self._suggester = suggester
-        self._replay_active = True
-        self._replay_rounds = rounds
-        self._replay_pools = round_pools
-        self._replay_use_timbre = use_timbre
-        effective_pools = self._effective_replay_pools()
-
-        self._iteration += 1
         try:
-            self._playlist = suggester.suggest(
-                spec.dance_class, rounds, spec.dances,
-                use_timbre=use_timbre, style=spec.style,
+            # One FULL-library suggester drives generation, the per-round pools, ↺ and
+            # live strategy re-rolls. Candidates restrict each round to its history;
+            # `_get_pool` falls back to the full library for a dance history never used.
+            suggester = PlaylistSuggester(self._library.lib)
+
+            # Live-regen context: a strategy-combo / 🎯-scope change re-rolls one round.
+            self._suggester = suggester
+            self._replay_active = True
+            self._replay_rounds = rounds
+            self._replay_pools = round_pools
+            self._replay_use_timbre = use_timbre
+            effective_pools = self._effective_replay_pools()
+
+            self._iteration += 1
+            try:
+                self._playlist = suggester.suggest(
+                    spec.dance_class, rounds, spec.dances,
+                    use_timbre=use_timbre, style=spec.style,
+                    round_pools=effective_pools,
+                )
+            except Exception as exc:
+                self.statusBar().showMessage(
+                    i18n.t("Error generating playlist: %s") % exc)
+                QMessageBox.critical(self, "Generate Error", str(exc))
+                return
+
+            self._adopt_replay_spec(spec)
+
+            self._deckset.table.load(
+                self._playlist, spec.dances, rounds, spec.dance_class,
+                play_cb=self._play_or_stop,
+                suggester=self._suggester,
+                use_timbre=use_timbre,
+                style=spec.style,
                 round_pools=effective_pools,
             )
-        except Exception as exc:
+            self._set_deck_name(self._deckset.table, spec.label)   # name the deck after the competition
+        finally:
             self._cfg.generate_btn.setEnabled(True)
-            self.statusBar().showMessage(
-                i18n.t("Error generating playlist: %s") % exc)
-            QMessageBox.critical(self, "Generate Error", str(exc))
-            return
-
-        self._adopt_replay_spec(spec)
-
-        self._deckset.table.load(
-            self._playlist, spec.dances, rounds, spec.dance_class,
-            play_cb=self._play_or_stop,
-            suggester=self._suggester,
-            use_timbre=use_timbre,
-            style=spec.style,
-            round_pools=effective_pools,
-        )
-        self._set_deck_name(self._deckset.table, spec.label)   # name the deck after the competition
-        self._cfg.generate_btn.setEnabled(True)
         self._cfg.save_btn.setEnabled(True)
 
         self._show_replay_hints(lib, spec, rounds, round_pools, seeded, n_files)
@@ -1041,8 +1051,10 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
             opts, dances={planner.generate.warmup.warmup_code(e) for e in src})
         self._busy = BusyDialog(self, i18n.t("🤸 Building %s…") % label)  # i18n: data
         busy = self._busy
-        self._warmup_worker = WarmupBuilder(src, opts["mode"], params, self,
-                                          cache=self._library.cache)
+        lib = self._library.lib
+        self._warmup_worker = WarmupBuilder(
+            src, opts["mode"], params, self, cache=self._library.cache,
+            title_twins=lib.title_twins if lib is not None else None)
         w = self._warmup_worker
         w.progress.connect(lambda d, t: busy.set_progress(d, t))
         w.done.connect(self._on_warmup_done)
@@ -1276,6 +1288,31 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
                      or "none — cut where a dance repeats")
         finally:
             dlg.finish()
+        self._show_loaded_warmup(table, list_label, len(entries))
+
+    def _load_warmup_from_entries(self, table, entries):
+        """Rows dragged from a deck onto the EMPTY panel open there as a party
+        list, in the order they were dragged — like an .m3u dropped on it. The
+        deck's drop path sorted them into a competition grid instead, with no ✋
+        and no progress while it worked."""
+        list_label = self._warmup_title(self._warmup_default_name())
+        dlg = BusyDialog(self, message=i18n.t("🤸 Building %s…") % list_label)
+        dlg.show_after(0 if len(entries) >= BIG_DROP_ROWS else 250)
+        QApplication.processEvents()
+        try:
+            table.load_warmup(
+                entries, list_label, style="", dance_class="S", relax=True,
+                play_cb=self._play_or_stop, suggester=PlaylistSuggester(self._library.lib),
+            )
+            log.info("🤸 Practice panel loaded from a drop\n"
+                     "tracks: %s", len(entries))
+        finally:
+            dlg.finish()
+        self._show_loaded_warmup(table, list_label, len(entries))
+
+    def _show_loaded_warmup(self, table, list_label: str, count: int):
+        """A list just opened in the panel: named, shown unfolded on its own, its
+        duplicates taken out and saved."""
         self._set_deck_name(table, list_label)
         self._warmup_closed = False
         self._grid.warmup_box.setVisible(True)
@@ -1285,16 +1322,28 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
         table._remove_duplicate_titles(on_load=True)
         self._autosave_playlist()
         self.statusBar().showMessage(
-            i18n.t("%s — %d tracks") % (list_label, len(entries)))
+            i18n.t("%s — %d tracks") % (list_label, count))
 
     def _m3u_progress(self, m3u_path):
         """A progress dialog for reading an .m3u, plus the tick that drives it.
 
         Returns (dialog, tick). The dialog only appears when the read takes
         longer than a moment, so a short list never flashes one — and a long one
-        never leaves the window frozen with nothing to look at."""
+        never leaves the window frozen with nothing to look at.
+
+        The delayed show is a timer, and a read that blocks never lets it fire.
+        So the file's size is looked at first: a big one gets its dialog up and
+        painted before the read starts, not at the first tick."""
         dlg = BusyDialog(self, message=i18n.t("📂 Importing %s…") % Path(m3u_path).name)
-        dlg.show_after(250)
+        try:
+            big = Path(m3u_path).stat().st_size >= BIG_M3U_BYTES
+        except OSError:
+            big = False
+        if big:
+            dlg.show_after(0)
+            QApplication.processEvents()
+        else:
+            dlg.show_after(250)
 
         def tick(done: int, total: int, detail: str = ""):
             dlg.set_progress(done, total, detail)

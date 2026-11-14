@@ -80,7 +80,7 @@ from planner.music.parsing import (  # auto-resolved
     title_for,
     title_marks_instrumental,
 )
-from planner.music.paths import foreign_name
+from planner.music.paths import foreign_name, is_foreign_network
 from planner.music.playlist_index import (
     PlaylistIndexMixin,
     dq,
@@ -751,13 +751,16 @@ class MusicLibrary(PlaylistIndexMixin):
         """The files whose read was set aside as stuck, taken after the rest.
         A cancel raises like the main loop; True when the scan was stopped."""
         for idx, mp3 in deferred:
-            writes.step()
+            # The wait for a stuck file holds no write lock: the other writers
+            # (the play log, tag edits) would wait it out and fail (review 5.A).
+            writes.release()
             fps, tags = ahead.late(mp3, should_quit)
             if should_cancel is not None and should_cancel():
                 scan_cache.save()
                 raise ScanCancelled(f"Scan cancelled after {idx}/{total} files")
             if should_quit():
                 return True
+            writes.step()
             if fps is not None:
                 cache.read_ahead[str(mp3)] = fps
             entry = self._make_entry_or_none(mp3, scan_cache, tags)
@@ -876,13 +879,23 @@ class MusicLibrary(PlaylistIndexMixin):
                 raise ValueError(f"cannot read {Path(e.path).name}")
             fps.append(fp)
         touched: dict[str, Path] = {}
+        regrouped = False
         for e, fp in zip(entries, fps, strict=True):
             edit = tag_edits.save(fp, changes_for(e))
             same = [x for x in self.entries
                     if x is not e and cache.recorded_fingerprint(x.path) == fp]
             for target in (e, *same):
+                grouping = (target.dance, target.title)
                 tag_edits.apply(target, edit)
+                regrouped |= grouping != (target.dance, target.title)
                 touched[str(target.path)] = Path(target.path)
+        if regrouped:
+            # The by-dance and title-twin memos are keyed on the entries'
+            # version and size; a re-tagged entry keeps both, so a stale memo
+            # would file it under its old dance until a rescan. A rating or
+            # class edit changes neither, so it leaves the memos alone (the
+            # twin map takes seconds to rebuild on a big library).
+            self._entries_version += 1
         note_class_tag_use(self.entries)   # only the main library is edited
         return list(touched.values())
 
@@ -924,7 +937,9 @@ class MusicLibrary(PlaylistIndexMixin):
         genre_dance = None
         genre_other = None
         if raw_genre:
-            parts = [raw_genre] + raw_genre.split(';')
+            # A multi-value TCON frame arrives NUL-joined: ';' alone would
+            # never separate its values.
+            parts = [raw_genre] + raw_genre.replace('\0', ';').split(';')
             # 'Ballroom SW', 'Latin Cha Cha': the dance behind a category word
             parts += [_GENRE_CATEGORY_RE.sub('', p.strip()) for p in parts]
             for part in parts:
@@ -1051,6 +1066,8 @@ class MusicLibrary(PlaylistIndexMixin):
                 setattr(target, col, new)
         for target in targets:
             target.tag_edits = fresh.tag_edits
+        if "dance" in changed or "title" in changed:
+            self._entries_version += 1   # the memos regroup, as in _edit_tags
         return changed
 
     def read_custom(self, entries: list[MusicEntry], cache: AudioCache,
@@ -1210,6 +1227,8 @@ class MusicLibrary(PlaylistIndexMixin):
             return hit
         if cache is None:
             return None
+        if is_foreign_network(target):
+            return None     # someone else's UNC/URL line: no SMB session for it
         p = Path(path)
         if require_file and not p.is_file():
             return None

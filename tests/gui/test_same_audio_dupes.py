@@ -372,6 +372,43 @@ class ChromaOnDropTest(_ScratchDbTest):
         self.assertEqual(plan, ([f], [], False))
         ask.assert_not_called()
 
+    def progress_dialogs(self):
+        """Every progress dialog the table builds from now on."""
+        from PySide6.QtWidgets import QProgressDialog
+        made = []
+
+        class _Recording(QProgressDialog):
+            def __init__(self, *a, **kw):
+                super().__init__(*a, **kw)
+                made.append(self)
+        patcher = mock.patch("gui.table.table_dynamic.QProgressDialog", _Recording)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        return made
+
+    def test_the_comparing_dialog_has_a_title_of_its_own(self):
+        # Without one the window is named after the process: "python".
+        made = self.progress_dialogs()
+        files = [self.file("C", f"Song {n} (LW {n})") for n in range(4)]
+        for f in files:
+            self.words[f.name] = self.SONG
+        t = self.table()
+        t._prime_chroma([self.entry(f) for f in files])
+        self.assertEqual(len(made), 1)
+        self.assertEqual(made[0].windowTitle(), "Comparing recordings")
+
+    def test_a_multi_file_drop_builds_one_comparing_dialog(self):
+        # Held titles fpcalc cannot read stay unprimed; asked per dropped file,
+        # each one would bring its own dialog.
+        made = self.progress_dialogs()
+        held = [self.file("C", f"Held {n} (LW {n})") for n in range(3)]
+        dropped = [self.file("F", f"New {n} (LW {n + 10})", _AUDIO[::-1]) for n in range(3)]
+        t = self.static_deck([[self.entry(h)] for h in held] + [[None]])
+        t._entry_for = lambda p: self.entry(Path(p))
+        with mock.patch.object(PlaylistTable, "_ask_drop_duplicates", return_value=[]):
+            t._static_drop_plan(dropped)
+        self.assertEqual(len(made), 1)
+
     def test_without_fpcalc_nothing_is_read_and_nothing_breaks(self):
         c, f = self.twin_files()
         t = self.static_deck([[self.entry(c)], [None]])
@@ -716,13 +753,14 @@ class ChoiceDialogTest(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
-    def dialog(self, play_cb=None):
+    def dialog(self, play_cb=None, with_identical=True):
         from gui.dialogs.duplicate_titles_dialog import DuplicateTitlesDialog
         e = lambda name, dance="TG": MusicEntry(path=Path("C:/m") / name, title=name,
                                                  dance=dance, bpm=None)
+        same = [(e("Moon River (LW 29).mp3", "LW"), e("Moon River (LW 29).mp3", "LW"))]
         dlg = DuplicateTitlesDialog(
             None,
-            identical=[(e("Moon River (LW 29).mp3", "LW"), e("Moon River (LW 29).mp3", "LW"))],
+            identical=same if with_identical else [],
             groups=[[(3, e("A New Life (TG 32).mp3")), (7, e("A New Life (TG 32)_cut.mp3"))],
                     [(4, e("Amame.mp3")), (9, e("Amame_cut.mp3")), (12, e("Amame 2.mp3"))]],
             play_cb=play_cb)
@@ -782,6 +820,31 @@ class ChoiceDialogTest(unittest.TestCase):
         dlg = self.dialog()
         dlg.identical_keep.setChecked(True)
         self.assertTrue(dlg.keeps_identical())
+
+    def test_the_button_says_remove_while_the_identical_copies_go(self):
+        self.assertEqual(self.dialog().apply_btn.text(), "🧹  Remove")
+
+    def test_the_button_says_apply_when_nothing_is_removed(self):
+        # Keep all everywhere: Apply closes the dialog, it removes nothing.
+        dlg = self.dialog()
+        dlg.identical_keep.setChecked(True)
+        self.assertEqual(dlg.apply_btn.text(), "Apply")
+        self.assertEqual(self.dialog(with_identical=False).apply_btn.text(), "Apply")
+
+    def test_the_button_follows_the_choice(self):
+        dlg = self.dialog(with_identical=False)
+        dlg.radios[1][1].setChecked(True)
+        self.assertEqual(dlg.apply_btn.text(), "🧹  Remove")
+        dlg.radios[1][-1].setChecked(True)      # back to Keep all
+        self.assertEqual(dlg.apply_btn.text(), "Apply")
+
+    def test_enter_applies(self):
+        # Marcel: "make default focus on Apply not Cancel button".
+        dlg = self.dialog()
+        dlg.show()
+        self.app.processEvents()
+        self.assertTrue(dlg.apply_btn.isDefault())
+        self.assertIs(dlg.focusWidget(), dlg.apply_btn)
 
     def test_the_files_are_named_with_their_folder(self):
         from PySide6.QtWidgets import QRadioButton

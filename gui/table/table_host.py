@@ -187,6 +187,9 @@ class TableHost:
     def warmup_m3u_loader(self):
         return getattr(self._win(), "_load_warmup_from_m3u", None)
 
+    def warmup_rows_loader(self):
+        return getattr(self._win(), "_load_warmup_from_entries", None)
+
     def player_list_m3u_loader(self):
         return getattr(self._win(), "_load_player_list_from_m3u", None)
 
@@ -209,6 +212,12 @@ class TableHost:
         """The title can play here: its file, the same path on another drive
         (the stick came back as G:), or 🧭's copy (see `resolve_file`)."""
         return resolve_file(path, self.settings()) is not None
+
+    def library_entries(self) -> list:
+        """Every track the library knows; none while it has not been read."""
+        service = getattr(self._win(), "_library", None)
+        lib = service.resolver() if service is not None else None
+        return list(lib.entries) if lib is not None else []
 
     def import_m3u_loader(self):
         return getattr(self._win(), "_import_dropped_playlist", None)

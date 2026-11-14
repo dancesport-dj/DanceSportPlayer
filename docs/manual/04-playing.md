@@ -7,6 +7,10 @@ play straight from the decks, the Party panel and the wishlists.
 
 ![The main window while playing](img/main-playing.png)
 
+If the [🎧 Rehearsal audio profile](06-settings.md#-audio-profiles) is active
+when playing starts, a red message names it: the hall hears nothing until
+you switch back to Main, from the status bar or in ⚙ Settings.
+
 ## 🚦 Ready? before the evening
 
 **🚦 Check ▸ 🚦 Ready?** in the toolbar checks every deck that holds titles,
@@ -22,7 +26,7 @@ ready*: some titles will not play, or a sound output is not connected.
 | 🐂 Paso Doble highlights | Every Paso Doble knows its highlights. |
 | 🔁 Duplicates | No title is in two lists. |
 | 🎶 Playlists | There is something to play at all. |
-| 🔈 Sound outputs | Every output chosen in ⚙ Settings → 🔊 Sound & player is plugged in. A missing card for the music, the cartwall or the announcements is red: that source plays on the system default instead. A missing 🎧 Pre-listen card is yellow, and so is a pre-listen that would land on the music's own output, because every preview would be refused. Pre-listen left on *Same as the music* is yellow too, because the hall hears every preview. With one output only there is no other to choose, so nothing is flagged. |
+| 🔈 Sound outputs | Every output chosen in ⚙ Settings → 🔊 Sound & player is plugged in. A missing card for the music, the cartwall or the announcements is red: that source plays on the system default instead. A missing 🎧 Pre-listen card is yellow, and so is a pre-listen that would land on the music's own output, because every preview would be refused. Pre-listen left on *Same as the music* is yellow too, because the hall hears every preview. With one output only there is no other to choose, so nothing is flagged. The [🎧 Rehearsal audio profile](06-settings.md#-audio-profiles) left on is red too: everything is on the headphones and the hall hears nothing. On Rehearsal the pre-listen may share the music's output, so that is not flagged there. |
 | 🎛 Controller | The chosen hardware controller is connected. Not every evening needs one, so this line is yellow at worst, and it is left out while no controller is set up. |
 | ☀ Screen and sleep | ☀ Keep the screen awake is on, so the screen, the beamer and the computer stay awake while music plays or the presenter screen is up. |
 | 🔋 Power | The computer runs on mains power. On battery the line is yellow and says how full it is. Windows only: elsewhere the line is left out. |
@@ -52,8 +56,16 @@ structure.
   [⚙ Settings ▸ 🎛 Playsets](06-settings.md#play-sets); on in both.
   Where the double-click would start a title with a ↩ time marker, the
   question is **Reset the time marker?** instead, and it always comes: **From
-  the beginning**, **At the marker**, or **Cancel**, which is the
-  default and keeps the music on.
+  the beginning**, **At the marker** (the default: Enter takes it), or
+  **Cancel** (Esc), which keeps the music on.
+- **▶** in the row, **Space** and **Enter** ask the same about a title with a
+  ↩ time marker: *Start it from where?* **From the beginning** drops the
+  marker, **At the marker** is the default, and **Cancel** starts nothing.
+  The tap that starts the next round and the skip arrows ask too; Cancel
+  there leaves the running title alone. The title already on the player and
+  the card's ⏯ do not ask. A title the list starts by itself, after the pause
+  or in place of one that won't play, has nobody to ask: it starts from the
+  beginning and its marker goes.
 - **Ctrl + Shift + ← / →** jumps to the previous or next title, and
   **Ctrl + ← / →** seeks 30 s.
 
@@ -76,6 +88,21 @@ silence: it names the title in a short message, turns its row red with the
 reason in the tooltip, and starts the next title of the same round. At the
 end of a round it stops, as it would after any last title. The mark goes as
 soon as the file plays again.
+
+Some MP3 files are misread by the audio engine: it takes them for hours long
+and ends them at once. Such a title is opened once more from a repaired copy
+in the temp folder, so it plays; the original file is never written. A title
+that still ends within 5 s of its start counts as one that won't play: the row
+turns red, the next title starts, and at the end of the round a message names
+it and suggests ⚙ Settings ▸ 🔊 Sound & player ▸ **🔊 Audio backend** ▸
+*Windows*, which reads these files correctly.
+
+The first time in a session a title plays from such a copy, a short message
+names it: *🔧 "Cha Cha Cha 03" is damaged and plays from a repaired copy —
+replace the file at its source.* The copy only papers over the fault, so
+replace the file where it came from. A copy that has not been played for a
+week is removed when the app starts; a title that needs it again gets a new
+one.
 
 The app also watches the music drive while it runs:
 
@@ -111,14 +138,29 @@ the time left.
 | **☕** | Fades the title out over the 🔉↓ ramp, the card blinking orange meanwhile, then starts the pause. A title held with ⏯ goes straight in. Only there while **Pause between songs** is on. |
 | extend button | Adds another pause length when the heat change takes longer. |
 | **⏭** (next dance) | Only during the pause. Cuts the wait short but keeps the call: the pause music fades out (the card blinks orange meanwhile), the dance is called, then the title starts. Once the call has been spoken, with announcements off, under ✋ Manual or with the pause held by ⏯, it goes on at once. |
-| **⊗** | Panic: fades the music out and *holds* it. Nothing ends and nothing advances. **⏯** resumes at exactly that spot. With the volume − / + buttons on, it moves up beside the fade button and shows only while a title plays. |
-| **🔊** | Three steps: the first click ducks to 10 %, the second mutes, the third brings the music back to full. The icon follows each step, and the readout under the slider says **mute** in red while muted. The pause music comes down too. The duck level is set under ⚙ Settings ▸ 🔊 Sound & player ▸ ▸ Advanced ▸ **🔉 Duck to**, and the button's tooltip names it. |
+| **⊗** | Panic: fades the music out and *holds* it. Nothing ends and nothing advances. **⏯** resumes at exactly that spot and fades in like a title picked up at its ↩ time marker (⚙ Settings ▸ 🔊 Sound & player); a Paso Doble comes back on the beat. With the volume − / + buttons on, it moves up beside the fade button and shows only while a title plays. |
+| **🔊** | Three steps: the first click ducks to 10 %, the second mutes, the third brings the music back to full. Each step fades over a short span (0.3 s out of the box, ⚙ Settings ▸ 🔊 Sound & player), so the music does not click. The icon follows each step, and the readout under the slider says **mute** in red while muted. The pause music comes down too. The duck level is set under ⚙ Settings ▸ 🔊 Sound & player ▸ ▸ Advanced ▸ **🔉 Duck to**, and the button's tooltip names it. |
 | volume slider | Master volume. During a duck or a mute it comes down with the music and shows what is heard; moving it ends the duck at that level. |
 | **− / +** beside it | Step the volume by 2 % a click; held, they glide. Double-click the % under the slider to type a level. On by default; ⚙ Settings ▸ 🔊 Sound & player ▸ **➕ Volume − / + buttons** hides them. |
 
 The time readouts of a title longer than an hour, such as a long mix, read
 **1:04:00** or **64:00**, as ⚙ Settings ▸ 🔊 Sound & player ▸ **⏱ Titles over
 an hour read** says.
+
+### ⏹ Stop all: silence at once
+
+A click on the audio profile at the right end of the status bar (**🔊** or
+**🎧** and its name) opens the profile chooser, and at its foot sits the
+red **⏹ Stop all music**. It silences everything the app plays at once and
+without a fade: the music (with a crossfade tail, a spoken call and a
+pending advance), every 🎛 cartwall pad, background beds and looping pads
+included, and the 🎧 pre-listen. It is for the moment the wrong pad fires.
+It is the other stop from **⊗**, which fades the title out and holds it so
+the round can carry on.
+
+**Shift + Esc** does the same, in the main window, on the floating
+cartwall and on the presenter; **Esc** alone only fades the pads. It is a
+[desk key](#-desk-keys), so ⌨ Keys can move it.
 
 ### 〰 The waveform
 
@@ -159,7 +201,21 @@ The tempo row under it:
   in this round, kept inside the tempo range of the WDSF Competition Rules. A
   Rumba at 23 becomes T24, a Paso Doble at 57 becomes T58. With the German
   dance and round names kept (⚙ Settings → Language) the button reads
-  **TSO**, after the German rule book.
+  **TSO**, after the German rule book. A title without a tempo in its file
+  name is pitched from its measured tempo, and counts in the round's
+  average, as long as that lies at most 2 bars per minute outside the
+  dance's range: a measured T22 Rumba is pitched to T24. A measure further
+  off is likely half or double time: the title is left as it is, and a
+  message names the dance, the measured tempo and the range.
+- **🛋 Relaxed** takes the CR / TSO button's place on a party list, which has
+  no round to average. While on, a title recorded faster than the top tempo
+  of its dance is slowed down to it: a Jive at T43 plays at T41. A slower
+  title is left alone; nothing is ever sped up. The top tempos are set in
+  [⚙ Settings ▸ 🎛 Playsets](06-settings.md#play-sets), and
+  **Ctrl + Shift + G** switches it while it is shown. A title without a tempo
+  in its file name is slowed from its measured tempo, unless that lies more
+  than 3 bars per minute over the top; then a message says it was left as it
+  is.
 - **📌**: pins the tempo, so the fader stays where you left it when the next
   title starts.
 - **♪**: tap along to the beat to measure the live tempo by hand. This is for
@@ -182,7 +238,8 @@ The tempo row under it:
 
 Once the analysis has measured it, silence at the start and end of a title
 is skipped. A title whose file breaks off in full sound is faded out over
-its last second.
+its last 2 s; ⚙ Settings ▸ 🔊 Sound & player sets that time, or switches it
+off.
 
 ### 🐂 Paso Doble
 
@@ -316,9 +373,13 @@ dance, "Langsamer Walzer"; **📣 Say "Next dance" before the dance** in
 Langsamer Walzer". **🔢 Only the heat** says just "Gruppe 1" instead, for a
 practice evening.
 
-- With a pause, the call comes shortly before the pause ends. The call needs
-  no gap, so switching it on takes **Pause between songs** off, and switching
-  it off brings the pause back. Switch the pause back on to have both.
+- With a pause, the call comes shortly before the pause ends, the way an
+  announcer speaks into the pause. Switching the call on or off leaves the
+  pause and the crossfade as they are.
+- When the call is set to say only the heat, switching it on asks what it
+  should say: **Only the dance** (the default), **Dance with heat**, or
+  **Only the heat** (Esc), which keeps the setting. A practice-evening setting
+  left on at a party would never name a dance.
 - Without a pause, the dance is named as the title starts: **over the first
   bars** (the music is ducked under the voice) or **before the music starts**
   (the music follows the call), as ⚙ Settings ▸ 🔊 Sound & player has it.
@@ -349,8 +410,8 @@ practice evening.
 - **↩ Remember where a title stopped**: a title you left starts again at that
   spot, coming up over a second instead of at full level (a Paso Doble starts
   abruptly; the time is in [⚙ Settings ▸ 🔊 Sound & player](06-settings.md#sound-and-player)).
-  The row shows **↩ mm:ss**. The marks are forgotten when the app
-  closes.
+  The row shows **↩ mm:ss**, in a deck, a party list or a wishlist. The marks
+  are forgotten when the app closes.
 
 ### Play sets
 
@@ -497,20 +558,34 @@ drum roll, the national anthem, a jingle for the award ceremony.
   pad its own.
 - **Ctrl + 1 … 9** fire the first nine pads of the page on screen.
 - **⏹ Stop all** or **Esc** fades every pad out.
+  [**⏹ Stop all music**](#-stop-all-silence-at-once) in the audio profile
+  chooser, or **Shift + Esc**, cuts every pad and the music at once,
+  without a fade.
 - **🔊** beside it is the cartwall's own volume, for every pad. It is apart
   from the music volume: pulling the music down leaves the pads where they
   are. A pad's own volume (its **Settings…**) is set relative to it. The
   **Ctrl + Alt + ↑ / ↓** keys, the **− / +** beside the fader and a
   controller fader move it too. A click on **🔊** mutes the wall (🔊 turns
-  🔇 and its level reads a red *mute*); a second click brings it back. The
+  🔇 and its level reads a red *mute*); a second click brings it back. Both
+  fade like the player's 🔊. A muted wall does not duck the music either, and
+  each pad's tooltip says *Cartwall is muted: this pad is not heard*. The
   mute is not kept over a restart.
 - **✏** unlocks the wall for building. Drop audio files on a pad to fill it.
   A multi-select fills the free pads after it. Drag one pad onto another to
-  swap them. Lock the wall again before the tournament, so nothing moves by
+  swap them. A pad that sounds keeps playing, so you can tune a bed while
+  you hear it; with ✏ on a click selects it, so **⏹ Stop all** or **Esc**
+  stops it. Lock the wall again before the tournament, so nothing moves by
   accident.
 - With **✏** on, **right-click a pad** for its 🎨 colour, 🗑 clear,
   **📄 Move to page**, or **Settings…** for its label, volume, own shortcut
-  key, 🔁 endless repeat, and whether it ducks the music. *Move to page*
+  key, 🔁 endless repeat, and what it pulls down while it plays: **🔈 Pull
+  the main music down**, **🔈 Pull the other pads down** (a title running on
+  another pad goes down and comes back to its own volume afterwards), or
+  both. How far is set on ⚙ Settings ▸ 🎛 Cartwall. Only a pad you
+  tap ducks: the queue moving on to its next pad, or a pad filling a pause,
+  leaves the music where it is. While a pad pulls the music down, the volume
+  slider walks down with it; a hand on the slider lifts the pull, and what
+  you drag to is heard at once. *Move to page*
   puts the pad on the same spot of the other page when that is free, or
   else on its first free pad; a full page takes what fits and says how
   many were moved. With the wall locked, the right-click
@@ -527,12 +602,32 @@ drum roll, the national anthem, a jingle for the award ceremony.
   it start at once over the fade-out, to have the pad pause instead, or to
   change how fast it dips and comes back, see
   ⚙ Settings ▸ 🎛 Cartwall ▸ **🎶 Pads set to 🎶 Background**. The bed
-  also stays down while a 🐂 Paso Doble waits to start.
+  also stays down while a 🐂 Paso Doble waits to start, while a title waits
+  for its call (⏳ *before the music starts*), and while the player is paused
+  with ⏯: a pause is a full stop of all music. A background pad you tap
+  during that pause does sound. A stop, or a fade-out into the pause between
+  two titles, still lets the beds come back.
 - **S Stop the other pads** in a pad's **Settings…** fades every other
   running pad out as this one starts, for an anthem or a winners' fanfare
   that needs the room.
-- A pad's face shows how it behaves: 🔁 endless repeat, ↓ ducks the music,
-  ♫ background, 🅂 stops the other pads, and its volume when it is below 100 %.
+- **🔁 endless repeat** goes round the file again at its end, in the way
+  ⚙ Settings ▸ 🎛 Cartwall ▸ **🔁 At a pad's loop point** says: a
+  **Crossover** (the default) starts the next round on a second voice 3 s
+  before the end and blends the two, **Fade out and restart** dips the pad
+  over 1 s and starts it again, **Hard stop and restart** jumps straight
+  back. Each round starts where the music does: a longer silence at the
+  file's start or end (1.5 s or more, found by the 🔇 silence probe) is
+  left out.
+  **Own crossover** in the pad's **Settings…** gives one pad its own length.
+- **🔇 Skip the silence at the start and end of the file** in a pad's
+  **Settings…** starts the pad where its music does and ends it where the
+  music stops. A jingle that opens with a moment of dead air sounds on the
+  tap, not a beat later, and the next pad of a queue follows without a gap;
+  the countdown runs to the music's end, and a looping pad goes round from
+  there. The app looks at the first and the last 10 s of the file when the
+  wall loads and when you save the pad, and finds gaps from about 0.05 s on.
+- A pad's face shows how it behaves: 🔁 endless repeat, ↓ pulls the music
+  or the other pads down, ⇓ pulls both, ♫ background, 🅂 stops the other pads, and its volume when it is below 100 %.
 - With **✏** on, a click selects a pad instead of firing it, and **Ctrl+click**
   or **Shift+click** adds more. A selected pad wears an amber outline. A
   right-click on a selected pad then works on
@@ -572,8 +667,11 @@ below is a 🎶 bed paused under a title: its time is grey behind the pause bars
   set on the pad.
 - A pad whose file is missing is skipped, with a note in the status bar. When
   none of them are found, the queue stops.
-- **Click the playing pad**, **⏹ Stop all**, **Esc**, unlocking with **✏**,
-  or a pad set to **S Stop the other pads** stops the queue. Firing an
+- A pause between two titles starts the queue only while no other
+  🎶 background pad sounds and no 🔁 endless pad you started by hand runs.
+  Stop that pad and the queue starts, if the pause still runs.
+- **Click the playing pad**, **⏹ Stop all**, **Esc** or a pad set to
+  **S Stop the other pads** stops the queue. Firing an
   ordinary pad on top leaves it running.
 - The queue is saved with the wall. After a restart it is still there, but
   nothing plays until you click one of its pads.
@@ -737,6 +835,7 @@ macro keypad needs no driver for them.
 | ⏫ / ⏬ Tempo up / down, 0.1 % a step | **Ctrl + Shift + PgUp / PgDown** |
 | 🎯 Tempo back to ±0 % | **Ctrl + Shift + Home** |
 | ⏹ Stop all pads | **Ctrl + Shift + X** |
+| ⏹ Stop all music at once, without a fade | **Shift + Esc** |
 | 🎯 Focus playlist 1–8 | **Alt + 1** … **Alt + 8** |
 | 🎯 Focus wishlist 1–4 | **Alt + Q**, **W**, **E**, **R** |
 | 📚 Focus the library | **Alt + L** |
@@ -804,7 +903,7 @@ The actions it can take:
   onto a slot, so
   there ➕ says so and adds nothing. These have
   [desk keys](#-desk-keys) too;
-- ⏹ Stop all pads, and sixteen cartwall pads: pad *n* is the *n*-th pad of
+- ⏹ Stop all pads, ⏹ Stop all music at once, and sixteen cartwall pads: pad *n* is the *n*-th pad of
   the page on screen, as with **Ctrl + *n***.
 
 In the window:
@@ -851,6 +950,31 @@ the badge goes within a few seconds, and the app looks for it again every few
 seconds; plugged back in, it is used again by itself. MIDI works on Windows,
 macOS and Linux.
 
+## 🆘 After a crash or a restart
+
+When the app did not shut down cleanly, the next start says so. The crash
+log of that session is under **Show Details…**, with the last lines of its
+log, so one copy is enough for a bug report. A log that holds only an error
+the app did not handle, and no crash, is reported as **Previous session
+logged an error**: the app may well have kept running.
+
+The evening is not lost either. If a title was on air when the app went
+down, the start asks **Pick up after a crash?** **Yes** cues that title again
+on its row, from its start, in playing mode, and greys out the titles the
+evening had already played; **No** leaves both. After a restart between two
+titles the start asks **▶ Pick up the evening?** on its own: **▶ Pick up**
+greys the evening's titles out again, **Start fresh** leaves the decks as
+they are. Nothing starts by itself, since the hall may be in the middle of a
+speech: **⏯** plays the cued title. An evening counts as the same one for
+four hours after its last title, as in the [📜 played titles](#-played-titles).
+
+## 🪟 The taskbar mini player
+
+On Windows, hover over the app's button in the taskbar: under the window's
+thumbnail sit **⏮ ⏯ ⏭**, so you can skip or pause without bringing the
+window to the front. They do what the player card's buttons do. **⏯** shows
+what a click does, ▶ or ⏸, and the thumbnail's caption is the running title.
+
 ## 📜 Played titles
 
 In playing mode the app writes down every title once it has run for 10
@@ -860,8 +984,14 @@ lists the evenings, newest first; a break of more than four hours starts a
 new one, so a party past midnight stays one evening.
 
 - Click an evening to see its titles and how long each one ran.
+- A 🎛 cartwall pad heard for 10 s or more is logged too, under the list
+  *Cartwall*, with the seconds it was heard.
+- The list box (**All lists** to begin with) shows one list of the evening
+  only.
 - **💾 Save as CSV…** saves the evening as a table for Excel, for example
-  for a GEMA report: date, start, artist, title, composer, dance, list and duration.
+  for a GEMA report: date, start, artist, title, composer, dance, list and
+  duration. With one list chosen, only that list is saved, and the file name
+  carries it.
 - **🗑 Delete evening** removes it from the log after asking.
 - A column you drag to a new width keeps it (kept in `play_log_dialog.json`);
   the other columns fit the evening shown, and one long cell no longer sizes

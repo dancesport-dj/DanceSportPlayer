@@ -36,6 +36,7 @@ from tests.qt_test_support import reap_widget
 
 _STOPPED = QMediaPlayer.PlaybackState.StoppedState
 _PLAYING = QMediaPlayer.PlaybackState.PlayingState
+_PAUSED = QMediaPlayer.PlaybackState.PausedState
 
 
 class SettingTest(unittest.TestCase):
@@ -57,7 +58,7 @@ class _Voices:
     def __init__(self):
         self.told = []
 
-    def set_music_playing(self, playing):
+    def set_music_playing(self, playing, paused=False):
         self.told.append(playing)
 
 
@@ -89,6 +90,19 @@ class FollowTest(unittest.TestCase):
     def test_the_music_itself_still_counts(self):
         d = self.desk(holding=False, settings={"cart_bg_pd_quiet": False})
         d._cart_follow_deck(_PLAYING)
+        self.assertEqual(d._cart_voices.told, [True])
+
+    def test_a_paused_deck_keeps_the_bed_down(self):
+        """Marcel: ⏯ pause is a full stop of all music, the 🎶 bed must not
+        come up in it (a fade-out into the pause is a stop, not this)."""
+        d = self.desk(holding=False)
+        d._cart_follow_deck(_PAUSED)
+        self.assertEqual(d._cart_voices.told, [True])
+
+    def test_a_paused_player_keeps_the_bed_down_whichever_deck_changed(self):
+        d = self.desk(holding=False)
+        d._player = SimpleNamespace(playbackState=lambda: _PAUSED)
+        d._cart_follow_deck(_STOPPED)
         self.assertEqual(d._cart_voices.told, [True])
 
     def pause_before(self, dance, settings=None):

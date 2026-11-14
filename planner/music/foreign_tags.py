@@ -73,7 +73,12 @@ def as_id3(tags) -> ID3 | None:
             if stars is not None and not id3.getall("POPM"):
                 id3.add(POPM(email="", rating=_popm_byte(stars), count=0))
         elif frame is COMM:
-            id3.add(COMM(encoding=3, lang="eng", desc="", text=texts))
+            # The readers take one comment and split it at ';': COMMENT and
+            # DESCRIPTION, and a field's several values, are joined there,
+            # not the later one kept alone (5.C).
+            old = id3.get("COMM::eng")
+            joined = "; ".join((list(old.text) if old else []) + texts)
+            id3.add(COMM(encoding=3, lang="eng", desc="", text=[joined]))
         elif frame is TXXX:
             id3.add(TXXX(encoding=3, desc=name, text=texts))
         elif frame.__name__ not in id3:   # the first of two names wins

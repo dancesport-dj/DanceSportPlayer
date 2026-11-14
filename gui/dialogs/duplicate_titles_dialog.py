@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 
 from gui.common import fmt_track_secs
 from planner import i18n
+from shared.plain_text import plain_label, plain_tip
 
 
 def _describe(entry) -> str:
@@ -68,7 +69,7 @@ class DuplicateTitlesDialog(QDialog):
             box = QGroupBox(i18n.t("🟰  Identical files (%d)") % len(identical))
             b = QVBoxLayout(box)
             for gone, _kept in identical[:8]:
-                b.addWidget(QLabel(_describe(gone)))
+                b.addWidget(plain_label(_describe(gone)))
             if len(identical) > 8:
                 b.addWidget(QLabel(i18n.t("… and %d more") % (len(identical) - 8)))
             bg = QButtonGroup(box)
@@ -88,7 +89,7 @@ class DuplicateTitlesDialog(QDialog):
             row_radios = []
             for _row, entry in group:
                 rb = QRadioButton(_describe(entry))
-                rb.setToolTip(str(entry.path))
+                rb.setToolTip(plain_tip(entry.path))
                 bg.addButton(rb)
                 row_radios.append(rb)
                 if play_cb is None:
@@ -123,12 +124,25 @@ class DuplicateTitlesDialog(QDialog):
         btns.addStretch(1)
         cancel = QPushButton("Cancel")
         cancel.clicked.connect(self.reject)
-        apply = QPushButton("🧹  Remove")
-        apply.clicked.connect(self.accept)
-        cancel.setDefault(True)          # an accidental Enter removes nothing
+        self.apply_btn = QPushButton("🧹  Remove")
+        self.apply_btn.clicked.connect(self.accept)
         btns.addWidget(cancel)
-        btns.addWidget(apply)
+        btns.addWidget(self.apply_btn)
         root.addLayout(btns)
+        # Enter applies: the choice is made in the radios above, and Apply is
+        # the answer almost every time the dialog comes up.
+        self.apply_btn.setDefault(True)
+        self.apply_btn.setFocus()
+        for bg in self._button_groups:
+            bg.buttonToggled.connect(lambda *_: self._refresh_apply())
+        self._refresh_apply()
+
+    def _refresh_apply(self):
+        """The button says Remove only while something would be removed; with
+        Keep all everywhere it just closes the dialog and says Apply."""
+        removes = bool(self.removed_rows()) or (
+            self.identical_keep is not None and not self.keeps_identical())
+        self.apply_btn.setText("🧹  Remove" if removes else "Apply")
 
     def _toggle_play(self, path, btn: QPushButton):
         """Play one file, or stop it when it is the one already playing."""

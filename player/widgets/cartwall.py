@@ -73,6 +73,7 @@ from PySide6.QtWidgets import (
 
 from planner import i18n
 from planner.music.parsing import read_duration
+from planner.music.paths import is_foreign_network
 from planner.playing import cartwall as pc
 from player.dialogs.cart_pad_dialog import (
     PAD_COLOURS,
@@ -83,6 +84,7 @@ from player.dialogs.cart_pad_dialog import (
 from player.widgets.player_parts import VOL_STEP, ClickSlider, fmt_ms
 from shared.appearance import icons
 from shared.audio.audio_files import AUDIO_EXTS, music_browse_dir, remember_browse_dir
+from shared.plain_text import plain_tip
 from shared.widgets import FlowLayout
 
 log = logging.getLogger("dancesport.gui.cartwall")
@@ -276,7 +278,11 @@ def _duration_text(path: str) -> str:
     """The sample's length, the way a PlayIt cart shows it while idle.
 
     Cached per path: the wall is rebuilt on every page turn and every reshape,
-    and re-reading sixteen headers each time would be felt."""
+    and re-reading sixteen headers each time would be felt. A path on someone
+    else's share is never opened: that offers the Windows login to the host
+    and hangs the window on a dead one (see planner.music.paths)."""
+    if is_foreign_network(path):
+        return "--:--"
     secs = _DURATIONS.get(path)
     if secs is None:
         if time.monotonic() < _UNKNOWN_UNTIL.get(path, 0.0):
@@ -346,6 +352,7 @@ class CartPadButton(QFrame):
         self._queue_running = False      # the pad the queue's run fired last
         self._queue_alone = False        # nothing else is queued
         self._held = False               # ⏸ a 🎶 pad paused under a title
+        self._wall_muted = False         # 🔇 the wall is silent: no sound, no duck
         self._time_text = ""             # the big middle line, without its ⏸
         self._fg = _text_on(_PLAY_BG)    # the pad's text colour, for the ⏸
         self._fading = False
@@ -470,6 +477,13 @@ class CartPadButton(QFrame):
         self._queue_rank, self._queue_running, self._queue_alone = state
         self._restyle()
 
+    def set_wall_muted(self, muted: bool) -> None:
+        """🔇 The wall is muted: the tooltip says why the pad is not heard."""
+        if muted == self._wall_muted:
+            return
+        self._wall_muted = muted
+        self._restyle()
+
     def set_held(self, held: bool) -> None:
         """⏸ The pad is a 🎶 background pad paused while a title plays."""
         if held != self._held:
@@ -580,10 +594,18 @@ class CartPadButton(QFrame):
             marks += f" {loop_overridden_html()}"
         elif self._pad.loop:
             marks += " 🔁"
-        if self._pad.duck and not self._pad.background:
+        if not self._pad.background and (self._pad.duck or self._pad.duck_pads):
             # Not 🔈: Windows draws that as a pale grey emoji, lost on a
             # coloured pad. The arrow takes the pad's text colour, like ♫.
-            marks += " ↓"
+            # One pull (the main music or the other pads) is the plain arrow,
+            # both pulls the double-lined ⇓ (U+21D3): the line under the arrow
+            # (⤓) was too small to tell apart, bold does nothing to the plain
+            # glyph (Segoe UI has no bold form of it), and ↓↓ and ⇊ read as
+            # two marks (all rendered and compared).
+            if self._pad.duck and self._pad.duck_pads:
+                marks += " ⇓"
+            else:
+                marks += " ↓"
         if self._pad.background:
             # The plain note, not the purple 🎶 emoji: it takes the pad's text
             # colour and so reads on every pad colour.
@@ -602,12 +624,13 @@ class CartPadButton(QFrame):
             # Idle pads show how long the sample IS; a running one counts down.
             self._time_text = _duration_text(self._pad.path)
         self._key_lbl.setText(self._shortcut)
-        # Escaped: Qt shows a tooltip that looks like markup as markup (#130).
-        self.setToolTip(html.escape(
+        # As typed: Qt shows a tooltip that looks like markup as markup (#130).
+        self.setToolTip(plain_tip(
             f"{title}\n{self._pad.path}"
             + (i18n.t("\nKey: %s") % self._shortcut if self._shortcut else "")
             + (i18n.t("\n⚠️ File not found") if self._missing else "")
-            + self._queue_hint(queued), quote=False).replace("\n", "<br>"))
+            + self._muted_hint()
+            + self._queue_hint(queued)))
 
         if self._missing:
             bg, border = _GONE_BG, "#c9ced6"
@@ -651,6 +674,16 @@ class CartPadButton(QFrame):
             f" transparent; color: {key_fg}; font-size: 11px; }}"
             f"QToolButton#cartDel:hover {{ color: {fg};"
             " background: rgba(0, 0, 0, 0.12); border-radius: 3px; }")
+
+    def _muted_hint(self) -> str:
+        """🔇 The tooltip's line on a muted wall; a ducking pad adds that it
+        leaves the music alone then."""
+        if not self._wall_muted:
+            return ""
+        return (i18n.t("\n🔇 Cartwall is muted: this pad is not heard")
+                + (i18n.t("\n↓ Muted, so it does not duck the music")
+                   if self._pad is not None and self._pad.duck
+                   and not self._pad.background else ""))
 
     def _queue_hint(self, queued: bool) -> str:
         """The tooltip's ▶ queue line — only while the wall is being played,
@@ -897,6 +930,7 @@ class CartwallWidget(QWidget):
         self._page = 0
         self._default_colour = pc.DEFAULT_PAD_COLOUR
         self._fade_ms = pc.DEFAULT_FADE_MS      # every pad follows it by default
+        self._cross_ms = pc.DEFAULT_CROSS_MS    # …and a loop's crossover this
         self._bg_pauses = False  # ⚙ a title pauses 🎶 background pads, not mutes them
         self._bg_volume = pc.DEFAULT_BG_VOLUME_PCT / 100  # ⚙ what ticking 🎶 sets
         self._slot_keys = pc.SLOT_KEYS          # what each position answers to
@@ -1167,6 +1201,8 @@ class CartwallWidget(QWidget):
         """🔇 The wall silenced, or back at its fader's level."""
         self._muted = bool(on)
         self._mute_btn.setText("🔇" if self._muted else "🔊")
+        for button in self._buttons.values():
+            button.set_wall_muted(self._muted)
         self._refresh_level_lbl()
         if emit:
             self.muteChanged.emit(self._muted)
@@ -1209,7 +1245,6 @@ class CartwallWidget(QWidget):
     # ── edit lock ────────────────────────────────────────────────────────────
     def set_edit(self, on: bool) -> None:
         """✏ on = the wall can be built; off = it can only be played."""
-        was = self._edit
         self._edit = bool(on)
         if self._edit_btn.isChecked() != self._edit:
             self._edit_btn.setChecked(self._edit)
@@ -1222,11 +1257,8 @@ class CartwallWidget(QWidget):
         # dragged is a view decision, and it never loses a pad.
         if not self._edit:
             self._selected.clear()      # a locked wall has nothing selected
-        elif not was and self._live:
-            # Editing silences the wall. A pad that keeps sounding while you
-            # rearrange the cell it lives in is a pad you can no longer stop by
-            # tapping it — the tap selects now.
-            self.stopAll.emit()
+        # Editing leaves a sounding pad alone: a bed is tuned while it is heard.
+        # A tap selects now, so the wall's ⏹ is what stops it.
         for button in self._buttons.values():
             button.set_editable(self._edit)
         self._paint_selection()
@@ -1347,6 +1379,11 @@ class CartwallWidget(QWidget):
         """What a starting title does to a 🎶 background pad, so the pad
         dialog can say it (the audio follows it in CartVoices)."""
         self._bg_pauses = on
+
+    def set_cross_ms(self, ms: int) -> None:
+        """The crossover length a looping pad follows (⚙ Settings), so the
+        pad dialog can show it; the audio follows it in CartVoices."""
+        self._cross_ms = max(0, min(pc.MAX_CROSS_MS, int(ms)))
 
     def set_background_volume(self, volume: float) -> None:
         """The volume the pad dialog gives a pad ticked as 🎶 Background."""
@@ -1521,6 +1558,7 @@ class CartwallWidget(QWidget):
             button = CartPadButton(key)
             button.set_editable(self._edit)
             button.set_default_colour(self._default_colour)
+            button.set_wall_muted(self._muted)
             button.set_pad(pad, missing=(self._page, (row, col)) in self._missing)
             # A pad that is sounding stays lit through a page flip or a grid
             # change — the operator has to see what they still have to stop.
@@ -1999,6 +2037,7 @@ class CartwallWidget(QWidget):
                             slot_key=pc.slot_key(self._grid, (row, col),
                                                  self._slot_keys),
                             pad_count=len(scope), wall_fade_ms=self._fade_ms,
+                            wall_cross_ms=self._cross_ms,
                             background_pauses=self._bg_pauses,
                             background_volume=self._bg_volume)
         dlg.previewVolume.connect(
@@ -2022,9 +2061,13 @@ class CartwallWidget(QWidget):
         # label and shortcut are its own, six pads cannot answer to one key.
         # And only what this edit CHANGED: ticking 🔈 for six pads must not
         # also copy this pad's colour and volume over theirs.
-        changed = [f for f in ("colour", "volume", "loop", "duck", "background",
-                               "stops_others", "fade_ms")
+        changed = [f for f in ("colour", "volume", "loop", "duck", "duck_pads", "background",
+                               "stops_others", "skip_silence", "fade_ms", "cross_ms")
                    if getattr(updated, f) != getattr(pad, f)]
+        # Ticking 🔁 or 🎶 unticks both 🔈 in the dialog: what they ended as is
+        # this edit's answer for every pad, changed on this one or not (4.A).
+        if any(getattr(updated, f) and not getattr(pad, f) for f in ("loop", "background")):
+            changed += [f for f in ("duck", "duck_pads") if f not in changed]
         for target in scope:
             if target == key:
                 continue
@@ -2033,6 +2076,9 @@ class CartwallWidget(QWidget):
                 continue
             for field in changed:
                 setattr(other, field, getattr(updated, field))
+            if other.background:
+                # 🔈 is greyed out on a bed: it cannot pull anything down.
+                other.duck = other.duck_pads = False
             self.padRefreshed.emit(target, other)
         self.refresh_missing()      # re-labels the pads and re-binds the keys
         self.changed.emit()

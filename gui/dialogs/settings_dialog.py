@@ -88,11 +88,12 @@ class SettingsDialog(LookTabMixin, SoundTabMixin, CartwallTabMixin,
                  remote_running=None, remote_stop_cb=None, remote_changed=None,
                  guests_cb=None, controller_cb=None, desk_keys_cb=None,
                  announce_test_cb=None, open_sound=False, reset_cb=None,
-                 open_cartwall=False):
+                 open_cartwall=False, profiles_cb=None):
         super().__init__(parent)
         self.setWindowTitle("⚙  Settings")
         self.setMinimumWidth(560)
         self._settings_in = dict(settings)
+        self._profiles_cb = profiles_cb
         self._gaps_cb = gaps_cb
         self._build_cb = build_cb
         self._embed_cb = embed_cb
@@ -984,14 +985,15 @@ class SettingsDialog(LookTabMixin, SoundTabMixin, CartwallTabMixin,
             self._all_cb(vals)
 
     def _on_maintenance_clicked(self):
-        if self._maintenance_cb:
+        # These ask again before they start: the dialog runs them while
+        # it is open, and closes - keeping its edits - only once the job
+        # runs. A "No" there leaves Settings open as it was.
+        if self._maintenance_cb and self._maintenance_cb():
             self.accept()
-            self._maintenance_cb()
 
     def _on_reset_clicked(self):
-        if self._reset_cb:
+        if self._reset_cb and self._reset_cb():
             self.accept()
-            self._reset_cb()
 
     def _on_relearn_clicked(self):
         if self._relearn_cb:
@@ -1011,24 +1013,20 @@ class SettingsDialog(LookTabMixin, SoundTabMixin, CartwallTabMixin,
             self._embed_cb(vals, model)
 
     def _on_analyze_clicked(self):
-        if self._analyze_cb:
+        if self._analyze_cb and self._analyze_cb():
             self.accept()
-            self._analyze_cb()
 
     def _on_loudness_clicked(self):
-        if self._loudness_cb:
+        if self._loudness_cb and self._loudness_cb():
             self.accept()
-            self._loudness_cb()
 
     def _on_silence_clicked(self):
-        if self._silence_cb:
+        if self._silence_cb and self._silence_cb():
             self.accept()
-            self._silence_cb()
 
     def _on_pd_clicked(self):
-        if self._pd_cb:
+        if self._pd_cb and self._pd_cb():
             self.accept()
-            self._pd_cb()
 
     def _run_and_close(self, cb):
         if cb:
@@ -1036,9 +1034,8 @@ class SettingsDialog(LookTabMixin, SoundTabMixin, CartwallTabMixin,
             cb()
 
     def _on_vocals_clicked(self):
-        if self._vocals_cb:
+        if self._vocals_cb and self._vocals_cb():
             self.accept()
-            self._vocals_cb()
 
     def values(self) -> dict:
         # Start from the settings handed in: _open_settings saves this dict as a

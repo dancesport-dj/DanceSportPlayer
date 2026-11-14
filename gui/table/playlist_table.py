@@ -76,6 +76,7 @@ from planner.generate.warmup import warmup_code
 from planner.models import MusicEntry, RoundConfig
 from planner.music.db import AudioCache
 from planner.music.parsing import fmt_bpm
+from planner.music.paths import is_network_path, is_own_share
 from planner.playing import play_counts
 from planner.playing.play_sets import dblclick_ask_of
 from planner.playlist.checks import FLAG_EDGE_SILENCE, is_final_round
@@ -99,6 +100,7 @@ from shared.columns import (
     COL_HEAT,
     COL_REGEN,
 )
+from shared.plain_text import plain_tip
 from shared.widgets import WARN_TOAST_MS, show_toast
 
 log = logging.getLogger("dancesport.gui.playlist_table")
@@ -807,13 +809,11 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         self._resume_marks = marks
         for r, m in self._row_meta.numbered():
             p = m.path_str
-            if not p or m.theme:
+            # A wishlist is all theme rows, and they carry the badge like any other.
+            if not p or (m.theme and not self._flat_mode):
                 continue
             if old.get(p) != marks.get(p):
-                bg = C_ROW_EVEN if (m.h_idx or 0) % 2 == 0 else C_ROW_ODD
-                self._fill_song_row(r, m, bg)
-                if r == self._current_play_row:
-                    self.sync_play_glyph()   # a fresh fill says ▶
+                self._refill_row(r, m)   # a fresh fill says ▶: it puts the ■ back
 
     def refresh_paths(self, paths) -> int:
         """Repaint every row showing one of `paths`, and say how many that was.
@@ -934,16 +934,18 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             QMessageBox.StandardButton.No)
         return ans == QMessageBox.StandardButton.Yes
 
-    def _ask_resume_mark(self, title: str, ms: int) -> str | None:
-        """A title is playing and `title` has a ↩ time marker at `ms`: where
-        does it start? "mark", "top" (the marker goes) or None. Starting it
-        stops the running title, so this one question stands in for the stop
-        question. Defaults to Cancel, so a stray Enter keeps the music on."""
+    def _ask_resume_mark(self, title: str, ms: int, running: bool = True) -> str | None:
+        """`title` has a ↩ time marker at `ms` and is about to start: where does
+        it start? "mark", "top" (the marker goes) or None. While another title is
+        playing, starting it stops that one, so this one question stands in for
+        the stop question. Enter takes "At the marker"; Escape cancels."""
         box = QMessageBox(self)
         box.setIcon(QMessageBox.Icon.Question)
         box.setWindowTitle(i18n.t("Reset the time marker?"))
-        box.setText(i18n.t("A title is playing. “%s” has a time marker at %s.\n"
-                           "Stop the playing title and start it from where?")
+        box.setText((i18n.t("A title is playing. “%s” has a time marker at %s.\n"
+                            "Stop the playing title and start it from where?")
+                     if running else
+                     i18n.t("“%s” has a time marker at %s.\nStart it from where?"))
                     % (title, fmt_track_secs(ms // 1000)))
         # From the beginning is the usual case, so it sits first. Both are
         # Accept buttons: the button order then follows the order added here.
@@ -951,11 +953,28 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
                                 QMessageBox.ButtonRole.AcceptRole)
         mark_btn = box.addButton(i18n.t("At the marker"),
                                  QMessageBox.ButtonRole.AcceptRole)
-        box.setDefaultButton(box.addButton(i18n.t("Cancel"),
-                                           QMessageBox.ButtonRole.RejectRole))
+        cancel_btn = box.addButton(i18n.t("Cancel"), QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(mark_btn)   # Enter = at the marker; Escape still cancels
+        box.setEscapeButton(cancel_btn)
         box.exec()
         clicked = box.clickedButton()
         return "mark" if clicked is mark_btn else "top" if clicked is top_btn else None
+
+    def _confirm_marked_start(self, row: int, path) -> bool:
+        """▶ or Space on a title that carries a ↩ time marker: it would start at
+        the marker without a word, so ask where it starts. False when cancelled.
+        Only playing mode spends a marker (the planning player starts a title at
+        its top), and the row already on the player is paused or stopped, not
+        started, so neither asks. A double-click has its own question above."""
+        mark_ms = self._resume_marks.get(str(path))
+        if not mark_ms or not self._play_hl_enabled or row == self._current_play_row:
+            return True
+        entry = self._row_meta.entry_at(row)
+        choice = self._ask_resume_mark(entry.title if entry else Path(str(path)).stem,
+                                       mark_ms, self.host.is_player_running())
+        if choice == "top":
+            self.host.clear_resume(path)
+        return choice is not None
 
     def _on_row_double_clicked(self, row: int, _col: int):
         """Playing mode PLAYS the row (or cues it — see `dblclick_plays`);
@@ -1171,7 +1190,8 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             title_it = self.item(row, _COL_TITLE)
             if title_it is not None:
                 if missing:
-                    title_it.setToolTip(i18n.t("⚠ File not found on disk:\n%s") % entry.path)
+                    title_it.setToolTip(plain_tip(
+                        i18n.t("⚠ File not found on disk:\n%s") % entry.path))
                 else:
                     tip = self._title_tooltip(entry, sim, resume_ms, marked, issue_text)
                     title_it.setToolTip(tip)
@@ -1196,11 +1216,11 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             cell(_COL_RATING, "").setData(RATING_ROLE, entry.rating or 0)
             custom_it = cell(_COL_CUSTOM, entry.custom or "")
             if entry.custom:
-                custom_it.setToolTip(entry.custom)
-            cell(_COL_FILE, entry.title or "").setToolTip(str(entry.path))
+                custom_it.setToolTip(plain_tip(entry.custom))
+            cell(_COL_FILE, entry.title or "").setToolTip(plain_tip(entry.path))
             cell(_COL_ALBUM, getattr(entry, "tag_album", None) or "")
             comment = getattr(entry, "tag_comment", None) or ""
-            cell(_COL_COMMENT, comment).setToolTip(comment)
+            cell(_COL_COMMENT, comment).setToolTip(plain_tip(comment))
             plays = play_counts.count(entry.path)
             cell(_COL_PLAYS, str(plays) if plays else "", align=ctr)
         else:
@@ -1372,7 +1392,8 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             warn.setBackground(bg)
             warn.setForeground(C_WARN_FG)
             warn.setTextAlignment(ctr)
-            warn.setToolTip(i18n.t("⚠ File not found on disk:\n%s") % entry.path)
+            warn.setToolTip(plain_tip(
+                i18n.t("⚠ File not found on disk:\n%s") % entry.path))
             warn.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
             self.setItem(row, COL_REGEN, warn)
 
@@ -1383,7 +1404,8 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         if col == _COL_PLAY:
             it = self.item(row, _COL_PLAY)
             path = it.data(PATH_ROLE) if it is not None else None
-            if path is not None and not self._start_refused(row, path):
+            if (path is not None and not self._start_refused(row, path)
+                    and self._confirm_marked_start(row, path)):
                 self._on_play_click(row, path)
         elif col == COL_REGEN:
             self._regen(row)
@@ -1669,10 +1691,17 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
             meta = self._row_meta[r]
             if meta:
                 entry = meta.entry
-                if entry is not None:
+                if entry is not None and not self._foreign_unc(entry.path):
                     return r, entry.path
             r += step
         return -1, None
+
+    def _foreign_unc(self, path) -> bool:
+        """A network line from someone else's playlist with no local copy:
+        the auto-advance passes it by, as no file is behind it to open."""
+        return (is_network_path(path)
+                and not is_own_share(path, self.host.settings())
+                and not self.host.file_there(path))
 
 
 # Late-bind the concrete class into the mixin modules: their methods

@@ -50,6 +50,35 @@ class PlayLogTest(unittest.TestCase):
         plays = play_log.plays(play_log.evenings()[0])
         self.assertEqual(play_log.durations(plays), [90.0, 100.0, 95.5])
 
+    def test_a_pad_played_over_a_title_does_not_cut_it_short(self):
+        self.play(at(3, 20, 0, 0), "song", length=180.0)
+        self.play(at(3, 20, 1, 0), "Tusch", length=12.0, list_name=play_log.CARTWALL_LIST)
+        self.play(at(3, 20, 3, 0), "next", length=100.0)
+        plays = play_log.plays(play_log.evenings()[0])
+        # The song ran to the next title, not to where the pad fired; the pad
+        # ran as long as it was heard.
+        self.assertEqual(play_log.durations(plays), [180.0, 12.0, 100.0])
+
+    def test_the_lists_of_an_evening_in_order_of_appearance(self):
+        self.play(at(3, 20, 0), "a", list_name="Deck A")
+        self.play(at(3, 20, 1), "b", list_name=play_log.CARTWALL_LIST)
+        self.play(at(3, 20, 2), "c", list_name="Deck A")
+        self.play(at(3, 20, 3), "d", list_name="Wishlist 1")
+        self.play(at(3, 20, 4), "e", list_name="")
+        plays = play_log.plays(play_log.evenings()[0])
+        self.assertEqual(play_log.list_names(plays), ["Deck A", "Cartwall", "Wishlist 1"])
+
+    def test_the_csv_of_one_list_keeps_the_durations_of_the_whole_evening(self):
+        self.play(at(3, 20, 0, 0), "song", length=180.0, list_name="Deck A")
+        self.play(at(3, 20, 1, 0), "Tusch", length=12.0, list_name=play_log.CARTWALL_LIST)
+        self.play(at(3, 20, 3, 0), "next", length=100.0, list_name="Deck A")
+        out = self.dir / "deck.csv"
+        play_log.to_csv(play_log.plays(play_log.evenings()[0]), out, only_list="Deck A")
+        with out.open(encoding="utf-8-sig", newline="") as f:
+            rows = list(csv.reader(f, delimiter=";"))
+        self.assertEqual([r[3] for r in rows[1:]], ["song", "next"])
+        self.assertEqual([r[7] for r in rows[1:]], ["3:00", "1:40"])
+
     def test_delete_removes_only_that_evening(self):
         self.play(at(3, 20, 0), "a")
         self.play(at(4, 20, 0), "b")

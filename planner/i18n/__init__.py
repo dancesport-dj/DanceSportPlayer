@@ -324,7 +324,7 @@ def _patch_list_method(cls, name: str, pos: int) -> None:
     setattr(cls, name, wrapper)
 
 
-def _patch_static(cls, name: str, start: int, count: int) -> None:
+def _translate_static(cls, name: str, start: int, count: int) -> None:
     original = getattr(cls, name)
     _originals.append((cls, name, staticmethod(original)))
 
@@ -369,7 +369,7 @@ def install_text_hook() -> None:
     for cls_name, method, pos in _PATCHED_LIST_METHODS:
         _patch_list_method(getattr(QtWidgets, cls_name), method, pos)
     for cls_name, method, start, count in _PATCHED_STATICS:
-        _patch_static(getattr(QtWidgets, cls_name), method, start, count)
+        _translate_static(getattr(QtWidgets, cls_name), method, start, count)
 
     _hook_installed = True
     log.debug("🌐 Text hook installed (language=%s)", _active_language)

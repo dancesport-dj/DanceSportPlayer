@@ -34,6 +34,7 @@ class ClaudeCliSandboxTest(unittest.TestCase):
 
             def __init__(self, cmd, **kw):
                 seen["cmd"] = cmd
+                seen["env"] = kw.get("env")
                 seen["cwd"] = kw.get("cwd")
                 seen["cwd_existed"] = bool(kw.get("cwd")) and os.path.isdir(kw["cwd"])
                 if kw.get("cwd"):
@@ -70,6 +71,11 @@ class ClaudeCliSandboxTest(unittest.TestCase):
         self.assertEqual(self.seen["cwd_files"], [])
         self.assertNotEqual(Path(cwd).resolve(), INSTALL_DIR.resolve())
         self.assertFalse(os.path.exists(cwd), "the folder is removed afterwards")
+
+    def test_the_logins_claude_md_is_not_read(self):
+        """Review 6.A: the empty folder sits under the user's home, so the CLI
+        still walked up to the login's CLAUDE.md and put it in the prompt."""
+        self.assertEqual(self.seen["env"].get("CLAUDE_CODE_DISABLE_CLAUDE_MDS"), "1")
 
 
 if __name__ == "__main__":

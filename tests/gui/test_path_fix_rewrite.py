@@ -132,5 +132,41 @@ class ReRootedTest(unittest.TestCase):
         self.assertIsNone(rerooted(Path(_OLD), _Remapper(new=_OLD.upper())))
 
 
+class AWorkingPathTest(unittest.TestCase):
+    """11-11 review #10: the remapper matches down to the bare file name, so a
+    file that plays fine (other/Album/Track01.mp3) was pointed at an unrelated
+    ref/Track01.mp3. A working path only moves to the same folder name."""
+
+    def setUp(self):
+        self.dir = Path(tempfile.mkdtemp(prefix="dp_reroot_"))
+
+    def _file(self, *parts):
+        p = self.dir.joinpath(*parts)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(b"x")
+        return p
+
+    def _to(self, new):
+        class _To:
+            def remap(self, path):
+                return new
+        return _To()
+
+    def test_a_bare_file_name_match_does_not_move_it(self):
+        old = self._file("other", "Album", "Track01.mp3")
+        new = self._file("ref", "Track01.mp3")
+        self.assertIsNone(rerooted(old, self._to(new)))
+
+    def test_the_same_folder_under_the_search_folder_still_moves_it(self):
+        old = self._file("old", "LW", "Mondschein (LW 29).mp3")
+        new = self._file("music", "LW", "Mondschein (LW 29).mp3")
+        self.assertEqual(rerooted(old, self._to(new)), new)
+
+    def test_a_broken_path_still_takes_the_file_name_match(self):
+        new = self._file("ref", "Track01.mp3")
+        self.assertEqual(rerooted(self.dir / "gone" / "Album" / "Track01.mp3",
+                                  self._to(new)), new)
+
+
 if __name__ == "__main__":
     unittest.main()

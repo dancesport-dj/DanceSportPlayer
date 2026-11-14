@@ -108,7 +108,7 @@ Hover over one for its full name.
 | 🤸 Party ▾ | Shows or hides the Party panel. |
 | 📚 Library | Shows or hides the library and tournaments pane. |
 | 🎛 Cartwall | Shows or hides the sample-pad wall. |
-| ❔ | A menu: ⌨ Keyboard shortcuts (**F1**), 📖 Manual, 📜 Played titles…, ⛶ Fullscreen (**F11**), 📝 Export log… (copies the log files into a folder you pick), ⚙ Settings… (**F12**) and ℹ About… |
+| ❔ | A menu: ⌨ Keyboard shortcuts (**F1**), 📖 Manual, 📜 Played titles…, ⛶ Fullscreen (**F11**), 📝 Export log… (saves the log files as one zip file), ⚙ Settings… (**F12**) and ℹ About… |
 
 **Middle: the decks.** Each deck is one playlist, see
 [chapter 3](03-playlists.md).
@@ -147,6 +147,11 @@ the window closes when the last one is silent. Meanwhile a small window
 says *🔉 Fading out the music… The app closes in a moment.*, its bar
 filling up with the fade. A second ✕ during the fade closes at once. With nothing sounding, the app closes at
 once.
+
+When the session could not be saved on close (a full disk, or a file another
+program holds open), the app says so and asks: *Quit anyway and lose the
+latest changes?* **No** keeps the window open, so you can free the disk and
+close again.
 
 Only one copy of the app runs at a time, because two would write the same
 autosave and the one closed last would win. A second start says *DanceSport

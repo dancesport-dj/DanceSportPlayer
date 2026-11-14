@@ -51,10 +51,23 @@ class PlaylistArtTest(unittest.TestCase):
         # open a connection to their host: refused, and no fallback either.
         _png(self.dir / "cover.jpg")
         for ref in ("\\\\host\\share\\x.jpg", "//host/share/x.jpg",
-                    "http://host/x.jpg", "file://host/x.jpg"):
+                    "http://host/x.jpg", "file://host/x.jpg",
+                    "/\\host\\share\\x.jpg", "\\/host/share/x.jpg"):
             self.m3u.write_text(f"#EXTM3U\n#EXTIMG:{ref}\n", encoding="utf-8")
             with self.subTest(ref=ref):
                 self.assertIsNone(playlist_art(self.m3u))
+
+    def test_a_playlist_on_someone_elses_share_is_never_stat_ed(self):
+        # A pack's autosave can name the deck's playlist as \\host\share\…,
+        # and every title load asked for its picture (review 7.B).
+        from unittest import mock
+
+        from planner.music import paths
+        self.addCleanup(paths.set_own_shares, {})
+        paths.set_own_shares({})
+        refuse = mock.patch.object(Path, "stat", side_effect=AssertionError("stat"))
+        with refuse:
+            self.assertIsNone(playlist_art(Path(r"\\10.255.255.1\share\LW.m3u")))
 
     def test_an_image_of_the_same_name_beside_it_counts(self):
         _png(self.dir / "cover.jpg")

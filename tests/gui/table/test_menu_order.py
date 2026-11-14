@@ -31,10 +31,10 @@ _app = QApplication.instance() or QApplication([])
 
 # The groups, top to bottom, each by how its entries begin.
 GROUPS = (("🔎", "⭐", "🌱", "📜"),
-          ("⇅", "⬇"),
+          ("⇅", "↺", "⬇"),
           ("🔁",),
           ("📌",),
-          ("📋", "📂  Show", "🎵", "🏷", "↩"),
+          ("📋", "📂  Show", "🔭", "🎵", "🏷", "↩"),
           ("➕",),
           ("🗑", "⬆"),
           ("🔒", "🔓", "↔"),
@@ -138,7 +138,10 @@ class MenuOrderTest(unittest.TestCase):
         t.selectRow(rows[1])
         entries = self.menu(t)
         swap = next(i for i, x in enumerate(entries) if x and x.startswith("⇅"))
-        self.assertTrue(entries[swap + 1].startswith("⬇"))
+        move = next(i for i, x in enumerate(entries) if x and x.startswith("⬇"))
+        # The swap with the end of the list may stand between them; no line may.
+        self.assertGreater(move, swap)
+        self.assertNotIn(None, entries[swap:move + 1])
 
     def test_emptying_the_list_comes_last(self):
         for name, t in self.lists().items():

@@ -76,6 +76,7 @@ from planner.music.analysis import HAS_LIBROSA
 from planner.music.parsing import song_title_key
 from planner.music.vocals import entry_is_instrumental
 from planner.terms import dance_name
+from shared.plain_text import plain_label
 
 log = logging.getLogger("dancesport.gui")
 
@@ -422,7 +423,7 @@ class SimilarTracksDialog(QDialog):
 
     def _build_footer(self, lyt):
         """The status line and the Close / Use-this-track buttons."""
-        self._status = QLabel("")
+        self._status = plain_label()
         self._status.setStyleSheet("color:#666; font-size:11px;")
         lyt.addWidget(self._status)
 
@@ -437,15 +438,23 @@ class SimilarTracksDialog(QDialog):
             # Enter / Return (incl. numpad) confirms the selected row, no matter which
             # child widget holds focus (window-context shortcut, like the seek keys).
             for _key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
-                QShortcut(QKeySequence(_key), self, self._pick_selected,
+                QShortcut(QKeySequence(_key), self, self._on_enter,
                           Qt.ShortcutContext.WindowShortcut)
         btn_row.addStretch(1)
-        close = QPushButton("Cancel" if self._pick_cb is not None else "Close")
+        close = self._close_btn = QPushButton("Cancel" if self._pick_cb is not None else "Close")
         close.clicked.connect(self.reject if self._pick_cb is not None else self.accept)
         btn_row.addWidget(close)
         lyt.addLayout(btn_row)
 
     # ── Pick mode (replacement chooser) ──────────────────────────────────────────
+    def _on_enter(self):
+        """Enter takes the selected row from wherever the focus is, a row's
+        clicked ▶ too, except on Cancel: there it cancels."""
+        if self.focusWidget() is self._close_btn:
+            self._close_btn.click()
+            return
+        self._pick_selected()
+
     def _pick_selected(self):
         """Confirm the table's current row as the replacement and close."""
         if self._pick_cb is None:
@@ -756,6 +765,10 @@ class SimilarTracksDialog(QDialog):
 
     def _recompute(self):
         """Recompute and repopulate results for the current method + mode."""
+        if self._rank_worker is not None:   # its answer is for the old settings
+            self._rank_worker = None
+            if self._emb_busy:
+                self._emb_busy.finish(); self._emb_busy = None
         if self._lib is None:
             return
         behavior = self._behavior_chk is not None and self._behavior_chk.isChecked()
@@ -983,6 +996,7 @@ class SimilarTracksDialog(QDialog):
         self._emb_busy.show_after(300)
 
     def _on_embedding_ranked(self, source, results):
+        self._rank_worker = None
         _, _, name = self._emb_info(self._method)
         if self._emb_busy:
             self._emb_busy.finish(); self._emb_busy = None
@@ -994,6 +1008,7 @@ class SimilarTracksDialog(QDialog):
         self._populate(source, results)
 
     def _on_embed_error(self, msg: str):
+        self._rank_worker = None
         if self._emb_busy:
             self._emb_busy.finish(); self._emb_busy = None
         self._set_method("librosa")

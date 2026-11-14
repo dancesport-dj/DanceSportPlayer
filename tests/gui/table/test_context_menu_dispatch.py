@@ -47,6 +47,7 @@ TARGETS = [
     (r"🔁  Reset all replacement marks", "_reset_all_marks"),
     (r"📌  (Unpin|Pin)", "_toggle_pin"),
     (r"🗑  Remove from wishlist", "_remove_rows"),
+    (r"↺  Swap with a .+ from the end of the list", "_swap_from_list_end"),
     (r"⇅  Swap these two titles", "_swap_selected"),
     (r"⬇  Move ", "_move_to_end"),
     (r"➕  Add a heat", "_add_dynamic_heat"),

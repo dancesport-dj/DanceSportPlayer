@@ -55,6 +55,14 @@ class JsonGuardTests(unittest.TestCase):
             ' "queue": 1.0}}}]}'))
         self.assertEqual(doc.page, 0)
 
+    def test_an_infinite_grid_falls_back(self):
+        # Review 6.E: int(inf) raises OverflowError, which the grid let through.
+        for size in ('"cols": 1e999, "rows": 4', '"cols": 4, "rows": -Infinity'):
+            with self.subTest(size=size):
+                doc = cartwall.load_doc(json.loads('{%s, "pages": [], "version": %d}'
+                                                   % (size, cartwall.CARTWALL_VERSION)))
+                self.assertEqual(doc.grid, cartwall.DEFAULT_GRID)
+
     def test_float_queue_is_a_queue(self):
         pad = cartwall._pad_from_dict({"path": "x.wav", "queue": 2.0})
         self.assertEqual(pad.queue, 2)
@@ -66,6 +74,21 @@ class JsonGuardTests(unittest.TestCase):
     def test_dance_secs_skips_infinite(self):
         out = play_sets.dance_secs_of({play_sets.DANCE_SECS_KEY: {"Waltz": float("inf")}})
         self.assertNotIn("Waltz", out)
+
+    def test_paso_doble_with_infinite_numbers_falls_back(self):
+        inf = float("inf")
+        for which in ("party", "tournament", "training"):
+            out = play_sets.pd_of({f"{which}_set": {"pd_delay": inf, "pd_n": inf}}, which)
+            self.assertEqual(out, play_sets.pd_of({}, which))
+
+    def test_round_pd_pick_skips_infinite(self):
+        kind = play_sets.ROUND_KINDS[0]
+        out = play_sets.round_pd_n_of({play_sets.ROUND_PD_KEY: {kind: float("inf")}})
+        self.assertNotIn(kind, out)
+
+    def test_migrate_with_an_infinite_version(self):
+        s = {"play_sets_version": float("inf")}
+        self.assertIsInstance(play_sets.migrate_play_sets(s), dict)
 
 
 class PadColourTests(unittest.TestCase):

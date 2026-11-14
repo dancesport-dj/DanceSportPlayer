@@ -16,6 +16,7 @@ class SamePathProbeTest(unittest.TestCase):
         worker = mock.Mock()
         worker.isRunning.return_value = True
         worker.path = running_path
+        worker.key = str(running_path)   # the title it reports under
         return SimpleNamespace(
             _lufs_pending=None, _lufs_token=None, _pending=PendingWork(), _lufs_worker=worker, _lufs_failed=set(),
             _pv=lambda _k: True,

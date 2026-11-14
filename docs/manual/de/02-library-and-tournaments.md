@@ -27,7 +27,9 @@ wie beim Scan beim Start.
 
 **📁 Ordner** im Kopf zeigt die Ordner neben der Tabelle. Wähle einen, und die
 Tabelle listet nur die Titel direkt in diesem Ordner, nicht die aus seinen
-Unterordnern. **📁 Alle Ordner** listet wieder alles, und der Knopf führt zurück
+Unterordnern. Eine Ordnerzeile ohne Zahl hat keine eigenen Titel: Wähle sie,
+und die Tabelle listet die Titel aller Ordner darunter.
+**📁 Alle Ordner** listet wieder alles, und der Knopf führt zurück
 zur einfachen Liste. In dieser Ansicht blendet **🆕 Ungeplant** die geplante
 Datei selbst aus. Dieselbe Musik in einem anderen Ordner bleibt stehen und
 bekommt ein **♊** vor dem Titel. Die einfache Liste blendet auch diese Kopien
@@ -40,6 +42,10 @@ funktioniert wie der Filterknopf einer Tabellenkalkulation: Er öffnet ein Menü
 in dem **Nach Größe sortieren** den Ordner mit den meisten Titeln nach oben
 setzt und **Nach Name sortieren** die Vorgabe ist. Der Knopf bleibt gedrückt,
 solange eine andere Wahl als die Vorgabe gilt. Ordner tragen ein Ordner-Symbol.
+
+Zieh eine Ordnerzeile in ein Deck, den Party-Bereich oder eine Wunschliste, um
+ihre Titel und die aller Unterordner darunter hinzuzufügen, so wie es ein Ablegen
+dieser Dateien täte. **📁 Alle Ordner** lässt sich nicht ziehen.
 
 ![Der Bibliotheksbrowser](../img/library.png)
 
@@ -95,11 +101,29 @@ der Platte liegen.
 ### Den Baum füllen
 
 - Zieh `.m3u`-Dateien oder einen ganzen Ordner aus dem Explorer auf den Baum.
-- **📁** legt einen Ordner an: einen Tag, eine Halle, ein Turnier.
+- **📁** legt einen Ordner an: einen Tag, eine Halle, ein Turnier. Eine Ebene
+  hält jeden Ordnernamen nur einmal: Ein zweiter, egal wie groß oder klein
+  geschrieben, wird mit einem Hinweis abgelehnt. Derselbe Name eine Ebene
+  tiefer ist in Ordnung.
 - **＋** fügt dem markierten Ordner Wiedergabelisten-Dateien hinzu. Rechtsklick auf
   den Baum ▸ **📂 Ordner mit Wiedergabelisten hinzufügen…** legt einen ganzen Ordner
   von der Platte als Zweig an, mit jeder `.m3u` darunter, genauso wie ein aus
   dem Explorer gezogener Ordner.
+- Ein Zweig, der aus einem Ordner auf der Platte angelegt wurde, bleibt mit ihm
+  verbunden: Er zeigt **🔗** statt 📁, und sein Tooltip nennt den Pfad.
+  Rechtsklick darauf ▸ **🔄 Vom Datenträger neu einlesen** liest den Ordner neu:
+  Neue Wiedergabelisten werden abgelegt, gelöschte verschwinden, und ein Name,
+  den du dem Zweig gegeben hast, bleibt. Ein Ordner, der weg ist oder keine
+  Wiedergabeliste mehr enthält, lässt den Zweig, wie er war.
+- Ein neuer Ordner oder eine neue Wiedergabeliste ist sofort gewählt, und der
+  Weg dorthin wird aufgeklappt. Ein Rechtsklick auf den leeren Teil des Baums
+  legt auf der obersten Ebene ab, auch wenn vorher ein Ordner gewählt war.
+- **Zieh Einträge innerhalb des Baums**, um sie umzuordnen. Lass auf der Mitte
+  eines Ordners los, um hineinzulegen, auf der oberen oder unteren Kante einer
+  Zeile, um davor oder dahinter zu legen, und auf der leeren Fläche darunter,
+  um ans Ende der obersten Ebene zu legen. Ordner wandern mit allem, was sie
+  enthalten; ein Ordner kann nicht in sich selbst oder in einen Ordner, den er
+  enthält. Ablegen auf einem Deck lädt die Wiedergabeliste weiterhin.
 - **✎** (oder **F2**) benennt den markierten Eintrag um. **🗑** (oder
   **Entf**) entfernt ihn aus dem Baum. Die Datei auf der Platte bleibt
   unberührt. In der Slot-Ansicht wirken diese auf den gewählten Slot; klick
@@ -107,7 +131,8 @@ der Platte liegen.
 - **Strg + A** markiert alles: jeden Slot des Ordners oder in der
   Titel-Ansicht jeden Eintrag des Baums. **Entf** und **🗑** entfernen dann
   nach einer Rückfrage alle markierten Einträge.
-- **⊟** klappt jeden Ordner zu, was bei einer langen Saison hilft.
+- **⊟**, gleich hinter der Zahl der Wiedergabelisten, klappt jeden Ordner zu,
+  was bei einer langen Saison hilft.
 - Aus einem Deck: Rechtsklick ▸ **🏆 Speichern und in „Turniere“ eintragen…**
   speichert die Wiedergabeliste und legt sie hier ab. Sie kommt in den markierten
   Ordner, neben die markierte Wiedergabeliste oder an die Wurzel. Der neue Eintrag
@@ -127,9 +152,16 @@ Jeder Slot zeigt:
   du einen von mehreren markierten Slots, kommen alle mit; sie gehen in die
   freien Decks, je einer. Ein einfacher Klick verengt die Markierung auf einen
   Slot.
-- Ein **Doppelklick auf einen Slot** lädt ihn auf das aktive Deck.
+- Ein **Doppelklick auf einen Slot** lädt ihn auf das aktive Deck. Das Deck
+  kommt auf den Bildschirm und bekommt die Tastatur, auch wenn vorher nur der
+  Party-Bereich zu sehen war.
 - Ein **Rechtsklick auf einen Slot** bietet ▶ Auf das aktive Deck laden,
   🎵 Seine Titel zeigen, ✎ Umbenennen und 🗑 Aus dem Baum entfernen.
+- **📥 Laden in…** im selben Menü schickt die Wiedergabeliste in eine Liste
+  deiner Wahl: Wiedergabeliste 1–4, Wunschliste 1–2 oder Party. Es fragt, was ein
+  Ablegen auf dieser Liste fragen würde, und holt die Liste dann auf den
+  Bildschirm. Eine Wiedergabelisten-Zeile in der Titel-Ansicht hat denselben
+  Eintrag.
 
 ### Titel-Ansicht
 

@@ -15,7 +15,15 @@ from player.audio.tso import round_takte, tso_band_of, tso_target
 
 
 def row(dance, bpm, round_name=""):
-    return Row(SimpleNamespace(dance=dance, bpm=bpm), dance, round_name)
+    return Row(SimpleNamespace(dance=dance, bpm=bpm, features=None), dance,
+               round_name)
+
+
+def measured_row(dance, measured, round_name=""):
+    """A "?" title: no takt in the name, a tempo librosa measured (beats/min)."""
+    ent = SimpleNamespace(dance=dance, bpm=None,
+                          features=SimpleNamespace(bpm=measured))
+    return Row(ent, dance, round_name)
 
 
 def deck(rows, player_list=False, hdr=None):
@@ -31,6 +39,18 @@ class RoundTakteTest(unittest.TestCase):
                   row("CC", 31, "Vorrunde"), row("SA", 52, "Finale"),
                   row("SA", 0, "Vorrunde")])
         self.assertEqual(round_takte(d, 1, "SA"), [50, 51])
+
+    def test_a_measured_title_counts_with_its_measured_takt(self):
+        d = deck([None, row("JI", 42), measured_row("JI", 176)])    # T44
+        self.assertEqual(round_takte(d, 1, "JI"), [42, 44])
+
+    def test_a_measure_far_outside_the_band_is_not_counted(self):
+        d = deck([None, row("JI", 42), measured_row("JI", 188)])    # T47
+        self.assertEqual(round_takte(d, 1, "JI"), [42])
+
+    def test_a_title_with_neither_label_nor_measure_is_not_counted(self):
+        d = deck([None, row("JI", 42), measured_row("JI", 0)])
+        self.assertEqual(round_takte(d, 1, "JI"), [42])
 
     def test_a_running_order_counts_the_titles_under_the_same_strip(self):
         """Its rows carry no round name: twelve Sambas over four rounds must
@@ -51,6 +71,15 @@ class TsoTargetTest(unittest.TestCase):
     def test_mean_never_pitches_more_than_one_takt(self):
         """A T23 Rumba in a round at 25 comes up to 24, not to 25."""
         self.assertEqual(tso_target([25, 25], "RB", 23, "mean").target, 24)
+
+    def test_a_measured_title_may_come_up_two_takte_into_the_band(self):
+        """A T22 Rumba the measure found, band 24-26: it is believed, and it
+        is pitched into the band, not just a takt towards it."""
+        self.assertEqual(tso_target([], "RB", 22, "mean", measured=True).target, 24)
+        self.assertEqual(tso_target([], "RB", 28, "mean", measured=True).target, 26)
+
+    def test_a_labelled_title_still_moves_one_takt_at_most(self):
+        self.assertEqual(tso_target([], "RB", 22, "mean").target, 23)
 
     def test_a_title_below_the_band_comes_up_to_its_floor(self):
         self.assertEqual(tso_target([27], "SF", 27, "mean").target, 28)

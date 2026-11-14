@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 
 from planner import i18n
 from planner.playing import cartwall as pc
+from shared.plain_text import plain_label
 
 PAD_COLOURS = pc.PAD_COLOURS    # kept with the model, for ⚙ Settings too
 
@@ -43,6 +44,7 @@ class CartPadDialog(QDialog):
 
     def __init__(self, pad: pc.CartPad, parent=None, slot_key: str = "",
                  pad_count: int = 1, wall_fade_ms: int = pc.DEFAULT_FADE_MS,
+                 wall_cross_ms: int = pc.DEFAULT_CROSS_MS,
                  background_pauses: bool = False,
                  background_volume: float = pc.DEFAULT_BG_VOLUME_PCT / 100):
         super().__init__(parent)
@@ -51,7 +53,7 @@ class CartPadDialog(QDialog):
         self._bg_volume = background_volume
         lyt = QVBoxLayout(self)
 
-        lyt.addWidget(QLabel(f"🎵  {Path(pad.path).name}"))
+        lyt.addWidget(plain_label(f"🎵  {Path(pad.path).name}"))
         if pad_count > 1:
             # Which of these fields reach the other pads is not guessable, so it
             # is stated rather than discovered after the fact.
@@ -103,6 +105,31 @@ class CartPadDialog(QDialog):
         row.addWidget(self._fade_lbl)
         lyt.addLayout(row)
 
+        # A looping pad's blend into its next round: the Settings length
+        # unless this pad says otherwise, exactly like the fade above.
+        self._wall_cross = max(0, min(pc.MAX_CROSS_MS, int(wall_cross_ms)))
+        self._cross_own = QCheckBox("Own crossover")
+        self._cross_own.setToolTip(
+            "How long this pad takes to blend into its next round when it\n"
+            "loops. Unticked it follows ⚙ Settings → 🎛 Cartwall.")
+        self._cross_own.setChecked(pad.cross_ms is not None)
+        self._cross = QSlider(Qt.Orientation.Horizontal)
+        self._cross.setRange(0, pc.MAX_CROSS_MS)
+        self._cross.setSingleStep(100)
+        self._cross.setPageStep(500)
+        self._cross.setValue(int(pad.cross_ms if pad.cross_ms is not None
+                                 else self._wall_cross))
+        self._cross_lbl = TypedValue(self._cross, 1000)
+        self._cross_lbl.setMinimumWidth(56)
+        self._cross.valueChanged.connect(self._show_cross)
+        self._cross_own.toggled.connect(self._on_cross_own)
+        self._on_cross_own(self._cross_own.isChecked())
+        row = QHBoxLayout()
+        row.addWidget(self._cross_own)
+        row.addWidget(self._cross, 1)
+        row.addWidget(self._cross_lbl)
+        lyt.addLayout(row)
+
         # A key of its own travels WITH the pad, unlike the slot default, which
         # belongs to the position on the wall.
         self._key = QKeySequenceEdit()
@@ -127,13 +154,21 @@ class CartPadDialog(QDialog):
                               "for a background bed under a ceremony.")
         lyt.addWidget(self._loop)
 
-        self._duck = QCheckBox("🔈  Pull the music down while this pad plays")
+        self._duck = QCheckBox("🔈  Pull the main music down while this pad plays")
         self._duck.setChecked(pad.duck)
         lyt.addWidget(self._duck)
+        self._duck_pads = QCheckBox("🔈  Pull the other pads down while this pad plays")
+        self._duck_pads.setChecked(pad.duck_pads)
+        self._duck_pads.setToolTip(
+            "A title running on another pad goes down while this pad plays\n"
+            "and comes back to its own volume afterwards.\n"
+            "Independent of the box above: tick one, the other or both.")
+        lyt.addWidget(self._duck_pads)
         # A bed that ducks the deck music for twenty minutes is never what
         # anyone wants, so turning on the loop turns the duck off with it.
         self._loop.toggled.connect(
-            lambda on: self._duck.setChecked(False) if on else None)
+            lambda on: (self._duck.setChecked(False),
+                        self._duck_pads.setChecked(False)) if on else None)
 
         # ⚙ Settings ▸ 🎛 Cartwall decides what a title does to the pad
         # (planner.playing.cartwall.background_pauses); the box says which.
@@ -164,6 +199,14 @@ class CartPadDialog(QDialog):
             "for an anthem or a winners' fanfare that needs the room.")
         lyt.addWidget(self._stops_others)
 
+        self._skip_silence = QCheckBox("🔇  Skip the silence at the start and end of the file")
+        self._skip_silence.setChecked(pad.skip_silence)
+        self._skip_silence.setToolTip(
+            "The pad starts where the music does and ends where it stops: a\n"
+            "jingle that opens with a moment of dead air sounds on the tap, not\n"
+            "a beat later, and the next pad in a queue follows without a gap.")
+        lyt.addWidget(self._skip_silence)
+
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok
                                    | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)
@@ -175,7 +218,9 @@ class CartPadDialog(QDialog):
         the two would hold each other at the bottom."""
         if on:
             self._duck.setChecked(False)
+            self._duck_pads.setChecked(False)
         self._duck.setEnabled(not on)
+        self._duck_pads.setEnabled(not on)
 
     def _on_background_ticked(self, on: bool) -> None:
         """🎶 Made a bed: down to the bed volume (⚙ Settings → 🎛 Cartwall)."""
@@ -238,6 +283,20 @@ class CartPadDialog(QDialog):
             self._fade.blockSignals(False)
         self._show_fade(self._fade.value())
 
+    def _show_cross(self, ms: int) -> None:
+        text = f"{ms / 1000:.1f} s"
+        self._cross_lbl.setText(text if self._cross_own.isChecked()
+                                else i18n.t("%s (wall)") % text)
+
+    def _on_cross_own(self, own: bool) -> None:
+        """Unticked, the slider still SHOWS the length this pad follows."""
+        self._cross.setEnabled(own)
+        if not own:
+            self._cross.blockSignals(True)
+            self._cross.setValue(self._wall_cross)
+            self._cross.blockSignals(False)
+        self._show_cross(self._cross.value())
+
     def pad(self) -> pc.CartPad:
         return pc.CartPad(
             path=self._pad.path,
@@ -246,10 +305,13 @@ class CartPadDialog(QDialog):
             volume=self._vol.value() / 100.0,
             loop=self._loop.isChecked(),
             duck=self._duck.isChecked(),
+            duck_pads=self._duck_pads.isChecked(),
             background=self._background.isChecked(),
             stops_others=self._stops_others.isChecked(),
+            skip_silence=self._skip_silence.isChecked(),
             shortcut=self._key.keySequence().toString(),
-            fade_ms=self._fade.value() if self._fade_own.isChecked() else None)
+            fade_ms=self._fade.value() if self._fade_own.isChecked() else None,
+            cross_ms=self._cross.value() if self._cross_own.isChecked() else None)
 
 
 class ClickableLabel(QLabel):

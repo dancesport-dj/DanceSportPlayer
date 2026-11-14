@@ -10,6 +10,7 @@ import logging
 import os
 import signal
 import sys
+import threading
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -30,7 +31,7 @@ try:
         QtMsgType,
         qInstallMessageHandler,
     )
-    from PySide6.QtGui import QKeySequence, QShortcut
+    from PySide6.QtGui import QCursor, QKeySequence, QShortcut
     from PySide6.QtWidgets import (
         QAbstractSpinBox,
         QApplication,
@@ -51,6 +52,7 @@ try:
         QToolButton,
         QVBoxLayout,
         QWidget,
+        QWidgetAction,
     )
 except ImportError as e:
     print(f"PySide6 not found: {e}")
@@ -107,6 +109,7 @@ from planner.generate.suggester import PlaylistSuggester
 from planner.music.db_upkeep import apply_settings as apply_backup_folder
 from planner.music.db_upkeep import backup_safely
 from planner.music.paths import set_own_shares
+from planner.playing import controller as pctl
 from planner.version import app_version
 
 log = logging.getLogger("dancesport.gui")
@@ -144,6 +147,7 @@ def exit_app(code: int):
 # Background workers and all dialogs/shared widgets live in their own modules;
 # the names are re-imported here so the rest of this file keeps using them
 # unchanged.
+from gui import settings_save_report
 from gui.common import (
     APP_USER_MODEL_ID,
     BusyDialog,
@@ -154,7 +158,7 @@ from gui.common import (
 from gui.config_panel import (  # facade re-export
     ConfigPanel,
 )
-from gui.decks.deck import DeckContext, DeckField
+from gui.decks.deck import DeckContext, DeckField, DeckPlaylist
 from gui.decks.deck_grid import DeckGrid
 from gui.decks.deck_set import DeckSet
 from gui.dialogs import (  # auto-resolved
@@ -231,7 +235,8 @@ from player.audio.between_dances import BetweenDances
 from player.audio.cue_player import CuePlayer
 from player.audio.fade_now import FadeNow
 from player.audio.gated_player import GatedMediaPlayer
-from player.audio.mix import OutputMix, desk_duck_pct, duck_ramp_ms
+from player.audio.mix import OutputMix, desk_duck_pct, desk_fade_ms, duck_ramp_ms
+from player.audio.mp3_repair import prune_copies
 from player.audio.on_air_note import NOTE
 from player.audio.pending_work import PendingWork
 from player.audio.playback_state import PlaybackState
@@ -263,14 +268,16 @@ from player.window.main_guest import GuestMixin
 from player.window.main_player import PlayerControlMixin
 from player.window.main_remote import RemoteMixin
 from player.window.main_resume import EVENING
-from shared import error_reports
+from shared import app_logging, error_reports, plain_text
 from shared.appearance import look_icons, theme, user_looks
 from shared.appearance.icons import counted_emoji
+from shared.audio import profiles
 from shared.audio.audio_files import (
     set_browse_dir,
 )
 from shared.audio.audio_probes import LoudnessWorker, SilenceWorker
 from shared.audio.playback import plain_output_name, prime_disconnect_notify, quiet_ffmpeg_log
+from shared.plain_text import plain_label, plain_tip
 from shared.stores import (
     save_settings,
 )
@@ -315,6 +322,15 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
 
         # Settings + lazily-built whole-repo library (for global search)
         self._settings = load_settings()
+        # 🎧 Main and Rehearsal always exist; a settings file from before them
+        # gets both, seeded from the outputs it already had, and keeps them. A
+        # vanished active profile falls back to Main, Main's outputs with it.
+        if profiles.ensure_builtin(self._settings):
+            save_settings(self._settings)
+            log.info("🎧 Built-in audio profiles added or Main made active\n"
+                     "profiles: %s\n"
+                     "active: %s", ", ".join(profiles.profile_names(self._settings)),
+                     profiles.active_profile(self._settings))
         set_own_shares(self._settings)
         # Point the popularity learning at the configured tournament-playlists
         # folder BEFORE the library scan learns from it.
@@ -354,6 +370,11 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         self._ctl_hub.changed.connect(self._sync_controller_badge)
         self._sync_controller_badge()
         self._sync_sound_badge()
+        settings_save_report.install_report(self)   # 💾 a save that does not land is told
+        # 🧹 Repaired mp3 copies unused for a week: file I/O, so beside the
+        # start, not in it. Daemon: an unlink cut short at exit is redone next time.
+        threading.Thread(target=prune_copies, name="prune-repaired-copies",
+                         daemon=True).start()
         self._init_drive_watch()   # 🔌 a stick pulled mid-evening is noticed
 
     def _setup_media_player(self):
@@ -371,6 +392,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         self._mix = OutputMix(master,
                               float(self._settings.get("cartwall_volume", master)))
         self._mix.set_duck_ramps(*duck_ramp_ms(self._settings))
+        self._mix.set_desk_fade(desk_fade_ms(self._settings))
         # The 🎛 cartwall's own voice pool, built later in _build_cartwall.
         # Assigned here because _apply_volume() below already reads it.
         self._cart_voices = None
@@ -466,14 +488,15 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         """🔊 A small indicator at the right of the status bar while the card
         chosen for the music is plugged in, so the desk sees the MAYA44USB is
         there to play on. Plain text in the look's colour, not a pill like
-        the 🎛 controller's. A click opens ⚙ Settings ▸ 🔊 Sound."""
+        the 🎛 controller's, and the name only: the profile badge beside it
+        carries the 🔊 / 🎧. A click opens ⚙ Settings ▸ 🔊 Sound."""
         # Found on the status bar by name, so the window stores nothing more.
         badge = self.statusBar().findChild(QPushButton, "soundBadge")
         if badge is None:
             badge = QPushButton()
             badge.setObjectName("soundBadge")
             badge.setStyleSheet("background:transparent; border:none; "
-                                "padding:1px 4px; margin:2px 4px;")
+                                "padding:1px 4px; margin:2px 0 2px 4px;")
             badge.setCursor(Qt.CursorShape.PointingHandCursor)
             badge.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             badge.clicked.connect(lambda: self._open_settings(open_sound=True))
@@ -482,10 +505,110 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         card = self._audio_device.music_card()
         if card:
             # i18n: data — the card's own name
-            badge.setText(f"🔊 {plain_output_name(card)}")
+            badge.setText(plain_output_name(card))
             badge.setToolTip(i18n.t("The music plays on %s — click for the "
                                     "sound settings.") % card)
         badge.setVisible(bool(card))
+        self._sync_profile_badge()
+
+    def _sync_profile_badge(self):
+        """🎧 The active audio profile, while any exists: 🔊 for one the hall
+        hears, 🎧 for a rehearsal. A click lists the profiles to switch with,
+        and the red ⏹ Stop all music below them."""
+        badge = self.statusBar().findChild(QPushButton, "profileBadge")
+        if badge is None:
+            badge = QPushButton()
+            badge.setObjectName("profileBadge")
+            badge.setStyleSheet("background:transparent; border:none; "
+                                "padding:1px 4px; margin:2px 0 2px 4px;")
+            badge.setCursor(Qt.CursorShape.PointingHandCursor)
+            badge.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            badge.clicked.connect(self._on_profile_badge_clicked)
+            self.statusBar().insertPermanentWidget(0, badge)
+        name = profiles.active_profile(self._settings)
+        badge.setVisible(bool(profiles.profile_names(self._settings)))
+        if name is None:
+            badge.setText(i18n.t("🎧 (no profile)"))
+            badge.setToolTip(i18n.t("No audio profile is active — click to choose one."))
+        elif profiles.is_private(self._settings, name):
+            badge.setText(f"🎧 {name}")   # i18n: data — the profile's own name
+            badge.setToolTip(plain_tip(
+                i18n.t("Rehearsal profile %s — the hall hears nothing. "
+                       "Click to switch or to stop all music.") % name))
+        else:
+            badge.setText(f"🔊 {name}")   # i18n: data — the profile's own name
+            badge.setToolTip(plain_tip(
+                i18n.t("Audio profile %s — click to switch or to stop all music.") % name))
+
+    def _other_profile(self):
+        """With exactly two profiles, the one that is not active; else None."""
+        names = profiles.profile_names(self._settings)
+        if len(names) != 2:
+            return None
+        active = profiles.active_profile(self._settings)
+        return names[1] if active == names[0] else names[0]
+
+    def _on_profile_badge_clicked(self):
+        """🎧 The chooser, always: the ⏹ below the profiles must be at hand. With
+        two profiles the other one opens under the pointer, so a second click
+        on the same spot switches."""
+        menu = self._audio_profile_menu()
+        default = menu.defaultAction()
+        if default is None:
+            menu.exec(QCursor.pos())
+        else:
+            menu.exec(QCursor.pos(), default)
+        menu.deleteLater()
+
+    def _audio_profile_menu(self) -> QMenu:
+        """The profiles as a menu, the active one ticked, the other one the
+        default when there are two; then, with a player, the red ⏹ Stop all
+        music (_stop_all_sound), not the player card's 🛑, which fades and
+        holds the title."""
+        menu = QMenu(self)
+        active = profiles.active_profile(self._settings)
+        other = self._other_profile()
+        for name in profiles.profile_names(self._settings):
+            private = profiles.is_private(self._settings, name)
+            action = menu.addAction(f"{'🎧' if private else '🔊'} {name}")
+            action.setData(name)
+            action.setCheckable(True)
+            action.setChecked(name == active)
+            action.triggered.connect(lambda _checked=False, n=name: self._switch_audio_profile(n))
+            if name == other:
+                menu.setDefaultAction(action)
+        if self._player is not None:
+            menu.addSeparator()
+            button = QPushButton(i18n.t("⏹ Stop all music"))
+            button.setStyleSheet("QPushButton { background:#c62828; color:white; "
+                                 "border:none; border-radius:3px; font-weight:bold; "
+                                 "padding:3px 8px; margin:2px 4px; }"
+                                 "QPushButton:hover { background:#e53935; }"
+                                 "QPushButton:pressed { background:#8e0000; }")
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            tip = i18n.t("Cuts the music, every pad and the pre-listen at once, "
+                         "without a fade.")
+            keys = pctl.desk_keys(self._settings.get("desk_keys"))["stop_all"]
+            if keys:
+                tip += i18n.t("\nKey: %s") % " / ".join(map(pctl.key_text, keys))
+            button.setToolTip(plain_tip(tip))   # the keys come from the settings file
+            stop = QWidgetAction(menu)
+            stop.setDefaultWidget(button)
+            stop.triggered.connect(self._stop_all_sound)
+            button.clicked.connect(menu.close)
+            button.clicked.connect(stop.trigger)
+            menu.addAction(stop)
+        return menu
+
+    def _switch_audio_profile(self, name: str):
+        """🎧 One click from a profile to another: every source moves at once."""
+        if not self._audio_device.switch_profile(name):
+            return
+        self._audio_device.on_activity()   # 🔇🔕 as after a settings change
+        self._guard_headset_volume()       # 🎧 a headset on the new output: not too loud
+        self._sync_sound_badge()
+        show_toast(self, i18n.t("🎧 Audio profile: %s") % name, 2500)
 
     def _setup_timed_play(self):
         """▶ The timed-play engine's tick and the state of the running title."""
@@ -663,6 +786,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         self._play_panel.celebrateToggled.connect(self._on_celebrate_toggled)
         self._play_panel.tournamentSetRequested.connect(self._apply_tournament_set)
         self._play_panel.rememberToggled.connect(self._set_remember_pos)
+        self._play_panel.announceDanceWanted.connect(self._say_the_dance_too)
         self._play_panel.stopRuleChanged.connect(self._refresh_next_up)
         # 🖼 〰 Cover art and waveform on the player card, as ⚙ Settings left them.
         self._set_artwork_shown(bool(self._settings.get("show_artwork", True)))
@@ -726,7 +850,9 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
             self._big_player.set_tso_mode(
                 bool(self._settings.get("tso_equalize", True)))
             self._big_player.tsoModeChanged.connect(self._on_tso_mode)
+            self._big_player.gemuetlichModeChanged.connect(self._on_gemuetlich_mode)
             self._big_player.tempoApplied.connect(self._sync_big_player_limit)
+            self._big_player.loopModeChanged.connect(self._on_loop_mode)
             self._play_panel.set_player_widget(self._big_player)
 
     def _build_left_column(self):
@@ -849,7 +975,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
     def _setup_player_bar(self, right, rl, splitter):
         """Hints bar, player bar, undo/redo and the persisted dividers."""
         # Hints bar (between table and player) — hidden until there's something to say
-        self._hints_lbl = QLabel("")
+        self._hints_lbl = plain_label("")   # the model's notes are no markup (7.C)
         self._hints_lbl.setWordWrap(True)
         self._hints_lbl.setStyleSheet(
             "background:#fff8e6; color:#7a5b00; border:1px solid #e6d28a;"
@@ -888,6 +1014,11 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         pb.addWidget(self._redo_btn)
 
         self._now_playing = QLabel("No song selected")
+        # A file name shows as typed ("Song <Remix>", "Rock & Roll"). Under a 🎨
+        # look the label stays auto: the hook swaps the glyph for its icon and
+        # escapes the rest itself (shared.appearance.look_icons, 1.2).
+        if theme.active_look() is None:
+            self._now_playing.setTextFormat(Qt.TextFormat.PlainText)
         self._now_playing.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
         )
@@ -971,6 +1102,9 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         self._library.repo_bar.paused.connect(pause_walk)
         self._library.repo_bar.stop_requested.connect(stop_walk)
         self._library.loader.finished_ok.connect(self._on_library_loaded)
+        # After _on_library_loaded (slots run in connection order): 📨 a guest
+        # server started during the scan offers the scanned titles too.
+        self._library.loader.finished_ok.connect(self._guest_library_changed)
         self._library.loader.error.connect(self._on_library_error)
         self._library.loader.start()
 
@@ -1126,7 +1260,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
     _age = DeckField()
     _dance_class = DeckField()
     _dances = DeckField()
-    _playlist = DeckField()
+    _playlist = DeckPlaylist()
     _replay_label = DeckField()
     _replay_active = DeckField()
     _replay_rounds = DeckField()
@@ -1296,7 +1430,12 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         # One step failing must not skip the rest: a QThread still running when
         # its window goes down aborts the process (see _stop_workers).
         step = self._quitStep
-        step(self.save_on_quit)
+        if step(self.save_on_quit) is False and not self._quit_unsaved_ok():
+            # The window stays: no quit fade or ⚙ restart is under way any more.
+            self._fade_now.quitting = False
+            self._fade_now.restart = None
+            event.ignore()
+            return
         step(NOTE.remove)   # 🆘 a clean quit: nothing to pick up next start
         step(NOTE.flush)
         step(EVENING.flush)   # ▶ the evening's last greyed title
@@ -1327,9 +1466,21 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         """Run one step of closing; a failure is logged, not allowed to skip
         the steps behind it."""
         try:
-            fn(*args, **kwargs)
+            return fn(*args, **kwargs)
         except Exception:
             log.exception("⚠ Closing: %s failed", getattr(fn, "__name__", fn))
+            return None
+
+    def _quit_unsaved_ok(self) -> bool:
+        """The last autosave did not land: the file on disk is the one from before
+        the latest edits. Say so and let the window stay open to try again."""
+        answer = QMessageBox.question(
+            self, i18n.t("Session not saved"),
+            i18n.t("The session could not be saved: the autosave file could "
+                   "not be written. Quit anyway and lose the latest changes?"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No)
+        return answer == QMessageBox.StandardButton.Yes
 
     def _stop_workers(self):
         """Let every background worker finish before this window takes its
@@ -1678,10 +1829,7 @@ def _open_session_log(suffix=""):
     except Exception as exc:
         log.debug("📝 Could not keep the previous session log: %s", exc)
     try:
-        _fh = logging.FileHandler(session_path, mode="w", encoding="utf-8")
-        _fh.setFormatter(logging.Formatter("%(asctime)s %(levelname).1s %(message)s",
-                                           datefmt="%Y-%m-%d %H:%M:%S"))
-        logging.getLogger().addHandler(_fh)
+        app_logging.addFileSink(session_path)
     except Exception as exc:
         log.debug("📝 Could not open the session log: %s", exc)
     return prev_session
@@ -1738,11 +1886,20 @@ def _show_previous_crash(window, prev_crash, prev_session):
                 len(prev_crash))
     box = QMessageBox(window)
     box.setIcon(QMessageBox.Icon.Warning)
-    box.setWindowTitle("Previous session crashed")
-    box.setText(
-        "💥  The app did not shut down cleanly last time.\n\n"
-        "The crash log of that session is under 'Show Details…' "
-        "(it is overwritten on every start).")
+    # faulthandler's dump means the process was killed; an uncaught Python
+    # exception alone is logged while the app may well have carried on.
+    if "fatal exception" in prev_crash.lower() or "Fatal Python error" in prev_crash:
+        box.setWindowTitle("Previous session crashed")
+        box.setText(
+            "💥  The app did not shut down cleanly last time.\n\n"
+            "The crash log of that session is under 'Show Details…' "
+            "(it is overwritten on every start).")
+    else:
+        box.setWindowTitle("Previous session logged an error")
+        box.setText(
+            "⚠  Last session hit an error it did not handle; the app may have "
+            "kept running.\n\n"
+            "The error is under 'Show Details…' (it is overwritten on every start).")
     # The stack alone never says what the app was doing — the tail of that
     # session's log does. Both go into the details, so one copy-paste is
     # enough to find the crash.
@@ -1755,12 +1912,10 @@ def _show_previous_crash(window, prev_crash, prev_session):
 
 def run_gui():
     # Planner diagnostics (scans, migrations, analysis errors) go through logging;
-    # show them on the console the GUI was launched from. Under pythonw there is
-    # no console (sys.stdout is None) → fall back to basicConfig's stderr default.
-    if sys.stdout is not None:
-        logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stdout)
-    else:
-        logging.basicConfig(level=logging.INFO, format="%(message)s")
+    # show them on the console the GUI was launched from (loguru is the sink, see
+    # shared/app_logging.py). Under pythonw there is no console (sys.stdout is
+    # None): the session log is then the only sink.
+    app_logging.setupLogging()
 
     instance_lock = _take_instance_lock()      # held for the whole run
     if _already_running(instance_lock):
@@ -1823,6 +1978,9 @@ def run_gui():
     # first thing that puts a dialog on screen. English patches nothing.
     i18n.apply_settings(startup_settings)
     terms.apply_settings(startup_settings)
+    # 🔒 Text from tags, playlists and packs is text in a message box. Before the
+    # i18n hook, so that one translates first and this one escapes the result.
+    plain_text.install_message_boxes()
     i18n.install_text_hook()
     i18n.install_qt_translator(app)
 

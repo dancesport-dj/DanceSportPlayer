@@ -32,6 +32,7 @@ from gui.dialogs import (  # auto-resolved
     UsbExportDialog,
     default_save_dir,
 )
+from gui.dialogs.venue_parts_dialog import ask_pack_parts
 from gui.table.playlist_table import (  # auto-resolved
     PlaylistTable,
 )
@@ -39,7 +40,7 @@ from planner import i18n
 from planner.config import OUTPUT_DIR, playlist_dir
 from planner.event import venue_pack
 from planner.models import split_day_rounds
-from planner.music.paths import PathRemapper
+from planner.music.paths import PathRemapper, is_probeable
 from planner.playlist.m3u import export_flat_m3u, export_m3u, m3u_suffix, m3u_track_sizes, numbered_folder_m3u
 from planner.store import state_dir
 from planner.terms import practice_name
@@ -101,8 +102,8 @@ def _off_reference_text(path_for: _ReferenceMapper | None) -> str:
     can name the Referenzpfad itself, and moving files would not help it."""
     if path_for is None or not path_for.missing:
         return ""
-    off = [p for p in path_for.missing if p.is_file()]
-    gone = [p for p in path_for.missing if not p.is_file()]
+    off = [p for p in path_for.missing if is_probeable(p)]
+    gone = [p for p in path_for.missing if not is_probeable(p)]
     parts = []
     if off:
         parts.append(i18n.t("⚠ %d title(s) are not on the Reference path\n%s\n"
@@ -186,6 +187,18 @@ def _is_bundle_dir(folder: Path) -> bool:
     except OSError:
         return False
     return True
+
+
+def _holds_any(folder: Path, paths) -> bool:
+    """Whether any of `paths` lies inside `folder` (case folded, no disk access)."""
+    root = os.path.normcase(os.path.abspath(folder))
+    for p in paths:
+        if not p:
+            continue
+        q = os.path.normcase(os.path.abspath(p))
+        if q == root or q.startswith(root.rstrip(os.sep) + os.sep):
+            return True
+    return False
 
 
 def bundle_detail(name: str, moved: float, whole: float) -> str:
@@ -349,7 +362,7 @@ class ExportMixin(MainWindowHost):
             if obj is not None:
                 docs[store.name] = obj
         tracks = venue_pack.track_paths(*docs.values())
-        present = [t for t in tracks if Path(t).is_file()]
+        present = [t for t in tracks if is_probeable(t)]
         size_mb = sum(Path(t).stat().st_size for t in present) / 1e6
         ans = QMessageBox.question(
             self, title,
@@ -430,8 +443,16 @@ class ExportMixin(MainWindowHost):
         except venue_pack.VenuePackError as exc:
             QMessageBox.warning(self, title, i18n.t("This is no venue pack:") + "\n\n" + str(exc))
             return
+        # Not everything has to come: a pack carries settings, decks and
+        # cartwall, and the operator may want only one of them from it.
+        parts = [n for n in venue_pack.PACK_FILES if n in pack.docs]
+        if len(parts) > 1:
+            parts = ask_pack_parts(self, parts)
+            if parts is None:
+                return
         music_dir = None
-        if pack.music:
+        # Settings alone name no track: nothing to unpack then.
+        if pack.music and parts != [venue_pack.SETTINGS_FILE]:
             ans = QMessageBox.question(
                 self, title,
                 i18n.t("The pack carries %d music file(s).\n\n"
@@ -455,7 +476,7 @@ class ExportMixin(MainWindowHost):
             self._run_venue_job(
                 "📥 Unpacking the venue pack…",
                 lambda progress, cancelled: venue_pack.stage_import(
-                    src, state_dir(), music_dir, progress, cancelled))
+                    src, state_dir(), music_dir, progress, cancelled, only=parts))
         except venue_pack.VenuePackCancelled:
             self.statusBar().showMessage("📥 Venue pack import cancelled.")
             return
@@ -686,7 +707,9 @@ class ExportMixin(MainWindowHost):
         if not jobs:
             self.statusBar().showMessage("Nothing to export — all playlists are empty.")
             return
-        picked = self._pick_bundle_dir(bundle_name_guess(sources))
+        in_use = sources + [e.path for t in selected for e in t.wishlist_entries()]
+        in_use += [e.path for _t, _title, entries in flat for e in entries]
+        picked = self._pick_bundle_dir(bundle_name_guess(sources), in_use)
         if picked is None:
             return
         bundle, own_folder = picked
@@ -719,12 +742,14 @@ class ExportMixin(MainWindowHost):
                              Path(export_m3u(pl, dl, out.stem, cl, out_path=out))))
         return jobs, skipped
 
-    def _pick_bundle_dir(self, guess: str) -> tuple[Path, bool] | None:
+    def _pick_bundle_dir(self, guess: str, in_use=()) -> tuple[Path, bool] | None:
         """Pick the target drive / folder, then the bundle folder in it, named
         after the tournament (`guess` filled in): on a drive's top level
         always, in a sub folder only if wanted, else straight into it. A
         folder to make that already exists asks Replace / Keep both / Cancel,
-        so nothing is ever silently overwritten.
+        so nothing is ever silently overwritten. `in_use`: the files this
+        export reads — an old bundle holding one of them (a deck loaded from
+        the stick) cannot be replaced, it would be gone before the copy.
         → (bundle, whether the bundle folder was made for it); None: cancelled."""
         root = QFileDialog.getExistingDirectory(
             self, "USB export — pick the target drive / folder",
@@ -743,14 +768,20 @@ class ExportMixin(MainWindowHost):
             # Only an older export can be replaced: a folder of that name
             # with anything else in it is the user's, and stays.
             replaceable = _is_bundle_dir(bundle)
+            reads_it = replaceable and _holds_any(bundle, in_use)
             box = QMessageBox(self)
             box.setWindowTitle("USB export")
             box.setIcon(QMessageBox.Icon.Question)
-            if replaceable:
+            if replaceable and not reads_it:
                 box.setText(i18n.t("“%s” already exists in the target folder.\n"
                                    "Replace it, or keep both?") % bundle)
                 replace_btn = box.addButton("Replace",
                                             QMessageBox.ButtonRole.DestructiveRole)
+            elif reads_it:
+                box.setText(i18n.t("“%s” already exists in the target folder, and "
+                                   "this export reads tracks from it, so it cannot "
+                                   "be replaced.\nKeep both?") % bundle)
+                replace_btn = None
             else:
                 box.setText(i18n.t("“%s” already exists in the target folder and "
                                    "holds more than a USB export, so it cannot be "

@@ -184,6 +184,22 @@ class ControllerDialogTest(unittest.TestCase):
         self.assertIsNone(host.listener)
         self.assertEqual(host.cfg["bindings"], {})
 
+    def test_a_window_that_goes_with_settings_stops_learning(self):
+        """Full review 2026-11-11 #5: opened from ⚙ Settings, the window is
+        deleted along with it, never closed. Learn kept every reading of the
+        desk for a window that was gone, so no button worked any more."""
+        from PySide6.QtCore import QEvent
+        from PySide6.QtWidgets import QDialog
+        host = _Host()
+        settings = QDialog()
+        dlg = ControllerDialog(host, parent=settings)
+        dlg.show()
+        dlg._learn_btns["next"].click()
+        self.assertIsNotNone(host.listener)
+        settings.deleteLater()
+        QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+        self.assertIsNone(host.listener)
+
     def test_clear_unbinds(self):
         host = _Host({"bindings": {"toggle": "cc:0:41", "next": "cc:0:44"}})
         dlg = self._dlg(host)

@@ -6,6 +6,7 @@ when the user says so, the MP3 itself), and the custom field's frame.
 """
 import logging
 import os
+import sqlite3
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -23,7 +24,7 @@ from gui.dialogs.tag_edit_dialog import (
 from gui.workers import CustomFieldReader
 from planner import i18n
 from planner.music import custom_field, id3_frames
-from planner.music.paths import foreign_name, resolve_file
+from planner.music.paths import foreign_name, is_probeable, resolve_file
 from shared.widgets import WARN_TOAST_MS, show_toast
 
 if TYPE_CHECKING:
@@ -135,7 +136,7 @@ class TagEditMixin(MainWindowHost):
             return
         try:
             paths = lib.edit_tags(self._copies_of(entry), cache, {"rating": stars})
-        except ValueError as exc:
+        except (ValueError, sqlite3.Error) as exc:
             log.warning("★ Couldn't store the rating of %s:\n%s", Path(entry.path).name, exc)
             show_toast(self, i18n.t("★  Couldn't store the rating: %s") % exc, error=True)
             return
@@ -196,7 +197,7 @@ class TagEditMixin(MainWindowHost):
         mapped = custom_field.writable()   # the old ID3v1 comment is read only
         writable = [f for f in _APP_TAG_FIELDS if mapped or f != "custom"]
         on_disk = [(e, mp3) for e, c in todo
-                   if Path(e.path).suffix.lower() == ".mp3" and Path(e.path).is_file()
+                   if Path(e.path).suffix.lower() == ".mp3" and is_probeable(e.path)
                    and (mp3 := {k: v for k, v in c.items() if k in writable})]
         app = {id(e): c for e, c in on_disk} if dlg.write_app_to_mp3() else {}
         for e in entries:
@@ -213,7 +214,7 @@ class TagEditMixin(MainWindowHost):
                     paths += lib.reset_tag_edits(self._copies_of(e), cache)
             for e, changes in todo:
                 paths += lib.edit_tags(self._copies_of(e), cache, changes)
-        except ValueError as exc:
+        except (ValueError, sqlite3.Error) as exc:
             log.warning("🏷 Couldn't store the tag edit:\n%s", exc)
             show_toast(self, i18n.t("🏷  Couldn't store the tags: %s") % exc,
                        WARN_TOAST_MS, error=True)
@@ -246,8 +247,14 @@ class TagEditMixin(MainWindowHost):
         lib = self._library.lib
         if self._custom_reader is not None or lib is None or self._library.cache is None:
             return False
-        if not custom_field.set_source(frame, desc):
-            return True
+        try:
+            if not custom_field.set_source(frame, desc):
+                return True
+        except sqlite3.Error as exc:
+            log.warning("🏷 Couldn't map the Custom field: %s", exc)
+            show_toast(self, i18n.t("🏷  Couldn't store the tags: %s") % exc,
+                       WARN_TOAST_MS, error=True)
+            return False
         entries = list(lib.entries)
         for t in self._deckset.all_tables:
             entries += t._row_meta.entries()

@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -23,6 +24,7 @@ from gui.dialogs.settings_look import _DialogHost
 from gui.workers import OpenRouterModelsWorker
 from planner import i18n
 from planner.generate import ai
+from shared.plain_text import plain_label
 
 _MAMMOUTH = "https://api.mammouth.ai/v1"
 
@@ -84,7 +86,7 @@ class AiTabMixin(_DialogHost):
         mrow.addWidget(self._ai_load)
         blyt.addLayout(mrow)
 
-        self._ai_status = QLabel("")
+        self._ai_status = plain_label()
         self._ai_status.setWordWrap(True)
         self._ai_status.setStyleSheet("color:#666; font-size:11px;")
         blyt.addWidget(self._ai_status)
@@ -140,5 +142,10 @@ class AiTabMixin(_DialogHost):
         if now == self._ai_given:
             return
         key = now["api_key"] if now["api_key"] != self._ai_given["api_key"] else None
-        ai.save_openrouter_config(key, now["model"], now["base_url"],
-                                  ask_first=now["ask_first"])
+        if not ai.save_openrouter_config(key, now["model"], now["base_url"],
+                                         ask_first=now["ask_first"]):
+            QMessageBox.warning(
+                self, i18n.t("AI settings"),
+                i18n.t("The AI settings could not be saved completely: the "
+                       "file could not be written, or the old API key is still "
+                       "in the credential store. Check the session log."))

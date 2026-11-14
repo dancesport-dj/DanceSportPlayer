@@ -44,24 +44,25 @@ class SortCaseTest(unittest.TestCase):
         self.small = _entry("abba")
         self.capital = _entry("Zorba")
 
-    def check(self, col):
+    def keys(self, col):
+        """The sort keys of the lower-case and the capitalised entry."""
         key = self.pane._sort_key(col)
-        self.assertLess(key(self.small), key(self.capital))
+        return key(self.small), key(self.capital)
 
     def test_artist(self):
-        self.check(2)
+        self.assertLess(*self.keys(2))
 
     def test_title(self):
-        self.check(3)
+        self.assertLess(*self.keys(3))
 
     def test_album(self):
-        self.check(LIB_COL_ALBUM)
+        self.assertLess(*self.keys(LIB_COL_ALBUM))
 
     def test_custom(self):
-        self.check(LIB_COL_CUSTOM)
+        self.assertLess(*self.keys(LIB_COL_CUSTOM))
 
     def test_file(self):
-        self.check(LIB_COL_FILE)
+        self.assertLess(*self.keys(LIB_COL_FILE))
 
 
 if __name__ == "__main__":

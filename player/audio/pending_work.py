@@ -9,6 +9,10 @@ from pathlib import Path
 class PendingWork:
     # One Paso Doble detection per track path, so a replay finds its own (#11).
     pd_workers: dict = field(default_factory=dict)
+    # 🔇 The cartwall's silence and edge probes, by file (edges under "edges:").
+    pad_probes: dict = field(default_factory=dict)
+    # 🔧 A misread title's repaired copy being made, by title path.
+    repairs: dict = field(default_factory=dict)
     # The title whose loudness wait ran out: play on, the level follows (#1).
     lufs_expired: Path | None = None
     # A true peak waiting for the free worker slot (#12).

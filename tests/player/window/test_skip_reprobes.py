@@ -34,8 +34,9 @@ class _Worker:
         def connect(self, *_a, **_kw):
             pass
 
-    def __init__(self, path, _ffmpeg, parent=None):
+    def __init__(self, path, _ffmpeg, key=None, parent=None):
         self.path = Path(path)
+        self.key = key if key is not None else str(path)
         self.done = self._Sig()
         self.error = self._Sig()
         self.cancelled = False

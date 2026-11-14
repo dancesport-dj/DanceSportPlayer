@@ -199,6 +199,12 @@ class _Table:
     def __init__(self, rounds):
         self._rounds = rounds
         self._current_play_row = 0
+        self.confirm = True      # the answer to the ↩ "where does it start" box
+        self.asked = []
+
+    def _confirm_marked_start(self, row, path):
+        self.asked.append(row)
+        return self.confirm
 
     def next_song_row(self, row, step):
         nrow = row + step
@@ -259,7 +265,7 @@ class _Desk(CrossfadeMixin):
         self._mix = OutputMix(1.0)
         self._between = BetweenDances()
         self._player = _Player()
-        self._playback = SimpleNamespace(path=Path("a.mp3"), offset_ms=0)
+        self._playback = SimpleNamespace(path=Path("a.mp3"), offset_ms=0, repaired={})
         self.marks = []
         self._play_panel = SimpleNamespace(
             pd_editing=lambda: False,
@@ -326,8 +332,9 @@ class _Desk(CrossfadeMixin):
     def _fire_pending_advance(self):
         self.calls.append(("advance",))
 
-    def _preview_skip(self, step):
+    def _preview_skip(self, step, asked=False):
         self.calls.append(("skip", step))
+        self.skip_asked = asked
 
     def _remember_stop_point(self):
         self.calls.append(("mark",))
@@ -974,6 +981,22 @@ class SkipTest(unittest.TestCase):
         self.assertEqual(xf.length, 4.0)
         # The place in the title being left is kept first, as a plain ⏭ does.
         self.assertEqual(desk.calls, [("mark",), ("swap",), ("skip", 1)])
+
+    def test_the_marker_question_comes_before_the_swap(self):
+        # Review 3.A: asked after the decks were swapped, a Cancel left an
+        # empty deck and faded the running title out.
+        desk = self.desk()
+        desk.table.confirm = False
+        self.assertTrue(desk._crossfade_skip())     # handled: no plain cut after it
+        self.assertIsNone(desk._between.xfade.state)
+        self.assertEqual(desk.calls, [])
+        self.assertEqual(desk.table.asked, [1])
+
+    def test_an_answered_marker_question_is_not_asked_again(self):
+        desk = self.desk()
+        self.assertTrue(desk._crossfade_skip())
+        self.assertEqual(desk.table.asked, [1])
+        self.assertTrue(desk.skip_asked)
 
     def test_even_into_the_next_round_the_operator_asked_for_it(self):
         desk = self.desk()

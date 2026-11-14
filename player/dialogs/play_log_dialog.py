@@ -1,12 +1,14 @@
 """📜 Played titles: the evenings in the play log, each one's titles, and a CSV
 of an evening for a music report (GEMA and the like). See planner.playing.play_log."""
 import logging
+import re
 import sqlite3
 from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QComboBox,
     QDialog,
     QFileDialog,
     QHBoxLayout,
@@ -20,12 +22,14 @@ from PySide6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
+    QWidget,
 )
 
 from planner import i18n
 from planner.playing import play_log
 from planner.store import JsonStore
 from planner.terms import dance_name
+from shared.plain_text import plain_tip
 from shared.widgets import app_icon
 
 log = logging.getLogger("dancesport.gui.play_log")
@@ -54,6 +58,17 @@ class PlayLogDialog(QDialog):
         self.evening_list = QListWidget()
         self.evening_list.currentRowChanged.connect(self._show_evening)
         split.addWidget(self.evening_list)
+        right = QWidget()
+        right_lay = QVBoxLayout(right)
+        right_lay.setContentsMargins(0, 0, 0, 0)
+        # Which list the titles came from (a deck, a wishlist, the cartwall).
+        # The choice also decides what "Save as CSV" writes.
+        self.list_filter = QComboBox()
+        self.list_filter.setToolTip(
+            "Show only the titles of one list. Save as CSV then writes just those.")
+        self.list_filter.currentIndexChanged.connect(self._fill_table)
+        right_lay.addWidget(self.list_filter)
+        self._plays = []
         self.plays_table = QTableWidget(0, 7)
         self.plays_table.setHorizontalHeaderLabels(
             ["Start", "Artist", "Title", "Composer", "Dance", "List", "Duration"])
@@ -69,7 +84,8 @@ class PlayLogDialog(QDialog):
         self._fitting = False
         self._tracking = False
         head.sectionResized.connect(self._on_section_resized)
-        split.addWidget(self.plays_table)
+        right_lay.addWidget(self.plays_table, 1)
+        split.addWidget(right)
         split.setSizes([260, 640])
         lay.addWidget(split, 1)
 
@@ -125,6 +141,7 @@ class PlayLogDialog(QDialog):
             self.evening_list.setCurrentRow(0)
         else:
             self.plays_table.setRowCount(0)
+            self._set_list_filter([])
 
     def _current(self):
         i = self.evening_list.currentRow()
@@ -138,15 +155,44 @@ class PlayLogDialog(QDialog):
             log.warning("📜 Evening not read from the play log\n"
                         "error: %s", exc)
             plays = []
-        self.plays_table.setRowCount(len(plays))
-        for r, (p, secs) in enumerate(zip(plays, play_log.durations(plays), strict=True)):
+        self._plays = plays
+        self._set_list_filter(play_log.list_names(plays))
+        self._fill_table()
+
+    def _set_list_filter(self, names: list[str]):
+        """The filter offers "All lists" and the evening's lists. The list that
+        was chosen stays chosen on the next evening if that one has it too."""
+        keep = self._chosen_list()
+        self.list_filter.blockSignals(True)
+        self.list_filter.clear()
+        self.list_filter.addItem(i18n.t("All lists"))
+        self.list_filter.addItems(names)
+        self.list_filter.setCurrentIndex(names.index(keep) + 1 if keep in names else 0)
+        self.list_filter.blockSignals(False)
+        self.list_filter.setEnabled(bool(names))
+
+    def _chosen_list(self) -> str | None:
+        """The list the table is narrowed to, None for all."""
+        i = self.list_filter.currentIndex()
+        return self.list_filter.itemText(i) if i > 0 else None
+
+    def _fill_table(self, _index=None):
+        only = self._chosen_list()
+        # Durations come from the whole evening: a title ran up to the next one
+        # played, whichever list that was on.
+        shown = [(p, secs) for p, secs in
+                 zip(self._plays, play_log.durations(self._plays), strict=True)
+                 if only is None or p.list_name == only]
+        plays = [p for p, _ in shown]
+        self.plays_table.setRowCount(len(shown))
+        for r, (p, secs) in enumerate(shown):
             s = int(round(secs))
             cells = (f"{p.started_at:%H:%M:%S}", p.artist, p.title, p.composer,
                      dance_name(p.dance, p.dance) or "", p.list_name,
                      f"{s // 60}:{s % 60:02d}")
             for c, text in enumerate(cells):
                 item = QTableWidgetItem(text)
-                item.setToolTip(text)
+                item.setToolTip(plain_tip(text))
                 self.plays_table.setItem(r, c, item)
         if plays and self.isVisible():
             self._fit_columns()
@@ -190,13 +236,15 @@ class PlayLogDialog(QDialog):
         if evening is None:
             return
         title = i18n.t("Save played titles")
+        only = self._chosen_list()
+        suffix = "-" + re.sub(r"[^\w-]+", "_", only).strip("_") if only else ""
         chosen, _ = QFileDialog.getSaveFileName(
-            self, title, str(Path.home() / f"played-{evening.start:%Y-%m-%d}.csv"),
+            self, title, str(Path.home() / f"played-{evening.start:%Y-%m-%d}{suffix}.csv"),
             i18n.t("CSV files (*.csv);;All files (*)"))
         if not chosen:
             return
         try:
-            play_log.to_csv(play_log.plays(evening), Path(chosen))
+            play_log.to_csv(play_log.plays(evening), Path(chosen), only_list=only)
         except OSError as exc:
             QMessageBox.warning(self, "Save played titles",
                                 i18n.t("Could not write the file:") + "\n\n" + str(exc))

@@ -751,28 +751,35 @@ def split_day_rounds(rounds_data: list[dict], dances: list[str]) -> list[dict]:
     comps = [((r.get("ctx") or {}).get("comp")) for r in rounds_data]
     if len({c for c in comps if c}) < 2:
         return []
-    groups: list[dict] = []
-    cur: dict | None = None
-    remap: dict[int, int] = {}
+    # Consecutive rounds of one competition form a chunk. A dance is absent
+    # from the competition only when EVERY one of its rounds skips it; a skip
+    # in a single round (a Vorrunde without Rumba) must not erase the dance
+    # from the other rounds.
+    chunks: list[tuple[str | None, list[dict]]] = []
     for r, comp in zip(rounds_data, comps, strict=True):
-        rctx = r.get("ctx") or {}
-        if cur is None or comp != cur["comp"]:
-            skip = set(r.get("skip_dances") or [])
-            comp_dances = [d for d in dances if d not in skip]
-            remap = {i: comp_dances.index(d)
-                     for i, d in enumerate(dances) if d not in skip}
-            cur = {"comp": comp or "Playlist",
-                   "cls": rctx.get("cls") or "",
-                   "dances": comp_dances, "rounds": []}
-            groups.append(cur)
+        if not chunks or comp != chunks[-1][0]:
+            chunks.append((comp, []))
+        chunks[-1][1].append(r)
+    groups: list[dict] = []
+    for comp, chunk in chunks:
+        absent = set.intersection(
+            *(set(r.get("skip_dances") or []) for r in chunk))
+        comp_dances = [d for d in dances if d not in absent]
+        remap = {i: comp_dances.index(d)
+                 for i, d in enumerate(dances) if d not in absent}
+        cur = {"comp": comp or "Playlist",
+               "cls": (chunk[0].get("ctx") or {}).get("cls") or "",
+               "dances": comp_dances, "rounds": []}
+        groups.append(cur)
         prefix = f"{cur['comp']}{_DAY_COMP_SEP}"
-        name = r.get("name", "")
-        plain = name[len(prefix):] if name.startswith(prefix) else name
-        grid = {}
-        for h, hcol in (r.get("grid") or {}).items():
-            grid[h] = {str(remap[int(d)]): p for d, p in hcol.items()
-                       if int(d) in remap}
-        cur["rounds"].append({"name": plain,
-                              "tier": RoundTier.of(r.get("tier")),
-                              "heats": int(r.get("heats", 1)), "grid": grid})
+        for r in chunk:
+            name = r.get("name", "")
+            plain = name[len(prefix):] if name.startswith(prefix) else name
+            grid = {}
+            for h, hcol in (r.get("grid") or {}).items():
+                grid[h] = {str(remap[int(d)]): p for d, p in hcol.items()
+                           if int(d) in remap}
+            cur["rounds"].append({"name": plain,
+                                  "tier": RoundTier.of(r.get("tier")),
+                                  "heats": int(r.get("heats", 1)), "grid": grid})
     return groups

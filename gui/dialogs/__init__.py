@@ -80,6 +80,7 @@ from shared.appearance import looks
 # shared.audio.audio_probes pulls in nothing but the planner and QtCore, so no cycle here.
 from shared.audio.audio_probes import find_ffmpeg
 from shared.audio.playback import channel_pairs, device_id
+from shared.plain_text import plain_label
 from shared.stores import SETTINGS, save_settings
 from shared.widgets import (
     app_icon,
@@ -214,6 +215,41 @@ def apply_path_fallbacks(s: dict) -> dict:
     return s
 
 
+# Settings without a default in load_settings whose readers still need one type.
+_SETTING_TYPES = {"column_order": dict, "master_volume": float, "cartwall_volume": float}
+
+
+def _kind(value) -> type:
+    """The type a setting is checked against: a bool is no number, an int and
+    a float are the same number."""
+    if isinstance(value, bool):
+        return bool
+    if isinstance(value, (int, float)):
+        return float
+    return type(value)
+
+
+def _drop_mistyped(s: dict, defaults: dict) -> None:
+    """Put back the default for every stored value of the wrong type, in place.
+
+    The file travels (hand edits, another version, a venue pack from another
+    machine), and a list where the window wants a dict or a string where it
+    wants a number stopped the window constructor, so the app did not start
+    until the file was repaired by hand (review 7.D)."""
+    for key in list(s):
+        want = (_kind(defaults[key]) if key in defaults
+                else _SETTING_TYPES.get(key))
+        if want is None or _kind(s[key]) is want:
+            continue
+        log.warning("⚠️ Setting has the wrong type, using the default\n"
+                    "setting: %s\n"
+                    "stored: %r", key, s[key])
+        if key in defaults:
+            s[key] = defaults[key]
+        else:
+            del s[key]
+
+
 def load_settings() -> dict:
     """Read gui_settings.json, falling back to sensible per-machine defaults."""
     s = {
@@ -285,12 +321,14 @@ def load_settings() -> dict:
         "check_tempo_dev_pct": 10,    # ⚡ measured-vs-label tolerance
         "check_noise_floor_db": -50,  # 🔇 hissy above this floor (opt-in check)
     }
+    defaults = dict(s)
     data = SETTINGS.read()
     if isinstance(data, dict):
         # Keep EVERY persisted key (play settings, pause music, loudness
         # toggle, library column order, …) — the defaults above only fill
         # gaps. A whitelist here used to silently drop all of those.
         s.update(data)
+        _drop_mistyped(s, defaults)
         # 📂 The double-click checkbox became a choice (dblclick_action).
         if data.get("dblclick_external") and "dblclick_action" not in data:
             s["dblclick_action"] = "external"
@@ -1595,7 +1633,7 @@ class MusicSpeedDialog(QDialog):
         self.setModal(True)
         lay = QVBoxLayout(self)
 
-        head = QLabel(title or "—")
+        head = plain_label(title or "—")
         head.setStyleSheet("font-weight:600; font-size:13px;")
         head.setWordWrap(True)
         lay.addWidget(head)

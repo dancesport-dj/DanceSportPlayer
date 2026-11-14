@@ -647,14 +647,16 @@ class EditModeClarityTest(unittest.TestCase):
     def tearDown(self):
         self.w.deleteLater()
 
-    def test_switching_to_edit_stops_the_wall(self):
-        """A pad that keeps sounding while ✏ is on cannot be stopped by tapping
-        it — the tap selects now."""
+    def test_switching_to_edit_leaves_the_wall_playing(self):
+        """'when i go into edit mode and change a pad setting do not stop the
+        playback': a running bed is tuned while it is heard. The wall's ⏹
+        still stops it (this replaces 'in edit mode stop all playback')."""
         seen = []
         self.w.stopAll.connect(lambda: seen.append(1))
         self.w.set_playing((0, 0, 0), True)
         self.w.set_edit(True)
-        self.assertEqual(seen, [1])
+        self.assertEqual(seen, [])
+        self.assertIn((0, 0, 0), self.w._live)
 
     def test_a_silent_wall_is_not_told_to_stop(self):
         seen = []

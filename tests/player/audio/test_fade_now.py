@@ -129,11 +129,12 @@ class WindowPausesTheFadeTest(unittest.TestCase):
             _on_playback_state = PlayerControlMixin._on_playback_state
 
             def __init__(self):
-                self._fade_now = mock.Mock()
+                self._fade_now = mock.Mock(total=3.0, remaining=lambda: 2.0)
                 self._xfade_follow = self._refresh_wake_lock = lambda *a: None
                 self._stop_background_analysis = lambda: None
                 self._deckset = mock.Mock(all_tables=())
-                self._playback = mock.Mock(path=None, dance="")
+                self._playback = mock.Mock(path=None, dance="", fade_in_secs=0.0,
+                                           fade_in_from=None)
                 self._level_owed = False
                 self._refresh_loudness_gain = lambda: None
                 self._fade_timer = mock.Mock(isActive=lambda: True)

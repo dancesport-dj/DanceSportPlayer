@@ -12,6 +12,7 @@ from PySide6.QtCore import QTimer
 
 from planner import i18n
 from player.audio.announce import announce_secs
+from shared.stores import save_settings
 
 if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
@@ -118,6 +119,20 @@ class PauseMusicMixin(MainWindowHost):
                    if m and (m.dance or "") == dance
                    and table._row_round_hdr.get(r, -1) == section) or None
 
+    def _say_the_dance_too(self, with_heat):
+        """🔢 → 🔈 The panel's question was answered with the dance: the call
+        names it again, with its heat or without, and the setting that said
+        "only the heat" is saved off."""
+        self._settings["announce_heat_only"] = False
+        self._settings["announce_heat"] = bool(with_heat)
+        save_settings(self._settings)
+        s = self._settings
+        self._play_panel.set_announce_style(
+            str(s.get("announce_voice", "random")),
+            bool(s.get("announce_heat", False)),
+            bool(s.get("announce_wait", False)),
+            bool(s.get("announce_lead", False)), False)
+
     def _announce_dance_of(self, nxt) -> tuple[str, int | None]:
         """(dance code, heat) of a (table, row, path) advance target."""
         nxt = live_target(nxt)
@@ -170,10 +185,17 @@ class PauseMusicMixin(MainWindowHost):
         self._set_countdown("🔈  announcing…")
         return True
 
+    def _pending_announces(self) -> bool:
+        """🔈 as the list of the armed advance has it. No row is marked ▶
+        in the pause, so `_pv` would read the list the panel shows — a tab
+        the operator clicked meanwhile, not the one the next title is from."""
+        pending = self._between.pending
+        return pending is not None and bool(self._list_vals(pending[0])["announce"])
+
     def _maybe_announce_next(self):
         """Speak the coming dance once per pause, shortly before it ends."""
         if (self._between.announced or self._between.pending is None
-                or not self._pv("announce")
+                or not self._pending_announces()
                 # ✋ Manual under THIS deck stops its announcement too — 🔁 can
                 # reach a pause with the switch off, so it is asked here again.
                 or not self._deck_advance(self._between.pending[0])):
@@ -188,22 +210,28 @@ class PauseMusicMixin(MainWindowHost):
                               heat_only=self._play_panel.announce_heat_only())
 
     def _skip_to_call(self) -> bool:
-        """⏭ in a pause whose call is still to come: cut the wait short to
-        where the voice comes in, instead of skipping the call along with it
-        (Marcel: "when i click next dance i miss the announcement, i only want
-        skip the play lenht of the pause music"). The title starts once the
-        call is through.
+        """⏭ in a pause whose call is still to come: the call starts at once
+        instead of being skipped along with the wait (Marcel: "when i click
+        next dance i miss the announcement, i only want skip the play lenht
+        of the pause music"), and not put off to a lead of 5 s or more ("why
+        does the cut the pause short goes down to 5s pause? not fade out and
+        play immediatly?"). The pause music fades out under it, and the
+        title starts once the call is through: the pause tick holds for the
+        voice (`_hold_for_announcement`).
 
         False when there is no call left to wait for: announcements off, ✋
         Manual or already spoken — ⏭ then goes on at once, as before."""
         b = self._between
         if (b.announced or b.pending is None
-                or not self._pv("announce")
+                or not self._pending_announces()
                 or not self._deck_advance(b.pending[0])
                 or not self._announce_dance_of(b.pending)[0]):
             return False
-        b.advance_at = min(b.advance_at,
-                           time.monotonic() + self._announce_lead())
+        b.advance_at = min(b.advance_at, time.monotonic())
+        voices = getattr(self, "_cart_voices", None)
+        if voices is not None:
+            voices.set_music_playing(True)   # 🎶 the beds dip, as under a title
+        self._maybe_announce_next()
         return True
 
     def _playing_row(self):
@@ -273,13 +301,25 @@ class PauseMusicMixin(MainWindowHost):
         It cannot hold the evening: the announcer gives `speaking` up after its
         own watchdog even when the engine never reports back."""
         if token != self._playback.token:
-            return          # ■, or the next title took the player meanwhile
+            self._release_after_call(token, path)   # ■, or the next title took
+            return                                  # the player meanwhile
         now = time.monotonic()
         if self._announcer.speaking:
             self._between.quiet_until = now + _START_TAIL
         if now < self._between.quiet_until:
             QTimer.singleShot(_ANNOUNCE_POLL_MS,
                               lambda: self._poll_announcement(token, path))
+            return
+        self._release_after_call(token, path)
+
+    def _release_after_call(self, token: int, path):
+        """The call is over: the music starts and the bed's hold ends. A stop or
+        the next title meanwhile hands the bed back to the wall instead, as
+        `_release_after_bed` does."""
+        if self._playback.bed_wait == token:
+            self._playback.bed_wait = None
+        if token != self._playback.token:
+            self._cart_follow_deck(None)
             return
         self._release_held_start(token, path)
 
@@ -357,12 +397,17 @@ class PauseMusicMixin(MainWindowHost):
 
     def _start_next_round(self) -> bool:
         """⏯ on the big player after a 🏁 round-end stop: start the next
-        round's first song. Returns True when the tap was handled."""
+        round's first song. Returns True when the tap was handled. A title
+        with a ↩ time marker asks where it starts, like its own ▶ does; on
+        Cancel the round stays armed for the next tap."""
         nxt = live_target(self._between.round_start)
-        self._between.round_start = None
         if nxt is None:
+            self._between.round_start = None
             return False    # its title left the deck: ⏯ does what it always does
         t, nrow, npath = nxt
+        if not t._confirm_marked_start(nrow, npath):
+            return True
+        self._between.round_start = None
         t._on_play_click(nrow, npath)
         t.scroll_row_into_play_view(nrow)
         return True

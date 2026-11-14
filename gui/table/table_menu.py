@@ -4,24 +4,32 @@ Split off gui/table/table_actions.py: the menu's title, structure
 and list sections, and what they open — similar tracks, a round's history
 and the titles planned for it before.
 """
+import logging
 from dataclasses import replace
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QMenu, QMessageBox
+from PySide6.QtGui import QKeySequence
+from PySide6.QtWidgets import QApplication, QInputDialog, QMenu, QMessageBox
 
 from gui.common import platform_keys, reveal_in_explorer
 from gui.dialogs import SimilarTracksDialog
 from planner import i18n
 from planner.models import MusicEntry
 from planner.music.parsing import song_title_key
+from planner.playlist.missing_title import folder_matches, same_song_files
+from planner.playlist.planned import path_key
 from planner.terms import dance_name
+from shared.audio.audio_files import AUDIO_EXTS
 from shared.widgets import show_toast
 
 if TYPE_CHECKING:
     from gui.window.hosts import PlaylistTableHost
 else:
     PlaylistTableHost = object
+
+log = logging.getLogger("dancesport.gui.playlist_table")
 
 
 def with_key(text: str, key: str) -> str:
@@ -108,15 +116,27 @@ class TableMenuMixin(PlaylistTableHost):
             swap_here = self._two_songs_selected()
             to_end_here = ((self._flat_mode or self._warmup)
                            and not self._at_the_end(edit_rows))
-            if (swap_here or to_end_here) and not menu.isEmpty():
+            # The swap with a title from the end of the list: the party list's ↺
+            # button runs it; a per-class practice list's ↺ re-rolls from the
+            # library, so there the menu is the only way to it.
+            from_end_here = (self._warmup and not self._player_list
+                             and row in self._row_meta.song_rows())
+            if (swap_here or from_end_here or to_end_here) and not menu.isEmpty():
                 menu.addSeparator()
             if swap_here:
                 swap_act = menu.addAction("⇅  Swap these two titles	Alt+S")
                 handlers[swap_act] = self._swap_selected
+            if from_end_here:
+                dance = self._row_meta[row].dance
+                from_end_act = menu.addAction(
+                    i18n.t("↺  Swap with a %s from the end of the list")
+                    % dance_name(dance, dance))
+                handlers[from_end_act] = lambda: self._swap_from_list_end(row)
             if to_end_here:
                 to_end_act = menu.addAction(
                     i18n.t("⬇  Move %d selected titles to the end") % len(edit_rows)
                     if len(edit_rows) > 1 else "⬇  Move to the end of the list")
+                to_end_act.setShortcut(QKeySequence("Alt+End"))   # shown, not bound
                 handlers[to_end_act] = lambda: self._move_to_end(edit_rows)
             # Mark / unmark "for potential replace", with Reset-all directly
             # below it.
@@ -268,6 +288,13 @@ class TableMenuMixin(PlaylistTableHost):
                     self._remove_slots_caption(len(title_rows)))
                 handlers[remove_slot_act] = lambda: _remove_with_slots(title_rows)
 
+        # "Keep slot" leaves a row without a title in a party list; it needs its own
+        # way out, since every entry above is about the title that is not there.
+        elif self._is_empty_party_slot(row):
+            menu.addSeparator()
+            empty_act = menu.addAction("🗑  Remove this empty slot")
+            handlers[empty_act] = lambda: self._drop_empty_party_slot(row)
+
     def _add_similar_actions(self, menu, handlers, entry, pb_dance, pb_round):
         """🔎 ⭐ 🌱 Find similar: anywhere, in the wishlist, never played."""
         host = self.host
@@ -301,14 +328,68 @@ class TableMenuMixin(PlaylistTableHost):
         QApplication.clipboard().setText(str(entry.path))
         show_toast(self, "📋  Path copied to clipboard")
 
+    def _find_missing_title(self, entry):
+        """🔎 A red title's file is gone: offer the library's files that hold the same
+        song (renamed, cut, re-encoded) and put the chosen one in its place."""
+        rows = [r for r, m in self._row_meta.numbered() if m.entry is entry]
+        if not rows:
+            return
+        lib_entries = list(self.host.library_entries())
+        # The folder the title was in too, on disk: a file renamed there (the
+        # cut taken off its name) is not in the library until its next scan.
+        known = {str(e.path).lower() for e in lib_entries if getattr(e, "path", None)}
+        extra = [ent for ent in (self._entry_for(p)
+                                 for p in folder_matches(entry.path, AUDIO_EXTS)
+                                 if str(p).lower() not in known)
+                 if ent is not None]
+        found = same_song_files(entry.path, getattr(entry, "dance", None),
+                                lib_entries + extra, self._row_meta.paths())
+        if not found:
+            show_toast(self, i18n.t("🔭  No other file with this title found"), error=True)
+            return
+        labels = [f"{Path(e.path).name}  —  {Path(e.path).parent}" for e in found]
+        label, ok = QInputDialog.getItem(
+            self, i18n.t("Find this title"),
+            i18n.t("These files hold the same title. Take which one?"), labels, 0, False)
+        if not ok or label not in labels:
+            return
+        picked = found[labels.index(label)]
+        # The renamed file may be the one another open list already plans: it is
+        # offered all the same, and taking it says so first.
+        if self._planned_elsewhere(picked.path) and QMessageBox.question(
+                self, i18n.t("Find this title"),
+                i18n.t("“%s” is already planned in another open playlist.\n\nTake it anyway?")
+                % Path(picked.path).name) != QMessageBox.StandardButton.Yes:
+            return
+        row = rows[0]
+        meta = self._row_meta[row]
+        self._store_pick(meta, picked)
+        self._refill_row(row, meta)
+        if row == self._current_play_row:
+            self.sync_play_glyph()
+        self._notify_changed()
+        show_toast(self, i18n.t("🔭  Replaced by “%s”") % Path(picked.path).name)
+
+    def _planned_elsewhere(self, path) -> bool:
+        """Whether an open playlist plans `path`; False when the decks' index
+        cannot be read, so the find still works."""
+        try:
+            return path_key(path) in self.host.planned_paths()
+        except Exception as exc:
+            log.debug("🔭 Deck dedup index unavailable — no planned-elsewhere question: %s", exc)
+            return False
+
     def _edit_tags_of(self, rows):
         self.host.edit_entry_tags([self._row_meta[r].entry for r in sorted(rows)])
 
     def _menu_key(self, key, mods) -> bool:
         """Ctrl+F finds a title. Ctrl+E shows the title in Explorer, Ctrl+T edits the tags of the
         selection, Ctrl+Shift+C copies the path: the keys of the file entries
-        of the menu, on the first selected title. True when one was handled."""
+        of the menu, on the first selected title. Alt+End sends the selection to
+        the end of the list. True when one was handled."""
         ctrl, shift = Qt.KeyboardModifier.ControlModifier, Qt.KeyboardModifier.ShiftModifier
+        if key == Qt.Key.Key_End and mods == Qt.KeyboardModifier.AltModifier:
+            return self._move_selection_to_end()
         if key == Qt.Key.Key_F and mods & ctrl:
             if not self._row_meta.has_songs():
                 return False
@@ -343,6 +424,9 @@ class TableMenuMixin(PlaylistTableHost):
             copy_act.setText("📋  Copy file path (unavailable)")
             reveal_act.setEnabled(False)
             reveal_act.setText("📂  Show in Explorer (unavailable)")
+        if entry.path and not host.file_there(entry.path):
+            find_act = menu.addAction("🔭  Find this title…")
+            handlers[find_act] = lambda: self._find_missing_title(entry)
         speed_act = menu.addAction("🎵  Check music speed")
         retag_act = menu.addAction("🏷  Re-read MP3 tags")
         if not entry.path:

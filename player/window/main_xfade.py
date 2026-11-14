@@ -216,8 +216,21 @@ class CrossfadeMixin(MainWindowHost):
                 != QMediaPlayer.PlaybackState.PlayingState
                 or self._skip_target() is None):
             return False
+        # The ↩ "where does it start" question BEFORE the swap: asked after
+        # it, a Cancel left an empty deck and faded the running title out
+        # (review 3.A). Cancelled, the title plays on and no plain cut follows.
+        if not self._ask_skip_start():
+            return True
         self._remember_stop_point()   # as a plain ⏭ keeps it, before the swap
         return self._start_crossfade(secs, skip=True)
+
+    def _ask_skip_start(self) -> bool:
+        """The ↩ marker question for the row ⏭ lands on; False when cancelled."""
+        for t in self._deckset.all_tables:
+            if t._current_play_row >= 0:
+                nrow, npath = t.next_song_row(t._current_play_row, +1)
+                return nrow < 0 or t._confirm_marked_start(nrow, npath)
+        return True
 
     def _crossfade_jump(self, table, row: int, path) -> bool:
         """📱 A next title tapped on the phone: the running one fades out while
@@ -283,7 +296,7 @@ class CrossfadeMixin(MainWindowHost):
             table._on_play_click(row, path)
             table.scroll_row_into_play_view(row)
         elif skip:
-            self._preview_skip(+1)
+            self._preview_skip(+1, asked=True)   # _crossfade_skip asked already
         else:
             self._on_timed_end("crossfade")
             self._fire_pending_advance()   # no pause: start it now, from silence

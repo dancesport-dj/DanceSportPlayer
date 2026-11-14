@@ -17,6 +17,7 @@ there — but hiding a control must not change what it was set to.
 import os
 import tempfile
 import unittest
+from unittest import mock
 
 # Offscreen BEFORE any QApplication exists, and state files into a temp dir (the
 # gui modules resolve those at import time — see test_gui_smoke.py).
@@ -25,7 +26,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_panel_opt_"))
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 from player.widgets.panel_parts import Toggle
 from player.widgets.play_mode_panel import PlayModePanel
@@ -279,16 +280,19 @@ class GreySecondsTest(_PanelTest):
                                        (grey.name(), live.name()))
 
 
-class AnnounceTakesThePauseTest(_PanelTest):
-    """Marcel: "When 'announce next dance' is active, disable 'pause between
-    songs' by default, but let the user override it." """
+class AnnounceLeavesThePauseTest(_PanelTest):
+    """Marcel: "when i click announce next dance it deactivates the pause and
+    shows crossover but not activated. if i decide to use a pause i dont want
+    a crossover activated there or the pause deactivate." The call is made in
+    the pause, as a human announcer would: it takes nothing off the panel."""
 
-    def test_switching_the_call_on_takes_the_pause_off(self):
+    def test_switching_the_call_on_keeps_the_pause(self):
         p = self.panel(pause_enabled=True)
         p.announce_check.click()
-        self.assertFalse(p.pause_check.isChecked())
+        self.assertTrue(p.announce_check.isChecked())
+        self.assertTrue(p.pause_check.isChecked())
 
-    def test_switching_the_call_off_brings_the_pause_back(self):
+    def test_switching_the_call_off_keeps_it_too(self):
         p = self.panel(pause_enabled=True)
         p.announce_check.click()
         p.announce_check.click()
@@ -300,16 +304,17 @@ class AnnounceTakesThePauseTest(_PanelTest):
         p.announce_check.click()
         self.assertFalse(p.pause_check.isChecked())
 
-    def test_the_operator_can_have_both(self):
+    def test_the_crossover_row_stays_off_the_panel_under_a_pause(self):
         p = self.panel(pause_enabled=True)
         p.announce_check.click()
-        p.pause_check.click()
-        self.assertTrue(p.pause_check.isChecked())
-        self.assertTrue(p.announce_check.isChecked())
+        self.assertFalse(p.xfade_row_box.isVisibleTo(p))
+        self.assertFalse(p.xfade_on())
 
-    def test_both_on_in_the_settings_stay_on(self):
-        p = self.panel(pause_enabled=True, announce_next=True)
-        self.assertTrue(p.pause_check.isChecked())
+    def test_the_call_does_not_switch_the_crossover_on(self):
+        p = self.panel(pause_enabled=False)
+        self.assertFalse(p.xfade_on())
+        p.announce_check.click()
+        self.assertFalse(p.xfade_on())
 
     def test_a_set_with_both_on_keeps_both(self):
         p = self.panel(pause_enabled=False, announce_next=False)
@@ -317,22 +322,10 @@ class AnnounceTakesThePauseTest(_PanelTest):
         self.assertTrue(p.pause_check.isChecked())
         self.assertTrue(p.announce_check.isChecked())
 
-    def test_the_switch_says_why_the_pause_is_off(self):
-        p = self.panel(pause_enabled=True)
-        self.assertNotIn("because", p.pause_check.toolTip())
-        p.announce_check.click()
-        self.assertIn("because", p.pause_check.toolTip())
-
-    def test_the_reason_goes_when_the_pause_is_back_on(self):
-        p = self.panel(pause_enabled=True)
-        p.announce_check.click()
-        p.pause_check.click()
-        self.assertNotIn("because", p.pause_check.toolTip())
-
-    def test_the_reason_follows_a_set(self):
+    def test_the_pause_switch_never_blames_the_call(self):
         p = self.panel(pause_enabled=False, announce_next=False)
-        p.apply_play_set(0, True, True, announce=True)
-        self.assertIn("because", p.pause_check.toolTip())
+        p.announce_check.click()
+        self.assertNotIn("because", p.pause_check.toolTip())
 
 
 class ToggleButtonTest(_PanelTest):
@@ -457,6 +450,94 @@ class KeepAwakeOptionTest(_PanelTest):
         no business turning the screensaver back on."""
         self.assertNotIn("awake", self.panel().play_set())
 
+
+
+class HeatOnlyWarningTest(_PanelTest):
+    """Switching the call on while it says only the heat: a practice-evening
+    setting nobody remembers at a party, and then no dance is ever named.
+    The question has three answers: only the dance, the dance with its heat,
+    or keep it at only the heat."""
+
+    ASK = "player.widgets.play_mode_panel.PlayModePanel._ask_heat_choice"
+
+    def panel(self, heat_only=True, **settings):
+        p = super().panel(**settings)
+        p.set_announce_style("random", False, False, False, heat_only)
+        return p
+
+    def test_the_label_names_heat_only(self):
+        self.assertIn("heat only", self.panel().announce_style_lbl.text().lower())
+
+    def test_switching_on_with_heat_only_asks(self):
+        p = self.panel()
+        with mock.patch(self.ASK, return_value="heat") as ask:
+            p.announce_check.click()
+        ask.assert_called_once()
+
+    def test_keeping_the_heat_keeps_heat_only_and_the_call_on(self):
+        p = self.panel()
+        seen = []
+        p.announceDanceWanted.connect(seen.append)
+        with mock.patch(self.ASK, return_value="heat"):
+            p.announce_check.click()
+        self.assertTrue(p.announce_check.isChecked())
+        self.assertTrue(p.announce_heat_only())
+        self.assertEqual(seen, [])
+
+    def test_only_the_dance_asks_the_window_for_the_dance_without_heat(self):
+        p = self.panel()
+        seen = []
+        p.announceDanceWanted.connect(seen.append)
+        with mock.patch(self.ASK, return_value="dance"):
+            p.announce_check.click()
+        self.assertEqual(seen, [False])
+
+    def test_the_dance_with_heat_asks_the_window_for_both(self):
+        p = self.panel()
+        seen = []
+        p.announceDanceWanted.connect(seen.append)
+        with mock.patch(self.ASK, return_value="dance_heat"):
+            p.announce_check.click()
+        self.assertEqual(seen, [True])
+
+    def test_the_box_offers_dance_then_dance_with_heat_then_heat(self):
+        box, buttons = self.panel()._heat_choice_box()
+        self.addCleanup(box.deleteLater)
+        self.assertEqual([b.text() for b in box.buttons()],
+                         ["Only the dance", "Dance with heat", "Only the heat"])
+        self.assertIs(box.defaultButton(), buttons["dance"])
+        self.assertIs(box.escapeButton(), buttons["heat"])
+
+    def test_each_button_answers_with_its_own_choice(self):
+        for text, choice in (("Only the dance", "dance"),
+                             ("Dance with heat", "dance_heat"),
+                             ("Only the heat", "heat")):
+            p = self.panel()
+
+            def press(box, wanted=text):
+                next(b for b in box.buttons() if b.text() == wanted).click()
+
+            with mock.patch.object(QMessageBox, "exec", new=press):
+                self.assertEqual(p._ask_heat_choice(), choice, text)
+
+    def test_no_question_without_heat_only(self):
+        p = self.panel(heat_only=False)
+        with mock.patch(self.ASK) as ask:
+            p.announce_check.click()
+        ask.assert_not_called()
+
+    def test_no_question_when_switching_off(self):
+        p = self.panel(announce_next=True)
+        with mock.patch(self.ASK) as ask:
+            p.announce_check.click()
+        ask.assert_not_called()
+
+    def test_a_programmatic_switch_does_not_ask(self):
+        # ✋ Manual and a play set flip the box themselves.
+        p = self.panel()
+        with mock.patch(self.ASK) as ask:
+            p.announce_check.setChecked(True)
+        ask.assert_not_called()
 
 
 if __name__ == "__main__":

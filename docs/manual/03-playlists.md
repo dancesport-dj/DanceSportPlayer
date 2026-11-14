@@ -24,6 +24,8 @@ deck is a **running order**: the titles play from top to bottom.
   that moved up into the spot (the new last row when the last title went).
 - **⬇ Move to the end of the list** in the right-click menu of a party list,
   a free order or a wishlist sends the title last. A selection goes together.
+  The selection stays in place, on the title that moved up, so titles can be
+  sent last one after the other. **Alt + End** does the same from the keyboard.
 - **Ctrl + Z / Ctrl + Y** undo and redo every change. The ↶ / ↷ buttons at the
   bottom show how many steps are available.
 - Double-click the deck title to rename it. **▾** in the header folds the
@@ -77,7 +79,13 @@ Row colours:
 - a **light red** row with ❗ on its ▶ points at a file that is gone. Once
   the file is back and the title plays, the mark goes away. A title that
   would not play turns red the same way, with the reason in its tooltip,
-  see [chapter 4](04-playing.md#a-title-that-wont-play);
+  see [chapter 4](04-playing.md#a-title-that-wont-play). When the file was
+  renamed or re-encoded, right-click the row ▸ **🔭 Find this title…**: it
+  lists the files of the library with the same title and dance, and the audio
+  files in the missing file's own folder, so a file renamed there is found
+  before the next scan. The one you pick takes the row's place. A file that
+  another open playlist already plans is offered too; picking it says so and
+  asks *Take it anyway?*;
 - a **lilac** row with **📌** in front of its title is pinned.
 
 **📌 Pinning a title.** Right-click a title of a round ▸ **📌 Pin — keep this
@@ -113,13 +121,21 @@ one wishlist stays. The playlist button in the toolbar brings them back.
   *Lateinrunde* and *Socialrunde*.
 - **⇅ Swap these two titles** (right-click, or **Alt + S**) swaps two selected
   titles of the same dance, so every round keeps its dances.
+- **↺ Swap with a *dance* from the end of the list** (right-click a title)
+  does what the row's ↺ button does: the title changes places with one of its
+  dance from late in the list, or else with the dance's last title. On the
+  dance's last title a message says there is nothing to swap with.
 - **🗑 Remove this title (keep slot)** (right-click) leaves an empty row.
   **🗑 Remove this title and its slot** takes the row out as well. Decks offer
   it too, where the title is the only one of its dance in the round: the dance
   then leaves that round.
+- **🗑 Remove this empty slot** (right-click an empty row) takes the row out,
+  without a question: no title is lost.
 
 Playing from the panel switches to the **🎉 Party set** by itself: full length,
-auto-advance, no pause, see [chapter 4](04-playing.md#play-sets).
+auto-advance, no pause, see [chapter 4](04-playing.md#play-sets). The party
+list always plays its own length; the tournament set's lengths per dance never
+apply to it.
 
 ### A title the list already holds
 
@@ -153,6 +169,11 @@ the list before anything is added. A title counts as held when the list has the
 same audio, the same file name or title, a similar title (the rule of
 **🔁 Check duplicates**, so "Friends and Lovers" matches "Friends and Lovers Cut
 Version"), or the same recording by its sound (this needs `fpcalc`).
+
+Comparing by sound reads the files and can take a moment: a window
+**Comparing recordings** shows how far it is, once for the whole drop. A big
+drop onto a long list shows a bar with **Cancel** while it checks; Cancel adds
+nothing of that drop.
 
 - **One such title**: a box with **Replace**, **Keep both** or **Keep
   existing**. Keep existing drops the new file.

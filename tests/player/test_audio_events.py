@@ -104,7 +104,7 @@ class AudioEventsTest(unittest.TestCase):
         applied on OK instead of on the next tick."""
         self._clock_reset()
         for name, value in (("SettingsDialog", _Dialog),
-                            ("save_settings", lambda s: None)):
+                            ("save_settings", lambda s, **_: None)):
             patch = mock.patch.object(main_global, name, value)
             patch.start()
             self.addCleanup(patch.stop)

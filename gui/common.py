@@ -313,6 +313,7 @@ class BusyDialog(QDialog):
         lyt.setSizeConstraint(QVBoxLayout.SizeConstraint.SetMinimumSize)
         # Main message: explicit \n line breaks (no word-wrap → correct multi-line sizeHint).
         self._lbl = QLabel(message)
+        self._lbl.setTextFormat(Qt.TextFormat.PlainText)   # file/tag text: never rich
         self._lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._lbl.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
         lyt.addWidget(self._lbl)
@@ -325,6 +326,7 @@ class BusyDialog(QDialog):
         lyt.addWidget(self._bar)
         # Secondary line: current file being read (elided to one line if very long)
         self._detail = QLabel("")
+        self._detail.setTextFormat(Qt.TextFormat.PlainText)
         self._detail.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._detail.setStyleSheet("color: #777; font-size: 10px;")
         self._detail.setMinimumHeight(16)

@@ -32,6 +32,9 @@ class _Big:
         self.marks = None
         self.armed = "untouched"
 
+    def loop_mode(self):
+        return False
+
     def set_limit(self, *_a, **_k):
         pass
 

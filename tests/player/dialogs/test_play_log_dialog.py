@@ -56,6 +56,65 @@ class PlayLogDialogTest(unittest.TestCase):
         self.assertEqual(dlg.plays_table.item(0, 3).text(), "Composer a")
         self.assertEqual(dlg.plays_table.item(0, 6).text(), "3:00")
 
+    def fill_lists(self):
+        for when, title, lst in ((at(3, 20, 0), "a", "Deck A"),
+                                 (at(3, 20, 1), "Tusch", play_log.CARTWALL_LIST),
+                                 (at(3, 20, 3), "b", "Wishlist 1"),
+                                 (at(3, 20, 5), "c", "Deck A")):
+            play_log.record(when, rf"C:\m\{title}.mp3", "Artist", title, "LW", lst, 60)
+
+    @staticmethod
+    def titles(dlg):
+        return [dlg.plays_table.item(r, 2).text() for r in range(dlg.plays_table.rowCount())]
+
+    def test_the_list_filter_offers_every_list_of_the_evening(self):
+        self.fill_lists()
+        dlg = self.dialog()
+        self.assertEqual([dlg.list_filter.itemText(i) for i in range(dlg.list_filter.count())],
+                         [i18n.t("All lists"), "Deck A", "Cartwall", "Wishlist 1"])
+        self.assertEqual(self.titles(dlg), ["a", "Tusch", "b", "c"])
+
+    def test_choosing_a_list_shows_only_its_titles(self):
+        self.fill_lists()
+        dlg = self.dialog()
+        dlg.list_filter.setCurrentIndex(dlg.list_filter.findText(play_log.CARTWALL_LIST))
+        self.assertEqual(self.titles(dlg), ["Tusch"])
+        dlg.list_filter.setCurrentIndex(dlg.list_filter.findText("Deck A"))
+        self.assertEqual(self.titles(dlg), ["a", "c"])
+        dlg.list_filter.setCurrentIndex(0)
+        self.assertEqual(self.titles(dlg), ["a", "Tusch", "b", "c"])
+
+    def test_a_filtered_list_keeps_the_duration_of_the_whole_evening(self):
+        self.fill_lists()
+        dlg = self.dialog()
+        dlg.list_filter.setCurrentIndex(dlg.list_filter.findText("Deck A"))
+        # "a" ran 60 s (its length) though "c" is 5 min on, the pad in between
+        # did not cut it.
+        self.assertEqual(dlg.plays_table.item(0, 6).text(), "1:00")
+
+    def test_the_filter_goes_back_to_all_on_an_evening_without_that_list(self):
+        self.fill_lists()
+        play_log.record(at(9, 19, 0), r"C:\m\z.mp3", "Artist", "z", "LW", "Deck B", 60)
+        dlg = self.dialog()
+        dlg.evening_list.setCurrentRow(1)      # the older evening, with the pad
+        dlg.list_filter.setCurrentIndex(dlg.list_filter.findText(play_log.CARTWALL_LIST))
+        dlg.evening_list.setCurrentRow(0)
+        self.assertEqual(dlg.list_filter.currentIndex(), 0)
+        self.assertEqual(self.titles(dlg), ["z"])
+
+    def test_save_as_csv_writes_only_the_chosen_list(self):
+        self.fill_lists()
+        dlg = self.dialog()
+        dlg.list_filter.setCurrentIndex(dlg.list_filter.findText("Deck A"))
+        out = self.dir / "deck.csv"
+        with mock.patch.object(play_log_dialog.QFileDialog, "getSaveFileName",
+                               return_value=(str(out), "")) as ask:
+            dlg.save_btn.click()
+        self.assertTrue(ask.call_args.args[2].endswith("played-2026-10-03-Deck_A.csv"))
+        lines = out.read_text(encoding="utf-8-sig").splitlines()
+        self.assertEqual(len(lines), 3)
+        self.assertNotIn("Tusch", "\n".join(lines))
+
     def test_a_damaged_widths_file_does_not_stop_the_dialog(self):
         """#50: int(w) / .items() on whatever the file held."""
         for saved in ({"widths": {"0": "wide"}}, {"widths": [1, 2]}, [1, 2], "x"):

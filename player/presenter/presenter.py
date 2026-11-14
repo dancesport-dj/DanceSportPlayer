@@ -1029,7 +1029,9 @@ class PresenterWindow(QWidget):
         self.time_page.set_timetable(table)
         empty = table is None or table.is_empty()
         self.time_btn.setVisible(not empty)
-        if empty and self.stack.currentWidget() is self.time_page:
+        # Wanted, not shown: cleared during the fade towards it, the screen is
+        # not on the timetable yet and would land on an empty page (4.D).
+        if empty and self._timetable_wanted():
             self.show_timetable(False)
         self._font_h = None
         self._scale_fonts()

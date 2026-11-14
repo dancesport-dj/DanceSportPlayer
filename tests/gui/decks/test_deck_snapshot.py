@@ -71,6 +71,16 @@ class GridTest(unittest.TestCase):
                            progress_cb=lambda done, total, name: seen.append((done, total, name)))
         self.assertEqual(seen, [(1, 3, "s1.mp3"), (2, 3, "c1.mp3"), (3, 3, "s2.mp3")])
 
+    def test_a_huge_or_broken_heat_count_is_no_freeze(self):
+        # Review S4: an autosave said heats=2e6 and the rebuild built 2,000,000
+        # empty rows (3.4 s); 1e999 or a string raised instead.
+        for heats in (2e6, float("inf"), "x", None):
+            with self.subTest(heats=heats):
+                rounds = [{"name": "R", "heats": heats, "grid": {"0": {"0": "a"}}}]
+                got = playlist_from_grid(rounds, 1, resolve=str)["R"]
+                self.assertEqual(got[0], ["a"])
+                self.assertLessEqual(len(got), 100)
+
     def test_a_generated_deck_keeps_its_seed(self):
         t = table(grid_rows(), _suggester=SimpleNamespace(seed=81723))
         self.assertEqual(serialize_deck(t, META)["seed"], 81723)

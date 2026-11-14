@@ -367,7 +367,7 @@ class CustomFieldReader(QThread):
 # ─────────────────────────────────────────────────────────────────────────────
 # Audio Analyzer (background QThread)
 # ─────────────────────────────────────────────────────────────────────────────
-def _mmss(seconds: float) -> str:
+def _minutes_seconds(seconds: float) -> str:
     m, s = divmod(int(max(seconds, 0)), 60)
     return f"{m}m{s:02d}s"
 
@@ -399,7 +399,7 @@ class _RunLog:
         self._step = step
         extra = "" if errors is None else f"\nerrors: {errors}"
         if eta >= 0:
-            extra += f"\nremaining: ~{_mmss(eta)}"
+            extra += f"\nremaining: ~{_minutes_seconds(eta)}"
         log.info("%s %d%% (%d/%d)\n"
                  "file: %s%s", self.label, done * 100 // max(total, 1),
                  done, total, name, extra)
@@ -412,12 +412,12 @@ class _RunLog:
                  "ok: %d\n"
                  "errors: %d\n"
                  "time: %s%s", self.label, ok, errors,
-                 _mmss(time.monotonic() - self.t0), extra)
+                 _minutes_seconds(time.monotonic() - self.t0), extra)
 
     def stopped(self, ok: int):
         log.info("⏹ %s stopped\n"
                  "ok so far: %d\n"
-                 "time: %s", self.label, ok, _mmss(time.monotonic() - self.t0))
+                 "time: %s", self.label, ok, _minutes_seconds(time.monotonic() - self.t0))
 
 
 class AudioAnalyzer(QThread):
@@ -525,17 +525,28 @@ class WarmupBuilder(QThread):
     done = Signal(object)              # list[MusicEntry]
     error = Signal(str)
 
-    def __init__(self, entries, mode, params, parent=None, cache=None):
+    def __init__(self, entries, mode, params, parent=None, cache=None,
+                 title_twins=None):
         super().__init__(parent)
         self._entries = list(entries)
         self._mode = mode
         self._params = dict(params)
         self._cache = cache   # for the Chroma twins of a competition training
+        # The library's title twins (MusicLibrary.title_twins), called here:
+        # its first build takes seconds on a big library.
+        self._title_twins = title_twins
 
     def run(self):
         try:
             twins = (twin_paths(self._cache, [e.path for e in self._entries])
                      if self._mode in ("class", "competition", "etds") else None)
+            titles = self._title_twins() if twins is not None and self._title_twins else {}
+            if titles and twins is not None:
+                # A song filed under two names counts once, as in the generator.
+                merged = dict(titles)
+                for path, others in twins.items():
+                    merged[path] = merged.get(path, frozenset()) | others
+                twins = merged
             if self._mode == "class":
                 params = dict(self._params)
                 style = params.pop("style")
@@ -1117,7 +1128,7 @@ class EmbeddingIndexWorker(QThread):
                      "size: %d MB", total_mb)
         if done_mb >= total_mb:
             log.info("⬇ MERT model downloaded\n"
-                     "time: %s", _mmss(time.monotonic() - self._runlog.t0))
+                     "time: %s", _minutes_seconds(time.monotonic() - self._runlog.t0))
         self._download_mb = done_mb
         self.progress.emit(done_mb, total_mb,
                            i18n.t("⬇ Downloading the MERT model (once) — MB"), -1.0)

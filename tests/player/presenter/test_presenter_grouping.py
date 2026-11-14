@@ -198,6 +198,7 @@ class PresenterStateTest(unittest.TestCase):
                 self._playback.path = None
                 self._playback.dance = ""
                 self._player = None          # no media backend in the test
+                self._big_player = None      # no player card, so no 🔁 either
                 self._playback.offset_ms = 0
                 self._pd_stop_at = None
                 self._silences = {}    # 🔇 no probed dead air

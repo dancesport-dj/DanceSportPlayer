@@ -111,7 +111,7 @@ auf ihr Symbol. Fahr mit der Maus darüber, dann siehst du den vollen Namen.
 | 🤸 Party ▾ | Blendet den Party-Bereich ein oder aus. |
 | 📚 Bibliothek | Blendet den Bereich Bibliothek und Turniere ein oder aus. |
 | 🎛 Cartwall | Blendet die Wand mit den Sample-Pads ein oder aus. |
-| ❔ | Ein Menü: ⌨ Tastenkürzel (**F1**), 📖 Handbuch, 📜 Gespielte Titel…, ⛶ Vollbild (**F11**), 📝 Log exportieren… (kopiert die Log-Dateien in einen Ordner deiner Wahl), ⚙ Einstellungen… (**F12**) und ℹ Über… |
+| ❔ | Ein Menü: ⌨ Tastenkürzel (**F1**), 📖 Handbuch, 📜 Gespielte Titel…, ⛶ Vollbild (**F11**), 📝 Log exportieren… (speichert die Log-Dateien als eine Zip-Datei), ⚙ Einstellungen… (**F12**) und ℹ Über… |
 
 **Mitte: die Decks.** Jedes Deck ist eine Wiedergabeliste, siehe
 [Kapitel 3](03-playlists.md).
@@ -155,6 +155,11 @@ das letzte still ist. Solange sagt ein kleines Fenster *🔉 Die Musik wird
 ausgeblendet… Die App schließt gleich.*, sein Balken füllt sich mit dem
 Ausblenden. Ein zweites ✕ während des Ausblendens schließt sofort.
 Klingt nichts, schließt die App sofort.
+
+Ließ sich die Sitzung beim Schließen nicht speichern (die Platte ist voll,
+oder ein anderes Programm hält die Datei offen), sagt die App das und fragt:
+*Trotzdem beenden und die letzten Änderungen verlieren?* **Nein** lässt das
+Fenster offen, so dass du Platz schaffen und noch einmal schließen kannst.
 
 Die App läuft nur einmal gleichzeitig, denn zwei würden dieselbe Autosicherung
 schreiben, und die zuletzt geschlossene gewänne. Ein zweiter Start sagt

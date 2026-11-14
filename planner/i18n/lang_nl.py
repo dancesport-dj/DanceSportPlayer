@@ -571,6 +571,13 @@ CATALOG = {
     "AI Song Suggestions (OpenRouter)":
         "AI-suggesties voor nummers (OpenRouter)",
     "Previous session crashed": "Vorige sessie is vastgelopen",
+    "Previous session logged an error": "Vorige sessie heeft een fout gelogd",
+    "⚠  Last session hit an error it did not handle; the app may have kept running.\n"
+    "\n"
+    "The error is under 'Show Details…' (it is overwritten on every start).":
+        "⚠  De vorige sessie had een onafgehandelde fout; de app is misschien gewoon doorgegaan.\n"
+        "\n"
+        "De fout staat onder 'Details weergeven…' (die wordt bij elke start overschreven).",
     "Settings — app mode, library paths & analysis":
         "Instellingen — modus, bibliotheekpaden en analyse",
     "Settings — library paths, global search & analysis":
@@ -793,8 +800,8 @@ CATALOG = {
         "🎶  Achtergrond: pauzeren zolang een titel speelt",
     "The other way round from 🔈: a title starting on the main\nplayer pauses this pad, and it carries on from where it was\nwhen the music stops.\n(⚙ Settings → 🎛 Cartwall → 🎶 Background pads)":
         "Andersom dan 🔈: start er een nummer op de hoofdspeler, dan\npauzeert deze pad en speelt hij verder waar hij was\nals de muziek stopt.\n(⚙ Instellingen → 🎛 Cartwall → 🎶 Achtergrondpads)",
-    "🔈  While a 🔈 pad plays, the music ducks to:":
-        "🔈  Terwijl een 🔈-pad speelt, dempt de muziek naar:",
+    "🔈  While a pad plays, the main music ducks to:":
+        "🔈  Terwijl een pad speelt, dempt de hoofdmuziek naar:",
     "How loud the music stays while a 🎛 cartwall pad set to 🔈 pull\nthe music down plays, in percent of its volume like 🔉 Duck to.\n10 % is about −20 dB: a fanfare cuts through. 30 % (about −10 dB)\nonly sits the music back. 0 % is silence.":
         "Hoe luid de muziek blijft terwijl een 🎛 cartwall-pad met 🔈 muziek\ndempen speelt, in procent van haar volume zoals bij 🔉 Dempen naar.\n10 % is ongeveer −20 dB: een fanfare komt erdoor. 30 % (ongeveer −10 dB)\nzet de muziek alleen een stap terug. 0 % is stilte.",
     "A duck, here or a pad's on the 🎛 Cartwall tab, is a percentage of the music's volume, not of its loudness: 50 % ≈ −6 dB, 30 % ≈ −10 dB (sounds about half as loud), 20 % ≈ −14 dB, 10 % ≈ −20 dB.":
@@ -1045,8 +1052,38 @@ CATALOG = {
     "🔇  Probe silences…": "🔇  Stiltes onderzoeken…",
     "🔇 No audio backend — the cartwall cannot play here.":
         "🔇 Geen audio-backend — de Cartwall kan hier niet afspelen.",
-    "🔈  Pull the music down while this pad plays":
-        "🔈  De muziek dempen zolang deze pad speelt",
+    "🔈  Pull the main music down while this pad plays":
+        "🔈  De hoofdmuziek dempen zolang deze pad speelt",
+    "🔈  While a pad pulling the other pads down plays, they duck to:":
+        "🔈  Terwijl een pad speelt dat de andere pads dempt, dempen die naar:",
+    "How loud a title running on another pad stays while a pad set to\npull the other pads down plays, in percent of that pad's own\nvolume. It comes back to its volume when the pad is over.\nApart from the music duck above. 10 % is about −20 dB, 0 % is silence.":
+        "Hoe luid een titel op een andere pad blijft terwijl een pad speelt dat\nde andere pads dempt, in procenten van het eigen volume van die titel.\nHij komt terug op zijn volume als de pad klaar is.\nLos van de muziekduck hierboven. 10 % is ongeveer −20 dB, 0 % is stilte.",
+    "🔈  Pull the other pads down while this pad plays":
+        "🔈  De andere pads dempen zolang deze pad speelt",
+    "A title running on another pad goes down while this pad plays\nand comes back to its own volume afterwards.\nIndependent of the box above: tick one, the other or both.":
+        "Een titel op een andere pad gaat omlaag zolang deze pad speelt\nen komt daarna terug op zijn eigen volume.\nLos van het vakje hierboven: vink het ene, het andere of beide aan.",
+    "🔁  At a pad's loop point:":
+        "🔁  Op het looppunt van een pad:",
+    "Crossover: the next round starts on a second voice shortly before the\nfile ends; the old round fades out while the new one fades in.\nFade out and restart: the pad fades itself out, then starts again\nfrom the top at full level.\nHard stop and restart: the pad jumps straight back to the start.\nHow long that takes is set below.":
+        "Overvloeien: de volgende ronde start kort voor het einde van het bestand op\neen tweede stem; de oude ronde fadet uit terwijl de nieuwe infadet.\nUitfaden en opnieuw starten: de pad fadet uit en begint dan\nweer vooraan op vol niveau.\nHard stoppen en opnieuw starten: de pad springt meteen terug naar het begin.\nHoe lang dat duurt, staat hieronder.",
+    "🔁  …blend or dip over:":
+        "🔁  …overvloeien of dippen over:",
+    "How long the crossover, or the dip before the restart, lasts,\ncounted back from the end of the file (never more than a third\nof it). 0 restarts at once. A pad can override this in its own\nsettings.":
+        "Hoe lang het overvloeien, of de dip voor de herstart, duurt,\nvanaf het einde van het bestand teruggerekend (nooit meer dan een derde\nervan). 0 start meteen opnieuw. Een pad kan dit in zijn eigen\ninstellingen overschrijven.",
+    "Own crossover":
+        "Eigen overvloeiing",
+    "How long this pad takes to blend into its next round when it\nloops. Unticked it follows ⚙ Settings → 🎛 Cartwall.":
+        "Hoe lang deze pad erover doet om in de volgende ronde over te vloeien\nals hij loopt. Zonder vinkje volgt hij ⚙ Instellingen → 🎛 Cartwall.",
+    "Crossover":
+        "Overvloeien",
+    "Fade out and restart":
+        "Uitfaden en opnieuw starten",
+    "Hard stop and restart":
+        "Hard stoppen en opnieuw starten",
+    "🔇  Skip the silence at the start and end of the file":
+        "🔇  De stilte aan het begin en einde van het bestand overslaan",
+    "The pad starts where the music does and ends where it stops: a\njingle that opens with a moment of dead air sounds on the tap, not\na beat later, and the next pad in a queue follows without a gap.":
+        "De pad start waar de muziek begint en stopt waar die ophoudt: een\njingle die opent met een moment stilte klinkt bij de tik, niet een\ntel later, en de volgende pad in een wachtrij volgt zonder gat.",
     "S  Stop the other pads when this one starts":
         "S  De andere pads stoppen wanneer deze start",
     "Every other running pad fades out as this one starts —\n"
@@ -1661,6 +1698,10 @@ CATALOG = {
         "🔇  De geluidskaart tussen titels vrijgeven — haalt de ruis weg die een onboard-uitgang op de geluidsinstallatie zet zolang de app hem openhoudt",
     "🔕  Mute system sounds while the evening runs — no error ding or notification chime over the speakers":
         "🔕  Systeemgeluiden dempen zolang de avond loopt — geen foutpiep of meldingsgeluid over de luidsprekers",
+    "⚠️ The settings could not be saved — is the settings folder writable and the disk not full?":
+        "⚠️ De instellingen konden niet worden opgeslagen — is de instellingenmap schrijfbaar en de schijf niet vol?",
+    "🔧 “%s” is damaged and plays from a repaired copy — replace the file at its source.":
+        "🔧 ‘%s’ is beschadigd en speelt vanaf een gerepareerde kopie — vervang het bestand bij de bron.",
     "🐞  Send error reports — when the app hits an error, send its technical details to the developer":
         "🐞  Foutrapporten versturen — als de app een fout tegenkomt, de technische details naar de ontwikkelaar sturen",
     "Goes to the developer's GlitchTip project (app.glitchtip.com),\n"
@@ -2944,6 +2985,14 @@ CATALOG = {
     "Pause between songs:": "Pauze tussen nummers:",
     "🔈  Announce next dance": "🔈  Volgende dans aankondigen",
     "…with heat": "…met heat",
+    "Endless repeat":
+        "Eindeloze herhaling",
+    "🔁 This title has a play length of %s, so it would fade out there and start again.\n\nRepeat it at its full length instead?":
+        "🔁 Deze titel heeft een speelduur van %s, dus hij zou daar uitfaden en opnieuw beginnen.\n\nIn plaats daarvan in volledige lengte herhalen?",
+    "Full length":
+        "Volledige lengte",
+    "Play length %s":
+        "Speelduur %s",
     "Endless repeat is on":
         "Eindeloos herhalen staat aan",
     "🔁 This title starts again every time it ends, so the list\n"
@@ -3172,6 +3221,11 @@ CATALOG = {
     "Mixed voices": "Gemengde stemmen",
     "with heat": "met heat",
     "heat only": "alleen de groep",
+    "Only the heat is announced": "Alleen de groep wordt omgeroepen",
+    "The announcement is set to say only the heat (“Heat 1”),\nnot the dance.\n\nWhat should it say?": "De aankondiging is ingesteld op alleen de groep („Groep 1”),\nniet de dans.\n\nWat moet er worden omgeroepen?",
+    "Only the dance": "Alleen de dans",
+    "Dance with heat": "Dans met groep",
+    "Only the heat": "Alleen de groep",
     "🔢  Only the heat, not the dance (practice)": "🔢  Alleen de groep, niet de dans (training)",
     "On: every call says just “Heat 1”, without “Next dance” and\n"
     "without the dance, whatever the two boxes above say.\n"
@@ -3312,6 +3366,10 @@ CATALOG = {
         "⚠  %s (niet aangesloten)",
     "The music plays on %s — click for the sound settings.":
         "De muziek speelt op %s — klik voor de geluidsinstellingen.",
+    "⏹ Stop all music":
+        "⏹ Alle muziek stoppen",
+    "Cuts the music, every pad and the pre-listen at once, without a fade.":
+        "Breekt de muziek, elke pad en het voorbeluisteren meteen af, zonder uitfaden.",
     "🔈 %s is not connected — playing on the system default until it is back.":
         "🔈 %s is niet aangesloten — het speelt op de systeemstandaard tot het terug is.",
     # ⚙ Settings → 🔊 Sound & player: 🎧 pre-listen.
@@ -3663,8 +3721,8 @@ CATALOG = {
         "🧭  %d paden in %d bestanden gecorrigeerd",
     "🧹  Removed %d track(s) already in a playlist":
         "🧹  %d nummer(s) verwijderd die al in een afspeellijst stonden",
-    "↺  No other %s near the end of the list":
-        "↺  Geen andere %s aan het eind van de lijst",
+    "↺  This is the last %s in the list, nothing to swap with":
+        "↺  Dit is de laatste %s in de lijst, niets om mee te wisselen",
     "🔍  No title matching “%s”": "🔍  Geen titel past bij ‘%s’",
     "🔁  Marked %d track for replace":
         "🔁  %d nummer gemarkeerd om te vervangen",
@@ -4113,6 +4171,10 @@ CATALOG = {
     "so it cannot be replaced.\nKeep both?":
         "‘%s’ bestaat al in de doelmap en bevat meer dan een USB-export, "
         "dus kan niet worden vervangen.\nBeide houden?",
+    "“%s” already exists in the target folder, and this export reads tracks "
+    "from it, so it cannot be replaced.\nKeep both?":
+        "‘%s’ bestaat al in de doelmap en deze export leest nummers daaruit, "
+        "dus kan niet worden vervangen.\nBeide houden?",
     "Could not remove “%s”:\n%s\n\nIt may be partly deleted; nothing was exported.":
         "‘%s’ kon niet worden verwijderd:\n%s\n\n"
         "Mogelijk is de map deels gewist; er is niets geëxporteerd.",
@@ -4557,6 +4619,9 @@ CATALOG = {
         "Het afspeellijstbestand is er niet meer:\n"
         "\n"
         "%s",
+    "Folder name": "Mapnaam",
+    "There is already a folder “%s” on this level.":
+        "Er is op dit niveau al een map ‘%s’.",
     "No .m3u playlists found under “%s”.":
         "Geen .m3u-afspeellijsten gevonden onder ‘%s’.",
     "Remove “%s” from the tree?\n"
@@ -4710,6 +4775,10 @@ CATALOG = {
     "⚠️ Sample not found: %s": "⚠️ Sample niet gevonden: %s",
     "\n▶ Queue: place %d — Ctrl+click takes it out":
         "\n▶ Wachtrij: plaats %d — Ctrl+klik haalt hem eruit",
+    "\n🔇 Cartwall is muted: this pad is not heard":
+        "\n🔇 De cartwall staat gedempt: deze pad is niet te horen",
+    "\n↓ Muted, so it does not duck the music":
+        "\n↓ Gedempt, dus hij zet de muziek niet zachter",
     "\nCtrl+click: into the ▶ queue":
         "\nCtrl+klik: in de ▶ wachtrij",
     "⚠️ Sample not found, skipped: %s":
@@ -4776,6 +4845,14 @@ CATALOG = {
         "zoals het uitfaden van de lijst",
     "How long 🔉↓ Fade out now, 🛑 Fade out and hold, a ⏹ stop at a time\nand the fade before quitting take. The fade at the end of the play\nlength keeps the playlist's own fade-out time.\n0 = the playlist's fade-out time for these as well.":
         "Hoe lang 🔉↓ Nu uitfaden, 🛑 Uitfaden en vasthouden, een ⏹ stop op\neen tijdstip en het uitfaden voor het afsluiten duren. Het uitfaden\naan het eind van de speelduur houdt de uitfadetijd van de playlist.\n0 = ook hiervoor de uitfadetijd van de playlist.",
+    "✂️  Fade a title that ends abruptly over:":
+        "✂️  Abrupt eindigend nummer uitfaden over:",
+    "A title whose file stops in full sound (cut off, no decay) is\ntaken down over this long, ending just before its last moment,\nso the hall hears a fade instead of a cut. Titles that end on\ntheir own decay, like a gong, are left alone.\nOff = no fade: the title plays to the end of its file.":
+        "Een nummer waarvan het bestand op volle sterkte stopt (afgekapt, zonder\nuitklank) wordt over deze tijd omlaag gebracht en is net voor zijn laatste\nmoment weg, zodat de zaal een uitfade hoort in plaats van een knip.\nNummers met een eigen uitklank, zoals een gong, blijven ongemoeid.\nUit = geen uitfade: het nummer speelt tot het einde van zijn bestand.",
+    "🔇  Fade the duck and mute buttons over:":
+        "🔇  Duck- en dempknoppen uitfaden over:",
+    "The 🔉 duck and 🔇 mute buttons on the player, and the cartwall's 🔊,\ntake this long to go down and to come back, so the hall hears a\nshort fade instead of a cut. 0 = switch at once.":
+        "De 🔉-duck- en 🔇-dempknoppen op de speler en de 🔊 van de cartwall\ndoen er zo lang over om omlaag en terug te gaan, zodat de zaal een korte\nuitfade hoort in plaats van een knip. 0 = meteen schakelen.",
     "🔈  Duck under a voice or pad over:":
         "🔈  Dempen onder stem of pad over:",
     "back up over:":
@@ -4933,6 +5010,12 @@ CATALOG = {
     "🐂  PD %s in": "🐂  PD %s over",
     "🐂  Paso Doble in %d s": "🐂  Paso Doble over %d s",
     "⚠ Could not play: %s": "⚠ Kon niet afspelen: %s",
+    "the audio engine cannot read the file":
+        "de audio-engine kan het bestand niet lezen",
+    "\nTry ⚙ Settings ▸ Sound ▸ 🔊 Audio backend ▸ Windows.":
+        "\nProbeer ⚙ Instellingen ▸ Geluid ▸ 🔊 Audio-backend ▸ Windows.",
+    "⚠ “%s” could not be played — the audio engine cannot read the file.":
+        "⚠ ‘%s’ kon niet worden afgespeeld — de audio-engine kan het bestand niet lezen.",
     "⚠ Playback failed: %s": "⚠ Afspelen mislukt: %s",
     "unknown error": "onbekende fout",
     "did not start": "startte niet",
@@ -5441,6 +5524,8 @@ CATALOG = {
         '🔉↓  Nu uitfaden',
     '🛑  Fade out and hold':
         '🛑  Uitfaden en vasthouden',
+    '🛋  Relaxed on / off':
+        '🛋  Gemütlich aan / uit',
     '🔉  Duck the music on / off':
         '🔉  Muziek dempen aan / uit',
     '🔈  Announce the next dance on / off':
@@ -5449,6 +5534,8 @@ CATALOG = {
         '🔊  Muziekvolume (fader of draaiknop)',
     '⏹  Stop all pads':
         '⏹  Alle pads stoppen',
+    '⏹  Stop all music at once, without a fade':
+        '⏹  Alle muziek meteen stoppen, zonder uitfaden',
     'Play, skip, fade, set the volume and fire cartwall pads from a USB MIDI or HID controller — a profile for the Korg nanoKONTROL2 is built in, any other is learned by pressing its buttons.':
         'Afspelen, overslaan, uitfaden, het volume instellen en cartwall-pads afvuren vanaf een USB-MIDI- of HID-controller — een profiel voor de Korg nanoKONTROL2 is ingebouwd, elke andere leer je aan door op zijn knoppen te drukken.',
     '🎛  Set up…':
@@ -5945,6 +6032,14 @@ CATALOG = {
         "Uit: de claude-CLI antwoordt, dit model springt in als dat mislukt.\nAan: dit model antwoordt, de CLI springt in als het mislukt.",
     "Could not fetch the model list: %s":
         "Kon de modellenlijst niet ophalen: %s",
+    "AI settings":
+        "AI-instellingen",
+    "The AI settings could not be saved completely: the file could not be written, or the old API key is still in the credential store. Check the session log.":
+        "De AI-instellingen konden niet volledig worden opgeslagen: het bestand kon niet worden geschreven, of de oude API-sleutel staat nog in de referentiekluis. Zie het sessielogboek.",
+    "Session not saved":
+        "Sessie niet opgeslagen",
+    "The session could not be saved: the autosave file could not be written. Quit anyway and lose the latest changes?":
+        "De sessie kon niet worden opgeslagen: het autosave-bestand kon niet worden geschreven. Toch afsluiten en de laatste wijzigingen kwijtraken?",
     "Asks %s on %s first, the claude CLI after that. ⚙ Settings → 🤖 AI changes it.":
         "Vraagt eerst %s op %s, daarna de claude-CLI. Te wijzigen via ⚙ Instellingen → 🤖 AI.",
     "🎉  Party list":
@@ -6181,4 +6276,94 @@ CATALOG = {
         "DanceSport Planner & Player draait al.\nGa naar dat venster; een tweede kopie zou de afspeellijst overschrijven.",
     "Check failed — %s":
         "Controle mislukt — %s",
+    "Relaxed (toggle):\nwhile on, a title recorded faster than the top tempo set for its\ndance (⚙ Settings → 🎛 Playsets) is slowed down to it — a Jive at\nT43 plays at T41. Slower titles are left alone.":
+        "Gezellig (schakelaar):\nzolang het aan staat, wordt een titel die sneller is opgenomen dan het\nvoor zijn dans ingestelde toptempo (⚙ Instellingen → 🎛 Speelsets) tot\ndat tempo afgeremd — een Jive op T43 speelt op T41. Langzamere titels\nblijven ongemoeid.",
+    "🛋  Relaxed: hold each dance to its top tempo":
+        "🛋  Gezellig: houd elke dans op zijn toptempo",
+    "Takes the TSO button's place on the party list: a title\nrecorded faster than the top tempo set below for its\ndance is slowed down to it. Slower titles are left alone.":
+        "Neemt op de feestlijst de plaats van de TSO-knop in: een titel die sneller\nis opgenomen dan het hieronder voor zijn dans ingestelde toptempo\nwordt tot dat tempo afgeremd. Langzamere titels blijven ongemoeid.",
+    "<b>🛋 Relaxed top tempo</b> — what the 🛋 button holds a dance to at a party: a title recorded faster is slowed down to it (Jive T41 instead of T43), a slower one is left alone. <i>No limit</i> leaves the dance as it was recorded.":
+        "<b>🛋 Gezellig toptempo</b> — waartoe de 🛋-knop een dans op een feest begrenst: een sneller opgenomen titel wordt tot dat tempo afgeremd (Jive T41 in plaats van T43), een langzamere blijft ongemoeid. <i>Geen limiet</i> laat de dans zoals hij is opgenomen.",
+    "No limit":
+        "Geen limiet",
+    "🛋 Relaxed: %s T%s → T%s":
+        "🛋 Gezellig: %s T%s → T%s",
+    "⚠ %s measured at T%s, far over the T%s limit: probably a wrong measure, not slowed":
+        "⚠ %s gemeten op T%s, ver boven de limiet T%s: waarschijnlijk verkeerd gemeten, niet vertraagd",
+    "⚠ %s measured at T%s, outside the TSO band T%s–T%s: probably a wrong measure, not pitched":
+        "⚠ %s gemeten op T%s, buiten het TSO-bereik T%s–T%s: waarschijnlijk verkeerd gemeten, niet aangepast",
+    "🔄  Refresh from disk":
+        "🔄  Opnieuw van schijf lezen",
+    "What should this pack replace on this PC?":
+        "Wat moet dit pakket op deze pc vervangen?",
+    "⚙ Settings":
+        "⚙ Instellingen",
+    "🎼 Decks and playlists":
+        "🎼 Decks en afspeellijsten",
+    "🎛 Cartwall — pads and keys":
+        "🎛 Cartwall — pads en toetsen",
+    "Zip archive (*.zip)":
+        "Zip-archief (*.zip)",
+    "All lists":
+        "Alle lijsten",
+    "Show only the titles of one list. Save as CSV then writes just those.":
+        "Toont alleen de titels van één lijst. „Opslaan als CSV” schrijft dan alleen die.",
+    "Party list / wishlist: send the selected titles to the end":
+        "Inspeellijst / verlanglijst: de geselecteerde titels naar het einde zetten",
+    "Comparing recordings":
+        "Opnames vergelijken",
+    "🔭  Find this title…":
+        "🔭  Deze titel zoeken…",
+    "🔭  No other file with this title found":
+        "🔭  Geen ander bestand met deze titel gevonden",
+    "🔭  Replaced by “%s”":
+        "🔭  Vervangen door „%s”",
+    "Find this title":
+        "Deze titel zoeken",
+    "These files hold the same title. Take which one?":
+        "Deze bestanden bevatten dezelfde titel. Welke gebruiken?",
+    "“%s” is already planned in another open playlist.\n\nTake it anyway?":
+        "“%s” staat al gepland in een andere open afspeellijst.\n\nToch gebruiken?",
+    "“%s” has a time marker at %s.\nStart it from where?":
+        "„%s” heeft een tijdmarkering op %s.\nVanaf waar starten?",
+    "↺  Swap with a %s from the end of the list":
+        "↺  Wisselen met een %s van het einde van de lijst",
+    "🎧  Profile:":
+        "🎧  Profiel:",
+    "A profile is a saved set of the outputs below. Main is the hall\n(music on the PA); Rehearsal is everything on the headphones and\nthe hall hears nothing of it. Both always exist; you can add more\nof your own. Switch here, or from the status bar at the bottom\nwhile the app runs.":
+        "Een profiel is een opgeslagen set van de uitgangen hieronder. Main is de\nzaal (muziek op de PA); Rehearsal is alles op de koptelefoon en de zaal\nhoort er niets van. Beide bestaan altijd; je kunt eigen profielen toevoegen.\nHier omschakelen, of in de statusbalk onderaan terwijl de app draait.",
+    "💾 Save as…":
+        "💾 Opslaan als…",
+    "🗑 Delete":
+        "🗑 Verwijderen",
+    "Main and Rehearsal cannot be deleted.":
+        "Main en Rehearsal kunnen niet worden verwijderd.",
+    "🎧 Save audio profile":
+        "🎧 Audioprofiel opslaan",
+    "Profile name:":
+        "Profielnaam:",
+    "🎧 Delete audio profile":
+        "🎧 Audioprofiel verwijderen",
+    "A profile called %s exists. Replace it?":
+        "Er bestaat al een profiel met de naam %s. Vervangen?",
+    "Delete the profile %s? Main takes over.":
+        "Het profiel %s verwijderen? Main neemt het over.",
+    "🎧 (no profile)":
+        "🎧 (geen profiel)",
+    "No audio profile is active — click to choose one.":
+        "Er is geen audioprofiel actief — klik om er een te kiezen.",
+    "🎧 Audio profile: %s":
+        "🎧 Audioprofiel: %s",
+    "Rehearsal profile %s — the hall hears nothing. Click to switch or to stop all music.":
+        "Oefenprofiel %s — de zaal hoort niets. Klik om om te schakelen of om alle muziek te stoppen.",
+    "Audio profile %s — click to switch or to stop all music.":
+        "Audioprofiel %s — klik om om te schakelen of om alle muziek te stoppen.",
+    "🔇 Rehearsal profile %s is on — the hall hears nothing.":
+        "🔇 Oefenprofiel %s staat aan — de zaal hoort niets.",
+    "Collapse every folder — click again to open them all\n(a whole season of weekends is a long tree)":
+        "Alle mappen inklappen — nog een klik opent ze weer allemaal\n(een heel seizoen aan weekenden is een lange boom)",
+    "📥  Load into…":
+        "📥  Laden in…",
+    "🔎  Checking %s tracks for duplicates…":
+        "🔎  %s nummers op dubbelen controleren…",
 }

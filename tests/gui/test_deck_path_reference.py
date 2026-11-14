@@ -175,6 +175,28 @@ class DeckPathReferenceTest(unittest.TestCase):
         self.win._run_deck_path_fix()
         self.assertEqual(self.wish_paths(), [self.on_c])
 
+    def test_a_name_shared_by_several_files_is_not_guessed(self):
+        # Two library files carry the broken track's name, neither for its dance:
+        # the first of them was swapped in, often the wrong song.
+        one = _file(_TMP / "X" / "a", "dup.mp3")
+        two = _file(_TMP / "Y" / "b", "dup.mp3")
+        self.win._library.lib.entries = [_entry(self.on_c), _entry(one, "SW"),
+                                         _entry(two, "SW")]
+        gone = _TMP / "gone" / "lateincd" / "dup.mp3"
+        self.load(gone)
+        text = self.win._run_deck_path_fix()
+        self.assertEqual(self.deck_paths(), [gone])
+        self.assertIn("still unresolved", text)
+
+    def test_the_one_file_for_the_same_dance_is_taken(self):
+        one = _file(_TMP / "X" / "c", "pair.mp3")
+        two = _file(_TMP / "Y" / "d", "pair.mp3")
+        self.win._library.lib.entries = [_entry(self.on_c), _entry(one, "SW"),
+                                         _entry(two, "CC")]
+        self.load(_TMP / "gone" / "lateincd" / "pair.mp3")
+        self.win._run_deck_path_fix()
+        self.assertEqual(self.deck_paths(), [two])
+
     def test_the_fix_button_stays_off_with_nothing_to_swap(self):
         from PySide6.QtWidgets import QPushButton
 

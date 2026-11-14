@@ -72,7 +72,7 @@ jobs:
       - name: Build venv
         run: |
           python -m venv .venv
-          .venv\Scripts\python.exe -m pip install --upgrade pip
+          .venv\Scripts\python.exe -m pip install pip==26.2.1
           .venv\Scripts\python.exe -m pip install -r requirements-player.lock
 
       # Not in the repository (see BUILD.md): the essentials build, put where
@@ -155,7 +155,7 @@ jobs:
       - name: Build venv
         run: |
           python -m venv .venv
-          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install pip==26.2.1
           .venv/bin/python -m pip install -r requirements-player.lock
 
       # Lays out the .dmg window over the drawn hint (build_app.sh).
@@ -220,7 +220,7 @@ jobs:
       - name: Build venv
         run: |
           python -m venv .venv
-          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install pip==26.2.1
           .venv/bin/python -m pip install -r requirements-player.lock
 
       # Builds and packs the tar.gz (a tar keeps the executable bit, which an

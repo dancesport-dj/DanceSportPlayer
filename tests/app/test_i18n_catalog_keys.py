@@ -76,6 +76,17 @@ class CatalogKeysTest(unittest.TestCase):
         self.assertEqual(missing, [], "keys missing from planner/i18n/lang_de.py:\n"
                          + "\n".join(missing))
 
+    def test_the_english_source_does_not_say_gemuetlich(self):
+        """🛋 The English texts are the keys: 'Gemütlich' is the German word,
+        so English says 'Relaxed' and the German catalog says 'Gemütlich'."""
+        from planner.playing.controller import ACTIONS
+        shown = [f"{f.relative_to(ROOT)}:{line}  {key!r}"
+                 for f in _source_files()
+                 for line, key in _literal_keys(f) if "Gemütlich" in key]
+        shown += [f"controller ACTIONS  {label!r}"
+                  for _action, label in ACTIONS if "Gemütlich" in label]
+        self.assertEqual(shown, [], "German word in English text:\n" + "\n".join(shown))
+
     def test_every_tag_editor_label_has_a_german_entry(self):
         # The form's labels live in tables, not in t() calls, so the walk above
         # never sees them; the text hook still looks each one up.

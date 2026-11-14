@@ -52,6 +52,9 @@ log = logging.getLogger("dancesport.llm")
 # code change (Marcel: "use latest opus model not a specific one").
 # Overridable via the gui_settings.json key 'ai_model'.
 CLAUDE_MODEL = "opus"
+# What `--model` may be handed: the setting (and a venue pack) is free text, and
+# behind a Windows `claude.cmd` shim cmd.exe reads `&` or `>` in it as syntax.
+_MODEL_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/\[\]-]{0,99}")
 
 
 # Safety bound on the pool itself. The real library is ~3600 tracks, of which a
@@ -228,6 +231,8 @@ def call_claude_cli(prompt: str, model: str = CLAUDE_MODEL,
     `cancel` (a threading.Event) set while the CLI thinks kills it within a
     second and raises Cancelled.
     """
+    if not _MODEL_NAME.fullmatch(model or ""):
+        raise ValueError(f"not a model name for the claude CLI: {str(model)[:60]!r}")
     binary = resolve_claude_bin()
     if not binary:
         raise RuntimeError(
@@ -239,6 +244,11 @@ def call_claude_cli(prompt: str, model: str = CLAUDE_MODEL,
     env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
     if config_dir:
         env["CLAUDE_CONFIG_DIR"] = config_dir
+    # The temp folder sits under the user's home, so the CLI walks up to the
+    # login's own CLAUDE.md and sends it along with every pick. This switch drops
+    # only those files; --bare would also drop the OAuth login, and
+    # --setting-sources "" the profile's settings.json (env routing, apiKeyHelper).
+    env["CLAUDE_CODE_DISABLE_CLAUDE_MDS"] = "1"
 
     log.info("🤖 asking claude -p\n"
              "model: %s\n"

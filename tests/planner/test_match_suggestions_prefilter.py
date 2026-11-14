@@ -6,7 +6,7 @@ import unittest
 from difflib import SequenceMatcher
 from types import SimpleNamespace
 
-from planner.generate.ai import match_suggestions_to_library
+from planner.generate.ai import _contains_words, match_suggestions_to_library
 from planner.music.parsing import norm_title
 
 
@@ -21,7 +21,7 @@ def _brute(lib, suggestions, threshold=0.6):
                 if not nt:
                     continue
                 r = SequenceMatcher(None, target, nt).ratio()
-                if target in nt or nt in target:
+                if _contains_words(target, nt):
                     r = max(r, 0.9)
                 if r > best_r:
                     best_r, best = r, e

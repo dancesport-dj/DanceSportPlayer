@@ -41,6 +41,9 @@ class _LoggedMedia:
     def position(self):
         return 0
 
+    def playbackRate(self):
+        return 1.0
+
     def pause(self):
         self.log.append("pause")
 
@@ -100,7 +103,16 @@ class FadeBlipTest(unittest.TestCase):
         self.assertIn("pause", self.desk.log)
         self.assertEqual(self.desk.pushed_after("pause"), [])
 
-    def test_resuming_after_the_hold_plays_at_the_full_level(self):
+    def test_resuming_after_the_hold_comes_up_from_silence(self):
+        """⏯ after 🛑 fades in like a time-marker start (2026-11-14); it used
+        to come back at full level at once."""
+        self.desk._fade_and_hold()
+        self.ramp_to_the_end()
+        self.desk._on_playback_state(PLAYING)
+        self.assertEqual(self.desk.log[-1], 0.0)
+
+    def test_resuming_with_no_pickup_fade_plays_at_the_full_level(self):
+        self.desk._settings = {"resume_fade_secs": 0, "fade_in_secs": 0}
         self.desk._fade_and_hold()
         self.ramp_to_the_end()
         self.desk._on_playback_state(PLAYING)

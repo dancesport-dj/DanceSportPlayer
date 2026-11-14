@@ -20,9 +20,24 @@ CARTWALL = JsonStore("cartwall.json", note="starting with empty pads")
 ON_AIR = JsonStore("on_air.json", note="no crash resume offered")
 
 
-def save_settings(s: dict) -> bool:
-    """False when the file did not land (see JsonStore.write)."""
-    return SETTINGS.write(s)
+_on_failure = None   # 💾 told when a settings save does not land
+
+
+def report_settings_failures(callback) -> None:
+    """Who hears of a settings save that did not land: the window installs
+    gui.settings_save_report, which tells the user. None: nobody."""
+    global _on_failure
+    _on_failure = callback
+
+
+def save_settings(s: dict, *, report: bool = True) -> bool:
+    """False when the file did not land (see JsonStore.write). Then the hook
+    above is told, unless the caller shows a box of its own (report=False):
+    some fifty callers never look at the result."""
+    ok = SETTINGS.write(s)
+    if not ok and report and _on_failure is not None:
+        _on_failure()
+    return ok
 
 
 PLAYER_LAYOUTS = ("panel", "wide")

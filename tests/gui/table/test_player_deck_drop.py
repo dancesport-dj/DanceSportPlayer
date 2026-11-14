@@ -65,13 +65,21 @@ class _DeckTest(unittest.TestCase):
                "S", play_cb=None, suggester=None, use_timbre=False)
         return t
 
-    def drop(self, table, row: int):
+    def drop(self, table, row: int, mods=Qt.KeyboardModifier.NoModifier):
         """Drop the file onto `row` and report which route took it: 'add' (the
         grid grows) or 'replace' (the slot under the cursor) — an empty list
-        means neither, i.e. the flat insert of a player-only install."""
+        means neither, i.e. the flat insert of a player-only install. A
+        replace also records the title on the row it was handed."""
         took = []
         table._dynamic_drop = lambda *a, **kw: took.append("add")
-        table._replace_row_with_path = lambda *a, **kw: took.append("replace") or True
+
+        def replace_row(r, *a, **kw):
+            took.append("replace")
+            m = table._row_meta[r] if 0 <= r < len(table._row_meta) else None
+            self.replaced = m.entry.title if m is not None and m.entry else None
+            return True
+
+        table._replace_row_with_path = replace_row
         table._move_from_drag_source = lambda *a, **kw: None
         table._planned_keys = lambda *a, **kw: set()
         # The temp file is a placeholder, not a real MP3 — resolving it would ask
@@ -84,8 +92,7 @@ class _DeckTest(unittest.TestCase):
         pos = QPointF(20, table.rowViewportPosition(row) + table.rowHeight(row) / 2)
         table.resize(700, 400)
         table.dropEvent(QDropEvent(pos, Qt.DropAction.CopyAction, mime,
-                                   Qt.MouseButton.LeftButton,
-                                   Qt.KeyboardModifier.NoModifier))
+                                   Qt.MouseButton.LeftButton, mods))
         return took
 
 
@@ -106,6 +113,17 @@ class DropRouteTest(_DeckTest):
         titles = [m.entry.title for m in t._row_meta if m and m.entry]
         self.assertIn("wish", titles)
         self.assertEqual(len(titles), 5, "the four planned titles are all kept")
+
+    def test_a_shift_drop_replaces_the_title_under_the_cursor(self):
+        """Review 8.A: the grid is flattened first, and the row number read
+        from the grid then pointed at another title of the running order."""
+        t = self.deck("player")
+        row = next(r for r, m in enumerate(t._row_meta)
+                   if m and m.entry is not None and m.entry.title == "LW 3")
+        self.replaced = "nothing"
+        self.assertEqual(self.drop(t, row, Qt.KeyboardModifier.ShiftModifier),
+                         ["replace"])
+        self.assertEqual(self.replaced, "LW 3")
 
     def test_a_planner_still_replaces_the_slot(self):
         """Unchanged where playlists are built: a drop onto a slot swaps its

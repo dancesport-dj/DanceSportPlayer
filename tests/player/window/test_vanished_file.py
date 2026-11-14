@@ -93,6 +93,24 @@ class VanishedFileTest(unittest.TestCase):
         toast.assert_not_called()
         self.assertEqual(len(w.reset), 1)
 
+    def test_the_error_is_booked_under_the_rows_path(self):
+        """Review 3.B: the backend opened the repaired copy, and the error was
+        booked under the copy; the rows look up their own path, so no red
+        "would not play" mark appeared and the vanished copy repainted nothing."""
+        d = Path(tempfile.mkdtemp(prefix="dp_vanished_r_"))
+        row = d / "Moon (LW 29).mp3"
+        row.write_bytes(b"")
+        self.addCleanup(os.remove, row)
+        copy = d / "repaired" / "Moon (LW 29).mp3"      # gone by now
+        w = self._win(copy)
+        w._settings = {}
+        w._playback.path = row
+        w._playback.repaired[str(row)] = copy
+        with mock.patch("player.window.main_load.show_toast"):
+            w._on_player_error(None, "Could not open file")
+        self.assertEqual(list(w._playback.failed), [str(row)])
+        self.assertEqual(w.table.asked, [[str(row)]])
+
     def test_a_file_that_loads_clears_its_missing_mark(self):
         """Renamed back on disk: once it opens, its rows drop the red ❗."""
         from PySide6.QtMultimedia import QMediaPlayer

@@ -86,7 +86,7 @@ class _Voices:
     def background_down_in_ms(self):
         return self.ms
 
-    def set_music_playing(self, playing):
+    def set_music_playing(self, playing, paused=False):
         self.told.append(playing)
 
 
@@ -199,6 +199,73 @@ class LoadWaitsForTheBedTest(unittest.TestCase):
         self._start(desk, 1)                # the next title, bed still dipping
         desk._release_after_bed(first, path, "ent")
         self.assertEqual(desk._playback.bed_wait, desk._playback.token)
+        self.assertNotIn("play", desk.log)
+
+
+class _CallDesk(_BedDesk):
+    """…and a title the dance is called for first (⏳), the voice running."""
+
+    def __init__(self, table, ms, settings=None):
+        super().__init__(table, ms, settings)
+        self.waited_for = []
+
+    def _announce_start_first(self, ent):
+        return True
+
+    def _wait_for_announcement(self, path):
+        self.waited_for.append(path)
+
+
+class LoadWaitsForTheCallTest(unittest.TestCase):
+    """Marcel: a title started by hand with the call first played the background
+    music for a moment. The deck is stopped while the voice runs, and nothing
+    held the bed down: it came up until the music began."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def _start(self, desk, i=0):
+        self.table._current_play_row = self.rows[i]
+        path = self.table._row_meta[self.rows[i]].entry.path
+        desk._load_track(path)
+        return path
+
+    def _bed_desk(self, ms, settings=None):
+        self.table = PlaylistTable()
+        self.addCleanup(reap_widget, self.table)
+        self.table.load_warmup(
+            [_entry("QS", 1, 50), _entry("QS", 2, 52)],
+            "🤸 Eintanzen", "both", "S", False, lambda *a: None, None)
+        self.rows = [r for r, m in enumerate(self.table._row_meta)
+                     if m and m.entry is not None]
+        desk = _CallDesk(self.table, ms, settings)
+        self.addCleanup(reap_widget, desk)
+        return desk
+
+    def test_the_bed_is_held_down_while_the_voice_runs(self):
+        desk = self._bed_desk(0)
+        path = self._start(desk)
+        self.assertEqual(desk.waited_for, [path])
+        self.assertNotIn("play", desk.log, "the music waits for the call")
+        self.assertEqual(desk._playback.bed_wait, desk._playback.token)
+        self.assertEqual(desk.wall.told, [True], "the wall hears: music is on its way")
+
+    def test_the_hold_ends_when_the_music_is_released(self):
+        desk = self._bed_desk(0)
+        path = self._start(desk)
+        token = desk._playback.token
+        desk._release_after_call(token, path)
+        self.assertIsNone(desk._playback.bed_wait)
+
+    def test_a_stop_in_the_call_lets_the_bed_back(self):
+        desk = self._bed_desk(0)
+        path = self._start(desk)
+        token = desk._playback.token
+        desk._playback.token += 1           # ⏹, or the next title
+        desk._release_after_call(token, path)
+        self.assertIsNone(desk._playback.bed_wait)
+        self.assertEqual(desk.followed[-1], None, "the wall decides again")
         self.assertNotIn("play", desk.log)
 
 

@@ -158,6 +158,29 @@ class SplitDayRoundsTest(unittest.TestCase):
         self.assertEqual(std["dances"], ["LW"])
         self.assertEqual(std["rounds"][0]["grid"], {"0": {"0": r"C:\m\waltz.mp3"}})
 
+    def test_a_round_skip_does_not_drop_the_dance_from_later_rounds(self):
+        # The user skipped Rumba in the Vorrunde only; the Finale still plays it.
+        dances = ["CC", "RU", "LW"]
+        ctx_a = {"comp": "A", "cls": "S", "style": "Latin"}
+        rounds = [
+            {"name": "A — Vorrunde", "tier": "heat", "heats": 1,
+             "grid": {"0": {"0": r"C:\m\cha.mp3"}},
+             "skip_dances": ["RU", "LW"], "ctx": ctx_a},
+            {"name": "A — Finale", "tier": "final", "heats": 1,
+             "grid": {"0": {"0": r"C:\m\cha.mp3", "1": r"C:\m\rumba.mp3"}},
+             "skip_dances": ["LW"], "ctx": ctx_a},
+            {"name": "B — Finale", "tier": "final", "heats": 1,
+             "grid": {"0": {"2": r"C:\m\waltz.mp3"}}, "skip_dances": ["CC", "RU"],
+             "ctx": {"comp": "B", "cls": "D", "style": "Standard"}},
+        ]
+        groups = split_day_rounds(rounds, dances)
+        self.assertEqual(groups[0]["dances"], ["CC", "RU"])
+        self.assertEqual(groups[0]["rounds"][0]["grid"],
+                         {"0": {"0": r"C:\m\cha.mp3"}})
+        self.assertEqual(groups[0]["rounds"][1]["grid"],
+                         {"0": {"0": r"C:\m\cha.mp3", "1": r"C:\m\rumba.mp3"}})
+        self.assertEqual(groups[1]["dances"], ["LW"])
+
     def test_single_competition_deck_is_left_alone(self):
         plain = [{"name": "Finale", "tier": "final", "heats": 1,
                   "grid": {"0": {"0": r"C:\m\cha.mp3"}}}]

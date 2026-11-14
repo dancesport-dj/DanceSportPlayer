@@ -108,7 +108,7 @@ class ProfileFileTest(unittest.TestCase):
 
     def test_save_then_load_round_trips(self):
         path = self.dir / "nano.json"
-        pctl.save_profile(path, "Mine", "nanoKONTROL2",
+        pctl.save_controller_profile(path, "Mine", "nanoKONTROL2",
                           {"toggle": "cc:0:41", "volume": "cc:0:0"})
         doc = json.loads(path.read_text(encoding="utf-8"))
         self.assertEqual(doc["version"], pctl.PROFILE_VERSION)

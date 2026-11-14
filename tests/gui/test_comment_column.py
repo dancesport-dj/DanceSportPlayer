@@ -26,6 +26,7 @@ from gui.table.playlist_table import PlaylistTable
 from gui.table.table_actions import TableActionsMixin
 from planner.models import MusicEntry
 from shared.columns import _COL_ALBUM, _COL_COMMENT, _COL_PLAYS, _N_COLS, COL_REGEN
+from shared.plain_text import plain_tip
 from tests.qt_test_support import reap_widget
 
 _app = QApplication.instance() or QApplication([])
@@ -61,7 +62,7 @@ class DeckCommentTest(unittest.TestCase):
     def test_the_cell_shows_the_comment_as_written(self):
         it = self.table.item(self.row, _COL_COMMENT)
         self.assertEqual(it.text(), "vocal AS")
-        self.assertEqual(it.toolTip(), "vocal AS")
+        self.assertEqual(it.toolTip(), plain_tip("vocal AS"))
 
     def test_every_kind_starts_with_it_hidden(self):
         for kind, cols in DEFAULT_HIDDEN_COLUMNS.items():
@@ -90,7 +91,8 @@ class LibraryCommentTest(unittest.TestCase):
         self.assertEqual(t.columnCount(), 19)   # 🔁 Plays came after it
         self.assertEqual(t.horizontalHeaderItem(LIB_COL_COMMENT).text(), "Comment")
         self.assertEqual(t.item(0, LIB_COL_COMMENT).text(), "vocal AS")
-        self.assertEqual(self.pane.cell_tooltip(0, LIB_COL_COMMENT), "vocal AS")
+        self.assertEqual(self.pane.cell_tooltip(0, LIB_COL_COMMENT),
+                         plain_tip("vocal AS"))
 
     def test_it_starts_hidden_and_can_be_ticked_on(self):
         self.assertIn(LIB_COL_COMMENT, self.pane.hidden_columns())

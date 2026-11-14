@@ -114,6 +114,7 @@ class PreviewOverlay(QFrame):
         self._full_title = ""
         self._ducked = False
         self._muted = False   # 🔇 the duck button's third state
+        self._pull = 1.0      # 🎛 a pad's or a voice's pull on the music, 1 = none
         self._drag_off: QPoint | None = None   # press point while moving the overlay
         self._user_pos: QPoint | None = None   # sticky position after a manual drag
         self._anchor: QPoint | None = None     # where it must stay while shown
@@ -388,17 +389,23 @@ class PreviewOverlay(QFrame):
                                     12, OVERLAY_INK))
         self._duck_btn.setChecked(self._ducked)
         self._vol.blockSignals(True)
-        self._vol.setValue(heard_percent(self._get_vol(), self._ducked, self._muted,
-                                         self._duck_pct))
+        self._vol.setValue(heard_percent(self._get_vol() * self._pull, self._ducked,
+                                         self._muted, self._duck_pct))
         self._vol.blockSignals(False)
 
     def set_volume_value(self, vol: float):
         """Show a master volume set elsewhere (the big player's slider, the
         controller) without echoing it back through _set_vol."""
         self._vol.blockSignals(True)
-        self._vol.setValue(heard_percent(vol, self._ducked, self._muted,
+        self._vol.setValue(heard_percent(vol * self._pull, self._ducked, self._muted,
                                          self._duck_pct))
         self._vol.blockSignals(False)
+
+    def set_pull(self, factor: float):
+        """🎛 The slider shows what is heard, so a pad pulling the music down
+        moves it too."""
+        self._pull = factor
+        self.set_volume_value(self._get_vol())
 
     def set_duck_level(self, pct: int):
         """🔉 The level from ⚙ Settings, named on the button."""
@@ -407,9 +414,12 @@ class PreviewOverlay(QFrame):
 
     def _on_vol_changed(self, v: int):
         """The slider shows what is heard, so a hand on it sets that: the
-        master goes there and a duck or a mute is over."""
+        master goes there and a duck or a mute is over, and so is a pad's pull
+        on the music: `v` is what is heard."""
+        pulled = self._pull < 1.0
+        self._pull = 1.0
         self._set_vol(v / 100.0)
-        if self._ducked:
+        if self._ducked or pulled:
             self.duckLifted.emit()
 
     def _gear_menu(self, anchor: QToolButton):
@@ -431,7 +441,9 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
     toStartRequested = Signal()   # ⏮ 0:00 → the ↩ mark of the last stop goes
     tempoResetModeChanged = Signal(bool)   # ↺ checkbox → MainWindow persists it
     tsoModeChanged = Signal(bool)          # TSO toggle → auto-equalize the heat tempo
+    gemuetlichModeChanged = Signal(bool)   # 🛋 toggle → hold the dance to its top tempo
     tempoApplied = Signal()                # rate changed → the ⏳ limit moves with it
+    loopModeChanged = Signal(bool)         # 🔁 toggled → the ⏳ limit goes full / comes back
     extendPauseRequested = Signal()        # ⏱➕ → lengthen the running auto-advance pause
     toPauseRequested = Signal()            # ⏸♪ → end this song now, jump to the pause music
     fadeOutRequested = Signal()            # 🔉↓ → fade the playing song out now
@@ -456,9 +468,10 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
         self._tempo_player = player   # the fader always targets the MAIN player
         self._ducked = False
         self._muted = False   # 🔇 the duck button's third state
+        self._pull = 1.0      # 🎛 a pad's or a voice's pull on the music, 1 = none
         self._dragging = False
         self._full_title = ""
-        self._dur = 0   # the track's real duration (slider max may be a limit)
+        self._dur = 0  # the track's real duration (slider max may be a limit)
         # Set by MainWindow: after a 🏁 round-end stop the ⏯ button starts
         # the next round's first song (returns True when it handled the tap).
         self.resume_cb: Callable[[], bool] | None = None
@@ -698,6 +711,7 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
         if self._waiting:            # another title: no wait's stats to give back
             self._waiting = False
             self.set_countdown("")
+            self._pull_countdown_in(False)   # …but the row back (review 4.B)
         # A real title means a song is playing → offer ⏸♪ jump-to-pause; an
         # empty title is idle (status set), so hide it.
         self._has_song = bool(title)
@@ -974,12 +988,64 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
         self._sync_tempo_pin()
 
     def tso_mode(self) -> bool:
+        """The stored toggle value, hidden button or not (it is what is saved
+        per list)."""
         return self._tso_btn.isChecked()
+
+    def tso_applies(self) -> bool:
+        """Whether the TSO pitch may run: the toggle is on AND on show. The party
+        list swaps it for 🛋, so a checked but hidden TSO must do nothing there."""
+        return self._tso_btn.isChecked() and not self._tso_btn.isHidden()
+
+    def set_gemuetlich_mode(self, on: bool):
+        """Restore the 🛋 gemütlich toggle (no signal)."""
+        self._gem_btn.blockSignals(True)
+        self._gem_btn.setChecked(bool(on))
+        self._gem_btn.blockSignals(False)
+
+    def gemuetlich_mode(self) -> bool:
+        """The stored toggle value, hidden button or not (it is what is saved
+        per list)."""
+        return self._gem_btn.isChecked()
+
+    def gemuetlich_applies(self) -> bool:
+        """Whether the gemuetlich pitch may run: the toggle is on AND on show. A
+        tournament list shows TSO in its place, so a checked but hidden gemuetlich must do
+        nothing there (the mirror of `tso_applies`)."""
+        return self._gem_btn.isChecked() and not self._gem_btn.isHidden()
+
+    def toggle_gemuetlich(self):
+        """🛋 The desk key: flips the toggle, but only where it is on show."""
+        if not self._gem_btn.isHidden():
+            self._gem_btn.toggle()
+
+    def set_gemuetlich_key(self, key: str):
+        """🛋 The icon alone does not say what it is: the tooltip names it and
+        the desk key that flips it."""
+        self._gem_btn.setToolTip(
+            self._gem_tip + (i18n.t("\nKey: %s") % key if key else ""))
+
+    def show_gemuetlich(self, on: bool):
+        """🛋 instead of TSO: a party has no round to pitch to the mean of,
+        so the list that plays shows the gemütlich button in its place."""
+        self._gem_btn.setVisible(bool(on))
+        self._tso_btn.setVisible(not on)
 
     def set_loop_mode(self, on: bool):
         """Put the 🔁 button where the caller wants it (the keyboard and the
         taskbar reach the loop through here, as they do the rest)."""
         self._loop_btn.setChecked(bool(on))
+
+    # 🔁 with the play length kept: the operator answered "play length" to the
+    # box the window asks. False is the default and what an unasked loop means.
+    _loop_cut = False
+
+    def set_loop_cut(self, on: bool):
+        self._loop_cut = bool(on)
+
+    def loop_cut(self) -> bool:
+        """Whether a looping title is still cut at the play length."""
+        return self._loop_cut
 
     def loop_mode(self) -> bool:
         """Whether the running title starts again instead of the next one.
@@ -1119,9 +1185,12 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
 
     def _on_vol_changed(self, v: int):
         """The slider shows what is heard, so a hand on it sets that: the
-        master goes there and a duck or a mute is over."""
+        master goes there and a duck or a mute is over, and so is a pad's pull
+        on the music: `v` is what is heard."""
+        pulled = self._pull < 1.0
+        self._pull = 1.0
         self._set_vol(v / 100.0)
-        if self._ducked:
+        if self._ducked or pulled:
             self.duckLifted.emit()
         self._refresh_vol_lbl()
 
@@ -1186,9 +1255,16 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
         without echoing it back through _set_vol. During a 🔉 duck the slider
         stands at what is heard."""
         self._vol.blockSignals(True)
-        self._vol.setValue(heard_percent(vol, self._ducked, self._muted, self._duck_pct))
+        self._vol.setValue(heard_percent(vol * self._pull, self._ducked, self._muted,
+                                         self._duck_pct))
         self._vol.blockSignals(False)
         self._refresh_vol_lbl()
+
+    def set_pull(self, factor: float):
+        """🎛 The slider shows what is heard, so a pad pulling the music down
+        moves it too."""
+        self._pull = factor
+        self.set_volume_value(self._get_vol())
 
     def _refresh_tempo_lbl(self):
         v = self._tempo.value()

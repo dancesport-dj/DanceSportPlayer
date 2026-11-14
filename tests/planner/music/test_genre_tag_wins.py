@@ -108,6 +108,16 @@ class SocialGenreLabelTest(unittest.TestCase):
         e = _entry("Some Title", "Pop\0Rock")
         self.assertEqual(e.tag_genre, "Pop; Rock")
 
+    def test_every_value_of_a_multi_value_tag_is_read_for_the_dance(self):
+        """mutagen joins a multi-value TCON with NUL, not with ';'."""
+        self.assertEqual(_entry("Some Title", "Cha Cha\0Salsa").dance, "CC")
+        self.assertEqual(_entry("Some Title", "Pop\0Cha Cha").dance, "CC")
+
+    def test_a_social_value_after_another_value_is_still_found(self):
+        e = _entry("Some Title", "Pop\0SL")
+        self.assertIsNone(e.dance)
+        self.assertEqual(e.other_genre, "Salsa")
+
     def test_no_tag_keeps_no_text(self):
         e = _entry("Some Title", None)
         self.assertIsNone(e.tag_genre)

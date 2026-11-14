@@ -85,6 +85,15 @@ class _Card:
     def tso_mode(self) -> bool:
         return self._tso
 
+    def tso_applies(self) -> bool:
+        return self._tso
+
+    def gemuetlich_mode(self) -> bool:
+        return False
+
+    def gemuetlich_applies(self) -> bool:
+        return False
+
     def set_tempo_to_target(self, target_bpm: float):
         self.log.append("pitch")
         self.target = target_bpm

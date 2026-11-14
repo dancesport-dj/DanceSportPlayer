@@ -44,7 +44,7 @@ from http.server import ThreadingHTTPServer
 from typing import cast
 from urllib.parse import urlsplit
 
-from shared.remote.guest_page import GUEST_CODE_HEADER, MAX_WISH, page_html
+from shared.remote.guest_page import GUEST_CODE_HEADER, MAX_WISH, guest_page_html
 from shared.remote.remote_server import (
     LimitedHandler,
     LimitedServer,
@@ -263,7 +263,7 @@ class GuestServer:
         self._host = host
         self._want_port = int(port)
         self.tunnel_host = ""            # the tunnel's name while it is up
-        self.page = page_html(labels or {}).encode("utf-8")
+        self.page = guest_page_html(labels or {}).encode("utf-8")
         self._lock = threading.Lock()
         self._code = code or new_code()
         self._ids: frozenset[str] = frozenset()

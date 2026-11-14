@@ -116,6 +116,23 @@ class EntryFromFileTest(unittest.TestCase):
         self.assertEqual(e.comment_tags, [])
 
 
+class TwoCommentFieldsTest(unittest.TestCase):
+    """Review 5.C: COMMENT and DESCRIPTION both became COMM::eng, and the
+    second replaced the first: a class tag in either one could be lost."""
+
+    def test_both_fields_are_kept(self):
+        from mutagen._vorbis import VCommentDict
+
+        from planner.music.foreign_tags import as_id3
+        vc = VCommentDict()
+        vc["COMMENT"] = ["ab C"]
+        vc["DESCRIPTION"] = ["instr"]
+        from planner.music.parsing import comment_parts
+        # The readers take the frame's first text and split it at ';'.
+        first = as_id3(vc)["COMM::eng"].text[0]
+        self.assertCountEqual(comment_parts(first), ["ab C", "instr"])
+
+
 class UnreadableRatingTest(unittest.TestCase):
     """#60: float() accepts "nan" and "inf", and neither survives int(); one
     such RATING field used to raise out of the tag read."""

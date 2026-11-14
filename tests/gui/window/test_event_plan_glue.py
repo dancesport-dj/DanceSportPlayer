@@ -190,6 +190,16 @@ class EventGlueTest(unittest.TestCase):
         self.assertEqual(self.win.runs, [])
         timer.start.assert_called_once_with(5 * 60 * 1000)
 
+    def test_an_ai_playlist_run_still_going_puts_the_question_off(self):
+        # The transcript window is shared: asking again now would delete the
+        # running AI playlist's window and run two models side by side.
+        self.win._event_worker = None
+        self.win._ai_worker = mock.Mock(isRunning=lambda: True)
+        self.win._event_retry = timer = mock.Mock()
+        self.win._continue_event_plan([1])
+        self.assertEqual(self.win.runs, [])
+        timer.start.assert_called_once_with(5 * 60 * 1000)
+
 
 class ReopenPlanTest(unittest.TestCase):
     """The AI dialog brings the kept plan back after its window was closed."""

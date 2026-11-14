@@ -228,6 +228,46 @@ class RunningOrderTest(_Base):
         self.assertNotIn(ONE, self.menu(t, self.row_of(t, "A")))
 
 
+class EmptySlotTest(_Base):
+    """Marcel's list, 6.11: "If we have an empty slot, for example in a party list,
+    I want an entry in the context menu to remove only the slot." "Keep slot"
+    leaves one behind, and on that row there was no menu entry at all."""
+    EMPTY = "🗑  Remove this empty slot"
+
+    def emptied(self, *titles, gone):
+        t = self.party(*titles)
+        t._clear_slots_at({self.row_of(t, gone)})
+        row = next(r for r, m in enumerate(t._row_meta) if m and m.entry is None)
+        return t, row
+
+    def test_the_empty_slot_offers_to_go(self):
+        t, row = self.emptied("A", "B", "C", gone="B")
+        self.assertIn(self.EMPTY, self.menu(t, row))
+
+    def test_a_title_is_not_offered_it(self):
+        t, _row = self.emptied("A", "B", "C", gone="B")
+        self.assertNotIn(self.EMPTY, self.menu(t, self.row_of(t, "A")))
+
+    def test_only_the_slot_goes(self):
+        t, row = self.emptied("A", "B", "C", gone="B")
+        rows = t.rowCount()
+        self.menu(t, row, pick=self.EMPTY)
+        # The slot's own ─── strip goes with it, as in any redraw of the list.
+        self.assertLess(t.rowCount(), rows)
+        self.assertEqual([e.title for e in t._row_meta.entries()], ["A", "C"])
+        self.assertEqual(len(t._row_meta.song_rows()), 2)
+        self.assertFalse([m for m in t._row_meta if m and m.entry is None])
+
+    def test_no_question_is_asked_for_a_slot_with_nothing_in_it(self):
+        t, row = self.emptied("A", "B", "C", gone="B")
+        self.menu(t, row, pick=self.EMPTY)
+        self.ask.assert_not_called()
+
+    def test_a_free_order_has_no_empty_slots_to_offer(self):
+        t = self.party("A", "B", running_order=True)
+        self.assertNotIn(self.EMPTY, self.menu(t, self.row_of(t, "A")))
+
+
 class GridTest(_Base):
 
     def test_the_only_title_of_its_dance_in_the_round_can_go(self):

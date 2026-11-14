@@ -147,6 +147,16 @@ class LibraryPaneMixin(MainWindowHost):
         if on:
             self._equalize_heat_tempo(auto=True)
 
+    def _on_gemuetlich_mode(self, on: bool):
+        """🛋 toggle flipped: it is the value of the list the card is serving,
+        and a title playing over the top tempo is slowed down at once."""
+        t = self._engine_list()
+        if t is not None:
+            self._list_vals(t)["gemuetlich"] = bool(on)
+            self._autosave_playlist()
+        if on:
+            self._hold_gemuetlich(auto=True)
+
     def _on_lib_tab_changed(self, index: int):
         """The fold clamps the whole pane, so a folded library would leave the
         🏆 tab a sliver — switching tabs unfolds it."""

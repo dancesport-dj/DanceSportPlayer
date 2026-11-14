@@ -70,7 +70,7 @@ class MacTest(unittest.TestCase):
             return next(v for k, v in answers.items() if k in cmd)
 
         with mock.patch.object(system_info.sys, "platform", "darwin"), \
-                mock.patch.object(system_info, "_run", side_effect=run):
+                mock.patch.object(system_info, "_command_output", side_effect=run):
             return fn()
 
     def test_memory_counts_what_macos_gives_back(self):

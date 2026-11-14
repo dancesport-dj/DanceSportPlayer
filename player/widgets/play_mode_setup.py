@@ -6,7 +6,7 @@ keeps the panel's layout, its state and the values the player reads.
 """
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, QObject, Qt, QTimer
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -51,6 +51,17 @@ if TYPE_CHECKING:
     from gui.window.hosts import PlayModePanelHost
 else:
     PlayModePanelHost = object
+
+
+class _MarkValueOnFocus(QObject):
+    """A click into a number box marks the whole value, so what is typed
+    replaces it. Unmarked, the cursor lands after the " s" suffix and Qt
+    refuses every digit typed there — the box seemed to take arrow clicks only."""
+
+    def eventFilter(self, box, event):
+        if event.type() == QEvent.Type.FocusIn:
+            QTimer.singleShot(0, box.selectAll)   # after the click set its cursor
+        return False
 
 
 class PlayModeSetupMixin(PlayModePanelHost):
@@ -505,8 +516,6 @@ class PlayModeSetupMixin(PlayModePanelHost):
         # not persisted: a session that ends in Manual starts in Manual, and
         # there is nothing left to restore.
         self._announce_before_manual = False
-        # …and the pause the call took off, for the same round trip.
-        self._pause_before_announce = False
         lyt.addWidget(self.announce_check)
 
         # What goes with the call: none of it is worth a line when nothing is
@@ -856,6 +865,12 @@ class PlayModeSetupMixin(PlayModePanelHost):
 
     def _connect_signals(self, settings):
         """Every control's change reaches settingsChanged; initial sync."""
+        self._mark_on_focus = _MarkValueOnFocus(self)
+        for box in (self.fade_spin, self.pd_spin, self.pd_delay_spin,
+                    self.pause_spin, self.stop_count_spin):
+            # A typed value counts once entered, not with every digit on the way.
+            box.setKeyboardTracking(False)
+            box.installEventFilter(self._mark_on_focus)
         self.fade_spin.valueChanged.connect(lambda _: self.settingsChanged.emit())
         self.fade_inside_check.toggled.connect(
             lambda _: self.settingsChanged.emit())
@@ -884,9 +899,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
             lambda _: self.settingsChanged.emit())
         self.pause_spin.valueChanged.connect(lambda _: self.settingsChanged.emit())
         self.announce_check.toggled.connect(self.announce_sub_box.setVisible)
-        self.announce_check.toggled.connect(lambda _: self._sync_pause_tip())
-        # clicked, not toggled: a stored or applied set with both on stays so.
-        self.announce_check.clicked.connect(self._follow_announce_with_pause)
+        self.announce_check.clicked.connect(self.warn_heat_only)
         self.announce_check.toggled.connect(lambda _: self.settingsChanged.emit())
         self.loudness_check.toggled.connect(lambda _: self.settingsChanged.emit())
         self.awake_check.toggled.connect(lambda _: self.settingsChanged.emit())

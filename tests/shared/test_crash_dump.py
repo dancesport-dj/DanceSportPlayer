@@ -59,6 +59,18 @@ class CrashDumpTest(unittest.TestCase):
             new.write_bytes(b"junk")
             self.assertIn("could not be read", crash_dump.latest_dump_text(2000, folder))
 
+    def test_the_frozen_exe_finds_its_own_dump(self):
+        # Review 1.1: Windows names the dump after the exe, and the shipped
+        # build is not python.exe; another program's dump stays out.
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            (folder / "DanceSport Player.exe.7.dmp").write_bytes(_dump())
+            (folder / "other.exe.3.dmp").write_bytes(_dump())
+            with mock.patch.object(crash_dump.sys, "executable",
+                                   r"C:\Program Files\DSP\DanceSport Player.exe"):
+                text = crash_dump.latest_dump_text(0, folder)
+            self.assertTrue(text.startswith("DanceSport Player.exe.7.dmp: "), text)
+
     def test_a_dump_that_vanishes_between_listing_and_stat_is_skipped(self):
         """Another process may delete a dump while it is being looked at."""
         with tempfile.TemporaryDirectory() as tmp:
@@ -76,6 +88,23 @@ class CrashDumpTest(unittest.TestCase):
             with mock.patch.object(Path, "stat", stat):
                 self.assertEqual(crash_dump.latest_dump_text(0, folder)[:16],
                                  "python.exe.2.dmp")
+
+    def test_the_dump_is_not_read_whole(self):
+        """Review: a full-memory dump can run to gigabytes, and the start
+        read all of it on the GUI thread for two small streams."""
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            (folder / "python.exe.1.dmp").write_bytes(_dump() + b"\0" * 4096)
+            with mock.patch.object(Path, "read_bytes",
+                                   side_effect=AssertionError("read whole")):
+                text = crash_dump.latest_dump_text(0, folder)
+            self.assertIn("Qt6Widgets.dll+0x100", text)
+
+    def test_an_empty_dump_could_not_be_read(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            (folder / "python.exe.1.dmp").write_bytes(b"")
+            self.assertIn("could not be read", crash_dump.latest_dump_text(0, folder))
 
 
 if __name__ == "__main__":

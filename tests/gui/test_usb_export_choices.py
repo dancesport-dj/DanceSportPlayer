@@ -132,8 +132,10 @@ class ExportTest(unittest.TestCase):
     def host(self):
         deck = mock.Mock(_m3u_path=None)
         deck.rowCount.return_value = 1
+        deck.wishlist_entries.return_value = [SONG]
         day = mock.Mock(_m3u_path=None)
         day.rowCount.return_value = 1
+        day.wishlist_entries.return_value = [SONG]
         wish = mock.Mock(_m3u_path=None)
         wish.wishlist_entries.return_value = [SONG]
         wish.deck.name = "Wishes"

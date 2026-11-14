@@ -51,6 +51,43 @@ class HeadsetVolumeTest(unittest.TestCase):
         box.exec.assert_called_once()
         self.assertEqual(host._mix.base, SAFE_FULL)
 
+    def test_a_stop_while_the_box_is_open_wins(self):
+        """Review 3.D: a ⏹ or ⏭ from the 📱 remote or the 🎛 controller arrives
+        while the box is open; every stop bumps the token, and the answer
+        must not start whatever is loaded."""
+        host = _host()
+        host._playback.token = 4
+        box = _box(False)
+
+        def stopped():
+            host._playback.token = 5
+        box.exec.side_effect = stopped
+        self.guard(host, box)
+        host._player.play.assert_not_called()
+        self.assertEqual(host._mix.base, SAFE_FULL, "the answer still sets the level")
+
+    def test_a_skip_while_the_box_is_open_still_plays_the_next_title(self):
+        """⏭ loads the next title and plays it; the gate holds that play back
+        with the box, so the answer must start it."""
+        host = _host()
+        host._playback.token = 4
+
+        def skipped():
+            host._playback.token = 5
+            with mock.patch.dict(os.environ, {"DANCEPLAYLIST_NO_HEADSET_GUARD": ""}):
+                vars(host)["_headset_dialog"] = True
+                self.assertTrue(AudioLevelMixin._headset_play_gate(host))
+        box = _box(False)
+        box.exec.side_effect = skipped
+        self.guard(host, box)
+        host._player.play.assert_called_once()
+
+    def test_the_answer_starts_the_music_when_nothing_stopped_it(self):
+        host = _host()
+        host._playback.token = 4
+        self.guard(host, _box(False))
+        host._player.play.assert_called_once()
+
     def test_playing_music_is_never_stopped_only_warned_once_per_level(self):
         host = _host()
         host._player.playbackState.return_value = main_audio.QMediaPlayer.PlaybackState.PlayingState
@@ -239,6 +276,31 @@ class PlayGateTest(unittest.TestCase):
         held2, single2 = self.gate(host)
         self.assertTrue(held and held2)
         single2.assert_not_called()
+
+    def test_off_windows_the_slider_is_read_only_when_it_could_matter(self):
+        """Review 3.C: on macOS and Linux the system slider is a helper process
+        (osascript, wpctl) with a 2 s timeout, run on the GUI thread before
+        every play(). The slider only makes it quieter and there is no form
+        factor there, so speakers and a fader at 70 % or less need no read."""
+        import types
+        cases = (("Built-in Speakers", 1.0, False), ("AirPods Pro", 0.7, False),
+                 ("AirPods Pro", 1.0, True), ("External Headphones", 1.0, True))
+        for platform in ("darwin", "linux"):
+            for name, base, read in cases:
+                with self.subTest(platform=platform, name=name, base=base):
+                    host = _host(name, base)
+                    with mock.patch.object(main_audio, "sys",
+                                           types.SimpleNamespace(platform=platform)):
+                        self.gate(host)
+                    self.assertEqual(host._audio_device.music_output_state.called, read)
+
+    def test_windows_always_reads_the_very_device(self):
+        # In-process there, and the form factor says what the name does not.
+        import types
+        host = _host("Speakers (Realtek)", 1.0)
+        with mock.patch.object(main_audio, "sys", types.SimpleNamespace(platform="win32")):
+            self.gate(host)
+        host._audio_device.music_output_state.assert_called_once()
 
     def test_a_safe_play_goes_through(self):
         held, single = self.gate(_host(base=0.4))

@@ -342,6 +342,7 @@ class BigPlayerSetupMixin(BigPlayerHost):
         icon_button(self._loop_btn, "regen", 16, CARD_INK)
         self._loop_btn.setCheckable(True)
         self._loop_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._loop_btn.toggled.connect(self.loopModeChanged.emit)
         self._loop_btn.setToolTip(
             "Endless repeat of THIS title (toggle):\n"
             "while on, the running title starts again every time it ends —\n"
@@ -527,6 +528,22 @@ class BigPlayerSetupMixin(BigPlayerHost):
         self._tso_btn.toggled.connect(self.tsoModeChanged.emit)
         self._tso_btn.toggled.connect(self._sync_tempo_pin)
         info_row.addWidget(self._tso_btn)
+        # 🛋 Takes the TSO button's place on a party list (`show_gemuetlich`).
+        self._gem_btn = QToolButton()
+        self._gem_btn.setText("🛋")
+        self._gem_btn.setCheckable(True)
+        self._gem_btn.setStyleSheet(
+            "QToolButton { font-size:11px; font-weight:bold; color:#7fd4a0; }"
+            "QToolButton:checked { background:#1565c0; color:#ffffff; }")
+        self._gem_tip = i18n.t(
+            "Relaxed (toggle):\n"
+            "while on, a title recorded faster than the top tempo set for its\n"
+            "dance (⚙ Settings → 🎛 Playsets) is slowed down to it — a Jive at\n"
+            "T43 plays at T41. Slower titles are left alone.")
+        self._gem_btn.setToolTip(self._gem_tip)
+        self._gem_btn.toggled.connect(self.gemuetlichModeChanged.emit)
+        self._gem_btn.hide()
+        info_row.addWidget(self._gem_btn)
         tempo_reset = QToolButton()
         tempo_reset.setText("0")
         tempo_reset.setToolTip(

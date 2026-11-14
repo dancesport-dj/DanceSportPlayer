@@ -302,6 +302,31 @@ class SuggestPreviewTest(unittest.TestCase):
         self.assertEqual(len(seen), 1)
         self.assertIsNot(seen[0], threading.main_thread())
 
+    def _ask(self, typed=None):
+        """Open the dialog on a stored key, maybe type another, press Get:
+        the api_key that reached save_openrouter_config."""
+        from gui.dialogs import ai_dialogs as mod
+        with mock.patch.object(mod, "load_openrouter_config",
+                               return_value={"api_key": "env-key", "model": "m",
+                                             "base_url": ""}):
+            dlg = AiSuggestDialog(None)
+        self.addCleanup(reap_widget, dlg)
+        if typed is not None:
+            dlg._key_edit.setText(typed)
+        with mock.patch.object(mod, "save_openrouter_config") as save, \
+                mock.patch.object(mod, "OpenRouterChatWorker"):
+            dlg._get()
+        self.assertEqual(save.call_count, 1)
+        return save.call_args.args[0]
+
+    def test_an_untouched_key_is_not_copied_into_the_store(self):
+        # Review 9.A: a key that came from the environment landed in the
+        # credential store on the first Get, as Settings already avoids (#38).
+        self.assertIsNone(self._ask())
+
+    def test_a_typed_key_is_saved(self):
+        self.assertEqual(self._ask("sk-or-new"), "sk-or-new")
+
     def test_new_suggestions_stop_the_preview_and_their_play_plays(self):
         # BUG_REVIEW B4.7: the old playing row stayed current, so the new
         # list's ▶ in that row stopped instead of playing.
@@ -310,14 +335,30 @@ class SuggestPreviewTest(unittest.TestCase):
         calls = []
         dlg = AiSuggestDialog(None, play_cb=calls.append)
         self.addCleanup(reap_widget, dlg)
-        a = SimpleNamespace(path=Path("a.mp3"), title="A")
-        b = SimpleNamespace(path=Path("b.mp3"), title="B")
+        a = SimpleNamespace(path=Path("a.mp3"), title="A", tag_artist=None)
+        b = SimpleNamespace(path=Path("b.mp3"), title="B", tag_artist=None)
         dlg._populate([{"suggestion": {"artist": "x", "title": "A"}, "entry": a}])
         dlg._toggle_play(0)
         dlg._populate([{"suggestion": {"artist": "y", "title": "B"}, "entry": b}])
         self.assertEqual(calls, [Path("a.mp3"), None])
         dlg._toggle_play(0)
         self.assertEqual(calls, [Path("a.mp3"), None, Path("b.mp3")])
+
+    def test_the_local_match_names_its_artist(self):
+        """A match on the title alone can be another artist's song of that
+        name: the cell shows whose it is, so the user sees it at a glance."""
+        from types import SimpleNamespace
+
+        dlg = AiSuggestDialog(None)
+        self.addCleanup(reap_widget, dlg)
+        tagged = SimpleNamespace(path=Path("a.mp3"), title="Moon River", tag_artist="Andy Williams")
+        bare = SimpleNamespace(path=Path("b.mp3"), title="Feeling Good", tag_artist=None)
+        dlg._populate([{"suggestion": {"artist": "x", "title": "Moon River"}, "entry": tagged},
+                       {"suggestion": {"artist": "y", "title": "Feeling Good"}, "entry": bare},
+                       {"suggestion": {"artist": "z", "title": "Gone"}, "entry": None}])
+        self.assertEqual(dlg._table.item(0, 4).text(), "Andy Williams – Moon River")
+        self.assertEqual(dlg._table.item(1, 4).text(), "Feeling Good")
+        self.assertEqual(dlg._table.item(2, 4).text(), "")
 
 
 class EventDialogTest(unittest.TestCase):

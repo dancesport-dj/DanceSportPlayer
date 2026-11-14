@@ -13,9 +13,12 @@ breadcrumbs, the OS, the Python, the build flavor and the version (the
 release tag the build came from, planner.version). Not the values of local
 variables and not the computer's name, and the user's home folder is cut out
 of every string, so a path reads ~\\Music\\…, not C:\\Users\\<name>\\Music\\….
-Song titles in the breadcrumbs stay. A native crash (crash.log) is not sent:
+The music folders from ⚙ Settings go the same way (<music>\\…), and so does
+the public address a phone or guest came from (<ip>). Song titles in the
+breadcrumbs stay. A native crash (crash.log) is not sent:
 it never reaches Python.
 """
+import ipaddress
 import logging
 import os
 import re
@@ -79,22 +82,59 @@ def available() -> bool:  # slop-mop noqa: ambiguity-mine - an optional feature'
     return True
 
 
-def _home_pattern() -> re.Pattern:
-    home = str(Path.home()).rstrip("\\/")
-    parts = [p for p in re.split(r"[\\/]+", home) if p]
+def _path_pattern(folder: str) -> re.Pattern | None:
+    parts = [p for p in re.split(r"[\\/]+", folder.strip().rstrip("\\/")) if p]
+    if len(parts) == 1 and folder.strip().startswith(("/", "\\")):
+        # A folder right under the root (/Hochzeit on macOS) is one part: cut
+        # only where a path starts with it, not every word that spells it (F5).
+        return re.compile(r"(?<![\w.~-])[\\/]+" + re.escape(parts[0]) + r"(?![\w.-])",
+                          re.IGNORECASE)
+    if len(parts) < 2:
+        return None   # "" or a bare drive: cutting it would cut every path
     # Any separator between the parts: C:\Users\x, c:/users/x, and the
     # doubled backslashes of a repr'd path.
     return re.compile(r"[\\/]+".join(re.escape(p) for p in parts), re.IGNORECASE)
 
 
+# ⚙ The folders the music is in, from the settings (`apply_settings`). A
+# library on another drive is named after the people it is for as often as
+# not: "D:\Hochzeit Familie Beispiel".
+_FOLDER_KEYS = ("library_dir", "global_dir", "reference_path", "save_dir",
+                "playlist_dir")
+_folders: list[str] = []
+
+# An address a phone or a guest came from. Only a public one is cut: a LAN or
+# loopback address names no one and is what a connection error is about.
+_ADDRESS = re.compile(r"(?<![\w.:])(?:\d{1,3}(?:\.\d{1,3}){3}(?![\w.])"
+                      r"|[0-9A-Fa-f]{0,4}(?::[0-9A-Fa-f]{0,4}){2,7}(?![\w.:]))")
+
+
+def _remember_folders(settings: dict) -> None:
+    found = [str((settings or {}).get(k) or "") for k in _FOLDER_KEYS]
+    found += [str(p) for p in (settings or {}).get("remap_paths") or []]
+    # Longest first: a library inside the whole-repo folder is cut whole.
+    _folders[:] = sorted({f for f in found if f.strip()}, key=len, reverse=True)
+
+
+def _mask_address(m: re.Match) -> str:
+    try:
+        return "<ip>" if ipaddress.ip_address(m.group()).is_global else m.group()
+    except ValueError:
+        return m.group()
+
+
 def scrub(event: dict) -> dict:
-    """The event without the home folder (→ "~") and without the computer's
-    name."""
-    pattern = _home_pattern()
+    """The event without the music folders (→ "<music>"), the home folder
+    (→ "~"), a client's public address (→ "<ip>") and the computer's name."""
+    cuts = [(p, "<music>") for p in map(_path_pattern, _folders) if p]
+    home = _path_pattern(str(Path.home()))
+    cuts += [(home, "~")] if home else []
 
     def walk(value) -> Any:
         if isinstance(value, str):
-            return pattern.sub("~", value)
+            for pattern, token in cuts:
+                value = pattern.sub(token, value)
+            return _ADDRESS.sub(_mask_address, value)
         if isinstance(value, dict):
             return {k: walk(v) for k, v in value.items()}
         if isinstance(value, list):
@@ -141,6 +181,7 @@ def apply_settings(settings: dict) -> bool:  # slop-mop noqa: ambiguity-mine - t
     """Start or stop sending, as the settings say. Returns whether reports
     are on now. Called at start-up and whenever ⚙ Settings is saved."""
     global _active
+    _remember_folders(settings)
     wanted = bool((settings or {}).get("error_reports")) and available()
     if wanted == _active:
         return _active

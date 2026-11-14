@@ -60,7 +60,8 @@ class DeskFindingsTest(unittest.TestCase):
     def findings(self, status):
         win = SimpleNamespace(
             _audio_device=SimpleNamespace(unplugged=list, cue_on_music=lambda: False,
-                                          cue_shares_music=lambda: False),
+                                          cue_shares_music=lambda: False,
+                                          rehearsal_profile=lambda: None),
             controller_status=lambda: (False, ""),
             controller_config=lambda: {"device": ""},
             _play_panel=SimpleNamespace(keep_awake=lambda: True))

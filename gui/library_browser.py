@@ -4,12 +4,13 @@ Extracted from dancesport_gui.py (view split): LibraryBrowser plus its small
 table/item subclasses (_LibTable, _LibSortItem, _LibPlayItem).
 """
 import gc
+import html
 import logging
 import time
 from collections.abc import Callable
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, NamedTuple, cast
 
 from PySide6.QtCore import (
     QEvent,
@@ -86,6 +87,7 @@ from planner.music.vocals import entry_is_instrumental
 from planner.playing import play_counts
 from planner.playlist.planned import path_key
 from planner.terms import dance_name, genre_short
+from shared.plain_text import plain_tip
 from shared.widgets import (
     FlowLayout,
     show_toast,
@@ -124,9 +126,23 @@ _FILL_BUDGET = 0.025
 # A fill still running after this long shows its count at the table's foot;
 # a short one (the favorites) never flashes it.
 _PROGRESS_AFTER = 0.3
+# A finished fill of at least this many rows stays on the table: a filter then
+# hides the rows it drops and shows them again, instead of writing them anew
+# (54 000 titles = ~5 s). A short list is written again, which is instant.
+_HIDE_MIN_ROWS = 2000
 
 
-def _stamp(ts: float | None, date_only: bool = False) -> str:
+class _Filled(NamedTuple):
+    """What a finished fill left on the table, and what it is good for."""
+    src: list            # the library list it was written from (identity)
+    sort: tuple          # header sort section and order it was written in
+    marked: frozenset    # the ♊ marking its Title cells were written with
+    entries: list        # the rows, in row order
+    paths: list          # …their paths
+    row_of: dict         # path -> row
+
+
+def _file_time_text(ts: float | None, date_only: bool = False) -> str:
     """A file time as `2026-11-03 14:05` (`2026-11-03` when only the day is
     wanted), empty when unknown."""
     if not ts:
@@ -405,7 +421,8 @@ class LibTable(QTableWidget):
         super().keyPressEvent(event)
 
     def startDrag(self, _actions):
-        rows = sorted({i.row() for i in self.selectedIndexes()})
+        rows = sorted({i.row() for i in self.selectedIndexes()
+                       if not self.isRowHidden(i.row())})
         paths = [it.data(Qt.ItemDataRole.UserRole)
                  for r in rows if (it := self.item(r, 0))]
         paths = [p for p in paths if p]
@@ -514,6 +531,9 @@ class LibraryBrowser(QWidget):
         self._by_path: dict[str, MusicEntry] = {}   # the rows on screen, by path
         self._shown: list[MusicEntry] = []          # …and in their order
         self._fill_gen = 0   # bumped per fill: a step of an older fill stops
+        # The fill that is being written, and the last one that finished.
+        self._fill_meta: tuple | None = None
+        self._filled: _Filled | None = None
         self._whole_shown = False
         self._whole_loading = False   # ⏳ on the button: 🌐 asked for, not there yet
         self._folded = False
@@ -1017,7 +1037,7 @@ class LibraryBrowser(QWidget):
                             (LIB_COL_MODIFIED, getattr(e, "modified", None))):
                 cell = t.item(r, col)
                 if cell is not None:
-                    cell.setText(_stamp(ts, on))
+                    cell.setText(_file_time_text(ts, on))
 
     def _dance_label(self, e) -> str:
         """What the Dance column says for a track: the full name, or the Σ
@@ -1310,9 +1330,15 @@ class LibraryBrowser(QWidget):
         self._fill_gen += 1
         hh = t.horizontalHeader()
         col = hh.sortIndicatorSection()
-        if 0 <= col < t.columnCount():
+        sorted_by = col if 0 <= col < t.columnCount() else -1
+        sort = (sorted_by, hh.sortIndicatorOrder())
+        if self._reuse_fill(entries, sort, keep):
+            return
+        if sorted_by >= 0:
             entries = sorted(entries, key=self._sort_key(col),
                              reverse=hh.sortIndicatorOrder() == Qt.SortOrder.DescendingOrder)
+        self._filled = None
+        self._fill_meta = (self._entries, sort, frozenset(self._marked))
         # Emptying the table deletes plain C++ items, no Python wrappers
         # (those made a 54 000-row table take 1.2 s to clear).
         t.setRowCount(0)
@@ -1320,6 +1346,46 @@ class LibraryBrowser(QWidget):
         self._by_path = {str(e.path): e for e in entries}   # for cell_tooltip
         self._fill_started = time.perf_counter()
         self._fill_step(self._fill_gen, entries, 0, time.time(), keep)
+
+    def _reuse_fill(self, entries: list[MusicEntry], sort: tuple, keep) -> bool:
+        """The rows of the last finished fill still hold `entries`: hide the rest.
+
+        Good while the list, the sort and the ♊ marking are the ones the rows were
+        written with, and every wanted title has its row. Hiding 54 000 rows takes
+        0.04 s with the view's repaints held back (1.2 s with them); writing them
+        again takes ~5 s and shows the progress bar. A hidden row keeps its ■
+        marker and its place, so clearing the filter brings everything back."""
+        filled = self._filled
+        if (filled is None or filled.src is not self._entries or filled.sort != sort
+                or filled.marked != frozenset(self._marked)):
+            return False
+        # The very entries that were written, not just their paths.
+        want = set()
+        for e in entries:
+            row = filled.row_of.get(str(e.path))
+            if row is None or filled.entries[row] is not e:
+                return False
+            want.add(row)
+        t = self._table
+        kept = keep[0]
+        t.setUpdatesEnabled(False)
+        try:
+            for row in range(len(filled.entries)):
+                t.setRowHidden(row, row not in want)
+            t.clearSelection()
+            if kept:
+                sel = QItemSelection()
+                model = t.model()
+                for path in kept:
+                    row = filled.row_of.get(path)
+                    if row is not None and row in want:
+                        sel.select(model.index(row, 0), model.index(row, LIB_COL_YEAR))
+                t.selectionModel().select(sel, QItemSelectionModel.SelectionFlag.Select)
+        finally:
+            t.setUpdatesEnabled(True)
+        self._shown = [e for row, e in enumerate(filled.entries) if row in want]
+        self._overlay.finish(covering=False)
+        return True
 
     def _keep_state(self):
         """(selected paths, playing path) for `_populate` to put back (#75)."""
@@ -1413,6 +1479,13 @@ class LibraryBrowser(QWidget):
             QTimer.singleShot(0, self, lambda: self._fill_step(gen, entries, end, now, keep))
         else:
             self._overlay.finish(covering=False)
+            if self._fill_meta is None:
+                return
+            src, sort, marked = self._fill_meta
+            if len(entries) >= _HIDE_MIN_ROWS:
+                paths = [str(e.path) for e in entries]
+                self._filled = _Filled(src, sort, marked, entries, paths,
+                                       {p: r for r, p in enumerate(paths)})
 
     def _fill_rows(self, entries: list[MusicEntry], first_row: int, now: float):
         """Write the rows through the model, as plain C++ items: an item handed
@@ -1450,7 +1523,7 @@ class LibraryBrowser(QWidget):
             cell(r, 7, _classes_label(e))
             put(idx(r, 7), center, align)
             ts = getattr(e, "added", None) or 0
-            cell(r, LIB_COL_ADDED, _stamp(ts, self._date_only), ts,
+            cell(r, LIB_COL_ADDED, _file_time_text(ts, self._date_only), ts,
                  C_NEW_FG if ts and ts >= now - 90 * 86400 else None)   # new: last 3 months
             last = getattr(e, "last_played", None)
             cell(r, 9, str(last) if last else ("—" if not pop else "?"), last or 0,
@@ -1462,9 +1535,9 @@ class LibraryBrowser(QWidget):
             plays = play_counts.count(e.path)
             cell(r, LIB_COL_PLAYS, str(plays) if plays else "", plays)
             created = getattr(e, "created", None)
-            cell(r, LIB_COL_CREATED, _stamp(created, self._date_only), created or 0)
+            cell(r, LIB_COL_CREATED, _file_time_text(created, self._date_only), created or 0)
             modified = getattr(e, "modified", None)
-            cell(r, LIB_COL_MODIFIED, _stamp(modified, self._date_only), modified or 0)
+            cell(r, LIB_COL_MODIFIED, _file_time_text(modified, self._date_only), modified or 0)
             year = getattr(e, "year", None)
             cell(r, LIB_COL_YEAR, str(year) if year else "", year or 0)
 
@@ -1494,8 +1567,10 @@ class LibraryBrowser(QWidget):
         if col == 0:
             return i18n.t("Play / stop this track")
         if col == 3 and path_key(e.path) in self._marked:
-            return (i18n.t("♊ The same music is planned from another folder")
-                    + "\n\n" + entry_tooltip(e))
+            # Joined inside the markup: Qt decides rich or plain from the
+            # first line, and a plain one showed the rest as raw tags (10.A).
+            head = i18n.t("♊ The same music is planned from another folder")
+            return "<p>" + html.escape(head) + "</p>" + entry_tooltip(e)
         if col in (2, 3):
             return entry_tooltip(e)
         if col == 4:
@@ -1513,11 +1588,11 @@ class LibraryBrowser(QWidget):
                 else "Never played" if not (e.popularity or 0)
                 else "Played, but none of those playlists is dated")
         if col == LIB_COL_CUSTOM:
-            return e.custom or ""
+            return plain_tip(e.custom)
         if col == LIB_COL_FILE:
-            return str(e.path)
+            return plain_tip(e.path)
         if col == LIB_COL_COMMENT:
-            return getattr(e, "tag_comment", None) or ""
+            return plain_tip(getattr(e, "tag_comment", None))
         if col == LIB_COL_MODIFIED:
             return i18n.t("When the file was last written, tag edits included")
         if col == LIB_COL_YEAR:
@@ -1608,7 +1683,8 @@ class LibraryBrowser(QWidget):
         retag_act = menu.addAction("🏷  Re-read MP3 tags")
         # Inside a selection the editor takes the whole selection, outside it
         # only the row under the mouse — the decks' rule.
-        sel = {ix.row() for ix in self._table.selectedIndexes()}
+        sel = {ix.row() for ix in self._table.selectedIndexes()
+               if not self._table.isRowHidden(ix.row())}
         rows = sorted(sel) if row in sel else [row]
         edit_paths = {str(p) for p in map(self._row_path, rows) if p}
         edit_act = menu.addAction(
@@ -1682,6 +1758,8 @@ class LibraryBrowser(QWidget):
         if row < 0:
             return False
         nrow = row + step
+        while 0 <= nrow < self._table.rowCount() and self._table.isRowHidden(nrow):
+            nrow += step   # a row the filter hides is not "next"
         if not (0 <= nrow < self._table.rowCount()):
             return False
         self._start_row(nrow)

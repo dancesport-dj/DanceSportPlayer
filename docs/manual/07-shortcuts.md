@@ -28,6 +28,8 @@ On a Mac, read **Cmd** for **Ctrl** below: **Cmd + F** finds a title. The app's 
 | **Ctrl + Shift + E** | The focused wishlist gets the whole area and the others fold to tabs; pressed again, all open. |
 | **Ctrl + M** | Mark or unmark the selected titles (orange row), for example as titles to swap later. **Ctrl + 1** does the same while the cartwall is hidden. |
 | **Alt + S** | Swap the two selected titles of the same dance in the Party panel. |
+| **Alt + End** | Send the selected titles to the end of the list, like the context menu's entry. |
+| **Ctrl + Shift + G** | 🛋 Relaxed on / off, while 🛋 shows on a party list. |
 | **F2** in the 🏆 Tournaments tree | Rename the entry. **Del** removes it from the tree. |
 | **Ctrl + A** in 🏆 Tournaments | Mark every slot of the folder, or every entry of the tree. **Del** and a drag then take them all. |
 | **Ctrl + F** | Open the find bar over the focused list (**Cmd + F** on a Mac); pressed again, it closes the bar, also from the list. Typing tints the matches at once and **Enter** jumps to the first one; then **Enter** steps to the next match, **Shift + Enter** back, **Esc** closes it, also from the list. **Tab** / **Shift + Tab** switch between the title and the genre field, **Ctrl + X** clears the field (both fields when pressed on the list). |

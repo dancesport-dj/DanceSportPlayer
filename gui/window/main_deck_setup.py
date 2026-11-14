@@ -4,6 +4,7 @@ below them.
 
 Extracted from dancesport_gui.py as a MainWindow mixin.
 """
+import contextlib
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -717,12 +718,16 @@ class DeckSetupMixin(MainWindowHost):
         self._lib_browser.folderViewChanged.connect(self._on_lib_folder_view)
         self._lib_browser.playCountsResetWanted.connect(self._reset_play_counts)
         self._lib_browser._table.seek_cb = self._prehear_seek   # Ctrl+←/→ seeks ∓30 s
+        # A garbled list is skipped, not fatal: the migration only checks these
+        # below the current columns_version.
         saved_cols = self._settings.get("library_columns")
         if isinstance(saved_cols, list):
-            self._lib_browser.apply_column_order([int(c) for c in saved_cols])
+            with contextlib.suppress(TypeError, ValueError):
+                self._lib_browser.apply_column_order([int(c) for c in saved_cols])
         saved_hidden = self._settings.get("library_hidden_columns")
         if isinstance(saved_hidden, list):
-            self._lib_browser.set_hidden_columns([int(c) for c in saved_hidden])
+            with contextlib.suppress(TypeError, ValueError):
+                self._lib_browser.set_hidden_columns([int(c) for c in saved_hidden])
         # After the hidden set: the widths were saved with it applied, and
         # showing a column later takes its room from Title a second time (#63).
         saved_widths = self._settings.get("library_col_widths")
@@ -742,6 +747,7 @@ class DeckSetupMixin(MainWindowHost):
         self._tourney_tree.playRequested.connect(
             lambda path, row: self._on_lib_play(path, row, self._tourney_tree))
         self._tourney_tree.loadRequested.connect(self._load_tournament_m3u)
+        self._tourney_tree.loadIntoRequested.connect(self._load_tournament_m3u_into)
         self._tourney_tree.playCountsResetWanted.connect(self._reset_play_counts)
         self._tourney_tree._table.seek_cb = self._prehear_seek   # Ctrl+←/→ seeks ∓30 s
         # A tournament list may point outside the library (an older copy of the

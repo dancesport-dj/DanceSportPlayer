@@ -92,6 +92,7 @@ from planner.generate.ai import (
     save_openrouter_config,
 )
 from planner.models import DANCE_NAMES, DEFAULT_DANCES
+from shared.plain_text import plain_label
 
 log = logging.getLogger("dancesport.gui")
 
@@ -140,7 +141,9 @@ class AiSuggestDialog(QDialog):
 
         # API key
         lyt.addWidget(QLabel("API key  (free OpenRouter key from openrouter.ai/keys):"))
-        self._key_edit = QLineEdit(cfg.get("api_key", ""))
+        # The key as it opened: it may come from the environment (9.A).
+        self._key_given = cfg.get("api_key", "")
+        self._key_edit = QLineEdit(self._key_given)
         self._key_edit.setEchoMode(QLineEdit.EchoMode.Password)
         self._key_edit.setPlaceholderText("sk-or-…")
         lyt.addWidget(self._key_edit)
@@ -233,7 +236,9 @@ class AiSuggestDialog(QDialog):
             QMessageBox.warning(self, "API key needed",
                                 "Enter a free OpenRouter API key (openrouter.ai/keys).")
             return
-        save_openrouter_config(key, model, self._base_url())
+        # An untouched key stays where it came from, as in Settings (#38).
+        save_openrouter_config(key if key != self._key_given else None,
+                               model, self._base_url())
         ctx = self._ctx_edit.text().strip()
         system, user = build_track_prompt(
             dance=self._dance, seed_title=ctx or None,
@@ -302,7 +307,10 @@ class AiSuggestDialog(QDialog):
             self._table.setItem(r, 1, lib_it)
             self._table.setItem(r, 2, QTableWidgetItem(s.get("artist", "")[:30]))
             self._table.setItem(r, 3, QTableWidgetItem(s.get("title", "")[:50]))
+            # Whose song matched: the title alone can be another artist's.
             match_txt = entry.title[:40] if entry else ""
+            if entry and entry.tag_artist:
+                match_txt = f"{entry.tag_artist[:30]} – {match_txt}"
             mi = QTableWidgetItem(match_txt)
             mi.setForeground(C_SIM_FG if entry else C_DEFAULT)
             self._table.setItem(r, 4, mi)
@@ -1076,7 +1084,7 @@ class AiTranscriptDialog(QDialog):
         lyt.addWidget(self._bar)
 
         row = QHBoxLayout()
-        self._status = _lbl("Asking the model…")
+        self._status = plain_label("Asking the model…")
         row.addWidget(self._status, stretch=1)
         self._usage = _lbl("")
         self._usage.setStyleSheet("color:#6b727c; font-size:11px;")

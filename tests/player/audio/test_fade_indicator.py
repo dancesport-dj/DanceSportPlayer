@@ -32,6 +32,7 @@ from player.audio.between_dances import BetweenDances
 from player.audio.fade_now import FadeNow
 from player.audio.mix import OutputMix
 from player.audio.playback_state import PlaybackState
+from player.audio.resume_marks import ResumeMarks
 from player.widgets.player import BigPlayerWidget
 from player.window.main_player import PlayerControlMixin
 from tests.qt_test_support import reap_widget
@@ -198,6 +199,9 @@ class _MediaStub:
     def position(self):
         return 0
 
+    def playbackRate(self):
+        return 1.0
+
     def pause(self):
         self.paused += 1
 
@@ -242,6 +246,7 @@ class _Desk(PlayerControlMixin, QWidget):
         self._fade_now = FadeNow()
         self._fade_now.total = 2.0
         self._between = BetweenDances()
+        self._resume = ResumeMarks()   # ↩ the advance clears a title's marker
         self._between.pending = None
         self._pd_stop_at = None
         self._ended = []
@@ -398,6 +403,43 @@ class FadeIndicatorWiringTest(unittest.TestCase):
         self.desk._on_play_tick()
         self.assertEqual(self.desk._player.paused, 1)
         self.assertFalse(self.desk._big_player.fading)
+
+    def _held(self):
+        self.desk._fade_and_hold()
+        self.desk._fade_now.end = time.monotonic() - 0.1
+        self.desk._on_play_tick()
+        self.assertEqual(self.desk._player.paused, 1)
+
+    def test_play_after_the_panic_fade_fades_in_like_a_marker_start(self):
+        """'if i used the button fade the music out and STOP and then press
+        play again i want a fade in like when i start from time marker'."""
+        self.desk._settings = {"resume_fade_secs": 3.0}
+        self._held()
+        self.assertEqual(self.desk._mix.fade_in, 0.0)
+        self.assertEqual(self.desk._playback.fade_in_secs, 3.0)
+        self.assertEqual(self.desk._mix.fade, 1.0)   # the ramp down is spent
+        with mock.patch.object(type(self.desk), "_heard_secs", return_value=1.5):
+            self.desk._step_fade_in()
+        self.assertAlmostEqual(self.desk._mix.fade_in, 0.5)
+
+    def test_the_marker_fade_off_takes_the_title_fade_in(self):
+        self.desk._settings = {"resume_fade_secs": 0, "fade_in_secs": 2.0}
+        self._held()
+        self.assertEqual(self.desk._playback.fade_in_secs, 2.0)
+        self.assertEqual(self.desk._mix.fade_in, 0.0)
+
+    def test_both_off_play_comes_back_at_full_level(self):
+        self.desk._settings = {"resume_fade_secs": 0, "fade_in_secs": 0}
+        self._held()
+        self.assertIsNone(self.desk._playback.fade_in_from)
+        self.assertEqual(self.desk._mix.fade_in, 1.0)
+
+    def test_a_paso_doble_comes_back_on_the_beat(self):
+        """As at its time marker: the couples go on the music."""
+        self.desk._settings = {"resume_fade_secs": 3.0}
+        self.desk._playback.dance = "PD"
+        self._held()
+        self.assertEqual(self.desk._mix.fade_in, 1.0)
 
     def test_it_keeps_blinking_while_the_ramp_still_runs(self):
         self.desk._fade_out_now()

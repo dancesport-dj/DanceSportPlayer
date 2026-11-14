@@ -580,6 +580,13 @@ CATALOG = {
         "Добро пожаловать в DanceSport Planner & Player",
     "AI Song Suggestions (OpenRouter)": "ИИ-подсказки треков (OpenRouter)",
     "Previous session crashed": "Предыдущий сеанс завершился сбоем",
+    "Previous session logged an error": "Предыдущий сеанс записал ошибку",
+    "⚠  Last session hit an error it did not handle; the app may have kept running.\n"
+    "\n"
+    "The error is under 'Show Details…' (it is overwritten on every start).":
+        "⚠  В прошлом сеансе произошла необработанная ошибка; возможно, приложение продолжило работу.\n"
+        "\n"
+        "Ошибка — в разделе «Показать подробности…» (она перезаписывается при каждом запуске).",
     "Settings — app mode, library paths & analysis":
         "Настройки — режим, пути библиотеки и анализ",
     "Settings — library paths, global search & analysis":
@@ -806,8 +813,8 @@ CATALOG = {
         "🎶  Фон: пауза, пока играет трек",
     "The other way round from 🔈: a title starting on the main\nplayer pauses this pad, and it carries on from where it was\nwhen the music stops.\n(⚙ Settings → 🎛 Cartwall → 🎶 Background pads)":
         "Наоборот к 🔈: когда в основном плеере стартует трек,\nэтот пэд встаёт на паузу и продолжает с того же места,\nкогда музыка стихает.\n(⚙ Настройки → 🎛 Картволл → 🎶 Фоновые пэды)",
-    "🔈  While a 🔈 pad plays, the music ducks to:":
-        "🔈  Пока играет пэд 🔈, музыка приглушается до:",
+    "🔈  While a pad plays, the main music ducks to:":
+        "🔈  Пока играет пэд, основная музыка приглушается до:",
     "How loud the music stays while a 🎛 cartwall pad set to 🔈 pull\nthe music down plays, in percent of its volume like 🔉 Duck to.\n10 % is about −20 dB: a fanfare cuts through. 30 % (about −10 dB)\nonly sits the music back. 0 % is silence.":
         "Насколько громко звучит музыка, пока играет пэд 🎛 картволла с\n🔈 приглушением музыки, в процентах её громкости, как у 🔉 Приглушать до.\n10 % — это около −20 dB: фанфары пробиваются. 30 % (около −10 dB)\nлишь отодвигает музыку. 0 % — тишина.",
     "A duck, here or a pad's on the 🎛 Cartwall tab, is a percentage of the music's volume, not of its loudness: 50 % ≈ −6 dB, 30 % ≈ −10 dB (sounds about half as loud), 20 % ≈ −14 dB, 10 % ≈ −20 dB.":
@@ -1052,8 +1059,38 @@ CATALOG = {
     "🔇  Probe silences…": "🔇  Проверить тишину…",
     "🔇 No audio backend — the cartwall cannot play here.":
         "🔇 Нет аудиобэкенда — Cartwall не может здесь играть.",
-    "🔈  Pull the music down while this pad plays":
-        "🔈  Приглушать музыку, пока играет этот пэд",
+    "🔈  Pull the main music down while this pad plays":
+        "🔈  Приглушать основную музыку, пока играет этот пэд",
+    "🔈  While a pad pulling the other pads down plays, they duck to:":
+        "🔈  Пока играет пэд, приглушающий другие пэды, они приглушаются до:",
+    "How loud a title running on another pad stays while a pad set to\npull the other pads down plays, in percent of that pad's own\nvolume. It comes back to its volume when the pad is over.\nApart from the music duck above. 10 % is about −20 dB, 0 % is silence.":
+        "Насколько громко остаётся трек на другом пэде, пока играет пэд,\nприглушающий другие пэды, в процентах от собственной громкости трека.\nКогда пэд закончит, громкость возвращается.\nОтдельно от приглушения музыки выше. 10 % — около −20 дБ, 0 % — тишина.",
+    "🔈  Pull the other pads down while this pad plays":
+        "🔈  Приглушать другие пэды, пока играет этот пэд",
+    "A title running on another pad goes down while this pad plays\nand comes back to its own volume afterwards.\nIndependent of the box above: tick one, the other or both.":
+        "Трек на другом пэде становится тише, пока играет этот пэд,\nа потом возвращается к своей громкости.\nНе зависит от флажка выше: отметьте один, другой или оба.",
+    "🔁  At a pad's loop point:":
+        "🔁  В точке зацикливания пэда:",
+    "Crossover: the next round starts on a second voice shortly before the\nfile ends; the old round fades out while the new one fades in.\nFade out and restart: the pad fades itself out, then starts again\nfrom the top at full level.\nHard stop and restart: the pad jumps straight back to the start.\nHow long that takes is set below.":
+        "Кроссфейд: следующий круг стартует на втором голосе незадолго до конца\nфайла; старый круг затухает, а новый нарастает.\nЗатухание и перезапуск: пэд затухает и начинается снова\nс начала на полной громкости.\nРезкая остановка и перезапуск: пэд сразу прыгает в начало.\nДлительность задаётся ниже.",
+    "🔁  …blend or dip over:":
+        "🔁  …кроссфейд или спад за:",
+    "How long the crossover, or the dip before the restart, lasts,\ncounted back from the end of the file (never more than a third\nof it). 0 restarts at once. A pad can override this in its own\nsettings.":
+        "Сколько длится кроссфейд или спад перед перезапуском,\nотсчитывая от конца файла (не больше трети файла).\n0 — перезапуск сразу. Пэд может переопределить это в своих\nнастройках.",
+    "Own crossover":
+        "Свой кроссфейд",
+    "How long this pad takes to blend into its next round when it\nloops. Unticked it follows ⚙ Settings → 🎛 Cartwall.":
+        "Сколько этому пэду нужно, чтобы перейти в следующий круг,\nкогда он зациклен. Без галочки действует ⚙ Настройки → 🎛 Cartwall.",
+    "Crossover":
+        "Кроссфейд",
+    "Fade out and restart":
+        "Затухание и перезапуск",
+    "Hard stop and restart":
+        "Резкая остановка и перезапуск",
+    "🔇  Skip the silence at the start and end of the file":
+        "🔇  Пропускать тишину в начале и в конце файла",
+    "The pad starts where the music does and ends where it stops: a\njingle that opens with a moment of dead air sounds on the tap, not\na beat later, and the next pad in a queue follows without a gap.":
+        "Пэд начинается там, где начинается музыка, и заканчивается там, где она стихает:\nджингл, который открывается паузой, звучит сразу по нажатию, а не на долю\nпозже, а следующий пэд очереди идёт без паузы.",
     "S  Stop the other pads when this one starts":
         "S  Останавливать другие пэды при запуске этого",
     "Every other running pad fades out as this one starts —\n"
@@ -1668,6 +1705,10 @@ CATALOG = {
         "🔇  Освобождать звуковую карту между треками — убирает шипение, которое встроенный выход подаёт на звукоусиление, пока приложение держит его открытым",
     "🔕  Mute system sounds while the evening runs — no error ding or notification chime over the speakers":
         "🔕  Отключать системные звуки на время вечера — никаких сигналов ошибок и уведомлений в динамиках",
+    "⚠️ The settings could not be saved — is the settings folder writable and the disk not full?":
+        "⚠️ Не удалось сохранить настройки — доступна ли папка настроек для записи и не заполнен ли диск?",
+    "🔧 “%s” is damaged and plays from a repaired copy — replace the file at its source.":
+        "🔧 «%s» повреждён и играет из исправленной копии — замените файл в его источнике.",
     "🐞  Send error reports — when the app hits an error, send its technical details to the developer":
         "🐞  Отправлять отчёты об ошибках — когда в приложении возникает ошибка, её технические подробности уходят разработчику",
     "Goes to the developer's GlitchTip project (app.glitchtip.com),\n"
@@ -2955,6 +2996,14 @@ CATALOG = {
     "Pause between songs:": "Пауза между треками:",
     "🔈  Announce next dance": "🔈  Объявлять следующий танец",
     "…with heat": "…с заходом",
+    "Endless repeat":
+        "Бесконечный повтор",
+    "🔁 This title has a play length of %s, so it would fade out there and start again.\n\nRepeat it at its full length instead?":
+        "🔁 У этого трека длительность %s, поэтому он затухал бы там и начинался заново.\n\nПовторять его вместо этого целиком?",
+    "Full length":
+        "Полная длина",
+    "Play length %s":
+        "Длительность %s",
     "Endless repeat is on":
         "Бесконечный повтор включён",
     "🔁 This title starts again every time it ends, so the list\n"
@@ -3189,6 +3238,11 @@ CATALOG = {
     "Mixed voices": "Смешанные голоса",
     "with heat": "с заходом",
     "heat only": "только группа",
+    "Only the heat is announced": "Объявляется только группа",
+    "The announcement is set to say only the heat (“Heat 1”),\nnot the dance.\n\nWhat should it say?": "Объявление настроено только на группу («Группа 1»),\nбез танца.\n\nЧто объявлять?",
+    "Only the dance": "Только танец",
+    "Dance with heat": "Танец с группой",
+    "Only the heat": "Только группа",
     "🔢  Only the heat, not the dance (practice)": "🔢  Только группа, без танца (тренировка)",
     "On: every call says just “Heat 1”, without “Next dance” and\n"
     "without the dance, whatever the two boxes above say.\n"
@@ -3329,6 +3383,10 @@ CATALOG = {
         "⚠  %s (не подключено)",
     "The music plays on %s — click for the sound settings.":
         "Музыка идёт на %s — нажмите, чтобы открыть настройки звука.",
+    "⏹ Stop all music":
+        "⏹ Остановить всю музыку",
+    "Cuts the music, every pad and the pre-listen at once, without a fade.":
+        "Сразу обрывает музыку, все пэды и предпрослушивание, без затухания.",
     "🔈 %s is not connected — playing on the system default until it is back.":
         "🔈 %s не подключено — звук идёт на системное устройство, пока оно не вернётся.",
     # ⚙ Settings → 🔊 Sound & player: 🎧 pre-listen.
@@ -3678,8 +3736,8 @@ CATALOG = {
     "🧭  Fixed %d paths in %d files": "🧭  Исправлено путей: %d, в файлах: %d",
     "🧹  Removed %d track(s) already in a playlist":
         "🧹  Убрано треков, уже стоящих в плейлисте: %d",
-    "↺  No other %s near the end of the list":
-        "↺  Другого %s у конца списка нет",
+    "↺  This is the last %s in the list, nothing to swap with":
+        "↺  Это последний %s в списке, меняться не с чем",
     "🔍  No title matching “%s”": "🔍  Нет трека, подходящего к «%s»",
     "🔁  Marked %d track for replace": "🔁  Отмечено для замены: %d",
     "🔁  Marked %d tracks for replace": "🔁  Отмечено для замены: %d",
@@ -4120,6 +4178,10 @@ CATALOG = {
     "“%s” already exists in the target folder and holds more than a USB export, "
     "so it cannot be replaced.\nKeep both?":
         "«%s» уже есть в целевой папке и содержит не только USB-экспорт, "
+        "поэтому её нельзя заменить.\nОставить оба?",
+    "“%s” already exists in the target folder, and this export reads tracks "
+    "from it, so it cannot be replaced.\nKeep both?":
+        "«%s» уже есть в целевой папке, и этот экспорт берёт из неё треки, "
         "поэтому её нельзя заменить.\nОставить оба?",
     "Could not remove “%s”:\n%s\n\nIt may be partly deleted; nothing was exported.":
         "Не удалось удалить «%s»:\n%s\n\n"
@@ -4562,6 +4624,9 @@ CATALOG = {
         "Файла плейлиста больше нет:\n"
         "\n"
         "%s",
+    "Folder name": "Имя папки",
+    "There is already a folder “%s” on this level.":
+        "На этом уровне уже есть папка «%s».",
     "No .m3u playlists found under “%s”.":
         "В «%s» не найдено плейлистов .m3u.",
     "Remove “%s” from the tree?\n"
@@ -4714,6 +4779,10 @@ CATALOG = {
     "⚠️ Sample not found: %s": "⚠️ Сэмпл не найден: %s",
     "\n▶ Queue: place %d — Ctrl+click takes it out":
         "\n▶ Очередь: место %d — Ctrl+клик убирает его",
+    "\n🔇 Cartwall is muted: this pad is not heard":
+        "\n🔇 Картвол отключён: этот пэд не слышен",
+    "\n↓ Muted, so it does not duck the music":
+        "\n↓ Звук отключён, поэтому он не приглушает музыку",
     "\nCtrl+click: into the ▶ queue":
         "\nCtrl+клик: в очередь ▶",
     "⚠️ Sample not found, skipped: %s":
@@ -4780,6 +4849,14 @@ CATALOG = {
         "как затухание списка",
     "How long 🔉↓ Fade out now, 🛑 Fade out and hold, a ⏹ stop at a time\nand the fade before quitting take. The fade at the end of the play\nlength keeps the playlist's own fade-out time.\n0 = the playlist's fade-out time for these as well.":
         "Сколько длятся 🔉↓ Затухание сейчас, 🛑 Затухание и стоп, остановка\n⏹ по времени и затухание перед выходом. Затухание в конце длины\nвоспроизведения сохраняет время затухания плейлиста.\n0 = и для них время затухания плейлиста.",
+    "✂️  Fade a title that ends abruptly over:":
+        "✂️  Затухание резко обрывающегося трека за:",
+    "A title whose file stops in full sound (cut off, no decay) is\ntaken down over this long, ending just before its last moment,\nso the hall hears a fade instead of a cut. Titles that end on\ntheir own decay, like a gong, are left alone.\nOff = no fade: the title plays to the end of its file.":
+        "Трек, файл которого обрывается на полной громкости (без затухания),\nприглушается за это время и пропадает незадолго до своего последнего\nмомента, так что зал слышит затухание, а не обрыв. Треки с собственным\nзатуханием, например гонг, не трогаются.\nВыкл. = без затухания: трек играет до конца своего файла.",
+    "🔇  Fade the duck and mute buttons over:":
+        "🔇  Плавное включение кнопок приглушения и отключения звука за:",
+    "The 🔉 duck and 🔇 mute buttons on the player, and the cartwall's 🔊,\ntake this long to go down and to come back, so the hall hears a\nshort fade instead of a cut. 0 = switch at once.":
+        "Кнопки 🔉 приглушения и 🔇 отключения звука в плеере и 🔊 картволла\nуходят вниз и возвращаются за это время, так что зал слышит короткое\nзатухание, а не обрыв. 0 = переключать мгновенно.",
     "🔈  Duck under a voice or pad over:":
         "🔈  Приглушать под голос или пэд за:",
     "back up over:":
@@ -4941,6 +5018,12 @@ CATALOG = {
     "🐂  PD %s in": "🐂  PD %s через",
     "🐂  Paso Doble in %d s": "🐂  Paso Doble через %d с",
     "⚠ Could not play: %s": "⚠ Не удалось воспроизвести: %s",
+    "the audio engine cannot read the file":
+        "аудиодвижок не может прочитать файл",
+    "\nTry ⚙ Settings ▸ Sound ▸ 🔊 Audio backend ▸ Windows.":
+        "\nПопробуйте ⚙ Настройки ▸ Звук ▸ 🔊 Аудиобэкенд ▸ Windows.",
+    "⚠ “%s” could not be played — the audio engine cannot read the file.":
+        "⚠ «%s» не удалось воспроизвести — аудиодвижок не может прочитать файл.",
     "⚠ Playback failed: %s": "⚠ Ошибка воспроизведения: %s",
     "unknown error": "неизвестная ошибка",
     "did not start": "не запустился",
@@ -5450,6 +5533,8 @@ CATALOG = {
         '🔉↓  Затухание сейчас',
     '🛑  Fade out and hold':
         '🛑  Затухание и стоп',
+    '🛋  Relaxed on / off':
+        '🛋  Gemütlich вкл / выкл',
     '🔉  Duck the music on / off':
         '🔉  Приглушить музыку вкл / выкл',
     '🔈  Announce the next dance on / off':
@@ -5458,6 +5543,8 @@ CATALOG = {
         '🔊  Громкость музыки (фейдер или регулятор)',
     '⏹  Stop all pads':
         '⏹  Остановить все пэды',
+    '⏹  Stop all music at once, without a fade':
+        '⏹  Сразу остановить всю музыку, без затухания',
     'Play, skip, fade, set the volume and fire cartwall pads from a USB MIDI or HID controller — a profile for the Korg nanoKONTROL2 is built in, any other is learned by pressing its buttons.':
         'Воспроизведение, пропуск, затухание, громкость и пэды cartwall с USB-MIDI- или HID-контроллера — профиль для Korg nanoKONTROL2 встроен, любой другой обучается нажатием его кнопок.',
     '🎛  Set up…':
@@ -5958,6 +6045,14 @@ CATALOG = {
         "Выкл.: отвечает claude CLI, эта модель подключается при сбое.\nВкл.: отвечает эта модель, CLI подключается при сбое.",
     "Could not fetch the model list: %s":
         "Не удалось получить список моделей: %s",
+    "AI settings":
+        "Настройки ИИ",
+    "The AI settings could not be saved completely: the file could not be written, or the old API key is still in the credential store. Check the session log.":
+        "Настройки ИИ сохранены не полностью: файл не удалось записать или прежний API-ключ всё ещё лежит в хранилище учётных данных. Смотрите журнал сеанса.",
+    "Session not saved":
+        "Сеанс не сохранён",
+    "The session could not be saved: the autosave file could not be written. Quit anyway and lose the latest changes?":
+        "Не удалось сохранить сеанс: файл автосохранения не удалось записать. Всё равно выйти и потерять последние изменения?",
     "Asks %s on %s first, the claude CLI after that. ⚙ Settings → 🤖 AI changes it.":
         "Сначала спрашивает %s на %s, затем claude CLI. Меняется в ⚙ Настройки → 🤖 ИИ.",
     "🎉  Party list":
@@ -6194,4 +6289,94 @@ CATALOG = {
         "DanceSport Planner & Player уже запущен.\nПереключитесь на его окно: вторая копия перезапишет его плейлист.",
     "Check failed — %s":
         "Проверка не удалась — %s",
+    "Relaxed (toggle):\nwhile on, a title recorded faster than the top tempo set for its\ndance (⚙ Settings → 🎛 Playsets) is slowed down to it — a Jive at\nT43 plays at T41. Slower titles are left alone.":
+        "Спокойно (переключатель):\nпока включено, трек, записанный быстрее предельного темпа его танца\n(⚙ Настройки → 🎛 Игровые сеты), замедляется до него — Джайв на T43\nиграет на T41. Более медленные треки не трогаются.",
+    "🛋  Relaxed: hold each dance to its top tempo":
+        "🛋  Спокойно: держать каждый танец в пределах его предельного темпа",
+    "Takes the TSO button's place on the party list: a title\nrecorded faster than the top tempo set below for its\ndance is slowed down to it. Slower titles are left alone.":
+        "Занимает место кнопки TSO в списке вечеринки: трек, записанный быстрее\nзаданного ниже предельного темпа его танца, замедляется до него.\nБолее медленные треки не трогаются.",
+    "<b>🛋 Relaxed top tempo</b> — what the 🛋 button holds a dance to at a party: a title recorded faster is slowed down to it (Jive T41 instead of T43), a slower one is left alone. <i>No limit</i> leaves the dance as it was recorded.":
+        "<b>🛋 Предельный темп «Спокойно»</b> — до какого темпа кнопка 🛋 ограничивает танец на вечеринке: трек, записанный быстрее, замедляется до него (Джайв T41 вместо T43), более медленный не трогается. <i>Без ограничения</i> оставляет танец как записан.",
+    "No limit":
+        "Без ограничения",
+    "🛋 Relaxed: %s T%s → T%s":
+        "🛋 Спокойно: %s T%s → T%s",
+    "⚠ %s measured at T%s, far over the T%s limit: probably a wrong measure, not slowed":
+        "⚠ %s измерен как T%s, намного выше предела T%s: вероятно, измерено неверно, не замедляется",
+    "⚠ %s measured at T%s, outside the TSO band T%s–T%s: probably a wrong measure, not pitched":
+        "⚠ %s измерен как T%s, вне диапазона TSO T%s–T%s: вероятно, измерено неверно, темп не меняется",
+    "🔄  Refresh from disk":
+        "🔄  Перечитать с диска",
+    "What should this pack replace on this PC?":
+        "Что этот пакет должен заменить на этом ПК?",
+    "⚙ Settings":
+        "⚙ Настройки",
+    "🎼 Decks and playlists":
+        "🎼 Деки и плейлисты",
+    "🎛 Cartwall — pads and keys":
+        "🎛 Cartwall — пэды и клавиши",
+    "Zip archive (*.zip)":
+        "Архив Zip (*.zip)",
+    "All lists":
+        "Все списки",
+    "Show only the titles of one list. Save as CSV then writes just those.":
+        "Показывает только треки одного списка. «Сохранить как CSV» запишет тогда только их.",
+    "Party list / wishlist: send the selected titles to the end":
+        "Разминочный список / список пожеланий: отправить выбранные треки в конец",
+    "Comparing recordings":
+        "Сравнение записей",
+    "🔭  Find this title…":
+        "🔭  Найти этот трек…",
+    "🔭  No other file with this title found":
+        "🔭  Другого файла с таким названием не найдено",
+    "🔭  Replaced by “%s”":
+        "🔭  Заменено на «%s»",
+    "Find this title":
+        "Найти этот трек",
+    "These files hold the same title. Take which one?":
+        "В этих файлах тот же трек. Какой взять?",
+    "“%s” is already planned in another open playlist.\n\nTake it anyway?":
+        "«%s» уже запланирован в другом открытом плейлисте.\n\nВзять всё равно?",
+    "“%s” has a time marker at %s.\nStart it from where?":
+        "У «%s» есть метка времени на %s.\nС какого места начать?",
+    "↺  Swap with a %s from the end of the list":
+        "↺  Поменять на %s из конца списка",
+    "🎧  Profile:":
+        "🎧  Профиль:",
+    "A profile is a saved set of the outputs below. Main is the hall\n(music on the PA); Rehearsal is everything on the headphones and\nthe hall hears nothing of it. Both always exist; you can add more\nof your own. Switch here, or from the status bar at the bottom\nwhile the app runs.":
+        "Профиль — это сохранённый набор выходов ниже. Main — зал\n(музыка на PA); Rehearsal — всё на наушниках, зал его не слышит.\nОба есть всегда, можно добавить свои. Переключайте здесь или\nв строке состояния внизу, пока приложение работает.",
+    "💾 Save as…":
+        "💾 Сохранить как…",
+    "🗑 Delete":
+        "🗑 Удалить",
+    "Main and Rehearsal cannot be deleted.":
+        "Main и Rehearsal удалить нельзя.",
+    "🎧 Save audio profile":
+        "🎧 Сохранить аудиопрофиль",
+    "Profile name:":
+        "Имя профиля:",
+    "🎧 Delete audio profile":
+        "🎧 Удалить аудиопрофиль",
+    "A profile called %s exists. Replace it?":
+        "Профиль с именем %s уже есть. Заменить?",
+    "Delete the profile %s? Main takes over.":
+        "Удалить профиль %s? Его заменит Main.",
+    "🎧 (no profile)":
+        "🎧 (без профиля)",
+    "No audio profile is active — click to choose one.":
+        "Ни один аудиопрофиль не активен — нажмите, чтобы выбрать.",
+    "🎧 Audio profile: %s":
+        "🎧 Аудиопрофиль: %s",
+    "Rehearsal profile %s — the hall hears nothing. Click to switch or to stop all music.":
+        "Репетиционный профиль %s — зал ничего не слышит. Нажмите, чтобы переключить или остановить всю музыку.",
+    "Audio profile %s — click to switch or to stop all music.":
+        "Аудиопрофиль %s — нажмите, чтобы переключить или остановить всю музыку.",
+    "🔇 Rehearsal profile %s is on — the hall hears nothing.":
+        "🔇 Репетиционный профиль %s включён — зал ничего не слышит.",
+    "Collapse every folder — click again to open them all\n(a whole season of weekends is a long tree)":
+        "Свернуть все папки — повторный щелчок раскроет их все\n(целый сезон выходных — это длинное дерево)",
+    "📥  Load into…":
+        "📥  Загрузить в…",
+    "🔎  Checking %s tracks for duplicates…":
+        "🔎  Поиск дубликатов среди %s треков…",
 }

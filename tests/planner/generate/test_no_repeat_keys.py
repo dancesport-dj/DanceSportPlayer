@@ -75,5 +75,26 @@ class TitleFirstNamesTest(unittest.TestCase):
                 self.assertEqual(extra, song_extra_keys(name))
 
 
+class TitleKeysWorkedOutOnceTest(unittest.TestCase):
+    """Full review 2026-11-11 (perf): a generation asks `is_used` for every
+    candidate of every round, and each ask parsed the file name again."""
+
+    def test_a_name_is_parsed_once_however_often_it_is_asked(self):
+        from unittest import mock
+
+        import planner.generate.suggester as sg
+        clear = getattr(sg, "_title_marks", None)
+        if clear is not None:
+            clear.cache_clear()
+        entry = _entry("Michael Buble - Sway.mp3")
+        used = {"title:nothing"}
+        with mock.patch.object(sg, "song_use_keys", wraps=song_use_keys) as spy:
+            for _ in range(50):
+                self.assertFalse(is_used(entry, used))
+            mark_used(used, entry)
+            self.assertTrue(is_used(_entry("Sway (RB 30).mp3"), used))
+        self.assertEqual(spy.call_count, 2)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

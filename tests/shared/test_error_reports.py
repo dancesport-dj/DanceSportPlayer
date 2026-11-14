@@ -171,6 +171,65 @@ class ScrubTest(unittest.TestCase):
         self.assertEqual(error_reports.scrub(dict(event)), event)
 
 
+class ScrubPrivateFoldersTest(unittest.TestCase):
+    """Review #28: the music folders and a client's public address are cut
+    too, not only the home folder."""
+
+    def setUp(self):
+        home = mock.patch.object(Path, "home",
+                                 return_value=Path(r"C:\Users\Someone"))
+        home.start()
+        self.addCleanup(home.stop)
+        self.addCleanup(error_reports.apply_settings, {})
+
+    def test_the_configured_music_folders_leave_no_trace(self):
+        error_reports.apply_settings({
+            "library_dir": r"D:\Hochzeit Familie Beispiel",
+            "global_dir": r"E:\Kunden",
+            "remap_paths": [r"G:\Backup Familie Meier"]})
+        event = {"exception": {"values": [{"value":
+            r"FileNotFoundError: 'D:\Hochzeit Familie Beispiel\Walzer.mp3'"}]},
+            "breadcrumbs": {"values": [
+                {"message": "e:/kunden/Schmidt/LW.mp3"},
+                {"message": r"G:\\Backup Familie Meier\\SA.mp3"}]}}
+        out = error_reports.scrub(event)
+        text = repr(out)
+        for private in ("Hochzeit", "Kunden", "kunden", "Meier"):
+            self.assertNotIn(private, text)
+        self.assertEqual(out["exception"]["values"][0]["value"],
+                         r"FileNotFoundError: '<music>\Walzer.mp3'")
+
+    def test_a_drive_root_as_a_folder_cuts_nothing(self):
+        error_reports.apply_settings({"library_dir": "F:\\"})
+        event = {"message": r"F:\my music\SA 50.mp3"}
+        self.assertEqual(error_reports.scrub(dict(event)), event)
+
+    def test_a_folder_right_under_the_root_is_cut_where_a_path_starts(self):
+        # Review F5: /Hochzeit on macOS is one part, and was left in the report.
+        error_reports.apply_settings({"library_dir": "/Hochzeit/"})
+        event = {"message": "open '/Hochzeit/LW.mp3' failed, see /Users/x/Hochzeit "
+                            "and /Hochzeitsfeier"}
+        self.assertEqual(error_reports.scrub(event)["message"],
+                         "open '<music>/LW.mp3' failed, see /Users/x/Hochzeit "
+                         "and /Hochzeitsfeier")
+
+    def test_a_public_client_address_is_masked(self):
+        event = {"breadcrumbs": {"values": [
+            {"message": "wrong PIN 5 times\nfrom: 93.184.216.34\nlocked for: 60s"},
+            {"message": "from: 2a00:1450:4001:82b::200e"},
+            {"message": "reset by 93.184.216.34:443"}]}}
+        text = repr(error_reports.scrub(event))
+        self.assertNotIn("93.184.216.34", text)
+        self.assertNotIn("2a00:1450", text)
+        self.assertEqual(text.count("from: <ip>"), 2)
+        self.assertIn("by <ip>:443", text)
+
+    def test_a_local_address_and_a_version_stay(self):
+        event = {"message": "refused 127.0.0.1:8765 by 192.168.1.20, "
+                            "Windows 10.0.26300, at 12:30:45"}
+        self.assertEqual(error_reports.scrub(dict(event)), event)
+
+
 class RealClientTest(unittest.TestCase):
     """The real sentry_sdk, with a transport that keeps what would be sent."""
 

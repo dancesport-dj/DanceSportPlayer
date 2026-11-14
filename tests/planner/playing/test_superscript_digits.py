@@ -24,12 +24,13 @@ class SuperscriptDigitTests(unittest.TestCase):
         self.assertEqual(Entry(until="20 min").length(), 20)
 
     def test_competition_round_numbers_skip_the_line(self):
-        parse_competition_schedule("Hobby Latein (CC; RB) 5-3-²")
+        self.assertEqual(parse_competition_schedule("Hobby Latein (CC; RB) 5-3-²"), [])
 
     def test_a_garbled_settings_version_does_not_raise(self):
         for value in ("x", "²", [1]):
             with self.subTest(value=value):
-                migrate_play_sets({"play_sets_version": value})
+                self.assertEqual(migrate_play_sets({"play_sets_version": value}),
+                                 migrate_play_sets({}))
 
 
 if __name__ == "__main__":

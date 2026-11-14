@@ -264,7 +264,8 @@ class CartMuteMixTest(unittest.TestCase):
 
     def test_the_window_applies_it(self):
         applied = []
-        win = SimpleNamespace(_mix=OutputMix(), _apply_volume=lambda: applied.append(1))
+        win = SimpleNamespace(_mix=OutputMix(), _apply_volume=lambda: applied.append(1),
+                              _start_mix_ramp=lambda: None)
         AudioLevelMixin._set_cart_muted(win, True)
         self.assertTrue(win._mix.cart_muted)
         self.assertEqual(applied, [1])

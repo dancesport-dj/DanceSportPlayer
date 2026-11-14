@@ -104,6 +104,22 @@ class RescanTagsTest(unittest.TestCase):
         self.lib.rescan_tags(external, self.cache)
         self.assertEqual((external.dance, self.entry.dance), ("RB", "RB"))
 
+    def test_a_new_dance_moves_the_title_to_its_dance(self):
+        """Full review 2026-11-11 #7: the by-dance memo is keyed on the
+        library's version and size, which a re-read changed neither of, so
+        the suggester kept offering the Rumba as a Slowfox until a rescan."""
+        self.assertEqual(self.lib.by_dance("SF"), [self.entry])   # memo built
+        self.lib.rescan_tags(self.entry, self.cache)
+        self.assertEqual(self.lib.by_dance("SF"), [])
+        self.assertEqual(self.lib.by_dance("RB"), [self.entry])
+
+    def test_a_re_read_that_regroups_nothing_keeps_the_memos(self):
+        self.lib.rescan_tags(self.entry, self.cache)
+        self._scan()
+        version = self.lib._entries_version
+        self.lib.rescan_tags(self.entry, self.cache)
+        self.assertEqual(self.lib._entries_version, version)
+
     def test_the_re_read_is_persisted(self):
         self.lib.rescan_tags(self.entry, self.cache)
         self.assertEqual(self.scan.get(_PATH)["dance"], "RB")

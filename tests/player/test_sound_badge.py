@@ -42,9 +42,13 @@ class SoundBadgeTest(unittest.TestCase):
     def test_a_plugged_in_card_shows_its_badge(self):
         badge = self._show(_MAYA)
         self.assertFalse(badge.isHidden())
-        self.assertIn("🔊", badge.text())
-        self.assertIn("MAYA44USB", badge.text())
+        self.assertTrue(badge.text().startswith("MAYA44USB"))
         self.assertTrue(self.win.statusBar().isAncestorOf(badge))
+
+    def test_it_shows_the_name_without_a_speaker_icon(self):
+        """Marcel: the profile badge next to it carries the 🔊 / 🎧 now, so the
+        card's name is enough on its own."""
+        self.assertNotIn("🔊", self._show(_MAYA).text())
 
     def test_it_is_a_small_indicator_not_a_green_pill(self):
         """Marcel: "for the soundcard maybe no green badge but a grey or no

@@ -25,6 +25,7 @@ from PySide6.QtWidgets import QApplication
 from player.audio.audio_device import SYSTEM_DEFAULT, AudioDevice
 from player.audio.mix import OutputMix
 from player.audio.system_sounds import SystemSoundGuard
+from shared.audio import profiles
 
 log = logging.getLogger("dancesport.gui.audio")
 
@@ -402,6 +403,41 @@ class ReadinessLookTest(_Test):
         desk.choose("cue", USB34)
         self.assertFalse(desk.device.cue_shares_music())
         self.assertEqual(desk.warnings, [])
+
+    def _profile(self, desk, name):
+        """Name the outputs chosen so far as profile `name` and make it active."""
+        profiles.save_profile(desk.settings, name, dict(desk.settings["audio_outputs"]))
+
+    def _rehearsal(self, desk):
+        self._profile(desk, "Rehearsal")
+
+    def test_a_rehearsal_profile_may_share_the_music_output(self):
+        """Marcel: on Rehearsal everything is on the headphones, so pre-listen
+        and music on one output is fine — on Main it is still warned about."""
+        desk = _Desk()
+        desk.choose("music", USB12)
+        desk.choose("cue", USB12)
+        self.assertTrue(desk.device.cue_on_music())
+        self._rehearsal(desk)
+        self.assertFalse(desk.device.cue_on_music())
+
+    def test_a_rehearsal_profile_may_leave_pre_listen_on_the_music(self):
+        desk = _Desk()
+        self.assertTrue(desk.device.cue_shares_music())
+        self._rehearsal(desk)
+        self.assertFalse(desk.device.cue_shares_music())
+
+    def test_main_still_warns_about_a_shared_output(self):
+        desk = _Desk()
+        self._profile(desk, "Main")
+        self.assertTrue(desk.device.cue_shares_music())
+
+    def test_main_still_warns_about_pre_listen_on_the_music_card(self):
+        desk = _Desk()
+        desk.choose("music", USB12)
+        desk.choose("cue", USB12)
+        self._profile(desk, "Main")
+        self.assertTrue(desk.device.cue_on_music())
 
     def test_with_one_output_sharing_it_is_no_warning(self):
         desk = _Desk()

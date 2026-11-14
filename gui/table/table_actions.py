@@ -450,11 +450,25 @@ class TableActionsMixin(TableMenuMixin):
         show_toast(self, "🔁  Cleared all replacement marks")
         self._notify_changed()
 
+    def _play_selected_by_key(self, row: int, path) -> None:
+        """Space / Enter on the selected title: start it, after the time-marker
+        question when it has one."""
+        if self._start_refused(row, path):
+            return
+        # A double tap is one press: the second would stop the title
+        # the first just started (still loading, so it looked idle).
+        now = time.monotonic()
+        if now - self._space_at >= QApplication.doubleClickInterval() / 1000:
+            self._space_at = now
+            if self._confirm_marked_start(row, path):
+                self._on_play_click(row, path)
+
     def keyPressEvent(self, event):
         """Space / Enter: play/stop the selected song.  Ctrl+←/→: seek ∓30 s.
         Ctrl+F: find a title in this list.
         Ctrl+R / Ctrl+N: re-roll (regenerate) the selected song.
         Alt+S: swap the two selected titles (Eintanzen list).
+        Alt+End: send the selected titles to the end of the list.
         Ctrl+M / Ctrl+1: mark/unmark for potential replace (dynamic + free order).
         Ctrl+Del: remove the whole heat (dynamic decks)."""
         key = event.key()
@@ -469,6 +483,7 @@ class TableActionsMixin(TableMenuMixin):
                 key in (Qt.Key.Key_Left, Qt.Key.Key_Right)
                 and (mods & Qt.KeyboardModifier.ControlModifier)):
             super().keyPressEvent(event)
+            self._scroll_to_cursor_after(key)
             return
         if (key == Qt.Key.Key_Escape and self._find_bar is not None
                 and self._find_bar.isVisible()):
@@ -490,16 +505,8 @@ class TableActionsMixin(TableMenuMixin):
                     and mods in (Qt.KeyboardModifier.NoModifier,
                                  Qt.KeyboardModifier.KeypadModifier))):
             row, path = self._selected_song_row()
-            if row >= 0 and self._start_refused(row, path):
-                event.accept()
-                return
             if row >= 0:
-                # A double tap is one press: the second would stop the title
-                # the first just started (still loading, so it looked idle).
-                now = time.monotonic()
-                if now - self._space_at >= QApplication.doubleClickInterval() / 1000:
-                    self._space_at = now
-                    self._on_play_click(row, path)
+                self._play_selected_by_key(row, path)
                 event.accept()
                 return
         elif (key in (Qt.Key.Key_R, Qt.Key.Key_N)
@@ -561,6 +568,22 @@ class TableActionsMixin(TableMenuMixin):
                     event.accept()
                     return
         super().keyPressEvent(event)
+        self._scroll_to_cursor_after(key)
+
+    _CURSOR_KEYS = (Qt.Key.Key_Up, Qt.Key.Key_Down, Qt.Key.Key_PageUp,
+                    Qt.Key.Key_PageDown, Qt.Key.Key_Home, Qt.Key.Key_End)
+
+    def _scroll_to_cursor_after(self, key) -> None:
+        """Bring the cursor row into view after a navigation key. Qt's own
+        follow-the-cursor scroll hangs on `autoScroll`, which is off here (our
+        drag auto-scroll is the only one), so without this the selection walks
+        out of the visible part of the list on Up/Down/PageUp/PageDown/Home/End.
+        Only these keys: a selection set from code must not move the view."""
+        if key not in self._CURSOR_KEYS:
+            return
+        item = self.currentItem()
+        if item is not None:
+            self.scrollToItem(item, QAbstractItemView.ScrollHint.EnsureVisible)
 
     def _remove_heat_under_cursor(self) -> bool:
         """True when Ctrl+Del took something away."""
@@ -678,6 +701,13 @@ class TableActionsMixin(TableMenuMixin):
         if final_entries == cur:
             return False   # dropped back where it already was → no-op
         sel_paths = {str(e.path) for e in select if e is not None} if select else set()
+        if self._warmup and self._strip_shape(final_entries) != self._strip_shape(cur):
+            # The ─── strips are cut from the order (see _warmup_sections), and
+            # this order cuts them elsewhere: only a redraw puts them there.
+            self._reload_warmup(final_entries)
+            self._focus_rows([r for r, m in self._row_meta.numbered()
+                              if str(m.entry.path) in sel_paths])
+            return True
         select_rows = []
         # The grey of an already-played row is remembered by (row, column), and
         # the tracks are about to change rows: give every row its own colour
@@ -705,9 +735,26 @@ class TableActionsMixin(TableMenuMixin):
         # …and grey the played ones again, on the rows they now sit on — the
         # running one, which keeps its own colours, has just been found.
         self._grey_played_rows()
+        if self._warmup:
+            self._retitle_strips(final_entries)
         self._focus_rows(select_rows)
         self._notify_changed()
         return True
+
+    def _strip_shape(self, entries) -> list:
+        """Where the ─── strips of a warm-up list fall for `entries`, and what
+        they are named: the song rows only as places, not as titles."""
+        return [v if kind == "H" else "S" for kind, v in self._warmup_plan(entries)]
+
+    def _retitle_strips(self, entries) -> None:
+        """The strips stayed on their rows, but a title moved across them
+        changes what each one counts up to."""
+        named = [(s, songs) for s, songs in self._warmup_sections(entries)
+                 if s and not self._nogroup]
+        for row, (section, songs) in zip(sorted(self._round_hdr_rows), named,
+                                         strict=False):
+            self._hdr_base_text[row] = self._section_title(section, songs)
+            self._set_header_text(row)
 
     def _focus_rows(self, rows) -> None:
         """Select the given rows and scroll the first into view (without jumping the
@@ -762,7 +809,8 @@ class TableActionsMixin(TableMenuMixin):
         """Warm-up ("Eintanzen") helper: move the dragged song rows to the insert
         gap `drop_index` (table-row index, as returned by `_drop_index`), keeping
         the ═══ header pinned at the top and every row's warm-up tag intact. The
-        list is rebuilt via `load_warmup` so ↺ re-roll keeps working afterwards.
+        rows are re-filled in place; only an order that cuts the ─── strips
+        elsewhere is drawn again (see `_apply_song_reorder`).
         Returns True if the order actually changed."""
         # Song rows = rows with a real entry (the ═══ header span carries None).
         song_rows = self._row_meta.song_rows()
@@ -812,7 +860,19 @@ class TableActionsMixin(TableMenuMixin):
         song_rows = self._row_meta.song_rows()
         moved = [self._row_meta[r].entry for r in song_rows if r in rows]
         keep = [self._row_meta[r].entry for r in song_rows if r not in rows]
-        return self._apply_song_reorder(keep + moved, select=moved)
+        # The focus stays where the work is: on the title that now holds the
+        # first moved row's place, so the next one can follow it to the end
+        # without the list scrolling down after it. (That place is never past
+        # `keep`: the moved titles would be at the end already.)
+        place = sum(1 for r in song_rows if r not in rows and r < min(rows))
+        return self._apply_song_reorder(keep + moved, select=[keep[place]])
+
+    def _move_selection_to_end(self) -> bool:
+        """Alt+End: the selected titles go last, like the context menu's entry."""
+        rows = set(self._selected_song_rows())
+        if not (self._flat_mode or self._warmup) or not rows or self._at_the_end(rows):
+            return False
+        return self._move_to_end(rows)
 
     def _m3u_track_paths(self, path: Path) -> list[Path]:
         """The track paths an .m3u/.m3u8 names, in file order. Reading the file is
@@ -932,6 +992,8 @@ class TableActionsMixin(TableMenuMixin):
         of a held title is refused as ever."""
         batch = self._not_yet_held([], new_entries)
         pairs = self._drop_dup_pairs(batch, cur)
+        if pairs is None:
+            return None
         if len(new_entries) == 1 and pairs and pairs[0][2]:
             return [], []
         answers = self._ask_drop_duplicates(pairs)
@@ -1368,6 +1430,22 @@ class TableActionsMixin(TableMenuMixin):
         if select_after and cleared and rows and self.rowCount():
             self._focus_rows([min(rows[0], self.rowCount() - 1)])
         return cleared
+
+    def _is_empty_party_slot(self, row: int) -> bool:
+        """Is this row what "Remove this title (keep slot)" leaves in a party list?"""
+        m = self._row_meta.at(row)
+        return bool(self._warmup and not self._player_list and not self._dynamic
+                    and m is not None and m.entry is None and not m.theme)
+
+    def _drop_empty_party_slot(self, row: int) -> None:
+        """A party list's slot is only its row: drop it, the titles stay. The list
+        is drawn from its titles, so any slot left empty goes with the redraw —
+        as it does with every other edit of the list."""
+        if not self._is_empty_party_slot(row):
+            return
+        self._reload_warmup(self._row_meta.entries())
+        if self.rowCount():
+            self._focus_rows([min(row, self.rowCount() - 1)])
 
     def _drop_running_order_rows(self, row_set, select_after: bool = False) -> bool:
         """Free order: take the given tracks OUT of the list instead of emptying

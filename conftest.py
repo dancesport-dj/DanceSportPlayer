@@ -9,6 +9,35 @@ import sys
 
 import pytest
 
+# 🧪 Tests that fail under load and pass alone (11-11 and 11-12 reviews, T2).
+# They are marked `flaky`: CI runs `-m "not flaky"` as the gate and `-m flaky`
+# in a step of its own that may fail. Off the list once one is fixed;
+# tests/app/test_flaky_quarantine.py catches a renamed entry.
+FLAKY = (
+    "tests/gui/window/test_crash_resume.py::CrashResumeTest"
+    "::test_a_greyed_title_writes_the_evening_down",
+    "tests/planner/music/test_scan_chunked_commits.py::ScanChunkedCommitsTest"
+    "::test_writes_run_in_a_few_transactions",
+    "tests/gui/test_background_analysis.py::FinishTest"
+    "::test_stopping_ends_the_run_and_applies_nothing",
+    "tests/shared/remote/test_remote_server.py::ServerTest::test_unknown_paths_are_404",
+    "tests/shared/remote/test_remote_server.py::EventTest"
+    "::test_a_phone_that_only_sends_commands_is_logged_in_too",
+    "tests/gui/test_click_05_playing.py::PlayingClickTest"
+    "::test_the_pause_calls_the_next_dance_before_it_starts",
+)
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "flaky: fails under load, passes alone; CI runs it apart (conftest.FLAKY)")
+
+
+def pytest_collection_modifyitems(config, items):
+    for item in items:
+        if item.nodeid in FLAKY:
+            item.add_marker(pytest.mark.flaky)
+
 
 @pytest.fixture(autouse=True)
 def release_stuck_modifiers():

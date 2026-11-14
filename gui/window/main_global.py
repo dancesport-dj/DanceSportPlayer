@@ -721,6 +721,27 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         self._run_librosa_analysis(entries, label)
 
     # ── ⚙ Settings, the restart offer and the maintenance jobs ──────────────────
+    def _keep_audio_profiles(self, values: dict):
+        """💾 A profile edited, saved or deleted in ⚙ Settings counts now, not
+        on OK: a device defined for a profile must survive a Cancel, a crash
+        or a Settings left open. Only the outputs and the profiles come here;
+        every other setting still waits for OK."""
+        self._settings = {**self._settings, **values}
+        saved = save_settings(self._settings, report=False)   # its own box below
+        log.info("💾 Audio profiles kept without OK\n"
+                 "active: %s\n"
+                 "saved: %s", values.get("audio_profile"), saved)
+        if saved is False:
+            QMessageBox.warning(
+                getattr(self, "_settings_dlg", None) or self, i18n.t("⚙  Settings"),
+                i18n.t("The settings could not be saved.\n\n"
+                       "They apply until the app is closed. Is the settings "
+                       "folder writable and the disk not full?"))
+        self._audio_device.sync()          # 🔊 the new output, at once
+        self._guard_headset_volume()       # 🎧 …and if it is a headset, not too loud
+        self._audio_device.on_activity()   # 🔇🔕 as after a settings change
+        self._sync_sound_badge()
+
     def _open_settings(self, open_sound=False, open_cartwall=False):
         n_unanalyzed = (sum(1 for e in self._library.lib.entries if e.features is None)
                         if self._library.lib else 0)
@@ -765,6 +786,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
                              announce_test_cb=self._announce_test,
                              open_sound=open_sound,
                              open_cartwall=open_cartwall,
+                             profiles_cb=self._keep_audio_profiles,
                              reset_cb=self._reset_database)
         # 📊 Library gaps runs from inside this dialog and may want it out of the
         # way (see _show_library_gaps) — leave it a handle while it is open.
@@ -808,7 +830,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         old = self._settings
         self._settings = new
         set_own_shares(new)
-        if save_settings(new) is False:
+        if save_settings(new, report=False) is False:   # its own box below
             QMessageBox.warning(
                 self, i18n.t("⚙  Settings"),
                 i18n.t("The settings could not be saved.\n\n"
@@ -959,13 +981,14 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
                      "if the files ever come back). Compacting can take a few minutes."),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if ans != QMessageBox.StandardButton.Yes:
-            return
+            return False
         self._busy = BusyDialog(self, "Cleaning up database…")
         self._busy.show_after(200)
         self._maint_worker = DbMaintenanceWorker(self)
         self._maint_worker.done.connect(self._on_maintenance_done)
         self._maint_worker.error.connect(self._on_maintenance_error)
         self._maint_worker.start()
+        return True
 
     def _on_maintenance_done(self, res: dict):
         if self._busy:
@@ -996,13 +1019,14 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         them, then the app restarts - its in-memory caches still hold the rows."""
         dlg = ResetDatabaseDialog(self)
         if dlg.exec() != QDialog.DialogCode.Accepted or not dlg.chosen():
-            return
+            return False
         self._busy = BusyDialog(self, "Resetting database…")
         self._busy.show_after(200)
         self._maint_worker = DbResetWorker(dlg.chosen(), self)
         self._maint_worker.done.connect(self._on_reset_done)
         self._maint_worker.error.connect(self._on_reset_error)
         self._maint_worker.start()
+        return True
 
     def _on_reset_done(self, removed: dict):
         if self._busy:
@@ -1084,7 +1108,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
             return
         try:
             edits, marks, plays = planner.music.db_upkeep.restore_user_data(Path(chosen))
-        except ValueError as exc:
+        except (ValueError, sqlite3.Error) as exc:
             QMessageBox.warning(self, title, i18n.t("This is no user data backup:") + "\n\n" + str(exc))
             return
         log.info("♻ User data backup restored\n"

@@ -46,6 +46,16 @@ class GarbledViewSettingsTest(unittest.TestCase):
             with self.subTest(value=value):
                 self.assertEqual(self._win(wish_state=value)._wish_state, 1)
 
+    def test_a_non_number_library_column_list_is_ignored(self):
+        # At the current columns_version the migration does not look at these
+        # lists, so the window itself has to survive a garbled entry.
+        from gui.dialogs import COLUMNS_VERSION
+        for key in ("library_columns", "library_hidden_columns"):
+            for value in (["x"], [None], [[1]]):
+                with self.subTest(key=key, value=value):
+                    win = self._win(columns_version=COLUMNS_VERSION, **{key: value})
+                    self.assertIsNotNone(win._lib_browser)
+
 
 if __name__ == "__main__":
     unittest.main()

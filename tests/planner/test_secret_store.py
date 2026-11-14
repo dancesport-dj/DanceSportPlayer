@@ -110,6 +110,26 @@ class OpenRouterKeyTest(unittest.TestCase):
         self.assertNotIn(ai.KEY_NAME, self.store.items)
         self.assertEqual(ai.load_openrouter_config()["api_key"], "")
 
+    def test_a_save_says_whether_it_landed(self):
+        with mock.patch.object(ai.OPENROUTER, "write", return_value=True):
+            self.assertIs(ai.save_openrouter_config("sk-2", "m", ""), True)
+        with mock.patch.object(ai.OPENROUTER, "write", return_value=False):
+            self.assertIs(ai.save_openrouter_config("sk-3", "m", ""), False)
+
+    def test_a_key_that_could_not_be_deleted_is_reported(self):
+        """The cleared field says 'no key', but the store still hands the old
+        one back on the next load: the save must not claim it worked."""
+        ai.save_openrouter_config("sk-secret", "m", "")
+        self.store.delete = lambda name: False     # refused; the key stays
+        with mock.patch.object(ai.OPENROUTER, "write", return_value=True):
+            self.assertIs(ai.save_openrouter_config("", "m", ""), False)
+        self.assertEqual(ai.load_openrouter_config()["api_key"], "sk-secret")
+
+    def test_clearing_a_key_when_there_is_no_store_is_fine(self):
+        self.store.working = False
+        with mock.patch.object(ai.OPENROUTER, "write", return_value=True):
+            self.assertIs(ai.save_openrouter_config("", "m", ""), True)
+
     def test_the_environment_still_fills_in_a_missing_key(self):
         with mock.patch.dict(os.environ, {"OPENROUTER_API_KEY": "sk-env"}):
             self.assertEqual(ai.load_openrouter_config()["api_key"], "sk-env")

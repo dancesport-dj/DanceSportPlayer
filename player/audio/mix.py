@@ -77,6 +77,21 @@ def cart_duck_level(settings: dict) -> float:
     return cart_duck_pct(settings) / 100
 
 
+def cart_pad_duck_pct(settings: dict) -> int:
+    """🎛 How far a pad set to pull the OTHER PADS down pulls them, in percent
+    of their own volume. Its own setting, apart from `cart_duck_pct`."""
+    try:
+        pct = int(settings.get("cart_pad_duck_pct", CART_DUCK_PCT))
+    except (TypeError, ValueError):
+        return CART_DUCK_PCT
+    return max(0, min(_DESK_DUCK_MAX_PCT, pct))
+
+
+def cart_pad_duck_level(settings: dict) -> float:
+    """The same level as a volume factor."""
+    return cart_pad_duck_pct(settings) / 100
+
+
 def fade_in_secs(settings: dict) -> float:
     """🌅 How long the big player fades each title in from silence, set under
     ⚙ Settings ▸ Sound & player; 0 = off. A broken value counts as off."""
@@ -110,6 +125,40 @@ def hand_fade_secs(settings: dict, list_fade: float) -> float:
     return min(HAND_FADE_MAX_SECS, secs)
 
 
+HARD_END_FADE_DEFAULT_SECS = 2.0
+HARD_END_FADE_MIN_SECS = 0.5
+HARD_END_FADE_MAX_SECS = 5.0
+
+
+def hard_end_fade_secs(settings: dict) -> float:
+    """✂️ How long a title that stops in full sound is faded out before its
+    last note, set under ⚙ Settings ▸ Sound & player. A broken value is the
+    default; the range keeps it a fade, never a jump or a missing ending.
+    0 (or less) is off: 0.0, the title is left as its file ends."""
+    try:
+        secs = float(settings.get("hard_end_fade_secs", HARD_END_FADE_DEFAULT_SECS))
+    except (TypeError, ValueError):
+        return HARD_END_FADE_DEFAULT_SECS
+    if secs <= 0:
+        return 0.0
+    return max(HARD_END_FADE_MIN_SECS, min(HARD_END_FADE_MAX_SECS, secs))
+
+
+DESK_FADE_DEFAULT_MS = 300
+DESK_FADE_MAX_MS = 2000
+
+
+def desk_fade_ms(settings: dict) -> int:
+    """🔇 How long the desk duck, the desk mute and the cartwall's 🔊 take to
+    get there, set under ⚙ Settings ▸ Sound & player. 0 is the old instant cut;
+    a broken value is the default."""
+    try:
+        ms = int(settings.get("desk_fade_ms", DESK_FADE_DEFAULT_MS))
+    except (TypeError, ValueError):
+        return DESK_FADE_DEFAULT_MS
+    return max(0, min(DESK_FADE_MAX_MS, ms))
+
+
 def duck_ramp_ms(settings: dict) -> tuple[int, int]:
     """🔈 How long the music takes to get out of the way of a voice or a 🎛
     pad, and to come back, set under ⚙ Settings ▸ Sound & player. At least one
@@ -141,6 +190,12 @@ class OutputMix:
         self.duck = 1.0              # 🔈 pulled down while something speaks
         self.desk = 1.0              # 🔉 the desk's own duck button
         self.desk_muted = False      # 🔇 …pressed on to mute
+        # 🔇 The desk duck / mute and the wall's 🔊 are state (`desk`,
+        # `desk_muted`, `cart_muted`: what the buttons show, true at once) and
+        # a level that walks there over `desk_fade_ms`. 0 = no walk, the cut.
+        self.desk_fade_ms = 0
+        self.desk_now = 1.0
+        self.cart_gate = 1.0
         # 🔀 A crossfade: the incoming title's ramp up from silence, and the
         # gain × fade the outgoing one had when it moved to the tail player.
         self.fade_in = 1.0
@@ -159,13 +214,19 @@ class OutputMix:
         # Who is currently holding the music down — a set, not a counter, so an
         # unbalanced `off` cannot leave the music stuck (see duck_reason).
         self.duck_reasons: set[str] = set()
+        # A hand on a volume slider takes the pull off the music until it ends
+        # (see `lift_duck`).
+        self.duck_overridden = False
+        # Whether a pad has a hand in the pull that is walking: only that one
+        # moves the sliders (see `pad_pull`), not an announcement's.
+        self.pad_pulling = False
 
     # ── The outputs ──────────────────────────────────────────────────────────
 
     def deck(self) -> float:
         """The round's own music: every factor applies to it."""
         return _clamped(self.base * self.gain * self.fade * self.fade_in
-                        * self.duck * self.desk)
+                        * self.duck * self.desk_level())
 
     def heard_gain(self) -> float:
         """The loudness gain as far as it gets past the 1.0 clamp in `deck`:
@@ -182,13 +243,23 @@ class OutputMix:
         pull it down too. (`fade` is back at 1 from the handover on: the
         title's own fade went into `tail_gain`.)"""
         return _clamped(self.base * self.tail_gain * out * self.fade
-                        * self.duck * self.desk)
+                        * self.duck * self.desk_level())
 
     def mini(self) -> float:
         """The mini players (the library's pre-listen) follow the music fader
         and the desk duck: the main slider is the master for them. Not the
         deck track's fade or loudness gain, which belong to its title."""
-        return _clamped(self.base * self.desk)
+        return _clamped(self.base * self.desk_level())
+
+    @property
+    def pad_pull(self) -> float:
+        """🎛 The pull the volume sliders show: a pad's, from the tap until the
+        music is back at full. An announcement pulls the music at every title
+        start, and the sliders stand still for a pull it starts on its own.
+        A pad that ends while an announcement still holds the music hands the
+        sliders over to it: they show the announcement's depth until the music
+        comes back, rather than jump to full over music that is still down (F2)."""
+        return self.duck if self.pad_pulling else 1.0
 
     def cartwall(self) -> float:
         """🎛 The pads follow their own fader and the 🔉 desk duck only.
@@ -198,9 +269,18 @@ class OutputMix:
         or loudness gain — those belong to a title the pad is not part of — and
         not `duck`, which is the duck the pads themselves cause.
         """
-        if self.cart_muted:
-            return 0.0
-        return _clamped(self.cart * self.desk)
+        return _clamped(self.cart * self.cart_gate_level() * self.desk_level())
+
+    def desk_level(self) -> float:
+        """🔉 The desk duck / mute as heard: its target with no fade set, else
+        where the walk to it has got."""
+        return self.desk_now if self.desk_fade_ms > 0 else self.desk
+
+    def cart_gate_level(self) -> float:
+        """🔇 The cartwall's 🔊 as heard, the same way."""
+        if self.desk_fade_ms > 0:
+            return self.cart_gate
+        return 0.0 if self.cart_muted else 1.0
 
     # ── Moving them ──────────────────────────────────────────────────────────
 
@@ -211,8 +291,8 @@ class OutputMix:
         self.cart = _clamped(v)
 
     def set_desk_duck(self, on: bool, level: float = DESK_DUCK) -> float:
-        """🔉 Everything audible down to `level`, and back. Stepped, not
-        ramped: it is a deliberate operator action, and it must be immediate."""
+        """🔉 Everything audible down to `level`, and back, over
+        `desk_fade_ms` (the caller starts the ramp); 0 is immediate."""
         self.desk = level if on else 1.0
         self.desk_muted = False
         return self.desk
@@ -223,6 +303,13 @@ class OutputMix:
         silent and still has its mute step to come."""
         self.desk = 0.0 if on else 1.0
         self.desk_muted = on
+
+    def set_desk_fade(self, ms: int):
+        """🔇 The span from ⚙ Settings (see `desk_fade_ms`). The levels land
+        where they are headed: a change of setting is no fade."""
+        self.desk_fade_ms = max(0, int(ms))
+        self.desk_now = self.desk
+        self.cart_gate = 0.0 if self.cart_muted else 1.0
 
     def set_cart_duck(self, level: float):
         """🎛 The depth a pad pulls the music to. A pad ducking right now
@@ -246,14 +333,44 @@ class OutputMix:
         `off` (the announcer's 8 s give-up watchdog exists precisely because one
         can happen) cannot leave the music stuck down."""
         if on:
+            if reason not in self.duck_reasons:
+                self.duck_overridden = False   # a new pull is not the old hand's
             self.duck_reasons.add(reason)
+            if reason == "cartwall":
+                self.pad_pulling = True
         else:
             self.duck_reasons.discard(reason)
+            if not self.duck_reasons:
+                self.duck_overridden = False
+        self._retarget()
+
+    def lift_duck(self):
+        """🎛 A hand on a volume slider overrides a pad's or an announcement's
+        pull: the slider shows what is heard, so where it is put is what is
+        heard now, and the pull stays off until it ends or a new one starts.
+        At once, like the slider itself steps."""
+        if self.duck_reasons:
+            self.duck_overridden = True
+        self.duck = 1.0
+        self.pad_pulling = False
+        self._retarget()
+
+    def set_cart_muted(self, on: bool):
+        """🔇 The cartwall's 🔊. A muted wall is not heard, so a pad on it must
+        not hold the music down: its duck reason stays in the set but does not
+        count, and comes back with the sound. The caller starts the ramp."""
+        self.cart_muted = on
+        self._retarget()
+
+    def _retarget(self):
         # Each reason pulls to its own depth and the deepest wins: a pad has to
         # cut through running music, a voice only needs room next to it.
         self.duck_target = min(
             (self.cart_duck if r == "cartwall" else ANNOUNCE_DUCK
-             for r in self.duck_reasons), default=1.0)
+             for r in self.duck_reasons
+             if not (r == "cartwall" and self.cart_muted)), default=1.0)
+        if self.duck_overridden:
+            self.duck_target = 1.0
         # The step is sized by this duck's own depth, not the announcer's: the
         # pad's deeper one took longer than its span down, and longer up.
         self.duck_depth = 1.0 - min(self.duck, self.duck_target)
@@ -287,7 +404,20 @@ class OutputMix:
     @property
     def settled(self) -> bool:
         """Both ramps have arrived — nothing left for `step` to do."""
-        return self.duck == self.duck_target and self.gain == self.gain_target
+        return (self.duck == self.duck_target and self.gain == self.gain_target
+                and self._desk_arrived())
+
+    def _desk_arrived(self) -> bool:
+        if self.desk_fade_ms <= 0:
+            return True
+        return (self.desk_now == self.desk
+                and self.cart_gate == (0.0 if self.cart_muted else 1.0))
+
+    @staticmethod
+    def _walk(now: float, target: float, step: float) -> float:
+        if abs(target - now) <= step:
+            return target
+        return now + step if target > now else now - step
 
     def step(self) -> bool:
         """Advance both ramps by one tick.
@@ -302,8 +432,15 @@ class OutputMix:
             step = self.duck_depth * self.step_ms / span
             if abs(self.duck_target - self.duck) <= step:
                 self.duck = self.duck_target
+                if self.duck >= 1.0:
+                    self.pad_pulling = False
             else:
                 self.duck += step if self.duck_target > self.duck else -step
+        if self.desk_fade_ms > 0:
+            full = self.step_ms / self.desk_fade_ms   # 0 → 1 takes the span
+            self.desk_now = self._walk(self.desk_now, self.desk, full)
+            self.cart_gate = self._walk(
+                self.cart_gate, 0.0 if self.cart_muted else 1.0, full)
         landed = False
         if self.gain != self.gain_target:
             if self.gain_step <= 0 or abs(self.gain_target - self.gain) <= self.gain_step:

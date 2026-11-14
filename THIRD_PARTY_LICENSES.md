@@ -22,6 +22,9 @@ contains.
 | [urllib3](https://github.com/urllib3/urllib3) | as required by sentry-sdk | MIT |
 | [certifi](https://github.com/certifi/python-certifi) | as required by sentry-sdk | MPL-2.0 |
 | [segno](https://github.com/heuer/segno) | 1.6.6 | BSD-3-Clause (notice below) |
+| [loguru](https://github.com/Delgan/loguru) | 0.7.3 | MIT (notice below) |
+| [win32-setctime](https://github.com/Delgan/win32-setctime) | as required by loguru on Windows | MIT (notice below) |
+| [colorama](https://github.com/tartley/colorama) | as required by loguru on Windows | BSD-3-Clause (notice below) |
 | [hidapi](https://github.com/trezor/cython-hidapi) | 0.15.0 | Offered under GPL-3.0, a BSD-style license or the original cython-hidapi license; used here under the original one (notice below). It contains the [HIDAPI](https://github.com/libusb/hidapi) C library, offered on the same three terms and used under its original license |
 | [PyInstaller](https://pyinstaller.org/) bootloader | 6.22.0 | GPL-2.0-or-later with the bootloader exception, which allows the bundled app to be distributed under its own license |
 | Microsoft Visual C++ runtime (Windows) | | Microsoft Visual C++ Redistributable license |
@@ -179,6 +182,58 @@ All Rights Reserved.
 This software may be used by anyone for any reason so
 long as the copyright notice in the source files
 remains intact.
+```
+
+### loguru
+
+```
+MIT License
+
+Copyright (c) 2017 Delgan
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### win32-setctime
+
+```
+MIT License
+
+Copyright (c) 2019 Delgan
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ```
 
 ### sentry-sdk

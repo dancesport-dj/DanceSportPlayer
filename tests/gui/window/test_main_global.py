@@ -488,7 +488,7 @@ class SettingsTest(_TestBase):
         self.assertIn("Restart the app to load the new library", self.dialogs.text())
         self.win._preview.hide.assert_called_once()
         self.win._offer_restart.assert_not_called()
-        self.saved.assert_called_once_with(self.win._settings)
+        self.saved.assert_called_once_with(self.win._settings, report=False)
         self.assertEqual(self.win._settings["global_dir"], "G2")
 
     def test_the_preview_player_follows_the_playback_when_on(self):

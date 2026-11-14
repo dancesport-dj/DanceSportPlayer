@@ -354,6 +354,11 @@ class ControllerMixin(MainWindowHost):
                 player.step_tempo(action == "tempo_up")
         elif action == "duck":
             self._set_desk_duck(self._mix.desk == 1.0)
+        elif action == "stop_all":
+            self._stop_all_sound()
+        elif action == "gemuetlich":
+            if self._big_player is not None:
+                self._big_player.toggle_gemuetlich()
         elif action.startswith("pad:"):
             self._fire_controller_pad(int(action[4:]) - 1)
         elif action.startswith(("deck:", "wish:")):
@@ -380,6 +385,11 @@ class ControllerMixin(MainWindowHost):
         for action in pctl.KEY_ACTIONS:
             sc = QShortcut(self)
             sc.setAutoRepeat(action in _GLIDING)
+            if action == "stop_all":
+                # The emergency key works from the floating 🎛 wall and the
+                # presenter too, as the pad keys do: the wrong pad has
+                # just been fired there.
+                sc.setContext(Qt.ShortcutContext.ApplicationShortcut)
             sc.activated.connect(partial(self._on_desk_key, action))
             self._desk_keys[action] = sc
         self._apply_desk_keys()
@@ -387,6 +397,10 @@ class ControllerMixin(MainWindowHost):
     def _apply_desk_keys(self):
         for action, keys in pctl.desk_keys(self._settings.get("desk_keys")).items():
             self._desk_keys[action].setKeys([QKeySequence(k) for k in keys])
+        if self._big_player is not None:   # 🛋 its tooltip names the key it has now
+            self._big_player.set_gemuetlich_key(" / ".join(
+                pctl.key_text(k) for k in
+                pctl.desk_keys(self._settings.get("desk_keys"))["gemuetlich"]))
 
     def set_desk_keys(self, keys: dict):
         """Save new desk keys (only those off the defaults) and put them on."""

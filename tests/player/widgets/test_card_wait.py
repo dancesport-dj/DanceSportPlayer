@@ -106,6 +106,17 @@ class CardWaitTest(unittest.TestCase):
         self.app.processEvents()
         self.assertEqual(self.card._sub.width(), width)
 
+    def test_a_new_title_during_the_wait_gets_the_row_back(self):
+        # Review 4.B: stop or ⏭ during the wait left the row in its wait
+        # layout, and the next title's stats sat in 77 of 368 px.
+        self.card.resize(900, self.card.height())
+        width = self.card._sub.width()
+        self.card.set_wait("🐂  PD T60 in", "5 s")
+        self.app.processEvents()
+        self.card.set_now("16 Next title", "SA  ·  T50")
+        self.app.processEvents()
+        self.assertEqual(self.card._sub.width(), width)
+
     def test_the_played_takt_is_the_pitched_one(self):
         self.card.set_takt(59)
         self.card._tempo.setValue(17)          # +1.7 %

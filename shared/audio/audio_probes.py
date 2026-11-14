@@ -337,11 +337,96 @@ def detect_silences(ffmpeg: str, path: Path, on_proc=None) -> list | None:
     return parse_title_silences(res[1])
 
 
+# ── Lead-in of a cartwall pad (ffmpeg silencedetect, short) ─────────────────
+# A pad that skips its leading silence needs far shorter stretches than the
+# title probe above sees: a Tusch opening with 300 ms of dead air sounds late.
+# Only the first seconds are read, and only a stretch from the very top counts.
+LEAD_PROBE_SECS = 10.0
+_LEAD_MIN_SECS = 0.05
+_LEAD_EDGE_SECS = 0.05   # the stretch must start this close to 0
+
+
+def parse_lead_silence(stderr: str) -> list:
+    """The silent stretch at the top of the probed window, as [[start, end]],
+    or [] when the music starts at once. A stretch that runs to the end of
+    the window (or the file) is no lead: where the music starts is unknown."""
+    total = ffmpeg_duration(stderr)
+    window = min(LEAD_PROBE_SECS, total) if total is not None else LEAD_PROBE_SECS
+    for start, end in parse_silences(stderr):
+        if start <= _LEAD_EDGE_SECS and end < window - 0.01:
+            return [[start, end]]
+        break
+    return []
+
+
+def detect_lead_silence(ffmpeg: str, path: Path, on_proc=None) -> list | None:
+    """`parse_lead_silence` of one file's first seconds, or None on failure.
+    Decode-only ffmpeg pass, read-only."""
+    res = _ffmpeg_probe(
+        [ffmpeg, "-hide_banner", "-nostats", "-nostdin",
+         "-t", f"{LEAD_PROBE_SECS:g}", "-i", str(path),
+         "-map", "a:0",
+         "-af", f"silencedetect=noise={_SILENCE_NOISE_DB}dB:d={_LEAD_MIN_SECS}",
+         "-f", "null", "-"],
+        path, "🔇 Lead probe failed", on_proc)
+    if res is None or res[0] != 0:
+        return None
+    return parse_lead_silence(res[1])
+
+
+def parse_tail_silence(stderr: str) -> list:
+    """The silent stretch that runs to the end of the file, as [[start, end]]
+    in the file's seconds, or [] when the music plays to the last sample. The
+    pass reads the last LEAD_PROBE_SECS only (-sseof), and ffmpeg times that
+    window from 0; on a shorter file it reads the whole file. A stretch that
+    fills the window is no tail: where the music stops is unknown."""
+    total = ffmpeg_duration(stderr)
+    if total is None:
+        return []
+    window = min(LEAD_PROBE_SECS, total)
+    spans = parse_silences(stderr)
+    if not spans:
+        return []
+    start, end = spans[-1]
+    if start <= _LEAD_EDGE_SECS or end < window - 0.05:
+        return []
+    return [[round(total - window + start, 3), total]]
+
+
+def detect_tail_silence(ffmpeg: str, path: Path, on_proc=None) -> list | None:
+    """`parse_tail_silence` of one file's last seconds, or None on failure.
+    Decode-only ffmpeg pass, read-only."""
+    res = _ffmpeg_probe(
+        [ffmpeg, "-hide_banner", "-nostats", "-nostdin",
+         "-sseof", f"-{LEAD_PROBE_SECS:g}", "-i", str(path),
+         "-map", "a:0",
+         "-af", f"silencedetect=noise={_SILENCE_NOISE_DB}dB:d={_LEAD_MIN_SECS}",
+         "-f", "null", "-"],
+        path, "🔇 Tail probe failed", on_proc)
+    if res is None or res[0] != 0:
+        return None
+    return parse_tail_silence(res[1])
+
+
+def detect_edge_silence(ffmpeg: str, path: Path, on_proc=None) -> list | None:
+    """🔇 The lead-in and the tail of a cartwall pad's file, in one list
+    (see CartVoices.set_edges), or None when both passes failed."""
+    lead = detect_lead_silence(ffmpeg, path, on_proc)
+    tail = detect_tail_silence(ffmpeg, path, on_proc)
+    if lead is None and tail is None:
+        return None
+    return (lead or []) + (tail or [])
+
+
 # ── Hard end (ffmpeg volumedetect) ──────────────────────────────────────────
 # A title cut off in full sound: "Warum hast du nicht nein gesagt" reads 0 dB in
 # its last 20 ms, the loudest of 150 random library tracks −36 dB. A window of
 # 50 ms already flagged a title that is quiet by the time it stops.
-_HARD_END_TAIL_SECS = 0.02
+# Window 0.1 s: "anonimo veneziano rumba" and "saboreando" (Show) stay at
+# -4 / -8 dB until ~50 ms before the end and are quiet in the last 20 ms, so
+# the hall hears a cut that 20 ms missed. Of 80 random library tracks, 0 are
+# up at 20 ms and 1 (a genuine cut) at 100 ms.
+_HARD_END_TAIL_SECS = 0.1
 _HARD_END_DB = -30.0
 _MAX_VOLUME_RE = re.compile(r"max_volume:\s*(-?\d+(?:\.\d+)?) dB")
 
@@ -414,9 +499,16 @@ class SilenceWorker(QThread):
     done = Signal(str, list)   # (path as str, spans [[start, end], …])
     error = Signal(str, str)   # (path as str, error message)
 
-    def __init__(self, path: Path, ffmpeg: str, parent=None):
+    def __init__(self, path: Path, ffmpeg: str, key: str | None = None, parent=None,
+                 probe=None):
+        """`path` is the file to read; the spans are reported under `key`, the path
+        the deck knows the title by (it differs when the file was found elsewhere),
+        else under `path` itself. `probe` replaces detect_silences, for a
+        cartwall pad's edges (detect_edge_silence)."""
         super().__init__(parent)
+        self._probe = probe
         self._path = Path(path)
+        self._key = key if key is not None else str(self._path)
         self._ffmpeg = ffmpeg
         self._cancel = False
         self._proc = None
@@ -424,6 +516,10 @@ class SilenceWorker(QThread):
     @property
     def path(self) -> Path:
         return self._path
+
+    @property
+    def key(self) -> str:
+        return self._key
 
     def cancel(self):
         """Kill the ffmpeg pass. run() is a single blocking probe, so unlike
@@ -437,40 +533,48 @@ class SilenceWorker(QThread):
             _kill_probe(proc)
 
     def run(self):
-        spans = detect_silences(self._ffmpeg, self._path, on_proc=self._adopt)
+        spans = (self._probe or detect_silences)(self._ffmpeg, self._path, on_proc=self._adopt)
         if self._cancel:
             return
         if spans is None:
-            self.error.emit(str(self._path), "silence probe failed")
+            self.error.emit(self._key, "silence probe failed")
         else:
-            self.done.emit(str(self._path), spans)
+            self.done.emit(self._key, spans)
 
 
 class HardEndWorker(QThread):
     """Asks how one file ends. A moment's work, so there is nothing to cancel;
     no answer leaves the title without the fade."""
-    done = Signal(str, bool)   # (path as str, stops in full sound)
+    done = Signal(str, bool)   # (key, stops in full sound)
 
-    def __init__(self, path: Path, ffmpeg: str, parent=None):
+    def __init__(self, path: Path, ffmpeg: str, key: str | None = None, parent=None):
+        """`path` is the file to read; the answer is reported under `key`, the
+        path the deck knows the title by (it differs when the file was found
+        elsewhere), else under `path` itself."""
         super().__init__(parent)
         self._path = Path(path)
         self._ffmpeg = ffmpeg
+        self._key = key if key is not None else str(self._path)
 
     def run(self):
         hard = detect_hard_end(self._ffmpeg, self._path)
         if hard is not None:
-            self.done.emit(str(self._path), hard)
+            self.done.emit(self._key, hard)
 
 
 class LoudnessWorker(QThread):
     """Measures one file's EBU R128 loudness in the background, so a track that
     was never analyzed still gets levelled — a second or two into playing."""
-    done = Signal(str, float, object)   # (path as str, LUFS, dBTP or None)
-    error = Signal(str, str)    # (path as str, error message)
+    done = Signal(str, float, object)   # (key, LUFS, dBTP or None)
+    error = Signal(str, str)    # (key, error message)
 
-    def __init__(self, path: Path, ffmpeg: str, parent=None):
+    def __init__(self, path: Path, ffmpeg: str, key: str | None = None, parent=None):
+        """`path` is the file to read; the numbers are reported under `key`, the
+        path the deck knows the title by (it differs when the file was found
+        elsewhere), else under `path` itself."""
         super().__init__(parent)
         self._path = Path(path)
+        self._key = key if key is not None else str(self._path)
         self._ffmpeg = ffmpeg
         self._cancel = False
         self._proc = None
@@ -478,6 +582,10 @@ class LoudnessWorker(QThread):
     @property
     def path(self) -> Path:
         return self._path
+
+    @property
+    def key(self) -> str:
+        return self._key
 
     def cancel(self):
         """Kill the ffmpeg pass — see SilenceWorker.cancel."""
@@ -494,9 +602,9 @@ class LoudnessWorker(QThread):
         if self._cancel:
             return
         if res is None:
-            self.error.emit(str(self._path), "loudness probe failed")
+            self.error.emit(self._key, "loudness probe failed")
         else:
-            self.done.emit(str(self._path), *res)
+            self.done.emit(self._key, *res)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -646,13 +754,16 @@ def fill_phrased_highlights(times: list, name: str, final_crash: bool) -> list:
 class PdHighlightWorker(QThread):
     """Detects the highlights of one Paso Doble file in the background, so
     arming the highlight stop never blocks the GUI while the song plays."""
-    done = Signal(str, list)   # (path as str, highlight times in seconds)
-    error = Signal(str, str)   # (path as str, error message)
+    done = Signal(str, list)   # (key, highlight times in seconds)
+    error = Signal(str, str)   # (key, error message)
 
-    def __init__(self, path: Path, parent=None):
+    def __init__(self, path: Path, key: str | None = None, parent=None):
+        """`path` is the file to read; the highlights are reported under `key`,
+        the path the deck knows the title by, else under `path` itself."""
         super().__init__(parent)
         self._path = Path(path)
         self.path = self._path
+        self.key = key if key is not None else str(self._path)
         self._cancel = False
         self._proc = None
 
@@ -673,9 +784,9 @@ class PdHighlightWorker(QThread):
                 return
             if times is None:
                 raise OSError("no audio decoded")
-            self.done.emit(str(self._path), times)
+            self.done.emit(self.key, times)
         except Exception as exc:
             log.warning("🐂 Paso Doble highlight detection failed\n"
                         "file: %s\n"
                         "error: %s", self._path, exc)
-            self.error.emit(str(self._path), str(exc))
+            self.error.emit(self.key, str(exc))

@@ -656,6 +656,13 @@ CATALOG = {
     "Welcome to DanceSport Planner & Player": "Willkommen bei DanceSport Planner & Player",
     "AI Song Suggestions (OpenRouter)": "KI-Titelvorschläge (OpenRouter)",
     "Previous session crashed": "Letzte Sitzung ist abgestürzt",
+    "Previous session logged an error": "Letzte Sitzung hat einen Fehler protokolliert",
+    "⚠  Last session hit an error it did not handle; the app may have kept running.\n"
+    "\n"
+    "The error is under 'Show Details…' (it is overwritten on every start).":
+        "⚠  Die letzte Sitzung hatte einen nicht abgefangenen Fehler; die App lief danach womöglich weiter.\n"
+        "\n"
+        "Der Fehler steht unter „Details anzeigen…“ (er wird bei jedem Start überschrieben).",
     "Settings — app mode, library paths & analysis":
         "Einstellungen — Modus, Bibliothekspfade & Analyse",
     "Settings — library paths, global search & analysis":
@@ -882,8 +889,8 @@ CATALOG = {
         "🎶  Hintergrund: pausieren, solange ein Titel läuft",
     "The other way round from 🔈: a title starting on the main\nplayer pauses this pad, and it carries on from where it was\nwhen the music stops.\n(⚙ Settings → 🎛 Cartwall → 🎶 Background pads)":
         "Andersherum als 🔈: Startet ein Titel im Hauptplayer, pausiert\ndieses Pad und spielt dort weiter, wo es war,\nwenn die Musik aufhört.\n(⚙ Einstellungen → 🎛 Cartwall → 🎶 Hintergrund-Pads)",
-    "🔈  While a 🔈 pad plays, the music ducks to:":
-        "🔈  Während ein 🔈-Pad spielt, wird die Musik abgesenkt auf:",
+    "🔈  While a pad plays, the main music ducks to:":
+        "🔈  Während ein Pad spielt, wird die Hauptmusik abgesenkt auf:",
     "How loud the music stays while a 🎛 cartwall pad set to 🔈 pull\nthe music down plays, in percent of its volume like 🔉 Duck to.\n10 % is about −20 dB: a fanfare cuts through. 30 % (about −10 dB)\nonly sits the music back. 0 % is silence.":
         "Wie laut die Musik bleibt, während ein 🎛 Cartwall-Pad mit 🔈 Musik\nabsenken spielt, in Prozent ihrer Lautstärke wie bei 🔉 Absenken auf.\n10 % sind etwa −20 dB: eine Fanfare setzt sich durch. 30 % (etwa −10 dB)\nnimmt die Musik nur zurück. 0 % ist Stille.",
     "A duck, here or a pad's on the 🎛 Cartwall tab, is a percentage of the music's volume, not of its loudness: 50 % ≈ −6 dB, 30 % ≈ −10 dB (sounds about half as loud), 20 % ≈ −14 dB, 10 % ≈ −20 dB.":
@@ -1129,8 +1136,38 @@ CATALOG = {
     "🔇  Probe silences…": "🔇  Stille prüfen…",
     "🔇 No audio backend — the cartwall cannot play here.":
         "🔇 Kein Audio-Backend — die Cartwall kann hier nicht abspielen.",
-    "🔈  Pull the music down while this pad plays":
-        "🔈  Musik absenken, solange dieses Pad läuft",
+    "🔈  Pull the main music down while this pad plays":
+        "🔈  Hauptmusik absenken, solange dieses Pad läuft",
+    "🔈  While a pad pulling the other pads down plays, they duck to:":
+        "🔈  Während ein Pad spielt, das die anderen Pads absenkt, werden sie abgesenkt auf:",
+    "How loud a title running on another pad stays while a pad set to\npull the other pads down plays, in percent of that pad's own\nvolume. It comes back to its volume when the pad is over.\nApart from the music duck above. 10 % is about −20 dB, 0 % is silence.":
+        "Wie laut ein Titel auf einem anderen Pad bleibt, während ein Pad spielt,\ndas die anderen Pads absenkt, in Prozent der eigenen Lautstärke dieses\nTitels. Danach kommt er auf seine Lautstärke zurück.\nUnabhängig vom Musik-Duck oben. 10 % sind etwa −20 dB, 0 % ist Stille.",
+    "🔈  Pull the other pads down while this pad plays":
+        "🔈  Andere Pads absenken, solange dieses Pad läuft",
+    "A title running on another pad goes down while this pad plays\nand comes back to its own volume afterwards.\nIndependent of the box above: tick one, the other or both.":
+        "Ein Titel auf einem anderen Pad wird leiser, solange dieses Pad spielt,\nund kommt danach auf seine eigene Lautstärke zurück.\nUnabhängig vom Feld darüber: eins, das andere oder beide ankreuzen.",
+    "🔁  At a pad's loop point:":
+        "🔁  Am Loop-Punkt eines Pads:",
+    "Crossover: the next round starts on a second voice shortly before the\nfile ends; the old round fades out while the new one fades in.\nFade out and restart: the pad fades itself out, then starts again\nfrom the top at full level.\nHard stop and restart: the pad jumps straight back to the start.\nHow long that takes is set below.":
+        "Überblenden: Die nächste Runde startet kurz vor dem Dateiende auf einer\nzweiten Stimme; die alte Runde blendet aus, während die neue einblendet.\nAusblenden und neu starten: Das Pad blendet sich aus und startet dann\nvon vorn mit voller Lautstärke.\nHart stoppen und neu starten: Das Pad springt sofort an den Anfang zurück.\nDie Dauer steht darunter.",
+    "🔁  …blend or dip over:":
+        "🔁  …überblenden oder ausblenden über:",
+    "How long the crossover, or the dip before the restart, lasts,\ncounted back from the end of the file (never more than a third\nof it). 0 restarts at once. A pad can override this in its own\nsettings.":
+        "Wie lange die Überblendung bzw. das Ausblenden vor dem Neustart dauert,\nvom Dateiende zurückgerechnet (nie mehr als ein Drittel der Datei).\n0 startet sofort neu. Ein Pad kann das in seinen eigenen\nEinstellungen überschreiben.",
+    "Own crossover":
+        "Eigene Überblendung",
+    "How long this pad takes to blend into its next round when it\nloops. Unticked it follows ⚙ Settings → 🎛 Cartwall.":
+        "Wie lange dieses Pad braucht, um beim Loopen in die nächste Runde\nüberzublenden. Ohne Haken folgt es ⚙ Einstellungen → 🎛 Cartwall.",
+    "Crossover":
+        "Überblenden",
+    "Fade out and restart":
+        "Ausblenden und neu starten",
+    "Hard stop and restart":
+        "Hart stoppen und neu starten",
+    "🔇  Skip the silence at the start and end of the file":
+        "🔇  Stille am Anfang und Ende der Datei überspringen",
+    "The pad starts where the music does and ends where it stops: a\njingle that opens with a moment of dead air sounds on the tap, not\na beat later, and the next pad in a queue follows without a gap.":
+        "Das Pad startet dort, wo die Musik beginnt, und endet, wo sie aufhört: Ein\nJingle, der mit einem Moment Stille anfängt, erklingt beim Tippen, nicht\neinen Takt später, und das nächste Pad einer Warteschlange folgt ohne Lücke.",
     "S  Stop the other pads when this one starts":
         "S  Die anderen Pads stoppen, wenn dieses startet",
     "Every other running pad fades out as this one starts —\n"
@@ -1921,6 +1958,10 @@ CATALOG = {
     "notification chime over the speakers":
         "🔕  Systemklänge stummschalten, solange der Abend läuft — kein "
         "Fehler-Ding und kein Benachrichtigungston über die Lautsprecher",
+    "⚠️ The settings could not be saved — is the settings folder writable and the disk not full?":
+        "⚠️ Die Einstellungen konnten nicht gespeichert werden — ist der Einstellungsordner beschreibbar und die Festplatte nicht voll?",
+    "🔧 “%s” is damaged and plays from a repaired copy — replace the file at its source.":
+        "🔧 „%s“ ist beschädigt und spielt aus einer reparierten Kopie — ersetze die Datei an ihrer Quelle.",
     "🐞  Send error reports — when the app hits an error, send its "
     "technical details to the developer":
         "🐞  Fehlerberichte senden — wenn in der App ein Fehler auftritt, "
@@ -3395,6 +3436,14 @@ CATALOG = {
         "Pause zwischen Titeln:",
     "🔈  Announce next dance": "🔈  Nächsten Tanz ansagen",
     "…with heat": "…mit Gruppe",
+    "Endless repeat":
+        "Endlose Wiederholung",
+    "🔁 This title has a play length of %s, so it would fade out there and start again.\n\nRepeat it at its full length instead?":
+        "🔁 Dieser Titel hat eine Spieldauer von %s, würde dort also ausgeblendet und neu gestartet.\n\nStattdessen in voller Länge wiederholen?",
+    "Full length":
+        "Volle Länge",
+    "Play length %s":
+        "Spieldauer %s",
     "Endless repeat is on":
         "Endlose Wiederholung ist an",
     "🔁 This title starts again every time it ends, so the list\n"
@@ -3704,6 +3753,11 @@ CATALOG = {
     "Mixed voices": "Gemischte Stimmen",
     "with heat": "mit Gruppe",
     "heat only": "nur die Gruppe",
+    "Only the heat is announced": "Nur die Gruppe wird angesagt",
+    "The announcement is set to say only the heat (“Heat 1”),\nnot the dance.\n\nWhat should it say?": "Die Ansage ist auf nur die Gruppe („Gruppe 1“) eingestellt,\nnicht auf den Tanz.\n\nWas soll angesagt werden?",
+    "Only the dance": "Nur der Tanz",
+    "Dance with heat": "Tanz mit Gruppe",
+    "Only the heat": "Nur die Gruppe",
     "🔢  Only the heat, not the dance (practice)": "🔢  Nur die Gruppe, nicht den Tanz (Training)",
     "On: every call says just “Heat 1”, without “Next dance” and\n"
     "without the dance, whatever the two boxes above say.\n"
@@ -3877,6 +3931,10 @@ CATALOG = {
         "⚠  %s (nicht angeschlossen)",
     "The music plays on %s — click for the sound settings.":
         "Die Musik läuft auf %s — klicken für die Sound-Einstellungen.",
+    "⏹ Stop all music":
+        "⏹ Alle Musik stoppen",
+    "Cuts the music, every pad and the pre-listen at once, without a fade.":
+        "Schneidet die Musik, jedes Pad und das Vorhören sofort ab, ohne Ausblenden.",
     "🔈 %s is not connected — playing on the system default until it is back.":
         "🔈 %s ist nicht angeschlossen — es läuft auf dem Systemstandard, bis es wieder da ist.",
     # ⚙ Settings → 🔊 Sound & player: 🎧 pre-listen.
@@ -3966,6 +4024,8 @@ CATALOG = {
         "Strg + Umschalt + D",
     "Ctrl + Shift + A":
         "Strg + Umschalt + A",
+    "Ctrl + Shift + G":
+        "Strg + Umschalt + G",
     "Ctrl + Shift + ↑":
         "Strg + Umschalt + ↑",
     "Ctrl + Shift + ↓":
@@ -3978,6 +4038,8 @@ CATALOG = {
         "Strg + Umschalt + Pos1",
     "Ctrl + Shift + X":
         "Strg + Umschalt + X",
+    "Shift + Esc":
+        "Umschalt + Esc",
     "Ctrl":
         "Strg",
     "Shift":
@@ -4313,8 +4375,8 @@ CATALOG = {
         "🧭  %d Pfade in %d Dateien repariert",
     "🧹  Removed %d track(s) already in a playlist":
         "🧹  %d Titel entfernt — schon in einer Wiedergabeliste",
-    "↺  No other %s near the end of the list":
-        "↺  Am Listenende steht kein weiterer Titel für %s",
+    "↺  This is the last %s in the list, nothing to swap with":
+        "↺  Das ist der letzte Titel für %s in der Liste, kein Tausch möglich",
     "🔍  No title matching “%s”":
         "🔍  Kein Titel passt zu „%s“",
     "🔁  Marked %d track for replace":
@@ -4832,6 +4894,10 @@ CATALOG = {
     "so it cannot be replaced.\nKeep both?":
         "„%s“ gibt es im Zielordner schon, und er enthält mehr als einen "
         "USB-Export, lässt sich also nicht ersetzen.\nBeide behalten?",
+    "“%s” already exists in the target folder, and this export reads tracks "
+    "from it, so it cannot be replaced.\nKeep both?":
+        "„%s“ gibt es im Zielordner schon, und dieser Export liest Titel daraus, "
+        "er lässt sich also nicht ersetzen.\nBeide behalten?",
     "Could not remove “%s”:\n%s\n\nIt may be partly deleted; nothing was exported.":
         "„%s“ ließ sich nicht entfernen:\n%s\n\n"
         "Er ist womöglich teilweise gelöscht; exportiert wurde nichts.",
@@ -5210,6 +5276,9 @@ CATALOG = {
         "%d Titel",
     "The playlist file is gone:\n\n%s":
         "Die Wiedergabelisten-Datei ist nicht mehr da:\n\n%s",
+    "Folder name": "Ordnername",
+    "There is already a folder “%s” on this level.":
+        "Auf dieser Ebene gibt es bereits einen Ordner „%s“.",
     "No .m3u playlists found under “%s”.":
         "Keine .m3u-Wiedergabelisten unter „%s“ gefunden.",
     "Remove “%s” from the tree?\n\n%d playlist file(s) are listed under it — they stay on disk, only this entry goes.":
@@ -5311,6 +5380,10 @@ CATALOG = {
         "⚠️ Sample nicht gefunden: %s",
     "\n▶ Queue: place %d — Ctrl+click takes it out":
         "\n▶ Warteschlange: Platz %d — Strg+Klick nimmt es heraus",
+    "\n🔇 Cartwall is muted: this pad is not heard":
+        "\n🔇 Cartwall ist stummgeschaltet: dieser Pad ist nicht zu hören",
+    "\n↓ Muted, so it does not duck the music":
+        "\n↓ Stumm, darum senkt er die Musik nicht ab",
     "\nCtrl+click: into the ▶ queue":
         "\nStrg+Klick: in die ▶ Warteschlange",
     "⚠️ Sample not found, skipped: %s":
@@ -5382,6 +5455,14 @@ CATALOG = {
         "wie das Ausblenden der Liste",
     "How long 🔉↓ Fade out now, 🛑 Fade out and hold, a ⏹ stop at a time\nand the fade before quitting take. The fade at the end of the play\nlength keeps the playlist's own fade-out time.\n0 = the playlist's fade-out time for these as well.":
         "Wie lange 🔉↓ Jetzt ausblenden, 🛑 Ausblenden und halten, ein ⏹ Stopp\nzu einer Uhrzeit und das Ausblenden vor dem Beenden dauern. Das\nAusblenden am Ende der Spiellänge behält die Ausblendzeit der Wiedergabeliste.\n0 = auch hierfür die Ausblendzeit der Wiedergabeliste.",
+    "✂️  Fade a title that ends abruptly over:":
+        "✂️  Abrupt endenden Titel ausblenden über:",
+    "A title whose file stops in full sound (cut off, no decay) is\ntaken down over this long, ending just before its last moment,\nso the hall hears a fade instead of a cut. Titles that end on\ntheir own decay, like a gong, are left alone.\nOff = no fade: the title plays to the end of its file.":
+        "Ein Titel, dessen Datei in voller Lautstärke abbricht (abgeschnitten,\nohne Ausklang), wird über diese Zeit heruntergeblendet und ist kurz vor\nseinem letzten Moment weg, sodass der Saal ein Ausblenden statt eines\nAbbruchs hört. Titel mit eigenem Ausklang, etwa ein Gong, bleiben unberührt.\nAus = kein Ausblenden: der Titel läuft bis zum Ende seiner Datei.",
+    "🔇  Fade the duck and mute buttons over:":
+        "🔇  Duck- und Stumm-Tasten ausblenden über:",
+    "The 🔉 duck and 🔇 mute buttons on the player, and the cartwall's 🔊,\ntake this long to go down and to come back, so the hall hears a\nshort fade instead of a cut. 0 = switch at once.":
+        "Die 🔉-Duck- und 🔇-Stumm-Tasten am Player und das 🔊 der Cartwall\nbrauchen so lange zum Absenken und Zurückkommen, sodass der Saal ein\nkurzes Ausblenden statt eines Abbruchs hört. 0 = sofort umschalten.",
     "🔈  Duck under a voice or pad over:":
         "🔈  Unter Ansage oder Pad absenken über:",
     "back up over:":
@@ -5564,6 +5645,12 @@ CATALOG = {
         "🐂  Paso Doble startet in %d s",
     "⚠ Could not play: %s":
         "⚠ Konnte nicht abspielen: %s",
+    "the audio engine cannot read the file":
+        "die Audio-Engine kann die Datei nicht lesen",
+    "\nTry ⚙ Settings ▸ Sound ▸ 🔊 Audio backend ▸ Windows.":
+        "\nVersuche ⚙ Einstellungen ▸ Ton ▸ 🔊 Audio-Backend ▸ Windows.",
+    "⚠ “%s” could not be played — the audio engine cannot read the file.":
+        "⚠ „%s“ konnte nicht abgespielt werden — die Audio-Engine kann die Datei nicht lesen.",
     "⚠ Playback failed: %s":
         "⚠ Wiedergabe fehlgeschlagen: %s",
     "unknown error":
@@ -6222,6 +6309,14 @@ CATALOG = {
         '🔉↓  Jetzt ausblenden',
     '🛑  Fade out and hold':
         '🛑  Ausblenden und halten',
+    '🛋  Relaxed on / off':
+        '🛋  Gemütlich an / aus',
+    '🛋 Relaxed: %s T%s → T%s':
+        '🛋 Gemütlich: %s T%s → T%s',
+    '⚠ %s measured at T%s, far over the T%s limit: probably a wrong measure, not slowed':
+        '⚠ %s mit T%s gemessen, weit über dem Limit T%s: vermutlich falsch gemessen, nicht verlangsamt',
+    '⚠ %s measured at T%s, outside the TSO band T%s–T%s: probably a wrong measure, not pitched':
+        '⚠ %s mit T%s gemessen, außerhalb des TSO-Bereichs T%s–T%s: vermutlich falsch gemessen, nicht angepasst',
     '🔉  Duck the music on / off':
         '🔉  Musik absenken an / aus',
     '🔈  Announce the next dance on / off':
@@ -6230,6 +6325,8 @@ CATALOG = {
         '🔊  Musiklautstärke (Fader oder Regler)',
     '⏹  Stop all pads':
         '⏹  Alle Pads stoppen',
+    '⏹  Stop all music at once, without a fade':
+        '⏹  Alle Musik sofort stoppen, ohne Ausblenden',
     'Play, skip, fade, set the volume and fire cartwall pads from a USB MIDI or HID controller — a profile for the Korg nanoKONTROL2 is built in, any other is learned by pressing its buttons.':
         'Abspielen, überspringen, ausblenden, die Lautstärke stellen und Cartwall-Pads auslösen – mit einem USB-MIDI- oder HID-Controller. Ein Profil für den Korg nanoKONTROL2 ist eingebaut, jeden anderen lernt man an, indem man seine Knöpfe drückt.',
     '🎛  Set up…':
@@ -6730,6 +6827,14 @@ CATALOG = {
         "Aus: Die claude-CLI antwortet, dieses Modell springt ein, wenn das scheitert.\nAn: Dieses Modell antwortet, die CLI springt ein, wenn es scheitert.",
     "Could not fetch the model list: %s":
         "Modellliste konnte nicht geladen werden: %s",
+    "AI settings":
+        "KI-Einstellungen",
+    "The AI settings could not be saved completely: the file could not be written, or the old API key is still in the credential store. Check the session log.":
+        "Die KI-Einstellungen konnten nicht vollständig gespeichert werden: Die Datei ließ sich nicht schreiben, oder der alte API-Schlüssel liegt noch im Anmeldeinformationsspeicher. Siehe das Sitzungsprotokoll.",
+    "Session not saved":
+        "Sitzung nicht gespeichert",
+    "The session could not be saved: the autosave file could not be written. Quit anyway and lose the latest changes?":
+        "Die Sitzung konnte nicht gespeichert werden: Die Autosave-Datei ließ sich nicht schreiben. Trotzdem beenden und die letzten Änderungen verlieren?",
     "Asks %s on %s first, the claude CLI after that. ⚙ Settings → 🤖 AI changes it.":
         "Fragt zuerst %s auf %s, danach die claude-CLI. Änderbar unter ⚙ Einstellungen → 🤖 KI.",
     "🎉  Party list":
@@ -6894,4 +6999,88 @@ CATALOG = {
         "DanceSport Planner & Player läuft bereits.\nWechsle zu diesem Fenster; eine zweite Kopie würde dessen Playlist überschreiben.",
     "Check failed — %s":
         "Prüfung fehlgeschlagen — %s",
+    "Relaxed (toggle):\nwhile on, a title recorded faster than the top tempo set for its\ndance (⚙ Settings → 🎛 Playsets) is slowed down to it — a Jive at\nT43 plays at T41. Slower titles are left alone.":
+        "Gemütlich (Umschalter):\nsolange es an ist, wird ein Titel, der schneller aufgenommen ist als\ndas für seinen Tanz eingestellte Höchsttempo (⚙ Einstellungen → 🎛 Spiel-Sets),\ndarauf heruntergebremst — ein Jive mit T43 spielt mit T41.\nLangsamere Titel bleiben unberührt.",
+    "🛋  Relaxed: hold each dance to its top tempo":
+        "🛋  Gemütlich: jeden Tanz auf sein Höchsttempo begrenzen",
+    "Takes the TSO button's place on the party list: a title\nrecorded faster than the top tempo set below for its\ndance is slowed down to it. Slower titles are left alone.":
+        "Ersetzt in der Party-Liste den TSO-Knopf: ein Titel, der schneller\naufgenommen ist als das unten für seinen Tanz eingestellte\nHöchsttempo, wird darauf heruntergebremst. Langsamere Titel\nbleiben unberührt.",
+    "<b>🛋 Relaxed top tempo</b> — what the 🛋 button holds a dance to at a party: a title recorded faster is slowed down to it (Jive T41 instead of T43), a slower one is left alone. <i>No limit</i> leaves the dance as it was recorded.":
+        "<b>🛋 Gemütlich-Höchsttempo</b> — worauf der 🛋-Knopf einen Tanz auf einer Party begrenzt: ein schneller aufgenommener Titel wird darauf heruntergebremst (Jive T41 statt T43), ein langsamerer bleibt unberührt. <i>Keine Grenze</i> lässt den Tanz so, wie er aufgenommen ist.",
+    "No limit":
+        "Keine Grenze",
+    "🔄  Refresh from disk":
+        "🔄  Vom Datenträger neu einlesen",
+    "What should this pack replace on this PC?":
+        "Was soll dieses Paket auf diesem PC ersetzen?",
+    "⚙ Settings":
+        "⚙ Einstellungen",
+    "🎼 Decks and playlists":
+        "🎼 Decks und Playlists",
+    "🎛 Cartwall — pads and keys":
+        "🎛 Cartwall — Pads und Tasten",
+    "Zip archive (*.zip)":
+        "Zip-Archiv (*.zip)",
+    "All lists":
+        "Alle Listen",
+    "Show only the titles of one list. Save as CSV then writes just those.":
+        "Zeigt nur die Titel einer Liste. „Als CSV speichern“ schreibt dann nur diese.",
+    "Party list / wishlist: send the selected titles to the end":
+        "Eintanzen-Liste / Wunschliste: die markierten Titel ans Ende setzen",
+    "Comparing recordings":
+        "Aufnahmen vergleichen",
+    "🔭  Find this title…":
+        "🔭  Diesen Titel suchen…",
+    "🔭  No other file with this title found":
+        "🔭  Keine andere Datei mit diesem Titel gefunden",
+    "🔭  Replaced by “%s”":
+        "🔭  Ersetzt durch „%s“",
+    "Find this title":
+        "Diesen Titel suchen",
+    "These files hold the same title. Take which one?":
+        "Diese Dateien enthalten denselben Titel. Welche nehmen?",
+    "“%s” is already planned in another open playlist.\n\nTake it anyway?":
+        "„%s“ ist schon in einer anderen offenen Wiedergabeliste geplant.\n\nTrotzdem nehmen?",
+    "“%s” has a time marker at %s.\nStart it from where?":
+        "„%s“ hat eine Zeitmarke bei %s.\nAb wo starten?",
+    "↺  Swap with a %s from the end of the list":
+        "↺  Mit einem %s vom Listenende tauschen",
+    "🎧  Profile:":
+        "🎧  Profil:",
+    "A profile is a saved set of the outputs below. Main is the hall\n(music on the PA); Rehearsal is everything on the headphones and\nthe hall hears nothing of it. Both always exist; you can add more\nof your own. Switch here, or from the status bar at the bottom\nwhile the app runs.":
+        "Ein Profil ist ein gespeicherter Satz der Ausgänge darunter. Main ist der\nSaal (Musik auf der PA); Rehearsal ist alles auf dem Kopfhörer, der Saal\nhört davon nichts. Beide gibt es immer, eigene lassen sich ergänzen.\nHier umschalten, oder in der Statusleiste unten, während die App läuft.",
+    "💾 Save as…":
+        "💾 Speichern unter…",
+    "🗑 Delete":
+        "🗑 Löschen",
+    "Main and Rehearsal cannot be deleted.":
+        "Main und Rehearsal lassen sich nicht löschen.",
+    "🎧 Save audio profile":
+        "🎧 Audio-Profil speichern",
+    "Profile name:":
+        "Profilname:",
+    "🎧 Delete audio profile":
+        "🎧 Audio-Profil löschen",
+    "A profile called %s exists. Replace it?":
+        "Ein Profil namens %s existiert. Ersetzen?",
+    "Delete the profile %s? Main takes over.":
+        "Das Profil %s löschen? Main übernimmt.",
+    "🎧 (no profile)":
+        "🎧 (kein Profil)",
+    "No audio profile is active — click to choose one.":
+        "Es ist kein Audio-Profil aktiv — klicken, um eines zu wählen.",
+    "🎧 Audio profile: %s":
+        "🎧 Audio-Profil: %s",
+    "Rehearsal profile %s — the hall hears nothing. Click to switch or to stop all music.":
+        "Übungsprofil %s — der Saal hört nichts. Klicken zum Umschalten oder um alle Musik zu stoppen.",
+    "Audio profile %s — click to switch or to stop all music.":
+        "Audio-Profil %s — klicken zum Umschalten oder um alle Musik zu stoppen.",
+    "🔇 Rehearsal profile %s is on — the hall hears nothing.":
+        "🔇 Übungsprofil %s ist an — der Saal hört nichts.",
+    "Collapse every folder — click again to open them all\n(a whole season of weekends is a long tree)":
+        "Jeden Ordner einklappen — noch einmal klicken öffnet alle wieder\n(eine ganze Saison voller Wochenenden ist ein langer Baum)",
+    "📥  Load into…":
+        "📥  Laden in…",
+    "🔎  Checking %s tracks for duplicates…":
+        "🔎  %s Titel auf Duplikate prüfen…",
 }

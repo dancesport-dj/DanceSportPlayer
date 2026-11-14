@@ -184,9 +184,26 @@ def _patch(cls, name: str, make) -> None:
     setattr(cls, name, make(original))
 
 
+def _undressed(text: str, rest) -> bool:
+    """A caption without a glyph on chrome the hook dressed from `rest`: does
+    the icon it set go? Not for an empty caption, nor for `rest` itself —
+    the toolbar compacts a button to "" and grows it back with that (1.3)."""
+    return rest is not None and bool(text) and text != rest
+
+
+def _clear_look(owner) -> None:
+    from PySide6.QtGui import QIcon
+
+    owner.setIcon(QIcon())
+    owner.setProperty("lookGlyph", None)
+    owner.setProperty("lookRest", None)
+
+
 def _dress_button(btn, set_text) -> None:
     parts = split(btn.text())
     if parts is None:
+        if _undressed(btn.text(), btn.property("lookRest")):
+            _clear_look(btn)
         return
     glyph, name, tone, rest = parts
     from PySide6.QtWidgets import QPushButton, QToolButton
@@ -194,22 +211,31 @@ def _dress_button(btn, set_text) -> None:
     set_text(btn, rest)
     btn.setIcon(_look_icon(name, tone, isinstance(btn, (QPushButton, QToolButton))))
     btn.setProperty("lookGlyph", glyph)
+    btn.setProperty("lookRest", rest)
 
 
 def _dress_action(act, set_text) -> None:
     parts = split(act.text())
-    if parts is not None:
-        glyph, name, tone, rest = parts
-        set_text(act, rest)
-        act.setIcon(_look_icon(name, tone))
+    if parts is None:
+        if _undressed(act.text(), act.property("lookRest")):
+            _clear_look(act)
+        return
+    glyph, name, tone, rest = parts
+    set_text(act, rest)
+    act.setIcon(_look_icon(name, tone))
+    act.setProperty("lookRest", rest)
 
 
 def _dress_menu(menu, set_title) -> None:
     parts = split(menu.title())
-    if parts is not None:
-        glyph, name, tone, rest = parts
-        set_title(menu, rest)
-        menu.setIcon(_look_icon(name, tone))
+    if parts is None:
+        if _undressed(menu.title(), menu.property("lookRest")):
+            _clear_look(menu)
+        return
+    glyph, name, tone, rest = parts
+    set_title(menu, rest)
+    menu.setIcon(_look_icon(name, tone))
+    menu.setProperty("lookRest", rest)
 
 
 def _dress_label(label, set_text) -> None:
@@ -217,6 +243,12 @@ def _dress_label(label, set_text) -> None:
     from PySide6.QtGui import Qt as GuiQt  # where mightBeRichText lives
 
     text = label.text()
+    if label.property("lookRich"):
+        # This hook, not the caller, made it rich: each new text is judged
+        # the way AutoText would, or plain text loses its line breaks and
+        # '<…' for good (1.2).
+        label.setProperty("lookRich", None)
+        label.setTextFormat(Qt.TextFormat.AutoText)
     if label.textFormat() == Qt.TextFormat.PlainText:
         return
     if label.textFormat() == Qt.TextFormat.RichText \
@@ -230,17 +262,30 @@ def _dress_label(label, set_text) -> None:
         return
     glyph, name, tone, rest = parts
     label.setTextFormat(Qt.TextFormat.RichText)
+    label.setProperty("lookRich", True)
     set_text(label, label_html(name, tone, rest))
 
 
 def _dress_tab(tabs, index: int, set_text) -> None:
     if index < 0:
         return
-    parts = split(tabs.tabText(index))
-    if parts is not None:
-        glyph, name, tone, rest = parts
-        set_text(tabs, index, rest)
-        tabs.setTabIcon(index, _look_icon(name, tone))
+    bar = tabs.tabBar()
+    text = tabs.tabText(index)
+    parts = split(text)
+    if parts is None:
+        # A tab has no properties of its own: its data slot (used nowhere
+        # else) holds the caption the glyph was taken from.
+        rest = bar.tabData(index)
+        if _undressed(text, rest if isinstance(rest, str) else None):
+            from PySide6.QtGui import QIcon
+
+            tabs.setTabIcon(index, QIcon())
+            bar.setTabData(index, None)
+        return
+    glyph, name, tone, rest = parts
+    set_text(tabs, index, rest)
+    tabs.setTabIcon(index, _look_icon(name, tone))
+    bar.setTabData(index, rest)
 
 
 def _bare(text):

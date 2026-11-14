@@ -28,6 +28,7 @@ from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry
 from planner.music import drives
 from planner.music.paths import resolve_file
+from player.audio.playback_state import PlaybackState
 from player.window.main_load import TrackLoadMixin
 from tests.qt_test_support import reap_widget
 
@@ -101,6 +102,7 @@ class _Loader(TrackLoadMixin):
     def __init__(self):
         me: Any = self
         me._settings = {}
+        me._playback = PlaybackState()
 
 
 class SourceTest(_Base):

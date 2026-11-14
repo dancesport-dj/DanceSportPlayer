@@ -49,6 +49,18 @@ class EtdsWarmupTest(unittest.TestCase):
             twins={a: frozenset({b}), b: frozenset({a})})]
         self.assertEqual(sum(t in ("Alpha Song", "Zulu Tune") for t in titles), 1, titles)
 
+    def test_a_dance_left_out_does_not_take_the_song_from_one_that_plays(self):
+        """One song cut for a Standard dance and for a Latin one: a Latin-only
+        list plays the Latin cut, whichever the library names first. The same
+        for the Paso Doble left out and the Modetänze switched off."""
+        for left_out, kw in (("LW", {"include_standard": False}),
+                             ("PD", {"include_standard": False, "no_paso": True}),
+                             ("DISCOFOX", {"include_standard": False})):
+            pool = (_pool("Moon River", dance=left_out)
+                    + _pool("Moon River", "Bamboleo", dance="CC"))
+            titles = [(e.dance, e.title) for e in build_warmup_playlist(pool, **kw)]
+            self.assertIn(("CC", "Moon River"), titles, left_out)
+
 
 if __name__ == "__main__":
     unittest.main()

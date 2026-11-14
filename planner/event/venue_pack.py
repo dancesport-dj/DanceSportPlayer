@@ -56,12 +56,23 @@ AUDIO_EXTS = (".mp3", ".m4a", ".m4b", ".flac", ".wav", ".ogg",
 ACCESS_KEYS = ("remote_pin", "remote_mode", "remote_port",
                "guest_mode", "guest_port")
 
+# What a pack must not decide for the machine it lands on: where the folders
+# are (`paths_offline` re-points them and lets a share count as the user's
+# own), where the daily backup goes, the two consents (updates, error
+# reports), which only the operator gives, and the model name that goes onto
+# the claude CLI's command line. Neither written nor imported.
+LOCAL_ONLY_KEYS = ("paths_offline", "backup_dir", "update_check", "error_reports",
+                   "ai_model")
+
 # Settings that describe THIS machine — its folders, its screens, its audio
-# backend — and stay as they are when another machine's settings come in.
+# backend, its sound cards and the audio profiles built on them — and stay as
+# they are when another machine's settings come in.
 MACHINE_KEYS = ("library_dir", "global_dir", "save_dir", "playlist_dir",
                 "reference_path", "remap_paths", "open_dir", "import_dir",
                 "ai_claude_config_dir", "presenter_screen",
-                "presenter_screen_name", "media_backend") + ACCESS_KEYS
+                "presenter_screen_name", "media_backend",
+                "audio_outputs", "audio_profiles", "audio_profile"
+                ) + LOCAL_ONLY_KEYS + ACCESS_KEYS
 
 
 class VenuePackError(Exception):
@@ -185,7 +196,7 @@ def write_pack(dest: Path, docs: dict, include_music: bool,
     dest = Path(dest)
     if isinstance(docs.get(SETTINGS_FILE), dict):
         docs = {**docs, SETTINGS_FILE: {k: v for k, v in docs[SETTINGS_FILE].items()
-                                        if k not in ACCESS_KEYS}}
+                                        if k not in ACCESS_KEYS + LOCAL_ONLY_KEYS}}
     res = PackResult()
     music: dict[str, str] = {}
     tracks = track_paths(*docs.values()) if include_music else []
@@ -276,7 +287,7 @@ def read_pack(src: Path) -> Pack:
         with zipfile.ZipFile(src) as z:
             m = _manifest(z)
             docs = {}
-            for name in m.get("files", []):
+            for name in m.get("files") or []:
                 if name not in PACK_FILES:
                     log.warning("⚠️ Venue pack entry ignored\n"
                                 "file: %s", name)
@@ -287,7 +298,7 @@ def read_pack(src: Path) -> Pack:
                     raise VenuePackError(f"damaged entry: {name}") from exc
                 if name == SETTINGS_FILE and not isinstance(docs[name], dict):
                     raise VenuePackError(f"damaged entry: {name}")
-    except (zipfile.BadZipFile, OSError) as exc:
+    except (zipfile.BadZipFile, zlib.error, OSError) as exc:
         raise VenuePackError(str(exc)) from exc
     return Pack(docs=docs, music=dict(m.get("music") or {}),
                 created=str(m.get("created", "")))
@@ -372,7 +383,7 @@ def extract_music(src: Path, dest_dir: Path, progress=None, cancelled=None) -> d
                 mapping[orig] = str(target)
                 if progress:
                     progress(i, len(music))
-    except BaseException:
+    except BaseException as err:
         for t in written:
             try:
                 t.unlink(missing_ok=True)
@@ -381,6 +392,10 @@ def extract_music(src: Path, dest_dir: Path, progress=None, cancelled=None) -> d
                 log.warning("⚠️ Cancelled import left a file behind\n"
                             "file: %s\n"
                             "error: %s", t, exc)
+        # Damaged compressed bytes or a bad CRC: the dialogs know only
+        # VenuePackError (and OSError) as "this pack cannot be read".
+        if isinstance(err, (zipfile.BadZipFile, zlib.error)):
+            raise VenuePackError(f"damaged pack: {err}") from err
         raise
     return mapping
 
@@ -392,11 +407,16 @@ def has_pending(state_dir: Path) -> bool:
 
 
 def stage_import(src: Path, state_dir: Path, music_dir: Path | None,
-                 progress=None, cancelled=None) -> Pack:
+                 progress=None, cancelled=None, only=None) -> Pack:
     """Read the pack, unpack its music into `music_dir` (None: leave it), point
-    the documents at it and park them for apply_pending()."""
+    the documents at it and park them for apply_pending(). `only` names the
+    documents to take over (None: all of them); the rest of the pack is left."""
     pack = read_pack(src)
     docs = pack.docs
+    if only is not None:
+        docs = {n: o for n, o in docs.items() if n in only}
+        if not docs:
+            raise VenuePackError("none of the chosen parts is in the pack")
     if music_dir is not None and pack.music:
         mapping = extract_music(src, music_dir, progress, cancelled)
         docs = {name: remap(obj, mapping) for name, obj in docs.items()}

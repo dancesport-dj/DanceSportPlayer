@@ -3,21 +3,27 @@
 Mixin of PlaylistTable — extracted 1:1 from gui/table/playlist_table.py in the
 big-module split; behaviour unchanged."""
 import logging
+import time
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import numpy as np
 from PySide6.QtCore import (
     Qt,
     QTimer,
 )
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QMessageBox,
     QProgressDialog,
 )
 
 import planner.models
+from gui.common import BusyDialog
 from gui.dialogs.drop_duplicates_dialog import ADD, REPLACE, SKIP, DropDuplicatesDialog
 from planner import i18n
 from planner.models import (
@@ -53,9 +59,96 @@ if not TYPE_CHECKING:
     PlaylistTable = None
 
 
+@dataclass
+class _DupScope:
+    """What one drop's duplicate check shares between its titles: the clusters of
+    every title name in play, built once, the deck's planned entries, what each
+    title was found to be (`memo`, by kind and path) and the word index over
+    their Chromaprints, built on first use."""
+    clusters: dict
+    planned: list | None = None
+    entries: list = field(default_factory=list)
+    memo: dict = field(default_factory=dict)
+    words: _WordIndex | None = None
+
+
+class _WordIndex:
+    """How many distinct Chromaprint words each pair of tracks shares. Two
+    recordings with fewer than `chroma_match.MIN_SHARED` in common are not
+    compared in full: the shortlist Check duplicates (`find_pairs`) uses.
+
+    It pays the same price there: `is_same` scores bit errors and needs no
+    identical word, so a copy that keeps none (one bit off in every word) is
+    the same recording but is not found by a drop, while a single title with
+    no index compares it in full. Real re-encodes keep most words identical."""
+
+    def __init__(self, chromas: dict):
+        self.slot = {k: i for i, k in enumerate(chromas)}
+        self._uniq = [np.unique(np.asarray(c.words, dtype=np.uint32)) for c in chromas.values()]
+        vals = np.concatenate(self._uniq) if self._uniq else np.empty(0, dtype=np.uint32)
+        track = np.repeat(np.arange(len(self._uniq)), [len(u) for u in self._uniq])
+        order = np.argsort(vals, kind="stable")
+        self._vals, self._track = vals[order], track[order]
+        self._counts: dict = {}
+
+    def shared(self, key) -> np.ndarray | None:
+        """The shared-word count of `key`'s track with each slot, or None when
+        `key` is not indexed."""
+        i = self.slot.get(key)
+        if i is None:
+            return None
+        if i not in self._counts:
+            u = self._uniq[i]
+            lo = np.searchsorted(self._vals, u, "left")
+            n = np.searchsorted(self._vals, u, "right") - lo
+            at = np.repeat(lo - (np.cumsum(n) - n), n) + np.arange(n.sum())
+            self._counts[i] = np.bincount(self._track[at], minlength=len(self._uniq))
+        return self._counts[i]
+
+
+class _CheckProgress:
+    """The bar of a duplicate check that runs long: up after `after` seconds, with
+    a Cancel button, repainted at most every 80 ms. `step` is False once cancelled."""
+
+    def __init__(self, parent, total: int, after: float):
+        self._parent, self._total, self._after = parent, total, after
+        self._dlg = None
+        self._cancelled = False
+        self._t0 = self._last = time.monotonic()
+
+    def step(self, done: int, detail: str) -> bool:
+        now = time.monotonic()
+        if self._dlg is None:
+            # Nothing to report to on the last title: it would open and close at once.
+            if done >= self._total or now - self._t0 < self._after:
+                return True
+            self._dlg = BusyDialog(
+                self._parent,
+                i18n.t("🔎  Checking %s tracks for duplicates…") % f"{self._total:,}",
+                cancelable=True)
+            self._dlg.cancel_requested.connect(self._cancel)
+            self._dlg.show_after(0)
+            self._last = 0.0
+        if now - self._last >= 0.08:
+            self._last = now
+            self._dlg.set_progress(done, self._total, detail,
+                                   (now - self._t0) / done * (self._total - done))
+            QApplication.processEvents()
+        return not self._cancelled
+
+    def _cancel(self):
+        self._cancelled = True
+
+    def finish(self):
+        if self._dlg is not None:
+            self._dlg.finish()
+
+
 class DynamicModeMixin(PlaylistTableHost):
     """Dynamic-deck concern: unlocked decks grow rounds/heats from dropped
     songs (6-3-2-1 field), incl. final-round backups stacked under a slot."""
+
+    _dup_scope: _DupScope | None = None
 
     # ── Dynamic mode: drops build / extend the rounds & heats grid ──────────────
 
@@ -299,16 +392,31 @@ class DynamicModeMixin(PlaylistTableHost):
                 excl.add(str(ep))
         return excl
 
-    def _audio_keys(self, entry: MusicEntry | None) -> set:
+    def _audio_keys(self, entry: MusicEntry | None) -> set | frozenset:
         """Everything that names this track's AUDIO: the path (case and separators
         folded), the content fingerprint and the tag-free audio fingerprint. Two
         tracks sharing any of them are the same recording — the copy on another
         drive shares the content fingerprint, a copy whose tags were edited still
         shares the audio one. Hashed on demand when the DB doesn't know the file
-        yet. Path only while there is no cache."""
+        yet. Path only while there is no cache. Once per path in a drop."""
         p = getattr(entry, "path", None) if entry is not None else None
         if not p:
             return set()
+        return self._scoped("audio", entry, lambda: frozenset(self._read_audio_keys(p)))
+
+    def _scoped(self, kind, entry, make):
+        """`make()` for `entry`, worked out once per path while a drop's check
+        runs (`_dup_check`) and afresh outside one."""
+        scope = self._dup_scope
+        p = getattr(entry, "path", None) if entry is not None else None
+        if scope is None or not p:
+            return make()
+        key = (kind, str(p))
+        if key not in scope.memo:
+            scope.memo[key] = make()
+        return scope.memo[key]
+
+    def _read_audio_keys(self, p) -> set:
         keys = {("p", str(Path(p)).lower())}
         if self._cache is None:
             return keys
@@ -347,6 +455,7 @@ class DynamicModeMixin(PlaylistTableHost):
         if len(todo) > 2:
             progress = QProgressDialog(i18n.t("🎼  Comparing recordings…"), "",
                                        0, len(todo), self)
+            progress.setWindowTitle(i18n.t("Comparing recordings"))
             progress.setCancelButton(None)
             progress.setWindowModality(Qt.WindowModality.WindowModal)
             progress.setMinimumDuration(400)
@@ -368,19 +477,45 @@ class DynamicModeMixin(PlaylistTableHost):
         if mine is None:
             return None
         dance = getattr(entry, "dance", None) or ""
+        shared, slot = self._shared_words(entry)
         for e in entries:
             other_dance = getattr(e, "dance", None) or ""
             if e is entry or (dance and other_dance and dance != other_dance):
                 continue
+            j = slot.get(str(getattr(e, "path", "")))
+            if j is not None and shared[j] < chroma_match.MIN_SHARED:
+                continue                    # off the shortlist (see _WordIndex)
             other = self._chroma_of(e)
             if other is not None and chroma_match.is_same(
                     chroma_match.compare(mine.words, other.words)):
                 return e
         return None
 
+    def _shared_words(self, entry) -> tuple:
+        """(shared-word counts of `entry` with each indexed track, {path: slot})
+        inside a drop's check; (None, {}) outside one or for a track the drop's
+        index does not hold, so every candidate is compared in full."""
+        scope = self._dup_scope
+        if scope is None:
+            return None, {}
+        if scope.words is None:
+            chromas = {}
+            for e in scope.entries:
+                c = self._chroma_of(e)
+                if c is not None and len(c.words):
+                    chromas.setdefault(str(e.path), c)
+            scope.words = _WordIndex(chromas)
+        shared = scope.words.shared(str(getattr(entry, "path", "")))
+        return (None, {}) if shared is None else (shared, scope.words.slot)
+
     def _chroma_of(self, entry: MusicEntry | None):
         p = getattr(entry, "path", None) if entry is not None else None
         if not p or self._cache is None:
+            return None
+        return self._scoped("chroma", entry, lambda: self._read_chroma(p))
+
+    def _read_chroma(self, p):
+        if self._cache is None:
             return None
         try:
             return self._cache.get_chroma(Path(p), touch_disk=False)
@@ -464,7 +599,9 @@ class DynamicModeMixin(PlaylistTableHost):
         p = str(entry.path) if getattr(entry, "path", None) else None
         if not p:
             return None
-        planned = [e for e in self._iter_planned_entries() if getattr(e, "path", None)]
+        scope = self._dup_scope
+        planned = (scope.planned if scope is not None and scope.planned is not None
+                   else [e for e in self._iter_planned_entries() if getattr(e, "path", None)])
         same = self._holds_same_audio(entry, planned)
         if same is not None:
             return ("hard", same)
@@ -475,11 +612,16 @@ class DynamicModeMixin(PlaylistTableHost):
         """The first of `entries` that carries `entry`'s file name or title, or
         that Chromaprint says is the same recording (a cut, a re-encode). Not the
         same audio file: that is `_holds_same_audio`."""
-        fname = Path(str(entry.path)).name.lower()
-        title = self._title_key(entry)
+        def name_of(e):
+            return self._scoped("name", e, lambda: Path(str(e.path)).name.lower())
+
+        def title_of(e):                    # the key holds the dance: a drop may set it
+            return self._scoped(("title", getattr(e, "dance", None)), e,
+                                lambda: self._title_key(e))
+        fname = name_of(entry)
+        title = title_of(entry)
         hit = next((e for e in entries
-                    if Path(str(e.path)).name.lower() == fname
-                    or self._same_title(title, self._title_key(e))), None)
+                    if name_of(e) == fname or self._same_title(title, title_of(e))), None)
         if hit is None:
             hit = self._similar_title_twin(entry, entries)
         return hit if hit is not None else self._chroma_twin(entry, entries)
@@ -488,35 +630,72 @@ class DynamicModeMixin(PlaylistTableHost):
         """The first of `entries` whose title names the same song as `entry`'s by
         the Check duplicates rule (similar titles cluster: 'Friends and Lovers'
         and 'Friends and Lovers Cut Version'), in a dance that does not conflict."""
-        mine = song_title_keys(str(entry.path))
+        mine = self._title_keys(entry)
         if not mine:
             return None
         dance = getattr(entry, "dance", None) or ""
-        cands = [(e, song_title_keys(str(e.path))) for e in entries
+        cands = [(e, self._title_keys(e)) for e in entries
                  if e is not entry and getattr(e, "path", None)
                  and not (dance and getattr(e, "dance", None)
                           and dance != e.dance)]
+        scope = self._dup_scope
+        if scope is not None and all(k in scope.clusters for k in mine):
+            # The drop's clusters hold every title in play, so a title that shares
+            # none with `entry` cannot be its twin: only the few that do are
+            # clustered afresh below (the answer is the same, the work is not).
+            near = {scope.clusters[k] for k in mine}
+            cands = [(e, ks) for e, ks in cands
+                     if any(k not in scope.clusters or scope.clusters[k] in near for k in ks)]
+            if not cands:
+                return None
         cmap = title_cluster_map(list(mine) + [k for _e, ks in cands for k in ks])
         wanted = {cmap[k] for k in mine}
         return next((e for e, ks in cands if wanted & {cmap[k] for k in ks}), None)
 
-    def _drop_dup_pairs(self, new_entries, held) -> list[tuple]:
+    def _title_keys(self, entry: MusicEntry):
+        return self._scoped("title keys", entry, lambda: song_title_keys(str(entry.path)))
+
+    @contextmanager
+    def _dup_check(self, entries, held, planned: list | None = None):
+        """One drop's duplicate check shares its title clusters, built once over
+        the dropped and the held titles, and what it found out about each title
+        (`_DupScope`): looked at once per drop, not once per pair."""
+        scope = _DupScope({}, planned, [e for e in (*entries, *held, *(planned or ()))
+                                        if e is not None and getattr(e, "path", None)])
+        self._dup_scope = scope
+        try:
+            scope.clusters = title_cluster_map(
+                [k for e in (*entries, *held) if getattr(e, "path", None)
+                 for k in self._title_keys(e)])
+            yield
+        finally:
+            self._dup_scope = None
+
+    def _drop_dup_pairs(self, new_entries, held) -> list[tuple] | None:
         """(dropped entry, entry the list holds, same_audio) for every dropped
         title `held` has already: the same audio, or the same name / title /
-        recording (`_soft_twin`, Chromaprints read silently first)."""
+        recording (`_soft_twin`, Chromaprints read silently first). A bar with
+        a Cancel button reports a long check; None when cancelled."""
         held = [e for e in held if e is not None and getattr(e, "path", None)]
         self._prime_chroma(list(new_entries) + held)
+        todo = [e for e in new_entries if getattr(e, "path", None)]
+        progress = _CheckProgress(self.host.dialog_parent(), len(todo),
+                                  self._DROP_PROGRESS_AFTER)
         out = []
-        for ent in new_entries:
-            if not getattr(ent, "path", None):
-                continue
-            same = self._holds_same_audio(ent, held)
-            if same is not None:
-                out.append((ent, same, True))
-                continue
-            twin = self._soft_twin(ent, held)
-            if twin is not None:
-                out.append((ent, twin, False))
+        try:
+            with self._dup_check(todo, held):
+                for i, ent in enumerate(todo, 1):
+                    if not progress.step(i, Path(str(ent.path)).name):
+                        return None
+                    same = self._holds_same_audio(ent, held)
+                    if same is not None:
+                        out.append((ent, same, True))
+                        continue
+                    twin = self._soft_twin(ent, held)
+                    if twin is not None:
+                        out.append((ent, twin, False))
+        finally:
+            progress.finish()
         return out
 
     def _ask_drop_duplicates(self, pairs: list) -> list[str] | None:
@@ -639,13 +818,18 @@ class DynamicModeMixin(PlaylistTableHost):
                          and src is not self.host.warmup_table())
         if not src_flat and getattr(src, "_warmup", False) and not src_free_deck:
             return 0
+        # What `_contains_path_or_fp` asks, with this deck's audio keys read once
+        # for the whole drag, not once per dragged row: 400 rows took 33 s.
+        held: set = set()
+        for d in self._iter_deck_entries():
+            held |= self._audio_keys(d)
         auto, ask = [], []
         for r in src._drag_src_rows:
             if not (0 <= r < len(src._row_meta)):
                 continue
             m = src._row_meta[r]
             ent = m.entry if m else None
-            if ent is None or not self._contains_path_or_fp(ent):
+            if ent is None or not (self._audio_keys(ent) & held):
                 continue
             if pre_planned and (self._entry_keys(ent) & pre_planned):
                 ask.append(r)       # already planned before this drop
@@ -858,9 +1042,15 @@ class DynamicModeMixin(PlaylistTableHost):
 
     def _dynamic_autofill(self, dance: str, entry: MusicEntry):
         """Place a track into the first round with free capacity for its dance; spill
-        into the next round when full. The final round stacks extras as backups."""
+        into the next round when full. The final round stacks extras as backups.
+        A round that hides the dance is passed over; when every round hides it,
+        the first round shows it again, as a targeted drop would."""
         d_idx = self._dynamic_dances.index(dance)
-        specs = self._dynamic_specs()
+        specs = [(rname, cap) for rname, cap in self._dynamic_specs()
+                 if dance not in self._round_skip_dances.get(rname, ())]
+        if not specs:
+            specs = self._dynamic_specs()[:1]
+            self._round_skip_dances.get(specs[0][0], set()).discard(dance)
         final_i = len(specs) - 1
         for i, (rname, cap) in enumerate(specs):
             is_final = (i == final_i)
@@ -1169,7 +1359,10 @@ class DynamicModeMixin(PlaylistTableHost):
         rounds = list(self._playlist.keys())
         rounds.insert(pos, new_key)
         self._playlist[new_key] = [self._new_heat() for _ in range(default_cap)]
-        self._playlist = {k: self._playlist[k] for k in rounds}
+        # In place: the window holds this same dict as the deck's playlist.
+        ordered = {k: self._playlist[k] for k in rounds}
+        self._playlist.clear()
+        self._playlist.update(ordered)
         caps = list(self._dynamic_capacity)
         caps.insert(pos, default_cap)
         self._dynamic_capacity = caps
@@ -1219,8 +1412,9 @@ class DynamicModeMixin(PlaylistTableHost):
             return   # already correctly named
         mapping = {old: names[i] for i, old in enumerate(rounds)}
         grid = self._dyn_playlist()
-        self._playlist = {names[i]: grid[old]
-                          for i, old in enumerate(rounds)}
+        renamed = {names[i]: grid[old] for i, old in enumerate(rounds)}
+        grid.clear()
+        grid.update(renamed)
         if self._dynamic_backups:
             self._dynamic_backups = {
                 (mapping.get(r, r), h, d): v
@@ -1368,14 +1562,23 @@ class DynamicModeMixin(PlaylistTableHost):
         asked: it is skipped quietly. `skip_first`: the first title replaces a slot
         (Ctrl + drop) and has its own guard."""
         pairs = []
-        for i, ent in enumerate(entries):
-            dance = self._drop_dance(ent)
-            if (i == 0 and skip_first) or not dance:
-                continue
-            ent.dance = dance
-            dup = self._find_duplicate(ent)
-            if dup is not None:
-                pairs.append((ent, dup[1], dup[0] == "hard"))
+        planned = [e for e in self._iter_planned_entries() if getattr(e, "path", None)]
+        progress = _CheckProgress(self.host.dialog_parent(), len(entries),
+                                  self._DROP_PROGRESS_AFTER)
+        try:
+            with self._dup_check(entries, planned, planned):
+                for i, ent in enumerate(entries):
+                    if not progress.step(i + 1, Path(str(getattr(ent, "path", "") or "")).name):
+                        return None
+                    dance = self._drop_dance(ent)
+                    if (i == 0 and skip_first) or not dance:
+                        continue
+                    ent.dance = dance
+                    dup = self._find_duplicate(ent)
+                    if dup is not None:
+                        pairs.append((ent, dup[1], dup[0] == "hard"))
+        finally:
+            progress.finish()
         if len(entries) == 1 and pairs and pairs[0][2]:
             pairs = []
         answers = self._ask_drop_duplicates(pairs)

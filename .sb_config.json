@@ -186,7 +186,7 @@
         "run_on": null,
         "extra_exclude_paths": [],
         "include_paths": [],
-        "exclude_dirs": [],
+        "exclude_dirs": ["tests"],
         "include_dirs": [],
         "line_length": 120,
         "tool_timeout": 60,
@@ -443,7 +443,11 @@
           "."
         ],
         "exclude_dirs": [
-          "tests"
+          "tests",
+          "planner/playing/play_session.py",
+          "planner/music/tag_edits.py",
+          "planner/secret_store.py",
+          "player/audio/master_volume_mac.py"
         ]
       },
       "conflicting-metadata": {

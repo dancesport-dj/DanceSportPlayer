@@ -48,6 +48,7 @@ from PySide6.QtWidgets import (
 from gui.common import entry_tooltip
 from planner import i18n
 from planner.event import event_plan
+from shared.plain_text import plain_label, plain_tip
 
 TIER_BADGES = {"event": "🟦", "class": "🟩", "new": "🟨", "rare": "🟧",
                "library": "⬜"}
@@ -347,7 +348,7 @@ class SlotPicker(QDialog):
         now_text = (i18n.t("Now: %s") % now.entry.title if now
                     else i18n.t("Now: —"))
         with i18n.verbatim():
-            self._now = QLabel(now_text)
+            self._now = plain_label(now_text)
         self._now.setWordWrap(True)
         row.addWidget(self._now, 1)
         lay.addLayout(row)
@@ -833,6 +834,8 @@ class EventCompareDialog(QDialog):
     def set_busy(self, busy: bool):
         """While the AI is asked again the plan is not edited here."""
         self._busy = busy
+        if busy:                # the AI works on a copy: a title taken now is lost
+            self._close_picker()
         self._later_btn.setVisible(bool(self._result.pending))
         self._second_btn.setVisible(bool(self._result.second_round))
         for w in (self._later_btn, self._second_btn, self._apply_btn):
@@ -883,7 +886,7 @@ class EventCompareDialog(QDialog):
                 subs[group] = sub
             action = _data_action(subs[group] if group else menu, text)
             if group:
-                action.setToolTip(pick.source)
+                action.setToolTip(plain_tip(pick.source))
             actions[action] = pick
         menu.setToolTipsVisible(True)
         return menu, actions
@@ -943,6 +946,8 @@ class EventCompareDialog(QDialog):
 
     def choose(self, i: int, row: int, col: int, pick) -> bool:
         """Put `pick` into the slot, after a warning if it breaks the day."""
+        if self._busy:
+            return False
         comps = self._result.variants[self._profiles[col]]
         key = (i, *self._slots[i][row])
         conflict = event_plan.slot_conflict(comps, key, pick)

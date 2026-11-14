@@ -29,7 +29,13 @@ from PySide6.QtWidgets import (
 from gui.dialogs.drop_check import FileDropCheckPanel
 from planner import i18n
 from planner.models import MusicEntry
-from planner.music.paths import FileFinder, PathRemapper, foreign_name, search_roots
+from planner.music.paths import (
+    FileFinder,
+    PathRemapper,
+    foreign_name,
+    is_foreign_network,
+    search_roots,
+)
 from planner.playing import cartwall
 from planner.playlist.playlist_text import rerooted, rewrite_playlist_paths
 from shared.widgets import (
@@ -206,7 +212,8 @@ class PathFixMixin(MainWindowHost):
                 checked += 1
                 p = Path(e.path)
                 try:
-                    exists = p.exists()
+                    # someone else's UNC/URL line: no SMB session for it
+                    exists = not is_foreign_network(p) and p.exists()
                 except OSError:
                     exists = False
                 if exists:
@@ -227,7 +234,9 @@ class PathFixMixin(MainWindowHost):
                     elif cands:
                         same = [c for c in cands
                                 if getattr(c, "dance", None) == getattr(e, "dance", None)]
-                        repl = same[0] if same else cands[0]
+                        # Several files of that name: take one only when
+                        # its dance settles it, never a guess.
+                        repl = same[0] if len(same) == 1 else None
                 if repl is not None and str(repl.path) != str(e.path):
                     if self._replace_occurrence(table, r, repl):
                         fixed += 1
@@ -303,7 +312,7 @@ class PathFixMixin(MainWindowHost):
             for r, m in table._row_meta.numbered():
                 p = Path(m.entry.path)
                 try:
-                    if not p.exists():
+                    if is_foreign_network(p) or not p.exists():
                         continue
                 except OSError:
                     continue
@@ -388,7 +397,8 @@ class PathFixMixin(MainWindowHost):
             unresolved: list[Path] = []
             for t in self._m3u_track_paths(m3u):
                 try:
-                    exists = t.exists()
+                    # someone else's UNC/URL line: no SMB session for it
+                    exists = not is_foreign_network(t) and t.exists()
                 except OSError:
                     exists = False
                 if rerooted(t, remapper) is not None:
@@ -470,10 +480,9 @@ class PathFixMixin(MainWindowHost):
         if errors:
             msg.append(i18n.t("⚠  Left unchanged:"))
             msg.extend("   • " + e for e in errors)
-        # Shown as text: the lines carry file names and error text.
-        QMessageBox.information(
-            self, "Fix paths",
-            "<p style='white-space:pre-wrap'>" + html.escape("\n".join(msg)) + "</p>")
+        # Shown as text (every message box is, see shared/plain_text.py): the
+        # lines carry file names and error text.
+        QMessageBox.information(self, "Fix paths", "\n".join(msg))
         if fixed:
             # One fixed path lives in one file; more can share one or spread.
             if fixed == 1:

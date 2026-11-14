@@ -58,6 +58,22 @@ class MergeSettingsTest(unittest.TestCase):
         self.assertEqual(out["only_here"], 1)
         self.assertEqual(out["only_there"], 2)
 
+    def test_the_sound_cards_and_audio_profiles_stay_local(self):
+        """The other PC's device ids name cards this one does not have (they
+        fell back by name or onto the default output), and its profiles and
+        active profile replaced this PC's own, a 🎧 headset one included."""
+        here = {"music": {"id": "aa01", "name": "Speakers (Realtek)"}}
+        there = {"music": {"id": "ff09", "name": "UMC404HD"}}
+        local = {"audio_outputs": here,
+                 "audio_profiles": {"Main": {"outputs": here, "private": False}},
+                 "audio_profile": "Main"}
+        imported = {"audio_outputs": there,
+                    "audio_profiles": {"Rehearsal": {"outputs": there, "private": True}},
+                    "audio_profile": "Rehearsal", "zoom": 3}
+        out = vp.merge_settings(local, imported)
+        self.assertEqual({k: out[k] for k in local}, local)
+        self.assertEqual(out["zoom"], 3)
+
     def test_a_machine_key_missing_locally_is_not_imported(self):
         out = vp.merge_settings({}, {"library_dir": r"F:\lib", "a": 1})
         self.assertNotIn("library_dir", out)
@@ -82,6 +98,35 @@ class MergeSettingsTest(unittest.TestCase):
             with zipfile.ZipFile(dest) as z:
                 self.assertNotIn(b"9999", z.read(vp.SETTINGS_FILE))
         self.assertIn("remote_pin", settings)       # the caller's dict untouched
+
+
+class PackDoesNotSteerThisMachineTest(unittest.TestCase):
+    """Audit run-2 #4: a pack from someone else must not redirect the folders
+    on this machine, send its backup elsewhere or switch consents on."""
+
+    STEERING = {"paths_offline": {"library_dir": r"\\evil\share"},
+                "backup_dir": r"\\evil\loot",
+                "update_check": True, "error_reports": True}
+
+    def test_an_imported_pack_cannot_set_them(self):
+        local = {"backup_dir": r"D:\Backups", "error_reports": False,
+                 "update_check": False, "paths_offline": {"library_dir": "C:/lib"}}
+        out = vp.merge_settings(local, dict(self.STEERING, zoom=3))
+        for key in self.STEERING:
+            self.assertEqual(out[key], local[key], key)
+        self.assertEqual(out["zoom"], 3)
+
+    def test_a_key_missing_locally_is_not_imported(self):
+        out = vp.merge_settings({}, dict(self.STEERING))
+        for key in self.STEERING:
+            self.assertNotIn(key, out)
+
+    def test_the_pack_does_not_carry_them(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = Path(tmp) / "v.dpvenue"
+            vp.write_pack(dest, {vp.SETTINGS_FILE: dict(self.STEERING, zoom=3)},
+                          include_music=False)
+            self.assertEqual(vp.read_pack(dest).docs[vp.SETTINGS_FILE], {"zoom": 3})
 
 
 class PackRoundTripTest(unittest.TestCase):
@@ -318,6 +363,71 @@ class DamagedManifestTest(unittest.TestCase):
                 self.assertEqual(vp.read_pack(self._pack(music)).music, {})
 
 
+class CorruptPackTest(unittest.TestCase):
+    """Full review 2026-11-11 #9: a pack whose manifest says "files": null, or
+    whose compressed bytes are damaged, raised TypeError / zlib.error /
+    BadZipFile past the dialogs, which catch only OSError and VenuePackError."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name)
+        self.dest = self.root / "venue_music"
+
+    def _pack(self, files, music=None, members=None, method=zipfile.ZIP_DEFLATED):
+        src = self.root / "c.dpvenue"
+        with zipfile.ZipFile(src, "w", compression=method) as z:
+            for arc, data in (members or {}).items():
+                z.writestr(arc, data)
+            z.writestr(vp.MANIFEST, json.dumps(
+                {"format": vp.FORMAT, "version": vp.VERSION, "files": files,
+                 "music": music}))
+        return src
+
+    @staticmethod
+    def _corrupt(src: Path, name: str) -> None:
+        """Overwrite the stored bytes of one member: 0xff starts a deflate
+        block of the reserved type (zlib.error), and in a stored member it
+        breaks the CRC (BadZipFile)."""
+        with zipfile.ZipFile(src) as z:
+            info = z.getinfo(name)
+        raw = bytearray(src.read_bytes())
+        head = info.header_offset
+        start = head + 30 + int.from_bytes(raw[head + 26:head + 28], "little") \
+            + int.from_bytes(raw[head + 28:head + 30], "little")
+        raw[start:start + info.compress_size] = b"\xff" * info.compress_size
+        src.write_bytes(bytes(raw))
+
+    def test_a_null_file_list_reads_as_no_documents(self):
+        self.assertEqual(vp.read_pack(self._pack(files=None)).docs, {})
+
+    def test_a_damaged_document_is_a_pack_error(self):
+        src = self._pack(files=[vp.SETTINGS_FILE],
+                         members={vp.SETTINGS_FILE: json.dumps({"a": "x" * 200})})
+        self._corrupt(src, vp.SETTINGS_FILE)
+        with self.assertRaises(vp.VenuePackError):
+            vp.read_pack(src)
+
+    def test_a_damaged_manifest_is_a_pack_error(self):
+        src = self._pack(files=[], music={"F:\\a.mp3": "music/x/a.mp3" * 20})
+        self._corrupt(src, vp.MANIFEST)
+        with self.assertRaises(vp.VenuePackError):
+            vp.read_pack(src)
+
+    def test_damaged_music_is_a_pack_error_and_leaves_nothing(self):
+        music = {"F:\\a.mp3": "music/x/a.mp3", "F:\\b.mp3": "music/x/b.mp3"}
+        members = {"music/x/a.mp3": b"a" * 4000, "music/x/b.mp3": b"b" * 4000}
+        for method in (zipfile.ZIP_DEFLATED, zipfile.ZIP_STORED):
+            with self.subTest(method=method):
+                src = self._pack(files=[], music=music, members=members,
+                                 method=method)
+                self._corrupt(src, "music/x/b.mp3")
+                with self.assertRaises(vp.VenuePackError):
+                    vp.stage_import(src, self.root / "state", self.dest)
+                self.assertEqual(
+                    [p for p in self.dest.rglob("*") if p.is_file()], [])
+
+
 class PackLimitsTest(unittest.TestCase):
     """#18: a pack from outside must not be able to exhaust memory or disk,
     nor end in a TypeError the dialog does not catch."""
@@ -441,6 +551,20 @@ class StagedImportTest(unittest.TestCase):
         self.assertEqual(
             [p.name for p in self.state.iterdir() if p.name.startswith(vp.STAGE_DIR)],
             [vp.STAGE_DIR])
+
+    def test_only_the_chosen_documents_are_staged_and_applied(self):
+        vp.stage_import(self.pack, self.state, music_dir=None, only=["cartwall.json"])
+        stage = self.state / vp.STAGE_DIR
+        self.assertEqual(sorted(p.name for p in stage.glob("*.json")), ["cartwall.json"])
+        self.assertEqual(vp.apply_pending(self.state), ["cartwall.json"])
+        # What was not chosen is as it was.
+        self.assertEqual(self._read("gui_settings.json")["zoom"], 1)
+        self.assertEqual(self._read("autosave_playlist.json"), {})
+
+    def test_a_choice_the_pack_cannot_meet_is_refused(self):
+        with self.assertRaises(vp.VenuePackError):
+            vp.stage_import(self.pack, self.state, music_dir=None, only=["nothing.json"])
+        self.assertFalse(vp.has_pending(self.state))
 
     def test_stage_changes_nothing_live_until_applied(self):
         vp.stage_import(self.pack, self.state, music_dir=None)

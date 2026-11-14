@@ -85,8 +85,10 @@ class EventPlanMixin(MainWindowHost):
     def _continue_event_plan(self, only: list[int]):
         """Ask the AI again about `only`, starting from the plan as it stands."""
         timer = getattr(self, "_event_retry", None)
-        worker = getattr(self, "_event_worker", None)
-        if worker is not None and worker.isRunning():
+        # An AI playlist run shares the transcript window: starting now would
+        # delete it and put two runs side by side.
+        busy = [getattr(self, "_event_worker", None), getattr(self, "_ai_worker", None)]
+        if any(w is not None and w.isRunning() for w in busy):
             if timer is not None:           # still busy: try again shortly
                 timer.start(5 * 60 * 1000)
             return

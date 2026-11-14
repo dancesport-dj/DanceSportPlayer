@@ -26,6 +26,7 @@ from planner import i18n
 from planner.playing import controller as pctl
 from player.dialogs.controller_dialog import action_label
 from player.widgets.cart_keys import CartKeysPanel, KeyPicker
+from shared.plain_text import plain_label
 
 
 class KeysDialog(QDialog):
@@ -189,7 +190,7 @@ class DeskKeysPanel(QWidget):
     def _new_field(self, action: str):
         picker = KeyPicker("")
         picker.changed.connect(self._on_edit)
-        warn = QLabel("")
+        warn = plain_label()      # it names a pad, and a pad label is no markup (4.C)
         warn.setStyleSheet("color:#b26a00; font-size:11px;")
         holder = QWidget()
         line = QHBoxLayout(holder)

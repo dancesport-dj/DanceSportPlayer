@@ -124,6 +124,44 @@ class PlaybackTest(_WindowCase):
         self.assertEqual(self.b._short_secs_cb("LW"), 105)
 
 
+class PartyListTest(_WindowCase):
+    """🎉 The tournament set's per-dance lengths are a heat's: a party list
+    plays its own length, full out of the box, whatever the 🏆 set says."""
+
+    def setUp(self):
+        super().setUp()
+        self.party = self.win._deckset.warmup_table
+
+    def test_a_party_list_plays_in_full_by_default(self):
+        self.assertEqual(self.win._list_vals(self.party)["secs"], 0)
+        self.play(self.party, "WW")
+        self.assertEqual(self.win._play_limit_secs(), 0)
+
+    def test_a_tournament_set_that_is_also_full_does_not_pass_on_its_dances(self):
+        # The 🏆 set at "full" equals the party list's own 0: the list then
+        # looked like it stood on the set and was cut at the Waltz's 1:30.
+        self.win._settings["tournament_set"] = {"secs": 0}
+        self.play(self.party, "WW")
+        self.assertIsNone(self.win._dance_secs(self.party, "WW"))
+        self.assertEqual(self.win._play_limit_secs(), 0)
+
+    def test_the_sets_length_on_the_party_list_is_one_length_for_every_dance(self):
+        tournament_secs = play_set_of(self.win._settings, "tournament")["secs"]
+        self.win._list_vals(self.party)["secs"] = tournament_secs
+        self.play(self.party, "WW")
+        self.assertEqual(self.win._play_limit_secs(), tournament_secs)
+
+    def test_the_panel_does_not_name_a_dance_on_the_party_list(self):
+        self.win._settings["tournament_set"] = {"secs": 0}
+        self.win._on_table_focused(self.party)
+        self.play(self.party, "WW")
+        self.assertTrue(self.panel.len_dance_lbl.isHidden())
+
+    def test_a_deck_on_the_set_still_has_its_dances(self):
+        self.play(self.b, "WW")
+        self.assertEqual(self.win._play_limit_secs(), 90)
+
+
 class PanelTest(_WindowCase):
     """The panel says which length is valid, and edits that one."""
 

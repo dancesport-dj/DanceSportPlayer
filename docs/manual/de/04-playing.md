@@ -7,6 +7,10 @@ Du spielst direkt aus den Decks, dem Party-Bereich und den Wunschlisten.
 
 ![Das Hauptfenster beim Abspielen](../img/main-playing.png)
 
+Ist beim Start des Abspielens das [🎧 Übungsprofil Rehearsal](06-settings.md#-audio-profile)
+aktiv, nennt eine rote Meldung es: Der Saal hört nichts, bis du auf Main
+zurückschaltest, in der Statusleiste oder in ⚙ Einstellungen.
+
 ## 🚦 Bereit? vor dem Abend
 
 **🚦 Prüfen ▸ 🚦 Bereit?** in der Werkzeugleiste prüft jedes Deck, das Titel
@@ -23,7 +27,7 @@ ist nicht angeschlossen.
 | 🐂 Paso-Doble-Highlights | Jeder Paso Doble kennt seine Höhepunkte. |
 | 🔁 Doppelte | Kein Titel steht in zwei Listen. |
 | 🎶 Wiedergabelisten | Es gibt überhaupt etwas zu spielen. |
-| 🔈 Audioausgänge | Jeder Ausgang, der in ⚙ Einstellungen → 🔊 Ton & Player gewählt ist, ist angeschlossen. Fehlt die Karte für die Musik, die Cartwall oder die Ansagen, ist die Zeile rot: Diese Quelle spielt dann auf dem Systemstandard. Fehlt die Karte fürs 🎧 Vorhören, ist sie gelb, ebenso wenn das Vorhören auf dem Ausgang der Musik läge, denn dann würde jedes Vorhören abgelehnt. Steht das Vorhören auf *Wie die Musik*, ist sie auch gelb, denn der Saal hört jedes Vorhören mit. Mit nur einem Ausgang gibt es keinen anderen zur Wahl, dann meldet die Zeile nichts. |
+| 🔈 Audioausgänge | Jeder Ausgang, der in ⚙ Einstellungen → 🔊 Ton & Player gewählt ist, ist angeschlossen. Fehlt die Karte für die Musik, die Cartwall oder die Ansagen, ist die Zeile rot: Diese Quelle spielt dann auf dem Systemstandard. Fehlt die Karte fürs 🎧 Vorhören, ist sie gelb, ebenso wenn das Vorhören auf dem Ausgang der Musik läge, denn dann würde jedes Vorhören abgelehnt. Steht das Vorhören auf *Wie die Musik*, ist sie auch gelb, denn der Saal hört jedes Vorhören mit. Mit nur einem Ausgang gibt es keinen anderen zur Wahl, dann meldet die Zeile nichts. Ein liegengebliebenes [🎧 Übungsprofil Rehearsal](06-settings.md#-audio-profile) ist ebenfalls rot: Alles liegt auf dem Kopfhörer, und der Saal hört nichts. Auf Rehearsal darf das Vorhören auf dem Ausgang der Musik liegen, das wird dort nicht gemeldet. |
 | 🎛 Controller | Der gewählte Hardware-Controller ist verbunden. Nicht jeder Abend braucht einen, darum ist diese Zeile höchstens gelb, und sie fehlt, solange kein Controller eingerichtet ist. |
 | ☀ Bildschirm und Ruhezustand | ☀ Bildschirm wach halten ist an, also bleiben Bildschirm, Beamer und Computer wach, solange Musik läuft oder der Präsentationsbildschirm offen ist. |
 | 🔋 Stromversorgung | Der Computer hängt am Stromnetz. Im Akkubetrieb ist die Zeile gelb und nennt den Ladestand. Nur unter Windows, sonst fehlt die Zeile. |
@@ -54,8 +58,17 @@ Zeile 🎵 Musikprüfung für Tempo, Länge und den Aufbau der Runden.
   unter [⚙ Einstellungen ▸ 🎛 Spiel-Sets](06-settings.md#spiel-sets); in
   beiden an. Würde der Doppelklick einen Titel mit ↩ Zeitmarke starten, heißt
   die Frage stattdessen **Zeitmarke zurücksetzen?**, und sie kommt immer: **Von
-  vorn**, **An der Zeitmarke** oder **Abbrechen**. Das
-  ist die Vorgabe und lässt die Musik an.
+  vorn**, **An der Zeitmarke** (die Vorgabe: Enter wählt sie) oder
+  **Abbrechen** (Esc), das die Musik anlässt.
+- **▶** in der Zeile, **Leertaste** und **Enter** fragen bei einem Titel mit
+  ↩ Zeitmarke genauso: *Ab wo starten?* **Von vorn** verwirft die Marke,
+  **An der Zeitmarke** ist die Vorgabe, und **Abbrechen** startet nichts.
+  Das Antippen der nächsten Runde und die Sprungpfeile fragen auch;
+  Abbrechen lässt dort den laufenden Titel in Ruhe. Der Titel, der schon auf
+  dem Player liegt, und ⏯ auf der Karte fragen nicht. Ein Titel, den die
+  Liste von selbst startet, nach der Pause oder anstelle eines Titels, der
+  nicht spielt, hat niemanden zum Fragen: Er startet von vorn, und seine
+  Marke fällt weg.
 - **Strg + Umschalt + ← / →** springt zum vorigen oder nächsten Titel, und
   **Strg + ← / →** springt 30 s.
 
@@ -80,6 +93,22 @@ Stille stehen: Er nennt den Titel in einer kurzen Meldung, färbt seine Zeile
 rot mit dem Grund im Tooltip und startet den nächsten Titel derselben Runde.
 Am Ende einer Runde hält er an, wie nach jedem letzten Titel. Die Markierung
 verschwindet, sobald die Datei wieder spielt.
+
+Manche MP3-Dateien liest die Audio-Maschine falsch: Sie hält sie für
+stundenlang und beendet sie sofort. So ein Titel wird noch einmal aus einer
+reparierten Kopie im Temp-Ordner geöffnet und spielt dann; die Originaldatei
+wird nie beschrieben. Endet ein Titel trotzdem innerhalb von 5 s nach seinem
+Start, zählt er als einer, der nicht spielt: Die Zeile wird rot, der nächste
+Titel startet, und am Ende der Runde nennt eine Meldung ihn und schlägt
+⚙ Einstellungen ▸ 🔊 Ton & Player ▸ **🔊 Audio-Backend** ▸ *Windows* vor, das
+diese Dateien richtig liest.
+
+Spielt ein Titel in einer Sitzung zum ersten Mal aus so einer Kopie, nennt
+ihn eine kurze Meldung: *🔧 „Cha Cha Cha 03“ ist beschädigt und spielt aus
+einer reparierten Kopie — ersetze die Datei an ihrer Quelle.* Die Kopie
+überdeckt den Fehler nur, also ersetze die Datei dort, wo sie herkommt. Eine
+Kopie, die eine Woche lang nicht gespielt wurde, wird beim Start der App
+entfernt; ein Titel, der sie wieder braucht, bekommt eine neue.
 
 Die App behält das Musik-Laufwerk auch im Blick, während sie läuft:
 
@@ -118,14 +147,30 @@ die Restzeit.
 | **☕** | Blendet den Titel über die 🔉↓-Rampe aus, die Karte blinkt dabei orange, und startet dann die Pause. Ein mit ⏯ angehaltener Titel geht direkt hinein. Nur da, solange **Pause zwischen den Titeln** an ist. |
 | Verlängern-Knopf | Hängt eine weitere Pausenlänge an, wenn der Gruppenwechsel länger dauert. |
 | **⏭** (nächster Tanz) | Nur während der Pause. Verkürzt das Warten, behält aber die Ansage: Die Pausenmusik blendet aus (die Karte blinkt dabei orange), der Tanz wird angesagt, dann startet der Titel. Ist die Ansage schon gesprochen, sind die Ansagen aus, steht ✋ Manuell oder hält ⏯ die Pause an, geht es sofort weiter. |
-| **⊗** | Notfall: blendet die Musik aus und *hält* sie an. Nichts endet und nichts geht weiter. **⏯** setzt genau an dieser Stelle fort. Mit den Lautstärke-Knöpfen − / + rückt er neben den Ausblend-Knopf und erscheint nur, solange ein Titel läuft. |
-| **🔊** | Drei Stufen: der erste Klick senkt auf 10 %, der zweite schaltet stumm, der dritte holt die Musik wieder auf voll. Das Symbol folgt jeder Stufe, und die Anzeige unter dem Regler sagt rot **stumm**, solange stumm ist. Die Pausenmusik geht mit herunter. Wie weit abgesenkt wird, stellst du unter ⚙ Einstellungen ▸ 🔊 Ton & Player ▸ ▸ Erweitert ▸ **🔉 Absenken auf** ein; der Tooltip des Knopfs nennt es. |
+| **⊗** | Notfall: blendet die Musik aus und *hält* sie an. Nichts endet und nichts geht weiter. **⏯** setzt genau an dieser Stelle fort und blendet ein wie ein Titel, der an seiner ↩ Zeitmarke weiterläuft (⚙ Einstellungen ▸ 🔊 Ton & Player); ein Paso Doble setzt auf den Schlag wieder ein. Mit den Lautstärke-Knöpfen − / + rückt er neben den Ausblend-Knopf und erscheint nur, solange ein Titel läuft. |
+| **🔊** | Drei Stufen: der erste Klick senkt auf 10 %, der zweite schaltet stumm, der dritte holt die Musik wieder auf voll. Jede Stufe blendet über eine kurze Zeit (ab Werk 0,3 s, ⚙ Einstellungen ▸ 🔊 Ton & Player), damit die Musik nicht knackt. Das Symbol folgt jeder Stufe, und die Anzeige unter dem Regler sagt rot **stumm**, solange stumm ist. Die Pausenmusik geht mit herunter. Wie weit abgesenkt wird, stellst du unter ⚙ Einstellungen ▸ 🔊 Ton & Player ▸ ▸ Erweitert ▸ **🔉 Absenken auf** ein; der Tooltip des Knopfs nennt es. |
 | Lautstärkeregler | Gesamtlautstärke. Beim Absenken und Stummschalten geht er mit der Musik herunter und zeigt, was zu hören ist; bewegst du ihn, endet das Absenken auf dieser Lautstärke. |
 | **− / +** daneben | Ändern die Lautstärke um 2 % je Klick, gedrückt gehalten gleiten sie. Ein Doppelklick auf die % unter dem Regler lässt dich einen Wert eintippen. Von Haus aus an; ⚙ Einstellungen ▸ 🔊 Ton & Player ▸ **➕ Lautstärke − / +** blendet sie aus. |
 
 Die Zeiten eines Titels über einer Stunde, etwa eines langen Mixes, lauten
 **1:04:00** oder **64:00**, wie es ⚙ Einstellungen ▸ 🔊 Ton & Player ▸
 **⏱ Titel über einer Stunde** sagt.
+
+### ⏹ Alles stopp: sofort Stille
+
+Ein Klick auf das Audioprofil am rechten Ende der Statusleiste (**🔊** oder
+**🎧** mit seinem Namen) öffnet die Profilauswahl, und an ihrem Fuß steht
+das rote **⏹ Alle Musik stoppen**. Es bringt sofort und ohne Ausblenden
+alles zum Schweigen, was die App spielt: die Musik (samt Überblend-Rest,
+gesprochener Ansage und anstehendem Weiterschalten), jedes 🎛 Cartwall-Pad,
+auch Hintergrund-Betten und endlos laufende Pads, und das 🎧 Vorhören. Es
+ist für den Moment, in dem das falsche Pad losgeht. Es ist der andere Stopp
+als **⊗**, das den Titel ausblendet und hält, damit die Runde weitergehen
+kann.
+
+**Umschalt + Esc** tut dasselbe, im Hauptfenster, auf der schwebenden
+Cartwall und auf der Präsentation; **Esc** allein blendet nur die Pads aus.
+Das ist eine [Pult-Taste](#-pult-tasten), ⌨ Tasten kann sie also verlegen.
 
 ### 〰 Die Wellenform
 
@@ -167,7 +212,22 @@ Die Tempo-Zeile darunter:
   [DJ-Controller](#-ein-dj-controller) bewegen ihn.
 - **TSO**: solange an, wird jeder Titel auf das mittlere Tempo seines Tanzes in
   dieser Runde gezogen, innerhalb des TSO-Bereichs. Eine Rumba mit 23 wird
-  T24, ein Paso Doble mit 57 wird T58.
+  T24, ein Paso Doble mit 57 wird T58. Ein Titel ohne Tempo im Dateinamen
+  wird nach seinem gemessenen Tempo angepasst und zählt im Mittel der Runde
+  mit, solange es höchstens 2 Takte außerhalb des Bereichs seines Tanzes
+  liegt: eine mit T22 gemessene Rumba wird T24. Liegt die Messung weiter
+  daneben, ist sie wohl halb oder doppelt gezählt: Der Titel bleibt, wie er
+  ist, und eine Meldung nennt Tanz, gemessenes Tempo und Bereich.
+- **🛋 Gemütlich** steht auf einer Party-Liste, die keine Runde zum Mitteln
+  hat, an der Stelle von TSO. Solange an, wird ein Titel, der schneller
+  aufgenommen ist als das Höchsttempo seines Tanzes, darauf heruntergebremst:
+  ein Jive mit T43 spielt mit T41. Ein langsamerer Titel bleibt, wie er ist;
+  schneller gemacht wird nie etwas. Die Höchsttempi stehen in
+  [⚙ Einstellungen ▸ 🎛 Spiel-Sets](06-settings.md#spiel-sets), und
+  **Strg + Umschalt + G** schaltet es um, solange es zu sehen ist. Ein Titel
+  ohne Tempo im Dateinamen wird nach seinem gemessenen Tempo gebremst, außer
+  es liegt mehr als 3 Takte über dem Höchsttempo; dann sagt eine Meldung,
+  dass er gelassen wurde, wie er ist.
 - **📌**: hält das Tempo fest, so bleibt der Regler dort, wo du ihn gelassen
   hast, wenn der nächste Titel startet.
 - **♪**: klick im Takt mit, um das tatsächliche Tempo von Hand zu messen. Das
@@ -191,7 +251,8 @@ Die Tempo-Zeile darunter:
 
 Sobald die Analyse sie gemessen hat, wird Stille am Anfang und Ende eines
 Titels übersprungen. Ein Titel, dessen Datei in voller Lautstärke abbricht,
-wird über seine letzte Sekunde ausgeblendet.
+wird über seine letzten 2 s ausgeblendet; ⚙ Einstellungen ▸ 🔊 Ton & Player
+stellt diese Zeit ein oder schaltet es aus.
 
 ### 🐂 Paso Doble
 
@@ -339,10 +400,13 @@ Die App sagt den nächsten Tanz laut an. Ab Werk nennt sie nur den Tanz,
 „Nächster Tanz: Langsamer Walzer“. **🔢 Nur die Gruppe** sagt stattdessen nur
 „Gruppe 1“, für einen Trainingsabend.
 
-- Mit Pause kommt die Ansage kurz bevor die Pause endet. Die Ansage braucht
-  keine Lücke, darum schaltet sie **Pause zwischen den Titeln** aus, und
-  schaltet man sie aus, kommt die Pause zurück. Wer beides will, schaltet die
-  Pause wieder ein.
+- Mit Pause kommt die Ansage kurz bevor die Pause endet, so wie ein Sprecher
+  in die Pause hinein spricht. Das Ein- oder Ausschalten der Ansage lässt
+  Pause und Überblenden, wie sie sind.
+- Ist die Ansage auf nur die Gruppe gestellt, fragt das Einschalten, was sie
+  sagen soll: **Nur der Tanz** (die Vorgabe), **Tanz mit Gruppe** oder
+  **Nur die Gruppe** (Esc), das die Einstellung behält. Eine liegengebliebene
+  Trainings-Einstellung würde auf einer Party sonst nie einen Tanz nennen.
 - Ohne Pause wird der Tanz genannt, wenn der Titel startet: **über den ersten
   Takten** (die Musik wird unter der Stimme leiser) oder **vor dem
   Musikstart** (die Musik folgt der Ansage), je nach ⚙ Einstellungen ▸
@@ -376,7 +440,8 @@ Die App sagt den nächsten Tanz laut an. Ab Werk nennt sie nur den Tanz,
   hast, startet wieder an dieser Stelle und kommt dabei über eine Sekunde hoch,
   statt mit voller Lautstärke einzusetzen (ein Paso Doble setzt abrupt ein; die
   Zeit steht unter [⚙ Einstellungen ▸ 🔊 Ton & Player](06-settings.md#ton-und-player)).
-  Die Zeile zeigt **↩ mm:ss**. Die Marken werden vergessen, wenn die App schließt.
+  Die Zeile zeigt **↩ mm:ss**, in einem Deck, einer Party-Liste oder einer
+  Wunschliste. Die Marken werden vergessen, wenn die App schließt.
 
 ### Abspiel-Sets
 
@@ -530,6 +595,9 @@ Siegerehrung.
   **⚙ Einstellungen…** eines Pads gibt ihm eine eigene.
 - **Strg + 1 … 9** feuern die ersten neun Pads der sichtbaren Seite.
 - **⏹ Alles stoppen** oder **Esc** blendet jedes Pad aus.
+  [**⏹ Alle Musik stoppen**](#-alles-stopp-sofort-stille) in der
+  Profilauswahl, oder **Umschalt + Esc**, schneidet jedes Pad und die Musik
+  sofort ab, ohne Ausblenden.
 - **🔊** daneben ist die eigene Lautstärke der Cartwall, für alle Pads. Sie
   ist von der Musiklautstärke getrennt: wird die Musik leiser gezogen,
   bleiben die Pads, wo sie sind. Die Lautstärke eines Pads (in seinen
@@ -537,16 +605,30 @@ Siegerehrung.
   **Strg + Alt + ↑ / ↓**, die **− / +** neben dem Regler und ein
   Controller-Fader stellen sie auch. Ein Klick auf **🔊** schaltet die Wand
   stumm (aus 🔊 wird 🔇, und ihr Wert zeigt ein rotes *stumm*); ein zweiter
-  Klick holt sie zurück. Die Stummschaltung bleibt über einen Neustart nicht
-  erhalten.
+  Klick holt sie zurück. Beides blendet wie 🔊 am Player. Eine stumme Wand
+  macht die Musik auch nicht leiser, und der Tooltip jedes Pads sagt
+  *Cartwall ist stummgeschaltet: dieser Pad ist nicht zu hören*. Die
+  Stummschaltung bleibt über einen Neustart nicht erhalten.
 - **✏** entsperrt die Wand zum Bauen. Zieh Audiodateien auf ein Pad, um es zu
   füllen. Eine Mehrfachauswahl füllt die freien Pads danach. Zieh ein Pad auf
-  ein anderes, um die beiden zu tauschen. Sperr die Wand vor dem Turnier
-  wieder, damit nichts aus Versehen verrutscht.
+  ein anderes, um die beiden zu tauschen. Ein klingendes Pad spielt weiter,
+  so stellst du ein Bett ein, während du es hörst; bei eingeschaltetem ✏
+  wählt ein Klick es aus, also stoppt es **⏹ Alles stoppen** oder **Esc**.
+  Sperr die Wand vor dem Turnier wieder, damit nichts aus Versehen
+  verrutscht.
 - Bei eingeschaltetem **✏** bietet ein **Rechtsklick auf ein Pad** seine
   🎨 Farbe, 🗑 Leeren, **📄 Auf Seite verschieben** oder
   **⚙ Einstellungen…** für Beschriftung, Lautstärke, eigene Taste,
-  🔁 endlose Wiederholung und ob es die Musik leiser macht. *Auf Seite
+  🔁 endlose Wiederholung und was es absenkt, solange es spielt:
+  **🔈 Hauptmusik absenken**, **🔈 Andere Pads absenken** (ein Titel auf
+  einem anderen Pad geht nach unten und kommt danach auf seine eigene
+  Lautstärke zurück) oder beides. Wie weit, steht unter ⚙ Einstellungen ▸
+  🎛 Cartwall. Leiser macht
+  nur ein Pad, das du antippst: Rückt die Warteschlange zum nächsten Pad
+  weiter oder füllt ein Pad eine Pause, bleibt die Musik, wo sie ist. Senkt
+  ein Pad die Musik ab, geht der Lautstärkeregler mit nach unten; eine Hand
+  am Regler hebt das Absenken auf, und was du einstellst, ist sofort zu
+  hören. *Auf Seite
   verschieben* legt das Pad auf denselben Platz der anderen Seite, wenn der
   frei ist, sonst auf ihr erstes freies Pad; eine volle Seite nimmt, was
   passt, und sagt, wie viele verschoben wurden. Bei gesperrter Wand bietet der Rechtsklick
@@ -563,12 +645,35 @@ Siegerehrung.
   starten, soll das Pad stattdessen pausieren, oder soll es schneller oder
   langsamer ab- und wieder auftauchen, siehe ⚙ Einstellungen ▸ 🎛 Cartwall ▸
   **🎶 Pads mit 🎶 Hintergrund**. Der Hintergrund bleibt auch unten,
-  solange ein 🐂 Paso Doble auf den Start wartet.
+  solange ein 🐂 Paso Doble auf den Start wartet, solange ein Titel auf seine
+  Ansage wartet (⏳ *vor dem Musikstart*) und solange der Player mit ⏯
+  angehalten ist: Anhalten heißt, alle Musik steht. Ein Hintergrund-Pad, das
+  du in diesem Anhalten antippst, ist zu hören. Ein Stopp oder ein Ausblenden
+  in die Pause zwischen zwei Titeln lässt die Betten weiterhin hochkommen.
 - **S Die anderen Pads stoppen** in den **⚙ Einstellungen…** eines Pads
   blendet alle anderen laufenden Pads aus, sobald dieses startet. Das passt
   für eine Hymne oder eine Siegerfanfare, die den Raum braucht.
+- **🔁 endlose Wiederholung** fängt die Datei an ihrem Ende von vorn an, so
+  wie es ⚙ Einstellungen ▸ 🎛 Cartwall ▸ **🔁 Am Loop-Punkt eines Pads**
+  sagt: **Überblenden** (ab Werk) startet die nächste Runde 3 s vor dem Ende
+  auf einer zweiten Stimme und blendet beide ineinander, **Ausblenden und
+  neu starten** senkt das Pad über 1 s ab und startet es neu, **Hart stoppen
+  und neu starten** springt sofort zurück. Jede Runde beginnt dort, wo die
+  Musik beginnt: Eine längere Stille am Anfang oder Ende der Datei (ab
+  1,5 s, gefunden von der 🔇 Stille-Prüfung) bleibt weg. **Eigene
+  Überblendung** in den **⚙ Einstellungen…** des Pads gibt einem Pad eine
+  eigene Länge.
+- **🔇 Stille am Anfang und Ende der Datei überspringen** in den
+  **⚙ Einstellungen…** eines Pads startet es dort, wo seine Musik beginnt, und
+  beendet es, wo sie aufhört. So klingt ein Jingle, der mit einem Moment
+  Stille anfängt, beim Antippen und nicht einen Schlag später, und das nächste
+  Pad einer Warteschlange folgt ohne Lücke; der Countdown läuft bis zum Ende
+  der Musik, und ein endlos laufendes Pad beginnt dort seine nächste Runde.
+  Die App sieht sich die ersten und die letzten 10 s der Datei an, wenn die
+  Wand lädt und wenn du das Pad speicherst, und findet Lücken ab etwa 0,05 s.
 - Die Fläche eines Pads zeigt, wie es sich verhält: 🔁 endlose Wiederholung,
-  ↓ macht die Musik leiser, ♫ Hintergrund, 🅂 stoppt die anderen Pads, dazu
+  ↓ senkt die Musik oder die anderen Pads ab, ⇓ senkt beides ab,
+  ♫ Hintergrund, 🅂 stoppt die anderen Pads, dazu
   seine Lautstärke, wenn sie unter 100 % liegt.
 - Mit **✏** wählt ein Klick ein Pad aus, statt es abzufeuern, und
   **Strg+Klick** oder **Umschalt+Klick** nimmt weitere dazu. Ein
@@ -613,9 +718,12 @@ grau hinter den Pausenstrichen.
   🎶 Hintergrund, das Ausblenden) bleibt, wie es am Pad eingestellt ist.
 - Ein Pad, dessen Datei fehlt, wird übersprungen, mit einem Hinweis in der
   Statusleiste. Fehlen alle, hält die Warteschlange an.
-- **Ein Klick auf das laufende Pad**, **⏹ Alles stoppen**, **Esc**, das
-  Entsperren mit **✏** oder ein Pad mit **S Die anderen Pads stoppen** beendet die
-  Warteschlange. Ein gewöhnliches Pad dazwischen lässt sie weiterlaufen.
+- Eine Pause zwischen zwei Titeln startet die Warteschlange nur, solange kein
+  anderes 🎶 Hintergrund-Pad klingt und kein 🔁 endloses Pad läuft, das du
+  von Hand gestartet hast. Stoppst du dieses Pad, startet die Warteschlange,
+  falls die Pause noch läuft.
+- **Ein Klick auf das laufende Pad**, **⏹ Alles stoppen**, **Esc** oder ein
+  Pad mit **S Die anderen Pads stoppen** beendet die Warteschlange. Ein gewöhnliches Pad dazwischen lässt sie weiterlaufen.
 - Die Warteschlange wird mit der Wand gespeichert. Nach einem Neustart ist
   sie noch da, aber es spielt nichts, bis du eines ihrer Pads anklickst.
 
@@ -794,6 +902,7 @@ ein Makro-Keypad braucht dafür keinen Treiber.
 | ⏫ / ⏬ Tempo schneller / langsamer, 0,1 % pro Schritt | **Strg + Umschalt + Bild ↑ / Bild ↓** |
 | 🎯 Tempo zurück auf ±0 % | **Strg + Umschalt + Pos1** |
 | ⏹ Alle Pads stoppen | **Strg + Umschalt + X** |
+| ⏹ Alle Musik sofort stoppen, ohne Ausblenden | **Umschalt + Esc** |
 | 🎯 Wiedergabeliste 1–8 fokussieren | **Alt + 1** … **Alt + 8** |
 | 🎯 Wunschliste 1–4 fokussieren | **Alt + Q**, **W**, **E**, **R** |
 | 📚 Bibliothek fokussieren | **Alt + L** |
@@ -870,7 +979,7 @@ Was er auslösen kann:
   geplante Auslosung nimmt einen Titel nur auf einen Platz, darum sagt ➕
   dort das und fügt nichts hinzu. Auch diese haben
   [Pult-Tasten](#-pult-tasten);
-- ⏹ Alle Pads stoppen, und sechzehn Cartwall-Pads: Pad *n* ist das *n*-te
+- ⏹ Alle Pads stoppen, ⏹ Alle Musik sofort stoppen, und sechzehn Cartwall-Pads: Pad *n* ist das *n*-te
   Pad der sichtbaren Seite, wie bei **Strg + *n***.
 
 Im Fenster:
@@ -922,6 +1031,34 @@ abgezogen, verschwindet das Abzeichen nach wenigen Sekunden, und die App
 sucht alle paar Sekunden wieder nach ihm; wieder eingesteckt, wird er von
 selbst wieder benutzt. MIDI geht unter Windows, macOS und Linux.
 
+## 🆘 Nach einem Absturz oder Neustart
+
+Wurde die App nicht sauber beendet, sagt es der nächste Start. Das
+Absturzprotokoll dieser Sitzung steht unter **Details anzeigen…**, mit den
+letzten Zeilen ihres Protokolls, sodass ein Kopieren für eine Fehlermeldung
+reicht. Enthält es nur einen Fehler, den die App nicht abgefangen hat, und
+keinen Absturz, heißt die Meldung **Letzte Sitzung hat einen Fehler
+protokolliert**: Die App lief danach womöglich weiter.
+
+Auch der Abend geht nicht verloren. Lief beim Absturz ein Titel, fragt der
+Start **Nach einem Absturz weitermachen?** **Ja** legt diesen Titel wieder in
+seiner Zeile bereit, von vorn, im Abspielmodus, und graut die Titel aus, die
+der Abend schon gespielt hatte; **Nein** lässt beides. Nach einem Neustart
+zwischen zwei Titeln fragt der Start für sich **▶ Den Abend fortsetzen?**:
+**▶ Fortsetzen** graut die Titel des Abends wieder aus, **Neu beginnen**
+lässt die Decks, wie sie sind. Nichts startet von selbst, denn im Saal kann
+gerade eine Rede laufen: **⏯** spielt den bereitgelegten Titel. Ein Abend
+gilt bis vier Stunden nach seinem letzten Titel als derselbe, wie bei den
+[📜 gespielten Titeln](#-gespielte-titel).
+
+## 🪟 Der Mini-Player in der Taskleiste
+
+Unter Windows: Fahr mit der Maus über den Knopf der App in der Taskleiste.
+Unter dem Vorschaubild des Fensters sitzen **⏮ ⏯ ⏭**, so springst oder
+pausierst du, ohne das Fenster nach vorn zu holen. Sie tun, was die Knöpfe
+der Player-Karte tun. **⏯** zeigt, was ein Klick bewirkt, ▶ oder ⏸, und die
+Beschriftung des Vorschaubilds ist der laufende Titel.
+
 ## 📜 Gespielte Titel
 
 Im Spielmodus schreibt die App jeden Titel auf, sobald er 10 Sekunden
@@ -932,9 +1069,14 @@ oben; eine Pause von mehr als vier Stunden beginnt einen neuen, damit eine
 Party über Mitternacht ein Abend bleibt.
 
 - Klick auf einen Abend, um seine Titel zu sehen und wie lange jeder lief.
+- Ein 🎛 Cartwall-Pad, das 10 s oder länger zu hören war, wird auch
+  protokolliert, unter der Liste *Cartwall*, mit den Sekunden, die es zu
+  hören war.
+- Das Listenfeld (anfangs **Alle Listen**) zeigt nur eine Liste des Abends.
 - **💾 Als CSV speichern…** speichert den Abend als Tabelle für Excel, zum
   Beispiel für eine GEMA-Meldung: Datum, Start, Interpret, Titel, Komponist, Tanz, Liste
-  und Dauer.
+  und Dauer. Ist eine Liste gewählt, wird nur sie gespeichert, und der
+  Dateiname trägt sie.
 - **🗑 Abend löschen** entfernt ihn nach einer Rückfrage aus dem Protokoll.
 - Eine Spalte, die du auf eine neue Breite ziehst, behält sie (gespeichert in
   `play_log_dialog.json`); die übrigen Spalten passen sich dem gezeigten Abend

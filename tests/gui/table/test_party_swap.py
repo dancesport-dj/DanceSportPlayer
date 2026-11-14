@@ -20,10 +20,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_pswap_"))
 
-from PySide6.QtCore import QEvent, QItemSelectionModel, Qt
-from PySide6.QtGui import QKeyEvent
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtCore import QEvent, QItemSelectionModel, QPoint, Qt
+from PySide6.QtGui import QContextMenuEvent, QKeyEvent
+from PySide6.QtWidgets import QApplication, QMenu, QWidget
 
+from gui.table import table_menu
 from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry
 from shared.columns import COL_REGEN
@@ -105,6 +106,65 @@ class PartySwapTest(_PartyBase):
     def test_class_warmup_keeps_the_library_reroll(self):
         t = self.table(style="Latin")
         self.assertNotIn("Swap", t.item(self.row_of(t, "LW 1"), COL_REGEN).toolTip())
+        with mock.patch.object(t, "_regen_warmup") as reroll:
+            t._regen(self.row_of(t, "LW 1"))
+        reroll.assert_called_once()
+
+
+class PartyMenuSwapTest(_PartyBase):
+    """The context menu carries what the ↺ button does."""
+
+    def menu(self, t, title, pick=None):
+        row = self.row_of(t, title)
+        seen = []
+
+        class _Menu(QMenu):
+            def exec(self, *_a):
+                seen.extend(a.text() for a in self.actions())
+                return next((a for a in self.actions() if a.text() == pick), None)
+
+        pos = QPoint(5, t.rowViewportPosition(row) + 2)
+        with mock.patch.object(table_menu, "QMenu", _Menu):
+            t.contextMenuEvent(QContextMenuEvent(
+                QContextMenuEvent.Reason.Mouse, pos, t.mapToGlobal(pos)))
+        return seen
+
+    def test_the_party_list_offers_the_swap_with_the_dance_named(self):
+        t = self.table()
+        texts = self.menu(t, "LW 1")
+        self.assertIn("↺  Swap with a Langsamer Walzer from the end of the list", texts)
+
+    def test_choosing_it_swaps_with_the_leftover(self):
+        t = self.table()
+        before = self.titles(t)
+        self.menu(t, "LW 1", pick="↺  Swap with a Langsamer Walzer from the end of the list")
+        self.app.processEvents()
+        after = self.titles(t)
+        self.assertEqual((after[0], after[15]), ("LW 4", "LW 1"))
+        self.assertEqual(after[1:15] + after[16:], before[1:15] + before[16:])
+
+    SWAP_LW = "↺  Swap with a Langsamer Walzer from the end of the list"
+
+    def test_a_practice_list_offers_the_swap_with_the_end_too(self):
+        """Marcel: the swap with an item at the end of the list, in the
+        practice list (a per-class one) as well. Its ↺ button re-rolls from
+        the library; the menu carries the swap beside it."""
+        t = self.table(style="Latin")
+        texts = self.menu(t, "LW 1")
+        self.assertIn(self.SWAP_LW, texts)
+        self.assertNotIn("↺  Re-roll a replacement", texts)
+
+    def test_choosing_it_on_a_practice_list_swaps_with_the_end(self):
+        t = self.table(style="Latin")
+        before = self.titles(t)
+        self.menu(t, "LW 1", pick=self.SWAP_LW)
+        self.app.processEvents()
+        after = self.titles(t)
+        self.assertEqual((after[0], after[15]), ("LW 4", "LW 1"))
+        self.assertEqual(after[1:15] + after[16:], before[1:15] + before[16:])
+
+    def test_its_button_still_re_rolls_from_the_library(self):
+        t = self.table(style="Latin")
         with mock.patch.object(t, "_regen_warmup") as reroll:
             t._regen(self.row_of(t, "LW 1"))
         reroll.assert_called_once()

@@ -184,13 +184,17 @@ class JsonStore:
         """Write the file atomically. Never raises: nothing the app persists is
         worth losing the user's next click over. False when it did not land."""
         if self._unopened:
-            self._unopened = False
             kept = self._keep_unreadable(self.path) if self.path.exists() else None
             if kept is None and self.path.exists():
+                # Still armed: unless this save lands and replaces the file, the
+                # next one gets another go at keeping it aside.
                 log.warning("⚠️ Stored state could not be kept aside before it is replaced\n"
                             "file: %s", self.name)
+            else:
+                self._unopened = False
         try:
             config.write_json_atomic(self.path, obj)
+            self._unopened = False
             return True
         except Exception as exc:
             log.error("⚠️ Could not save stored state\n"

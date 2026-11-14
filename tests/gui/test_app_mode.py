@@ -617,6 +617,57 @@ class PlaySetsTabTest(_Qt):
         self.assertEqual(len(intro), 1)
         self.assertNotIn("two buttons", intro[0])
 
+    def test_gemuetlich_has_a_top_tempo_for_every_dance_the_app_knows(self):
+        """The 🛋 limits are not only for the ten tournament dances: Salsa,
+        Bachata, Line Dance & co. get a field each, and every one is saved."""
+        from planner.models import DANCE_NAMES
+        dlg = self._dlg({})
+        self.assertEqual(set(dlg._gem_spins), set(DANCE_NAMES))
+        self.assertEqual(set(dlg.values()["gemuetlich_max"]), set(DANCE_NAMES))
+
+    def test_the_english_settings_text_says_relaxed_not_gemuetlich(self):
+        from PySide6.QtWidgets import QCheckBox, QLabel
+        dlg = self._dlg({})
+        texts = [w.text() for w in dlg.findChildren(QCheckBox)]
+        texts += [w.text() for w in dlg.findChildren(QLabel)]
+        self.assertFalse([t for t in texts if "Gemütlich" in t])
+        self.assertTrue([t for t in texts if "Relaxed" in t])
+
+    def test_the_top_tempo_is_a_whole_takt_without_a_comma(self):
+        """T50 is typed and shown as T50: a takt has no decimals here."""
+        dlg = self._dlg({})
+        spin = dlg._gem_spins["QS"]
+        self.assertEqual(spin.decimals(), 0)
+        self.assertEqual(spin.text(), "T50")
+        self.assertEqual(dlg._gem_spins["WW"].text(), "T58")
+        self.assertEqual(dlg._gem_spins["DISCOFOX"].text(), "T30")
+
+    @staticmethod
+    def _box_titles(widget):
+        from PySide6.QtWidgets import QGroupBox
+        out = []
+        while widget is not None:
+            if isinstance(widget, QGroupBox):
+                out.append(widget.title())
+            widget = widget.parentWidget()
+        return out
+
+    def test_the_party_top_tempo_sits_inside_the_party_sets_border(self):
+        titles = self._box_titles(self._dlg({})._gem_spins["QS"])
+        self.assertTrue(any("Party set" in t for t in titles), titles)
+
+    def test_a_social_dance_limit_round_trips(self):
+        dlg = self._dlg({"gemuetlich_max": {"SALSA": 46.0}})
+        self.assertEqual(dlg._gem_spins["SALSA"].value(), 46.0)
+        self.assertEqual(dlg.values()["gemuetlich_max"]["SALSA"], 46.0)
+        self.assertEqual(dlg.values()["gemuetlich_max"]["BACHATA"], 0.0)
+
+    def test_resetting_puts_the_gemuetlich_limits_back_on_the_shipped_ones(self):
+        dlg = self._dlg({"gemuetlich_max": {"SALSA": 46.0, "JI": 0}})
+        dlg._rebuild_play_sets()
+        self.assertEqual(dlg._gem_spins["SALSA"].value(), 0.0)
+        self.assertEqual(dlg._gem_spins["JI"].value(), 41.0)
+
     def test_the_built_in_sets_are_what_it_starts_on(self):
         from planner.playing.play_sets import PARTY_PD, PARTY_SET, TOURNAMENT_PD, TOURNAMENT_SET
         vals = self._dlg({}).values()
@@ -624,6 +675,9 @@ class PlaySetsTabTest(_Qt):
                                   ("party_set", PARTY_SET, PARTY_PD)):
             got = dict(vals[key])
             got.pop("tso")          # its own default — see below
+            # 🛋 Only a party has it, and it starts off.
+            if key == "party_set":
+                self.assertIs(got.pop("gemuetlich"), False)
             # ❓ Kept beside the set like the pitch, on by default in both.
             self.assertIs(got.pop("dblclick_ask"), True)
             # 🐂 Each set's Paso Doble, kept beside the set's dict.
@@ -672,6 +726,16 @@ class PlaySetsTabTest(_Qt):
         dlg._confirm_reset_sound = lambda: True
         dlg._sound_reset_btn.click()
         self.assertEqual(dlg.values()["duck_down_ms"], 2000)
+
+    def test_the_sound_tab_reset_docks_the_player_beside_the_playlists_again(self):
+        # Marcel: the main player's default is "beside the playlists"; the
+        # reset left a stored "above the playlists" standing.
+        dlg = self._dlg({"player_layout": "wide"})
+        self.assertEqual(dlg.values()["player_layout"], "wide")
+        dlg._confirm_reset_sound = lambda: True
+        dlg._sound_reset_btn.click()
+        self.assertEqual(dlg.values()["player_layout"], "panel")
+        self.assertEqual(self._dlg({}).values()["player_layout"], "panel")
 
     def test_the_cartwall_tab_reset_puts_every_value_back(self):
         dlg = self._dlg({"cart_duck_pct": 60, "cart_fade_ms": 4000,
@@ -754,14 +818,16 @@ class PlaySetsTabTest(_Qt):
         dlg._set_widgets["party"]["boxes"]["tso"].setChecked(True)
         self.assertIs(dlg.values()["party_set"]["tso"], True)
 
-    def test_ticking_the_call_ticks_no_pause_in_a_set(self):
-        """🔈 As on the panel: the pause goes by default, and can be put back."""
-        boxes = self._dlg({"party_set": {"pause_off": False}})._set_widgets["party"]["boxes"]
-        boxes["announce"].click()
-        self.assertTrue(boxes["pause_off"].isChecked())
-        boxes["pause_off"].click()
-        self.assertFalse(boxes["pause_off"].isChecked())
-        self.assertTrue(boxes["announce"].isChecked())
+    def test_ticking_the_call_leaves_the_pause_of_a_set_alone(self):
+        """🔈 As on the panel: the call is made in the pause, so ticking it
+        neither takes the pause off nor puts it back."""
+        for pause_off in (False, True):
+            with self.subTest(pause_off=pause_off):
+                boxes = self._dlg(
+                    {"party_set": {"pause_off": pause_off}})._set_widgets["party"]["boxes"]
+                boxes["announce"].click()
+                self.assertTrue(boxes["announce"].isChecked())
+                self.assertEqual(boxes["pause_off"].isChecked(), pause_off)
 
     def test_full_length_is_offered_and_survives(self):
         """0 is the 'full' rung — it must not read back as 'nothing picked'."""

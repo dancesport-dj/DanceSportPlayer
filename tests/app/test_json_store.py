@@ -109,6 +109,32 @@ class ReadTest(_StoreCase):
         [kept] = self._kept()
         self.assertEqual(json.loads(kept.read_text(encoding="utf-8")), {"a": 1})
 
+    def test_a_save_that_could_not_keep_the_file_aside_tries_again_next_time(self):
+        """The hold that failed the read can fail the copy-aside AND the save
+        too. Once it lifts, the next save is still the one that must keep the
+        never-read file: the first attempt must not have used the chance up."""
+        self.store.write({"a": 1})
+        real = Path.read_text
+
+        def locked(path, *args, **kwargs):
+            if path.name == "thing.json":
+                raise PermissionError(13, "in use by another process")
+            return real(path, *args, **kwargs)
+
+        with mock.patch.object(Path, "read_text", locked), \
+                self.assertLogs("dancesport.store", "WARNING"):
+            self.store.read([])
+        with mock.patch.object(planner_store.shutil, "copy2",
+                               side_effect=PermissionError(13, "in use")), \
+                mock.patch.object(planner_store.config, "write_json_atomic",
+                                  side_effect=PermissionError(13, "in use")), \
+                self.assertLogs("dancesport.store", "WARNING"):
+            self.assertFalse(self.store.write({"defaults": True}))
+        self.assertEqual(self._kept(), [])
+        self.assertTrue(self.store.write({"defaults": True}))   # the hold is gone
+        [kept] = self._kept()
+        self.assertEqual(json.loads(kept.read_text(encoding="utf-8")), {"a": 1})
+
     def test_a_good_read_after_a_locked_one_keeps_nothing(self):
         self.store.write({"a": 1})
         real = Path.read_text

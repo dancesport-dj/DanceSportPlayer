@@ -176,6 +176,18 @@ def background_overlaps(settings: dict) -> bool:
     the bed is down, so its first bar is never under the tail of it."""
     return settings.get("cart_bg_overlap") is True
 
+
+LOOP_MODES = ("crossover", "fade", "hard")
+
+
+def loop_mode(settings: dict) -> str:
+    """The 'cart_loop_mode' setting: how a looping pad meets the end of its
+    file. "crossover" blends into the next round, "fade" dips to silence and
+    restarts, "hard" wraps at once. A missing or odd value is crossover."""
+    mode = settings.get("cart_loop_mode")
+    return mode if mode in LOOP_MODES else LOOP_MODES[0]
+
+
 # Keys that fire the first nine slots of the page on screen. Slot-based, not
 # pad-based, so the same finger hits the same corner of the wall on every page;
 # a pad that wants a key of its own carries it in CartPad.shortcut and keeps it
@@ -199,6 +211,16 @@ LABEL_MAX = 26
 DEFAULT_FADE_MS = 1000
 MAX_FADE_MS = 8_000
 
+# How long a looping pad blends its end into its next round (or dips, in
+# the fade mode). A setting of its own, like the fade-out and overridable
+# per pad like it, because a bed that already fades out inside its file
+# wants a crossover that starts well before the end of that tail.
+DEFAULT_CROSS_MS = 3000
+# "Fade out and restart" dips to silence and starts again, which takes a
+# shorter stretch than a blend that overlaps two rounds.
+DEFAULT_FADE_RESTART_MS = 1000
+MAX_CROSS_MS = 15_000
+
 Cell = tuple[int, int]          # (row, col)
 Grid = tuple[int, int]          # (cols, rows)
 
@@ -218,15 +240,24 @@ class CartPad:
     volume: float = 1.0   # 0.0–1.0 per-pad trim (a background bed at 0.25)
     loop: bool = False    # endless repeat
     duck: bool = True     # pull the deck music down while this pad runs
+    # …and/or the other pads: a title running on a pad goes down under this one
+    # and returns to its own level afterwards. Independent of `duck`.
+    duck_pads: bool = False
     # The other way round: the pad goes silent under the deck music while a
     # title plays and comes back up in the pauses. Never together with `duck`.
     # (An old wall's per-pad "dip" level is passed over when it is read.)
     background: bool = False
     stops_others: bool = False   # starting it fades every other running pad out
+    # 🔇 Start at the music, past the dead air at the top of the file: a
+    # Tusch that opens with 300 ms of silence sounds on the tap.
+    skip_silence: bool = False
     shortcut: str = ""    # "" → whatever SLOT_KEYS gives this slot
     # None → follow the wall's fade. An explicit 0 is a hard cut and is NOT the
     # same thing, which is why this cannot be a plain int with a sentinel.
     fade_ms: int | None = None
+    # The same for a looping pad's crossover into its next round: None
+    # follows the setting, an explicit 0 is a plain restart.
+    cross_ms: int | None = None
     # ▶ Place in the wall's pad queue: 0 = not queued, a higher number plays
     # later. On the pad rather than in a list of cells, so every move, swap and
     # turn of the wall carries it along. Only the order counts, not the value.
@@ -238,6 +269,30 @@ def fade_for(pad: CartPad, wall_fade: int = DEFAULT_FADE_MS) -> int:
     if pad is None or pad.fade_ms is None:
         return max(0, min(MAX_FADE_MS, int(wall_fade)))
     return max(0, min(MAX_FADE_MS, int(pad.fade_ms)))
+
+
+def default_cross_ms(mode: str) -> int:
+    """What a loop mode's length is until someone sets one: 3 s for the
+    crossover, 1 s for the fade-out-and-restart dip."""
+    return DEFAULT_FADE_RESTART_MS if mode == "fade" else DEFAULT_CROSS_MS
+
+
+def cross_ms(settings: dict) -> int:
+    """The 'cart_cross_ms' setting: the crossover length every looping pad
+    follows unless it has its own. A missing or odd value is the default of
+    the loop mode in force (`default_cross_ms`)."""
+    default = default_cross_ms(loop_mode(settings))
+    try:
+        ms = int(settings.get("cart_cross_ms", default))
+    except (TypeError, ValueError, OverflowError):
+        return default
+    return max(0, min(MAX_CROSS_MS, ms))
+
+
+def cross_for(pad: CartPad, wall_cross: int = DEFAULT_CROSS_MS) -> int:
+    """How long THIS pad's loop crossover takes: its own, or the setting."""
+    own = None if pad is None else pad.cross_ms
+    return max(0, min(MAX_CROSS_MS, int(wall_cross if own is None else own)))
 
 
 @dataclass
@@ -659,6 +714,12 @@ def _pad_from_dict(data) -> CartPad | None:
             fade = max(0, min(MAX_FADE_MS, int(fade)))
         except (TypeError, ValueError, OverflowError):
             fade = None     # unreadable → follow the wall, not a silent 0
+    cross = data.get("cross_ms")
+    if cross is not None:
+        try:
+            cross = max(0, min(MAX_CROSS_MS, int(cross)))
+        except (TypeError, ValueError, OverflowError):
+            cross = None    # unreadable → follow the setting, not a silent 0
     queue = data.get("queue", 0)
     if isinstance(queue, float) and queue.is_integer():
         queue = int(queue)      # 1.0 is a queue number too
@@ -671,10 +732,13 @@ def _pad_from_dict(data) -> CartPad | None:
         volume=max(0.0, min(1.0, volume)),
         loop=bool(data.get("loop", False)),
         duck=bool(data.get("duck", True)),
+        duck_pads=bool(data.get("duck_pads", False)),
         background=bool(data.get("background", False)),
         stops_others=bool(data.get("stops_others", False)),
+        skip_silence=bool(data.get("skip_silence", False)),
         shortcut=str(data.get("shortcut", "") or ""),
         fade_ms=fade,
+        cross_ms=cross,
         queue=queue)
 
 
@@ -691,14 +755,20 @@ def _pad_to_dict(pad: CartPad) -> dict:
         out["loop"] = True
     if not pad.duck:
         out["duck"] = False
+    if pad.duck_pads:
+        out["duck_pads"] = True
     if pad.background:
         out["background"] = True
     if pad.stops_others:
         out["stops_others"] = True
+    if pad.skip_silence:
+        out["skip_silence"] = True
     if pad.shortcut:
         out["shortcut"] = pad.shortcut
     if pad.fade_ms is not None:
         out["fade_ms"] = int(pad.fade_ms)
+    if pad.cross_ms is not None:
+        out["cross_ms"] = int(pad.cross_ms)
     if pad.queue:
         out["queue"] = pad.queue
     return out
@@ -707,7 +777,7 @@ def _pad_to_dict(pad: CartPad) -> dict:
 def _grid_from(data) -> Grid:
     try:
         cols, rows = int(data.get("cols")), int(data.get("rows"))
-    except (AttributeError, TypeError, ValueError):
+    except (AttributeError, TypeError, ValueError, OverflowError):
         return DEFAULT_GRID
     if 1 <= cols <= _MAX_COLS and 1 <= rows <= _MAX_ROWS:
         return (cols, rows)

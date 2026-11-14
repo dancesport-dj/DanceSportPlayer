@@ -63,6 +63,9 @@ class BigPlayerLimitTest(unittest.TestCase):
             self.marks = None
             self.overlay = None
 
+        def loop_mode(self):
+            return False
+
         def set_limit(self, ms, glyph="hourglass", to_end=False):
             self.limit = (ms, glyph, to_end)
 

@@ -20,6 +20,7 @@ from planner.playing.play_sets import (
     XFADE_DEFAULT_SECS,
     dance_secs_of,
     dblclick_ask_of,
+    gemuetlich_of,
     pd_of,
     play_set_of,
     round_dance_secs_of,
@@ -57,7 +58,8 @@ ROUND_PD_OWN_KEY = "pd_round_n"
 # A list's values the panel has no control for: 🎚 the TSO pitch sits on the
 # player card, ❓ the double-click ask only in ⚙ Settings → 🎛 Playsets, and
 # 🐂 the list's own round picks, which the spin shows only over their round.
-OFF_PANEL_KEYS = ("tso", "dblclick_ask", ROUND_PD_OWN_KEY, "celebrate")
+OFF_PANEL_KEYS = ("tso", "gemuetlich", "dblclick_ask", ROUND_PD_OWN_KEY,
+                  "celebrate")
 
 
 class PlayValuesMixin(MainWindowHost):
@@ -74,6 +76,23 @@ class PlayValuesMixin(MainWindowHost):
         if card is not None:
             return bool(card.tso_mode())
         return bool(getattr(self, "_settings", {}).get("tso_equalize", True))
+
+    def _card_gem(self) -> bool:
+        """🛋 The gemütlich toggle as the player card has it."""
+        card = getattr(self, "_big_player", None)
+        return bool(card.gemuetlich_mode()) if card is not None else False
+
+    def _sync_card_gem(self, table) -> None:
+        """🛋 Put the card's TSO / gemütlich pair where the list that plays
+        wants it: the party list shows gemütlich in TSO's place, every other
+        list the TSO button."""
+        card = getattr(self, "_big_player", None)
+        if card is None or table is None:
+            return
+        vals = self._list_vals(table)
+        card.show_gemuetlich(table is self._deckset.warmup_table)
+        if bool(vals["gemuetlich"]) != card.gemuetlich_mode():
+            card.set_gemuetlich_mode(bool(vals["gemuetlich"]))   # sends no signal
 
     def _list_vals(self, table) -> dict:
         """The play values ONE list runs with: `play_set()`'s keys plus
@@ -94,17 +113,20 @@ class PlayValuesMixin(MainWindowHost):
             if panel_list is None or table is panel_list:
                 vals = self._play_panel.play_set()
                 vals["tso"] = self._card_tso()
+                vals["gemuetlich"] = self._card_gem()
                 vals["dblclick_ask"] = dblclick_ask_of(settings, kind)
             elif any(table is t for t in self._deckset.wishlists):
                 vals = dict(_WISHLIST_VALS)
             else:
                 vals = play_set_of(settings, kind)
                 vals["tso"] = tso_of(settings, kind)
+                vals["gemuetlich"] = gemuetlich_of(settings, kind)
                 vals["dblclick_ask"] = dblclick_ask_of(settings, kind)
             table._play_vals = vals
         # 🥇 None = the hand has not touched the switch: the 🏆 set's finals
         # follow ⚙ Settings, every other list celebrates nowhere.
         table._play_vals.setdefault("celebrate", None)
+        table._play_vals.setdefault("gemuetlich", False)
         return table._play_vals
 
     def _engine_list(self):
@@ -123,6 +145,12 @@ class PlayValuesMixin(MainWindowHost):
     def _play_limit_secs(self) -> int:
         """Seconds per title for the playing list, 0 = to the track's own end —
         the 🏆 set's own length for the title's dance, where it has one."""
+        if self._loop_runs_full():
+            return 0   # 🔁 a title held on the floor runs its whole file
+        return self._play_length_secs()
+
+    def _play_length_secs(self) -> int:
+        """The play length as configured, whatever 🔁 does with it."""
         if self._closing_on_air():
             return 0   # 🌙 the closing song plays to its end
         playing, row = self._playing_row()
@@ -144,7 +172,13 @@ class PlayValuesMixin(MainWindowHost):
         only place the set's per-dance lengths count. A length nudged by hand
         takes a list off them, and then its one length is every dance's. ⏭,
         the pause and the rest are how a list walks on, not how long a title
-        runs: a Vorrunde on ⏭ Auto cut every dance at the set's 1:45."""
+        runs: a Vorrunde on ⏭ Auto cut every dance at the set's 1:45.
+
+        🎉 The party list never does: the per-dance lengths are a heat's, and a
+        list whose one length happens to equal the set's (both "full") would
+        otherwise be cut at the Waltz's 1:30."""
+        if table is not None and table is self._deckset.warmup_table:
+            return False
         vals = (self._play_panel.play_set() if table is None
                 else self._list_vals(table))
         return vals.get("secs") == play_set_of(self._settings, "tournament")["secs"]
@@ -328,6 +362,7 @@ class PlayValuesMixin(MainWindowHost):
                     i18n.t("TSO tempo equalize → on") if vals["tso"]
                     else i18n.t("TSO tempo equalize → off"), short=True))
             self._sync_card_tso(vals["tso"], table)
+            self._sync_card_gem(table)
         self._refresh_set_lights()
         self._sync_dance_len()
         self._sync_celebrate_btn()
@@ -403,6 +438,41 @@ class PlayValuesMixin(MainWindowHost):
         self._play_panel.advance_check.clicked.connect(
             lambda on: on and self._offer_loop_off(self._panel_list()))
 
+    def _on_loop_mode(self, on: bool):
+        """🔁 was pressed or released on the player card (or by its key).
+
+        A title that loops while it is cut at the play length fades out and
+        starts again, which nobody holds the floor on a song for. So with a
+        play length in force, pressing 🔁 asks which of the two is meant; full
+        length is the default. The full length is in force BEFORE the box opens:
+        it runs its own event loop and the play tick goes on behind it."""
+        card = self._big_player
+        if card is None:
+            return
+        card.set_loop_cut(False)
+        secs = self._play_length_secs()
+        if on and secs > 0 and not self._pd_runs_to_its_highlight():
+            card.set_loop_cut(not self._ask_loop_full(secs))
+        self._sync_big_player_limit()
+
+    def _ask_loop_full(self, secs: int) -> bool:
+        """Whether the looping title should play its full length (True) or keep
+        the play length of `secs` (False). Enter and Escape both say full."""
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Question)
+        box.setWindowTitle(i18n.t("Endless repeat"))
+        box.setText(i18n.t("🔁 This title has a play length of %s, so it would fade "
+                           "out there and start again.\n\n"
+                           "Repeat it at its full length instead?")
+                    % f"{secs // 60}:{secs % 60:02d}")
+        full = box.addButton(i18n.t("Full length"), QMessageBox.ButtonRole.AcceptRole)
+        cut = box.addButton(i18n.t("Play length %s") % f"{secs // 60}:{secs % 60:02d}",
+                            QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(full)
+        box.setEscapeButton(full)
+        box.exec()
+        return box.clickedButton() is not cut
+
     def _offer_loop_off(self, table):
         """🔁 Auto was switched on for `table`. While the title repeats it never
         ends, so nothing would advance: ask whether the repeat should go."""
@@ -450,6 +520,16 @@ class PlayValuesMixin(MainWindowHost):
             return []
         return [rules_name(i18n.t("TSO tempo equalize → on") if want
                            else i18n.t("TSO tempo equalize → off"), short=True)]
+
+    def _set_list_gem(self, want: bool) -> None:
+        """🛋 Put the gemütlich toggle into the list on the panel, and onto the
+        card when that is the list it serves."""
+        t = self._panel_list()
+        if t is None:
+            return
+        self._list_vals(t)["gemuetlich"] = bool(want)
+        if t is self._engine_list():
+            self._sync_card_gem(t)
 
     def _set_list_ask(self, want: bool) -> list[str]:
         """❓ Put the double-click ask into the list on the panel and report
@@ -520,6 +600,7 @@ class PlayValuesMixin(MainWindowHost):
         changed = self._play_panel.apply_play_set(
             **play_set_of(self._settings, which))
         changed += self._set_party_tso(tso_of(self._settings, which))
+        self._set_list_gem(gemuetlich_of(self._settings, which))
         changed += self._set_list_ask(dblclick_ask_of(self._settings, which))
         changed += self._set_set_pd(which)
         return changed
@@ -604,7 +685,7 @@ class PlayValuesMixin(MainWindowHost):
             p._before_set = before
             return
         vals = self._list_vals(t)
-        before.update(tso=vals["tso"],
+        before.update(tso=vals["tso"], gemuetlich=vals.get("gemuetlich", False),
                       dblclick_ask=vals.get("dblclick_ask", True))
         t._before_set = before
 
@@ -630,6 +711,8 @@ class PlayValuesMixin(MainWindowHost):
         changed = p.apply_play_set(**{k: before[k] for k in p.play_set()},
                                    pause_secs=before.get("pause_secs"))
         changed += self._set_party_tso(before["tso"])
+        if "gemuetlich" in before:
+            self._set_list_gem(before["gemuetlich"])
         if "dblclick_ask" in before:
             changed += self._set_list_ask(before["dblclick_ask"])
         changed += (p.set_pd_highlight_stop(before["pd_stop"])
@@ -712,6 +795,7 @@ class PlayValuesMixin(MainWindowHost):
         for t in self._deckset.all_tables:
             t.set_advance_live(t is table)
         self._sync_card_tso(vals["tso"], table)
+        self._sync_card_gem(table)
         if self._big_player is not None:
             self._big_player.set_pause_available(
                 bool(vals["advance"] and not vals["pause_off"]))

@@ -737,11 +737,30 @@ class TableDragDropMixin(PlaylistTableHost):
                 e.accept()
                 load(self, m3u)
                 return
+        if self.host.warmup_table() is self and not self._row_meta.song_rows():
+            # Rows dropped on the EMPTY panel open there as a party list, in the
+            # order they came — what an .m3u dropped on it does. Below, an empty
+            # table is a deck to plan, which sorted them into a grid.
+            load = self.host.warmup_rows_loader()
+            entries = self._collect_drop_entries(e) if load is not None else []
+            if entries and load is not None:
+                e.setDropAction(Qt.DropAction.CopyAction)
+                e.accept()
+                load(self, entries)
+                self._move_from_drag_source(e, pre_planned=set())
+                return
         if self._deck_adds_on_drop():
             # A deck of a player-only install: make it the flat running order —
             # empty or still showing a planned grid — then let the insert path
             # below place the dropped track where it was dropped.
+            songs = self._row_meta.song_rows()
+            nth = songs.index(row) if row in songs else None
             self.become_player_list()
+            # The grid's row number means nothing in the running order: find the
+            # title by its place in the playing order, which is kept (8.A). Off
+            # a title, -1 leaves a Shift+drop an insert at the cursor gap.
+            songs = self._row_meta.song_rows()
+            row = songs[nth] if nth is not None and nth < len(songs) else -1
         elif (not self._flat_mode and not self._player_list
               and (self._dynamic or not self._row_meta)):
             self._drop_dynamic(e)
@@ -950,8 +969,13 @@ class TableDragDropMixin(PlaylistTableHost):
             return paths, [], False
         found = [(p, e) for p, e in zip(paths, self._entries_for_paths(paths), strict=False)
                  if e is not None]
-        pairs = [(p, *t) for p, e in found
-                 for t in self._drop_dup_pairs([e], cur)]
+        # One call for the whole drop: the Chromaprints are read, and the
+        # progress shown, once, not once per dropped file.
+        path_of = {id(e): p for p, e in found}
+        dups = self._drop_dup_pairs([e for _p, e in found], cur)
+        if dups is None:
+            return None
+        pairs = [(path_of[id(t[0])], *t) for t in dups]
         if len(paths) == 1 and pairs and pairs[0][3]:
             return paths, [], False
         answers = self._ask_drop_duplicates([t[1:] for t in pairs])

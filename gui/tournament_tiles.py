@@ -10,6 +10,7 @@ from pathlib import Path
 from PySide6.QtCore import QMimeData, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QDrag, QKeySequence
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QApplication,
     QFrame,
     QLabel,
@@ -26,6 +27,11 @@ from shared.widgets import FlowLayout
 # hands back a COPY, so edits would never reach the model and `is` comparisons
 # would all miss. An index path is a string, which survives the round trip.
 ROLE_KEY = Qt.ItemDataRole.UserRole
+# A drag that starts in the tree carries this, so the tree knows it is its own
+# rows coming back (and moves them) instead of .m3u files from outside (and
+# files them). The second one is only there so Qt draws its drop line.
+_NODES_MIME = "application/x-danceplaylist-tourney-nodes"
+_QT_ITEMS_MIME = "application/x-qabstractitemmodeldatalist"
 # One slot. Wide enough for "Turnier 3 Sen I S" and two rows of them fit the
 # strip the pane gets at the bottom of the window.
 _SLOT_W, _SLOT_H = 200, 62
@@ -39,10 +45,19 @@ class TourneyTree(QTreeWidget):
     as it would coming from Explorer."""
 
     filesDropped = Signal(object, object)   # (target item | None, [Path, …])
+    # Rows dragged within the tree: ([node, …], node dropped at | None, where) with
+    # where one of "before" | "after" | "into" | "first" | "end". Nodes, not keys:
+    # an index path goes stale the moment the tree is rebuilt.
+    nodesMoved = Signal(object, object, str)
 
     node_of: Callable[[object], dict | None] | None = None  # set by TournamentTree: item key → node dict
     # set by TournamentTree: Ctrl+A → True when it marked something else instead
     select_all_cb: Callable[[], bool] | None = None
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._dragged: list[dict] | None = None   # the nodes of the drag now under way
+        self._spot: tuple | None = None            # (target node | None, where) it would drop at
 
     def keyPressEvent(self, event):
         if (event.matches(QKeySequence.StandardKey.SelectAll)
@@ -64,19 +79,76 @@ class TourneyTree(QTreeWidget):
                 out.append(p)
         return out
 
+    def _own_drag(self, mime) -> bool:
+        return self._dragged is not None and mime.hasFormat(_NODES_MIME)
+
+    @staticmethod
+    def contains(root: dict, node: dict) -> bool:
+        """`node` is `root` or lies anywhere below it (by identity)."""
+        return root is node or any(TourneyTree.contains(c, node)
+                                   for c in root.get("children") or [])
+
+    def _spot_at(self, pos) -> tuple | None:
+        """Where a drop at `pos` would put the dragged rows: (target node |
+        None, where), None when that is not allowed. The row's top and bottom
+        edges mean beside it, its middle means into it — the same split Qt draws
+        its drop line by."""
+        item = self.itemAt(pos)
+        if item is None:
+            return (None, "end")
+        node = self.node_of(item.data(0, ROLE_KEY)) if self.node_of else None
+        if node is None or any(self.contains(d, node) for d in self._dragged or ()):
+            return None   # a folder cannot go into itself or what it holds
+        rect = self.visualItemRect(item)
+        margin = max(2, min(12, round(rect.height() / 5.5)))
+        folder = not node.get("m3u")
+        if pos.y() - rect.top() < margin:
+            return (node, "before")
+        if rect.bottom() - pos.y() < margin or (not folder and pos.y() > rect.center().y()):
+            # the line under an open folder sits above its first child
+            if folder and item.isExpanded() and item.childCount():
+                return (node, "first")
+            return (node, "after")
+        if not folder:
+            return (node, "before")
+        return (node, "into")
+
     def dragEnterEvent(self, event):
+        if self._own_drag(event.mimeData()):
+            super().dragEnterEvent(event)   # Qt's drag state: drop line, auto-scroll
+            event.acceptProposedAction()
+            return
         if self._m3u_urls(event.mimeData()):
             event.acceptProposedAction()
             return
         event.ignore()
 
     def dragMoveEvent(self, event):
+        if self._own_drag(event.mimeData()):
+            super().dragMoveEvent(event)
+            self._spot = self._spot_at(event.position().toPoint())
+            if self._spot is None:
+                event.ignore()
+            else:
+                event.acceptProposedAction()
+            return
         if self._m3u_urls(event.mimeData()):
             event.acceptProposedAction()
             return
         event.ignore()
 
     def dropEvent(self, event):
+        if self._own_drag(event.mimeData()):
+            spot, nodes = self._spot, list(self._dragged or ())
+            self._spot = None
+            self.setState(QAbstractItemView.State.NoState)   # Qt's own drop would re-file the rows itself
+            self.viewport().update()
+            if spot is None:
+                event.ignore()
+                return
+            event.acceptProposedAction()
+            QTimer.singleShot(0, lambda: self.nodesMoved.emit(nodes, *spot))
+            return
         paths = self._m3u_urls(event.mimeData())
         if not paths:
             event.ignore()
@@ -89,20 +161,42 @@ class TourneyTree(QTreeWidget):
         QTimer.singleShot(0, lambda: self.filesDropped.emit(item, paths))
 
     def startDrag(self, _actions):
+        """Grab the marked rows. The playlists among them leave as files too (a
+        deck takes those); every row, folders included, can be dropped back on
+        the tree to rearrange it — resolved to nodes HERE, since the tree may be
+        rebuilt before the drop is handled."""
+        if self.node_of is None:
+            return
         paths = []
+        keys = []
         for item in self.selectedItems():
-            node = (self.node_of(item.data(0, ROLE_KEY)) if self.node_of else None) or {}
+            key = item.data(0, ROLE_KEY) or ""
+            node = self.node_of(key) or {}
             if node.get("m3u"):
                 paths.append(str(node["m3u"]))
-        if not paths:
+            if key:
+                keys.append(key)
+        # a marked folder takes its marked rows along: they move once, in tree order
+        keys = [k for k in keys if not any(k.startswith(o + "/") for o in keys)]
+        keys.sort(key=lambda k: [int(p) for p in k.split("/")])
+        nodes = [n for n in (self.node_of(k) for k in keys) if n is not None]
+        if not nodes:
             return
         mime = QMimeData()
-        mime.setUrls([QUrl.fromLocalFile(p) for p in paths])
-        mime.setText("\n".join(paths))
-        drag = QDrag(self)
-        drag.setMimeData(mime)
-        drag.exec(Qt.DropAction.CopyAction | Qt.DropAction.LinkAction,
-                  Qt.DropAction.CopyAction)
+        if paths:
+            mime.setUrls([QUrl.fromLocalFile(p) for p in paths])
+            mime.setText("\n".join(paths))
+        mime.setData(_NODES_MIME, b"1")
+        mime.setData(_QT_ITEMS_MIME, b"")
+        self._dragged = nodes
+        try:
+            drag = QDrag(self)
+            drag.setMimeData(mime)
+            drag.exec(Qt.DropAction.CopyAction | Qt.DropAction.LinkAction,
+                      Qt.DropAction.CopyAction)
+        finally:
+            self._dragged = None
+            self._spot = None
 
 
 class _SlotTile(QFrame):
@@ -244,7 +338,9 @@ class SlotBoard(QScrollArea):
             item = self._flow.takeAt(0)
             w = item.widget() if item is not None else None
             if w is not None:
-                w.setParent(None)
+                # Never setParent(None) on a tile that is showing: for that moment
+                # it is a top-level window, a little blank "python" one on screen.
+                w.hide()
                 w.deleteLater()
         self._tiles.clear()
         self.selected_keys = []

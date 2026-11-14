@@ -20,6 +20,7 @@ class SecondTrackTest(unittest.TestCase):
             worker.path = running_path
             workers[str(running_path)] = worker
         return SimpleNamespace(_pd_highlights={}, _library=SimpleNamespace(cache=None),
+                               _settings={},
                                _arm_pd_stop=mock.Mock(), _pending=PendingWork(pd_workers=workers),
                                _on_pd_highlights=mock.Mock(), _on_pd_error=mock.Mock())
 
@@ -51,6 +52,19 @@ class SecondTrackTest(unittest.TestCase):
         with mock.patch.object(main_pd, "PdHighlightWorker"):
             PdStopMixin._ensure_pd_highlights(dlg, Path("second.mp3"))
         self.assertEqual(list(dlg._pending.pd_workers), [str(Path("second.mp3"))])
+
+    def test_a_track_found_elsewhere_is_detected_there(self):
+        """The stick came back as another drive, or a copy sits under a search
+        root: detected at the stored path, ffmpeg found nothing and the title
+        kept the generic guess. The detection reads the file the deck plays and
+        reports under the stored path."""
+        dlg = self.fake()
+        stored, found = Path("gone/pd.mp3"), Path("found/pd.mp3")
+        with mock.patch.object(main_pd, "resolve_file", create=True, return_value=found), \
+                mock.patch.object(main_pd, "PdHighlightWorker") as cls:
+            PdStopMixin._ensure_pd_highlights(dlg, stored)
+        cls.assert_called_once_with(found, key=str(stored), parent=dlg)
+        self.assertIs(dlg._pending.pd_workers[str(stored)], cls.return_value)
 
 
 if __name__ == "__main__":

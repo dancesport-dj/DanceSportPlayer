@@ -57,6 +57,47 @@ class RestoreUserDataTest(unittest.TestCase):
             main_global.GlobalIndexMixin._restore_user_data(mock.Mock())
         warn.assert_called_once()
 
+    def test_a_locked_database_is_reported_not_raised(self):
+        # Review 5.B: only ValueError was caught, so a busy database left a
+        # traceback and no word to the user.
+        import sqlite3
+        with mock.patch.object(main_global.QFileDialog, "getOpenFileName",
+                               return_value=(str(self.backup), "")), \
+                mock.patch.object(upkeep, "restore_user_data",
+                                  side_effect=sqlite3.OperationalError("database is locked")), \
+                mock.patch.object(main_global.QMessageBox, "warning") as warn:
+            main_global.GlobalIndexMixin._restore_user_data(mock.Mock())
+        warn.assert_called_once()
+        self.assertIn("database is locked", warn.call_args.args[2])
+
+
+class LockedTagWritesTest(unittest.TestCase):
+    """Review 5.A: a tag edit, a rating or the Custom mapping that meets a
+    locked database is reported in a toast, not left as a traceback."""
+
+    def _host(self):
+        import sqlite3
+        host = mock.Mock()
+        host._library.lib.edit_tags.side_effect = sqlite3.OperationalError("database is locked")
+        host._custom_reader = None
+        return host
+
+    def test_a_rating_is_reported(self):
+        from gui.window import main_tags
+        with mock.patch.object(main_tags, "show_toast") as toast:
+            main_tags.TagEditMixin._set_entry_rating(self._host(), mock.Mock(path="a.mp3"), 4)
+        self.assertIn("database is locked", toast.call_args.args[1])
+
+    def test_the_custom_mapping_is_reported_and_left_unmapped(self):
+        import sqlite3
+
+        from gui.window import main_tags
+        with mock.patch.object(main_tags, "show_toast") as toast, \
+                mock.patch.object(main_tags.custom_field, "set_source",
+                                  side_effect=sqlite3.OperationalError("database is locked")):
+            self.assertFalse(main_tags.TagEditMixin._set_custom_source(self._host(), "TXXX", "x"))
+        self.assertIn("database is locked", toast.call_args.args[1])
+
 
 if __name__ == "__main__":
     unittest.main()

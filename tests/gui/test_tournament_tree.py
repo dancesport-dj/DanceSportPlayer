@@ -860,6 +860,21 @@ class PaneSlotBoardTest(_PaneCase):
                           for i in range(samstag.childCount())],
                          ["📁  Abends  (1)"])
 
+    def test_refilling_the_board_does_not_turn_the_old_tiles_into_windows(self):
+        """Marcel: little blank windows ("python") pop up when switching views.
+        A visible tile that is let go with setParent(None) is a top-level
+        window for a moment; the tiles have to be hidden and deleted in place."""
+        self._file_a_weekend()
+        self.pane.show()
+        self._pick(0)
+        QApplication.processEvents()     # tiles added to a shown parent appear queued
+        old = list(self.pane._board._tiles.values())
+        self.assertEqual(len(old), 2)
+        self.assertTrue(all(t.isVisible() for t in old), "the board is showing")
+        self._pick(1)    # Samstag: the board is refilled with other tiles
+        self.assertTrue(all(not t.isWindow() for t in old))
+        self.assertTrue(all(not t.isVisible() for t in old))
+
     def test_picking_a_folder_lays_its_playlists_out_as_tiles(self):
         self._file_a_weekend()
         self._pick(0)

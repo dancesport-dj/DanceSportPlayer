@@ -104,6 +104,17 @@ class LibraryColumnsTest(unittest.TestCase):
         self.assertEqual(t.item(0, LIB_COL_FILE).text(), "Moon River remaster")
         self.assertEqual(self.pane.cell_tooltip(0, LIB_COL_FILE), str(_PATH))
 
+    def test_the_twin_tooltip_is_rich_text(self):
+        # Review 10.A: a plain first line made Qt show the rest as raw markup.
+        from PySide6.QtGui import Qt as QtGui_Qt
+
+        from planner.playlist.planned import path_key
+        self.pane._marked = frozenset({path_key(_PATH)})
+        tip = self.pane.cell_tooltip(0, LIB_COL_TITLE)
+        self.assertIn("♊", tip)
+        self.assertIn("<b>Moon River remaster</b>", tip)
+        self.assertTrue(QtGui_Qt.mightBeRichText(tip))
+
     def test_it_starts_hidden_and_can_be_ticked_on(self):
         self.assertIn(LIB_COL_FILE, self.pane.hidden_columns())
         menu = self.pane.build_column_menu()

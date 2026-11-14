@@ -7,6 +7,20 @@ without one; the window binds its deck context and its library to them.
 """
 from pathlib import Path
 
+# More heats than any round is ever drawn into (the dialogs offer 20). An
+# autosave that says more is broken or crafted: 2e6 built as many empty rows.
+MAX_HEATS = 100
+
+
+def _heat_count(r: dict, grid: dict) -> int:
+    """The round's saved heat count, 1..MAX_HEATS; the grid's own size when
+    the number is not one."""
+    try:
+        heats = int(r.get("heats", 1))
+    except (TypeError, ValueError, OverflowError):
+        heats = len(grid)
+    return max(1, min(heats, MAX_HEATS))
+
 
 def playlist_from_grid(rounds_data: list, n_dances: int, resolve,
                        progress_cb=None) -> dict:
@@ -22,8 +36,8 @@ def playlist_from_grid(rounds_data: list, n_dances: int, resolve,
     done = 0
     playlist: dict = {}
     for r in rounds_data:
-        heats = int(r.get("heats", 1))
         grid = r.get("grid", {})
+        heats = _heat_count(r, grid)
         heat_list = []
         for h in range(heats):
             hcol = grid.get(str(h), {})

@@ -17,6 +17,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 # Offscreen BEFORE any QApplication exists, and state files into a temp dir (the
 # gui modules resolve those at import time — see test_gui_smoke.py).
@@ -34,6 +35,7 @@ from gui.table import playlist_table as gpt
 from gui.table.playlist_table import PlaylistTable
 from player.audio.between_dances import BetweenDances
 from player.audio.playback_state import PlaybackState
+from player.audio.resume_marks import ResumeMarks
 from player.window.main_player import PlayerControlMixin
 from tests.qt_test_support import reap_widget
 
@@ -57,6 +59,7 @@ class _Desk(PlayerControlMixin):
         self._playback.path = playing
         # An armed pause into some other deck: the reload stop takes it too.
         self._between = BetweenDances()
+        self._resume = ResumeMarks()   # ↩ the advance clears a title's marker
         self._between.pending = (None, 0, playing) if playing else None
         self._between.round_start = None
         self._announcer = _Silent()
@@ -368,6 +371,8 @@ class ResumeMarkDialogTest(_Table):
         def go():
             box = QApplication.activeModalWidget()
             seen["default"] = box.defaultButton().text()
+            esc = box.escapeButton()
+            seen["escape"] = esc.text() if esc is not None else None
             seen["text"] = box.text()
             buttons = box.buttons()
             seen["count"] = len(buttons)
@@ -377,11 +382,13 @@ class ResumeMarkDialogTest(_Table):
         QTimer.singleShot(0, go)
         return self.t._ask_resume_mark("second", 65_000), seen
 
-    def test_the_default_keeps_the_music(self):
+    def test_the_default_is_the_marker_and_escape_cancels(self):
+        # Marcel: Enter should mean "at the marker", not Cancel.
         from PySide6.QtWidgets import QMessageBox
         answer, seen = self._press(QMessageBox.ButtonRole.RejectRole)
         self.assertIsNone(answer)
-        self.assertEqual(seen["default"], "Cancel")
+        self.assertEqual(seen["default"], "At the marker")
+        self.assertEqual(seen["escape"], "Cancel")
         self.assertEqual(seen["count"], 3)
 
     def test_it_names_the_title_and_the_time(self):
@@ -713,6 +720,78 @@ class AdvanceTargetFollowsTheTitleTest(_Table):
         self.assertIs(live_target(target), target)
         self._reload("first", "second", "third")
         self.assertEqual(live_target(target)[1], self._song_row("second"))
+
+
+class MarkedTitleOnSkipAndNextRoundTest(_Table):
+    """Marcel: "the play tap that starts the next round and skip still honour
+    a marker ... but we get the ask dialog?" - a title the OPERATOR starts asks
+    where it starts, whichever button starts it: the skip arrows and the next
+    round's tap too, not only the row's own play button."""
+
+    PATH = Path(r"C:\music\second.mp3")
+
+    def setUp(self):
+        super().setUp()
+        self.t.set_play_highlight_enabled(True)
+        self.t._is_player_running = lambda: True
+        self.t._resume_marks = {str(self.PATH): 65_000}
+        self.t._current_play_row = 0
+        self.cleared = []
+        self.t._clear_resume = self.cleared.append
+        self.asked = []
+        self.answer = "mark"
+
+        def ask_mark(title, ms, running=True):
+            self.asked.append((title, ms))
+            return self.answer
+        self.t._ask_resume_mark = ask_mark
+        self.announcer_stops = []
+        self.desk = _Desk(playing=_entry("first").path, tables=[self.t])
+        self.desk._announcer = SimpleNamespace(
+            stop=lambda: self.announcer_stops.append(1))
+
+    def test_a_skip_to_a_marked_title_asks_and_starts_at_the_marker(self):
+        self.desk._preview_skip(+1)
+        self.assertEqual(self.asked, [("second", 65_000)])
+        self.assertEqual(self.played, [self.PATH])
+        self.assertEqual(self.cleared, [])
+
+    def test_from_the_beginning_drops_the_marker_first(self):
+        self.answer = "top"
+        self.desk._preview_skip(+1)
+        self.assertEqual(self.cleared, [self.PATH])
+        self.assertEqual(self.played, [self.PATH])
+
+    def test_cancelling_a_skip_leaves_title_and_announcer_alone(self):
+        self.answer = None
+        self.desk._preview_skip(+1)
+        self.assertEqual(self.played, [])
+        self.assertEqual(self.announcer_stops, [])
+        self.assertEqual(self.cleared, [])
+
+    def test_a_skip_to_a_title_without_a_marker_asks_nothing(self):
+        self.t._resume_marks = {}
+        self.desk._preview_skip(+1)
+        self.assertEqual(self.asked, [])
+        self.assertEqual(self.played, [self.PATH])
+        self.assertEqual(self.announcer_stops, [1])
+
+    def test_the_next_round_asks_and_starts_at_the_marker(self):
+        self.t._current_play_row = -1
+        self.desk._between.round_start = (self.t, 1, self.PATH)
+        self.assertTrue(self.desk._start_next_round())
+        self.assertEqual(self.asked, [("second", 65_000)])
+        self.assertEqual(self.played, [self.PATH])
+        self.assertIsNone(self.desk._between.round_start)
+
+    def test_cancelling_the_next_round_keeps_it_armed(self):
+        self.t._current_play_row = -1
+        self.answer = None
+        target = (self.t, 1, self.PATH)
+        self.desk._between.round_start = target
+        self.assertTrue(self.desk._start_next_round(), "the tap was handled")
+        self.assertEqual(self.played, [])
+        self.assertEqual(self.desk._between.round_start, target)
 
 
 if __name__ == "__main__":

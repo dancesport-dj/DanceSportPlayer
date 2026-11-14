@@ -45,6 +45,7 @@ from player.audio.between_dances import BetweenDances
 from player.audio.fade_now import FadeNow
 from player.audio.mix import OutputMix
 from player.audio.playback_state import PlaybackState
+from player.audio.resume_marks import ResumeMarks
 from player.widgets.play_mode_panel import PlayModePanel
 from player.window.main_player import PlayerControlMixin
 from shared.columns import _COL_TITLE
@@ -834,6 +835,7 @@ class _AdvanceDesk(PlayerControlMixin, QWidget):
         self._player = _MediaStub()
         self._library = SimpleNamespace(cache=None)  # → _await_loudness has nothing to measure
         self._between = BetweenDances()
+        self._resume = ResumeMarks()   # ↩ the advance clears a title's marker
         self._playback = PlaybackState()
         self._between.pending = None
         self._between.round_start = None

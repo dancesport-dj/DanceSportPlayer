@@ -43,7 +43,7 @@ class _FakeBuilder:
     """Stands in for WarmupBuilder — remembers the pool it was handed."""
     last = None
 
-    def __init__(self, src, mode, params, parent=None, cache=None):
+    def __init__(self, src, mode, params, parent=None, cache=None, title_twins=None):
         _FakeBuilder.last = list(src)
         self.progress = self.done = self.error = self.finished = _Signal()
 
@@ -72,7 +72,8 @@ class _Win:
 
     def __init__(self, entries, opts, planned=()):
         self._library = SimpleNamespace(
-            lib=type("L", (), {"entries": entries})(),
+            lib=type("L", (), {"entries": entries,
+                               "title_twins": lambda _self: {}})(),
             # A loaded global repository that must stay out of the result.
             global_lib=type("L", (), {
                 "entries": [_entry("REPO ONLY", "F:/repo")]})(),

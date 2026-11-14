@@ -28,7 +28,7 @@ def os_name() -> str:
     return f"{platform.system()} {platform.release()} {machine}"
 
 
-def _run(*cmd: str) -> str:
+def _command_output(*cmd: str) -> str:
     try:
         return subprocess.run(cmd, capture_output=True, text=True, timeout=3).stdout
     except (OSError, subprocess.SubprocessError):
@@ -45,7 +45,7 @@ def cpu_name() -> str | None:
         except OSError:
             return platform.processor() or None
     if sys.platform == "darwin":
-        return _run("sysctl", "-n", "machdep.cpu.brand_string").strip() or None
+        return _command_output("sysctl", "-n", "machdep.cpu.brand_string").strip() or None
     try:
         with open("/proc/cpuinfo", encoding="utf-8") as f:
             for line in f:
@@ -73,10 +73,10 @@ def ram() -> tuple[int | None, int | None]:
             return status.ullTotalPhys, status.ullAvailPhys
         return None, None
     if sys.platform == "darwin":
-        total = _run("sysctl", "-n", "hw.memsize").strip()
+        total = _command_output("sysctl", "-n", "hw.memsize").strip()
         # Free plus what macOS gives back on demand (inactive, purgeable,
         # speculative): roughly what Activity Monitor leaves out of "used".
-        stat = _run("vm_stat")
+        stat = _command_output("vm_stat")
         size = re.search(r"page size of (\d+) bytes", stat)
         pages = {k: int(v) for k, v in re.findall(r"Pages (\w+):\s+(\d+)", stat)}
         avail = None
@@ -118,7 +118,7 @@ def app_ram() -> int | None:
             return counters.WorkingSetSize
         return None
     if sys.platform == "darwin":
-        rss = _run("ps", "-o", "rss=", "-p", str(os.getpid())).strip()
+        rss = _command_output("ps", "-o", "rss=", "-p", str(os.getpid())).strip()
         return int(rss) * 1024 if rss.isdigit() else None
     try:
         with open("/proc/self/status", encoding="utf-8") as f:

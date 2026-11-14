@@ -8,7 +8,7 @@ from unittest import mock
 import shiboken6
 from PySide6.QtCore import QEventLoop, QThread
 from PySide6.QtMultimedia import QMediaPlayer
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 from planner.models import note_class_tag_use
 
@@ -80,7 +80,11 @@ def reap_widget(w):
         worker.wait(10_000)
     for player in w.findChildren(QMediaPlayer):
         player.stop()
-    w.close()
+    # A window whose autosave did not land asks before it closes (a test that
+    # stubs _build_env to None gets there): nobody is here to click Yes.
+    with mock.patch.object(QMessageBox, "question",
+                           return_value=QMessageBox.StandardButton.Yes):
+        w.close()
     shiboken6.delete(w)
     # A window's library load records whether the library uses class tags
     # (planner.models.note_class_tag_use). That flag is process-wide: left on,

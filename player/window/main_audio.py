@@ -7,6 +7,7 @@ one, held or handed back, the OS's own sounds) is player/audio/audio_device.py.
 import html
 import logging
 import os
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -18,7 +19,15 @@ from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtWidgets import QMessageBox
 
 from planner import i18n
-from player.audio.headset_guard import WARN, HeadsetGuard, lower_volume, safe_volume
+from planner.music.paths import resolve_file
+from player.audio.headset_guard import (
+    LOUD,
+    WARN,
+    HeadsetGuard,
+    is_headset,
+    lower_volume,
+    safe_volume,
+)
 from player.audio.mix import (
     ANNOUNCE_DUCK,  # noqa: F401 — re-exported: the level arithmetic moved out
     DESK_DUCK,  # noqa: F401
@@ -26,6 +35,7 @@ from player.audio.mix import (
     DUCK_UP_MS,  # noqa: F401
     desk_duck_level,
     desk_duck_pct,
+    desk_fade_ms,
     duck_ramp_ms,
     fade_in_secs,
     resume_fade_secs,
@@ -73,6 +83,20 @@ def pendingWork(host) -> PendingWork:
     return vars(host).setdefault("_pending", PendingWork())
 
 
+def headsetOutputState(device, name: str, base: float) -> tuple[float, int | None]:
+    """(system slider, form factor) for the 🎧 check of the output `name`.
+
+    Off Windows the slider is read by a helper process (osascript, wpctl) with
+    a 2 s timeout, on the GUI thread in front of every play() (3.C). There is no
+    form factor there, and the slider only makes it quieter: speakers, or a
+    fader at LOUD or below, get the same answer from HeadsetGuard whatever it
+    says, so it is read only when it could matter. Windows reads the very
+    device in-process, and its form factor tells what the name does not."""
+    if sys.platform != "win32" and (base <= LOUD or not is_headset(name, None, 1.0)):
+        return 1.0, None
+    return device.music_output_state()
+
+
 class AudioLevelMixin(MainWindowHost):
     """Master volume, ducking, loudness levelling and silence skipping."""
 
@@ -98,8 +122,13 @@ class AudioLevelMixin(MainWindowHost):
 
     def _lift_desk_duck(self):
         """🔉 A hand on a volume slider ends the duck or the mute: the slider
-        shows what is heard, so where it is put is what is heard from then on."""
-        self._set_desk_duck(False)
+        shows what is heard, so where it is put is what is heard from then on.
+        A pad's or an announcement's pull on the music is lifted the same way."""
+        if self._mix.desk != 1.0 or self._mix.desk_muted:
+            self._set_desk_duck(False)
+        self._mix.lift_duck()
+        self._apply_volume()
+        self._show_pull()
 
     def _set_desk_mute(self, on: bool):
         """🔇 The duck button's third state: everything audible silent."""
@@ -120,6 +149,7 @@ class AudioLevelMixin(MainWindowHost):
     def _show_desk_duck(self):
         """Apply the desk factor and show its state on every duck button."""
         self._apply_volume()
+        self._start_mix_ramp()
         ducked = self._mix.desk != 1.0
         muted = self._mix.desk_muted
         for w in (self._big_player, self._preview, self._presenter):
@@ -131,12 +161,18 @@ class AudioLevelMixin(MainWindowHost):
         a duck that is on right now moves to it. One that is off stays off.
         🔈 And how fast a voice or a pad ducks the music, and lets it back."""
         self._mix.set_duck_ramps(*duck_ramp_ms(self._settings))
+        self._mix.set_desk_fade(desk_fade_ms(self._settings))
         pct = desk_duck_pct(self._settings)
         for w in (self._big_player, self._preview, self._presenter):
             if w is not None:
                 w.set_duck_level(pct)
         if self._mix.desk != 1.0 and not self._mix.desk_muted:
             self._set_desk_duck(True)
+
+    def _start_mix_ramp(self):
+        """Walk any level that is not at its target yet (the 🔇 fades)."""
+        if not self._mix.settled and not self._ramp_timer.isActive():
+            self._ramp_timer.start()
 
     def _set_duck_reason(self, reason: str, on: bool):
         """Ref-counted duck: the announcer and the 🎛 cartwall both pull the
@@ -169,6 +205,16 @@ class AudioLevelMixin(MainWindowHost):
         if self._mix.settled:
             self._ramp_timer.stop()
         self._apply_volume()
+        self._show_pull()
+
+    def _show_pull(self):
+        """🎛 The sliders show what is heard: a pad that pulls the music down
+        walks them down with it, and back up. An announcement pulls the music
+        too, but only the pad moves the sliders. The master itself stays where
+        it is."""
+        for w in (self._big_player, self._preview):
+            if w is not None:
+                w.set_pull(self._mix.pad_pull)
 
     def _set_base_volume(self, v: float):
         """Volume slider (preview overlay or big player card) → user's base
@@ -194,10 +240,13 @@ class AudioLevelMixin(MainWindowHost):
         if os.environ.get("DANCEPLAYLIST_NO_HEADSET_GUARD"):
             return False
         if vars(self).get("_headset_dialog"):
-            return True   # the question is open: whoever plays now waits with it
+            # The question is open: whoever plays now waits with it, and the
+            # answer starts it if no stop came after (3.D).
+            vars(self)["_headset_held_token"] = self._playback.token
+            return True
         guard = vars(self).setdefault("_headset_guard", HeadsetGuard())
         name = self._audio_device.music_output_name()
-        master, form = self._audio_device.music_output_state()
+        master, form = headsetOutputState(self._audio_device, name, self._mix.base)
         found = guard.assess(name, self._mix.base, master, form)
         if found is None:
             return False
@@ -237,7 +286,7 @@ class AudioLevelMixin(MainWindowHost):
             return
         guard = vars(self).setdefault("_headset_guard", HeadsetGuard())
         name = self._audio_device.music_output_name()
-        master, form = self._audio_device.music_output_state()
+        master, form = headsetOutputState(self._audio_device, name, self._mix.base)
         before = self._mix.base
         found = guard.assess(name, before, master, form)
         if found is None or found == WARN:
@@ -265,10 +314,12 @@ class AudioLevelMixin(MainWindowHost):
         # one, so that mute misses it) at the headset's full volume. The red
         # heading carries the warning.
         vars(self)["_headset_dialog"] = True
+        vars(self)["_headset_held_token"] = token = self._playback.token
         try:
             box = QMessageBox(self)
             box.setIcon(QMessageBox.Icon.NoIcon)
             box.setWindowFlag(Qt.WindowType.FramelessWindowHint)   # no grey title bar: the red box is all
+            box.setTextFormat(Qt.TextFormat.RichText)   # the heading is markup; `name` is escaped below
             box.setText(i18n.t("<b style='color:#d32f2f; font-size:16px'>⚠ LOUD MUSIC ON A "
                                "HEADSET</b><br><br>The music is set to <b>%d %%</b> on "
                                "<b>%s</b> (system volume %d %%). That can damage your "
@@ -294,7 +345,12 @@ class AudioLevelMixin(MainWindowHost):
             self._set_base_volume(lower)
         elif answer is not keep:
             self._set_base_volume(safe)
-        player.play()
+        # ⏹ or ⏭ may have come in while the box was open (📱 remote, 🎛 controller).
+        # Every stop bumps the token, and the operator's stop must win; a ⏭'s own
+        # play was held back with the box and is started here (3.D).
+        if vars(self).pop("_headset_held_token", token) != self._playback.token:
+            return
+        (self._player or player).play()
 
     def _set_cart_volume(self, v: float):
         """🎛 The cartwall's own fader (its slider, a controller fader, the desk
@@ -308,8 +364,9 @@ class AudioLevelMixin(MainWindowHost):
     def _set_cart_muted(self, on: bool):
         """🔇 The cartwall's 🔊 clicked: the pads silent, their fader kept.
         Not persisted — a muted wall at the next start would be a surprise."""
-        self._mix.cart_muted = on
+        self._mix.set_cart_muted(on)
         self._apply_volume()
+        self._start_mix_ramp()
 
     def _save_master_volume(self):
         self._settings["master_volume"] = round(self._mix.base, 3)
@@ -366,7 +423,7 @@ class AudioLevelMixin(MainWindowHost):
                 return
         running = self._silence_worker
         if running is not None and running.isRunning():
-            if running.path == path:
+            if running.key == str(path):
                 return   # already being probed
             # A title skipped a few seconds in: its probe gives way, or the
             # one the hall hears now would play unskipped. It is probed again
@@ -378,7 +435,11 @@ class AudioLevelMixin(MainWindowHost):
         # Not cached — this title costs an ffmpeg decode in the background while
         # it plays. ⚙ Settings → 🔇 Probe silences does the whole library up front.
         log.info("🔇 Silence probe started (background)\nfile: %s", path.name)
-        w = SilenceWorker(path, ffmpeg, parent=self)
+        # The file the deck plays, as for the hard end: not at the stored path
+        # when it was found on another drive or as a copy. The spans are filed
+        # under the stored path, the key every reader looks them up by.
+        w = SilenceWorker(resolve_file(path, self._settings) or path, ffmpeg,
+                          key=str(path), parent=self)
         w.done.connect(self._on_silences)
         w.error.connect(self._on_silence_error)
         self._silence_worker = w
@@ -393,7 +454,10 @@ class AudioLevelMixin(MainWindowHost):
         ffmpeg = find_ffmpeg()
         if not ffmpeg:
             return
-        w = HardEndWorker(path, ffmpeg, parent=self)
+        # The file the deck plays, which is not at the stored path when it was
+        # found on another drive or as a copy: probed there, it gave no answer.
+        w = HardEndWorker(resolve_file(path, self._settings) or path, ffmpeg,
+                          key=str(path), parent=self)
         w.done.connect(self._on_hard_end)
         w.finished.connect(w.deleteLater)
         w.start()
@@ -473,7 +537,7 @@ class AudioLevelMixin(MainWindowHost):
 
         running = self._lufs_worker
         if running is not None and running.isRunning():
-            if running.path == path:
+            if running.key == str(path):
                 # Already being measured — don't measure twice. A cue's probe that
                 # is still running when the title is played is waited for too.
                 if start and not expired:
@@ -485,7 +549,10 @@ class AudioLevelMixin(MainWindowHost):
                  "file: %s\n"
                  "playback waits: %s", path.name, "yes" if start else "no")
         self._say_measuring()
-        w = LoudnessWorker(path, ffmpeg, parent=self)
+        # The file the deck plays, as for the silences and the hard end: not
+        # at the stored path when it was found on another drive or as a copy.
+        w = LoudnessWorker(resolve_file(path, self._settings) or path, ffmpeg,
+                           key=str(path), parent=self)
         w.done.connect(self._on_track_lufs)
         w.error.connect(self._on_track_lufs_error)
         self._lufs_worker = w
@@ -519,7 +586,7 @@ class AudioLevelMixin(MainWindowHost):
         ffmpeg = find_ffmpeg()
         running = self._lufs_worker
         busy = (running is not None and running.isRunning()
-                and (landed is None or str(running.path) != landed))
+                and (landed is None or running.key != landed))
         if not ffmpeg:
             return
         if busy:
@@ -529,7 +596,8 @@ class AudioLevelMixin(MainWindowHost):
         log.info("📊 True peak measurement started (background)\n"
                  "file: %s", path.name)
         self._say_measuring()
-        w = LoudnessWorker(path, ffmpeg, parent=self)
+        w = LoudnessWorker(resolve_file(path, self._settings) or path, ffmpeg,
+                           key=str(path), parent=self)
         w.done.connect(self._on_track_peak)
         w.error.connect(self._on_track_lufs_error)
         self._lufs_worker = w
@@ -612,16 +680,31 @@ class AudioLevelMixin(MainWindowHost):
         Paso Doble: the couples stand on the floor and go on the beat, so that
         one starts abruptly whatever 🌅 says."""
         xf = self._between.xfade
-        secs = fade_in_secs(self._settings)
-        if getattr(self, "_resume_seek_ms", None):
-            secs = (0.0 if self._playback.dance == "PD"
-                    else resume_fade_secs(self._settings) or secs)
+        secs = (self._pickup_fade_secs() if getattr(self, "_resume_seek_ms", None)
+                else fade_in_secs(self._settings))
         if (secs <= 0 or not self._is_playing_mode()
                 or (xf.state == "fading" and path == xf.incoming)):
             self._playback.fade_in_from = None
             self._playback.fade_in_secs = 0.0
             return
         self._playback.fade_in_from = 0.0
+        self._playback.fade_in_secs = secs
+        self._mix.fade_in = 0.0
+
+    def _pickup_fade_secs(self) -> float:
+        """↩ What a title picked up in the middle of its music fades in over:
+        the time-marker fade, with that off the 🌅 one; a Paso Doble none."""
+        if self._playback.dance == "PD":
+            return 0.0
+        return resume_fade_secs(self._settings) or fade_in_secs(self._settings)
+
+    def _arm_pickup_fade_in(self):
+        """🛑 The title went quiet in place: ⏯ brings it back up from silence
+        like a time-marker start, counted from where it stopped."""
+        secs = self._pickup_fade_secs()
+        if secs <= 0:
+            return
+        self._playback.fade_in_from = self._heard_secs()
         self._playback.fade_in_secs = secs
         self._mix.fade_in = 0.0
 

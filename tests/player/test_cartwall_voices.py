@@ -417,6 +417,17 @@ class VoiceLevelTest(_VoiceCase):
         self.v.refresh_pad(key, _pad(volume=0.25))
         self.assertAlmostEqual(self._voice(key).out.volume(), 0.25)
 
+    def test_a_refreshed_pad_keeps_the_file_it_plays(self):
+        # Review D.B: the dialog hands back the stored path; the voice was
+        # fired with the resolved one, and the edge tables are keyed by that.
+        key = (0, 0, 0)
+        self.v.fire(key, pc.CartPad(path=r"D:\local\tusch.mp3"))
+        self.v.refresh_pad(key, pc.CartPad(path=r"\\nas\music\tusch.mp3",
+                                           volume=0.25))
+        pad = self._voice(key).pad
+        self.assertEqual(pad.path, r"D:\local\tusch.mp3")
+        self.assertEqual(pad.volume, 0.25)
+
     def test_the_master_level_multiplies_the_pad_trim(self):
         self.v.fire((0, 0, 0), _pad(volume=0.5))
         self.v.set_level(0.5)
@@ -460,6 +471,94 @@ class VoiceLevelTest(_VoiceCase):
         self.assertEqual(seen, [True], "the first pad ending must not lift it")
 
 
+class MutedWallDuckTest(_VoiceCase):
+    """🔇 A muted wall is silent, so a ducking pad on it must not pull the
+    music down: nobody hears the pad, everybody would hear the music vanish."""
+
+    def test_a_ducking_pad_on_a_muted_wall_does_not_duck(self):
+        seen = []
+        self.v.duckChanged.connect(seen.append)
+        self.v.set_muted(True)
+        self.v.fire((0, 0, 0), _pad("tusch.mp3", duck=True))
+        self.assertEqual(seen, [])
+
+    def test_muting_while_a_ducking_pad_runs_lifts_the_duck(self):
+        seen = []
+        self.v.duckChanged.connect(seen.append)
+        self.v.fire((0, 0, 0), _pad("tusch.mp3", duck=True))
+        self.v.set_muted(True)
+        self.assertEqual(seen, [True, False])
+
+    def test_unmuting_while_it_still_runs_brings_the_duck_back(self):
+        seen = []
+        self.v.duckChanged.connect(seen.append)
+        self.v.set_muted(True)
+        self.v.fire((0, 0, 0), _pad("long.mp3", duck=True, loop=True))
+        self.v.set_muted(False)
+        self.assertEqual(seen, [True])
+
+
+class HandStartedDuckTest(_VoiceCase):
+    """🔈 Only a pad the operator tapped pulls the music down. The ▶ queue moving
+    on, or a pad filling a pause, starts without a hand on it: it plays under
+    the music like any other start nobody asked to be loud."""
+
+    def test_a_tapped_pad_ducks(self):
+        seen = []
+        self.v.duckChanged.connect(seen.append)
+        self.v.fire((0, 0, 0), _pad("tusch.mp3", duck=True))
+        self.assertEqual(seen, [True])
+
+    def test_a_start_nobody_tapped_does_not_duck(self):
+        seen = []
+        self.v.duckChanged.connect(seen.append)
+        self.v.fire((0, 0, 0), _pad("tusch.mp3", duck=True), tapped=False)
+        self.assertEqual(seen, [])
+        self.assertTrue(self.v.is_playing((0, 0, 0)))
+
+    def test_the_queue_moving_on_does_not_duck_after_a_tapped_first_pad(self):
+        seen = []
+        self.v.duckChanged.connect(seen.append)
+        self.v.fire((0, 0, 0), _pad("a.mp3", duck=True))
+        self.v.stop((0, 0, 0))
+        self._drain_fades()
+        self.v.fire((0, 0, 1), _pad("b.mp3", duck=True), tapped=False)
+        self.assertEqual(seen, [True, False], "only the tapped pad ducked")
+
+    def test_a_tap_on_a_pad_that_was_not_tapped_makes_it_duck(self):
+        # A pad the queue started is running; the operator now fires it by
+        # hand — that is a manual trigger, and it takes the music down.
+        seen = []
+        self.v.duckChanged.connect(seen.append)
+        self.v.fire((0, 0, 0), _pad("a.mp3", duck=True), tapped=False)
+        self.v.stop((0, 0, 0))     # on its way out
+        self.v._last_fire.clear()  # a tap a moment later is not a double-click
+        self.assertTrue(self.v.fire((0, 0, 0), _pad("a.mp3", duck=True)))
+        self.assertEqual(seen, [True])
+
+    def test_a_steal_keeps_the_way_the_new_pad_was_started(self):
+        for tapped, expected in ((True, [True]), (False, [])):
+            with self.subTest(tapped=tapped):
+                v = cart_voices.CartVoices(voices=1, factory=_factory)
+                self.addCleanup(v.shutdown)
+                v.set_level(1.0)
+                seen = []
+                v.duckChanged.connect(seen.append)
+                v.fire((0, 0, 0), _pad("bed.mp3", loop=False, duck=False), tapped=False)
+                v.fire((0, 0, 1), _pad("tusch.mp3", duck=True), tapped=tapped)
+                for _ in range(200):
+                    if not any(x.fade_step > 0 for x in v._pool):
+                        break
+                    v._step_fades()
+                self.assertEqual(seen, expected)
+
+    def test_a_background_pad_never_ducks_either_way(self):
+        seen = []
+        self.v.duckChanged.connect(seen.append)
+        self.v.fire((0, 0, 0), _pad("bed.mp3", loop=True, background=True, duck=True))
+        self.assertEqual(seen, [])
+
+
 class BackgroundPadTest(_VoiceCase):
     """🎶 A background pad dips under the running title instead of pulling the
     title down — the reverse of the 🔈 duck."""
@@ -488,7 +587,48 @@ class BackgroundPadTest(_VoiceCase):
         self._drain_background()
         self.assertAlmostEqual(self._voice((0, 0, 0)).out.volume(), 0.5)
 
+    def test_a_looping_pad_outlives_every_main_player_action(self):
+        """⏯ pause, ▶ start, ⏹ stop and the hold running out are the deck's
+        doing; an endless pad is stopped by the operator or by nothing."""
+        self.v.fire((0, 0, 0), _pad("loop.mp3", volume=0.5, loop=True))
+        for playing in (True, False, True, False):
+            self.v.set_music_playing(playing)
+        self.v._lift_background()
+        self._drain_background()
+        voice = self._voice((0, 0, 0))
+        self.assertTrue(voice.busy)
+        self.assertFalse(voice.held)
+        self.assertAlmostEqual(voice.out.volume(), 0.5)
+        self.assertEqual(self.v.playing_keys(), [(0, 0, 0)])
+
     def test_fired_under_a_running_title_it_starts_low(self):
+        self.v.set_music_playing(True)
+        while self.v._bg_ramp.isActive():
+            self.v._step_background()
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True))
+        self.assertAlmostEqual(self._voice((0, 0, 0)).out.volume(), 0.0)
+
+    def test_a_tap_during_a_pause_brings_the_bed_up(self):
+        """Marcel: 'the pad is not giving sound when the main player is stopped
+        and i tap the cartwall pad, it is tagged as background'. A pause keeps
+        the beds down (a title is waiting), but a pad the operator taps is
+        wanted: it sounds."""
+        self.v.set_music_playing(True, paused=True)
+        while self.v._bg_ramp.isActive():
+            self.v._step_background()
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True, volume=0.5))
+        self._rise_levels()
+        self._drain_background()
+        self.assertAlmostEqual(self._voice((0, 0, 0)).out.volume(), 0.5)
+
+    def test_a_pad_the_queue_starts_during_a_pause_stays_down(self):
+        self.v.set_music_playing(True, paused=True)
+        while self.v._bg_ramp.isActive():
+            self.v._step_background()
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True), tapped=False)
+        self.assertAlmostEqual(self._voice((0, 0, 0)).out.volume(), 0.0)
+
+    def test_a_tap_under_a_playing_title_still_starts_low(self):
         self.v.set_music_playing(True)
         while self.v._bg_ramp.isActive():
             self.v._step_background()
@@ -719,6 +859,29 @@ class BackgroundPadTest(_VoiceCase):
         self.v._lift_background()
         self.assertEqual(voice.player._state, "playing")
 
+    def test_a_bed_held_mid_dip_lets_the_fade_timer_rest(self):
+        """Review F4: a held voice with its loop dip running kept the 25 ms
+        fade timer alive for the whole hold, doing nothing."""
+        self.v.set_loop_mode("fade")
+        self.v.set_background_pauses(True)
+        self.v.fire((0, 0, 0), _pad("bed.mp3", background=True, loop=True, duck=False))
+        self._rise_levels()
+        voice = self._voice((0, 0, 0))
+        voice.player.setPosition(voice.player.duration() - 900)
+        self.v._emit_tick()
+        self.assertGreater(voice.dip_step, 0, "the loop dip runs")
+        self.v.set_music_playing(True)
+        self._drain_background()
+        self.assertTrue(voice.held)
+        self.v._step_fades()
+        self.assertFalse(self.v._ramp.isActive(), "nothing moves while held")
+        dip = voice.dip
+        self.v.set_music_playing(False)
+        self.v._lift_background()
+        self.assertTrue(self.v._ramp.isActive(), "the dip carries on")
+        self.v._step_fades()
+        self.assertLess(voice.dip, dip)
+
     def test_a_title_starting_again_in_the_hold_keeps_it_paused(self):
         self.v.set_background_pauses(True)
         self.v.fire((0, 0, 0), _pad("bed.mp3", background=True))
@@ -877,11 +1040,14 @@ class BackgroundFollowsTheDeckTest(unittest.TestCase):
         from player.window.main_cartwall import CartwallMixin
         seen = []
         host = SimpleNamespace(
-            _cart_voices=SimpleNamespace(set_music_playing=seen.append))
+            _cart_voices=SimpleNamespace(
+                set_music_playing=lambda playing, paused=False: seen.append((playing, paused))))
         CartwallMixin._cart_follow_deck(host, QMediaPlayer.PlaybackState.PlayingState)
         CartwallMixin._cart_follow_deck(host, QMediaPlayer.PlaybackState.PausedState)
         CartwallMixin._cart_follow_deck(host, QMediaPlayer.PlaybackState.StoppedState)
-        self.assertEqual(seen, [True, False, False])
+        # ⏯ a pause is a full stop of all music: the bed stays down in it, and
+        # the pool is told it is only a pause (a tapped bed still sounds)
+        self.assertEqual(seen, [(True, False), (True, True), (False, False)])
 
     def test_no_pool_no_harm(self):
         from types import SimpleNamespace

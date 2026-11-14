@@ -73,7 +73,9 @@ class AddFolderTest(unittest.TestCase):
             {"name": "DanceComp", "children": [
                 {"name": "Samstag", "children": [
                     {"name": "T2", "m3u": str(self.weekend / "Samstag" / "T2.m3u")}]},
-                {"name": "Freitag T1", "m3u": str(self.weekend / "Freitag T1.m3u")}]}])
+                {"name": "Freitag T1", "m3u": str(self.weekend / "Freitag T1.m3u")}],
+             # 🔗 the branch remembers the folder it was read from
+             "source": str(self.weekend)}])
 
     def test_cancelling_the_dialog_files_nothing(self):
         self.choose(_CAPTION, "")

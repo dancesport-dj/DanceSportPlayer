@@ -200,6 +200,22 @@ class DeskFindingsTest(unittest.TestCase):
         self.assertIn("Out 3/4", f.detail)
         self.assertIn("refused", f.detail)
 
+    def test_a_rehearsal_profile_left_on_is_red_and_names_it(self):
+        """Everything on the headphones: the hall would hear nothing."""
+        f = readiness.outputs_finding([], False, rehearsal="Evening prep")
+        self.assertEqual((f.level, f.count, f.fix), (FAIL, 1, "outputs"))
+        self.assertIn("Evening prep", f.detail)
+        self.assertIn("hall hears nothing", f.detail)
+
+    def test_no_rehearsal_profile_adds_no_line(self):
+        f = readiness.outputs_finding([], False, rehearsal=None)
+        self.assertEqual(f.level, OK)
+
+    def test_the_rehearsal_line_comes_first_among_the_problems(self):
+        f = readiness.outputs_finding([("cue", "Headphones")], False, rehearsal="Prep")
+        self.assertEqual((f.level, f.count), (FAIL, 2))
+        self.assertTrue(f.detail.splitlines()[0].startswith("🔇"))
+
     def test_no_controller_set_up_leaves_its_line_out(self):
         self.assertIsNone(readiness.controller_finding("", False))
 

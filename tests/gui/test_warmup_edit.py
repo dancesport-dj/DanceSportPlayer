@@ -229,6 +229,45 @@ class RebuildTest(_EditTest):
         self.assert_consistent()
 
 
+class ReorderTest(_EditTest):
+    """Full review 2026-11-11 #8: a drag, swap or "move to end" re-filled the
+    song rows in place and left the ─── strips where they were, so a strip
+    named a round its titles no longer were."""
+
+    def row_of(self, title):
+        return next(r for r, m in self.table._row_meta.numbered()
+                    if m.entry.title == title)
+
+    def test_a_move_that_cuts_new_strips_redraws_them(self):
+        self.assertTrue(self.table._move_to_end({self.row_of("LW 1")}))
+        self.assertEqual(self.titles(), ["LW 2", "TG 1", "TG 2", "LW 1"])
+        self.assertEqual(len(self.table._round_hdr_rows), 3)
+        self.assert_consistent()
+
+    def test_a_move_inside_a_strip_keeps_the_rows(self):
+        before = self.buttons()
+        self.table._drag_src_rows = [self.row_of("LW 2")]
+        self.assertTrue(self.table._swap_reorder(self.row_of("LW 1")))
+        self.assertEqual(self.titles(), ["LW 2", "LW 1", "TG 1", "TG 2"])
+        self.assertIs(self.buttons()["TG 2"], before["TG 2"])
+        self.assert_consistent()
+
+    def test_a_strip_counts_the_titles_it_now_holds(self):
+        """Cut by a heat plan, the strips stay put, but a swap across them
+        changes what each one adds up to."""
+        long_one = _e("TG", 5, secs=400)
+        entries = [_e("LW", 1), _e("LW", 2), _e("TG", 1), long_one]
+        self.table.load_warmup(entries, "Party", "Standard", "S", False,
+                               self.played.append, None,
+                               heat_plan=[("Vorrunde", 1, 2), ("Finale", 1, 2)])
+        self.assertIn("~5:00", self.headers()[0])
+        self.table._drag_src_rows = [self.row_of("TG 5")]
+        self.assertTrue(self.table._swap_reorder(self.row_of("LW 1")))
+        self.assertIn("~9:10", self.headers()[0])
+        self.assertIn("~5:00", self.headers()[1])
+        self.assert_consistent()
+
+
 class PlayingTest(_EditTest):
     """The marker follows the track, not the row number it happened to be on."""
 

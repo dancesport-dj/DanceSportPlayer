@@ -280,7 +280,7 @@ setInterval(loadNow, 20000);
 """
 
 
-def page_html(labels: dict) -> str:
+def guest_page_html(labels: dict) -> str:
     words = {**DEFAULT_LABELS, **{k: str(v) for k, v in labels.items()}}
     # Inside a <script>: a "</" in a translation must not end it.
     blob = json.dumps(words, ensure_ascii=False).replace("</", "<\\/")

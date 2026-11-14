@@ -215,6 +215,15 @@ class RoutingTest(unittest.TestCase):
         self.deck.assert_not_called()
         self.assertIn("🎧", self.win._toast_lbl.text())
 
+    def test_the_music_output_is_fine_on_a_rehearsal_profile(self):
+        """Everything is on the headphones there: nothing to keep off the PA."""
+        self.phones = self.music
+        mock.patch.object(self.win._audio_device, "rehearsal_profile",
+                          lambda: "Rehearsal").start()
+        self.win._prehear(_SONG)
+        self.play.assert_called_once_with(_SONG, self.music, 0)
+        self.deck.assert_not_called()
+
     def test_a_channel_pair_of_the_music_card_pre_listens_there(self):
         """🔀 Out 3/4 of the music's card: not where the music plays (its
         Out 1/2), so the preview goes there instead of being refused."""

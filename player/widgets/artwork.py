@@ -23,6 +23,7 @@ from PySide6.QtGui import (
     QPixmap,
 )
 
+from planner.music.paths import is_foreign_network, is_network_path
 from planner.playlist.playlist_text import PlaylistEncodingError, read_playlist_text
 
 log = logging.getLogger("dancesport.gui.artwork")
@@ -81,12 +82,12 @@ def _art_refs(m3u: Path) -> tuple:
 def playlist_art(m3u: Path | None) -> Path | None:
     """The image a whole playlist stands for — a picture tag inside the .m3u,
     or an image file next to it."""
-    if not m3u:
-        return None
+    if not m3u or is_foreign_network(m3u):
+        return None         # someone else's share is never stat-ed (review 7.B)
     m3u = Path(m3u)
     try:
         for ref in _art_refs(m3u):
-            if ref.startswith(("\\\\", "//")) or "://" in ref:
+            if is_network_path(ref):
                 # A network host named by someone else's playlist:
                 # touching it opens a connection, so no art at all.
                 log.warning("⚠️ Playlist artwork on a network path ignored\n"

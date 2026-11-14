@@ -37,6 +37,7 @@ from gui.table.playlist_table import PlaylistTable
 from planner.models import MusicEntry
 from player.audio.between_dances import BetweenDances
 from player.audio.playback_state import PlaybackState
+from player.audio.resume_marks import ResumeMarks
 from player.widgets.play_mode_panel import PlayModePanel
 from player.window.main_player import PlayerControlMixin
 from tests.qt_test_support import reap_widget
@@ -102,6 +103,7 @@ class _Desk(QObject, PlayerControlMixin):
         self._playback = PlaybackState()
         self._playback.dance = "LW"
         self._between = BetweenDances()
+        self._resume = ResumeMarks()   # ↩ the advance clears a title's marker
         self._between.pending = None
         self._between.quiet_until = 0.0
         self._playback.token = 4
@@ -123,6 +125,9 @@ class _Desk(QObject, PlayerControlMixin):
 
     def _check_playback(self, token, path):
         self._checked.append((token, path))
+
+    def _cart_follow_deck(self, state):
+        pass
 
 
 class AnnounceWaitTest(unittest.TestCase):

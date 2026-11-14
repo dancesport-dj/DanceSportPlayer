@@ -108,6 +108,40 @@ class SwapPartnerTest(unittest.TestCase):
                         ["TG", "SF", "QS"], ["SA", "CC", "RB"])
         self.assertIsNone(warmup_swap_partner(entries, 0))
 
+    def test_none_for_a_dance_that_is_alone_in_the_list(self):
+        entries = _list(["LW", "TG", "QS"], ["CC", "RB", "JI"],
+                        ["TG", "SF", "QS"], ["SA", "CC", "TG"])
+        self.assertIsNone(warmup_swap_partner(entries, 4))   # the only RB
+
+    def test_the_last_one_of_the_dance_when_none_is_near_the_end(self):
+        """Marcel: "no other rumba near the end" — a rumba that sits earlier is
+        still a rumba to swap with; the last one there is."""
+        entries = _list(["LW", "RB", "QS"], ["CC", "TG", "JI"],
+                        ["RB", "SF", "QS"], ["SA", "CC", "TG"])
+        # 12 titles → the last third starts at 8; the RBs sit at 1 and 6.
+        for seed in range(20):
+            self.assertEqual(warmup_swap_partner(entries, 1, random.Random(seed)), 6)
+
+    def test_the_last_of_several_when_none_is_near_the_end(self):
+        entries = _list(["RB", "LW", "QS"], ["RB", "TG", "JI"],
+                        ["RB", "SF", "QS"], ["SA", "CC", "TG"])
+        for seed in range(20):
+            self.assertEqual(warmup_swap_partner(entries, 0, random.Random(seed)), 6)
+            self.assertEqual(warmup_swap_partner(entries, 3, random.Random(seed)), 6)
+
+    def test_only_the_last_one_itself_has_no_partner(self):
+        entries = _list(["RB", "LW", "QS"], ["RB", "TG", "JI"],
+                        ["RB", "SF", "QS"], ["SA", "CC", "TG"])
+        self.assertIsNone(warmup_swap_partner(entries, 6))
+
+    def test_a_title_near_the_end_still_wins_over_the_last_one_overall(self):
+        """The fallback only fills the gap: the leftover rule is unchanged."""
+        entries = _list(["LW", "TG", "QS"], ["CC", "RB", "JI"],
+                        ["LW", "SF", "QS"], ["SA", "CC", "RB"],
+                        ["LW", "TG", "SF"], ["LW", "QS"])
+        for seed in range(20):
+            self.assertEqual(warmup_swap_partner(entries, 0, random.Random(seed)), 15)
+
 
 if __name__ == "__main__":
     unittest.main()

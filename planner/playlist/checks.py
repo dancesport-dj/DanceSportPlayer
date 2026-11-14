@@ -6,6 +6,8 @@ the ImportMixin methods are thin wrappers that fill in the GUI-side context
 (settings thresholds, silence cache, beats-per-bar table).
 """
 
+import numpy as np
+
 from planner import i18n
 from planner.models import ALLOW_REPEAT, TEMPO_RANGES, RoundTier
 from planner.music import chroma_match
@@ -316,6 +318,81 @@ def _recording_clusters(pairs: list) -> list:
     return [sorted(g, key=lambda r: r["idx"]) for g in groups.values()]
 
 
+def _shared_word_pairs(lists: list) -> set:
+    """(i, j) pairs of `lists` with a fingerprint each that share at least
+    MIN_SHARED distinct words: the least `find_pairs` needs to compare two.
+    A word in many files counts here too; `find_pairs` caps only a word shared
+    inside one comparison, and two lists' worth stays under that cap."""
+    owners, uniq = [], []
+    for i, recs in enumerate(lists):
+        for r in recs:
+            fp = r.get("chroma")
+            if fp is not None and len(fp):
+                uniq.append(np.unique(np.asarray(fp, dtype=np.uint32)))
+                owners.append(i)
+    if len(set(owners)) < 2:
+        return set()
+    list_of = np.array(owners)
+    offsets = np.cumsum([0] + [len(u) for u in uniq])
+    vals = np.concatenate(uniq)
+    track = np.repeat(np.arange(len(uniq)), [len(u) for u in uniq])
+    order = np.argsort(vals, kind="stable")
+    vals, track = vals[order], track[order]
+    first = np.concatenate(([True], vals[1:] != vals[:-1]))
+    starts = np.flatnonzero(first)
+    sizes = np.diff(np.append(starts, len(vals)))
+    bucket = np.empty(len(vals), dtype=np.int64)
+    bucket[order] = np.cumsum(first) - 1        # each track's words → their buckets
+    out = set()
+    for t in range(len(uniq)):
+        b = bucket[offsets[t]:offsets[t + 1]]
+        b = b[sizes[b] >= 2]
+        if not len(b):
+            continue
+        n = sizes[b]
+        at = np.repeat(starts[b] - (np.cumsum(n) - n), n) + np.arange(n.sum())
+        shared = np.bincount(track[at], minlength=len(uniq))
+        others = np.flatnonzero(shared >= chroma_match.MIN_SHARED)
+        for j in set(list_of[others[others > t]].tolist()) - {owners[t]}:
+            out.add((min(owners[t], j), max(owners[t], j)))
+    return out
+
+
+def _cross_candidates(lists: list) -> list:
+    """The (i, j) pairs of `lists`, i < j, that can share a song at all, sorted.
+
+    Every pair through `pair_dups` and `_cross_recordings` is quadratic in the
+    lists, and each builds its own title clusters and Chromaprint index: 300
+    dropped files, each a list of its own, took half a minute. Each test here
+    is a necessary condition of one of those checks, so leaving the other
+    pairs out changes nothing in the report:
+
+    - exact: one file key on both sides;
+    - similar: one cleaned title on both sides, or a `title_similar` pair
+      across them; a pair's own clusters can only join the sides over one;
+    - recording: `_shared_word_pairs`.
+    """
+    by_exact: dict = {}
+    by_title: dict = {}
+    for i, recs in enumerate(lists):
+        for r in recs:
+            by_exact.setdefault(r["exact"], set()).add(i)
+            for k in r.get("tkeys") or ():
+                if k:
+                    by_title.setdefault(k, set()).add(i)
+    pairs = _shared_word_pairs(lists)
+
+    def join(a: set, b: set):
+        pairs.update((min(i, j), max(i, j)) for i in a for j in b if i != j)
+
+    for owners in (*by_exact.values(), *by_title.values()):
+        join(owners, owners)
+    for a, b in _similar_candidates(sorted(by_title)):
+        if title_similar(a, b):
+            join(by_title[a], by_title[b])
+    return sorted(pairs)
+
+
 def build_dropped_dup_report(files: list) -> dict:
     """Turn [(name, [rec,…]), …] into the tab-2 report. Each rec carries idx / title /
     path / exact (file identity) / tkeys (cleaned-title candidates). 'within' lists songs doubled
@@ -357,29 +434,30 @@ def build_dropped_dup_report(files: list) -> dict:
     # norm) — only compare it within its OWN list, never between two lists.
     def _crossable(recs: list) -> list:
         return [r for r in recs if (r.get("dance") or "") not in ALLOW_REPEAT]
-    for i in range(len(files)):
-        for j in range(i + 1, len(files)):
-            exact, similar = pair_dups(_crossable(files[i][1]),
-                                       _crossable(files[j][1]))
-            ra, rb = _crossable(files[i][1]), _crossable(files[j][1])
-            seen = {frozenset((id(p["a"]), id(p["b"]))) for p in exact + similar}
-            recording = [{"a": a, "b": b} for a, b in
-                         _cross_recordings(ra, rb, seen)]
-            if exact or similar or recording:
-                cross.append({"file_a": files[i][0], "file_b": files[j][0],
-                              "exact": exact, "similar": similar,
-                              "recording": recording})
+    lists = [_crossable(recs) for _name, recs in files]
+    for i, j in _cross_candidates(lists):
+        ra, rb = lists[i], lists[j]
+        exact, similar = pair_dups(ra, rb)
+        seen = {frozenset((id(p["a"]), id(p["b"]))) for p in exact + similar}
+        recording = [{"a": a, "b": b} for a, b in
+                     _cross_recordings(ra, rb, seen)]
+        if exact or similar or recording:
+            cross.append({"file_a": files[i][0], "file_b": files[j][0],
+                          "exact": exact, "similar": similar,
+                          "recording": recording})
     return {"within": within, "cross": cross}
 
 
 # ── 🎵 Check-Music rules (per track + round structure) ──────────────────────────
-def entry_takt(e, beats_per_bar: dict) -> int:
+def entry_takt(e, beats_per_bar: dict, dance: str | None = None) -> int:
     """A track's takt (bars/min): the filename label, else the measured
-    tempo ÷ the dance's meter. 0 when neither is known."""
+    tempo ÷ the dance's meter. 0 when neither is known. `dance` stands in
+    for a track without a dance of its own (a social title known by its
+    folder only)."""
     takt = int(getattr(e, "bpm", 0) or 0)
     if takt:
         return takt
-    bpb = beats_per_bar.get(e.dance or "")
+    bpb = beats_per_bar.get(e.dance or dance or "")
     measured = float(getattr(e.features, "bpm", 0) or 0) if e.features else 0.0
     return round(measured / bpb) if (measured > 0 and bpb) else 0
 

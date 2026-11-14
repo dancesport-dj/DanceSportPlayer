@@ -24,6 +24,7 @@ from gui.common import (
     MultiFileDropZone,
 )
 from planner import i18n
+from shared.plain_text import plain_label
 
 log = logging.getLogger("dancesport.gui.drop_check")
 
@@ -110,6 +111,14 @@ class FileDropCheckPanel(QWidget):
     def _on_cancel(self):
         self._cancelled = True
 
+    def busy(self) -> bool:
+        """Is a check running (pumping events from its progress ticks)?"""
+        return self._busy
+
+    def cancel(self):
+        """Stop the running check at its next tick, as Cancel does."""
+        self._on_cancel()
+
     def _progress(self, done: int, total: int):
         # A short load finishes instantly — no bar flicker — unless its tracks are
         # slow (🔇 noise probes take seconds each).
@@ -158,7 +167,7 @@ class FileDropCheckPanel(QWidget):
                 log.exception("🔎 The drop check failed\n"
                               "files: %s\n"
                               "error: %s", n, exc)
-                out = QLabel(i18n.t("Check failed — %s") % exc)
+                out = plain_label(i18n.t("Check failed — %s") % exc)
                 out.setWordWrap(True)
             widget, summary = out if isinstance(out, tuple) else (out, {})
             summary.setdefault("files", n)

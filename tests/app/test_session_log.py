@@ -19,8 +19,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_session_log_"))
 
+from loguru import logger
+
 import dancesport_gui
 import planner.config
+from shared import app_logging
 
 
 class SessionLogTest(unittest.TestCase):
@@ -28,18 +31,16 @@ class SessionLogTest(unittest.TestCase):
     def open_log(self):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
-        root = logging.getLogger()
-        before = list(root.handlers)
-        self.addCleanup(self.remove_handlers, root, before)
+        self.addCleanup(self.reset_sinks)
+        app_logging.setupLogging()
         self.path = Path(tmp.name) / "session.log"
         with mock.patch.object(planner.config, "APP_DIR", Path(tmp.name)):
             return dancesport_gui._open_session_log()
 
     @staticmethod
-    def remove_handlers(root, before):
-        for handler in [h for h in root.handlers if h not in before]:
-            root.removeHandler(handler)
-            handler.close()
+    def reset_sinks():
+        logger.remove()   # closes session.log, so the folder can go
+        logging.getLogger().handlers.clear()
 
     def test_a_line_starts_with_day_and_time(self):
         self.open_log()
@@ -55,9 +56,7 @@ class SecondInstanceTest(unittest.TestCase):
 
     def test_a_second_instance_leaves_the_first_ones_logs_alone(self):
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
-            root = logging.getLogger()
-            before = list(root.handlers)
-            self.addCleanup(SessionLogTest.remove_handlers, root, before)
+            self.addCleanup(SessionLogTest.reset_sinks)
             (Path(tmp) / "session.log").write_text("first run\n", encoding="utf-8")
             with mock.patch.object(planner.config, "APP_DIR", Path(tmp)):
                 dancesport_gui._open_session_log(suffix=".second")

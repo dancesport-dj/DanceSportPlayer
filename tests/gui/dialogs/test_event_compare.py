@@ -576,6 +576,19 @@ class EventCompareTest(EventFixture, unittest.TestCase):
         self.assertEqual(dlg._tables[0].item(0, 1).text(), before)
         self.assertIsNone(dlg.shown_picker())
 
+    def test_an_open_picker_closes_when_the_ai_is_asked(self):
+        # The AI works on a copy of the plan: a title taken meanwhile was
+        # overwritten when its answer came in.
+        _host, dlg = self.with_host()
+        before = dlg._tables[0].item(0, 1).text()
+        dlg.open_picker(0, 0, 1)
+        picker = dlg.shown_picker()
+        dlg.set_busy(True)
+        self.assertFalse(picker.isVisible())
+        self.assertIsNone(dlg.shown_picker())
+        self.assertFalse(dlg.choose(0, 0, 1, picker.picks()[-1]))
+        self.assertEqual(dlg._tables[0].item(0, 1).text(), before)
+
     def test_a_title_dragged_out_of_the_picker_carries_its_file(self):
         """Marcel: "i cant drag music from hear and choose ... to playlist 2".
         A picker row drags its file into a deck as from Explorer."""

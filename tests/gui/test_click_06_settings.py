@@ -238,7 +238,13 @@ class SettingsClickTest(ClickThrough):
             if "Restart now?" in text:
                 return QMessageBox.StandardButton.No
             return QMessageBox.StandardButton.Yes
-        with self.clicking() as op, mock.patch.object(QMessageBox, "question", answer):
+        parts_asked = []
+
+        def take_every_part(_parent, names):
+            # The parts chooser opens with every part ticked; OK takes them all.
+            parts_asked.append(list(names))
+            return list(names)
+        with self.clicking() as op, mock.patch.object(QMessageBox, "question", answer),                 mock.patch("gui.window.main_export.ask_pack_parts", take_every_part):
             self.generate()
             planned = self.titles()
             with mock.patch.object(QFileDialog, "getSaveFileName",
@@ -253,6 +259,7 @@ class SettingsClickTest(ClickThrough):
             self.assertTrue(self.wait_until(
                 lambda: venue_pack.has_pending(state_dir()) and "Import venue pack" in asked[-1:]),
                 f"nothing staged, asked {printable(asked)}")
+            self.assertEqual(len(parts_asked), 1, "the parts chooser was not asked once")
             self.restart(at_start=lambda: venue_pack.apply_pending(state_dir()))
             self.assertEqual(self.titles(), planned)
             paths = [self.entry_at(r).path for r in self.song_rows()]

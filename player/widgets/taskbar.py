@@ -191,10 +191,13 @@ class TaskbarPlayer(QObject, QAbstractNativeEventFilter):
             # Logged with its HRESULT: this caption is now the ONLY place the
             # title shows up there, and a shell that refused it has to be
             # tellable from a title that was never sent.
-            logging.info("🪟 Taskbar thumbnail caption\n"
-                         "title: %s\n"
-                         "hresult: %#010x", title or "(window title)",
-                         (hr or 0) & 0xFFFFFFFF)
+            # A caption that went through is routine and sits between the
+            # song actions in the log, so it stays at debug; a refusal shows.
+            code = (hr or 0) & 0xFFFFFFFF
+            logging.log(logging.DEBUG if code == 0 else logging.WARNING,
+                        "🪟 Taskbar thumbnail caption\n"
+                        "title: %s\n"
+                        "hresult: %#010x", title or "(window title)", code)
 
     # ── clicks coming back from the shell ───────────────────────────────
     def nativeEventFilter(self, event_type, message):

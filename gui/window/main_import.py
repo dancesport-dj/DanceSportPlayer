@@ -5,6 +5,7 @@ Extracted from dancesport_gui.py (controller split) as a MainWindow mixin.
 import logging
 from pathlib import Path
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -99,19 +100,63 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
         self._set_active_table(table)        # make the dropped-on deck the import target
         self._import_playlist_path(str(path))
 
-    def _load_tournament_m3u(self, m3u_path: str):
+    def _load_tournament_m3u(self, m3u_path: str, table=None):
         """🏆 double-click in the tournament tree: load that playlist onto the
         focused deck, exactly as dropping the file on it would — the deck asks
-        first when it already holds tracks, because an import REPLACES it."""
-        table = getattr(self, "_focused_table", None) or self._deckset.table
-        if table in self._deckset.wishlists or getattr(table, "_warmup", False):
-            table = self._deckset.table   # a playlist file belongs on a deck
+        first when it already holds tracks, because an import REPLACES it.
+
+        `table` names the deck instead (the tree's "Load into…")."""
+        bring_forward = table is None
+        if table is None:
+            table = getattr(self, "_focused_table", None) or self._deckset.table
+            if table in self._deckset.wishlists or getattr(table, "_warmup", False):
+                table = self._deckset.table   # a playlist file belongs on a deck
         if not table._confirm_m3u_replaces(Path(m3u_path)):
             return
         if table.plays_flat():
             self._load_player_list_from_m3u(table, m3u_path)
+        else:
+            self._import_dropped_playlist(table, m3u_path)
+        if bring_forward and table._row_meta.song_rows():
+            # A party list alone on screen, or the "No playlist" view, would
+            # otherwise swallow the load: it looks like the double-click did nothing.
+            self._reveal_deck(table)
+            table.setFocus(Qt.FocusReason.ShortcutFocusReason)
+            self._on_table_focused(table)
+
+    def _load_tournament_m3u_into(self, m3u_path: str, kind: str, n: int):
+        """🏆 "Load into…" in the tournament tree: the playlist goes to the list
+        that was named — Playlist `n` ("deck"), Wishlist `n` ("wish") or the
+        Party panel ("party") — and that list comes on screen, or the load would
+        look like nothing happened. Same questions as a drop on that list."""
+        if self._library_still_loading():
             return
-        self._import_dropped_playlist(table, m3u_path)
+        if not self._library.lib:
+            QMessageBox.information(self, "Import M3U",
+                                    "Load the music library first.")
+            return
+        log.info("🏆 Load into…\n"
+                 "file: %s\n"
+                 "target: %s %s", Path(m3u_path).name, kind, n)
+        if kind == "deck":
+            if n > self._max_decks():
+                return
+            table = self._deckset.decks[n - 1]
+            self._reveal_deck(table)
+            self._load_tournament_m3u(m3u_path, table)
+        elif kind == "wish":
+            wl = self._deckset.wishlists[n - 1]
+            self._show_wishlist(wl)
+            self._on_table_focused(wl)   # Save, Space and the panel follow it
+            added = wl._insert_drop_files([Path(m3u_path)], wl.rowCount())
+            self._update_wish_counts()
+            show_toast(self, i18n.t("📂  Added %d track(s) from %d file(s)") % (added, 1)
+                       if added else
+                       "📂  Nothing new — all tracks already in the wishlist")
+        else:
+            table = self._deckset.warmup_table
+            if table._confirm_m3u_replaces(Path(m3u_path)):
+                self._load_warmup_from_m3u(table, m3u_path)
 
     def _import_playlist(self):
         """📂 Import M3U button: load an .m3u into the focused table — a deck gets

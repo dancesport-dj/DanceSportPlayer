@@ -147,14 +147,28 @@ class FolderViewTest(FolderBase):
         self.assertEqual(tree.topLevelItemCount(), 2, "all folders + the one root")
         self.assertIn("Music", tree.topLevelItem(1).text(0))
 
-    def test_a_folder_with_no_titles_of_its_own_cannot_be_chosen(self):
+    def test_a_heading_folder_lists_everything_below_it(self):
+        """Suggestion 9 of the 11-12 review, replacing 10.B: a heading was
+        dead (a click kept the folder chosen before); it now lists the titles
+        of every folder below it."""
         self.folders_on()
         self.entries.append(entry("Latin2", "deep", "Samba.mp3", dance="SB"))
         self.browser.set_entries(self.entries)
+        self.choose(ROOT / "latin")
         tree = self.browser._folders
-        top = next(i for i in tree.all_items()
-                   if i.data(0, Qt.ItemDataRole.UserRole) == path_key(ROOT))
-        self.assertFalse(top.flags() & Qt.ItemFlag.ItemIsSelectable)
+        heading = tree.topLevelItem(1)
+        self.assertEqual(heading.data(0, Qt.ItemDataRole.UserRole), path_key(ROOT))
+        self.assertTrue(heading.flags() & Qt.ItemFlag.ItemIsSelectable)
+        tree.setCurrentItem(heading)
+        everything = ["Fly", "Moon", "Moon copy", "Rumba", "Samba"]
+        self.assertEqual(self.shown(), everything)
+        self.browser.set_entries(list(self.entries))
+        self.assertEqual(self.shown(), everything, "a reload keeps it")
+
+    def test_a_folder_with_titles_still_lists_only_its_own(self):
+        self.folders_on()
+        self.choose(ROOT / "standard")
+        self.assertEqual(self.shown(), ["Fly", "Moon"], "not the old/ below it")
 
     def test_the_chosen_folder_stays_when_the_library_is_listed_again(self):
         self.folders_on()

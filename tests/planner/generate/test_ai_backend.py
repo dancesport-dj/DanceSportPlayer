@@ -536,7 +536,8 @@ class DialogTest(unittest.TestCase):
         with mock.patch.object(gui_ai_dialogs, "save_openrouter_config") as save, \
              mock.patch.object(gui_ai_dialogs, "OpenRouterChatWorker") as worker:
             dlg._get()
-        save.assert_called_once_with("k", "m", MAMMOUTH)
+        # The key was not touched: None leaves it where it came from (9.A).
+        save.assert_called_once_with(None, "m", MAMMOUTH)
         self.assertEqual(worker.call_args.kwargs["base_url"], MAMMOUTH)
 
 

@@ -20,6 +20,7 @@ from pathlib import Path
 
 from PySide6.QtCore import (
     QEventLoop,
+    QModelIndex,
     Qt,
     QTimer,
     Signal,
@@ -73,6 +74,7 @@ from planner.playing import play_counts
 from planner.playlist.m3u import m3u_marker_rounds_in_order, read_m3u_tracks, running_order_rounds
 from planner.playlist.planned import path_key
 from planner.terms import dance_name
+from shared.plain_text import plain_tip
 
 log = logging.getLogger("dancesport.gui.tournament_tree")
 
@@ -90,6 +92,12 @@ _TRACK_COL_MENU_NAMES = {0: "▶  Play", 6: "⏱  Length"}
 _TRACK_TAG_FIELDS = {2: "genre", 3: "artist", 4: "title", 8: "classes"}
 # A track the playlist points at but the disk no longer has.
 _C_MISS_BG = QColor(255, 224, 178)   # orange
+
+# The lists a filed playlist can be sent to from its menu: (kind, number, word, numbered).
+# Kind and number are what MainWindow resolves to a table.
+_LOAD_TARGETS = tuple([("deck", n, "Playlist", True) for n in range(1, 5)]
+                      + [("wish", n, "Wishlist", True) for n in (1, 2)]
+                      + [("party", 1, "Party", False)])
 
 # The two ways to look at a filed weekend. Slots is what the pane opens in: on
 # the desk a tournament is something you grab, not something you read.
@@ -167,8 +175,11 @@ def normalize_nodes(data) -> list[dict]:
         if raw.get("m3u"):
             out.append({"name": name, "m3u": str(raw["m3u"])})
         else:
-            out.append({"name": name,
-                        "children": normalize_nodes(raw.get("children"))})
+            node = {"name": name,
+                    "children": normalize_nodes(raw.get("children"))}
+            if raw.get("source"):   # 🔗 the disk folder it was added from
+                node["source"] = str(raw["source"])
+            out.append(node)
     return out
 
 
@@ -177,6 +188,72 @@ def load_tree(store) -> list[dict]:
     data = store.read()
     return normalize_nodes(data.get("tournaments")
                            if isinstance(data, dict) else data)
+
+
+def _leaf_keys(nodes: list[dict]) -> set[str]:
+    keys: set[str] = set()
+    for n in nodes:
+        if n.get("m3u"):
+            keys.add(path_key(n["m3u"]))
+        else:
+            keys |= _leaf_keys(n.get("children") or [])
+    return keys
+
+
+def _merge_linked(old: list[dict], fresh: list[dict], src: Path) -> list[dict]:
+    """🔄 A linked branch's children after a refresh: `old` as the operator
+    left it, minus the playlists under `src` that are gone from the disk, plus
+    the ones that came, filed by the disk's folders (into a folder of that
+    name where the branch still has one). A playlist missing from the fresh
+    walk but still on disk stays — its folder may just not have been readable."""
+    fresh_keys, old_keys = _leaf_keys(fresh), _leaf_keys(old)
+    under = path_key(src).rstrip("\\/") + os.sep
+
+    def gone(leaf: dict) -> bool:
+        key = path_key(leaf["m3u"])
+        return (key.startswith(under) and key not in fresh_keys
+                and not os.path.isfile(leaf["m3u"]))
+
+    def prune(nodes: list[dict]) -> list[dict]:
+        kept = []
+        for n in nodes:
+            if n.get("m3u"):
+                if not gone(n):
+                    kept.append(n)
+                continue
+            was_empty = not n.get("children")
+            n["children"] = prune(n.get("children") or [])
+            if n["children"] or was_empty:
+                kept.append(n)
+        return kept
+
+    def only_new(folder: dict) -> dict | None:
+        children = []
+        for c in folder.get("children") or []:
+            if c.get("m3u"):
+                if path_key(c["m3u"]) not in old_keys:
+                    children.append(c)
+            elif (sub := only_new(c)) is not None:
+                children.append(sub)
+        return {"name": folder["name"], "children": children} if children else None
+
+    def graft(level: list[dict], fresh_level: list[dict]):
+        for f in fresh_level:
+            if f.get("m3u"):
+                if path_key(f["m3u"]) not in old_keys:
+                    level.append(f)
+                continue
+            name = str(f.get("name", "")).casefold()
+            match = next((n for n in level if not n.get("m3u")
+                          and str(n.get("name", "")).casefold() == name), None)
+            if match is not None:
+                graft(match.setdefault("children", []), f.get("children") or [])
+            elif (new := only_new(f)) is not None:
+                level.append(new)
+
+    merged = prune(old)
+    graft(merged, fresh)
+    return merged
 
 
 def load_view(store) -> str:
@@ -227,6 +304,7 @@ class TournamentTree(QWidget):
 
     playRequested = Signal(object, int)   # (Path | None, table row) — None stops
     loadRequested = Signal(str)           # .m3u to load onto the focused deck
+    loadIntoRequested = Signal(str, str, int)   # .m3u, "deck" | "wish" | "party", number
     playCountsResetWanted = Signal()      # 🔁 the header menu's reset
 
     # Path → MusicEntry for tracks that are NOT in the library, set by MainWindow.
@@ -240,6 +318,7 @@ class TournamentTree(QWidget):
         self._rows_cache: dict = {}   # m3u → (stamp, finished rows)
         self._meta_cache: dict = {}   # m3u → (stamp, slot meta)
         self._collapsed = False       # ⊟: every folder folded away
+        self._folds: dict[int, bool] = {}   # folder node id → open, across rebuilds
         self._view = load_view(self._store)   # ▦ slots / ▤ tree + track list
         self._nodes: list[dict] = load_tree(self._store)
 
@@ -301,21 +380,27 @@ class TournamentTree(QWidget):
         self._rebuild()
 
     def _build_toolbar(self):
-        """The count and the ▤ ⊟ 📁 ＋ ✎ 🗑 buttons above the tree."""
+        """The count, the ⊟ next to it, and the ▤ 📁 ＋ ✎ 🗑 buttons above the tree."""
         bar = QHBoxLayout()
         bar.setSpacing(4)
         self._count_lbl = QLabel("")
         self._count_lbl.setStyleSheet("color:#666;")
         bar.addWidget(self._count_lbl)
+        # ⊟ folds the tree below, so it sits right next to the tree's count
+        # rather than on a row of its own or at the far right edge.
+        btn = self._collapse_btn = QToolButton()   # its face says what the next click does
+        btn.setText("⊟")
+        btn.setToolTip("Collapse every folder — click again to open them all\n"
+                       "(a whole season of weekends is a long tree)")
+        btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        btn.clicked.connect(self._toggle_collapse_all)
+        bar.addWidget(btn)
         bar.addStretch(1)
         for text, tip, slot in (
                 ("▤", "Show the tracks of one playlist instead of the slots —\n"
                       "the whole tree on the left, the titles of whatever is\n"
                       "picked on the right (click again for the slots)",
                  self._toggle_view),
-                ("⊟", "Collapse every folder — click again to open them all\n"
-                      "(a whole season of weekends is a long tree)",
-                 self._toggle_collapse_all),
                 ("📁", "New folder — a day, a venue, a competition", self._add_folder),
                 ("＋", "Add playlist files (.m3u) to the selected folder",
                  self._add_playlists),
@@ -327,9 +412,7 @@ class TournamentTree(QWidget):
             btn.setToolTip(tip)
             btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             btn.clicked.connect(slot)
-            if text == "⊟":
-                self._collapse_btn = btn   # its face says what the next click does
-            elif text == "▤":
+            if text == "▤":
                 self._view_btn = btn
             bar.addWidget(btn)
         return bar
@@ -360,6 +443,7 @@ class TournamentTree(QWidget):
         self._tree.itemPressed.connect(lambda *_: self._board.select(""))
         self._tree.itemDoubleClicked.connect(self._on_tree_double_click)
         self._tree.filesDropped.connect(self._on_files_dropped)
+        self._tree.nodesMoved.connect(self._on_nodes_moved)
         self._tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._tree.customContextMenuRequested.connect(self._on_context_menu)
 
@@ -438,6 +522,7 @@ class TournamentTree(QWidget):
         show them, so every edit works on the dict and calls back in here."""
         current = self._tree.currentItem()
         keep = current.data(0, ROLE_KEY) if current else None
+        self._folds = self._fold_states()
         self._tree.clear()
         # A playlist filed at the root has no folder to be picked under, so the
         # board would never show it. It gets one — but only while there is one,
@@ -451,6 +536,22 @@ class TournamentTree(QWidget):
         self._count_lbl.setText((i18n.t("(%d playlist)") if n == 1
                                  else i18n.t("(%d playlists)")) % n if n else "")
         self._show_current()
+
+    def _fold_states(self) -> dict[int, bool]:
+        """{id(node): open?} for every folder row in the tree right now.
+
+        By node identity, not key: the node dicts outlive a rebuild and a
+        reorder, an index path does not. A rebuild only has to ask this for
+        the folders it already knew; a new folder takes the ⊟ default."""
+        states: dict[int, bool] = {}
+        it = QTreeWidgetItemIterator(self._tree)
+        while it.value():
+            item = it.value()
+            node = self.node_at(item.data(0, ROLE_KEY) or "")
+            if node is not None and not node.get("m3u"):
+                states[id(node)] = item.isExpanded()
+            it += 1
+        return states
 
     def _toggle_collapse_all(self):
         """⊟ / ⊞ — fold the whole tree away, or open it again. Kept as a flag,
@@ -489,7 +590,8 @@ class TournamentTree(QWidget):
             if leaf and slots:
                 continue   # the playlists are the tiles on the board, not rows
             item = QTreeWidgetItem(parent)
-            item.setText(0, ("🎵  " if leaf else "📁  ") + node["name"])
+            icon = "🎵  " if leaf else "🔗  " if node.get("source") else "📁  "
+            item.setText(0, icon + node["name"])
             item.setData(0, ROLE_KEY, key)
             if slots:
                 # What picking this folder will lay out. Silent when it holds no
@@ -498,12 +600,16 @@ class TournamentTree(QWidget):
                 if held:
                     item.setText(0, f"{item.text(0)}  ({held})")
             if leaf:
+                # nothing goes INTO a playlist: a drop on it lands above or below
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsDropEnabled)
                 missing = not Path(node["m3u"]).is_file()
                 item.setToolTip(0, ("⚠ missing: " if missing else "") + node["m3u"])
                 if missing:
                     item.setText(0, "⚠  " + node["name"])
             else:
-                item.setExpanded(not self._collapsed)
+                if node.get("source"):
+                    item.setToolTip(0, plain_tip(node["source"]))
+                item.setExpanded(self._folds.get(id(node), not self._collapsed))
                 self._fill(item, node.get("children") or [], key + "/", keep)
             if key == keep:
                 self._tree.setCurrentItem(item)
@@ -835,6 +941,7 @@ class TournamentTree(QWidget):
             self._board.select(key)
         menu = QMenu(self)
         load_act = menu.addAction("▶  Load onto the focused deck")
+        into = self._add_load_into(menu)
         tracks_act = menu.addAction("🎵  Show its tracks")
         menu.addSeparator()
         rename_act = menu.addAction("✎  Rename…")
@@ -842,12 +949,32 @@ class TournamentTree(QWidget):
         chosen = menu.exec(pos)
         if chosen is load_act:
             self._load_key(key)
+        elif chosen in into:
+            self._load_key_into(key, *into[chosen])
         elif chosen is tracks_act:
             self._show_tracks_of(key)
         elif chosen is rename_act:
             self._rename_node(node)
         elif chosen is remove_act:
             self._remove()
+
+    def _add_load_into(self, menu: QMenu) -> dict:
+        """The "Load into…" submenu: one entry per list a playlist can be sent
+        to. Returns {action: (kind, number)} for the caller to match `exec`'s
+        answer against."""
+        sub = menu.addMenu("📥  Load into…")
+        return {sub.addAction(f"{i18n.t(word)} {n}" if numbered else i18n.t(word)):
+                (kind, n) for kind, n, word, numbered in _LOAD_TARGETS}
+
+    def _load_key_into(self, key: str, kind: str, n: int):
+        node = self.node_at(key) or {}
+        if not node.get("m3u"):
+            return
+        if not Path(node["m3u"]).is_file():
+            QMessageBox.warning(self, "Load playlist",
+                                i18n.t("The playlist file is gone:\n\n%s") % node['m3u'])
+            return
+        self.loadIntoRequested.emit(str(node["m3u"]), kind, n)
 
     def _show_tracks_of(self, key: str):
         """The way back to the titles: switch to the ▤ view with this playlist
@@ -894,7 +1021,7 @@ class TournamentTree(QWidget):
             # the column, and VR / 1ZR / ER is how the desk says it anyway.
             round_it = QTableWidgetItem(
                 _round_short(row["round"]) if row["round"] else "")
-            round_it.setToolTip(terms.round_name(row["round"]))
+            round_it.setToolTip(plain_tip(terms.round_name(row["round"])))
             round_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             t.setItem(r, 1, round_it)
             t.setItem(r, 2, QTableWidgetItem(row["dance"]))
@@ -902,8 +1029,8 @@ class TournamentTree(QWidget):
             t.setItem(r, 3, artist_it)   # Artist sits LEFT of Title
             title = row["title"]
             title_it = QTableWidgetItem("⚠  " + title if missing else title)
-            title_it.setToolTip(row["tip"])
-            artist_it.setToolTip(row["tip"])
+            title_it.setToolTip(plain_tip(row["tip"]))
+            artist_it.setToolTip(plain_tip(row["tip"]))
             t.setItem(r, 4, title_it)
             bpm_it = LibSortItem(str(row["bpm"]) if row["bpm"] else "")
             bpm_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -921,7 +1048,7 @@ class TournamentTree(QWidget):
             cls_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             t.setItem(r, 8, cls_it)
             file_it = QTableWidgetItem(row["file"])
-            file_it.setToolTip(str(row["path"]))
+            file_it.setToolTip(plain_tip(row["path"]))
             t.setItem(r, _TRACK_COL_FILE, file_it)
             plays = play_counts.count(row["path"])
             plays_it = LibSortItem(str(plays) if plays else "")
@@ -1018,9 +1145,47 @@ class TournamentTree(QWidget):
         name = (name or "").strip()
         if not ok or not name:
             return
-        self._target_children().append({"name": name, "children": []})
+        children = self._target_children()
+        if self._folder_name_taken(children, name):
+            self._warn_folder_taken(name)
+            return
+        new = {"name": name, "children": []}
+        children.append(new)
         self._save()
         self._rebuild()
+        self._pick_node(new)
+
+    @staticmethod
+    def _folder_name_taken(siblings: list[dict], name: str, skip: dict | None = None) -> bool:
+        """A folder of that name (case aside) already on this level. Playlists
+        do not count, and `skip` is the folder being renamed."""
+        wanted = name.casefold()
+        return any(n is not skip and not n.get("m3u")
+                   and str(n.get("name", "")).casefold() == wanted for n in siblings)
+
+    def _warn_folder_taken(self, name: str):
+        QMessageBox.information(
+            self, "Folder name",
+            i18n.t("There is already a folder “%s” on this level.") % name)
+
+    def _refresh_linked(self, node: dict):
+        """🔄 A 🔗 folder read from its disk folder again: playlists that came
+        are filed, ones that went are dropped. Everything the operator did to
+        the branch stays — names, folders of their own, playlists moved or
+        filed in by hand (`_merge_linked`)."""
+        src = Path(node.get("source") or "")
+        fresh = self._read_folders([src]).get(src) if src.is_dir() else None
+        if fresh is None:
+            QMessageBox.information(
+                self, "Add folder", i18n.t("No .m3u playlists found under “%s”.") % src.name)
+            return
+        node["children"] = _merge_linked(node.get("children") or [],
+                                         fresh["children"], src)
+        self._save()
+        self._rebuild()
+        log.info("🏆 Refreshed a linked folder\n"
+                 "folder: %s\n"
+                 "playlists: %s", src, self._leaf_count([node]))
 
     def _add_playlists(self):
         files, _ = QFileDialog.getOpenFileNames(
@@ -1044,6 +1209,47 @@ class TournamentTree(QWidget):
         on). A folder arrives as a branch mirroring what is inside it."""
         self._tree.setCurrentItem(item)
         self._add_m3u_files(self._target_children(), paths)
+
+    def _siblings_of(self, target: dict, nodes=None) -> list[dict] | None:
+        """The list `target` is an entry of (by identity), None when not filed."""
+        nodes = self._nodes if nodes is None else nodes
+        if any(n is target for n in nodes):
+            return nodes
+        for n in nodes:
+            found = self._siblings_of(target, n.get("children") or [])
+            if found is not None:
+                return found
+        return None
+
+    def _on_nodes_moved(self, nodes: list[dict], target: dict | None, where: str):
+        """🏆 Rows dragged within the tree: into a folder (`into`, or `first`
+        for the line under an open folder), beside a row (`before` / `after`) or
+        to the end of the top level (`end`)."""
+        if not nodes or (target is not None
+                         and any(TourneyTree.contains(n, target) for n in nodes)):
+            return
+        siblings = (self._siblings_of(target)
+                    if target is not None and where in ("before", "after") else None)
+        if where in ("before", "after") and siblings is None:
+            return
+        for node in nodes:
+            self._remove_from(self._nodes, node)
+        if where == "into" and target is not None:
+            target.setdefault("children", []).extend(nodes)
+        elif where == "first" and target is not None:
+            target.setdefault("children", [])[0:0] = nodes
+        elif siblings is not None:
+            at = next(i for i, n in enumerate(siblings) if n is target)
+            at += 1 if where == "after" else 0
+            siblings[at:at] = nodes
+        else:
+            self._nodes.extend(nodes)
+        log.info("🏆 Moved within the tree\n"
+                 "entries: %s\n"
+                 "to: %s (%s)", len(nodes), (target or {}).get("name", "top level"), where)
+        self._save()
+        self._rebuild()
+        self._pick_node(nodes[0])
 
     def _folder_node(self, folder: Path, tick=None, walked=None) -> dict | None:
         """A dropped folder as a branch: sub-folders become folders, .m3u files
@@ -1130,16 +1336,21 @@ class TournamentTree(QWidget):
         branches = self._read_folders(folders) if folders else {}
         added = 0
         empty: list[str] = []
+        filed: list[dict] = []
         for p in paths:
             if p in folders:
                 node = branches.get(p)
                 if node is None:
                     empty.append(p.name)
                     continue
+                node["source"] = str(p)
                 children.append(node)
+                filed.append(node)
                 added += self._leaf_count([node])
             else:
-                children.append({"name": p.stem, "m3u": str(p)})
+                leaf = {"name": p.stem, "m3u": str(p)}
+                children.append(leaf)
+                filed.append(leaf)
                 added += 1
         for name in empty:
             QMessageBox.information(
@@ -1148,6 +1359,7 @@ class TournamentTree(QWidget):
             return
         self._save()
         self._rebuild()
+        self._pick_node(filed[0])
         log.info("🏆 Added %s playlist(s) to the tournament tree", added)
 
     def file_saved(self, paths: list[Path], folder: str | None = None) -> int:
@@ -1206,6 +1418,7 @@ class TournamentTree(QWidget):
         key = self._key_of(node)
         if key is None:
             return
+        self._open_way_to(key)
         if node.get("m3u") and self._view == VIEW_SLOTS:
             self._select_key(key.rpartition("/")[0])
             self._board.select(key)
@@ -1214,6 +1427,21 @@ class TournamentTree(QWidget):
         item = self._tree.currentItem()
         if item is not None:
             self._tree.scrollToItem(item)
+        # A dialog just closed: the keys must land on the tree, not wherever the
+        # dialog's parent had them.
+        self._tree.setFocus()
+
+    def _open_way_to(self, key: str):
+        """Unfold every folder above `key`, so what is picked is not hidden
+        behind a fold the operator left shut."""
+        parts = key.split("/")[:-1]
+        wanted = {"/".join(parts[:i]) for i in range(1, len(parts) + 1)}
+        it = QTreeWidgetItemIterator(self._tree)
+        while it.value():
+            item = it.value()
+            if item.data(0, ROLE_KEY) in wanted:
+                item.setExpanded(True)
+            it += 1
 
     def _on_tree_double_click(self, item, _col: int):
         """Double-click on a playlist loads it — MainWindow asks first when the
@@ -1242,6 +1470,11 @@ class TournamentTree(QWidget):
                                         text=node["name"])
         name = (name or "").strip()
         if ok and name:
+            siblings = self._siblings_of(node)
+            if (not node.get("m3u") and siblings is not None
+                    and self._folder_name_taken(siblings, name, skip=node)):
+                self._warn_folder_taken(name)
+                return
             node["name"] = name
             self._save()
             self._rebuild()
@@ -1296,10 +1529,21 @@ class TournamentTree(QWidget):
             if not item.isSelected():
                 self._tree.setCurrentItem(item)
             self._board.select("")
+        else:
+            # The white space acts on the top of the tree: a folder left
+            # selected behind collapsed rows would otherwise take the new entry.
+            self._tree.clearSelection()
+            self._tree.setCurrentIndex(QModelIndex())
         menu = QMenu(self._tree)
         folder_act = menu.addAction("📁  New folder…")
         add_act = menu.addAction("＋  Add playlists…")
         add_dir_act = menu.addAction("📂  Add a folder of playlists…")
+        node = (self.node_at(item.data(0, ROLE_KEY) or "")
+                if item is not None else None)
+        refresh_act = (menu.addAction("🔄  Refresh from disk")
+                       if node is not None and node.get("source") else None)
+        into = (self._add_load_into(menu)
+                if node is not None and node.get("m3u") else {})
         menu.addSeparator()
         rename_act = menu.addAction("✎  Rename…")
         remove_act = menu.addAction("🗑  Remove from tree")
@@ -1312,6 +1556,10 @@ class TournamentTree(QWidget):
             self._add_playlists()
         elif chosen is add_dir_act:
             self._add_playlist_folder()
+        elif chosen is refresh_act and refresh_act is not None and node is not None:
+            self._refresh_linked(node)
+        elif chosen in into and item is not None:
+            self._load_key_into(item.data(0, ROLE_KEY), *into[chosen])
         elif chosen is rename_act:
             self._rename()
         elif chosen is remove_act:

@@ -240,6 +240,8 @@ class _TickDesk:
     stubbed out — the media backend, the pause music and the timed end all
     have tests of their own."""
 
+    _big_player = None     # no player card, so no 🔁 either
+
     def __init__(self, on, pos_ms):
         from player.audio.mix import OutputMix
         self._playback = PlaybackState()
@@ -301,6 +303,18 @@ class PdWithoutTheStopTest(unittest.TestCase):
         d = self.Desk(on=False, pos_ms=101_000)
         d._on_play_tick()
         self.assertEqual(d._ended, ["play length reached"])
+
+    def test_with_the_loop_on_the_title_is_neither_faded_nor_cut(self):
+        """Marcel: "even on the main player it makes no sense to loop with a
+        cut play length" - past the 100 s mark the running tick ends nothing."""
+        d = self.Desk(on=False, pos_ms=99_000)
+        d._big_player = SimpleNamespace(loop_mode=lambda: True,
+                                        loop_cut=lambda: False)
+        d._on_play_tick()
+        self.assertEqual(d._mix.fade, 1.0)
+        d._player._pos = 101_000
+        d._on_play_tick()
+        self.assertEqual(d._ended, [])
 
     def test_under_the_stop_it_is_still_never_faded(self):
         d = self.Desk(on=True, pos_ms=99_000)

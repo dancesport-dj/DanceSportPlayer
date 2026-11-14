@@ -139,6 +139,24 @@ class SavingTest(AiTabCase):
             dlg.accept()
         save.assert_called_once()
 
+    def test_a_save_that_did_not_land_is_not_reported_as_done(self):
+        dlg = self.build()
+        dlg._ai_model.setCurrentText("x/y")
+        with mock.patch.object(tab.ai, "save_openrouter_config",
+                               return_value=False), \
+                mock.patch.object(tab.QMessageBox, "warning") as warn:
+            dlg.accept()
+        warn.assert_called_once()
+
+    def test_a_save_that_landed_says_nothing(self):
+        dlg = self.build()
+        dlg._ai_model.setCurrentText("x/y")
+        with mock.patch.object(tab.ai, "save_openrouter_config",
+                               return_value=True), \
+                mock.patch.object(tab.QMessageBox, "warning") as warn:
+            dlg.accept()
+        warn.assert_not_called()
+
     def test_cancel_writes_nothing(self):
         dlg = self.build()
         dlg._ai_model.setCurrentText("x/y")

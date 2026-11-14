@@ -20,6 +20,8 @@
 PySide6==6.11.2
 numpy==2.5.3
 mutagen==1.48.1
+# The log: loguru is the sink behind stdlib logging (shared/app_logging.py).
+loguru==0.7.3
 # Opt-in error reports (shared.error_reports); without it they stay off.
 sentry-sdk==2.71.0
 # The QR code in the 📱 phone remote's window (pure Python, no dependencies);

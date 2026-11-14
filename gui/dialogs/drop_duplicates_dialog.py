@@ -26,7 +26,7 @@ REPLACE, ADD, SKIP = "replace", "add", "skip"
 _KEYS = {Qt.Key.Key_S: SKIP, Qt.Key.Key_R: REPLACE, Qt.Key.Key_E: ADD, Qt.Key.Key_B: ADD}
 
 
-def _name(entry) -> str:
+def _entry_name(entry) -> str:
     path = getattr(entry, "path", None)
     return Path(str(path)).name if path else (getattr(entry, "title", "") or "?")
 
@@ -77,9 +77,9 @@ class DropDuplicatesDialog(QDialog):
         kind = (i18n.t("🟰  Same audio") if same_audio
                 else i18n.t("≈  Same title or recording"))
         info = QLabel(f"<b>{kind}</b><br>"
-                      + i18n.t("In the list: %s") % _html(_name(held))
+                      + i18n.t("In the list: %s") % _html(_entry_name(held))
                       + "<br>"
-                      + i18n.t("Dropped: %s") % _html(_name(dropped)))
+                      + i18n.t("Dropped: %s") % _html(_entry_name(dropped)))
         info.setWordWrap(True)
         info.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         info.setStyleSheet("font-size:11px;")

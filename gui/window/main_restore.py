@@ -155,7 +155,13 @@ class RestoreMixin(MainWindowHost):
             self._restore_env(data, wish_default=True)
         except Exception as exc:
             applied = False
-            self.statusBar().showMessage(i18n.t("Could not apply snapshot: %s") % exc)
+            # The next edit autosaves the half-wiped desk over the file, so the
+            # file as it is now goes aside first, as at a startup restore.
+            kept = keep_autosave_copy()
+            msg = i18n.t("Could not apply snapshot: %s") % exc
+            if kept:
+                msg += " " + i18n.t("The saved session is kept as %s.") % kept.name
+            self.statusBar().showMessage(msg)
         finally:
             self._restoring = False
         if held is not None:

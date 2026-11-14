@@ -121,11 +121,15 @@ def load_openrouter_config() -> dict:
 
 
 def save_openrouter_config(api_key: str | None, model: str, base_url: str = '',
-                           ask_first: bool | None = None) -> None:
+                           ask_first: bool | None = None) -> bool:
     """Write the config. `ask_first` puts this model ahead of the claude CLI;
     a save that leaves it out keeps what is stored. `api_key=None` leaves the
     key where it is: one that came from the environment must not be copied into
-    the store by a change of model (#38)."""
+    the store by a change of model (#38).
+
+    False when it did not fully land: the file could not be written, or a
+    cleared key is still in the credential store (it would be loaded again)."""
+    landed = True
     stored = OPENROUTER.read()
     cfg = dict(stored) if isinstance(stored, dict) else {}
     cfg.update({'model': model,
@@ -134,7 +138,9 @@ def save_openrouter_config(api_key: str | None, model: str, base_url: str = '',
     if api_key is None:
         pass
     elif not api_key:
-        secret_store.delete(KEY_NAME)
+        # delete() is False for "no store" as well, which has nothing to forget.
+        if not secret_store.delete(KEY_NAME) and secret_store.get(KEY_NAME):
+            landed = False
         cfg.pop('api_key', None)
     elif secret_store.put(KEY_NAME, api_key):
         cfg.pop('api_key', None)
@@ -142,7 +148,7 @@ def save_openrouter_config(api_key: str | None, model: str, base_url: str = '',
         cfg['api_key'] = api_key
     if ask_first is not None:
         cfg['ask_first'] = ask_first
-    OPENROUTER.write(cfg)
+    return OPENROUTER.write(cfg) and landed
 
 
 # How long a model may go without a word or a thought. A guess with room in it:
@@ -450,6 +456,28 @@ def parse_ai_suggestions(text: str) -> list[dict[str, str]]:
     return out
 
 
+# A title that sits inside the other one as whole words counts as a 0.9 match,
+# but only from this length on: 'si' or 'go' sit inside half of all titles.
+_MIN_CONTAINED = 4
+# Taken off when both sides name an artist and they differ: a cover still shows
+# as a match, but the same title by the asked artist wins.
+_OTHER_ARTIST_PENALTY = 0.15
+
+
+def _contains_words(a: str, b: str) -> bool:
+    """One normalised title inside the other on word boundaries."""
+    short, long_ = (a, b) if len(a) <= len(b) else (b, a)
+    return len(short) >= _MIN_CONTAINED and f" {short} " in f" {long_} "
+
+
+def _other_artist(want: str, entry) -> bool:
+    have = norm_title(getattr(entry, 'tag_artist', None) or '')
+    if not want or not have:
+        return False
+    return not (_contains_words(want, have)
+                or SequenceMatcher(None, want, have).ratio() >= 0.6)
+
+
 def match_suggestions_to_library(
     lib: MusicLibrary,
     suggestions: list[dict[str, str]],
@@ -463,6 +491,7 @@ def match_suggestions_to_library(
     results: list[dict[str, object]] = []
     for s in suggestions:
         target = norm_title(s.get('title', ''))
+        want_artist = norm_title(s.get('artist', '') or '')
         best, best_r = None, 0.0
         if target:
             sm = SequenceMatcher(None)
@@ -470,16 +499,19 @@ def match_suggestions_to_library(
             for nt, e in index:
                 if not nt:
                     continue
-                contains = target in nt or nt in target
+                contains = _contains_words(target, nt)
                 sm.set_seq2(nt)
                 # Upper bounds of ratio(): a title that cannot beat the best so
                 # far skips the full match (same result, about half the time).
+                # The artist penalty only lowers r, so the bounds still hold.
                 if not contains and (sm.real_quick_ratio() <= best_r
                                      or sm.quick_ratio() <= best_r):
                     continue
                 r = sm.ratio()
                 if contains:
                     r = max(r, 0.9)
+                if _other_artist(want_artist, e):
+                    r -= _OTHER_ARTIST_PENALTY
                 if r > best_r:
                     best_r, best = r, e
         owned = best is not None and best_r >= threshold

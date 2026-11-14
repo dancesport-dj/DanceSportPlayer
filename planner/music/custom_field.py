@@ -28,14 +28,14 @@ _WITH_DESC = ("TXXX", "COMM")
 _SEP = "; "
 
 
-def _stored() -> str | None:
+def _stored_source() -> str | None:
     row = _db().execute("SELECT value FROM app_meta WHERE key = ?", (_KEY,)).fetchone()
     return row[0] if row and row[0] else None
 
 
 def source() -> tuple[str, str] | None:
     """(frame id, description) the Custom field is mapped to, or None."""
-    value = _stored()
+    value = _stored_source()
     if value is None:
         return None
     frame, _, desc = value.partition(":")
@@ -56,7 +56,7 @@ def set_source(frame: str | None, desc: str = "") -> bool:
     value = None
     if frame:
         value = f"{frame}:{desc.strip()}" if frame in _WITH_DESC else frame
-    if value == _stored():
+    if value == _stored_source():
         return False
     conn = _db()
     if value is None:

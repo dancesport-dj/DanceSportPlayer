@@ -373,19 +373,23 @@ class PersistenceMixin(ExportMixin, UndoMixin, RestoreMixin):
         self.statusBar().showMessage(msg)
         show_toast(self, msg)
 
-    def save_on_quit(self):
+    def save_on_quit(self) -> bool:
         """Persist the working playlist + window layout one last time before quitting.
 
         Called from MainWindow.closeEvent, NOT named closeEvent itself: QMainWindow
         comes first in MainWindow's bases, so QWidget.closeEvent would shadow a
-        mixin one and nothing here would ever run."""
-        self._autosave_playlist()
+        mixin one and nothing here would ever run.
+
+        False when the session should have been written and was not: closeEvent
+        asks before it throws that away."""
+        landed = self._autosave_playlist()
         self._save_layout()
         # A fader moved in the last 600 ms is still waiting on its save, and
         # the quit ends the process before that timer would run.
         if self._vol_save_timer.isActive():
             self._vol_save_timer.stop()
             self._save_master_volume()
+        return landed
 
     # ── Window / splitter layout persistence ────────────────────────────────────
     def _layout_settings(self) -> QSettings:

@@ -489,6 +489,52 @@ class CartPadWidgetTest(unittest.TestCase):
         # an arrow, not the pale 🔈 emoji (Marcel's pick).
         self.assertNotIn("↓", self.w._buttons[(0, 1, 0)]._title.text())
 
+    def _pull_text(self, **flags):
+        self.w.set_wall(pc.DEFAULT_GRID, [pc.Page(pads={
+            (0, 0): pc.CartPad(path="tusch.mp3", **flags)})])
+        return self.w._buttons[(0, 0, 0)]._title.text()
+
+    def test_pulling_only_the_other_pads_down_shows_the_arrow_too(self):
+        # Marcel: "if one pull activated give the arrow, if both give a bolder
+        # arrow" (the line under it was not distinguishable).
+        text = self._pull_text(duck=False, duck_pads=True)
+        self.assertIn("↓", text)
+        self.assertNotIn("<b", text)
+
+    def test_pulling_only_the_music_down_shows_the_plain_arrow(self):
+        text = self._pull_text(duck=True, duck_pads=False)
+        self.assertIn("↓", text)
+        self.assertNotIn("<b", text)
+
+    def test_pulling_both_down_shows_a_double_arrow(self):
+        # Marcel: "i only want bold not bigger, if not possible maybe we have a
+        # double arrow?" Bold does nothing to the plain arrow in Segoe UI, and
+        # two arrows side by side read as two marks: "use ⇓ (U+21D3)", the
+        # one double-lined arrow, for both pulls.
+        text = self._pull_text(duck=True, duck_pads=True)
+        self.assertIn("⇓", text)
+        self.assertNotIn("↓", text)
+        self.assertNotIn("<b", text)
+        self.assertNotIn("font-size:15px", text)
+        self.assertNotIn("⤓", text)
+
+    def test_one_pull_is_a_single_arrow_not_a_double_one(self):
+        for flags in ({"duck": True, "duck_pads": False},
+                      {"duck": False, "duck_pads": True}):
+            text = self._pull_text(**flags)
+            self.assertNotIn("⇓", text)
+            self.assertNotIn("↓↓", text)
+
+    def test_pulling_nothing_down_shows_no_arrow(self):
+        text = self._pull_text(duck=False, duck_pads=False)
+        self.assertNotIn("↓", text)
+        self.assertNotIn("⤓", text)
+
+    def test_a_background_pad_shows_no_arrow_whatever_its_flags_say(self):
+        text = self._pull_text(duck=True, duck_pads=True, background=True)
+        self.assertNotIn("↓", text)
+        self.assertNotIn("⤓", text)
+
     def test_a_pad_that_stops_the_others_carries_its_own_mark(self):
         # Marcel: "also add a logo for this to the pad".
         self.w.set_wall(pc.DEFAULT_GRID, [pc.Page(pads={
@@ -676,6 +722,27 @@ class UnreadableLengthTest(unittest.TestCase):
         with mock.patch.object(gc, "read_duration", return_value=192), \
                 mock.patch.object(gc.time, "monotonic", return_value=1000.0):
             self.assertEqual(gc._duration_text(self.PATH), "03:12")
+
+
+class ForeignPadLengthTest(unittest.TestCase):
+    """A wall from a venue pack named a pad on someone else's share: painting
+    the pad face opened the file there, which offers the Windows login to that
+    host and froze the window 21 s on a dead one (review 6.D)."""
+
+    def test_a_foreign_network_path_is_never_opened(self):
+        for path in (r"\\10.255.255.1\share\jingle.mp3", "//host/share/x.mp3"):
+            with self.subTest(path=path), mock.patch.object(
+                    gc, "read_duration", side_effect=AssertionError("opened")):
+                self.assertEqual(gc._duration_text(path), "--:--")
+
+    def test_a_pad_on_the_users_own_share_is_still_read(self):
+        from planner.music import paths
+        self.addCleanup(paths.set_own_shares, {})
+        paths.set_own_shares({"library_dir": r"\\nas\music"})
+        path = r"\\nas\music\jingles\horn.mp3"
+        self.addCleanup(gc._DURATIONS.pop, path, None)
+        with mock.patch.object(gc, "read_duration", return_value=7):
+            self.assertEqual(gc._duration_text(path), "00:07")
 
 
 class PadLengthTest(unittest.TestCase):
@@ -1133,6 +1200,47 @@ class MultiSelectTest(unittest.TestCase):
         self.w.step_page(1)
         self.assertEqual(self.w.selection(), set())
 
+    def _edit_two(self, other_pad: pc.CartPad, edited: pc.CartPad) -> pc.CartPad:
+        # Pad (0, 0) as set up: duck=False is not CartPad's default, so ticking
+        # 🔁 or 🎶 on it is a change whatever the subtest before left.
+        pc.set_pad(self.w.pages(), 0, (0, 0), pc.CartPad(path=_SAMPLE, duck=False))
+        pc.set_pad(self.w.pages(), 0, (0, 1), other_pad)
+        self.w._on_select((0, 0, 0), False)
+        self.w._on_select((0, 0, 1), True)
+        with _accepted_dialog(edited):
+            self.w._on_edit((0, 0, 0))
+        return self.w.pad_at((0, 0, 1))
+
+    def test_pulling_the_other_pads_down_is_shared(self):
+        """Review 4.A: the dialog says 🔈 applies to every selected pad, and
+        'Pull the other pads down' did not reach them."""
+        other = self._edit_two(pc.CartPad(path=_SAMPLE),
+                               pc.CartPad(path=_SAMPLE, duck_pads=True))
+        self.assertTrue(other.duck_pads)
+
+    def test_a_bed_or_loop_made_by_the_edit_drops_the_other_pads_duck(self):
+        """The dialog unticks both 🔈 when 🎶 or 🔁 is ticked; on the other pads
+        a 🔈 they had stayed on, stored, and came back if 🎶 went off later."""
+        for turned_on in ("background", "loop"):
+            with self.subTest(turned_on=turned_on):
+                # What the dialog hands back once 🎶 / 🔁 unticked its 🔈.
+                other = self._edit_two(
+                    pc.CartPad(path=_SAMPLE, duck=True, duck_pads=True),
+                    pc.CartPad(path=_SAMPLE, duck=False, duck_pads=False,
+                               **{turned_on: True}))
+                self.assertTrue(getattr(other, turned_on))
+                self.assertFalse(other.duck)
+                self.assertFalse(other.duck_pads)
+
+    def test_a_bed_never_takes_a_duck_from_the_edit(self):
+        # The dialog greys 🔈 out on a bed: ticking it for a selection that
+        # holds one leaves the bed as it is.
+        other = self._edit_two(pc.CartPad(path=_SAMPLE, background=True),
+                               pc.CartPad(path=_SAMPLE, duck=True, duck_pads=True))
+        self.assertTrue(other.background)
+        self.assertFalse(other.duck)
+        self.assertFalse(other.duck_pads)
+
     def test_a_settings_edit_shares_only_what_a_pad_can_share(self):
         self.w._on_select((0, 0, 0), False)
         self.w._on_select((0, 0, 1), True)
@@ -1167,6 +1275,15 @@ class MultiSelectTest(unittest.TestCase):
         self.assertEqual(other.colour, "#f4d35e")
         self.assertAlmostEqual(other.volume, 0.5)
         self.assertTrue(other.loop)
+
+
+    def test_a_settings_edit_hands_on_a_changed_crossover_length(self):
+        self.w._on_select((0, 0, 0), False)
+        self.w._on_select((0, 0, 1), True)
+        edited = pc.CartPad(path=_SAMPLE, loop=True, cross_ms=2500)
+        with _accepted_dialog(edited):
+            self.w._on_edit((0, 0, 0))
+        self.assertEqual(self.w.pad_at((0, 0, 1)).cross_ms, 2500)
 
 
 if __name__ == "__main__":

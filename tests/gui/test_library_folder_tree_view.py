@@ -14,6 +14,7 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
                       tempfile.mkdtemp(prefix="dp_foldertree_"))
 
 from PySide6.QtCore import Qt
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
 from gui.library_browser import LibraryBrowser
@@ -224,6 +225,21 @@ class FolderDragTest(unittest.TestCase):
         tree.set_titles(LIBRARY + [entry("D:/Downloads/Samples2/h.mp3")])
         mime = tree.folder_mime(self.item(tree, "Samples  ("))
         self.assertEqual(self.names(mime), ["e.mp3", "f.mp3", "g.mp3"])
+
+    def test_a_drag_survives_the_tree_being_rebuilt_after_the_press(self):
+        # The monkey run: press on a line, the library reloads (every line is deleted
+        # and made again), then Qt asks for the drag. The line held at press time is gone.
+        from unittest import mock
+        tree = self.tree()
+        tree.show()
+        QApplication.processEvents()
+        point = tree.visualItemRect(self.item(tree, "Samples")).center()
+        QTest.mousePress(tree.viewport(), Qt.MouseButton.LeftButton, pos=point)
+        tree.set_titles(list(LIBRARY))
+        with mock.patch("gui.library_folders.QDrag") as drag:
+            tree.startDrag(Qt.DropAction.CopyAction)
+        sent = drag.return_value.setMimeData.call_args.args[0]
+        self.assertEqual(self.names(sent), ["e.mp3", "f.mp3", "g.mp3"])
 
 
 if __name__ == "__main__":

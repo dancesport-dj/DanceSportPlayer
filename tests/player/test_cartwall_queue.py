@@ -10,6 +10,7 @@ import os
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 from typing import Any
 from unittest import mock
 
@@ -24,6 +25,7 @@ from PySide6.QtWidgets import QApplication
 from planner.playing import cartwall as pc
 from planner.playing.cartwall import CartPad, Page
 from player.audio import cart_voices
+from player.audio.between_dances import BetweenDances
 from player.widgets import cartwall as gc
 from player.window.main_cartwall import CartwallMixin
 from tests.player.test_cartwall_voices import _factory, _pad, _VoiceCase
@@ -748,6 +750,85 @@ class PauseStartsTheQueueTest(_QueueWallCase):
         QTest.mouseClick(self.button((0, 1, 0)), Qt.MouseButton.LeftButton)
         self.desk._start_pause_pads()
         self.assertEqual(self.playing(), [(0, 1, 0)])
+
+
+class EndlessPadHoldsThePauseTest(_QueueWallCase):
+    """🔁 An endless pad started by hand outside the queue is the pause music:
+    the ▶ queue does not start over it, and comes next once it is stopped."""
+
+    def setUp(self):
+        super().setUp()
+        self.files.update(_samples("d"))
+        page = Page(pads={(0, 0): CartPad(path=self.files["a"], queue=1, background=True),
+                          (0, 1): CartPad(path=self.files["b"], queue=2, background=True),
+                          (1, 0): CartPad(path=self.files["c"]),
+                          (1, 1): CartPad(path=self.files["d"], loop=True)})
+        self.w.set_wall((2, 2), [page])
+        self.desk: Any = _Desk(self.w)
+        self.v = self.desk._cart_voices
+        self.addCleanup(self.v.shutdown)
+        self.desk._between = BetweenDances()
+        self.desk._between.pending = (None, 0, Path("next.mp3"))   # type: ignore[assignment]
+        QTest.mouseClick(self.button((0, 1, 1)), Qt.MouseButton.LeftButton)
+
+    def playing(self):
+        return sorted(self.v.playing_keys())
+
+    def test_the_queue_does_not_start_over_it(self):
+        self.desk._start_pause_pads()
+        self.assertEqual(self.playing(), [(0, 1, 1)])
+        self.assertIsNone(self.w.queue_run())
+
+    def test_the_queue_is_next_once_it_is_stopped(self):
+        self.desk._start_pause_pads()
+        self.v.stop((0, 1, 1))
+        self.v._finish_fade(self.v._voice_for((0, 1, 1)))
+        self.assertEqual(self.playing(), [(0, 0, 0)])
+        self.assertEqual(self.w.queue_run()[0], (0, 0, 0))
+
+    def test_stopped_with_no_pause_running_the_queue_stays_off(self):
+        self.desk._start_pause_pads()
+        self.desk._between.pending = None
+        self.v.stop((0, 1, 1))
+        self.v._finish_fade(self.v._voice_for((0, 1, 1)))
+        self.assertEqual(self.playing(), [])
+
+
+class BedOutsideTheQueueHoldsThePauseTest(_QueueWallCase):
+    """🎶 A background pad that is not in the ▶ queue, playing, is the pause
+    music already. Marcel: it must not also start the queue."""
+
+    def setUp(self):
+        super().setUp()
+        self.files.update(_samples("d"))
+        page = Page(pads={(0, 0): CartPad(path=self.files["a"], queue=1, background=True),
+                          (0, 1): CartPad(path=self.files["b"], queue=2, background=True),
+                          (1, 0): CartPad(path=self.files["c"]),
+                          (1, 1): CartPad(path=self.files["d"], background=True)})
+        self.w.set_wall((2, 2), [page])
+        self.desk: Any = _Desk(self.w)
+        self.v = self.desk._cart_voices
+        self.addCleanup(self.v.shutdown)
+        self.desk._between = BetweenDances()
+        self.desk._between.pending = (None, 0, Path("next.mp3"))   # type: ignore[assignment]
+
+    def playing(self):
+        return sorted(self.v.playing_keys())
+
+    def test_the_queue_does_not_start_beside_it(self):
+        QTest.mouseClick(self.button((0, 1, 1)), Qt.MouseButton.LeftButton)
+        self.desk._start_pause_pads()
+        self.assertEqual(self.playing(), [(0, 1, 1)])
+        self.assertIsNone(self.w.queue_run())
+
+    def test_a_plain_pad_beside_the_queue_does_not_hold_it_back(self):
+        QTest.mouseClick(self.button((0, 1, 0)), Qt.MouseButton.LeftButton)
+        self.desk._start_pause_pads()
+        self.assertEqual(self.playing(), [(0, 0, 0), (0, 1, 0)])
+
+    def test_without_a_bed_the_queue_starts(self):
+        self.desk._start_pause_pads()
+        self.assertEqual(self.playing(), [(0, 0, 0)])
 
 
 if __name__ == "__main__":

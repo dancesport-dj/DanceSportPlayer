@@ -132,6 +132,8 @@ class VenuePackUiTest(unittest.TestCase):
         host = _host()
         with mock.patch.object(main_export.QFileDialog, "getOpenFileName",
                                return_value=(str(dest), "")), \
+                mock.patch.object(main_export, "ask_pack_parts",
+                                  side_effect=lambda parent, names: list(names)), \
                 mock.patch.object(main_export.QMessageBox, "question",
                                   return_value=_YES), \
                 mock.patch.object(main_export.QFileDialog, "getExistingDirectory",
@@ -147,6 +149,44 @@ class VenuePackUiTest(unittest.TestCase):
         # The live files stay as they are until the next start applies it.
         live = json.loads((self.state / "autosave_playlist.json").read_text("utf-8"))
         self.assertEqual(live, {"rows": [str(self.track)]})
+
+    def _import_parts(self, parts):
+        dest = self._export(with_music=True)
+        host = _host()
+        asked = []
+        with mock.patch.object(main_export.QFileDialog, "getOpenFileName",
+                               return_value=(str(dest), "")), \
+                mock.patch.object(main_export, "ask_pack_parts",
+                                  side_effect=lambda p, n: asked.append(list(n)) or parts), \
+                mock.patch.object(main_export.QMessageBox, "question",
+                                  return_value=_NO) as question, \
+                mock.patch.object(main_export.QTimer, "singleShot",
+                                  side_effect=lambda ms, fn: fn()):
+            main_export.ExportMixin._import_venue_pack(host)
+        return host, asked, question
+
+    def test_only_the_chosen_parts_are_staged(self):
+        host, asked, _ = self._import_parts(["cartwall.json"])
+        self.assertEqual(asked, [["gui_settings.json", "autosave_playlist.json",
+                                  "cartwall.json"]])
+        self.assertEqual(sorted(p.name for p in (self.state / vp.STAGE_DIR).glob("*.json")),
+                         ["cartwall.json"])
+        host._offer_restart.assert_called_once()
+
+    def test_settings_alone_do_not_ask_about_the_music(self):
+        _, _, question = self._import_parts(["gui_settings.json"])
+        question.assert_not_called()
+        self.assertTrue(vp.has_pending(self.state))
+
+    def test_decks_do_ask_about_the_music(self):
+        _, _, question = self._import_parts(["autosave_playlist.json"])
+        question.assert_called_once()
+
+    def test_cancelling_the_choice_stages_nothing(self):
+        host, _, question = self._import_parts(None)
+        self.assertFalse(vp.has_pending(self.state))
+        question.assert_not_called()
+        host._offer_restart.assert_not_called()
 
     def test_a_wrong_file_is_refused(self):
         bad = self.root / "bad.dpvenue"

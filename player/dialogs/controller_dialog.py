@@ -30,6 +30,7 @@ from planner import i18n
 from planner.config import APP_DIR
 from planner.playing import controller as pctl
 from player.window.main_controller import controller_devices
+from shared.plain_text import plain_label
 
 _COL_ACTION, _COL_CONTROL, _COL_LEARN, _COL_CLEAR = range(4)
 
@@ -88,7 +89,7 @@ class ControllerDialog(QDialog):
         lyt.addWidget(self._status)
 
         prof_row = QHBoxLayout()
-        self._profile = QLabel()
+        self._profile = plain_label()
         prof_row.addWidget(self._profile, stretch=1)
         presets_btn = QPushButton("Presets ▾")
         menu = QMenu(presets_btn)
@@ -143,6 +144,9 @@ class ControllerDialog(QDialog):
 
         self._wired = False
         self._wire()
+        # Opened from ⚙ Settings, the window is deleted with it and never
+        # closed: Learn must not keep the desk's readings after it is gone.
+        self.destroyed.connect(lambda *_: self._stop_learning())
         self._fill_devices()
         self._sync_table()
 
@@ -268,7 +272,7 @@ class ControllerDialog(QDialog):
         if not path:
             return
         try:
-            pctl.save_profile(path, Path(path).stem, cfg["device"], cfg["bindings"])
+            pctl.save_controller_profile(path, Path(path).stem, cfg["device"], cfg["bindings"])
         except OSError as exc:
             QMessageBox.warning(self, i18n.t("🎛  Controller"),
                                 i18n.t("Could not save the profile:\n%s") % exc)
@@ -336,10 +340,13 @@ class ControllerDialog(QDialog):
             self._sync_table()
         super().showEvent(event)
 
-    def done(self, result):
+    def _stop_learning(self):
         if self._learning is not None:
             self._learning = None
             self._host.set_controller_listener(None)
+
+    def done(self, result):
+        self._stop_learning()
         hub = self._host.controller_hub()
         for signal, slot in ((hub.changed, self._sync_status),
                              (hub.control, self._on_reading)):

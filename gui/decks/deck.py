@@ -87,6 +87,21 @@ class DeckField:
         setattr(win._focused_ctx(), self.field, value)
 
 
+class DeckPlaylist(DeckField):
+    """The `playlist` DeckField. The context holds the very dict the deck's
+    table was loaded with, but a dynamic deck that starts empty makes its own
+    on the first added round or drop. The context adopts that one, so 💾 Save,
+    a re-roll and replay see the rounds."""
+
+    def __get__(self, win, owner=None):
+        if win is None:
+            return self
+        ctx = win._focused_ctx()
+        if ctx.playlist is None and win._deckset.deck_of:
+            ctx.playlist = getattr(win._deckset.table, "_playlist", None)
+        return ctx.playlist
+
+
 @dataclass
 class Deck:
     """One playlist deck and everything the window keeps about it."""

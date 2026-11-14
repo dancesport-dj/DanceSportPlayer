@@ -130,6 +130,33 @@ class PartyListAloneTest(unittest.TestCase):
         self.assertTrue(self.win._grid.deck_tabs.isVisible())
         self.assertGreater(self.win._grid.deck_tabs.height(), 100)
 
+    def _tournament_m3u(self):
+        m3u = self.dir / "tournament.m3u"
+        m3u.write_text("#EXTM3U\n" + "\n".join(str(e.path) for e in self.entries),
+                       encoding="utf-8")
+        return str(m3u)
+
+    def test_a_tournament_double_click_brings_its_playlist_up_front(self):
+        """Marcel: with the party list on and no playlist visible, a double-click
+        on a tournament in the tree loaded it into a deck nobody could see."""
+        self._build()
+        self._assert_alone()
+        self.win._load_tournament_m3u(self._tournament_m3u())
+        self.app.processEvents()
+        deck = self.win._deckset.table
+        self.assertGreaterEqual(self.win._deckset.deck_count, 1)
+        self.assertTrue(self.win._box_shown(deck))
+        self.assertGreater(self.win._grid.deck_tabs.height(), 100)
+        self.assertIs(self.win._focused_table, deck)
+
+    def test_a_declined_replace_leaves_the_party_list_alone(self):
+        from unittest import mock
+        self._build()
+        table = self.win._deckset.table
+        with mock.patch.object(table, "_confirm_m3u_replaces", return_value=False):
+            self.win._load_tournament_m3u(self._tournament_m3u())
+        self._assert_alone()
+
     def test_no_tracks_leaves_the_view_alone(self):
         from unittest import mock
         self.win._deckset.deck_count = 2

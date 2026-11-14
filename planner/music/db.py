@@ -56,6 +56,7 @@ from planner.music.analysis import (
 )
 from planner.music.chroma_match import Chroma
 from planner.music.parsing import detect_dance
+from planner.music.paths import is_foreign_network
 
 log = logging.getLogger("dancesport.db")
 
@@ -137,8 +138,11 @@ def fingerprints(path: Path) -> tuple[str, str]:
     every analysed row — and a tag editor changes it, which is what the audio
     fingerprint beside it is for (see `AudioCache.reattach_retagged`).
 
-    Read-only — opens the file 'rb'.
+    Read-only — opens the file 'rb'. Never a path on someone else's share:
+    that would offer the Windows login to the host (see planner.music.paths).
     """
+    if is_foreign_network(path):
+        raise OSError(f"not opened, someone else's share: {path}")
     size = path.stat().st_size
     h = hashlib.sha1(usedforsecurity=False)
     h.update(str(size).encode())
@@ -1203,6 +1207,8 @@ class AudioCache:
     def _key(self, path: Path, mtime: int | None = None) -> str:
         if mtime is None:
             mtime = self.listed_mtimes.get(str(path))
+        if mtime is None and is_foreign_network(path):
+            mtime = 0       # someone else's share is never stat-ed (review 7.A)
         if mtime is None:
             try:
                 mtime = int(path.stat().st_mtime)

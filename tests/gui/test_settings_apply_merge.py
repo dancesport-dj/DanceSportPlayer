@@ -67,7 +67,7 @@ class _SettingsCase(unittest.TestCase):
         self.win._loading_dlg.accept()
         self.addCleanup(reap_widget, self.win)
         for name, value in (("SettingsDialog", _Dialog),
-                            ("save_settings", lambda s: None)):
+                            ("save_settings", lambda s, **_: None)):
             patch = mock.patch.object(main_global, name, value)
             patch.start()
             self.addCleanup(patch.stop)
@@ -90,14 +90,14 @@ class SettingsWriteFailureTest(_SettingsCase):
     values then lasted until the next start only."""
 
     def test_a_failed_write_is_said_out_loud(self):
-        with mock.patch.object(main_global, "save_settings", lambda s: False), \
+        with mock.patch.object(main_global, "save_settings", lambda s, **_: False), \
                 mock.patch.object(main_global.QMessageBox, "warning") as warn:
             self.win._open_settings()
         warn.assert_called_once()
         self.assertEqual(self.win._settings.get("check_tempo_dev_pct"), 7)
 
     def test_a_good_write_says_nothing(self):
-        with mock.patch.object(main_global, "save_settings", lambda s: True), \
+        with mock.patch.object(main_global, "save_settings", lambda s, **_: True), \
                 mock.patch.object(main_global.QMessageBox, "warning") as warn:
             self.win._open_settings()
         warn.assert_not_called()

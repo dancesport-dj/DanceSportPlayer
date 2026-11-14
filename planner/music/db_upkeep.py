@@ -265,7 +265,9 @@ def restore_user_data(src: Path) -> tuple[int, int, int]:
 
     insert_edit = (f"INSERT OR REPLACE INTO tag_edits ({', '.join(edit_cols)}) "
                    f"VALUES ({', '.join('?' * len(edit_cols))})")
-    conn.execute("BEGIN")
+    # IMMEDIATE: a deferred BEGIN reads first and then fails at once, without
+    # waiting, when another thread committed in between (review 5.B).
+    conn.execute("BEGIN IMMEDIATE")
     try:
         for row in edits:
             for t in targets(row[0]):

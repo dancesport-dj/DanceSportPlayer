@@ -110,7 +110,7 @@ class SaveAppliesTest(unittest.TestCase):
         self.win._loading_dlg.accept()
         self.addCleanup(reap_widget, self.win)
         for name, value in (("SettingsDialog", _Dialog),
-                            ("save_settings", lambda s: None)):
+                            ("save_settings", lambda s, **_: None)):
             patch = mock.patch.object(main_global, name, value)
             patch.start()
             self.addCleanup(patch.stop)

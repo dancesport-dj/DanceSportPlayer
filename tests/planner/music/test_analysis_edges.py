@@ -121,7 +121,8 @@ class ReleaseFreeHeapTests(unittest.TestCase):
         self.assertFalse(self.release("win32").called)
 
     def test_a_missing_libc_costs_nothing(self):
-        self.release("linux", side_effect=OSError("no libc"))
+        lib = self.release("linux", side_effect=OSError("no libc"))
+        lib.assert_called_once_with("libc.so.6")   # it tried, and the error stayed inside
 
 
 @unittest.skipUnless(analysis.HAS_LIBROSA, "needs librosa")

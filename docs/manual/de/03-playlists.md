@@ -27,7 +27,9 @@ nach unten.
   neuen letzten Zeile, wenn der letzte Titel ging).
 - **⬇ Ans Ende der Liste verschieben** im Rechtsklick-Menü einer Party-Liste,
   eines freien Ablaufs oder einer Wunschliste setzt den Titel ans Ende. Eine
-  Markierung geht geschlossen mit.
+  Markierung geht geschlossen mit. Die Markierung bleibt an ihrer Stelle, auf
+  dem Titel, der nachgerückt ist, so lassen sich Titel nacheinander ans Ende
+  schicken. **Alt + Ende** tut dasselbe über die Tastatur.
 - **Strg + Z / Strg + Y** machen jede Änderung rückgängig und wiederholen sie.
   Die Knöpfe ↶ / ↷ unten zeigen, wie viele Schritte es gibt.
 - Ein Doppelklick auf den Decktitel benennt das Deck um. **▾** im Kopf klappt
@@ -85,7 +87,14 @@ Zeilenfarben:
   mehr gibt. Ist die Datei wieder da und läuft der Titel, verschwindet die
   Markierung. Ein Titel, der sich nicht abspielen ließ, wird genauso rot, mit
   dem Grund im Tooltip, siehe
-  [Kapitel 4](04-playing.md#ein-titel-der-nicht-spielt);
+  [Kapitel 4](04-playing.md#ein-titel-der-nicht-spielt). Wurde die Datei
+  umbenannt oder neu kodiert, Rechtsklick auf die Zeile ▸
+  **🔭 Diesen Titel suchen…**: Es listet die Dateien der Bibliothek mit
+  demselben Titel und Tanz und die Audiodateien im Ordner der fehlenden Datei,
+  so wird eine dort umbenannte Datei schon vor dem nächsten Scan gefunden. Die
+  gewählte nimmt den Platz der Zeile ein. Eine Datei, die eine andere offene
+  Wiedergabeliste schon plant, wird auch angeboten; wählst du sie, sagt die App
+  das und fragt *Trotzdem nehmen?*;
 - eine **fliederfarbene** Zeile mit **📌** vor dem Titel ist angeheftet.
 
 **📌 Einen Titel anheften.** Rechtsklick auf einen Titel einer Runde ▸
@@ -128,14 +137,22 @@ Werkzeugleiste holt sie zurück.
   *Standardrunde*, *Lateinrunde* und *Socialrunde*.
 - **⇅ Diese beiden Titel tauschen** (Rechtsklick oder **Alt + S**) tauscht
   zwei markierte Titel desselben Tanzes, so behält jede Runde ihre Tänze.
+- **↺ Mit einem *Tanz* vom Listenende tauschen** (Rechtsklick auf einen Titel)
+  tut, was der ↺-Knopf der Zeile tut: Der Titel tauscht den Platz mit einem
+  seines Tanzes aus dem späten Teil der Liste, sonst mit dem letzten Titel des
+  Tanzes. Beim letzten Titel des Tanzes sagt eine Meldung, dass kein Tausch
+  möglich ist.
 - **🗑 Diesen Titel entfernen (Platz bleibt frei)** (Rechtsklick) lässt eine
   leere Zeile stehen. **🗑 Diesen Titel samt Platz entfernen** nimmt die Zeile
   mit heraus. Auch Decks bieten das an, wenn der Titel der einzige seines
   Tanzes in der Runde ist: Der Tanz verlässt dann diese Runde.
+- **🗑 Diesen leeren Platz entfernen** (Rechtsklick auf eine leere Zeile)
+  nimmt die Zeile heraus, ohne Rückfrage: Es geht kein Titel verloren.
 
 Spielst du aus dem Bereich, schaltet die App von selbst auf das
 **🎉 Party-Set**: volle Länge, automatisch weiter, keine Pause, siehe
-[Kapitel 4](04-playing.md#abspiel-sets).
+[Kapitel 4](04-playing.md#abspiel-sets). Die Party-Liste spielt immer ihre
+eigene Länge; die Längen pro Tanz des Turnier-Sets gelten für sie nie.
 
 ### Ein Titel, den die Liste schon hat
 
@@ -171,6 +188,12 @@ Titel gilt als vorhanden, wenn die Liste dasselbe Audio, denselben Dateinamen
 oder Titel, einen ähnlichen Titel (die Regel von **🔁 Doppelte prüfen**, also
 passt „Friends and Lovers“ zu „Friends and Lovers Cut Version“) oder dieselbe
 Aufnahme nach dem Klang hat (dafür braucht es `fpcalc`).
+
+Der Vergleich nach dem Klang liest die Dateien und kann einen Moment dauern:
+Ein Fenster **Aufnahmen vergleichen** zeigt, wie weit er ist, einmal für das
+ganze Ablegen. Ein großes Ablegen auf eine lange Liste zeigt während der
+Prüfung einen Balken mit **Abbrechen**; Abbrechen fügt nichts von diesem
+Ablegen hinzu.
 
 - **Ein solcher Titel**: ein Fenster mit **Ersetzen**, **Beide behalten** oder
   **Vorhandenen behalten**. Vorhandenen behalten verwirft die neue Datei.

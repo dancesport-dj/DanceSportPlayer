@@ -32,6 +32,7 @@ from planner.models import TEMPO_RANGES, TsoBand
 from planner.playing.celebration import celebrate_mode
 from planner.playing.play_sets import (
     DANCE_SECS_KEY,
+    GEMUETLICH_DANCES,
     LEN_MAX,
     LEN_STEP,
     PAUSE_MAX_SECS,
@@ -42,6 +43,8 @@ from planner.playing.play_sets import (
     XFADE_MIN_SECS,
     dance_secs_of,
     dblclick_ask_of,
+    gemuetlich_max_of,
+    gemuetlich_of,
     parse_play_length,
     pd_of,
     play_set_of,
@@ -146,6 +149,8 @@ class PlaySetsTabMixin(_DialogHost):
         """🏆/🎉 One play set's box: length, fades, crossfade and switches."""
         cur = dict(play_set_of(settings, which), tso=tso_of(settings, which),
                    dblclick_ask=dblclick_ask_of(settings, which))
+        if which == "party":
+            cur["gemuetlich"] = gemuetlich_of(settings, which)
         box = QGroupBox(caption)
         blyt = QVBoxLayout(box)
         hint = QLabel(blurb)
@@ -220,6 +225,10 @@ class PlaySetsTabMixin(_DialogHost):
             self._add_dance_len_grid(blyt, settings)
             # 🥇 Only a competition has a final to play on after.
             self._add_celebrate_box(blyt, settings)
+        # 🛋 The top tempo belongs to the party: inside its border, so it
+        # reads as part of the 🎉 set and not as a section of its own.
+        if which == "party":
+            self._add_gemuetlich_grid(blyt, settings)
         tlyt.addWidget(box)
 
     def _add_celebrate_box(self, set_lyt, settings):
@@ -358,7 +367,13 @@ class PlaySetsTabMixin(_DialogHost):
                  "Pitch every title to the mean tempo of its dance in the\n"
                  "current round, kept inside the TSO range — what a heat is\n"
                  "danced to. Wrong for a party, where the next song is a\n"
-                 "different dance at whatever tempo it was recorded at.")):
+                 "different dance at whatever tempo it was recorded at."),
+                ("gemuetlich", "🛋  Relaxed: hold each dance to its top tempo",
+                 "Takes the TSO button's place on the party list: a title\n"
+                 "recorded faster than the top tempo set below for its\n"
+                 "dance is slowed down to it. Slower titles are left alone.")):
+            if key not in cur:   # 🛋 a party has it, a heat does not
+                continue
             # 🎚 TSO, or the WDSF CR outside the German terms.
             chk = QCheckBox(rules_name(i18n.t(label)))
             chk.setChecked(bool(cur[key]))
@@ -366,10 +381,6 @@ class PlaySetsTabMixin(_DialogHost):
                 chk.setToolTip(rules_name(i18n.t(tip)))
             blyt.addWidget(chk)
             boxes[key] = chk
-        # 🔈 As on the play panel: the call needs no gap. Clicked, so a stored
-        # set with both on opens as it was saved.
-        boxes["announce"].clicked.connect(
-            lambda on: on and boxes["pause_off"].setChecked(True))
         return boxes
 
     def _add_dance_len_grid(self, blyt, settings):
@@ -617,6 +628,35 @@ class PlaySetsTabMixin(_DialogHost):
         band_grid.setColumnStretch(4, 1)
         tlyt.addLayout(band_grid)
 
+    def _add_gemuetlich_grid(self, tlyt, settings):
+        """🛋 The top takt each dance is danced at when gemütlich is on."""
+        tlyt.addWidget(hsep())
+        lbl = QLabel(i18n.t(
+            "<b>🛋 Relaxed top tempo</b> — what the 🛋 button holds a dance "
+            "to at a party: a title recorded faster is slowed down to it "
+            "(Jive T41 instead of T43), a slower one is left alone. "
+            "<i>No limit</i> leaves the dance as it was recorded."))
+        lbl.setWordWrap(True)
+        tlyt.addWidget(lbl)
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(14)
+        self._gem_spins: dict[str, QDoubleSpinBox] = {}
+        for i, dance in enumerate(GEMUETLICH_DANCES):
+            spin = QDoubleSpinBox()
+            spin.setDecimals(0)   # a takt is typed whole: T50, no comma
+            spin.setSingleStep(1.0)
+            spin.setRange(0.0, 80.0)
+            spin.setSpecialValueText(i18n.t("No limit"))
+            spin.setPrefix("T")
+            spin.setValue(gemuetlich_max_of(settings, dance) or 0.0)
+            self._gem_spins[dance] = spin
+            row, col = i % 7, (i // 7) * 2
+            grid.addWidget(QLabel(f"{dance_name(dance, dance)}:"), row, col)
+            grid.addWidget(spin, row, col + 1)
+        # Spare width to an empty column after the last pair (three of them).
+        grid.setColumnStretch(6, 1)
+        tlyt.addLayout(grid)
+
     def _play_sets_values(self) -> dict:
         """The tab's settings, for values(): the pitch targets, the lengths
         per dance and per round, and the two sets."""
@@ -625,6 +665,9 @@ class PlaySetsTabMixin(_DialogHost):
         # Only the dances that are NOT on the heat mean: the default is what
         # the button does without the setting, and writing ten "mean" entries
         # would freeze today's default into the settings file.
+        # Every dance, the 0 of "No limit" included: a missing dance would
+        # fall back to the shipped Jive limit and could not be switched off.
+        vals["gemuetlich_max"] = {d: s.value() for d, s in self._gem_spins.items()}
         vals["tso_band"] = {d: c.currentData()
                             for d, c in self._band_combos.items()
                             if c.currentData() != TsoBand.MEAN}

@@ -63,7 +63,9 @@ from planner import i18n
 from planner.models import GENRE_TO_DANCE, OTHER_GENRE_LABELS
 from planner.music import id3_frames
 from planner.music.custom_field import V1
+from planner.music.paths import is_probeable
 from planner.music.tag_edits import genre_label
+from shared.plain_text import plain_label, plain_tip
 
 CLASSES = ("D", "C", "B", "A", "S")
 _KEEP = -1          # the stars combo's "keep each track's own"
@@ -128,7 +130,7 @@ def marker_suggestions(entries, limit: int = _MAX_SUGGESTIONS) -> list[str]:
 
 
 def _mp3_on_disk(entry) -> bool:
-    return Path(entry.path).suffix.lower() == ".mp3" and Path(entry.path).is_file()
+    return Path(entry.path).suffix.lower() == ".mp3" and is_probeable(entry.path)
 
 
 def _tristate(values) -> Qt.CheckState:
@@ -195,7 +197,7 @@ class TagEditDialog(QDialog):
         lyt = QVBoxLayout(page)
         self._tabs.addTab(page, i18n.t("Tags"))
 
-        head = QLabel(self._entries[0].title or "" if n == 1
+        head = plain_label(self._entries[0].title or "" if n == 1
                       else i18n.t("%d tracks — a field they differ in is kept "
                                   "per track until you change it.") % n)
         head.setWordWrap(True)
@@ -393,7 +395,7 @@ class TagEditDialog(QDialog):
         if reason:
             self._mp3s, self._form_read, covers = [], [], []
             self._file_box.setEnabled(False)
-            self._file_box.setToolTip(reason)
+            self._file_box.setToolTip(plain_tip(reason))
 
         self._form: dict[str, QComboBox] = {}
         self._form_start: dict[str, str] = {}
@@ -657,7 +659,7 @@ class TagEditDialog(QDialog):
             locked, tip = False, value.text()
         editable = Qt.ItemFlag.ItemIsEditable
         value.setFlags(value.flags() & ~editable if locked else value.flags() | editable)
-        value.setToolTip(tip)
+        value.setToolTip(plain_tip(tip))   # a raw ID3 value is no markup (7.C)
 
     def _raw_item(self, r: int, col: int) -> QTableWidgetItem:
         """A cell of the Extended tab: every row gets all three when it is added."""
@@ -919,7 +921,7 @@ class CustomSourceDialog(QDialog):
         if line_edit is not None:
             line_edit.setPlaceholderText(i18n.t("e.g. ultramixer_last_played"))
         form.addRow(i18n.t("Description:"), self._desc)
-        self._seen = QLabel()
+        self._seen = plain_label()
         self._seen.setWordWrap(True)
         self._seen.setStyleSheet("color: #777;")
         lyt.addWidget(self._seen)

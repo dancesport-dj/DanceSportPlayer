@@ -141,6 +141,62 @@ class ALookWearsIcons(_Base):
         plain.setText("🎨 <literal>")
         self.assertEqual(plain.text(), "🎨 <literal>")
 
+    def test_a_label_dressed_once_reads_plain_text_again(self):
+        """Review 1.2: the hook made the label rich for good. Later plain text
+        was parsed as HTML (line breaks gone, '<…' eaten), and a later glyph
+        text kept its markup unescaped."""
+        label = self.keep(QLabel("▶  first title"))
+        self.assertEqual(label.textFormat(), Qt.TextFormat.RichText)
+        label.setText("Loaded 3 files\nTom & Jerry <3 Waltz")
+        self.assertNotEqual(label.textFormat(), Qt.TextFormat.RichText)
+        self.assertEqual(label.text(), "Loaded 3 files\nTom & Jerry <3 Waltz")
+        label.setText("⏸  Song &amp; Dance\nsecond")
+        self.assertIn("Song &amp;amp; Dance<br>second", label.text())
+
+    def test_a_callers_own_rich_label_stays_rich(self):
+        label = self.keep(QLabel())
+        label.setTextFormat(Qt.TextFormat.RichText)
+        label.setText("<b>🎨 Theme</b>")
+        label.setText("<b>Plain</b>")
+        self.assertEqual(label.textFormat(), Qt.TextFormat.RichText)
+
+    def test_a_new_caption_without_a_glyph_drops_the_icon(self):
+        """Review 1.3: 'Mute' kept the icon of the glyph caption before it."""
+        btn = self.keep(QPushButton("🔇  Mute"))
+        btn.setText("Unmute")
+        self.assertTrue(btn.icon().isNull())
+        self.assertIsNone(btn.property("lookGlyph"))
+        menu = self.keep(QMenu())
+        act = menu.addAction("🧹  Empty")
+        act.setText("Fill")
+        self.assertTrue(act.icon().isNull())
+        sub = menu.addMenu("📂  Open")
+        sub.setTitle("Close")
+        self.assertTrue(sub.icon().isNull())
+        tabs = self.keep(QTabWidget())
+        i = tabs.addTab(QWidget(), "🎨  Look")
+        tabs.setTabText(i, "Other")
+        self.assertTrue(tabs.tabIcon(i).isNull())
+
+    def test_the_same_caption_back_keeps_the_icon(self):
+        # The toolbar's compact/grow (test_plain_text_keeps_the_icon), for
+        # every kind of chrome the hook dresses.
+        menu = self.keep(QMenu())
+        act = menu.addAction("🧹  Empty")
+        act.setText("")
+        act.setText("Empty")
+        self.assertFalse(act.icon().isNull())
+        tabs = self.keep(QTabWidget())
+        i = tabs.addTab(QWidget(), "🎨  Look")
+        tabs.setTabText(i, "Look")
+        self.assertFalse(tabs.tabIcon(i).isNull())
+
+    def test_a_callers_own_icon_is_left_alone(self):
+        btn = self.keep(QPushButton("Plain"))
+        btn.setIcon(look_icons._look_icon("gear"))
+        btn.setText("Other")
+        self.assertFalse(btn.icon().isNull())
+
     def test_a_group_box_title_only_loses_the_glyph(self):
         self.assertEqual(self.keep(QGroupBox("🎛  Mixer")).title(), "Mixer")
 

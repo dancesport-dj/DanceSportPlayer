@@ -135,9 +135,10 @@ def is_local_file(path) -> bool:
 
 
 def is_network_path(path) -> bool:
-    """A UNC (`//host/share`, either slash) path, or a `scheme://` one."""
+    """A UNC path, or a `scheme://` one. Windows reads any mix of the two
+    slashes as UNC (`/\\host\\share`, `\\/host/share`), so both are folded first."""
     text = str(path).strip().strip('"')
-    return text.startswith(("\\\\", "//")) or "://" in text
+    return text.replace("\\", "/").startswith("//") or "://" in text
 
 
 def _slashes(path) -> str:

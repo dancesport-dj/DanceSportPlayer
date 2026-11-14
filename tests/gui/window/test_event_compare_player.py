@@ -58,6 +58,7 @@ class _Main(QWidget):
         self._deckset.all_tables = [self.deck]
         self._lib_browser = mock.Mock()
         self._announcer = mock.Mock()
+        self._playback = mock.Mock(path=None)   # nothing loaded: no skip line to log
         self._continue_event_plan = mock.Mock()
         self._apply_event_plan = mock.Mock()
         self._seek = mock.Mock()

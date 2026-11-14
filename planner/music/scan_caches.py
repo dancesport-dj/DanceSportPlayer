@@ -8,6 +8,7 @@ counts of the global index."""
 import contextlib
 import json
 import logging
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -282,6 +283,21 @@ class GlobalScanCache:
             self._dirty = True
 
 
+def _volume_present(root: str) -> bool:
+    """False when `root` lies on a drive or mount that is not there right now
+    (an unplugged USB stick), so its folder being missing says nothing about
+    the playlists. True when the volume is up and only the folder is gone."""
+    path = Path(root)
+    if os.name == "nt":
+        return Path(path.anchor).exists()
+    parts = path.parts
+    if len(parts) > 2 and parts[1] in ("Volumes", "media", "mnt"):
+        return Path(*parts[:3]).exists()
+    if len(parts) > 3 and parts[1:3] == ("run", "media"):
+        return Path(*parts[:4]).exists()
+    return True
+
+
 class PlaylistIndexCache:
     """Persists what `MusicLibrary._learn_playlists` derives from PLAYLIST_DIR.
 
@@ -346,7 +362,7 @@ class PlaylistIndexCache:
         for (root,) in conn.execute(
                 "SELECT DISTINCT root FROM playlist_index WHERE root <> ?",
                 (self._root,)).fetchall():
-            if not Path(root).exists():
+            if not Path(root).exists() and _volume_present(root):
                 conn.execute("DELETE FROM playlist_index WHERE root = ?", (root,))
                 conn.execute("DELETE FROM app_meta WHERE key = ?",
                              (f"playlist_index_dance:{root}",))

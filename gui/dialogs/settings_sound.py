@@ -4,6 +4,7 @@ outputs, and the player's own rows.
 Split off gui/dialogs/settings_dialog.py: building the tab, the voice
 test, and reading its settings back for SettingsDialog.values().
 """
+import copy
 import sys
 from collections.abc import Callable
 
@@ -17,6 +18,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QMessageBox,
     QPushButton,
@@ -50,6 +52,7 @@ from planner.playing.celebration import (
     celebrate_pct,
     celebrate_up_secs,
 )
+from shared.audio import profiles
 from shared.audio.playback import (
     AUDIO_IDLE_S,
     SYSTEM_DEFAULT,
@@ -60,7 +63,7 @@ from shared.audio.playback import (
     pair_label,
     split_output_key,
 )
-from shared.stores import player_layout_of
+from shared.stores import DEFAULT_PLAYER_LAYOUT, player_layout_of
 from shared.widgets import hsep
 
 
@@ -75,6 +78,7 @@ class SoundTabMixin(_DialogHost):
     """The 🔊 Sound & player tab of SettingsDialog."""
 
     _announce_test_cb: Callable[[str, bool, bool, bool], None] | None
+    _profiles_cb: Callable[[dict], None] | None
     _settings_in: dict   # the stored settings, set by SettingsDialog
 
     def _setup_sound_tab(self, settings, tabs):
@@ -160,7 +164,9 @@ class SoundTabMixin(_DialogHost):
         """🔈 One output per source — see shared.audio.playback.OUTPUT_SOURCES."""
         plyt.addWidget(QLabel(
             "<b>🔈 Outputs</b> — where each part of the evening is heard:"))
-        saved = settings.get("audio_outputs") or {}
+        self._add_profile_rows(settings, plyt)
+        # The outputs of the profile shown: a vanished one fell back to Main's.
+        saved = self._profile_work.get(profiles.OUTPUTS_KEY) or {}
         # Names to save with a choice: what the OS calls it, or what it was
         # called when it was chosen, for a card that is not plugged in now.
         self._output_names = {i: c.get("name") for c in saved.values()
@@ -207,9 +213,158 @@ class SoundTabMixin(_DialogHost):
         plyt.addWidget(self._pair_note)
         self._fill_outputs(saved)
         self._watch_music_pair(self._output_combos["music"])
+        for combo in self._output_combos.values():
+            combo.activated.connect(self._profile_edited)   # after the pair prompt's veto
         # 🔌 A card plugged in or pulled out while the dialog is open.
         self._sound_devices = QMediaDevices(self)
         self._sound_devices.audioOutputsChanged.connect(self._fill_outputs)
+
+    def _add_profile_rows(self, settings, plyt):
+        """🎧 Named sets of the pickers below — see shared.audio.profiles. The
+        dialog works on its own copy; an edit, a save and a delete go to the
+        window at once (`_profile_kept`), picking another profile and every
+        other setting wait for OK. Main and
+        Rehearsal are always in it (a settings file from before them gets both)."""
+        self._profile_work = {
+            key: copy.deepcopy(settings[key])
+            for key in (profiles.OUTPUTS_KEY, profiles.PROFILES_KEY, profiles.ACTIVE_KEY)
+            if key in settings}
+        # Main is the default: a file with no (or a vanished) active profile opens
+        # on it, with Main's outputs in the pickers (ensure_builtin).
+        profiles.ensure_builtin(self._profile_work)
+        # The profile the window runs: only "Save as…" and a delete of it
+        # move it before OK, a mere pick does not.
+        self._profile_live = profiles.active_profile(self._profile_work)
+        row = QHBoxLayout()
+        row.addWidget(QLabel(i18n.t("🎧  Profile:")))
+        self._profile_combo = QComboBox()
+        self._profile_combo.setToolTip(i18n.t(
+            "A profile is a saved set of the outputs below. Main is the hall\n"
+            "(music on the PA); Rehearsal is everything on the headphones and\n"
+            "the hall hears nothing of it. Both always exist; you can add more\n"
+            "of your own. Switch here, or from the status bar at the bottom\n"
+            "while the app runs."))
+        self._profile_combo.activated.connect(self._profile_picked)
+        row.addWidget(self._profile_combo, 1)
+        self._profile_save_btn = QPushButton(i18n.t("💾 Save as…"))
+        self._profile_save_btn.clicked.connect(self._profile_save)
+        row.addWidget(self._profile_save_btn)
+        self._profile_delete_btn = QPushButton(i18n.t("🗑 Delete"))
+        self._profile_delete_btn.clicked.connect(self._profile_delete)
+        # Main and Rehearsal cannot go: the button stays, plainly greyed.
+        self._profile_delete_btn.setStyleSheet(
+            "QPushButton:disabled { background: palette(midlight);"
+            " color: palette(mid); border-color: palette(midlight); }")
+        row.addWidget(self._profile_delete_btn)
+        plyt.addLayout(row)
+        self._fill_profiles()
+
+    def _fill_profiles(self):
+        """The profile picker from the dialog's working copy, on the active one."""
+        work = self._profile_work
+        active = profiles.active_profile(work)
+        combo = self._profile_combo
+        combo.clear()
+        for name in profiles.profile_names(work):
+            combo.addItem(name, name)
+        combo.setCurrentIndex(max(0, combo.findData(active)))
+        # Main and Rehearsal are always there; only your own go.
+        self._profile_delete_btn.setEnabled(not profiles.is_builtin(active))
+        if profiles.is_builtin(active):
+            self._profile_delete_btn.setToolTip(i18n.t(
+                "Main and Rehearsal cannot be deleted."))
+        else:
+            self._profile_delete_btn.setToolTip("")
+
+    def _profile_picked(self, index):
+        """A profile picked: its outputs fill the pickers (kept on OK)."""
+        name = self._profile_combo.itemData(index)
+        work = self._profile_work
+        if profiles.switch_profile(work, name):
+            self._fill_outputs(work[profiles.OUTPUTS_KEY])
+        self._fill_profiles()
+
+    def _profile_edited(self, _index=None):
+        """A picker changed by hand: with a profile chosen that is an edit of
+        it, so leaving for another profile and back keeps it. "Save as…" is
+        only for a new name."""
+        work = self._profile_work
+        active = profiles.active_profile(work)
+        if active:
+            profiles.save_profile(work, active, self._output_values(),
+                                  profiles.is_private(work, active))
+            self._profile_kept()
+
+    def _profile_kept(self, live: str | None = None):
+        """💾 The profiles go to the window now, not on OK: a device defined
+        for a profile must not be lost to a Cancel, a crash or a Settings left
+        open (Marcel). The window stores and applies them.
+
+        `live` is the profile the window runs afterwards: by default the one it
+        runs now (Main when that is gone), whatever the dialog shows. A profile
+        only picked here is an edit of that profile, not a switch of the hall:
+        that waits for OK."""
+        if self._profiles_cb is None:
+            return
+        stored = self._profile_values()[profiles.PROFILES_KEY]
+        live = live or self._profile_live
+        if live is None or live not in stored:
+            live = profiles.MAIN
+        running = {profiles.PROFILES_KEY: stored}
+        profiles.switch_profile(running, live)
+        self._profile_live = live
+        self._profiles_cb({profiles.PROFILES_KEY: stored,
+                           profiles.ACTIVE_KEY: live,
+                           profiles.OUTPUTS_KEY: running[profiles.OUTPUTS_KEY]})
+
+    def _profile_save(self):
+        """💾 The pickers stored under a name, which becomes the active profile."""
+        name, ok = QInputDialog.getText(
+            self, i18n.t("🎧 Save audio profile"), i18n.t("Profile name:"),
+            text=self._profile_combo.currentData() or "")
+        name = name.strip()
+        if not ok or not name:
+            return
+        work = self._profile_work
+        if (name in profiles.profile_names(work) and name != profiles.active_profile(work)
+                and QMessageBox.question(
+                    self, i18n.t("🎧 Save audio profile"),
+                    i18n.t("A profile called %s exists. Replace it?") % name
+                ) != QMessageBox.StandardButton.Yes):
+            return
+        profiles.save_profile(work, name, self._output_values(),
+                              profiles.is_private(work, name))
+        self._fill_profiles()
+        self._profile_kept(live=name)
+
+    def _profile_delete(self):
+        name = self._profile_combo.currentData()
+        if profiles.is_builtin(name) or QMessageBox.question(
+                self, i18n.t("🎧 Delete audio profile"),
+                i18n.t("Delete the profile %s? Main takes over.") % name
+                ) != QMessageBox.StandardButton.Yes:
+            return
+        work = self._profile_work
+        profiles.delete_profile(work, name)
+        # Main's outputs show now, or the next edit would rewrite Main with the
+        # deleted profile's.
+        profiles.switch_profile(work, profiles.MAIN)
+        self._fill_outputs(work[profiles.OUTPUTS_KEY])
+        self._fill_profiles()
+        self._profile_kept()
+
+    def _profile_values(self) -> dict:
+        """The profile settings for values(): the working copy, with the
+        pickers written into the active profile — they mirror it, so an edit
+        that was not saved under a new name is an edit of that profile. Always
+        both keys: Main and Rehearsal exist from the first start."""
+        work = dict(self._profile_work)
+        active = profiles.active_profile(work)
+        if active:
+            profiles.save_profile(work, active, self._output_values(),
+                                  profiles.is_private(work, active))
+        return {profiles.PROFILES_KEY: work.get(profiles.PROFILES_KEY, {}),
+                profiles.ACTIVE_KEY: profiles.active_profile(work)}
 
     def _fill_outputs(self, saved=None):
         """🔌 The pickers' entries from what the OS lists now. On opening each
@@ -586,6 +741,55 @@ class SoundTabMixin(_DialogHost):
         hand_fade_row.addStretch(1)
         plyt.addLayout(hand_fade_row)
 
+        # ── ✂️ A title that stops in full sound ──
+        # 0 = off, then 0.5–5 s: player.audio.mix's HARD_END_FADE_MIN_SECS…MAX_SECS.
+        hard_end_row = QHBoxLayout()
+        self._hard_end_fade_lbl = QLabel("✂️  Fade a title that ends abruptly over:")
+        hard_end_row.addWidget(self._hard_end_fade_lbl)
+        self._hard_end_fade_spin = QDoubleSpinBox()
+        self._hard_end_fade_spin.setRange(0.0, 5.0)
+        self._hard_end_fade_spin.setSingleStep(0.5)
+        self._hard_end_fade_spin.setDecimals(1)
+        self._hard_end_fade_spin.setSuffix(" s")
+        self._hard_end_fade_spin.setSpecialValueText("off")
+        self._hard_end_fade_spin.setToolTip(
+            "A title whose file stops in full sound (cut off, no decay) is\n"
+            "taken down over this long, ending just before its last moment,\n"
+            "so the hall hears a fade instead of a cut. Titles that end on\n"
+            "their own decay, like a gong, are left alone.\n"
+            "Off = no fade: the title plays to the end of its file.")
+        try:
+            self._hard_end_fade_spin.setValue(
+                float(settings.get("hard_end_fade_secs", 2.0)))
+        except (TypeError, ValueError):
+            self._hard_end_fade_spin.setValue(2.0)
+        hard_end_row.addWidget(self._hard_end_fade_spin)
+        hard_end_row.addStretch(1)
+        plyt.addLayout(hard_end_row)
+
+        # ── 🔇 The duck and the mute buttons ──
+        # 0–2 s is player.audio.mix's DESK_FADE_MAX_MS; 0 is the instant cut.
+        desk_fade_row = QHBoxLayout()
+        self._desk_fade_lbl = QLabel("🔇  Fade the duck and mute buttons over:")
+        desk_fade_row.addWidget(self._desk_fade_lbl)
+        self._desk_fade_spin = QDoubleSpinBox()
+        self._desk_fade_spin.setRange(0.0, 2.0)
+        self._desk_fade_spin.setSingleStep(0.05)
+        self._desk_fade_spin.setDecimals(2)
+        self._desk_fade_spin.setSuffix(" s")
+        self._desk_fade_spin.setToolTip(
+            "The 🔉 duck and 🔇 mute buttons on the player, and the cartwall's 🔊,\n"
+            "take this long to go down and to come back, so the hall hears a\n"
+            "short fade instead of a cut. 0 = switch at once.")
+        try:
+            self._desk_fade_spin.setValue(
+                int(settings.get("desk_fade_ms", 300)) / 1000)
+        except (TypeError, ValueError):
+            self._desk_fade_spin.setValue(0.3)
+        desk_fade_row.addWidget(self._desk_fade_spin)
+        desk_fade_row.addStretch(1)
+        plyt.addLayout(desk_fade_row)
+
         # ── ⏩ Every title starts a few seconds in ──
         # The same edge case; 30 s is shared.audio.playback's PRE_ROLL_MAX_SECS.
         pre_roll_row = QHBoxLayout()
@@ -775,6 +979,8 @@ class SoundTabMixin(_DialogHost):
             "fade_in_secs": self._fade_in_spin.value(),
             "resume_fade_secs": self._resume_fade_spin.value(),
             "hand_fade_secs": self._hand_fade_spin.value(),
+            "hard_end_fade_secs": self._hard_end_fade_spin.value(),
+            "desk_fade_ms": round(self._desk_fade_spin.value() * 1000),
             "duck_down_ms": round(self._duck_down_spin.value() * 1000),
             "duck_up_ms": round(self._duck_up_spin.value() * 1000),
             "pre_roll_secs": self._pre_roll_spin.value(),
@@ -792,14 +998,20 @@ class SoundTabMixin(_DialogHost):
             self._reset_sound_numbers()
 
     def _reset_sound_numbers(self) -> None:
-        """↺ The duck, the fades and the pre-roll back on what ships."""
+        """↺ The duck, the fades, the pre-roll and the player's dock back on
+        what ships."""
         self._duck_spin.setValue(10)
         self._fade_in_spin.setValue(0.0)
         self._resume_fade_spin.setValue(2.0)
         self._hand_fade_spin.setValue(0.0)
+        self._hard_end_fade_spin.setValue(2.0)
+        self._desk_fade_spin.setValue(0.3)
         self._duck_down_spin.setValue(2.0)
         self._duck_up_spin.setValue(2.0)
         self._pre_roll_spin.setValue(0)
+        # ▶ …and the player back beside the playlists, where it ships.
+        self._player_layout_combo.setCurrentIndex(
+            max(0, self._player_layout_combo.findData(DEFAULT_PLAYER_LAYOUT)))
         self._celebrate_pct.setValue(CELEBRATE_PCT)
         self._celebrate_dip.setValue(CELEBRATE_DIP_PCT)
         self._celebrate_hold.setValue(CELEBRATE_HOLD_SECS)
@@ -818,6 +1030,7 @@ class SoundTabMixin(_DialogHost):
         return {
             **numbers,
             "audio_outputs": self._output_values(),
+            **self._profile_values(),
             "preview_player": self._preview_chk.isChecked(),
             "sound_advanced_open": self._advanced_btn.isChecked(),
             "dblclick_action": self._dblclick_combo.currentData(),

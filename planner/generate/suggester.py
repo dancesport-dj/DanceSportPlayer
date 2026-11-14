@@ -4,6 +4,7 @@ Extracted from dancesport_planner.py (logical split): PlaylistSuggester builds
 the per-round/per-heat grid using MusicLibrary, plus generate_hints for the
 post-build advisory notes.
 """
+import functools
 import logging
 import math
 import random
@@ -92,11 +93,19 @@ class _SoftUses(set):
 _TITLE_MARK = "title:"
 
 
+@functools.lru_cache(maxsize=1 << 16)
+def _title_marks(name: str) -> tuple[str, ...]:
+    """The no-repeat marks of a file name. A generation asks `is_used` for
+    every candidate of every round, and the keys depend on the name alone,
+    so each name is parsed once instead of on every ask."""
+    return tuple(_TITLE_MARK + k for k in song_use_keys(name))
+
+
 def mark_used(used: set, entry: MusicEntry, twins=None) -> None:
     """Record `entry` as played: its file AND its title, so another recording
     of the same song (a different DJ's "Le Le Le") is not drawn again."""
     used.add(str(entry.path))
-    used.update(_TITLE_MARK + k for k in song_use_keys(entry.path.name))
+    used.update(_title_marks(entry.path.name))
     if twins:
         used.update(twins.get(str(entry.path), ()))
 
@@ -104,7 +113,7 @@ def mark_used(used: set, entry: MusicEntry, twins=None) -> None:
 def is_used(entry: MusicEntry, used) -> bool:
     if str(entry.path) in used:
         return True
-    return any(_TITLE_MARK + k in used for k in song_use_keys(entry.path.name))
+    return any(m in used for m in _title_marks(entry.path.name))
 
 
 def _next_cycle(bpm_ok: list[MusicEntry], soft_used) -> list[MusicEntry]:
@@ -181,13 +190,16 @@ class PlaylistSuggester:
 
     def expand_used(self, paths) -> set:
         """A no-repeat set from the paths already planned elsewhere: each path,
-        its title and every file that is the same recording."""
+        its title and every file that is the same recording. A title mark in
+        `paths` (a re-roll passes the set it built) is kept as it is."""
         used: set = set()
         twins = self.twins()
         for p in paths or ():
             used.add(str(p))
+            if str(p).startswith(_TITLE_MARK):
+                continue
             used.update(twins.get(str(p), ()))
-            used.update(_TITLE_MARK + k for k in song_use_keys(Path(str(p)).name))
+            used.update(_title_marks(Path(str(p)).name))
         return used
 
     def _library(self) -> MusicLibrary:

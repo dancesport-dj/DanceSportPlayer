@@ -316,6 +316,24 @@ class DamagedRestoreTest(_WindowCase):
         self.assertFalse(win._apply_env({"version": 4, "wishlist": [GONE]}))
         self.assertEqual(dialogs.AUTOSAVE.path.read_bytes(), on_disk)
 
+    def test_a_snapshot_that_will_not_apply_keeps_the_file_aside(self):
+        """The desk is half-wiped by then, and the next edit autosaves it over
+        the file: the copy aside is the one way back to the state before."""
+        win = self._win()
+        dialogs.AUTOSAVE.write({"version": 4, "wishlist": [HERE]})
+        on_disk = dialogs.AUTOSAVE.path.read_bytes()
+
+        def boom(*a, **k):
+            raise ValueError("bad snapshot")
+        win._restore_env = boom
+        self.assertFalse(win._apply_env({"version": 4, "wishlist": [GONE]}))
+        self.assertEqual(self.kept.read_bytes(), on_disk)
+        self.assertIn(self.kept.name, win.statusBar().currentMessage())
+
+    def test_a_snapshot_that_applies_keeps_nothing_aside(self):
+        self.assertTrue(self._win()._apply_env(dict(ENV)))
+        self.assertFalse(self.kept.exists())
+
     def test_a_snapshot_that_applies_reports_it(self):
         self.assertTrue(self._win()._apply_env(dict(ENV)))
 

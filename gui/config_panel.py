@@ -44,6 +44,7 @@ from planner.models import (
 )
 from planner.terms import dance_name
 from planner.themes import all_themes
+from shared.plain_text import plain_label
 from shared.widgets import (
     hsep,
 )
@@ -579,7 +580,7 @@ class ConfigPanel(QWidget):
             rhl = QHBoxLayout(rw)
             rhl.setContentsMargins(0, 0, 0, 0)
             rhl.setSpacing(4)
-            lbl = QLabel(terms.round_name(rc.name)[:20])
+            lbl = plain_label(terms.round_name(rc.name)[:20])
             # Fixed (not just minimum) width so long names like "2. Zwischenrunde"
             # don't shove their combo further right than short rows ("Finale") —
             # every round's combo then lines up in one clean column.

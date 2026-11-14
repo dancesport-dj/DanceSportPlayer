@@ -14,6 +14,12 @@ Schwellenwerte ihrer Musikprüfung; der Player blendet ihn aus. Öffnest du
 die Einstellungen wieder, stehen sie auf dem Reiter, auf dem du sie
 geschlossen hast, bis die App beendet wird.
 
+Lassen sich die Einstellungen nicht schreiben (der Einstellungsordner ist
+schreibgeschützt oder die Festplatte voll), sagt die Statusleiste jedes Mal
+*⚠️ Die Einstellungen konnten nicht gespeichert werden*, und beim ersten Mal
+in einer Sitzung sagt es auch ein Fenster und nennt die Datei. Die
+Änderungen gelten trotzdem, bis die App beendet wird.
+
 ## Allgemein
 
 Der Reiter **⚙ Allgemein**.
@@ -160,7 +166,8 @@ Die drei Zeiten reichen bis 10 s.
 **↺ Auf Standard zurücksetzen**, unten rechts im Reiter, setzt diese Zahlen,
 die Absenk- und Ausblendzeiten darunter und ⏩ jeden Titel so weit drin
 starten auf die Werte zurück, mit denen die App ausgeliefert wird, nach einer
-Rückfrage. Das Audio-Backend und die Ausgänge bleiben, wie sie sind.
+Rückfrage, und stellt den Player wieder neben die Wiedergabelisten. Das
+Audio-Backend und die Ausgänge bleiben, wie sie sind.
 
 ### ▸ Erweitert: Absenken und Ausblendzeiten
 
@@ -171,10 +178,12 @@ es.
 | Einstellung | Macht |
 |---|---|
 | **🔉 Absenken auf** | Wie weit 🔊 Absenken alles leiser macht, auf der Player-Karte, im Mini-Player und auf dem Präsentationsbildschirm: 10 % ab Werk (etwa −20 dB), 0 % (Stille) bis 90 %. Eine Änderung gilt auch für ein Absenken, das gerade an ist. |
-| **🔈 Unter Ansage oder Pad absenken über … wieder hoch über** | Wie schnell die Musik Platz macht, wenn die Ansage spricht oder ein 🎛 Cartwall-Pad spielt, und wie schnell sie danach zurückkommt: ab Werk 2 s hinunter und 2 s hinauf, je 0,1 bis 5 s. Der Knopf 🔉 Absenken selbst wirkt sofort. |
+| **🔈 Unter Ansage oder Pad absenken über … wieder hoch über** | Wie schnell die Musik Platz macht, wenn die Ansage spricht oder ein 🎛 Cartwall-Pad spielt, und wie schnell sie danach zurückkommt: ab Werk 2 s hinunter und 2 s hinauf, je 0,1 bis 5 s. Der Knopf 🔉 Absenken hat ein eigenes, kürzeres Ausblenden, siehe 🔇 unten. |
 | **🌅 Jeden Titel einblenden über** | Ab Werk aus. Der große Player startet jeden Titel in der Stille und blendet ihn über 0,5 bis 10 s Musik ein. Ein Titel, den ein 🔀 Überblenden hereinholt, behält seine eigene Rampe. Paare starten auf dem ersten Taktschlag, lass es für ein Turnier also aus. |
 | **↩ An einer Zeitmarke einblenden über** | Ab Werk 2 s. Ein Titel, der an seiner ↩ Zeitmarke weiterläuft, kommt über 0,5 bis 10 s Musik hoch, statt mit voller Lautstärke einzusetzen. *aus* überlässt es 🌅 darüber. Ein Paso Doble setzt an seiner Zeitmarke immer abrupt ein, egal was 🌅 sagt: Die Paare stehen und gehen auf den Schlag los. |
 | **🔉↓ Von Hand ausblenden über** | Wie lange 🔉↓ Jetzt ausblenden, 🛑 Ausblenden und halten, ein ⏹ Stopp zu einer Uhrzeit und das Ausblenden vor dem Beenden dauern, bis 10 s. Ab Werk *wie das Ausblenden der Liste*. Das Ausblenden am Ende der Spieldauer behält immer die eigene Ausblendzeit der Liste. |
+| **✂️ Abrupt endenden Titel ausblenden über** | Ab Werk 2 s, 0,5 bis 5 s, oder *aus*. Ein Titel, dessen Datei in voller Lautstärke abbricht, ohne Ausklang, wird über diese Zeit heruntergefahren, so hört der Saal ein Ausblenden statt eines Schnitts. Ein Titel, der von selbst ausklingt, wie ein Gong, bleibt, wie er ist. |
+| **🔇 Duck- und Stumm-Tasten ausblenden über** | Ab Werk 0,3 s, bis 2 s; 0 schaltet sofort. Wie lange die Absenk- und Stumm-Stufen des 🔊 am Player und das 🔊 der Cartwall zum Hinunter- und Zurückgehen brauchen. |
 | **⏩ Jeden Titel so weit drin starten** | Ab Werk aus. Der große Player überspringt die ersten 1 bis 30 s jedes Titels, und diese Sekunden zählen nicht zur Spieldauer. Ein Titel, der an seiner ↩ Marke weiterläuft, startet stattdessen dort, und ein stilles Intro wird zusätzlich übersprungen. |
 
 ### 🔈 Ausgänge
@@ -212,9 +221,40 @@ Betriebssystem listet, lässt sich wählen, unter Windows, macOS und Linux.
   dann an ihrem Namen wieder, solange nur eine angeschlossene Karte so
   heißt.
 - Solange die Karte für die 🎵 Musik angeschlossen ist, zeigt die
-  Statusleiste ein kleines **🔊** mit ihrem Namen. Ein Klick darauf öffnet
-  diesen Reiter.
-- Die Wahl wirkt, sobald du OK klickst, ohne Neustart.
+  Statusleiste ihren Namen. Ein Klick darauf öffnet diesen Reiter.
+- Eine Änderung an einem Ausgang wird sofort behalten und angewendet, ohne
+  Neustart und ohne OK (siehe die Profile unten).
+
+#### 🎧 Audio-Profile
+
+Ein Profil ist ein gespeicherter Satz der Ausgänge oben. Zwei gibt es immer,
+und sie lassen sich nicht löschen:
+
+- **Main**, der Saal: Musik auf der PA, Vorhören auf dem Kopfhörer.
+- **Rehearsal**, das Übungsprofil zum Vorbereiten des Abends: alles auf dem
+  Kopfhörer, und der Saal hört davon nichts.
+
+**💾 Speichern unter…** legt die Ausgänge, wie sie gezeigt werden, unter einem
+neuen Namen ab, als eigenes Saal-Profil. **🗑 Löschen** entfernt eines deiner
+eigenen nach einer Rückfrage, und Main übernimmt mit seinen Ausgängen; für
+Main und Rehearsal ist es ausgegraut. Die Auswahl **Profil** schaltet um.
+Änderst du einen Ausgang, änderst du das gezeigte Profil. Eine Änderung,
+**Speichern unter…** und **Löschen** werden sofort behalten und angewendet,
+damit ein Abbrechen oder ein Absturz kein eingerichtetes Gerät verliert; die
+Wahl eines anderen Profils wartet auf OK. Eine Einstellungsdatei ohne aktives
+Profil öffnet auf Main.
+
+Die Statusleiste zeigt das aktive Profil: **🔊** für ein Saal-Profil, **🎧**
+für Rehearsal. Ein Klick darauf öffnet die Liste der Profile, ohne Umweg über
+⚙ Einstellungen; bei zweien liegt das andere schon unter dem Mauszeiger,
+zwei Klicks schalten also um. Am Fuß der Liste steht das rote
+[**⏹ Alle Musik stoppen**](04-playing.md#-alles-stopp-sofort-stille).
+
+Das aktive Profil bleibt über einen Neustart erhalten, auch Rehearsal. Damit
+ein vergessenes Rehearsal den Saal nicht stumm macht:
+
+- 🚦 Bereit? zeigt die Audioausgänge rot, solange es an ist.
+- Beim Start des Abspielens nennt eine rote Meldung es.
 
 ## Cartwall
 
@@ -229,6 +269,9 @@ Eigenes bekommen hat. Der Modus *Nur Planer* blendet ihn aus.
 | Einstellung | Macht |
 |---|---|
 | **🔈 Während ein 🔈-Pad spielt, wird die Musik abgesenkt auf** | Wie laut die Musik bleibt, solange ein Cartwall-Pad läuft, das die Musik leiser macht: 10 % ab Werk (etwa −20 dB, eine Fanfare setzt sich durch), 0 % (Stille) bis 90 %. Wie 🔉 Absenken auf im Reiter 🔊 Ton & Player ist es ein Anteil an der Lautstärke der Musik, nicht an ihrer Lautheit; der Dialog zeigt die dB daneben. |
+| **🔈 Während ein Pad spielt, das die anderen Pads absenkt, werden sie abgesenkt auf** | Wie laut ein Titel auf einem anderen Pad bleibt, solange ein Pad mit **🔈 Andere Pads absenken** spielt, als Anteil an der eigenen Lautstärke dieses Pads: 10 % ab Werk (etwa −20 dB), 0 % (Stille) bis 90 %. Ist das Pad vorbei, kommt er auf seine Lautstärke zurück. Unabhängig vom Absenken der Musik darüber. |
+| **🔁 Am Loop-Punkt eines Pads** | Wie ein Pad auf 🔁 endloser Wiederholung am Ende seiner Datei neu beginnt: **Überblenden** (ab Werk; die nächste Runde startet kurz vor dem Ende auf einer zweiten Stimme, die alte blendet aus, während die neue einblendet), **Ausblenden und neu starten** (das Pad blendet sich selbst aus und startet dann mit voller Lautstärke neu) oder **Hart stoppen und neu starten** (es springt sofort zurück). Jede Runde beginnt dort, wo die Musik beginnt, hinter einer längeren Stille am Anfang der Datei. |
+| **🔁 …überblenden oder ausblenden über** | Wie lange das Überblenden oder das Absenken vor dem Neustart dauert, vom Ende der Datei zurückgerechnet und nie mehr als ein Drittel davon: 3,0 s fürs Überblenden, 1,0 s fürs Ausblenden, 0 s bis 15 s. 0 s startet sofort neu. Wechselst du die Art, kommt deren Standard hinein, außer du hattest eine eigene Länge eingetragen. **Eigene Überblendung** in den **⚙ Einstellungen…** eines Pads überschreibt es für dieses Pad. |
 | **⏱ Erneut angetippt oder ⏹ — Pad ausblenden über** | Wie lange ein Pad zum Ausklingen braucht, wenn es noch einmal angeklickt wird oder ⏹ Alles stoppen die Wand ausblendet: 1,0 s ab Werk, 0 s (es stoppt sofort) bis 8 s. Auch ein 🎶 Hintergrund-Pad folgt dem. **Eigenes Ausblenden** in den **⚙ Einstellungen…** eines Pads überschreibt es für dieses Pad. |
 | **🖌 Standardfarbe der Cartwall** | Die Farbe jedes Pads, das auf 🎨 Farbe ▸ **Cartwall-Standard** steht: ab Werk weiß. Ein Pad mit eigener Farbe behält sie. |
 
@@ -245,7 +288,7 @@ Eigenes bekommen hat. Der Modus *Nur Planer* blendet ihn aus.
 | **🌅 …dann Pad wieder einblenden über** | Wie lange es danach braucht, bis es wieder voll da ist: 2,0 s ab Werk. |
 | **🐂 Pad unten lassen, solange ein Paso Doble auf den Start wartet** | Ab Werk an. Steht *Start nach* für den 🐂 Paso Doble, hält das Deck zwischen Ansage und erstem Takt an, während die Paare auf die Fläche gehen; das Pad bleibt diese Wartezeit über unten, als liefe die Musik schon. Auch in der Pause vor einem Paso Doble bleibt es unten. Aus kommt es in der Wartezeit zurück wie nach jedem anderen Titel. |
 
-Jede Zeit auf diesem Reiter reicht von 0 s bis 8 s in Schritten von 0,1 s;
+Jede andere Zeit auf diesem Reiter reicht von 0 s bis 8 s in Schritten von 0,1 s;
 0 s heißt sofort, ohne Blende.
 
 Ausblendzeit und Farbe gehören zur Wand, nicht zum PC: eine Cartwall, die
@@ -337,7 +380,16 @@ Für jedes Set:
   **⏸ Keine Pause zwischen den Titeln**, **🔈 Nächsten Tanz ansagen**,
   **🔊 Lautstärke angleichen**, **▶️ Doppelklick startet den Titel**,
   **❓ Fragen, bevor ein Doppelklick den Titel anhält** und
-  **🎚 TSO: auf den Takt der Gruppe ziehen**.
+  **🎚 TSO: auf den Takt der Gruppe ziehen**. Das 🎉 Set hat an dessen Stelle
+  **🛋 Gemütlich: jeden Tanz auf sein Höchsttempo begrenzen**, ab Werk aus.
+
+Im Kasten des 🎉 Sets legt **🛋 Gemütlich-Höchsttempo** fest, worauf der
+[🛋 Gemütlich-Knopf](04-playing.md#die-player-karte) jeden Tanz auf einer Party
+begrenzt, in ganzen Takten: Ein schneller aufgenommener Titel wird darauf
+heruntergebremst, ein langsamerer bleibt, wie er ist, und *Keine Grenze*
+lässt den Tanz, wie er aufgenommen ist. Jeder Tanz, den die App kennt, steht
+dort. Ab Werk hat der Jive T41, der Quickstep T50, der Wiener Walzer T58 und
+der Discofox T30; alle anderen Tänze haben keine Grenze.
 
 Das Turnier-Set hat außerdem eine Liste mit einer Länge je Tanz, mit einer
 Auswahl darüber, **⏱ Längen**: **Pro Tanz — der Standard** oder **Pro
@@ -412,14 +464,18 @@ benutzen.
   zeigt, wie weit es ist, und kann abbrechen. Vorgeschlagen wird
   `venue-<Datum>.dpvenue`, oder `venue-<Datum>-with-music.dpvenue`, wenn die
   Musik mit hineinkommt.
-- **📥 Hallenpaket importieren…** lädt es auf dem anderen PC. Es übernimmt
-  Einstellungen, Decks und Cartwall beim nächsten Start; was es ersetzt, wird
+- **📥 Hallenpaket importieren…** lädt es auf dem anderen PC. Es fragt erst,
+  was das Paket auf diesem PC ersetzen soll: **⚙ Einstellungen**, **🎼 Decks
+  und Playlists** und **🎛 Cartwall — Pads und Tasten**, alle angehakt. Was
+  angehakt bleibt, übernimmt es beim nächsten Start; was es ersetzt, wird
   in einem Ordner `before-venue-import` daneben aufgehoben. Musik im Paket
   wird in einen Ordner deiner Wahl ausgepackt, und jedes Deck und jedes Pad
   wird darauf umgehängt.
 
 Ordner-Einstellungen wie die Bibliothek, der Wiedergabelisten- und der
-Speichern-unter-Ordner, der Präsentationsbildschirm und das Audio-Backend
-bleiben bei jedem PC.
+Speichern-unter-Ordner, der Präsentationsbildschirm, das Audio-Backend, die
+Audioausgänge und die Audio-Profile bleiben bei jedem PC. Ebenso der
+Sicherungsordner und die zwei Einwilligungen, die Update-Prüfung und die
+Fehlerberichte.
 
 Weiter: [Tastatur und Maus](07-shortcuts.md)

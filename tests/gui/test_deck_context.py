@@ -56,6 +56,18 @@ class DeckContextTest(unittest.TestCase):
         self.assertEqual(ctx.style, "Standard")
         self.assertEqual(ctx.playlist, {"Runde 1": []})
 
+    def test_an_empty_dynamic_deck_hands_its_new_rounds_to_the_window(self):
+        """11-11 review #15: a dynamic deck that starts empty makes its own
+        dict on the first added round or drop, while the context kept None,
+        so 💾 Save, a re-roll and replay saw no rounds at all."""
+        self.win._set_active_table(self.a)
+        self.a._enter_dynamic([2, 1])
+        name = self.a._insert_dynamic_round(None)
+        self.assertTrue(name)
+        self.assertIsNotNone(self.a._playlist)
+        self.assertIs(self.win._playlist, self.a._playlist)
+        self.assertIn(name, self.win._playlist)
+
     def test_a_deck_written_while_unfocused_shows_it_on_focus(self):
         self.win._set_active_table(self.a)
         self.win._set_active_table(self.b)   # B gets a context of its own

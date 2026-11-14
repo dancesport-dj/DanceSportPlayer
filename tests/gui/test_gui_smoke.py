@@ -176,6 +176,12 @@ class MainWindowSmokeTest(unittest.TestCase):
         self.assertEqual(self.win.guest_desk()._catalog(), [])
         self.assertIs(self.win.open_guest_window(), dlg)
 
+    def test_the_now_playing_line_shows_a_file_name_as_typed(self):
+        """Review 1.2: a bare QLabel took a stem holding markup as markup
+        ("Song <b>Remix</b>"); under a classic theme it is plain text."""
+        from PySide6.QtCore import Qt
+        self.assertEqual(self.win._now_playing.textFormat(), Qt.TextFormat.PlainText)
+
     def test_every_mixin_contributed_its_methods(self):
         """Each mixin's public entry points really landed on the instance."""
         for name, cls in _assembly_classes():

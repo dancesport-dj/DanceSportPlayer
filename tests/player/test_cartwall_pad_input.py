@@ -72,6 +72,27 @@ class PadInputTest(unittest.TestCase):
         self.assertNotIn("<b>live</b>", tip)      # escaped: shown as given
         self.assertIn("&lt;b&gt;live", tip)
 
+    def test_a_muted_wall_says_so_in_the_pad_tooltip(self):
+        """A muted wall is not heard and does not duck: the pad says why."""
+        self.w.set_wall(pc.DEFAULT_GRID,
+                        [pc.Page(pads={(0, 0): pc.CartPad(path=r"C:\s\a.mp3", duck=True),
+                                       (0, 1): pc.CartPad(path=r"C:\s\b.mp3",
+                                                          duck=False)})])
+        self.assertNotIn("muted", self.w._buttons[KEY].toolTip())
+        self.w.set_muted(True)
+        self.assertIn("🔇 Cartwall is muted", self.w._buttons[KEY].toolTip())
+        self.assertIn("does not duck", self.w._buttons[KEY].toolTip())
+        self.assertIn("🔇 Cartwall is muted", self.w._buttons[(0, 0, 1)].toolTip())
+        self.assertNotIn("does not duck", self.w._buttons[(0, 0, 1)].toolTip())
+        self.w.set_muted(False)
+        self.assertNotIn("muted", self.w._buttons[KEY].toolTip())
+
+    def test_a_pad_built_on_a_muted_wall_says_so_too(self):
+        self.w.set_muted(True)
+        self.w.set_wall(pc.DEFAULT_GRID, [pc.Page(
+            pads={(0, 0): pc.CartPad(path=r"C:\s\a.mp3")})])
+        self.assertIn("🔇 Cartwall is muted", self.w._buttons[KEY].toolTip())
+
 
 class PageAndSelectionTest(unittest.TestCase):
 

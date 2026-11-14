@@ -18,7 +18,7 @@ from pathlib import Path
 
 from planner import i18n
 from planner.models import ALLOW_REPEAT
-from planner.music.paths import PathRemapper
+from planner.music.paths import PathRemapper, is_foreign_network
 
 OK, WARN, FAIL = 0, 1, 2
 
@@ -83,7 +83,9 @@ def _missing_finding(missing: list[Path], present: Sequence[Path] = (),
             lines.append(i18n.t("%d have no copy there: %s") % (len(none), _names(none)))
         return Finding("files", WARN, title, "\n".join(lines), copies + len(none), "paths")
     # A whole drive that is gone is one cause, not a hundred broken titles.
-    drives = sorted({p.anchor for p in missing if p.anchor and not os.path.exists(p.anchor)})
+    # Someone else's share is not asked either: its root stalls like its files (7.A).
+    drives = sorted({p.anchor for p in missing if p.anchor and not is_foreign_network(p)
+                     and not os.path.exists(p.anchor)})
     if drives:
         detail = (i18n.t("Drive %s is not connected — %d titles live there.")
                   % (", ".join(drives), len(missing)))
@@ -134,16 +136,22 @@ _SOURCE_NAMES = {"music": "🎵  Music:",
 
 
 def outputs_finding(unplugged: list[tuple[str, str]], cue_on_music: bool,
-                    cue_shared: bool = False) -> Finding:
+                    cue_shared: bool = False, rehearsal: str | None = None) -> Finding:
     """🔈 The chosen sound outputs: `unplugged` is (source, card name) per chosen
     card that is not plugged in, `cue_on_music` whether a 🎧 preview would be
     refused for landing on the music's output, `cue_shared` whether previews
-    play there because no pre-listen output is chosen. A missing card for
-    anything the hall hears is red — it plays on the system default instead; a
-    missing pre-listen card is yellow, as is a preview that would be refused or
-    heard in the hall."""
+    play there because no pre-listen output is chosen, `rehearsal` the name of
+    the active rehearsal profile (everything on the headphones), if any. A
+    missing card for anything the hall hears is red — it plays on the system
+    default instead — and so is a rehearsal profile left on; a missing
+    pre-listen card is yellow, as is a preview that would be refused or heard
+    in the hall."""
     title = i18n.t("🔈  Sound outputs")
     lines, level = [], OK
+    if rehearsal:
+        lines.append(i18n.t("🔇 Rehearsal profile %s is on — the hall hears nothing.")
+                     % rehearsal)
+        level = FAIL
     for source, name in unplugged:
         lines.append(i18n.t("%s %s is not connected — it plays on the system default.")
                      % (i18n.t(_SOURCE_NAMES.get(source, source)), name))
@@ -225,7 +233,9 @@ def readiness_findings(tracks: list[tuple], cache, dup_report: dict,
     present: list[tuple[Path, str]] = []
     missing: list[tuple[Path, str]] = []
     for path, dance in seen.values():
-        (present if path.exists() else missing).append((path, dance))
+        # Someone else's share is never tested: it counts as missing (7.A).
+        on_disk = not is_foreign_network(path) and path.exists()
+        (present if on_disk else missing).append((path, dance))
     findings = [_missing_finding([p for p, _d in missing], [p for p, _d in present],
                                  reference_root)]
 

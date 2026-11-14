@@ -84,6 +84,20 @@ ROUND_PD_PICKS = (0, 1, 2)
 # cannot ride along in `apply_play_set` — it IS stored in the same set, though.
 _SET_TSO = {"party": False, "tournament": True, "training": False}
 
+# 🛋 Gemütlich: where a party would rather not dance the fast end of a dance.
+# Marcel: replace the TSO button in the party set with one that holds each
+# dance to a top tempo of its own (Jive T41 instead of T43; Quickstep and
+# Discofox too). Off in every set until switched on, like the TSO pitch, and
+# stored in the same set; the top tempo per dance is `gemuetlich_max_of`.
+_SET_GEMUETLICH = {"party": False, "tournament": False, "training": False}
+# Every dance the app knows, the tournament ten first (Marcel: "for all dances").
+GEMUETLICH_DANCES = ("LW", "TG", "WW", "SF", "QS", "SA", "CC", "RB", "PD",
+                     "JI", "SALSA", "DISCOFOX", "BACHATA", "WCS", "KIZOMBA",
+                     "FORRO", "TANGOARG", "BW", "LD")
+# Only the ones Marcel named; the rest have no limit until the settings give one.
+# Later: "default of QS T50 and WW T58, DF T30".
+GEMUETLICH_MAX = {"JI": 41.0, "QS": 50.0, "WW": 58.0, "DISCOFOX": 30.0}
+
 # ❓ …and whether a double-click on another title asks before it stops the one
 # playing: on in both, a stray click cuts the floor at a party as at a heat.
 # Kept out of the dicts above like the TSO pitch: Marcel wants no switch for it
@@ -207,7 +221,7 @@ def migrate_play_sets(s: dict) -> dict:
     the update is kept."""
     try:
         version = int(s.get("play_sets_version") or 1)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         version = 1
     if version >= PLAY_SETS_VERSION:
         return s
@@ -294,7 +308,7 @@ def round_pd_n_of(settings: dict) -> dict[str, int]:
     for kind in ROUND_KINDS:
         try:
             n = int(stored[kind])
-        except (KeyError, TypeError, ValueError):
+        except (KeyError, TypeError, ValueError, OverflowError):
             continue
         if n in ROUND_PD_PICKS:
             out[kind] = n
@@ -310,6 +324,28 @@ def tso_of(settings: dict, which: str) -> bool:
     stored = settings.get(_SET_KEYS[which][0])
     stored = stored if isinstance(stored, dict) else {}
     return bool(stored.get("tso", _SET_TSO[which]))
+
+
+def gemuetlich_of(settings: dict, which: str) -> bool:
+    """🛋 Whether the play set holds the dances to their top tempo —
+    ⚙ Settings → 🎛 Playsets. Read apart from `play_set_of`, like `tso_of`:
+    the toggle lives on the player card."""
+    stored = settings.get(_SET_KEYS[which][0])
+    stored = stored if isinstance(stored, dict) else {}
+    return bool(stored.get("gemuetlich", _SET_GEMUETLICH[which]))
+
+
+def gemuetlich_max_of(settings: dict, dance: str) -> float | None:
+    """🛋 The top takt `dance` is danced at when gemütlich is on, or None for
+    no limit — ⚙ Settings → 🎛 Playsets. A stored 0 is 'no limit', and so is
+    anything that is not a positive number."""
+    stored = settings.get("gemuetlich_max")
+    stored = stored if isinstance(stored, dict) else GEMUETLICH_MAX
+    try:
+        top = float(stored[dance]) if dance in stored else GEMUETLICH_MAX.get(dance, 0)
+    except (TypeError, ValueError):
+        return None
+    return top if top > 0 else None
 
 
 def dblclick_ask_of(settings: dict, which: str) -> bool:
@@ -331,7 +367,7 @@ def pd_of(settings: dict, which: str = "tournament") -> dict:
     out = dict(_SET_PD[which])
     out["pd_stop"] = bool(stored.get("pd_stop", out["pd_stop"]))
     for k, (lo, hi) in _PD_RANGES.items():
-        with contextlib.suppress(TypeError, ValueError):
+        with contextlib.suppress(TypeError, ValueError, OverflowError):
             v = stored.get(k, out[k])
             # 'Start after' runs in half seconds, the pick in whole highlights.
             v = round(float(v) * 2) / 2 if k == "pd_delay" else int(v)

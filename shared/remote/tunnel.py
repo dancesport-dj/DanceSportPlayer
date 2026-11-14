@@ -147,7 +147,7 @@ def download(dest_dir: Path, progress=None, opener=_open) -> Path:
         part.unlink()
         raise ValueError(f"{asset} is not the {CLOUDFLARED_VERSION} release: its SHA-256 differs")
     if asset.endswith(".tgz"):
-        _unpack(part)
+        _extract_cloudflared(part)
     target = dest_dir / binary_name()
     if sys.platform != "win32":
         os.chmod(part, 0o700)
@@ -157,7 +157,7 @@ def download(dest_dir: Path, progress=None, opener=_open) -> Path:
     return target
 
 
-def _unpack(part: Path) -> None:
+def _extract_cloudflared(part: Path) -> None:
     """The macOS release is a .tgz holding the one binary: keep only that."""
     with tarfile.open(part, "r:gz") as tgz:
         member = next((m for m in tgz.getmembers()

@@ -5,7 +5,10 @@ player.widgets.cartwall — QMainWindow comes first in MainWindow's bases, so an
 delivers by virtual dispatch would never reach a mixin method.
 """
 import logging
+import sqlite3
 from dataclasses import replace
+from datetime import datetime, timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt
@@ -14,10 +17,13 @@ from PySide6.QtWidgets import QDockWidget
 from planner import i18n
 from planner.music.paths import resolve_file
 from planner.playing import cartwall as pc
+from planner.playing import play_log
 from player.audio.cart_voices import CartVoices
-from player.audio.mix import cart_duck_level
+from player.audio.mix import cart_duck_level, cart_pad_duck_level
 from player.widgets.cartwall import CartwallWidget
+from player.window.main_audio import pendingWork
 from player.window.main_pause import live_target
+from shared.audio.audio_probes import SilenceWorker, detect_edge_silence, find_ffmpeg
 from shared.stores import CARTWALL, load_cartwall_file, save_cartwall_file, save_settings
 
 if TYPE_CHECKING:
@@ -88,6 +94,7 @@ class CartwallMixin(MainWindowHost):
             self._cart_voices = CartVoices(self)
             self._cart_voices.padStopped.connect(self._on_cart_pad_stopped)
             self._cart_voices.padEnded.connect(self._on_cart_pad_ended)
+            self._cart_voices.padPlayed.connect(self._on_cart_pad_played)
             self._cart_voices.padFading.connect(self._cartwall.set_fading)
             self._cart_voices.padHeld.connect(self._cartwall.set_held)
             self._cart_voices.padTick.connect(self._on_cart_tick)
@@ -95,6 +102,10 @@ class CartwallMixin(MainWindowHost):
             self._cart_voices.activeChanged.connect(self._audio_device.on_activity)
             self._cart_voices.duckChanged.connect(self._on_cart_duck_changed)
             self._cart_voices.wantsDevice.connect(self._audio_device.ensure)
+            self._cart_voices.wantsSilences.connect(
+                lambda path: self._arm_pad_silences(Path(path)))
+            self._cart_voices.wantsEdges.connect(
+                lambda path: self._arm_pad_edges(Path(path)))
             self._audio_device.sync()   # 🔊 the wall's own output, if one is chosen
             self._cartwall.padsMoved.connect(self._cart_voices.rekey)
             self._cartwall.padCleared.connect(self._cart_voices.stop)
@@ -245,11 +256,35 @@ class CartwallMixin(MainWindowHost):
         steps back by itself when the next title starts."""
         if self._cart_voices is None or self._cartwall.queue_run() is not None:
             return
+        if self._endless_pad_playing():
+            return   # 🔁 an endless pad started by hand is the pause music
+        if self._background_pad_playing():
+            return   # 🎶 a bed outside the queue is the pause music: the queue waits
         for page, (row, col), pad in pc.queued(self._cartwall.pages()):
             if pad.background:
                 self._cart_run_from((page, row, col), pad, tapped=False)
                 return
         self._start_pause_pad()
+
+    def _endless_pad_playing(self):
+        """🔁 Whether a pad outside the ▶ queue that repeats forever is sounding:
+        started by hand, it runs until it is stopped, and neither the queue nor
+        a 🎶 pad takes its place."""
+        wall = self._cartwall
+        voices = self._cart_voices
+        return voices is not None and any(
+            (pad := wall.pad_at(key)) is not None
+            and pad.loop and not pad.queue and not pad.background
+            for key in voices.playing_keys())
+
+    def _background_pad_playing(self):
+        """🎶 Whether a background pad is sounding, held under the last title or
+        not: it is the pause music already."""
+        wall = self._cartwall
+        voices = self._cart_voices
+        return voices is not None and any(
+            (pad := wall.pad_at(key)) is not None and pad.background
+            for key in voices.playing_keys())
 
     def _start_pause_pad(self):
         """No 🎶 pad in the ▶ queue: the selected 🎶 pad fills the pause on its own.
@@ -260,8 +295,7 @@ class CartwallMixin(MainWindowHost):
         voices = self._cart_voices
         if voices is None:
             return
-        if any((pad := wall.pad_at(key)) is not None and pad.background
-               for key in voices.playing_keys()):
+        if self._background_pad_playing():
             return
         selected = wall.selection()
         pads = [hit for hit in pc.background_pads(wall.pages())
@@ -290,8 +324,90 @@ class CartwallMixin(MainWindowHost):
         page, (row, col), pad = hit
         self._cart_run_from((page, row, col), pad, tapped=False)
 
+    def _on_cart_pad_played(self, pad, heard: float):
+        """📜 A pad that was heard for as long as a song must be goes into the
+        play log under "Cartwall", like a title — a Tusch stays out, a birthday
+        track goes in. Pre-listening in planning mode is not a play."""
+        if (self._library.cache is None or not self._is_playing_mode()
+                or heard * 1000 < self._PLAYED_AFTER_MS):
+            return
+        try:
+            play_log.record(
+                datetime.now() - timedelta(seconds=heard), pad.path, "",
+                pad.label or Path(pad.path).stem, "", play_log.CARTWALL_LIST, heard,
+                composer=play_log.composer_of(pad.path))
+        except sqlite3.Error as exc:
+            log.warning("📜 Pad not logged\n"
+                        "file: %s\n"
+                        "error: %s", pad.path, exc)
+
     def _on_cart_pad_stopped(self, key):
         self._cartwall.set_playing(key, False)
+        # 🔁 The endless pad that held the pause is down: the queue is next, if
+        # the pause is still running.
+        pad = self._cartwall.pad_at(key)
+        between = getattr(self, "_between", None)
+        if (pad is not None and pad.loop and not pad.queue and not pad.background
+                and between is not None and between.pending is not None):
+            self._start_pause_pads()
+
+    def _arm_pad_silences(self, path: Path) -> None:
+        """🔇 A looping pad's crossover wants the dead air at the edges of its
+        file, from the main player's probe: the library cache has it, or an
+        ffmpeg pass in the background does (the pad plays meanwhile). A pad
+        asks once per file; a failed probe leaves it without."""
+        voices = self._cart_voices
+        if voices is None:
+            return
+        cache = self._library.cache
+        stored = cache.get_silences(path) if cache else None
+        if stored is not None:
+            voices.set_silences(path, stored)
+            return
+        ffmpeg = find_ffmpeg()
+        if not ffmpeg:
+            return
+        log.info("🔇 Silence probe started (background)\n"
+                 "file: %s", path.name)
+        w = SilenceWorker(path, ffmpeg, key=str(path), parent=self)
+        w.done.connect(lambda key, spans: voices.set_silences(key, spans))
+        probes = pendingWork(self).pad_probes
+        w.finished.connect(lambda key=str(path): probes.pop(key, None))
+        probes[str(path)] = w
+        w.start()
+
+    def _ask_pad_edges(self, pads) -> None:
+        """🔇 Probe the lead-in and the tail of every pad that skips them,
+        under the path it would fire from: at the wall's load and a pad's
+        save, so the evening's first tap already starts at the music."""
+        voices = self._cart_voices
+        if voices is None:
+            return
+        for pad in pads:
+            if not pad.skip_silence:
+                continue
+            found = resolve_file(pad.path, self._settings)
+            if found is not None:
+                voices.ask_edges(str(found))
+
+    def _arm_pad_edges(self, path: Path) -> None:
+        """The short probes of a pad's first and last seconds, in the
+        background. Not the library cache: that holds the title probe's long
+        stretches only. A failed probe leaves the pad playing its whole file."""
+        voices = self._cart_voices
+        ffmpeg = find_ffmpeg()
+        if voices is None or not ffmpeg:
+            return
+        log.info("🔇 Pad edge probe started (background)\n"
+                 "file: %s", path.name)
+        w = SilenceWorker(path, ffmpeg, key=str(path), parent=self,
+                          probe=detect_edge_silence)
+        w.done.connect(lambda key, spans: voices.set_edges(key, spans))
+        slot = "edges:" + str(path)   # beside the loop probes, never in their way
+        probes = pendingWork(self).pad_probes
+        w.finished.connect(lambda slot=slot: probes.pop(slot, None))
+        probes[slot] = w
+        w.start()
 
     def _on_cart_stop_all(self):
         self._cartwall.end_queue_run()
@@ -303,6 +419,7 @@ class CartwallMixin(MainWindowHost):
         once, so dragging the slider on a running bed is audible."""
         if self._cart_voices is not None:
             self._cart_voices.refresh_pad(key, pad)
+        self._ask_pad_edges([pad])   # 🔇 just ticked: probed before its first tap
 
     def _on_cart_preview_volume(self, key, level: float):
         """The pad dialog's volume slider, applied to the running voice as it
@@ -341,6 +458,9 @@ class CartwallMixin(MainWindowHost):
         pauses = pc.background_pauses(self._settings)
         voices = getattr(self, "_cart_voices", None)
         if voices is not None:
+            voices.set_pad_duck_level(cart_pad_duck_level(self._settings))
+            voices.set_loop_mode(pc.loop_mode(self._settings))
+            voices.set_wall_cross(pc.cross_ms(self._settings))
             voices.set_background_pauses(pauses)
             voices.set_background_fade_in(pc.background_fade_in_ms(self._settings))
             voices.set_background_fade_out(pc.background_fade_out_ms(self._settings))
@@ -350,6 +470,7 @@ class CartwallMixin(MainWindowHost):
         if wall is not None:
             wall.set_background_pauses(pauses)   # the pad dialog's 🎶 wording
             wall.set_background_volume(pc.background_volume(self._settings))
+            wall.set_cross_ms(pc.cross_ms(self._settings))
             wall.refresh_missing(fresh=True)   # the search folders may have changed
 
     def _file_check_for_wall(self):
@@ -412,10 +533,18 @@ class CartwallMixin(MainWindowHost):
                    or (before_pd and pc.background_quiet_before_pd(settings)))
         bed_wait = playback is not None and playback.bed_wait is not None
         playing = QMediaPlayer.PlaybackState.PlayingState
+        paused = QMediaPlayer.PlaybackState.PausedState
         player = getattr(self, "_player", None)
+        # ⏯ A pause is a full stop of all music: the bed stays down in it, as
+        # it does under the title. (A stop or a fade-out into the pause is
+        # the other thing: that one lets it up.)
+        states = [state] + ([player.playbackState()] if player is not None else [])
+        # Only paused, nothing playing: a bed the operator taps still sounds.
+        only_paused = (paused in states and playing not in states
+                       and not (pd_wait or bed_wait))
         voices.set_music_playing(
-            pd_wait or bed_wait or state == playing
-            or (player is not None and player.playbackState() == playing))
+            pd_wait or bed_wait or any(s in (playing, paused) for s in states),
+            paused=only_paused)
 
     def _on_cart_tick(self, rows):
         for key, ms_left, frac in rows:
@@ -447,6 +576,8 @@ class CartwallMixin(MainWindowHost):
                  "pages: %d\n"
                  "pads: %d", doc.grid[0], doc.grid[1], len(doc.pages),
                  pc.pad_count(doc.pages))
+        self._ask_pad_edges(
+            [pad for page in doc.pages for pad in page.pads.values()])
 
     def _save_cartwall(self, *, edit: bool = True):
         """Write the wall — except over a file this build could not read, which

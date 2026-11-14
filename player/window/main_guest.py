@@ -290,6 +290,11 @@ class GuestDesk(QObject):
             self.fetch_done.emit(str(path), "")
         threading.Thread(target=run, daemon=True, name="cloudflared-download").start()
 
+    def refresh_catalog(self):
+        """The library changed: a running server offers its titles now (3.E)."""
+        if self.server is not None:
+            self.server.set_catalog(self._catalog())
+
     def _catalog(self) -> list[tuple[str, str, str, str]]:
         """The library's titles for the guest page, each under its id."""
         lib = self._win._library.lib
@@ -424,6 +429,13 @@ class GuestMixin(MainWindowHost):
         dlg.raise_()
         dlg.activateWindow()
         return dlg
+
+    def _guest_library_changed(self, *_):
+        """The library scan landed. The guest catalogue was taken when the
+        server started, maybe before the scan was done (3.E)."""
+        desk = getattr(self, "_guests", None)
+        if desk is not None:
+            desk.refresh_catalog()
 
     def _guest_shutdown(self):
         desk = getattr(self, "_guests", None)

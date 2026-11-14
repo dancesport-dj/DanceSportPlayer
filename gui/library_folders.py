@@ -83,7 +83,8 @@ class _Folder:
 
 
 class FolderTree(QTreeWidget):
-    """📁 Choosing a folder narrows the library to the titles directly in it."""
+    """📁 Choosing a folder narrows the library to the titles directly in it;
+    a heading (no titles of its own), to the titles of everything below it."""
 
     folderChosen = Signal()
 
@@ -97,9 +98,15 @@ class FolderTree(QTreeWidget):
         self._search = ""
         self._sort = "name"
         self._folder_icon = _glyph_icon("📁")
-        self._press_item: QTreeWidgetItem | None = None
+        self._press_key = ""
+        self._chosen = ""
+        self._headings: set[str] = set()   # keys of the lines with no titles of their own
         self.setDragEnabled(True)
-        self.currentItemChanged.connect(lambda *_: self.folderChosen.emit())
+        self.currentItemChanged.connect(self._onCurrent)
+
+    def _onCurrent(self, item: QTreeWidgetItem | None, _previous=None):
+        self._chosen = (item.data(0, _KEY_ROLE) or "") if item is not None else ""
+        self.folderChosen.emit()
 
     def shows(self, entries: list[MusicEntry]) -> bool:
         """Was the tree built from this very list?"""
@@ -155,6 +162,7 @@ class FolderTree(QTreeWidget):
     def _rebuild(self, kept: str):
         self.blockSignals(True)
         self.clear()
+        self._headings = set()
         everything = QTreeWidgetItem([i18n.t("📁 All folders")])
         everything.setData(0, _KEY_ROLE, "")
         self.addTopLevelItem(everything)
@@ -163,6 +171,7 @@ class FolderTree(QTreeWidget):
         chosen = next((i for i in self.all_items() if i.data(0, _KEY_ROLE) == kept),
                       everything)
         self.setCurrentItem(chosen)
+        self._chosen = chosen.data(0, _KEY_ROLE) or ""
         self.blockSignals(False)
         self._applySearch()
 
@@ -192,8 +201,7 @@ class FolderTree(QTreeWidget):
         item.setToolTip(0, str(node.path) if node.path else node.name)
         item.setIcon(0, self._folder_icon)
         if not node.count:
-            # Nothing of its own: a click would only empty the table.
-            item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsDragEnabled)
+            self._headings.add(node.key)   # chosen, it lists what is below it
         if parent is None:
             self.addTopLevelItem(item)
             item.setExpanded(True)
@@ -213,27 +221,37 @@ class FolderTree(QTreeWidget):
 
     def folder(self) -> str:
         """The chosen folder's key; '' = all of them."""
-        item = self.currentItem()
-        return (item.data(0, _KEY_ROLE) or "") if item is not None else ""
+        return self._chosen
 
     def titles(self, key: str) -> list[MusicEntry]:
-        """The titles directly in folder `key`."""
+        """The titles directly in folder `key`; for a heading (no titles of its
+        own) the titles of every folder below it."""
+        if key in self._headings:
+            return [e for k in self._keys_below(key) for e in self._titles[k]]
         return self._titles.get(key, [])
 
+    def _keys_below(self, key: str) -> list[str]:
+        """`key` and the keys of every folder below it that hold titles."""
+        below = key + os.sep
+        return sorted(k for k in self._titles if k == key or k.startswith(below))
+
     def mousePressEvent(self, event):
-        # A heading folder cannot be selected, so a drag starts from the line under the mouse.
-        self._press_item = self.itemAt(event.position().toPoint())
+        # A drag starts from the line under the mouse, not the current one.
+        # The key, not the line: a reload deletes every line before Qt asks for the drag.
+        item = self.itemAt(event.position().toPoint())
+        self._press_key = item.data(0, _KEY_ROLE) if item is not None else ""
         super().mousePressEvent(event)
 
     def folder_mime(self, item: QTreeWidgetItem | None) -> QMimeData | None:
         """The titles in `item`'s folder and all folders below it, as a file drop
         (what a playlist accepts); None for 'All folders' or nothing."""
-        key = item.data(0, _KEY_ROLE) if item is not None else ""
+        return self.key_mime(item.data(0, _KEY_ROLE) if item is not None else "")
+
+    def key_mime(self, key: str) -> QMimeData | None:
+        """`folder_mime` for a folder key."""
         if not key:
             return None
-        below = key + os.sep
-        keys = sorted(k for k in self._titles if k == key or k.startswith(below))
-        paths = [e.path for k in keys for e in sorted(self._titles[k], key=lambda e: e.path.name.lower())]
+        paths = [e.path for k in self._keys_below(key) for e in sorted(self._titles[k], key=lambda e: e.path.name.lower())]
         if not paths:
             return None
         mime = QMimeData()
@@ -242,7 +260,7 @@ class FolderTree(QTreeWidget):
         return mime
 
     def startDrag(self, _actions):
-        mime = self.folder_mime(self._press_item)
+        mime = self.key_mime(self._press_key)
         if mime is None:
             return
         drag = QDrag(self)
@@ -257,4 +275,5 @@ class FolderTree(QTreeWidget):
         first = self.topLevelItem(0)
         if first is not None:
             self.setCurrentItem(first)
+        self._chosen = ""
         self.blockSignals(False)

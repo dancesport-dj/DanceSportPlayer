@@ -364,11 +364,17 @@ def numbered_folder_m3u(m3u_path: Path,
 
 
 # ── Playlist import (existing M3U → editable grid) ─────────────────────────────
-_IMPORT_ROUND_RE = re.compile(r'^#\s*═+\s*(.*?)\s*\(\s*\d+\s*Heats?\s*\)\s*═+\s*$',
-                              re.IGNORECASE)
+# A header is short: the lookahead turns a longer line away in one pass, and
+# the possessive quantifiers give the spaces only one way to be split. Around
+# a lazy group, `\s*(.*?)\s*` tried every split, x8 per doubling of a line of
+# spaces: a damaged file hung the import (review 6.C). The name keeps its
+# surrounding spaces; the callers strip it.
+_HEADER_MAX = r'(?=.{0,400}$)'
+_IMPORT_ROUND_RE = re.compile(
+    _HEADER_MAX + r'#\s*+═++(.*)\(\s*+\d++\s*+Heats?\s*+\)\s*+═++\s*+$', re.IGNORECASE)
 
 
-_IMPORT_DANCE_RE = re.compile(r'^#\s*─+\s*(.*?)\s*─+\s*$')
+_IMPORT_DANCE_RE = re.compile(_HEADER_MAX + r'#\s*+─++(.*?)─++\s*+$')
 
 
 _IMPORT_HEAT_RE = re.compile(r'^#\s*Heat\s*\d+\s*$', re.IGNORECASE)

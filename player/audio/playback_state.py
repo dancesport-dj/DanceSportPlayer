@@ -40,9 +40,14 @@ class PlaybackState:
     # Titles that would not play this session, path → the backend's reason.
     # Their rows stay red (a live Check-Music issue) until one plays again.
     failed: dict[str, str] = field(default_factory=dict)
+    # Titles the backend ended at once and that were opened again from a
+    # repaired copy (see mp3_repair), path → that copy.
+    repaired: dict[str, Path] = field(default_factory=dict)
     # The load whose setSource errors queued before it may still arrive for:
     # they belong to the title it replaced. None once they are all seen.
     stale_error_token: int | None = None
+    # The load a "measured tempo not trusted" toast was already shown for.
+    doubt_token: int | None = None
     # 🧊 The stall watchdog: token, position and since-when it last saw the
     # title stand, and the token of the title it has already reloaded once.
     stall_seen: tuple = (None, 0, 0.0)

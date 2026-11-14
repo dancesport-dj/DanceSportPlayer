@@ -14,6 +14,7 @@ from gui.table.playlist_table import (  # auto-resolved
     PlaylistTable,
 )
 from planner import i18n
+from shared.plain_text import plain_tip
 from shared.stores import (  # auto-resolved
     save_settings,
 )
@@ -120,10 +121,10 @@ class FoldMixin(MainWindowHost):
             badge_row.setVisible(not folded)
         active = self.deck(table).active
         hdr.setText(self._deck_header_text(table, active))
-        hdr.setToolTip(i18n.t("%s — folded.  Click to unfold.")
+        hdr.setToolTip(plain_tip(i18n.t("%s — folded.  Click to unfold.")
                        % self.deck(table).name
                        if folded else
-                       "Click to focus · right-click or double-click to rename")
+                       "Click to focus · right-click or double-click to rename"))
         if folded and table is self._deckset.table:
             # A folded deck shouldn't stay the Generate/Save/↺ target.
             for t in (*self._deckset.decks, *self._deckset.day_decks):
