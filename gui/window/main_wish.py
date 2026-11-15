@@ -303,6 +303,23 @@ class WishlistMixin(MainWindowHost):
             self._set_wish_state(0)
         else:
             self._set_wish_state({0: 1, 1: 2, 2: 3, 3: 4}.get(self._wish_state, 1))
+        self._say_wish_view()
+
+    def _pick_wish_view(self):
+        """⭐ click: off, 1-4 wishlists, or 4 stacked 2×2, picked in one go."""
+        def choose(state, grid=False):
+            self._set_wish_state(state, grid=grid)
+            self._say_wish_view()
+        cur = (self._wish_state, self._wish_grid)
+        choices = [(self._WISH_LABELS[0], cur == (0, False), lambda: choose(0)), None]
+        choices += [(self._WISH_LABELS[n], cur == (n, False), lambda n=n: choose(n))
+                    for n in (1, 2, 3, 4)]
+        choices.append(("4 wishlists (2×2)", cur == (4, True),
+                        lambda: choose(4, grid=True)))
+        self._pick_view(self._dual_wish_btn, choices)
+
+    def _say_wish_view(self):
+        """The status line names the wishlist view just set."""
         if self._wish_grid:
             msg = "⭐ 4 wishlists stacked 2×2"
         else:

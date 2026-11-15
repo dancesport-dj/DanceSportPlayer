@@ -54,6 +54,9 @@ from shared.stores import (
 
 log = logging.getLogger("dancesport.gui.decks")
 
+# The labels of the two Group tabs while the user has not named them.
+GROUP_TAB_DEFAULTS = ("Group A–D", "Group E–H")
+
 
 def dance_counts_line(entries) -> str:
     """Songs per dance in running order — "LW 3 · TG 3 · DF 2 · other 1".
@@ -204,6 +207,30 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
         self._set_day_tab_title(title)
         self._autosave_playlist()
 
+    def _set_group_tab_title(self, second: bool, title: str):
+        """Label the Group A–D (or with `second` E–H) tab: the name the user
+        gave it (persisted in the autosave env), the default label otherwise."""
+        title = (title or "").strip()
+        self._grid.group_titles[int(second)] = title
+        page = self._grid.group_page(second)
+        if not title:
+            self._grid.deck_tabs.setTabText(page, GROUP_TAB_DEFAULTS[int(second)])
+            return
+        with i18n.verbatim():   # a name typed by hand is data, not chrome
+            self._grid.deck_tabs.setTabText(page, title)
+
+    def _rename_group_tab(self, page: int):
+        """Double-click on a Group tab: give it a name of its own, e.g.
+        "Standard Senioren" (empty input restores the default label)."""
+        second = page == self._grid.group_page(True)
+        title, ok = QInputDialog.getText(
+            self, "Rename tab", "Name (empty = default):",
+            text=self._grid.group_titles[int(second)])
+        if not ok:
+            return
+        self._set_group_tab_title(second, title)
+        self._autosave_playlist()
+
     def _close_day_plan(self):
         """✕ on the 📅 tab: clear every day deck and retire the whole tab view
         (confirmed first while any day deck still holds tracks)."""
@@ -254,7 +281,7 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
 
     def _group_tab_menu(self, page: int, global_pos):
         """Right-click on a Group A–D / E–H tab: save that page's decks as .m3u
-        files, or clear them."""
+        files, clear them, or rename the tab."""
         decks = [t for t in self._deckset.decks if self._deck_tab_index(t) == page]
         filled = any(t.rowCount() > 0 for t in decks)
         menu = QMenu(self)
@@ -262,6 +289,7 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
         save.setEnabled(filled)
         clear = menu.addAction("🧹  Clear all playlists")
         clear.setEnabled(filled)
+        rename = menu.addAction("✏️  Rename tab…")
         menu.addSeparator()
         new_day = self._add_new_day_action(menu)
         act = menu.exec(global_pos)
@@ -269,6 +297,8 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
             self._save_all_playlists(decks=decks)
         elif act is clear:
             self._clear_group_tab(page)
+        elif act is rename:
+            self._rename_group_tab(page)
         elif act is new_day:
             self._new_day_tab()
 
@@ -364,6 +394,7 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
         Generate / Save / ↺ target a deck you can actually see."""
         if getattr(self, "_restoring", False):
             return
+        self._refit_deck_section()
         if index == self._grid.day_page():
             self._on_day_tab_changed(self._grid.day_tabs.currentIndex())
             return
@@ -1127,7 +1158,7 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
             if d.header is None:
                 continue
             active = d.active = (d.table is table)
-            d.header.setStyleSheet(self._DECK_HDR_ACTIVE if active else self._DECK_HDR_IDLE)
+            d.header.setStyleSheet(self._deck_hdr_style(d.table, active))
             d.header.setText(self._deck_header_text(d.table, active))
         # Generation target only ever a full deck; Save/Import follow the focused
         # table, so a focused wishlist enables the Save button for itself.
@@ -1245,9 +1276,13 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
                 else {1: 2, 2: 4, 4: 0, 0: 1})
         if back:
             ring = {nxt: cur for cur, nxt in ring.items()}
-        self._deckset.deck_count = ring.get(self._deckset.deck_count, 1)
+        self._set_deck_view(ring.get(self._deckset.deck_count, 1))
+
+    def _set_deck_view(self, n: int):
+        """Show `n` decks (0 = no playlists), say so, and keep it."""
+        self._deckset.deck_count = n
         self._apply_deck_view()
-        msg = {0: "No-playlist view — decks hidden; only Practice / wishlist / library show",
+        msg = {0:"No-playlist view — decks hidden; only Practice / wishlist / library show",
                1: "Single-playlist view",
                2: "🎚️ Two-playlist view — focus a deck; its controls drive Generate / Save / ↺",
                4: "🎚️ Four-playlist view — focus a deck to drive Generate / Save / ↺",
@@ -1309,9 +1344,50 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
         if self.deck(wl).folded:
             self._toggle_deck_fold(wl, folded=False)
 
-    def _cycle_compact(self):
-        """🗜 toolbar button: full headers → compact → no grouping → numbers → full."""
-        self._set_compact_state((self._compact_state + 1) % 4)
+    def _pick_view(self, btn, choices):
+        """A view button's left click: a menu under `btn` lists `choices` —
+        (caption, ticked, apply) each, None for a separator — and runs the
+        `apply` of the one picked. Dismissed, it changes nothing."""
+        menu = QMenu(self)
+        picks = {}
+        for choice in choices:
+            if choice is None:
+                menu.addSeparator()
+                continue
+            caption, ticked, apply = choice
+            act = menu.addAction(caption)
+            act.setCheckable(True)
+            act.setChecked(ticked)
+            picks[act] = apply
+        act = menu.exec(btn.mapToGlobal(btn.rect().bottomLeft()))
+        if act in picks:
+            picks[act]()
+
+    def _pick_deck_view(self):
+        """⧉ click: 1, 2, 4 (8 where the build has it) playlists, or none."""
+        cur = self._deckset.deck_count
+        counts = [n for n in (1, 2, 4, 8) if n <= self._max_decks()]
+        choices = [((i18n.t("%d playlist") if n == 1 else i18n.t("%d playlists")) % n,
+                    n == cur, lambda n=n: self._set_deck_view(n))
+                   for n in counts]
+        choices += [None, ("No playlist", cur == 0, lambda: self._set_deck_view(0))]
+        self._pick_view(self._dual_btn, choices)
+
+    def _pick_compact(self):
+        """🗜 click: one of the four header views. The button is checkable, so
+        the click already flipped it: the label is set back from the state
+        whatever the menu did."""
+        captions = ("Full headers", "🗜  Compact", "🚫  No groups", "🔢  Numbers")
+        self._pick_view(self._compact_btn, [
+            (caption, i == self._compact_state,
+             lambda i=i: self._set_compact_state(i))
+            for i, caption in enumerate(captions)])
+        self._apply_compact_label()
+
+    def _cycle_compact(self, back: bool = False):
+        """🗜 wheel: full headers → compact → no grouping → numbers → full, or
+        the other way round (`back`)."""
+        self._set_compact_state((self._compact_state + (-1 if back else 1)) % 4)
 
     def _set_compact_state(self, state: int):
         """Apply a header view (0 full · 1 🗜 compact · 2 🚫 no grouping ·

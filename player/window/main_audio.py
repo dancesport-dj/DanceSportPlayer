@@ -198,11 +198,13 @@ class AudioLevelMixin(MainWindowHost):
         self._audio_device.on_activity()
 
     def _step_volume_ramp(self):
-        """One ramp step of the announcement duck and of a loudness gain that
-        arrived after the title had already started."""
+        """One ramp step of the announcement duck, of a loudness gain that
+        arrived after the title had already started, and of a fade-out
+        between two play ticks."""
+        fading = self._step_fade_out()
         if self._mix.step() and self._big_player:
             self._big_player.set_gain(self._mix.heard_gain())   # the dB readout, once
-        if self._mix.settled:
+        if self._mix.settled and not fading:
             self._ramp_timer.stop()
         self._apply_volume()
         self._show_pull()

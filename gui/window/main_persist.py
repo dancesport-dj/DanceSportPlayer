@@ -276,6 +276,8 @@ class PersistenceMixin(ExportMixin, UndoMixin, RestoreMixin):
                 "warmup": self._warmup_state(),
                 # Custom 📅 tab label (competition name), "" = default.
                 "day_tab": getattr(self, "_day_tab_title", ""),
+                # Custom Group A–D / E–H tab labels, "" = default.
+                "group_tabs": list(self._grid.group_titles),
                 # The 📅 tab stays open with no tracks in it (opened by hand
                 # under a competition name, or 🧹 cleared) until ✕ closes it.
                 "day_tab_keep": bool(getattr(self, "_day_tab_keep", False)),

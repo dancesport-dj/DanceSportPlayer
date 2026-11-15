@@ -66,6 +66,12 @@ structure.
   the card's ⏯ do not ask. A title the list starts by itself, after the pause
   or in place of one that won't play, has nobody to ask: it starts from the
   beginning and its marker goes.
+- A **cued** title whose playhead you moved (a click in the 〰 waveform, the
+  seek bar, the skip buttons) asks when ⏯ starts it: *Start it from
+  where?* **From the beginning** (its ↩ time marker goes too), **At m:ss**,
+  the spot you moved it to (the default: Enter takes it), or **Cancel**
+  (Esc), which leaves it cued. Picked up there, it comes in the way a
+  time-marker start does.
 - **Ctrl + Shift + ← / →** jumps to the previous or next title, and
   **Ctrl + ← / →** seeks 30 s.
 

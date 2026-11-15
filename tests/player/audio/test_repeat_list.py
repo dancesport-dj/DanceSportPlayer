@@ -111,6 +111,7 @@ class _Desk(PlayerControlMixin, QWidget):
         self._fade_now = FadeNow()
         self._announcer = None
         self._fade_timer = _TimerStub()
+        self._ramp_timer = _TimerStub()
         self._settings = {}
         self.countdowns = []
 

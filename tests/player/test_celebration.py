@@ -324,6 +324,7 @@ class _LoadingDesk(_Desk):
     """The same desk, loading titles through the real `_adopt_track`."""
 
     _adopt_track = TrackLoadMixin._adopt_track
+    _start_seek_for = TrackLoadMixin._start_seek_for
     _sync_celebrate_btn = PlayerControlMixin._sync_celebrate_btn
     _on_celebrate_toggled = PlayerControlMixin._on_celebrate_toggled
 

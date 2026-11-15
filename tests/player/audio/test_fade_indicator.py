@@ -239,6 +239,7 @@ class _Desk(PlayerControlMixin, QWidget):
         self._deckset = DeckSet()
         self._deckset.all_tables = ()    # no list: the panel's values are the ones
         self._fade_timer = _TimerStub()
+        self._ramp_timer = _TimerStub()
         self._big_player = _Card()
         self._playback = PlaybackState()
         self._playback.path = Path(r"C:\music\WW.mp3")

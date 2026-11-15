@@ -1129,6 +1129,9 @@ CATALOG = {
     "🗜  Compact": "🗜  Компактно",
     "🚫  No groups": "🚫  Без групп",
     "🔢  Numbers": "🔢  Номера",
+    "Full headers": "Все заголовки",
+    "Split 50:50": "Разделить 50:50",
+    "Click picks the header view, the mouse wheel steps through them.": "Щелчок выбирает вид заголовков, колесо мыши перебирает их.",
     "🧹  Clear all": "🧹  Очистить",
     "🧹  Clear all playlists": "🧹  Очистить все плейлисты",
     "🧹  Empty this playlist": "🧹  Очистить этот плейлист",
@@ -1253,22 +1256,22 @@ CATALOG = {
     "click again to open them all.":
         "Свернуть все заголовки туров и танцев во всех плейлистах —\n"
         "щёлкните ещё раз, чтобы раскрыть их все.",
-    "Cycle the playlist headers: full → 🗜 Compact (per-dance header rows\n"
+    "The playlist headers: full → 🗜 Compact (per-dance header rows\n"
     "hidden, each round lists its songs directly) → 🚫 No groups (round and\n"
     "─── section headers dropped too, so the list — a Practice / party\n"
     "list above all — is one flat run of songs) → 🔢 Numbers (no groups,\n"
     "plus an Nb. column up front counting the titles).":
-        "Переключать заголовки плейлиста: полностью → 🗜 Компактно (строки заголовков\n"
+        "Заголовки плейлиста: полностью → 🗜 Компактно (строки заголовков\n"
         "танцев скрыты, каждый тур сразу перечисляет треки) → 🚫 Без групп (заголовки\n"
         "туров и разделов ─── тоже убраны, так что список — прежде всего список\n"
         "практики / вечеринки — один сплошной ряд треков) → 🔢 Номера (без групп,\n"
         "плюс столбец № впереди, считающий треки).",
-    "Cycle the wishlist area: off → 1 → 2 → 3 → 4 → 4 stacked 2×2.\n"
-    "Right click walks it backwards.\n"
+    "Pick the wishlist area: off, 1, 2, 3, 4 or 4 stacked 2×2.\n"
+    "The mouse wheel steps through them, a right click steps back.\n"
     "Off hides it entirely, even with multiple decks.\n"
     "Double-click any deck/wishlist title to rename it.":
-        "Переключать область списков пожеланий: выкл. → 1 → 2 → 3 → 4 → 4 сеткой 2×2.\n"
-        "Правый щелчок — в обратную сторону.\n"
+        "Выбрать область списков пожеланий: выкл., 1, 2, 3, 4 или 4 сеткой 2×2.\n"
+        "Колесо мыши перебирает их, правый щелчок — шаг назад.\n"
         "Выкл. скрывает её полностью, даже при нескольких деках.\n"
         "Двойной щелчок по заголовку дека или списка пожеланий переименовывает его.",
     "Export every non-empty playlist deck to its own .m3u in the\n"
@@ -1923,6 +1926,8 @@ CATALOG = {
         "Ни один из этих треков не указывает свой танец, поэтому сетку из них построить нельзя — список остаётся свободным порядком.",
     "New tournament day": "Новый турнирный день",
     "Rename tournament day": "Переименовать турнирный день",
+    "Rename tab": "Переименовать вкладку",
+    "Name (empty = default):": "Название (пусто = по умолчанию):",
     "Shuffle — put the same titles in a fresh order,\n"
     "as if the party list were built again from scratch.":
         "Перемешать — те же треки в новом порядке,\n"
@@ -3045,6 +3050,9 @@ CATALOG = {
         "Остановить играющий трек и начать откуда?",
     "At the marker": "С метки",
     "From the beginning": "С начала",
+    "Start from where?": "С какого места?",
+    "You moved the playhead of “%s” to %s.\nStart it from where?": "Позиция воспроизведения «%s» перемещена на %s.\nС какого места начать?",
+    "At %s": "С %s",
     "🎚  TSO pitch to the heat tempo": "🎚  TSO: подтягивать к темпу захода",
     "↩  Remember where a title stopped": "↩  Запоминать, где трек остановился",
     "☀  Keep the screen awake": "☀  Не гасить экран",
@@ -3533,6 +3541,14 @@ CATALOG = {
         "📂  Добавлено треков: %d из файлов: %d",
     "📂  Imported %d playlists into %d free slot(s)":
         "📂  Импортировано плейлистов: %d в свободных мест: %d",
+    "this playlist":
+        "этот плейлист",
+    "You picked %d playlist files.\n\nYes: %s goes into %s and the others into the playlists after it, one each. A playlist that holds tracks asks before it is replaced; kept, it passes its file on to the next one.\n\nNo: only %s is imported, into %s.":
+        "Выбрано файлов плейлистов: %d.\n\nДа: %s загружается в %s, остальные — в следующие плейлисты, по одному. Плейлист с треками сначала спросит, заменять ли его; если оставить его, файл переходит к следующему.\n\nНет: импортируется только %s, в %s.",
+    "No playlist left for %d file(s), not imported:\n\n%s":
+        "Не осталось плейлиста для файлов (%d), не импортированы:\n\n%s",
+    "📂  Imported %d playlist file(s)":
+        "📂  Импортировано файлов плейлистов: %d",
     "%d extra final-round track(s) kept as backups (stacked under their dance)":
         "Дополнительных треков финала оставлено как запасные: %d (стопкой под своим танцем)",
     "%s line(s) name a file the list already had (imported again, not skipped)":
@@ -4348,12 +4364,12 @@ CATALOG = {
         "%s\n"
         "\n"
         "Открыть его сейчас?",
-    "Cycle 1 → 2 → 4 → 8 → no playlists (and back).":
-        "Переключение 1 → 2 → 4 → 8 → без плейлистов (и обратно).",
-    "Cycle 1 → 2 → 4 → no playlists (and back).":
-        "Переключение 1 → 2 → 4 → без плейлистов (и обратно).",
-    "Right click walks the cycle backwards.":
-        "Правый щелчок проходит цикл в обратную сторону.",
+    "Click picks 1, 2, 4 or 8 playlists, or none.":
+        "Щелчок выбирает 1, 2, 4 или 8 плейлистов или ни одного.",
+    "Click picks 1, 2 or 4 playlists, or none.":
+        "Щелчок выбирает 1, 2 или 4 плейлиста или ни одного.",
+    "The mouse wheel steps through them, a right click steps back.":
+        "Колесо мыши перебирает их, правый щелчок — шаг назад.",
     "8 splits into two tabs of four (Group A–D / Group E–H).":
         "8 делится на две вкладки по четыре (Группа A–D / Группа E–H).",
     "No-playlist hides every deck so the Practice / wishlist / library panes take over.":

@@ -34,6 +34,9 @@ nach unten.
   Die Knöpfe ↶ / ↷ unten zeigen, wie viele Schritte es gibt.
 - Ein Doppelklick auf den Decktitel benennt das Deck um. **▾** im Kopf klappt
   das Deck zu einem Reiter ein.
+- Rechtsklick auf den Trenner zwischen zwei Wiedergabelisten ▸ **⇔ 50:50
+  teilen** macht beide gleich groß; ein Doppelklick auf den Trenner tut es
+  sofort. Die Trenner der Wunschlisten können das auch.
 
 Die Spalten:
 
@@ -234,7 +237,7 @@ willst: Wünsche von der Fläche, ein neues Album, das du ausprobieren willst.
 
 | Um | Tu |
 |---|---|
-| eine `.m3u` in ein Deck oder eine Wunschliste zu laden | Rechtsklick ▸ **📂 M3U importieren…**, oder zieh die `.m3u` darauf. Mehrere `.m3u` auf einmal gehen in die freien Decks, je eine. |
+| eine `.m3u` in ein Deck oder eine Wunschliste zu laden | Rechtsklick ▸ **📂 M3U importieren…**, oder zieh die `.m3u` darauf. Mehrere `.m3u` auf einmal gehen in die freien Decks, je eine. Mehrere in **📂 M3U importieren…** gewählte gehen nach deinem Ja in dieses Deck und die danach, je eine; ein Deck mit Titeln fragt vorher, und ein Deck, das du behältst, gibt seine Datei an das nächste weiter. |
 | ein [Hallenpaket](06-settings.md#hallenpaket) von einem anderen PC zu laden | Zieh die `.dpvenue`-Datei auf das Programmfenster, oder Rechtsklick ▸ **📥 Hallenpaket importieren…**. Das ist dasselbe wie in den ⚙ Einstellungen. |
 | eine Wiedergabeliste aus deinem Turnierarchiv zu laden | Zieh ihren Slot aus 🏆 Turniere auf ein Deck, siehe [Kapitel 2](02-library-and-tournaments.md#-turniere). |
 | das aktive Deck oder die aktive Wunschliste zu speichern | **Strg + S**, oder Rechtsklick auf einen Titel oder den Kopf ▸ **💾 Speichern als M3U…** |

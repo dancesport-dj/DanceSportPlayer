@@ -78,30 +78,40 @@ class GermanTest(_Counts):
 
     def test_the_playlist_count(self):
         win = self.win("de")
-        self.assertEqual("1 Liste", self.decks(win, 1))
-        self.assertEqual("2 Listen", self.decks(win, 2))
-        self.assertEqual("Keine Liste", self.decks(win, 0))
+        self.assertEqual("1 Liste  ▾", self.decks(win, 1))
+        self.assertEqual("2 Listen  ▾", self.decks(win, 2))
+        self.assertEqual("Keine Liste  ▾", self.decks(win, 0))
 
     def test_the_wishlist_count(self):
         win = self.win("de")
-        for state, want in ((0, "Keine Wunschliste"),
-                            (1, "1 Wunschliste"),
-                            (2, "2 Wunschlisten"),
-                            (4, "4 Wunschlisten")):
+        for state, want in ((0, "Keine Wunschliste  ▾"),
+                            (1, "1 Wunschliste  ▾"),
+                            (2, "2 Wunschlisten  ▾"),
+                            (4, "4 Wunschlisten  ▾")):
             win._set_wish_state(state)
             self.assertEqual(want, win._dual_wish_btn.text())
 
     def test_the_four_wishlists_stacked_two_by_two(self):
         win = self.win("de")
         win._set_wish_state(4, grid=True)
-        self.assertEqual("4 Wunschlisten (2×2)", win._dual_wish_btn.text())
+        self.assertEqual("4 Wunschlisten (2×2)  ▾", win._dual_wish_btn.text())
 
     def test_the_header_view_cycle(self):
         win = self.win("de")
-        self.assertEqual("🗜  Kompakt", self.compact(win, 0))
-        self.assertEqual("🚫  Keine Gruppen", self.compact(win, 2))
-        self.assertEqual("🔢  Nummern", self.compact(win, 3))
+        self.assertEqual("🗜  Kompakt  ▾", self.compact(win, 0))
+        self.assertEqual("🚫  Keine Gruppen  ▾", self.compact(win, 2))
+        self.assertEqual("🔢  Nummern  ▾", self.compact(win, 3))
 
+
+    def test_the_view_button_tooltips(self):
+        win = self.win("de")
+        self.assertTrue(win._dual_wish_btn.toolTip().startswith(
+            "Den Wunschlisten-Bereich wählen"), win._dual_wish_btn.toolTip())
+        self.assertTrue(win._compact_btn.toolTip().startswith(
+            "Klick wählt die Überschriften-Ansicht"), win._compact_btn.toolTip())
+        self.assertIn("Die Wiedergabelisten-Überschriften: voll", win._compact_btn.toolTip())
+        self.assertTrue(win._dual_btn.toolTip().startswith("Klick wählt 1, 2"),
+                        win._dual_btn.toolTip())
 
 class EnglishIsUnchangedTest(_Counts):
     """The catalog is a lookup on the English string, so English has to come
@@ -110,15 +120,15 @@ class EnglishIsUnchangedTest(_Counts):
 
     def test_the_captions_read_the_way_they_did(self):
         win = self.win("en")
-        self.assertEqual("1 playlist", self.decks(win, 1))
-        self.assertEqual("2 playlists", self.decks(win, 2))
-        self.assertEqual("No playlist", self.decks(win, 0))
+        self.assertEqual("1 playlist  ▾", self.decks(win, 1))
+        self.assertEqual("2 playlists  ▾", self.decks(win, 2))
+        self.assertEqual("No playlist  ▾", self.decks(win, 0))
         win._set_wish_state(2)
-        self.assertEqual("2 wishlists", win._dual_wish_btn.text())
+        self.assertEqual("2 wishlists  ▾", win._dual_wish_btn.text())
         win._set_wish_state(4, grid=True)
-        self.assertEqual("4 wishlists (2×2)", win._dual_wish_btn.text())
-        self.assertEqual("🚫  No groups", self.compact(win, 2))
-        self.assertEqual("🔢  Numbers", self.compact(win, 3))
+        self.assertEqual("4 wishlists (2×2)  ▾", win._dual_wish_btn.text())
+        self.assertEqual("🚫  No groups  ▾", self.compact(win, 2))
+        self.assertEqual("🔢  Numbers  ▾", self.compact(win, 3))
 
 
 if __name__ == "__main__":

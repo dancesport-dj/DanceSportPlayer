@@ -34,6 +34,11 @@ class FadeNow:
         # …and the title of the ⚙ restart offer that close is for, if any:
         # the app starts again once the window has really closed.
         self.restart: str | None = None
+        # Which fade-out ramp the last play tick found running - this one
+        # ("hand",), the ✂️ hard end ("hard",) or the ⏳ timed one ("timed",
+        # remaining, fade, floor, monotonic time of that tick) - for the fine
+        # level steps between two ticks. None: no ramp to follow.
+        self.follow: tuple | None = None
 
     @property
     def running(self) -> bool:

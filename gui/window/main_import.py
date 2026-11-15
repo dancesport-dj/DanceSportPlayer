@@ -183,6 +183,17 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
             return
         self._remember_import_dir(paths[0])
 
+        # Several files picked in a deck: the playlists after it take the others,
+        # once the user says so; No imports the first file alone, as below.
+        if len(paths) > 1 and table in self._deckset.decks[:self._max_decks()]:
+            ans = self._ask_import_alongside(table, paths)
+            if ans == QMessageBox.StandardButton.Cancel:
+                return
+            if ans == QMessageBox.StandardButton.Yes:
+                self._import_m3u_alongside(table, paths)
+                return
+            paths = paths[:1]
+
         # A deck of a player-only install takes the file as its flat running
         # order — there is no draw in it to reconstruct.
         # Every import below REPLACES the list: ask first when it holds tracks,
@@ -250,9 +261,57 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
                 return
             paths = paths[:len(free)]
 
-        targets = free[:len(paths)]
-        # Grow the visible deck view so every target slot is actually on screen.
-        highest = max(self._deckset.decks.index(t) for t in targets)
+        self._import_into_decks(list(zip(paths, free, strict=False)))
+        show_toast(self, i18n.t("📂  Imported %d playlists into %d free slot(s)")
+                    % (len(paths), len(paths)))
+
+    def _ask_import_alongside(self, table: PlaylistTable, paths: list[str]):
+        """Several files picked in `table`'s 📂 Import M3U: Yes puts them into it
+        and the playlists after it, No imports the first one alone."""
+        here = table.host.deck_name() or i18n.t("this playlist")
+        first = Path(paths[0]).name
+        return QMessageBox.question(
+            self, "Import M3U",
+            i18n.t("You picked %d playlist files.\n\n"
+                   "Yes: %s goes into %s and the others into the playlists after it, "
+                   "one each. A playlist that holds tracks asks before it is replaced; "
+                   "kept, it passes its file on to the next one.\n\n"
+                   "No: only %s is imported, into %s.")
+            % (len(paths), first, here, first, here),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Yes)
+
+    def _import_m3u_alongside(self, table: PlaylistTable, paths: list[str]):
+        """The first file into `table`, the others into the playlists after it,
+        one each (Marcel, 2026-11-14). A playlist that holds tracks asks first;
+        kept, it passes its file on to the next. Every question comes before
+        anything loads; the files no playlist is left for are named."""
+        decks = self._deckset.decks[:self._max_decks()]
+        slot = decks.index(table)
+        left = list(paths)
+        plan = []
+        while left and slot < len(decks):
+            deck = decks[slot]
+            slot += 1
+            if deck._confirm_m3u_replaces(Path(left[0])):
+                plan.append((left.pop(0), deck))
+        if left:
+            QMessageBox.information(
+                self, "Import M3U",
+                i18n.t("No playlist left for %d file(s), not imported:\n\n%s")
+                % (len(left), "\n".join(Path(p).name for p in left)))
+        if not plan:
+            return
+        self._import_into_decks(plan)
+        self._set_active_table(table)
+        show_toast(self, i18n.t("📂  Imported %d playlist file(s)") % len(plan))
+
+    def _import_into_decks(self, plan: list[tuple[str, PlaylistTable]]):
+        """Each (file, deck) of `plan`: the deck is loaded from the file, the deck
+        view grows until every one of them is on screen, and one report at the
+        end says what had to be re-rooted."""
+        highest = max(self._deckset.decks.index(deck) for _path, deck in plan)
         want = 8 if highest >= 4 else 4 if highest >= 2 else 2 if highest >= 1 else 1
         want = min(want, self._max_decks())
         if want > self._deckset.deck_count:
@@ -260,7 +319,7 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
             self._apply_deck_view()
 
         self._pending_import_reports = []
-        for path, deck in zip(paths, targets, strict=True):
+        for path, deck in plan:
             if deck.plays_flat():
                 # A player-only install's deck: the file is its running order.
                 self._load_player_list_from_m3u(deck, path)
@@ -268,8 +327,6 @@ class ImportMixin(DuplicateCheckMixin, MusicCheckMixin, PathFixMixin, PrintMixin
             self._set_active_table(deck)
             self._import_playlist_path(path, report=False)
 
-        show_toast(self, i18n.t("📂  Imported %d playlists into %d free slot(s)")
-                    % (len(paths), len(paths)))
         self._autosave_playlist()
         self._show_import_remap_report(self._pending_import_reports)
         self._pending_import_reports = []

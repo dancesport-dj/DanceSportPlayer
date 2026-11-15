@@ -1207,6 +1207,9 @@ CATALOG = {
     "🗜  Compact": "🗜  Kompakt",
     "🚫  No groups": "🚫  Keine Gruppen",
     "🔢  Numbers": "🔢  Nummern",
+    "Full headers": "Alle Überschriften",
+    "Split 50:50": "50:50 teilen",
+    "Click picks the header view, the mouse wheel steps through them.": "Klick wählt die Überschriften-Ansicht, das Mausrad schaltet sie durch.",
     "🧹  Clear all": "🧹  Leeren",
     "🧹  Clear all playlists": "🧹  Alle Wiedergabelisten leeren",
     "🧹  Empty this playlist": "🧹  Diese Wiedergabeliste leeren",
@@ -1354,24 +1357,23 @@ CATALOG = {
     "click again to open them all.":
         "Alle Runden- und Tanzüberschriften aller Wiedergabelisten zuklappen —\n"
         "nochmal klicken öffnet sie wieder.",
-    "Cycle the playlist headers: full → 🗜 Compact (per-dance header rows\n"
+    "The playlist headers: full → 🗜 Compact (per-dance header rows\n"
     "hidden, each round lists its songs directly) → 🚫 No groups (round and\n"
     "─── section headers dropped too, so the list — a Practice / party\n"
     "list above all — is one flat run of songs) → 🔢 Numbers (no groups,\n"
     "plus an Nb. column up front counting the titles).":
-        "Die Wiedergabelisten-Überschriften durchschalten: voll → 🗜 Kompakt\n"
+        "Die Wiedergabelisten-Überschriften: voll → 🗜 Kompakt\n"
         "(Tanz-Überschriften ausgeblendet, jede Runde listet ihre Titel\n"
         "direkt) → 🚫 Ohne Gruppen (auch Runden- und ───-Überschriften\n"
         "fallen weg, die Liste — vor allem eine Eintanz- / Partyliste —\n"
         "ist ein durchgehender Lauf) → 🔢 Nummern (ohne Gruppen, dazu\n"
         "vorne eine Nr.-Spalte, die die Titel zählt).",
-    "Cycle the wishlist area: off → 1 → 2 → 3 → 4 → 4 stacked 2×2.\n"
-    "Right click walks it backwards.\n"
+    "Pick the wishlist area: off, 1, 2, 3, 4 or 4 stacked 2×2.\n"
+    "The mouse wheel steps through them, a right click steps back.\n"
     "Off hides it entirely, even with multiple decks.\n"
     "Double-click any deck/wishlist title to rename it.":
-        "Den Wunschlisten-Bereich durchschalten: aus → 1 → 2 → 3 → 4 →\n"
-        "4 gestapelt 2×2.\n"
-        "Rechtsklick läuft rückwärts.\n"
+        "Den Wunschlisten-Bereich wählen: aus, 1, 2, 3, 4 oder 4 gestapelt 2×2.\n"
+        "Das Mausrad schaltet sie durch, ein Rechtsklick einen Schritt zurück.\n"
         "Aus blendet ihn ganz aus, auch bei mehreren Decks.\n"
         "Doppelklick auf einen Deck-/Wunschlistentitel benennt ihn um.",
     "Export every non-empty playlist deck to its own .m3u in the\n"
@@ -2200,6 +2202,8 @@ CATALOG = {
         "kein Raster bauen — die Liste bleibt eine freie Reihenfolge.",
     "New tournament day": "Neuer Turniertag",
     "Rename tournament day": "Turniertag umbenennen",
+    "Rename tab": "Reiter umbenennen",
+    "Name (empty = default):": "Name (leer = Standard):",
     "Shuffle — put the same titles in a fresh order,\n"
     "as if the party list were built again from scratch.":
         "Mischen — dieselben Titel in eine neue Reihenfolge bringen,\n"
@@ -3486,6 +3490,9 @@ CATALOG = {
         "Laufenden Titel anhalten und ab wo starten?",
     "At the marker": "An der Zeitmarke",
     "From the beginning": "Von vorn",
+    "Start from where?": "Von wo starten?",
+    "You moved the playhead of “%s” to %s.\nStart it from where?": "Du hast den Abspielpunkt von „%s“ auf %s gesetzt.\nVon wo soll er starten?",
+    "At %s": "Bei %s",
     "❓  Ask before a double-click stops the title":
         "❓  Fragen, bevor ein Doppelklick den Titel anhält",
     "On: a double-click on another title while one is playing\n"
@@ -4155,6 +4162,14 @@ CATALOG = {
         "📂  %d Titel aus %d Datei(en) hinzugefügt",
     "📂  Imported %d playlists into %d free slot(s)":
         "📂  %d Wiedergabelisten in %d freie Plätze importiert",
+    "this playlist":
+        "diese Wiedergabeliste",
+    "You picked %d playlist files.\n\nYes: %s goes into %s and the others into the playlists after it, one each. A playlist that holds tracks asks before it is replaced; kept, it passes its file on to the next one.\n\nNo: only %s is imported, into %s.":
+        "Du hast %d Playlist-Dateien gewählt.\n\nJa: %s kommt in %s, die anderen in die Wiedergabelisten danach, je eine. Eine Wiedergabeliste mit Titeln fragt, bevor sie ersetzt wird; behältst du sie, gibt sie ihre Datei an die nächste weiter.\n\nNein: Nur %s wird importiert, in %s.",
+    "No playlist left for %d file(s), not imported:\n\n%s":
+        "Keine Wiedergabeliste mehr frei für %d Datei(en), nicht importiert:\n\n%s",
+    "📂  Imported %d playlist file(s)":
+        "📂  %d Playlist-Datei(en) importiert",
     "%d extra final-round track(s) kept as backups (stacked under their dance)":
         "%d zusätzliche Finaltitel als Reserve behalten (unter ihrem Tanz gestapelt)",
     "%s line(s) name a file the list already had (imported again, not skipped)":
@@ -5059,12 +5074,12 @@ CATALOG = {
         "🖨 Wiedergabeliste gespeichert — %s",
     "Playlist saved as\n%s\n\nOpen it now?":
         "Wiedergabeliste gespeichert als\n%s\n\nJetzt öffnen?",
-    "Cycle 1 → 2 → 4 → 8 → no playlists (and back).":
-        "Durchschalten 1 → 2 → 4 → 8 → keine Wiedergabelisten (und zurück).",
-    "Cycle 1 → 2 → 4 → no playlists (and back).":
-        "Durchschalten 1 → 2 → 4 → keine Wiedergabelisten (und zurück).",
-    "Right click walks the cycle backwards.":
-        "Rechtsklick schaltet rückwärts durch.",
+    "Click picks 1, 2, 4 or 8 playlists, or none.":
+        "Klick wählt 1, 2, 4 oder 8 Wiedergabelisten oder keine.",
+    "Click picks 1, 2 or 4 playlists, or none.":
+        "Klick wählt 1, 2 oder 4 Wiedergabelisten oder keine.",
+    "The mouse wheel steps through them, a right click steps back.":
+        "Das Mausrad schaltet sie durch, ein Rechtsklick einen Schritt zurück.",
     "8 splits into two tabs of four (Group A–D / Group E–H).":
         "8 teilt sich in zwei Reiter zu je vier (Gruppe A–D / Gruppe E–H).",
     "No-playlist hides every deck so the Practice / wishlist / library panes take over.":

@@ -176,6 +176,8 @@ class _Desk(PlayerControlMixin, QWidget):
         self._settings = {"hard_end_fade_secs": 1.0}
         self._mix = OutputMix()
         self._fade_now = FadeNow()
+        self._ramp_timer = SimpleNamespace(
+            start=lambda: None, stop=lambda: None, isActive=lambda: False)
         self._between = BetweenDances()
         self._between.pending = None
         self._played_marked = True

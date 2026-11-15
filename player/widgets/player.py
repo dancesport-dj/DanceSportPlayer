@@ -1559,7 +1559,16 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
         says where this play started, so it goes until the next title loads."""
         self._player.setPosition(ms)
         self._moved_by_hand = True
+        self._hand_ms = ms
         self._wave.set_start(0)
+
+    def hand_spot(self) -> int | None:
+        """⏯ Where the operator put the playhead of this title (ms), or None:
+        not moved since it loaded, or put back at the top. A cued title asks
+        whether to start there (see _start_cued)."""
+        if not self._moved_by_hand or self._hand_ms < 1000:
+            return None
+        return self._hand_ms
 
     def _on_wave_scrubbed(self, ms: int):
         """A drag on the 〰 strip is a drag on the seek bar: the handle and

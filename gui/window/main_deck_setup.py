@@ -8,12 +8,14 @@ import contextlib
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import QEvent, QObject, QSize, Qt
 from PySide6.QtWidgets import (
     QHBoxLayout,
+    QMenu,
     QPushButton,
     QSizePolicy,
     QSplitter,
+    QSplitterHandle,
     QTabBar,
     QTabWidget,
     QToolButton,
@@ -37,6 +39,72 @@ if TYPE_CHECKING:
     from gui.window.hosts import MainWindowHost
 else:
     MainWindowHost = object
+
+
+class WheelSteps(QObject):
+    """Event filter: the mouse wheel over a view button steps its ring, up =
+    forward. A touchpad sends many small deltas, so a step waits for one full
+    notch (120) to add up. Parented to the button, so it lives as long as it."""
+
+    NOTCH = 120
+
+    def __init__(self, btn, step):
+        super().__init__(btn)
+        self._step = step   # step(back: bool)
+        self._sum = 0
+        btn.installEventFilter(self)
+
+    def eventFilter(self, obj, event):
+        if event.type() != QEvent.Type.Wheel:
+            return False
+        self._sum += event.angleDelta().y()
+        while abs(self._sum) >= self.NOTCH:
+            back = self._sum < 0
+            self._sum += self.NOTCH if back else -self.NOTCH
+            self._step(back)
+        return True
+
+
+class HalvingHandle(QSplitterHandle):
+    """A divider that splits its two neighbours 50:50 — from the right-click
+    menu, or straight away on a double click."""
+
+    def contextMenuEvent(self, event):
+        menu = QMenu(self)
+        arrow = "⇔" if self.orientation() == Qt.Orientation.Horizontal else "⇕"
+        act = menu.addAction(arrow + "  " + i18n.t("Split 50:50"))
+        if menu.exec(event.globalPos()) is act:
+            self.halve()
+
+    def mouseDoubleClickEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.halve()
+        else:
+            super().mouseDoubleClickEvent(event)
+
+    def halve(self):
+        split = self.splitter()
+        at = next(i for i in range(split.count()) if split.handle(i) is self)
+        # the pane before is the nearest one shown: a hidden pane has no size
+        before = next((i for i in range(at - 1, -1, -1)
+                       if (w := split.widget(i)) is not None and not w.isHidden()), None)
+        if before is None:
+            return
+        sizes = split.sizes()
+        both = sizes[before] + sizes[at]
+        sizes[before], sizes[at] = both // 2, both - both // 2
+        split.setSizes(sizes)
+        # setSizes is silent; what follows a drag (the paired column, the
+        # remembered wishlist sizes) has to hear this one too
+        split.splitterMoved.emit(self.pos().x() if self.orientation() == Qt.Orientation.Horizontal
+                                 else self.pos().y(), at)
+
+
+class HalvingSplitter(QSplitter):
+    """The deck and wishlist splitters: their dividers split 50:50."""
+
+    def createHandle(self):
+        return HalvingHandle(self.orientation(), self)
 
 
 def savedWhole(value, default: int) -> int:
@@ -244,19 +312,23 @@ class DeckSetupMixin(MainWindowHost):
         self._check_btn.clicked.connect(self._show_check_menu)
         btn_warmup.clicked.connect(self._generate_warmup)
         btn_print.clicked.connect(self._print_running_order)
-        # Left click steps the ring forward, right click back. A QPushButton has
-        # no right-click signal of its own, so the context-menu request is it —
-        # neither button carries a menu, and a right click never fires clicked().
-        self._dual_btn.clicked.connect(lambda: self._cycle_deck_view())
+        # Left click opens a pick list of every view, the wheel steps the ring,
+        # right click steps it back. A QPushButton has no right-click signal of
+        # its own, so the context-menu request is it — no button carries a
+        # setMenu(), and a right click never fires clicked().
+        self._dual_btn.clicked.connect(lambda: self._pick_deck_view())
         self._dual_btn.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._dual_btn.customContextMenuRequested.connect(
             lambda _pos: self._cycle_deck_view(back=True))
-        self._compact_btn.clicked.connect(self._cycle_compact)
-        self._dual_wish_btn.clicked.connect(lambda: self._cycle_wish_view())
+        WheelSteps(self._dual_btn, lambda back: self._cycle_deck_view(back=back))
+        self._compact_btn.clicked.connect(lambda: self._pick_compact())
+        WheelSteps(self._compact_btn, lambda back: self._cycle_compact(back=back))
+        self._dual_wish_btn.clicked.connect(lambda: self._pick_wish_view())
         self._dual_wish_btn.setContextMenuPolicy(
             Qt.ContextMenuPolicy.CustomContextMenu)
         self._dual_wish_btn.customContextMenuRequested.connect(
             lambda _pos: self._cycle_wish_view(back=True))
+        WheelSteps(self._dual_wish_btn, lambda back: self._cycle_wish_view(back=back))
         self._warmup_toggle_btn.toggled.connect(self._on_warmup_toggle)
         self._lib_btn.toggled.connect(self._on_library_pane_toggled)
         self._cart_btn.toggled.connect(self._on_cartwall_toggled)
@@ -407,6 +479,7 @@ class DeckSetupMixin(MainWindowHost):
         # away. 'countEmoji' marks such a button, 'countText' is the number —
         # both the badge and what the caption shrinks to.
         self._dual_btn = QPushButton("1 playlist")
+        self._dual_btn.setProperty("pickList", True)   # a click opens a list: ▾
         self._dual_btn.setProperty("countEmoji", "⧉")
         self._dual_btn.setProperty("countText", "1")
         self._dual_btn.setIcon(counted_emoji("⧉", None, 16))
@@ -414,9 +487,9 @@ class DeckSetupMixin(MainWindowHost):
         # A player build stops the ring at four (_max_decks), so its tooltip may
         # not promise a view that install will never reach.
         eight = self._max_decks() >= 8
-        tip = [i18n.t("Cycle 1 → 2 → 4 → 8 → no playlists (and back).") if eight else
-               i18n.t("Cycle 1 → 2 → 4 → no playlists (and back)."),
-               i18n.t("Right click walks the cycle backwards.")]
+        tip = [i18n.t("Click picks 1, 2, 4 or 8 playlists, or none.") if eight else
+               i18n.t("Click picks 1, 2 or 4 playlists, or none."),
+               i18n.t("The mouse wheel steps through them, a right click steps back.")]
         if eight:
             tip.append(i18n.t("8 splits into two tabs of four (Group A–D / Group E–H)."))
         tip += [i18n.t("No-playlist hides every deck so the Practice / wishlist / "
@@ -424,21 +497,24 @@ class DeckSetupMixin(MainWindowHost):
                 i18n.t("Two or more decks also reveal the wishlist below."),
                 i18n.t("Generate / Save / ↺ / play act on whichever deck has focus.")]
         self._dual_btn.setToolTip("\n".join(tip))
-        # Header view, cycled in four steps: full → 🗜 compact (no per-dance header
+        # Header view, picked from four steps: full → 🗜 compact (no per-dance header
         # rows, the Dance column still names each row) → 🚫 no grouping at all (no
         # round / ─── section headers either — a party list as one flat run) →
         # 🔢 numbers (no grouping, plus an Nb. column counting the titles).
         self._compact_btn = QPushButton("🗜  Compact")
+        self._compact_btn.setProperty("pickList", True)
         self._compact_btn.setCheckable(True)
         self._compact_state = savedWhole(self._settings.get("compact", 0) or 0, 0)
         if self._compact_state not in (0, 1, 2, 3):
             self._compact_state = 0
         self._compact_btn.setToolTip(
-            "Cycle the playlist headers: full → 🗜 Compact (per-dance header rows\n"
-            "hidden, each round lists its songs directly) → 🚫 No groups (round and\n"
-            "─── section headers dropped too, so the list — a Practice / party\n"
-            "list above all — is one flat run of songs) → 🔢 Numbers (no groups,\n"
-            "plus an Nb. column up front counting the titles).")
+            i18n.t("Click picks the header view, the mouse wheel steps through them.")
+            + "\n" + i18n.t(
+                "The playlist headers: full → 🗜 Compact (per-dance header rows\n"
+                "hidden, each round lists its songs directly) → 🚫 No groups (round and\n"
+                "─── section headers dropped too, so the list — a Practice / party\n"
+                "list above all — is one flat run of songs) → 🔢 Numbers (no groups,\n"
+                "plus an Nb. column up front counting the titles)."))
         for t in self._deckset.all_tables:
             # Honoured when the tables render during restore. The wishlists are
             # in here too: flat lists have no headers to drop, but their titles
@@ -454,13 +530,14 @@ class DeckSetupMixin(MainWindowHost):
         self._wish_grid = bool(self._settings.get("wish_grid", False)) and self._wish_state == 4
         self._wish_grid_active = False   # what the splitters are actually wired as
         self._dual_wish_btn = QPushButton(self._wish_label())
+        self._dual_wish_btn.setProperty("pickList", True)
         self._dual_wish_btn.setProperty("countEmoji", "⭐")
         self._dual_wish_btn.setProperty("countText", str(self._wish_state))
         self._dual_wish_btn.setIcon(counted_emoji("⭐", None, 16))
         self._dual_wish_btn.setIconSize(QSize(16, 16))
         self._dual_wish_btn.setToolTip(
-            "Cycle the wishlist area: off → 1 → 2 → 3 → 4 → 4 stacked 2×2.\n"
-            "Right click walks it backwards.\n"
+            "Pick the wishlist area: off, 1, 2, 3, 4 or 4 stacked 2×2.\n"
+            "The mouse wheel steps through them, a right click steps back.\n"
             "Off hides it entirely, even with multiple decks.\n"
             "Double-click any deck/wishlist title to rename it.")
         self._warmup_toggle_btn = QPushButton("🤸  Practice / Party ▾")
@@ -579,15 +656,15 @@ class DeckSetupMixin(MainWindowHost):
         # B above D (right). Built column-wise (not row-wise) so folding a deck
         # to a tab frees VERTICAL space for the other deck in the same column.
         # Single/Two-deck views use the top decks only.
-        self._grid.decks_col1 = QSplitter(Qt.Orientation.Vertical)
+        self._grid.decks_col1 = HalvingSplitter(Qt.Orientation.Vertical)
         self._grid.decks_col1.addWidget(deckA_box)
         self._grid.decks_col1.addWidget(self._grid.deckC_box)
         self._grid.decks_col1.setSizes([500, 500])
-        self._grid.decks_col2 = QSplitter(Qt.Orientation.Vertical)
+        self._grid.decks_col2 = HalvingSplitter(Qt.Orientation.Vertical)
         self._grid.decks_col2.addWidget(self._grid.deckB_box)
         self._grid.decks_col2.addWidget(self._grid.deckD_box)
         self._grid.decks_col2.setSizes([500, 500])
-        self._grid.decks_split = QSplitter(Qt.Orientation.Horizontal)
+        self._grid.decks_split = HalvingSplitter(Qt.Orientation.Horizontal)
         self._grid.decks_split.addWidget(self._grid.decks_col1)
         self._grid.decks_split.addWidget(self._grid.decks_col2)
         self._grid.decks_split.setSizes([500, 500])
@@ -601,15 +678,15 @@ class DeckSetupMixin(MainWindowHost):
 
         # Second 2×2 grid (decks E–H), shown on the "Group E–H" tab in 8-deck mode.
         # Built exactly like the first grid: 🅴 above 🅶 (left), 🅵 above 🅷 (right).
-        self._grid.decks_col3 = QSplitter(Qt.Orientation.Vertical)
+        self._grid.decks_col3 = HalvingSplitter(Qt.Orientation.Vertical)
         self._grid.decks_col3.addWidget(self._grid.deckE_box)
         self._grid.decks_col3.addWidget(self._grid.deckG_box)
         self._grid.decks_col3.setSizes([500, 500])
-        self._grid.decks_col4 = QSplitter(Qt.Orientation.Vertical)
+        self._grid.decks_col4 = HalvingSplitter(Qt.Orientation.Vertical)
         self._grid.decks_col4.addWidget(self._grid.deckF_box)
         self._grid.decks_col4.addWidget(self._grid.deckH_box)
         self._grid.decks_col4.setSizes([500, 500])
-        self._grid.decks_split2 = QSplitter(Qt.Orientation.Horizontal)
+        self._grid.decks_split2 = HalvingSplitter(Qt.Orientation.Horizontal)
         self._grid.decks_split2.addWidget(self._grid.decks_col3)
         self._grid.decks_split2.addWidget(self._grid.decks_col4)
         self._grid.decks_split2.setSizes([500, 500])
@@ -623,15 +700,15 @@ class DeckSetupMixin(MainWindowHost):
         # Two more 2×2 grids for the 📅 day decks, mirroring the normal groups:
         # day 🄰 above 🄲 (left) and 🄱 above 🄳 (right), same for 🄴–🄷. They live
         # in their own sub-tab widget on the "📅 Tournament day" page.
-        self._grid.day_col1 = QSplitter(Qt.Orientation.Vertical)
+        self._grid.day_col1 = HalvingSplitter(Qt.Orientation.Vertical)
         self._grid.day_col1.addWidget(self._grid.day_boxes[0])
         self._grid.day_col1.addWidget(self._grid.day_boxes[2])
         self._grid.day_col1.setSizes([500, 500])
-        self._grid.day_col2 = QSplitter(Qt.Orientation.Vertical)
+        self._grid.day_col2 = HalvingSplitter(Qt.Orientation.Vertical)
         self._grid.day_col2.addWidget(self._grid.day_boxes[1])
         self._grid.day_col2.addWidget(self._grid.day_boxes[3])
         self._grid.day_col2.setSizes([500, 500])
-        self._grid.day_split = QSplitter(Qt.Orientation.Horizontal)
+        self._grid.day_split = HalvingSplitter(Qt.Orientation.Horizontal)
         self._grid.day_split.addWidget(self._grid.day_col1)
         self._grid.day_split.addWidget(self._grid.day_col2)
         self._grid.day_split.setSizes([500, 500])
@@ -639,15 +716,15 @@ class DeckSetupMixin(MainWindowHost):
             lambda *_: self._grid.day_col2.setSizes(self._grid.day_col1.sizes()))
         self._grid.day_col2.splitterMoved.connect(
             lambda *_: self._grid.day_col1.setSizes(self._grid.day_col2.sizes()))
-        self._grid.day_col3 = QSplitter(Qt.Orientation.Vertical)
+        self._grid.day_col3 = HalvingSplitter(Qt.Orientation.Vertical)
         self._grid.day_col3.addWidget(self._grid.day_boxes[4])
         self._grid.day_col3.addWidget(self._grid.day_boxes[6])
         self._grid.day_col3.setSizes([500, 500])
-        self._grid.day_col4 = QSplitter(Qt.Orientation.Vertical)
+        self._grid.day_col4 = HalvingSplitter(Qt.Orientation.Vertical)
         self._grid.day_col4.addWidget(self._grid.day_boxes[5])
         self._grid.day_col4.addWidget(self._grid.day_boxes[7])
         self._grid.day_col4.setSizes([500, 500])
-        self._grid.day_split2 = QSplitter(Qt.Orientation.Horizontal)
+        self._grid.day_split2 = HalvingSplitter(Qt.Orientation.Horizontal)
         self._grid.day_split2.addWidget(self._grid.day_col3)
         self._grid.day_split2.addWidget(self._grid.day_col4)
         self._grid.day_split2.setSizes([500, 500])
@@ -678,14 +755,14 @@ class DeckSetupMixin(MainWindowHost):
         # the 4 wishlist boxes directly; in 2×2 grid mode (4 wishlists only) it instead
         # holds two vertical column splitters — wish 1/3 left, wish 2/4 right, mirroring
         # the deck grid. _rebuild_wish_layout reparents the boxes between the two shapes.
-        self._grid.wish_col1 = QSplitter(Qt.Orientation.Vertical)
-        self._grid.wish_col2 = QSplitter(Qt.Orientation.Vertical)
+        self._grid.wish_col1 = HalvingSplitter(Qt.Orientation.Vertical)
+        self._grid.wish_col2 = HalvingSplitter(Qt.Orientation.Vertical)
         # One shared row divider for the 2×2 grid (drag either handle, both move).
         self._grid.wish_col1.splitterMoved.connect(
             lambda *_: self._grid.wish_col2.setSizes(self._grid.wish_col1.sizes()))
         self._grid.wish_col2.splitterMoved.connect(
             lambda *_: self._grid.wish_col1.setSizes(self._grid.wish_col2.sizes()))
-        self._grid.wish_split = QSplitter(Qt.Orientation.Horizontal)
+        self._grid.wish_split = HalvingSplitter(Qt.Orientation.Horizontal)
         self._rebuild_wish_layout()
         # Remember the user's manual divider drags per wish-state (2 vs 3 vs 4 visible
         # wishlists each keep their own layout); _update_wish_area replays these instead

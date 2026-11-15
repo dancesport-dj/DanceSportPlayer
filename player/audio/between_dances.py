@@ -55,6 +55,9 @@ class BetweenDances:
     pending: tuple[PlaylistTable, int, Path] | None = None
     # Monotonic time that next song starts.
     advance_at: float = 0.0
+    # The seconds the pause had left when Planning was opened over it, which
+    # holds it there (see _between_tick); None while it counts.
+    held_left: float | None = None
     # Whether that pause is long enough to be worth showing the hall
     # (see _pause_on_screen): with the ⏸ switch off it lasts one refresh.
     shown: bool = False

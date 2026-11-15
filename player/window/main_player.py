@@ -463,10 +463,12 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         self._drop_on_air()
         paused = self._between.pending is not None
         self._between.pending = None
+        self._between.held_left = None
         if paused and getattr(self, "_cart_voices", None) is not None:
             self._cart_follow_deck(None)   # 🎶 no Paso Doble is coming now
         self._pd_stop_at = None
         self._fade_now.cancel()
+        self._follow_fade(None)
         self._set_fade_indicator(False)
         # The level goes back only when the next song starts (see
         # _on_playback_state): every caller stops the player now, and a full
@@ -980,6 +982,9 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         fade-out ramp over the last N seconds, and the stop at play length."""
         if not self._player:
             return
+        # Each tick says afresh which ramp the fine steps follow; a branch
+        # that leaves it unsaid stops them.
+        self._fade_now.follow = None
         # Between-songs pause: count down, then fire the queued next song.
         if self._between.pending is not None:
             self._between_tick(self._player, self._between.pending)
@@ -1026,6 +1031,7 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
                 return
             self._mix.fade = self._fade_now.level(remaining)
             self._apply_volume()
+            self._follow_fade(("hand",))
             self._set_countdown(f"{'🛑' if hold else '🔉↓'}  {remaining:.0f} s")
             return
         if not self._is_playing_mode():
@@ -1071,6 +1077,8 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
             if self._mix.fade != level:
                 self._mix.fade = level
                 self._apply_volume()
+            if 0.0 < level < 1.0:
+                self._follow_fade(("hard",))
             self._set_countdown("")
             return
         limit = self._play_end_secs()
@@ -1091,8 +1099,47 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         floor = self._cut_fade_floor() if x < 1.0 else 0.0
         self._mix.fade = min(floor + (1.0 - floor) * x, self._hard_end_level())
         self._apply_volume()
+        if 0.0 < self._mix.fade < 1.0:
+            self._follow_fade(("timed", remaining, fade, floor, time.monotonic()))
         r = int(remaining + 0.999)
         self._set_countdown(f"⏳  {r // 60}:{r % 60:02d}")
+
+    def _follow_fade(self, follow: tuple | None) -> None:
+        """Let the mix's fine ramp steps carry the fade-out ramp `follow`
+        until the next tick (see _step_fade_out), or nothing (None)."""
+        self._fade_now.follow = follow
+        if follow is not None and not self._ramp_timer.isActive():
+            self._ramp_timer.start()
+
+    def _step_fade_out(self) -> bool:
+        """🔉 One fine step of the fade-out between two play ticks, on the
+        mix's ramp timer (the caller pushes the level). True while there is a
+        ramp to follow, so the timer keeps running for it.
+
+        On the 200 ms tick alone the last step before silence was up to a
+        fifteenth of full level on a 3 s fade, about -23 dB, cut off by the
+        stop. The tick still decides which ramp runs and when the title ends;
+        this only moves the level along it. The ⏳ timed ramp goes on by the
+        clock from where the tick measured it."""
+        follow = self._fade_now.follow
+        player = self._player
+        if follow is None:
+            return False
+        if (player is None
+                or player.playbackState() != QMediaPlayer.PlaybackState.PlayingState
+                or (follow[0] == "hand" and not self._fade_now.running)):
+            self._fade_now.follow = None
+            return False
+        if follow[0] == "hand":
+            level = self._fade_now.level(max(0.0, self._fade_now.remaining()))
+        elif follow[0] == "hard":
+            level = self._hard_end_level()
+        else:
+            _kind, remaining, fade, floor, at = follow
+            x = max(0.0, min(1.0, (remaining - (time.monotonic() - at)) / fade))
+            level = min(floor + (1.0 - floor) * x, self._hard_end_level())
+        self._mix.fade = level
+        return True
 
     def _hard_end_level(self) -> float:
         """✂️ The level the end of the file allows (0…1): full, unless it stops in
@@ -1306,12 +1353,21 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         # is what armed this, so its own switch is what can call it off —
         # unless 🔁 armed it, which never asked that switch (see
         # _queue_auto_advance).
-        if (not self._is_playing_mode()
-                or not (self._deck_advance(pending[0]) or self._looping())):
+        if not (self._deck_advance(pending[0]) or self._looping()):
             self._stop_play_timer()   # turned off during the pause → cancel
             player.setSource(QUrl())   # release the preloaded file
             self._set_fade_indicator(False)   # no ⏭ ramp runs on into nothing
             return
+        if not self._is_playing_mode():
+            # Planning opened over the pause holds it: nothing starts by itself
+            # there, and back in Playing it counts on from the seconds it had
+            # left, into the same next title (Marcel, 2026-11-14).
+            if self._between.held_left is None:
+                self._between.held_left = max(0.0, self._between.advance_at - time.monotonic())
+            self._between.advance_at = time.monotonic() + self._between.held_left
+            self._set_fade_indicator(False)
+            return
+        self._between.held_left = None
         # 🔉 The quit fade: the wall's beds go down, no next title follows.
         if self._fade_now.quitting:
             return
@@ -2103,15 +2159,51 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
                 or self._start_cued())
 
     def _start_cued(self) -> bool:
-        """⏯ on a title that was loaded but never started."""
+        """⏯ on a title that was loaded but never started.
+
+        Its playhead put somewhere by hand (a click on the 〰 strip) is lost
+        to the full start, which loads it afresh: so ask first - there, from
+        the beginning (its ↩ marker goes too, as in the marker question), or
+        Cancel, which leaves it cued."""
         if not (self._cued and self._playback.path is not None
                 and self._is_player_stopped()):
             return False
+        spot = self._big_player.hand_spot() if self._big_player else None
+        if spot is not None:
+            choice = self._ask_cued_spot(spot)
+            if choice is None:
+                return True
+            if choice == "top":
+                self._clear_resume(self._playback.path)
+            else:
+                self._playback.spot_ms = spot
         # Not through its row's ▶, so say which list now plays, as that does.
         table, _row = self._playing_row()
         self._on_list_play(table)
         self._play_or_stop(self._playback.path)
         return True
+
+    def _ask_cued_spot(self, ms: int) -> str | None:
+        """The cued title's playhead stands at `ms`: "spot" (Enter), "top" or
+        None (Escape)."""
+        path = self._playback.path
+        at = f"{ms // 60_000}:{ms // 1000 % 60:02d}"
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Question)
+        box.setWindowTitle(i18n.t("Start from where?"))
+        box.setText(i18n.t("You moved the playhead of “%s” to %s.\n"
+                           "Start it from where?")
+                    % (path.stem if path is not None else "", at))
+        # The same order as the time-marker question: the beginning first.
+        top_btn = box.addButton(i18n.t("From the beginning"),
+                                QMessageBox.ButtonRole.AcceptRole)
+        spot_btn = box.addButton(i18n.t("At %s") % at, QMessageBox.ButtonRole.AcceptRole)
+        cancel_btn = box.addButton(i18n.t("Cancel"), QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(spot_btn)
+        box.setEscapeButton(cancel_btn)
+        box.exec()
+        clicked = box.clickedButton()
+        return "spot" if clicked is spot_btn else "top" if clicked is top_btn else None
 
     # ── ☀ Keeping the screen awake ────────────────────────────────────────────
 

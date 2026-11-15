@@ -102,9 +102,9 @@ Hover over one for its full name.
 | 📌 Save state | Saves the whole session now. This also happens by itself on every edit and on close. |
 | 🧹 Clear all | Asks what to empty: the playlists (ticked), the wishlists, and the 🤸 Party list. A kind with nothing in it is greyed, and OK needs a tick. |
 | 🚦 Check ▾ | **🚦 Ready?**, the check before the evening, see [chapter 4](04-playing.md#-ready-before-the-evening). The full app adds 🔁 Check duplicates, 🎵 Check music and 🧭 Fix paths to this menu. |
-| ⧉ *n* playlists | Cycles through the number of decks on screen. A right click goes backwards. |
-| 🗜 Compact | Cycles the header view: full → compact → no groups → numbered. Drag the right edge of the numbers to change their width; double-click it for the automatic width. |
-| ⭐ *n* wishlists | Cycles the wishlist area: off → 1 → 2 → 3 → 4 → 2×2. |
+| ⧉ *n* playlists | A click lists the deck views to pick one: 1, 2 or 4 playlists, or none. The mouse wheel over it steps through them, a right click steps back. |
+| 🗜 Compact | A click lists the header views to pick one: full, compact, no groups, numbered. The mouse wheel over it steps through them. Drag the right edge of the numbers to change their width; double-click it for the automatic width. |
+| ⭐ *n* wishlists | A click lists the wishlist views to pick one: off, 1, 2, 3, 4, or 4 as 2×2. The mouse wheel over it steps through them, a right click steps back. |
 | 🤸 Party ▾ | Shows or hides the Party panel. |
 | 📚 Library | Shows or hides the library and tournaments pane. |
 | 🎛 Cartwall | Shows or hides the sample-pad wall. |

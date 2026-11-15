@@ -68,6 +68,9 @@ class RestoreMixin(MainWindowHost):
             self._restore_list_play(data.get("list_play") or {},
                                     data.get("deck_advance") or {})
         self._set_day_tab_title(data.get("day_tab") or "")
+        groups = data.get("group_tabs") or ["", ""]
+        for second, title in enumerate(groups[:2]):
+            self._set_group_tab_title(bool(second), title if isinstance(title, str) else "")
         self._day_tab_keep = bool(data.get("day_tab_keep"))
 
         for key, tbl in zip(WISH_KEYS, self._deckset.wishlists, strict=True):

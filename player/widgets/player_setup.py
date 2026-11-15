@@ -300,6 +300,7 @@ class BigPlayerSetupMixin(BigPlayerHost):
         self._wave_on = True
         self._wave_path: str | None = None
         self._moved_by_hand = False     # an operator seek hid the start line
+        self._hand_ms = 0               # …and where it put the playhead
         self._wave_loader = WaveformLoader(self, cache_of=cache_of)
         self._wave_loader.ready.connect(self._on_wave_ready)
 

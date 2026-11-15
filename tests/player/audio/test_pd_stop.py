@@ -259,6 +259,8 @@ class _TickDesk:
         self._between.pending = None
         self._fade_now = FadeNow()
         self._playback.offset_ms = 0
+        self._ramp_timer = SimpleNamespace(
+            start=lambda: None, stop=lambda: None, isActive=lambda: False)
         self._played_marked = True
         self._countdown = ""
         self._ended = []

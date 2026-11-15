@@ -105,9 +105,9 @@ auf ihr Symbol. Fahr mit der Maus darüber, dann siehst du den vollen Namen.
 | 📌 Zustand | Speichert jetzt die ganze Sitzung. Das passiert auch von selbst bei jeder Änderung und beim Schließen. |
 | 🧹 Leeren | Fragt, was geleert werden soll: die Wiedergabelisten (angehakt), die Wunschlisten und die 🤸 Party-Liste. Eine Art ohne Inhalt ist ausgegraut, und OK braucht einen Haken. |
 | 🚦 Prüfen ▾ | **🚦 Bereit?**, der Check vor dem Abend, siehe [Kapitel 4](04-playing.md#-bereit-vor-dem-abend). Die volle App ergänzt das Menü um 🔁 Doppelte prüfen, 🎵 Musik prüfen und 🧭 Pfade reparieren. |
-| ⧉ *n* Listen | Schaltet durch die Anzahl der Decks auf dem Bildschirm. Ein Rechtsklick geht rückwärts. |
-| 🗜 Kompakt | Schaltet die Kopfzeilen durch: voll → kompakt → ohne Gruppen → nummeriert. Ziehe den rechten Rand der Nummern, um ihre Breite zu ändern; ein Doppelklick dort stellt die automatische Breite wieder her. |
-| ⭐ *n* Wunschlisten | Schaltet den Wunschlistenbereich durch: aus → 1 → 2 → 3 → 4 → 2×2. |
+| ⧉ *n* Listen | Ein Klick listet die Deck-Ansichten zur Wahl: 1, 2 oder 4 Listen oder keine. Das Mausrad darüber schaltet sie durch, ein Rechtsklick geht einen Schritt zurück. |
+| 🗜 Kompakt | Ein Klick listet die Kopfzeilen-Ansichten zur Wahl: voll, kompakt, ohne Gruppen, nummeriert. Das Mausrad darüber schaltet sie durch. Ziehe den rechten Rand der Nummern, um ihre Breite zu ändern; ein Doppelklick dort stellt die automatische Breite wieder her. |
+| ⭐ *n* Wunschlisten | Ein Klick listet die Wunschlisten-Ansichten zur Wahl: aus, 1, 2, 3, 4 oder 4 als 2×2. Das Mausrad darüber schaltet sie durch, ein Rechtsklick geht einen Schritt zurück. |
 | 🤸 Party ▾ | Blendet den Party-Bereich ein oder aus. |
 | 📚 Bibliothek | Blendet den Bereich Bibliothek und Turniere ein oder aus. |
 | 🎛 Cartwall | Blendet die Wand mit den Sample-Pads ein oder aus. |

@@ -14,6 +14,7 @@ from pathlib import Path
 from unittest import mock
 
 from PySide6.QtCore import QPointF
+from PySide6.QtWidgets import QMenu
 
 # First: it points the app's state files at a temp folder before any app
 # module is imported.
@@ -42,7 +43,7 @@ class PlayerOnlyClickTest(ClickThrough):
         m3u = self.out / "Samstag Party.m3u"
         m3u.write_text("\n".join(["#EXTM3U", *map(str, music)]) + "\n",
                        encoding="utf-8")
-        with self.clicking():
+        with self.clicking() as op:
             self.assertTrue(win.windowTitle().startswith("DanceSport Player"),
                             win.windowTitle())
             # ▶ Playing, with no 📝 / ▶ switch and no planning buttons.
@@ -75,9 +76,21 @@ class PlayerOnlyClickTest(ClickThrough):
                 and Path(win._playback.path) == music[0]),
                 f"playing {win._playback.path}")
             win._on_stop_btn()
-            # ⧉ stops at four decks.
+            # ⧉ stops at four decks: its list offers no eight.
+            offered = []
+
+            def look(menu):
+                offered.extend(a.text() for a in menu.actions())
+                menu.close()
+
+            op.answer(lambda w: isinstance(w, QMenu), look)
+            self.click(win._dual_btn)
+            self.assertIn("4 playlists", offered)
+            self.assertNotIn("8 playlists", offered)
             counts = []
-            for _ in range(5):
+            for pick in ("1 playlist", "2 playlists", "4 playlists",
+                         "No playlist", "1 playlist"):
+                op.pick(pick)
                 self.click(win._dual_btn)
                 counts.append(win._deckset.deck_count)
             self.assertEqual(counts, [1, 2, 4, 0, 1])

@@ -69,6 +69,12 @@ Zeile 🎵 Musikprüfung für Tempo, Länge und den Aufbau der Runden.
   Liste von selbst startet, nach der Pause oder anstelle eines Titels, der
   nicht spielt, hat niemanden zum Fragen: Er startet von vorn, und seine
   Marke fällt weg.
+- Ein *bereiter* Titel, dessen Abspielkopf du verschoben hast (ein Klick in
+  die 〰 Wellenform, der Suchbalken, die Sprungtasten), fragt, wenn ⏯ ihn
+  startet: *Von wo starten?* **Von vorn** (auch seine ↩ Zeitmarke fällt
+  weg), **Bei m:ss**, die Stelle, an die du ihn gesetzt hast (die Vorgabe:
+  Enter nimmt sie), oder **Abbrechen** (Esc), dann bleibt er bereit. Dort
+  aufgenommen, kommt er herein wie ein Start an der Zeitmarke.
 - **Strg + Umschalt + ← / →** springt zum vorigen oder nächsten Titel, und
   **Strg + ← / →** springt 30 s.
 

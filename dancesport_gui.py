@@ -1382,7 +1382,12 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
     def _set_toolbar_btn_text(self, btn, full):
         """Change a toolbar button's caption (e.g. '⧉  2 playlists') while
         honouring the current compaction level — a plain setText would blow an
-        icon-only button back up to (clipped) full text."""
+        icon-only button back up to (clipped) full text.
+
+        A button whose click opens a pick list ('pickList') says so with a ▾,
+        added after the lookup so the caption is still found in the catalog."""
+        if btn.property("pickList"):
+            full = i18n.t(full) + "  ▾"
         btn.setProperty("fullText", full)
         btn.setProperty("iconText", self._toolbar_icon_text(btn, full))
         iconized = (self._toolbar_compact >= 2
@@ -1649,12 +1654,18 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
                         tabs.setCurrentIndex(idx)
                     event.acceptProposedAction()
                     return True
-        # Double-click on the 📅 tab → rename it to the competition name.
+        # Double-click on the 📅 tab → rename it to the competition name; on a
+        # Group A–D / E–H tab → give it a name of its own.
         if event.type() == QEvent.Type.MouseButtonDblClick:
             tb = self._grid.deck_tabs.tabBar()
-            if obj is tb and tb.tabAt(event.position().toPoint()) == self._grid.day_page():
-                self._rename_day_tab()
-                return True
+            if obj is tb:
+                idx = tb.tabAt(event.position().toPoint())
+                if idx == self._grid.day_page():
+                    self._rename_day_tab()
+                    return True
+                if idx in (self._grid.group_page(), self._grid.group_page(True)):
+                    self._rename_group_tab(idx)
+                    return True
         # Right-click on a deck tab → 📅: save-competitions / clear / rename /
         # close menu; Group A–D / E–H: clear-that-page menu. Beside the tabs
         # (the bar spans the whole width) → open a 📅 tab.

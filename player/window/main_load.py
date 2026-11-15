@@ -288,7 +288,7 @@ class TrackLoadMixin(MainWindowHost):
         self._sync_dance_len()        # 🏆 this dance's own length, where it has one
         # ↩ Seeking here would be thrown away — the media is not open yet.
         # `_on_media_status` performs it the moment it is.
-        self._resume_seek_ms = self._resume_mark_for(path)
+        self._resume_seek_ms = self._start_seek_for(path)
         self._playback.pre_roll_ms = self._pre_roll_ms_for(path)   # ⏩ …or this
         self._refresh_resume_marks(path)   # the row badges follow the deck
         # 🪟 The taskbar caption names the title, and a new one has to reach
@@ -636,6 +636,12 @@ class TrackLoadMixin(MainWindowHost):
         if not self.remember_pos() or not self._is_playing_mode():
             return None
         return self._resume.get(path)
+
+    def _start_seek_for(self, path: Path) -> int | None:
+        """↩ Where this load picks `path` up: the spot ⏯ was told to start a
+        cued title at (spent here, once), else its time marker."""
+        spot, self._playback.spot_ms = self._playback.spot_ms, None
+        return spot if spot is not None else self._resume_mark_for(path)
 
     def _pre_roll_ms_for(self, path: Path) -> int:
         """⏩ How far into `path` the big player starts it, or 0. A ↩ mark

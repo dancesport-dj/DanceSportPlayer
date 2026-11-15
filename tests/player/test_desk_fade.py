@@ -157,6 +157,9 @@ class WindowTest(unittest.TestCase):
             _step_volume_ramp = AudioLevelMixin._step_volume_ramp
             _show_pull = AudioLevelMixin._show_pull
 
+            def _step_fade_out(self):
+                return False   # no title fading out
+
             def __init__(self):
                 self._settings = {}
                 self._mix = OutputMix()

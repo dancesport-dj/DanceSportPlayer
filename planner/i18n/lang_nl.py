@@ -1122,6 +1122,9 @@ CATALOG = {
         "🗑  Deze ronde verwijderen (alle heats)",
     "🚫  No groups": "🚫  Geen groepen",
     "🔢  Numbers": "🔢  Nummers",
+    "Full headers": "Alle koppen",
+    "Split 50:50": "50:50 verdelen",
+    "Click picks the header view, the mouse wheel steps through them.": "Een klik kiest de kopweergave, het muiswiel loopt ze door.",
     "🧹  Clear all": "🧹  Leegmaken",
     "🧹  Clear all playlists": "🧹  Alle afspeellijsten leegmaken",
     "🧹  Empty this playlist": "🧹  Deze afspeellijst leegmaken",
@@ -1247,22 +1250,22 @@ CATALOG = {
     "click again to open them all.":
         "Alle ronde- en danskoppen van alle afspeellijsten inklappen —\n"
         "klik nogmaals om ze allemaal te openen.",
-    "Cycle the playlist headers: full → 🗜 Compact (per-dance header rows\n"
+    "The playlist headers: full → 🗜 Compact (per-dance header rows\n"
     "hidden, each round lists its songs directly) → 🚫 No groups (round and\n"
     "─── section headers dropped too, so the list — a Practice / party\n"
     "list above all — is one flat run of songs) → 🔢 Numbers (no groups,\n"
     "plus an Nb. column up front counting the titles).":
-        "De koppen van de afspeellijst doorlopen: volledig → 🗜 Compact (kopregels per\n"
+        "De koppen van de afspeellijst: volledig → 🗜 Compact (kopregels per\n"
         "dans verborgen, elke ronde toont zijn nummers direct) → 🚫 Geen groepen (ook ronde-\n"
         "en ───-sectiekoppen vallen weg, zodat de lijst — vooral een oefen- / feest-\n"
         "lijst — één doorlopende reeks nummers is) → 🔢 Nummers (geen groepen,\n"
         "plus vooraan een Nr.-kolom die de titels telt).",
-    "Cycle the wishlist area: off → 1 → 2 → 3 → 4 → 4 stacked 2×2.\n"
-    "Right click walks it backwards.\n"
+    "Pick the wishlist area: off, 1, 2, 3, 4 or 4 stacked 2×2.\n"
+    "The mouse wheel steps through them, a right click steps back.\n"
     "Off hides it entirely, even with multiple decks.\n"
     "Double-click any deck/wishlist title to rename it.":
-        "Het wensenlijstgebied doorlopen: uit → 1 → 2 → 3 → 4 → 4 gestapeld 2×2.\n"
-        "Rechtsklik loopt achteruit.\n"
+        "Het wensenlijstgebied kiezen: uit, 1, 2, 3, 4 of 4 gestapeld 2×2.\n"
+        "Het muiswiel loopt ze door, een rechtsklik gaat een stap terug.\n"
         "Uit verbergt het helemaal, ook bij meerdere decks.\n"
         "Dubbelklik op een deck- of wensenlijsttitel om hem te hernoemen.",
     "Export every non-empty playlist deck to its own .m3u in the\n"
@@ -1916,6 +1919,8 @@ CATALOG = {
         "Geen van deze nummers zegt welke dans het is, dus er valt geen raster van te bouwen — de lijst blijft een vrije speelvolgorde.",
     "New tournament day": "Nieuwe toernooidag",
     "Rename tournament day": "Toernooidag hernoemen",
+    "Rename tab": "Tab hernoemen",
+    "Name (empty = default):": "Naam (leeg = standaard):",
     "Shuffle — put the same titles in a fresh order,\n"
     "as if the party list were built again from scratch.":
         "Schudden — dezelfde titels in een nieuwe volgorde zetten,\n"
@@ -3034,6 +3039,9 @@ CATALOG = {
         "Het spelende nummer stoppen en vanaf waar starten?",
     "At the marker": "Bij de markering",
     "From the beginning": "Vanaf het begin",
+    "Start from where?": "Waar beginnen?",
+    "You moved the playhead of “%s” to %s.\nStart it from where?": "Je hebt de afspeelpositie van ‘%s’ naar %s gezet.\nWaar moet hij beginnen?",
+    "At %s": "Bij %s",
     "🎚  TSO pitch to the heat tempo": "🎚  TSO: naar het heattempo trekken",
     "↩  Remember where a title stopped": "↩  Onthouden waar een nummer stopte",
     "☀  Keep the screen awake": "☀  Het scherm wakker houden",
@@ -3516,6 +3524,14 @@ CATALOG = {
         "📂  %d nummer(s) uit %d bestand(en) toegevoegd",
     "📂  Imported %d playlists into %d free slot(s)":
         "📂  %d afspeellijsten in %d vrije plek(ken) geïmporteerd",
+    "this playlist":
+        "deze afspeellijst",
+    "You picked %d playlist files.\n\nYes: %s goes into %s and the others into the playlists after it, one each. A playlist that holds tracks asks before it is replaced; kept, it passes its file on to the next one.\n\nNo: only %s is imported, into %s.":
+        "Je hebt %d afspeellijstbestanden gekozen.\n\nJa: %s gaat naar %s en de andere naar de afspeellijsten erna, één per lijst. Een afspeellijst met nummers vraagt eerst of hij vervangen mag worden; houd je hem, dan geeft hij zijn bestand door aan de volgende.\n\nNee: alleen %s wordt geïmporteerd, in %s.",
+    "No playlist left for %d file(s), not imported:\n\n%s":
+        "Geen afspeellijst meer over voor %d bestand(en), niet geïmporteerd:\n\n%s",
+    "📂  Imported %d playlist file(s)":
+        "📂  %d afspeellijstbestand(en) geïmporteerd",
     "%d extra final-round track(s) kept as backups (stacked under their dance)":
         "%d extra finalenummer(s) als reserve bewaard (onder hun dans gestapeld)",
     "%s line(s) name a file the list already had (imported again, not skipped)":
@@ -4344,12 +4360,12 @@ CATALOG = {
         "%s\n"
         "\n"
         "Nu openen?",
-    "Cycle 1 → 2 → 4 → 8 → no playlists (and back).":
-        "Doorlopen 1 → 2 → 4 → 8 → geen afspeellijsten (en terug).",
-    "Cycle 1 → 2 → 4 → no playlists (and back).":
-        "Doorlopen 1 → 2 → 4 → geen afspeellijsten (en terug).",
-    "Right click walks the cycle backwards.":
-        "Rechtsklikken loopt de cyclus achteruit door.",
+    "Click picks 1, 2, 4 or 8 playlists, or none.":
+        "Een klik kiest 1, 2, 4 of 8 afspeellijsten, of geen.",
+    "Click picks 1, 2 or 4 playlists, or none.":
+        "Een klik kiest 1, 2 of 4 afspeellijsten, of geen.",
+    "The mouse wheel steps through them, a right click steps back.":
+        "Het muiswiel loopt ze door, een rechtsklik gaat een stap terug.",
     "8 splits into two tabs of four (Group A–D / Group E–H).":
         "8 wordt verdeeld over twee tabbladen van vier (Groep A–D / Groep E–H).",
     "No-playlist hides every deck so the Practice / wishlist / library panes take over.":

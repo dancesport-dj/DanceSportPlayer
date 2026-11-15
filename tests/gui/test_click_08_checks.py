@@ -481,7 +481,8 @@ class ChecksClickTest(ClickThrough):
         with self.clicking() as op, mock.patch.object(
                 PlaylistTable, "_ask_drop_duplicates", side_effect=_add_too):
             self.generate()
-            self.click(self.button("Cycle the wishlist area"))
+            op.pick("2 wishlists")
+            self.click(self.button("Pick the wishlist area"))
             deck, wish = self.win._deckset.table, self.win._deckset.wishlists[0]
             self.assertTrue(wish.isVisible())
             # A Paso Doble may come round again: the cleanup leaves it alone.

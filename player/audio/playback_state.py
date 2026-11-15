@@ -37,6 +37,9 @@ class PlaybackState:
     hard_ends: dict[str, bool] = field(default_factory=dict)
     # ⏩ The pre-roll seek still owed once the media is open (ms); 0 = none.
     pre_roll_ms: int = 0
+    # ⏯ Where the next load starts the title instead of its ↩ marker (ms):
+    # the spot a hand put a cued title's playhead at; spent by that load.
+    spot_ms: int | None = None
     # Titles that would not play this session, path → the backend's reason.
     # Their rows stay red (a live Check-Music issue) until one plays again.
     failed: dict[str, str] = field(default_factory=dict)

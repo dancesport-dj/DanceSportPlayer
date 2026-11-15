@@ -37,6 +37,8 @@ class DeckGrid:
     - `deck_tabs`: the tabs the deck grids sit on (A–D, E–H, the 📅 day),
       `day_tabs` the two sub-tabs of the day tab, `warmup_box` the warm-up
       list's box, and `right_split`, the decks above the library panes.
+    - `group_titles`: the names the user gave the Group A–D and E–H tabs,
+      "" for the default label.
     """
 
     def __init__(self) -> None:
@@ -70,6 +72,7 @@ class DeckGrid:
         self.warmup_box: QWidget = _UNBUILT
         self.deck_tabs: QTabWidget = _UNBUILT
         self.day_tabs: QTabWidget = _UNBUILT
+        self.group_titles: list[str] = ["", ""]
         self.right_split: QSplitter = _UNBUILT
 
     # The pages are found by their widget: a page added in front, or a

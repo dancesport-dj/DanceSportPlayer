@@ -30,6 +30,9 @@ deck is a **running order**: the titles play from top to bottom.
   bottom show how many steps are available.
 - Double-click the deck title to rename it. **▾** in the header folds the
   deck to a tab.
+- Right-click the divider between two playlists ▸ **⇔ Split 50:50** gives
+  both the same size; a double-click on the divider does it at once. The
+  wishlists' dividers do the same.
 
 The columns:
 
@@ -211,7 +214,7 @@ Wishlists are kept by **🧹 Clear all** unless you tick them in its question.
 
 | To | Do |
 |---|---|
-| Load an `.m3u` into a deck or wishlist | Right-click ▸ **📂 Import M3U…**, or drop the `.m3u` onto it. Several `.m3u` dropped at once go into the free decks, one each. |
+| Load an `.m3u` into a deck or wishlist | Right-click ▸ **📂 Import M3U…**, or drop the `.m3u` onto it. Several `.m3u` dropped at once go into the free decks, one each. Several picked in **📂 Import M3U…** go into this deck and the ones after it, one each, once you say Yes; a deck that holds tracks asks first, and a deck you keep passes its file on to the next. |
 | Load a [venue pack](06-settings.md#venue-pack) from another PC | Drop the `.dpvenue` file onto the program window, or right-click ▸ **📥 Import venue pack…**. It is the same as in ⚙ Settings. |
 | Load a playlist from your tournament archive | Drag its slot from 🏆 Tournaments onto a deck, see [chapter 2](02-library-and-tournaments.md#-tournaments). |
 | Save the focused deck or wishlist | **Ctrl + S**, or right-click a title or the header ▸ **💾 Save as M3U…** |

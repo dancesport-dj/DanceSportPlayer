@@ -29,6 +29,7 @@ from player.window.main_player import PlayerControlMixin
 
 class _Desk(PlayerControlMixin):
     PATH = Path(r"C:\music\walzer.mp3")
+    _big_player = None   # no card, so no playhead moved by hand
 
     def __init__(self, *, cued=True, stopped=True):
         self._playback = PlaybackState()

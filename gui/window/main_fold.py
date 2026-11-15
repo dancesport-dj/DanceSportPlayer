@@ -26,6 +26,10 @@ else:
 
 log = logging.getLogger("dancesport.gui.fold")
 
+# A playlist folded sideways shows only its letter and the ▸/◂ arrow: the
+# header's usual 8 px padding a side was most of the strip's width.
+SLIM_HDR = "padding:2px 3px;"
+
 
 def _activate_layout(box: QWidget) -> None:
     """Lay the box out now, so that its sizeHint already is the folded one."""
@@ -69,13 +73,30 @@ class FoldMixin(MainWindowHost):
         vis = [t for t in pair if self._box_shown(t)]
         return bool(vis) and all(self.deck(t).folded for t in vis)
 
+    def _deck_hdr_style(self, table: PlaylistTable, active: bool) -> str:
+        """The header's style: focused or not, slim while folded sideways."""
+        style = self._DECK_HDR_ACTIVE if active else self._DECK_HDR_IDLE
+        if self.deck(table).folded and self._folded_tab_is_sideways(table):
+            style += SLIM_HDR
+        return style
+
     def _refresh_deck_header(self, table: PlaylistTable):
-        """Re-render a deck/wishlist header label for the current fold state."""
+        """Re-render a deck/wishlist header label for the current fold state.
+        Folded sideways, the header and its arrow button keep no spare width."""
         hdr = self.deck(table).header
         if hdr is None:
             return
         active = self.deck(table).active
+        hdr.setStyleSheet(self._deck_hdr_style(table, active))
         hdr.setText(self._deck_header_text(table, active))
+        btn = self.deck(table).fold_btn
+        if btn is None:
+            return
+        if self.deck(table).folded and self._folded_tab_is_sideways(table):
+            btn.setFixedWidth(btn.fontMetrics().horizontalAdvance("▸") + 4)
+        else:
+            btn.setMinimumWidth(0)
+            btn.setMaximumWidth(16777215)
 
     def _toggle_deck_fold(self, table: PlaylistTable, folded: bool | None = None):
         """Fold a deck/wishlist to a slim header tab (or unfold it) so the remaining
@@ -139,22 +160,7 @@ class FoldMixin(MainWindowHost):
         if folded:
             section_now = self._wish_all_folded() if is_wish else self._all_decks_folded()
             if section_now and not section_was_collapsed:
-                # The section just collapsed to tab rows: pin its pane to the
-                # strip's own height and hand the rest to the other half right
-                # away — the max clamps alone don't make the parent splitter
-                # redistribute synchronously, and zeroing the pane instead
-                # would make its tabs vanish (the splitter drops it to its
-                # minimum, not to the strip height).
-                sizes, d, w = self._deck_and_wish_sizes()
-                rt = sizes[d] + sizes[w]
-                if rt > 0:
-                    strip = (self._grid.wish_split if is_wish
-                             else self._grid.deck_tabs).sizeHint().height()
-                    strip = min(strip, rt)
-                    # The other panes (🤸 warm-up, library browser) keep theirs.
-                    sizes[d], sizes[w] = ((rt - strip, strip) if is_wish
-                                          else (strip, rt - strip))
-                    self._grid.right_split.setSizes(sizes)
+                self._pin_section(is_wish)
         if not folded:
             # Give the freshly unfolded playlist its half of the pair back.
             total = sum(split.sizes())
@@ -163,11 +169,91 @@ class FoldMixin(MainWindowHost):
             # If its whole section (decks / wishlist area) was collapsed to tab
             # height, give the section its share of the window back too.
             if section_was_collapsed:
-                sizes, d, w = self._deck_and_wish_sizes()
-                rt = sizes[d] + sizes[w]
-                if rt > 0:
-                    sizes[d], sizes[w] = int(rt * 0.75), rt - int(rt * 0.75)
-                    self._grid.right_split.setSizes(sizes)
+                self._unpin_section(is_wish)
+
+    def _section_strip(self, is_wish: bool) -> int:
+        """The height of the decks (or the wishlist area) folded to tab rows."""
+        if is_wish:
+            return self._grid.wish_split.sizeHint().height()
+        return self._folded_decks_height()
+
+    def _spare_height_pane(self) -> int:
+        """Where in the right splitter the height goes that neither section can
+        use while both are folded to tab rows: the library pane, else the 🤸
+        warm-up panel, if shown and not folded itself; -1 when neither is."""
+        split = self._grid.right_split
+        for pane in (self._lib_tabs, self._grid.warmup_box):
+            if pane.isVisibleTo(split) and pane.maximumHeight() >= 16777215:
+                return split.indexOf(pane)
+        return -1
+
+    def _pin_section(self, is_wish: bool):
+        """The section just collapsed to tab rows: pin its pane to the strip's
+        own height and hand the rest over right away. The max clamps alone
+        don't make the parent splitter redistribute synchronously, and zeroing
+        the pane instead would make its tabs vanish (the splitter drops it to
+        its minimum, not to the strip height). The rest goes to the other
+        section; when that one is folded to tabs as well, it would only be
+        empty space under its tabs, so the library (or warm-up) pane takes it."""
+        sizes, d, w = self._deck_and_wish_sizes()
+        mine, other = (w, d) if is_wish else (d, w)
+        rt = sizes[d] + sizes[w]
+        if rt <= 0:
+            return
+        strip = min(self._section_strip(is_wish), rt)
+        other_strip = self._section_strip(not is_wish)
+        other_folded = self._all_decks_folded() if is_wish else self._wish_all_folded()
+        spare = self._spare_height_pane()
+        if other_folded and spare >= 0 and rt >= strip + other_strip:
+            sizes[spare] += rt - strip - other_strip
+            sizes[mine], sizes[other] = strip, other_strip
+        else:
+            sizes[mine], sizes[other] = strip, rt - strip
+        self._grid.right_split.setSizes(sizes)
+
+    def _unpin_section(self, is_wish: bool):
+        """Give a section that was folded to tab rows its room back: 3/4 of the
+        two sections, or, while the other one is still folded, whatever the
+        library (or warm-up) pane and the other section hold beyond their share."""
+        sizes, d, w = self._deck_and_wish_sizes()
+        mine, other = (w, d) if is_wish else (d, w)
+        other_folded = self._all_decks_folded() if is_wish else self._wish_all_folded()
+        spare = self._spare_height_pane()
+        if other_folded and spare >= 0:
+            keep = min(sizes[spare], max(140, int(sum(sizes) * 0.25)))
+            other_strip = min(self._section_strip(not is_wish), sizes[other])
+            sizes[mine] += sizes[spare] - keep + sizes[other] - other_strip
+            sizes[spare], sizes[other] = keep, other_strip
+        else:
+            rt = sizes[d] + sizes[w]
+            if rt <= 0:
+                return
+            sizes[d], sizes[w] = int(rt * 0.75), rt - int(rt * 0.75)
+        self._grid.right_split.setSizes(sizes)
+
+    def _folded_decks_height(self) -> int:
+        """The deck section's height once every shown deck is folded: the page
+        on show plus the Group tab bar when it is shown. The tab widget's own
+        sizeHint counts the hidden tab bar (two or four playlists) and the open
+        decks of the pages not on show, which left a gap above the wishlists."""
+        tabs = self._grid.deck_tabs
+        page = tabs.currentWidget()
+        height = page.sizeHint().height() if page is not None else 0
+        if not tabs.tabBar().isHidden():
+            height += tabs.tabBar().sizeHint().height()
+        return height
+
+    def _refit_deck_section(self):
+        """After a group tab switch the page now on show decides whether the
+        deck section stays collapsed to tab rows: pin it to the new strip, or
+        give it its room back when this page has open decks."""
+        was_collapsed = self._grid.deck_tabs.minimumHeight() > 0
+        self._sync_col_fold_constraints()
+        self._refresh_fold_splitters()
+        if self._all_decks_folded():
+            self._pin_section(False)
+        elif was_collapsed:
+            self._unpin_section(False)
 
     def _deck_and_wish_sizes(self) -> tuple[list[int], int, int]:
         """The right splitter's pane heights, and where the decks and the
@@ -216,7 +302,7 @@ class FoldMixin(MainWindowHost):
                 if col_folded and not all_decks_folded:
                     b.setMaximumHeight(16777215)
                     _activate_layout(b)
-                    b.setMaximumWidth(b.sizeHint().width() + 8)
+                    b.setMaximumWidth(b.sizeHint().width() + 2)
                 else:
                     b.setMaximumWidth(16777215)
                     if self.deck(t).folded:
@@ -237,8 +323,8 @@ class FoldMixin(MainWindowHost):
         # The tab widget's minimum is the tallest of ALL its pages — the hidden
         # Group E–H and 📅 pages with their open decks too — so it held a
         # collapsed deck section far above its tab strip.
-        tabs = self._grid.deck_tabs
-        tabs.setMinimumHeight(tabs.sizeHint().height() if all_decks_folded else 0)
+        self._grid.deck_tabs.setMinimumHeight(
+            self._folded_decks_height() if all_decks_folded else 0)
         if rebalance:
             # Rebalance each grid's two columns (the hidden grids are inert).
             for grid, right_col in ((self._grid.decks_split, self._grid.decks_col2),
@@ -279,7 +365,7 @@ class FoldMixin(MainWindowHost):
                     if col_folded and not all_folded:
                         b.setMaximumHeight(16777215)
                         _activate_layout(b)
-                        b.setMaximumWidth(b.sizeHint().width() + 8)
+                        b.setMaximumWidth(b.sizeHint().width() + 2)
                     else:
                         b.setMaximumWidth(16777215)
                         if self.deck(t).folded:
@@ -303,7 +389,7 @@ class FoldMixin(MainWindowHost):
             elif self.deck(t).folded:
                 b.setMaximumHeight(16777215)
                 _activate_layout(b)
-                b.setMaximumWidth(b.sizeHint().width() + 8)
+                b.setMaximumWidth(b.sizeHint().width() + 2)
             else:
                 b.setMaximumWidth(16777215)
                 b.setMaximumHeight(16777215)

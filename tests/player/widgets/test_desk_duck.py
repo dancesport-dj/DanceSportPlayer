@@ -539,6 +539,9 @@ class _PullDesk(_WiredDesk):
     _set_duck_reason = AudioLevelMixin._set_duck_reason
     _show_pull = AudioLevelMixin._show_pull
 
+    def _step_fade_out(self):
+        return False   # no title fading out
+
     def __init__(self, base=0.8):
         super().__init__(base=base)
         self._ramp_timer = SimpleNamespace(

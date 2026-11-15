@@ -264,7 +264,8 @@ class AiClickTest(ClickThrough):
         go = threading.Event()
         model = FakeModel(lambda shown: shown[:4], hold=go)
         with self.clicking() as op, mock.patch.object(llm, "_ask", model):
-            self.click(self.button("Cycle 1 "))
+            op.pick("2 playlists")
+            self.click(self.button("Click picks 1"))
             deck_a, deck_b = self.win._visible_deck_tables()[:2]
             self.click_cell_free(deck_a)
             self.assertIs(self.win._deckset.table, deck_a)

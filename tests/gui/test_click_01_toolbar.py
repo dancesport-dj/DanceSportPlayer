@@ -124,27 +124,29 @@ class ToolbarClickTest(ClickThrough):
             self.click(fold)
             self.assertFalse(deck.folded)
 
-    def test_the_deck_count_cycles_through_its_views(self):
-        with self.clicking():
+    def test_the_deck_count_is_picked_from_its_list(self):
+        with self.clicking() as op:
             win = self.win
             ring = [2, 4, 8, 0, 1] if win._max_decks() >= 8 else [2, 4, 0, 1]
             self.assertEqual(win._deckset.deck_count, 1)
             views = []
-            for _ in ring:
-                self.click(self.button("Cycle 1 "))
+            for n in ring:
+                op.pick("No playlist" if n == 0 else f"{n} playlist")
+                self.click(self.button("Click picks 1"))
                 views.append(win._deckset.deck_count)
             self.assertEqual(views, ring)
             self.assertTrue(win._deckset.table.isVisible(), "deck 1 hidden in the 1-deck view")
 
-    def test_compact_cycles_the_headers_and_keeps_the_titles(self):
-        with self.clicking():
+    def test_compact_picks_the_headers_and_keeps_the_titles(self):
+        with self.clicking() as op:
             self.generate(rounds="2-1")
             table = self.win._deckset.table
             titles = self.titles()
             full = table.rowCount()
             states = []
-            for _ in range(4):
-                self.click(self.button("Cycle the playlist headers"))
+            for caption in ("🗜  Compact", "🚫  No groups", "🔢  Numbers", "Full headers"):
+                op.pick(caption)
+                self.click(self.button("Click picks the header view"))
                 states.append(self.win._compact_state)
                 self.assertEqual(sorted(self.titles()), sorted(titles))
                 if self.win._compact_state in (2, 3):     # 🚫 no grouping, 🔢 numbers
@@ -153,13 +155,15 @@ class ToolbarClickTest(ClickThrough):
             self.assertEqual(states, [1, 2, 3, 0])
             self.assertEqual(table.rowCount(), full)
 
-    def test_the_wishlist_area_cycles_through_its_views(self):
-        with self.clicking():
+    def test_the_wishlist_area_is_picked_from_its_list(self):
+        with self.clicking() as op:
             win = self.win
             self.assertEqual((win._wish_state, win._wish_grid), (1, False))
             views = []
-            for _ in range(6):
-                self.click(self.button("Cycle the wishlist area"))
+            for caption in ("2 wishlists", "3 wishlists", "4 wishlists",
+                            "4 wishlists (", "No wishlist", "1 wishlist"):
+                op.pick(caption)
+                self.click(self.button("Pick the wishlist area"))
                 views.append((win._wish_state, win._wish_grid))
             self.assertEqual(views, [(2, False), (3, False), (4, False),
                                      (4, True), (0, False), (1, False)])
@@ -168,7 +172,8 @@ class ToolbarClickTest(ClickThrough):
         with self.clicking():
             self.generate(rounds="1")
             # One deck on screen hides the single wishlist: ⭐ shows two.
-            self.click(self.button("Cycle the wishlist area"))
+            self._operator.pick("2 wishlists")
+            self.click(self.button("Pick the wishlist area"))
             deck, wish = self.win._deckset.table, self.win._deckset.wishlists[0]
             self.assertTrue(wish.isVisible())
             first, second, *_ = self.song_rows()
