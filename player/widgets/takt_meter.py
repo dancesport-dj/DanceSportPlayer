@@ -9,7 +9,6 @@ from PySide6.QtCore import QEvent, QPoint, Qt, QTimer, Signal
 from PySide6.QtGui import QMouseEvent
 from PySide6.QtWidgets import (
     QApplication,
-    QDoubleSpinBox,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -20,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 import planner.models
+from player.widgets.panel_parts import ClickWheelDoubleSpinBox
 from shared.appearance.icons import button as icon_button
 
 _INK = "#cfe0f5"
@@ -183,7 +183,7 @@ class TaktMeterOverlay(QFrame):
 
         sollwert_row = QHBoxLayout()
         sollwert_row.addWidget(QLabel("Target:"))
-        self._sollwert_spin = QDoubleSpinBox()
+        self._sollwert_spin = ClickWheelDoubleSpinBox()
         self._sollwert_spin.setRange(0, 99.9)
         self._sollwert_spin.setDecimals(1)
         self._sollwert_spin.setSuffix(" Takt/min")

@@ -1787,8 +1787,6 @@ CATALOG = {
         "No se descarga ni se instala nada.\n"
         "\n"
         "Puedes cambiarlo en cualquier momento en ⚙ Ajustes → ⚙ General.",
-    "🔔  Also tell me when a new version is out":
-        "🔔  Avísame también cuando salga una versión nueva",
     "New versions": "Versiones nuevas",
     "Tell you when a new version is out?": "¿Avisarte cuando salga una versión nueva?",
     "Check for new versions": "Buscar versiones nuevas",

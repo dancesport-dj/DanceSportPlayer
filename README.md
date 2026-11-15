@@ -182,9 +182,9 @@ Not your music, not your playlists, not your computer's name, and your user
 folder is cut out of every path. Like any server, GlitchTip sees the IP address
 a report comes from.
 
-**A check for new versions, only if you allow it.** The same first-start
-question has a box for it, unticked by default; ⚙ Settings → ⚙ General
-changes it at any time. When it is on, every start asks GitHub's API
+**A check for new versions, only if you allow it.** The first start asks
+it in a question of its own, apart from the error reports, and "Don't check"
+is the default; ⚙ Settings → ⚙ General changes it at any time. When it is on, every start asks GitHub's API
 (api.github.com) once for the latest release of this repository. The request
 carries no version, no settings and nothing about your music; like any server,
 GitHub sees the IP address it comes from. A newer version is announced once,

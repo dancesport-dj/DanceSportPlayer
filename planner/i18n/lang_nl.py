@@ -1779,8 +1779,6 @@ CATALOG = {
         "gedownload of geïnstalleerd.\n"
         "\n"
         "Je kunt dit altijd wijzigen onder ⚙ Instellingen → ⚙ Algemeen.",
-    "🔔  Also tell me when a new version is out":
-        "🔔  Laat me ook weten wanneer er een nieuwe versie is",
     "New versions": "Nieuwe versies",
     "Tell you when a new version is out?": "Je laten weten wanneer er een nieuwe versie is?",
     "Check for new versions": "Naar nieuwe versies zoeken",

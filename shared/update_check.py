@@ -1,7 +1,7 @@
 """🔔 Update check: whether GitHub has a newer release, if the user said yes.
 
-Opt-in, like the error reports, and asked about in the same first-start
-question. Off, nothing here runs. On, every start of a release build sends one
+Opt-in, like the error reports, and asked about in a first-start question of
+its own, not tied to theirs. Off, nothing here runs. On, every start of a release build sends one
 HTTPS request for the latest release of the public repository to GitHub's API
 (api.github.com). It carries no version, no settings and nothing about the
 library; GitHub sees the IP address and the time, as any server would. A newer

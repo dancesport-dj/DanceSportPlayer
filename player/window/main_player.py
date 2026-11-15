@@ -1908,6 +1908,8 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         self._refresh_loudness_gain()
         if not self._fade_timer.isActive():
             self._fade_timer.start()
+        if self._playback.fade_in_from is not None and not self._ramp_timer.isActive():
+            self._ramp_timer.start()   # 🌅 the fine fade-in steps from the first note
         if (self._playback.dance == "PD" and self._playback.path is not None
                 and self._pd_highlight()[0]
                 and self._pd_stop_at is None):
@@ -2164,11 +2166,14 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         Its playhead put somewhere by hand (a click on the 〰 strip) is lost
         to the full start, which loads it afresh: so ask first - there, from
         the beginning (its ↩ marker goes too, as in the marker question), or
-        Cancel, which leaves it cued."""
+        Cancel, which leaves it cued. A title with a ↩ time marker asks the
+        same way where it starts (its row's ▶ never does: the row is already
+        the one on the card). A hand-moved playhead has its own question."""
         if not (self._cued and self._playback.path is not None
                 and self._is_player_stopped()):
             return False
         spot = self._big_player.hand_spot() if self._big_player else None
+        mark = self._resume_mark_for(self._playback.path)
         if spot is not None:
             choice = self._ask_cued_spot(spot)
             if choice is None:
@@ -2177,11 +2182,29 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
                 self._clear_resume(self._playback.path)
             else:
                 self._playback.spot_ms = spot
+        elif mark:
+            choice = self._ask_cued_marker(mark)
+            if choice is None:
+                return True
+            if choice == "top":
+                self._clear_resume(self._playback.path)
         # Not through its row's ▶, so say which list now plays, as that does.
         table, _row = self._playing_row()
         self._on_list_play(table)
         self._play_or_stop(self._playback.path)
         return True
+
+    def _ask_cued_marker(self, ms: int) -> str | None:
+        """The cued title has a ↩ time marker at `ms`: "mark" (Enter), "top"
+        or None (Escape). The deck's own question, so the wording and the
+        buttons are the ones ▶ on a row shows."""
+        table, row = self._playing_row()
+        path = self._playback.path
+        if table is None:
+            return "mark"   # no deck to ask through: the marker stands, as before
+        entry = table._row_meta.entry_at(row)
+        title = entry.title if entry else (path.stem if path is not None else "")
+        return table._ask_resume_mark(title, ms, running=False)
 
     def _ask_cued_spot(self, ms: int) -> str | None:
         """The cued title's playhead stands at `ms`: "spot" (Enter), "top" or

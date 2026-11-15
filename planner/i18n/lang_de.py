@@ -2026,8 +2026,6 @@ CATALOG = {
         "heruntergeladen oder installiert.\n"
         "\n"
         "Das kannst du jederzeit unter ⚙ Einstellungen → ⚙ Allgemein ändern.",
-    "🔔  Also tell me when a new version is out":
-        "🔔  Sag mir auch, wenn eine neue Version erscheint",
     "New versions": "Neue Versionen",
     "Tell you when a new version is out?":
         "Dir Bescheid sagen, wenn eine neue Version erscheint?",

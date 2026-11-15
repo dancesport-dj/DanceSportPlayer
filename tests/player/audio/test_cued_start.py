@@ -40,6 +40,7 @@ class _Desk(PlayerControlMixin):
         self._between = BetweenDances()
         self._between.round_start = None
         self._playback.token = 1
+        self._settings = {}   # ↩ remembering off: no time marker to ask about
         self._deckset = DeckSet()
         self._deckset.all_tables = ()   # no deck: the start names none as live
         self.loads = []

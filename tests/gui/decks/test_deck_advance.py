@@ -190,6 +190,7 @@ class DeckAdvanceTest(unittest.TestCase):
         desk._cued = True
         desk._playback.path = Path("first.mp3")
         desk._is_player_stopped = lambda: True
+        desk._resume_mark_for = lambda path: None   # no marker: no question
         started = []
         desk._play_or_stop = lambda path, start=True: started.append(path)
         self.playing(desk, b)                  # the cue marked b's first row

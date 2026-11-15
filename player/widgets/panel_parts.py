@@ -20,11 +20,13 @@ from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen
 from PySide6.QtWidgets import (
     QAbstractButton,
     QComboBox,
+    QDoubleSpinBox,
     QHBoxLayout,
     QLabel,
     QLayout,
     QLineEdit,
     QSizePolicy,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -358,6 +360,40 @@ class FitLabel(QLabel):
         if f.pointSizeF() != pt:
             f.setPointSizeF(pt)
             self.setFont(f)
+
+
+class ClickWheelSpinBox(QSpinBox):
+    """A spin box that only takes the wheel once it has been clicked into.
+
+    Qt steps a spin box on any wheel notch over it, focus or not, so a
+    two-finger scroll over the playing column that happens to pass a spin box
+    changes a setting nobody meant to touch. Strong focus keeps the wheel from
+    handing out focus; an unfocused box ignores the event, which passes the
+    scroll on to the scroll area above it."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
+    def wheelEvent(self, event):
+        if not self.hasFocus():
+            event.ignore()
+            return
+        super().wheelEvent(event)
+
+
+class ClickWheelDoubleSpinBox(QDoubleSpinBox):
+    """`ClickWheelSpinBox` for decimals."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
+    def wheelEvent(self, event):
+        if not self.hasFocus():
+            event.ignore()
+            return
+        super().wheelEvent(event)
 
 
 class RefreshingCombo(QComboBox):

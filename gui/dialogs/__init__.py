@@ -836,8 +836,8 @@ def ensure_library_dir() -> str:
     return folder
 
 
-# The 🔔 update check's opt-in: the checkbox under the error reports question,
-# and the question of its own where that one is not asked.
+# The 🔔 update check's opt-in: a question of its own, not tied to the error
+# reports one — each is the user's call.
 _UPDATE_CHECK_TIP = (
     "Once per start, the app asks GitHub (api.github.com) for the latest\n"
     "release. The request carries nothing about you or your music; GitHub\n"
@@ -848,12 +848,9 @@ _UPDATE_CHECK_TIP = (
 
 class ErrorReportsQuestion(QMessageBox):
     """🐞 The one-time question whether error reports may go out. Not sending
-    is the default, and what Esc or closing the box answers.
+    is the default, and what Esc or closing the box answers."""
 
-    With `ask_updates` it carries the 🔔 update check's opt-in as a checkbox,
-    off by default: one question about going online, not two."""
-
-    def __init__(self, parent=None, ask_updates: bool = False):
+    def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Error reports")
         self.setIcon(QMessageBox.Icon.Question)
@@ -878,19 +875,10 @@ class ErrorReportsQuestion(QMessageBox):
                                        QMessageBox.ButtonRole.NoRole)
         self.setDefaultButton(self.keep_btn)
         self.setEscapeButton(self.keep_btn)
-        self.update_chk = None
-        if ask_updates:
-            self.update_chk = QCheckBox(
-                "🔔  Also tell me when a new version is out")
-            self.update_chk.setToolTip(_UPDATE_CHECK_TIP)
-            self.setCheckBox(self.update_chk)
 
     def ask(self) -> bool:
         self.exec()
         return self.clickedButton() is self.send_btn
-
-    def wants_updates(self) -> bool:
-        return self.update_chk is not None and self.update_chk.isChecked()
 
 
 def ensure_error_reports_choice() -> bool:
@@ -903,13 +891,8 @@ def ensure_error_reports_choice() -> bool:
     settings = load_settings()
     if "error_reports" in settings:
         return bool(settings["error_reports"])
-    ask_updates = (update_check.available()
-                   and update_check.SETTING not in settings)
-    question = ErrorReportsQuestion(ask_updates=ask_updates)
-    on = question.ask()
+    on = ErrorReportsQuestion().ask()
     settings["error_reports"] = on
-    if ask_updates:
-        settings[update_check.SETTING] = question.wants_updates()
     save_settings(settings)
     log.info("🐞 Error reports chosen on first start\n"
              "on: %s", on)
@@ -917,9 +900,9 @@ def ensure_error_reports_choice() -> bool:
 
 
 class UpdateCheckQuestion(QMessageBox):
-    """🔔 The one-time question whether to check for new versions, for a run
-    that did not ask it under the error reports question. Not checking is the
-    default, and what Esc or closing the box answers."""
+    """🔔 The one-time question whether to check for new versions, asked on
+    its own after the error reports one. Not checking is the default, and what
+    Esc or closing the box answers."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -940,11 +923,10 @@ class UpdateCheckQuestion(QMessageBox):
 
 
 def ensure_update_check_choice() -> bool:
-    """Whether the 🔔 update check is on, asking once when no question asked
-    it yet: in a build without error reports, or on the first start of a
-    version that brought the check to a user who had answered those already.
-    A source run has no release to compare and asks nothing. Called from
-    run_gui() right after ensure_error_reports_choice()."""
+    """Whether the 🔔 update check is on, asking once when it was not answered
+    yet: on the first start, whatever was answered about the error reports, and
+    in a build without them. A source run has no release to compare and asks
+    nothing. Called from run_gui() right after ensure_error_reports_choice()."""
     settings = load_settings()
     if update_check.SETTING in settings:
         return bool(settings[update_check.SETTING])

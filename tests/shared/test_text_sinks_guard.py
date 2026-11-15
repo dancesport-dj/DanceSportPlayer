@@ -36,7 +36,7 @@ BASELINE: dict[str, tuple[int, int]] = {
     "gui/background_bar.py": (1, 0),
     "gui/common.py": (5, 2),
     "gui/config_panel.py": (0, 4),
-    "gui/dialogs/__init__.py": (13, 1),
+    "gui/dialogs/__init__.py": (13, 0),
     "gui/dialogs/about.py": (1, 0),
     "gui/dialogs/ai_dialogs.py": (3, 2),
     "gui/dialogs/drop_check.py": (1, 0),

@@ -2004,7 +2004,7 @@ def run_gui():
     # than on the next start.
     if ensure_error_reports_choice():
         error_reports.apply_settings(load_settings())
-    # 🔔 Asked under that question; asked on its own only where it was not.
+    # 🔔 Its own question, whatever was answered above.
     ensure_update_check_choice()
 
     window = MainWindow()  # kept until app.exec() returns; shows itself after library loads

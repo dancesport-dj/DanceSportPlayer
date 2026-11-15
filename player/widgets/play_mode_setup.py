@@ -11,12 +11,10 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
-    QDoubleSpinBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
     QSizePolicy,
-    QSpinBox,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -33,6 +31,8 @@ from planner.playing.play_sets import (
     upgrade_xfade,
 )
 from player.widgets.panel_parts import (
+    ClickWheelDoubleSpinBox,
+    ClickWheelSpinBox,
     FitLabel,
     InlineEdit,
     RefreshingCombo,
@@ -137,7 +137,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
         # Half seconds: at 3 s a fade is already gentle, and the difference
         # between 1.5 and 2 is audible on the floor — whole seconds are too
         # coarse a ladder down at the short end.
-        self.fade_spin = QDoubleSpinBox()
+        self.fade_spin = ClickWheelDoubleSpinBox()
         self.fade_spin.setRange(0, 10)
         self.fade_spin.setDecimals(1)
         self.fade_spin.setSingleStep(0.5)
@@ -185,7 +185,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
 
         pd_row = QHBoxLayout()
         pd_row.addWidget(QLabel("Stop after highlight:"))
-        self.pd_spin = QSpinBox()
+        self.pd_spin = ClickWheelSpinBox()
         self.pd_spin.setRange(1, 3)
         self.pd_spin.setValue(max(1, min(3, int(settings.get("pd_highlight_n", 2)))))
         self.pd_spin.setToolTip(
@@ -205,7 +205,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
         # Paso Doble that starts on the word is danced from the wrong bar.
         pd_call_row = QHBoxLayout()
         pd_call_row.addWidget(QLabel("Start after:"))
-        self.pd_delay_spin = QDoubleSpinBox()
+        self.pd_delay_spin = ClickWheelDoubleSpinBox()
         self.pd_delay_spin.setDecimals(1)
         self.pd_delay_spin.setSingleStep(0.5)
         self.pd_delay_spin.setRange(0, 60)
@@ -318,7 +318,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
         self.pause_check.setChecked(bool(settings.get("pause_enabled", False)))
         self.pause_check.toggled.connect(self._on_pause_on)
         pause_row.addWidget(self.pause_check)
-        self.pause_spin = QSpinBox()
+        self.pause_spin = ClickWheelSpinBox()
         self.pause_spin.setRange(0, 120)
         self.pause_spin.setSuffix(" s")
         self.pause_spin.setValue(int(settings.get("pause_secs", 15)))
@@ -357,7 +357,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
             "Set for this evening only — it is not saved.\n\n"
             "Needs ⏭ auto-advance.")
         stop_row.addWidget(self.stop_combo)
-        self.stop_count_spin = QSpinBox()
+        self.stop_count_spin = ClickWheelSpinBox()
         self.stop_count_spin.setRange(2, 99)
         self.stop_count_spin.setValue(5)
         self.stop_count_spin.setToolTip(
@@ -469,7 +469,7 @@ class PlayModeSetupMixin(PlayModePanelHost):
         stored = upgrade_xfade({key: settings[name] for key, name in (
             ("xfade", "xfade_secs"), ("xfade_on", "xfade_on")) if name in settings})
         self.xfade_check.setChecked(bool(stored.get("xfade_on", False)))
-        self.xfade_spin = QDoubleSpinBox()
+        self.xfade_spin = ClickWheelDoubleSpinBox()
         self.xfade_spin.setRange(XFADE_MIN_SECS, XFADE_MAX_SECS)
         self.xfade_spin.setDecimals(1)
         self.xfade_spin.setSingleStep(0.5)

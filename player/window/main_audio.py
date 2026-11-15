@@ -8,6 +8,7 @@ import html
 import logging
 import os
 import sys
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -76,6 +77,12 @@ _SILENCE_SKIP_MIN = 1.5
 # Past the cap the title starts anyway and the gain is ramped in on the fly
 # (player.audio.mix decides how long that swell takes).
 _LUFS_WAIT_MS = 1000
+
+# 🌅 Qt moves the player position only about every 100 ms (measured on 6.11:
+# gaps of 49-151 ms), so the fade-in carries the heard time on by the clock in
+# between - but no further than this, or a stalled player would have the
+# level run ahead of the music.
+_HEARD_CARRY_SECS = 0.2
 
 
 def pendingWork(host) -> PendingWork:
@@ -199,12 +206,13 @@ class AudioLevelMixin(MainWindowHost):
 
     def _step_volume_ramp(self):
         """One ramp step of the announcement duck, of a loudness gain that
-        arrived after the title had already started, and of a fade-out
-        between two play ticks."""
+        arrived after the title had already started, and of a fade-out or a
+        fade-in between two play ticks."""
         fading = self._step_fade_out()
+        fading_in = self._fade_in_level() and self._playback.fade_in_from is not None
         if self._mix.step() and self._big_player:
             self._big_player.set_gain(self._mix.heard_gain())   # the dB readout, once
-        if self._mix.settled and not fading:
+        if self._mix.settled and not fading and not fading_in:
             self._ramp_timer.stop()
         self._apply_volume()
         self._show_pull()
@@ -711,18 +719,56 @@ class AudioLevelMixin(MainWindowHost):
         self._mix.fade_in = 0.0
 
     def _step_fade_in(self):
-        """🌅 One tick of the fade-in, counted in music heard: a pause holds
-        it, and a running 🔀 crossfade owns the level until it ends."""
-        start = self._playback.fade_in_from
-        if start is None or self._between.xfade.state is not None:
-            return
-        secs = self._playback.fade_in_secs   # the one this title was armed with
+        """🌅 The play tick's step of the fade-in: the level now, and the fine
+        steps that carry it on until the next tick."""
+        if self._fade_in_level():
+            self._apply_volume()
+            self._follow_fade_in()
+
+    def _follow_fade_in(self):
+        """🌅 Let the mix's 25 ms ramp timer move a running fade-in between two
+        play ticks. On the 200 ms tick alone the music came up in stairs, the
+        first one from silence to about -23 dB on a 3 s fade-in."""
+        if self._playback.fade_in_from is not None and not self._ramp_timer.isActive():
+            self._ramp_timer.start()
+
+    def _fade_in_level(self) -> bool:
+        """🌅 Set the fade-in level for the music heard since it started: a
+        pause holds it, and a running 🔀 crossfade owns the level until it
+        ends. True when it set one. The level only rises, so a position read
+        up to 100 ms late cannot pull it back; whatever starts the fade-in
+        over sets it to silence itself."""
+        playback = self._playback
+        start = playback.fade_in_from
+        player = self._player
+        if (start is None or self._between.xfade.state is not None or player is None
+                or player.playbackState() != QMediaPlayer.PlaybackState.PlayingState):
+            playback.fade_in_seen = None
+            return False
+        secs = playback.fade_in_secs   # the one this title was armed with
         level = (1.0 if secs <= 0
-                 else max(0.0, min(1.0, (self._heard_secs() - start) / secs)))
+                 else max(0.0, min(1.0, (self._heard_now() - start) / secs)))
         if level >= 1.0:
-            self._playback.fade_in_from = None
-        self._mix.fade_in = level
-        self._apply_volume()
+            playback.fade_in_from = None
+            playback.fade_in_seen = None
+        self._mix.fade_in = max(level, self._mix.fade_in)
+        return True
+
+    def _heard_now(self) -> float:
+        """_heard_secs between two position updates: carried on by the clock
+        from where the position last moved, for _HEARD_CARRY_SECS at most.
+        Keyed on the raw position, not the heard time: the 🔇 stillness skip
+        jumps the position but leaves the heard time where it was."""
+        heard = self._heard_secs()
+        if self._player is None:
+            return heard
+        pos = self._player.position()
+        now = time.monotonic()
+        seen = self._playback.fade_in_seen
+        if seen is None or seen[0] != pos:
+            self._playback.fade_in_seen = (pos, now)
+            return heard
+        return heard + min(now - seen[1], _HEARD_CARRY_SECS)
 
     def _maybe_skip_silence(self) -> bool:
         """Playhead inside a silent stretch at the EDGES of the track:

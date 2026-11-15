@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""🔔 The update check is opt-in, asked once, under the error reports question.
+"""🔔 The update check is opt-in, asked once, in a question of its own.
 
 Run:  py -m unittest tests.gui.dialogs.test_update_check_first_start -v
 
 The privacy promise was "no update check"; a portable zip then never hears of
-a fix. So the first start asks, in the same question as the error reports, and
-the answer is kept either way. Where that question is not asked, a short one
-of its own asks once. A source run has no release to compare and asks nothing.
+a fix. So the first start asks, and the answer is kept either way. The question
+is not tied to the error reports one (it was a box under it): someone who
+refuses to send reports may well want to hear of a new version, and the other
+way round, so each is decided on its own. A source run has no release to
+compare and asks nothing.
 """
 
 import os
@@ -51,35 +53,28 @@ class _Patched(unittest.TestCase):
             self.addCleanup(patcher.stop)
 
 
-class UnderTheErrorReportsQuestionTest(_Patched):
-    def _question(self, updates_ticked):
+class ErrorReportsQuestionIsOnlyAboutReportsTest(_Patched):
+    def _question(self, answer):
         self.made = []
 
-        def make(*_a, ask_updates=False, **_kw):
-            self.made.append(ask_updates)
-            return type("_Stub", (), {"ask": lambda s: False,
-                                      "wants_updates": lambda s: updates_ticked})()
+        def make(*_a, **kw):
+            self.made.append(kw)
+            return type("_Stub", (), {"ask": lambda s: answer})()
         self.addCleanup(setattr, dialogs, "ErrorReportsQuestion",
                         dialogs.ErrorReportsQuestion)
         dialogs.ErrorReportsQuestion = make
 
-    def test_the_first_start_asks_both_in_one_question(self):
-        self._question(updates_ticked=True)
+    def test_it_is_asked_without_an_update_box_and_decides_no_update_check(self):
+        self._question(answer=False)
         ensure_error_reports_choice()
-        self.assertEqual(self.made, [True])
-        self.assertIs(self.saved[0][update_check.SETTING], True)
+        self.assertEqual(self.made, [{}])
         self.assertIs(self.saved[0]["error_reports"], False)
+        self.assertNotIn(update_check.SETTING, self.saved[0])
 
-    def test_an_unticked_box_is_kept_as_a_no(self):
-        self._question(updates_ticked=False)
+    def test_a_yes_to_reports_does_not_switch_the_update_check_on(self):
+        self._question(answer=True)
         ensure_error_reports_choice()
-        self.assertIs(self.saved[0][update_check.SETTING], False)
-
-    def test_a_source_run_leaves_the_box_out(self):
-        self._question(updates_ticked=True)
-        with mock.patch.object(update_check, "available", return_value=False):
-            ensure_error_reports_choice()
-        self.assertEqual(self.made, [False])
+        self.assertIs(self.saved[0]["error_reports"], True)
         self.assertNotIn(update_check.SETTING, self.saved[0])
 
 
@@ -103,6 +98,18 @@ class OwnQuestionTest(_Patched):
         self.assertEqual(self.asked, [True])
         self.assertIs(self.saved[0][update_check.SETTING], True)
         self.assertIs(self.saved[0]["error_reports"], False)
+
+    def test_the_error_reports_answer_does_not_decide_it(self):
+        for reports in (True, False):
+            for answer in (True, False):
+                with self.subTest(reports=reports, update=answer):
+                    self.asked.clear()
+                    self.answer = answer
+                    self.settings = {"error_reports": reports}
+                    self.assertIs(ensure_update_check_choice(), answer)
+                    self.assertEqual(self.asked, [True])
+                    self.assertIs(self.saved[-1][update_check.SETTING], answer)
+                    self.assertIs(self.saved[-1]["error_reports"], reports)
 
     def test_a_no_is_kept_too(self):
         self.answer = False
@@ -132,15 +139,10 @@ class QuestionWidgetsTest(unittest.TestCase):
         self.addCleanup(reap_widget, widget)
         return widget
 
-    def test_the_box_is_off_by_default_and_only_there_when_asked(self):
-        box = self._own(ErrorReportsQuestion(ask_updates=True))
-        self.assertIs(box.checkBox(), box.update_chk)
-        self.assertFalse(box.wants_updates())
-        box.update_chk.setChecked(True)
-        self.assertTrue(box.wants_updates())
-        plain = self._own(ErrorReportsQuestion())
-        self.assertIsNone(plain.checkBox())
-        self.assertFalse(plain.wants_updates())
+    def test_the_error_reports_question_carries_no_update_box(self):
+        box = self._own(ErrorReportsQuestion())
+        self.assertIsNone(box.checkBox())
+        self.assertFalse(hasattr(box, "update_chk"))
 
     def test_not_checking_is_the_default_and_the_escape(self):
         box = self._own(UpdateCheckQuestion())
@@ -155,10 +157,8 @@ class QuestionWidgetsTest(unittest.TestCase):
 
     def test_every_text_is_in_every_language(self):
         own = self._own(UpdateCheckQuestion())
-        combined = self._own(ErrorReportsQuestion(ask_updates=True))
         texts = [own.windowTitle(), own.text(), own.informativeText(),
                  own.check_btn.text(), own.keep_btn.text(),
-                 combined.update_chk.text(), combined.update_chk.toolTip(),
                  "New version", "Version %s is out.",
                  "You are running %s. The download page lists what changed.",
                  "Open download page", "Later"]

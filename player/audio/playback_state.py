@@ -32,6 +32,9 @@ class PlaybackState:
     # 🌅 Seconds of music this title fades in over, 0 = it starts at full
     # level — kept for the waveform after the fade-in is through.
     fade_in_secs: float = 0.0
+    # 🌅 The player position (ms) last read and the monotonic time it was
+    # first seen, for carrying the heard time on between position updates.
+    fade_in_seen: tuple[int, float] | None = None
     # ✂️ What this session learned about how titles end, path → stops in full
     # sound. A title not in here gets asked when it is loaded.
     hard_ends: dict[str, bool] = field(default_factory=dict)

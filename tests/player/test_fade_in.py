@@ -73,6 +73,8 @@ class _Desk(PlayerControlMixin, QWidget):
         self._fade_now = FadeNow()
         self._silences = {}
         self._playing_mode = playing_mode
+        # The fine steps between ticks are test_fade_in_steps' business.
+        self._ramp_timer = cast(Any, type("_Idle", (), {"isActive": lambda _s: True})())
         self.volumes = []
 
     def _is_playing_mode(self):

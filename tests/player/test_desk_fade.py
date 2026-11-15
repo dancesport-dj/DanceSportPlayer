@@ -160,6 +160,9 @@ class WindowTest(unittest.TestCase):
             def _step_fade_out(self):
                 return False   # no title fading out
 
+            def _fade_in_level(self):
+                return False   # nor fading in
+
             def __init__(self):
                 self._settings = {}
                 self._mix = OutputMix()

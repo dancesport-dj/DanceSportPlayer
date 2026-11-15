@@ -45,7 +45,8 @@ class _Player:
 
 def _host(**more):
     host = SimpleNamespace(
-        _playback=SimpleNamespace(path=Path("C:/music/waltz.mp3"), stall_seen=None),
+        _playback=SimpleNamespace(path=Path("C:/music/waltz.mp3"), stall_seen=None,
+                                  fade_in_from=None),
         _player=_Player(),
         _fade_now=FadeNow(),
         _settings={},
