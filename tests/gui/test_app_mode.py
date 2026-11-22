@@ -106,6 +106,29 @@ class ChooserDialogTest(_Qt):
     def test_the_choices_are_exactly_the_known_modes(self):
         self.assertEqual(set(self._dlg()._radios), set(APP_MODES))
 
+    def test_it_offers_the_screen_shape_preset_to_auto(self):
+        """📐 Asked once with the app mode, so a small laptop learns about
+        Compact before the layout settles. Auto stays the preset: a pinned
+        Compact would stay Compact on the big monitor the laptop docks to."""
+        dlg = self._dlg()
+        self.assertEqual(dlg.screen_mode(), "auto")
+        combo = dlg._screen_combo
+        self.assertEqual([combo.itemData(i) for i in range(combo.count())],
+                         ["auto", "normal", "compact"])
+
+    def test_picking_a_screen_shape_is_what_it_reports(self):
+        dlg = self._dlg()
+        dlg._screen_combo.setCurrentIndex(dlg._screen_combo.findData("compact"))
+        self.assertEqual(dlg.screen_mode(), "compact")
+
+    def test_auto_says_what_this_screen_gets(self):
+        for height, shape in ((700, "Compact"), (1040, "Normal")):
+            with self.subTest(height=height):
+                dlg = AppModeDialog(free_height=height)
+                self.addCleanup(reap_widget, dlg)
+                self.assertEqual(dlg._screen_combo.itemText(0),
+                                 f"Auto ({shape} on this screen)")
+
     def test_no_html_entity_leaks_into_a_plain_label(self):
         """A QLabel only reads markup when the text holds a tag — an escaped
         '&amp;' in a tagless string is shown to the user verbatim."""
@@ -141,13 +164,22 @@ class EnsureAppModeTest(_Qt):
         would hang the whole test run with no output."""
         self.shown.append(True)
         pick = self.pick
+        screen = self.screen
         return type("_Stub", (), {"exec": lambda s: 0,
-                                  "mode": lambda s: pick})()
+                                  "mode": lambda s: pick,
+                                  "screen_mode": lambda s: screen})()
+
+    screen = "auto"
 
     def test_the_first_start_asks_and_persists(self):
         self.assertEqual(ensure_app_mode(), "player")
         self.assertEqual(self.shown, [True])
         self.assertEqual(self.saved[0]["app_mode"], "player")
+
+    def test_the_first_start_saves_the_screen_shape(self):
+        self.screen = "compact"
+        ensure_app_mode()
+        self.assertEqual(self.saved[0]["screen_mode"], "compact")
 
     def test_choosing_player_arms_the_venue_layout(self):
         ensure_app_mode()

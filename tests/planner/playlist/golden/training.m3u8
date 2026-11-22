@@ -1,0 +1,29 @@
+#EXTM3U
+
+# ══ Runde 1 (2 Heats) ══
+
+# ── Samba ──
+# Heat 1
+#EXTINF:95,Samba 1
+C:\Musik\SA\Samba 1.mp3
+# Heat 2
+#EXTINF:95,Samba 2
+C:\Musik\SA\Samba 2.mp3
+
+# ── Cha-Cha ──
+# Heat 1
+#EXTINF:95,Cha 1
+C:\Musik\CC\Cha 1.mp3
+# Heat 2
+#EXTINF:95,Cha 2
+C:\Musik\CC\Cha 2.mp3
+
+# ══ Finale (1 Heat) ══
+
+# ── Samba ──
+#EXTINF:95,Samba Final
+C:\Musik\SA\Samba Final.mp3
+
+# ── Cha-Cha ──
+#EXTINF:95,Cha Final
+C:\Musik\CC\Cha Final.mp3

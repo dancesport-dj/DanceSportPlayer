@@ -248,6 +248,9 @@ class TrackLoadMixin(MainWindowHost):
         self._sync_celebrate_btn()
         self._played_marked = False
         self._playback.offset_ms = 0
+        self._playback.tempo_shift_secs = 0.0
+        self._playback.tempo_marks = []
+        self._playback.runs_to_end = False
         self._sync_dance_len()        # 🏆 the panel's length: the picked row's again
         self._sync_taskbar_title()    # 🪟 nothing loaded → the window's name
         if self._preview:
@@ -283,6 +286,9 @@ class TrackLoadMixin(MainWindowHost):
         self._sync_celebrate_btn()
         self._played_marked = False   # fresh track — re-arm the 10 s rule
         self._playback.offset_ms = 0      # …and no silence skipped on it yet
+        self._playback.tempo_shift_secs = 0.0
+        self._playback.tempo_marks = []
+        self._playback.runs_to_end = False
         self._playback.called_in_pause = self._between.leads_in
         self._between.leads_in = False
         self._sync_dance_len()        # 🏆 this dance's own length, where it has one
@@ -675,6 +681,9 @@ class TrackLoadMixin(MainWindowHost):
         self._resume_seek_ms = None
         self._clear_resume(self._playback.path)
         self._playback.offset_ms = 0
+        self._playback.tempo_shift_secs = 0.0
+        self._playback.tempo_marks = []
+        self._playback.runs_to_end = False
         self._playback.pre_roll_ms = 0
         self._sync_big_player_limit()
 
@@ -750,8 +759,8 @@ class TrackLoadMixin(MainWindowHost):
         try:
             table = self._deckset.all_tables[int(note["table"])]
             row, path = int(note["row"]), Path(note["path"])
-        except (TypeError, KeyError, ValueError, IndexError):
-            return None
+        except (TypeError, KeyError, ValueError, IndexError, OverflowError):
+            return None   # OverflowError: an Infinity, which parses as JSON
         rows = [r for r, m in table._row_meta.numbered()
                 if str(getattr(m.entry, "path", "")) == str(path)]
         if not rows:

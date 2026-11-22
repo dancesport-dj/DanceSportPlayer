@@ -23,7 +23,7 @@ The **⚙ General** tab.
 
 | Setting | Does |
 |---|---|
-| **App mode** | Which side of the app is shown: *Both*, *Planner only* or *Player only*. Switching back brings everything back. The player build has no such row. |
+| **App mode** | Which side of the app is shown: *Both*, *Planner only* or *Player only*. Switching back brings everything back. A deck that still shows a planned grid becomes its running order under *Player only*: the same songs in the same order, the rounds as ─── strips, without slots. Switching back does not bring the grid back. The player build has no such row. |
 | **📱 Phone remote** | **📱 Start Server** starts the phone remote and opens its window on top of the settings. While it runs, the button reads **📱 Stop Server**. See [chapter 4](04-playing.md#-the-phone-remote). |
 | **🎛 Controller** | **🎛 Set up…** opens the window for a USB MIDI or HID controller. See [chapter 4](04-playing.md#-a-hardware-controller). **⌨ Keys…** puts the same actions on keys and holds the cartwall's keys too, see [chapter 4](04-playing.md#-desk-keys). |
 | **🐞 Send error reports** | Only in builds that can send them. When the app hits an error, it sends the technical details to the developer: the error, the last log lines, the system and the app version. Never your music or playlists. Off by default. |
@@ -89,8 +89,17 @@ The **🎨 Look** tab.
     These buttons save at once. Changing the look the app runs in offers a
     restart when you close the settings with OK.
 - **🔠 Text size**: every text in the app, menus and tables included, at
-  100 % (the default), 105, 110, 115, 130 or 150 %. Above 115 % the buttons
-  grow with it. Read when the app starts, like the theme.
+  90 %, 100 % (the default), 105, 110, 115, 130 or 150 %. At 90 % the text
+  shrinks and the buttons keep their size; above 115 % the buttons grow with
+  it. Read when the app starts, like the theme.
+- **📐 Screen**: *Auto* (the default), *Normal* or *Compact*. Compact is the
+  shape for a 12-13″ laptop: an empty wishlist starts folded, the library
+  keeps room for six rows, the decks start on the 🗜 compact header view
+  until you pick one yourself, and the song rows sit lower. *Auto* picks
+  Compact when the screen leaves less than 800 pixels of height, e.g.
+  1366 × 768 or a 1080p screen at 150 %. *Auto* decides again when the window moves to a
+  screen of another size; only the wishlist folding is decided at start.
+  A change here offers a restart.
 - **🎚 Accent colour**: the blue of the buttons, sliders and the player panel,
   for *Light* and *Dark*.
   **↺ Default blue** resets it. Colours that mean something, such as red
@@ -131,7 +140,9 @@ The **🔊 Sound & player** tab.
 | **🔢 Only the heat** | Off by default. On, every call says just the heat, "Gruppe 1", never the dance, for a practice evening: the pause call, the start call and the Paso Doble call. **…with heat** and **📣 Say "Next dance"** are greyed meanwhile. Where there is no heat to say, the dance is called as usual. |
 | **🗣 Dance is named** | Where the call sits when a title names its dance as it starts, with no pause: **over the first bars** (the default; the music is ducked under the voice) or **before the music starts** (the music follows the call). The ▶ Playing panel names it in short: *over the music* or *before the music*. |
 | **▶ Player position** | Where the player card stands: *beside the playlists*, at the head of the Playing panel, or *above the playlists*, as one wide strip over the decks. |
-| **📂 Double-click on a title in 📚 the library** | Last on the tab, under **📚 Library**, since it is about the library, not the player. What a double-click does in 📚 the library and the 🏆 Tournaments lists while planning: **Nothing** (the default; ▶ plays the title), **Open external player** (the program your system plays music with, on a Mac Music; then also for a deck row while planning and in the dialogs) or **Edit tags** (the [🏷 Tags editor](05-tags.md#opening-the-editor), opened on the field of the column you double-clicked; you choose there what Save writes into the file). While planning, a double-click on a deck row plays the title in the mini player unless *Open external player* is chosen. Right-click offers all of it either way, and in Playing mode a double-click always plays or cues the title. |
+| **📂 Double-click on a title in 📚 the library** | Under **📚 Library**, since it is about the library, not the player. What a double-click does in 📚 the library and the 🏆 Tournaments lists while planning: **Nothing** (the default; ▶ plays the title), **Open external player** (the program your system plays music with, on a Mac Music; then also for a deck row while planning and in the dialogs) or **Edit tags** (the [🏷 Tags editor](05-tags.md#opening-the-editor), opened on the field of the column you double-clicked; you choose there what Save writes into the file). While planning, a double-click on a deck row plays the title in the mini player unless *Open external player* is chosen. Right-click offers all of it either way, and in Playing mode a double-click always plays or cues the title. |
+| **⏩ Tempo** | How the music keeps its pitch when the tempo fader moves, for every title. *Qt (standard)* (the default) is Qt's own stretch; every tempo change leaves a short gap. Where the app makes the tempo itself (with the 🎚 equalizer on, and on a channel pair such as "Out 3/4"), Signalsmith stands in, the same stretch. *Signalsmith* lets the app make the tempo of every title, light on the CPU, a change without a gap. *Rubber Band* keeps drum hits crisper but costs clearly more CPU; it runs inside ffmpeg and is greyed when this ffmpeg has none. |
+| **🎚 Equalizer** | One tab each for 🎵 the music, 🔈 the voice (the announcements) and 🎧 the pre-listen. Switch it on, pick a preset or move the five bands (low cut, bass, low mid, presence, treble). The low cut takes away everything below the frequency picked in its list: *Off*, 30, 60, 80, 100 or 150 Hz (100 Hz on the voice tab, 30 Hz on the others). A band switched off is greyed. A double-click on a band's slider sets it back to 0 dB; a double-click on its readout lets you type the value. *Bypass* compares with and without, *Advanced* opens each band's frequency and width. 💾 keeps the four gains as a preset of your own, offered on every tab; 🗑 deletes the own preset shown. Only with the FFmpeg backend. Switching the music's EQ on asks once, because the app then makes the tempo itself (see the row above). Everything is heard at once; going on or off leaves a short gap. The same panels open from the player's [🎚](04-playing.md#the-player-card). |
 
 ### 🥇 Celebration: the music plays on
 
@@ -193,8 +204,8 @@ lists can be picked, on Windows, macOS and Linux.
   device of its own ("Out 3/4" next to "Out 1/2") can take a source of its
   own. A card Windows lists as *one* multichannel device offers
   "<card> — Out 3/4" for every source, the music included. On such a channel
-  pair the tempo fader shifts the pitch along with the speed, like a
-  turntable, instead of keeping it.
+  pair the app makes the tempo itself (see ⏩ Tempo
+  above), so the pitch stays; it costs a little more CPU.
 - A card that is not plugged in plays on the system default, with one
   message, and the sound goes back to the card when it is back. The
   pre-listen is the exception when that default is the music's output: it is

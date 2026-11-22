@@ -103,6 +103,12 @@ _LOAD_TARGETS = tuple([("deck", n, "Playlist", True) for n in range(1, 5)]
 # the desk a tournament is something you grab, not something you read.
 VIEW_SLOTS = "slots"   # ▦ folders left, their playlists as draggable tiles
 VIEW_LIST = "list"     # ▤ the whole tree left, the picked playlist's tracks right
+# The view button's tip says where a click goes, not where it came from.
+_TIP_TO_TRACKS = ("Show the tracks of one playlist instead of the slots —\n"
+                  "the whole tree on the left, the titles of whatever is\n"
+                  "picked on the right (click again for the slots)")
+_TIP_TO_SLOTS = ("Back to the slots — the folders on the left, their\n"
+                 "playlists as tiles to drag (click again for the tracks)")
 
 # Section tints, by which dances a playlist turns out to hold.
 _STD = frozenset(DEFAULT_DANCES["Standard"]["S"])
@@ -277,7 +283,9 @@ def load_columns(store) -> dict:
     hidden = ([c for c in hidden if isinstance(c, int)] if isinstance(hidden, list)
               else [_TRACK_COL_FILE, _TRACK_COL_PLAYS])
     order = cols.get("order") or []
-    order = order if isinstance(order, list) else []
+    # Column numbers only: the pane sorts the order to check it, and a null
+    # from a hand edit raised there, as the main window was being built.
+    order = [c for c in order if isinstance(c, int)] if isinstance(order, list) else []
     if "hidden" in cols and cols.get("count") != _TRACK_COLS:
         hidden.append(_TRACK_COL_PLAYS)
         if sorted(order) == list(range(_TRACK_COL_PLAYS)):
@@ -397,10 +405,7 @@ class TournamentTree(QWidget):
         bar.addWidget(btn)
         bar.addStretch(1)
         for text, tip, slot in (
-                ("▤", "Show the tracks of one playlist instead of the slots —\n"
-                      "the whole tree on the left, the titles of whatever is\n"
-                      "picked on the right (click again for the slots)",
-                 self._toggle_view),
+                ("▤", _TIP_TO_TRACKS, self._toggle_view),
                 ("📁", "New folder — a day, a venue, a competition", self._add_folder),
                 ("＋", "Add playlist files (.m3u) to the selected folder",
                  self._add_playlists),
@@ -575,6 +580,7 @@ class TournamentTree(QWidget):
         slots = self._view == VIEW_SLOTS
         self._right.setCurrentWidget(self._board if slots else self._table)
         self._view_btn.setText("▤" if slots else "▦")
+        self._view_btn.setToolTip(_TIP_TO_TRACKS if slots else _TIP_TO_SLOTS)
 
     def _toggle_view(self):
         self._view = VIEW_LIST if self._view == VIEW_SLOTS else VIEW_SLOTS

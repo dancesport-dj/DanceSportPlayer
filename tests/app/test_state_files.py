@@ -258,6 +258,32 @@ class MediaBackendTest(unittest.TestCase):
             self.assertNotIn("windows", keys)
 
 
+class TempoEngineTest(unittest.TestCase):
+    """🔊 ⚙ Settings → ⏩ Tempo: Qt (standard), Signalsmith or Rubber Band."""
+
+    # ===== Acceptance criteria =====
+
+    def test_an_older_settings_file_gets_qt(self):
+        self.assertEqual(dialogs.tempo_engine_of({}), "qt")
+
+    def test_a_configured_engine_wins(self):
+        self.assertEqual(
+            dialogs.tempo_engine_of({"tapped_tempo_engine": "rubberband"}),
+            "rubberband")
+
+    # ===== Coverage and null checks =====
+
+    def test_garbage_reads_as_qt(self):
+        for bad in ("numpy", "", None, 7):
+            self.assertEqual(
+                dialogs.tempo_engine_of({"tapped_tempo_engine": bad}),
+                "qt")
+
+    def test_all_three_engines_are_offered(self):
+        keys = [k for k, _caption in dialogs.TEMPO_ENGINE_CHOICES]
+        self.assertEqual(keys, ["qt", "signalsmith", "rubberband"])
+
+
 class RestartCommandTest(unittest.TestCase):
     """🔄 Changing the backend offers a restart — this is what gets started."""
 

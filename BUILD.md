@@ -167,7 +167,7 @@ The runners pin `python-version: "3.14.9"`, not `"3.14"`: a floating minor
 version makes every patch release of CPython rebuild the whole stdlib inside the
 bundle, which shows up as ~25 changed binaries in a release diff for no reason.
 
-The version number is `VERSION` in `planner/version.py` (`2.0.2`), and a build
+The version number is `VERSION` in `planner/version.py` (`2.1.0`), and a build
 without a tag gets it. A `v*` tag overrides it, so name the tag
 `vMAJOR.MINOR.PATCH` (`v1.2.0`); the app in the release then says `1.2.0`, the
 tag without its v. Keep `VERSION` in step after a release, so desk builds carry
@@ -314,6 +314,22 @@ check simply does not offer the search. `build_exe.bat` copies `fpcalc.exe`
 next to the app like ffmpeg, and the GitHub Windows build fetches the pinned
 v1.6.2 zip (SHA-256 checked, `Fetch fpcalc` in `build-player.yml`; a new version
 needs its own hash). macOS: not bundled, `brew install chromaprint`.
+
+## Signalsmith Stretch (the tempo of a tapped player)
+
+A player whose sound goes through the 🎚 equalizer or a channel pair makes its
+tempo itself, with the same Signalsmith Stretch that Qt's FFmpeg backend uses.
+The headers are vendored in `player/audio/native/signalsmith/` (1.1.0, the
+copy qtmultimedia 6.12 bundles, MIT) behind a small C door, `sstretch.cpp`.
+
+- Windows: `player/audio/native/sstretch.dll` is in git. Rebuild it with
+  `build_sstretch.bat` (MinGW-w64 g++ on PATH) after changing the C++.
+- macOS / Linux: `build_app.sh` and `build_linux.sh` run
+  `player/audio/native/build_sstretch.sh` (clang++ / g++), and so does the CI
+  test job. From source, run it once yourself.
+
+Without the library the tapped tempo falls back to a numpy stretch, a little
+less clear.
 
 ## ffmpeg (analysis / loudness / silence)
 

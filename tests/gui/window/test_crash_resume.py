@@ -161,6 +161,17 @@ class CrashResumeTest(unittest.TestCase):
         self.assertIsNone(self.offer())
         self.assertFalse(ON_AIR.exists())
 
+    def test_a_note_with_an_endless_number_is_not_offered(self):
+        """State-file fuzzing 2026-11-17: Infinity parses as JSON, and int()
+        of it raised OverflowError out of the start step, before the library
+        scan was started."""
+        for note in ({"table": float("inf"), "row": 1},
+                     {"table": self.index, "row": float("-inf")}):
+            with self.subTest(note):
+                ON_AIR.write({**note, "path": str(SONGS[2].path)})
+                self.assertIsNone(self.offer())
+                self.assertFalse(ON_AIR.exists())
+
 
     # ----- ▶ the evening's played titles ---------------------------------------
 

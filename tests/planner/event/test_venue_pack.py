@@ -74,6 +74,13 @@ class MergeSettingsTest(unittest.TestCase):
         self.assertEqual({k: out[k] for k in local}, local)
         self.assertEqual(out["zoom"], 3)
 
+    def test_the_room_equalizer_comes_along_with_the_venue(self):
+        """🎚 The EQ corrects the hall and its speakers, not this PC."""
+        local = {"equalizer": {"music": {"on": False}}}
+        imported = {"equalizer": {"music": {"on": True, "preset": "boomy_hall"}}}
+        out = vp.merge_settings(local, imported)
+        self.assertEqual(out["equalizer"], imported["equalizer"])
+
     def test_a_machine_key_missing_locally_is_not_imported(self):
         out = vp.merge_settings({}, {"library_dir": r"F:\lib", "a": 1})
         self.assertNotIn("library_dir", out)
@@ -426,6 +433,75 @@ class CorruptPackTest(unittest.TestCase):
                     vp.stage_import(src, self.root / "state", self.dest)
                 self.assertEqual(
                     [p for p in self.dest.rglob("*") if p.is_file()], [])
+
+
+class UnreadableZipTest(unittest.TestCase):
+    """Fuzzing 2026-11-17: zipfile raises NotImplementedError for a member it
+    cannot unpack (a newer zip version, an unknown compression method) and
+    UnicodeDecodeError for a name flagged UTF-8 that is not. Both went past
+    the dialogs, which know only VenuePackError: the drop did nothing at all."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name)
+
+    def _pack(self, music=None, members=None) -> Path:
+        src = self.root / "u.dpvenue"
+        with zipfile.ZipFile(src, "w") as z:
+            z.writestr(vp.MANIFEST, json.dumps(
+                {"format": vp.FORMAT, "version": vp.VERSION,
+                 "files": [vp.SETTINGS_FILE], "music": music}))
+            z.writestr(vp.SETTINGS_FILE, json.dumps({}))
+            for arc, data in (members or {}).items():
+                z.writestr(arc, data)
+        return src
+
+    @staticmethod
+    def _patch_central(src: Path, name: str, offset: int, value: int) -> None:
+        """Overwrite one 2-byte field of `name`'s central directory entry
+        (6 = version needed, 8 = flags, 10 = compression method)."""
+        raw = bytearray(src.read_bytes())
+        at = 0
+        while True:
+            at = raw.index(b"PK\x01\x02", at)
+            n = int.from_bytes(raw[at + 28:at + 30], "little")
+            if raw[at + 46:at + 46 + n] == name.encode():
+                break
+            at += 4
+        raw[at + offset:at + offset + 2] = value.to_bytes(2, "little")
+        src.write_bytes(bytes(raw))
+
+    def test_a_newer_zip_version_is_a_pack_error(self):
+        src = self._pack()
+        self._patch_central(src, vp.SETTINGS_FILE, 6, 113)
+        with self.assertRaises(vp.VenuePackError):
+            vp.read_pack(src)
+
+    def test_an_unknown_compression_method_is_a_pack_error(self):
+        src = self._pack()
+        self._patch_central(src, vp.SETTINGS_FILE, 10, 99)
+        with self.assertRaises(vp.VenuePackError):
+            vp.read_pack(src)
+
+    def test_a_name_flagged_utf8_that_is_not_is_a_pack_error(self):
+        src = self._pack()
+        raw = bytearray(src.read_bytes())
+        at = raw.index(b"PK\x01\x02")
+        raw[at + 9] |= 0x08            # flags bit 11: the name is UTF-8
+        raw[at + 46] = 0x80            # ... and its first byte is not
+        src.write_bytes(bytes(raw))
+        with self.assertRaises(vp.VenuePackError):
+            vp.read_pack(src)
+
+    def test_music_in_a_newer_zip_version_is_a_pack_error(self):
+        arc = "music/x/a.mp3"
+        src = self._pack(music={"F:\\a.mp3": arc}, members={arc: b"a" * 100})
+        self._patch_central(src, arc, 6, 113)
+        with self.assertRaises(vp.VenuePackError):
+            vp.extract_music(src, self.root / "dest")
+        self.assertEqual(
+            [p for p in (self.root / "dest").rglob("*") if p.is_file()], [])
 
 
 class PackLimitsTest(unittest.TestCase):

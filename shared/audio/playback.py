@@ -43,6 +43,18 @@ TRUE_PEAK_CEILING = -1.0
 # short enough that the hiss is gone before anyone in the hall notices it.
 AUDIO_IDLE_S = 5.0
 
+# 🎚 Qt's native backends: none hands the decoded audio over (QAudioBufferOutput
+# is FFmpeg's alone), so none can have an EQ.
+_NATIVE_BACKENDS = ("windows", "darwin", "gstreamer", "android")
+
+
+def eq_available() -> bool:
+    """Whether this run plays through Qt's FFmpeg backend, the default on
+    every desktop since Qt 6.5 (QT_MEDIA_BACKEND unset means it): the only
+    one an EQ can be put on (player.audio.eq)."""
+    backend = os.environ.get("QT_MEDIA_BACKEND", "").strip().lower()
+    return backend not in _NATIVE_BACKENDS
+
 
 # 🔊 The sources that can each play on an output of their own (setting
 # "audio_outputs": source → {"id": hex of the device id, "name": its
@@ -93,7 +105,8 @@ def split_output_key(key: str) -> tuple[str, int]:
 TSO_FLOOR_OVERRIDE: dict[str, float] = {}
 
 
-def audible_played_secs(position_ms: int, offset_ms: int, rate: float) -> float:
+def audible_played_secs(position_ms: int, offset_ms: int, rate: float,
+                        shift_secs: float = 0.0) -> float:
     """Wall-clock seconds of music the floor has actually heard.
 
     Two corrections on the raw player position, both of which the timed cut
@@ -104,9 +117,50 @@ def audible_played_secs(position_ms: int, offset_ms: int, rate: float) -> float:
       an 8 s silent intro must still give 1:45 of music.
     * `rate` — the tempo fader. At +16 % the position advances 16 % faster than
       the clock, so 105 raw seconds are only 90 s on the floor. "Play length
-      1:45" is a promise about how long the couples dance."""
+      1:45" is a promise about how long the couples dance.
+
+    `shift_secs` — the tempo's history (see tempo_shift_secs): music danced
+    before a tempo change keeps the floor time it took at its own tempo."""
     heard = max(0.0, (position_ms - offset_ms) / 1000.0)
-    return heard / max(0.01, float(rate or 1.0))
+    return max(0.0, heard / max(0.01, float(rate or 1.0)) + shift_secs)
+
+
+def tempo_shift_secs(position_ms: int, offset_ms: int, old_rate: float,
+                     new_rate: float) -> float:
+    """What a tempo change at `position_ms` adds to audible_played_secs'
+    `shift_secs`, so the music heard so far stays what it was: read at the
+    new rate it would suddenly be more (slower) or less (faster) floor time,
+    and a late −16 % ends the title at once."""
+    return (audible_played_secs(position_ms, offset_ms, old_rate)
+            - audible_played_secs(position_ms, offset_ms, new_rate))
+
+
+# A position this far before a tempo change is a seek back, not the backend
+# reporting a few ms early after it.
+_REWIND_SLACK_MS = 250
+
+
+def note_tempo_change(marks: list, shift: float, position_ms: int, offset_ms: int,
+                      old_rate: float, new_rate: float) -> tuple[list, float]:
+    """A tempo change at `position_ms`: the new shift (tempo_shift_secs added),
+    and the change kept in `marks` as (position, shift before, rate before)
+    so rewind_tempo_history can undo it."""
+    marks, shift = rewind_tempo_history(marks, shift, position_ms, offset_ms, old_rate)
+    marks.append((position_ms, shift, old_rate))
+    return marks, shift + tempo_shift_secs(position_ms, offset_ms, old_rate, new_rate)
+
+
+def rewind_tempo_history(marks: list, shift: float, position_ms: int, offset_ms: int,
+                         rate: float) -> tuple[list, float]:
+    """After a seek back to `position_ms`: the changes past it never happened.
+    The music up to it keeps the tempo it was danced at, from it on `rate`
+    counts. Playing on (no change past the position) leaves both as they are."""
+    kept = [m for m in marks if m[0] <= position_ms + _REWIND_SLACK_MS]
+    if len(kept) == len(marks):
+        return marks, shift
+    _pos, shift_before, old_rate = marks[len(kept)]   # the earliest one undone
+    kept.append((position_ms, shift_before, old_rate))
+    return kept, shift_before + tempo_shift_secs(position_ms, offset_ms, old_rate, rate)
 
 
 # ⏩ The longest pre-roll: past that it cuts into the music, not the intro.

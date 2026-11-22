@@ -14,7 +14,9 @@ from planner.terms import dance_name
 def deck_print_html(name: str, metas: list) -> list:
     """Build the HTML parts for one deck (title + per-round tables)."""
     esc = html.escape
-    total_secs = sum(int(getattr(m.entry, "duration", 0) or 0) for m in metas)
+    # A stacked spare is only played if a heat song fails: not play time.
+    total_secs = sum(int(getattr(m.entry, "duration", 0) or 0) for m in metas
+                     if not getattr(m, "backup", False))
     parts = [
         f"<h1 style='margin-bottom:0;'>{esc(name)}</h1>",
         f"<p style='color:#555;'>{time.strftime('%d.%m.%Y %H:%M')} · "

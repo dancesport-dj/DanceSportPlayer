@@ -89,6 +89,9 @@ filterwarnings = ["ignore:unclosed database in <sqlite3.Connection object at:Res
 # What slop-mop's coverage gates measure: the app, not its tests. Declaring a
 # source makes the gate pass a bare --cov, so this section is honoured.
 source = ["."]
+# Lines alone say a line ran; branches also say whether both ways out of an
+# `if` did. A guard whose else-path no test takes shows here and nowhere else.
+branch = true
 omit = [
     "tests/*",
     "conftest.py",

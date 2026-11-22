@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
 )
 
+from gui import screen_mode
 from gui.common import (
     BusyDialog,
     apply_relaunch_identity,
@@ -116,6 +117,8 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         self._loading_dlg.set_status("♻️  Restoring your last session…")
         QApplication.processEvents()   # keep the modal splash's bar pulsing
         self._restore_playlist()
+        if screen_mode.compact():
+            self._fold_empty_wishlists()
         # Anchor the undo timeline at the restored state so the first edit is undoable.
         self._seed_undo_baseline()
 
@@ -742,6 +745,18 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         self._audio_device.on_activity()   # 🔇🔕 as after a settings change
         self._sync_sound_badge()
 
+    def _hear_eq(self, part: dict):
+        """🎚 An EQ edit in ⚙ Settings, on what plays at once (None: a key
+        the settings did not have). Laid over the settings, not into them:
+        a save while the dialog is open must not write it. OK saves it."""
+        self._audio_device.eq_preview = dict(part)
+        self._audio_device.sync_eq()
+
+    def _end_eq_preview(self):
+        """The Settings dialog closed without OK: the saved EQ is heard again."""
+        self._audio_device.eq_preview = None
+        self._audio_device.sync_eq()
+
     def _open_settings(self, open_sound=False, open_cartwall=False):
         n_unanalyzed = (sum(1 for e in self._library.lib.entries if e.features is None)
                         if self._library.lib else 0)
@@ -787,6 +802,7 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
                              open_sound=open_sound,
                              open_cartwall=open_cartwall,
                              profiles_cb=self._keep_audio_profiles,
+                             eq_live_cb=self._hear_eq,
                              reset_cb=self._reset_database)
         # 📊 Library gaps runs from inside this dialog and may want it out of the
         # way (see _show_library_gaps) — leave it a handle while it is open.
@@ -794,8 +810,12 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
         accepted = dlg.exec() == QDialog.DialogCode.Accepted
         self._settings_dlg = None
         if not accepted:
+            self._end_eq_preview()
             dlg.deleteLater()
             return
+        # 🎚 OK: the edits heard are in values() and land in the settings
+        # below; the sync() there brings them on without a step back between.
+        self._audio_device.eq_preview = None
         # Only what the operator changed in the dialog: it hands back the whole
         # dict as it was when it opened, and the evening went on behind it —
         # the 🔕 guard's record of the devices it muted, the master fader.
@@ -816,6 +836,8 @@ class GlobalIndexMixin(AnalysisMixin, EmbeddingIndexMixin, AllCacheMixin):
                         or theme.accent_of(new) != theme.accent_of(self._settings)
                         or theme.font_scale_of(new)
                         != theme.font_scale_of(self._settings)
+                        or screen_mode.screen_mode_of(new)
+                        != screen_mode.screen_mode_of(self._settings)
                         or i18n.language_of(new) != i18n.language_of(self._settings)
                         or bool(new.get("german_dance_terms"))
                         != bool(self._settings.get("german_dance_terms"))

@@ -67,6 +67,9 @@ class _WallDesk(_LoadDesk):
     # The real follow logic, not the stub the other bed tests use.
     _cart_follow_deck = CartwallMixin._cart_follow_deck
 
+    def _sync_pause_music(self):
+        pass   # no big player here
+
     def _announce_start_first(self, ent):
         self.bed_when_called.append(self.wall._bg)
         return True

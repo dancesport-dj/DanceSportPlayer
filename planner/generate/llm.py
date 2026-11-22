@@ -1135,7 +1135,9 @@ def parse_reply(text: str) -> dict:
     playlists = [o for o in objects
                  if isinstance(o.get("playlist"), list) and o["playlist"]]
     payload = playlists[-1] if playlists else objects[-1]
-    picks = payload.get("playlist") or []
+    picks = payload.get("playlist")
+    if not isinstance(picks, list):     # true, 5, "1,2,3": no playlist at all
+        picks = []
     if not payload.get("notes"):
         payload = {**payload,
                    "notes": next((o["notes"] for o in reversed(objects)
@@ -1186,7 +1188,8 @@ def parse_swaps(text: str) -> dict:
     answers = [o for o in objects if isinstance(o.get("swaps"), list)]
     payload = answers[-1] if answers else objects[-1]
     swaps = []
-    for item in payload.get("swaps") or []:
+    items = payload.get("swaps")
+    for item in items if isinstance(items, list) else []:
         if not isinstance(item, dict):
             continue
         try:

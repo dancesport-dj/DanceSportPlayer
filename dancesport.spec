@@ -95,6 +95,14 @@ datas += [("icon.ico", "."), ("icon.png", ".")]
 # rendered by tools/assets/theme_previews.py).
 datas += [(os.path.join(SPECPATH, "assets", "themes", "*.png"),
            os.path.join("assets", "themes"))]
+# Signalsmith Stretch, the tempo of a tapped player (player/audio/stretch_signalsmith.py
+# loads it from player/audio/native/). The Windows DLL is in git; macOS and Linux
+# build theirs in build_app.sh / build_linux.sh (build_sstretch.sh). Without it
+# the tapped tempo falls back to the numpy stretch.
+_sstretch = os.path.join(SPECPATH, "player", "audio", "native", {
+    "win32": "sstretch.dll", "darwin": "libsstretch.dylib"}.get(sys.platform, "libsstretch.so"))
+if os.path.isfile(_sstretch):
+    binaries += [(_sstretch, os.path.join("player", "audio", "native"))]
 # The manual as a PDF, English and German, for the app to open from its ❔
 # menu. Built by tools/build_manual_pdf and not in git; a build without one
 # has no manual in that language.

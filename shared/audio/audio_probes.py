@@ -86,6 +86,27 @@ def find_ffmpeg() -> str | None:
     return None
 
 
+_filters: dict[str, bool] = {}
+
+
+def ffmpeg_has_filter(name: str) -> bool:
+    """Whether find_ffmpeg()'s copy has the filter `name` (asked once)."""
+    if name not in _filters:
+        exe = find_ffmpeg()
+        found = False
+        if exe:
+            flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+            try:
+                listing = subprocess.run(
+                    [exe, "-hide_banner", "-filters"], capture_output=True, text=True,
+                    errors="replace", timeout=10, creationflags=flags).stdout
+                found = any(line.split()[1:2] == [name] for line in listing.splitlines())
+            except (OSError, subprocess.SubprocessError):
+                found = False
+        _filters[name] = found
+    return _filters[name]
+
+
 def _kill_probe(proc):
     """Kill a probe subprocess if it is still up. Racing a process that just
     exited is normal here, not an error."""

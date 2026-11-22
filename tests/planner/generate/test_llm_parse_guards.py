@@ -32,6 +32,23 @@ class NumberGuardTests(unittest.TestCase):
         self.assertEqual(out["picks"][0]["heat"], 2)
 
 
+class ListShapeTests(unittest.TestCase):
+    """Fuzzing 2026-11-17: a "playlist" or "swaps" that is not a list raised
+    TypeError ("'bool' object is not iterable") instead of the parser's own
+    RuntimeError, and a string was walked character by character."""
+
+    def test_a_playlist_that_is_no_list_is_an_empty_answer(self):
+        for value in ("true", "5", '"1,2,3"'):
+            with self.subTest(value), self.assertRaisesRegex(
+                    RuntimeError, "empty playlist"):
+                llm.parse_reply('{"playlist": %s}' % value)
+
+    def test_swaps_that_are_no_list_are_no_swaps(self):
+        for value in ("true", "5", '"12"', '{"n": 3}'):
+            with self.subTest(value):
+                self.assertEqual(llm.parse_swaps('{"swaps": %s}' % value)["swaps"], [])
+
+
 class QueriesTests(unittest.TestCase):
     def test_trailing_sentence_with_braces(self):
         text = '{"queries": [{"dance": "TG"}]}\nHope {this} helps.'

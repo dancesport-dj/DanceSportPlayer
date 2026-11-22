@@ -306,33 +306,33 @@ class BigPlayerTaktToggleTest(unittest.TestCase):
 
     def test_toggling_creates_and_shows_the_overlay_lazily(self):
         self.assertIsNone(self.w._takt_overlay)
-        self.w._takt_btn.setChecked(True)
+        self.w._takt_act.setChecked(True)
         self.assertIsNotNone(self.w._takt_overlay)
         self.assertTrue(self.w._takt_overlay.isVisible())
         overlay = self.w._takt_overlay
-        self.w._takt_btn.setChecked(False)
+        self.w._takt_act.setChecked(False)
         self.assertFalse(overlay.isVisible())
-        self.w._takt_btn.setChecked(True)
+        self.w._takt_act.setChecked(True)
         self.assertIs(self.w._takt_overlay, overlay)   # not recreated
 
     def test_set_current_dance_forwards_once_the_overlay_exists(self):
         self.w.set_current_dance("WW")                 # no overlay yet, just stored
-        self.w._takt_btn.setChecked(True)
+        self.w._takt_act.setChecked(True)
         self.assertEqual(self.w._takt_overlay._dance, "WW")  # picked up on creation
         self.w.set_current_dance("QS")                 # now forwarded live
         self.assertEqual(self.w._takt_overlay._dance, "QS")
         self.assertAlmostEqual(self.w._takt_overlay._sollwert_spin.value(), 51.0)
 
     def test_the_overlay_closing_itself_unchecks_the_button(self):
-        self.w._takt_btn.setChecked(True)
+        self.w._takt_act.setChecked(True)
         self.w._takt_overlay.closeRequested.emit()
-        self.assertFalse(self.w._takt_btn.isChecked())
+        self.assertFalse(self.w._takt_act.isChecked())
 
     def test_clicking_elsewhere_in_the_player_closes_the_overlay(self):
-        self.w._takt_btn.setChecked(True)
+        self.w._takt_act.setChecked(True)
         overlay = self.w._takt_overlay
         QTest.mousePress(self.w._title, Qt.MouseButton.LeftButton)  # clear of the card
-        self.assertFalse(self.w._takt_btn.isChecked())
+        self.assertFalse(self.w._takt_act.isChecked())
         self.assertFalse(overlay.isVisible())
 
     def test_applying_a_correction_pushes_the_fader_onto_the_current_rate(self):
@@ -347,7 +347,7 @@ class BigPlayerTaktToggleTest(unittest.TestCase):
         self.assertEqual(self.w._tempo.value(), 160)
 
     def test_the_overlays_apply_button_reaches_the_fader(self):
-        self.w._takt_btn.setChecked(True)
+        self.w._takt_act.setChecked(True)
         overlay = self.w._takt_overlay
         overlay._meter._taps = [0.0, 2.0]              # 30 / min
         overlay._sollwert_spin.setValue(33.0)           # +10 % needed
@@ -359,7 +359,7 @@ class BigPlayerTaktToggleTest(unittest.TestCase):
     def test_a_new_title_ends_the_standing_measurement(self):
         """on_new_track fires once per load — the taps tapped along to the
         title that just went would drag the next reading off."""
-        self.w._takt_btn.setChecked(True)
+        self.w._takt_act.setChecked(True)
         overlay = self.w._takt_overlay
         overlay._meter._taps = [0.0, 2.0]
         overlay._refresh()

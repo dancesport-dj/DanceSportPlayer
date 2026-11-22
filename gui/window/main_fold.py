@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QToolButton, QWidget
 
+from gui import screen_mode
 from gui.table.playlist_table import (  # auto-resolved
     PlaylistTable,
 )
@@ -52,6 +53,15 @@ class FoldMixin(MainWindowHost):
         if root is None:   # during construction: only explicit hides exist yet
             return not b.isHidden()
         return b.isVisibleTo(root)
+
+    def _fold_empty_wishlists(self):
+        """📐 Compact: a shown wishlist with nothing in it starts folded to
+        its tab — open, it took a fifth of a 13″ laptop to say "0 titles"."""
+        if not screen_mode.compact():
+            return
+        for t in self._deckset.wishlists:
+            if self._box_shown(t) and t.rowCount() == 0:
+                self._toggle_deck_fold(t, True)
 
     def _all_decks_folded(self) -> bool:
         """True if every deck shown by the current view is folded to a tab."""

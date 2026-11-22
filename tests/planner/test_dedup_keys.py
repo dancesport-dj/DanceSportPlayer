@@ -64,6 +64,13 @@ class SongTitleKeyTest(unittest.TestCase):
         self.assertEqual(norm_title("Straße"), "strasse")
         self.assertEqual(norm_title("Æon"), "aeon")
 
+    def test_norm_title_lowers_what_the_decomposition_brings(self):
+        """'℃' and 'Ⅻ' decompose to capitals ('°C', 'XII'), after the lower():
+        the key was '25 C', and normalising that key again gave '25 c'."""
+        self.assertEqual(norm_title("25℃"), "25 c")
+        self.assertEqual(norm_title("Rocky Ⅻ"), "rocky xii")
+        self.assertEqual(norm_title(norm_title("25℃")), norm_title("25℃"))
+
     def test_norm_title_keeps_non_latin_scripts(self):
         """A Cyrillic or Greek title normalised to '' — every one of them was
         the same key as every other."""

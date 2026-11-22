@@ -8,6 +8,7 @@ import logging
 import os
 
 from PySide6.QtCore import (
+    QRect,
     QSettings,
     Qt,
 )
@@ -53,6 +54,19 @@ def layout_settings() -> QSettings:
         return QSettings(str(state_dir() / "layout.ini"),
                          QSettings.Format.IniFormat)
     return QSettings("danceplaylist_ai", "planner")
+
+
+FIRST_WINDOW = (1500, 900)
+
+
+def first_window_rect(free: QRect) -> QRect:
+    """Where the window opens before any size was saved: 1500 × 900, but never
+    larger than the screen's free area, and centred in it. A 13″ laptop has
+    1366 × 768 or less, and a window past its taskbar hides the status bar."""
+    w = min(FIRST_WINDOW[0], free.width())
+    h = min(FIRST_WINDOW[1], free.height())
+    return QRect(free.x() + (free.width() - w) // 2,
+                 free.y() + (free.height() - h) // 2, w, h)
 
 
 class PersistenceMixin(ExportMixin, UndoMixin, RestoreMixin):

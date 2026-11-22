@@ -285,7 +285,8 @@ class PresenterMixin(MainWindowHost):
         rate = max(0.01, self._player.playbackRate())
         pos = self._player.position() / 1000.0
         played = audible_played_secs(self._player.position(),
-                                     self._playback.offset_ms, rate)
+                                     self._playback.offset_ms, rate,
+                                     self._playback.tempo_shift_secs)
         left = None
         if self._celebrating():
             pass    # 🥇 past its cut the title plays on to the file's end
@@ -314,7 +315,8 @@ class PresenterMixin(MainWindowHost):
             return
         rate, played, left = span
         heard = max(0.0, min(1.0, fraction)) * (played + left)
-        self._player.setPosition(int(round(self._playback.offset_ms + heard * rate * 1000)))
+        self._player.setPosition(int(round(
+            self._playback.offset_ms + (heard - self._playback.tempo_shift_secs) * rate * 1000)))
 
     def _presenter_heat_suffix(self) -> str:
         """' · Heat 2' for the running title when its row names a heat (the

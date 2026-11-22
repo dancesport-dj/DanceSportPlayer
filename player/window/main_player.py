@@ -83,6 +83,8 @@ from player.window.main_xfade import CrossfadeMixin
 from shared.audio.playback import (
     audible_played_secs,
     device_id,
+    note_tempo_change,
+    rewind_tempo_history,
 )
 from shared.columns import (
     _COL_TITLE,
@@ -373,6 +375,7 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         self._mode_plan_btn.setChecked(not playing)
         self._mode_play_btn.setChecked(playing)
         self._left_stack.setCurrentWidget(self._play_scroll if playing else self._cfg_scroll)
+        self._cfg.actions_box.setVisible(not playing)
         if self._big_player and self._big_player.is_wide():
             self._big_player.setVisible(playing)
             self._dock_mode_row()
@@ -492,6 +495,37 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
                                       spans)
         return None if start is None else int(start * 1000)
 
+    def _on_tempo_changing(self, old: float, new: float, position_ms: int):
+        """The tempo moves mid-title: what was danced so far stays danced.
+        Read at the new rate the same file time would be more (slower) or
+        less (faster) floor time — a late −16 % cut the title at once."""
+        pb = self._playback
+        if pb.path is None:
+            return
+        pb.tempo_marks, pb.tempo_shift_secs = note_tempo_change(
+            pb.tempo_marks, pb.tempo_shift_secs, position_ms, pb.offset_ms, old, new)
+
+    def _rewind_tempo(self):
+        """On the play tick: a seek back past a tempo change undoes the
+        change's booking, or the start of a title replayed would read the
+        tempo history of a later point (rewind_tempo_history)."""
+        pb, player = self._playback, self._player
+        if not pb.tempo_marks or player is None:
+            return
+        shift = pb.tempo_shift_secs
+        pb.tempo_marks, pb.tempo_shift_secs = rewind_tempo_history(
+            pb.tempo_marks, shift, player.position(), pb.offset_ms,
+            player.playbackRate() or 1.0)
+        if pb.tempo_shift_secs != shift:
+            self._sync_big_player_limit()   # the ⏳ cut's file position moved
+
+    def _floor_secs_at(self, position_ms: int) -> float:
+        """Floor seconds of this title at file position `position_ms`, as
+        the timed cut counts them (the big player's labels)."""
+        rate = self._player.playbackRate() if self._player else 1.0
+        return audible_played_secs(position_ms, self._playback.offset_ms, rate,
+                                   self._playback.tempo_shift_secs)
+
     def _sync_big_player_limit(self):
         """Tell the big player where playback will ACTUALLY end — ⏳ timed cut,
         🔇 dead air behind the last note, or 🐂 PD highlight stop — so it shows
@@ -529,8 +563,8 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
             # and sits after whatever silence was skipped.
             rate = (self._player.playbackRate()
                     if self._player else 1.0)
-            end_ms = (self._play_end_secs() * max(0.01, rate) * 1000
-                      + self._playback.offset_ms)
+            end_ms = ((self._play_end_secs() - self._playback.tempo_shift_secs)
+                      * max(0.01, rate) * 1000 + self._playback.offset_ms)
             # Dead air can fall BEFORE the cut — then the song ends there, and
             # the countdown has to say so. Whichever comes first wins.
             sil_ms = self._silence_stop_ms()
@@ -1039,13 +1073,15 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         if self._closing_tick():
             return
         self._note_on_air()
+        self._rewind_tempo()
         # Grey the track once it has truly been heard for >10 s (any dance):
         # not silence skipped over, nor the ground a ↩ resume jumped past.
         if (not self._played_marked
                 and self._playback.path is not None
                 and audible_played_secs(self._player.position(),
                                         self._playback.offset_ms,
-                                        self._player.playbackRate())
+                                        self._player.playbackRate(),
+                                        self._playback.tempo_shift_secs)
                 >= self._PLAYED_AFTER_MS / 1000):
             self._played_marked = True
             self._mark_path_played(self._playback.path)
@@ -1059,7 +1095,8 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
                     datetime.now(),
                     audible_played_secs(self._player.position(),
                                         self._playback.offset_ms,
-                                        self._player.playbackRate()))):
+                                        self._player.playbackRate(),
+                                        self._playback.tempo_shift_secs))):
             self._fade_out_now()
             return
         if self._celebration_tick():
@@ -1072,14 +1109,7 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
             self._pd_tick(self._player)
             return
         if not self._play_limit_secs() > 0:
-            # Back up as well when the length was toggled off mid-fade.
-            level = self._hard_end_level()
-            if self._mix.fade != level:
-                self._mix.fade = level
-                self._apply_volume()
-            if 0.0 < level < 1.0:
-                self._follow_fade(("hard",))
-            self._set_countdown("")
+            self._tick_to_its_end()
             return
         limit = self._play_end_secs()
         fade = float(self._pv("fade"))
@@ -1087,7 +1117,8 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
         # tempo fader is divided out, so "1:45" is 1:45 on the floor.
         played = audible_played_secs(self._player.position(),
                                      self._playback.offset_ms,
-                                     self._player.playbackRate())
+                                     self._player.playbackRate(),
+                                     self._playback.tempo_shift_secs)
         remaining = limit - played
         if remaining <= 0:
             # 🥇 …unless a title of the final comes back up instead.
@@ -1103,6 +1134,48 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
             self._follow_fade(("timed", remaining, fade, floor, time.monotonic()))
         r = int(remaining + 0.999)
         self._set_countdown(f"⏳  {r // 60}:{r % 60:02d}")
+
+    def _tick_to_its_end(self):
+        """The play tick of a title with no play length to cut it. Back up
+        as well when the length was toggled off mid-fade. 🔁 at full length
+        counts down to the file's own end; a title let run to its end
+        (runs_to_end) counts down too and fades out over its last seconds."""
+        level = self._hard_end_level()
+        left = self._secs_to_its_end()
+        fade = float(self._pv("fade")) if self._playback.runs_to_end else 0.0
+        fading = left is not None and fade > 0
+        if fading and left is not None:
+            level = min(level, max(0.0, min(1.0, left / fade)))
+        if self._mix.fade != level:
+            self._mix.fade = level
+            self._apply_volume()
+        if fading and 0.0 < level < 1.0:
+            self._follow_fade(("timed", left, fade, 0.0, time.monotonic()))
+        elif 0.0 < level < 1.0:
+            self._follow_fade(("hard",))
+        if left is None:
+            self._set_countdown("")
+            return
+        r = int(left + 0.999)
+        tag = "⏳" if self._playback.runs_to_end else "🔁"
+        self._set_countdown(f"{tag}  {r // 60}:{r % 60:02d}")
+
+    def _secs_to_its_end(self) -> float | None:
+        """Floor seconds until the title's own end (the file's, or the 🔇
+        dead air behind its last note), while 🔁 runs it full or it was let
+        run to its end; None otherwise, or with no length known yet."""
+        if not (self._looping() or self._playback.runs_to_end):
+            return None
+        player = self._player
+        if player is None:
+            return None
+        dur = player.duration()
+        if dur <= 0:
+            return None
+        sil_ms = self._silence_stop_ms()
+        end_ms = dur if sil_ms is None else min(sil_ms, dur)
+        return max(0.0, (end_ms - player.position()) / 1000
+                   / max(0.01, player.playbackRate()))
 
     def _follow_fade(self, follow: tuple | None) -> None:
         """Let the mix's fine ramp steps carry the fade-out ramp `follow`
@@ -1440,7 +1513,8 @@ class PlayerControlMixin(TrackLoadMixin, PlayValuesMixin, PresenterMixin,
             # Played from a dialog or a file: no row knows more than the name.
             deck, ent = None, None
         heard = audible_played_secs(self._player.position(), self._playback.offset_ms,
-                                    self._player.playbackRate())
+                                    self._player.playbackRate(),
+                                    self._playback.tempo_shift_secs)
         started = datetime.now() - timedelta(seconds=heard)
         try:
             play_log.record(

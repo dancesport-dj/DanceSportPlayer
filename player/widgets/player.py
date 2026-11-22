@@ -97,6 +97,7 @@ class PreviewOverlay(QFrame):
     nextRequested = Signal()     # ⏭ → MainWindow plays the next song row
     duckPressed = Signal()   # 🔉 → MainWindow: full → duck → mute → full
     duckLifted = Signal()    # 🔉 a hand on the slider ended a duck or a mute
+    eqRequested = Signal(object, str)   # 🎚 → MainWindow opens the EQ card (anchor, tab)
 
     def __init__(self, player: QMediaPlayer, audio_out: QAudioOutput,
                  get_vol: Callable[[], float] | None = None,
@@ -175,6 +176,11 @@ class PreviewOverlay(QFrame):
         self._title.setToolTip("Drag here to move the preview player")
         self._title.setCursor(Qt.CursorShape.OpenHandCursor)
         top.addWidget(self._title, stretch=1)
+        eq_btn = QToolButton()
+        eq_btn.setText("🎚")
+        eq_btn.setToolTip(i18n.t("🎚 The pre-listen's equalizer"))
+        eq_btn.clicked.connect(lambda: self.eqRequested.emit(eq_btn, "cue"))
+        top.addWidget(eq_btn)
         gear_btn = QToolButton()
         icon_button(gear_btn, "gear", 12, OVERLAY_INK)
         gear_btn.setToolTip("Preview-player options")
@@ -443,7 +449,9 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
     tsoModeChanged = Signal(bool)          # TSO toggle → auto-equalize the heat tempo
     gemuetlichModeChanged = Signal(bool)   # 🛋 toggle → hold the dance to its top tempo
     tempoApplied = Signal()                # rate changed → the ⏳ limit moves with it
+    tempoChanging = Signal(float, float, int)   # (old, new, position ms) just before
     loopModeChanged = Signal(bool)         # 🔁 toggled → the ⏳ limit goes full / comes back
+    eqRequested = Signal(object, str)      # 🎚 → MainWindow opens the EQ card (anchor, tab)
     extendPauseRequested = Signal()        # ⏱➕ → lengthen the running auto-advance pause
     toPauseRequested = Signal()            # ⏸♪ → end this song now, jump to the pause music
     fadeOutRequested = Signal()            # 🔉↓ → fade the playing song out now
@@ -451,6 +459,11 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
     duckPressed = Signal()                 # 🔉 → full → duck → mute on everything audible
     duckLifted = Signal()                  # 🔉 a hand on the slider ended a duck or a mute
     fileDropped = Signal(str)              # a track dropped onto the card → play it
+    # Floor seconds the main deck has played at a file position: MainWindow
+    # books what the 🔇 skip jumped over and the tempo's history. None: the
+    # position at the current rate.
+    floor_secs_at: Callable[[int], float] | None = None
+    _eq_on = False   # 🎚 the music's EQ is on (set_eq_on)
 
     def __init__(self, player: QMediaPlayer, audio_out=None,
                  get_vol: Callable[[], float] | None = None,
@@ -844,17 +857,43 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
         if self._takt_overlay is not None:
             self._takt_overlay.set_dance(dance)
 
+    def _on_tools_clicked(self):
+        """♪: a click closes the tempo check or the EQ it opened, then
+        offers both again."""
+        from player.widgets.floating_card import FloatingCard
+        btn = self._tools_btn
+        open_cards = [c for c in btn.window().findChildren(FloatingCard)
+                      if c.isVisible() and c.anchor() is btn]
+        for card in open_cards:
+            card.closeRequested.emit()
+        self._tools_menu.popup(btn.mapToGlobal(btn.rect().bottomLeft()))
+
+    def set_eq_on(self, on: bool):
+        """🎚 An equalizer tab is on (AudioDevice.eq_lit): ♪ lights up."""
+        self._eq_on = on
+        self._light_tools()
+
+    def _light_tools(self):
+        """♪ in the TSO blue while the tempo check is open or the EQ is on."""
+        lit = self._takt_act.isChecked() or self._eq_on
+        if bool(self._tools_btn.property("lit")) == lit:
+            return
+        self._tools_btn.setProperty("lit", lit)
+        self._tools_btn.style().unpolish(self._tools_btn)
+        self._tools_btn.style().polish(self._tools_btn)
+
     def _toggle_takt_overlay(self, on: bool):
+        self._light_tools()
         if on:
             if self._takt_overlay is None:
                 from player.widgets.takt_meter import TaktMeterOverlay
                 self._takt_overlay = TaktMeterOverlay()
                 self._takt_overlay.closeRequested.connect(
-                    lambda: self._takt_btn.setChecked(False))
+                    lambda: self._takt_act.setChecked(False))
                 self._takt_overlay.applyRequested.connect(
                     self.apply_takt_correction)
                 self._takt_overlay.set_dance(self._current_dance)
-            self._takt_overlay.show_near(self._takt_btn)
+            self._takt_overlay.show_near(self._tools_btn)
         elif self._takt_overlay is not None:
             self._takt_overlay.hide()
 
@@ -979,6 +1018,30 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
         if on and self._tempo_pin.isChecked():
             self._tempo_pin.setChecked(False)   # the preference follows the pin
         self._tempo_pin.setEnabled(not on)
+
+    def set_pause_music(self, on: bool):
+        """🎶 The pause music plays between two titles: a cartwall pad, on
+        its own fader and at its own tempo. Volume and tempo would move
+        nothing then, so they grey out until the next title starts."""
+        on = bool(on)
+        if on == getattr(self, "_pause_music", False):
+            return
+        self._pause_music = on
+        level = i18n.t("The pause music is a cartwall pad: its level is the\n"
+                       "cartwall's fader. Back with the next title.")
+        tempo = i18n.t("The pause music is a cartwall pad: it plays at its\n"
+                       "own tempo. Back with the next title.")
+        for w, why in ((self._vol, level), (self._vol_down_btn, level),
+                       (self._vol_up_btn, level), (self._vol_lbl, level),
+                       (self._tempo, tempo), (self._tempo_down_btn, tempo),
+                       (self._tempo_up_btn, tempo)):
+            if on:
+                w.setProperty("tip_before_pause", w.toolTip())
+                w.setToolTip(why)
+            else:
+                w.setToolTip(w.property("tip_before_pause") or "")
+            w.setEnabled(not on)
+        self._sync_duck_tip()
 
     def set_tso_mode(self, on: bool):
         """Restore the TSO auto-equalize toggle (no signal)."""
@@ -1173,6 +1236,7 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
                  "playing: %s\n"
                  "position: %d ms", p.playbackRate(), target, was_playing,
                  p.position())
+        self.tempoChanging.emit(p.playbackRate(), target, p.position())
         p.setPlaybackRate(target)
         if was_playing and (p.playbackState()
                             != QMediaPlayer.PlaybackState.PlayingState):
@@ -1227,7 +1291,15 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
     def set_duck_level(self, pct: int):
         """🔉 The level from ⚙ Settings, named on the button."""
         self._duck_pct = pct
-        self._duck_btn.setToolTip(i18n.t("Duck to %d %%, again to mute, again back to full") % pct)
+        self._sync_duck_tip()
+
+    def _sync_duck_tip(self):
+        """The duck tooltip, plus a line while the pause music plays: 🔉
+        stays live then, since it lowers the cartwall pads too."""
+        tip = i18n.t("Duck to %d %%, again to mute, again back to full") % self._duck_pct
+        if getattr(self, "_pause_music", False):
+            tip += "\n" + i18n.t("Ducks the pause music too.")
+        self._duck_btn.setToolTip(tip)
 
     def set_button_scale(self, pct: int):
         """🔘 ⏮ ⏯ ⏭ at the button size from ⚙ Settings → Look."""
@@ -1299,6 +1371,17 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
         """🥇 Mark on the waveform where the title went to the celebration."""
         self._wave.set_celebrate_mark(ms)
 
+    def _floor_ms(self, pos: int) -> int:
+        """File position `pos` as floor time: how long the couples have
+        danced when the deck gets there. The card's labels speak it, so the
+        tempo fader doesn't make a 1:30 play length read 1:15."""
+        if self.floor_secs_at is not None and self._player is self._tempo_player:
+            return round(self.floor_secs_at(pos) * 1000)
+        return round(pos / self._rate())
+
+    def _rate(self) -> float:
+        return max(0.01, float(self._player.playbackRate() or 1.0))
+
     def _end_ms(self) -> int:
         """Where playback ACTUALLY ends: the armed limit, else the track end."""
         if self._limit_ms and 0 < self._limit_ms < self._dur:
@@ -1316,12 +1399,13 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
             then = (f" {icon_html(self._limit_then, 11, WARN)}"
                     if self._limit_then else "")
             self._limit_lbl.setText(
-                f"{icon_html(self._limit_glyph, 11, WARN)} {fmt_ms(self._limit_ms)}"
-                f"{then} / {fmt_ms(self._dur)}")
+                f"{icon_html(self._limit_glyph, 11, WARN)} "
+                f"{fmt_ms(self._floor_ms(self._limit_ms))}"
+                f"{then} / {fmt_ms(self._floor_ms(self._dur))}")
         elif self._limit_to_end and self._dur > 0:
             # Stop armed but it lands on the track's own end → "plays through".
             self._limit_lbl.setText(f"{icon_html(self._limit_glyph, 11, WARN)} "
-                                    f"⟶ {fmt_ms(self._dur)}")
+                                    f"⟶ {fmt_ms(self._floor_ms(self._dur))}")
         else:
             self._limit_lbl.setText("")
 
@@ -1465,8 +1549,9 @@ class BigPlayerWidget(BigPlayerSetupMixin, QFrame):
 
     def _update_time(self, pos: int):
         dur = self._slider.maximum()
-        remaining = max(0, dur - pos)
-        self._elapsed.setText(fmt_ms(pos))
+        # Floor time: from here to the end the deck plays at today's rate.
+        remaining = round(max(0, dur - pos) / self._rate())
+        self._elapsed.setText(fmt_ms(self._floor_ms(pos)))
         self._remaining.setText(f"-{fmt_ms(remaining)}")
         self._update_end_flash(remaining, dur)
 

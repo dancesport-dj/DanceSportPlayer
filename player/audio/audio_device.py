@@ -63,6 +63,13 @@ class AudioDevice:
     The music's players get theirs from `make_route`, each the first time
     the music is put on a pair; until then they run Qt's own path."""
 
+    # 🎚 Told on every sync whether any source's EQ (music, voice, cue) is on
+    # (the big player's ♪ button lights up); None = nobody listens.
+    eq_lit: Callable[[bool], None] | None = None
+    # 🎚 ⚙ Settings' EQ edits, heard before OK: laid over the settings in
+    # sync_eq, never written into them (None value: a key to be without).
+    eq_preview: dict | None = None
+
     def __init__(self, player, audio_out, *,
                  mix: OutputMix,
                  settings: Callable[[], dict],
@@ -80,6 +87,10 @@ class AudioDevice:
         self._make_route = make_route
         # id(player) → the route of a music player (the deck, the spare deck).
         self._routes: dict[int, PairRoute] = {}
+        # 🎚 The music's EQ bands (player.audio.eq.Band), None = Qt's own output.
+        self._music_eq: tuple | None = None
+        # source → (id of its owner, the bands it was last given): cue, announcer.
+        self._eq_sent: dict[str, tuple] = {}
         self.cue = cue
         self._audio_out = audio_out
         self._mix = mix
@@ -375,9 +386,9 @@ class AudioDevice:
 
     def _route(self, player, out, pair: int) -> PairRoute | None:
         """🔀 A music player's route, built the first time it is put on a
-        channel pair; None for one that never was."""
+        channel pair or through the 🎚 EQ; None for one that never was."""
         route = self._routes.get(id(player))
-        if route is None and pair:
+        if route is None and (pair or self._music_eq is not None):
             if self._make_route is None:
                 from player.audio.pair_route import PairRoute
                 self._make_route = PairRoute
@@ -411,6 +422,11 @@ class AudioDevice:
         moving an output re-opens the card."""
         if not self._player:
             return
+        # ⏩ The music's tempo engine; sync_eq taps the music for an app's own.
+        # Also asks ffmpeg for its filters here, once: the audio thread never waits.
+        from player.audio import stretch_engines
+        stretch_engines.set_engine(
+            (self._settings() or {}).get("tapped_tempo_engine") or stretch_engines.DEFAULT)
         for source in OUTPUT_SOURCES:
             dev = self.target(source)
             if dev is None or dev.isNull():
@@ -429,6 +445,7 @@ class AudioDevice:
                      "output: %s\n"
                      "channels: %s", source, dev.description(),
                      pair_label(pair) if pair else "the whole device")
+        self.sync_eq()
 
     def swap_deck(self, player, audio_out):
         """🔀 A crossfade made the other player the deck: the music is that
@@ -436,6 +453,56 @@ class AudioDevice:
         self._player, self._audio_out = player, audio_out
         self._applied.pop("music", None)
         self.sync()
+        self._eq_on(player, audio_out)   # idle until the next title: at once
+
+    # ── 🎚 The music's EQ ────────────────────────────────────────────────────
+
+    def set_music_eq(self, bands) -> None:
+        """🎚 The music's EQ on the deck and the spare deck: a tuple of
+        player.audio.eq.Band, () for the A/B bypass, None for Qt's own
+        output. Heard at once, on the title playing (PairRoute.set_eq)."""
+        self._music_eq = None if bands is None else tuple(bands)
+        if self._player is None:
+            return
+        self._eq_on(self._player, self._audio_out)
+        spare, spare_out = self._spare_deck()
+        if spare is not None and spare_out is not None:
+            self._eq_on(spare, spare_out)
+
+    def sync_eq(self) -> None:
+        """🎚 Every source's EQ as the settings have it: the music, the
+        announcements, the pre-listen. Part of `sync`, so a settings change
+        or a moved output brings it along; the announcer keeps it for its
+        player, built on first use."""
+        if self._player is None:
+            return
+        from planner.playing import equalizer as eq_settings
+        from player.audio import eq, stretch_engines
+        settings = self._settings() or {}
+        if self.eq_preview is not None:
+            settings = {**settings, **self.eq_preview}
+            settings = {k: v for k, v in settings.items() if v is not None}
+        music = eq.bands_for(settings, "music")
+        if self.eq_lit is not None:
+            self.eq_lit(any(eq.bands_for(settings, s) is not None
+                            for s in eq_settings.SOURCES))
+        if music is None and stretch_engines.taps_music() and eq.available():
+            music = ()   # the EQ path as it is: the app makes the tempo
+        if music != self._music_eq:
+            self.set_music_eq(music)
+        # Only a change goes out: sync runs on every output event.
+        for source, owner in (("cue", self.cue), ("announcer", self._announcer())):
+            if owner is None:
+                continue
+            bands = eq.bands_for(settings, source)
+            if self._eq_sent.get(source, (id(owner), None)) != (id(owner), bands):
+                owner.set_eq(bands)
+                self._eq_sent[source] = (id(owner), bands)
+
+    def _eq_on(self, player, out):
+        route = self._route(player, out, 0)
+        if route is not None:
+            route.set_eq(self._music_eq)
 
     # ── 🔇 Handing the sound device back while nothing plays ─────────────────
 

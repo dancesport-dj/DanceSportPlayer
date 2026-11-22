@@ -40,6 +40,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from gui import screen_mode
 from gui.common import (
     C_DEFAULT,
     C_LEN_WARN_FG,
@@ -532,6 +533,18 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
         self._width_timer.setSingleShot(True)
         self._width_timer.setInterval(400)
         self._width_timer.timeout.connect(self._notify_widths)
+
+    @property
+    def song_row_height(self) -> int:
+        """A song row: 24 px, 22 under 📐 Compact."""
+        return 22 if screen_mode.compact() else 24
+
+    def apply_row_height(self):
+        """Give the song rows the current 📐 height; headers keep theirs."""
+        height = self.song_row_height
+        for r in range(self.rowCount()):
+            if self._row_meta.at(r) is not None:
+                self.setRowHeight(r, height)
 
     def _build_headers(self):
         """Column widths and resizing, the column menu and the Nb. number column."""
@@ -1231,7 +1244,7 @@ class PlaylistTable(TableColumnsMixin, TableRegenMixin, TableLoadMixin,
 
         self._fill_row_buttons(row, meta, bg, missing, marked)
 
-        self.setRowHeight(row, 24)
+        self.setRowHeight(row, self.song_row_height)
         # Fresh items: the colours saved off the old ones are no one's now, and
         # left in place they would keep this row from greying again.
         for c in range(self.columnCount()):

@@ -65,6 +65,10 @@ EOF
 # by Chrome, Chromium or Edge). Without one the build goes on, only without a manual.
 "$PY" -m tools.docs.build_manual_pdf || echo "NOTE: no manual PDF printed, see above"
 
+# Signalsmith Stretch, the tempo of a tapped player (the EQ, a channel pair).
+# Without it the numpy stretch stands in, so a failed compile is only a note.
+sh player/audio/native/build_sstretch.sh || echo "NOTE: no Signalsmith library built, see above"
+
 "$PY" -m PyInstaller dancesport.spec --noconfirm
 
 APP="dist/$APP_NAME.app"

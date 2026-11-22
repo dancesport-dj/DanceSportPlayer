@@ -1282,7 +1282,7 @@ class DeckLayoutMixin(LibraryPaneMixin, FoldMixin, WishlistMixin):
         """Show `n` decks (0 = no playlists), say so, and keep it."""
         self._deckset.deck_count = n
         self._apply_deck_view()
-        msg = {0:"No-playlist view — decks hidden; only Practice / wishlist / library show",
+        msg = {0: "No-playlist view — decks hidden; only Practice / wishlist / library show",
                1: "Single-playlist view",
                2: "🎚️ Two-playlist view — focus a deck; its controls drive Generate / Save / ↺",
                4: "🎚️ Four-playlist view — focus a deck to drive Generate / Save / ↺",

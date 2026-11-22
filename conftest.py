@@ -5,6 +5,7 @@ It sits at the repo root, not in tests/: pytest imports a tests/conftest.py as
 `tests.conftest`, which runs tests/__init__.py in the pytest-xdist controller.
 That sets DANCEPLAYLIST_DATA_DIR there, every worker inherits it, and all of
 them share one audio_features.db: click tests then stall on its locks."""
+import os
 import sys
 
 import pytest
@@ -65,7 +66,13 @@ def release_stuck_modifiers():
 
 def pytest_unconfigure(config):
     """Remove the temp root tests/__init__.py made in this process: an xdist
-    worker ends without running atexit, which does it under unittest."""
+    worker ends without running atexit, which does it under unittest.
+
+    Not under HypoFuzz (tools/dev/hypofuzz_run.py sets the variable): it
+    collects with a pytest run of its own and then runs the tests in the same
+    process, which would find TEMP gone. The runner removes the temp folder
+    of the whole run. Not "hypofuzz" in sys.modules: Hypothesis loads it as a
+    plugin in every run once it is installed."""
     suite = sys.modules.get("tests")
-    if suite is not None:
+    if suite is not None and not os.environ.get("DANCEPLAYLIST_HYPOFUZZ"):
         suite.remove_temp_root()

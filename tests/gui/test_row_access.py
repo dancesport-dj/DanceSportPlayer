@@ -26,6 +26,16 @@ def _entry(name, bpm=58):
                            tag_artist="Artist", tag_album="Album")
 
 
+class PrintPlayTimeTest(unittest.TestCase):
+    """🖨 The header's play time: what is danced, not the spares stacked under it."""
+
+    def test_a_backup_spare_adds_no_play_time(self):
+        rows = [Row(entry=_entry("Alpha"), dance="QS", round_name="Finale"),
+                Row(entry=_entry("Bravo"), dance="QS", round_name="Finale", backup=True, backup_n=1)]
+        html = "".join(deck_print_html("Deck A", rows))
+        self.assertIn("~3:00 play time", html)
+
+
 class PrintHeatLabelTest(unittest.TestCase):
     """🖨 The Heat column: the row's own heat number, or which spare it is."""
 

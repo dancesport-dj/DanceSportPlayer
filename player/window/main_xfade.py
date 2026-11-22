@@ -90,7 +90,8 @@ class CrossfadeMixin(MainWindowHost):
         left = (end - pos) / 1000.0 / rate
         limit = self._play_end_secs()
         if limit > 0:
-            played = audible_played_secs(pos, self._playback.offset_ms, rate)
+            played = audible_played_secs(pos, self._playback.offset_ms, rate,
+                                         self._playback.tempo_shift_secs)
             left = min(left, limit - played)
         return left
 

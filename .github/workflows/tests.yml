@@ -69,6 +69,12 @@ jobs:
         if: runner.os == 'Windows'
         run: basedpyright
 
+      # Signalsmith Stretch for the tapped tempo: the Windows DLL is in git,
+      # macOS and Linux build theirs here, as their app builds do.
+      - name: Build the Signalsmith library
+        if: runner.os != 'Windows'
+        run: sh player/audio/native/build_sstretch.sh
+
       - name: Test
         env:
           QT_QPA_PLATFORM: offscreen

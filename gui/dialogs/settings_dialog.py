@@ -55,6 +55,7 @@ from shared.audio.audio_files import (
     music_browse_dir,
 )
 from shared.widgets import (
+    guard_wheel,
     hsep,
 )
 
@@ -88,12 +89,15 @@ class SettingsDialog(LookTabMixin, SoundTabMixin, CartwallTabMixin,
                  remote_running=None, remote_stop_cb=None, remote_changed=None,
                  guests_cb=None, controller_cb=None, desk_keys_cb=None,
                  announce_test_cb=None, open_sound=False, reset_cb=None,
-                 open_cartwall=False, profiles_cb=None):
+                 open_cartwall=False, profiles_cb=None, eq_live_cb=None):
         super().__init__(parent)
         self.setWindowTitle("⚙  Settings")
         self.setMinimumWidth(560)
         self._settings_in = dict(settings)
         self._profiles_cb = profiles_cb
+        # 🎚 Every EQ edit, heard on what plays at once; Cancel sends back
+        # what the dialog opened with (SoundTabMixin._eq_edited).
+        self._eq_live_cb = eq_live_cb
         self._gaps_cb = gaps_cb
         self._build_cb = build_cb
         self._embed_cb = embed_cb
@@ -152,6 +156,8 @@ class SettingsDialog(LookTabMixin, SoundTabMixin, CartwallTabMixin,
         SettingsDialog._last_tab = self._tabs.currentIndex()
         if result == QDialog.DialogCode.Accepted:
             self.save_ai_config()
+        else:
+            self._eq_take_back()
         super().done(result)
 
     def _setup_general_tab(self, settings, tabs):
@@ -895,6 +901,7 @@ class SettingsDialog(LookTabMixin, SoundTabMixin, CartwallTabMixin,
             scroll.setWidget(page)
             tabs.insertTab(i, scroll, text)
             tabs.setTabVisible(i, visible)
+        guard_wheel(tabs)
         tabs.setCurrentIndex(0)
         tabs.updateGeometry()     # the layout still holds the unwrapped pages' sizes
         # 90 %: the title bar sits outside the dialog's own size.
@@ -1063,6 +1070,7 @@ class SettingsDialog(LookTabMixin, SoundTabMixin, CartwallTabMixin,
             "presenter_theme": self.presenter_theme(),
             "accent_color": self._accent,
             "font_scale": self._font_scale_combo.currentData(),
+            "screen_mode": self._screen_mode_combo.currentData(),
             "language": self._language_combo.currentData(),
             "german_dance_terms": self._german_terms_chk.isChecked(),
             **({"error_reports": self._error_reports_chk.isChecked()}

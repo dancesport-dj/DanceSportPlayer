@@ -80,7 +80,7 @@ else:
 # what the app ran on for months; on 6.11.1 its plugin cuts the first play of a
 # freshly loaded track after about a second and resets it, which is why
 # requirements.txt pins the version rather than trusting the backend choice
-# alone (6.11.2 there now, its WMF not yet heard). Even working, WMF re-emits LoadedMedia mid-playback,
+# alone (6.12.0 there now, its WMF not yet heard). Even working, WMF re-emits LoadedMedia mid-playback,
 # never reports EndOfMedia for a clip that runs to its own end (see
 # player/audio/announce.py), reports position 0 at a pause, and is the backend the ⏭
 # access violation was seen on. So the default is ffmpeg on merit, not as a
@@ -147,7 +147,7 @@ def exit_app(code: int):
 # Background workers and all dialogs/shared widgets live in their own modules;
 # the names are re-imported here so the rest of this file keeps using them
 # unchanged.
-from gui import settings_save_report
+from gui import screen_mode, settings_save_report
 from gui.common import (
     APP_USER_MODEL_ID,
     BusyDialog,
@@ -177,6 +177,7 @@ from gui.dialogs.about import manual_pdf, open_manual, show_about
 from gui.dialogs.log_export import export_log
 from gui.dialogs.shortcuts import show_shortcuts
 from gui.dialogs.update_notice import UpdateNotice
+from gui.hints_label import HintsLabel
 from gui.library_browser import (  # noqa: F401  (facade re-export)
     LibPlayItem,
     LibraryBrowser,
@@ -211,7 +212,7 @@ from gui.window.main_fullscreen import FullscreenMixin
 from gui.window.main_generate import GenerateMixin
 from gui.window.main_global import GlobalIndexMixin
 from gui.window.main_import import ImportMixin
-from gui.window.main_persist import PersistenceMixin
+from gui.window.main_persist import PersistenceMixin, first_window_rect
 from gui.window.undo_timeline import UndoTimeline
 from gui.workers import (
     AudioAnalyzer,
@@ -277,7 +278,7 @@ from shared.audio.audio_files import (
 )
 from shared.audio.audio_probes import LoudnessWorker, SilenceWorker
 from shared.audio.playback import plain_output_name, prime_disconnect_notify, quiet_ffmpeg_log
-from shared.plain_text import plain_label, plain_tip
+from shared.plain_text import plain_tip
 from shared.stores import (
     save_settings,
 )
@@ -294,7 +295,12 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         super().__init__()
         self.setWindowTitle("DanceSport Planner & Player")
         self.setAcceptDrops(True)   # a .dpvenue venue pack dropped on the window
-        self.resize(1500, 900)
+        # Before any size was saved: 1500 × 900, fitted into the free area of
+        # the screen under the pointer (a 13″ laptop has less). A saved size
+        # replaces it in _restore_layout.
+        screen = QApplication.screenAt(QCursor.pos()) or QApplication.primaryScreen()
+        self.setGeometry(first_window_rect(screen.availableGeometry()))
+        free_height = screen.availableGeometry().height()
         # A 🎨 look draws the deck title strips and the mode switch its own way.
         self._look_parts = theme.look_parts()
         if self._look_parts:
@@ -322,6 +328,9 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
 
         # Settings + lazily-built whole-repo library (for global search)
         self._settings = load_settings()
+        # 📐 Compact or not: decided here, and again under Auto when the
+        # window moves to another screen (showEvent).
+        screen_mode.apply_settings(self._settings, free_height)
         # 🎧 Main and Rehearsal always exist; a settings file from before them
         # gets both, seeded from the outputs it already had, and keeps them. A
         # vanished active profile falls back to Main, Main's outputs with it.
@@ -444,8 +453,10 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
             announcer=lambda: getattr(self, "_announcer", None),
             warn=lambda text: show_toast(self, text, 4000, error=True),
             cue=cue,
-            spare_deck=lambda: (self._between.xfade.player,
-                                self._between.xfade.out))
+            # Asked for while the outputs are set up, before _between is.
+            spare_deck=lambda: ((self._between.xfade.player,
+                                 self._between.xfade.out)
+                                if hasattr(self, "_between") else (None, None)))
         if self._player is not None:
             self._follow_audio_devices(self._player)
 
@@ -654,6 +665,7 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         self._announcer = DanceAnnouncer(
             self, self._on_announcer_speaking,
             voice=str(self._settings.get("announce_voice", "random")))
+        self._audio_device.sync_eq()   # 🎚 the voice's EQ, built after the outputs
         # Manual "fade out now" (🔉↓ on the card) and the 🛑 panic fade.
         self._fade_now = FadeNow()
         # 🕘 (dance, title) of the title before the running one — the presenter
@@ -851,8 +863,18 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
                 bool(self._settings.get("tso_equalize", True)))
             self._big_player.tsoModeChanged.connect(self._on_tso_mode)
             self._big_player.gemuetlichModeChanged.connect(self._on_gemuetlich_mode)
+            self._big_player.tempoChanging.connect(self._on_tempo_changing)
+            self._big_player.floor_secs_at = self._floor_secs_at
             self._big_player.tempoApplied.connect(self._sync_big_player_limit)
             self._big_player.loopModeChanged.connect(self._on_loop_mode)
+            # 🎚 One card behind the player's button and the pre-listen's.
+            from player.widgets.eq_card import EqCardController
+            eq_card = EqCardController(self, self._audio_device, lambda: self._settings)
+            self._big_player.eqRequested.connect(eq_card.toggle)
+            self._audio_device.eq_lit = self._big_player.set_eq_on
+            self._audio_device.sync_eq()   # ♪ lit from the start when the EQ is on
+            if self._audio_device.cue is not None:
+                self._audio_device.cue.view.eqRequested.connect(eq_card.toggle)
             self._play_panel.set_player_widget(self._big_player)
 
     def _build_left_column(self):
@@ -915,6 +937,11 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
         self._play_scroll.setWidget(self._play_panel)
         self._left_stack.addWidget(self._play_scroll)
         ll.addWidget(self._left_stack, stretch=1)
+        # ⚡ Generate, 💾 Save, 📂 Import and 🤖 AI under the planning scroll
+        # area, not in it: only the setup fields scroll. They go with the
+        # planning page (_set_play_mode).
+        ll.addWidget(self._cfg.actions_box)
+        self._cfg.actions_box.show()
         return left_box
 
     def _setup_shortcuts(self):
@@ -975,13 +1002,8 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
     def _setup_player_bar(self, right, rl, splitter):
         """Hints bar, player bar, undo/redo and the persisted dividers."""
         # Hints bar (between table and player) — hidden until there's something to say
-        self._hints_lbl = plain_label("")   # the model's notes are no markup (7.C)
-        self._hints_lbl.setWordWrap(True)
-        self._hints_lbl.setStyleSheet(
-            "background:#fff8e6; color:#7a5b00; border:1px solid #e6d28a;"
-            "border-radius:4px; padding:4px 8px; font-size:11px;"
-        )
-        self._hints_lbl.setVisible(False)
+        # 📐 Compact folds them to one line.
+        self._hints_lbl = HintsLabel(compact=screen_mode.compact())
         rl.addWidget(self._hints_lbl)
 
         # Player bar (bottom of right panel)
@@ -1509,6 +1531,15 @@ class MainWindow(DeckSetupMixin, DeckLayoutMixin, GenerateMixin, ImportMixin, Pe
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._update_toolbar_compact()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        # 📐 Auto follows the window onto another screen. The handle exists
+        # once shown; a property on it keeps a second show from wiring twice.
+        handle = self.windowHandle()
+        if handle is not None and not handle.property("dpScreenWatch"):
+            handle.setProperty("dpScreenWatch", True)
+            handle.screenChanged.connect(self._on_screen_changed)
 
     def _update_toolbar_compact(self):
         """Pick the compaction stage the toolbar's CURRENT width allows.

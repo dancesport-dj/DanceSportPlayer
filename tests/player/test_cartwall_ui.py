@@ -22,8 +22,8 @@ from PySide6.QtGui import QMouseEvent
 from PySide6.QtWidgets import QApplication, QStyleOptionToolButton, QToolButton, QWidgetItem
 
 from planner.playing import cartwall as pc
-from player.dialogs import cart_pad_dialog as cpd
 from player.widgets import cartwall as gc
+from shared.widgets import ClickableLabel
 from tests.qt_test_support import reap_widget, settle_wall_checks
 
 _app = QApplication.instance() or QApplication(sys.argv)
@@ -727,7 +727,7 @@ class PageNameTest(unittest.TestCase):
     def test_the_label_reports_a_real_double_click(self):
         """A bare label, deliberately: the wall's own is wired to the rename
         dialog, and a modal exec() in a test run never comes back."""
-        label = cpd.ClickableLabel("Page 1")
+        label = ClickableLabel("Page 1")
         self.addCleanup(reap_widget, label)
         seen = []
         label.double_clicked.connect(lambda: seen.append(1))

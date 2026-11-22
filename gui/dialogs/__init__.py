@@ -60,6 +60,7 @@ log = logging.getLogger("dancesport.gui")
 # import from gui.common, and the dialog classes below stay because the split
 # moved them out from under names that were already gui.dialogs'.
 # (gui.common/dialog modules never import gui.dialogs, so there is no cycle.)
+from gui import screen_mode
 from gui.common import (
     DroppedFilesList,
     MultiFileDropZone,
@@ -279,6 +280,8 @@ def load_settings() -> dict:
         "exclude_no_class": False,
         # ⛶ The fullscreen clock without its date: "20:45:12".
         "clock_time_only": False,
+        # 📐 Auto / Normal / Compact — see gui.screen_mode.
+        "screen_mode": "auto",
         "preview_player": True,
         # ▸ Advanced on the 🔊 Sound & player tab: left open or folded.
         "sound_advanced_open": False,
@@ -312,6 +315,10 @@ def load_settings() -> dict:
         # 🔕 The OS's own dings off the shared sound card while the evening
         # runs (Playing mode, or anything audible) — see player.audio.system_sounds.
         "mute_system_sounds": True,
+        # ⏩ The music's tempo, pitch kept (player.audio.stretch_engines):
+        # Qt's own, or the app's Signalsmith / Rubber Band for every title.
+        # The key's old name stays: settings files already carry it.
+        "tapped_tempo_engine": "qt",
         # ☀ A tournament runs for hours without anyone touching the desk —
         # the screensaver stays off while music plays or the presenter is up.
         "keep_awake": True,
@@ -387,8 +394,9 @@ def migrate_column_settings(s: dict) -> dict:
         version = max(int(s.get("columns_version") or 1), 1)
         for step in range(version + 1, COLUMNS_VERSION + 1):
             _add_column(s, *_ADDED_COLUMNS[step])
-    except (TypeError, ValueError, AttributeError) as exc:
-        # A hand-edited value that names no column: the saved layout goes
+    except (TypeError, ValueError, AttributeError, OverflowError) as exc:
+        # A hand-edited value that names no column (Infinity is one too):
+        # the saved layout goes
         # back to the defaults instead of the app failing to start.
         log.warning("⚠️ Saved column layout unreadable, using the defaults\n"
                     "error: %s", exc)
@@ -508,6 +516,15 @@ MEDIA_BACKEND_CHOICES = (
     (("auto", "🔊  Automatic — whatever this system uses (default)"),
      ("ffmpeg", "🎬  FFmpeg — Qt's own engine")))
 
+# (player.audio.stretch_engines key, caption): the music's tempo, pitch kept.
+# Every platform: Rubber Band wherever its ffmpeg has the filter.
+# The first one is the default.
+TEMPO_ENGINE_CHOICES = (
+    ("qt", "▶  Qt (standard) — Qt's own stretch, stutters briefly when the tempo changes (default)"),
+    ("signalsmith", "〰  Signalsmith — the app's own, a tempo change without a gap"),
+    ("rubberband", "🎼  Rubber Band — through ffmpeg, crisp beats, more CPU"),
+)
+
 
 # (planner.playlist.m3u.M3U_FORMATS key, caption) — what 'Save as M3U' and the exports write.
 M3U_FORMAT_CHOICES = (
@@ -608,6 +625,14 @@ def media_backend_of(settings: dict) -> str:
     return choice if choice in MEDIA_BACKENDS else default
 
 
+def tempo_engine_of(settings: dict) -> str:
+    """The chosen tempo engine for the music, Qt's own for anything
+    unrecognised (a settings file written before the option existed)."""
+    choice = str(settings.get("tapped_tempo_engine") or "").strip().lower()
+    keys = [key for key, _caption in TEMPO_ENGINE_CHOICES]
+    return choice if choice in keys else keys[0]
+
+
 def media_backend_env(settings: dict) -> str:
     """What QT_MEDIA_BACKEND has to say for that choice — "" meaning: don't set
     it, let Qt pick. Read once at startup; Qt loads the backend plugin the first
@@ -699,7 +724,8 @@ class AppModeDialog(QDialog):
     or both? The answer only hides UI — nothing is uninstalled by it, and
     ⚙ Settings changes it again at any time."""
 
-    def __init__(self, mode: str = DEFAULT_APP_MODE, parent=None):
+    def __init__(self, mode: str = DEFAULT_APP_MODE, parent=None,
+                 free_height: int | None = None):
         super().__init__(parent)
         self.setWindowTitle("Welcome to DanceSport Planner & Player")
         self.setMinimumWidth(480)
@@ -730,15 +756,47 @@ class AppModeDialog(QDialog):
             desc.setStyleSheet("color:#666; font-size:11px; margin-left:22px;")
             lyt.addWidget(desc)
 
+        lyt.addWidget(hsep())
+        self._add_screen_row(lyt, free_height)
+
         bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
         bb.accepted.connect(self.accept)
         lyt.addWidget(bb)
+
+    def _add_screen_row(self, lyt, free_height):
+        """📐 Screen, preset to Auto. A small laptop learns about Compact here
+        instead of finding it in ⚙ Look later; Auto stays the preset, so a
+        laptop docked to a big monitor later still gets the normal layout."""
+        if free_height is None:
+            screen = QApplication.primaryScreen()
+            free_height = screen.availableGeometry().height() if screen else 1080
+        row = QHBoxLayout()
+        row.addWidget(QLabel("📐  Screen:"))
+        self._screen_combo = QComboBox()
+        for key, label in screen_mode.SCREEN_MODE_CHOICES:
+            self._screen_combo.addItem(label, key)
+        # Separate literal captions, so each one reaches the catalogue.
+        if screen_mode.is_compact({}, free_height):
+            self._screen_combo.setItemText(0, i18n.t("Auto (Compact on this screen)"))
+        else:
+            self._screen_combo.setItemText(0, i18n.t("Auto (Normal on this screen)"))
+        row.addWidget(self._screen_combo)
+        row.addStretch(1)
+        lyt.addLayout(row)
+        desc = QLabel("Compact fits more rows on a 12-13″ laptop. "
+                      "⚙ Settings → 🎨 Look changes it later.")
+        desc.setWordWrap(True)
+        desc.setStyleSheet("color:#666; font-size:11px;")
+        lyt.addWidget(desc)
 
     def mode(self) -> str:
         for key, rb in self._radios.items():
             if rb.isChecked():
                 return key
         return DEFAULT_APP_MODE
+
+    def screen_mode(self) -> str:
+        return self._screen_combo.currentData()
 
 
 def ensure_app_mode() -> str:
@@ -767,6 +825,7 @@ def ensure_app_mode() -> str:
     dlg.exec()
     mode = dlg.mode()
     settings["app_mode"] = mode
+    settings["screen_mode"] = dlg.screen_mode()
     if mode == "player":
         # A player-only install opens on the venue layout instead of an empty
         # tournament grid. Flagged rather than written out here: the deck view,

@@ -269,8 +269,16 @@ class SettingsRoundTripTest(_QtCase):
         self.addCleanup(reap_widget, dlg)
         combo = dlg._font_scale_combo
         self.assertEqual([combo.itemData(i) for i in range(combo.count())],
-                         [100, 105, 110, 115, 130, 150])
+                         [90, 100, 105, 110, 115, 130, 150])
         self.assertFalse(hasattr(dlg, "_button_scale_combo"))
+
+    def test_a_smaller_text_is_offered_for_a_small_screen(self):
+        """📐 A 13″ laptop at 150 % scaling: 90 % gives back a row or two."""
+        self.assertEqual(theme.font_scale_of({"font_scale": 90}), 90)
+        self.addCleanup(theme.set_font_scale, 100)
+        theme.set_font_scale(90)
+        self.assertEqual(theme.font_scale(), 90)
+        self.assertEqual(theme.button_scale(), 100)   # the buttons keep their size
 
 
 if __name__ == "__main__":

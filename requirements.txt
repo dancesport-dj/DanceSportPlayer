@@ -24,9 +24,11 @@
 # but WMF stays reachable in ⚙ Settings, and on 6.11.1 it is a trap. 6.11.2 is
 # pinned now with the suite green; whether its WMF plugin still cuts the first
 # play has to be heard with ⚙ Settings → 🔊 Audio backend set to Windows, and if
-# it does, 6.10.2 is the version to go back to. The wheels are cp39-abi3, so this
-# pin costs nothing on any Python version.
-PySide6==6.11.2
+# it does, 6.10.2 is the version to go back to. 6.12.0 (Qt 6.12 LTS, Signalsmith
+# Stretch 1.1.0 in its FFmpeg backend, matched by player/audio/native) is pinned
+# now with the suite green; the same WMF check applies to it. The wheels are
+# cp310-abi3, so this pin costs nothing on any Python version.
+PySide6==6.12.0
 librosa==1.0.0
 numpy==2.5.3
 mutagen==1.48.1

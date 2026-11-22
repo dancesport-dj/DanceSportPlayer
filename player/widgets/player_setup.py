@@ -9,11 +9,18 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QToolButton, QVBoxLayout
+from PySide6.QtWidgets import (
+    QHBoxLayout,
+    QLabel,
+    QMenu,
+    QSizePolicy,
+    QToolButton,
+    QVBoxLayout,
+)
 
 from planner import i18n
 from planner.terms import rules_name
-from player.dialogs.cart_pad_dialog import TypedValue
+from player.widgets.floating_card import ACCENT, DIM, INK
 from player.widgets.player_parts import (
     ART_PX,
     CARD_CUE,
@@ -36,6 +43,7 @@ from player.widgets.player_parts import (
 from player.widgets.waveform import WaveformLoader, WaveformStrip
 from shared.appearance.icons import button as icon_button
 from shared.appearance.icons import pixmap as icon_pixmap
+from shared.widgets import TypedValue
 
 if TYPE_CHECKING:
     from gui.window.hosts import BigPlayerHost
@@ -47,6 +55,21 @@ else:
 _CAP_H = ("qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3b4252,"
           " stop:0.42 #3b4252, stop:0.43 #e8eef8, stop:0.57 #e8eef8,"
           " stop:0.58 #3b4252, stop:1 #3b4252)")
+
+
+# The ♪ button's menu in the floating cards' dark look. No check box: the
+# open tempo check is the entry in the accent colour.
+_TOOLS_MENU_QSS = (
+    "QMenu { background:#2c3752; border:2px solid %(accent)s;"
+    " border-radius:6px; padding:4px; }"
+    "QMenu::item { color:%(ink)s; padding:6px 18px 6px 12px;"
+    " border-radius:4px; font-size:12px; }"
+    "QMenu::item:selected { background:#4f5f88; }"
+    "QMenu::item:checked { color:#ffffff; background:%(accent)s; }"
+    "QMenu::item:disabled { color:%(dim)s; }"
+    "QMenu::indicator { width:0px; height:0px; }"
+    "QToolTip { color:#33383f; background:#ffffe0; }"
+) % {"accent": ACCENT, "ink": INK, "dim": DIM}
 
 
 class BigPlayerSetupMixin(BigPlayerHost):
@@ -67,6 +90,11 @@ class BigPlayerSetupMixin(BigPlayerHost):
             # 🎚 DJ-cap knobs (dark cap, light line) on volume, pitch and seek.
             "QSlider::handle:horizontal { width:14px; margin:-6px 0;"
             f" border-radius:3px; border:1px solid #0d1017; background:{_CAP_H}; }}"
+            # Greyed out (🎶 pause music): no blue, so it reads as off at a
+            # glance — the colours above ignore the state. The DJ cap stays.
+            "QSlider::groove:horizontal:disabled { background:#222936; }"
+            "QSlider::sub-page:horizontal:disabled { background:#3a4252; }"
+            "QToolButton:disabled { color:#4f5a6e; background:#232a38; }"
             "QSlider#seek { min-height:20px; }")
         # Normal vs end-of-track warning skins (the card flashes red while a
         # song is in its last seconds — see _flash_step / _update_time).
@@ -493,11 +521,11 @@ class BigPlayerSetupMixin(BigPlayerHost):
         # point, not the hazard. The rate still lands once, when the stepping
         # stops: a programmatic setValue is no drag, so _on_tempo debounces it
         # exactly like a wheel notch and a glide costs one gap, not thirty.
-        minus = self._tempo_step_btn("−", -TEMPO_STEP, i18n.t("slower"))
-        plus = self._tempo_step_btn("+", +TEMPO_STEP, i18n.t("faster"))
-        slider_row.addWidget(minus)
+        self._tempo_down_btn = self._tempo_step_btn("−", -TEMPO_STEP, i18n.t("slower"))
+        self._tempo_up_btn = self._tempo_step_btn("+", +TEMPO_STEP, i18n.t("faster"))
+        slider_row.addWidget(self._tempo_down_btn)
         slider_row.addWidget(self._tempo, stretch=1)
-        slider_row.addWidget(plus)
+        slider_row.addWidget(self._tempo_up_btn)
         tempo_box.addLayout(slider_row)
         info_row = self._build_tempo_info()
         tempo_box.addLayout(info_row)
@@ -577,17 +605,33 @@ class BigPlayerSetupMixin(BigPlayerHost):
         self._tempo_pin.toggled.connect(
             lambda on: self.tempoResetModeChanged.emit(not on))
         info_row.addWidget(self._tempo_pin)
-        self._takt_btn = QToolButton()
-        self._takt_btn.setText("♪")
-        self._takt_btn.setCheckable(True)
-        self._takt_btn.setStyleSheet(
-            "QToolButton:checked { background:#1565c0; color:#ffffff; }")
-        self._takt_btn.setToolTip(
+        # ♪ and 🎚 share one button: a click, then a pick. The row has no room
+        # for two — a two-digit percentage in the readout was cut off.
+        self._tools_btn = QToolButton()
+        self._tools_btn.setText("♪")
+        self._tools_btn.setStyleSheet(
+            "QToolButton[lit=\"true\"] { background:#1565c0; color:#ffffff; }")
+        self._tools_btn.setToolTip(i18n.t("♪ Tempo check  ·  🎚 Equalizer"))
+        # Not the button's own menu: a click with a card open closes the card
+        # (see _on_tools_clicked) instead of opening the menu over it.
+        menu = self._tools_menu = QMenu(self._tools_btn)
+        menu.setStyleSheet(_TOOLS_MENU_QSS)
+        self._takt_act = menu.addAction(i18n.t("♪ Tempo check"))
+        self._takt_act.setCheckable(True)
+        self._takt_act.setToolTip(
             "Tap along to the beat to measure this track's live tempo by hand,\n"
             "against a target for its dance (Sollwert) — display only, does not\n"
             "touch the fader.")
-        self._takt_btn.toggled.connect(self._toggle_takt_overlay)
-        info_row.addWidget(self._takt_btn)
+        self._takt_act.toggled.connect(self._toggle_takt_overlay)
+        self._eq_act = menu.addAction(i18n.t("🎚 Equalizer"))
+        self._eq_act.setToolTip(i18n.t(
+            "🎚 Equalizer: fit the music, the announcements and the pre-listen\n"
+            "to the room and its speakers."))
+        self._eq_act.triggered.connect(
+            lambda: self.eqRequested.emit(self._tools_btn, "music"))
+        menu.setToolTipsVisible(True)
+        self._tools_btn.clicked.connect(self._on_tools_clicked)
+        info_row.addWidget(self._tools_btn)
         return info_row
 
     def _tempo_step_btn(self, text: str, delta: int, word: str) -> QToolButton:

@@ -42,6 +42,7 @@ SAME_IN_GERMAN = frozenset({
     "Version",
     "Pause",
     "🎛 Cartwall",
+    "🎚 Equalizer",
 })
 
 

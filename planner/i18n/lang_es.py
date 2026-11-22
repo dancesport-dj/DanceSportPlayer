@@ -2516,6 +2516,7 @@ CATALOG = {
         "\n"
         "Si está encendido, un clic lo apaga: la lista vuelve a los\n"
         "valores que tenía antes de pulsar el conjunto.",
+    "Default (black)": "Default (negro)",
     "The colours of the presenter screen. 'Default' is the black hall\n"
     "display; 'Light' is creme paper with warm brown type and rose\n"
     "gold for the next dance — made for a lit room, where black on a\n"
@@ -3371,28 +3372,14 @@ CATALOG = {
         "Predeterminado del sistema (sigue al sistema)",
     "Same as the music":
         "Igual que la música",
-    "Every output the operating system lists can be chosen. On a sound card\n"
-    "with several outputs, each pair that shows up as a device of its own\n"
-    "(\"Out 3/4\" next to \"Out 1/2\") can take a source of its own. A card\n"
-    "listed as ONE multichannel device offers its further pairs as\n"
-    "\"— Out 3/4\" entries. The music on such an entry changes its\n"
-    "pitch with the tempo fader, like a turntable.\n"
-    "\n"
-    "A card that is not plugged in plays on the system default until it is back.":
-        "Se puede elegir cualquier salida que muestre el sistema operativo. En una\n"
-        "tarjeta de sonido con varias salidas, cada par que aparece como dispositivo\n"
-        "propio (\"Out 3/4\" junto a \"Out 1/2\") puede llevar su propia fuente. Una\n"
-        "tarjeta que aparece como UN dispositivo multicanal ofrece sus otros pares\n"
-        "como entradas \"— Out 3/4\". La música en una de esas entradas cambia el\n"
-        "tono con el control de tempo, como un tocadiscos.\n"
-        "\n"
-        "Una tarjeta no conectada suena en el predeterminado del sistema hasta que vuelva.",
-    "🔀 A card listed as one multichannel device offers its further outputs (\"— Out 3/4\") to every source. The music on such a pair changes its pitch with the tempo fader, like a turntable: faster sounds higher, slower lower. Only a whole output keeps the pitch while the tempo changes.":
-        "🔀 Una tarjeta que aparece como un único dispositivo multicanal ofrece sus otras salidas (\"— Out 3/4\") a todas las fuentes. La música en uno de esos pares cambia el tono con el control de tempo, como un tocadiscos: más rápido suena más agudo, más lento más grave. Solo una salida completa mantiene el tono mientras cambia el tempo.",
+    'Every output the operating system lists can be chosen. On a sound card\nwith several outputs, each pair that shows up as a device of its own\n("Out 3/4" next to "Out 1/2") can take a source of its own. A card\nlisted as ONE multichannel device offers its further pairs as\n"— Out 3/4" entries. There the app makes the music\'s tempo\nitself (⏩ Tempo): the pitch stays.\n\nA card that is not plugged in plays on the system default until it is back.':
+        'Se puede elegir cualquier salida que muestre el sistema operativo. En una\ntarjeta de sonido con varias salidas, cada par que aparece como dispositivo\npropio ("Out 3/4" junto a "Out 1/2") puede llevar su propia fuente. Una\ntarjeta que aparece como UN dispositivo multicanal ofrece sus otros pares\ncomo entradas "— Out 3/4". Ahí la aplicación hace el tempo de la\nmúsica por sí misma (⏩ Tempo): el tono se mantiene.\n\nUna tarjeta no conectada suena en el predeterminado del sistema hasta que vuelva.',
+    '🔀 A card listed as one multichannel device offers its further outputs ("— Out 3/4") to every source. There the app makes the music\'s tempo itself, with the stretch chosen under ⏩ Tempo: the pitch stays, at a little more CPU than on a whole output.':
+        '🔀 Una tarjeta que aparece como un único dispositivo multicanal ofrece sus otras salidas ("— Out 3/4") a todas las fuentes. Ahí la aplicación hace el tempo de la música por sí misma, con el estiramiento elegido en ⏩ Tempo: el tono se mantiene, con un poco más de CPU que en una salida completa.',
     "Music on a channel pair":
         "Música en un par de canales",
-    "On %s the tempo fader changes the pitch along with the speed, like a turntable: faster sounds higher, slower lower.\n\nOnly a whole output keeps the pitch. Play the music on this pair anyway?":
-        "En %s el control de tempo cambia el tono junto con la velocidad, como un tocadiscos: más rápido suena más agudo, más lento más grave.\n\nSolo una salida completa mantiene el tono. ¿Reproducir la música en este par de todos modos?",
+    'On %s the app makes the tempo itself, with the stretch chosen under ⏩ Tempo: the pitch stays, at a little more CPU than on a whole output.\n\nPlay the music on this pair anyway?':
+        'En %s la aplicación hace el tempo por sí misma, con el estiramiento elegido en ⏩ Tempo: el tono se mantiene, con un poco más de CPU que en una salida completa.\n\n¿Reproducir la música en este par de todos modos?',
     "⚠  %s (not connected)":
         "⚠  %s (no conectado)",
     "The music plays on %s — click for the sound settings.":
@@ -4956,6 +4943,12 @@ CATALOG = {
         "más bajo",
     "louder":
         "más alto",
+    "The pause music is a cartwall pad: its level is the\ncartwall's fader. Back with the next title.":
+        "La música de pausa es un pad del cartwall: su nivel es el\ncontrol del cartwall. Vuelve con el siguiente título.",
+    "The pause music is a cartwall pad: it plays at its\nown tempo. Back with the next title.":
+        "La música de pausa es un pad del cartwall: suena a su\npropio tempo. Vuelve con el siguiente título.",
+    "Ducks the pause music too.":
+        "Baja también la música de pausa.",
     "Volume %s %s — hold to glide":
         "Volumen %s %s — mantén pulsado para deslizar",
     "Duck to %d %%, again to mute, again back to full":
@@ -6448,4 +6441,136 @@ CATALOG = {
         "📥  Cargar en…",
     "🔎  Checking %s tracks for duplicates…":
         "🔎  Buscando duplicados en %s pistas…",
+    "⋯ Filters":
+        "⋯ Filtros",
+    "⋯ Filters (%d)":
+        "⋯ Filtros (%d)",
+    "Show the vocal, play-history and added-date filters.":
+        "Muestra los filtros de voz, historial de uso y fecha de incorporación.",
+    "📐  Screen:":
+        "📐  Pantalla:",
+    "Auto":
+        "Automático",
+    "Normal":
+        "Vista normal",
+    "Compact":
+        "Vista compacta",
+    "Compact: the hints fold to one line, an empty wishlist starts\nfolded and the rows sit tighter — for a 13″ laptop.\nAuto: Compact when the screen is less than 800 px high.\nRead when the app starts, like the theme.":
+        "Compacta: las indicaciones se pliegan en una línea, una lista de deseos\nvacía empieza plegada y las filas se juntan más — para un portátil de 13″.\nAutomático: compacta cuando la pantalla mide menos de 800 px de alto.\nSe lee al iniciar la aplicación, como el tema.",
+    "+%d more ▾":
+        "+%d más ▾",
+    "Auto (Compact on this screen)":
+        "Automático (compacto en esta pantalla)",
+    "Auto (Normal on this screen)":
+        "Automático (normal en esta pantalla)",
+    "Compact fits more rows on a 12-13″ laptop. ⚙ Settings → 🎨 Look changes it later.":
+        "La vista compacta muestra más filas en un portátil de 12-13″. Se cambia más tarde en ⚙ Ajustes → 🎨 Aspecto.",
+    '<b>⏩ Tempo</b> — how the music keeps its pitch when the tempo fader moves:':
+        '<b>⏩ Tempo</b> — cómo la música mantiene su tono cuando se mueve el control de tempo:',
+    '🎼  Rubber Band — through ffmpeg, crisp beats, more CPU':
+        '🎼  Rubber Band — a través de ffmpeg, golpes nítidos, más CPU',
+    "▶  Qt (standard) — Qt's own stretch, stutters briefly when the tempo changes (default)":
+        '▶  Qt (estándar) — el estiramiento propio de Qt, se entrecorta un momento al cambiar el tempo (predeterminado)',
+    "〰  Signalsmith — the app's own, a tempo change without a gap":
+        '〰  Signalsmith — el propio de la app, un cambio de tempo sin pausa',
+    "All three keep the pitch when the tempo fader moves, for every title.\nQt (standard): Qt's own stretch; every tempo change leaves a short gap.\nWhile the 🎚 equalizer is on, Signalsmith stands in, the same stretch.\nSignalsmith: the app makes the tempo itself, light on the CPU, a\nchange without a gap. Rubber Band keeps drum hits crisper but costs\nclearly more CPU; it runs inside ffmpeg (shipped with the app on\nWindows; Homebrew or the package manager elsewhere).":
+        'Los tres mantienen el tono cuando se mueve el control de tempo, en cada título.\nQt (estándar): el estiramiento propio de Qt; cada cambio de tempo deja una breve pausa.\nMientras el 🎚 ecualizador está activado, lo sustituye Signalsmith, el mismo estiramiento.\nSignalsmith: la app hace el tempo ella misma, ligero para la CPU, un\ncambio sin pausa. Rubber Band mantiene los golpes más nítidos pero usa\nclaramente más CPU; funciona dentro de ffmpeg (incluido con la app en\nWindows; Homebrew o el gestor de paquetes en otros).',
+    'Applies from the next title. A title ffmpeg is not ready for goes through Signalsmith.':
+        'Se aplica desde el siguiente título. Un título para el que ffmpeg no está listo pasa por Signalsmith.',
+    'This ffmpeg has no Rubber Band filter: Signalsmith makes the tempo.':
+        'Este ffmpeg no tiene el filtro Rubber Band: Signalsmith hace el tempo.',
+    'Music equalizer':
+        'Ecualizador de la música',
+    "Turn the music's equalizer on?":
+        '¿Activar el ecualizador de la música?',
+    "With the EQ on, the app makes the music's tempo itself, with the stretch chosen under ⚙ Settings → ⏩ Tempo (now: %s). The pitch stays when the tempo fader moves, at a little more CPU; Rubber Band takes clearly more.\n\nIt starts at once, after a short gap.":
+        'Con el EQ activado, la aplicación hace el tempo de la música por sí misma, con el estiramiento elegido en ⚙ Ajustes → ⏩ Tempo (ahora: %s). El tono se mantiene cuando se mueve el control de tempo, con un poco más de CPU; Rubber Band usa claramente más.\n\nEmpieza al instante, tras una breve pausa.',
+    "Don't ask again":
+        'No volver a preguntar',
+    'Turn it on':
+        'Activarlo',
+    'Leave it off':
+        'Dejarlo apagado',
+    '⚙ Advanced: frequencies and widths':
+        '⚙ Avanzado: frecuencias y anchos',
+    'On':
+        'Activado',
+    'Off: the player plays as without an EQ. On and off are heard at\nonce, after a short gap; Bypass compares without one.':
+        'Apagado: el reproductor suena como sin ecualizador. Activar y apagar\nse oyen al instante, tras una breve pausa; Sin EQ compara sin ella.',
+    'Bypass':
+        'Sin EQ',
+    'Hear it without the EQ for a moment, at once.':
+        'Oírlo un momento sin el ecualizador, al instante.',
+    'A starting point for a room; the sliders fine-tune it.':
+        'Un punto de partida para una sala; los controles lo ajustan.',
+    'This band on or off':
+        'Esta banda activada o apagada',
+    'Double-click: back to 0 dB':
+        'Doble clic: vuelve a 0 dB',
+    'Custom':
+        'Personalizado',
+    'Turned down %.1f dB so no boost can clip.':
+        'Bajado %.1f dB para que ningún realce sature.',
+    'Low cut':
+        'Corte de graves',
+    'Bass':
+        'Graves',
+    'Low mid':
+        'Medios graves',
+    'Presence':
+        'Presencia',
+    'Treble':
+        'Agudos',
+    'Flat':
+        'Plano',
+    'Boomy hall':
+        'Sala retumbante',
+    'Small room':
+        'Sala pequeña',
+    'Weak speakers':
+        'Altavoces débiles',
+    'Speech clarity':
+        'Claridad de voz',
+    '🎚 Equalizer':
+        '🎚 Ecualizador',
+    '🎵 Music':
+        '🎵 Música',
+    '🔈 Voice':
+        '🔈 Voz',
+    '🎧 Cue':
+        '🎧 Preescucha',
+    'The pre-listen plays on the music\'s output ("Same as the music"):\nthe music\'s EQ is what is heard there.':
+        'La preescucha suena en la salida de la música ("Igual que la música"):\nallí se oye el ecualizador de la música.',
+    'Only with the FFmpeg engine: ⚙ Settings → 🔊 Sound & player → Audio backend.':
+        'Solo con el motor FFmpeg: ⚙ Ajustes → 🔊 Sonido y reproductor → Motor de audio.',
+    '♪ Tempo check':
+        '♪ Control de tempo',
+    '♪ Tempo check  ·  🎚 Equalizer':
+        '♪ Control de tempo  ·  🎚 Ecualizador',
+    '🎚 Equalizer: fit the music, the announcements and the pre-listen\nto the room and its speakers.':
+        '🎚 Ecualizador: adaptar la música, los anuncios y la preescucha\na la sala y sus altavoces.',
+    "🎚 The pre-listen's equalizer":
+        '🎚 El ecualizador de la preescucha',
+    '<b>🎚 Equalizer</b> — fit the music, the announcements and the pre-listen to the room and its speakers:':
+        '<b>🎚 Ecualizador</b> — adaptar la música, los anuncios y la preescucha a la sala y sus altavoces:',
+    'Only with the FFmpeg engine: choose it under Audio backend above.':
+        'Solo con el motor FFmpeg: elíjalo arriba en Motor de audio.',
+    'Keep these four gains as a preset of your own, for every tab.':
+        'Guardar estas cuatro ganancias como un preajuste propio, para todas las pestañas.',
+    'Delete this preset of your own.':
+        'Eliminar este preajuste propio.',
+    'Save preset':
+        'Guardar preajuste',
+    'Name of the preset:':
+        'Nombre del preajuste:',
+    'A built-in preset has that name. Please choose another one.':
+        'Un preajuste incorporado ya tiene ese nombre. Elige otro.',
+    'Replace your preset "%s"?':
+        '¿Reemplazar tu preajuste "%s"?',
+    'Delete preset':
+        'Eliminar preajuste',
+    'Delete your preset "%s"?':
+        '¿Eliminar tu preajuste "%s"?',
+    'Takes away everything below this frequency: rumble, stage\nthumps, hum. Off lets the deepest bass through.':
+        'Quita todo lo que está por debajo de esta frecuencia: retumbos,\ngolpes del escenario, zumbidos. Desactivado deja pasar el bajo más profundo.',
 }

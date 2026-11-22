@@ -340,6 +340,8 @@ class StopFadeTickTest(_Fixture):
         from player.window.main_player import PlayerControlMixin
 
         class Desk(PlayerControlMixin):
+            _big_player = None   # no player card, so no 🔁 either
+
             def __init__(self, panel):
                 self._play_panel = panel
                 self._player = _TickPlayer(int(played_secs * 1000))

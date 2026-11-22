@@ -26,7 +26,7 @@ Der Reiter **⚙ Allgemein**.
 
 | Einstellung | Macht |
 |---|---|
-| **App-Modus** | Welche Seite der App zu sehen ist: *Beides*, *Nur Planer* oder *Nur Player*. Zurückschalten bringt alles wieder. Der Player-Build hat diese Zeile nicht. |
+| **App-Modus** | Welche Seite der App zu sehen ist: *Beides*, *Nur Planer* oder *Nur Player*. Zurückschalten bringt alles wieder. Ein Deck, das noch ein geplantes Raster zeigt, wird unter *Nur Player* zu seiner Spielreihenfolge: dieselben Titel in derselben Reihenfolge, die Runden als ───-Streifen, ohne Plätze. Zurückschalten bringt das Raster nicht wieder. Der Player-Build hat diese Zeile nicht. |
 | **📱 Handy-Fernbedienung** | **📱 Server starten** startet die Handy-Fernbedienung und öffnet ihr Fenster über den Einstellungen. Solange sie läuft, heißt der Knopf **📱 Server stoppen**. Siehe [Kapitel 4](04-playing.md#-die-handy-fernbedienung). |
 | **🎛 DJ-Controller** | **🎛 Einrichten…** öffnet das Fenster für einen USB-MIDI- oder HID-Controller. Siehe [Kapitel 4](04-playing.md#-ein-dj-controller). **⌨ Tasten…** legt dieselben Aktionen auf Tasten und enthält auch die Tasten der Cartwall, siehe [Kapitel 4](04-playing.md#-pult-tasten). |
 | **🐞 Fehlerberichte senden** | Nur in Builds, die sie senden können. Stößt die App auf einen Fehler, schickt sie die technischen Details an den Entwickler: den Fehler, die letzten Protokollzeilen, das System und die App-Version. Nie deine Musik oder Wiedergabelisten. Standardmäßig aus. |
@@ -97,9 +97,21 @@ Der Reiter **🎨 Aussehen**.
     sofort. Änderst du den Look, in dem die App läuft, bietet sie beim
     Schließen der Einstellungen mit OK einen Neustart an.
 - **🔠 Schriftgröße**: jeder Text der App, Menüs und Tabellen
-  eingeschlossen, mit 100 % (die Vorgabe), 105, 110, 115, 130 oder 150 %.
-  Über 115 % wachsen die Knöpfe mit. Gilt ab dem Start der App, wie das
+  eingeschlossen, mit 90 %, 100 % (die Vorgabe), 105, 110, 115, 130 oder
+  150 %. Bei 90 % wird der Text kleiner und die Knöpfe behalten ihre Größe;
+  über 115 % wachsen die Knöpfe mit. Gilt ab dem Start der App, wie das
   Erscheinungsbild.
+- **📐 Bildschirm**: *Automatisch* (die Vorgabe), *Normale Ansicht*
+  oder *Kompakte Ansicht*.
+  Kompakt ist die Form für einen 12-13″-Laptop: eine leere Wunschliste startet
+  zugeklappt, die Bibliothek behält Platz für sechs Zeilen, die Decks starten
+  in der 🗜 kompakten Kopfansicht, bis du selbst eine wählst, und die
+  Titelzeilen sind niedriger. *Automatisch* nimmt Kompakt, wenn der Bildschirm
+  weniger als 800 Pixel Höhe frei lässt, z. B. 1366 × 768 oder ein
+  1080p-Bildschirm bei 150 %. *Automatisch* entscheidet neu, wenn das
+  Fenster auf einen Bildschirm anderer Größe wandert; nur das Zuklappen der
+  Wunschliste wird beim Start entschieden. Eine Änderung hier bietet einen
+  Neustart an.
 - **🎚 Akzentfarbe**: das Blau der Knöpfe, Regler und des Player-Bereichs,
   für *Hell* und *Dunkel*. **↺ Standardblau** setzt es zurück. Farben, die
   etwas bedeuten, etwa rote Warnungen, behalten ihren Ton.
@@ -142,7 +154,9 @@ Der Reiter **🔊 Ton & Player**.
 | **🔢 Nur die Gruppe** | Ab Werk aus. An, sagt jede Ansage nur die Gruppe, „Gruppe 1“, nie den Tanz, für einen Trainingsabend: die Pausenansage, die Startansage und die Paso-Doble-Ansage. **…mit Gruppe** und **📣 „Nächster Tanz“** sind dabei ausgegraut. Wo es keine Gruppe zu sagen gibt, wird der Tanz wie sonst angesagt. |
 | **🗣 Tanz wird angesagt** | Wo die Ansage sitzt, wenn ein Titel ohne Pause seinen Tanz beim Start nennt: **über den ersten Takten** (die Vorgabe; die Musik wird unter der Stimme leiser) oder **vor dem Musikstart** (die Musik folgt der Ansage). Das ▶ Abspielen-Panel nennt die Wahl kurz: *über der Musik* oder *vor der Musik*. |
 | **▶ Player-Position** | Wo die Player-Karte steht: *neben den Wiedergabelisten*, am Kopf des Wiedergabe-Bereichs, oder *über den Wiedergabelisten*, als ein breiter Streifen über den Decks. |
-| **📂 Doppelklick auf einen Titel in 📚 der Bibliothek** | Zuletzt auf dem Reiter, unter **📚 Bibliothek**, weil es um die Bibliothek geht, nicht um den Player. Was ein Doppelklick beim Planen in 📚 der Bibliothek und in den Listen unter 🏆 Turniere tut: **Nichts** (ab Werk; ▶ spielt den Titel), **In externem Player öffnen** (das Programm, mit dem dein System Musik abspielt, auf dem Mac Musik; dann auch für eine Deckzeile beim Planen und in den Dialogen) oder **Tags bearbeiten** (der [🏷 Tags-Editor](05-tags.md#den-editor-öffnen), geöffnet auf dem Feld der Spalte, auf die du doppelgeklickt hast; dort wählst du, was Speichern in die Datei schreibt). Beim Planen spielt ein Doppelklick auf eine Deckzeile den Titel im Mini-Player, außer *In externem Player öffnen* ist gewählt. Rechtsklick bietet immer alles davon, und im Abspielmodus spielt oder legt ein Doppelklick den Titel immer bereit. |
+| **📂 Doppelklick auf einen Titel in 📚 der Bibliothek** | Unter **📚 Bibliothek**, weil es um die Bibliothek geht, nicht um den Player. Was ein Doppelklick beim Planen in 📚 der Bibliothek und in den Listen unter 🏆 Turniere tut: **Nichts** (ab Werk; ▶ spielt den Titel), **In externem Player öffnen** (das Programm, mit dem dein System Musik abspielt, auf dem Mac Musik; dann auch für eine Deckzeile beim Planen und in den Dialogen) oder **Tags bearbeiten** (der [🏷 Tags-Editor](05-tags.md#den-editor-öffnen), geöffnet auf dem Feld der Spalte, auf die du doppelgeklickt hast; dort wählst du, was Speichern in die Datei schreibt). Beim Planen spielt ein Doppelklick auf eine Deckzeile den Titel im Mini-Player, außer *In externem Player öffnen* ist gewählt. Rechtsklick bietet immer alles davon, und im Abspielmodus spielt oder legt ein Doppelklick den Titel immer bereit. |
+| **⏩ Tempo** | Wie die Musik ihre Tonhöhe hält, wenn sich der Tempo-Regler bewegt, bei jedem Titel. *Qt (Standard)* (die Vorgabe) ist Qts eigene Dehnung; jeder Tempowechsel hinterlässt eine kurze Lücke. Wo die App das Tempo selbst macht (mit eingeschaltetem 🎚 Equalizer und auf einem Kanalpaar wie „Out 3/4“), springt Signalsmith ein, dieselbe Dehnung. Mit *Signalsmith* macht die App das Tempo jedes Titels selbst, schont die CPU, ein Wechsel ohne Lücke. *Rubber Band* hält Schlagzeug-Anschläge knackiger, kostet aber deutlich mehr CPU; es läuft in ffmpeg und ist ausgegraut, wenn dieses ffmpeg keins hat. |
+| **🎚 Equalizer** | Je ein Reiter für 🎵 die Musik, 🔈 die Stimme (die Ansagen) und 🎧 das Vorhören. Schalte ihn ein, wähle eine Vorgabe oder verschiebe die fünf Bänder (Low-Cut, Bass, untere Mitten, Präsenz, Höhen). Der Low-Cut nimmt alles unter der Frequenz weg, die du in seiner Liste wählst: *Aus*, 30, 60, 80, 100 oder 150 Hz (100 Hz auf dem Reiter Stimme, 30 Hz auf den anderen). Ein ausgeschaltetes Band ist ausgegraut. Ein Doppelklick auf den Regler eines Bands setzt es auf 0 dB zurück; ein Doppelklick auf seine Anzeige lässt dich den Wert eintippen. *Bypass* vergleicht mit und ohne, *Erweitert* öffnet Frequenz und Breite jedes Bands. 💾 behält die vier Verstärkungen als eigene Vorgabe, auf jedem Reiter wählbar; 🗑 löscht die gezeigte eigene Vorgabe. Nur mit dem FFmpeg-Backend. Beim Einschalten des Musik-EQ fragt die App einmal, weil sie dann das Tempo selbst macht (siehe die Zeile darüber). Alles ist sofort zu hören; Ein- und Ausschalten lässt eine kurze Lücke. Dieselben Reiter öffnet das [🎚](04-playing.md#die-player-karte) am Player. |
 
 ### 🥇 Feier: Die Musik spielt weiter
 
@@ -207,9 +221,9 @@ Betriebssystem listet, lässt sich wählen, unter Windows, macOS und Linux.
   als eigenes Gerät zeigt („Out 3/4“ neben „Out 1/2“), eine eigene Quelle
   bekommen. Ein Gerät, das Windows als *ein* Mehrkanalgerät
   listet, bietet für jede Quelle, die Musik eingeschlossen, „<Karte> — Out
-  3/4“ an. Auf einem solchen Kanalpaar verschiebt der Tempo-Regler die
-  Tonhöhe mit der Geschwindigkeit, wie ein Plattenspieler, statt sie zu
-  halten.
+  3/4“ an. Auf einem solchen Kanalpaar macht die App das Tempo selbst
+  (siehe ⏩ Tempo oben), die Tonhöhe bleibt also;
+  das kostet etwas mehr CPU.
 - Eine Karte, die nicht angeschlossen ist, spielt mit einer Meldung auf dem
   Systemstandard, und der Ton geht zurück auf die Karte, sobald sie wieder da
   ist. Das Vorhören ist die Ausnahme, wenn dieser Standard der Ausgang der

@@ -22,6 +22,8 @@ os.environ.setdefault("DANCEPLAYLIST_STATE_DIR",
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
+from planner.playing import equalizer
+from player.audio import eq, stretch_engines
 from player.audio.audio_device import SYSTEM_DEFAULT, AudioDevice
 from player.audio.mix import OutputMix
 from player.audio.system_sounds import SystemSoundGuard
@@ -110,6 +112,10 @@ class _Route(_Sink):
         super().__init__()
         self.player, self.out = player, out
         self.released = False
+        self.eq = None
+
+    def set_eq(self, bands):
+        self.eq = bands
 
     def release(self):
         self.released = True
@@ -667,6 +673,139 @@ class OutputBurstTest(_Test):
         with mock.patch.object(self.device, "hold_system_sounds") as hold:
             self.changes(4)
         self.assertEqual(hold.call_count, 4)
+
+
+class MusicEqTest(_Test):
+    """🎚 The EQ from the settings reaches the music on both decks, the
+    announcer and the pre-listen, each through its own route."""
+
+    def setUp(self):
+        env = mock.patch.dict(os.environ)
+        env.start()
+        self.addCleanup(env.stop)
+        os.environ.pop("QT_MEDIA_BACKEND", None)
+        self.desk = _Desk()
+        self.desk.announcer.set_eq = mock.Mock()
+        self.spare_out = _Out(SPEAKERS)
+        self.spare = _Player(self.spare_out)
+        self.desk.spare = (self.spare, self.spare_out)
+
+    def turn_on(self, source, gain=-6.0):
+        cfg = equalizer.eq_of(self.desk.settings, source)
+        cfg["on"] = True
+        cfg["bands"][1]["gain"] = gain
+        self.desk.settings = equalizer.with_eq(self.desk.settings, source, cfg)
+
+    def bands(self, source):
+        """What the route is given: every band, the low shelf as turned."""
+        bands = eq.bands_for(self.desk.settings, source)
+        shelf = next(b for b in bands if b.kind == "lowshelf")
+        self.assertEqual(shelf.gain, equalizer.eq_of(self.desk.settings, source)["bands"][1]["gain"])
+        self.assertNotEqual(shelf.gain, 0.0)
+        return bands
+
+    def route_of(self, player):
+        return next(r for r in self.desk.routes if r.player is player)
+
+    # ===== Acceptance criteria =====
+
+    def test_the_music_eq_reaches_the_deck_and_the_spare(self):
+        self.turn_on("music")
+        self.desk.device.sync()
+        self.assertEqual(self.route_of(self.desk.deck).eq, self.bands("music"))
+        self.assertEqual(self.route_of(self.spare).eq, self.bands("music"))
+
+    def test_the_announcer_and_the_cue_get_their_own_eq(self):
+        self.desk.device.cue = mock.Mock()
+        self.turn_on("announcer", -3.0)
+        self.desk.device.sync()
+        self.desk.announcer.set_eq.assert_called_once_with(
+            self.bands("announcer"))
+        self.desk.device.cue.set_eq.assert_not_called()   # still off: nothing to send
+
+    def test_off_builds_no_route_for_the_music(self):
+        self.desk.device.sync()
+        self.assertEqual(self.desk.routes, [])
+        self.desk.announcer.set_eq.assert_not_called()
+
+    def test_an_apps_own_tempo_engine_takes_the_music_with_the_eq_off(self):
+        """Marcel: the tempo engine for every music stream. The EQ path as it
+        is (the bypass), so the app makes the tempo."""
+        self.desk.settings["tapped_tempo_engine"] = "signalsmith"
+        self.desk.device.sync()
+        self.assertEqual(self.route_of(self.desk.deck).eq, ())
+        self.assertEqual(self.route_of(self.spare).eq, ())
+
+    # ===== Core behavior =====
+
+    def test_a_crossfade_puts_the_eq_on_the_new_deck(self):
+        self.turn_on("music")
+        self.desk.device.sync()
+        other_out = _Out(SPEAKERS)
+        other = _Player(other_out)
+        self.desk.device.swap_deck(other, other_out)
+        self.assertEqual(self.route_of(other).eq, self.bands("music"))
+
+    def test_turning_the_music_eq_off_hands_back_to_qt(self):
+        self.turn_on("music")
+        self.desk.device.sync()
+        cfg = equalizer.eq_of(self.desk.settings, "music")
+        cfg["on"] = False
+        self.desk.settings = equalizer.with_eq(self.desk.settings, "music", cfg)
+        self.desk.device.sync()
+        self.assertIsNone(self.route_of(self.desk.deck).eq)
+
+    def test_an_unchanged_eq_is_not_sent_again(self):
+        self.turn_on("announcer")
+        self.desk.device.sync()
+        self.desk.device.sync()
+        self.assertEqual(self.desk.announcer.set_eq.call_count, 1)
+
+    def test_back_to_qt_hands_the_music_back(self):
+        self.desk.settings["tapped_tempo_engine"] = "rubberband"
+        self.desk.device.sync()
+        self.desk.settings["tapped_tempo_engine"] = "qt"
+        self.desk.device.sync()
+        self.assertIsNone(self.route_of(self.desk.deck).eq)
+
+    def test_the_eq_on_keeps_its_bands_under_an_apps_engine(self):
+        self.desk.settings["tapped_tempo_engine"] = "signalsmith"
+        self.turn_on("music")
+        self.desk.device.sync()
+        self.assertEqual(self.route_of(self.desk.deck).eq, self.bands("music"))
+
+    def test_a_native_backend_has_no_eq(self):
+        os.environ["QT_MEDIA_BACKEND"] = "windows"
+        self.turn_on("music")
+        self.desk.device.sync()
+        self.assertEqual(self.desk.routes, [])
+
+    # ===== Coverage and null checks =====
+
+    def test_no_announcer_yet_is_skipped(self):
+        self.desk.announcer = None
+        self.turn_on("announcer")
+        self.desk.device.sync()    # no error
+
+
+class TempoEngineSyncTest(_Test):
+    """The setting reaches the stretch engines on every sync."""
+
+    def tearDown(self):
+        stretch_engines.set_engine(stretch_engines.DEFAULT)
+
+    # ===== Acceptance criteria =====
+
+    def test_rubber_band_chosen_in_the_settings_is_used(self):
+        desk = _Desk()
+        desk.settings["tapped_tempo_engine"] = "rubberband"
+        desk.device.sync()
+        self.assertEqual(stretch_engines.chosen(), "rubberband")
+
+    def test_qt_is_used_when_nothing_is_set(self):
+        stretch_engines.set_engine("rubberband")
+        _Desk().device.sync()
+        self.assertEqual(stretch_engines.chosen(), "qt")
 
 
 if __name__ == "__main__":

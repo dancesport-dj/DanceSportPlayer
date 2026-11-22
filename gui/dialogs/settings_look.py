@@ -30,6 +30,7 @@ from PySide6.QtWidgets import (
 
 from gui.dialogs import THEME_CHOICES, ThemePreview
 from gui.dialogs.look_editor import LookEditor, LookPreview
+from gui.screen_mode import SCREEN_MODE_CHOICES, screen_mode_of
 from planner import i18n
 from shared.appearance import looks, theme, user_looks
 from shared.appearance.presenter_theme import DEFAULT_KEY, theme_choices
@@ -144,6 +145,23 @@ class LookTabMixin(_DialogHost):
         size_row.addWidget(self._font_scale_combo)
         size_row.addStretch(1)
         llyt.addLayout(size_row)
+
+        # 📐 The shape for a small laptop screen.
+        screen_row = QHBoxLayout()
+        screen_row.addWidget(QLabel("📐  Screen:"))
+        self._screen_mode_combo = QComboBox()
+        self._screen_mode_combo.setToolTip(
+            "Compact: the hints fold to one line, an empty wishlist starts\n"
+            "folded and the rows sit tighter — for a 13″ laptop.\n"
+            "Auto: Compact when the screen is less than 800 px high.\n"
+            "Read when the app starts, like the theme.")
+        for key, label in SCREEN_MODE_CHOICES:
+            self._screen_mode_combo.addItem(label, key)
+        self._screen_mode_combo.setCurrentIndex(max(0, self._screen_mode_combo.findData(
+            screen_mode_of(settings))))
+        screen_row.addWidget(self._screen_mode_combo)
+        screen_row.addStretch(1)
+        llyt.addLayout(screen_row)
 
         look_note = QLabel(
             "Theme, accent and language are read when the app starts, so a "

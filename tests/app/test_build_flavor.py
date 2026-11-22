@@ -515,7 +515,8 @@ class CiPinningTest(unittest.TestCase):
             for line in flow.read_text(encoding="utf-8").splitlines():
                 if "uses:" in line:
                     with self.subTest(flow=flow.name, line=line.strip()):
-                        self.assertRegex(line, r"uses: [\w.-]+/[\w.-]+@[0-9a-f]{40} # v\d")
+                        # owner/repo, or owner/repo/path for an action in a subfolder (actions/cache/save)
+                        self.assertRegex(line, r"uses: [\w.-]+/[\w.-]+(/[\w.-]+)*@[0-9a-f]{40} # v\d")
 
     def test_the_ffmpeg_zip_is_checked_before_it_is_unpacked(self):
         flow = (self.ROOT / ".github" / "workflows" / "build-player.yml").read_text(encoding="utf-8")

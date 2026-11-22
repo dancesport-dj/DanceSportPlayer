@@ -45,7 +45,9 @@ Zeile 🎵 Musikprüfung für Tempo, Länge und den Aufbau der Runden.
 - **▶** in einer Zeile spielt genau diesen Titel. **■** stoppt ihn.
 - Die **Leertaste** pausiert den Player und setzt ihn fort, egal wo der Fokus
   ist, außer in einem Textfeld und in einer anderen Liste mit einem gewählten
-  Titel: dort startet sie diesen Titel.
+  Titel: dort startet sie diesen Titel. Zwei Anschläge innerhalb der
+  Doppelklick-Zeit zählen als einer, ein hastiges doppeltes Antippen
+  pausiert also nicht und startet gleich wieder.
 - **Eingabe** startet den in der Liste im Fokus gewählten Titel, auch in der
   Liste, die gerade spielt.
 - Ein **Doppelklick** auf eine Zeile startet sie entweder sofort oder legt sie
@@ -148,7 +150,7 @@ die Restzeit.
 | **⏮ / ⏭** | Voriger / nächster Titel. |
 | **◀◀ / ▶▶** | 10 s zurück / vor. |
 | **⏯** | Pause / weiter. |
-| **🔁** | Wiederholt *diesen* Titel endlos, wenn die Fläche noch voll ist oder eine Rede länger dauert. Das geht auch mit ausgeschaltetem ⏭ Auto. Schaltest du eine Liste auf ⏭ Auto, während das läuft, fragt das Programm, ob die Wiederholung ausgehen soll; sonst ginge die Liste nie weiter. |
+| **🔁** | Wiederholt *diesen* Titel endlos, wenn die Fläche noch voll ist oder eine Rede länger dauert. Das geht auch mit ausgeschaltetem ⏭ Auto. Schaltest du eine Liste auf ⏭ Auto, während das läuft, fragt das Programm, ob die Wiederholung ausgehen soll; sonst ginge die Liste nie weiter. Wiederholt er einen Titel, der ganz spielt, zählt das ▶ Feld bis zum eigenen Ende des Titels herunter (**🔁 m:ss**). Schaltest du ihn aus, nachdem die Ausblendung der Spiellänge begonnen hat, spielt der Titel bis zu seinem eigenen Ende weiter und blendet dort aus (**⏳ m:ss**); früher ausgeschaltet, gilt wieder die Spiellänge. |
 | Ausblend-Knopf (durchgestrichener Lautsprecher) | Blendet den Titel jetzt über die Ausblendzeit aus und beendet ihn dann. |
 | **☕** | Blendet den Titel über die 🔉↓-Rampe aus, die Karte blinkt dabei orange, und startet dann die Pause. Ein mit ⏯ angehaltener Titel geht direkt hinein. Nur da, solange **Pause zwischen den Titeln** an ist. |
 | Verlängern-Knopf | Hängt eine weitere Pausenlänge an, wenn der Gruppenwechsel länger dauert. |
@@ -216,6 +218,11 @@ Die Tempo-Zeile darunter:
   450 ms. **0** oder ein Doppelklick auf den Regler setzt ihn zurück. Auch
   [Pult-Tasten](#-pult-tasten) und ein Drehregler am
   [DJ-Controller](#-ein-dj-controller) bewegen ihn.
+  Abseits von ±0 % zählt die Karte die getanzte Zeit: Verstrichene und
+  verbleibende Zeit und der Schnitt der Spiellänge sind Zeit auf der
+  Fläche, eine Spiellänge von 1:30 zeigt bei −16 % also weiter 1:30, und
+  eine Änderung mitten im Titel lässt die schon getanzte Zeit, wie sie ist.
+  Der Suchbalken bleibt in der Zeit der Datei.
 - **TSO**: solange an, wird jeder Titel auf das mittlere Tempo seines Tanzes in
   dieser Runde gezogen, innerhalb des TSO-Bereichs. Eine Rumba mit 23 wird
   T24, ein Paso Doble mit 57 wird T58. Ein Titel ohne Tempo im Dateinamen
@@ -236,8 +243,18 @@ Die Tempo-Zeile darunter:
   dass er gelassen wurde, wie er ist.
 - **📌**: hält das Tempo fest, so bleibt der Regler dort, wo du ihn gelassen
   hast, wenn der nächste Titel startet.
-- **♪**: klick im Takt mit, um das tatsächliche Tempo von Hand zu messen. Das
-  ist nur eine Anzeige und ändert nichts.
+- **♪**: ein Knopf für zwei Karten. Sein Menü bietet **♪ Taktmessung** und
+  **🎚 Equalizer**; ist eine Karte offen, schließt ein Klick sie und zeigt
+  das Menü wieder. Der Knopf wird blau, solange ein Equalizer an ist
+  (Musik, Stimme oder Vorhören).
+  - **♪ Taktmessung**: klick im Takt mit, um das tatsächliche Tempo von
+    Hand zu messen. Das ist nur eine Anzeige und ändert nichts.
+  - **🎚 Equalizer**: die Equalizer-Karte neben dem Player, auf dem Reiter
+    der Musik, daneben 🔈 Stimme und 🎧 Vorhören. Jede Änderung ist sofort zu
+    hören und wird gespeichert; ein EQ schaltet nach einer kurzen Lücke ein
+    oder aus. Das 🎚 am Vorhör-Mini-Player öffnet dieselbe Karte auf dem
+    Reiter 🎧 Vorhören. Ein Klick daneben schließt sie. Nur mit dem
+    FFmpeg-Backend; mehr unter [⚙ Einstellungen](06-settings.md#ton-und-player).
 
 ## Der Wiedergabe-Bereich
 
@@ -335,7 +352,9 @@ Mit ausgeschaltetem Schalter ist ein Paso Doble ein gewöhnlicher Titel.
   oben, nie einem ⏹ von Hand. Der Titel bleibt gespeichert.
 - **Pause zwischen den Titeln**: Zeit für die Paare zum Wechseln oder
   Durchatmen. Solange sie zählt, blinkt die Karte orange, wie beim Warten vor
-  einem Paso Doble. Aus, folgt der nächste Titel sofort.
+  einem Paso Doble. Aus, folgt der nächste Titel sofort. Braucht das
+  automatische Weiterschalten: Unter ✋ Manuell verschwindet die Zeile aus dem
+  Bereich und kommt unter ⏭ Auto mit ihren Sekunden zurück.
 - **🎶 Pausenmusik**: ein Hinweis in einer Zeile unter dem Pausenschalter. Die
   Pausenmusik ist die [▶ Warteschlange](#-eine-warteschlange-aus-pads) der
   Cartwall: Eine Pause startet sie beim ersten 🎶 Hintergrund-Pad, sofern
@@ -346,6 +365,11 @@ Mit ausgeschaltetem Schalter ist ein Paso Doble ein gewöhnlicher Titel.
   weiter. Die 🎶 Pads werden unter der gesprochenen Ansage leiser wie die Musik und
   treten zurück, wenn der nächste Titel startet. Um die Pausenmusik zu
   ändern, ändert man die Warteschlange.
+  Solange die Pausenmusik spielt und das Deck steht, sind Lautstärke- und
+  Tempo-Regler der Karte samt − / + ausgegraut: Die Pads folgen dem Regler
+  der Cartwall und spielen in ihrem eigenen Tempo. Mit dem nächsten Titel
+  kommen sie zurück. **🔊** bleibt bedienbar, denn sein Absenken nimmt auch
+  die Pausenmusik herunter.
 - **🔀 Überblenden**: die letzten Sekunden eines Titels und die ersten des
   nächsten spielen zusammen. Der alte blendet aus, während der neue einblendet,
   so hört die Fläche nie eine Lücke. Die Beschriftung ist ein Schalter: aus,
@@ -447,7 +471,9 @@ Die App sagt den nächsten Tanz laut an. Ab Werk nennt sie nur den Tanz,
   statt mit voller Lautstärke einzusetzen (ein Paso Doble setzt abrupt ein; die
   Zeit steht unter [⚙ Einstellungen ▸ 🔊 Ton & Player](06-settings.md#ton-und-player)).
   Die Zeile zeigt **↩ mm:ss**, in einem Deck, einer Party-Liste oder einer
-  Wunschliste. Die Marken werden vergessen, wenn die App schließt.
+  Wunschliste. Die Marken werden vergessen, wenn die App schließt. Ein Titel,
+  der kürzer als 10 s lief oder in seinen letzten 10 s angehalten wurde,
+  bekommt keine Marke: Dort gibt es nichts, wohin man zurückkehren könnte.
 
 ### Abspiel-Sets
 
@@ -458,7 +484,7 @@ schaltet das 🏆 Set an, wenn keins an ist. Ein Haken in
 [⚙ Einstellungen ▸ 🎛 Spiel-Sets](06-settings.md#spiel-sets) bringt einen
 Knopf je Set zurück.
 
-- **🏆 Turnier-Set**: 1:45 Spieldauer, danach 2,5 s Ausblenden, keine Pause,
+- **🏆 Turnier-Set**: 1:45 Spieldauer, danach 3 s Ausblenden, keine Pause,
   kein Überblenden, kein automatisches Weiterschalten, keine Ansage, angeglichene Lautstärke.
   Es stellt auch den 🐂 Paso Doble auf die Werte des Sets: von Haus aus den
   Stopp aus und Start nach auf 0 s. Es leuchtet golden, solange der Bereich
@@ -916,7 +942,6 @@ ein Makro-Keypad braucht dafür keinen Treiber.
 | ▶ Gewählten Titel abspielen | **Alt + P** |
 | ➕ Gewählten Titel in die Wiedergabeliste | **Alt + A** |
 | ⭐ Gewählten Titel in die Wunschliste | **Alt + D** |
-| ♪ Takt-Messung öffnen / schließen | **Strg + Umschalt + T** |
 
 Ändern kannst du sie über **⌨ Tasten…** in ⚙ Einstellungen ▸
 ⚙ Allgemein ▸ 🎛 DJ-Controller oder in der Übersicht unter **F1**, die die

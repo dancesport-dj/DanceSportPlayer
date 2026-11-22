@@ -2507,6 +2507,7 @@ CATALOG = {
         "\n"
         "Brandt hij, dan zet een klik hem uit: de lijst keert terug naar\n"
         "de waarden van vóór het indrukken van de set.",
+    "Default (black)": "Default (zwart)",
     "The colours of the presenter screen. 'Default' is the black hall\n"
     "display; 'Light' is creme paper with warm brown type and rose\n"
     "gold for the next dance — made for a lit room, where black on a\n"
@@ -3346,28 +3347,14 @@ CATALOG = {
         "Systeemstandaard (volgt het systeem)",
     "Same as the music":
         "Zelfde als de muziek",
-    "Every output the operating system lists can be chosen. On a sound card\n"
-    "with several outputs, each pair that shows up as a device of its own\n"
-    "(\"Out 3/4\" next to \"Out 1/2\") can take a source of its own. A card\n"
-    "listed as ONE multichannel device offers its further pairs as\n"
-    "\"— Out 3/4\" entries. The music on such an entry changes its\n"
-    "pitch with the tempo fader, like a turntable.\n"
-    "\n"
-    "A card that is not plugged in plays on the system default until it is back.":
-        "Elke uitgang die het besturingssysteem toont, is te kiezen. Bij een\n"
-        "geluidskaart met meerdere uitgangen kan elk paar dat als eigen apparaat\n"
-        "verschijnt (\"Out 3/4\" naast \"Out 1/2\") een eigen bron krijgen. Een kaart\n"
-        "die als ÉÉN meerkanaalsapparaat verschijnt, biedt zijn verdere paren aan als\n"
-        "items \"— Out 3/4\". De muziek op zo'n item verandert met de tempo-regelaar\n"
-        "ook van toonhoogte, zoals een platenspeler.\n"
-        "\n"
-        "Een kaart die niet is aangesloten speelt op de systeemstandaard tot hij terug is.",
-    "🔀 A card listed as one multichannel device offers its further outputs (\"— Out 3/4\") to every source. The music on such a pair changes its pitch with the tempo fader, like a turntable: faster sounds higher, slower lower. Only a whole output keeps the pitch while the tempo changes.":
-        "🔀 Een kaart die als één meerkanaalsapparaat verschijnt, biedt zijn verdere uitgangen (\"— Out 3/4\") aan elke bron. De muziek op zo'n paar verandert met de tempo-regelaar ook van toonhoogte, zoals een platenspeler: sneller klinkt hoger, langzamer lager. Alleen een hele uitgang houdt de toonhoogte vast terwijl het tempo verandert.",
+    'Every output the operating system lists can be chosen. On a sound card\nwith several outputs, each pair that shows up as a device of its own\n("Out 3/4" next to "Out 1/2") can take a source of its own. A card\nlisted as ONE multichannel device offers its further pairs as\n"— Out 3/4" entries. There the app makes the music\'s tempo\nitself (⏩ Tempo): the pitch stays.\n\nA card that is not plugged in plays on the system default until it is back.':
+        'Elke uitgang die het besturingssysteem toont, is te kiezen. Bij een\ngeluidskaart met meerdere uitgangen kan elk paar dat als eigen apparaat\nverschijnt ("Out 3/4" naast "Out 1/2") een eigen bron krijgen. Een kaart\ndie als ÉÉN meerkanaalsapparaat verschijnt, biedt zijn verdere paren aan als\nitems "— Out 3/4". Daar maakt de app het tempo van de muziek\nzelf (⏩ Tempo): de toonhoogte blijft.\n\nEen kaart die niet is aangesloten speelt op de systeemstandaard tot hij terug is.',
+    '🔀 A card listed as one multichannel device offers its further outputs ("— Out 3/4") to every source. There the app makes the music\'s tempo itself, with the stretch chosen under ⏩ Tempo: the pitch stays, at a little more CPU than on a whole output.':
+        '🔀 Een kaart die als één meerkanaalsapparaat verschijnt, biedt zijn verdere uitgangen ("— Out 3/4") aan elke bron. Daar maakt de app het tempo van de muziek zelf, met de rek gekozen onder ⏩ Tempo: de toonhoogte blijft, met iets meer CPU dan op een hele uitgang.',
     "Music on a channel pair":
         "Muziek op een kanaalpaar",
-    "On %s the tempo fader changes the pitch along with the speed, like a turntable: faster sounds higher, slower lower.\n\nOnly a whole output keeps the pitch. Play the music on this pair anyway?":
-        "Op %s verandert de tempo-regelaar met de snelheid ook de toonhoogte, zoals een platenspeler: sneller klinkt hoger, langzamer lager.\n\nAlleen een hele uitgang houdt de toonhoogte vast. De muziek toch op dit paar spelen?",
+    'On %s the app makes the tempo itself, with the stretch chosen under ⏩ Tempo: the pitch stays, at a little more CPU than on a whole output.\n\nPlay the music on this pair anyway?':
+        'Op %s maakt de app het tempo zelf, met de rek gekozen onder ⏩ Tempo: de toonhoogte blijft, met iets meer CPU dan op een hele uitgang.\n\nDe muziek toch op dit paar spelen?',
     "⚠  %s (not connected)":
         "⚠  %s (niet aangesloten)",
     "The music plays on %s — click for the sound settings.":
@@ -4901,6 +4888,12 @@ CATALOG = {
         "zachter",
     "louder":
         "harder",
+    "The pause music is a cartwall pad: its level is the\ncartwall's fader. Back with the next title.":
+        "De pauzemuziek is een cartwall-pad: het niveau is de\nregelaar van de cartwall. Terug bij de volgende titel.",
+    "The pause music is a cartwall pad: it plays at its\nown tempo. Back with the next title.":
+        "De pauzemuziek is een cartwall-pad: het speelt in zijn\neigen tempo. Terug bij de volgende titel.",
+    "Ducks the pause music too.":
+        "Dempt ook de pauzemuziek.",
     "Volume %s %s — hold to glide":
         "Volume %s %s — vasthouden om te glijden",
     "Duck to %d %%, again to mute, again back to full":
@@ -6380,4 +6373,134 @@ CATALOG = {
         "📥  Laden in…",
     "🔎  Checking %s tracks for duplicates…":
         "🔎  %s nummers op dubbelen controleren…",
+    "⋯ Filters":
+        "⋯ Meer filters",
+    "⋯ Filters (%d)":
+        "⋯ Meer filters (%d)",
+    "Show the vocal, play-history and added-date filters.":
+        "Toont de filters voor zang, speelgeschiedenis en datum van toevoegen.",
+    "📐  Screen:":
+        "📐  Scherm:",
+    "Auto":
+        "Automatisch",
+    "Normal":
+        "Normale weergave",
+    "Compact":
+        "Compacte weergave",
+    "Compact: the hints fold to one line, an empty wishlist starts\nfolded and the rows sit tighter — for a 13″ laptop.\nAuto: Compact when the screen is less than 800 px high.\nRead when the app starts, like the theme.":
+        "Compact: de hints klappen in tot één regel, een lege verlanglijst\nbegint ingeklapt en de rijen staan dichter op elkaar — voor een 13″-laptop.\nAutomatisch: compact wanneer het scherm minder dan 800 px hoog is.\nWordt bij het starten gelezen, net als het thema.",
+    "+%d more ▾":
+        "+%d meer ▾",
+    "Auto (Compact on this screen)":
+        "Automatisch (compact op dit scherm)",
+    "Auto (Normal on this screen)":
+        "Automatisch (normaal op dit scherm)",
+    "Compact fits more rows on a 12-13″ laptop. ⚙ Settings → 🎨 Look changes it later.":
+        "Compact toont meer rijen op een 12-13″-laptop. Later te wijzigen onder ⚙ Instellingen → 🎨 Uiterlijk.",
+    '<b>⏩ Tempo</b> — how the music keeps its pitch when the tempo fader moves:':
+        '<b>⏩ Tempo</b> — hoe de muziek haar toonhoogte houdt als de temporegelaar beweegt:',
+    '🎼  Rubber Band — through ffmpeg, crisp beats, more CPU':
+        '🎼  Rubber Band — via ffmpeg, strakke beats, meer CPU',
+    "▶  Qt (standard) — Qt's own stretch, stutters briefly when the tempo changes (default)":
+        '▶  Qt (standaard) — de eigen rek van Qt, hapert even bij een tempowissel (standaard)',
+    "〰  Signalsmith — the app's own, a tempo change without a gap":
+        '〰  Signalsmith — die van de app zelf, een tempowissel zonder onderbreking',
+    "All three keep the pitch when the tempo fader moves, for every title.\nQt (standard): Qt's own stretch; every tempo change leaves a short gap.\nWhile the 🎚 equalizer is on, Signalsmith stands in, the same stretch.\nSignalsmith: the app makes the tempo itself, light on the CPU, a\nchange without a gap. Rubber Band keeps drum hits crisper but costs\nclearly more CPU; it runs inside ffmpeg (shipped with the app on\nWindows; Homebrew or the package manager elsewhere).":
+        'Alle drie houden de toonhoogte als de temporegelaar beweegt, bij elke titel.\nQt (standaard): de eigen rek van Qt; elke tempowissel laat een korte onderbreking.\nZolang de 🎚 equalizer aan is, springt Signalsmith in, dezelfde rek.\nSignalsmith: de app maakt het tempo zelf, licht voor de CPU, een\nwissel zonder onderbreking. Rubber Band houdt slagen strakker maar kost\nduidelijk meer CPU; het draait in ffmpeg (meegeleverd op Windows;\nelders Homebrew of de pakketbeheerder).',
+    'Applies from the next title. A title ffmpeg is not ready for goes through Signalsmith.':
+        'Geldt vanaf de volgende titel. Een titel waarvoor ffmpeg niet klaar is, gaat via Signalsmith.',
+    'This ffmpeg has no Rubber Band filter: Signalsmith makes the tempo.':
+        'Deze ffmpeg heeft geen Rubber Band-filter: Signalsmith maakt het tempo.',
+    'Music equalizer':
+        'Muziek-equalizer',
+    "Turn the music's equalizer on?":
+        'De equalizer van de muziek aanzetten?',
+    "With the EQ on, the app makes the music's tempo itself, with the stretch chosen under ⚙ Settings → ⏩ Tempo (now: %s). The pitch stays when the tempo fader moves, at a little more CPU; Rubber Band takes clearly more.\n\nIt starts at once, after a short gap.":
+        'Met de EQ aan maakt de app het tempo van de muziek zelf, met de rek gekozen onder ⚙ Instellingen → ⏩ Tempo (nu: %s). De toonhoogte blijft als de temporegelaar beweegt, met iets meer CPU; Rubber Band kost duidelijk meer.\n\nHet begint meteen, na een korte onderbreking.',
+    "Don't ask again":
+        'Niet meer vragen',
+    'Turn it on':
+        'Aanzetten',
+    'Leave it off':
+        'Uit laten',
+    '⚙ Advanced: frequencies and widths':
+        '⚙ Geavanceerd: frequenties en breedtes',
+    'On':
+        'Aan',
+    'Off: the player plays as without an EQ. On and off are heard at\nonce, after a short gap; Bypass compares without one.':
+        'Uit: de speler speelt als zonder EQ. Aan en uit zijn meteen te\nhoren, na een korte onderbreking; Zonder EQ vergelijkt zonder.',
+    'Bypass':
+        'Zonder EQ',
+    'Hear it without the EQ for a moment, at once.':
+        'Even zonder de EQ horen, meteen.',
+    'A starting point for a room; the sliders fine-tune it.':
+        'Een startpunt voor een zaal; de schuiven stemmen het fijn af.',
+    'This band on or off':
+        'Deze band aan of uit',
+    'Double-click: back to 0 dB':
+        'Dubbelklik: terug naar 0 dB',
+    'Custom':
+        'Eigen',
+    'Turned down %.1f dB so no boost can clip.':
+        '%.1f dB zachter zodat geen versterking oversturt.',
+    'Low cut':
+        'Laagafsnijding',
+    'Bass':
+        'Lage tonen',
+    'Low mid':
+        'Laag-midden',
+    'Presence':
+        'Presentie',
+    'Treble':
+        'Hoge tonen',
+    'Flat':
+        'Vlak',
+    'Boomy hall':
+        'Galmende zaal',
+    'Small room':
+        'Kleine ruimte',
+    'Weak speakers':
+        'Zwakke boxen',
+    'Speech clarity':
+        'Spraakhelderheid',
+    '🎵 Music':
+        '🎵 Muziek',
+    '🔈 Voice':
+        '🔈 Stem',
+    '🎧 Cue':
+        '🎧 Voorbeluisteren',
+    'The pre-listen plays on the music\'s output ("Same as the music"):\nthe music\'s EQ is what is heard there.':
+        'Voorbeluisteren speelt op de uitgang van de muziek ("Zoals de muziek"):\ndaar is de EQ van de muziek te horen.',
+    'Only with the FFmpeg engine: ⚙ Settings → 🔊 Sound & player → Audio backend.':
+        'Alleen met de FFmpeg-engine: ⚙ Instellingen → 🔊 Geluid & speler → Audio-backend.',
+    '♪ Tempo check':
+        '♪ Tempocontrole',
+    '♪ Tempo check  ·  🎚 Equalizer':
+        '♪ Tempocontrole  ·  🎚 Equalizer',
+    '🎚 Equalizer: fit the music, the announcements and the pre-listen\nto the room and its speakers.':
+        '🎚 Equalizer: muziek, omroepen en voorbeluisteren afstemmen\nop de zaal en de boxen.',
+    "🎚 The pre-listen's equalizer":
+        '🎚 De equalizer van voorbeluisteren',
+    '<b>🎚 Equalizer</b> — fit the music, the announcements and the pre-listen to the room and its speakers:':
+        '<b>🎚 Equalizer</b> — muziek, omroepen en voorbeluisteren afstemmen op de zaal en de boxen:',
+    'Only with the FFmpeg engine: choose it under Audio backend above.':
+        'Alleen met de FFmpeg-engine: kies die hierboven bij Audio-backend.',
+    'Keep these four gains as a preset of your own, for every tab.':
+        'Deze vier versterkingen bewaren als eigen voorinstelling, voor elk tabblad.',
+    'Delete this preset of your own.':
+        'Deze eigen voorinstelling verwijderen.',
+    'Save preset':
+        'Voorinstelling opslaan',
+    'Name of the preset:':
+        'Naam van de voorinstelling:',
+    'A built-in preset has that name. Please choose another one.':
+        'Een ingebouwde voorinstelling heeft die naam. Kies een andere.',
+    'Replace your preset "%s"?':
+        'Je voorinstelling "%s" vervangen?',
+    'Delete preset':
+        'Voorinstelling verwijderen',
+    'Delete your preset "%s"?':
+        'Je voorinstelling "%s" verwijderen?',
+    'Takes away everything below this frequency: rumble, stage\nthumps, hum. Off lets the deepest bass through.':
+        'Haalt alles onder deze frequentie weg: gerommel, gebonk op het\npodium, brom. Uit laat ook de diepste bas door.',
 }

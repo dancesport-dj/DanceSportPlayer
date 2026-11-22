@@ -1040,6 +1040,7 @@ class BackgroundFollowsTheDeckTest(unittest.TestCase):
         from player.window.main_cartwall import CartwallMixin
         seen = []
         host = SimpleNamespace(
+            _sync_pause_music=lambda: None,
             _cart_voices=SimpleNamespace(
                 set_music_playing=lambda playing, paused=False: seen.append((playing, paused))))
         CartwallMixin._cart_follow_deck(host, QMediaPlayer.PlaybackState.PlayingState)

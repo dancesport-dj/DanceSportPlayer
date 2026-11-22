@@ -265,7 +265,8 @@ class _Desk(CrossfadeMixin):
         self._mix = OutputMix(1.0)
         self._between = BetweenDances()
         self._player = _Player()
-        self._playback = SimpleNamespace(path=Path("a.mp3"), offset_ms=0, repaired={})
+        self._playback = SimpleNamespace(path=Path("a.mp3"), offset_ms=0, repaired={},
+                                        tempo_shift_secs=0.0)
         self.marks = []
         self._play_panel = SimpleNamespace(
             pd_editing=lambda: False,

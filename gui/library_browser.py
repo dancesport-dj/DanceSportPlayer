@@ -562,9 +562,23 @@ class LibraryBrowser(QWidget):
         # across a pane docked at half the window, and a clipped filter strip
         # would keep the whole pane wider than the screen. They wrap instead.
         flt = FlowLayout(spacing=4)
-        self._add_filters(flt)
-        self._add_fresh_filters(flt)
+        # Every filter on one line when the pane has room. Without it the
+        # less-used ones (vocal, plays, added) wait behind ⋯ Filters: all of
+        # them wrapped the row on a 13″ laptop and left the table 1-2 rows.
+        first, self._more_filters = [], []
+        self._add_filters(first, self._more_filters)
+        self._add_fresh_filters(first, self._more_filters)
+        self._more_btn = QToolButton()
+        self._more_btn.setCheckable(True)
+        self._more_btn.setToolTip("Show the vocal, play-history and added-date filters.")
+        self._more_btn.toggled.connect(self._fit_filters)
+        for w in first + [self._more_btn] + self._more_filters:
+            flt.addWidget(w)
+        self._filter_flow = flt
+        self._filter_spacing = flt.spacing()
+        self._sync_more_btn()
         cv.addLayout(flt)
+        self._content.installEventFilter(self)
 
         self._build_table()
         self._folders = FolderTree()
@@ -689,8 +703,9 @@ class LibraryBrowser(QWidget):
         hh.addWidget(self._count_lbl)
         hh.addStretch(1)
 
-    def _add_filters(self, flt):
-        """🔍 The search box and the dance, class, vocal and category combos."""
+    def _add_filters(self, first: list, more: list):
+        """🔍 The search box and the dance, class and category combos in
+        `first`, the vocal combo in `more`."""
         self._filter_edit = QLineEdit()
         self._filter_edit.setPlaceholderText(
             "🔍  Filter title / artist / comment tag…")
@@ -698,7 +713,7 @@ class LibraryBrowser(QWidget):
             "Substring of the title, the artist, or a comment marker\n"
             "(vocal_f, classic, eintanzen, …)")
         self._filter_edit.setClearButtonEnabled(True)
-        flt.addWidget(self._filter_edit)
+        first.append(self._filter_edit)
         self._dance_combo = QComboBox()
         self._dance_combo.addItem("All dances", "")
         # Style groups first (Standard / Latin), then the individual dances. A group
@@ -708,18 +723,18 @@ class LibraryBrowser(QWidget):
         self._dance_combo.addItem("— Latin —", "grp:Latin")
         for code in DANCE_NAMES:
             self._dance_combo.addItem(dance_name(code, code), code)
-        flt.addWidget(cap_filter_combo(self._dance_combo))
+        first.append(cap_filter_combo(self._dance_combo))
         self._class_combo = _ClassFilterCombo()
         self._class_combo.setToolTip(
             "Only tracks suited for one of the ticked starting classes\n"
             "(tick several; tracks without a class tag show only with all classes)")
-        flt.addWidget(cap_filter_combo(self._class_combo))
+        first.append(cap_filter_combo(self._class_combo))
         self._vocal_combo = QComboBox()
         self._vocal_combo.addItem("Vocal + instr.", "")
         self._vocal_combo.addItem("🎤 Vocal", "vocal")
         self._vocal_combo.addItem("🎻 Instrumental", "instr")
         self._vocal_combo.setToolTip("Filter by the instrumental tag")
-        flt.addWidget(cap_filter_combo(self._vocal_combo))
+        more.append(cap_filter_combo(self._vocal_combo))
         # Library category: tournament tracks vs the non-tournament folders
         # (anthems, background, wrong-tempo, duplicates, seasonal) that are kept
         # out of generation but stay here to browse — e.g. party music.
@@ -732,10 +747,11 @@ class LibraryBrowser(QWidget):
             "Browse by library category — 🏆 Tournament hides the non-tournament\n"
             "folders (anthems, background, wrong-tempo, duplicates, seasonal);\n"
             "pick a category to look only at those (handy for parties).")
-        flt.addWidget(cap_filter_combo(self._cat_combo))
+        first.append(cap_filter_combo(self._cat_combo))
 
-    def _add_fresh_filters(self, flt):
-        """✦ Plays, 🆕 added, unplanned and class-only: is this fresh?"""
+    def _add_fresh_filters(self, first: list, more: list):
+        """✦ Plays and 🆕 added in `more`, unplanned and class-only in `first`:
+        is this fresh?"""
         # ── The two "is this fresh?" filters ──
         # Play history: how often (and how recently) the track was used in a real
         # tournament, read off the playlist index (popularity / last_played).
@@ -755,7 +771,7 @@ class LibraryBrowser(QWidget):
                    "carrying it is that old (the year comes from the\n"
                    "playlist's path; undated lists don't count as old).")
             % (PROVEN_MIN_PLAYS - 1, PROVEN_MIN_PLAYS))
-        flt.addWidget(cap_filter_combo(self._plays_combo))
+        more.append(cap_filter_combo(self._plays_combo))
         # When the file arrived in the library — a copied file gets a fresh
         # creation time, so this really is "new music I put in".
         self._added_combo = QComboBox()
@@ -768,17 +784,17 @@ class LibraryBrowser(QWidget):
             "Only tracks whose file was created in the library that\n"
             "recently. Combine with ✦ Never played to see what you\n"
             "copied in but have never actually used.")
-        flt.addWidget(cap_filter_combo(self._added_combo))
+        more.append(cap_filter_combo(self._added_combo))
         self._unplanned_chk = QCheckBox("🆕 Unplanned")
         self._unplanned_chk.setToolTip(
             "Show only tracks not already used in any open playlist deck —\n"
             "handy for finding fresh music while building rounds.")
-        flt.addWidget(self._unplanned_chk)
+        first.append(self._unplanned_chk)
         self._class_only_chk = QCheckBox("🏷 Only with a class")
         self._class_only_chk.setToolTip(
             "Hide competition titles without a class tag — the class filter\n"
             "shows those for every class.")
-        flt.addWidget(self._class_only_chk)
+        first.append(self._class_only_chk)
 
     def _build_table(self):
         """The track table: its columns, header menu, widths and clicks."""
@@ -1235,9 +1251,58 @@ class LibraryBrowser(QWidget):
         self._folders.choose_all()
         if self._folded:
             self.set_folded(False)
+        if plays or added:
+            self._more_btn.setChecked(True)   # the filter it set must show
         self._refilter()
 
+    def _fit_filters(self, *_):
+        """All filters on one line when they fit, the ⋯ button otherwise."""
+        widgets = [self._filter_edit, self._dance_combo, self._class_combo,
+                   self._cat_combo, self._unplanned_chk, self._class_only_chk,
+                   *self._more_filters]
+        need = (sum(w.sizeHint().width() for w in widgets)
+                + self._filter_spacing * (len(widgets) - 1))
+        fits = need <= self._content.width()
+        self._order_filters(fits)
+        self._more_btn.setVisible(not fits)
+        show = fits or self._more_btn.isChecked()
+        for w in self._more_filters:
+            w.setVisible(show)
+
+    def _order_filters(self, fits: bool):
+        """With room the original order, the combos first and then the
+        checkboxes (Marcel). Without, the checkboxes stay on the line and
+        ⋯ Filters comes last, also after the combos it opened (hidden, they
+        take no room)."""
+        boxes = [self._unplanned_chk, self._class_only_chk]
+        combos = [self._filter_edit, self._dance_combo, self._class_combo,
+                  self._cat_combo]
+        if fits:
+            want = combos + self._more_filters + boxes + [self._more_btn]
+        else:
+            want = combos + boxes + self._more_filters + [self._more_btn]
+        flow = self._filter_flow
+        if [item.widget() if (item := flow.itemAt(i)) is not None else None
+                for i in range(flow.count())] == want:
+            return
+        while flow.count():
+            flow.takeAt(0)
+        for w in want:
+            flow.addWidget(w)
+
+    def eventFilter(self, obj, ev):
+        if obj is self._content and ev.type() == QEvent.Type.Resize:
+            self._fit_filters()
+        return super().eventFilter(obj, ev)
+
+    def _sync_more_btn(self):
+        """⋯ Filters, with the count of the filters behind it that are set."""
+        n = sum(1 for c in (self._vocal_combo, self._plays_combo, self._added_combo)
+                if c.currentIndex() > 0)
+        self._more_btn.setText(i18n.t("⋯ Filters (%d)") % n if n else i18n.t("⋯ Filters"))
+
     def _refilter(self):
+        self._sync_more_btn()
         text = self._filter_edit.text().strip().lower()
         dance = self._dance_combo.currentData() or ""
         classes = set(self._class_combo.classes())

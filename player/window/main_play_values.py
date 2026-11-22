@@ -11,6 +11,7 @@ Extracted from player/window/main_player.py as a MainWindow mixin.
 import logging
 from typing import TYPE_CHECKING
 
+from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtWidgets import QMessageBox
 
 from planner import i18n
@@ -145,7 +146,7 @@ class PlayValuesMixin(MainWindowHost):
     def _play_limit_secs(self) -> int:
         """Seconds per title for the playing list, 0 = to the track's own end —
         the 🏆 set's own length for the title's dance, where it has one."""
-        if self._loop_runs_full():
+        if self._loop_runs_full() or self._playback.runs_to_end:
             return 0   # 🔁 a title held on the floor runs its whole file
         return self._play_length_secs()
 
@@ -449,11 +450,29 @@ class PlayValuesMixin(MainWindowHost):
         card = self._big_player
         if card is None:
             return
+        was_full = not on and not card.loop_cut()
         card.set_loop_cut(False)
         secs = self._play_length_secs()
         if on and secs > 0 and not self._pd_runs_to_its_highlight():
             card.set_loop_cut(not self._ask_loop_full(secs))
+        elif was_full and self._past_the_fade():
+            # Cut now, it would end at once (or jump to mid-fade): it plays
+            # on to its own end and fades out there (_tick_to_its_end).
+            self._playback.runs_to_end = True
         self._sync_big_player_limit()
+
+    def _past_the_fade(self) -> bool:
+        """Whether the title playing is at or past where the play length's
+        fade-out begins."""
+        player = self._player
+        if (self._playback.path is None or player is None
+                or player.playbackState() == QMediaPlayer.PlaybackState.StoppedState):
+            return False
+        end = self._play_end_secs()
+        if end <= 0:
+            return False
+        played = self._floor_secs_at(player.position())
+        return played >= end - float(self._pv("fade"))
 
     def _ask_loop_full(self, secs: int) -> bool:
         """Whether the looping title should play its full length (True) or keep

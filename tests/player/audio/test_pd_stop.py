@@ -211,6 +211,9 @@ class _TickPlayer:
     def position(self):
         return self._pos
 
+    def duration(self):
+        return 0   # not known: no countdown to the end
+
     def playbackRate(self):
         return 1.0
 

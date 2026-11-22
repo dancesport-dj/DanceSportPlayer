@@ -17,7 +17,7 @@
 # PINNED — see requirements.txt for the long version: 6.11.1's Windows Media
 # Foundation plugin cuts a track a second in and only plays it on the second
 # try. A player build is exactly where that would hurt most.
-PySide6==6.11.2
+PySide6==6.12.0
 numpy==2.5.3
 mutagen==1.48.1
 # The log: loguru is the sink behind stdlib logging (shared/app_logging.py).

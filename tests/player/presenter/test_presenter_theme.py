@@ -35,6 +35,14 @@ class ThemeDataTest(unittest.TestCase):
         self.assertEqual(t.bg, "#000000")
         self.assertEqual(t.hero, "#ffffff")
 
+    def test_the_default_label_is_english_and_german_in_german(self):
+        """An English screen showed "Default (schwarz)": the German word sat in
+        the English label (the AI exploratory run, chapter 06)."""
+        from planner.i18n import lang_de
+        label = theme_for(DEFAULT_KEY).label
+        self.assertEqual(label, "Default (black)")
+        self.assertEqual(lang_de.CATALOG[label], "Default (schwarz)")
+
     def test_light_is_light(self):
         """A lit room, not a dark hall: SOFT ground, DARK text, GOLD accent —
         and no mark, the page stands under its heading alone."""

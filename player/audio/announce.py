@@ -488,6 +488,7 @@ class DanceAnnouncer:
         self._device = None     # 🔊 the output chosen for announcements, if any
         self._pair = 0          # 🔀 …and its channel pair, 0 for all of it
         self._clip_route = None
+        self._eq = None         # 🎚 the voice's EQ bands, None = Qt's own output
         self._clip_end = None   # QMediaPlayer.MediaStatus.EndOfMedia, once built
         self._clip_ready = ()   # …the statuses at which a seek sticks
         self._clip_loaded = None   # …and LoadedMedia alone (see _on_clip_status)
@@ -607,6 +608,8 @@ class DanceAnnouncer:
             route = PairRoute(player, out, self._parent)
             if self._device is not None:
                 route.set_device(self._device, self._pair)
+            if self._eq is not None:
+                route.set_eq(self._eq)
             player.mediaStatusChanged.connect(self._on_clip_status)
             player.errorOccurred.connect(self._on_clip_error)
             self._clip_end = QMediaPlayer.MediaStatus.EndOfMedia
@@ -627,6 +630,13 @@ class DanceAnnouncer:
         self._device, self._pair = device, pair
         if self._clip_route is not None:
             self._clip_route.set_device(device, pair)
+
+    def set_eq(self, bands) -> None:
+        """🎚 The announcement voice's EQ (see PairRoute.set_eq). Kept for the
+        player that is only built on first use."""
+        self._eq = None if bands is None else tuple(bands)
+        if self._clip_route is not None:
+            self._clip_route.set_eq(self._eq)
 
     def release_outputs(self) -> None:
         """🔇 Idle audio release (see AudioDevice.release): once built, the

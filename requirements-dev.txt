@@ -6,3 +6,18 @@
 pytest==9.1.1
 pytest-xdist==3.8.0
 pytest-cov==7.1.0
+
+# ── Mutation testing ─────────────────────────────────────────────────────────
+# tools/dev/mutation.py: changes one operator at a time and checks a test
+# fails. Run by hand on one module, not in CI.
+cosmic-ray==8.9.0
+
+# ── Property tests ───────────────────────────────────────────────────────────
+# Generated inputs and rule-based state machines (tests/**/test_*_properties.py,
+# tests/gui/window/test_undo_timeline_machine.py).
+hypothesis==6.170.15
+
+# ── Coverage-guided fuzzing ──────────────────────────────────────────────────
+# tools/dev/hypofuzz_run.py: the fuzz tests (tests/**/test_*_fuzz.py) for
+# hours on every core. Run by hand, not in CI.
+hypofuzz==25.11.1

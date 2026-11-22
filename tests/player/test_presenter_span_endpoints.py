@@ -11,7 +11,7 @@ def _desk(pos_ms=60_000, dur_ms=240_000, limit=120, silence_ms=None, celebrating
     return SimpleNamespace(
         _player=SimpleNamespace(playbackRate=lambda: 1.0, position=lambda: pos_ms,
                                 duration=lambda: dur_ms),
-        _playback=SimpleNamespace(path=Path("a.mp3"), offset_ms=0),
+        _playback=SimpleNamespace(path=Path("a.mp3"), offset_ms=0, tempo_shift_secs=0.0),
         _pd_runs_to_its_highlight=lambda: False,
         _play_limit_secs=lambda: limit,
         _play_end_secs=lambda: float(limit),

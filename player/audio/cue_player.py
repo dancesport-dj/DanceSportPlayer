@@ -72,6 +72,10 @@ class CuePlayer(QObject):
                  "channels: %s", self._path.stem, device.description(),
                  pair_label(pair) if pair else "the whole device")
 
+    def set_eq(self, bands) -> None:
+        """🎚 The pre-listen output's EQ (see PairRoute.set_eq)."""
+        self._route.set_eq(bands)
+
     def seek(self, delta_ms: int) -> None:
         """Ctrl+←/→: move by delta_ms, kept inside the title."""
         dur = self._player.duration()

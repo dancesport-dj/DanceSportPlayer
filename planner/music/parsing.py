@@ -1158,7 +1158,8 @@ def norm_title(s: str) -> str:
     # 'Ai Que Dó' and a filename 'Ai Que Do' normalise to the SAME key — otherwise
     # the accented char was dropped wholesale ('dó'→'d') and the two never matched.
     # Other scripts (Cyrillic, Greek …) stay as they are: dropping them made every
-    # such title the same empty key.
-    s = unicodedata.normalize('NFKD', s.lower().translate(_NO_DECOMPOSITION))
+    # such title the same empty key. The decomposition can bring capitals of its
+    # own ('℃' → '°C', 'Ⅻ' → 'XII'), so it is lowered once more after it.
+    s = unicodedata.normalize('NFKD', s.lower().translate(_NO_DECOMPOSITION)).lower()
     s = ''.join(c for c in s if not unicodedata.combining(c))
     return _NON_ALNUM_RE.sub(' ', s).strip()

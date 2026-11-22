@@ -95,6 +95,12 @@ def _one_line(title: str) -> str:
     return " ".join(str(title).split())
 
 
+def _extinf_secs(duration) -> int:
+    """The #EXTINF length: -1 when it is not known, as m3u readers expect;
+    0 would read as a track 0 seconds long."""
+    return duration if duration and duration > 0 else -1
+
+
 def export_m3u(playlist: Playlist, dances: list[str], basename: str,
                dance_class: str = "C", timestamp: bool = True,
                progress_cb: Callable[[int, int, str], None] | None = None,
@@ -127,7 +133,7 @@ def export_m3u(playlist: Playlist, dances: list[str], basename: str,
                     entry = heat[d_idx]
                     if entry:
                         bpm_s = fmt_bpm(entry.bpm, dance, dance_class)
-                        f.write(f"#EXTINF:{entry.duration},{_one_line(entry.title)}{bpm_s}\n")
+                        f.write(f"#EXTINF:{_extinf_secs(entry.duration)},{_one_line(entry.title)}{bpm_s}\n")
                         f.write(f"{path_for(entry.path) if path_for else entry.path}\n")
                         done += 1
                         if progress_cb:
@@ -182,7 +188,7 @@ def export_flat_m3u(entries: list[MusicEntry], basename: str,
             dn = DANCE_NAMES.get(e.dance or '', e.dance or '')
             tag = f" [{dn}]" if dn else ""
             yr = f" ({e.year})" if e.year else ""
-            f.write(f"#EXTINF:{e.duration},{_one_line(e.title)}{tag}{yr}\n")
+            f.write(f"#EXTINF:{_extinf_secs(e.duration)},{_one_line(e.title)}{tag}{yr}\n")
             f.write(f"{path_for(e.path) if path_for else e.path}\n")
             if progress_cb:
                 progress_cb(i, total, e.title)
@@ -206,7 +212,7 @@ def _write_heat_rounds(out: Path, entries: list[MusicEntry],
                 if heats > 1:
                     f.write(f"# Heat {i % heats + 1}\n")
                 yr = f" ({e.year})" if e.year else ""
-                f.write(f"#EXTINF:{e.duration},{_one_line(e.title)}{yr}\n")
+                f.write(f"#EXTINF:{_extinf_secs(e.duration)},{_one_line(e.title)}{yr}\n")
                 f.write(f"{path_for(e.path) if path_for else e.path}\n")
                 done += 1
                 if progress_cb:

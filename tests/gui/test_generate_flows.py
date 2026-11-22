@@ -1232,14 +1232,11 @@ class WarmupPanelTest(Case):
 
 
 class HintsAndGapsTest(Case):
-    def test_hints_show_joined_and_hide_when_empty(self):
+    def test_hints_go_to_the_hints_bar(self):
+        """Joining, hiding and the 📐 Compact fold: tests.gui.test_hints_label."""
         h = _host("_show_hints")
         h._show_hints(["a", "b"])
-        h._hints_lbl.setText.assert_called_once_with("a   b")
-        h._hints_lbl.setVisible.assert_called_with(True)
-        h._show_hints([])
-        h._hints_lbl.clear.assert_called_once()
-        h._hints_lbl.setVisible.assert_called_with(False)
+        h._hints_lbl.set_hints.assert_called_once_with(["a", "b"])
 
     def test_a_library_still_loading_opens_no_dialog(self):
         h = _host("_show_library_gaps")

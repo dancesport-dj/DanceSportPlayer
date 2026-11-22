@@ -114,7 +114,10 @@ class CustomColumnMigrationTest(unittest.TestCase):
         # load_settings runs this at start-up: a ValueError here stopped the app.
         for bad in ({"columns_version": "six"},
                     {"hidden_columns": {"playlist": ["x"]}},
-                    {"library_columns": [0, None]}):
+                    {"library_columns": [0, None]},
+                    # JSON's Infinity is a float int() refuses with OverflowError.
+                    {"library_hidden_columns": [float("inf")]},
+                    {"columns_version": float("inf")}):
             with self.subTest(bad=bad):
                 s = {"hidden_columns": {"playlist": [1]}, "theme": "light", **bad}
                 with self.assertLogs("dancesport.gui", "WARNING"):

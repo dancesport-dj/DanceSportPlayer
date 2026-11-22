@@ -7,8 +7,10 @@ test, and reading its settings back for SettingsDialog.values().
 import copy
 import sys
 from collections.abc import Callable
+from typing import cast
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QStandardItemModel
 from PySide6.QtMultimedia import QMediaDevices
 from PySide6.QtWidgets import (
     QButtonGroup,
@@ -24,6 +26,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QRadioButton,
     QSpinBox,
+    QTabWidget,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -32,12 +35,15 @@ from PySide6.QtWidgets import (
 from gui.dialogs import (
     MEDIA_BACKEND_CHOICES,
     PLAYER_LAYOUT_CHOICES,
+    TEMPO_ENGINE_CHOICES,
     audio_output_choices,
     audio_output_pairs,
     media_backend_of,
+    tempo_engine_of,
 )
 from gui.dialogs.settings_look import _DialogHost, add_reset_footer
 from planner import i18n
+from planner.playing import equalizer as eqs
 from planner.playing.celebration import (
     CELEBRATE_DIP_PCT,
     CELEBRATE_DOWN_SECS,
@@ -53,11 +59,14 @@ from planner.playing.celebration import (
     celebrate_up_secs,
 )
 from shared.audio import profiles
+from shared.audio.eq_panel import EQ_TABS, EqPanel
+from shared.audio.eq_question import confirm_music_eq
 from shared.audio.playback import (
     AUDIO_IDLE_S,
     SYSTEM_DEFAULT,
     choice_pair,
     duck_db_text,
+    eq_available,
     match_output,
     output_key,
     pair_label,
@@ -78,6 +87,7 @@ class SoundTabMixin(_DialogHost):
     """The 🔊 Sound & player tab of SettingsDialog."""
 
     _announce_test_cb: Callable[[str, bool, bool, bool], None] | None
+    _eq_live_cb: Callable[[dict], None] | None
     _profiles_cb: Callable[[dict], None] | None
     _settings_in: dict   # the stored settings, set by SettingsDialog
 
@@ -151,6 +161,10 @@ class SoundTabMixin(_DialogHost):
         plyt.addWidget(hsep())
         self._add_dblclick_rows(settings, plyt)
 
+        # Last, below where the player stands: tapped tempo and the equalizer.
+        plyt.addWidget(hsep())
+        self._add_tempo_engine_rows(settings, plyt)
+
         self._sound_reset_btn = QPushButton("↺ Reset to defaults")
         self._sound_reset_btn.setToolTip(
             "Puts the fade times, the duck and the pre-roll back on the values"
@@ -159,6 +173,95 @@ class SoundTabMixin(_DialogHost):
         add_reset_footer(plyt, self._sound_reset_btn)
         self._sound_shown = self._sound_numbers()
         return tabs.addTab(sound_tab, "🔊 Sound && player")
+
+    def _add_tempo_engine_rows(self, settings, plyt):
+        """⏩ The music's tempo (player.audio.stretch_engines), for every
+        title: Rubber Band greyed where this ffmpeg has no filter for it."""
+        from shared.audio.audio_probes import ffmpeg_has_filter
+        plyt.addWidget(QLabel(
+            "<b>⏩ Tempo</b> — how the music keeps its pitch when the tempo "
+            "fader moves:"))
+        self._tempo_engine_combo = QComboBox()
+        for key, caption in TEMPO_ENGINE_CHOICES:
+            self._tempo_engine_combo.addItem(caption, key)
+        self._tempo_engine_combo.setCurrentIndex(
+            max(0, self._tempo_engine_combo.findData(tempo_engine_of(settings))))
+        self._tempo_engine_combo.setToolTip(
+            "All three keep the pitch when the tempo fader moves, for every title.\n"
+            "Qt (standard): Qt's own stretch; every tempo change leaves a short gap.\n"
+            "While the 🎚 equalizer is on, Signalsmith stands in, the same stretch.\n"
+            "Signalsmith: the app makes the tempo itself, light on the CPU, a\n"
+            "change without a gap. Rubber Band keeps drum hits crisper but costs\n"
+            "clearly more CPU; it runs inside ffmpeg (shipped with the app on\n"
+            "Windows; Homebrew or the package manager elsewhere).")
+        plyt.addWidget(self._tempo_engine_combo)
+        if ffmpeg_has_filter("rubberband"):
+            note = ("Applies from the next title. A title ffmpeg is not ready for "
+                    "goes through Signalsmith.")
+        else:
+            rubber = self._tempo_engine_combo.findData("rubberband")
+            cast(QStandardItemModel, self._tempo_engine_combo.model()).item(rubber).setEnabled(False)
+            note = "This ffmpeg has no Rubber Band filter: Signalsmith makes the tempo."
+        tempo_note = QLabel(note)
+        tempo_note.setWordWrap(True)
+        tempo_note.setStyleSheet("color:#666; font-size:11px;")
+        plyt.addWidget(tempo_note)
+        self._add_eq_rows(settings, plyt)
+
+    def _add_eq_rows(self, settings, plyt):
+        """🎚 One shared.audio.eq_panel.EqPanel per source, the same as the
+        player's floating card. Edits stay in `_eq_work` until OK, and are
+        heard at once through `eq_live_cb` (Cancel gives the old ones back)."""
+        plyt.addWidget(QLabel(
+            "<b>🎚 Equalizer</b> — fit the music, the announcements and the "
+            "pre-listen to the room and its speakers:"))
+        self._eq_work = {k: copy.deepcopy(settings[k])
+                         for k in ("equalizer", eqs.PITCH_OK_KEY) if k in settings}
+        self._eq_opened = copy.deepcopy(self._eq_work)
+        self._eq_heard = False
+        self._eq_tabs = QTabWidget()
+        self._eq_panels = {}
+        for source, caption in EQ_TABS:
+            panel = EqPanel(
+                source, eqs.eq_of(settings, source), settings=lambda: self._eq_work,
+                confirm_on=(lambda: confirm_music_eq(self._eq_work, self))
+                if source == "music" else None)
+            panel.changed.connect(lambda p=panel: self._eq_edited(p))
+            panel.presetSaved.connect(self._eq_preset_saved)
+            self._eq_tabs.addTab(panel, i18n.t(caption))
+            self._eq_panels[source] = panel
+        plyt.addWidget(self._eq_tabs)
+        if not eq_available():
+            self._eq_tabs.setEnabled(False)
+            eq_note = QLabel("Only with the FFmpeg engine: choose it under Audio backend above.")
+            eq_note.setWordWrap(True)
+            eq_note.setStyleSheet("color:#666; font-size:11px;")
+            plyt.addWidget(eq_note)
+
+    def _eq_edited(self, panel):
+        self._eq_work = eqs.with_eq(self._eq_work, panel.source, panel.cfg())
+        self._eq_hear(self._eq_work)
+
+    def _eq_hear(self, eq_part: dict):
+        """🎚 On the playing music now: both keys always, None for one the
+        settings are to be without."""
+        if self._eq_live_cb is None:
+            return
+        self._eq_heard = True
+        self._eq_live_cb({k: copy.deepcopy(eq_part.get(k))
+                          for k in ("equalizer", eqs.PITCH_OK_KEY)})
+
+    def _eq_take_back(self):
+        """Cancel or ✕: what was heard goes back to what the dialog opened with."""
+        if getattr(self, "_eq_heard", False):
+            self._eq_hear(self._eq_opened)
+            self._eq_heard = False
+
+    def _eq_preset_saved(self, name, gains):
+        """💾 / 🗑 an own preset: kept until OK, offered on every tab at once."""
+        self._eq_work = eqs.with_user_preset(self._eq_work, name, gains)
+        for panel in self._eq_panels.values():
+            panel.refill_presets()
 
     def _add_output_rows(self, settings, plyt):
         """🔈 One output per source — see shared.audio.playback.OUTPUT_SOURCES."""
@@ -179,8 +282,8 @@ class SoundTabMixin(_DialogHost):
             "with several outputs, each pair that shows up as a device of its own\n"
             "(\"Out 3/4\" next to \"Out 1/2\") can take a source of its own. A card\n"
             "listed as ONE multichannel device offers its further pairs as\n"
-            "\"— Out 3/4\" entries. The music on such an entry changes its\n"
-            "pitch with the tempo fader, like a turntable.\n"
+            "\"— Out 3/4\" entries. There the app makes the music's tempo\n"
+            "itself (⏩ Tempo): the pitch stays.\n"
             "\n"
             "A card that is not plugged in plays on the system default until it is back.")
         cue_tip = (
@@ -205,10 +308,9 @@ class SoundTabMixin(_DialogHost):
         # Shown while such a card is plugged in.
         self._pair_note = QLabel(i18n.t(
             "🔀 A card listed as one multichannel device offers its further "
-            "outputs (\"— Out 3/4\") to every source. The music on such a pair "
-            "changes its pitch with the tempo fader, like a turntable: faster "
-            "sounds higher, slower lower. Only a whole output keeps the pitch "
-            "while the tempo changes."))
+            "outputs (\"— Out 3/4\") to every source. There the app makes the "
+            "music's tempo itself, with the stretch chosen under ⏩ Tempo: the "
+            "pitch stays, at a little more CPU than on a whole output."))
         self._pair_note.setWordWrap(True)
         plyt.addWidget(self._pair_note)
         self._fill_outputs(saved)
@@ -410,8 +512,8 @@ class SoundTabMixin(_DialogHost):
 
     def _watch_music_pair(self, combo):
         """🔀 Picking a channel pair for the music asks first: there the tempo
-        fader changes the pitch too. What it keeps is the entry's key, not its
-        row: a card plugged in moves the rows."""
+        is the app's own (stretch_engines), a little more CPU. What it keeps is the
+        entry's key, not its row: a card plugged in moves the rows."""
         kept = [combo.currentData()]
 
         def picked(index):
@@ -419,9 +521,9 @@ class SoundTabMixin(_DialogHost):
             _dev_id, pair = split_output_key(key or "")
             if pair and key != kept[0] and QMessageBox.question(
                     self, i18n.t("Music on a channel pair"),
-                    i18n.t("On %s the tempo fader changes the pitch along with the "
-                           "speed, like a turntable: faster sounds higher, slower "
-                           "lower.\n\nOnly a whole output keeps the pitch. Play the "
+                    i18n.t("On %s the app makes the tempo itself, with the stretch "
+                           "chosen under ⏩ Tempo: the pitch stays, "
+                           "at a little more CPU than on a whole output.\n\nPlay the "
                            "music on this pair anyway?") % combo.itemText(index)
                     ) != QMessageBox.StandardButton.Yes:
                 combo.setCurrentIndex(max(0, combo.findData(kept[0])))
@@ -1045,6 +1147,7 @@ class SoundTabMixin(_DialogHost):
             "announce_heat_only": self._heat_only_chk.isChecked(),
             "announce_wait": self._lead_wait_radio.isChecked(),
             "media_backend": self._backend_combo.currentData(),
+            "tapped_tempo_engine": self._tempo_engine_combo.currentData(),
             "release_audio_idle": self._release_audio_chk.isChecked(),
             "mute_system_sounds": self._mute_sys_chk.isChecked(),
             "celebrate_pct": self._celebrate_pct.value(),
@@ -1052,4 +1155,5 @@ class SoundTabMixin(_DialogHost):
             "celebrate_hold_secs": self._celebrate_hold.value(),
             "celebrate_up_secs": self._celebrate_up.value(),
             "celebrate_down_secs": self._celebrate_down.value(),
+            **self._eq_work,
         }

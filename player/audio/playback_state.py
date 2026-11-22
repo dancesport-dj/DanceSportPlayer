@@ -26,6 +26,16 @@ class PlaybackState:
     # position but nobody danced to it, so the timed cut subtracts it again
     # (see audible_played_secs) — otherwise a silent intro shortens the round.
     offset_ms: int = 0
+    # Floor seconds the tempo's history adds to the timed cut (see
+    # tempo_shift_secs): music danced before a tempo change keeps the time
+    # it took at its own tempo.
+    tempo_shift_secs: float = 0.0
+    # …and the changes that make it up, so a seek back can undo the ones
+    # past where it lands (shared.audio.playback.rewind_tempo_history).
+    tempo_marks: list = field(default_factory=list)
+    # 🔁 Endless repeat at full length went off past where the play length's
+    # fade begins: this title plays on to its own end and fades out there.
+    runs_to_end: bool = False
     # 🌅 The music heard (seconds) at which this title's fade-in started;
     # None = no fade-in running.
     fade_in_from: float | None = None

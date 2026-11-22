@@ -678,7 +678,8 @@ class AudioLevelMixin(MainWindowHost):
         if self._player is None:
             return 0.0
         return audible_played_secs(self._player.position(), self._playback.offset_ms,
-                                   self._player.playbackRate())
+                                   self._player.playbackRate(),
+                                   self._playback.tempo_shift_secs)
 
     def _arm_fade_in(self, path: Path):
         """🌅 A title being loaded starts at silence when the fade-in is on.

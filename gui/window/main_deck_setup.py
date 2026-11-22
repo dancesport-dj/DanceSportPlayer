@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 
 import planner.config
 import planner.playlist.m3u
+from gui import screen_mode
 from gui.common import DEFAULT_HIDDEN_COLUMNS
 from gui.dialogs import TOURNAMENTS, deck_name, wishlist_name
 from gui.library_browser import LibraryBrowser
@@ -504,7 +505,9 @@ class DeckSetupMixin(MainWindowHost):
         self._compact_btn = QPushButton("🗜  Compact")
         self._compact_btn.setProperty("pickList", True)
         self._compact_btn.setCheckable(True)
-        self._compact_state = savedWhole(self._settings.get("compact", 0) or 0, 0)
+        # 📐 Compact starts on 🗜 compact until a header view was picked once.
+        self._compact_state = savedWhole(
+            self._settings.get("compact", 1 if screen_mode.compact() else 0) or 0, 0)
         if self._compact_state not in (0, 1, 2, 3):
             self._compact_state = 0
         self._compact_btn.setToolTip(
@@ -795,6 +798,7 @@ class DeckSetupMixin(MainWindowHost):
         self._lib_browser.folderViewChanged.connect(self._on_lib_folder_view)
         self._lib_browser.playCountsResetWanted.connect(self._reset_play_counts)
         self._lib_browser._table.seek_cb = self._prehear_seek   # Ctrl+←/→ seeks ∓30 s
+        self._apply_library_min_height()
         # A garbled list is skipped, not fatal: the migration only checks these
         # below the current columns_version.
         saved_cols = self._settings.get("library_columns")
@@ -869,3 +873,42 @@ class DeckSetupMixin(MainWindowHost):
         # The list whose own play values the panel shows and edits.
         self._panel_table = self._focused_table
         self._set_active_table(self._deckset.tableA)
+
+    def _apply_library_min_height(self):
+        """📐 Six library rows to pick from under Compact: under the decks of a
+        13″ laptop the divider left two. Folded, the table is hidden and asks
+        nothing."""
+        lib_table = self._lib_browser._table
+        if screen_mode.compact():
+            lib_table.setMinimumHeight(
+                lib_table.horizontalHeader().sizeHint().height()
+                + 6 * lib_table.verticalHeader().defaultSectionSize())
+        else:
+            lib_table.setMinimumHeight(0)
+
+    def _on_screen_changed(self, screen):
+        """📐 Auto re-decides when the window moves to a screen of another
+        size. A chosen Normal/Compact stays."""
+        if screen is None or screen_mode.screen_mode_of(self._settings) != "auto":
+            return
+        was = screen_mode.compact()
+        screen_mode.apply_settings(self._settings,
+                                   screen.availableGeometry().height())
+        if screen_mode.compact() != was:
+            self._apply_screen_shape()
+
+    def _apply_screen_shape(self):
+        """Re-shape what Compact touches. The empty-wishlist fold stays a
+        start-up thing: done live it would fight the operator's own folding."""
+        compact = screen_mode.compact()
+        for t in self._deckset.all_tables:
+            t.apply_row_height()
+        self._cfg.apply_density()
+        self._hints_lbl.set_compact(compact)
+        self._apply_library_min_height()
+        if "compact" not in self._settings:
+            # Only the default follows; not saved, so it never reads as picked.
+            self._compact_state = 1 if compact else 0
+            for t in self._deckset.all_tables:
+                t.set_grouping(self._compact_state)
+            self._apply_compact_label()

@@ -15,7 +15,7 @@ contains.
 | Component | Version | License |
 |---|---|---|
 | [Python](https://www.python.org/) and its standard library | 3.14 | PSF-2.0. It ships OpenSSL (Apache-2.0, only in builds that send error reports), libffi, expat and mimalloc (MIT), mpdecimal, bzip2 and Zstandard (BSD), and SQLite and liblzma (public domain) |
-| [Qt](https://www.qt.io/) with [PySide6](https://pypi.org/project/PySide6/) and shiboken6 | 6.11.2 | LGPL-3.0 (also offered under GPL-2.0 / GPL-3.0). Qt Multimedia's FFmpeg libraries are LGPL-2.1-or-later |
+| [Qt](https://www.qt.io/) with [PySide6](https://pypi.org/project/PySide6/) and shiboken6 | 6.12.0 | LGPL-3.0 (also offered under GPL-2.0 / GPL-3.0). Qt Multimedia's FFmpeg libraries are LGPL-2.1-or-later |
 | [numpy](https://numpy.org/) | 2.5.3 | BSD-3-Clause, with parts under 0BSD, MIT, Zlib and CC0-1.0. Its OpenBLAS is BSD-3-Clause |
 | [mutagen](https://github.com/quodlibet/mutagen) | 1.48.1 | GPL-2.0-or-later |
 | [sentry-sdk](https://github.com/getsentry/sentry-python) | 2.71.0 | MIT |
@@ -26,6 +26,7 @@ contains.
 | [win32-setctime](https://github.com/Delgan/win32-setctime) | as required by loguru on Windows | MIT (notice below) |
 | [colorama](https://github.com/tartley/colorama) | as required by loguru on Windows | BSD-3-Clause (notice below) |
 | [hidapi](https://github.com/trezor/cython-hidapi) | 0.15.0 | Offered under GPL-3.0, a BSD-style license or the original cython-hidapi license; used here under the original one (notice below). It contains the [HIDAPI](https://github.com/libusb/hidapi) C library, offered on the same three terms and used under its original license |
+| [Signalsmith Stretch](https://signalsmith-audio.co.uk/code/stretch/) with the Signalsmith DSP library | 1.1.0, the copy Qt Multimedia 6.12 bundles | MIT (notice below). Built into `sstretch.dll` (Windows), the tempo of a player whose sound goes through the equalizer or a channel pair |
 | [PyInstaller](https://pyinstaller.org/) bootloader | 6.22.0 | GPL-2.0-or-later with the bootloader exception, which allows the bundled app to be distributed under its own license |
 | Microsoft Visual C++ runtime (Windows) | | Microsoft Visual C++ Redistributable license |
 
@@ -190,6 +191,58 @@ remains intact.
 MIT License
 
 Copyright (c) 2017 Delgan
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### Signalsmith Stretch
+
+```
+MIT License
+
+Copyright (c) 2022 Geraint Luff / Signalsmith Audio Ltd.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### Signalsmith DSP library
+
+```
+MIT License
+
+Copyright (c) 2021 Geraint Luff / Signalsmith Audio Ltd.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

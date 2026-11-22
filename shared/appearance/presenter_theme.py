@@ -45,7 +45,7 @@ class Theme:
 THEMES = {
     # The screen as it was built: the iPad app's "Now dancing" view.
     "default": Theme(
-        key="default", label="Default (schwarz)",
+        key="default", label="Default (black)",
         bg="#000000", hero="#ffffff", sub="#8e8e93", div="#3a3a3c",
         past="#6e6e73", up="#ff9f0a", left="#ffffff", end="#ff3b30",
         track="rgba(255,255,255,0.20)", fill="#ffffff"),

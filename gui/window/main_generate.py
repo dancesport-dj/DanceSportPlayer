@@ -1407,12 +1407,7 @@ class GenerateMixin(EventPlanMixin, AiPlaylistMixin):
     # ── 🏆 Event: a whole day planned from its history ──────────────────────
 
     def _show_hints(self, hints: list[str]):
-        if hints:
-            self._hints_lbl.setText("   ".join(hints))
-            self._hints_lbl.setVisible(True)
-        else:
-            self._hints_lbl.clear()
-            self._hints_lbl.setVisible(False)
+        self._hints_lbl.set_hints(hints)
 
     def _show_library_gaps(self):
         """📊 (Settings → 🎵 Checks): per dance × class pool statistics — where

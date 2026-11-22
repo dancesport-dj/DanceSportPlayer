@@ -100,3 +100,13 @@ play_log_dialog.json
 
 # Planner manual PDF (built, like docs/manual/**/manual.pdf)
 docs/manual-planner/manual.pdf
+
+# Mutation sessions (tools/dev/mutation.py)
+.mutation/
+
+# Hypothesis example database
+.hypothesis/
+
+# Signalsmith Stretch built on macOS / Linux (build_sstretch.sh); the Windows DLL is in git
+player/audio/native/libsstretch.dylib
+player/audio/native/libsstretch.so

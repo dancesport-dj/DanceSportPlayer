@@ -1,13 +1,27 @@
 """Small widgets and helpers the desk and the evening both put on screen: the
-flow layout, the app icon, the separator line, the play-button glyph and the
-toast.
+flow layout, the app icon, the separator line, the play-button glyph, the
+toast and the double-click-to-type readout of a slider.
 """
 from pathlib import Path
 from typing import Any, cast
 
-from PySide6.QtCore import QPoint, QRect, QSize, Qt, QTimer
+from PySide6.QtCore import QEvent, QObject, QPoint, QRect, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QFrame, QLabel, QLayout, QLayoutItem, QWidget
+from PySide6.QtWidgets import (
+    QAbstractScrollArea,
+    QAbstractSlider,
+    QAbstractSpinBox,
+    QApplication,
+    QComboBox,
+    QFrame,
+    QLabel,
+    QLayout,
+    QLayoutItem,
+    QLineEdit,
+    QScrollBar,
+    QSlider,
+    QWidget,
+)
 
 
 class FlowLayout(QLayout):
@@ -65,6 +79,8 @@ class FlowLayout(QLayout):
         space = self.spacing()
         line: list = []
         for item in self._items:
+            if item.isEmpty():
+                continue    # a hidden control takes no room, nor its spacing
             hint = item.sizeHint()
             # On a line narrower than its wish, a control that can shrink does.
             hint.setWidth(max(item.minimumSize().width(), min(hint.width(), rect.width())))
@@ -152,6 +168,35 @@ def hsep() -> QFrame:
     return f
 
 
+class _WheelGuard(QObject):
+    """See guard_wheel: an unfocused input hands the wheel to the page."""
+
+    def eventFilter(self, obj, event):
+        if event.type() != QEvent.Type.Wheel or obj.hasFocus():
+            return False
+        area = obj.parentWidget()
+        while area is not None and not isinstance(area, QAbstractScrollArea):
+            area = area.parentWidget()
+        if area is not None:
+            QApplication.sendEvent(area.verticalScrollBar(), event)
+        return True
+
+
+def guard_wheel(root: QWidget):
+    """Every spin box, combo and slider under `root` takes the wheel only once
+    it has been clicked into; until then the wheel scrolls the page around it.
+
+    Qt steps an input on any wheel notch over it, focus or not, so scrolling a
+    long page changes whatever input passes under the pointer. The same rule
+    as the player's ClickWheelSpinBox, for pages built from plain Qt inputs."""
+    guard = _WheelGuard(root)
+    for w in root.findChildren(QWidget):
+        if (isinstance(w, (QAbstractSpinBox, QComboBox, QAbstractSlider))
+                and not isinstance(w, QScrollBar)):
+            w.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+            w.installEventFilter(guard)
+
+
 def set_play_glyph(btn, playing: bool):
     """The ▶ / ■ toggle of a row's play button — the same two characters, in the
     same ink, as always."""
@@ -207,3 +252,84 @@ def show_toast(anchor: QWidget, text: str, msec: int = 1500,
     lbl.show()
     lbl.raise_()
     timer.start(msec)
+
+
+class ClickableLabel(QLabel):
+    """A QLabel that reports a double-click — Qt's does not."""
+
+    double_clicked = Signal()
+
+    def mouseDoubleClickEvent(self, e):
+        if e.button() == Qt.MouseButton.LeftButton:
+            self.double_clicked.emit()
+
+
+class TypedValue(ClickableLabel):
+    """A slider's readout that a double-click turns into a field.
+
+    A slider is the right control for a level judged by ear and the wrong one
+    for a number that is already known: 25 % and 1.5 s are quicker typed than
+    aimed at, and a pad that has to match another one has to hit the figure
+    exactly, not nearly."""
+
+    def __init__(self, slider: QSlider, per_unit: int = 1, parent=None):
+        super().__init__("", parent)
+        self._slider = slider
+        # Slider steps per typed unit: 1000 for a fade typed in seconds, 1 for
+        # a volume typed in per cent.
+        self._per_unit = per_unit
+        self._edit = None       # built on first use
+        self.setToolTip("Double-click to type a value")
+        self.double_clicked.connect(self._open)
+
+    def _open(self) -> None:
+        """Put the field over the readout. Made once and then reused."""
+        if not self._slider.isEnabled():
+            return          # a pad following the wall's fade: nothing to set
+        if self._edit is None:
+            self._edit = QLineEdit(self)
+            self._edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._edit.installEventFilter(self)
+            self._edit.editingFinished.connect(self._commit)
+        self._edit.setGeometry(self.rect())
+        # The bare number, not the caption: "1.5 s (wall)" is what the reader
+        # wants and "1.5" is what the typist wants to start from.
+        self._edit.setText(f"{self._slider.value() / self._per_unit:g}")
+        self._edit.show()
+        self._edit.selectAll()
+        self._edit.setFocus()
+
+    def eventFilter(self, obj, event):
+        """Both keys have to be caught here.
+
+        Esc, because a QLineEdit swallows it without telling anyone. Enter,
+        because a QLineEdit does the opposite — it commits and then hands the
+        key on, and the next thing in line is the dialog's Ok button: typing a
+        value and pressing Enter would shut the whole settings window."""
+        edit = self._edit
+        if edit is not None and obj is edit and event.type() == QEvent.Type.KeyPress:
+            if event.key() == Qt.Key.Key_Escape:
+                edit.hide()
+                return True
+            if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+                self._commit()
+                return True
+        return super().eventFilter(obj, event)
+
+    def _commit(self) -> None:
+        """Enter, or the focus moving on. Nonsense is refused rather than
+        guessed at, so a half-typed value leaves the slider where it was."""
+        edit = self._edit
+        if edit is None or edit.isHidden():
+            return          # editingFinished comes again on the focus-out
+        # The unit may be typed along with the number, and a German keyboard
+        # puts a comma where float() wants a point.
+        text = edit.text().strip().rstrip("s%dB ").replace(",", ".")
+        edit.hide()
+        try:
+            typed = float(text)
+            value = int(round(typed * self._per_unit))
+        except (ValueError, OverflowError):    # "inf", "1e999", "nan"
+            return
+        # setValue clamps: 999 s of fade is not a fade, it is a stuck pad.
+        self._slider.setValue(value)

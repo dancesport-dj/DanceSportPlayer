@@ -49,6 +49,8 @@ class _Media:
 class _Desk(PlayerControlMixin):
     """Just what the played mark and the log read."""
 
+    _big_player = None   # no player card, so no 🔁 either
+
     def __init__(self, playing=True):
         self.entry = MusicEntry(path=Path(r"C:\music\Moon River.mp3"), title="Moon River",
                                 dance="WW", duration=150, tag_artist="Henry Mancini")

@@ -5,6 +5,12 @@ name: monkey nightly
 # seeds, on Windows, the leg that has to pass. A red job names its seed in the
 # failure; replay it here with workflow_dispatch, or locally with
 # DANCEPLAYLIST_MONKEY_SEED=<seed> and the two settings below.
+#
+# Each seed slot (the seed's last digit) keeps a visits file in the cache, so a
+# night's walk leans to the controls the earlier nights never worked (see
+# tests/gui/monkey_novelty.py); never-hit.txt in the run's artifacts lists them.
+# A red walk leaves its slot's file as it was, and a replay reads that file and
+# saves nothing.
 on:
   schedule:
     - cron: "17 3 * * *"
@@ -41,6 +47,22 @@ jobs:
           python -m pip install -r requirements.lock
           python -m pip install -r requirements-dev.txt
 
+      - name: Seed
+        id: seed
+        shell: bash
+        env:
+          REPLAY_SEED: ${{ inputs.seed }}
+        run: |
+          seed="${REPLAY_SEED:-$(date -u +%Y%m%d)${{ matrix.n }}}"
+          echo "seed=$seed" >> "$GITHUB_OUTPUT"
+          echo "slot=${seed: -1}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: monkey-visits.json
+          key: monkey-visits-${{ steps.seed.outputs.slot }}-${{ github.run_id }}
+          restore-keys: monkey-visits-${{ steps.seed.outputs.slot }}-
+
       - name: Monkey
         shell: bash
         env:
@@ -48,8 +70,29 @@ jobs:
           PYTHONIOENCODING: utf-8
           DANCEPLAYLIST_MONKEY_STEPS: "1000"
           DANCEPLAYLIST_MONKEY_DIALOG_CLICKS: "15"
-          REPLAY_SEED: ${{ inputs.seed }}
+          DANCEPLAYLIST_MONKEY_SEED: ${{ steps.seed.outputs.seed }}
+          DANCEPLAYLIST_MONKEY_VISITS: monkey-visits.json
         run: |
-          export DANCEPLAYLIST_MONKEY_SEED="${REPLAY_SEED:-$(date -u +%Y%m%d)${{ matrix.n }}}"
           echo "seed $DANCEPLAYLIST_MONKEY_SEED"
           python -m unittest tests.gui.test_monkey -v
+
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: success() && !inputs.seed
+        with:
+          path: monkey-visits.json
+          key: monkey-visits-${{ steps.seed.outputs.slot }}-${{ github.run_id }}
+
+      - name: Never-hit report
+        if: always() && hashFiles('monkey-visits.json') != ''
+        shell: bash
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python -m tests.gui.monkey_novelty monkey-visits.json | tee never-hit.txt
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always() && hashFiles('never-hit.txt') != ''
+        with:
+          name: monkey-never-hit-${{ steps.seed.outputs.slot }}
+          path: |
+            never-hit.txt
+            monkey-visits.json

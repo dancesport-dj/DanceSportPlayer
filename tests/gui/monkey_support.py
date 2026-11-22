@@ -66,6 +66,7 @@ from PySide6.QtWidgets import (
 
 from planner.music.analysis import AudioFeatures
 from shared.columns import _COL_PLAY, _COL_TITLE
+from tests.gui.monkey_novelty import VISITS_ENV, Novelty, target_key
 from tests.qt_test_support import reap_widget
 
 STEPS = int(os.environ.get("DANCEPLAYLIST_MONKEY_STEPS", "150"))
@@ -154,6 +155,7 @@ class Monkey:
         self.rng = random.Random(seed)
         self.roots = roots          # callable → the windows the monkey may touch
         self.dialog_clicks = dialog_clicks
+        self.novelty = Novelty.from_env()   # the controls least worked go first
         self.log: deque[str] = deque(maxlen=25)
         self.step = 0
         self._timer = QTimer()
@@ -268,8 +270,15 @@ class Monkey:
                 if w.isVisible() and w.acceptDrops()]
 
     def rng_target(self, roots):
+        """A random target, weighted to the ones this walk (and, with a visits
+        file, the earlier walks) worked least — see tests/gui/monkey_novelty.py."""
         found = self.targets(roots)
-        return self.rng.choice(found) if found else None
+        if not found:
+            return None
+        keys = [target_key(kind, w) for kind, w in found]
+        i = self.rng.choices(range(len(found)), weights=self.novelty.weights(keys))[0]
+        self.novelty.mark(keys[i])
+        return found[i]
 
     # ── acting ──────────────────────────────────────────────────────────────
 
@@ -591,9 +600,15 @@ class LoadedWindow(unittest.TestCase):
             finally:
                 monkey.stop()
         if trap.caught:
+            # A red walk saves no counts. The nightly keeps the file as the run
+            # found it (it saves only when every walk passed), so the seed and
+            # that file replay the run.
+            visits = os.environ.get(VISITS_ENV)
+            replay = f" and {VISITS_ENV}={visits}" if visits else ""
             self.fail(f"seed {SEED}: the walk failed after {monkey.step + 1} "
-                      f"{unit} (replay with DANCEPLAYLIST_MONKEY_SEED={SEED})\n\n"
+                      f"{unit} (replay with DANCEPLAYLIST_MONKEY_SEED={SEED}{replay})\n\n"
                       + "\n\n".join(trap.caught))
+        monkey.novelty.save()
 
     def check_step(self, trap: ExceptionTrap):
         """What must hold after every step: each list keeps one row record for

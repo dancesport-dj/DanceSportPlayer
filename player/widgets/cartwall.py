@@ -75,17 +75,12 @@ from planner import i18n
 from planner.music.parsing import read_duration
 from planner.music.paths import is_foreign_network
 from planner.playing import cartwall as pc
-from player.dialogs.cart_pad_dialog import (
-    PAD_COLOURS,
-    CartPadDialog,
-    ClickableLabel,
-    TypedValue,
-)
+from player.dialogs.cart_pad_dialog import PAD_COLOURS, CartPadDialog
 from player.widgets.player_parts import VOL_STEP, ClickSlider, fmt_ms
 from shared.appearance import icons
 from shared.audio.audio_files import AUDIO_EXTS, music_browse_dir, remember_browse_dir
 from shared.plain_text import plain_tip
-from shared.widgets import FlowLayout
+from shared.widgets import ClickableLabel, FlowLayout, TypedValue
 
 log = logging.getLogger("dancesport.gui.cartwall")
 

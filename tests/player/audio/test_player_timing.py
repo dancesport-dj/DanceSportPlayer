@@ -21,7 +21,12 @@ from player.audio.announce import (
     pick_clip_gender,
 )
 from player.window.main_pause import PauseMusicMixin
-from shared.audio.playback import audible_played_secs
+from shared.audio.playback import (
+    audible_played_secs,
+    note_tempo_change,
+    rewind_tempo_history,
+    tempo_shift_secs,
+)
 
 
 class AudiblePlayedSecsTest(unittest.TestCase):
@@ -54,6 +59,119 @@ class AudiblePlayedSecsTest(unittest.TestCase):
 
     def test_none_rate_is_treated_as_normal_speed(self):
         self.assertAlmostEqual(audible_played_secs(30_000, 0, None), 30.0)
+
+
+class TempoShiftTest(unittest.TestCase):
+    """A tempo moved mid-title: what was danced so far stays danced. The
+    log's Sofia went to −16 % at 1:18.9 and the cut fired a second later,
+    because the whole 1:18.9 was suddenly read as slowed music."""
+
+    # ===== Acceptance criteria =====
+
+    def test_slowing_down_late_does_not_cut_the_title_short(self):
+        shift = tempo_shift_secs(78_889, 0, 1.0, 0.84)
+        self.assertAlmostEqual(
+            audible_played_secs(78_889, 0, 0.84, shift), 78.889, places=3)
+
+    def test_speeding_up_late_does_not_stretch_the_title(self):
+        shift = tempo_shift_secs(60_000, 0, 1.0, 1.16)
+        self.assertAlmostEqual(
+            audible_played_secs(60_000, 0, 1.16, shift), 60.0, places=3)
+
+    # ===== Core behavior =====
+
+    def test_the_music_after_the_change_counts_at_the_new_tempo(self):
+        shift = tempo_shift_secs(60_000, 0, 1.0, 0.84)
+        # 8.4 s of file at 0.84 are 10 s on the floor.
+        self.assertAlmostEqual(
+            audible_played_secs(68_400, 0, 0.84, shift), 70.0, places=3)
+
+    def test_two_changes_add_up(self):
+        shift = tempo_shift_secs(30_000, 0, 1.0, 0.84)
+        shift += tempo_shift_secs(38_400, 0, 0.84, 1.16)
+        self.assertAlmostEqual(
+            audible_played_secs(38_400 + 11_600, 0, 1.16, shift), 50.0,
+            places=3)
+
+    def test_a_skipped_intro_still_does_not_count(self):
+        shift = tempo_shift_secs(18_000, 8_000, 1.0, 1.16)
+        self.assertAlmostEqual(
+            audible_played_secs(18_000, 8_000, 1.16, shift), 10.0, places=3)
+
+    # ===== Coverage and null checks =====
+
+    def test_a_change_before_the_music_starts_shifts_nothing(self):
+        self.assertEqual(tempo_shift_secs(0, 0, 1.0, 0.84), 0.0)
+        self.assertEqual(tempo_shift_secs(3_000, 8_000, 1.0, 0.84), 0.0)
+
+    def test_the_same_rate_shifts_nothing(self):
+        self.assertEqual(tempo_shift_secs(50_000, 0, 0.9, 0.9), 0.0)
+
+
+class TempoRewindTest(unittest.TestCase):
+    """A seek back past a tempo change: the tempo history after the new
+    position never happened. Kept, a −16 % at 1:00 then a seek to the start
+    read 0:00 floor time for the first 9.6 s (the shift is negative), and
+    the title ran that much longer; +16 % then back cut it short."""
+
+    @staticmethod
+    def changed(position_ms, old, new, marks=(), shift=0.0, offset_ms=0):
+        return note_tempo_change(list(marks), shift, position_ms, offset_ms, old, new)
+
+    # ===== Acceptance criteria =====
+
+    def test_a_seek_to_the_start_after_slowing_down_counts_from_zero(self):
+        marks, shift = self.changed(60_000, 1.0, 0.84)
+        marks, shift = rewind_tempo_history(marks, shift, 0, 0, 0.84)
+        self.assertAlmostEqual(audible_played_secs(0, 0, 0.84, shift), 0.0)
+        # 8.4 s of file at 0.84 are 10 s on the floor, from the start.
+        self.assertAlmostEqual(audible_played_secs(8_400, 0, 0.84, shift), 10.0)
+
+    def test_a_seek_back_after_speeding_up_keeps_the_music_before_it(self):
+        marks, shift = self.changed(60_000, 1.0, 1.16)
+        marks, shift = rewind_tempo_history(marks, shift, 30_000, 0, 1.16)
+        # The first 30 s were danced at 1.0; from there on it is 1.16.
+        self.assertAlmostEqual(audible_played_secs(30_000, 0, 1.16, shift), 30.0)
+        self.assertAlmostEqual(audible_played_secs(41_600, 0, 1.16, shift), 40.0)
+
+    # ===== Core behavior =====
+
+    def test_playing_on_leaves_the_history_alone(self):
+        marks, shift = self.changed(60_000, 1.0, 0.84)
+        self.assertEqual(rewind_tempo_history(marks, shift, 75_000, 0, 0.84),
+                         (marks, shift))
+
+    def test_a_seek_back_between_two_changes_undoes_only_the_later(self):
+        marks, shift = self.changed(30_000, 1.0, 0.84)
+        marks, shift = self.changed(50_000, 0.84, 1.16, marks, shift)
+        marks, shift = rewind_tempo_history(marks, shift, 40_000, 0, 1.16)
+        # 30 s at 1.0, then 10 s of file at 0.84.
+        self.assertAlmostEqual(audible_played_secs(40_000, 0, 1.16, shift),
+                               30 + 10 / 0.84, places=3)
+        self.assertEqual(len(marks), 2)
+
+    def test_a_second_seek_back_further_still_undoes_the_rest(self):
+        marks, shift = self.changed(60_000, 1.0, 0.84)
+        marks, shift = rewind_tempo_history(marks, shift, 40_000, 0, 0.84)
+        marks, shift = rewind_tempo_history(marks, shift, 10_000, 0, 0.84)
+        # Never played at 0.84 before 40 s: the first 10 s were at 1.0.
+        self.assertAlmostEqual(audible_played_secs(10_000, 0, 0.84, shift), 10.0)
+
+    def test_a_skipped_intro_still_does_not_count_after_a_seek(self):
+        marks, shift = self.changed(30_000, 1.0, 0.84, offset_ms=8_000)
+        marks, shift = rewind_tempo_history(marks, shift, 18_000, 8_000, 0.84)
+        self.assertAlmostEqual(audible_played_secs(18_000, 8_000, 0.84, shift), 10.0)
+
+    # ===== Coverage and null checks =====
+
+    def test_the_position_reported_just_after_a_change_is_not_a_seek(self):
+        """The backend may report a few ms before the change point after it."""
+        marks, shift = self.changed(60_000, 1.0, 0.84)
+        self.assertEqual(rewind_tempo_history(marks, shift, 59_900, 0, 0.84),
+                         (marks, shift))
+
+    def test_no_history_is_nothing_to_rewind(self):
+        self.assertEqual(rewind_tempo_history([], 0.0, 1_000, 0, 1.0), ([], 0.0))
 
 
 class _HallLanguage(unittest.TestCase):
@@ -758,3 +876,49 @@ class SilenceProbeExitTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TempoChangingHandlerTest(unittest.TestCase):
+    """The window books each tempo change the big player reports."""
+
+    # ===== Acceptance criteria =====
+
+    def test_a_late_slow_down_keeps_the_heard_time(self):
+        from types import SimpleNamespace
+
+        from player.audio.playback_state import PlaybackState
+        from player.window.main_player import PlayerControlMixin
+        win = SimpleNamespace(_playback=PlaybackState(path=Path("a.mp3")))
+        PlayerControlMixin._on_tempo_changing(win, 1.0, 0.84, 78_889)
+        self.assertAlmostEqual(
+            audible_played_secs(78_889, 0, 0.84,
+                                win._playback.tempo_shift_secs),
+            78.889, places=3)
+
+    def test_the_play_tick_rewinds_the_history_after_a_seek_back(self):
+        from types import SimpleNamespace
+
+        from player.audio.playback_state import PlaybackState
+        from player.window.main_player import PlayerControlMixin
+        player = mock.Mock(**{"position.return_value": 60_000,
+                              "playbackRate.return_value": 0.84})
+        win = SimpleNamespace(_playback=PlaybackState(path=Path("a.mp3")), _player=player,
+                              _sync_big_player_limit=mock.Mock())
+        PlayerControlMixin._on_tempo_changing(win, 1.0, 0.84, 60_000)
+        PlayerControlMixin._rewind_tempo(win)   # playing on: nothing to undo
+        win._sync_big_player_limit.assert_not_called()
+        player.position.return_value = 0   # ⏮ back to the start
+        PlayerControlMixin._rewind_tempo(win)
+        self.assertAlmostEqual(win._playback.tempo_shift_secs, 0.0)
+        win._sync_big_player_limit.assert_called_once()   # the ⏳ cut moves back
+
+    # ===== Coverage and null checks =====
+
+    def test_nothing_on_the_deck_books_nothing(self):
+        from types import SimpleNamespace
+
+        from player.audio.playback_state import PlaybackState
+        from player.window.main_player import PlayerControlMixin
+        win = SimpleNamespace(_playback=PlaybackState())
+        PlayerControlMixin._on_tempo_changing(win, 1.0, 0.84, 50_000)
+        self.assertEqual(win._playback.tempo_shift_secs, 0.0)

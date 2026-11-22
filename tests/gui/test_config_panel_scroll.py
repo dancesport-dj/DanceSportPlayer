@@ -61,6 +61,23 @@ class ConfigPanelScrollTest(unittest.TestCase):
         self.win._left_stack.setFixedHeight(height)
         self.app.processEvents()
 
+    def test_the_action_buttons_stay_in_sight_on_a_short_screen(self):
+        """Generate sat at y≈742 in the scrolled panel, below the fold of a
+        720 px laptop: the buttons now sit under the scroll area."""
+        self._shrink_to(450)
+        for b in (self.cfg.generate_btn, self.cfg.save_btn, self.cfg.import_btn,
+                  self.cfg.ai_playlist_btn):
+            with self.subTest(button=b.text()):
+                self.assertFalse(self.win._cfg_scroll.isAncestorOf(b))
+                self.assertTrue(b.isVisible())
+                self.assertFalse(b.visibleRegion().isEmpty())
+
+    def test_the_action_buttons_go_with_the_planning_panel(self):
+        self.win._set_play_mode(True)
+        self.assertFalse(self.cfg.generate_btn.isVisible())
+        self.win._set_play_mode(False)
+        self.assertTrue(self.cfg.generate_btn.isVisible())
+
     def test_the_planning_column_scrolls(self):
         """The panel is in a scroll area, not straight in the stack."""
         self.assertIsInstance(self.win._cfg_scroll, QScrollArea)

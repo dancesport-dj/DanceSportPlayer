@@ -52,12 +52,14 @@ class HelperTest(unittest.TestCase):
         self.assertIn("white-space:pre-wrap", out)
 
     def test_a_tip_qt_shows_as_plain_is_left_alone(self):
-        for text in ("C:/music/x.mp3", "Tom & Jerry <3", "line1" + chr(10) + "<img src=y>"):
+        # "a < b and c > d": markup to Qt 6.11's guess, plain to 6.12's.
+        for text in ("C:/music/x.mp3", "Tom & Jerry <3", "line1" + chr(10) + "<img src=y>",
+                     "a < b and c > d"):
             with self.subTest(text=text):
                 self.assertEqual(plain_text.plain_tip(text), text)
 
     def test_a_tip_qt_would_read_as_markup_is_escaped(self):
-        for text in ("<b>x</b>", "x <img src=y>", "a < b and c > d"):
+        for text in ("<b>x</b>", "x <img src=y>", "a <b and c> d"):
             with self.subTest(text=text):
                 tip = plain_text.plain_tip(text)
                 self.assertNotIn("<img", tip)

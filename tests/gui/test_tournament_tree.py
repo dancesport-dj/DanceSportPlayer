@@ -359,6 +359,15 @@ class PaneViewTest(_PaneCase):
         self.assertIs(self.pane._right.currentWidget(), self.pane._board)
         self.assertEqual(self.pane._view_btn.text(), "▤")
 
+    def test_the_button_tip_says_where_it_goes(self):
+        """▦ kept ▤'s tip "Show the tracks…" (the AI exploratory run, chapter 03)."""
+        self.assertIn("Show the tracks", self.pane._view_btn.toolTip())
+        self.pane._toggle_view()
+        self.assertNotIn("Show the tracks", self.pane._view_btn.toolTip())
+        self.assertIn("slots", self.pane._view_btn.toolTip())
+        self.pane._toggle_view()
+        self.assertIn("Show the tracks", self.pane._view_btn.toolTip())
+
     def test_the_choice_is_on_disk_at_once_and_comes_back(self):
         self.pane._toggle_view()
         saved = json.loads(self.state.path.read_text(encoding="utf-8"))

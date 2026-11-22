@@ -79,6 +79,13 @@ class VenuePackError(Exception):
     """The file is not a venue pack this version can read."""
 
 
+# What zipfile raises on a pack it cannot read, besides OSError: damaged bytes
+# or CRC, a member it cannot unpack (newer zip version, unknown compression:
+# NotImplementedError), a name flagged UTF-8 that is not (UnicodeDecodeError).
+_UNREADABLE_ZIP = (zipfile.BadZipFile, zlib.error, NotImplementedError,
+                   UnicodeDecodeError)
+
+
 class VenuePackCancelled(Exception):
     """The operator cancelled; nothing half-done is left behind."""
 
@@ -298,7 +305,7 @@ def read_pack(src: Path) -> Pack:
                     raise VenuePackError(f"damaged entry: {name}") from exc
                 if name == SETTINGS_FILE and not isinstance(docs[name], dict):
                     raise VenuePackError(f"damaged entry: {name}")
-    except (zipfile.BadZipFile, zlib.error, OSError) as exc:
+    except (*_UNREADABLE_ZIP, OSError) as exc:
         raise VenuePackError(str(exc)) from exc
     return Pack(docs=docs, music=dict(m.get("music") or {}),
                 created=str(m.get("created", "")))
@@ -392,9 +399,10 @@ def extract_music(src: Path, dest_dir: Path, progress=None, cancelled=None) -> d
                 log.warning("⚠️ Cancelled import left a file behind\n"
                             "file: %s\n"
                             "error: %s", t, exc)
-        # Damaged compressed bytes or a bad CRC: the dialogs know only
-        # VenuePackError (and OSError) as "this pack cannot be read".
-        if isinstance(err, (zipfile.BadZipFile, zlib.error)):
+        # Damaged compressed bytes, a bad CRC, a member zipfile cannot unpack:
+        # the dialogs know only VenuePackError (and OSError) as "this pack
+        # cannot be read".
+        if isinstance(err, _UNREADABLE_ZIP):
             raise VenuePackError(f"damaged pack: {err}") from err
         raise
     return mapping

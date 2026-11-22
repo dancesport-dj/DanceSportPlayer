@@ -74,7 +74,7 @@ class PinFitsItsRowTest(unittest.TestCase):
         card.show()
         self.app.processEvents()
         pin = card._tempo_pin.geometry()
-        tap = card._takt_btn.geometry()
+        tap = card._tools_btn.geometry()
         self.assertEqual((pin.top(), pin.height()), (tap.top(), tap.height()))
 
 

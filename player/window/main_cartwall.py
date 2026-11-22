@@ -501,6 +501,19 @@ class CartwallMixin(MainWindowHost):
 
     def _on_cart_active(self, count: int):
         self._cartwall.set_active(count)
+        self._sync_pause_music()
+
+    def _sync_pause_music(self):
+        """🎶 The big player's volume and tempo grey out while the pause
+        music plays: a background or endless pad with the deck stopped. It
+        follows neither (Mix.cartwall), so they would move nothing."""
+        card = getattr(self, "_big_player", None)
+        player = getattr(self, "_player", None)
+        if card is None or player is None:
+            return
+        stopped = player.playbackState() == QMediaPlayer.PlaybackState.StoppedState
+        card.set_pause_music(stopped and (self._background_pad_playing()
+                                          or self._endless_pad_playing()))
 
     def _on_cart_duck_changed(self, on: bool):
         self._set_duck_reason("cartwall", on)
@@ -545,6 +558,7 @@ class CartwallMixin(MainWindowHost):
         voices.set_music_playing(
             pd_wait or bed_wait or any(s in (playing, paused) for s in states),
             paused=only_paused)
+        self._sync_pause_music()
 
     def _on_cart_tick(self, rows):
         for key, ms_left, frac in rows:

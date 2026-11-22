@@ -44,7 +44,8 @@ structure.
 - **▶** in a row plays exactly that title. **■** stops it.
 - **Space** pauses and resumes the player, wherever the focus is, except in a
   text field, and in another list with a title selected, where it starts
-  that title.
+  that title. Two presses as quick as a double-click count as one, so a
+  hasty double tap does not pause and start again.
 - **Enter** starts the title selected in the list in focus, also in the
   list that is playing.
 - **Double-click** a row either starts it at once, or only *cues* it: it is
@@ -139,7 +140,7 @@ the time left.
 | **⏮ / ⏭** | Previous / next title. |
 | **◀◀ / ▶▶** | Back / forward 10 s. |
 | **⏯** | Pause / resume. |
-| **🔁** | Repeats *this* title endlessly, for when the floor is still full or a speech runs long. It works with ⏭ Auto off, too. Switching a list to ⏭ Auto while it runs asks whether the repeat should go, or the list would never move on. |
+| **🔁** | Repeats *this* title endlessly, for when the floor is still full or a speech runs long. It works with ⏭ Auto off, too. Switching a list to ⏭ Auto while it runs asks whether the repeat should go, or the list would never move on. While it repeats a title that plays in full, the ▶ panel counts down to the title's own end (**🔁 m:ss**). Switched off once the play length's fade has begun, the title plays on to its own end and fades out there (**⏳ m:ss**); switched off earlier, the play length holds again. |
 | fade button (muted speaker) | Fades the title out now, over the fade time, then ends it. |
 | **☕** | Fades the title out over the 🔉↓ ramp, the card blinking orange meanwhile, then starts the pause. A title held with ⏯ goes straight in. Only there while **Pause between songs** is on. |
 | extend button | Adds another pause length when the heat change takes longer. |
@@ -203,6 +204,10 @@ The tempo row under it:
   after 450 ms. **0** or a double-click on the fader resets it.
   [Desk keys](#-desk-keys) and a knob on a
   [hardware controller](#-a-hardware-controller) move it too.
+  Off ±0 %, the card counts the time as danced: the elapsed and remaining
+  time and the play length's cut are floor time, so a 1:30 play length at
+  −16 % still reads 1:30, and a change in mid-title keeps the time already
+  danced. The seek bar stays in the file's own time.
 - **CR**: while on, every title is pitched to the average tempo of its dance
   in this round, kept inside the tempo range of the WDSF Competition Rules. A
   Rumba at 23 becomes T24, a Paso Doble at 57 becomes T58. With the German
@@ -224,8 +229,18 @@ The tempo row under it:
   is.
 - **📌**: pins the tempo, so the fader stays where you left it when the next
   title starts.
-- **♪**: tap along to the beat to measure the live tempo by hand. This is for
-  display only and changes nothing.
+- **♪**: one button for two cards. Its menu offers **♪ Tempo check** and
+  **🎚 Equalizer**; with a card open, a click closes it and shows the menu
+  again. The button turns blue while an equalizer is on (music, voice or
+  pre-listen).
+  - **♪ Tempo check**: tap along to the beat to measure the live tempo by
+    hand. This is for display only and changes nothing.
+  - **🎚 Equalizer**: the card beside the player, on the music's tab, with
+    🔈 Voice and 🎧 Cue next to it. Every change is heard at once and saved;
+    switching an EQ on or off leaves a short gap. The 🎚 on the pre-listen
+    mini player opens the same card on the 🎧 Cue tab. A click elsewhere
+    closes it. Only with the FFmpeg backend; more in
+    [⚙ Settings](06-settings.md#sound-and-player).
 
 ## The Playing panel
 
@@ -317,7 +332,9 @@ With the switch off, a Paso Doble is an ordinary title.
   remembered.
 - **Pause between songs**: time for the couples to change or catch their
   breath. While it counts, the card blinks orange, like the wait before a
-  Paso Doble. Off, the next title follows at once.
+  Paso Doble. Off, the next title follows at once. Needs auto-advance: under
+  ✋ Manual the row leaves the panel, and comes back with its seconds under
+  ⏭ Auto.
 - **🎶 Pause music**: a one-line hint under the pause switch. The pause music
   is the cartwall's [▶ queue](#-a-queue-of-pads): a pause starts it from its
   first 🎶 background pad, unless a queue run is going already. Pads that are
@@ -326,6 +343,11 @@ With the switch off, a Paso Doble is an ordinary title.
   nothing plays. A 🎶 pad already going simply carries on. The 🎶 pads
   dip under the spoken call like the music does, and step back when the
   next title starts. To change the pause music, change the queue.
+  While the pause music plays and the deck stands still, the card's volume
+  and tempo faders and their − / + grey out: the pads follow the
+  cartwall's fader and play at their own tempo. They come back with the
+  next title. **🔊** stays live, because its duck lowers the pause music
+  too.
 - **🔀 Crossfade**: the last seconds of a title and the first of the next
   play together. The old one fades out while the new one fades in, so the
   floor never hears a gap. The caption is a switch: off, one title ends and
@@ -417,7 +439,8 @@ practice evening.
   spot, coming up over a second instead of at full level (a Paso Doble starts
   abruptly; the time is in [⚙ Settings ▸ 🔊 Sound & player](06-settings.md#sound-and-player)).
   The row shows **↩ mm:ss**, in a deck, a party list or a wishlist. The marks
-  are forgotten when the app closes.
+  are forgotten when the app closes. A title heard for less than 10 s, or
+  stopped in its last 10 s, gets no mark: there is nothing to come back to.
 
 ### Play sets
 
@@ -427,7 +450,7 @@ A click goes over to the next set (🏆, 🎉, 🏃, and round again), and puts 
 🏆 set on when none is. A tick in [⚙ Settings ▸ 🎛 Playsets](06-settings.md#play-sets)
 brings back one button per set.
 
-- **🏆 Tournament set**: 1:45 play length, then a 2.5 s fade-out after it, no
+- **🏆 Tournament set**: 1:45 play length, then a 3 s fade-out after it, no
   pause, no crossfade, no auto-advance, no announcement, equalized volume.
   It also puts the 🐂 Paso Doble on the set's values: out of the box the
   stop off and Start after 0 s. It is lit gold while the panel is on those
@@ -849,7 +872,6 @@ macro keypad needs no driver for them.
 | ▶ Play the selected title | **Alt + P** |
 | ➕ Selected title to the playlist | **Alt + A** |
 | ⭐ Selected title to the wishlist | **Alt + D** |
-| ♪ Takt meter open / close | **Ctrl + Shift + T** |
 
 To change them, open **⌨ Keys…** in ⚙ Settings ▸ ⚙ General ▸
 🎛 Controller, or from the **F1** cheat sheet, which lists the keys as they

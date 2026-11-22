@@ -2515,6 +2515,7 @@ CATALOG = {
         "\n"
         "Если кнопка горит, щелчок выключает набор: список возвращается\n"
         "к значениям, которые были до его включения.",
+    "Default (black)": "Default (чёрный)",
     "The colours of the presenter screen. 'Default' is the black hall\n"
     "display; 'Light' is creme paper with warm brown type and rose\n"
     "gold for the next dance — made for a lit room, where black on a\n"
@@ -3363,28 +3364,14 @@ CATALOG = {
         "Системное по умолчанию (следует за системой)",
     "Same as the music":
         "Как у музыки",
-    "Every output the operating system lists can be chosen. On a sound card\n"
-    "with several outputs, each pair that shows up as a device of its own\n"
-    "(\"Out 3/4\" next to \"Out 1/2\") can take a source of its own. A card\n"
-    "listed as ONE multichannel device offers its further pairs as\n"
-    "\"— Out 3/4\" entries. The music on such an entry changes its\n"
-    "pitch with the tempo fader, like a turntable.\n"
-    "\n"
-    "A card that is not plugged in plays on the system default until it is back.":
-        "Можно выбрать любой выход, который показывает операционная система. На\n"
-        "звуковой карте с несколькими выходами каждая пара, видимая как отдельное\n"
-        "устройство (\"Out 3/4\" рядом с \"Out 1/2\"), может получить свой источник.\n"
-        "Карта, видимая как ОДНО многоканальное устройство, предлагает остальные пары\n"
-        "как пункты «— Out 3/4». Музыка на таком пункте меняет с регулятором темпа\n"
-        "и высоту тона, как проигрыватель пластинок.\n"
-        "\n"
-        "Неподключённая карта играет на системном устройстве, пока она не вернётся.",
-    "🔀 A card listed as one multichannel device offers its further outputs (\"— Out 3/4\") to every source. The music on such a pair changes its pitch with the tempo fader, like a turntable: faster sounds higher, slower lower. Only a whole output keeps the pitch while the tempo changes.":
-        "🔀 Карта, видимая как одно многоканальное устройство, предлагает остальные выходы («— Out 3/4») всем источникам. Музыка на такой паре меняет с регулятором темпа и высоту тона, как проигрыватель пластинок: быстрее звучит выше, медленнее ниже. Только целый выход сохраняет высоту тона при изменении темпа.",
+    'Every output the operating system lists can be chosen. On a sound card\nwith several outputs, each pair that shows up as a device of its own\n("Out 3/4" next to "Out 1/2") can take a source of its own. A card\nlisted as ONE multichannel device offers its further pairs as\n"— Out 3/4" entries. There the app makes the music\'s tempo\nitself (⏩ Tempo): the pitch stays.\n\nA card that is not plugged in plays on the system default until it is back.':
+        'Можно выбрать любой выход, который показывает операционная система. На\nзвуковой карте с несколькими выходами каждая пара, видимая как отдельное\nустройство ("Out 3/4" рядом с "Out 1/2"), может получить свой источник.\nКарта, видимая как ОДНО многоканальное устройство, предлагает остальные пары\nкак пункты «— Out 3/4». Там приложение само меняет темп музыки:\nвысота тона сохраняется (⏩ Темп).\n\nНеподключённая карта играет на системном устройстве, пока она не вернётся.',
+    '🔀 A card listed as one multichannel device offers its further outputs ("— Out 3/4") to every source. There the app makes the music\'s tempo itself, with the stretch chosen under ⏩ Tempo: the pitch stays, at a little more CPU than on a whole output.':
+        '🔀 Карта, видимая как одно многоканальное устройство, предлагает остальные выходы («— Out 3/4») всем источникам. Там приложение само меняет темп музыки растяжением, выбранным в ⏩ Темп: высота тона сохраняется, при чуть большей нагрузке на CPU, чем на целом выходе.',
     "Music on a channel pair":
         "Музыка на паре каналов",
-    "On %s the tempo fader changes the pitch along with the speed, like a turntable: faster sounds higher, slower lower.\n\nOnly a whole output keeps the pitch. Play the music on this pair anyway?":
-        "На %s регулятор темпа меняет вместе со скоростью и высоту тона, как проигрыватель пластинок: быстрее звучит выше, медленнее ниже.\n\nТолько целый выход сохраняет высоту тона. Всё равно играть музыку на этой паре?",
+    'On %s the app makes the tempo itself, with the stretch chosen under ⏩ Tempo: the pitch stays, at a little more CPU than on a whole output.\n\nPlay the music on this pair anyway?':
+        'На %s приложение само меняет темп растяжением, выбранным в ⏩ Темп: высота тона сохраняется, при чуть большей нагрузке на CPU, чем на целом выходе.\n\nВсё равно играть музыку на этой паре?',
     "⚠  %s (not connected)":
         "⚠  %s (не подключено)",
     "The music plays on %s — click for the sound settings.":
@@ -4905,6 +4892,12 @@ CATALOG = {
         "тише",
     "louder":
         "громче",
+    "The pause music is a cartwall pad: its level is the\ncartwall's fader. Back with the next title.":
+        "Музыка паузы — это пэд картволла: её громкость — регулятор\nкартволла. Вернётся со следующим треком.",
+    "The pause music is a cartwall pad: it plays at its\nown tempo. Back with the next title.":
+        "Музыка паузы — это пэд картволла: он играет в своём\nтемпе. Вернётся со следующим треком.",
+    "Ducks the pause music too.":
+        "Приглушает и музыку паузы.",
     "Volume %s %s — hold to glide":
         "Громкость %s %s — удерживайте для плавного изменения",
     "Duck to %d %%, again to mute, again back to full":
@@ -6393,4 +6386,136 @@ CATALOG = {
         "📥  Загрузить в…",
     "🔎  Checking %s tracks for duplicates…":
         "🔎  Поиск дубликатов среди %s треков…",
+    "⋯ Filters":
+        "⋯ Фильтры",
+    "⋯ Filters (%d)":
+        "⋯ Фильтры (%d)",
+    "Show the vocal, play-history and added-date filters.":
+        "Показать фильтры по вокалу, истории использования и дате добавления.",
+    "📐  Screen:":
+        "📐  Экран:",
+    "Auto":
+        "Авто",
+    "Normal":
+        "Обычный",
+    "Compact":
+        "Компактный",
+    "Compact: the hints fold to one line, an empty wishlist starts\nfolded and the rows sit tighter — for a 13″ laptop.\nAuto: Compact when the screen is less than 800 px high.\nRead when the app starts, like the theme.":
+        "Компактный: подсказки сворачиваются в одну строку, пустой список\nпожеланий начинается свёрнутым, а строки идут плотнее — для 13″ ноутбука.\nАвто: компактный, если экран ниже 800 px.\nЧитается при запуске, как и тема.",
+    "+%d more ▾":
+        "ещё %d ▾",
+    "Auto (Compact on this screen)":
+        "Авто (на этом экране компактный)",
+    "Auto (Normal on this screen)":
+        "Авто (на этом экране обычный)",
+    "Compact fits more rows on a 12-13″ laptop. ⚙ Settings → 🎨 Look changes it later.":
+        "Компактный вид показывает больше строк на ноутбуке 12-13″. Изменить можно позже в ⚙ Настройки → 🎨 Внешний вид.",
+    '<b>⏩ Tempo</b> — how the music keeps its pitch when the tempo fader moves:':
+        '<b>⏩ Темп</b> — как музыка сохраняет высоту тона при движении регулятора темпа:',
+    '🎼  Rubber Band — through ffmpeg, crisp beats, more CPU':
+        '🎼  Rubber Band — через ffmpeg, чёткие удары, больше нагрузка на CPU',
+    "▶  Qt (standard) — Qt's own stretch, stutters briefly when the tempo changes (default)":
+        '▶  Qt (стандарт) — собственное растяжение Qt, на миг запинается при смене темпа (по умолчанию)',
+    "〰  Signalsmith — the app's own, a tempo change without a gap":
+        '〰  Signalsmith — собственное растяжение приложения, смена темпа без паузы',
+    "All three keep the pitch when the tempo fader moves, for every title.\nQt (standard): Qt's own stretch; every tempo change leaves a short gap.\nWhile the 🎚 equalizer is on, Signalsmith stands in, the same stretch.\nSignalsmith: the app makes the tempo itself, light on the CPU, a\nchange without a gap. Rubber Band keeps drum hits crisper but costs\nclearly more CPU; it runs inside ffmpeg (shipped with the app on\nWindows; Homebrew or the package manager elsewhere).":
+        'Все три сохраняют высоту тона при движении регулятора темпа, в каждом треке.\nQt (стандарт): собственное растяжение Qt; каждая смена темпа оставляет короткую паузу.\nПока 🎚 эквалайзер включён, его заменяет Signalsmith, то же растяжение.\nSignalsmith: приложение само делает темп, щадит CPU, смена\nбез паузы. Rubber Band сохраняет удары чётче, но заметно сильнее\nнагружает CPU; он работает внутри ffmpeg (входит в приложение под\nWindows; иначе Homebrew или менеджер пакетов).',
+    'Applies from the next title. A title ffmpeg is not ready for goes through Signalsmith.':
+        'Действует со следующего трека. Трек, к которому ffmpeg не готов, идёт через Signalsmith.',
+    'This ffmpeg has no Rubber Band filter: Signalsmith makes the tempo.':
+        'В этом ffmpeg нет фильтра Rubber Band: темп делает Signalsmith.',
+    'Music equalizer':
+        'Эквалайзер музыки',
+    "Turn the music's equalizer on?":
+        'Включить эквалайзер музыки?',
+    "With the EQ on, the app makes the music's tempo itself, with the stretch chosen under ⚙ Settings → ⏩ Tempo (now: %s). The pitch stays when the tempo fader moves, at a little more CPU; Rubber Band takes clearly more.\n\nIt starts at once, after a short gap.":
+        'С включённым эквалайзером приложение само меняет темп музыки растяжением, выбранным в ⚙ Настройки → ⏩ Темп (сейчас: %s). Высота тона сохраняется при движении регулятора темпа, при чуть большей нагрузке на CPU; Rubber Band нагружает заметно сильнее.\n\nНачинается сразу, после короткой паузы.',
+    "Don't ask again":
+        'Больше не спрашивать',
+    'Turn it on':
+        'Включить',
+    'Leave it off':
+        'Оставить выключенным',
+    '⚙ Advanced: frequencies and widths':
+        '⚙ Дополнительно: частоты и ширина',
+    'On':
+        'Вкл',
+    'Off: the player plays as without an EQ. On and off are heard at\nonce, after a short gap; Bypass compares without one.':
+        'Выкл: плеер играет как без эквалайзера. Вкл и выкл слышны сразу,\nпосле короткой паузы; «Без эквалайзера» сравнивает без неё.',
+    'Bypass':
+        'Без эквалайзера',
+    'Hear it without the EQ for a moment, at once.':
+        'Ненадолго послушать без эквалайзера, сразу.',
+    'A starting point for a room; the sliders fine-tune it.':
+        'Отправная точка для зала; регуляторы его подстраивают.',
+    'This band on or off':
+        'Эта полоса вкл или выкл',
+    'Double-click: back to 0 dB':
+        'Двойной щелчок: обратно на 0 дБ',
+    'Custom':
+        'Своя',
+    'Turned down %.1f dB so no boost can clip.':
+        'Тише на %.1f дБ, чтобы подъём не перегружал.',
+    'Low cut':
+        'Срез низов',
+    'Bass':
+        'Бас',
+    'Low mid':
+        'Нижняя середина',
+    'Presence':
+        'Присутствие',
+    'Treble':
+        'Высокие',
+    'Flat':
+        'Ровно',
+    'Boomy hall':
+        'Гулкий зал',
+    'Small room':
+        'Маленькое помещение',
+    'Weak speakers':
+        'Слабые колонки',
+    'Speech clarity':
+        'Разборчивость речи',
+    '🎚 Equalizer':
+        '🎚 Эквалайзер',
+    '🎵 Music':
+        '🎵 Музыка',
+    '🔈 Voice':
+        '🔈 Голос',
+    '🎧 Cue':
+        '🎧 Предпрослушивание',
+    'The pre-listen plays on the music\'s output ("Same as the music"):\nthe music\'s EQ is what is heard there.':
+        'Предпрослушивание играет на выходе музыки («Как музыка»):\nтам слышен эквалайзер музыки.',
+    'Only with the FFmpeg engine: ⚙ Settings → 🔊 Sound & player → Audio backend.':
+        'Только с движком FFmpeg: ⚙ Настройки → 🔊 Звук и плеер → Аудиодвижок.',
+    '♪ Tempo check':
+        '♪ Проверка темпа',
+    '♪ Tempo check  ·  🎚 Equalizer':
+        '♪ Проверка темпа  ·  🎚 Эквалайзер',
+    '🎚 Equalizer: fit the music, the announcements and the pre-listen\nto the room and its speakers.':
+        '🎚 Эквалайзер: подстроить музыку, объявления и предпрослушивание\nпод зал и его колонки.',
+    "🎚 The pre-listen's equalizer":
+        '🎚 Эквалайзер предпрослушивания',
+    '<b>🎚 Equalizer</b> — fit the music, the announcements and the pre-listen to the room and its speakers:':
+        '<b>🎚 Эквалайзер</b> — подстроить музыку, объявления и предпрослушивание под зал и его колонки:',
+    'Only with the FFmpeg engine: choose it under Audio backend above.':
+        'Только с движком FFmpeg: выберите его выше в пункте Аудиодвижок.',
+    'Keep these four gains as a preset of your own, for every tab.':
+        'Сохранить эти четыре усиления как свой пресет, для всех вкладок.',
+    'Delete this preset of your own.':
+        'Удалить этот свой пресет.',
+    'Save preset':
+        'Сохранить пресет',
+    'Name of the preset:':
+        'Название пресета:',
+    'A built-in preset has that name. Please choose another one.':
+        'Так называется встроенный пресет. Выберите другое название.',
+    'Replace your preset "%s"?':
+        'Заменить ваш пресет «%s»?',
+    'Delete preset':
+        'Удалить пресет',
+    'Delete your preset "%s"?':
+        'Удалить ваш пресет «%s»?',
+    'Takes away everything below this frequency: rumble, stage\nthumps, hum. Off lets the deepest bass through.':
+        'Убирает всё ниже этой частоты: гул, стук по сцене,\nфон. «Выкл.» пропускает даже самый низкий бас.',
 }

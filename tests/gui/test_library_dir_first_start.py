@@ -45,7 +45,8 @@ class _Stubbed(unittest.TestCase):
                            ("LibraryDirQuestion", self._make_question),
                            ("AppModeDialog", lambda *a, **kw: type(
                                "_Stub", (), {"exec": lambda s: 0,
-                                             "mode": lambda s: "both"})()),
+                                             "mode": lambda s: "both",
+                                             "screen_mode": lambda s: "auto"})()),
                            ("warn_if_ffmpeg_missing", lambda *a: None)):
             self.addCleanup(setattr, dialogs, name, getattr(dialogs, name))
             setattr(dialogs, name, repl)

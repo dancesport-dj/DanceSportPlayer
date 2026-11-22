@@ -1,0 +1,28 @@
+#EXTM3U
+
+# ══ Vorrunde (2 Heats) ══
+
+# ── Samba ──
+# Heat 1
+#EXTINF:95,Magalenha [T50]
+C:\Musik\SA\Magalenha.mp3
+# Heat 2
+#EXTINF:95,Bailando (Radio Edit) [?BPM]
+C:\Musik\SA\Bailando.mp3
+
+# ── Cha-Cha ──
+# Heat 1
+#EXTINF:95,Corazón [T30]
+C:\Musik\CC\Corazón.mp3
+# Heat 2
+# (no song found)
+
+# ══ Finale (1 Heat) ══
+
+# ── Samba ──
+#EXTINF:110,Mas Que Nada [T51]
+C:\Musik\SA\Mas Que Nada.mp3
+
+# ── Cha-Cha ──
+#EXTINF:120,Smooth [T31]
+C:\Musik\CC\Smooth.mp3

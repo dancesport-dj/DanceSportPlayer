@@ -73,7 +73,7 @@ _SAME_IN_GERMAN = {
     "Chromaprint",
     "DanceSport Planner & Player",
     "Cartwall", "🎛  Cartwall", "🎛 Cartwall", "🏷  Tags", "Slot %d", "Pool", "TSO",
-    "Name:", "⏭  Auto", "🔈  Test", "♪ Takt", "≈ Takt", "— Standard —",
+    "🎚 Equalizer", "Name:", "⏭  Auto", "🔈  Test", "♪ Takt", "≈ Takt", "— Standard —",
     "🎻 Instrumental", "🎚️ librosa: %s", "🎼 Chroma: %s", "🧠 MERT: %s",
     "Social Modetänze (Discofox, Salsa, Bachata, WCS, …)", "Tags", "Frame",
     "Custom:", "Version", "Looks (*.json)", "A  ·  Playlist 1",

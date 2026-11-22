@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from gui import screen_mode
 from gui.common import (
     DropZone,
     _lbl,
@@ -106,8 +107,7 @@ class ConfigPanel(QWidget):
         self.dance_checks: dict[str, QCheckBox] = {}
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(5)
+        self.apply_density()
 
         # ── Mode switch ──
         layout.addWidget(_lbl("Mode:"))
@@ -132,7 +132,16 @@ class ConfigPanel(QWidget):
 
         layout.addWidget(hsep())
 
-        self._build_actions(layout)
+        # The action buttons sit in a box of their own, which the window pins
+        # under the scroll area (`actions_box`): in the panel Generate came at
+        # y≈742, below the fold of a 720 px laptop. Hidden until it is placed.
+        self.actions_box = QWidget(self)
+        actions = QVBoxLayout(self.actions_box)
+        actions.setContentsMargins(8, 4, 8, 8)
+        actions.setSpacing(5)
+        actions.addWidget(hsep())
+        self._build_actions(actions)
+        self.actions_box.hide()
 
         # ── Drop zone: find similar from an external file ──
         self.drop_zone = DropZone()
@@ -151,6 +160,18 @@ class ConfigPanel(QWidget):
         # Populate dances + parse default rounds
         self._update_dances()
         self._parse_rounds()
+
+    def apply_density(self):
+        """📐 Compact closes the fields up: a row more of them in sight."""
+        layout = self.layout()
+        if layout is None:
+            return
+        if screen_mode.compact():
+            layout.setContentsMargins(6, 4, 6, 4)
+            layout.setSpacing(2)
+        else:
+            layout.setContentsMargins(8, 8, 8, 8)
+            layout.setSpacing(5)
 
     def _build_favorites_box(self, layout):
         """Source, style, age, class and the dance checkboxes (Favorites mode)."""

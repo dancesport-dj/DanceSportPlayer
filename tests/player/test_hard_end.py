@@ -172,6 +172,7 @@ class _Desk(PlayerControlMixin, QWidget):
         self._play_panel = cast(Any, _Panel())
         self._playback = PlaybackState()
         self._playback.path = TRACK
+        self._silences = {}   # no dead air probed
         # These tests describe a one second fade; 2 s is the app's default.
         self._settings = {"hard_end_fade_secs": 1.0}
         self._mix = OutputMix()

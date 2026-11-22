@@ -30,9 +30,107 @@ from tests.qt_test_support import reap_widget
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
-_COMBOS = ("_dance_combo", "_class_combo", "_vocal_combo", "_cat_combo",
-           "_plays_combo", "_added_combo")
-_ROW = ("_filter_edit",) + _COMBOS + ("_unplanned_chk",)
+_COMBOS = ("_dance_combo", "_class_combo", "_cat_combo")
+# Always on the line (Marcel: "most often i filter by dance, class and category").
+_FIRST = ("_filter_edit",) + _COMBOS + ("_unplanned_chk", "_class_only_chk")
+# The less-used ones, behind MORE_BTN when the line has no room for them.
+_MORE = ("_vocal_combo", "_plays_combo", "_added_combo")
+_ALL = _FIRST + _MORE
+# With room: the combos first, then the checkboxes (the original layout).
+_WIDE = ("_filter_edit",) + _COMBOS + _MORE + ("_unplanned_chk", "_class_only_chk",
+                                              "_more_btn")
+# Without: the checkboxes stay on the line; the button comes last, also
+# after the filters it opened (Marcel).
+_NARROW = _FIRST + _MORE + ("_more_btn",)
+
+
+def _all_width(b) -> int:
+    """What every filter asks for side by side, font-dependent, so measured."""
+    return sum(getattr(b, n).sizeHint().width() for n in _ALL) + 8 * len(_ALL)
+
+
+class MoreFiltersTest(unittest.TestCase):
+    """All filters on one line when they fit; otherwise vocal, plays and added
+    wait behind the more button, so the line does not wrap on a 13 inch laptop."""
+
+    def setUp(self):
+        self.b = LibraryBrowser()
+        self.addCleanup(reap_widget, self.b)
+        self.b.show()
+
+    def _at(self, width: int):
+        self.b.resize(width, 600)
+        _app.processEvents()
+
+    def _more(self):
+        return [getattr(self.b, name) for name in _MORE]
+
+    def _order(self) -> tuple:
+        """The filters' names in the order the flow lays them out."""
+        names = {id(getattr(self.b, n)): n for n in _ALL + ("_more_btn",)}
+        flow = self.b._filter_flow
+        return tuple(names[id(flow.itemAt(i).widget())] for i in range(flow.count()))
+
+    # ===== Acceptance criteria =====
+    def test_a_pane_with_room_shows_every_filter_and_no_more_button(self):
+        self._at(_all_width(self.b) + 40)
+        self.assertTrue(all(w.isVisible() for w in self._more()))
+        self.assertFalse(self.b._more_btn.isVisible())
+
+    def test_a_pane_without_room_hides_the_less_used_behind_the_button(self):
+        self._at(_all_width(self.b) - 120)
+        self.assertTrue(self.b._more_btn.isVisible())
+        self.assertFalse(any(w.isVisible() for w in self._more()))
+        self.b._more_btn.click()
+        self.assertTrue(all(w.isVisible() for w in self._more()))
+        self.b._more_btn.click()
+        self.assertFalse(any(w.isVisible() for w in self._more()))
+
+    def test_category_stays_on_the_line_and_vocal_moves_behind(self):
+        self._at(_all_width(self.b) - 120)
+        self.assertTrue(self.b._cat_combo.isVisible())
+        self.assertFalse(self.b._vocal_combo.isVisible())
+
+    def test_widening_the_pane_again_brings_them_back(self):
+        self._at(_all_width(self.b) - 120)
+        self._at(_all_width(self.b) + 40)
+        self.assertTrue(all(w.isVisible() for w in self._more()))
+        self.assertFalse(self.b._more_btn.isVisible())
+
+    def test_with_room_the_combos_come_first_then_the_checkboxes(self):
+        """Marcel: the original layout, buttons first, then the checkboxes,
+        with category before vocal."""
+        self._at(_all_width(self.b) + 40)
+        self.assertEqual(self._order(), _WIDE)
+
+    def test_without_room_the_checkboxes_stay_before_the_button(self):
+        self._at(_all_width(self.b) - 120)
+        self.assertEqual(self._order(), _NARROW)
+        self.b._more_btn.click()
+        _app.processEvents()
+        btn, last = self.b._more_btn, self.b._added_combo
+        self.assertTrue(btn.y() > last.y()
+                        or (btn.y() == last.y() and btn.x() > last.x()))
+        self._at(_all_width(self.b) + 40)
+        self.assertEqual(self._order(), _WIDE)
+
+    # ===== Core behavior =====
+    def test_the_more_button_counts_the_filters_it_hides(self):
+        """A hidden filter that is set must not silently empty the list."""
+        self.assertNotIn("(", self.b._more_btn.text())
+        self.b._vocal_combo.setCurrentIndex(self.b._vocal_combo.findData("vocal"))
+        self.b._added_combo.setCurrentIndex(self.b._added_combo.findData("30"))
+        self.assertIn("(2)", self.b._more_btn.text())
+        self.b._vocal_combo.setCurrentIndex(0)
+        self.b._added_combo.setCurrentIndex(0)
+        self.assertNotIn("(", self.b._more_btn.text())
+
+    def test_a_jump_from_outside_opens_the_row_it_set(self):
+        """The gap dashboard sets Plays: the filter it set must show."""
+        self._at(_all_width(self.b) - 120)
+        self.b.focus_filter(dance="SA", plays="never")
+        _app.processEvents()
+        self.assertTrue(self.b._plays_combo.isVisible())
 
 
 class FilterRowTest(unittest.TestCase):
@@ -50,7 +148,9 @@ class FilterRowTest(unittest.TestCase):
         _app.processEvents()
 
     def _row(self):
-        return [getattr(self.b, name) for name in _ROW]
+        """The controls on screen: which ones depends on the width."""
+        names = _ALL + ("_more_btn",)
+        return [w for w in (getattr(self.b, n) for n in names) if w.isVisible()]
 
     def _lines(self) -> int:
         """A line's controls share a middle, not a top: a control below
@@ -65,7 +165,7 @@ class FilterRowTest(unittest.TestCase):
     def _one_line_width(self) -> int:
         """What the filters ask for side by side — font-dependent, so it is
         measured rather than written down."""
-        return sum(w.sizeHint().width() for w in self._row()) + 8 * 4
+        return _all_width(self.b)
 
     def test_the_pane_can_be_made_as_narrow_as_the_window_asks(self):
         """The filter strip must never be what keeps the pane wide."""
@@ -169,6 +269,17 @@ class FlowStretchTest(unittest.TestCase):
         self.flow.addWidget(fixed)
         self._lay(120)
         self.assertEqual(fixed.width(), 300)
+
+    def test_a_hidden_control_leaves_no_gap(self):
+        """The library's ⋯ Filters sits after the filters it hides: hidden,
+        they must not push it right by their spacing."""
+        a, hidden, b = QToolButton(), QToolButton(), QToolButton()
+        for w in (a, hidden, b):
+            w.setText("AA")
+            self.flow.addWidget(w)
+        hidden.setVisible(False)
+        self._lay(600)
+        self.assertEqual(b.x(), a.x() + a.width() + 6)
 
     def test_the_wrap_itself_still_happens(self):
         edits = [QLineEdit() for _ in range(4)]

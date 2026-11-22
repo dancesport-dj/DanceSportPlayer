@@ -1,8 +1,8 @@
 ; Inno Setup script for the Windows installer, one per build flavor.
 ;
 ; Built by build_installer.bat from what build_exe.bat left in dist\, e.g.
-;   ISCC.exe /DFlavor=player /DAppVersion=2.0.2 installer\dancesport.iss
-; -> dist\installer\DanceSport-Player-2.0.2-setup.exe
+;   ISCC.exe /DFlavor=player /DAppVersion=2.1.0 installer\dancesport.iss
+; -> dist\installer\DanceSport-Player-2.1.0-setup.exe
 ;
 ; The install folder is the user's choice. Installed for all users (the
 ; default, admin rights for the setup only) under C:\Program Files, the app

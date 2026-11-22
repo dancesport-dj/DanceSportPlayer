@@ -53,7 +53,8 @@ class _Desk(PlayValuesMixin):
         self._pd_run = pd_run
         self._card = _Card()
         self._big_player = self._card
-        self._playback = SimpleNamespace(dance="LW")
+        self._playback = SimpleNamespace(dance="LW", runs_to_end=False, path=None)
+        self._player = None
         self.asked = []
         self.answer = True
         self.synced = 0
@@ -155,6 +156,151 @@ class LoopPlayLengthTest(unittest.TestCase):
             d = _Desk(**kw)
             d.press(True)
             self.assertEqual(d.asked, [], kw)
+
+
+class _Player:
+    def __init__(self, pos_s, dur_s=200.0):
+        self.pos_ms = int(pos_s * 1000)
+        self.dur_ms = int(dur_s * 1000)
+        self.state = QMediaPlayer.PlaybackState.PlayingState
+
+    def position(self):
+        return self.pos_ms
+
+    def duration(self):
+        return self.dur_ms
+
+    def playbackRate(self):
+        return 1.0
+
+    def playbackState(self):
+        return self.state
+
+
+class _Mix:
+    fade = 1.0
+
+
+class _TickDesk(_Desk):
+    """…with a title at `pos_s` of a 200 s file, for the run to its end."""
+
+    _floor_secs_at = PlayerControlMixin._floor_secs_at
+    _tick_to_its_end = PlayerControlMixin._tick_to_its_end
+    _secs_to_its_end = PlayerControlMixin._secs_to_its_end
+
+    def __init__(self, pos_s, fade=5, **kw):
+        super().__init__(**kw)
+        self._fade = fade
+        self._player = _Player(pos_s)
+        self._playback = SimpleNamespace(dance="LW", path="t.mp3", offset_ms=0,
+                                         tempo_shift_secs=0.0, runs_to_end=False)
+        self._mix = _Mix()
+        self.countdown = None
+        self.followed = []
+
+    def _pv(self, key):
+        return {"secs": self._secs, "fade": self._fade}.get(key, 0)
+
+    def _silence_stop_ms(self):
+        return None
+
+    def _hard_end_level(self):
+        return 1.0
+
+    def _apply_volume(self):
+        pass
+
+    def _follow_fade(self, follow):
+        self.followed.append(follow)
+
+    def _set_countdown(self, text):
+        self.countdown = text
+
+    def loop_on_full(self):
+        self.answer = True
+        self.press(True)
+
+
+class EndlessToItsEndTest(unittest.TestCase):
+    """Marcel: "when i activate endless play and answer set to full length the
+    title in player is fine but not the time indicator in the playing mode
+    controls. when i than remove/disable it and it is over the playing mode
+    time it ends abruptly, but in this case i want it to play full end and
+    then fade out." """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    # ===== Acceptance criteria =====
+
+    def test_full_length_counts_down_to_the_titles_own_end(self):
+        d = _TickDesk(pos_s=120)
+        d.loop_on_full()
+        d._tick_to_its_end()
+        self.assertEqual(d.countdown, "🔁  1:20")
+
+    def test_off_past_the_play_length_plays_on_to_the_end(self):
+        d = _TickDesk(pos_s=120)   # play length 1:45
+        d.loop_on_full()
+        d.press(False)
+        self.assertEqual(d._play_limit_secs(), 0)
+        d._tick_to_its_end()
+        self.assertEqual(d._mix.fade, 1.0)
+        self.assertEqual(d.countdown, "⏳  1:20")
+
+    def test_and_fades_out_over_its_last_seconds(self):
+        d = _TickDesk(pos_s=120)
+        d.loop_on_full()
+        d.press(False)
+        d._player.pos_ms = 197_500   # 2.5 s left of a 5 s fade
+        d._tick_to_its_end()
+        self.assertAlmostEqual(d._mix.fade, 0.5)
+        self.assertEqual(d.followed[-1][0], "timed")
+
+    # ===== Core behavior =====
+
+    def test_off_before_the_fade_keeps_the_play_length(self):
+        d = _TickDesk(pos_s=60)
+        d.loop_on_full()
+        d.press(False)
+        self.assertEqual(d._play_limit_secs(), 105)
+
+    def test_off_inside_the_fade_plays_on_too(self):
+        # Mid-fade (it runs 1:45-1:50), the level would jump to where it had got.
+        d = _TickDesk(pos_s=107)
+        d.loop_on_full()
+        d.press(False)
+        self.assertEqual(d._play_limit_secs(), 0)
+
+    def test_off_after_answering_play_length_keeps_the_cut(self):
+        d = _TickDesk(pos_s=102)
+        d.answer = False
+        d.press(True)
+        d.press(False)
+        self.assertEqual(d._play_limit_secs(), 105)
+
+    def test_no_fade_set_plays_to_the_end_at_full_level(self):
+        d = _TickDesk(pos_s=120, fade=0)
+        d.loop_on_full()
+        d.press(False)
+        d._player.pos_ms = 199_000
+        d._tick_to_its_end()
+        self.assertEqual(d._mix.fade, 1.0)
+
+    def test_a_stopped_deck_is_not_marked(self):
+        d = _TickDesk(pos_s=120)
+        d.loop_on_full()
+        d._player.state = QMediaPlayer.PlaybackState.StoppedState
+        d.press(False)
+        self.assertFalse(d._playback.runs_to_end)
+
+    # ===== Coverage and null checks =====
+
+    def test_no_play_length_and_no_loop_shows_no_countdown(self):
+        d = _TickDesk(pos_s=120, secs=0)
+        d._tick_to_its_end()
+        self.assertEqual(d.countdown, "")
 
 
 class LoopBoxTest(unittest.TestCase):

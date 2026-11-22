@@ -129,8 +129,9 @@ _active_accent = ACCENT_DEFAULT
 
 # 🔠 Text size in percent of the built size, read at start-up like the
 # theme. Above BUTTONS_FOLLOW the buttons grow with it, 🔘 the player's
-# primary ones and every button with a fixed width.
-FONT_SCALES = (100, 105, 110, 115, 130, 150)
+# primary ones and every button with a fixed width. 90 % is for a small
+# laptop screen (📐): the text shrinks, the buttons keep their size.
+FONT_SCALES = (90, 100, 105, 110, 115, 130, 150)
 BUTTONS_FOLLOW = 115
 _font_scale = 100
 _button_scaler = None
